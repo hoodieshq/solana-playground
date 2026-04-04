@@ -90,6 +90,101 @@ docker compose down
 docker compose down -v
 ```
 
+### Deploy to GCP
+
+Deploy the build server and database to a GCE instance using Terraform.
+
+#### Prerequisites
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) authenticated (`gcloud auth application-default login`)
+- A GCP project with Compute Engine API enabled
+- A domain with DNS you control
+
+#### Setup
+
+```sh
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars`:
+
+```hcl
+project_id   = "your-gcp-project-id"
+api_domain   = "api.solpg.io"
+client_url   = "https://beta.solpg.io"
+machine_type = "e2-standard-4"       # 4 vCPU, 16 GB — for Rust/Solana compilation
+```
+
+#### Deploy
+
+```sh
+terraform init
+terraform plan
+terraform apply
+```
+
+After apply, Terraform outputs the static IP. Create a DNS A record:
+
+```
+api.solpg.io  ->  <output server_ip>
+```
+
+The VM startup script clones this repo, pulls the pre-built server image from ghcr.io, and starts server + MongoDB via `docker compose --profile prod`.
+
+TLS is handled by a GCP-managed HTTPS Load Balancer. The managed SSL certificate takes 15-60 minutes to provision after DNS is configured.
+
+#### Verify
+
+```sh
+# SSH into the instance via IAP
+gcloud compute ssh solpg-server --zone=us-central1-a --tunnel-through-iap
+
+# Check services are running
+docker compose --profile prod ps
+
+# Check logs
+docker compose --profile prod logs -f server
+```
+
+#### GitHub Actions secrets
+
+The CI workflows require the following secrets in **Settings > Secrets and variables > Actions**:
+
+| Secret | Description |
+|---|---|
+| `GITHUB_TOKEN` | Automatic, no setup needed |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>` |
+| `GCP_SERVICE_ACCOUNT` | `<name>@<project-id>.iam.gserviceaccount.com` |
+
+Deploy-specific variables (`REGISTRY`, `GCP_ZONE`, `GCE_INSTANCE`) are in [`infra/.env.deploy`](infra/.env.deploy).
+
+#### Deploy and rollback
+
+Pushing a tag triggers the deploy workflow:
+
+```sh
+git tag v1.0.0
+git push --tags
+```
+
+To roll back, use the **Rollback Server** workflow in GitHub Actions. Enter the version to roll back to (e.g. `v1.0.0`) and optionally a tag to delete after rollback.
+
+#### Custom server URL for the client
+
+To build the client pointing at your own server instead of `api.solpg.io`:
+
+```sh
+REACT_APP_SERVER_URL=https://api.solpg.io docker compose --profile prod up --build
+```
+
+Or for standalone client deployment (e.g. on Vercel):
+
+```sh
+REACT_APP_SERVER_URL=https://api.solpg.io docker compose --profile standalone up --build
+```
+
 ## Contributing
 
 Anyone is welcome to contribute to **Solana Playground,** no matter how big or small the contribution.

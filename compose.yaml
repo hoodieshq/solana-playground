@@ -12,6 +12,7 @@ x-client: &client
     dockerfile: ./client/Dockerfile
     args:
       HAS_SERVER: "true"
+      REACT_APP_SERVER_URL: ${REACT_APP_SERVER_URL:-}
     additional_contexts:
       solana-playground-wasm: service:wasm
       solana-playground-server: service:server
@@ -38,6 +39,7 @@ services:
       dockerfile: ./client/Dockerfile
       args:
         HAS_SERVER: ${PG_SERVER:-false}
+        REACT_APP_SERVER_URL: ${REACT_APP_SERVER_URL:-}
       additional_contexts:
         solana-playground-wasm: service:wasm
     ports:
@@ -51,13 +53,14 @@ services:
     platform: linux/amd64
     depends_on:
       - db
+    image: ${SERVER_IMAGE:-}
     build:
       context: ./server
     ports:
       - ${PG_PORT:-8080}:8080
     environment:
       - PG_DB_URI=mongodb://db:27017
-      - PG_CLIENT_URL=http://localhost:${PG_CLIENT_PORT:-3000}
+      - PG_CLIENT_URL=${PG_CLIENT_URL:-http://localhost:${PG_CLIENT_PORT:-3000}}
       - RUST_LOG=${RUST_LOG:-info}
     profiles:
       - dev

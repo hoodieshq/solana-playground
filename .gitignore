@@ -27,3 +27,6 @@ server/programs/*
 
 # WASM
 **/www
+
+# Infra
+terraform/.terraform*

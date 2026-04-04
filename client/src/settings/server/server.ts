@@ -11,12 +11,10 @@ export const server = [
       { name: "Solana Playground", value: "https://api.solpg.io" },
     ],
     default:
-      process.env.NODE_ENV === "production"
+      process.env.REACT_APP_SERVER_URL ??
+      (process.env.NODE_ENV === "production"
         ? "https://api.solpg.io"
-        : // Docker builds use this environment variable to set the server URL
-          // to the production API (instead of local) if the user has not yet
-          // built the server image
-          process.env.REACT_APP_SERVER_URL ?? "http://localhost:8080",
+        : "http://localhost:8080"),
     custom: {
       parse: (v) => {
         if (PgCommon.isUrl(v)) return v;

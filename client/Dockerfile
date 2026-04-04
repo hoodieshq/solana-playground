@@ -22,6 +22,10 @@ ONBUILD ENV REACT_APP_SERVER_URL="https://api.solpg.io"
 ###################### Build and start development client ######################
 FROM server-${HAS_SERVER}
 
+# Allow overriding the server URL at build time (e.g. for self-hosted deploys)
+ARG REACT_APP_SERVER_URL
+ENV REACT_APP_SERVER_URL=${REACT_APP_SERVER_URL}
+
 WORKDIR /home/pg
 COPY . .
 
