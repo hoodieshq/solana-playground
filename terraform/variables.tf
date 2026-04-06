@@ -49,15 +49,3 @@ variable "github_repo" {
   type        = string
   default     = "solana-foundation/solana-playground"
 }
-
-variable "bastion_ssh_cidrs" {
-  description = "CIDR ranges allowed to SSH into the bastion (set to team IPs if known)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
-
-variable "bastion_ssh_port" {
-  description = "External SSH port on the bastion (non-standard to reduce scan noise)"
-  type        = number
-  default     = 2222
-}

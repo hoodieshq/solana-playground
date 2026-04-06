@@ -29,34 +29,6 @@ resource "google_compute_subnetwork" "solpg" {
   region        = var.region
 }
 
-# SSH into bastion from allowed CIDRs
-resource "google_compute_firewall" "allow_bastion_ssh" {
-  name    = "solpg-allow-bastion-ssh"
-  network = google_compute_network.solpg.name
-
-  allow {
-    protocol = "tcp"
-    ports    = [tostring(var.bastion_ssh_port)]
-  }
-
-  source_ranges = var.bastion_ssh_cidrs
-  target_tags   = ["solpg-bastion"]
-}
-
-# SSH from bastion to server (internal)
-resource "google_compute_firewall" "allow_internal_ssh" {
-  name    = "solpg-allow-internal-ssh"
-  network = google_compute_network.solpg.name
-
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-
-  source_tags = ["solpg-bastion"]
-  target_tags = ["solpg-server"]
-}
-
 # Allow GCP health checks and load balancer traffic
 resource "google_compute_firewall" "allow_health_check" {
   name    = "solpg-allow-health-check"
@@ -82,40 +54,6 @@ resource "google_compute_global_address" "solpg_api" {
 resource "google_service_account" "solpg" {
   account_id   = "solpg-server"
   display_name = "Solana Playground Server"
-}
-
-# ---------- Bastion (on-demand, stopped by default) ----------
-
-resource "google_compute_instance" "bastion" {
-  name           = "solpg-bastion"
-  machine_type   = "e2-micro"
-  zone           = var.zone
-  tags           = ["solpg-bastion"]
-  desired_status = "TERMINATED"
-
-  boot_disk {
-    initialize_params {
-      image = "cos-cloud/cos-stable"
-      size  = 10
-    }
-  }
-
-  network_interface {
-    subnetwork = google_compute_subnetwork.solpg.id
-    access_config {}
-  }
-
-  metadata = {
-    enable-oslogin    = "TRUE"
-    enable-oslogin-2fa = "TRUE"
-  }
-
-  metadata_startup_script = <<-EOT
-    #!/bin/bash
-    # Reconfigure sshd to listen on a non-standard port
-    sed -i "s/^#\?Port .*/Port ${var.bastion_ssh_port}/" /etc/ssh/sshd_config
-    systemctl restart sshd
-  EOT
 }
 
 # ---------- HTTPS Load Balancer ----------
