@@ -10,6 +10,9 @@ on:
     paths:
       - "server/**"
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
   build:
     name: Build & Push
@@ -20,9 +23,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Load deploy config
-        run: cat infra/.env.deploy >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'

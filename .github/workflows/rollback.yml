@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image tag to roll back to (e.g. v1.0.0)"
+        description: "App Engine version to roll back to (e.g. v1.0.0)"
         required: true
         type: string
       delete_tag:
@@ -36,25 +36,23 @@ jobs:
             exit 1
           fi
 
-      - name: Load deploy config
-        run: cat infra/.env.deploy >> "$GITHUB_ENV"
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          create_credentials_file: true
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Rollback to ${{ inputs.version }}
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ github.repository }}/server"
-          gcloud compute ssh ${{ env.GCE_INSTANCE }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --tunnel-through-iap \
-            --command="/opt/solpg/infra/deploy.sh ${IMAGE}:${{ inputs.version }}"
+          VERSION=$(echo "${{ inputs.version }}" | tr '.' '-')
+          gcloud app versions migrate "$VERSION" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --service=default \
+            --quiet
 
       - name: Delete tag ${{ inputs.delete_tag }}
         if: inputs.delete_tag != ''
@@ -63,7 +61,7 @@ jobs:
 
       - name: Verify
         run: |
-          gcloud compute ssh ${{ env.GCE_INSTANCE }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --tunnel-through-iap \
-            --command="cd /opt/solpg && docker compose --profile prod ps server"
+          gcloud app versions list \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --service=default \
+            --format="table(version.id,traffic_split,version.servingStatus)"

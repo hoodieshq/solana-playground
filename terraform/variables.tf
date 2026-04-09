@@ -4,27 +4,9 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "GCP region"
+  description = "GCP region (App Engine location)"
   type        = string
   default     = "us-central1"
-}
-
-variable "zone" {
-  description = "GCP zone"
-  type        = string
-  default     = "us-central1-a"
-}
-
-variable "machine_type" {
-  description = "GCE instance machine type"
-  type        = string
-  default     = "e2-standard-4"
-}
-
-variable "disk_size_gb" {
-  description = "Boot disk size in GB"
-  type        = number
-  default     = 50
 }
 
 variable "api_domain" {
@@ -45,7 +27,7 @@ variable "rust_log" {
 }
 
 variable "github_repo" {
-  description = "GitHub repository (owner/repo) for ghcr.io image path"
+  description = "GitHub repository (owner/repo) for WIF access control"
   type        = string
   default     = "solana-foundation/solana-playground"
 }
