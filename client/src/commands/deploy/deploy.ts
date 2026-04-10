@@ -116,11 +116,33 @@ Your address: ${PgWallet.current!.publicKey}`);
   }
 }
 
+/** Hex-encode a SHA-256 digest of the given bytes using Web Crypto. */
+const sha256Hex = async (data: Buffer): Promise<string> => {
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
 /** Deploy the current program. */
 const processDeploy = async () => {
   const programData =
     PgProgramInfo.importedProgram?.buffer ??
     (await PgServer.deploy(PgProgramInfo.uuid!));
+
+  // Verify binary integrity when a build hash is available (server-built programs).
+  const expectedHash = PgProgramInfo.programHash;
+  if (expectedHash && !PgProgramInfo.importedProgram) {
+    const actualHash = await sha256Hex(programData);
+    if (actualHash !== expectedHash) {
+      throw new Error(
+        "Binary integrity check failed — the program binary does not match " +
+          "the hash from the build step. The binary may have been tampered with.\n" +
+          `Expected: ${expectedHash}\nGot:      ${actualHash}`
+      );
+    }
+  }
+
   const programLen = programData.length;
 
   const wallet = PgWallet.current!;

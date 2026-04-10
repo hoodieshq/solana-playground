@@ -133,7 +133,23 @@ const storage = {
   read() {
     const stateStr = localStorage.getItem(this.KEY);
     if (!stateStr) return defaultState;
-    return JSON.parse(stateStr) as Settings;
+    const state = JSON.parse(stateStr) as Settings;
+
+    // Self-heal a stale `server.endpoint = ""` (same-origin) carried over from
+    // a prior standalone/prod build. In the dev profile the SPA is served from
+    // :3000 with no proxy, so same-origin requests never reach the build
+    // server at :8080. Reset to the build's default and persist so the fix
+    // survives reloads.
+    if (
+      process.env.NODE_ENV !== "production" &&
+      state.server?.endpoint === "" &&
+      defaultState.server.endpoint !== ""
+    ) {
+      state.server.endpoint = defaultState.server.endpoint;
+      localStorage.setItem(this.KEY, JSON.stringify(state));
+    }
+
+    return state;
   },
 
   /** Serialize the data and write to storage. */

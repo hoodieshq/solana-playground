@@ -1,4 +1,4 @@
-service: playground-web
+service: default
 runtime: custom
 env: flex
 
@@ -6,14 +6,32 @@ automatic_scaling:
   min_num_instances: 1
   max_num_instances: 1
 
-# Runtime configuration is supplied via GCP-managed env vars and/or secrets.
-# `PG_SERVER_URL` and `PG_API_KEY` are required at boot — inject them via
-# Secret Manager or the App Engine env-var replace step in the workflow.
-env_variables:
-  PG_PORT: "8080"
-  PG_STATIC_DIR: "build"
-
 resources:
   cpu: 1
   memory_gb: 1
   disk_size_gb: 10
+
+env_variables:
+  # Non-secret defaults; matches the keys read by `web/server.mjs`.
+  PG_PORT: "8080"
+  PG_STATIC_DIR: "build"
+  NODE_ENV: "production"
+  #
+  # Merged in by the deploy workflow via `gcloud app deploy --update-env-vars`:
+  #   PG_SERVER_URL — Rust backend URL (constructed from project + region)
+  #   PG_API_KEY    — shared key sent in X-API-Key header (from Secret Manager)
+
+liveness_check:
+  path: "/api/health"
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+
+readiness_check:
+  path: "/api/health"
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+  app_start_timeout_sec: 120

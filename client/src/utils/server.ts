@@ -49,6 +49,8 @@ export class PgServer {
       uuid: string | null;
       /** Anchor IDL */
       idl: Idl | null;
+      /** Hex-encoded SHA-256 of the compiled binary, null on compile error */
+      programHash: string | null;
     }
 
     const response = await this._send("/build", {
@@ -127,9 +129,7 @@ export class PgServer {
       requestInit.body = opts.post.body;
     }
 
-    const url = opts?.useDbServer
-      ? "https://api.solpg.io"
-      : PgSettings.server.endpoint;
+    const url = PgSettings.server.endpoint;
     const response = await fetch(PgCommon.joinPaths(url, path), requestInit);
     if (!response.ok) {
       const message = await response.text();

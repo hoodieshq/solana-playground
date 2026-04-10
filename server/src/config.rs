@@ -1,6 +1,8 @@
+use std::fmt;
 use std::str::FromStr;
 
 use dotenv::dotenv;
+use subtle::ConstantTimeEq;
 
 /// Server configuration
 #[derive(Debug)]
@@ -19,6 +21,27 @@ pub struct Config {
     pub db_name: String,
     /// Maximum amount of concurrent builds
     pub build_concurrency: usize,
+    /// Shared secrets required in the `X-API-Key` request header. Empty = no gate.
+    pub api_keys: Vec<ApiKey>,
+}
+
+/// Newtype that keeps the API key out of `Debug` output and off of every
+/// other code path. Comparison happens via [`ApiKey::matches`] so the raw
+/// bytes never leave the wrapper.
+#[derive(Clone)]
+pub struct ApiKey(String);
+
+impl ApiKey {
+    /// Constant-time equality against a presented header value.
+    pub fn matches(&self, presented: &[u8]) -> bool {
+        presented.ct_eq(self.0.as_bytes()).into()
+    }
+}
+
+impl fmt::Debug for ApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("\"<redacted>\"")
+    }
 }
 
 impl Config {
@@ -28,13 +51,30 @@ impl Config {
     pub fn from_env() -> Config {
         dotenv().ok();
         Config {
-            client_url: get_env("CLIENT_URL", "https://beta.solpg.io"),
+            client_url: get_env("CLIENT_URL", ""),
             port: get_env("PORT", 8080u16),
             payload_limit: get_env("PAYLOAD_LIMIT", 1024usize * 1024),
             verbose: get_env("VERBOSE", false),
             db_uri: get_env("DB_URI", "mongodb://localhost:27017"),
             db_name: get_env("DB_NAME", "solpg"),
             build_concurrency: get_env("BUILD_CONCURRENCY", 16usize),
+            api_keys: {
+                let mut keys = Vec::new();
+                if let Ok(v) = dotenv::var("PG_API_KEY") {
+                    if !v.is_empty() {
+                        keys.push(ApiKey(v));
+                    }
+                }
+                if let Ok(v) = dotenv::var("PG_API_KEYS") {
+                    keys.extend(
+                        v.split(',')
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                            .map(|s| ApiKey(s.to_owned())),
+                    );
+                }
+                keys
+            },
         }
     }
 }
@@ -47,4 +87,30 @@ fn get_env<T: FromStr>(key: &str, default: impl Into<T>) -> T {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(default.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn api_key_matches_exact() {
+        let key = ApiKey("secret".into());
+        assert!(key.matches(b"secret"));
+    }
+
+    #[test]
+    fn api_key_rejects_mismatch() {
+        let key = ApiKey("secret".into());
+        assert!(!key.matches(b"wrong"));
+        assert!(!key.matches(b""));
+    }
+
+    #[test]
+    fn multiple_keys_accepts_any() {
+        let keys = vec![ApiKey("alpha".into()), ApiKey("beta".into())];
+        assert!(keys.iter().any(|k| k.matches(b"alpha")));
+        assert!(keys.iter().any(|k| k.matches(b"beta")));
+        assert!(!keys.iter().any(|k| k.matches(b"gamma")));
+    }
 }

@@ -31,6 +31,8 @@ type ProgramInfo = Nullable<{
     buffer: Buffer;
     fileName: string;
   };
+  /** Hex-encoded SHA-256 hash of the compiled binary from the build server */
+  programHash: string;
 }>;
 
 /** Serialized program info that's used in storage */
@@ -39,6 +41,7 @@ type SerializedProgramInfo = Nullable<{
   kp: Array<number>;
   customPk: string;
   idl: Idl;
+  programHash: string;
 }>;
 
 const defaultState: ProgramInfo = {
@@ -47,6 +50,7 @@ const defaultState: ProgramInfo = {
   customPk: null,
   idl: null,
   importedProgram: null,
+  programHash: null,
 };
 
 const storage = {
@@ -88,6 +92,7 @@ const storage = {
       idl: state.idl,
       kp: state.kp ? Array.from(state.kp.secretKey) : null,
       customPk: state.customPk?.toBase58() ?? null,
+      programHash: state.programHash,
     };
 
     await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState));

@@ -155,10 +155,16 @@ const SettingSetter: FC<SettingSetterProps> = ({ values, ...props }) => {
 
 type SettingSetterSelectProps = RequiredKey<SettingSetterProps, "values">;
 
+// Sentinel for the "Custom" option so it can be distinguished from real
+// option values, including legitimate empty strings (e.g. "Same origin").
+const CUSTOM_OPTION_VALUE = "__pg_custom__";
+
 const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
   const options = useMemo(() => {
     const options = PgCommon.callIfNeeded(setting.values).map(convertValue);
-    if (setting.custom) options.push({ label: "Custom", value: "" });
+    if (setting.custom) {
+      options.push({ label: "Custom", value: CUSTOM_OPTION_VALUE });
+    }
 
     return options;
   }, [setting.values, setting.custom]);
@@ -168,12 +174,14 @@ const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
       options={options}
       value={findOption(options, setting.getValue()) ?? options.at(-1)}
       onChange={(o) => {
-        if (o?.value) {
+        if (o?.value === CUSTOM_OPTION_VALUE) {
+          if (setting.custom?.Component) {
+            PgView.setModal(setting.custom.Component);
+          } else {
+            PgView.setModal(<CustomSetting setting={setting} />);
+          }
+        } else if (o && "value" in o) {
           setting.setValue(o.value);
-        } else if (setting.custom?.Component) {
-          PgView.setModal(setting.custom.Component);
-        } else {
-          PgView.setModal(<CustomSetting setting={setting} />);
         }
       }}
     />
@@ -188,9 +196,11 @@ const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
  */
 const convertValue = (v: any) => {
   if (typeof v === "object") {
-    if (v.value) return { label: v.name, value: v.value };
-    if (v.values) return { label: v.name, options: v.values.map(convertValue) };
-    throw new Error(`Invalid option value: ${v}`);
+    // Use presence checks instead of truthy checks: an empty-string `value`
+    // (e.g. `server.endpoint` "Same origin") is a legitimate option.
+    if ("value" in v) return { label: v.name, value: v.value };
+    if ("values" in v) return { label: v.name, options: v.values.map(convertValue) };
+    throw new Error(`Invalid option value: ${JSON.stringify(v)}`);
   }
 
   return { label: PgCommon.toTitleFromKebab(v), value: v };

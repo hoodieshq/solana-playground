@@ -33,7 +33,12 @@ export const createSetting = <
     ] as typeof setting["onChange"];
 
     // Default value
-    if (!setting.default) {
+    // TODO: revisit — the `!setting.default` check rejects legitimate falsy
+    // defaults like `""` (used by `server.endpoint` to mean "same origin").
+    // Explicit `=== undefined` preserves empty strings; a proper fix would
+    // tighten the `SettingParam` type so "missing default" is expressed in
+    // the type rather than a runtime truthiness check.
+    if (setting.default === undefined) {
       if (!setting.values) setting.default = false as D;
       else throw new Error("Setting must have a default value");
     }

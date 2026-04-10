@@ -3,6 +3,7 @@ use std::{fs, path::Path, process::Command, sync::LazyLock};
 use anchor_syn::idl::{parse::file::parse as parse_idl, types::Idl};
 use anyhow::anyhow;
 use regex::Regex;
+use sha2::{Digest, Sha256};
 
 use crate::log::info;
 
@@ -14,6 +15,18 @@ const MAX_FILE_AMOUNT: usize = 64;
 
 /// Maximum length of the file paths to pass to the [`build`] function.
 const MAX_PATH_LENGTH: usize = 128;
+
+/// PATH for the build subprocess.
+const BUILD_PATH: &str = "/home/solpg/.local/share/solana/install/active_release/bin:/home/solpg/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
+/// Apply a clean environment containing only the toolchain locator vars.
+fn apply_build_env(cmd: &mut Command) -> &mut Command {
+    cmd.env_clear()
+        .env("PATH", BUILD_PATH)
+        .env("HOME", "/home/solpg")
+        .env("CARGO_HOME", "/home/solpg/.cargo")
+        .env("RUSTUP_HOME", "/home/solpg/.rustup")
+}
 
 /// A vector of [Path, Content]
 pub type Files = Vec<[String; 2]>;
@@ -27,6 +40,15 @@ pub type Files = Vec<[String; 2]>;
 /// otherwise.
 ///
 /// NOTE: This function doesn't return an error in the case of a compiler error.
+/// Successful build output.
+pub struct BuildOutput {
+    pub stderr: String,
+    pub idl: Option<Idl>,
+    /// Hex-encoded SHA-256 hash of the compiled `.so` binary.
+    /// `None` when the build fails (compiler error).
+    pub program_hash: Option<String>,
+}
+
 pub fn build(
     concurrency_id: usize,
     program_name: &str,
@@ -34,7 +56,7 @@ pub fn build(
     seeds_feature: bool,
     no_docs: bool,
     safety_checks: bool,
-) -> anyhow::Result<(String, Option<Idl>)> {
+) -> anyhow::Result<BuildOutput> {
     // Check file count
     if files.len() > MAX_FILE_AMOUNT {
         return Err(anyhow!(
@@ -99,8 +121,8 @@ pub fn build(
         MANIFEST.replacen("default", &format!("../{program_name}"), 1),
     )?;
 
-    // Build the program
-    let output = Command::new("cargo-build-sbf")
+    let mut cmd = Command::new("cargo-build-sbf");
+    let output = apply_build_env(&mut cmd)
         .arg("--manifest-path")
         .arg(manifest_path)
         .arg("--sbf-out-dir")
@@ -111,12 +133,21 @@ pub fn build(
     // Check compile errors
     let stderr = String::from_utf8(output.stderr)?;
     if stderr.rfind("error: could not compile").is_some() {
-        return Ok((stderr, None));
+        return Ok(BuildOutput {
+            stderr,
+            idl: None,
+            program_hash: None,
+        });
     }
+
+    // Hash the compiled binary so the client can verify integrity at deploy time.
+    let binary_path = program_path.join("solpg.so");
+    let binary = fs::read(&binary_path)?;
+    let program_hash = format!("{:x}", Sha256::digest(&binary));
 
     // Generate IDL if it's an Anchor program
     let lib_path = program_path.join("src").join("lib.rs");
-    let ret = fs::read_to_string(&lib_path)?
+    let (stderr, idl) = fs::read_to_string(&lib_path)?
         .contains("anchor_lang")
         .then(|| {
             parse_idl(
@@ -129,7 +160,11 @@ pub fn build(
         })
         .transpose()
         .map_or_else(|e| (format!("IDL error: {e}"), None), |idl| (stderr, idl));
-    Ok(ret)
+    Ok(BuildOutput {
+        stderr,
+        idl,
+        program_hash: Some(program_hash),
+    })
 }
 
 /// Read the program ELF and return its bytes.

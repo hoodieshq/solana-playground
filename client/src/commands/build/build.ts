@@ -22,7 +22,11 @@ export const build = createCmd({
 
     try {
       const result = await buildProgram();
-      PgProgramInfo.update({ idl: result.idl, uuid: result.uuid ?? undefined });
+      PgProgramInfo.update({
+        idl: result.idl,
+        uuid: result.uuid ?? undefined,
+        programHash: result.programHash ?? undefined,
+      });
       PgTerminal.println(improveOutput(result.stderr));
     } finally {
       PgGlobal.update({ buildLoading: false });

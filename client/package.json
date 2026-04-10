@@ -104,6 +104,10 @@
       "react-app"
     ]
   },
+  "engines": {
+    "node": "22.20.0",
+    "yarn": "1.22.22"
+  },
   "browserslist": {
     "production": [
       "chrome >= 67",

@@ -50,6 +50,9 @@ struct BuildResponse {
     uuid: Option<String>,
     /// Anchor IDL of the program, `None` for native programs
     idl: Option<Idl>,
+    /// Hex-encoded SHA-256 of the compiled `.so` binary, `None` on compile error
+    #[serde(rename = "programHash")]
+    program_hash: Option<String>,
 }
 
 /// Build state
@@ -104,12 +107,15 @@ pub async fn build(
     })
     .await
     .map_err(|e| anyhow!("Failed to run `spawn_blocking`: {e}"))?;
-    let (stderr, idl) = build_result?;
+
+    drop(permit);
+    let output = build_result?;
 
     Ok(Json(BuildResponse {
-        stderr,
+        stderr: output.stderr,
         uuid: if respond_with_uuid { Some(uuid) } else { None },
-        idl,
+        idl: output.idl,
+        program_hash: output.program_hash,
     }))
 }
 
