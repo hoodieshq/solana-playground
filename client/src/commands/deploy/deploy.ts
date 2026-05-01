@@ -135,9 +135,12 @@ const processDeploy = async () => {
   if (expectedHash && !PgProgramInfo.importedProgram) {
     const actualHash = await sha256Hex(programData);
     if (actualHash !== expectedHash) {
+      // Drop the now-untrusted build so a retry forces a fresh `build`.
+      PgProgramInfo.update({ uuid: null, programHash: null });
       throw new Error(
         "Binary integrity check failed — the program binary does not match " +
-          "the hash from the build step. The binary may have been tampered with.\n" +
+          "the hash from the build step. The binary may have been tampered with. " +
+          "Run `build` again before retrying.\n" +
           `Expected: ${expectedHash}\nGot:      ${actualHash}`
       );
     }

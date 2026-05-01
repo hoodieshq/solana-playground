@@ -12,8 +12,7 @@ resources:
   disk_size_gb: 20
 
 env_variables:
-  # Non-secret defaults; everything matches a `PG_`-prefixed key read by
-  # `server/src/config.rs::Config::from_env`.
+  # Non-secret defaults; PG_-prefixed keys defined in server/src/config.rs.
   PG_PORT: "8080"
   PG_DB_NAME: "solpg"
   PG_VERBOSE: "false"

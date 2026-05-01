@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use dotenv::dotenv;
+use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
 /// Server configuration
@@ -32,9 +33,11 @@ pub struct Config {
 pub struct ApiKey(String);
 
 impl ApiKey {
-    /// Constant-time equality against a presented header value.
+    /// Hash both sides so `ct_eq` does not leak length via timing.
     pub fn matches(&self, presented: &[u8]) -> bool {
-        presented.ct_eq(self.0.as_bytes()).into()
+        let a = Sha256::digest(presented);
+        let b = Sha256::digest(self.0.as_bytes());
+        a.ct_eq(&b).into()
     }
 }
 
@@ -59,20 +62,18 @@ impl Config {
             db_name: get_env("DB_NAME", "solpg"),
             build_concurrency: get_env("BUILD_CONCURRENCY", 16usize),
             api_keys: {
+                let single: String = get_env("API_KEY", String::new());
+                let csv: String = get_env("API_KEYS", String::new());
                 let mut keys = Vec::new();
-                if let Ok(v) = dotenv::var("PG_API_KEY") {
-                    if !v.is_empty() {
-                        keys.push(ApiKey(v));
-                    }
+                if !single.is_empty() {
+                    keys.push(ApiKey(single));
                 }
-                if let Ok(v) = dotenv::var("PG_API_KEYS") {
-                    keys.extend(
-                        v.split(',')
-                            .map(str::trim)
-                            .filter(|s| !s.is_empty())
-                            .map(|s| ApiKey(s.to_owned())),
-                    );
-                }
+                keys.extend(
+                    csv.split(',')
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| ApiKey(s.to_owned())),
+                );
                 keys
             },
         }

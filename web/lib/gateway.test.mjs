@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 
@@ -198,6 +198,47 @@ test("gateway strips content-encoding and content-length from upstream response"
   assert.equal(res.headers.get("transfer-encoding"), null);
   assert.equal(res.headers.get("content-type"), "application/json");
   assert.equal(await res.text(), "body");
+});
+
+test("gateway logs upstream body stream errors", async () => {
+  const errorBody = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("partial"));
+      controller.error(new Error("upstream RST"));
+    },
+  });
+  const fetchImpl = async () =>
+    new Response(errorBody, {
+      status: 200,
+      headers: { "content-type": "text/plain" },
+    });
+
+  const errorMock = mock.fn();
+  const logger = { error: errorMock };
+
+  const app = new Hono();
+  app.post(
+    "/build",
+    makeGatewayHandler({
+      serverUrl: "http://rust:8080",
+      apiKey: "k",
+      fetchImpl,
+      logger,
+    }),
+  );
+
+  const res = await app.fetch(
+    new Request("http://localhost/build", { method: "POST" }),
+  );
+
+  assert.equal(res.status, 200);
+  await res.text().catch(() => {});
+  await new Promise((r) => setImmediate(r));
+
+  assert.equal(errorMock.mock.callCount(), 1);
+  const [msg, err] = errorMock.mock.calls[0].arguments;
+  assert.match(msg, /body stream failed/);
+  assert.equal(err.message, "upstream RST");
 });
 
 test("GATEWAY_ROUTES matches the Rust server's protected router", () => {

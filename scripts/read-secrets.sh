@@ -51,6 +51,8 @@ emit "mongo" "$MONGO"
 
 ################################## API KEYS ####################################
 
+# Fail-open when ENABLE_API_KEY != "true" to preserve existing unauthenticated
+# flows. The web server logs a warning when no key is configured.
 if [ "${ENABLE_API_KEY:-}" != "true" ]; then
   emit "api_key" ""
   emit "api_keys" ""
@@ -74,7 +76,10 @@ ENABLED_VERSIONS=$(gcloud secrets versions list api-key \
   --filter="state=ENABLED" \
   --sort-by="~createTime" \
   --limit=2 \
-  --format="value(name)" 2>/dev/null)
+  --format="value(name)") || {
+  echo "::error::Failed to list api-key versions"
+  exit 1
+}
 
 API_KEYS=""
 for VER in $ENABLED_VERSIONS; do

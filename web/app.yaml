@@ -12,7 +12,7 @@ resources:
   disk_size_gb: 10
 
 env_variables:
-  # Non-secret defaults; matches the keys read by `web/server.mjs`.
+  # Non-secret defaults; keys read by web/server.mjs.
   PG_PORT: "8080"
   PG_STATIC_DIR: "build"
   NODE_ENV: "production"

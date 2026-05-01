@@ -17,6 +17,12 @@ if (!SERVER_URL) {
   process.exit(1);
 }
 
+if (!API_KEY) {
+  console.warn(
+    "PG_API_KEY is not configured — proxied requests will be sent without an X-API-Key header",
+  );
+}
+
 const app = new Hono();
 
 // Cross-origin isolation for SharedArrayBuffer (WASM workers).

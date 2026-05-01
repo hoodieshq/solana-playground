@@ -84,13 +84,13 @@ Four profiles, each self-contained:
 |---|---|---|
 | `dev` | `wasm`, `client` (yarn start), `server`, `db` | Hot-reload client dev loop. |
 | `standalone` | `wasm`, `client-standalone` | Client-only, no server/db. |
-| `prod_old` | `wasm`, `client-prod` (yarn build + serve), `server`, `db` | Backward-compatible production build served by `npx serve`. Kept for parity with the pre-Hono flow. |
-| `prod` | `wasm`, `client-build`, `web` (Hono), `server`, `db` | Mirrors the App Engine deploy topology locally. |
+| `prod` | `wasm`, `client-prod` (yarn build + serve), `server`, `db` | Backward-compatible production build served by `npx serve`. Kept for parity with the pre-`web` flow. |
+| `prod_next` | `wasm`, `client-build`, `web`, `server`, `db` | Mirrors the App Engine deploy topology locally. |
 
-`prod` profile boot sequence:
+`prod_next` profile boot sequence:
 
 ```sh
-PG_API_KEY=testkey docker compose --profile prod up --build
+PG_API_KEY=testkey docker compose --profile prod_next up --build
 ```
 
 The `client-build` service runs `yarn build` during image build, then exits;

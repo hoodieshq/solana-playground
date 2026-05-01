@@ -5,7 +5,7 @@
 // bootstrap in `server.mjs`.
 
 // The four routes the Rust server exposes behind its `X-API-Key` gate.
-// Keep this table in lockstep with `server/src/main.rs` (`protected` router).
+// Mirrored in gateway.test.mjs.
 export const GATEWAY_ROUTES = [
   { method: "POST", path: "/build" },
   { method: "GET", path: "/deploy/:uuid" },
@@ -76,9 +76,25 @@ export const makeGatewayHandler = ({
     resHeaders.delete("content-length");
     resHeaders.delete("transfer-encoding");
 
-    return new Response(upstream.body, {
+    // Mid-stream errors cannot become a 5xx (headers already flushed); log them.
+    const body = upstream.body
+      ? observeStreamErrors(upstream.body, (err) =>
+          logger.error(
+            `gateway ${c.req.method} ${c.req.path} → ${target} body stream failed:`,
+            err,
+          ),
+        )
+      : null;
+
+    return new Response(body, {
       status: upstream.status,
       headers: resHeaders,
     });
   };
+};
+
+const observeStreamErrors = (source, onError) => {
+  const ts = new TransformStream();
+  source.pipeTo(ts.writable).catch(onError);
+  return ts.readable;
 };
