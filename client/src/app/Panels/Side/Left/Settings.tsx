@@ -156,7 +156,7 @@ const SettingSetter: FC<SettingSetterProps> = ({ values, ...props }) => {
 type SettingSetterSelectProps = RequiredKey<SettingSetterProps, "values">;
 
 // Sentinel for the "Custom" option so it can be distinguished from real
-// option values, including legitimate empty strings (e.g. "Same origin").
+// option values, including legitimate empty strings (e.g. same-origin endpoint).
 const CUSTOM_OPTION_VALUE = "__pg_custom__";
 
 const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
@@ -196,8 +196,8 @@ const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
  */
 const convertValue = (v: any) => {
   if (typeof v === "object") {
-    // Use presence checks instead of truthy checks: an empty-string `value`
-    // (e.g. `server.endpoint` "Same origin") is a legitimate option.
+    // Use presence checks instead of truthy checks: an empty-string value
+    // (e.g. same-origin server.endpoint) is a legitimate option.
     if ("value" in v) return { label: v.name, value: v.value };
     if ("values" in v) return { label: v.name, options: v.values.map(convertValue) };
     throw new Error(`Invalid option value: ${JSON.stringify(v)}`);
