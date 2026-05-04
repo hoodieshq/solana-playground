@@ -85,10 +85,7 @@ export class PgServer {
     /** `/share` response */
     type ShareResponse = ShareNewRequest["explorer"];
 
-    const response = await this._send(`/share/${id}`, {
-      cache: true,
-      useDbServer: process.env.NODE_ENV === "production",
-    });
+    const response = await this._send(`/share/${id}`, { cache: true });
     return (await response.json()) as ShareResponse;
   }
 
@@ -104,7 +101,6 @@ export class PgServer {
 
     const response = await this._send("/new", {
       post: { body: JSON.stringify(req) },
-      useDbServer: process.env.NODE_ENV === "production",
     });
     return (await response.text()) as ShareNewResponse;
   }
@@ -112,13 +108,22 @@ export class PgServer {
   /**
    * Send an HTTP request to the Playground server.
    *
+   * The target URL is always taken from `PgSettings.server.endpoint`, which
+   * resolves per build (see `client/src/settings/server/server.ts`):
+   *   - dev:           REACT_APP_SERVER_URL ?? http://localhost:8080
+   *   - same-origin BFF (REACT_APP_SERVER_URL=""): "" → fetched relative,
+   *     forwarded by the Hono gateway to the Rust backend.
+   *   - production fallback: https://api.solpg.io
+   * Share routes (`/share/:id`, `/new`) ride the same endpoint — there is no
+   * separate "DB server" bypass anymore.
+   *
    * @param opts server send request options
    * @throws when the response is not OK (with the decoded response)
    * @returns the HTTP response
    */
   private static async _send(
     path: string,
-    opts?: { cache?: boolean; post?: { body: string }; useDbServer?: boolean }
+    opts?: { cache?: boolean; post?: { body: string } }
   ) {
     const requestInit: RequestInit = {};
     if (!opts?.cache) requestInit.cache = "no-store";

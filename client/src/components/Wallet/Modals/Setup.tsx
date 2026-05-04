@@ -62,8 +62,7 @@ export const Setup = () => {
           <Text kind="warning" icon={<Warning color="warning" />}>
             Wallet information is stored in your browser's local storage. You
             are going to lose the wallet if you clear your browser history
-            unless you save the keypair. This wallet is intended for development
-            only — do not use it to store real funds on mainnet.
+            unless you save the keypair.
           </Text>
         </WarningTextWrapper>
         <WalletButtonsWrapper>

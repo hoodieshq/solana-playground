@@ -4,8 +4,9 @@ name: CI
 # so this workflow intentionally does not trigger on push.
 on:
   push:
-    branches:
-      - master
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
   workflow_dispatch:
 

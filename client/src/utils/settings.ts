@@ -135,18 +135,14 @@ const storage = {
     if (!stateStr) return defaultState;
     const state = JSON.parse(stateStr) as Settings;
 
-    // Self-heal a stale `server.endpoint = ""` (same-origin) carried over from
-    // a prior standalone/prod build. In the dev profile the SPA is served from
-    // :3000 with no proxy, so same-origin requests never reach the build
-    // server at :8080. Reset to the build's default and persist so the fix
-    // survives reloads.
+    // A same-origin endpoint baked by a prior standalone/prod build won't
+    // reach :8080 in dev; normalize in memory and let the next write persist.
     if (
       process.env.NODE_ENV !== "production" &&
       state.server?.endpoint === "" &&
       defaultState.server.endpoint !== ""
     ) {
       state.server.endpoint = defaultState.server.endpoint;
-      localStorage.setItem(this.KEY, JSON.stringify(state));
     }
 
     return state;

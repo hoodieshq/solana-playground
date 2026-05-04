@@ -32,12 +32,7 @@ export const createSetting = <
       ) as keyof typeof PgSettings
     ] as typeof setting["onChange"];
 
-    // Default value
-    // TODO: revisit — the `!setting.default` check rejects legitimate falsy
-    // defaults like `""` (used by `server.endpoint` to mean "same origin").
-    // Explicit `=== undefined` preserves empty strings; a proper fix would
-    // tighten the `SettingParam` type so "missing default" is expressed in
-    // the type rather than a runtime truthiness check.
+    // Default value — strict undefined check preserves falsy defaults like empty string.
     if (setting.default === undefined) {
       if (!setting.values) setting.default = false as D;
       else throw new Error("Setting must have a default value");

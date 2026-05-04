@@ -1,12 +1,12 @@
-# Base image
-ARG NODE_IMAGE=22.20.0
 # Conditionally copy based on whether the server image has been built before
 ARG HAS_SERVER
 # Default non-root user
 ARG USER
+# Base image
+ARG IMAGE="node:22.20.0"
 
 ################################## Has server ##################################
-FROM node:${NODE_IMAGE} AS server-true
+FROM ${IMAGE} AS server-true
 
 ARG USER
 
@@ -18,10 +18,11 @@ ONBUILD ENV PATH="/root/.cargo/bin:$PATH"
 ONBUILD COPY --from=solana-playground-server /home/${USER}/.cargo /root/.cargo
 
 ################################### No server ##################################
-FROM node:${NODE_IMAGE} AS server-false
+FROM ${IMAGE} AS server-false
 
-# Same-origin: empty value means the SPA fetches relative URLs
-ONBUILD ENV REACT_APP_SERVER_URL=""
+# Set build server URL to the production API; override via --build-arg if needed
+ONBUILD ARG REACT_APP_SERVER_URL="https://api.solpg.io"
+ONBUILD ENV REACT_APP_SERVER_URL=${REACT_APP_SERVER_URL}
 
 ###################### Build and start development client ######################
 FROM server-${HAS_SERVER}

@@ -8,9 +8,17 @@ export const server = [
     description: "Build server URL",
     values: [
       { name: "Local", value: "http://localhost:8080" },
-      { name: "Same origin", value: "" },
+      { name: "Solana Playground", value: "https://api.solpg.io" },
     ],
-    default: process.env.REACT_APP_SERVER_URL ?? "http://localhost:8080",
+    default:
+      process.env.NODE_ENV === "production"
+        ? // Same-origin BFF builds bake REACT_APP_SERVER_URL="" so the SPA
+          // talks to the Hono proxy; everything else falls back to the public API.
+          process.env.REACT_APP_SERVER_URL ?? "https://api.solpg.io"
+        : // Docker builds use this environment variable to set the server URL
+          // to the production API (instead of local) if the user has not yet
+          // built the server image
+          process.env.REACT_APP_SERVER_URL ?? "http://localhost:8080",
     custom: {
       parse: (v) => {
         if (PgCommon.isUrl(v)) return v;

@@ -1,14 +1,14 @@
-ARG NODE_IMAGE=22.20.0
+ARG IMAGE="node:22.20.0"
 
 # Install Hono wrapper deps only (no client or wasm build here — the CRA
 # bundle comes from the `solana-playground-client-build` context wired up by
 # compose / docker buildx build-contexts).
-FROM node:${NODE_IMAGE} AS web-deps
+FROM ${IMAGE} AS web-deps
 WORKDIR /app
 COPY web/package.json web/yarn.lock ./
 RUN corepack enable && yarn install --frozen-lockfile --production
 
-FROM node:${NODE_IMAGE}
+FROM ${IMAGE}
 WORKDIR /app
 COPY --from=web-deps /app/node_modules node_modules
 COPY --from=solana-playground-client-build /home/pg/client/build build

@@ -1,9 +1,9 @@
-ARG NODE_IMAGE=22.20.0
+ARG IMAGE="node:22.20.0"
 ARG RUST_TOOLCHAIN=1.75.0
 
 # Static CRA build for the API proxy.
 # Separate from client/Dockerfile to keep dev profiles intact.
-FROM node:${NODE_IMAGE}
+FROM ${IMAGE}
 
 # Rust toolchain + cargo registry for crate source generation (Rust Analyzer).
 ARG RUST_TOOLCHAIN
