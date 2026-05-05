@@ -1,5 +1,4 @@
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use dotenv::dotenv;
 use sha2::{Digest, Sha256};
