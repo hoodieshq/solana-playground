@@ -199,7 +199,8 @@ const convertValue = (v: any) => {
     // Use presence checks instead of truthy checks: an empty-string value
     // (e.g. same-origin server.endpoint) is a legitimate option.
     if ("value" in v) return { label: v.name, value: v.value };
-    if ("values" in v) return { label: v.name, options: v.values.map(convertValue) };
+    if ("values" in v)
+      return { label: v.name, options: v.values.map(convertValue) };
     throw new Error(`Invalid option value: ${JSON.stringify(v)}`);
   }
 
