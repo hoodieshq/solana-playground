@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn multiple_keys_accepts_any() {
-        let keys = vec![ApiKey("alpha".into()), ApiKey("beta".into())];
+        let keys = [ApiKey("alpha".into()), ApiKey("beta".into())];
         assert!(keys.iter().any(|k| k.matches(b"alpha")));
         assert!(keys.iter().any(|k| k.matches(b"beta")));
         assert!(!keys.iter().any(|k| k.matches(b"gamma")));
