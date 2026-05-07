@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     log::init(config.verbose);
     info!("Config loaded: {config:#?}");
 
-    db::init(&config.db_uri, config.db_name).await?;
+    db::init(&config.db_uri, config.db_name, config.db_max_connections).await?;
     info!("DB initialized");
 
     let app = Router::new()
