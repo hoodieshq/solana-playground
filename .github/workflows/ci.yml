@@ -3,10 +3,9 @@ name: CI
 # Pull-request gate. Pushes to master are validated + deployed by cicd.yml,
 # so this workflow intentionally does not trigger on push.
 on:
-  push:
-    branches: ["master"]
   pull_request:
-    branches: ["master"]
+    branches:
+      - master
 
   workflow_dispatch:
 
