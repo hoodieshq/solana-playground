@@ -59,6 +59,13 @@ browser. We would run a service and then disable everything the service is for.
 - We want subagents, permissions and context management we would otherwise
   build ourselves → D1-C.
 
+**Integration note (found while building).** The SDK statically imports its
+on-disk credential resolution, which reaches `node:fs` and `node:path`. Webpack
+treats `node:` as a URI scheme and rejects it before `resolve.fallback` or
+aliases apply, so `craco.config.js` rewrites the scheme away and the existing
+`fs: false` / `path: false` fallbacks stub them out. Harmless here because the
+key is always passed explicitly, so that code never runs.
+
 ### D1-B — Parked: model calls through a small proxy service
 
 Same client architecture; requests go to a minimal open-source service we run

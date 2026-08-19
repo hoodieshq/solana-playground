@@ -61,6 +61,17 @@ module.exports = {
         zlib: false,
       };
 
+      // Webpack treats `node:` as a URI scheme and rejects it before
+      // `resolve.fallback` or aliases get a chance, so rewrite it away. The
+      // Anthropic SDK reaches `node:fs` and `node:path` from its on-disk
+      // credential resolution, which cannot apply in a browser — the assistant
+      // passes the key explicitly — and the fallbacks above stub them out.
+      webpackConfig.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+          resource.request = resource.request.replace(/^node:/, "");
+        })
+      );
+
       // Plugins
       webpackConfig.plugins.push(
         // Buffer

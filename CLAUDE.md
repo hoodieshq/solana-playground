@@ -49,9 +49,14 @@ git submodule update --init       # client/public — icons, fonts, themes, tuto
 
 cd client && yarn install
 yarn generate-exports             # REQUIRED — writes the gitignored src/*/generated.ts barrels
+yarn sync-assistant-context       # REQUIRED — copies docs/assistant-context.md into the bundle
 yarn generate-packages && yarn generate-tutorials
 BROWSER=none npx craco start      # http://localhost:3000, ~32s first compile
 ```
+
+Both `REQUIRED` lines write gitignored files that the app imports, so the build
+fails without them. `yarn generate` runs the whole chain including the expensive
+crate step; the four above are the cheap subset.
 
 **Why the stubs.** `client/package.json` declares eight local `file:` deps under
 `wasm/*/pkg`. Two (Playnet, rustfmt) are committed prebuilt; the other six are

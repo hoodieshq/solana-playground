@@ -38,3 +38,6 @@ wasm/*/pkg/
 # macOS
 .DS_Store
 
+
+# Synced from docs/assistant-context.md by client/scripts/sync-assistant-context.mjs
+client/src/views/sidebar/assistant/content/assistant-context.md
