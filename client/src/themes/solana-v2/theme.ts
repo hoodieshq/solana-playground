@@ -201,7 +201,14 @@ const SOLANA_V2: ThemeParam = {
       default: { bg: BG_SURFACE },
       primary: {
         home: {
-          default: { bg: BG_SURFACE },
+          // Home is a content surface - prose belongs to the display font
+          default: { bg: BG_SURFACE, fontFamily: DISPLAY_FONT },
+          title: {
+            fontFamily: DISPLAY_FONT,
+            fontSize: "2.25rem",
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+          },
           resources: {
             card: {
               default: {
