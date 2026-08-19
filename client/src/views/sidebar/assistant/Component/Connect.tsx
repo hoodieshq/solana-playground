@@ -2,6 +2,7 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../../components/Button";
+import GradientButton from "./GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import { PgAssistant } from "../store";
@@ -190,7 +191,7 @@ const ProviderDescription = styled.div`
   `}
 `;
 
-const ConnectButton = styled(Button)`
+const ConnectButton = styled(GradientButton)`
   margin-top: 0.75rem;
 `;
 
