@@ -135,8 +135,24 @@ const SOLANA_V2: ThemeParam = {
       highlightColor: BG_HOVER,
     },
     tabs: {
+      default: {
+        bg: BG_BASE,
+        borderBottom: `1px solid ${BORDER}`,
+      },
       tab: {
-        current: { bg: BG_SURFACE },
+        default: {
+          paddingLeft: "0.75rem",
+          color: TEXT_SECONDARY,
+          // No boxed dividers between tabs — the current tab stands out by
+          // surface + accent instead
+          borderRightColor: "transparent",
+          hover: { bg: BG_HOVER },
+        },
+        current: {
+          bg: BG_SURFACE,
+          color: TEXT_PRIMARY,
+          borderTopColor: PURPLE,
+        },
       },
     },
     terminal: {
