@@ -76,7 +76,10 @@ const Monaco = () => {
         return colors;
       };
 
-      monaco.editor.defineTheme(theme.name, {
+      // Monaco rejects theme names with spaces ("Illegal theme name!"), so
+      // multi-word playground theme names must be kebab-cased for it
+      const monacoThemeName = PgCommon.toKebabFromTitle(theme.name);
+      monaco.editor.defineTheme(monacoThemeName, {
         base: "vs-dark",
         inherit: true,
         colors: toHexColors({
@@ -173,7 +176,7 @@ const Monaco = () => {
         }),
         rules: [],
       });
-      monaco.editor.setTheme(theme.name);
+      monaco.editor.setTheme(monacoThemeName);
     } else {
       monaco.editor.setTheme("vs");
     }
