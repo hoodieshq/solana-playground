@@ -5,6 +5,7 @@ import Button from "../../../../components/Button";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import { PgAssistant } from "../store";
+import { PROVIDERS, type ProviderId } from "../model/types";
 
 const CAPABILITIES = [
   { tag: "READS", text: "your open files, the project tree, the last compiler error" },
@@ -14,7 +15,16 @@ const CAPABILITIES = [
 ];
 
 const Connect = () => {
+  const [providerId, setProviderId] = useState<ProviderId>("scripted");
   const [key, setKey] = useState("");
+
+  const provider = PROVIDERS.find((p) => p.id === providerId)!;
+  const ready = !provider.needsKey || !!key.trim();
+
+  // `Button` restores its own state after awaiting this handler, so unmounting
+  // synchronously would leave it setting state on an unmounted component.
+  const connect = () =>
+    setTimeout(() => PgAssistant.connect(providerId, key), 0);
 
   return (
     <Wrapper>
@@ -24,33 +34,50 @@ const Connect = () => {
         wrong against your actual code, and proposes patches you apply yourself.
       </Lead>
 
-      <Label>ANTHROPIC API KEY</Label>
-      <Input
-        value={key}
-        onChange={(ev) => setKey(ev.target.value)}
-        onKeyDown={(ev) => {
-          if (ev.key === "Enter") PgAssistant.setApiKey(key);
-        }}
-        placeholder="sk-ant-…"
-        type="password"
-        autoComplete="off"
-      />
-      <Connectbutton
-        kind="primary"
-        fullWidth
-        disabled={!key.trim()}
-        // `Button` restores its own loading state in a `finally` after awaiting
-        // this handler, so unmounting synchronously here would leave it setting
-        // state on an unmounted component. Let it finish first.
-        onClick={() => setTimeout(() => PgAssistant.setApiKey(key), 0)}
-      >
-        Connect
-      </Connectbutton>
+      <Label>BACKEND</Label>
+      <Providers>
+        {PROVIDERS.map((p) => (
+          <ProviderOption
+            key={p.id}
+            selected={p.id === providerId}
+            disabled={p.unavailable}
+            onClick={() => setProviderId(p.id)}
+          >
+            <ProviderName selected={p.id === providerId}>
+              {p.name}
+              {!p.needsKey && !p.unavailable && <NoKey>no key needed</NoKey>}
+            </ProviderName>
+            <ProviderDescription>{p.description}</ProviderDescription>
+          </ProviderOption>
+        ))}
+      </Providers>
 
-      <Note>
-        Held in memory for this tab only — never written to disk, never sent
-        anywhere but Anthropic. You will re-enter it after a reload.
-      </Note>
+      {provider.needsKey && (
+        <>
+          <Label>API KEY</Label>
+          <Input
+            value={key}
+            onChange={(ev) => setKey(ev.target.value)}
+            onKeyDown={(ev) => {
+              if (ev.key === "Enter" && ready) connect();
+            }}
+            placeholder={provider.keyPlaceholder}
+            type="password"
+            autoComplete="off"
+          />
+        </>
+      )}
+
+      <ConnectButton kind="primary" fullWidth disabled={!ready} onClick={connect}>
+        {provider.needsKey ? "Connect" : "Start"}
+      </ConnectButton>
+
+      {provider.needsKey && (
+        <Note>
+          Held in memory for this tab only — never written to disk, never sent
+          anywhere but {provider.name}. You will re-enter it after a reload.
+        </Note>
+      )}
 
       <Capabilities>
         {CAPABILITIES.map(({ tag, text }) => (
@@ -61,9 +88,11 @@ const Connect = () => {
         ))}
       </Capabilities>
 
-      <Footer>
-        No key? <Link href="https://console.anthropic.com/">Create one</Link>
-      </Footer>
+      {provider.keyUrl && (
+        <Footer>
+          No key? <Link href={provider.keyUrl}>Create one</Link>
+        </Footer>
+      )}
     </Wrapper>
   );
 };
@@ -74,7 +103,7 @@ const Wrapper = styled.div`
   flex-grow: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.5rem 1rem;
+  padding: 1.25rem 1rem;
 `;
 
 const Title = styled.div`
@@ -104,13 +133,70 @@ const Label = styled.div`
   `}
 `;
 
-const Connectbutton = styled(Button)`
+const Providers = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-bottom: 1rem;
+`;
+
+const ProviderOption = styled.button<{ selected: boolean }>`
+  ${({ theme, selected }) => css`
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    text-align: left;
+    padding: 0.5rem 0.625rem;
+    background: transparent;
+    border: 1px solid
+      ${selected ? theme.colors.default.primary : theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+  `}
+`;
+
+const ProviderName = styled.div<{ selected: boolean }>`
+  ${({ theme, selected }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: ${selected
+      ? theme.colors.default.primary
+      : theme.colors.default.textPrimary};
+    font-size: ${theme.font.code.size.small};
+  `}
+`;
+
+const NoKey = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.success.color};
+    font-size: ${theme.font.code.size.xsmall};
+  `}
+`;
+
+const ProviderDescription = styled.div`
+  ${({ theme }) => css`
+    padding-top: 0.1875rem;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    line-height: 1.5;
+  `}
+`;
+
+const ConnectButton = styled(Button)`
   margin-top: 0.75rem;
 `;
 
 const Note = styled.div`
   ${({ theme }) => css`
-    padding-top: 1rem;
+    padding-top: 0.875rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.6;
@@ -121,7 +207,7 @@ const Capabilities = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding-top: 1.5rem;
+  padding-top: 1.25rem;
 `;
 
 const Capability = styled.div`

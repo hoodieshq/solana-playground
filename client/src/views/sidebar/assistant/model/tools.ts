@@ -1,7 +1,12 @@
-import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema";
-
 import { PgAssistant } from "../store";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
+import type { ToolDefinition, ToolInput } from "./types";
+
+/** Read a required string argument the model supplied */
+const str = (input: ToolInput, key: string) => {
+  const value = input[key];
+  return typeof value === "string" ? value : "";
+};
 
 /**
  * What the assistant can do to the project.
@@ -10,31 +15,33 @@ import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
  * building, deploying — calls `PgAssistant.requestApproval` and does not
  * return until the user clicks, which holds the agent loop open. That is
  * "propose automatically, apply explicitly" enforced inside the loop rather
- * than around it.
+ * than around it, and it works the same whichever provider is driving.
  *
  * @param bridge the playground to act on
- * @returns the tools, ready for `toolRunner`
+ * @returns vendor-neutral tool definitions
  */
-export const createTools = (bridge: PlaygroundBridge = realBridge) => {
-  const listFiles = betaTool({
+export const createTools = (
+  bridge: PlaygroundBridge = realBridge
+): ToolDefinition[] => [
+  {
     name: "list_files",
     description:
       "List every file in the user's project, as paths relative to the " +
       "project root. Use this to find out what exists before reading.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    schema: { type: "object", properties: {}, additionalProperties: false },
     run: () => {
       PgAssistant.addToolCall("listed the project");
       const paths = bridge.listFiles();
       return paths.length ? paths.join("\n") : "The project has no files.";
     },
-  });
+  },
 
-  const readFile = betaTool({
+  {
     name: "read_file",
     description:
       "Read one file from the user's project. Always read a file before " +
       "proposing a change to it, so the change matches what is actually there.",
-    inputSchema: {
+    schema: {
       type: "object",
       properties: {
         path: {
@@ -45,39 +52,39 @@ export const createTools = (bridge: PlaygroundBridge = realBridge) => {
       required: ["path"],
       additionalProperties: false,
     },
-    run: ({ path }) => {
+    run: (input) => {
+      const path = str(input, "path");
       PgAssistant.addToolCall(`read ${path}`);
       const content = bridge.readFile(path);
-      if (content === null) return `There is no file at ${path}.`;
-      return content;
+      return content === null ? `There is no file at ${path}.` : content;
     },
-  });
+  },
 
-  const getBuildError = betaTool({
+  {
     name: "get_build_error",
     description:
       "Get the compiler output from the most recent build. Returns the " +
       "compiler's own text, including file paths and error codes. Use this " +
       "rather than guessing what an error says.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    schema: { type: "object", properties: {}, additionalProperties: false },
     run: () => {
       PgAssistant.addToolCall("read the build output");
       const { buildError } = bridge.getProjectContext();
-      if (!buildError) {
-        return "The last build did not fail, or nothing has been built yet.";
-      }
-      return buildError;
+      return (
+        buildError ??
+        "The last build did not fail, or nothing has been built yet."
+      );
     },
-  });
+  },
 
-  const writeFile = betaTool({
+  {
     name: "write_file",
     description:
       "Propose new content for a file. This does NOT write anything on its " +
       "own — the user is shown a diff and decides. Send the file's complete " +
       "new content, not a fragment. Prefer the smallest change that fixes " +
       "the problem.",
-    inputSchema: {
+    schema: {
       type: "object",
       properties: {
         path: {
@@ -92,7 +99,10 @@ export const createTools = (bridge: PlaygroundBridge = realBridge) => {
       required: ["path", "content"],
       additionalProperties: false,
     },
-    run: async ({ path, content }) => {
+    run: async (input) => {
+      const path = str(input, "path");
+      const content = str(input, "content");
+
       const allowed = await PgAssistant.requestApproval({
         type: "patch",
         path,
@@ -110,22 +120,26 @@ export const createTools = (bridge: PlaygroundBridge = realBridge) => {
 
       try {
         await bridge.applyPatch({ path, content });
-        if (approvalId) PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
+        if (approvalId) {
+          PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
+        }
         return `Wrote ${path}.`;
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) PgAssistant.setApprovalOutcome(approvalId, "write failed");
+        if (approvalId) {
+          PgAssistant.setApprovalOutcome(approvalId, "write failed");
+        }
         return `Could not write ${path}: ${message}`;
       }
     },
-  });
+  },
 
-  const build = betaTool({
+  {
     name: "build",
     description:
       "Compile the program. Requires the user's approval. After it finishes, " +
       "call get_build_error to see what the compiler said.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    schema: { type: "object", properties: {}, additionalProperties: false },
     run: async () => {
       const allowed = await PgAssistant.requestApproval({
         type: "command",
@@ -150,18 +164,20 @@ export const createTools = (bridge: PlaygroundBridge = realBridge) => {
           : "The build succeeded.";
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) PgAssistant.setApprovalOutcome(approvalId, "build errored");
+        if (approvalId) {
+          PgAssistant.setApprovalOutcome(approvalId, "build errored");
+        }
         return `The build could not run: ${message}`;
       }
     },
-  });
+  },
 
-  const deploy = betaTool({
+  {
     name: "deploy",
     description:
       "Deploy the compiled program to the configured cluster. Requires the " +
       "user's approval. Costs SOL and needs a funded wallet.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    schema: { type: "object", properties: {}, additionalProperties: false },
     run: async () => {
       const { cluster } = bridge.getProjectContext();
       const allowed = await PgAssistant.requestApproval({
@@ -178,11 +194,11 @@ export const createTools = (bridge: PlaygroundBridge = realBridge) => {
         return "Deployed. The program id and transaction are in the terminal.";
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) PgAssistant.setApprovalOutcome(approvalId, "deploy failed");
+        if (approvalId) {
+          PgAssistant.setApprovalOutcome(approvalId, "deploy failed");
+        }
         return `The deployment failed: ${message}`;
       }
     },
-  });
-
-  return [listFiles, readFile, getBuildError, writeFile, build, deploy];
-};
+  },
+];

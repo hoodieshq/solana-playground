@@ -1,4 +1,5 @@
 import type { Disposable } from "../../../utils";
+import type { ProviderId } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -63,18 +64,30 @@ export class PgAssistant {
     return PgAssistant._status;
   }
 
-  static get apiKey() {
-    return PgAssistant._apiKey;
+  /** Which backend is selected, and its key. Never written anywhere. */
+  static get connection() {
+    return PgAssistant._connection;
   }
 
-  static get hasKey() {
-    return !!PgAssistant._apiKey;
+  static get isConnected() {
+    return !!PgAssistant._connection;
   }
 
-  /** Set the key for this tab. Not written anywhere. */
-  static setApiKey(key: string) {
-    PgAssistant._apiKey = key.trim() || null;
+  /**
+   * Choose a backend for this tab.
+   *
+   * @param id which provider
+   * @param apiKey the user's key, empty for providers that need none
+   */
+  static connect(id: ProviderId, apiKey: string) {
+    PgAssistant._connection = { id, apiKey: apiKey.trim() };
     PgAssistant._emit();
+  }
+
+  /** Drop the backend and the key, and clear the conversation with it */
+  static disconnect() {
+    PgAssistant._connection = null;
+    PgAssistant.clear();
   }
 
   static setStatus(status: AssistantStatus) {
@@ -206,7 +219,7 @@ export class PgAssistant {
 
   private static _items: ChatItem[] = [];
   private static _status: AssistantStatus = "idle";
-  private static _apiKey: string | null = null;
+  private static _connection: { id: ProviderId; apiKey: string } | null = null;
   private static readonly _pending = new Map<
     string,
     (allowed: boolean) => void
