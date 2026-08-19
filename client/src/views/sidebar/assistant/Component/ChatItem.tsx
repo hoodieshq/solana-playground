@@ -1,0 +1,346 @@
+import { FC, useMemo } from "react";
+import styled, { css } from "styled-components";
+
+import Button from "../../../../components/Button";
+import Markdown from "../../../../components/Markdown";
+import { diffLines, summarizeDiff } from "../diff";
+import { PgAssistant, type ChatItem as Item } from "../store";
+
+const ChatItem: FC<{ item: Item }> = ({ item }) => {
+  switch (item.kind) {
+    case "user":
+      return (
+        <Turn>
+          <Role>YOU</Role>
+          <UserText>{item.text}</UserText>
+        </Turn>
+      );
+
+    case "assistant":
+      return (
+        <Turn>
+          <Role $accent>ASSISTANT</Role>
+          <Markdown codeFontOnly>{item.text}</Markdown>
+        </Turn>
+      );
+
+    case "tool":
+      return (
+        <ToolLine>
+          <Tick>✓</Tick>
+          {item.label}
+        </ToolLine>
+      );
+
+    case "error":
+      return <ErrorBox>{item.text}</ErrorBox>;
+
+    case "approval":
+      return <Approval item={item} />;
+  }
+};
+
+const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
+  item,
+}) => {
+  const { request, status } = item;
+  const pending = status === "pending";
+
+  const allow = () => PgAssistant.resolveApproval(item.id, true);
+  const deny = () => PgAssistant.resolveApproval(item.id, false);
+
+  const label =
+    status === "allowed" ? "APPLIED" : status === "denied" ? "DECLINED" : null;
+
+  return (
+    <Card $pending={pending}>
+      <CardHead>
+        {request.type === "patch" ? (
+          <PatchTitle request={request} />
+        ) : (
+          <CardTitle>wants to run {request.name}</CardTitle>
+        )}
+        <StatusLabel $status={status}>{label ?? "PROPOSED"}</StatusLabel>
+      </CardHead>
+
+      {request.type === "patch" ? (
+        <Diff before={request.before} after={request.after} />
+      ) : (
+        <CommandBody>
+          <Command>$ {request.name}</Command>
+          <Effect>{request.effect}</Effect>
+        </CommandBody>
+      )}
+
+      {pending ? (
+        <Actions>
+          <Button kind="primary" size="small" fullWidth onClick={allow}>
+            {request.type === "patch" ? "Apply" : "Allow"}
+          </Button>
+          <Button kind="outline" size="small" onClick={deny}>
+            {request.type === "patch" ? "Reject" : "Deny"}
+          </Button>
+        </Actions>
+      ) : (
+        <Outcome $allowed={status === "allowed"}>
+          {item.outcome ?? (status === "allowed" ? "done" : "not applied")}
+        </Outcome>
+      )}
+    </Card>
+  );
+};
+
+const PatchTitle: FC<{
+  request: Extract<Item, { kind: "approval" }>["request"] & { type: "patch" };
+}> = ({ request }) => {
+  const { added, removed } = useMemo(
+    () => summarizeDiff(diffLines(request.before, request.after)),
+    [request.before, request.after]
+  );
+
+  return (
+    <CardTitle>
+      {request.path}
+      <Counts>
+        <Added>+{added}</Added>
+        <Removed>−{removed}</Removed>
+      </Counts>
+    </CardTitle>
+  );
+};
+
+const Diff: FC<{ before: string | null; after: string }> = ({
+  before,
+  after,
+}) => {
+  const lines = useMemo(() => diffLines(before, after), [before, after]);
+
+  return (
+    <DiffBody>
+      {lines.map((line, i) => (
+        <DiffRow key={i} $kind={line.kind}>
+          <Gutter>{line.number ?? ""}</Gutter>
+          <Sign $kind={line.kind}>
+            {line.kind === "added" ? "+" : line.kind === "removed" ? "-" : " "}
+          </Sign>
+          <Code>{line.text || " "}</Code>
+        </DiffRow>
+      ))}
+    </DiffBody>
+  );
+};
+
+const Turn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+`;
+
+const Role = styled.div<{ $accent?: boolean }>`
+  ${({ theme, $accent }) => css`
+    color: ${$accent
+      ? theme.colors.default.primary
+      : theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    letter-spacing: 0.1em;
+  `}
+`;
+
+const UserText = styled.div`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  `}
+`;
+
+const ToolLine = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.small};
+  `}
+`;
+
+const Tick = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.success.color};
+  `}
+`;
+
+const ErrorBox = styled.div`
+  ${({ theme }) => css`
+    padding: 0.625rem 0.6875rem;
+    border: 1px solid ${theme.colors.state.error.color};
+    border-radius: ${theme.default.borderRadius};
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.code.size.small};
+    line-height: 1.55;
+    word-break: break-word;
+  `}
+`;
+
+const Card = styled.div<{ $pending: boolean }>`
+  ${({ theme, $pending }) => css`
+    border: 1px solid
+      ${$pending
+        ? theme.colors.default.primary
+        : theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgSecondary};
+    overflow: hidden;
+  `}
+`;
+
+const CardHead = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const CardTitle = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.small};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `}
+`;
+
+const Counts = styled.span`
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+`;
+
+const Added = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.success.color};
+    font-size: ${theme.font.code.size.xsmall};
+  `}
+`;
+
+const Removed = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.code.size.xsmall};
+  `}
+`;
+
+const StatusLabel = styled.span<{ $status: string }>`
+  ${({ theme, $status }) => css`
+    flex-shrink: 0;
+    font-size: ${theme.font.code.size.xsmall};
+    letter-spacing: 0.08em;
+    color: ${$status === "allowed"
+      ? theme.colors.state.success.color
+      : $status === "denied"
+      ? theme.colors.default.textSecondary
+      : theme.colors.default.primary};
+  `}
+`;
+
+const DiffBody = styled.div`
+  ${({ theme }) => css`
+    padding: 0.375rem 0;
+    font-size: ${theme.font.code.size.small};
+    overflow-x: auto;
+  `}
+`;
+
+const DiffRow = styled.div<{ $kind: string }>`
+  ${({ theme, $kind }) => css`
+    display: flex;
+    line-height: 1.6;
+    background: ${$kind === "added"
+      ? theme.colors.state.success.color + "22"
+      : $kind === "removed"
+      ? theme.colors.state.error.color + "22"
+      : "transparent"};
+  `}
+`;
+
+const Gutter = styled.span`
+  ${({ theme }) => css`
+    width: 2.25rem;
+    flex-shrink: 0;
+    padding-right: 0.5rem;
+    text-align: right;
+    color: ${theme.colors.default.textSecondary};
+    opacity: 0.7;
+  `}
+`;
+
+const Sign = styled.span<{ $kind: string }>`
+  ${({ theme, $kind }) => css`
+    width: 0.75rem;
+    flex-shrink: 0;
+    color: ${$kind === "added"
+      ? theme.colors.state.success.color
+      : $kind === "removed"
+      ? theme.colors.state.error.color
+      : theme.colors.default.textSecondary};
+  `}
+`;
+
+const Code = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    white-space: pre;
+  `}
+`;
+
+const CommandBody = styled.div`
+  padding: 0.625rem 0.6875rem;
+`;
+
+const Command = styled.div`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.warning.color};
+    font-size: ${theme.font.code.size.small};
+  `}
+`;
+
+const Effect = styled.div`
+  ${({ theme }) => css`
+    padding-top: 0.375rem;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    line-height: 1.55;
+  `}
+`;
+
+const Actions = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.625rem;
+    border-top: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const Outcome = styled.div<{ $allowed: boolean }>`
+  ${({ theme, $allowed }) => css`
+    padding: 0.625rem;
+    border-top: 1px solid ${theme.colors.default.border};
+    color: ${$allowed
+      ? theme.colors.state.success.color
+      : theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+  `}
+`;
+
+export default ChatItem;
