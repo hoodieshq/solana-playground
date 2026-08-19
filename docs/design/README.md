@@ -32,8 +32,13 @@ Changes made in the canvas GUI and saved live only on the artifact until someone
 reads them back; if you have edited it there, say so before re-seeding from these
 files or your changes will be overwritten.
 
-The seeded output (`solana-playground-assistant-panel.html`, ~2 MB) is generated
-and gitignored — ask Claude Code to re-seed and republish after editing.
+`solana-playground-assistant-panel.html` is the seeded page, generated from the
+sources above and committed so it can be opened straight from a checkout — no
+account, no network, just open it in a browser. It is ~2 MB and regenerated
+whole on every change; treat it as build output, never edit it by hand.
+
+`screenshots/` holds a snapshot of the canvas and of the client running locally,
+so the state of things is legible from the repo alone.
 
 ## Where the design decisions live
 

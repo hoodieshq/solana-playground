@@ -89,14 +89,12 @@
               <span style="font-size: 10px; letter-spacing: .08em; color: {{propColor}}">{{propLabel}}</span>
             </div>
 
-            <div style="font-size: 12.5px; line-height: 1.75; padding: 6px 0">
+            <div style="font-size: 12.5px; padding: 6px 0">
               <sc-for list="{{diff}}" as="d" hint-placeholder-count="4">
-                <div style="display: flex; background: {{d.bg}}">
+                <div style="display: flex; height: 22px; line-height: 22px; background: {{d.bg}}">
                   <span style="width: 34px; text-align: right; padding-right: 10px; color: #9BA8C8; flex-shrink: 0">{{d.n}}</span>
                   <span style="width: 12px; color: {{d.sc}}; flex-shrink: 0">{{d.sign}}</span>
-                  <span style="white-space: pre; min-width: 0">
-                    <sc-for list="{{d.tokens}}" as="k" hint-placeholder-count="4"><span style="color: {{k.c}}">{{k.t}}</span></sc-for>
-                  </span>
+                  <span style="white-space: pre; min-width: 0"><sc-for list="{{d.tokens}}" as="k" hint-placeholder-count="4"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></span>
                 </div>
               </sc-for>
             </div>
@@ -171,13 +169,11 @@
         </div>
       </div>
 
-      <div style="flex-grow: 1; background: linear-gradient(315deg, #151721, #212431); padding: 12px 0; overflow: hidden; font-size: 13px; line-height: 1.85; min-height: 0">
+      <div style="flex-grow: 1; background: linear-gradient(315deg, #151721, #212431); padding: 12px 0; overflow: hidden; font-size: 13px; min-height: 0">
         <sc-for list="{{code}}" as="l" hint-placeholder-count="15">
-          <div style="display: flex; background: {{l.bg}}">
+          <div style="display: flex; height: 24px; line-height: 24px; background: {{l.bg}}">
             <span style="width: 48px; text-align: right; padding-right: 16px; color: #9BA8C8; flex-shrink: 0">{{l.n}}</span>
-            <span style="white-space: pre">
-              <sc-for list="{{l.tokens}}" as="k" hint-placeholder-count="3"><span style="color: {{k.c}}">{{k.t}}</span></sc-for>
-            </span>
+            <span style="white-space: pre"><sc-for list="{{l.tokens}}" as="k" hint-placeholder-count="3"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></span>
           </div>
         </sc-for>
       </div>
@@ -188,11 +184,9 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 15l-6-6-6 6"/></svg>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </div>
-        <div style="padding: 4px 16px 14px; font-size: 13px; line-height: 1.75; overflow: hidden">
+        <div style="padding: 4px 16px 14px; font-size: 13px; overflow: hidden">
           <sc-for list="{{term}}" as="t" hint-placeholder-count="7">
-            <div style="white-space: pre">
-              <sc-for list="{{t.tokens}}" as="k" hint-placeholder-count="2"><span style="color: {{k.c}}">{{k.t}}</span></sc-for>
-            </div>
+            <div style="white-space: pre; height: 23px; line-height: 23px"><sc-for list="{{t.tokens}}" as="k" hint-placeholder-count="2"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></div>
           </sc-for>
         </div>
       </div>
