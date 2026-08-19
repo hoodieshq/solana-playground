@@ -6,10 +6,10 @@ import Connect from "./Connect";
 import Button from "../../../../components/Button";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
-import { runTurn } from "../model/agent";
+import { createProvider } from "../model";
 import { PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { Provider } from "../model/types";
 
 const SUGGESTIONS = [
   "Why did my build fail?",
@@ -21,7 +21,7 @@ const Chat = () => {
   useRenderOnChange(PgAssistant.onDidChange);
 
   const [input, setInput] = useState("");
-  const history = useRef<Anthropic.Beta.BetaMessageParam[]>([]);
+  const provider = useRef<Provider | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const items = PgAssistant.items;
@@ -33,7 +33,13 @@ const Chat = () => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [items.length, status]);
 
-  if (!PgAssistant.hasKey) return <Connect />;
+  const connection = PgAssistant.connection;
+  if (!connection) return <Connect />;
+
+  // One provider per connection; it owns the conversation history
+  if (provider.current?.id !== connection.id) {
+    provider.current = createProvider(connection.id, connection.apiKey);
+  }
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -44,11 +50,7 @@ const Chat = () => {
     PgAssistant.setStatus("running");
 
     try {
-      history.current = await runTurn({
-        apiKey: PgAssistant.apiKey!,
-        history: history.current,
-        input: trimmed,
-      });
+      await provider.current!.send(trimmed);
     } catch (e) {
       PgAssistant.addError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -124,7 +126,7 @@ const Chat = () => {
         </InputRow>
 
         <Footer>
-          <span>claude-opus-5</span>
+          <span>{provider.current?.label}</span>
           <span>nothing is written without your click</span>
         </Footer>
       </Composer>

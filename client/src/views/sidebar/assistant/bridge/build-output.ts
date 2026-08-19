@@ -70,9 +70,21 @@ export class PgBuildOutput {
  * @returns the output without the known-irrelevant lines
  */
 export const stripKnownNoise = (stderr: string) => {
-  return stderr
-    .split("\n")
-    .filter((line) => !/^Error: Function .*Stack offset of \d+ exceeded/.test(line))
-    .join("\n")
-    .trim();
+  return (
+    stderr
+      .split("\n")
+      .filter(
+        (line) => !/^Error: Function .*Stack offset of \d+ exceeded/.test(line)
+      )
+      .join("\n")
+      // The server compiles under a per-session directory, so every path it
+      // reports is prefixed with that uuid. Left in, it sends the reader after
+      // files that do not exist in the project. `improveOutput` strips it for
+      // the terminal for the same reason.
+      .replace(
+        /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//g,
+        ""
+      )
+      .trim()
+  );
 };
