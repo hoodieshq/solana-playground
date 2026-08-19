@@ -16,9 +16,15 @@ const Assistant = () => {
 
   return (
     <Wrapper>
-      <Tabs>
+      <Tabs role="tablist" aria-label="Assistant sections">
         {TABS.map(({ id, label }) => (
-          <TabButton key={id} active={tab === id} onClick={() => setTab(id)}>
+          <TabButton
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            $active={tab === id}
+            onClick={() => setTab(id)}
+          >
             {label}
           </TabButton>
         ))}
@@ -49,23 +55,32 @@ const Tabs = styled.div`
   `}
 `;
 
-const TabButton = styled.button<{ active: boolean }>`
-  ${({ theme, active }) => css`
+const TabButton = styled.button<{ $active: boolean }>`
+  ${({ theme, $active }) => css`
     padding: 0.5rem 0.625rem 0.4375rem;
     background: transparent;
     border: none;
     border-bottom: 2px solid
-      ${active ? theme.colors.default.primary : "transparent"};
-    color: ${active
+      ${$active ? theme.colors.default.primary : "transparent"};
+    color: ${$active
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font: inherit;
     font-size: ${theme.font.code.size.small};
     white-space: nowrap;
     cursor: pointer;
+    transition: color ${theme.default.transition.duration.medium}
+        ${theme.default.transition.type},
+      border-color ${theme.default.transition.duration.medium}
+        ${theme.default.transition.type};
 
     &:hover {
       color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
     }
   `}
 `;

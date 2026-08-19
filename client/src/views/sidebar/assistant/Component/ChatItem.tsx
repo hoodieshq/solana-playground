@@ -18,6 +18,9 @@ const ChatItem: FC<{ item: Item }> = ({ item }) => {
       );
 
     case "assistant":
+      // Nothing streamed yet — the chat's thinking indicator stands in, so
+      // don't render a role header with nothing under it
+      if (!item.text) return null;
       return (
         <Turn>
           <Role $accent>ASSISTANT</Role>
@@ -28,13 +31,13 @@ const ChatItem: FC<{ item: Item }> = ({ item }) => {
     case "tool":
       return (
         <ToolLine>
-          <Tick>✓</Tick>
+          <Tick aria-hidden>✓</Tick>
           {item.label}
         </ToolLine>
       );
 
     case "error":
-      return <ErrorBox>{item.text}</ErrorBox>;
+      return <ErrorBox role="alert">{item.text}</ErrorBox>;
 
     case "approval":
       return <Approval item={item} />;
@@ -260,7 +263,9 @@ const DiffBody = styled.div`
   ${({ theme }) => css`
     padding: 0.375rem 0;
     font-size: ${theme.font.code.size.small};
-    overflow-x: auto;
+    /* A large patch scrolls inside its card instead of flooding the chat */
+    max-height: 15rem;
+    overflow: auto;
   `}
 `;
 

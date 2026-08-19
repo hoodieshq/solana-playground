@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import ChatItem from "./ChatItem";
 import Connect from "./Connect";
 import Button from "../../../../components/Button";
+import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { createProvider } from "../model";
@@ -23,6 +24,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const provider = useRef<Provider | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const items = PgAssistant.items;
   const status = PgAssistant.status;
@@ -32,6 +34,11 @@ const Chat = () => {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [items.length, status]);
+
+  // The textarea is disabled during a turn, which drops focus; hand it back
+  useEffect(() => {
+    if (!busy) inputRef.current?.focus();
+  }, [busy]);
 
   const connection = PgAssistant.connection;
   if (!connection) return <Connect />;
@@ -67,9 +74,15 @@ const Chat = () => {
     PgProgramInfo.idl ? "idl" : null,
   ].filter((chip): chip is string => !!chip);
 
+  // Cover the silent gaps: before the first token and while tools run.
+  // Once text streams into the last assistant item the dots come down.
+  const lastItem = items[items.length - 1];
+  const thinking =
+    status === "running" && (lastItem?.kind !== "assistant" || !lastItem.text);
+
   return (
     <Wrapper>
-      <Messages>
+      <Messages role="log" aria-label="Conversation">
         {items.length === 0 ? (
           <Empty>
             <EmptyLabel>TRY ASKING</EmptyLabel>
@@ -81,6 +94,11 @@ const Chat = () => {
           </Empty>
         ) : (
           items.map((item) => <ChatItem key={item.id} item={item} />)
+        )}
+        {thinking && (
+          <Thinking role="status" aria-label="Assistant is working">
+            <ThreeDots width="0.25rem" height="0.25rem" distance="0.5rem" />
+          </Thinking>
         )}
         <div ref={bottomRef} />
       </Messages>
@@ -97,6 +115,8 @@ const Chat = () => {
 
         <InputRow>
           <TextArea
+            ref={inputRef}
+            aria-label="Message the assistant"
             value={input}
             placeholder={
               status === "awaiting"
@@ -109,7 +129,9 @@ const Chat = () => {
             rows={2}
             onChange={(ev) => setInput(ev.target.value)}
             onKeyDown={(ev) => {
-              if (ev.key === "Enter" && !ev.shiftKey) {
+              // `isComposing` guards IME input — Enter there commits the
+              // composition, it must not send the message
+              if (ev.key === "Enter" && !ev.shiftKey && !ev.nativeEvent.isComposing) {
                 ev.preventDefault();
                 send(input);
               }
@@ -178,12 +200,28 @@ const Suggestion = styled.button`
     font-size: ${theme.font.code.size.small};
     line-height: 1.5;
     cursor: pointer;
+    transition: all ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
 
     &:hover {
       background: ${theme.colors.state.hover.bg};
       color: ${theme.colors.default.textPrimary};
     }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
+    }
   `}
+`;
+
+const Thinking = styled.div`
+  /* The outer dots of \`ThreeDots\` are pseudo-elements offset by \`distance\`,
+   * so the row needs its own room on the left */
+  display: flex;
+  align-items: center;
+  min-height: 0.75rem;
+  padding-left: 0.625rem;
 `;
 
 const Composer = styled.div`
@@ -255,6 +293,7 @@ const TextArea = styled.textarea`
 
     &:disabled {
       color: ${theme.colors.default.textSecondary};
+      cursor: not-allowed;
     }
   `}
 `;

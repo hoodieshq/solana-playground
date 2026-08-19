@@ -35,16 +35,17 @@ const Connect = () => {
         wrong against your actual code, and proposes patches you apply yourself.
       </Lead>
 
-      <Label>BACKEND</Label>
+      <Label as="div">BACKEND</Label>
       <Providers>
         {PROVIDERS.map((p) => (
           <ProviderOption
             key={p.id}
-            selected={p.id === providerId}
+            aria-pressed={p.id === providerId}
+            $selected={p.id === providerId}
             disabled={p.unavailable}
             onClick={() => setProviderId(p.id)}
           >
-            <ProviderName selected={p.id === providerId}>
+            <ProviderName $selected={p.id === providerId}>
               {p.name}
               {!p.needsKey && !p.unavailable && <NoKey>no key needed</NoKey>}
             </ProviderName>
@@ -55,8 +56,9 @@ const Connect = () => {
 
       {provider.needsKey && (
         <>
-          <Label>API KEY</Label>
+          <Label htmlFor="assistant-api-key">API KEY</Label>
           <Input
+            id="assistant-api-key"
             value={key}
             onChange={(ev) => setKey(ev.target.value)}
             onKeyDown={(ev) => {
@@ -107,10 +109,12 @@ const Wrapper = styled.div`
   padding: 1.25rem 1rem;
 `;
 
-const Title = styled.div`
+const Title = styled.h2`
   ${({ theme }) => css`
+    margin: 0;
     color: ${theme.colors.default.textPrimary};
     font-size: ${theme.font.code.size.medium};
+    font-weight: 600;
     line-height: 1.5;
     padding-bottom: 0.625rem;
   `}
@@ -125,8 +129,9 @@ const Lead = styled.div`
   `}
 `;
 
-const Label = styled.div`
+const Label = styled.label`
   ${({ theme }) => css`
+    display: block;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     letter-spacing: 0.1em;
@@ -141,8 +146,8 @@ const Providers = styled.div`
   padding-bottom: 1rem;
 `;
 
-const ProviderOption = styled.button<{ selected: boolean }>`
-  ${({ theme, selected }) => css`
+const ProviderOption = styled.button<{ $selected: boolean }>`
+  ${({ theme, $selected }) => css`
     &:disabled {
       opacity: 0.45;
       cursor: not-allowed;
@@ -152,23 +157,30 @@ const ProviderOption = styled.button<{ selected: boolean }>`
     padding: 0.5rem 0.625rem;
     background: transparent;
     border: 1px solid
-      ${selected ? theme.colors.default.primary : theme.colors.default.border};
+      ${$selected ? theme.colors.default.primary : theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
     font: inherit;
     cursor: pointer;
+    transition: all ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
 
     &:hover {
       background: ${theme.colors.state.hover.bg};
     }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
+    }
   `}
 `;
 
-const ProviderName = styled.div<{ selected: boolean }>`
-  ${({ theme, selected }) => css`
+const ProviderName = styled.div<{ $selected: boolean }>`
+  ${({ theme, $selected }) => css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: ${selected
+    color: ${$selected
       ? theme.colors.default.primary
       : theme.colors.default.textPrimary};
     font-size: ${theme.font.code.size.small};
