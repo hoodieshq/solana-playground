@@ -203,3 +203,44 @@ audiences from one source:
 a sync step into `client/src`, because CRA's `ModuleScopePlugin` blocks
 `client/src` from importing across the repo root. `client/scripts/sync-readme.mjs`
 is the precedent.
+
+---
+
+## D7 — Panel visual design: inherit the IDE, don't decorate it
+
+**Date:** 2026-08-19 · **Status:** approved as a design; not yet implemented
+
+Design canvas: <https://claude.ai/code/artifact/95f6b66b-3387-42ba-a134-f187a6162b8b>
+Source: `docs/design/` · see its README for how to change it.
+
+Every value is lifted from `client/src/themes/playground/theme.ts` rather than
+chosen — colours, 8px/12px radii, the 13/14/16/20px type ramp, and JetBrains
+Mono. The panel should read as part of the IDE, not as a chat widget someone
+embedded in one.
+
+Four things the design decides:
+
+**Monospace, no bubbles.** The whole playground is monospace, so the assistant
+is too. Turns are labelled `YOU` / `ASSISTANT` in small caps and run full-width
+rather than sitting in alternating rounded bubbles — the latter is the visual
+grammar of a support widget and would look foreign here.
+
+**The gate is visible.** Read-only tools (`read`, `list`) render as quiet
+completed lines. Anything that changes state — `write_file`, `build`, `deploy` —
+stops and renders an approval card with the exact command and what it will do.
+That makes "propose automatically, apply explicitly" something you can see
+rather than a claim in a README.
+
+**A context strip above the composer.** A row of chips naming what the assistant
+can currently see: `lib.rs`, `build error`, `no idl yet`. The product's whole
+argument is that this assistant shares context with the project; that should be
+legible without asking it.
+
+**A proposal is a card, not prose.** File name, change count, a unified diff in
+the editor's own syntax colours, and one primary Apply against a bordered
+Reject. After applying it collapses to a confirmation line, so the transcript
+records what happened.
+
+**Revisit when** the panel is built and real content stresses it — long
+proposals, multi-file patches, errors with many diagnostics. Wide panels
+(it resizes to 75% of the window) are also unexercised: the artboards show 420px.

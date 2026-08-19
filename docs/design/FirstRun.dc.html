@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    a { color: #5288f2; } a:hover { color: #46c9d7; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 420px; height: 760px; background: #151721; color: #f2f2f7; font-size: 14px; display: flex; flex-direction: column; border: 1px solid #293244; overflow: hidden">
+
+  <div style="height: 44px; display: flex; align-items: center; justify-content: center; letter-spacing: .06em; font-size: 20px; flex-shrink: 0">ASSISTANT</div>
+  <div style="display: flex; border-bottom: 1px solid #293244; flex-shrink: 0; padding: 0 12px; gap: 4px">
+    <div style="padding: 8px 10px 7px; font-size: 13px; color: #f2f2f7; border-bottom: 2px solid #5288f2">Chat</div>
+    <div style="padding: 8px 10px 7px; font-size: 13px; color: #9BA8C8; border-bottom: 2px solid transparent">What we're building</div>
+  </div>
+
+  <!-- ============ NOT CONNECTED ============ -->
+  <sc-if value="{{setup}}" hint-placeholder-val="{{ true }}">
+  <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 28px 18px; min-height: 0; overflow-y: auto">
+
+    <div style="display: flex; justify-content: center; padding-bottom: 20px">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#5288f2" stroke-width="1.3">
+        <path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/><path d="M9 11h6M9 15h3"/>
+      </svg>
+    </div>
+
+    <div style="text-align: center; font-size: 16px; line-height: 1.5; padding-bottom: 10px">An assistant that can see your project</div>
+    <div style="text-align: center; color: #c0c1ce; font-size: 12.5px; line-height: 1.65; padding-bottom: 24px">
+      It reads your open files and the last build error, explains what went wrong against your
+      actual code, and proposes patches you apply yourself.
+    </div>
+
+    <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8; padding-bottom: 7px">ANTHROPIC API KEY</div>
+    <div style="border: 1px solid {{fieldBorder}}; border-radius: 8px; background: #0e1019; padding: 10px 11px; display: flex; align-items: center; gap: 8px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9BA8C8" stroke-width="1.7" style="flex-shrink: 0"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 11-7.1 7.1 5 5 0 017.1-7.1zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+      <span style="flex-grow: 1; color: {{fieldColor}}; font-size: 13px; letter-spacing: .04em">{{fieldText}}</span>
+    </div>
+
+    <div onClick="{{connect}}" style="margin-top: 12px; text-align: center; padding: 10px 0; border-radius: 12px; background: #5288f2; color: #0e1019; font-size: 13px; font-weight: 700; cursor: pointer">Connect</div>
+
+    <div style="display: flex; gap: 8px; padding-top: 16px; color: #9BA8C8; font-size: 11.5px; line-height: 1.6">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e7d354" stroke-width="1.7" style="flex-shrink: 0; margin-top: 1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <span>Held in memory for this tab only — never written to disk, never sent anywhere but Anthropic. You will re-enter it after a reload.</span>
+    </div>
+
+    <div style="flex-grow: 1"></div>
+    <div style="color: #9BA8C8; font-size: 11.5px; text-align: center; padding-top: 20px">
+      No key? <a href="#">Create one at console.anthropic.com</a>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ CONNECTED, EMPTY ============ -->
+  <sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+  <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 24px 16px; min-height: 0; overflow-y: auto">
+    <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 20px; color: #29cd7d; font-size: 12px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#29cd7d" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      <span>connected</span>
+    </div>
+
+    <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8; padding-bottom: 10px">TRY ASKING</div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{prompts}}" as="p" hint-placeholder-count="4">
+        <div style="border: 1px solid #293244; border-radius: 8px; padding: 10px 11px; color: #c0c1ce; font-size: 12.5px; line-height: 1.5; cursor: pointer">{{p}}</div>
+      </sc-for>
+    </div>
+
+    <div style="padding-top: 22px; font-size: 11px; letter-spacing: .1em; color: #9BA8C8">WHAT IT CAN DO</div>
+    <div style="padding-top: 10px; display: flex; flex-direction: column; gap: 9px">
+      <sc-for list="{{caps}}" as="c" hint-placeholder-count="4">
+        <div style="display: flex; gap: 9px; align-items: flex-start">
+          <span style="color: {{c.color}}; font-size: 11px; padding-top: 2px; width: 52px; flex-shrink: 0; letter-spacing: .06em">{{c.tag}}</span>
+          <span style="color: #c0c1ce; font-size: 12.5px; line-height: 1.55">{{c.text}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="border-top: 1px solid #293244; flex-shrink: 0; padding: 8px 12px 12px">
+    <div style="border: 1px solid #293244; border-radius: 8px; background: #0e1019; padding: 9px 10px; display: flex; align-items: center; gap: 8px; opacity: {{composerOpacity}}">
+      <span style="flex-grow: 1; color: #9BA8C8; font-size: 13px">{{composerHint}}</span>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{sendColor}}" stroke-width="1.8"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding-top: 7px; font-size: 10.5px; color: #9BA8C8">
+      <span>claude-opus-5</span>
+      <span>nothing is written without your click</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "connected": {"editor": "boolean", "default": false, "section": "State"},
+  "$preview": {"width": 420, "height": 760}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ready = this.state.connected ?? this.props.connected ?? false;
+    return {
+      setup: !ready,
+      ready,
+      fieldText: ready ? 'sk-ant-••••••••••••••••' : 'sk-ant-…',
+      fieldColor: ready ? '#c0c1ce' : '#9BA8C8',
+      fieldBorder: ready ? '#29cd7d' : '#293244',
+      composerHint: ready ? 'Ask about this project…' : 'Connect a key to start',
+      composerOpacity: ready ? '1' : '.45',
+      sendColor: ready ? '#5288f2' : '#293244',
+      connect: () => this.setState({ connected: true }),
+      prompts: [
+        'why did my build fail?',
+        'what does this program do?',
+        "what's our current status and roadmap?",
+        'how do I add an account constraint here?',
+      ],
+      caps: [
+        { tag: 'READS', text: 'your open files, the project tree, the last compiler error, the IDL after a build', color: '#9BA8C8' },
+        { tag: 'WRITES', text: 'proposes patches as a diff — applied only when you click Apply', color: '#5288f2' },
+        { tag: 'RUNS', text: 'build and deploy, each behind an explicit approval', color: '#5288f2' },
+        { tag: 'KNOWS', text: "this project's roadmap, decisions and current status", color: '#9BA8C8' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
