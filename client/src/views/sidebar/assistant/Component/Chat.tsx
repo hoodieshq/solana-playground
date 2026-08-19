@@ -189,6 +189,17 @@ const Composer = styled.div`
     flex-shrink: 0;
     border-top: 1px solid ${theme.colors.default.border};
     padding: 0.5rem 0.75rem 0.75rem;
+    background: ${theme.colors.default.bgSecondary};
+
+    /**
+     * The sidebar sizes itself with \`calc(100vh - <bottom height>)\`, so if
+     * anything above it drifts by a pixel the panel is taller than the space it
+     * has and the composer lands below the fold. Sticking it to the bottom of
+     * the scrollport keeps it reachable either way.
+     */
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
   `}
 `;
 
@@ -250,9 +261,16 @@ const Footer = styled.div`
   ${({ theme }) => css`
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
     padding-top: 0.4375rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
+
+    /* Wrap between the two, never inside either */
+    & > span {
+      white-space: nowrap;
+    }
   `}
 `;
 

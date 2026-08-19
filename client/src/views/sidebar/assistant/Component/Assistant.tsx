@@ -32,7 +32,10 @@ const Assistant = () => {
 const Wrapper = styled.div`
   display: flex;
   flex-direction: column;
+  /* Fill the sidebar whether it hands us a flex slot or a definite height */
+  flex: 1;
   height: 100%;
+  max-height: 100%;
   min-height: 0;
 `;
 
