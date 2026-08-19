@@ -251,7 +251,12 @@ const SOLANA_V2: ThemeParam = {
           fontFamily: DISPLAY_FONT,
           fontSize: "1rem",
           fontWeight: 500,
-          letterSpacing: "0.02em",
+          letterSpacing: "0.04em",
+          // Left-aligned header row instead of the legacy centered banner.
+          // Later declarations here override the wrapper's hardcoded
+          // `justify-content: center`, so no component edit is needed.
+          justifyContent: "flex-start",
+          paddingLeft: "1rem",
         },
       },
     },
