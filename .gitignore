@@ -31,3 +31,9 @@ server/programs/*
 # WASM
 **/www
 .vercel
+
+# WASM build output (real packages from wasm/build.sh, or stubs from wasm/stub-packages.sh)
+wasm/*/pkg/
+
+# macOS
+.DS_Store
