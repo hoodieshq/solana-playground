@@ -44,3 +44,13 @@ so the state of things is legible from the repo alone.
 
 `docs/decisions.md` → D7. The spec that implements it is
 `docs/superpowers/specs/2026-08-19-assistant-panel-design.md`.
+
+## Redesign canvas
+
+The Solana-brand redesign (before/after + token sheet):
+**https://claude.ai/code/artifact/621475c8-0f47-405d-b6b9-d4351c4ca60a**
+
+Source in `redesign/` — same rules as above: the `.dc.html` files are the
+source, the seeded page is generated, screenshots live in
+`screenshots/redesign/`. Decisions in `../decisions.md` (D8, D9); tokens in
+`../design/brand-research.md`.

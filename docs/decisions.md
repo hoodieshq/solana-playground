@@ -251,3 +251,59 @@ records what happened.
 **Revisit when** the panel is built and real content stresses it — long
 proposals, multi-file patches, errors with many diagnostics. Wide panels
 (it resizes to 75% of the window) are also unexercised: the artboards show 420px.
+
+---
+
+## D8 — Styling system: the native theme registry, not Tailwind or shadcn
+
+**Date:** 2026-08-19 · **Status:** chosen (deferral, as agreed before the overnight run)
+
+The redesign is carried by the app's own theme system. No Tailwind, no shadcn.
+
+**Why.** shadcn is blocked outright: its components are built on Radix
+primitives, which require React 18 — this client is React 17 (the same wall as
+`@ai-sdk/react` in D1). Tailwind is possible but would create a **second**
+styling system beside the theme registry that every component already reads
+through styled-components: two sources of truth for color and spacing,
+consistency down, and a huge upstream-merge surface if components migrate.
+Meanwhile the native theme layer proved deeper than expected — colors, both
+font tracks, radii, per-component styles down to `home.*` cards and the
+sidebar rail — enough to carry the whole redesign with almost no component
+edits.
+
+**Revisit when:** the client moves to React 18, or D5 resolves to a separate
+client-2 codebase (a fresh codebase changes the calculus entirely).
+
+---
+
+## D9 — Redesign approach: a new default theme plus a thin component layer
+
+**Date:** 2026-08-19 · **Status:** implemented overnight
+
+Canvas: <https://claude.ai/code/artifact/621475c8-0f47-405d-b6b9-d4351c4ca60a>
+Research: `docs/design/brand-research.md` · Spec:
+`docs/superpowers/specs/2026-08-19-solana-redesign-design.md`
+
+**What was decided and holds:**
+
+- **Tokens are sourced, not invented** — pulled from solana.com's served CSS:
+  the violet-black surface family, lavender-white low-alpha borders, the
+  canonical `135deg` gradient, and Space Grotesk, which solana.com itself
+  ships in font stacks (their Diatype is proprietary).
+- **`Solana V2` is a new theme and the fork's default**; Playground, Dracula,
+  Light and the old Solana stay switchable and were sanity-checked after the
+  component changes.
+- **Gradient policy:** the brand gradient appears only on the single decisive
+  CTA of a view, the progress indicator, and the rail's active marker.
+- **The IDE stays monospace where it is an IDE** (editor, terminal, explorer,
+  assistant conversation — per D7); Space Grotesk takes chrome, titles,
+  buttons, Home and content surfaces.
+- **Hot files were approved but barely needed.** The planned surgical edit to
+  `Right.tsx` (17 commits/yr) was avoided entirely — theme declarations
+  override the wrapper's hardcoded centering. Component edits shipped:
+  `Monaco.tsx` (theme-name kebab, 2 lines), `utils/theme/theme.ts` (one-time
+  default migration), `utils/theme/interface.ts` (font typing), the rail SVG
+  set, and the assistant's GradientButton.
+
+**Deferred, by explicit choice:** responsive/tablet (step two), a light-theme
+variant, wallet-flow redesign beyond theming.
