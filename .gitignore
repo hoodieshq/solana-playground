@@ -38,6 +38,3 @@ wasm/*/pkg/
 # macOS
 .DS_Store
 
-# Seeded design canvas (generated from docs/design/*.dc.html — keep the sources)
-docs/design/*.html
-!docs/design/*.dc.html
