@@ -2,6 +2,7 @@ import { FC, useMemo } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../../components/Button";
+import GradientButton from "./GradientButton";
 import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
 import { PgAssistant, type ChatItem as Item } from "../store";
@@ -46,8 +47,10 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
   const { request, status } = item;
   const pending = status === "pending";
 
-  const allow = () => PgAssistant.resolveApproval(item.id, true);
-  const deny = () => PgAssistant.resolveApproval(item.id, false);
+  // The shared Button restores its own state after awaiting onClick; resolving
+  // synchronously unmounts the pending actions row under it. Defer a tick.
+  const allow = () => setTimeout(() => PgAssistant.resolveApproval(item.id, true), 0);
+  const deny = () => setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
 
   const label =
     status === "allowed" ? "APPLIED" : status === "denied" ? "DECLINED" : null;
@@ -74,9 +77,9 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
 
       {pending ? (
         <Actions>
-          <Button kind="primary" size="small" fullWidth onClick={allow}>
+          <GradientButton kind="primary" size="small" fullWidth onClick={allow}>
             {request.type === "patch" ? "Apply" : "Allow"}
-          </Button>
+          </GradientButton>
           <Button kind="outline" size="small" onClick={deny}>
             {request.type === "patch" ? "Reject" : "Deny"}
           </Button>
