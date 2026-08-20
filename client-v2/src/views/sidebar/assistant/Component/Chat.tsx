@@ -135,7 +135,11 @@ const Chat = () => {
             onKeyDown={(ev) => {
               // `isComposing` guards IME input — Enter there commits the
               // composition, it must not send the message
-              if (ev.key === "Enter" && !ev.shiftKey && !ev.nativeEvent.isComposing) {
+              if (
+                ev.key === "Enter" &&
+                !ev.shiftKey &&
+                !ev.nativeEvent.isComposing
+              ) {
                 ev.preventDefault();
                 send(input);
               }

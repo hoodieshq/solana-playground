@@ -131,7 +131,9 @@ const streamOneCompletion = async (
   if (!response.ok || !response.body) {
     const body = await response.text().catch(() => "");
     throw new Error(
-      `${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 300)}` : ""}`
+      `${response.status} ${response.statusText}${
+        body ? ` — ${body.slice(0, 300)}` : ""
+      }`
     );
   }
 
