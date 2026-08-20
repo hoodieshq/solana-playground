@@ -28,6 +28,9 @@ const BG_BASE = "#000000", // chrome: rail, topbar, status bar, terminal
   // Syntax
   COMMENT = "#6E6880";
 
+/** Corner radius of the floating panels (editor, terminal, sidebar page) */
+const PANEL_RADIUS = "14px";
+
 /** Display font for chrome (titles, buttons, topbar); code stays monospace */
 const DISPLAY_FONT = `"Space Grotesk", -apple-system, BlinkMacSystemFont,
   "Segoe UI", Helvetica, Arial, sans-serif`;
@@ -195,11 +198,25 @@ const SOLANA_V2: ThemeParam = {
     bottom: {
       bg: BG_BASE,
       color: TEXT_SECONDARY,
-      borderTop: `1px solid ${BORDER}`,
+      // The floating panels above never touch the status bar - a divider
+      // would be a line hanging in empty black
+      borderTop: "none",
     },
     main: {
-      default: { bg: BG_SURFACE },
+      // Floating-panel composition: the main column is part of the black
+      // canvas; editor and terminal are inset cards separated by 8px gutters
+      default: {
+        bg: BG_BASE,
+        padding: "0.5rem 0.5rem 0.5rem 0.5rem",
+        gap: "0.5rem",
+      },
       primary: {
+        default: {
+          bg: BG_SURFACE,
+          border: `1px solid ${BORDER}`,
+          borderRadius: PANEL_RADIUS,
+          overflow: "hidden",
+        },
         home: {
           // Home is a content surface - prose belongs to the display font
           default: { bg: BG_SURFACE, fontFamily: DISPLAY_FONT },
@@ -227,12 +244,31 @@ const SOLANA_V2: ThemeParam = {
           },
         },
       },
+      secondary: {
+        // The terminal floats as its own black card - one shade below the
+        // editor surface, delineated by the border instead of a divider
+        default: {
+          bg: BG_BASE,
+          border: `1px solid ${BORDER}`,
+          // Override the default purple divider - the card border does the job
+          borderTop: `1px solid ${BORDER}`,
+          borderRadius: PANEL_RADIUS,
+          overflow: "hidden",
+        },
+      },
     },
     sidebar: {
+      // The gap separates the rail from the floating page panel; vertical
+      // padding aligns the panel with the editor card next to it
+      default: {
+        bg: BG_BASE,
+        gap: "0.5rem",
+        padding: "0.5rem 0",
+      },
       left: {
         default: {
           bg: BG_BASE,
-          borderRight: `1px solid ${BORDER}`,
+          borderRight: "none",
         },
         button: {
           selected: {
@@ -244,8 +280,13 @@ const SOLANA_V2: ThemeParam = {
       right: {
         default: {
           bg: BG_SURFACE,
-          otherBg: BG_BASE,
-          borderRight: `1px solid ${BORDER}`,
+          otherBg: BG_SURFACE,
+          border: `1px solid ${BORDER}`,
+          borderRadius: PANEL_RADIUS,
+          overflow: "hidden",
+          // The wrapper hardcodes `calc(100vh - bottom)` before this block;
+          // subtract the 2x0.5rem vertical gutters the Side wrapper adds
+          height: "calc(100vh - 1.5rem - 1rem)",
         },
         title: {
           fontFamily: DISPLAY_FONT,
