@@ -44,7 +44,7 @@ guidance, no connection to the ecosystem's own documentation tooling.
 Three focus areas, in priority order:
 
 1. **AI assistant inside the environment** — a chat module beside the editor that
-   shares project context and can act on it. *This is the current work.*
+   shares project context and can act on it. *Shipped; see Status below.*
 2. **Real wallet support** — standard wallet adapters (Phantom, Solflare,
    Backpack) alongside the existing in-browser keypair.
 3. **Modern, responsive interface** — current visual language, works on tablet.
@@ -73,13 +73,19 @@ environment inherits ecosystem knowledge without waiting for a release.
 
 The assistant runs **entirely in the browser**. No backend of ours.
 
-- `@anthropic-ai/sdk` (browser build) drives the model, using its Tool Runner to
-  run the agent loop. Model: `claude-opus-5`, adaptive thinking, streaming.
-- The tools are ours and map onto the playground: read and list files, write a
-  file, read the last build error, build, deploy. Each one is a gate — the Tool
-  Runner lets us inspect a pending tool call *before* it runs, which is how
-  "propose automatically, apply explicitly" is enforced in the loop itself
-  rather than bolted on around it.
+- Four providers share one vendor-neutral tool set (`createTools()`): the
+  Demo backend (a scripted walkthrough, no key, no network), Anthropic
+  (`claude-opus-5` via `@anthropic-ai/sdk`'s Tool Runner), and an
+  OpenAI-compatible chat-completions provider with ready-made presets for
+  OpenRouter and Gemini. The Anthropic provider is implemented but has not
+  yet been exercised against a live key.
+- The tools map onto the playground: read and list files, read the last build
+  error, write a file, build, deploy. The gate lives inside each
+  state-changing tool's own `run` — `write_file`, `build` and `deploy` each
+  `await PgAssistant.requestApproval(...)` and do not return until the user
+  clicks, which holds the agent loop open. That is how "propose automatically,
+  apply explicitly" is enforced in the loop itself, identically for every
+  provider, rather than by the Tool Runner inspecting a call before it runs.
 - Project context comes from what the client already holds: `PgExplorer` for
   files and the open tab, `PgProgramInfo` for the IDL and program ID,
   `PgGlobal` for build and deploy state.
@@ -93,10 +99,10 @@ real words, so the build command now stores it. See `decisions.md` → D4.
 
 ## Status
 
-**Milestone:** a clickable end-to-end demo, running locally — hit build, get an
-error, the assistant explains it against the actual code, proposes a fix, you
-apply it with one click, build succeeds, deploy to devnet, result linked in
-Explorer.
+**The assistant panel is shipped.** Hit build, get an error, the assistant
+explains it against the actual code, proposes a fix, you apply it with one
+click, build succeeds, deploy to devnet, result linked in Explorer — the
+milestone demo works end to end.
 
 Done:
 
@@ -111,23 +117,38 @@ Done:
   (`https://api.solpg.io`) — CORS allows `http://localhost:3000` and a real build
   returned in 3.5 seconds. No Docker, no Rust toolchain needed.
 - Runtime and architecture decided and written down (`decisions.md`).
+- The assistant panel: the Demo backend needs no key; Anthropic, and
+  OpenAI-compatible with ready-made OpenRouter and Gemini presets, are
+  selectable. The Anthropic provider has not yet been exercised against a
+  live key.
+- Two redesign iterations shipped: the Solana-brand theme (tokens sourced
+  from solana.com, `Solana V2` as the fork's default), then the
+  floating-panel layout (anatomy and navigation built on top of it).
 
-In progress: the assistant panel itself.
+In progress: iteration 3, "Flow" — re-anatomizing the UI around the
+Write → Build → Deploy → Interact loop. Concept and plan are approved
+(`decisions.md` → D10); implementation has not started.
 
-Not started: real wallet adapters; the responsive redesign; MCP grounding.
+Not started: real wallet adapters; responsive/tablet layout; MCP grounding.
 
 ## What is real and what is mocked
 
 Honesty rule for the demo — never present a mocked step as working.
 
-- **Real:** the editor, file explorer, terminal, build, deploy to devnet, the
-  IDL-driven test panel, the wallet. All of it is the existing playground.
+- **Real:** the editor, file explorer, terminal, build against the build
+  server, compiler stderr capture, deploy to devnet, the IDL-driven test
+  panel, the wallet. All of it is the existing playground.
 - **Real:** the build server. It is the production one at `api.solpg.io`.
+- **Real:** the assistant's tool calls, the diff it proposes, Apply, and the
+  Explorer link after a deploy.
+- **Scripted:** the Demo backend's reasoning — it walks a fixed script rather
+  than calling a model, so it works with no key and no network.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,
   `spl-token`, `sugar` terminal commands — stubbed out to skip the hour-long
   WASM build. They throw a clear message pointing at `wasm/build.sh`.
-- **Prototype-grade:** the assistant's own key handling (in memory, re-entered
-  per session) and the absence of a demo quota.
+- **Prototype-grade:** the assistant's key handling — kept in memory only,
+  re-entered per session, never written to storage — and the absence of a
+  demo quota.
 
 ## Answering questions about this project
 
