@@ -105,8 +105,9 @@ stack:
     bundler: webpack 5.71 (via react-scripts, patched by craco)
     package_manager: yarn 1.22.22 (yarn.lock v1; no workspaces, no PnP)
     monorepo_tooling: >
-      None. client/, server/, wasm/ and vscode/ are independent projects joined
-      only by relative `file:` dependencies from client to wasm.
+      None. client/, client-v2/, server/, wasm/ and vscode/ are independent
+      projects joined only by relative `file:` dependencies from client (and
+      client-v2) to wasm.
     root_makefile: >
       Makefile aggregates per-area submakes; currently includes only
       client/Makefile.vercel.

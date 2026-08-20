@@ -175,12 +175,12 @@ user's fault, and an assistant that explains them is actively harmful.
 
 ---
 
-## D5 — Open: what "client-2" concretely means
+## D5 — Resolved: what "client-2" concretely means
 
-**Date:** 2026-08-19 · **Status:** open — needs a team decision
+**Date:** 2026-08-19 · **Status:** resolved
 
 `CLAUDE.md` describes a second client developed in parallel and says not to
-modify the existing `client-v2/`. `task-01` describes a dockable panel inside the
+modify the existing `client/`. `task-01` describes a dockable panel inside the
 existing editor layout. Those are different codebases.
 
 We are proceeding on the reading that the prototype is a panel inside the
@@ -189,6 +189,11 @@ registry entry, which qualifies as "strictly necessary" and ports cleanly if the
 answer turns out to be a separate app.
 
 **Resolve by:** asking the team. Not answerable by reading the repo.
+
+**Resolved 2026-08-20:** "client-2" is a literal `client-v2/` directory in this
+repo, a full copy of upstream's client with the fork's changes; `client/` stays
+byte-identical to upstream. Rationale in
+`docs/superpowers/specs/2026-08-20-client-v2-consolidation-design.md`.
 
 ---
 
