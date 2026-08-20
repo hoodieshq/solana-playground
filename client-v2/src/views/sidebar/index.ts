@@ -1,1 +1,1 @@
-export { SIDEBAR } from "./sidebar";
+export { DEFAULT_SIDEBAR_PAGE, SIDEBAR } from "./sidebar";
