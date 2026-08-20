@@ -151,6 +151,11 @@ export class PgTheme {
     };
     this._font = font;
 
+    // Match native UI (scrollbars, form controls, system colors) to the theme
+    document.documentElement.style.colorScheme = this._theme.isDark
+      ? "dark"
+      : "light";
+
     // Load font if necessary.
     //
     // Iterating over the fonts here because both the `check` and `has` methods
