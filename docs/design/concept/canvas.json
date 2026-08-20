@@ -1,0 +1,28 @@
+{
+  "artboards": [
+    { "file": "Critique.dc.html", "title": "Why re-plan", "x": 0, "y": 0, "w": 960, "h": 900 },
+    { "file": "Motion.dc.html", "title": "Motion language", "x": 1020, "y": 0, "w": 960, "h": 1000 },
+    { "file": "Main.dc.html", "title": "B - Flow: Write", "x": 0, "y": 1010, "w": 1440, "h": 800 },
+    { "file": "FlowBuild.dc.html", "title": "B - Flow: Build fails", "x": 1500, "y": 1010, "w": 1440, "h": 820 },
+    { "file": "FlowDeploy.dc.html", "title": "B - Flow: Deployed, Interact", "x": 3000, "y": 1010, "w": 1440, "h": 780 },
+    { "file": "MissionControl.dc.html", "title": "A - Mission Control (sketch)", "x": 0, "y": 1940, "w": 1200, "h": 860 },
+    { "file": "ConversationFirst.dc.html", "title": "C - Conversation-first (sketch)", "x": 1300, "y": 1940, "w": 1200, "h": 840 }
+  ],
+  "annotations": [
+    {
+      "id": "note-concept",
+      "x": 0,
+      "y": -150,
+      "w": 620,
+      "text": "Iteration 3 concept - re-planning the anatomy, not repainting it.\n\nTop row: the argument and the motion language. Middle row: direction B (Flow) in depth - the recommendation. Bottom row: directions A and C for comparison."
+    },
+    {
+      "id": "note-flow",
+      "x": 1500,
+      "y": 900,
+      "w": 560,
+      "text": "Direction B: the navigation IS the dev loop - Write, Build, Deploy, Interact - with live status in the header. The assistant is a permanent column; the console is a drawer, never the primary feedback channel."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -307,3 +307,45 @@ Research: `docs/design/brand-research.md` · Spec:
 
 **Deferred, by explicit choice:** responsive/tablet (step two), a light-theme
 variant, wallet-flow redesign beyond theming.
+
+## D10 — Iteration 3 direction: the dev loop as navigation ("Flow")
+
+**Date:** 2026-08-20 · **Status:** concept approved, not yet implemented
+
+Canvas: <https://claude.ai/code/artifact/7a144a9b-5a0f-4ac4-a2ff-d4b99782ca20>
+Sources: `docs/design/concept/` (artboards + seeded canvas) ·
+`docs/design/screenshots/concept/` (board renders) · Spec:
+`docs/superpowers/specs/2026-08-20-flow-concept-design.md`
+
+**Decided:** the next redesign pass re-plans the anatomy around the
+newcomer's actual loop — **Write → Build → Deploy → Interact** — instead of
+the tool taxonomy the rail encodes today.
+
+- The header carries a live stepper: each stage shows its state (done /
+  active / failed / upcoming), and clicking a stage opens its surface.
+- The assistant is a **permanent right column**, not one sidebar page among
+  six — it is the brief's Focus 1 and reads as such.
+- Build results become a first-class surface (humanized error card, source
+  excerpt, "Fix with assistant"); the raw compiler output stays one click
+  away. The terminal demotes to a console drawer.
+- Cluster, wallet and balance live as header chips — the status model the
+  current UI lacks.
+- Motion language: four duration tokens, five movements, motion-as-status
+  only; all CSS, no animation library (board on the canvas).
+
+**Why B:** every stepper stage maps 1:1 onto a capability the backend
+already has (server build, devnet deploy, the IDL-generated interact
+panel). It is a re-composition of working surfaces, not new machinery —
+and the UI itself teaches the loop, which is what the onboarding-funnel
+positioning demands.
+
+**Rejected — A "Mission Control"** (toolbar + slim rail, console drawer):
+the smallest delta, but still tool-first; it never answers "what do I do
+next?". Revive if the stepper tests badly with real newcomers — B's header
+degrades gracefully into exactly this toolbar.
+
+**Rejected — C "Conversation-first"** (assistant as the primary surface):
+matches how the audience already uses AI tools, but hides the code — the
+opposite of teaching — and is unusable without a paid model behind it (the
+scripted demo cannot carry it). Kept as a horizon: B's assistant column can
+grow C's plan-card language later without a re-architecture.
