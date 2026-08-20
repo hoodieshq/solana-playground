@@ -1,3 +1,3 @@
 export { BOTTOM } from "./bottom";
 export { MAIN_SECONDARY } from "./main";
-export { SIDEBAR } from "./sidebar";
+export { DEFAULT_SIDEBAR_PAGE, SIDEBAR } from "./sidebar";

@@ -8,6 +8,7 @@ import {
   Promisable,
   SyncOrAsync,
 } from "../utils";
+import { DEFAULT_SIDEBAR_PAGE } from "../views";
 
 type ComponentName =
   | string
@@ -90,15 +91,15 @@ export const handleRoute = (
                 ) {
                   // This fixes the case where going back from `/${path}` to `/` with
                   // browser's navigations would cause incorrect component to still be
-                  // mounted instead of switching to `Explorer`
-                  PgView.sidebar.name = "Explorer";
+                  // mounted instead of switching to the default page
+                  PgView.sidebar.name = DEFAULT_SIDEBAR_PAGE;
                 }
               },
             }
           );
         }
       } else if (!PgView.sidebar.name) {
-        PgView.sidebar.name = "Explorer";
+        PgView.sidebar.name = DEFAULT_SIDEBAR_PAGE;
       }
 
       // Get/import main
