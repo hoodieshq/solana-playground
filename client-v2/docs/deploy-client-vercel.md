@@ -2,7 +2,7 @@
 
 Vercel's native Git integration auto-deploys: `master` → production; any other branch → preview. Makefile targets exist as a local escape hatch.
 
-`installCommand` = `bash scripts/vercel-install.sh` (rustup + `wasm/build.sh` + `yarn install`); `buildCommand` = `yarn build`. Wasm must precede `yarn install` because `client/package.json` has `file://../wasm/*/pkg` deps that don't exist until `wasm-pack` runs.
+`installCommand` = `bash scripts/vercel-install.sh` (rustup + `wasm/build.sh` + `yarn install`); `buildCommand` = `yarn build`. Wasm must precede `yarn install` because `client-v2/package.json` has `file://../wasm/*/pkg` deps that don't exist until `wasm-pack` runs.
 
 ## Verified Vercel project settings
 
@@ -10,13 +10,13 @@ Vercel's native Git integration auto-deploys: `master` → production; any other
 | --- | --- |
 | Plan / Build Machine | Enterprise + **Enhanced** |
 | Framework Preset | Other |
-| Root Directory | `client` |
+| Root Directory | `client-v2` |
 | Production Branch | `master` |
 | Ignored Build Step | Automatic |
 
 ## One-time setup
 
-1. Create the project. Framework: Other. Root Directory: `client`.
+1. Create the project. Framework: Other. Root Directory: `client-v2`.
 2. Build Machine: Enhanced on Enterprise; default on Pro.
 3. Production Branch: `master`. Ignored Build Step: Automatic.
 4. Account Settings → Tokens: team-scoped token, `export VERCEL_TOKEN=...` locally for the Makefile targets.
@@ -37,5 +37,5 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 ## Endpoint routing
 
-- All non-share routes → the hardcoded Solana Foundation server URL in `client/src/settings/server/server.ts` (also user-overridable via the `server.endpoint` setting), so forks can point at their own backend.
+- All non-share routes → the hardcoded Solana Foundation server URL in `client-v2/src/settings/server/server.ts` (also user-overridable via the `server.endpoint` setting), so forks can point at their own backend.
 - Share routes (`/share/*`, `/new`) → hardcoded `https://api.solpg.io` so shared snippets stay discoverable across hosts.
