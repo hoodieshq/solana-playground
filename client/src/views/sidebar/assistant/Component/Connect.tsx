@@ -1,7 +1,6 @@
 import { useState } from "react";
 import styled, { css } from "styled-components";
 
-import Button from "../../../../components/Button";
 import GradientButton from "./GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
@@ -18,14 +17,37 @@ const CAPABILITIES = [
 const Connect = () => {
   const [providerId, setProviderId] = useState<ProviderId>("scripted");
   const [key, setKey] = useState("");
+  const [endpoint, setEndpoint] = useState<{
+    baseUrl: string;
+    model: string;
+  } | null>(null);
 
   const provider = PROVIDERS.find((p) => p.id === providerId)!;
-  const ready = !provider.needsKey || !!key.trim();
+
+  const pickProvider = (p: (typeof PROVIDERS)[number]) => {
+    setProviderId(p.id);
+    // Seed the endpoint fields with the provider's defaults, editable from there
+    setEndpoint(p.endpoint ? { ...p.endpoint } : null);
+  };
+
+  const keyReady = !provider.needsKey || provider.keyOptional || !!key.trim();
+  const endpointReady =
+    !provider.endpoint ||
+    (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
+  const ready = keyReady && endpointReady;
 
   // `Button` restores its own state after awaiting this handler, so unmounting
   // synchronously would leave it setting state on an unmounted component.
   const connect = () =>
-    setTimeout(() => PgAssistant.connect(providerId, key), 0);
+    setTimeout(() => {
+      PgAssistant.connect(
+        providerId,
+        key,
+        endpoint
+          ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
+          : undefined
+      );
+    }, 0);
 
   return (
     <Wrapper>
@@ -43,7 +65,7 @@ const Connect = () => {
             aria-pressed={p.id === providerId}
             $selected={p.id === providerId}
             disabled={p.unavailable}
-            onClick={() => setProviderId(p.id)}
+            onClick={() => pickProvider(p)}
           >
             <ProviderName $selected={p.id === providerId}>
               {p.name}
@@ -54,9 +76,36 @@ const Connect = () => {
         ))}
       </Providers>
 
+      {provider.endpoint && endpoint && (
+        <>
+          <Label htmlFor="assistant-base-url">BASE URL</Label>
+          <Field
+            id="assistant-base-url"
+            value={endpoint.baseUrl}
+            onChange={(ev) =>
+              setEndpoint({ ...endpoint, baseUrl: ev.target.value })
+            }
+            placeholder={provider.endpoint.baseUrl}
+            autoComplete="off"
+          />
+          <Label htmlFor="assistant-model">MODEL</Label>
+          <Field
+            id="assistant-model"
+            value={endpoint.model}
+            onChange={(ev) =>
+              setEndpoint({ ...endpoint, model: ev.target.value })
+            }
+            placeholder={provider.endpoint.model}
+            autoComplete="off"
+          />
+        </>
+      )}
+
       {provider.needsKey && (
         <>
-          <Label htmlFor="assistant-api-key">API KEY</Label>
+          <Label htmlFor="assistant-api-key">
+            API KEY{provider.keyOptional ? " (OPTIONAL)" : ""}
+          </Label>
           <Input
             id="assistant-api-key"
             value={key}
@@ -78,7 +127,8 @@ const Connect = () => {
       {provider.needsKey && (
         <Note>
           Held in memory for this tab only — never written to disk, never sent
-          anywhere but {provider.name}. You will re-enter it after a reload.
+          anywhere but {provider.endpoint ? "the endpoint above" : provider.name}.
+          You will re-enter it after a reload.
         </Note>
       )}
 
@@ -201,6 +251,10 @@ const ProviderDescription = styled.div`
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.5;
   `}
+`;
+
+const Field = styled(Input)`
+  margin-bottom: 0.75rem;
 `;
 
 const ConnectButton = styled(GradientButton)`

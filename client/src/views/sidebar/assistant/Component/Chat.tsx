@@ -45,7 +45,11 @@ const Chat = () => {
 
   // One provider per connection; it owns the conversation history
   if (provider.current?.id !== connection.id) {
-    provider.current = createProvider(connection.id, connection.apiKey);
+    provider.current = createProvider(
+      connection.id,
+      connection.apiKey,
+      connection.endpoint
+    );
   }
 
   const send = async (text: string) => {

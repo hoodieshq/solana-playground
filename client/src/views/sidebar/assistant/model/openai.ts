@@ -1,0 +1,221 @@
+import { createTools } from "./tools";
+import { describeProject, systemPrompt } from "./prompt";
+import { PgAssistant } from "../store";
+import type { Provider, ProviderId, ToolDefinition, ToolInput } from "./types";
+
+/** A turn that has not finished after this many round trips is looping */
+const MAX_ITERATIONS = 12;
+
+/** Everything needed to talk to one OpenAI-compatible endpoint */
+export interface OpenAiConfig {
+  id: ProviderId;
+  /** e.g. `https://api.openai.com/v1` — no trailing slash, no `/chat/...` */
+  baseUrl: string;
+  model: string;
+  /** Empty for endpoints that do not check one (local proxies) */
+  apiKey: string;
+}
+
+/** The slice of a chat-completions message the loop needs to carry */
+interface ChatMessage {
+  role: "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+/**
+ * Any OpenAI-compatible backend: OpenAI itself, OpenRouter, a local proxy.
+ *
+ * Plain `fetch` against `/chat/completions` — no SDK, so the same code serves
+ * every endpoint that speaks the protocol. The loop is ours: stream text,
+ * collect tool calls, run them (each tool gates itself on user approval),
+ * feed results back, repeat until the model stops calling tools.
+ */
+export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
+  const tools = createTools();
+  const history: ChatMessage[] = [];
+
+  return {
+    id: config.id,
+    label: config.model,
+
+    async send(input) {
+      history.push({ role: "user", content: input });
+
+      for (let i = 0; i < MAX_ITERATIONS; i++) {
+        const message = await streamOneCompletion(config, tools, history);
+        history.push(message);
+
+        if (!message.tool_calls?.length) return;
+
+        for (const call of message.tool_calls) {
+          history.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: await runToolCall(tools, call),
+          });
+        }
+      }
+
+      throw new Error(
+        `The model was still calling tools after ${MAX_ITERATIONS} rounds — stopped it.`
+      );
+    },
+  };
+};
+
+const runToolCall = async (tools: ToolDefinition[], call: ToolCall) => {
+  const tool = tools.find((t) => t.name === call.function.name);
+  if (!tool) return `Unknown tool: ${call.function.name}`;
+
+  let input: ToolInput;
+  try {
+    input = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+  } catch {
+    return "The tool arguments were not valid JSON. Send them again.";
+  }
+
+  try {
+    return await tool.run(input);
+  } catch (e) {
+    return `The tool failed: ${e instanceof Error ? e.message : String(e)}`;
+  }
+};
+
+/**
+ * One request: stream the text into the store as it arrives, and return the
+ * finished assistant message (text plus any tool calls) for the history.
+ */
+const streamOneCompletion = async (
+  config: OpenAiConfig,
+  tools: ToolDefinition[],
+  history: ChatMessage[]
+): Promise<ChatMessage> => {
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // The key is the user's own and goes only to the endpoint they typed in.
+      // See docs/decisions.md -> D3 for why it is not persisted anywhere.
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: config.model,
+      stream: true,
+      messages: [
+        { role: "system", content: systemPrompt() },
+        {
+          role: "system",
+          content: `Current project state:\n\n${describeProject()}`,
+        },
+        ...history,
+      ],
+      tools: tools.map((tool) => ({
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.schema,
+        },
+      })),
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 300)}` : ""}`
+    );
+  }
+
+  const messageId = PgAssistant.startAssistantMessage();
+  let text = "";
+  // Deltas address calls by index; ids and names arrive on the first delta
+  const calls: ToolCall[] = [];
+
+  try {
+    for await (const data of sseEvents(response.body)) {
+      const delta = data.choices?.[0]?.delta;
+      if (!delta) continue;
+
+      if (typeof delta.content === "string" && delta.content) {
+        text += delta.content;
+        PgAssistant.appendToAssistantMessage(messageId, delta.content);
+      }
+
+      for (const part of delta.tool_calls ?? []) {
+        const call = (calls[part.index] ??= {
+          id: "",
+          type: "function",
+          function: { name: "", arguments: "" },
+        });
+        if (part.id) call.id = part.id;
+        if (part.function?.name) call.function.name += part.function.name;
+        if (part.function?.arguments) {
+          call.function.arguments += part.function.arguments;
+        }
+      }
+    }
+  } finally {
+    // A round that only called tools produces no text; drop the empty bubble
+    PgAssistant.discardIfEmpty(messageId);
+  }
+
+  return {
+    role: "assistant",
+    content: text || null,
+    ...(calls.length ? { tool_calls: calls.filter((c) => c.id) } : {}),
+  };
+};
+
+/** Parse an SSE body into the JSON payload of each `data:` event */
+async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{
+  choices?: Array<{
+    delta?: {
+      content?: string | null;
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        function?: { name?: string; arguments?: string };
+      }>;
+    };
+  }>;
+}> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Events are separated by a blank line; keep the unfinished tail
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() ?? "";
+
+      for (const event of events) {
+        for (const line of event.split(/\r?\n/)) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (payload === "[DONE]") return;
+          try {
+            yield JSON.parse(payload);
+          } catch {
+            // A malformed chunk is the endpoint's bug; skip it, keep streaming
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}

@@ -25,7 +25,7 @@ export interface ToolDefinition {
 }
 
 /** Which model backend the panel is talking to */
-export type ProviderId = "scripted" | "anthropic" | "openai";
+export type ProviderId = "scripted" | "anthropic" | "openai" | "openrouter";
 
 /**
  * One conversation with one backend.
@@ -57,6 +57,13 @@ export interface ProviderInfo {
   keyUrl?: string;
   /** Placeholder for the key field */
   keyPlaceholder?: string;
+  /** The key field may be left empty (e.g. a local proxy that checks none) */
+  keyOptional?: boolean;
+  /**
+   * OpenAI-compatible endpoint settings, editable on the connect screen.
+   * Present only on providers driven by the generic chat-completions loop.
+   */
+  endpoint?: { baseUrl: string; model: string };
   /** Declared but not implemented yet — shown, but cannot be selected */
   unavailable?: boolean;
 }
@@ -80,11 +87,28 @@ export const PROVIDERS: ProviderInfo[] = [
   },
   {
     id: "openai",
-    name: "OpenAI",
-    description: "Not wired up yet — next after the demo provider.",
-    unavailable: true,
+    name: "OpenAI-compatible",
+    description:
+      "Any endpoint that speaks the chat-completions protocol: OpenAI itself, " +
+      "a local proxy, LiteLLM. Point it at your base URL and model.",
     needsKey: true,
+    keyOptional: true,
     keyUrl: "https://platform.openai.com/api-keys",
-    keyPlaceholder: "sk-…",
+    keyPlaceholder: "sk-… (or empty for a local proxy)",
+    endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    description:
+      "One key for many models, including free ones — pick any model id " +
+      "that supports tool calling.",
+    needsKey: true,
+    keyUrl: "https://openrouter.ai/keys",
+    keyPlaceholder: "sk-or-…",
+    endpoint: {
+      baseUrl: "https://openrouter.ai/api/v1",
+      model: "deepseek/deepseek-chat-v3.1:free",
+    },
   },
 ];
