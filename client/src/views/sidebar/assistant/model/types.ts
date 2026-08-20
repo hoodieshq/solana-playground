@@ -25,7 +25,12 @@ export interface ToolDefinition {
 }
 
 /** Which model backend the panel is talking to */
-export type ProviderId = "scripted" | "anthropic" | "openai" | "openrouter";
+export type ProviderId =
+  | "scripted"
+  | "anthropic"
+  | "openai"
+  | "openrouter"
+  | "gemini";
 
 /**
  * One conversation with one backend.
@@ -96,6 +101,20 @@ export const PROVIDERS: ProviderInfo[] = [
     keyUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-… (or empty for a local proxy)",
     endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+  },
+  {
+    id: "gemini",
+    name: "Gemini",
+    description:
+      "Google's models through their OpenAI-compatible endpoint — the AI " +
+      "Studio free tier is enough for a full walkthrough.",
+    needsKey: true,
+    keyUrl: "https://aistudio.google.com/apikey",
+    keyPlaceholder: "AIza…",
+    endpoint: {
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: "gemini-2.5-flash",
+    },
   },
   {
     id: "openrouter",

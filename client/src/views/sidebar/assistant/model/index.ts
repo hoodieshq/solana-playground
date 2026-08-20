@@ -25,7 +25,8 @@ export const createProvider = (
     case "anthropic":
       return createAnthropicProvider(apiKey);
     case "openai":
-    case "openrouter": {
+    case "openrouter":
+    case "gemini": {
       const defaults = PROVIDERS.find((p) => p.id === id)!.endpoint!;
       return createOpenAiProvider({ id, apiKey, ...(endpoint ?? defaults) });
     }
