@@ -44,3 +44,6 @@ client/src/views/sidebar/assistant/content/assistant-context.md
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Playwright MCP session artifacts
+.playwright-mcp/
