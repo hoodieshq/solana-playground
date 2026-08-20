@@ -39,6 +39,19 @@ working, per the product brief's traceability principle.
   followed the OS scheme regardless of theme. Fixed in `PgTheme.set` for all
   themes.
 
+## 2026-08-20 — provider presets
+
+- **Preset model ids rot silently.** `gemini-2.5-flash` was retired for new
+  keys, so the Gemini preset failed on the first send with no warning before
+  it. Nothing validates the id at connect time; the id is only editable, not
+  checked. See D11.
+- **What worked:** `openai.ts` forwards 300 chars of the error body verbatim,
+  and Google's 404 names its own migration target — the diagnosis took one
+  paste. Worth keeping that passthrough when the error surface gets nicer.
+- **Vendor pricing pages lag their own model list.** Google's docs present
+  3.6 Flash as current while the pricing page carries no numbers for it, so
+  the research table records `n/d` rather than a guess.
+
 ## 2026-08-19 — assistant build (earlier)
 
 - **The client discards raw compiler output** — only a boolean and a lossy

@@ -357,3 +357,28 @@ matches how the audience already uses AI tools, but hides the code — the
 opposite of teaching — and is unusable without a paid model behind it (the
 scripted demo cannot carry it). Kept as a horizon: B's assistant column can
 grow C's plan-card language later without a re-architecture.
+
+---
+
+## D11 — Provider presets pin a concrete model id, and we bump it when a vendor retires one
+
+**Date:** 2026-08-20 · **Status:** chosen
+
+`gemini-2.5-flash` stopped answering for new keys — Google returns 404 naming
+`gemini-3.6-flash` as the migration target — so the Gemini preset in
+`model/types.ts` now points at 3.6. The model field stays editable on the
+connect screen, which is what keeps a stale default a nuisance rather than a
+wall.
+
+**Rejected — a floating alias** (`gemini-flash-latest` and friends): the model
+under the alias changes without notice, and with it the price, the tool
+behaviour and the thinking parameters. A demo that silently switches models is
+worse than one that fails loudly on a dead id.
+
+**Rejected — probing `GET /models` on connect to pick automatically:** an extra
+round-trip plus a key-scoped call before the user has committed to anything, to
+solve a problem that is one string edit. Revisit if presets rot more than once
+per milestone.
+
+**Revisit when:** a second preset dies inside one milestone — at that point the
+id list wants a dated table and a liveness check, not four literals.
