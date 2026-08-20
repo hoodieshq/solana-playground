@@ -61,3 +61,32 @@ working, per the product brief's traceability principle.
   stripped before any model (or person) reads them.
 - **Monaco models are reused on reopen**, so writing a file that is open in a
   tab does not refresh the editor without an explicit model sync.
+
+## 2026-08-20 — Gemini's OpenAI-compatible shim
+
+- **It omits `index` on tool-call deltas.** The loop accumulated calls as
+  `calls[part.index]`, so an undefined index wrote a property named
+  `"undefined"` onto the array, `calls.length` stayed `0`, and the finished
+  message carried no `tool_calls`. The tool never ran, no text arrived, and the
+  empty bubble was discarded — a turn that looked like a hang after the dots.
+  The request itself was a clean 200 with a valid `list_files` call in it.
+  Fixed with `part.index ?? calls.length`, which also covers OpenAI's indexed
+  fragments.
+- **It reports `finish_reason: "stop"` on a turn that called a tool**, where
+  OpenAI reports `"tool_calls"`. Anything branching on `finish_reason` would
+  read that as "the model is done".
+- **Thought signatures are mandatory on the round trip.** Gemini 3 returns
+  `extra_content.google.thought_signature` on a tool-call delta and rejects the
+  follow-up request with a 400 if it does not come back. Echoed verbatim; the
+  blob is encrypted, so nothing may reformat it. Not in the docs we could find
+  — the error message is the only source.
+- **A turn that returns neither text nor a tool call is now reported.** It
+  used to end silently, which is indistinguishable from a hang.
+- **Free-tier quota is small enough to exhaust in a working session** (429
+  from AI Studio keys). Fine for one walkthrough, not for iterating on the
+  panel — the local mock in the notes below is cheaper.
+- **Testing the wire format needs no key.** A ~100-line node script replaying
+  the shim's exact SSE shape (indexless `tool_calls`, `finish_reason: "stop"`,
+  a thought signature) against the OpenAI-compatible backend at a
+  `localhost` base URL reproduced all of the above and verified each fix. Worth
+  keeping that trick for the next shim.

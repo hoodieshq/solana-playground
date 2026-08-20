@@ -2,28 +2,37 @@ import { createAnthropicProvider } from "./anthropic";
 import { createOpenAiProvider } from "./openai";
 import { createScriptedProvider } from "./scripted";
 import { PROVIDERS } from "./types";
-import type { Provider, ProviderId } from "./types";
+import type { Effort, Provider, ProviderId } from "./types";
 
 export * from "./types";
+
+/** What a provider needs to be built — structurally the store's `Connection` */
+export interface ProviderConnection {
+  id: ProviderId;
+  apiKey: string;
+  /** Base URL and model, for OpenAI-compatible backends */
+  endpoint?: { baseUrl: string; model: string };
+  /** Model and effort, for backends that pick them without a base URL */
+  settings?: { model: string; effort: Effort };
+}
 
 /**
  * Build the provider for a conversation.
  *
- * @param id which backend to talk to
- * @param apiKey the user's key, for providers that need one
- * @param endpoint base URL and model, for OpenAI-compatible providers
+ * @param connection which backend, and what it needs to be reached
  * @returns a provider that owns its own history
  */
-export const createProvider = (
-  id: ProviderId,
-  apiKey: string,
-  endpoint?: { baseUrl: string; model: string }
-): Provider => {
+export const createProvider = ({
+  id,
+  apiKey,
+  endpoint,
+  settings,
+}: ProviderConnection): Provider => {
   switch (id) {
     case "scripted":
       return createScriptedProvider();
     case "anthropic":
-      return createAnthropicProvider(apiKey);
+      return createAnthropicProvider(apiKey, settings);
     case "openai":
     case "openrouter":
     case "gemini": {

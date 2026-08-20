@@ -30,9 +30,10 @@ export const createScriptedProvider = (): Provider => {
     return Promise.resolve(tool.run(input));
   };
 
-  const say = async (text: string) => {
+  const stream = async (text: string, signal?: AbortSignal) => {
     const id = PgAssistant.startAssistantMessage();
     for (let i = 0; i < text.length; i += CHARS_PER_TICK) {
+      signal?.throwIfAborted();
       PgAssistant.appendToAssistantMessage(
         id,
         text.slice(i, i + CHARS_PER_TICK)
@@ -45,7 +46,8 @@ export const createScriptedProvider = (): Provider => {
     id: "scripted",
     label: "scripted demo — no model is running",
 
-    async send(input) {
+    async send(input, signal) {
+      const say = (text: string) => stream(text, signal);
       const asked = input.toLowerCase();
 
       if (/roadmap|status|plan|building|what is this|why.*exist/.test(asked)) {

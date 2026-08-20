@@ -46,8 +46,22 @@ export interface Provider {
    * Take one turn.
    *
    * @param input what the user typed
+   * @param signal aborts the turn; rejects with the abort reason
    */
-  send(input: string): Promise<void>;
+  send(input: string, signal?: AbortSignal): Promise<void>;
+}
+
+/** Reasoning depth, and the main cost lever on the Anthropic backend */
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ * Model and effort offered on the connect screen, for a backend that has no
+ * base URL to configure. `endpoint` covers the OpenAI-compatible ones.
+ */
+export interface ModelSettings {
+  models: readonly string[];
+  efforts: readonly Effort[];
+  defaults: { model: string; effort: Effort };
 }
 
 /** How a provider is described on the connect screen */
@@ -69,6 +83,8 @@ export interface ProviderInfo {
    * Present only on providers driven by the generic chat-completions loop.
    */
   endpoint?: { baseUrl: string; model: string };
+  /** Model and effort pickers, for backends without a base URL */
+  modelSettings?: ModelSettings;
   /** Declared but not implemented yet — shown, but cannot be selected */
   unavailable?: boolean;
 }
@@ -85,10 +101,20 @@ export const PROVIDERS: ProviderInfo[] = [
   {
     id: "anthropic",
     name: "Anthropic",
-    description: "claude-opus-5, with the SDK's tool runner.",
+    description:
+      "The SDK's tool runner, and the only backend with a server-side MCP " +
+      "connector. Sonnet costs roughly a third of Opus per turn; effort is " +
+      "the other cost lever.",
     needsKey: true,
     keyUrl: "https://console.anthropic.com/",
     keyPlaceholder: "sk-ant-…",
+    modelSettings: {
+      // Both take adaptive thinking and the full effort ladder. Haiku 4.5
+      // takes neither, so offering it would need a different request shape.
+      models: ["claude-opus-5", "claude-sonnet-5"],
+      efforts: ["low", "medium", "high", "xhigh", "max"],
+      defaults: { model: "claude-opus-5", effort: "high" },
+    },
   },
   {
     id: "openai",

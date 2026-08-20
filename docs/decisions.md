@@ -382,3 +382,189 @@ per milestone.
 
 **Revisit when:** a second preset dies inside one milestone — at that point the
 id list wants a dated table and a liveness check, not four literals.
+
+---
+
+## D12 — Ecosystem grounding: MCP through Anthropic's connector, skills loaded by a tool
+
+**Date:** 2026-08-20 · **Status:** chosen
+
+Two sources, wired two different ways.
+
+**MCP goes through the Anthropic connector.** The request carries
+`mcp_servers` plus one `{type: "mcp_toolset", mcp_server_name}` per server and
+the beta `mcp-client-2025-11-20`; Anthropic opens the connection to the remote
+server itself. Verified against SDK 0.117.1 that this composes with the Tool
+Runner — `BetaMCPToolset` is a member of `BetaToolUnion`, and
+`BetaToolRunnerParams` is `Omit<MessageCreateParams, 'tools'>` plus a tools
+array of `BetaToolUnion | BetaRunnableTool`, so MCP toolsets and our own tools
+sit in one runner. That was the open question in
+`research/2026-08-20-model-and-agent-strategy.md` §5.
+
+**Why not a browser MCP client.** `mcp.solana.com` sends no CORS headers — its
+preflight returns 405 — so the browser cannot call it at all. The connector
+sidesteps that entirely because the browser is never a party to the
+connection.
+
+**Skills are loaded by a tool, not injected.** `list_skills`, `load_skill`,
+`read_skill_reference`, backed by a registry in
+`views/sidebar/assistant/grounding/registry.ts`. Only names and descriptions
+reach the system prompt; bodies come back as tool results, which keeps the
+cached prompt prefix byte-stable. The official Solana skill is fetched live
+from `raw.githubusercontent.com` (which does send
+`access-control-allow-origin: *`), so it cannot rot into a stale vendored
+copy; our own playground-environment skill is bundled so something always
+loads offline.
+
+**What this costs us.**
+
+- **MCP is Anthropic-only.** Gemini and the other OpenAI-compatible endpoints
+  have no server-side remote MCP, so they get skills and no MCP. The Sources
+  tab says this rather than showing a toggle that does nothing.
+- **No custom headers.** `BetaRequestMCPServerURLDefinition` accepts `name`,
+  `type`, `url` and `authorization_token` — there is no header map. The
+  registry entry keeps an optional `headers` field so the shape is ready for
+  the proxy, but nothing sends it today.
+- **The query string is the escape hatch, and it works.** A credential a server
+  wants outside the `Authorization` header can ride in the URL, so an entry's
+  `queryParams` is folded into it before the request goes out. **Verified
+  2026-08-20:** a POST to `explorer.solana.com/mcp` carrying a real
+  `x-vercel-protection-bypass` query param returns `200` with no
+  `x-vercel-mitigated` header, where the same request with a wrong value
+  returns the `429` challenge. So the bypass documented for deployment
+  protection does also satisfy challenge mode, and Explorer is reachable
+  through the connector without a proxy.
+- **The Explorer MCP ships disabled, with the bypass key spelled out and its
+  value blank.** The secret is the user's, so it is filled in at runtime in the
+  Sources tab and lives in memory only, like the API key (D3). Note it travels
+  to Anthropic inside the request URL and will appear in their logs much as an
+  auth token would.
+
+**Configured as JSON, not a form.** The server list is edited as one JSON
+document in the panel's Sources tab. A per-field form cannot express
+`queryParams` and `headers` without becoming a nested key-value editor in a
+sidebar, and MCP configuration is already JSON everywhere else in the
+ecosystem. The parser rejects what would otherwise fail confusingly later:
+duplicate ids (the API rejects repeated `mcp_server_name`s mid-turn), non-https
+URLs (the connector reaches public https servers only), and a blank credential
+on an enabled server (which reads as "MCP is broken" rather than "you left a
+field empty").
+
+**Rejected: a same-origin proxy** (a `vercel.json` rewrite plus a craco dev
+proxy, fronting a small browser MCP client). It would give every provider MCP
+*and* allow arbitrary headers, but it is our own infrastructure to run and
+debug — including SSE passthrough and `Mcp-Session-Id` handling — for a
+milestone whose point is that no backend of ours is required.
+
+**Revisit when** any of these becomes true:
+
+- The demo has to run MCP on a non-Anthropic backend — then the proxy above,
+  or D1-B's service, is the answer.
+- A server needs a credential that genuinely cannot ride in the query string,
+  which is the same trigger.
+- Putting a secret in the URL stops being acceptable — a proxy is also the
+  answer to keeping it out of the request line.
+
+---
+
+## D13 — The Anthropic backend picks its model and effort, and Haiku is not offered
+
+**Date:** 2026-08-20 · **Status:** chosen
+
+`model/anthropic.ts` hardcoded `claude-opus-5` at `effort: "high"`. Both are now
+picked on the connect screen, the way the OpenAI-compatible backends already
+pick a base URL and model. The default is unchanged, so nothing about D1
+changes — Opus 5 is still what you get without touching anything.
+
+**Why.** MCP only works on the Anthropic backend, and the Anthropic API has no
+free tier, so every MCP demo costs real money. Effort and model are the two
+levers; by the estimates in `research/2026-08-20-model-and-agent-strategy.md`
+§3, a build-error turn is roughly $0.12–0.20 on Opus 5 and $0.05–0.08 on
+Sonnet 5. A demo should not sit on the most expensive setting by default with
+no way down.
+
+**Why Haiku 4.5 is not in the list.** It would 400. The provider sends
+`thinking: {type: "adaptive"}` and `output_config: {effort}`; Haiku 4.5
+supports neither, and would need the older `budget_tokens` shape and no effort
+at all. Offering it would mean branching the request per model, which is more
+than the saving is worth — Sonnet 5 at `effort: "low"` is already cheap. If
+someone wants Haiku later, the request builder is where the work is, not the
+model list.
+
+**Revisit when** a model we want to offer needs a different request shape —
+that is the point to branch the builder rather than keep the list to models
+that happen to share one.
+
+---
+
+## D14 — The user stays in control of a turn: leave, stop, and propose
+
+**Date:** 2026-08-20 · **Status:** chosen
+
+Four affordances the panel was missing, all in the same spirit as "propose
+automatically, apply explicitly":
+
+- **A way back to the backend picker.** `PgAssistant.disconnect()` existed but
+  nothing called it, so picking a backend was a one-way door for the tab. The
+  chat now carries a bar naming the live backend with a **Change** button;
+  the picker gets **Back to chat**. Re-picking the same backend keeps the
+  conversation, switching to a different one clears it.
+- **Stop.** `Provider.send` takes an `AbortSignal`, threaded to `fetch`, to the
+  Anthropic tool runner's request options, and to the scripted provider's
+  typing loop. Send becomes **Stop** while a turn is in flight.
+- **"Make this change".** Models often describe an edit in prose instead of
+  calling `write_file`. The newest reply carries a button that asks for the
+  same edit as a patch, which arrives in the usual approval card.
+- **A context row that matches the payload.** It read as one attached file
+  while `describeProject()` was sending the whole tree; it now reports
+  `N files · N open · <name> active` from the same bridge call the prompt uses.
+
+**Why the switch clears the chat.** History lives inside the provider object,
+not the store. Carrying the transcript across a switch would show a
+conversation the new backend cannot see, and re-sending it is not free.
+
+**Why Stop also denies pending approvals.** Aborting the request is not enough:
+a state-changing tool `await`s `requestApproval` and holds the agent loop open
+until the user clicks. Stop aborts *and* denies, and every provider re-checks
+the signal after a tool returns so a stopped turn cannot start the next
+request.
+
+**Rejected: parsing the prose and applying it directly.** It would mean
+guessing the file and the edit from prose — exactly the class of silent wrong
+write the approval gate exists to prevent. Two clicks (ask for the patch, then
+apply the diff) keep the model responsible for the edit and the user
+responsible for accepting it.
+
+**Rejected: skipping the diff because the user already clicked.** The click
+approves *asking*; only the diff shows what the model actually decided to do.
+
+**Revisit when** a provider streams patches structurally (a diff part rather
+than prose), which would let the button apply a known edit instead of asking
+for one.
+
+---
+
+## D15 — The assistant is the page the app opens on, and the first icon in the rail
+
+**Date:** 2026-08-20 · **Status:** chosen
+
+`routes/common.tsx` defaulted the sidebar to `Explorer`; it now defaults to
+`Assistant`, and `assistant` moved to the front of `SIDEBAR` so the rail's top
+icon matches the panel that opens.
+
+**Why.** The fork exists for the assistant. Landing on the file tree buries the
+thing we are asking people to try, and the tree is one click away.
+
+**How.** The literal `"Explorer"` in `routes/common.tsx` became
+`DEFAULT_SIDEBAR_PAGE`, exported from `views/sidebar/sidebar.ts` — the fork's
+own file — so flipping the landing page is a one-word edit and the two
+`Explorer` fallbacks cannot drift apart. That file is byte-identical to
+upstream otherwise, which is why the change is a constant rather than a second
+literal.
+
+**Not changed:** `routes/tutorials/tutorials.tsx` still falls back to
+`Explorer` inside a tutorial, where the file tree is the point and each
+tutorial step sets its own page anyway.
+
+**Revisit when** the panel stops being the fork's headline, or the rail grows
+enough that its order needs a rule rather than a judgement.

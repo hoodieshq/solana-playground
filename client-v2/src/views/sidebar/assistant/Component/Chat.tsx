@@ -7,9 +7,11 @@ import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
+import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
 import { PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
+import type { Connection } from "../store";
 import type { Provider } from "../model/types";
 
 const SUGGESTIONS = [
@@ -18,17 +20,33 @@ const SUGGESTIONS = [
   "What's our current status and roadmap?",
 ];
 
+/**
+ * Sent by "Make this change": models often describe an edit in prose instead of
+ * calling `write_file`. This asks for the same edit as a patch, which lands in
+ * the usual approval card.
+ */
+const MAKE_CHANGE =
+  "Make the change you just described, using write_file with the complete " +
+  "new content of the file. If it touches more than one file, do them one " +
+  "at a time. Do not describe it again.";
+
 const Chat = () => {
   useRenderOnChange(PgAssistant.onDidChange);
 
   const [input, setInput] = useState("");
-  const provider = useRef<Provider | null>(null);
+  const provider = useRef<{
+    connection: Connection;
+    instance: Provider;
+  } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const turn = useRef<AbortController | null>(null);
 
   const items = PgAssistant.items;
   const status = PgAssistant.status;
-  const busy = status !== "idle";
+  // A stopped turn still has to unwind, and `cancelPending` drops the status to
+  // idle before it does; the controller is what says a turn is really over
+  const busy = status !== "idle" || !!turn.current;
 
   // Follow the conversation as it grows
   useEffect(() => {
@@ -41,15 +59,16 @@ const Chat = () => {
   }, [busy]);
 
   const connection = PgAssistant.connection;
-  if (!connection) return <Connect />;
+  if (!connection || PgAssistant.isPickingBackend) return <Connect />;
 
-  // One provider per connection; it owns the conversation history
-  if (provider.current?.id !== connection.id) {
-    provider.current = createProvider(
-      connection.id,
-      connection.apiKey,
-      connection.endpoint
-    );
+  // One provider per connection; it owns the conversation history. The store
+  // keeps the same object while the settings are unchanged, so identity is
+  // enough to catch a switched key or model as well as a switched provider.
+  if (provider.current?.connection !== connection) {
+    provider.current = {
+      connection,
+      instance: createProvider(connection),
+    };
   }
 
   const send = async (text: string) => {
@@ -60,32 +79,95 @@ const Chat = () => {
     PgAssistant.addUserMessage(trimmed);
     PgAssistant.setStatus("running");
 
+    const controller = new AbortController();
+    turn.current = controller;
+
     try {
-      await provider.current!.send(trimmed);
+      await provider.current!.instance.send(trimmed, controller.signal);
     } catch (e) {
-      PgAssistant.addError(e instanceof Error ? e.message : String(e));
+      // Stopping is the user's own doing; `stop` already said so
+      if (!controller.signal.aborted) {
+        PgAssistant.addError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
+      if (turn.current === controller) turn.current = null;
       PgAssistant.setStatus("idle");
     }
   };
 
-  // Read the cheap accessors directly rather than building the whole project
-  // context — this runs on every render, including every streamed token.
+  /**
+   * Aborting the request is not enough on its own: a tool waiting on an
+   * approval holds the agent loop open, so deny whatever is pending too.
+   */
+  const stop = () => {
+    if (!turn.current) return;
+    turn.current.abort();
+    PgAssistant.cancelPending();
+    PgAssistant.addNotice("Stopped.");
+  };
+
+  // Mirror what `describeProject()` actually sends, so the row cannot claim
+  // less than the model gets. Paths only — never file content, since this runs
+  // on every render, including every streamed token.
   const currentFilePath = PgExplorer.currentFilePath;
+  const filePaths = realBridge.listFiles();
+  const openPaths = realBridge.listOpenFiles();
   const chips = [
-    currentFilePath ? PgExplorer.getItemNameFromPath(currentFilePath) : null,
-    PgBuildOutput.latest?.failed ? "build error" : null,
-    PgProgramInfo.idl ? "idl" : null,
-  ].filter((chip): chip is string => !!chip);
+    {
+      label: `${filePaths.length} ${filePaths.length === 1 ? "file" : "files"}`,
+      title: `Every path is sent each turn, and the assistant can read any of them:\n\n${filePaths.join(
+        "\n"
+      )}`,
+    },
+    openPaths.length > 1
+      ? {
+          label: `${openPaths.length} open`,
+          title: `Your open tabs are named each turn; only the active one is sent in full:\n\n${openPaths.join(
+            "\n"
+          )}`,
+        }
+      : null,
+    currentFilePath
+      ? {
+          label: `${PgExplorer.getItemNameFromPath(currentFilePath)} active`,
+          title: "The tab you are looking at, sent in full every turn",
+        }
+      : null,
+    PgBuildOutput.latest?.failed
+      ? { label: "build error", title: "The last build's compiler output" }
+      : null,
+    PgProgramInfo.idl
+      ? { label: "idl", title: "The built program's interface" }
+      : null,
+  ].filter((chip): chip is { label: string; title: string } => !!chip);
+
+  // Offer "Make this change" on the reply the assistant just finished, and
+  // only there: an older message describes code that has since moved on, and a
+  // turn ending in an approval card has already produced its patch.
+  const lastItem = items[items.length - 1];
+  const changeableId =
+    !busy && lastItem?.kind === "assistant" && lastItem.text
+      ? lastItem.id
+      : null;
 
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the dots come down.
-  const lastItem = items[items.length - 1];
   const thinking =
     status === "running" && (lastItem?.kind !== "assistant" || !lastItem.text);
 
   return (
     <Wrapper>
+      <BackendBar>
+        <BackendLabel>{provider.current.instance.label}</BackendLabel>
+        <ChangeBackend
+          title={busy ? "Finish this turn first" : "Pick another backend"}
+          disabled={busy}
+          onClick={() => PgAssistant.pickBackend()}
+        >
+          Change
+        </ChangeBackend>
+      </BackendBar>
+
       <Messages role="log" aria-label="Conversation">
         {items.length === 0 ? (
           <Empty>
@@ -97,7 +179,15 @@ const Chat = () => {
             ))}
           </Empty>
         ) : (
-          items.map((item) => <ChatItem key={item.id} item={item} />)
+          items.map((item) => (
+            <ChatItem
+              key={item.id}
+              item={item}
+              onMakeChange={
+                item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
+              }
+            />
+          ))
         )}
         {thinking && (
           <Thinking role="status" aria-label="Assistant is working">
@@ -112,7 +202,9 @@ const Chat = () => {
           <Context>
             <ContextLabel>CONTEXT</ContextLabel>
             {chips.map((chip) => (
-              <Chip key={chip}>{chip}</Chip>
+              <Chip key={chip.label} title={chip.title}>
+                {chip.label}
+              </Chip>
             ))}
           </Context>
         )}
@@ -145,18 +237,38 @@ const Chat = () => {
               }
             }}
           />
-          <Button
-            kind="primary"
-            size="small"
-            disabled={busy || !input.trim()}
-            onClick={() => send(input)}
-          >
-            Send
-          </Button>
+          {/**
+           * Distinct keys: without them React reuses one `Button` instance for
+           * both, and its internal loading state carries across the swap.
+           */}
+          {busy ? (
+            <Button
+              key="stop"
+              kind="secondary"
+              size="small"
+              title="Stop this turn"
+              onClick={stop}
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              key="send"
+              kind="primary"
+              size="small"
+              disabled={!input.trim()}
+              // Deliberately not returned: `Button` awaits its handler and
+              // would sit disabled for the whole turn, Stop included
+              onClick={() => {
+                send(input);
+              }}
+            >
+              Send
+            </Button>
+          )}
         </InputRow>
 
         <Footer>
-          <span>{provider.current?.label}</span>
           <span>nothing is written without your click</span>
         </Footer>
       </Composer>
@@ -316,9 +428,62 @@ const Footer = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
 
-    /* Wrap between the two, never inside either */
     & > span {
       white-space: nowrap;
+    }
+  `}
+`;
+
+const BackendBar = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding: 0.4375rem 0.75rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+    background: ${theme.colors.default.bgSecondary};
+  `}
+`;
+
+const BackendLabel = styled.span`
+  ${({ theme }) => css`
+    overflow: hidden;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `}
+`;
+
+const ChangeBackend = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    padding: 0.125rem 0.5rem;
+    background: transparent;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    cursor: pointer;
+    transition: all ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
+
+    &:hover:not(:disabled) {
+      background: ${theme.colors.state.hover.bg};
+      border-color: ${theme.colors.default.primary};
+    }
+
+    &:disabled {
+      color: ${theme.colors.default.textSecondary};
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
     }
   `}
 `;

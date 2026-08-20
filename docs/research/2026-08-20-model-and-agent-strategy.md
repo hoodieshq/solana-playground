@@ -97,7 +97,7 @@ one is active»*. Мы сделали ровно это, и активный п�
 | --- | --- | --- |
 | 1. Состояние проекта | Файлы, открытая вкладка, IDL, program id, кластер, **сырой stderr** последней сборки (для этого и нужен D4). | Сделано |
 | 2. Правила среды | Системный промпт: «крейты — фиксированный список», «тесты — TypeScript на devnet», «Anchor 0.29, не предлагай API новее», «сначала прочитай файл», «минимальная правка». | Сделано, будет расти |
-| 3. Знания экосистемы по запросу | MCP-серверы Solana (документация, Explorer), официальный Solana skill — подключаются как инструменты, модель зовёт их, когда нужно. | Не начато, см. §5 |
+| 3. Знания экосистемы по запросу | MCP-серверы Solana (документация), официальный Solana skill — подключаются как инструменты, модель зовёт их, когда нужно. | Сделано: skills на всех провайдерах, MCP только на Anthropic; Explorer MCP недостижим, см. §5 |
 | 4. Эталонные кейсы (evals) | Набор сломанных программ с ожидаемой правкой. Прогоняем при каждом изменении промпта или смене модели — это наша «метрика качества». | Не начато, см. §7 |
 
 Слои 2–4 — это и есть «системные файлы», о которых шла речь. Их пишут
@@ -243,7 +243,7 @@ thinking ~3–4K.
 | --- | --- | --- |
 | **Solana Developer MCP** — `https://mcp.solana.com/mcp` · [solana-foundation/solana-mcp-official](https://github.com/solana-foundation/solana-mcp-official) | Активен (пуш 2026-08-19), публичный, **без авторизации**, Streamable HTTP | RAG по ~60 источникам (solana-docs, anchor-docs, kit, pinocchio, program-examples, сам solana-dev-skill, Helius/QuickNode). Инструменты: `Solana_Documentation_Search`, `get_documentation(section)`, `Solana_Expert__Ask_For_Help`, и — главное — **`program_autofixer(code, framework?)`**: линтер Anchor/Pinocchio-кода, возвращает issues + suggestions |
 | **Официальный Solana skill** — [solana-foundation/solana-dev-skill](https://github.com/solana-foundation/solana-dev-skill), также `solana.com/SKILL.md` | Активен (пуш 2026-08-17), MIT, 552★ | `SKILL.md` + `references/`: `common-errors.md`, `compatibility-matrix.md`, `security.md`, `testing.md`, anchor/, kit/. Готовый формат для нашего «skill правил среды» (§6) |
-| **Solana Explorer MCP** — в репо [solana-foundation/explorer](https://github.com/solana-foundation/explorer), `app/mcp/` | Код есть (с 2026-07-20), инструмент `inspect_entity`; **публичный хостинг не подтверждён** (эндпоинт за бот-защитой, может требовать ключ) | Проверка задеплоенной программы/транзакции после деплоя. Отложить до подтверждения |
+| **Solana Explorer MCP** — в репо [solana-foundation/explorer](https://github.com/solana-foundation/explorer), `app/mcp/` | Код есть (с 2026-07-20), инструмент `inspect_entity`. Эндпоинт под бот-защитой Vercel (`x-vercel-mitigated: challenge`), но **проверено 2026-08-20: `x-vercel-protection-bypass` в query снимает её** — `200` без mitigation | Проверка задеплоенной программы/транзакции после деплоя. В реестре выключен; секрет вписывается в `queryParams` через Sources |
 | `solana.com/llms.txt`, `llms-full.txt` | Есть | Документация в Markdown для статического контекста или своего индекса, если MCP недоступен |
 | [awesome-solana-ai](https://github.com/solana-foundation/awesome-solana-ai) | Активен | Канал «подключить новый MCP/skill» из brief — реестр уже ведёт Фонд |
 | solana-agent-kit (SendAI) и его MCP | On-chain actions, MCP-обёртка не обновлялась с 2025-05 | Не про документацию; не берём |
@@ -256,8 +256,31 @@ thinking ~3–4K.
 `mcp-client-2025-11-20`. Это работает и из браузера (ступень 0), и с прокси
 (ступень 1). Ограничения коннектора: только `https://` и публично доступные
 серверы, только tools (не prompts/resources), OAuth-токен добываем сами, не
-доступен на Bedrock/Vertex. Не проверено: совмещается ли `mcp_servers` с
-`toolRunner` в одном запросе — проверить на первой итерации.
+доступен на Bedrock/Vertex.
+
+**Проверено 2026-08-20 (SDK 0.117.1), три вещи.** Первая: `mcp_servers`
+совмещается с `toolRunner` — `BetaMCPToolset` входит в `BetaToolUnion`, а
+`BetaToolRunnerParams` это `Omit<MessageCreateParams, 'tools'>` плюс массив
+`BetaToolUnion | BetaRunnableTool`, так что MCP-тулсеты и наши инструменты
+живут в одном раннере. Вторая: раннер **не возобновляет `pause_turn` сам** —
+длинный MCP-раунд обрывает ход молча, без ошибки, поэтому паузу
+обрабатываем вручную через `runner.pushMessages`. Третья: определение сервера
+(`BetaRequestMCPServerURLDefinition`) принимает только `name`, `type`, `url` и
+`authorization_token` — карты заголовков нет.
+
+**Обходной путь для заголовков — строка запроса.** Раз произвольного заголовка
+не передать, секрет, который сервер ждёт вне `Authorization`, кладём в URL:
+у записи сервера есть `queryParams`, они вклеиваются в адрес перед отправкой.
+Именно это делает `x-vercel-protection-bypass` доставляемым. **Проверено
+2026-08-20: работает.** POST на `explorer.solana.com/mcp` с настоящим
+секретом в query возвращает `200` без заголовка `x-vercel-mitigated`, тогда
+как тот же запрос с неверным значением отдаёт `429` challenge. То есть
+bypass, задокументированный для deployment protection, снимает и challenge
+mode — Explorer достижим через коннектор, прокси для этого не нужен.
+Explorer MCP лежит в реестре **выключенным**, с прописанным ключом и пустым
+значением: секрет пользовательский, вписывается в Sources и живёт только в
+памяти вкладки (как ключ API, D3). Учитываем, что он уезжает к Anthropic
+внутри URL и попадёт в их логи так же, как auth-токен.
 
 **Что это меняет в сценарии демо.** Цепочка «`get_build_error` → `read_file`
 → `program_autofixer` (MCP) → `Solana_Documentation_Search` (MCP) → патч →
@@ -268,9 +291,16 @@ thinking ~3–4K.
 
 **Friction-лог, пункт №1.** Официальный skill и MCP учат `@solana/kit` и
 **Anchor 1.1.x**, Playground собирает **anchor-lang 0.29**. Заземлённый агент
-будет предлагать современный API, который среда не соберёт. Сдерживаем
-правилом в промпте («целевая версия — 0.29, см. Cargo.toml проекта»), но
-это прямой аргумент к Фонду про обновление среды.
+будет предлагать современный API, который среда не соберёт.
+
+Сдерживаем двумя вещами: вшитый в бандл skill `playground-env` (реальный
+whitelist крейтов, версии, «тесты только на TypeScript») и правило в промпте,
+которое говорит предпочитать его любому другому источнику при расхождении о
+версиях. Правило намеренно из трёх частей, а не «всегда 0.29»: пин Anchor
+касается **только Anchor-программ**, нативные программы на `solana-program`
+им не ограничены, а современный API можно показывать как справку, если явно
+пометить, что здесь он не соберётся. Это смягчение, а не решение — прямой
+аргумент к Фонду про обновление среды остаётся.
 
 ---
 
