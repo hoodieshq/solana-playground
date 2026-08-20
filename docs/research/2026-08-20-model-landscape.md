@@ -116,9 +116,10 @@ USD за 1M токенов, стандартный тариф. «Cache» — ц�
 | OpenAI | `gpt-5.4` / `-mini` / `-nano` | 2026-03 | 1.05M / 128K | 2.50/15 · 0.75/4.50 · 0.20/1.25 | 0.25 · 0.075 · 0.02 | -50% | Да | Да (флаг) | то же | там же |
 | OpenAI | `gpt-5.3-codex` | 2026-02-24 | 400K / 128K | 1.75 / 14 | 0.175 | нет | Да | Да (флаг) | то же | там же |
 | Google | `gemini-3.7-flash` | 2026-08-13 | 1M / 64K | **0.75 / 3.75 до 2026-12-31**, затем 1.50 / 7.50 | 0.075 | -50% | Да | Да (SDK) | платный — не для обучения; ZDR по одобрению | [pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| Google | `gemini-3.6-flash` | 2026 UNV | 1M / 64K | n/d | n/d | -50% | Да | Да (SDK, Computer Use) | то же | [latest-model](https://ai.google.dev/gemini-api/docs/latest-model) — цель миграции с 2.5 Flash, дефолт Gemini-пресета в `client-v2`; цен на странице pricing не нашли |
 | Google | `gemini-3.5-flash` / `-lite` | 2026 | 1M / 64K | 1.50/9 · 0.30/2.50 | 0.15 · 0.03 | -50% | Да | Да (SDK) | то же | там же |
 | Google | `gemini-3.1-pro-preview` | 2026-02 | 1M / 64K | 2 / 12 (4 / 18 >200K) | 0.20 | -50% | Да | Да (SDK) | то же; free tier нет | там же. **Gemini 3.5+ Pro не существует** |
-| Google | `gemini-2.5-pro` / `-flash` | 2025 | 1M / 64K | 1.25/10 · 0.30/2.50 | 0.125 · 0.03 | -50% | Да | Да (SDK) | то же | там же |
+| Google | `gemini-2.5-pro` / `-flash` | 2025 | 1M / 64K | 1.25/10 · 0.30/2.50 | 0.125 · 0.03 | -50% | Да | Да (SDK) | то же | там же. **Закрыт для новых ключей: `-flash` отдаёт 404 с редиректом на 3.6 Flash (проверено запросом 2026-08-20)** |
 | xAI | `grok-4.6` | 2026-08-12 | 500K | 2 / 6 | 0.50 | нет | Да | n/d | 30 дней; ZDR-переключатель | [models](https://docs.x.ai/docs/models) |
 | xAI | `grok-4.3` | 2026 | 1M | 1.25 / 2.50 | 0.20 | нет | Да | n/d | то же | там же |
 | xAI | `grok-build-0.1` (ex grok-code-fast-1) | 2026-05-29 beta | 256K | 1 / 2 | 0.20 | нет | Да | n/d | то же | [model](https://docs.x.ai/docs/models/grok-build-0.1) |

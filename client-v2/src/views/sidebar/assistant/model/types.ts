@@ -113,7 +113,8 @@ export const PROVIDERS: ProviderInfo[] = [
     keyPlaceholder: "AIza…",
     endpoint: {
       baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-      model: "gemini-2.5-flash",
+      // 2.5-flash is deprecated: 404s for new keys, migration target is 3.6
+      model: "gemini-3.6-flash",
     },
   },
   {
