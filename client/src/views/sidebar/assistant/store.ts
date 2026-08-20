@@ -78,9 +78,14 @@ export class PgAssistant {
    *
    * @param id which provider
    * @param apiKey the user's key, empty for providers that need none
+   * @param endpoint base URL and model, for OpenAI-compatible providers
    */
-  static connect(id: ProviderId, apiKey: string) {
-    PgAssistant._connection = { id, apiKey: apiKey.trim() };
+  static connect(
+    id: ProviderId,
+    apiKey: string,
+    endpoint?: { baseUrl: string; model: string }
+  ) {
+    PgAssistant._connection = { id, apiKey: apiKey.trim(), endpoint };
     PgAssistant._emit();
   }
 
@@ -219,7 +224,11 @@ export class PgAssistant {
 
   private static _items: ChatItem[] = [];
   private static _status: AssistantStatus = "idle";
-  private static _connection: { id: ProviderId; apiKey: string } | null = null;
+  private static _connection: {
+    id: ProviderId;
+    apiKey: string;
+    endpoint?: { baseUrl: string; model: string };
+  } | null = null;
   private static readonly _pending = new Map<
     string,
     (allowed: boolean) => void
