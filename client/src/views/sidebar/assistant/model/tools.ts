@@ -189,9 +189,16 @@ export const createTools = (
       if (!allowed) return "The user declined to deploy.";
 
       try {
-        await bridge.deploy();
+        const deployed = await bridge.deploy();
         if (approvalId) PgAssistant.setApprovalOutcome(approvalId, "deployed");
-        return "Deployed. The program id and transaction are in the terminal.";
+        if (!deployed) {
+          return "Deployed. The program id and transaction are in the terminal.";
+        }
+        return (
+          `Deployed program ${deployed.programId}. View it on the block ` +
+          `explorer: ${deployed.explorerUrl} — give the user this link as ` +
+          `a markdown link.`
+        );
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         if (approvalId) {

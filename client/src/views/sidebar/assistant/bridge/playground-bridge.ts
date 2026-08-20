@@ -1,5 +1,6 @@
 import { PgBuildOutput, stripKnownNoise } from "./build-output";
 import {
+  PgBlockExplorer,
   PgCommand,
   PgConnection,
   PgExplorer,
@@ -60,7 +61,8 @@ export interface PlaygroundBridge {
   readFile(path: string): string | null;
   applyPatch(patch: Patch): Promise<void>;
   build(): Promise<void>;
-  deploy(): Promise<void>;
+  /** @returns where the deployed program can be seen, when that is known */
+  deploy(): Promise<{ programId: string; explorerUrl: string } | null>;
 }
 
 const toRelative = (fullPath: string) => {
@@ -149,5 +151,14 @@ export const realBridge: PlaygroundBridge = {
 
   async deploy() {
     await PgCommand.deploy.execute();
+
+    // The deploy command prints the transaction to the terminal but does not
+    // return it; the program address is the stable thing to link to.
+    const programId = PgProgramInfo.getPkStr();
+    if (!programId) return null;
+    return {
+      programId,
+      explorerUrl: PgBlockExplorer.current.getAddressUrl(programId),
+    };
   },
 };
