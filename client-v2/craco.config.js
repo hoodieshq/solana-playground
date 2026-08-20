@@ -5,6 +5,16 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
+// CRA's missing-index.html error gives no hint that public/ is a submodule.
+if (!fs.existsSync(path.join(__dirname, "public", "index.html"))) {
+  throw new Error(
+    "client-v2/public has no index.html - the assets submodule is not " +
+      "checked out.\nRun: git submodule update --init\nIf that fails with " +
+      '"destination path already exists", nothing in client-v2/public is ' +
+      "tracked yet - delete the directory and re-run."
+  );
+}
+
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
