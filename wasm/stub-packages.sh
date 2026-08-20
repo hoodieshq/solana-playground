@@ -118,4 +118,4 @@ DTS
 echo "  stubbed rust-analyzer"
 
 echo
-echo "Done. Next: cd client && yarn install"
+echo "Done. Next: cd client-v2 && yarn install"

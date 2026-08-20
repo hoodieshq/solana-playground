@@ -28,9 +28,6 @@ export class PgTheme {
   /** Theme key in localStorage */
   private static readonly _THEME_KEY = "theme";
 
-  /** One-time storage migration flag for the "Solana V2" default switch */
-  private static readonly _MIGRATION_KEY = "theme-migration-solana-v2";
-
   /** Font key in localStorage */
   private static readonly _FONT_KEY = "font";
 
@@ -107,18 +104,6 @@ export class PgTheme {
   ) {
     const defaultTheme = this.themes.find((t) => t.isDefault)!;
     const defaultFont = this.fonts.find((f) => f.isDefault)!;
-
-    // Fork migration: the default theme changed to "Solana V2". The previous
-    // default was auto-written to storage on first load (see the `setItem`
-    // below), so without this one-time reset no existing browser would ever
-    // see the new default. Explicitly choosing "Playground" afterwards sticks,
-    // because the migration flag stays set.
-    if (!localStorage.getItem(PgTheme._MIGRATION_KEY)) {
-      localStorage.setItem(PgTheme._MIGRATION_KEY, "1");
-      if (localStorage.getItem(PgTheme._THEME_KEY) === "Playground") {
-        localStorage.removeItem(PgTheme._THEME_KEY);
-      }
-    }
     const { themeName, fontFamily } = PgCommon.setDefault(params, {
       themeName: localStorage.getItem(this._THEME_KEY) ?? defaultTheme.name,
       fontFamily: localStorage.getItem(this._FONT_KEY) ?? defaultFont.family,
@@ -150,11 +135,6 @@ export class PgTheme {
       isDefault: importableTheme.isDefault,
     };
     this._font = font;
-
-    // Match native UI (scrollbars, form controls, system colors) to the theme
-    document.documentElement.style.colorScheme = this._theme.isDark
-      ? "dark"
-      : "light";
 
     // Load font if necessary.
     //

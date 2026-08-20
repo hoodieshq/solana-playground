@@ -88,8 +88,8 @@ them back to the client.
 **Date:** 2026-08-19 · **Status:** chosen
 
 The assistant is a new sidebar page: one entry appended to `SIDEBAR` in
-`client/src/views/sidebar/sidebar.ts`, plus a new folder of new files under
-`client/src/views/sidebar/assistant/`.
+`client-v2/src/views/sidebar/sidebar.ts`, plus a new folder of new files under
+`client-v2/src/views/sidebar/assistant/`.
 
 **Why.** It renders in `Side/Right`, which is already resizable to 75% of the
 window and sits beside the editor rather than over it — the task's requirement
@@ -103,7 +103,7 @@ resolution. See `codebase-map.yaml` → `upstream_sync.hot_files` for the files 
 stay away from.
 
 **Known wrinkle.** `createSidebarPage` prefixes every icon with
-`/icons/sidebar/`, and that directory lives in `client/public`, which is the
+`/icons/sidebar/`, and that directory lives in `client-v2/public`, which is the
 `solana-playground/assets` git submodule — we cannot add an icon there. Fix is a
 one-line guard in `views/sidebar/create.ts` so an already-resolved URL or
 imported asset skips the prefix.
@@ -123,7 +123,7 @@ memory only** — re-entered per session.
 
 **Why not `localStorage`, which is the obvious choice.** The playground executes
 project code — including code from a *shared* project — in a same-origin iframe
-(`client/src/utils/js-runtime/js-runtime.ts`). The sandbox is a string blacklist
+(`client-v2/src/utils/js-runtime/js-runtime.ts`). The sandbox is a string blacklist
 of `window`, `globalThis`, `document`, `location`, `top`, `chrome`, plus `eval`
 and `Function` set to `undefined`. `localStorage`, `sessionStorage` and
 `indexedDB` appear nowhere in that file. Share links are a headline feature, so
@@ -147,7 +147,7 @@ the browser stops holding a long-lived key at all.
 
 **Date:** 2026-08-19 · **Status:** chosen
 
-`client/src/commands/build/build.ts` gains one import and one line that stores
+`client-v2/src/commands/build/build.ts` gains one import and one line that stores
 the raw `stderr` into a new module the assistant reads.
 
 **Why it is needed at all.** `result.stderr` appears in exactly two places in
@@ -180,7 +180,7 @@ user's fault, and an assistant that explains them is actively harmful.
 **Date:** 2026-08-19 · **Status:** open — needs a team decision
 
 `CLAUDE.md` describes a second client developed in parallel and says not to
-modify the existing `client/`. `task-01` describes a dockable panel inside the
+modify the existing `client-v2/`. `task-01` describes a dockable panel inside the
 existing editor layout. Those are different codebases.
 
 We are proceeding on the reading that the prototype is a panel inside the
@@ -207,8 +207,8 @@ audiences from one source:
    documents rather than invented.
 
 **Revisit when** the assistant panel exists — `assistant-context.md` then needs
-a sync step into `client/src`, because CRA's `ModuleScopePlugin` blocks
-`client/src` from importing across the repo root. `client/scripts/sync-readme.mjs`
+a sync step into `client-v2/src`, because CRA's `ModuleScopePlugin` blocks
+`client-v2/src` from importing across the repo root. `client-v2/scripts/sync-readme.mjs`
 is the precedent.
 
 ---
@@ -220,7 +220,7 @@ is the precedent.
 Design canvas: <https://claude.ai/code/artifact/95f6b66b-3387-42ba-a134-f187a6162b8b>
 Source: `docs/design/` · see its README for how to change it.
 
-Every value is lifted from `client/src/themes/playground/theme.ts` rather than
+Every value is lifted from `client-v2/src/themes/playground/theme.ts` rather than
 chosen — colours, 8px/12px radii, the 13/14/16/20px type ramp, and JetBrains
 Mono. The panel should read as part of the IDE, not as a chat widget someone
 embedded in one.

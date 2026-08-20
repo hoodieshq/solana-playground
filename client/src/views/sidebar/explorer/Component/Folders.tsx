@@ -414,11 +414,9 @@ const RootWrapper = styled.div`
   & .${PgView.classNames.FOLDER}, & .${PgView.classNames.FILE} {
     display: flex;
     align-items: center;
-    margin: 0 0.375rem;
-    padding: 0.3125rem 0.625rem;
+    padding: 0.25rem 1rem;
     cursor: pointer;
     border: 1px solid transparent;
-    border-radius: 0.5rem;
     font-size: ${theme.font.code.size.small};
 
     &.${PgView.classNames.SELECTED} {
@@ -468,12 +466,7 @@ const SectionTopWrapper = styled.div`
 `;
 
 const SectionHeader = styled.div`
-  ${({ theme }) => css`
-    font-size: ${theme.font.code.size.xsmall};
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  `}
+  font-size: ${({ theme }) => theme.font.code.size.large};
 `;
 
 const FolderInsideWrapper = styled.div`

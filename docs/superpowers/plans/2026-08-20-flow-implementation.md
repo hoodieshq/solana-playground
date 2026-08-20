@@ -50,9 +50,9 @@ layout/spacing/colors): `docs/design/concept/*.dc.html` boards and
 ### Task 1: `PgFlow` — stage state + derived statuses
 
 **Files:**
-- Create: `client/src/utils/flow.ts`
-- Test: `client/src/utils/flow.test.ts`
-- Modify: `client/src/utils/index.ts` (add `export * from "./flow";` —
+- Create: `client-v2/src/utils/flow.ts`
+- Test: `client-v2/src/utils/flow.test.ts`
+- Modify: `client-v2/src/utils/index.ts` (add `export * from "./flow";` —
   verify the barrel exists first; if exports are generated, add to the
   generator's source convention instead)
 
@@ -122,17 +122,17 @@ NOT in deriveStatuses.
 ### Task 2: Stage routes + stage views (skeletons)
 
 **Files:**
-- Create: `client/src/views/main/primary/Build/{Build.tsx,index.ts}`,
+- Create: `client-v2/src/views/main/primary/Build/{Build.tsx,index.ts}`,
   same for `Deploy/`, `Interact/` (skeleton: theme-styled panel with the
   stage name; real content in Tasks 4–6)
-- Create: `client/src/routes/build.ts`, `deploy.ts`, `interact.ts` —
-  copy the pattern of `client/src/routes/programs.ts` exactly (it already
+- Create: `client-v2/src/routes/build.ts`, `deploy.ts`, `interact.ts` —
+  copy the pattern of `client-v2/src/routes/programs.ts` exactly (it already
   passes `minimizeSecondaryMainView: true` — we want that: the "console
   drawer" behavior comes free)
-- Modify: `client/src/routes/routes.ts` ONLY if routes are hand-listed
+- Modify: `client-v2/src/routes/routes.ts` ONLY if routes are hand-listed
   there; scout says the barrel is generated (`routes/generated.ts`) — in
   that case run `yarn generate-exports` instead and commit nothing extra
-- Modify: `client/src/views/main/primary/Default/Default.tsx` (+3 lines)
+- Modify: `client-v2/src/views/main/primary/Default/Default.tsx` (+3 lines)
 
 **Interfaces:**
 - Consumes: `PgFlow.setStage` (Task 1).
@@ -149,7 +149,7 @@ useEffect(() => {
 (Default announces `"write"`. Announcement-on-mount is the read-back
 mechanism — scout bite #1: `setMainPrimary` has no change event.)
 
-- [ ] **Step 1:** Read `client/src/routes/programs.ts` and
+- [ ] **Step 1:** Read `client-v2/src/routes/programs.ts` and
   `routes/common.tsx` `handleRoute` signature; create the three route
   files with `main: { name: "Build" }` etc., `sidebar: "Explorer"`,
   `minimizeSecondaryMainView: true`.
@@ -167,8 +167,8 @@ mechanism — scout bite #1: `setMainPrimary` has no change event.)
 ### Task 3: FlowHeader — the stepper header
 
 **Files:**
-- Create: `client/src/app/Panels/FlowHeader/{FlowHeader.tsx,Stepper.tsx,StatusChips.tsx,index.ts}`
-- Modify: `client/src/app/Panels/Panels.tsx` (one line: `<FlowHeader />`
+- Create: `client-v2/src/app/Panels/FlowHeader/{FlowHeader.tsx,Stepper.tsx,StatusChips.tsx,index.ts}`
+- Modify: `client-v2/src/app/Panels/Panels.tsx` (one line: `<FlowHeader />`
   above `<TopWrapper>`; file is quiet — 3 commits/12mo)
 
 **Interfaces:**
@@ -207,8 +207,8 @@ call, do not move the file). Keybinds `Ctrl+1..4` via `useKeybind`
 ### Task 4: Build surface
 
 **Files:**
-- Modify: `client/src/views/main/primary/Build/Build.tsx` (replace skeleton)
-- Create: `client/src/views/main/primary/Build/parse-stderr.ts` + test
+- Modify: `client-v2/src/views/main/primary/Build/Build.tsx` (replace skeleton)
+- Create: `client-v2/src/views/main/primary/Build/parse-stderr.ts` + test
   `parse-stderr.test.ts`
 
 **Interfaces:**
@@ -246,7 +246,7 @@ call, do not move the file). Keybinds `Ctrl+1..4` via `useKeybind`
 ### Task 5: Deploy surface
 
 **Files:**
-- Modify: `client/src/views/main/primary/Deploy/Deploy.tsx`
+- Modify: `client-v2/src/views/main/primary/Deploy/Deploy.tsx`
 
 **Interfaces:**
 - Consumes: `PgProgramInfo.getPkStr()` / `onDidChangeOnChain` / `.onChain`
@@ -254,7 +254,7 @@ call, do not move the file). Keybinds `Ctrl+1..4` via `useKeybind`
   `PgGlobal.deployState`, `PgCommand.deploy.onDidFinish`, deploy invocation
   (verify like Task 4 via `runDeploy` in the explorer context menu),
   `PgWallet.current`, `PgConnection.cluster`. Explorer URL: search for an
-  existing helper first (`grep -ri "explorer.solana.com" client/src`);
+  existing helper first (`grep -ri "explorer.solana.com" client-v2/src`);
   reuse it, else build
   `https://explorer.solana.com/address/${pk}?cluster=devnet` with cluster
   from `PgConnection.getCluster()`.
@@ -274,7 +274,7 @@ call, do not move the file). Keybinds `Ctrl+1..4` via `useKeybind`
 ### Task 6: Interact surface (reuse the IDL panel)
 
 **Files:**
-- Modify: `client/src/views/main/primary/Interact/Interact.tsx`
+- Modify: `client-v2/src/views/main/primary/Interact/Interact.tsx`
 - Do NOT touch `views/sidebar/test/**` (18 commits/12mo upstream).
 
 **Interfaces:**
@@ -299,7 +299,7 @@ call, do not move the file). Keybinds `Ctrl+1..4` via `useKeybind`
 ### Task 7: Motion pass
 
 **Files:**
-- Modify: `client/src/themes/solana-v2/theme.ts` (transition tokens if the
+- Modify: `client-v2/src/themes/solana-v2/theme.ts` (transition tokens if the
   slot exists — check `theme.default.transition` shape in
   `utils/theme/theme.ts` defaults first; extend, don't replace),
   `FlowHeader/Stepper.tsx`, stage views.

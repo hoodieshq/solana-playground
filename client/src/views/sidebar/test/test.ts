@@ -1,10 +1,9 @@
 import TestSkeleton from "./Component/TestSkeleton";
-import testIcon from "../icons/test.svg";
 import { createSidebarPage } from "../create";
 
 export const test = createSidebarPage({
   name: "Test",
-  icon: testIcon,
+  icon: "test.png",
   keybind: "Ctrl+Shift+D",
   LoadingComponent: TestSkeleton,
 });

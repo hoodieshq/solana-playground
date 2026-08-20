@@ -29,18 +29,18 @@ overview:
     process — they are compiled Rust linked into the browser bundle.
     Deploy notably does NOT go through the build server: the server only hands
     back bytecode (server/src/main.rs `/deploy/{uuid}` is a GET), and the
-    client submits the transactions (client/src/commands/deploy/deploy.ts).
+    client submits the transactions (client-v2/src/commands/deploy/deploy.ts).
 
   entry_points:
-    client/src/index.tsx: >
+    client-v2/src/index.tsx: >
       ReactDOM.render of <App /> into #root. React 17 render API, not
       createRoot.
-    client/src/app/App.tsx: >
+    client-v2/src/app/App.tsx: >
       Wraps AppLazy; AppLazy is the real tree.
-    client/src/app/AppLazy.tsx: >
+    client-v2/src/app/AppLazy.tsx: >
       Provider stack — ErrorBoundary > GlobalsProvider > RouterProvider >
       SolanaProvider > <Panels /> — plus <Effects /> mounted after a 1s delay.
-    client/src/app/Panels/Panels.tsx: >
+    client-v2/src/app/Panels/Panels.tsx: >
       The whole screen layout. See client_architecture.layout_system.
     server/src/main.rs: >
       axum Router; binds 0.0.0.0:PG_PORT. Routes: POST /build, GET
@@ -52,10 +52,10 @@ overview:
 stack:
   client:
     framework: React 17 (react@^17.0.0, react-dom@^17.0.2)
-    language: TypeScript, pinned to exactly 5.0.4 (client/package.json `resolutions`)
+    language: TypeScript, pinned to exactly 5.0.4 (client-v2/package.json `resolutions`)
     build: Create React App 5.0.0 (react-scripts) wrapped by craco 6.4.3
     craco_config: >
-      client/craco.config.js — enables asyncWebAssembly, registers
+      client-v2/craco.config.js — enables asyncWebAssembly, registers
       MonacoWebpackPlugin and CircularDependencyPlugin, and adds an
       `asset/source` raw-import rule for .d.ts/.raw/.rs/.py/.md/.toml files.
     styling: >
@@ -68,7 +68,7 @@ stack:
     router: react-router-dom v6
     editor: monaco-editor pinned to exactly 0.37.1, plus monaco-vim
     terminal: xterm 4.18 with xterm-addon-fit and xterm-addon-web-links
-    node_engine: "^22.20.0 (client/package.json `engines`)"
+    node_engine: "^22.20.0 (client-v2/package.json `engines`)"
   server:
     language: Rust, edition 2021, toolchain pinned 1.95.0 (server/rust-toolchain.toml)
     framework: axum 0.8
@@ -114,9 +114,9 @@ stack:
     client: >
       `yarn test` = test-types (tsc --noEmit) + test-unit (craco test) + a
       production build. Actual unit tests are nearly absent — the only suite
-      under client/src is client/src/settings/__tests__/create.test.ts. The
+      under client-v2/src is client-v2/src/settings/__tests__/create.test.ts. The
       other *.test.ts files found are .raw template fixtures shipped into
-      generated user projects (client/src/frameworks/*/files/tests/), not tests
+      generated user projects (client-v2/src/frameworks/*/files/tests/), not tests
       of this codebase.
     server: No test files found under server/src.
     ci: >
@@ -126,7 +126,7 @@ stack:
     present: false
     detail: >
       No .storybook/ directory anywhere in the repository and no storybook
-      script in client/package.json. task-01 says not to add it.
+      script in client-v2/package.json. task-01 says not to add it.
 
 running_locally:
   verified: true
@@ -144,9 +144,9 @@ running_locally:
   commands:
     - "nvm install 22 && nvm use 22            # package.json engines: ^22.20.0"
     - "npm i -g yarn@1.22.22                   # yarn is not on PATH under a fresh nvm node"
-    - "git submodule update --init             # populates client/public (~6.3MB of assets)"
+    - "git submodule update --init             # populates client-v2/public (~6.3MB of assets)"
     - "<create stub packages in wasm/{anchor-cli,rust-analyzer,seahorse-compile,solana-cli,spl-token-cli,sugar-cli}/pkg>"
-    - "cd client && yarn install               # ~100s"
+    - "cd client-v2 && yarn install               # ~100s"
     - "yarn generate-exports                   # REQUIRED: writes the gitignored src/*/generated.ts barrels"
     - "yarn generate-packages && yarn generate-tutorials   # cheap, populate public/"
     - "BROWSER=none npx craco start            # NOT `yarn start` - see gotchas"
@@ -204,19 +204,19 @@ running_locally:
     local backend at all.
   can_client_run_alone: true
   can_client_run_alone_detail: >
-    Yes. client/src/settings/server/server.ts defines the `server.endpoint`
+    Yes. client-v2/src/settings/server/server.ts defines the `server.endpoint`
     setting with two presets — Local (http://localhost:8080) and SolPg
     (https://api.solpg.io) — and accepts any custom URL. Default resolution
     order: process.env.REACT_APP_SERVER_URL, then https://api.solpg.io in a
     production build, then http://localhost:8080 in development. The user can
     switch it at runtime from the settings gear at the bottom of the icon rail.
-    Caveat: client/src/utils/server.ts hardcodes https://api.solpg.io for the
+    Caveat: client-v2/src/utils/server.ts hardcodes https://api.solpg.io for the
     share endpoints (`useDbServer`) in production builds regardless of the
     setting.
   gotchas:
     - >
       The six from-source WASM packages block `yarn install` entirely. They are
-      declared as relative `file:` dependencies in client/package.json
+      declared as relative `file:` dependencies in client-v2/package.json
       (e.g. "@solana-playground/solana-cli": "../wasm/solana-cli/pkg") and yarn
       refuses to install while the directories are absent. Building them for
       real is `yarn setup`, roughly an hour.
@@ -240,18 +240,18 @@ running_locally:
       Node 22 was installed via nvm to match the node:22 base image used by
       client/Dockerfile.
     - >
-      client/public is a git submodule (github.com/solana-playground/assets).
+      client-v2/public is a git submodule (github.com/solana-playground/assets).
       Without `git submodule update --init` the app has no icons, fonts,
       themes or tutorial content.
     - >
       Pre-existing webpack warning, unrelated to any of the above: a
-      case-sensitivity mismatch in client/src/tutorials/ — the lazy require
+      case-sensitivity mismatch in client-v2/src/tutorials/ — the lazy require
       context looks for `__template/Template` while the file on disk is
       `__template/template.ts`.
 
 client_architecture:
   layout_system:
-    defined_in: client/src/app/Panels/Panels.tsx
+    defined_in: client-v2/src/app/Panels/Panels.tsx
     structure: >
       A flex column filling the viewport. Inside it, TopWrapper is a CSS grid
       with columns `auto 1fr` holding <Side /> and <Main />; below that sits
@@ -259,42 +259,42 @@ client_architecture:
       window), then two portal divs used to control stacking against the modal
       backdrop.
     side: >
-      client/src/app/Panels/Side/ splits into Left/ — the fixed icon rail that
+      client-v2/src/app/Panels/Side/ splits into Left/ — the fixed icon rail that
       renders one SidebarButton per registered page plus a settings gear — and
       Right/ — a Resizable container (max 75% of the window) that renders the
       currently selected sidebar page, lazily, inside an ErrorBoundary. Right
       auto-minimises below 12rem.
     main: >
-      client/src/app/Panels/Main/ splits into Primary/ (routed content — the
+      client-v2/src/app/Panels/Main/ splits into Primary/ (routed content — the
       editor with tabs by default) and Secondary/ (the terminal, resizable
       vertically, with a progress bar used by deploy).
   extension_points:
-    - path: client/src/views/sidebar/sidebar.ts
+    - path: client-v2/src/views/sidebar/sidebar.ts
       what: >
         `export const SIDEBAR = [explorer, buildDeploy, test, tutorials,
         programs]` — a plain array. Adding a left-rail page is one import and
         one array element.
       helper: >
-        client/src/views/sidebar/create.ts — createSidebarPage({name, icon,
+        client-v2/src/views/sidebar/create.ts — createSidebarPage({name, icon,
         keybind?, route?, handle?, LoadingComponent?}). If importComponent is
         omitted it defaults by convention to
         `import('./<kebab-case-of-name>/Component')`, so the folder name must
         match the page name. Icons resolve to /icons/sidebar/<icon>.
-    - path: client/src/views/main/secondary/secondary.ts
+    - path: client-v2/src/views/main/secondary/secondary.ts
       what: >
         `export const MAIN_SECONDARY = [terminal]` — the same registry pattern
         for the bottom panel.
-    - path: client/src/commands/commands.ts
+    - path: client-v2/src/commands/commands.ts
       what: Terminal command registry; commands are declared with createCmd.
-    - path: client/src/settings/settings.ts
+    - path: client-v2/src/settings/settings.ts
       what: Settings registry, one entry per setting, rendered by the gear menu.
-    - path: client/src/themes/themes.ts
+    - path: client-v2/src/themes/themes.ts
       what: Theme registry (dracula, light, playground, solana).
   state_management:
     pattern: >
       Static classes, no React state containers. A module declares a plain
       defaultState object and a class decorated with @updatable({defaultState})
-      (client/src/utils/decorators/). The decorator synthesises, for every
+      (client-v2/src/utils/decorators/). The decorator synthesises, for every
       property, an `onDidChange<Prop>` subscription method alongside a
       top-level `onDidChange`, and an `update(partial)` writer. @derivable adds
       computed values that recompute when named dependencies fire.
@@ -302,7 +302,7 @@ client_architecture:
     read: "PgProgramInfo.idl — plain static property access"
     subscribe: "PgProgramInfo.onDidChange(cb) returns a Disposable"
     react_bridge: >
-      client/src/hooks/useRenderOnChange.tsx converts any onDidChange into a
+      client-v2/src/hooks/useRenderOnChange.tsx converts any onDidChange into a
       re-render. Typed wrappers exist: useProgramInfo, useExplorer, useWallet,
       useConnection, useBalance. useProgramInfo is literally
       `useRenderOnChange(PgProgramInfo.onDidChange)`.
@@ -314,44 +314,44 @@ client_architecture:
       A new panel does not need a store. It reads PgExplorer/PgProgramInfo
       directly and subscribes with the matching hook.
   theming:
-    where: client/src/themes/ (dracula, light, playground, solana) + create.ts, fonts.ts
+    where: client-v2/src/themes/ (dracula, light, playground, solana) + create.ts, fonts.ts
     api: >
-      PgTheme (client/src/utils/theme/theme.ts). Components pull tokens from the
+      PgTheme (client-v2/src/utils/theme/theme.ts). Components pull tokens from the
       styled-components theme rather than hardcoding colours; several use a
       `PgTheme.convertToCSS` style helper block.
     default_appearance: dark
   routing:
     library: react-router-dom v6
     registry: >
-      client/src/routes/routes.ts assembles ROUTES from ./generated, ordering
+      client-v2/src/routes/routes.ts assembles ROUTES from ./generated, ordering
       defaultRoute first and notFound last. The generated barrel is produced by
       scripts/generate-exports.mjs.
     routes_present: default, github, programs, share, tutorials, not-found
   key_modules:
-    client/src/utils/explorer/explorer.ts: Virtual filesystem and project state. The file API.
-    client/src/utils/explorer/types.ts: ExplorerFiles / ItemInfo shapes.
-    client/src/utils/server.ts: Every HTTP call to the build server, fully typed.
-    client/src/utils/program-info.ts: Build artefacts — uuid, IDL, program keypair, lastBuildFailed.
-    client/src/utils/global.ts: buildLoading and deployState flags.
-    client/src/utils/terminal/terminal.ts: PgTerminal — terminal output API (write-only).
-    client/src/utils/terminal/shell.ts: Shell input handling and command dispatch.
-    client/src/utils/wallet/wallet.ts: Wallet state and signing.
-    client/src/utils/connection.ts: Derived Connection instance and Cluster type.
-    client/src/utils/command.ts: Command execution plumbing, exposes onDidFinish per command.
-    client/src/utils/view.ts: PgView — sidebar page types, panel control, toasts, portals.
-    client/src/utils/decorators/updatable.ts: The onDidChange/update machinery everything depends on.
-    client/src/commands/build/build.ts: The build command end to end, including error post-processing.
-    client/src/commands/deploy/deploy.ts: The deploy command and its state machine.
-    client/src/app/Panels/Panels.tsx: Screen composition.
-    client/src/views/sidebar/sidebar.ts: Sidebar page registry.
-    client/src/views/sidebar/test/: Best worked example of a non-trivial sidebar page.
-    client/src/hooks/useRenderOnChange.tsx: The static-class-to-React bridge.
-    client/craco.config.js: Webpack overrides, raw-import rules, WASM support.
-    client/scripts/generate-exports.mjs: Generates the required generated.ts barrels.
+    client-v2/src/utils/explorer/explorer.ts: Virtual filesystem and project state. The file API.
+    client-v2/src/utils/explorer/types.ts: ExplorerFiles / ItemInfo shapes.
+    client-v2/src/utils/server.ts: Every HTTP call to the build server, fully typed.
+    client-v2/src/utils/program-info.ts: Build artefacts — uuid, IDL, program keypair, lastBuildFailed.
+    client-v2/src/utils/global.ts: buildLoading and deployState flags.
+    client-v2/src/utils/terminal/terminal.ts: PgTerminal — terminal output API (write-only).
+    client-v2/src/utils/terminal/shell.ts: Shell input handling and command dispatch.
+    client-v2/src/utils/wallet/wallet.ts: Wallet state and signing.
+    client-v2/src/utils/connection.ts: Derived Connection instance and Cluster type.
+    client-v2/src/utils/command.ts: Command execution plumbing, exposes onDidFinish per command.
+    client-v2/src/utils/view.ts: PgView — sidebar page types, panel control, toasts, portals.
+    client-v2/src/utils/decorators/updatable.ts: The onDidChange/update machinery everything depends on.
+    client-v2/src/commands/build/build.ts: The build command end to end, including error post-processing.
+    client-v2/src/commands/deploy/deploy.ts: The deploy command and its state machine.
+    client-v2/src/app/Panels/Panels.tsx: Screen composition.
+    client-v2/src/views/sidebar/sidebar.ts: Sidebar page registry.
+    client-v2/src/views/sidebar/test/: Best worked example of a non-trivial sidebar page.
+    client-v2/src/hooks/useRenderOnChange.tsx: The static-class-to-React bridge.
+    client-v2/craco.config.js: Webpack overrides, raw-import rules, WASM support.
+    client-v2/scripts/generate-exports.mjs: Generates the required generated.ts barrels.
 
 ui_inventory:
   editor:
-    path: client/src/components/EditorWithTabs/, client/src/components/Editor/Monaco/
+    path: client-v2/src/components/EditorWithTabs/, client-v2/src/components/Editor/Monaco/
     renders: Monaco with a tab strip; Rust, TypeScript and Python language support.
     gets_data_from: >
       PgExplorer — tabs from PgExplorer.tabs, content from
@@ -359,24 +359,24 @@ ui_inventory:
       rust-analyzer Web Worker
       (components/Editor/Monaco/languages/rust/rust-analyzer/).
   file_explorer:
-    path: client/src/views/sidebar/explorer/
+    path: client-v2/src/views/sidebar/explorer/
     renders: Project tree, workspace switcher, new file/folder, import/export, share.
     gets_data_from: PgExplorer.files, re-rendered via useExplorer.
   terminal:
-    path: client/src/components/Terminal/ and client/src/views/main/secondary/terminal/
+    path: client-v2/src/components/Terminal/ and client-v2/src/views/main/secondary/terminal/
     renders: xterm instance in the resizable bottom panel.
     gets_data_from: >
       Push-only. Modules call PgTerminal.println(...). Input is parsed by
       utils/terminal/shell.ts and dispatched to the command registry.
   build_and_deploy_controls:
-    path: client/src/views/sidebar/build-deploy/Component/
+    path: client-v2/src/views/sidebar/build-deploy/Component/
     renders: Build button, Deploy button, program ID and upgrade-authority settings, IDL upload.
     gets_data_from: >
       PgProgramInfo for uuid/IDL/keys, PgGlobal for buildLoading and
       deployState. The buttons call PgCommand.build.execute() /
       PgCommand.deploy.execute(), the same entry points the terminal uses.
   test_panel:
-    path: client/src/views/sidebar/test/Component/Test.tsx
+    path: client-v2/src/views/sidebar/test/Component/Test.tsx
     renders: >
       A form per IDL instruction, plus account and event sections; submits real
       transactions. This is the IDL-driven panel referenced in CLAUDE.md.
@@ -385,17 +385,17 @@ ui_inventory:
       idl.instructions, idl.accounts and idl.events. Renders a "build first"
       state when idl is null.
   wallet_ui:
-    path: client/src/components/Wallet/
+    path: client-v2/src/components/Wallet/
     renders: A draggable floating window — balance, send, transactions, account switch.
     gets_data_from: PgWallet via useWallet, PgConnection via useConnection/useBalance.
   tutorials_and_snippets:
-    path: client/src/tutorials/, client/src/views/sidebar/tutorials/, client/src/routes/tutorials/
+    path: client-v2/src/tutorials/, client-v2/src/views/sidebar/tutorials/, client-v2/src/routes/tutorials/
     renders: Tutorial catalogue and an in-editor guided mode.
     gets_data_from: >
-      Markdown and data.json under client/public/tutorials (the assets
+      Markdown and data.json under client-v2/public/tutorials (the assets
       submodule), indexed at build time by scripts/generate-tutorials.mjs.
   settings:
-    path: client/src/settings/ ; UI at client/src/app/Panels/Side/Left/Settings.tsx
+    path: client-v2/src/settings/ ; UI at client-v2/src/app/Panels/Side/Left/Settings.tsx
     renders: Gear menu at the bottom of the icon rail.
     gets_data_from: >
       The settings registry; each entry is createSetting({id, description,
@@ -406,11 +406,11 @@ ui_inventory:
 # ---------------------------------------------------------------------------
 project_context_available_in_client:
   open_files:
-    where: client/src/utils/explorer/explorer.ts
+    where: client-v2/src/utils/explorer/explorer.ts
     shape: >
       PgExplorer.files is `Record<string, ItemInfo>` keyed by absolute virtual
       path, where ItemInfo is `{ content?: string; meta?: { position?: {...} } }`
-      (client/src/utils/explorer/types.ts). Directories appear in the same map
+      (client-v2/src/utils/explorer/types.ts). Directories appear in the same map
       without content.
     read:
       all_files: PgExplorer.files
@@ -436,10 +436,10 @@ project_context_available_in_client:
       solved problems; applyPatch maps onto createItem with override.
 
   build_errors:
-    where: client/src/commands/build/build.ts
+    where: client-v2/src/commands/build/build.ts
     shape_from_server: >
       POST /build returns `{ stderr: string; uuid: string | null; idl: Idl |
-      null }` (client/src/utils/server.ts). `stderr` is the raw cargo-build-sbf
+      null }` (client-v2/src/utils/server.ts). `stderr` is the raw cargo-build-sbf
       output — the real compiler text.
     real_example_verified: >
       Captured from a live POST /build against https://api.solpg.io on
@@ -460,7 +460,7 @@ project_context_available_in_client:
     detail: >
       This is the single most important gap for the assistant. `result.stderr`
       is referenced in exactly two places in the entire client (verified by
-      grepping the whole of client/src): once as
+      grepping the whole of client-v2/src): once as
       `result.stderr.includes("error: could not compile")` to derive a boolean,
       and once as `PgTerminal.println(improveOutput(result.stderr))`. It is
       never assigned to any state module. The only trace that survives a build
@@ -475,7 +475,7 @@ project_context_available_in_client:
       hides some it classifies as noise. Feeding this to a model instead of the
       raw text loses file paths and error codes.
     can_it_be_read_back_from_the_terminal: >
-      Not cleanly. PgTerminal (client/src/utils/terminal/terminal.ts) exposes
+      Not cleanly. PgTerminal (client-v2/src/utils/terminal/terminal.ts) exposes
       only write-side helpers — println, clear, enable, focus, process, run,
       colour helpers — plus a `get()`. There is no scrollback-reading API, and
       what is in the buffer is post-improveOutput and ANSI-encoded anyway.
@@ -496,7 +496,7 @@ project_context_available_in_client:
       required context the client does not currently keep.
 
   idl:
-    where: client/src/utils/program-info.ts
+    where: client-v2/src/utils/program-info.ts
     shape: "@coral-xyz/anchor `Idl | null`, on PgProgramInfo.idl"
     written_by: "build.ts, via PgProgramInfo.update({ idl: result.idl, ... })"
     persisted: >
@@ -504,7 +504,7 @@ project_context_available_in_client:
       filesystem, so it survives reloads.
     read: "PgProgramInfo.idl"
     subscribe: "useProgramInfo(), or PgProgramInfo.onDidChangeIdl(cb)"
-    precedent: client/src/views/sidebar/test/Component/Test.tsx consumes it exactly this way.
+    precedent: client-v2/src/views/sidebar/test/Component/Test.tsx consumes it exactly this way.
     verdict: Fully available.
 
   program_id_and_deploy_state:
@@ -517,13 +517,13 @@ project_context_available_in_client:
     last_build_failed: PgProgramInfo.lastBuildFailed (boolean)
     deploy_state: >
       PgGlobal.deployState, a union of "ready" | "loading" | "paused" |
-      "cancelled" (client/src/utils/global.ts). PgGlobal.buildLoading covers
+      "cancelled" (client-v2/src/utils/global.ts). PgGlobal.buildLoading covers
       builds. Deploy progress is pushed to the UI via
       PgView.setMainSecondaryProgress(n).
     verdict: Fully available.
 
   wallet_state:
-    where: client/src/utils/wallet/wallet.ts and utils/wallet/types.ts
+    where: client-v2/src/utils/wallet/wallet.ts and utils/wallet/types.ts
     shape: >
       `{ state: "setup" | ...; accounts: WalletAccount[]; currentIndex: number;
       show: boolean; standardWallets: StandardWallet[]; standardName: string |
@@ -534,7 +534,7 @@ project_context_available_in_client:
     verdict: Available. Depth of the existing wallet-standard support not audited — see unknowns.
 
   network_cluster:
-    where: client/src/utils/connection.ts
+    where: client-v2/src/utils/connection.ts
     shape: >
       `type Cluster = "playnet" | "localnet" | PgWeb3.Cluster`. PgConnection.current
       is a derivable that returns a web3.js Connection, transparently swapping
@@ -546,12 +546,12 @@ project_context_available_in_client:
 data_flows:
   build_flow:
     - "1. PgCommand.build.execute() — from the Build button (views/sidebar/build-deploy/) or the `build` terminal command."
-    - "2. client/src/commands/build/build.ts sets PgGlobal.buildLoading = true and prints 'Building...'."
+    - "2. client-v2/src/commands/build/build.ts sets PgGlobal.buildLoading = true and prints 'Building...'."
     - "3. getBuildFiles() walks PgExplorer.files, keeps only paths under PgExplorer.getCurrentSrcPath()."
     - "4. If no program keypair exists it generates one (PgWeb3.Keypair.generate()) and stores it on PgProgramInfo."
     - "5. It rewrites `declare_id!(\"...\")` in the first Rust file that has one — lib.rs and id.rs are checked first — skipping line and block comments. Python projects get the equivalent declare_id(...) rewrite."
     - "6. If any .py files are present, seahorse-compile (WASM) transpiles them to Rust first; otherwise the Rust files go straight through."
-    - "7. PgServer.build({files, uuid, flags}) POSTs to `${PgSettings.server.endpoint}/build` (client/src/utils/server.ts)."
+    - "7. PgServer.build({files, uuid, flags}) POSTs to `${PgSettings.server.endpoint}/build` (client-v2/src/utils/server.ts)."
     - "8. The server compiles and responds `{stderr, uuid, idl}`."
     - "9. build.ts derives `failed` from stderr.includes('error: could not compile') and calls PgProgramInfo.update({idl, uuid, lastBuildFailed: failed})."
     - "10. improveOutput(result.stderr) is printed to the terminal. The raw stderr is discarded here."
@@ -561,16 +561,16 @@ data_flows:
     - "2. checkProgram triggers a build first if there is neither a uuid nor an imported program, and warns if lastBuildFailed is set, because the server retains the previous binary and would otherwise silently return a stale one."
     - "3. A state machine on PgGlobal.deployState guards re-entry: ready -> loading; a second invocation while loading sets paused; cancelled throws."
     - "4. PgView.setMainSecondaryProgress(0.1) starts the progress bar over the terminal panel."
-    - "5. processDeploy() runs. It fetches the ELF with PgServer.deploy(uuid) — GET /deploy/{uuid}, returned as a Uint8Array — then writes and deploys it through client/src/commands/deploy/bpf-loader-upgradeable.ts, signing with PgWallet against PgConnection.current."
+    - "5. processDeploy() runs. It fetches the ELF with PgServer.deploy(uuid) — GET /deploy/{uuid}, returned as a Uint8Array — then writes and deploys it through client-v2/src/commands/deploy/bpf-loader-upgradeable.ts, signing with PgWallet against PgConnection.current."
     - "6. On success the elapsed time is printed; finally the progress bar resets and deployState returns to ready."
     - "NOTE: the transaction-level detail inside processDeploy was not read line by line — see unknowns."
   share_flow:
     - "1. The explorer's share action POSTs the project to /new via PgServer.shareNew({explorer: {files: {path: {content}}}})."
     - "2. The server stores it in MongoDB and returns a share id as plain text."
-    - "3. Opening /share/:id routes through client/src/routes/share/, which GETs /share/{id} and loads the returned files into a temporary workspace (PgExplorer.isTemporary)."
+    - "3. Opening /share/:id routes through client-v2/src/routes/share/, which GETs /share/{id} and loads the returned files into a temporary workspace (PgExplorer.isTemporary)."
     - "NOTE: in production builds both share calls are forced to https://api.solpg.io by the `useDbServer` flag in utils/server.ts, ignoring the configured endpoint."
   wasm_boundary:
-    - "All WASM is loaded lazily. client/src/utils/package.ts is the single gateway: PgPackage.import(name) switches over a dynamic import() per package and wraps failures in a 'Failed to load X' error surfaced to the terminal."
+    - "All WASM is loaded lazily. client-v2/src/utils/package.ts is the single gateway: PgPackage.import(name) switches over a dynamic import() per package and wraps failures in a 'Failed to load X' error surfaced to the terminal."
     - "Terminal CLIs: `solana` -> runSolana, `anchor` -> runAnchor, `spl-token` -> runSplToken, `sugar` -> runSugar, each called with the raw input string from commands/<name>/<name>.ts."
     - "Seahorse: compileSeahorse(content, programName) returns a FLAT array alternating [path, content, path, content, ...]; build.ts also patches '# [program]' back to '#[program]' because the output is not rustfmt-ed."
     - "rustfmt: imported by components/Editor/Monaco/Monaco.tsx for formatting."
@@ -579,7 +579,7 @@ data_flows:
 
 integration_seams:
   - seam: New sidebar page (left icon rail + resizable panel)
-    path: client/src/views/sidebar/sidebar.ts + a new client/src/views/sidebar/<name>/ folder
+    path: client-v2/src/views/sidebar/sidebar.ts + a new client-v2/src/views/sidebar/<name>/ folder
     why: >
       One import and one array element in an existing registry; everything else
       is new files under a new folder. The panel renders in Side/Right, which is
@@ -591,18 +591,18 @@ integration_seams:
       in the last 12 months. views/sidebar/create.ts has one commit in 12
       months. Merge conflicts here would be a one-line resolution.
   - seam: New bottom-panel page
-    path: client/src/views/main/secondary/secondary.ts
+    path: client-v2/src/views/main/secondary/secondary.ts
     why: Same registry pattern; MAIN_SECONDARY currently holds only the terminal.
     risk: >
       Very low — no commits in 12 months (last touched 2024-10-16). But it puts
       the assistant under the editor competing with the terminal for vertical
       space, which works against "visible without hiding the code".
   - seam: New terminal command (e.g. `ask`)
-    path: client/src/commands/commands.ts + client/src/commands/<name>/
+    path: client-v2/src/commands/commands.ts + client-v2/src/commands/<name>/
     why: Cheap additional entry point; the registry has no commits in 12 months.
     risk: Very low. Complementary to the panel rather than a substitute.
   - seam: Capturing raw build stderr
-    path: client/src/commands/build/build.ts
+    path: client-v2/src/commands/build/build.ts
     why: >
       Unavoidable if the assistant is to explain the actual compiler error
       rather than a re-derived one. The minimal change is one added field on a
@@ -614,7 +614,7 @@ integration_seams:
       recently 2026-06-10. Keep the edit to a couple of lines that delegate to a
       new module, so a conflict is trivial to resolve.
   - seam: Settings entry (for a user-supplied API key)
-    path: client/src/settings/settings.ts + client/src/settings/<name>/
+    path: client-v2/src/settings/settings.ts + client-v2/src/settings/<name>/
     why: >
       The existing settings registry already persists values and supports custom
       parse/validate, which is the natural home for a bring-your-own-key field
@@ -668,21 +668,21 @@ upstream_sync:
       GitHub API reports the fork's parent as `solana-foundation/solana-playground`.
   activity: 223 commits in the 6 months before 2026-08-19.
   hot_files:
-    - { path: client/src/commands/deploy/deploy.ts, commits_6mo: 29 }
-    - { path: client/src/utils/common.ts, commits_6mo: 15 }
-    - { path: client/src/utils/terminal/terminal.ts, commits_6mo: 13 }
-    - { path: client/src/commands/deploy/bpf-loader-upgradeable.ts, commits_6mo: 12 }
-    - { path: client/src/utils/decorators/updatable.ts, commits_6mo: 11 }
-    - { path: client/src/utils/wallet/wallet.ts, commits_6mo: 9 }
-    - { path: client/src/commands/airdrop/airdrop.ts, commits_6mo: 9 }
-    - { path: client/src/utils/program-info.ts, commits_6mo: 8 }
-    - { path: client/src/utils/terminal/tty.ts, commits_6mo: 6 }
-    - { path: client/src/utils/command.ts, commits_6mo: 6 }
+    - { path: client-v2/src/commands/deploy/deploy.ts, commits_6mo: 29 }
+    - { path: client-v2/src/utils/common.ts, commits_6mo: 15 }
+    - { path: client-v2/src/utils/terminal/terminal.ts, commits_6mo: 13 }
+    - { path: client-v2/src/commands/deploy/bpf-loader-upgradeable.ts, commits_6mo: 12 }
+    - { path: client-v2/src/utils/decorators/updatable.ts, commits_6mo: 11 }
+    - { path: client-v2/src/utils/wallet/wallet.ts, commits_6mo: 9 }
+    - { path: client-v2/src/commands/airdrop/airdrop.ts, commits_6mo: 9 }
+    - { path: client-v2/src/utils/program-info.ts, commits_6mo: 8 }
+    - { path: client-v2/src/utils/terminal/tty.ts, commits_6mo: 6 }
+    - { path: client-v2/src/utils/command.ts, commits_6mo: 6 }
   cold_files_safe_to_extend:
-    - { path: client/src/views/sidebar/sidebar.ts, last_changed: 2023-12-25, commits_12mo: 0 }
-    - { path: client/src/views/main/secondary/secondary.ts, last_changed: 2024-10-16, commits_12mo: 0 }
-    - { path: client/src/commands/commands.ts, last_changed: 2025-05-30, commits_12mo: 0 }
-    - { path: client/src/views/sidebar/create.ts, last_changed: 2026-01-10, commits_12mo: 1 }
+    - { path: client-v2/src/views/sidebar/sidebar.ts, last_changed: 2023-12-25, commits_12mo: 0 }
+    - { path: client-v2/src/views/main/secondary/secondary.ts, last_changed: 2024-10-16, commits_12mo: 0 }
+    - { path: client-v2/src/commands/commands.ts, last_changed: 2025-05-30, commits_12mo: 0 }
+    - { path: client-v2/src/views/sidebar/create.ts, last_changed: 2026-01-10, commits_12mo: 1 }
   reading: >
     The registries are cold and the runtime internals are hot. Extending through
     a registry is close to merge-free; editing deploy.ts, terminal.ts, wallet.ts
@@ -714,7 +714,7 @@ unknowns:
       modes there (airdrop needed, program size, upgrade authority) shape what
       the assistant should say when it goes wrong.
     how_to_resolve: >
-      Read client/src/commands/deploy/deploy.ts past line 70 together with
+      Read client-v2/src/commands/deploy/deploy.ts past line 70 together with
       bpf-loader-upgradeable.ts. Roughly an hour.
   - question: How complete is the existing wallet-standard support?
     why_it_matters: >
@@ -722,7 +722,7 @@ unknowns:
       carries standardWallets and standardName, so some of it may exist. Scope
       of that focus area depends on the answer.
     how_to_resolve: >
-      Read client/src/utils/wallet/ in full and check which
+      Read client-v2/src/utils/wallet/ in full and check which
       @solana/wallet-adapter packages are actually wired up. Not needed for
       task-01.
   - question: Where should an assistant's own persisted state live?

@@ -28,11 +28,12 @@ deploy and test Solana programs with no local setup. Upstream is
 divergence from upstream**, so nothing we do should make merging painful.
 
 ```
-client/    the frontend — React 17, CRA 5 + craco, TypeScript, styled-components
-server/    build service — Rust/axum; compiles programs, serves the ELF, stores shares
-wasm/      8 packages compiled to WASM: the CLIs, rust-analyzer, Playnet, rustfmt, Seahorse
-vscode/    VS Code extension
-compose.yaml   one file, profiles: dev | prod | client-standalone
+client/      upstream frontend, untouched (React 17, CRA 5 + craco)
+client-v2/   the fork's frontend: upstream + assistant panel + redesign
+server/      build service — Rust/axum; compiles programs, serves the ELF, stores shares
+wasm/        8 packages compiled to WASM
+vscode/      VS Code extension
+compose.yaml one file, profiles: dev | prod | client-standalone (runs client/)
 ```
 
 ## Running it locally
@@ -44,10 +45,10 @@ compiles six Rust packages and takes about an hour.
 nvm install 22 && nvm use 22      # package.json engines: ^22.20.0
 npm i -g yarn@1.22.22             # yarn is not on PATH under a fresh nvm node
 
-git submodule update --init       # client/public — icons, fonts, themes, tutorials
+git submodule update --init       # client-v2/public — icons, fonts, themes, tutorials
 ./wasm/stub-packages.sh           # stand-ins for the 6 unbuilt WASM packages (~3 min total setup)
 
-cd client && yarn install
+cd client-v2 && yarn install
 yarn generate-exports             # REQUIRED — writes the gitignored src/*/generated.ts barrels
 yarn sync-assistant-context       # REQUIRED — copies docs/assistant-context.md into the bundle
 yarn generate-packages && yarn generate-tutorials
@@ -58,11 +59,11 @@ Both `REQUIRED` lines write gitignored files that the app imports, so the build
 fails without them. `yarn generate` runs the whole chain including the expensive
 crate step; the four above are the cheap subset.
 
-**Why the stubs.** `client/package.json` declares eight local `file:` deps under
+**Why the stubs.** `client-v2/package.json` declares eight local `file:` deps under
 `wasm/*/pkg`. Two (Playnet, rustfmt) are committed prebuilt; the other six are
 compiled from Rust and **`yarn install` refuses to run while those directories
 are missing**. All six are behind lazy `import()` in
-`client/src/utils/package.ts` and none are on the UI boot path, so stubs let the
+`client-v2/src/utils/package.ts` and none are on the UI boot path, so stubs let the
 whole UI, editor, terminal, Playnet and wallet work. What you lose: Rust
 intellisense and the `solana` / `anchor` / `spl-token` / `sugar` commands, plus
 Seahorse builds. Each throws a clear message pointing at `wasm/build.sh`.
@@ -104,10 +105,12 @@ honest about what is real and what is mocked.
 
 ## Hard constraints
 
+- **`client/` is upstream and stays byte-identical to it.** All frontend work
+  happens in `client-v2/`.
 - **Do not modify the backend**, the build server, the supported crate list,
   deploy mechanics, or the sharing infrastructure. If the assistant needs server
   capacity it belongs in a separate service, not in `server/`.
-- **Touch the existing `client/` as little as possible.** The panel is all new
+- **Touch the existing `client-v2/` as little as possible.** The panel is all new
   files. Two deliberate exceptions, both argued in `decisions.md`: one line in
   `views/sidebar/sidebar.ts` (D2) and two lines in `commands/build/build.ts` (D4).
 - **Everything stays open source.** No closed modules, no proprietary service.
@@ -153,7 +156,7 @@ needs. Keep that edit to a couple of lines that delegate to a new module.
 - Deploy target is devnet.
 - Project code — including code from a *shared* project — executes in a
   same-origin iframe guarded by a string blacklist
-  (`client/src/utils/js-runtime/js-runtime.ts`). Relevant to anything you
+  (`client-v2/src/utils/js-runtime/js-runtime.ts`). Relevant to anything you
   consider storing in browser storage.
 
 ## Conventions
