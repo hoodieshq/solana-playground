@@ -60,6 +60,15 @@ Then: settings gear -> **Build server URL** -> `SolPg`. Open the assistant (`Ctr
 - CI / compose for `client-v2` — both still target `client/` only.
 - Responsive/tablet layout, a light-theme variant of the redesign, real wallet adapters, MCP grounding.
 
+### Follow-ups from review
+
+- A Reset / Disconnect control in the assistant header (`cancelPending()` + `disconnect()` exist in the store but no UI calls them; a stuck approval currently needs a reload).
+- Wrap the project snapshot sent to the model in explicit untrusted-data delimiters and move it out of the `system` role (shared projects are attacker-controlled text).
+- Self-host Space Grotesk instead of the runtime Google Fonts `@import` in `src/index.css`.
+- `requestApproval` should return `{ id, allowed }` so parallel tool calls label the right card.
+- Subscribe `Chat.tsx` to `PgBuildOutput.onDidChange`.
+- Wire `client-v2` into CI (type-check, prettier, build).
+
 ## Friction log
 
 Collected while working, in `docs/friction-log.md`:
