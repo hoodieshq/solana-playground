@@ -144,3 +144,30 @@ Ordered by visual impact; each numbered item is a commit gate (see Guardrails).
   offline degrades to system fonts, not to broken text.
 - **Night-length scope** — stages are ordered by impact precisely so that
   running out of night leaves the most valuable work done.
+
+---
+
+# Iteration 2 — layout, spacing, navigation (2026-08-20)
+
+Approved by Slava after reviewing iteration 1: tokens landed, but the anatomy
+still reads legacy. References for this pass: Cursor, Warp, Linear, v0 — what
+they share is air and soft geometry, not color.
+
+**A. Floating panels.** The workspace becomes a black canvas with inset,
+rounded panels (side panel, editor, terminal) separated by 8px gutters —
+replacing edge-to-edge panels divided by 1px borders. The defining move of the
+iteration.
+
+**B. Spacing rhythm.** One 8px grid: taller explorer rows, 40px panel headers,
+breathing room between sections instead of hard dividers, 44px minimum hit
+targets where feasible.
+
+**C. Rail.** Wider (3.5rem), icons in rounded hover squares, the active page
+marked by a pill background rather than a border-left.
+
+**D. Explorer.** Quiet small-caps section labels, quiet icon buttons, aligned
+chevrons, taller rows.
+
+Tools for this pass: the frontend-design skill during implementation,
+web-design-guidelines as the closing audit. Same per-stage gates as
+iteration 1 (tsc → compile → screenshot, commit per stage).
