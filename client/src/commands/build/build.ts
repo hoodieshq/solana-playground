@@ -12,7 +12,6 @@ import {
   TupleFiles,
 } from "../../utils";
 import { createCmd } from "../create";
-import { PgBuildOutput } from "../../views/sidebar/assistant/bridge/build-output";
 
 export const build = createCmd({
   name: "build",
@@ -32,8 +31,6 @@ export const build = createCmd({
         uuid: result.uuid ?? undefined,
         lastBuildFailed: failed,
       });
-      // `improveOutput` is lossy by design; the assistant needs the raw text
-      PgBuildOutput.set(result.stderr);
       PgTerminal.println(improveOutput(result.stderr));
     } finally {
       PgGlobal.update({ buildLoading: false });

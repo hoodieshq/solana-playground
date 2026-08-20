@@ -166,10 +166,7 @@ const TopWrapper = styled.div`
 const MainText = styled.div`
   ${({ theme }) => `
     color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: ${theme.font.code.size.large};
   `}
 `;
 

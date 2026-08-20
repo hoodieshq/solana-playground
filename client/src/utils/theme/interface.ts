@@ -37,19 +37,6 @@ export interface ThemeParam {
     };
   };
 
-  /**
-   * Fonts of the theme.
-   *
-   * Optional overrides; when not set, the code font comes from the font
-   * setting and the non-code font falls back to the system stack.
-   */
-  font?: {
-    /** Code font */
-    code?: Font;
-    /** Any font other than code(e.g Markdown) */
-    other?: Font;
-  };
-
   /** Default theme values */
   default?: {
     /** Default backdrop */

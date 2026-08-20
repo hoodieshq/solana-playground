@@ -1,10 +1,9 @@
 import ProgramsSkeleton from "./Component/ProgramsSkeleton";
-import programsIcon from "../icons/programs.svg";
 import { createSidebarPage } from "../create";
 
 export const programs = createSidebarPage({
   name: "Programs",
-  icon: programsIcon,
+  icon: "program.png",
   keybind: "Ctrl+Shift+P",
   route: "/programs",
   LoadingComponent: ProgramsSkeleton,
