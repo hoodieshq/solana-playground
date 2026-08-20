@@ -1,6 +1,10 @@
 # Local Vercel deploy targets. See client-v2/docs/deploy-client-vercel.md.
-# Targets assume repo-root cwd (Vercel Root Directory = client-v2, .vercel/ state at root) — run via the root Makefile.
-# `vercel build` reads client-v2/vercel.json (installCommand, buildCommand) so install/build chain isn't duplicated here.
+# Targets assume repo-root cwd (.vercel/ state at root); the built directory is
+# forced to $(CLIENT_DIR) below, so the dashboard Root Directory only governs
+# the Git-integration deploys.
+# `vercel build` reads $(CLIENT_DIR)/vercel.json (installCommand, buildCommand) so install/build chain isn't duplicated here.
+
+CLIENT_DIR := client-v2
 
 .PHONY: vercel-bootstrap vercel-link-preview deploy-client-to-vercel-preview
 
@@ -24,6 +28,11 @@ vercel-link-preview: ## Pull preview env vars from Vercel
 	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
 		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
 		npx vercel@latest pull --yes --environment=preview --token="$${VERCEL_TOKEN}"
+	@# pull overwrites the cached settings with the dashboard's Root Directory; force ours back.
+	@jq --arg dir '$(CLIENT_DIR)' '.settings.rootDirectory = $$dir' \
+		.vercel/project.json > .vercel/project.json.next
+	@mv .vercel/project.json.next .vercel/project.json
+	@echo "Root Directory pinned to $(CLIENT_DIR)"
 
 deploy-client-to-vercel-preview: vercel-link-preview ## Build + deploy a unique preview URL
 	@: $${VERCEL_TOKEN:?VERCEL_TOKEN is unset}
