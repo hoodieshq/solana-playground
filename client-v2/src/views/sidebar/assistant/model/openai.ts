@@ -28,6 +28,11 @@ interface ToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+  /**
+   * Vendor extras echoed back untouched. Gemini puts a `thought_signature`
+   * here and rejects the next request with 400 if it does not come back.
+   */
+  extra_content?: unknown;
 }
 
 /**
@@ -53,7 +58,15 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
         const message = await streamOneCompletion(config, tools, history);
         history.push(message);
 
-        if (!message.tool_calls?.length) return;
+        if (!message.tool_calls?.length) {
+          // Neither text nor a tool call: say so rather than ending silently
+          if (!message.content) {
+            PgAssistant.addError(
+              `${config.model} returned an empty response. Try again, or pick another model.`
+            );
+          }
+          return;
+        }
 
         for (const call of message.tool_calls) {
           history.push({
@@ -153,12 +166,15 @@ const streamOneCompletion = async (
       }
 
       for (const part of delta.tool_calls ?? []) {
-        const call = (calls[part.index] ??= {
+        // Gemini's OpenAI shim omits `index` and sends each call whole, so an
+        // indexless part is a new call rather than a fragment of the last one
+        const call = (calls[part.index ?? calls.length] ??= {
           id: "",
           type: "function",
           function: { name: "", arguments: "" },
         });
         if (part.id) call.id = part.id;
+        if (part.extra_content) call.extra_content = part.extra_content;
         if (part.function?.name) call.function.name += part.function.name;
         if (part.function?.arguments) {
           call.function.arguments += part.function.arguments;
@@ -183,9 +199,11 @@ async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{
     delta?: {
       content?: string | null;
       tool_calls?: Array<{
-        index: number;
+        /** Absent on some shims (Gemini) */
+        index?: number;
         id?: string;
         function?: { name?: string; arguments?: string };
+        extra_content?: unknown;
       }>;
     };
   }>;
