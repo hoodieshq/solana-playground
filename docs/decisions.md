@@ -308,7 +308,10 @@ Research: `docs/design/brand-research.md` · Spec:
   override the wrapper's hardcoded centering. Component edits shipped:
   `Monaco.tsx` (theme-name kebab, 2 lines), `utils/theme/theme.ts` (one-time
   default migration), `utils/theme/interface.ts` (font typing), the rail SVG
-  set, and the assistant's GradientButton.
+  set, the assistant's GradientButton, and
+  `views/sidebar/explorer/Component/Folders.tsx` and
+  `views/sidebar/explorer/Component/Workspaces.tsx` (explorer rows and
+  section labels restyle).
 
 **Deferred, by explicit choice:** responsive/tablet (step two), a light-theme
 variant, wallet-flow redesign beyond theming.

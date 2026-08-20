@@ -3,7 +3,7 @@
 Context file for Claude Code. Read this before touching anything.
 
 Two people and two Claude Code sessions work on one branch
-(`feat/client-2-ai-assistant`). This file and `docs/` are how we stay in sync —
+(`feat/client-v2`). This file and `docs/` are how we stay in sync —
 if you learn something that contradicts what is written here, fix it here.
 
 ## Where the knowledge lives
@@ -24,8 +24,9 @@ before going exploring; it will usually save the trip.
 
 A fork of Solana Playground — a browser IDE where developers write, build,
 deploy and test Solana programs with no local setup. Upstream is
-`solana-foundation/solana-playground`. **Our fork is currently at zero
-divergence from upstream**, so nothing we do should make merging painful.
+`solana-foundation/solana-playground`. **`client/` is at zero divergence from
+upstream**; the fork's work lives in `client-v2/`, so upstream syncs stay a
+fast-forward.
 
 ```
 client/      upstream frontend, untouched (React 17, CRA 5 + craco)
@@ -110,9 +111,9 @@ honest about what is real and what is mocked.
 - **Do not modify the backend**, the build server, the supported crate list,
   deploy mechanics, or the sharing infrastructure. If the assistant needs server
   capacity it belongs in a separate service, not in `server/`.
-- **Touch the existing `client-v2/` as little as possible.** The panel is all new
-  files. Two deliberate exceptions, both argued in `decisions.md`: one line in
-  `views/sidebar/sidebar.ts` (D2) and two lines in `commands/build/build.ts` (D4).
+- **Touch pre-existing upstream files inside `client-v2/` as little as
+  possible.** The panel is all new files; the pre-existing files the fork
+  edits are listed in `docs/decisions.md` D2, D4 and D9.
 - **Everything stays open source.** No closed modules, no proprietary service.
 - **No API keys in the repository**, and not in `REACT_APP_*` either — CRA
   inlines those into the bundle for every visitor to read. The key is supplied by

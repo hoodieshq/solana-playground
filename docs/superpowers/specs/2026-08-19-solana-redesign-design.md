@@ -53,13 +53,13 @@ not from memory). Code stays JetBrains Mono — it works, it ships with the app,
 and the IDE's monospace identity is worth keeping.
 
 **Font loading:** `client/public/index.html` lives in the assets submodule and
-cannot be edited. The display font loads via `@import` in `client/src/index.css`.
+cannot be edited. The display font loads via `@import` in `client-v2/src/index.css`.
 The `FONTS` list in `themes/fonts.ts` is the *code* font picker; the display
 font rides `theme.font.other` and needs no entry there.
 
 ## Stage 1 — Token layer: theme `solana-v2`, made default
 
-A **new** theme directory (`client/src/themes/solana-v2/`), not an edit of the
+A **new** theme directory (`client-v2/src/themes/solana-v2/`), not an edit of the
 existing `solana` theme — the old one stays for comparison and the merge risk
 of a new directory is zero. `isDefault` moves from `playground` to it (two
 one-line flag changes).

@@ -1,5 +1,9 @@
 # Модель, агент и путь к продакшену — ресерч перед презентацией
 
+> Internal research snapshot, 2026-08-20. Describes two providers; the
+> shipped client-v2 has four (Demo, Anthropic, OpenAI-compatible,
+> Gemini/OpenRouter presets).
+
 Дата: 2026-08-20. Для внутреннего чтения (Слава), потом — основа слайдов.
 Цены и возможности API — по справочнику Anthropic на 2026-06, не по памяти.
 

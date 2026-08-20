@@ -17,7 +17,7 @@ Everything else can be rough. That path cannot.
 A new sidebar page.
 
 ```
-client/src/views/sidebar/assistant/
+client-v2/src/views/sidebar/assistant/
   assistant.ts          createSidebarPage(...)
   Component/            the React tree
   bridge/               playgroundBridge.ts — the one seam
@@ -26,7 +26,7 @@ client/src/views/sidebar/assistant/
 ```
 
 Registered by appending one element to `SIDEBAR` in
-`client/src/views/sidebar/sidebar.ts` — zero commits in twelve months, so the
+`client-v2/src/views/sidebar/sidebar.ts` — zero commits in twelve months, so the
 merge cost is a one-line resolution.
 
 It renders in `Side/Right`: already resizable to 75% of the window, already
@@ -36,7 +36,7 @@ precedent for a non-trivial panel.
 **Icon gotcha.** `createSidebarPage` does `page.icon = "/icons/sidebar/" + page.icon`
 unconditionally, and `client/public` is the `solana-playground/assets` submodule
 — we cannot add a file there. Fix: a one-line guard in
-`client/src/views/sidebar/create.ts` so an icon that is already a URL or an
+`client-v2/src/views/sidebar/create.ts` so an icon that is already a URL or an
 imported asset skips the prefix. That file has one commit in twelve months.
 
 ## 2. The bridge
@@ -57,7 +57,7 @@ honest: the playground half is not simulated at all.
 
 ## 3. Build errors
 
-`client/src/commands/build/build.ts` gains one import and one line storing the
+`client-v2/src/commands/build/build.ts` gains one import and one line storing the
 raw `stderr` into a new module the bridge reads. Rationale and rejected
 alternatives: `decisions.md` → D4.
 
@@ -110,7 +110,7 @@ Second tab in the same panel, rendering `docs/assistant-context.md` as content,
 not markup.
 
 CRA's `ModuleScopePlugin` is active (`react-scripts/config/webpack.config.js:337`)
-and craco does not remove it, so `client/src` cannot import across the repo root.
+and craco does not remove it, so `client-v2/src` cannot import across the repo root.
 A small script syncs `docs/assistant-context.md` into
 `views/sidebar/assistant/content/`, following the `client/scripts/sync-readme.mjs`
 precedent. Craco already has a raw-import rule for `.md`.
