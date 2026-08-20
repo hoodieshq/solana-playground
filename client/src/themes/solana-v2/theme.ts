@@ -269,11 +269,26 @@ const SOLANA_V2: ThemeParam = {
         default: {
           bg: BG_BASE,
           borderRight: "none",
+          width: "3.5rem",
         },
         button: {
+          // Rounded 40px squares centered in the rail instead of full-width
+          // strips; the active page is a raised pill, not a border edge
+          default: {
+            width: "2.5rem",
+            height: "2.5rem",
+            margin: "0.25rem 0",
+            borderRadius: "10px",
+            hover: { bg: BG_HOVER },
+          },
           selected: {
             bg: BG_RAISED,
-            borderLeft: `2px solid ${PURPLE}`,
+            // Set every side explicitly - the defaults machinery appends
+            // borderLeft/borderRight *after* these, so shorthand alone
+            // would be overridden by the legacy 2px edge marker
+            border: `1px solid ${BORDER_STRONG}`,
+            borderLeft: `1px solid ${BORDER_STRONG}`,
+            borderRight: `1px solid ${BORDER_STRONG}`,
           },
         },
       },
@@ -289,6 +304,8 @@ const SOLANA_V2: ThemeParam = {
           height: "calc(100vh - 1.5rem - 1rem)",
         },
         title: {
+          // 40px panel header on the 8px rhythm
+          height: "2.5rem",
           fontFamily: DISPLAY_FONT,
           fontSize: "1rem",
           fontWeight: 500,
