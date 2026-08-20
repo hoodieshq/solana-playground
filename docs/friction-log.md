@@ -23,6 +23,22 @@ working, per the product brief's traceability principle.
   Monaco and rendered as a wrong bright fallback with no error. All theme
   tokens that can reach Monaco use 8-digit hex.
 
+## 2026-08-20 — redesign iteration 2
+
+- **Rail buttons are divs** (`SidebarButton.tsx`) — no keyboard focus, no
+  `aria-label` beyond the tooltip. Restyled in this pass but not made
+  accessible; a small upstream-worthy fix.
+- **Explorer rows don't truncate** — a long filename overflows the row
+  rather than ellipsizing. Pre-existing; became more visible with rounded
+  row pills.
+- **The approval card scrolls as a whole inside the chat** — when a diff is
+  tall, the Apply/Reject actions scroll out of view with it. The diff body
+  should own the scrolling, capped, with actions pinned. Assistant-panel
+  follow-up, not a redesign item.
+- **Native `color-scheme` was never set** — scrollbars and form controls
+  followed the OS scheme regardless of theme. Fixed in `PgTheme.set` for all
+  themes.
+
 ## 2026-08-19 — assistant build (earlier)
 
 - **The client discards raw compiler output** — only a boolean and a lossy

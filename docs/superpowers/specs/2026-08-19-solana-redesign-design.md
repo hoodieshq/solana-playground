@@ -171,3 +171,23 @@ chevrons, taller rows.
 Tools for this pass: the frontend-design skill during implementation,
 web-design-guidelines as the closing audit. Same per-stage gates as
 iteration 1 (tsc → compile → screenshot, commit per stage).
+
+## Iteration 2 — outcome
+
+All four stages landed as theme tokens plus two style-only explorer edits
+(`Folders.tsx`, `Workspaces.tsx` — 4 upstream commits in 12 months, all
+logic). One deviation from the letter of B: rail buttons are 40px squares,
+not 44px — this is a desktop-first pass (responsive is deferred), and 44px
+squares in a 56px rail read oversized. Revisit with the responsive step.
+
+The closing audit (web-design-guidelines) added `color-scheme` syncing to
+`PgTheme.set` — native scrollbars and form controls now follow the active
+theme — and confirmed `<meta name="theme-color">` already matches the black
+canvas. Two pre-existing upstream gaps noted for the friction log, not fixed
+here: the rail buttons are divs without keyboard focus support, and explorer
+rows don't truncate long filenames.
+
+Full screenshot sweep refreshed in `docs/design/screenshots/redesign/`,
+including the complete demo flow (build error → explanation → diff →
+Apply → editor changed) and sanity shots of Dracula and Playground on the
+changed explorer components.
