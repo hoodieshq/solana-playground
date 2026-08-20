@@ -6,6 +6,7 @@ import { homedir } from "os";
 import { execSync, spawnSync } from "child_process";
 
 import {
+  CLIENT_PATH,
   exists,
   readJSON,
   REPO_ROOT_PATH,
@@ -22,7 +23,7 @@ try {
 }
 
 /** Crates output directory path */
-const CRATES_PATH = path.join(REPO_ROOT_PATH, "client", "public", "crates");
+const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
 
 /** Path to the `Cargo.lock` */
 const LOCK_FILE_PATH = path.join(

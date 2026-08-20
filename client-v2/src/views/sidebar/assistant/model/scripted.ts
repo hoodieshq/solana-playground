@@ -115,7 +115,9 @@ export const createScriptedProvider = (): Provider => {
       }
 
       await say(
-        `Line \`${fixed.line.trim()}\` assigns a string to \`${fixed.type}\`. ` +
+        `Line \`${fixed.line.trim()}\` assigns a string to \`${
+          fixed.type
+        }\`. ` +
           `Rust will not convert that for you, so the value has to be a ` +
           `number. Starting it at \`0\` matches how it is used.`
       );

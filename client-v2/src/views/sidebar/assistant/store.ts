@@ -152,7 +152,12 @@ export class PgAssistant {
    */
   static requestApproval(request: ApprovalRequest) {
     const id = makeId();
-    PgAssistant._items.push({ kind: "approval", id, request, status: "pending" });
+    PgAssistant._items.push({
+      kind: "approval",
+      id,
+      request,
+      status: "pending",
+    });
     PgAssistant._status = "awaiting";
     PgAssistant._emit();
 

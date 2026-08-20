@@ -97,8 +97,7 @@ export const realBridge: PlaygroundBridge = {
         ? PgExplorer.getFileContent(currentFullPath) ?? null
         : null,
       filePaths: this.listFiles(),
-      buildError:
-        build && build.failed ? stripKnownNoise(build.stderr) : null,
+      buildError: build && build.failed ? stripKnownNoise(build.stderr) : null,
       idl: summarizeIdl(),
       programId: PgProgramInfo.getPkStr() ?? null,
       deployState: PgGlobal.deployState,
@@ -108,14 +107,18 @@ export const realBridge: PlaygroundBridge = {
   },
 
   listFiles() {
-    return PgExplorer.getAllFiles()
-      .map(([path]) => toRelative(path))
-      // `.workspace/` holds editor and program metadata, not the user's project
-      .filter((path) => !path.startsWith(".workspace"));
+    return (
+      PgExplorer.getAllFiles()
+        .map(([path]) => toRelative(path))
+        // `.workspace/` holds editor and program metadata, not the user's project
+        .filter((path) => !path.startsWith(".workspace"))
+    );
   },
 
   readFile(path) {
-    return PgExplorer.getFileContent(PgExplorer.convertToFullPath(path)) ?? null;
+    return (
+      PgExplorer.getFileContent(PgExplorer.convertToFullPath(path)) ?? null
+    );
   },
 
   async applyPatch({ path, content }) {

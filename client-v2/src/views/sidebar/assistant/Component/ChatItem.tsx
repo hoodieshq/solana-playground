@@ -52,8 +52,10 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
 
   // The shared Button restores its own state after awaiting onClick; resolving
   // synchronously unmounts the pending actions row under it. Defer a tick.
-  const allow = () => setTimeout(() => PgAssistant.resolveApproval(item.id, true), 0);
-  const deny = () => setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
+  const allow = () =>
+    setTimeout(() => PgAssistant.resolveApproval(item.id, true), 0);
+  const deny = () =>
+    setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
 
   const label =
     status === "allowed" ? "APPLIED" : status === "denied" ? "DECLINED" : null;
@@ -192,9 +194,7 @@ const ErrorBox = styled.div`
 const Card = styled.div<{ $pending: boolean }>`
   ${({ theme, $pending }) => css`
     border: 1px solid
-      ${$pending
-        ? theme.colors.default.primary
-        : theme.colors.default.border};
+      ${$pending ? theme.colors.default.primary : theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
     overflow: hidden;

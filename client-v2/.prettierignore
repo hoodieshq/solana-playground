@@ -6,3 +6,6 @@ public
 
 # Declaration files:
 *.d.ts
+
+# Generated:
+src/views/sidebar/assistant/content/assistant-context.md
