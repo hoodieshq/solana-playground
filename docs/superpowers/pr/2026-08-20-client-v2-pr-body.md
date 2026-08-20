@@ -1,6 +1,6 @@
 # Playground v2: AI assistant, Solana-brand redesign, and a `client-v2/` home for the fork
 
-One PR replacing #2, #3 and #4. `client/` is back to byte-identical upstream; everything the fork adds lives in `client-v2/`.
+One PR replacing #2, #3 and #4. `client/` is back to byte-identical upstream; everything the fork adds lives in `client-v2/`. #2, #3 and #4 will be closed manually once this is reviewed.
 
 <img src="https://raw.githubusercontent.com/hoodieshq/solana-playground/feat/client-v2/docs/design/screenshots/10-client-v2-home.jpg" width="900" alt="Redesigned home in client-v2">
 
@@ -20,7 +20,7 @@ One PR replacing #2, #3 and #4. `client/` is back to byte-identical upstream; ev
 1. **AI assistant panel** (was #2) - sidebar page, a bridge onto the playground, a tool loop with an approval gate inside each state-changing tool; the Demo backend needs no key. Spec: `docs/superpowers/specs/2026-08-19-assistant-panel-design.md`.
 2. **Solana-brand redesign** (was #3) - new default theme, floating panels on an 8px grid, rail and explorer restyle, three design iterations documented in `docs/design/`. Spec: `docs/superpowers/specs/2026-08-19-solana-redesign-design.md`.
 3. **Assistant polish and bring-any-endpoint provider** (was #4) - focus/ARIA/progress polish, an OpenAI-compatible provider with OpenRouter and Gemini presets, explorer link after deploy.
-4. **Docs as shared context** - `CLAUDE.md`, `docs/product-brief.md`, `docs/decisions.md` (D1-D7, plus D5 now resolved), `docs/codebase-map.yaml`, research under `docs/research/` and `docs/internal/`.
+4. **Docs as shared context** - `CLAUDE.md`, `docs/product-brief.md`, `docs/decisions.md` (D1-D10; D5 is resolved by this PR), `docs/codebase-map.yaml`, research under `docs/research/` and `docs/internal/`.
 
 <img src="https://raw.githubusercontent.com/hoodieshq/solana-playground/feat/client-v2/docs/design/screenshots/11-client-v2-assistant.jpg" width="900" alt="Assistant panel in client-v2">
 
