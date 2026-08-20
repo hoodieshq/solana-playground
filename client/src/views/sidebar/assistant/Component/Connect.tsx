@@ -8,10 +8,19 @@ import { PgAssistant } from "../store";
 import { PROVIDERS, type ProviderId } from "../model/types";
 
 const CAPABILITIES = [
-  { tag: "READS", text: "your open files, the project tree, the last compiler error" },
-  { tag: "WRITES", text: "proposes patches as a diff — applied only when you click Apply" },
+  {
+    tag: "READS",
+    text: "your open files, the project tree, the last compiler error",
+  },
+  {
+    tag: "WRITES",
+    text: "proposes patches as a diff — applied only when you click Apply",
+  },
   { tag: "RUNS", text: "build and deploy, each behind an explicit approval" },
-  { tag: "KNOWS", text: "this project's roadmap, decisions and current status" },
+  {
+    tag: "KNOWS",
+    text: "this project's roadmap, decisions and current status",
+  },
 ];
 
 const Connect = () => {
@@ -24,7 +33,7 @@ const Connect = () => {
 
   const provider = PROVIDERS.find((p) => p.id === providerId)!;
 
-  const pickProvider = (p: (typeof PROVIDERS)[number]) => {
+  const pickProvider = (p: typeof PROVIDERS[number]) => {
     setProviderId(p.id);
     // Seed the endpoint fields with the provider's defaults, editable from there
     setEndpoint(p.endpoint ? { ...p.endpoint } : null);
@@ -120,15 +129,21 @@ const Connect = () => {
         </>
       )}
 
-      <ConnectButton kind="primary" fullWidth disabled={!ready} onClick={connect}>
+      <ConnectButton
+        kind="primary"
+        fullWidth
+        disabled={!ready}
+        onClick={connect}
+      >
         {provider.needsKey ? "Connect" : "Start"}
       </ConnectButton>
 
       {provider.needsKey && (
         <Note>
           Held in memory for this tab only — never written to disk, never sent
-          anywhere but {provider.endpoint ? "the endpoint above" : provider.name}.
-          You will re-enter it after a reload.
+          anywhere but{" "}
+          {provider.endpoint ? "the endpoint above" : provider.name}. You will
+          re-enter it after a reload.
         </Note>
       )}
 
