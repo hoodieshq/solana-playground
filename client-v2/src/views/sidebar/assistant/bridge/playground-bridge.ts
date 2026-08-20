@@ -23,6 +23,8 @@ export interface ProjectContext {
   currentFilePath: string | null;
   /** Content of that file */
   currentFileContent: string | null;
+  /** Relative paths of every open editor tab, the current one included */
+  openFilePaths: string[];
   /** Relative paths of every file in the project */
   filePaths: string[];
   /** Compiler output from the last failed build, noise removed */
@@ -58,6 +60,8 @@ export interface Patch {
 export interface PlaygroundBridge {
   getProjectContext(): ProjectContext;
   listFiles(): string[];
+  /** Relative paths of the editor's open tabs, in tab order */
+  listOpenFiles(): string[];
   readFile(path: string): string | null;
   applyPatch(patch: Patch): Promise<void>;
   build(): Promise<void>;
@@ -96,6 +100,7 @@ export const realBridge: PlaygroundBridge = {
       currentFileContent: currentFullPath
         ? PgExplorer.getFileContent(currentFullPath) ?? null
         : null,
+      openFilePaths: this.listOpenFiles(),
       filePaths: this.listFiles(),
       buildError: build && build.failed ? stripKnownNoise(build.stderr) : null,
       idl: summarizeIdl(),
@@ -113,6 +118,10 @@ export const realBridge: PlaygroundBridge = {
         // `.workspace/` holds editor and program metadata, not the user's project
         .filter((path) => !path.startsWith(".workspace"))
     );
+  },
+
+  listOpenFiles() {
+    return PgExplorer.tabs.map(toRelative);
   },
 
   readFile(path) {

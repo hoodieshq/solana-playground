@@ -51,11 +51,16 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
     id: config.id,
     label: config.model,
 
-    async send(input) {
+    async send(input, signal) {
       history.push({ role: "user", content: input });
 
       for (let i = 0; i < MAX_ITERATIONS; i++) {
-        const message = await streamOneCompletion(config, tools, history);
+        const message = await streamOneCompletion(
+          config,
+          tools,
+          history,
+          signal
+        );
         history.push(message);
 
         if (!message.tool_calls?.length) {
@@ -69,12 +74,17 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
         }
 
         for (const call of message.tool_calls) {
+          // A tool can sit on an approval for a long time; do not start the
+          // next one, or the next request, once the user has stopped the turn
+          signal?.throwIfAborted();
           history.push({
             role: "tool",
             tool_call_id: call.id,
             content: await runToolCall(tools, call),
           });
         }
+
+        signal?.throwIfAborted();
       }
 
       throw new Error(
@@ -109,10 +119,12 @@ const runToolCall = async (tools: ToolDefinition[], call: ToolCall) => {
 const streamOneCompletion = async (
   config: OpenAiConfig,
   tools: ToolDefinition[],
-  history: ChatMessage[]
+  history: ChatMessage[],
+  signal?: AbortSignal
 ): Promise<ChatMessage> => {
   const response = await fetch(`${config.baseUrl}/chat/completions`, {
     method: "POST",
+    signal,
     headers: {
       "Content-Type": "application/json",
       // The key is the user's own and goes only to the endpoint they typed in.

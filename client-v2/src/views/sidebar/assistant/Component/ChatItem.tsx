@@ -7,7 +7,15 @@ import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
 import { PgAssistant, type ChatItem as Item } from "../store";
 
-const ChatItem: FC<{ item: Item }> = ({ item }) => {
+const ChatItem: FC<{
+  item: Item;
+  /**
+   * Offered on the newest reply only: asks the assistant to turn what it just
+   * described into a patch. The patch still arrives as an approval card, so
+   * nothing is written on this click.
+   */
+  onMakeChange?: () => void;
+}> = ({ item, onMakeChange }) => {
   switch (item.kind) {
     case "user":
       return (
@@ -25,6 +33,14 @@ const ChatItem: FC<{ item: Item }> = ({ item }) => {
         <Turn>
           <Role $accent>ASSISTANT</Role>
           <Markdown codeFontOnly>{item.text}</Markdown>
+          {onMakeChange && (
+            <MakeChange
+              title="Ask the assistant to write this change, for you to review"
+              onClick={onMakeChange}
+            >
+              Make this change
+            </MakeChange>
+          )}
         </Turn>
       );
 
@@ -38,6 +54,9 @@ const ChatItem: FC<{ item: Item }> = ({ item }) => {
 
     case "error":
       return <ErrorBox role="alert">{item.text}</ErrorBox>;
+
+    case "notice":
+      return <Notice role="status">{item.text}</Notice>;
 
     case "approval":
       return <Approval item={item} />;
@@ -176,6 +195,41 @@ const ToolLine = styled.div`
 const Tick = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.state.success.color};
+  `}
+`;
+
+const MakeChange = styled.button`
+  ${({ theme }) => css`
+    align-self: flex-start;
+    margin-top: 0.5rem;
+    padding: 0.1875rem 0.5rem;
+    background: transparent;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    cursor: pointer;
+    transition: all ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      border-color: ${theme.colors.default.primary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
+    }
+  `}
+`;
+
+const Notice = styled.div`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    font-style: italic;
   `}
 `;
 

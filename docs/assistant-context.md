@@ -53,10 +53,12 @@ Later candidates: aggregating existing learning material into the environment;
 integrating with Blueshift rather than duplicating it; gist import/export; a
 faster path for running snippets.
 
-The assistant should eventually be grounded in the ecosystem's own sources — the
-Solana Developer MCP for documentation, the official Solana skill, the Explorer
-MCP for on-chain lookups — with a channel for plugging in new MCP servers, so the
-environment inherits ecosystem knowledge without waiting for a release.
+The assistant is grounded in the ecosystem's own sources — the Solana Developer
+MCP for documentation, the official Solana skill — with a channel for plugging
+in new MCP servers and skills, so the environment inherits ecosystem knowledge
+without waiting for a release. The Explorer MCP for on-chain lookups sits
+behind bot protection, so it ships disabled and needs a bypass secret supplied
+at runtime before it can be switched on.
 
 ## Principles we hold ourselves to
 
@@ -88,9 +90,17 @@ The assistant runs **entirely in the browser**. No backend of ours.
   provider, rather than by the Tool Runner inspecting a call before it runs.
 - Project context comes from what the client already holds: `PgExplorer` for
   files and the open tab, `PgProgramInfo` for the IDL and program ID,
-  `PgGlobal` for build and deploy state.
+  `PgGlobal` for build and deploy state. Every turn carries the whole file
+  list, the open tabs by name, and the active tab in full; any other file is a
+  `read_file` away. The row above the composer names exactly that.
 - The panel is a new sidebar page, so it sits beside the editor without covering
-  it.
+  it, and it is the page the app opens on.
+- You stay in control of a turn: the backend is named above the chat and can be
+  changed without losing the conversation, **Stop** ends a turn in flight (and
+  denies anything waiting on your approval), and when a reply describes an edit
+  in prose instead of writing it, **Make this change** asks for the same edit as
+  a patch — which still arrives as a diff you accept or reject. See
+  `decisions.md` → D14.
 
 **One gap we had to close.** The client did not keep the compiler's output
 anywhere — the raw `stderr` was printed to the terminal and discarded, leaving
@@ -129,7 +139,13 @@ In progress: iteration 3, "Flow" — re-anatomizing the UI around the
 Write → Build → Deploy → Interact loop. Concept and plan are approved
 (`decisions.md` → D10); implementation has not started.
 
-Not started: real wallet adapters; responsive/tablet layout; MCP grounding.
+Ecosystem grounding shipped: skills the model loads on demand
+(`list_skills` / `load_skill` / `read_skill_reference`, working on every
+backend), and remote MCP servers through the Anthropic connector, configured
+in the panel's Sources tab. Both are wired but, like the Anthropic provider
+itself, have not been exercised against a live key.
+
+Not started: real wallet adapters; responsive/tablet layout.
 
 ## What is real and what is mocked
 
@@ -141,6 +157,14 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Real:** the build server. It is the production one at `api.solpg.io`.
 - **Real:** the assistant's tool calls, the diff it proposes, Apply, and the
   Explorer link after a deploy.
+- **Real:** the skills — fetched from the Foundation's own repository at
+  `raw.githubusercontent.com`, not copies bundled and left to rot. Only the
+  playground-environment skill is bundled, so something always loads offline.
+- **Real, Anthropic only:** the Solana Developer MCP tools, including
+  `program_autofixer`. Anthropic opens the connection server-side; the browser
+  never talks to the MCP server. Backends other than Anthropic have no
+  server-side connector, so they get skills but no MCP, and the Sources tab
+  says so rather than offering a dead toggle.
 - **Scripted:** the Demo backend's reasoning — it walks a fixed script rather
   than calling a model, so it works with no key and no network.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,

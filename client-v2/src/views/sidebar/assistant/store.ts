@@ -1,5 +1,7 @@
+import { DEFAULT_SKILL_IDS, MCP_SERVERS } from "./grounding";
 import type { Disposable } from "../../../utils";
-import type { ProviderId } from "./model/types";
+import type { McpServerEntry } from "./grounding";
+import type { Effort, ProviderId } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -34,7 +36,18 @@ export type ChatItem =
       /** Set once the tool has actually run */
       outcome?: string;
     }
-  | { kind: "error"; id: string; text: string };
+  | { kind: "error"; id: string; text: string }
+  /** Something the panel did, not the model — e.g. the user stopped the turn */
+  | { kind: "notice"; id: string; text: string };
+
+/** Which backend the panel is talking to, and what it needs to reach it */
+export interface Connection {
+  id: ProviderId;
+  apiKey: string;
+  endpoint?: { baseUrl: string; model: string };
+  /** Model and effort, for backends that pick them without a base URL */
+  settings?: { model: string; effort: Effort };
+}
 
 /** What the panel is doing right now */
 export type AssistantStatus =
@@ -47,6 +60,15 @@ export type AssistantStatus =
 
 let nextId = 0;
 const makeId = () => `i${++nextId}`;
+
+const isSame = (a: Connection | null, b: Connection) =>
+  !!a &&
+  a.id === b.id &&
+  a.apiKey === b.apiKey &&
+  a.endpoint?.baseUrl === b.endpoint?.baseUrl &&
+  a.endpoint?.model === b.endpoint?.model &&
+  a.settings?.model === b.settings?.model &&
+  a.settings?.effort === b.settings?.effort;
 
 /**
  * Everything the panel renders.
@@ -73,26 +95,83 @@ export class PgAssistant {
     return !!PgAssistant._connection;
   }
 
+  /** Whether the backend picker is open on top of an existing connection */
+  static get isPickingBackend() {
+    return PgAssistant._pickingBackend;
+  }
+
   /**
    * Choose a backend for this tab.
    *
-   * @param id which provider
-   * @param apiKey the user's key, empty for providers that need none
-   * @param endpoint base URL and model, for OpenAI-compatible providers
+   * Re-picking the current one is a no-op beyond closing the picker; anything
+   * else starts a new conversation, because the history lives inside the
+   * provider and the new one cannot see the old transcript.
+   *
+   * @param connection which provider, its key, and whatever it needs to be
+   * reached — a base URL and model, or a model and effort
    */
-  static connect(
-    id: ProviderId,
-    apiKey: string,
-    endpoint?: { baseUrl: string; model: string }
-  ) {
-    PgAssistant._connection = { id, apiKey: apiKey.trim(), endpoint };
+  static connect(connection: Connection) {
+    const next: Connection = {
+      ...connection,
+      apiKey: connection.apiKey.trim(),
+    };
+    if (!PgAssistant.isCurrent(next)) {
+      PgAssistant.clear();
+      PgAssistant._connection = next;
+    }
+    PgAssistant._pickingBackend = false;
+    PgAssistant._emit();
+  }
+
+  /** Whether connecting with these settings would keep the conversation */
+  static isCurrent(next: Connection) {
+    return isSame(PgAssistant._connection, next);
+  }
+
+  /** Reopen the picker, keeping the conversation in case the user comes back */
+  static pickBackend() {
+    PgAssistant._pickingBackend = true;
+    PgAssistant._emit();
+  }
+
+  /** Close the picker without changing anything */
+  static keepBackend() {
+    PgAssistant._pickingBackend = false;
     PgAssistant._emit();
   }
 
   /** Drop the backend and the key, and clear the conversation with it */
   static disconnect() {
     PgAssistant._connection = null;
+    PgAssistant._pickingBackend = false;
     PgAssistant.clear();
+  }
+
+  /** Which skills the model may load this session */
+  static get enabledSkillIds(): readonly string[] {
+    return PgAssistant._enabledSkillIds;
+  }
+
+  static setSkillEnabled(id: string, enabled: boolean) {
+    const ids = PgAssistant._enabledSkillIds.filter((i) => i !== id);
+    PgAssistant._enabledSkillIds = enabled ? [...ids, id] : ids;
+    PgAssistant._emit();
+  }
+
+  /** Every configured MCP server, enabled or not */
+  static get mcpServers(): readonly McpServerEntry[] {
+    return PgAssistant._mcpServers;
+  }
+
+  /** The servers a turn should actually declare */
+  static get enabledMcpServers(): readonly McpServerEntry[] {
+    return PgAssistant._mcpServers.filter((s) => s.enabled && s.url.trim());
+  }
+
+  /** Replace the whole list — the config is edited as one JSON document */
+  static setMcpServers(servers: readonly McpServerEntry[]) {
+    PgAssistant._mcpServers = servers;
+    PgAssistant._emit();
   }
 
   static setStatus(status: AssistantStatus) {
@@ -133,6 +212,11 @@ export class PgAssistant {
 
   static addToolCall(label: string) {
     PgAssistant._items.push({ kind: "tool", id: makeId(), label });
+    PgAssistant._emit();
+  }
+
+  static addNotice(text: string) {
+    PgAssistant._items.push({ kind: "notice", id: makeId(), text });
     PgAssistant._emit();
   }
 
@@ -229,11 +313,13 @@ export class PgAssistant {
 
   private static _items: ChatItem[] = [];
   private static _status: AssistantStatus = "idle";
-  private static _connection: {
-    id: ProviderId;
-    apiKey: string;
-    endpoint?: { baseUrl: string; model: string };
-  } | null = null;
+  private static _connection: Connection | null = null;
+  private static _pickingBackend = false;
+  private static _enabledSkillIds: readonly string[] = DEFAULT_SKILL_IDS;
+  // Copied, so editing a server in the UI never mutates the registry default
+  private static _mcpServers: readonly McpServerEntry[] = MCP_SERVERS.map(
+    (server) => ({ ...server })
+  );
   private static readonly _pending = new Map<
     string,
     (allowed: boolean) => void

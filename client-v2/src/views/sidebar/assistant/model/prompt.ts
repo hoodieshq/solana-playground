@@ -1,3 +1,5 @@
+import { describeCatalog } from "../grounding";
+import { PgAssistant } from "../store";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
 import assistantContext from "../content/assistant-context.md";
 
@@ -17,6 +19,13 @@ How to work:
 - When a build fails, call get_build_error and explain the compiler's actual message against the user's actual code. Quote the real line. Do not give generic Rust advice.
 - Propose the smallest change that fixes the problem. Send complete file content to write_file, not a fragment.
 - Solana specifics matter: programs are Rust compiled server-side, tests are TypeScript run against devnet, and the crate list is a fixed whitelist. If a fix needs something the environment cannot do, say so plainly instead of proposing it.
+- Ground yourself before answering framework questions. You have skills and, on some backends, Solana MCP tools; use them rather than answering Solana version questions from memory. Load the playground-env skill before proposing code, and prefer it over any other source when they disagree about what compiles here.
+
+What the build server actually accepts:
+
+- Anchor programs compile against anchor-lang 0.29 and solana-program 1.16. APIs added in Anchor 0.30, 0.31 or 1.x are unavailable. If a fix needs one, say so instead of proposing it.
+- The Anchor pin applies to Anchor programs only. Native programs built directly on solana-program are not limited by it, so do not tell a user writing a native program that Anchor 0.29 constrains them. Every crate still has to be on the whitelist, and there is no Pinocchio.
+- Ecosystem sources teach current Anchor and @solana/kit. When you quote a modern API for reference or learning rather than for building here, label it as such so nobody pastes it into a file and hits a build failure.
 
 How to write:
 
@@ -26,8 +35,22 @@ How to write:
 
 You also know what this project is and where it is going — that is the document below. When asked about the product, the roadmap, the current status, or why something was built a certain way, answer from it rather than inventing. If it does not cover the question, say so.`;
 
-/** The behaviour prompt plus what the assistant knows about this project */
-export const systemPrompt = () => `${BEHAVIOUR}\n\n---\n\n${assistantContext}`;
+/**
+ * The behaviour prompt, the skill catalogue, and what the assistant knows
+ * about this project.
+ *
+ * Only skill names and descriptions go here — bodies arrive as tool results,
+ * so the cached prefix survives a skill being loaded. Toggling a skill does
+ * change this string and costs one cache write.
+ */
+export const systemPrompt = () =>
+  [
+    BEHAVIOUR,
+    `Skills you can load with load_skill:\n\n${describeCatalog(
+      PgAssistant.enabledSkillIds
+    )}`,
+    assistantContext,
+  ].join("\n\n---\n\n");
 
 /**
  * Describe the project as it stands right now.
@@ -45,6 +68,9 @@ export const describeProject = (bridge: PlaygroundBridge = realBridge) => {
     `Cluster: ${ctx.cluster}`,
     `Wallet connected: ${ctx.walletConnected ? "yes" : "no"}`,
     `Files: ${ctx.filePaths.join(", ") || "none"}`,
+    // Which files the user is working across; only the active one is sent in
+    // full, the rest are a read_file away
+    `Open tabs: ${ctx.openFilePaths.join(", ") || "none"}`,
   ];
 
   if (ctx.programId) lines.push(`Program id: ${ctx.programId}`);

@@ -1,3 +1,4 @@
+import { createSkillTools } from "./skill-tools";
 import { PgAssistant } from "../store";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
 import type { ToolDefinition, ToolInput } from "./types";
@@ -17,12 +18,17 @@ const str = (input: ToolInput, key: string) => {
  * "propose automatically, apply explicitly" enforced inside the loop rather
  * than around it, and it works the same whichever provider is driving.
  *
+ * Skill tools are appended here rather than wired per provider, so every
+ * backend gets ecosystem grounding without touching its adapter.
+ *
  * @param bridge the playground to act on
  * @returns vendor-neutral tool definitions
  */
 export const createTools = (
   bridge: PlaygroundBridge = realBridge
 ): ToolDefinition[] => [
+  ...createSkillTools(),
+
   {
     name: "list_files",
     description:

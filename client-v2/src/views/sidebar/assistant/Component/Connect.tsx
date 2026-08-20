@@ -4,13 +4,25 @@ import styled, { css } from "styled-components";
 import GradientButton from "./GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
+import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
-import { PROVIDERS, type ProviderId } from "../model/types";
+import {
+  PROVIDERS,
+  type Effort,
+  type ProviderId,
+  type ProviderInfo,
+} from "../model/types";
+
+/** Model and effort a backend starts on, when it offers the choice */
+const defaultSettings = (provider: ProviderInfo) =>
+  provider.modelSettings ? { ...provider.modelSettings.defaults } : undefined;
 
 const CAPABILITIES = [
   {
     tag: "READS",
-    text: "your open files, the project tree, the last compiler error",
+    text:
+      "the tab you are looking at, every file in the project, the last " +
+      "compiler error",
   },
   {
     tag: "WRITES",
@@ -24,12 +36,23 @@ const CAPABILITIES = [
 ];
 
 const Connect = () => {
-  const [providerId, setProviderId] = useState<ProviderId>("scripted");
-  const [key, setKey] = useState("");
+  // Reopened over a live connection: seed the fields with it so changing just
+  // the model id does not mean retyping the key
+  const current = PgAssistant.connection;
+
+  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "scripted"))!;
+
+  const [providerId, setProviderId] = useState<ProviderId>(
+    current?.id ?? "scripted"
+  );
+  const [key, setKey] = useState(current?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
     model: string;
-  } | null>(null);
+  } | null>(() => (current?.endpoint ? { ...current.endpoint } : null));
+  const [settings, setSettings] = useState(() =>
+    current?.settings ? { ...current.settings } : defaultSettings(initial)
+  );
 
   const provider = PROVIDERS.find((p) => p.id === providerId)!;
 
@@ -37,6 +60,14 @@ const Connect = () => {
     setProviderId(p.id);
     // Seed the endpoint fields with the provider's defaults, editable from there
     setEndpoint(p.endpoint ? { ...p.endpoint } : null);
+    setSettings(
+      p.id === current?.id && current.settings
+        ? { ...current.settings }
+        : defaultSettings(p)
+    );
+    // A key belongs to the backend it was issued for: never carry it across.
+    // Coming back to the connected one restores its own key.
+    setKey(p.id === current?.id ? current.apiKey : "");
   };
 
   const keyReady = !provider.needsKey || provider.keyOptional || !!key.trim();
@@ -45,26 +76,41 @@ const Connect = () => {
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
   const ready = keyReady && endpointReady;
 
+  const trimmedEndpoint = endpoint
+    ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
+    : undefined;
+  const next = {
+    id: providerId,
+    apiKey: key.trim(),
+    endpoint: trimmedEndpoint,
+    settings,
+  };
+  const switching = !!current && !PgAssistant.isCurrent(next);
+
   // `Button` restores its own state after awaiting this handler, so unmounting
   // synchronously would leave it setting state on an unmounted component.
-  const connect = () =>
-    setTimeout(() => {
-      PgAssistant.connect(
-        providerId,
-        key,
-        endpoint
-          ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
-          : undefined
-      );
-    }, 0);
+  const connect = () => setTimeout(() => PgAssistant.connect(next), 0);
 
   return (
     <Wrapper>
-      <Title>An assistant that can see your project</Title>
-      <Lead>
-        It reads your open files and the last build error, explains what went
-        wrong against your actual code, and proposes patches you apply yourself.
-      </Lead>
+      {current && (
+        <Back onClick={() => PgAssistant.keepBackend()}>Back to chat</Back>
+      )}
+
+      <Intro>
+        <Title>
+          {current
+            ? "Switch backend"
+            : "An assistant that can see your project"}
+        </Title>
+        {!current && (
+          <Lead>
+            It reads the tab you are looking at and the last build error,
+            explains what went wrong against your actual code, and proposes
+            patches you apply yourself.
+          </Lead>
+        )}
+      </Intro>
 
       <Label as="div">BACKEND</Label>
       <Providers>
@@ -110,6 +156,41 @@ const Connect = () => {
         </>
       )}
 
+      {provider.modelSettings && settings && (
+        <>
+          <Label as="div">MODEL</Label>
+          <Picker>
+            <Select
+              options={provider.modelSettings.models.map((m) => ({
+                label: m,
+                value: m,
+              }))}
+              value={{ label: settings.model, value: settings.model }}
+              onChange={(option) =>
+                option && setSettings({ ...settings, model: option.value })
+              }
+              isSearchable={false}
+            />
+          </Picker>
+
+          <Label as="div">EFFORT</Label>
+          <Picker>
+            <Select
+              options={provider.modelSettings.efforts.map((e) => ({
+                label: e,
+                value: e,
+              }))}
+              value={{ label: settings.effort, value: settings.effort }}
+              onChange={(option) =>
+                option &&
+                setSettings({ ...settings, effort: option.value as Effort })
+              }
+              isSearchable={false}
+            />
+          </Picker>
+        </>
+      )}
+
       {provider.needsKey && (
         <>
           <Label htmlFor="assistant-api-key">
@@ -135,8 +216,15 @@ const Connect = () => {
         disabled={!ready}
         onClick={connect}
       >
-        {provider.needsKey ? "Connect" : "Start"}
+        {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
       </ConnectButton>
+
+      {switching && (
+        <Note>
+          Switching starts a new conversation. The current one cannot be
+          replayed to another backend.
+        </Note>
+      )}
 
       {provider.needsKey && (
         <Note>
@@ -147,14 +235,16 @@ const Connect = () => {
         </Note>
       )}
 
-      <Capabilities>
-        {CAPABILITIES.map(({ tag, text }) => (
-          <Capability key={tag}>
-            <Tag>{tag}</Tag>
-            <span>{text}</span>
-          </Capability>
-        ))}
-      </Capabilities>
+      {!current && (
+        <Capabilities>
+          {CAPABILITIES.map(({ tag, text }) => (
+            <Capability key={tag}>
+              <Tag>{tag}</Tag>
+              <span>{text}</span>
+            </Capability>
+          ))}
+        </Capabilities>
+      )}
 
       {provider.keyUrl && (
         <Footer>
@@ -174,6 +264,34 @@ const Wrapper = styled.div`
   padding: 1.25rem 1rem;
 `;
 
+const Back = styled.button`
+  ${({ theme }) => css`
+    align-self: flex-start;
+    padding: 0 0 0.75rem;
+    background: transparent;
+    border: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.small};
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+    }
+  `}
+`;
+
+const Intro = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-bottom: 1.25rem;
+`;
+
 const Title = styled.h2`
   ${({ theme }) => css`
     margin: 0;
@@ -181,7 +299,6 @@ const Title = styled.h2`
     font-size: ${theme.font.code.size.medium};
     font-weight: 600;
     line-height: 1.5;
-    padding-bottom: 0.625rem;
   `}
 `;
 
@@ -190,7 +307,6 @@ const Lead = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.small};
     line-height: 1.65;
-    padding-bottom: 1.25rem;
   `}
 `;
 
@@ -269,6 +385,10 @@ const ProviderDescription = styled.div`
 `;
 
 const Field = styled(Input)`
+  margin-bottom: 0.75rem;
+`;
+
+const Picker = styled.div`
   margin-bottom: 0.75rem;
 `;
 

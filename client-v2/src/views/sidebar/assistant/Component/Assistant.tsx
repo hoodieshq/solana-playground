@@ -2,12 +2,14 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import Chat from "./Chat";
+import Grounding from "./Grounding";
 import Plan from "./Plan";
 
-type Tab = "chat" | "plan";
+type Tab = "chat" | "sources" | "plan";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "chat", label: "Chat" },
+  { id: "sources", label: "Sources" },
   { id: "plan", label: "What we're building" },
 ];
 
@@ -30,7 +32,9 @@ const Assistant = () => {
         ))}
       </Tabs>
 
-      {tab === "chat" ? <Chat /> : <Plan />}
+      {tab === "chat" && <Chat />}
+      {tab === "sources" && <Grounding />}
+      {tab === "plan" && <Plan />}
     </Wrapper>
   );
 };
@@ -51,6 +55,8 @@ const Tabs = styled.div`
     gap: 0.25rem;
     padding: 0 0.75rem;
     flex-shrink: 0;
+    /* Three labels overflow the narrowest sidebar width */
+    overflow-x: auto;
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
