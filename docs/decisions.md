@@ -586,16 +586,40 @@ a tutorial that has **not** been started yet, clicked while a real project
 visible error. An **already-started** tutorial opens correctly from the same
 starting state — the failure is specific to the first-time transition.
 
-**Root cause.** `routes/tutorials/tutorials.tsx`'s `handleTutorial` calls
-`PgExplorer.init({ name: tutorial.name })` for an unstarted tutorial, which
-has no persisted workspace to switch to and falls back to keeping the
-previously-active one. That still fires `PgExplorer.onDidSwitchWorkspace`,
-and `handleTutorial`'s own listener for that event
-(`if (name !== tutorial.name) { ... else PgRouter.navigate(); }`) reads
-"switched to `flow-demo`, which isn't a tutorial" and navigates to `/`
-(`utils/router.ts`'s `PgRouter.init()` does the same on any thrown
-`route.handle()` rejection) — racing against `<Tutorial>`'s own render, which
-is why the symptom alternates between a clean bounce and a caught crash.
+**Root cause (revised in fix round 1 — the original diagnosis below was
+wrong).** The original write-up blamed `PgExplorer.onDidSwitchWorkspace`, on
+the theory that `PgExplorer.init({ name: tutorial.name })` falls back to the
+previously-active workspace and still fires that event. Verified against
+`explorer.ts` and that is not what happens: `init()`'s workspace branch
+(`explorer.ts:137-145`) is `if (workspaceName && allWorkspaceNames.includes
+(workspaceName)) { switchWorkspace(...) } else if (allWorkspaceNames.length
+=== 0) { ...reset... }`. For an unstarted tutorial opened from an active
+project, `workspaceName` (the tutorial's name) is truthy but not in
+`allWorkspaceNames`, and `allWorkspaceNames.length` is not `0` (the active
+project is still there) — so neither branch runs, `switchWorkspace()` is
+never called, and `ON_DID_SWITCH_WORKSPACE` never dispatches (it is only
+ever dispatched from `switchWorkspace()`, `explorer.ts:526`, and
+`deleteWorkspace()`, `explorer.ts:576`). The `onDidSwitchWorkspace` listener
+inside `handleTutorial` cannot be the trigger here.
+
+A more direct match is `routes/tutorials/tutorials.tsx`'s own
+`onDidChangeCurrentSidebarPage` listener (`tutorials.tsx:105-124`), which has
+an explicit unstarted-tutorial branch:
+`else if (!PgTutorial.isStarted(tutorial.name)) PgRouter.navigate();`. When
+`PgTutorial.open(name)` navigates to `/tutorials/<name>` with no page number,
+`handleTutorial` sets `PgView.sidebar.name = "Tutorials"` for the no-page
+case (`tutorials.tsx:152`), which changes the derived `currentSidebarPage`
+and fires this same listener with `p.name === "Tutorials"`, taking the
+`PgTutorial.openAboutPage()` branch instead — and that throws because
+`PgTutorial.current` is not set yet (`PgTutorial.refresh()` in the async
+`setMainPrimary` callback hasn't resolved), which matches the observed
+crash. The `!isStarted` branch quoted above is the one that produces the
+silent bounce-to-`/` symptom on a subsequent sidebar-page change during the
+same race. In short: two branches of the same listener, both reachable
+because of the timing race between `setMainPrimary`'s async body and the
+synchronous sidebar-name assignment right after it — not confirmed which
+exact interleaving produces which of the two observed symptoms on a given
+run.
 
 **Why not fixed here.** `routes/tutorials/tutorials.tsx` is shared with the
 classic layout and not on the touch-list for this branch (`CLAUDE.md`'s merge
@@ -611,8 +635,10 @@ Flow layout. Opening an **already-started** tutorial — from the same active,
 unrelated project — works cleanly with no crash. A hard page load straight to
 `/tutorials/<name>` also works, since nothing is active to switch away from.
 
-**Revisit when** someone picks up the gallery's follow-ups: likely fix is
-either guarding `handleTutorial`'s `onDidSwitchWorkspace` listener against the
-"explorer fell back to the previous workspace" case, or having
-`PgExplorer.init` distinguish "switched" from "stayed put" so the listener
-doesn't fire on a no-op.
+**Revisit when** someone picks up the gallery's follow-ups: likely fix is in
+`handleTutorial`'s `onDidChangeCurrentSidebarPage` listener
+(`tutorials.tsx:105-124`) — either sequencing it after
+`PgTutorial.refresh()` has resolved so `PgTutorial.current` is set before
+`openAboutPage()` can run, or guarding both branches against a sidebar-name
+change that happens before the tutorial's own explorer/workspace state has
+settled.
