@@ -144,6 +144,21 @@ const Connect = () => {
             autoComplete="off"
           />
           <Label htmlFor="assistant-model">MODEL</Label>
+          {provider.endpoint.models && (
+            <Presets>
+              {provider.endpoint.models.map((m) => (
+                <Preset
+                  key={m}
+                  type="button"
+                  aria-pressed={m === endpoint.model}
+                  $selected={m === endpoint.model}
+                  onClick={() => setEndpoint({ ...endpoint, model: m })}
+                >
+                  {m}
+                </Preset>
+              ))}
+            </Presets>
+          )}
           <Field
             id="assistant-model"
             value={endpoint.model}
@@ -386,6 +401,41 @@ const ProviderDescription = styled.div`
 
 const Field = styled(Input)`
   margin-bottom: 0.75rem;
+`;
+
+const Presets = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding-bottom: 0.4375rem;
+`;
+
+const Preset = styled.button<{ $selected: boolean }>`
+  ${({ theme, $selected }) => css`
+    padding: 0.1875rem 0.4375rem;
+    background: ${$selected ? theme.colors.state.hover.bg : "transparent"};
+    border: 1px solid
+      ${$selected ? theme.colors.default.primary : theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    color: ${$selected
+      ? theme.colors.default.primary
+      : theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    cursor: pointer;
+    transition: all ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: -1px;
+    }
+  `}
 `;
 
 const Picker = styled.div`
