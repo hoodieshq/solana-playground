@@ -26,10 +26,8 @@ export const highlight = async (
   lang: OrString<Lang>,
   theme: IRawTheme
 ) => {
-  // A fence names whatever its author typed, and `shiki` looks the name up in
-  // its own list then reads `.id` off the result — an unknown one throws
-  // `undefined (reading 'id')`, which took down the whole panel when a model
-  // replied with ```sh. Unknown languages render unhighlighted instead.
+  // A fence names whatever its author typed, and `shiki` throws on a name it
+  // does not bundle, taking down everything rendering the Markdown with it.
   if (!isSupportedLanguage(lang)) return "";
 
   await initializeHighlighter();
@@ -39,12 +37,7 @@ export const highlight = async (
   return renderToHtml(tokens, { bg: "inherit", themeName: theme.name });
 };
 
-/**
- * Whether `shiki` bundles a grammar for this language.
- *
- * Aliases count: `sh` and `bash` both resolve to `shellscript`, and dropping
- * them would lose highlighting `shiki` can perfectly well do.
- */
+/** Whether `shiki` bundles a grammar for this language or an alias of it. */
 const isSupportedLanguage = (lang: string) =>
   BUNDLED_LANGUAGES.some(
     (bundled) => bundled.id === lang || bundled.aliases?.includes(lang)
