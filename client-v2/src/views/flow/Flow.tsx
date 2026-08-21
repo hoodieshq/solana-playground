@@ -9,6 +9,7 @@ import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import Assistant from "../sidebar/assistant/Component";
+import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
@@ -28,6 +29,9 @@ const Flow = () => {
       PgFlow.init(),
       PgDeployHistory.init(),
       PgFlow.onDidChange(setState),
+      // So a "Fix with assistant" click while collapsed reopens the panel
+      // and the user sees where the click went.
+      PgAssistant.onDidRequestPrompt(() => setAssistantOpen(true)),
     ];
     return () => subs.forEach((s) => s.dispose());
   }, []);

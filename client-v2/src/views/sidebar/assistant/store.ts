@@ -189,21 +189,39 @@ export class PgAssistant {
    * assistant" on a build error card.
    *
    * The panel itself owns the actual send (its provider lives in a ref
-   * inside `Chat`), so this only notifies; it does not append a message.
+   * inside `Chat`), so this only notifies; it does not append a message
+   * itself.
+   *
+   * `Flow` subscribes here too, only to reopen the panel when it is
+   * collapsed - it never sends anything. When it is the only listener
+   * (the panel is collapsed, so `Chat` is unmounted), the text would
+   * otherwise be lost between this call and `Chat` mounting a moment
+   * later, so it is buffered in `_pendingPrompt` for the next subscriber
+   * to claim.
    *
    * @param text the prompt to send
    */
   static requestPrompt(text: string) {
+    const hasRealListener = PgAssistant._promptListeners.size > 1;
+    PgAssistant._pendingPrompt = hasRealListener ? null : text;
     for (const cb of PgAssistant._promptListeners) cb(text);
   }
 
   /**
    * @param cb runs whenever `requestPrompt` is called. Not called on
-   * subscribe - this is an event, not state, same as `onDidChange`.
+   * subscribe with anything new - this is an event, not state, same as
+   * `onDidChange` - except a prompt left buffered by `requestPrompt` (see
+   * above) is delivered once and cleared, so it still reaches whichever
+   * subscriber shows up next.
    * @returns a disposable to clear the event
    */
   static onDidRequestPrompt(cb: (text: string) => void): Disposable {
     PgAssistant._promptListeners.add(cb);
+    if (PgAssistant._pendingPrompt !== null) {
+      const pending = PgAssistant._pendingPrompt;
+      PgAssistant._pendingPrompt = null;
+      cb(pending);
+    }
     return { dispose: () => PgAssistant._promptListeners.delete(cb) };
   }
 
@@ -349,6 +367,9 @@ export class PgAssistant {
   >();
   private static readonly _listeners = new Set<() => void>();
   private static readonly _promptListeners = new Set<(text: string) => void>();
+  // Set by `requestPrompt` when `Chat` is not around to receive it live;
+  // claimed and cleared by the next `onDidRequestPrompt` subscriber.
+  private static _pendingPrompt: string | null = null;
 
   private static _emit() {
     for (const cb of PgAssistant._listeners) cb();
