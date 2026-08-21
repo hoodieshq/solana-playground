@@ -99,8 +99,10 @@ export class PgFlow {
               buildMs: ev.ms,
             }
           : {
+              // Stay wherever the user is: the Build surface carries the
+              // green summary and "Continue to Deploy", and pulling them
+              // back to Write hid it (reported during the first demo run).
               ...state,
-              stage: "write",
               build: "done",
               deploy: state.deploy === "upcoming" ? "active" : state.deploy,
               buildErrorCount: 0,
