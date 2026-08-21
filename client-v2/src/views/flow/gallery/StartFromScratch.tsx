@@ -82,7 +82,11 @@ const StartFromScratch: FC = () => {
           placeholder={framework ? defaultName(framework) : "project name"}
           aria-label="Project name"
         />
-        <GradientButton kind="primary" disabled={!framework} onClick={create}>
+        <GradientButton
+          kind="primary"
+          disabled={!!error || !framework}
+          onClick={create}
+        >
           Start &rarr;
         </GradientButton>
       </Controls>
