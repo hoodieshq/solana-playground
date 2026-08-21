@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: "Space Grotesk", -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "JetBrains Mono", monospace; }
+    .row { display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #ECE4FD1F; }
+    @keyframes sweep { 0% { background-position: 0% 50% } 100% { background-position: 200% 50% } }
+    @keyframes rise { 0%, 20% { opacity: 0; transform: translateY(8px) } 60%, 100% { opacity: 1; transform: translateY(0) } }
+    @keyframes drawerloop { 0%, 15% { height: 6px } 45%, 70% { height: 42px } 100% { height: 6px } }
+    @keyframes dotpulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.35) } }
+  </style>
+</helmet>
+
+<div style="width: 960px; background: #0F0D13; color: #ECEBF1; padding: 40px 44px; display: flex; flex-direction: column; gap: 24px">
+
+  <div>
+    <div style="font-size: 13px; letter-spacing: .12em; color: #9C98A9; padding-bottom: 8px">ITERATION 3 — CONCEPT</div>
+    <div style="font-size: 30px; font-weight: 700; letter-spacing: -0.01em">Motion language</div>
+    <div style="padding-top: 8px; color: #9C98A9; font-size: 14px; line-height: 1.6; max-width: 760px">
+      Motion is status, not decoration: something moves only when the system's state changes, and the movement
+      says what changed. Everything below is CSS transitions + keyframes — no animation library,
+      fully expressible in React 17 + styled-components.
+    </div>
+  </div>
+
+  <div>
+    <div style="font-size:12px; letter-spacing:.1em; color:#14F195; padding-bottom:10px">DURATION &amp; EASING TOKENS</div>
+    <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:6px 20px">
+      <div class="row">
+        <span class="mono" style="width:140px; color:#80ECFF; font-size:12.5px">instant &#183; 80ms</span>
+        <span style="color:#9C98A9; font-size:13px; flex:1">hover surfaces, focus rings, pressed states</span>
+        <span class="mono" style="color:#6E6880; font-size:11.5px">linear</span>
+      </div>
+      <div class="row">
+        <span class="mono" style="width:140px; color:#80ECFF; font-size:12.5px">fast &#183; 140ms</span>
+        <span style="color:#9C98A9; font-size:13px; flex:1">tab switches, chip toggles, tooltip in</span>
+        <span class="mono" style="color:#6E6880; font-size:11.5px">cubic-bezier(0.2, 0, 0, 1)</span>
+      </div>
+      <div class="row">
+        <span class="mono" style="width:140px; color:#80ECFF; font-size:12.5px">base &#183; 220ms</span>
+        <span style="color:#9C98A9; font-size:13px; flex:1">stage crossfade, cards entering, modal in</span>
+        <span class="mono" style="color:#6E6880; font-size:11.5px">cubic-bezier(0.2, 0, 0, 1)</span>
+      </div>
+      <div class="row" style="border-bottom:none">
+        <span class="mono" style="width:140px; color:#80ECFF; font-size:12.5px">slow &#183; 320ms</span>
+        <span style="color:#9C98A9; font-size:13px; flex:1">console drawer, panel collapse, layout shifts</span>
+        <span class="mono" style="color:#6E6880; font-size:11.5px">cubic-bezier(0.32, 0.72, 0, 1)</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-size:12px; letter-spacing:.1em; color:#14F195; padding-bottom:10px">THE FIVE MOVEMENTS (LIVE)</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+
+      <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:16px 18px">
+        <div style="font-weight:700; font-size:14px; padding-bottom:4px">1 &#183; Working = gradient sweep</div>
+        <div style="color:#9C98A9; font-size:12.5px; line-height:1.55; padding-bottom:12px">While a build or deploy runs, its stepper pill and progress bar sweep the brand gradient. The only looping animation in the product.</div>
+        <div style="height:8px; border-radius:9999px; background:linear-gradient(90deg,#9945ff,#14f195,#9945ff); background-size:200% 100%; animation: sweep 1.6s linear infinite"></div>
+      </div>
+
+      <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:16px 18px">
+        <div style="font-weight:700; font-size:14px; padding-bottom:4px">2 &#183; Results rise in</div>
+        <div style="color:#9C98A9; font-size:12.5px; line-height:1.55; padding-bottom:12px">Error cards, diff proposals, tx results: fade + 8px rise at <span class="mono" style="font-size:11px">base</span>. Never sideways, never bouncy.</div>
+        <div style="border:1px solid #9945FF; border-radius:10px; padding:9px 12px; font-size:12px; animation: rise 2.6s cubic-bezier(0.2,0,0,1) infinite">
+          <span class="mono" style="color:#14F195">+1</span> <span class="mono" style="color:#FF4D6A">&#8722;1</span> &nbsp;src/lib.rs &nbsp;<span style="color:#9945FF; font-size:10px; letter-spacing:.08em">PROPOSED</span>
+        </div>
+      </div>
+
+      <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:16px 18px">
+        <div style="font-weight:700; font-size:14px; padding-bottom:4px">3 &#183; Console is a drawer</div>
+        <div style="color:#9C98A9; font-size:12.5px; line-height:1.55; padding-bottom:12px">Height animates at <span class="mono" style="font-size:11px">slow</span> with the decel curve; content fades in 60ms behind it.</div>
+        <div style="background:#000; border:1px solid #ECE4FD33; border-radius:8px; overflow:hidden; animation: drawerloop 3s cubic-bezier(0.32,0.72,0,1) infinite">
+          <div class="mono" style="font-size:10.5px; color:#6E6880; padding:4px 10px">$ build &#8230; ok (3.4s)</div>
+        </div>
+      </div>
+
+      <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:16px 18px">
+        <div style="font-weight:700; font-size:14px; padding-bottom:4px">4 &#183; Stage change = crossfade</div>
+        <div style="color:#9C98A9; font-size:12.5px; line-height:1.55; padding-bottom:12px">Switching Write &#8594; Build swaps the center surface with a 220ms crossfade; panels never fly across the screen. The active stepper dot pulses once on arrival.</div>
+        <div style="display:flex; align-items:center; gap:8px">
+          <div style="width:9px; height:9px; border-radius:50%; background:linear-gradient(135deg,#9945ff,#14f195); animation: dotpulse 2s ease-in-out infinite"></div>
+          <span style="font-size:12.5px; font-weight:700">Build</span>
+          <span class="mono" style="color:#6E6880; font-size:11px">&#8592; surface crossfades beneath</span>
+        </div>
+      </div>
+
+    </div>
+    <div style="margin-top:12px; background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:16px 18px">
+      <div style="font-weight:700; font-size:14px; padding-bottom:4px">5 &#183; Reduced motion = same information</div>
+      <div style="color:#9C98A9; font-size:12.5px; line-height:1.6; max-width:720px">Under <span class="mono" style="font-size:11px">prefers-reduced-motion</span> every transition collapses to an opacity change and the sweep becomes a static gradient at 60% opacity. State changes stay visible — nothing communicates through movement alone (the pulsing dot also changes color; the drawer also changes its chevron).</div>
+    </div>
+  </div>
+
+  <div style="background:#1A1721; border:1px solid #ECE4FD1F; border-radius:14px; padding:14px 18px; color:#9C98A9; font-size:12.5px; line-height:1.65">
+    Implementation notes: tokens live in the theme (<span class="mono" style="color:#ECEBF1; font-size:11.5px">theme.default.transition</span> already exists upstream — extend, don't replace) &#183;
+    only <span class="mono" style="color:#ECEBF1; font-size:11.5px">transform</span> and <span class="mono" style="color:#ECEBF1; font-size:11.5px">opacity</span> animate, height only on the drawer &#183;
+    no <span class="mono" style="color:#ECEBF1; font-size:11.5px">transition: all</span>.
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 960, "height": 900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

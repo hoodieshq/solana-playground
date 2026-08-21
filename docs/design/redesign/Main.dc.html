@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "Space Grotesk", -apple-system, sans-serif; }
+    a { color: #9945FF; } a:hover { color: #14F195; }
+    * { box-sizing: border-box; }
+    img { display: block; width: 100%; height: auto; border-radius: 10px; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; background: #0F0D13; color: #ECEBF1; padding: 40px 44px; display: flex; flex-direction: column; gap: 28px">
+
+  <div>
+    <div style="font-size: 13px; letter-spacing: .12em; color: #9C98A9; padding-bottom: 8px">SOLANA PLAYGROUND — REDESIGN</div>
+    <div style="font-size: 32px; font-weight: 700; letter-spacing: -0.01em">Before / after</div>
+    <div style="padding-top: 8px; color: #9C98A9; font-size: 14px; line-height: 1.6; max-width: 720px">
+      Real screenshots of the running client, not mockups. Everything on the right is live on
+      <span style="color: #ECEBF1">localhost:3000</span> as the fork's default theme; old themes stay switchable.
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 20px">
+    <div style="flex: 1">
+      <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 10px">BEFORE — LEGACY DEFAULT</div>
+      <div style="border: 1px solid #ECE4FD1F; border-radius: 12px; padding: 6px; background: #1A1721">
+        <img src="before-ide.jpg" alt="Before: the legacy Playground theme">
+      </div>
+    </div>
+    <div style="flex: 1">
+      <div style="font-size: 12px; letter-spacing: .1em; color: #14F195; padding-bottom: 10px">AFTER — SOLANA V2</div>
+      <div style="border: 1px solid #ECE4FD33; border-radius: 12px; padding: 6px; background: #1A1721">
+        <img src="after-ide.jpg" alt="After: the Solana V2 theme with the assistant">
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 10px">THE NEW SURFACES</div>
+    <div style="display: flex; gap: 20px; align-items: flex-start">
+      <div style="flex: 1.35">
+        <div style="border: 1px solid #ECE4FD1F; border-radius: 12px; padding: 6px; background: #1A1721">
+          <img src="after-home.jpg" alt="Home in the display font with raised cards">
+        </div>
+        <div style="padding-top: 8px; color: #9C98A9; font-size: 13px">Home: Space Grotesk, raised violet cards, pill buttons.</div>
+      </div>
+      <div style="flex: 1">
+        <div style="border: 1px solid #ECE4FD1F; border-radius: 12px; padding: 6px; background: #1A1721">
+          <img src="after-approval.jpg" alt="The assistant's proposal card">
+        </div>
+        <div style="padding-top: 8px; color: #9C98A9; font-size: 13px">The assistant explains a real compiler error and proposes a diff.</div>
+      </div>
+      <div style="flex: 1">
+        <div style="border: 1px solid #ECE4FD1F; border-radius: 12px; padding: 6px; background: #1A1721">
+          <img src="after-apply.jpg" alt="The gradient Apply CTA">
+        </div>
+        <div style="padding-top: 8px; color: #9C98A9; font-size: 13px">The one decisive CTA per view carries the brand gradient.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 16px 18px; border-radius: 12px; background: #1A1721; border: 1px solid #ECE4FD1F; color: #9C98A9; font-size: 13px; line-height: 1.65">
+    Sources and decisions: <span style="color: #ECEBF1">docs/design/brand-research.md</span> (what the brand actually ships) ·
+    <span style="color: #ECEBF1">docs/decisions.md</span> D8–D9 (why the native theme system, why no Tailwind/shadcn) ·
+    token sheet on the second artboard.
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1180, "height": 980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "In context", "x": 0, "y": 0, "w": 1440, "h": 900 },
+    { "file": "FirstRun.dc.html", "title": "First run", "x": 0, "y": 1010, "w": 420, "h": 760 },
+    { "file": "Streaming.dc.html", "title": "Streaming + approval", "x": 500, "y": 1010, "w": 420, "h": 760 },
+    { "file": "Proposal.dc.html", "title": "Proposal", "x": 1000, "y": 1010, "w": 420, "h": 760 },
+    { "file": "Roadmap.dc.html", "title": "What we're building", "x": 1500, "y": 1010, "w": 420, "h": 760 }
+  ],
+  "annotations": [
+    {
+      "id": "note-context",
+      "x": 0,
+      "y": -150,
+      "w": 620,
+      "text": "The panel in place, at its 420px default.\n\nClick Apply in the proposal: the diff resolves, line 12 changes in the editor behind it, and the terminal replays the build as passing. Tabs switch too."
+    },
+    {
+      "id": "note-states",
+      "x": 0,
+      "y": 1830,
+      "w": 460,
+      "text": "Panel states, left to right in demo order.\n\nEach one is live — connect a key, allow or deny the build, apply or reject the patch, expand a roadmap item."
+    },
+    {
+      "id": "note-gate",
+      "x": 500,
+      "y": 1830,
+      "w": 420,
+      "text": "The gate. Read-only tools (read, list) run unattended; anything that changes state stops and asks.\n\nThat is \"propose automatically, apply explicitly\" made visible."
+    },
+    {
+      "id": "note-tokens",
+      "x": 1500,
+      "y": 1830,
+      "w": 420,
+      "text": "Nothing here is invented: colours, radii, shadow, type ramp and JetBrains Mono are lifted from client/src/themes/playground/theme.ts."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

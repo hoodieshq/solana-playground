@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: "Space Grotesk", -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "JetBrains Mono", monospace; }
+    .panel { background: #0F0D13; border: 1px solid #ECE4FD1F; border-radius: 14px; overflow: hidden; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9999px;
+            border: 1px solid #ECE4FD1F; background: #1A1721; font-size: 12.5px; color: #ECEBF1; }
+    .k { color: #EB54BC; } .t { color: #80ECFF; font-style: italic; } .s { color: #FFD666; } .n { color: #9945FF; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #000; color:#ECEBF1">
+
+  <div style="padding: 14px 20px 10px; display:flex; align-items:baseline; gap:14px; border-bottom:1px solid #ECE4FD1F">
+    <div style="font-size:13px; letter-spacing:.12em; color:#14F195; font-weight:700">B &#183; FLOW — BUILD FAILS</div>
+    <div style="font-size:12.5px; color:#9C98A9">The error is a first-class surface, not terminal noise. Raw compiler output stays one click away — honesty without fear.</div>
+  </div>
+
+  <!-- HEADER -->
+  <div style="height:56px; display:flex; align-items:center; padding:0 16px; gap:16px">
+    <div style="display:flex; align-items:center; gap:10px; min-width:230px">
+      <div style="width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#9945ff 10%,#14f195 90%)"></div>
+      <div style="font-weight:700; font-size:14.5px">counter-app</div>
+      <div style="color:#9C98A9; font-size:11px">&#9662;</div>
+    </div>
+    <div style="flex:1; display:flex; align-items:center; justify-content:center">
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 16px; border-radius:9999px">
+        <span style="color:#14F195; font-size:13px">&#10003;</span>
+        <span style="color:#9C98A9; font-size:13.5px">Write</span>
+      </div>
+      <div style="width:36px; height:1px; background:#14F195"></div>
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 16px; border-radius:9999px; background:#1A1721; border:1px solid #FF4D6A">
+        <div style="width:8px; height:8px; border-radius:50%; background:#FF4D6A"></div>
+        <span style="font-weight:700; font-size:13.5px">Build</span>
+        <span style="color:#FF4D6A; font-size:12px" class="mono">1 error</span>
+      </div>
+      <div style="width:36px; height:1px; background:#ECE4FD1F"></div>
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 16px">
+        <div style="width:8px; height:8px; border-radius:50%; border:1.5px solid #6E6880"></div>
+        <span style="color:#6E6880; font-size:13.5px">Deploy</span>
+      </div>
+      <div style="width:36px; height:1px; background:#ECE4FD1F"></div>
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 16px">
+        <div style="width:8px; height:8px; border-radius:50%; border:1.5px solid #6E6880"></div>
+        <span style="color:#6E6880; font-size:13.5px">Interact</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; min-width:230px; justify-content:flex-end">
+      <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:#80ECFF"></span>devnet</span>
+      <span class="chip mono" style="font-size:11.5px">Cn4k&#8230;9fkQ &nbsp;<span style="color:#14F195">5.24 SOL</span></span>
+      <span class="chip" style="padding:5px 9px">&#9881;</span>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div style="display:flex; gap:8px; padding:0 8px; height:680px">
+
+    <!-- Files -->
+    <div class="panel" style="width:232px; display:flex; flex-direction:column">
+      <div style="padding:12px 14px 8px; font-size:11px; letter-spacing:.1em; color:#9C98A9; font-weight:600">FILES</div>
+      <div style="padding:0 6px; font-size:13px" class="mono">
+        <div style="padding:6px 10px; color:#9C98A9">&#9662; src</div>
+        <div style="margin:0 4px; padding:6px 10px 6px 24px; border-radius:8px; color:#ECEBF1; display:flex; align-items:center">lib.rs
+          <span style="margin-left:auto; width:7px; height:7px; border-radius:50%; background:#FF4D6A"></span></div>
+        <div style="padding:6px 10px; color:#9C98A9">&#9656; client</div>
+        <div style="padding:6px 10px; color:#9C98A9">&#9656; tests</div>
+      </div>
+    </div>
+
+    <!-- Build surface -->
+    <div class="panel" style="flex:1; display:flex; flex-direction:column">
+      <div style="padding:20px 24px 0">
+        <div style="display:flex; align-items:baseline; gap:12px">
+          <div style="font-size:22px; font-weight:700">Build failed</div>
+          <div class="mono" style="color:#9C98A9; font-size:12.5px">1 error &#183; 2.9s &#183; api.solpg.io</div>
+          <div style="margin-left:auto; display:flex; gap:8px">
+            <span class="chip">Rebuild</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin:18px 24px; border:1px solid #FF4D6A55; border-radius:12px; background:#1A1721; overflow:hidden">
+        <div style="padding:14px 18px; border-bottom:1px solid #ECE4FD1F">
+          <div style="display:flex; align-items:center; gap:10px">
+            <span class="mono" style="color:#FF4D6A; font-size:12px; border:1px solid #FF4D6A55; border-radius:6px; padding:2px 7px">E0308</span>
+            <span style="font-weight:700; font-size:15px">A text value is assigned to a number</span>
+          </div>
+          <div style="padding-top:6px; color:#9C98A9; font-size:13px; line-height:1.6; max-width:640px">
+            <span class="mono" style="color:#ECEBF1; font-size:12px">counter.value</span> is a <span class="mono" style="color:#80ECFF; font-size:12px">u64</span>,
+            but line 11 gives it the string <span class="mono" style="color:#FFD666; font-size:12px">"zero"</span>.
+            Rust never converts between text and numbers implicitly.
+          </div>
+        </div>
+        <div class="mono" style="padding:12px 18px; font-size:12.5px; line-height:1.8; background:#0F0D13">
+          <div><span style="color:#6E6880">10&nbsp;&nbsp;</span><span class="k">pub fn</span> <span style="color:#14F195">initialize</span>(ctx: <span class="t">Context</span>&lt;<span class="t">Initialize</span>&gt;) -&gt; <span class="t">Result</span>&lt;()&gt; {</div>
+          <div style="background:#FF4D6A22"><span style="color:#6E6880">11&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;&nbsp;ctx.accounts.counter.value = <span class="s">"zero"</span>;
+            <span style="color:#FF4D6A">&nbsp;&#8592; expected u64, found &amp;str</span></div>
+          <div><span style="color:#6E6880">12&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#14F195">Ok</span>(())</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 18px; border-top:1px solid #ECE4FD1F">
+          <div style="padding:8px 20px; border-radius:9999px; background:linear-gradient(135deg,#9945ff 10%,#14f195 90%); color:#050505; font-weight:700; font-size:13px">Fix with assistant</div>
+          <div class="chip">Open in editor</div>
+          <div style="margin-left:auto; color:#9C98A9; font-size:12.5px">Show compiler output &#9656;</div>
+        </div>
+      </div>
+
+      <div style="margin:0 24px 18px; color:#6E6880; font-size:12.5px">
+        Warnings (2) &#9656;
+      </div>
+
+      <div style="margin-top:auto; border-top:1px solid #ECE4FD1F; background:#000; display:flex; align-items:center; padding:9px 16px; gap:10px">
+        <span style="color:#9C98A9; font-size:12px">&#9656;</span>
+        <span style="font-size:12px; letter-spacing:.08em; color:#9C98A9; font-weight:600">CONSOLE</span>
+        <span class="mono" style="font-size:12px; color:#FF4D6A">build failed &#183; E0308</span>
+        <span style="margin-left:auto; color:#6E6880; font-size:12px" class="mono">&#8984;J</span>
+      </div>
+    </div>
+
+    <!-- Assistant -->
+    <div class="panel" style="width:348px; display:flex; flex-direction:column">
+      <div style="padding:12px 16px 8px; display:flex; align-items:center; gap:8px">
+        <span style="font-size:11px; letter-spacing:.1em; color:#9C98A9; font-weight:600">ASSISTANT</span>
+        <span style="margin-left:auto"></span>
+        <span style="font-size:11px; color:#6E6880" class="mono">lib.rs &#183; build error</span>
+      </div>
+      <div style="padding:6px 16px; display:flex; flex-direction:column; gap:12px; font-size:13px; line-height:1.6">
+        <div>
+          <div style="font-size:10.5px; letter-spacing:.1em; color:#9945FF; padding-bottom:4px" class="mono">ASSISTANT</div>
+          <div style="color:#C9C6D4">The counter starts as text, but every increment expects a number.
+          Starting it at <span class="mono" style="color:#ECEBF1; font-size:12px">0</span> matches how
+          <span class="mono" style="color:#ECEBF1; font-size:12px">increment</span> uses it on line 16.</div>
+        </div>
+        <div style="border:1px solid #9945FF; border-radius:10px; overflow:hidden; background:#1A1721">
+          <div style="display:flex; align-items:center; padding:8px 12px; border-bottom:1px solid #ECE4FD1F; font-size:12px">
+            <span class="mono">src/lib.rs</span>
+            <span class="mono" style="color:#14F195; padding-left:8px">+1</span>
+            <span class="mono" style="color:#FF4D6A; padding-left:4px">&#8722;1</span>
+            <span style="margin-left:auto; color:#9945FF; letter-spacing:.08em; font-size:10.5px">PROPOSED</span>
+          </div>
+          <div class="mono" style="font-size:11.5px; line-height:1.8; padding:6px 0">
+            <div style="background:#FF4D6A22; padding:0 12px"><span style="color:#FF4D6A">-</span> counter.value = <span class="s">"zero"</span>;</div>
+            <div style="background:#14F19522; padding:0 12px"><span style="color:#14F195">+</span> counter.value = <span class="n">0</span>;</div>
+          </div>
+          <div style="display:flex; gap:8px; padding:10px 12px; border-top:1px solid #ECE4FD1F">
+            <div style="flex:1; text-align:center; padding:8px 0; border-radius:9999px; background:linear-gradient(135deg,#9945ff 10%,#14f195 90%); color:#050505; font-weight:700; font-size:12.5px">Apply</div>
+            <div style="padding:8px 18px; border-radius:9999px; border:1px solid #ECE4FD33; font-size:12.5px">Reject</div>
+          </div>
+        </div>
+        <div style="color:#6E6880; font-size:11.5px">After Apply the build re-runs automatically; the stepper turns green on success.</div>
+      </div>
+      <div style="margin-top:auto; padding:12px; border-top:1px solid #ECE4FD1F">
+        <div style="display:flex; gap:8px">
+          <div style="flex:1; background:#1A1721; border:1px solid #ECE4FD1F; border-radius:10px; padding:9px 12px; color:#6E6880; font-size:13px">Waiting on your decision&#8230;</div>
+          <div style="padding:9px 16px; border-radius:9999px; border:1px solid #ECE4FD33; color:#9C98A9; font-weight:700; font-size:13px">Send</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:8px"></div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
