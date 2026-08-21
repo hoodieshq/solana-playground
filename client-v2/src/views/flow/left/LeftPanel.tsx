@@ -188,32 +188,35 @@ const ExplorerContainer = styled.div`
    * only matches the first of *two* button siblings (Build);
    * \`nth-child(3)\` only exists when there is a second (Deploy); the lone
    * "+" is \`nth-child(2)\` with no \`nth-child(3)\`, so neither matches it.
-   * Anchor: \`#root-dir\` (stable). Failure mode: none known -- Folders.tsx
-   * always renders this row first.
+   * Anchor: \`#root-dir\` (stable). Safe guard: \`:has(> button)\` ensures
+   * the selector only matches a section header row (which contains direct
+   * \`<button>\` children), never a folder/file row (no direct \`<button>\`
+   * children). Failure mode: none -- always safe.
    */
-  #root-dir > div:first-child > div:first-child,
-  #root-dir > div:first-child > button:nth-child(2):nth-last-child(2),
-  #root-dir > div:first-child > button:nth-child(3) {
+  #root-dir > div:has(> button):first-child > div:first-child,
+  #root-dir
+    > div:has(> button):first-child
+    > button:nth-child(2):nth-last-child(2),
+  #root-dir > div:has(> button):first-child > button:nth-child(3) {
     display: none;
   }
 
   /* Client section ("Client" label + Run/Test, or their "Add client"/"Add
    * tests" fallbacks): always exactly 2 buttons, so no lone-button case to
-   * preserve. Anchor: \`#root-dir > div:nth-child(3)\`, which only holds
-   * true when the Program row's own FolderGroup (the \`src\` tree) rendered
-   * exactly one sibling in between -- i.e. whenever \`src\` exists, which
-   * is the board's case and the common one. Failure mode: on a project
-   * with no \`src\` folder yet, the Program row renders only "+" and its
-   * FolderGroup renders zero siblings, so the Client row shifts to
-   * \`nth-child(2)\`; this selector then targets whatever sits at
-   * \`nth-child(3)\` instead (a folder/file row, which has no \`div\`/
-   * \`button\` children matching \`div:first-child\`/\`button:nth-child\`),
-   * so nothing is wrongly hidden -- the Client label and its buttons
-   * simply stay visible until \`src\` is created.
+   * preserve. Safe guard: \`:has(> button)\` ensures the selector only
+   * matches a section header row (which contains direct \`<button>\`
+   * children), never a folder/file row (no direct \`<button>\` children).
+   * Position: normally \`#root-dir > div:nth-child(3)\` when the Program
+   * row's own FolderGroup (the \`src\` tree) renders; shifts to
+   * \`nth-child(2)\` when no \`src\` exists. When \`src\` is absent, the
+   * Run/Test buttons (the "Add client"/"Add tests" fallbacks) simply stay
+   * VISIBLE, which is acceptable degradation -- the empty-state fallbacks
+   * are worth reaching. Folder rows are never matched because they contain
+   * no direct \`<button>\` children.
    */
-  #root-dir > div:nth-child(3) > div:first-child,
-  #root-dir > div:nth-child(3) > button:nth-child(2),
-  #root-dir > div:nth-child(3) > button:nth-child(3) {
+  #root-dir > div:has(> button):nth-child(3) > div:first-child,
+  #root-dir > div:has(> button):nth-child(3) > button:nth-child(2),
+  #root-dir > div:has(> button):nth-child(3) > button:nth-child(3) {
     display: none;
   }
 `;
