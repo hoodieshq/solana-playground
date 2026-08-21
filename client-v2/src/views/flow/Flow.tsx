@@ -10,6 +10,7 @@ import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
+import { GAP, PANEL_RADIUS } from "./tokens";
 import Assistant from "../sidebar/assistant/Component";
 import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
@@ -125,12 +126,15 @@ const Flow = () => {
 export default Flow;
 
 const Wrapper = styled.div`
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
+  ${({ theme }) => css`
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: ${theme.colors.default.bgPrimary};
+  `}
 `;
 
 const Columns = styled.div<{ $assistant: boolean }>`
@@ -139,14 +143,24 @@ const Columns = styled.div<{ $assistant: boolean }>`
   grid-template-columns:
     auto 1fr
     ${({ $assistant }) => ($assistant ? "21.75rem" : "1.5rem")};
+  gap: ${GAP};
+  padding: 0 ${GAP} ${GAP};
   overflow: hidden;
 `;
 
+// The floating center panel: a single bordered/rounded surface holding both
+// the stage and the console drawer, so the drawer's status line reads as
+// the bottom edge of one panel rather than a separate box (see the board).
 const Center = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: ${theme.colors.default.bgSecondary};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${PANEL_RADIUS};
+    overflow: hidden;
+  `}
 `;
 
 // display: flex here matters: Primary's own wrapper sizes itself with
@@ -166,8 +180,9 @@ const Right = styled.aside<{ $open: boolean }>`
   ${({ theme }) => css`
     position: relative;
     width: 100%;
-    border-left: 1px solid ${theme.colors.default.border};
-    background: ${theme.colors.default.bgPrimary};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${PANEL_RADIUS};
+    background: ${theme.colors.default.bgSecondary};
     display: flex;
     flex-direction: column;
     overflow: hidden;
