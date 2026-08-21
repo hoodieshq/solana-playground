@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import IdlActions from "./IdlActions";
@@ -32,19 +32,22 @@ const target = (record: DeployRecord) => {
 const Interact = () => {
   const [history, setHistory] = useState<DeployRecord[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  // Whether this component (not the project's own key) is the reason
+  // `PgProgramInfo.customPk` is set, so unmounting can hand control back.
+  const targetedRef = useRef(false);
 
   useEffect(() => {
     const refresh = () => {
       const list = PgDeployHistory.list(PgExplorer.currentWorkspaceName ?? "");
       setHistory(list);
+      // Only keep the dropdown's own selection in sync here -- picking a
+      // deployment to test against is a state-changing action (it points
+      // `PgProgramInfo` at a possibly different program id) and must stay
+      // behind an explicit choice in `pick`, never happen just because the
+      // list refreshed or the tab mounted.
       setSelected((s) => {
-        const kept = s && list.some((r) => r.id === s) ? s : null;
-        const next = kept ?? list[0]?.id ?? null;
-        if (next && next !== s) {
-          const record = list.find((r) => r.id === next);
-          if (record) target(record);
-        }
-        return next;
+        if (s && list.some((r) => r.id === s)) return s;
+        return list[0]?.id ?? null;
       });
     };
     const a = PgDeployHistory.onDidChange(refresh);
@@ -52,13 +55,20 @@ const Interact = () => {
     return () => {
       a.dispose();
       b.dispose();
+      if (targetedRef.current) {
+        PgProgramInfo.update({ customPk: null });
+        targetedRef.current = false;
+      }
     };
   }, []);
 
   const pick = (id: string) => {
     setSelected(id);
     const record = history.find((r) => r.id === id);
-    if (record) target(record);
+    if (record) {
+      target(record);
+      targetedRef.current = true;
+    }
   };
 
   return (
