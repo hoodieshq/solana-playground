@@ -5,6 +5,7 @@ import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
 import LeftPanel from "./left/LeftPanel";
+import GearSidebar from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
@@ -24,6 +25,7 @@ import { PgExplorer, PgView } from "../../utils";
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const subs = [
@@ -38,9 +40,7 @@ const Flow = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-
-  // Settings is wired in Task 8; until then it no-ops.
-  const openSettings = () => undefined;
+  const openSettings = () => setSettingsOpen(true);
 
   // Whether the empty-workspace gallery has already been opened once for
   // this mount of `Flow`.
@@ -94,6 +94,8 @@ const Flow = () => {
           {assistantOpen && <Assistant />}
         </Right>
       </Columns>
+
+      <GearSidebar open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <Wallet />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
