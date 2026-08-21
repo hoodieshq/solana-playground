@@ -195,7 +195,9 @@ const Collapse = styled.button`
        0.75rem in, so a 0.75rem-wide handle sits beside "ASSISTANT", never
        on top of it. */
     position: absolute;
-    top: 0.625rem;
+    /* Centre on the assistant header row (its eyebrow and chips sit
+       ~20px below the panel top): 4px offset + 32px tall = 20px centre. */
+    top: 0.25rem;
     left: 0;
     width: 0.75rem;
     height: 2rem;
