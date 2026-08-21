@@ -1,7 +1,16 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import styled, { css } from "styled-components";
 
-import { Body, Card, Empty, Eyebrow, Grid, Sub, Title } from "./TutorialsTab";
+import {
+  Body,
+  Card,
+  Empty,
+  Eyebrow,
+  ErrorText,
+  Grid,
+  Sub,
+  Title,
+} from "./TutorialsTab";
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { PgGithub, PgView } from "../../../utils";
@@ -31,6 +40,10 @@ interface ProgramsTabProps {
  * and creates (or switches to) a workspace named after the repo.
  */
 const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
+  const [error, setError] = useState<{ repo: string; message: string } | null>(
+    null
+  );
+
   if (programs === null) {
     return <Empty>Loading programs...</Empty>;
   }
@@ -61,11 +74,21 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
             </Eyebrow>
             <Title>{p.name}</Title>
             <Sub>{p.description}</Sub>
+            {error?.repo === p.repo && <ErrorText>{error.message}</ErrorText>}
           </Body>
           <Button
             onClick={async () => {
-              await PgGithub.import(p.repo);
-              PgView.setModal(null);
+              setError(null);
+              try {
+                await PgGithub.import(p.repo);
+                PgView.setModal(null);
+              } catch (e) {
+                setError({
+                  repo: p.repo,
+                  message:
+                    e instanceof Error ? e.message : "Could not open program",
+                });
+              }
             }}
           >
             Open

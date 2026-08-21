@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../components/Button";
@@ -16,6 +16,10 @@ interface TutorialsTabProps {
  * the gallery so the reader lands straight on the tutorial page.
  */
 const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
+  const [error, setError] = useState<{ name: string; message: string } | null>(
+    null
+  );
+
   const q = query.trim().toLowerCase();
   const items = q
     ? PgTutorial.all.filter(
@@ -41,11 +45,21 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
             </Eyebrow>
             <Title>{t.name}</Title>
             <Sub>{t.description}</Sub>
+            {error?.name === t.name && <ErrorText>{error.message}</ErrorText>}
           </Body>
           <Button
             onClick={async () => {
-              await PgTutorial.open(t.name);
-              PgView.setModal(null);
+              setError(null);
+              try {
+                await PgTutorial.open(t.name);
+                PgView.setModal(null);
+              } catch (e) {
+                setError({
+                  name: t.name,
+                  message:
+                    e instanceof Error ? e.message : "Could not open tutorial",
+                });
+              }
             }}
           >
             Open
@@ -116,6 +130,16 @@ export const Sub = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.other.size.small};
     ${PgTheme.getClampLinesCSS(2)};
+  `}
+`;
+
+/* Shared with ProgramsTab: an inline failure right at the card that
+ * caused it, e.g. a GitHub rate limit or a missing tutorial asset. */
+export const ErrorText = styled.div`
+  ${({ theme }) => css`
+    margin-top: 0.25rem;
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.other.size.small};
   `}
 `;
 
