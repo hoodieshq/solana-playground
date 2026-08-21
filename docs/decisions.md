@@ -642,3 +642,55 @@ unrelated project — works cleanly with no crash. A hard page load straight to
 `openAboutPage()` can run, or guarding both branches against a sidebar-name
 change that happens before the tutorial's own explorer/workspace state has
 settled.
+
+---
+
+## D17 — Flow shipped as the default layout, classic behind a flag
+
+**Date:** 2026-08-21 · **Status:** implemented (prototype)
+
+`views/flow/` composes the existing bricks into the D10 anatomy and is
+mounted by `app/Panels/Panels.tsx` unless `?classic` is present — the only
+pre-existing file this iteration edits. Stepper state is derived, not
+stored: build start/finish from `PgCommand.build` and the D4
+`PgBuildOutput`, deploy from `PgCommand.deploy`. Deploy history is a new
+client-side store in `localStorage` keyed by workspace.
+
+**Rejected — editing `Panels/Main` and `Side` in place:** it would spread
+the change over three upstream files for no gain over a sibling layout.
+
+**Rejected — compiling ecosystem programs:** the crate whitelist and
+anchor-lang 0.29 make it impossible; they ship as view-only cards so the
+gallery is honest.
+
+**Learned during the build:**
+
+- The header stepper (`STAGES` in `state/stage.ts` — write, build, deploy,
+  interact, four stages) and the Build surface's diagnostic list share one
+  parsing convention rather than two independent ones. `state/stage.ts`'s
+  `countErrors` and `stages/build-report.ts`'s `parseBuildReport` both match
+  rustc's `error(?:\[E\d+\])?:` header and both exclude the same
+  `could not compile` / `aborting due to` summary lines through a `SUMMARY`
+  regex, cross-referenced by comment between the two files, so the
+  stepper's "N errors" badge and the report's own diagnostic count can never
+  disagree.
+- `Write` (which hosts upstream's `Primary`) stays mounted at all times in
+  `StageRouter` and is only ever hidden with CSS, never unmounted on a stage
+  switch — `Primary`'s content is handed to it once through a one-shot
+  custom event, so unmounting Write would leave it permanently blank the
+  next time it becomes visible again.
+
+**Friction:**
+
+- Devnet airdrop returned 429 (rate limited) during live deploy
+  verification; the demo wallet has to be pre-funded ahead of time rather
+  than airdropped on demand.
+- Importing `spl-token-2022` in a program fails with "Could not identify
+  framework".
+- The build server URL has to be set to SolPg (gear → Build server URL) for
+  local builds against `localhost:3000` to succeed at all.
+- Upstream's `CreateWorkspace` modal logs a pre-existing unmounted-setState
+  warning, unrelated to anything this branch touches.
+
+**Revisit when:** the stepper is tested with newcomers (D10's trigger), or
+when the classic layout has had no use for a milestone — then delete it.
