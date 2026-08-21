@@ -22,7 +22,16 @@ export interface BuildReport {
 }
 
 const HEADER = /^error(?:\[(E\d+)\])?: (.+)$/;
+// A top-level warning/note/help block. rustc emits these for lints and
+// linker notes that follow an error; they are not part of that error, so a
+// line like this must end the current diagnostic rather than feed its
+// excerpt. (Indented `= note: ...` lines under an error are unaffected -
+// they do not match `^`.)
+const OTHER_HEADER = /^(?:warning|note|help)(?:\[[^\]]+\])?: .+$/;
 const LOCATION = /^\s*--> (.+?):(\d+):(\d+)\s*$/;
+// rustc's own summary lines ("could not compile ...", "aborting due to ...
+// previous error(s)") are not diagnostics of their own.
+const SUMMARY = /^(could not compile|aborting due to)/;
 
 /** Split rustc's stderr into one entry per `error` block. */
 export const parseBuildReport = (stderr: string): BuildReport => {
@@ -45,7 +54,7 @@ export const parseBuildReport = (stderr: string): BuildReport => {
     if (head) {
       flush();
       // The summary line is not a diagnostic
-      if (/^could not compile/.test(head[2])) continue;
+      if (SUMMARY.test(head[2])) continue;
       current = {
         code: head[1] ?? null,
         title: head[2],
@@ -54,6 +63,11 @@ export const parseBuildReport = (stderr: string): BuildReport => {
         col: null,
         excerpt: "",
       };
+      continue;
+    }
+    if (OTHER_HEADER.test(line)) {
+      // A warning/note/help block that follows an error is not part of it
+      flush();
       continue;
     }
     if (!current) continue;

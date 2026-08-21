@@ -31,7 +31,6 @@ const Build = () => {
     };
   }, []);
 
-  const report: BuildReport | null = out ? parseBuildReport(out.stderr) : null;
   const ms = msSuffix(flow.buildMs);
 
   if (!out) {
@@ -96,7 +95,8 @@ const Build = () => {
     );
   }
 
-  const n = report?.diagnostics.length ?? flow.buildErrorCount;
+  const report: BuildReport = parseBuildReport(out.stderr);
+  const n = report.diagnostics.length;
   return (
     <Surface>
       <StatusRow>
@@ -120,47 +120,53 @@ const Build = () => {
       </StatusRow>
 
       <CardList>
-        {report?.diagnostics.map((d, i) => (
-          <Card key={i}>
-            <CardHead>
-              <Index aria-hidden>{String(i + 1).padStart(2, "0")}</Index>
-              <CardHeadText>
-                <CardTitle>
-                  {d.code && <CodeChip>{d.code}</CodeChip>}
-                  {d.title}
-                </CardTitle>
-                {d.file && (
-                  <Location>
-                    {d.file}
-                    <LocationDim>
-                      :{d.line}:{d.col}
-                    </LocationDim>
-                  </Location>
+        {report.diagnostics.map((d, i) => {
+          const fix = () =>
+            PgAssistant.requestPrompt(
+              `Explain this build error and propose a fix: ` +
+                `${d.code ?? ""} ${d.title} at ${d.file}:${d.line}`
+            );
+          return (
+            <Card key={i}>
+              <CardHead>
+                <Index aria-hidden>{String(i + 1).padStart(2, "0")}</Index>
+                <CardHeadText>
+                  <CardTitle>
+                    {d.code && <CodeChip>{d.code}</CodeChip>}
+                    {d.title}
+                  </CardTitle>
+                  {d.file && (
+                    <Location>
+                      {d.file}
+                      <LocationDim>
+                        :{d.line}:{d.col}
+                      </LocationDim>
+                    </Location>
+                  )}
+                </CardHeadText>
+              </CardHead>
+
+              {d.excerpt && <Excerpt>{d.excerpt}</Excerpt>}
+
+              <CardActions>
+                {/* Gradient is reserved for one CTA per screen; only the
+                    first card gets it, the rest use a plain `Button`. */}
+                {i === 0 ? (
+                  <GradientButton onClick={fix}>
+                    Fix with assistant
+                  </GradientButton>
+                ) : (
+                  <Button onClick={fix}>Fix with assistant</Button>
                 )}
-              </CardHeadText>
-            </CardHead>
-
-            {d.excerpt && <Excerpt>{d.excerpt}</Excerpt>}
-
-            <CardActions>
-              <GradientButton
-                onClick={() => {
-                  PgAssistant.requestPrompt(
-                    `Explain this build error and propose a fix: ` +
-                      `${d.code ?? ""} ${d.title} at ${d.file}:${d.line}`
-                  );
-                }}
-              >
-                Fix with assistant
-              </GradientButton>
-              {d.file && (
-                <Button onClick={() => PgExplorer.openFile(d.file as string)}>
-                  Open in editor
-                </Button>
-              )}
-            </CardActions>
-          </Card>
-        ))}
+                {d.file && (
+                  <Button onClick={() => PgExplorer.openFile(d.file as string)}>
+                    Open in editor
+                  </Button>
+                )}
+              </CardActions>
+            </Card>
+          );
+        })}
       </CardList>
 
       <RawSection>
@@ -174,7 +180,7 @@ const Build = () => {
           </Chevron>
           {showRaw ? "Hide" : "Show"} raw compiler output
         </Toggle>
-        {showRaw && <Raw>{report?.raw}</Raw>}
+        {showRaw && <Raw>{report.raw}</Raw>}
       </RawSection>
     </Surface>
   );
