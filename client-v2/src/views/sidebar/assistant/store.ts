@@ -184,6 +184,29 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
+  /**
+   * Ask the panel to send a prompt on the user's behalf - e.g. "Fix with
+   * assistant" on a build error card.
+   *
+   * The panel itself owns the actual send (its provider lives in a ref
+   * inside `Chat`), so this only notifies; it does not append a message.
+   *
+   * @param text the prompt to send
+   */
+  static requestPrompt(text: string) {
+    for (const cb of PgAssistant._promptListeners) cb(text);
+  }
+
+  /**
+   * @param cb runs whenever `requestPrompt` is called. Not called on
+   * subscribe - this is an event, not state, same as `onDidChange`.
+   * @returns a disposable to clear the event
+   */
+  static onDidRequestPrompt(cb: (text: string) => void): Disposable {
+    PgAssistant._promptListeners.add(cb);
+    return { dispose: () => PgAssistant._promptListeners.delete(cb) };
+  }
+
   /** Start an assistant message and return its id so text can stream into it */
   static startAssistantMessage() {
     const id = makeId();
@@ -325,6 +348,7 @@ export class PgAssistant {
     (allowed: boolean) => void
   >();
   private static readonly _listeners = new Set<() => void>();
+  private static readonly _promptListeners = new Set<(text: string) => void>();
 
   private static _emit() {
     for (const cb of PgAssistant._listeners) cb();
