@@ -91,20 +91,12 @@ export interface ProviderInfo {
 
 export const PROVIDERS: ProviderInfo[] = [
   {
-    id: "scripted",
-    name: "Demo",
-    description:
-      "A scripted walkthrough of the build-error path. No key, no network — " +
-      "useful for seeing the flow and for demoing without depending on an API.",
-    needsKey: false,
-  },
-  {
     id: "anthropic",
     name: "Anthropic",
     description:
-      "The SDK's tool runner, and the only backend with a server-side MCP " +
-      "connector. Sonnet costs roughly a third of Opus per turn; effort is " +
-      "the other cost lever.",
+      "The SDK's tool runner, with Anthropic's own MCP connector for servers " +
+      "routed that way. Sonnet costs roughly a third of Opus per turn; " +
+      "effort is the other cost lever.",
     needsKey: true,
     keyUrl: "https://console.anthropic.com/",
     keyPlaceholder: "sk-ant-…",
@@ -156,5 +148,14 @@ export const PROVIDERS: ProviderInfo[] = [
       baseUrl: "https://openrouter.ai/api/v1",
       model: "deepseek/deepseek-chat-v3.1:free",
     },
+  },
+  // Last: it demonstrates the interaction rather than being a way to run it
+  {
+    id: "scripted",
+    name: "Demo",
+    description:
+      "A scripted walkthrough of the build-error path. No key, no network — " +
+      "useful for seeing the flow and for demoing without depending on an API.",
+    needsKey: false,
   },
 ];

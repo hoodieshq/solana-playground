@@ -1,6 +1,8 @@
 # Browser MCP over a same-origin rewrite
 
-Design spec, 2026-08-21. Status: proposed, not started.
+Design spec, 2026-08-21. Status: built, with one deliberate departure — both
+servers ended up behind the proxy, not just `mcp.solana.com`. See "Explorer
+went through the proxy anyway" below and `decisions.md` → D19.
 
 ## Why
 
@@ -34,14 +36,24 @@ Phase 1 is therefore the MCP client alone, with no infrastructure at all: it
 unlocks Explorer on every provider, Gemini's free tier included. Phase 2 adds
 the proxy purely to reach `mcp.solana.com` and its `program_autofixer`.
 
+**Explorer went through the proxy anyway.** The table above is about
+reachability, and it is still correct — Explorer *can* be called from a page.
+What it does not account for is the credential: reaching Explorer needs a
+bypass secret, that secret is one value shared by everybody rather than
+per-user, and anything the browser sends is in the bundle. So it moved behind
+the gateway on the same day, and the phase split below survives only as
+reachability, not as a delivery plan. `decisions.md` → D19 records the reversal
+and what it costs.
+
 Three details taken from Explorer's implementation, all of which apply to us:
 
-- **The bypass must stay in the query string, even for direct browser calls.**
-  Explorer's `Access-Control-Allow-Headers` is
+- **A browser must put the bypass in the query string; the gateway uses a
+  header.** Explorer's `Access-Control-Allow-Headers` is
   `Authorization, Content-Type, mcp-session-id, mcp-protocol-version,
-  Last-Event-ID` — `x-vercel-protection-bypass` is not on it, so sending it as
-  a request header fails preflight. The `queryParams` we already ship is the
-  correct mechanism, not a workaround.
+  Last-Event-ID` — `x-vercel-protection-bypass` is not on it, so a page sending
+  it as a request header fails preflight. Server-side there is no preflight, so
+  the gateway sends the header, which is also the form the Foundation's own MCP
+  config uses.
 - **`Authorization` is allowed**, and Explorer gates on `MCP_ACCESS_KEYS` when
   set. The entry's `authToken` covers that, and may be needed in addition to
   the bypass.
@@ -63,14 +75,13 @@ functions are detected from the directory.
 
 ```
                     ┌─ static bundle (craco build → build/)
-Vercel project ─────┤
-                    └─ client-v2/api/mcp.ts  ──(MCP client, server-side)──▶ mcp.solana.com
-
-browser ──────────────────────────────────────(direct, CORS is fine)──────▶ explorer.solana.com/mcp
+Vercel project ─────┤                                         ┌─▶ mcp.solana.com
+                    └─ client-v2/api/mcp.mjs ──(MCP client)───┤
+                                                              └─▶ explorer.solana.com/mcp
 ```
 
-Phase 1 needs none of the function. Phase 2 adds it only for the server that
-refuses browser calls.
+As built, both upstreams go through the function: the first because it refuses
+browser calls, the second because its bypass secret cannot ship in the bundle.
 
 ## Work — phase 1, no infrastructure
 
@@ -107,6 +118,15 @@ handler documents as what makes it serverless-safe. SSE terminates inside the
 function; the browser only ever sees a JSON body, which removes the streaming
 question entirely.
 
+**As built this is `api/mcp.mjs`, and it is transparent rather than a bespoke
+JSON API.** The JSON-RPC envelope is forwarded verbatim in both directions and
+upstreams are selected by query string (`?server[]=solana`), so the browser
+client needs a different URL and no second code path — the reason plain ESM on
+raw `req`/`res` was enough, and why no MCP SDK dependency was added. What
+survived unchanged: stateless, one fetch per request, SSE unwrapped inside the
+function so the caller only ever sees JSON. With several upstreams selected,
+`tools/list` merges under `<id>__` prefixes and `tools/call` routes on them.
+
 **Upstreams are configured on the server and nowhere else.** No URL, host or
 credential is ever accepted from a caller. That is a deliberate exclusion, not
 an omission: a gateway that dials a client-supplied address is an SSRF and an
@@ -114,26 +134,30 @@ open relay, and defending it properly needs DNS-resolution checks, private-range
 blocks, per-caller keys and rate limits. Refusing the input removes the entire
 class. Adding an upstream is a deploy.
 
-### Which server goes where, and why Explorer does not
+### Which server goes where
 
 | Upstream | Path | Reason |
 | --- | --- | --- |
 | `mcp.solana.com` | gateway | No CORS, so the browser cannot reach it. Public and unauthenticated, so fronting it circumvents nothing. |
-| `explorer.solana.com` | browser-direct | CORS already works. Its bot protection is deliberate, and the bypass belongs to the user. |
+| `explorer.solana.com` | gateway, only when configured | CORS already works, but its bypass secret is one value shared by everybody and cannot ship in the bundle. |
 
-Explorer stays off the gateway on purpose. Putting it behind our function with
-*our* bypass secret would turn our deployment into a public way around bot
-protection that the Foundation chose to switch on — for anyone who finds the
-endpoint, not just our users. Leaving it browser-direct keeps the bypass in the
-hands of whoever legitimately holds one. If Explorer ever has to move behind
-the gateway, per-caller access keys stop being optional and become the entry
-condition.
+The second row is a reversal. Explorer was to stay browser-direct, on the
+premise that the bypass belongs to the user and would be pasted into the panel.
+It does not — there is one secret, ours — and a value the browser sends is a
+value every visitor can read, which `CLAUDE.md` forbids outright.
+
+The objection that kept Explorer off the gateway still stands and is now a
+condition on how it is deployed: fronting it with our secret turns our endpoint
+into a public way around bot protection the Foundation chose to switch on. The
+upstream therefore exists only when `MCP_EXPLORER_BYPASS` is set, which keeps
+default deployments and outside checkouts clean, and that variable is for
+preview deployments. On production, per-caller access keys stop being optional
+and become the entry condition. `MCP_EXPLORER_URL` moves the endpoint when a
+preview build of Explorer is the target.
 
 The SDK dependency goes in `client-v2/package.json` but never enters the
-bundle — nothing under `src/` imports it.
-
-The SDK dependency goes in `client-v2/package.json` but never enters the
-bundle — nothing under `src/` imports it.
+bundle — nothing under `src/` imports it. (Moot as built: the gateway speaks
+JSON-RPC directly and no dependency was added.)
 
 **Routing note.** Vercel matches the filesystem, including functions, before
 `rewrites`, so the existing SPA catch-all (`/((?!static/|.*\..*).*)` →
@@ -180,23 +204,21 @@ turn rather than blocking it.
 
 ## Risks, in the order they will bite
 
-1. **Explorer's CORS is read from source, not measured.**
-   `Access-Control-Allow-Origin: *` is what `route.ts` sets today; the deployed
-   build could differ, and the endpoint is env-gated (`MCP_ENDPOINT_ENABLED`,
-   `MCP_ACCESS_KEYS`) so it can change without notice. One `fetch` from the
-   browser console with the bypass confirms it, and phase 1 is worthless if it
-   fails. Do that first.
+1. ~~**Explorer's CORS is read from source, not measured.**~~ Moot: nothing
+   calls Explorer from a page any more, so its CORS headers do not matter. What
+   does still matter is that the endpoint is env-gated (`MCP_ENDPOINT_ENABLED`,
+   `MCP_ACCESS_KEYS`) and can go inert without notice — a `tools/list` through
+   the gateway is the check.
 2. **The function is code we run.** Not a rewrite rule — a deployed artifact
    with cold starts, an execution ceiling, and a dependency to keep current.
    `get_documentation` can return 200 KB and take real time; Explorer sets
    `maxDuration = 60` for its own handler, and we should expect to need
    something similar rather than the default.
-3. **The bypass cannot move out of the URL for direct calls.** Explorer's
-   `Access-Control-Allow-Headers` does not list `x-vercel-protection-bypass`,
-   so sending it as a request header fails preflight. It stays in the query
-   string on the phase-1 path, with the exposure that implies — it reaches the
-   server in the request line. Only the phase-2 function could carry it as a
-   header, and only for servers routed through it.
+3. ~~**The bypass cannot move out of the URL for direct calls.**~~ Resolved by
+   routing Explorer through the gateway: there is no preflight server-side, so
+   the bypass travels as an `x-vercel-protection-bypass` header and never
+   appears in a request line or a bundle. The risk it replaces is the one in
+   D19 — our endpoint now fronts someone else's bot protection.
 4. **Someone else's capacity under our domain.** Phase-2 traffic to
    `mcp.solana.com` arrives from our deployment rather than from users. It is
    public and unauthenticated, so this is a courtesy issue rather than a
@@ -210,17 +232,11 @@ turn rather than blocking it.
 
 ## Verification
 
-- **Gate 0, before any code:** one `fetch` from the browser console to
-  `explorer.solana.com/mcp` with the bypass in the query string. Confirms the
-  CORS headers read from source are what production actually serves. Phase 1
-  depends entirely on this.
-- Phase 1, no backend connected at all: the console lists Explorer's tools and
-  calls `inspect_entity` — no key, no model, no tokens.
-- Phase 1 on Gemini: an AI Studio key, and a question that needs an on-chain
-  lookup produces MCP chips on a provider that has never had them.
-- Phase 2 on a preview deployment: `tools/list` against `mcp.solana.com`
-  through the function. The only way to learn whether the function path works
-  in production.
+- On a preview deployment: `tools/list` against both upstreams through the
+  function. The only way to learn whether the function path works in
+  production — locally it is a craco middleware, not the Vercel runtime (D20).
+- Both upstreams selected at once (`?server[]=solana&server[]=explorer`): tool
+  names come back `<id>__`-prefixed and `tools/call` routes on the prefix.
 - Console: call `program_autofixer` on a broken `lib.rs` with no backend
   connected at all — no key, no model, no tokens.
 - Gemini: connect with an AI Studio key and ask a question that needs the docs

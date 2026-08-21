@@ -37,38 +37,20 @@ export const SKILLS: SkillEntry[] = [
 ];
 
 /**
- * MCP servers, each with the executor its own reachability forces.
+ * Extra MCP servers, added from the client.
  *
- * The executor is measured, not chosen: `mcp.solana.com` answers a CORS
- * preflight with 405 and no `access-control-allow-origin` (2026-08-20), so no
- * page can call it. Explorer sets `access-control-allow-origin: *` and exposes
- * `mcp-session-id` (read from `solana-explorer/app/mcp/route.ts`, 2026-08-21),
- * so it is callable from anywhere.
+ * **Not the source of truth.** The gateway (`api/mcp.mjs`) owns the list and
+ * the panel asks it at startup, so enabling an upstream is a deploy plus an
+ * env var rather than a client change — that is how an operator turns Explorer
+ * on without shipping anything, and why its absence from the panel means the
+ * server has no bypass configured.
+ *
+ * This list is only for servers wanted *in addition*: something CORS-open a
+ * page can reach directly, or an `executor: "server"` entry to route through
+ * Anthropic's connector instead. Empty by default, and deliberately not a
+ * mirror of what the gateway serves — two lists would disagree.
  */
-export const MCP_SERVERS: McpServerEntry[] = [
-  {
-    id: "solana",
-    name: "Solana Developer MCP",
-    // Through our own gateway (`api/mcp.mjs`): the upstream sends no CORS
-    // headers, so a page cannot call it, but our origin can. Point this at
-    // `https://mcp.solana.com/mcp` with `executor: "server"` instead to go
-    // back through Anthropic's connector.
-    url: "/api/mcp?server[]=solana",
-    enabled: true,
-    executor: "browser",
-  },
-  {
-    // Off by default: the endpoint answers every request with a Vercel bot
-    // challenge until a bypass secret is supplied. The key is spelled out so
-    // only the value has to be filled in.
-    id: "explorer",
-    name: "Solana Explorer MCP",
-    url: "https://explorer.solana.com/mcp",
-    enabled: false,
-    executor: "browser",
-    queryParams: { "x-vercel-protection-bypass": "" },
-  },
-];
+export const LOCAL_MCP_SERVERS: McpServerEntry[] = [];
 
 /** Skills that are on unless the user turns them off */
 export const DEFAULT_SKILL_IDS = SKILLS.map((skill) => skill.id);

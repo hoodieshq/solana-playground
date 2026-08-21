@@ -1,4 +1,9 @@
-import { DEFAULT_SKILL_IDS, listTools, MCP_SERVERS } from "./grounding";
+import {
+  DEFAULT_SKILL_IDS,
+  listGatewayServers,
+  listTools,
+  LOCAL_MCP_SERVERS,
+} from "./grounding";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";
@@ -158,20 +163,57 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  /** Every configured MCP server, enabled or not */
+  /**
+   * Every MCP server, enabled or not: the gateway's own, then local additions.
+   *
+   * Held as two lists because they have different owners. The gateway decides
+   * what it serves and the client cannot edit that; a local entry is an
+   * addition. Merging them into one editable list would let Apply silently
+   * delete a server the gateway still offers.
+   */
   static get mcpServers(): readonly McpServerEntry[] {
-    return PgAssistant._mcpServers;
+    return [...PgAssistant._gatewayServers, ...PgAssistant._localServers];
+  }
+
+  /** The gateway's own upstreams, as it reported them */
+  static get gatewayMcpServers(): readonly McpServerEntry[] {
+    return PgAssistant._gatewayServers;
+  }
+
+  /** Only the entries the user added, which is what the editor edits */
+  static get localMcpServers(): readonly McpServerEntry[] {
+    return PgAssistant._localServers;
   }
 
   /** The servers a turn should actually declare */
   static get enabledMcpServers(): readonly McpServerEntry[] {
-    return PgAssistant._mcpServers.filter((s) => s.enabled && s.url.trim());
+    return PgAssistant.mcpServers.filter((s) => s.enabled && s.url.trim());
   }
 
-  /** Replace the whole list — the config is edited as one JSON document */
+  /** Replace the local additions — edited as one JSON document */
   static setMcpServers(servers: readonly McpServerEntry[]) {
-    PgAssistant._mcpServers = servers;
+    PgAssistant._localServers = servers;
     PgAssistant._emit();
+  }
+
+  /**
+   * Ask the gateway what it serves.
+   *
+   * Failure is not surfaced: running under a plain `craco start` there is no
+   * `/api`, and that should leave the panel working with local additions and
+   * skills rather than showing an error nobody can act on.
+   */
+  static async loadMcpServers() {
+    try {
+      PgAssistant._gatewayServers = await listGatewayServers();
+      PgAssistant._emit();
+    } catch {}
+  }
+
+  /** Learn what exists, then what it offers. Safe to call on every mount. */
+  static async initMcp() {
+    await PgAssistant.loadMcpServers();
+    await PgAssistant.discoverMcpTools();
   }
 
   /**
@@ -193,12 +235,20 @@ export class PgAssistant {
   /**
    * Discover tools for every enabled browser-executed server.
    *
+   * Called when the panel mounts, not only from the Sources tab: `createTools`
+   * reads this cache, so a model connected before discovery ran would simply
+   * not be offered any MCP tool — with nothing on screen to explain why.
+   *
    * Failures are left out rather than raised: a server being unreachable is a
    * fact about that server, and the console is where it gets explained.
+   *
+   * @param force re-read servers already cached, for when the config changed
    */
-  static async discoverMcpTools() {
+  static async discoverMcpTools(force = false) {
     const servers = PgAssistant.enabledMcpServers.filter(
-      (server) => server.executor === "browser"
+      (server) =>
+        server.executor === "browser" &&
+        (force || !PgAssistant._mcpTools[server.id])
     );
 
     await Promise.all(
@@ -393,10 +443,10 @@ export class PgAssistant {
   private static _connection: Connection | null = null;
   private static _pickingBackend = false;
   private static _enabledSkillIds: readonly string[] = DEFAULT_SKILL_IDS;
+  private static _gatewayServers: readonly McpServerEntry[] = [];
   // Copied, so editing a server in the UI never mutates the registry default
-  private static _mcpServers: readonly McpServerEntry[] = MCP_SERVERS.map(
-    (server) => ({ ...server })
-  );
+  private static _localServers: readonly McpServerEntry[] =
+    LOCAL_MCP_SERVERS.map((server) => ({ ...server }));
   private static _mcpTools: Readonly<Record<string, readonly McpTool[]>> = {};
   private static readonly _pending = new Map<
     string,

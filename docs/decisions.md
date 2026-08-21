@@ -799,8 +799,8 @@ is a property of the server, not of the connected agent:
 
 | Server | CORS | Executor | Reachable from |
 | --- | --- | --- | --- |
-| `explorer.solana.com/mcp` | `*`, session id exposed | `browser` | every backend, and the keyless console |
-| `mcp.solana.com/mcp` | none (preflight 405) | our gateway | every backend |
+| `explorer.solana.com/mcp` | `*`, session id exposed | `browser`, via our gateway | every backend, and the keyless console |
+| `mcp.solana.com/mcp` | none (preflight 405) | `browser`, via our gateway | every backend |
 
 Explorer's headers are read from `solana-explorer/app/mcp/route.ts`;
 `mcp.solana.com`'s absence of them was measured twice, by curl and from a real
@@ -824,20 +824,36 @@ per-caller keys and rate limits, plus an encrypted blob to carry credentials
 past Anthropic's connector, which can only pass a URL and a bearer token.
 Refusing the input removes the class. Adding an upstream is a deploy.
 
-**Explorer stays off the gateway on purpose.** Fronting it with a bypass secret
-of ours would hand anyone who finds our endpoint a way around bot protection
-the Foundation deliberately switched on. It is an upstream only if
-`MCP_EXPLORER_BYPASS` is set; unset, it stays browser-direct on the user's own
-bypass. If that ever changes, per-caller access keys stop being optional.
+**Explorer moved onto the gateway too (2026-08-21), reversing what this entry
+first recorded.** Browser-direct was the plan while the bypass was thought of
+as the user's own, pasted into the panel. It is not: the secret we have is one
+for everybody, and a value the browser sends is a value in the bundle, which
+`CLAUDE.md` forbids and which publishing would leak to every visitor. So the
+gateway holds it, `MCP_EXPLORER_URL` moves the endpoint to a preview
+deployment, and the panel entry is a gateway URL like Solana's.
+
+What that costs is exactly the objection that kept Explorer off: fronting bot
+protection the Foundation deliberately switched on hands anyone who finds our
+endpoint a way around it. What keeps it narrow is that the upstream exists only
+when `MCP_EXPLORER_BYPASS` is set, so a default deployment and every outside
+checkout have no such hole. The variable is therefore for previews only:
+**setting it on a public production deployment makes per-caller access keys a
+prerequisite, not an option**, and is not a decision to take without talking to
+whoever switched the protection on.
+
+The bypass travels as an `x-vercel-protection-bypass` header rather than a
+query param. Explorer's `Access-Control-Allow-Headers` omits it, so a browser
+would fail preflight — irrelevant server-side, where there is no preflight,
+and the form the Foundation's own MCP config uses.
 
 **Consequence for D1 and the product claim.** "The assistant runs entirely in
 the browser. No backend of ours" is no longer true. This is a narrow, scoped
 version of D1-B: MCP transport only, no model calls, no quota, no key. D1-B
 itself stays parked.
 
-**Revisit when** a credential genuinely cannot ride in a query string or a
-bearer token, or when putting a secret in a URL stops being acceptable — both
-point at the same place, per-caller keys on the gateway.
+**Revisit when** the Explorer bypass is wanted on a production deployment, or
+when a second shared credential appears — both point at the same place,
+per-caller keys on the gateway.
 
 ---
 
