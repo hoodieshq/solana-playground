@@ -3,8 +3,8 @@ import styled from "styled-components";
 
 import Button from "../../../../components/Button";
 import Img from "../../../../components/Img";
-import { PgExplorer, PgRouter, PgView } from "../../../../utils";
-import { CreateItem, Share } from "./Modals";
+import { PgExplorer, PgRouter } from "../../../../utils";
+import { CreateItem } from "./Modals";
 import { useCreateItem } from "./useCreateItem";
 
 const ExplorerButtons = () => (
@@ -13,7 +13,6 @@ const ExplorerButtons = () => (
     <NewItemButton imageName="new_folder.png" title="New folder" />
     <CreateItem />
     <CollapseAllButton />
-    <ShareButton />
     {PgExplorer.isTemporary && <GoBackButton />}
   </ButtonsWrapper>
 );
@@ -64,12 +63,6 @@ const CollapseAllButton = () => (
     title="Collapse folders"
   >
     <Img src={getExplorerIconsPath("collapse.png")} alt="Collapse folders" />
-  </Button>
-);
-
-const ShareButton = () => (
-  <Button onClick={() => PgView.setModal(Share)} kind="icon" title="Share">
-    <Img src={getExplorerIconsPath("share.png")} alt="Share" />
   </Button>
 );
 
