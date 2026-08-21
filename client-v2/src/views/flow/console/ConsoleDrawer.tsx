@@ -1,9 +1,11 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Terminal from "../../main/secondary/terminal/Component/Terminal";
 import { useKeybind } from "../../../hooks";
+import { PgCommand } from "../../../utils";
+import { PgFlow } from "../state/stage";
 
 /**
  * The console lives at the bottom of the center column and collapses by
@@ -14,8 +16,22 @@ const ConsoleDrawer: FC = () => {
   const [open, setOpen] = useState(false);
   useKeybind("Ctrl+J", () => setOpen((o) => !o));
 
+  // Deploy is the only stage that still leans on `waitForInput` prompts and
+  // plain terminal errors instead of a surface notice, so it is the one
+  // that needs the console open to be seen at all.
+  useEffect(() => {
+    const a = PgCommand.deploy.onDidStart(() => setOpen(true));
+    const b = PgFlow.onDidChange((flow) => {
+      if (flow.deploy === "failed") setOpen(true);
+    });
+    return () => {
+      a.dispose();
+      b.dispose();
+    };
+  }, []);
+
   return (
-    <Wrapper $open={open}>
+    <Wrapper>
       <Handle
         type="button"
         aria-expanded={open}
@@ -34,7 +50,7 @@ const ConsoleDrawer: FC = () => {
 
 export default ConsoleDrawer;
 
-const Wrapper = styled.div<{ $open: boolean }>`
+const Wrapper = styled.div`
   ${({ theme }) => css`
     border-top: 1px solid ${theme.colors.default.border};
     background: ${theme.colors.default.bgPrimary};
