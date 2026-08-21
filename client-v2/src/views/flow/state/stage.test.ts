@@ -1,11 +1,21 @@
-jest.mock("../../sidebar/assistant/bridge/build-output");
+jest.mock("../../sidebar/assistant/bridge/build-output", () => ({
+  PgBuildOutput: {
+    onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+  },
+  stripKnownNoise: jest.fn((s) => s),
+}));
 jest.mock("../../../utils", () => ({
   PgCommand: {
-    build: { onDidStart: jest.fn() },
-    deploy: { onDidStart: jest.fn(), onDidFinish: jest.fn() },
+    build: {
+      onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
+    },
+    deploy: {
+      onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidFinish: jest.fn(() => ({ dispose: jest.fn() })),
+    },
   },
   PgExplorer: {
-    onDidSwitchWorkspace: jest.fn(),
+    onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
   },
 }));
 
@@ -80,5 +90,57 @@ describe("PgFlow.reduce", () => {
     expect(PgFlow.reduce(built, { type: "workspace-change" })).toEqual(
       INITIAL_FLOW_STATE
     );
+  });
+});
+
+describe("PgFlow.init wiring", () => {
+  it("deploy-finish detects success and failure via result shape", () => {
+    const { PgCommand, PgExplorer } = require("../../../utils");
+    let deployCallback: ((result: unknown) => void) | undefined;
+
+    // Store and verify all mocks return disposables
+    const buildStartMock = PgCommand.build.onDidStart as jest.Mock;
+    const buildStartReturn = { dispose: jest.fn() };
+    buildStartMock.mockReturnValueOnce(buildStartReturn);
+
+    const buildOutputMock =
+      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
+        .onDidChange as jest.Mock;
+    const buildOutputReturn = { dispose: jest.fn() };
+    buildOutputMock.mockReturnValueOnce(buildOutputReturn);
+
+    const deployStartMock = PgCommand.deploy.onDidStart as jest.Mock;
+    const deployStartReturn = { dispose: jest.fn() };
+    deployStartMock.mockReturnValueOnce(deployStartReturn);
+
+    const deployFinishMock = PgCommand.deploy.onDidFinish as jest.Mock;
+    const deployFinishReturn = { dispose: jest.fn() };
+    deployFinishMock.mockImplementation((cb) => {
+      deployCallback = cb;
+      return deployFinishReturn;
+    });
+
+    const workspaceChangeMock = PgExplorer.onDidSwitchWorkspace as jest.Mock;
+    const workspaceChangeReturn = { dispose: jest.fn() };
+    workspaceChangeMock.mockReturnValueOnce(workspaceChangeReturn);
+
+    const sub = PgFlow.init();
+
+    // Verify the callback was captured
+    expect(deployCallback).toBeDefined();
+
+    // Test error case
+    deployCallback!({ err: new Error("deploy failed") });
+    expect(PgFlow.state.deploy).toBe("failed");
+    expect(PgFlow.state.stage).toBe("deploy");
+
+    // Test success case
+    deployCallback!({ ok: "transaction-sig" });
+    expect(PgFlow.state.deploy).toBe("done");
+    expect(PgFlow.state.interact).toBe("active");
+    expect(PgFlow.state.stage).toBe("deploy");
+
+    // Clean up
+    sub.dispose();
   });
 });
