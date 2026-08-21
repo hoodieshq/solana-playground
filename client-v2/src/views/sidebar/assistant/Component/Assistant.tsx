@@ -171,6 +171,10 @@ const TabButton = styled.button<{ $active: boolean }>`
       outline: 1px solid ${theme.colors.default.primary};
       outline-offset: -1px;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 

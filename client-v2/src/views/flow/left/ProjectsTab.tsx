@@ -82,5 +82,9 @@ const NewButton = styled.button`
     &:hover {
       border-color: ${theme.colors.default.primary};
     }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
   `}
 `;
