@@ -49,26 +49,21 @@ export class PgDeployHistory {
   /** Record real deploys as they finish. Call once from the Flow
    * layout. */
   static init(): Disposable {
-    return PgCommand.deploy.onDidFinish((result: unknown) => {
-      if (typeof result !== "object" || !result) return;
-      const obj = result as Record<string, unknown>;
-      if ("err" in obj) return; // Ignore errors
+    return PgCommand.deploy.onDidFinish((result) => {
+      if ("err" in result) return; // Ignore deploy errors
 
-      const programId = PgProgramInfo.pk?.toBase58();
+      const programId = PgProgramInfo.getPkStr();
       const workspace = PgExplorer.currentWorkspaceName;
       const cluster = PgConnection.cluster;
       if (!programId || !workspace || !cluster) return;
 
-      let signature: string | null = null;
-      if (typeof obj.ok === "string") {
-        signature = obj.ok;
-      }
-
+      // Deploy command returns void, so signature is always null.
+      // A later task can populate this from elsewhere if needed.
       PgDeployHistory.add({
         workspace,
         cluster,
         programId,
-        signature,
+        signature: null,
       });
     });
   }
