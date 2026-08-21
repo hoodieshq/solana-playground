@@ -41,11 +41,20 @@ export const STAGES: readonly Stage[] = [
   "interact",
 ];
 
-/** Count `error[...]` and `error:` lines the way the terminal does */
+const ERROR_HEADER = /^error(?:\[E\d+\])?: (.+)$/;
+// rustc's own summary lines are not a diagnostic of their own - matches
+// `parseBuildReport`'s `SUMMARY` in `stages/build-report.ts` so the header
+// count and the Build surface's count always agree.
+const SUMMARY = /^(could not compile|aborting due to)/;
+
+/** Count real diagnostics, the way `parseBuildReport` does */
 export const countErrors = (stderr: string) =>
   stripKnownNoise(stderr)
     .split("\n")
-    .filter((l) => /^error(\[|:)/.test(l)).length;
+    .filter((l) => {
+      const head = l.match(ERROR_HEADER);
+      return !!head && !SUMMARY.test(head[1]);
+    }).length;
 
 /**
  * The dev loop as state. Pure reducer plus a tiny store; `init` wires the
