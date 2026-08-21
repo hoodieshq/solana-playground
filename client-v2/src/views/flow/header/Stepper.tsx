@@ -43,8 +43,10 @@ const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
             <Connector $done={statusOf(state, STAGES[i - 1]) === "done"} />
           )}
           <StageButton
+            id={`flow-stage-tab-${stage}`}
             role="tab"
             aria-selected={selected}
+            aria-controls={`flow-stage-panel-${stage}`}
             aria-label={`${LABEL[stage]}: ${status}${suffix}`}
             $status={status}
             $selected={selected}

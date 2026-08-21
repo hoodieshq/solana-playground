@@ -22,7 +22,7 @@ const ConsoleDrawer: FC = () => {
         aria-controls="flow-console-drawer-body"
         onClick={() => setOpen((o) => !o)}
       >
-        Console {open ? "▾" : "▴"}
+        Console <Glyph aria-hidden>{open ? "v" : "^"}</Glyph>
         <Hint>Cmd+J</Hint>
       </Handle>
       <Body id="flow-console-drawer-body" $open={open}>
@@ -62,6 +62,11 @@ const Handle = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
     }
   `}
+`;
+
+const Glyph = styled.span`
+  display: inline-block;
+  font-size: 0.8em;
 `;
 
 const Hint = styled.span`

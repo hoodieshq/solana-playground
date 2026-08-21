@@ -417,6 +417,10 @@ const Toggle = styled.button`
     &:hover {
       color: ${theme.colors.default.textPrimary};
     }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
 `;
 
