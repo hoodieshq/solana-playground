@@ -568,3 +568,132 @@ tutorial step sets its own page anyway.
 
 **Revisit when** the panel stops being the fork's headline, or the rail grows
 enough that its order needs a rule rather than a judgement.
+
+---
+
+## D16 — Friction log: opening an unstarted tutorial from an active project
+can crash and bounce back to `/`
+
+**Date:** 2026-08-21 · **Status:** logged, not fixed (out of scope for the
+gallery)
+
+**What happens.** The New Workspace gallery's Tutorials tab calls
+`PgTutorial.open(name)` — the same call `TutorialCard.tsx` already makes. For
+a tutorial that has **not** been started yet, clicked while a real project
+(e.g. `flow-demo`) is the active workspace, the app briefly navigates to
+`/tutorials/<name>`, then either throws `Current tutorial has not been set`
+(shown by the generic `ErrorBoundary`) or silently lands back on `/` with no
+visible error. An **already-started** tutorial opens correctly from the same
+starting state — the failure is specific to the first-time transition.
+
+**Root cause (revised in fix round 1 — the original diagnosis below was
+wrong).** The original write-up blamed `PgExplorer.onDidSwitchWorkspace`, on
+the theory that `PgExplorer.init({ name: tutorial.name })` falls back to the
+previously-active workspace and still fires that event. Verified against
+`explorer.ts` and that is not what happens: `init()`'s workspace branch
+(`explorer.ts:137-145`) is `if (workspaceName && allWorkspaceNames.includes
+(workspaceName)) { switchWorkspace(...) } else if (allWorkspaceNames.length
+=== 0) { ...reset... }`. For an unstarted tutorial opened from an active
+project, `workspaceName` (the tutorial's name) is truthy but not in
+`allWorkspaceNames`, and `allWorkspaceNames.length` is not `0` (the active
+project is still there) — so neither branch runs, `switchWorkspace()` is
+never called, and `ON_DID_SWITCH_WORKSPACE` never dispatches (it is only
+ever dispatched from `switchWorkspace()`, `explorer.ts:526`, and
+`deleteWorkspace()`, `explorer.ts:576`). The `onDidSwitchWorkspace` listener
+inside `handleTutorial` cannot be the trigger here.
+
+A more direct match is `routes/tutorials/tutorials.tsx`'s own
+`onDidChangeCurrentSidebarPage` listener (`tutorials.tsx:105-124`), which has
+an explicit unstarted-tutorial branch:
+`else if (!PgTutorial.isStarted(tutorial.name)) PgRouter.navigate();`. When
+`PgTutorial.open(name)` navigates to `/tutorials/<name>` with no page number,
+`handleTutorial` sets `PgView.sidebar.name = "Tutorials"` for the no-page
+case (`tutorials.tsx:152`), which changes the derived `currentSidebarPage`
+and fires this same listener with `p.name === "Tutorials"`, taking the
+`PgTutorial.openAboutPage()` branch instead — and that throws because
+`PgTutorial.current` is not set yet (`PgTutorial.refresh()` in the async
+`setMainPrimary` callback hasn't resolved), which matches the observed
+crash. The `!isStarted` branch quoted above is the one that produces the
+silent bounce-to-`/` symptom on a subsequent sidebar-page change during the
+same race. In short: two branches of the same listener, both reachable
+because of the timing race between `setMainPrimary`'s async body and the
+synchronous sidebar-name assignment right after it — not confirmed which
+exact interleaving produces which of the two observed symptoms on a given
+run.
+
+**Why not fixed here.** `routes/tutorials/tutorials.tsx` is shared with the
+classic layout and not on the touch-list for this branch (`CLAUDE.md`'s merge
+safety table doesn't list it, and D15 explicitly treats it as untouched). The
+classic UI never hit this path because its only route to a tutorial goes
+through the Tutorials list page first, which has no active workspace to
+switch away from — the gallery is the first place in the app that lets you
+jump directly from a live project into an unstarted tutorial in one click.
+
+**Confirmed scope.** Reproduced with two different unstarted tutorials
+(`Hello Anchor`, `Hello Solana`) from an active `flow-demo` project, in the
+Flow layout. Opening an **already-started** tutorial — from the same active,
+unrelated project — works cleanly with no crash. A hard page load straight to
+`/tutorials/<name>` also works, since nothing is active to switch away from.
+
+**Revisit when** someone picks up the gallery's follow-ups: likely fix is in
+`handleTutorial`'s `onDidChangeCurrentSidebarPage` listener
+(`tutorials.tsx:105-124`) — either sequencing it after
+`PgTutorial.refresh()` has resolved so `PgTutorial.current` is set before
+`openAboutPage()` can run, or guarding both branches against a sidebar-name
+change that happens before the tutorial's own explorer/workspace state has
+settled.
+
+---
+
+## D17 — Flow shipped as the default layout, classic behind a flag
+
+**Date:** 2026-08-21 · **Status:** implemented (prototype)
+
+`views/flow/` composes the existing bricks into the D10 anatomy and is
+mounted by `app/Panels/Panels.tsx` unless `?classic` is present — the only
+pre-existing file this iteration edits. Stepper state is derived, not
+stored: build start/finish from `PgCommand.build` and the D4
+`PgBuildOutput`, deploy from `PgCommand.deploy`. Deploy history is a new
+client-side store in `localStorage` keyed by workspace.
+
+**Rejected — editing `Panels/Main` and `Side` in place:** it would spread
+the change over three upstream files for no gain over a sibling layout.
+
+**Rejected — compiling ecosystem programs:** the crate whitelist and
+anchor-lang 0.29 make it impossible; they open as normal, editable projects
+through the same `PgGithub.import` mechanism upstream already uses, and the
+gallery says so rather than claiming they will build.
+
+**Learned during the build:**
+
+- The header stepper (`STAGES` in `state/stage.ts` — write, build, deploy,
+  interact, four stages) and the Build surface's diagnostic list share one
+  parsing convention rather than two independent ones. `state/stage.ts`'s
+  `countErrors` and `stages/build-report.ts`'s `parseBuildReport` both match
+  rustc's `error(?:\[E\d+\])?:` header and both exclude the same
+  `could not compile` / `aborting due to` summary lines through a `SUMMARY`
+  regex, cross-referenced by comment between the two files, so the
+  stepper's "N errors" badge and the report's own diagnostic count share
+  one parsing convention; the surface falls back to the header count when
+  no diagnostic parses, so the two numbers never visibly disagree even on
+  output the regex can't split into diagnostics.
+- `Write` (which hosts upstream's `Primary`) stays mounted at all times in
+  `StageRouter` and is only ever hidden with CSS, never unmounted on a stage
+  switch — `Primary`'s content is handed to it once through a one-shot
+  custom event, so unmounting Write would leave it permanently blank the
+  next time it becomes visible again.
+
+**Friction:**
+
+- Devnet airdrop returned 429 (rate limited) during live deploy
+  verification; the demo wallet has to be pre-funded ahead of time rather
+  than airdropped on demand.
+- Importing `spl-token-2022` in a program fails with "Could not identify
+  framework".
+- The build server URL has to be set to SolPg (gear → Build server URL) for
+  local builds against `localhost:3000` to succeed at all.
+- Upstream's `CreateWorkspace` modal logs a pre-existing unmounted-setState
+  warning, unrelated to anything this branch touches.
+
+**Revisit when:** the stepper is tested with newcomers (D10's trigger), or
+when the classic layout has had no use for a milestone — then delete it.

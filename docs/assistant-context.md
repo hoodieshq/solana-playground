@@ -131,13 +131,20 @@ Done:
   OpenAI-compatible with ready-made OpenRouter and Gemini presets, are
   selectable. The Anthropic provider has not yet been exercised against a
   live key.
-- Two redesign iterations shipped: the Solana-brand theme (tokens sourced
-  from solana.com, `Solana V2` as the fork's default), then the
-  floating-panel layout (anatomy and navigation built on top of it).
-
-In progress: iteration 3, "Flow" — re-anatomizing the UI around the
-Write → Build → Deploy → Interact loop. Concept and plan are approved
-(`decisions.md` → D10); implementation has not started.
+- Three redesign iterations shipped: the Solana-brand theme (tokens sourced
+  from solana.com, `Solana V2` as the fork's default), the floating-panel
+  layout (anatomy and navigation built on top of it), then **Flow** —
+  re-anatomizing the UI around the Write → Build → Deploy → Interact loop
+  (`decisions.md` → D10, D17). Flow is now the default layout: a header
+  stepper (Write → Build → Deploy → Interact, state derived from real
+  build/deploy events) plus a two-tab left panel (Projects | Files), a
+  permanent assistant column, and the terminal moved into a console drawer
+  (Cmd+J). A New Workspace gallery starts a project from 34 upstream
+  programs or 16 tutorials. A gear icon opens a settings overlay embedding
+  the existing settings registry. The previous floating-panel layout stays
+  reachable at `/?classic` as a fallback.
+- Deploy history is new: a client-side store in `localStorage`, keyed by
+  workspace, that records each real deploy as it happens.
 
 Ecosystem grounding shipped: skills the model loads on demand
 (`list_skills` / `load_skill` / `read_skill_reference`, working on every
@@ -160,6 +167,22 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Real:** the skills — fetched from the Foundation's own repository at
   `raw.githubusercontent.com`, not copies bundled and left to rot. Only the
   playground-environment skill is bundled, so something always loads offline.
+- **Real, with a gap:** deploy history. It is a genuine client-side store,
+  not seeded or scripted, and records every real deploy — but not the
+  transaction signature yet, because the deploy command it hooks into
+  returns no signature to record.
+- **Honest wording, not new work:** "Generate IDL" on the Build surface
+  reveals and downloads the IDL a successful build already produced; it
+  does not generate anything the build did not already output.
+- **Not view-only:** the New Workspace gallery's ecosystem program cards
+  import from GitHub through upstream's own mechanism (`PgGithub.import`)
+  into a normal, editable project -- they open as a normal project; those
+  targeting Anchor newer than the pinned 0.29 will not compile on this build
+  server.
+- **Not yet verified live:** a full deploy round-trip through Flow. Devnet
+  airdrops returned 429 (rate limited) during this pass, so the demo wallet
+  needs to be pre-funded ahead of a live run rather than airdropped on
+  demand.
 - **Real, Anthropic only:** the Solana Developer MCP tools, including
   `program_autofixer`. Anthropic opens the connection server-side; the browser
   never talks to the MCP server. Backends other than Anthropic have no
