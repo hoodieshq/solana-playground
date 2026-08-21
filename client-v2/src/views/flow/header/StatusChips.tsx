@@ -7,7 +7,7 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgConnection } from "../../../utils";
+import { PgCommand, PgConnection } from "../../../utils";
 
 interface StatusChipsProps {
   onOpenSettings: () => void;
@@ -31,13 +31,17 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
         <ClusterDot $down={isClusterDown === true} />
         {cluster ?? "unknown"}
       </Chip>
-      <Chip>
+      <WalletChip
+        type="button"
+        onClick={() => PgCommand.connect.execute()}
+        aria-label={wallet ? "Toggle wallet" : "Connect wallet"}
+      >
         {wallet
           ? `${shortenPk(wallet.publicKey.toBase58())} - ${
               typeof balance === "number" ? `${balance.toFixed(2)} SOL` : "..."
             }`
-          : "no wallet"}
-      </Chip>
+          : "Connect wallet"}
+      </WalletChip>
       <IconButton aria-label="Open settings" onClick={onOpenSettings}>
         <GearIcon />
       </IconButton>
@@ -80,6 +84,40 @@ const Chip = styled.span`
     font-size: ${theme.font.code.size.small};
     color: ${theme.colors.default.textSecondary};
     white-space: nowrap;
+  `}
+`;
+
+// A `<button>` with `Chip`'s look -- kept as its own styled component
+// (rather than `Chip` rendered with a polymorphic `as="button"`) so the
+// native button props (`type`, `onClick`) type-check without a fight.
+const WalletChip = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.code.size.small};
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 140ms ease, color 140ms ease;
+
+    &:hover {
+      background: ${theme.colors.default.bgSecondary};
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 
