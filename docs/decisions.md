@@ -660,8 +660,9 @@ client-side store in `localStorage` keyed by workspace.
 the change over three upstream files for no gain over a sibling layout.
 
 **Rejected — compiling ecosystem programs:** the crate whitelist and
-anchor-lang 0.29 make it impossible; they ship as view-only cards so the
-gallery is honest.
+anchor-lang 0.29 make it impossible; they open as normal, editable projects
+through the same `PgGithub.import` mechanism upstream already uses, and the
+gallery says so rather than claiming they will build.
 
 **Learned during the build:**
 
@@ -672,8 +673,10 @@ gallery is honest.
   rustc's `error(?:\[E\d+\])?:` header and both exclude the same
   `could not compile` / `aborting due to` summary lines through a `SUMMARY`
   regex, cross-referenced by comment between the two files, so the
-  stepper's "N errors" badge and the report's own diagnostic count can never
-  disagree.
+  stepper's "N errors" badge and the report's own diagnostic count share
+  one parsing convention; the surface falls back to the header count when
+  no diagnostic parses, so the two numbers never visibly disagree even on
+  output the regex can't split into diagnostics.
 - `Write` (which hosts upstream's `Primary`) stays mounted at all times in
   `StageRouter` and is only ever hidden with CSS, never unmounted on a stage
   switch — `Primary`'s content is handed to it once through a one-shot
