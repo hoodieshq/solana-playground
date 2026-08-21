@@ -38,7 +38,9 @@ const LeftPanel: FC<LeftPanelProps> = ({ onNewProject }) => {
         {tab === "projects" ? (
           <ProjectsTab onNew={onNewProject} />
         ) : (
-          <Explorer />
+          <ExplorerContainer>
+            <Explorer />
+          </ExplorerContainer>
         )}
       </Body>
     </Wrapper>
@@ -92,4 +94,22 @@ const Body = styled.div`
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+`;
+
+/**
+ * Hides the explorer's "Build" and "Deploy" section buttons: the Flow
+ * header's stepper now owns those actions. The upstream `SectionButton`s
+ * carry no stable `title`/`aria-label` for "Build"/"Deploy" (only their
+ * text differs, and their generated class names are not stable), so this
+ * targets the "Program" section's entire button row via `#root-dir`
+ * (`PgView.ids.ROOT_DIR`, a stable id upstream itself relies on) -- that
+ * row is always the first child of the root explorer element. This also
+ * hides the "+" add-program button in the rare case a project has no `src`
+ * folder yet; "Run" and "Test" live in a separate ("Client") section row
+ * and are unaffected.
+ */
+const ExplorerContainer = styled.div`
+  #root-dir > div:first-child button {
+    display: none;
+  }
 `;
