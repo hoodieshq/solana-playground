@@ -177,8 +177,9 @@ const Stage = styled.div`
 `;
 
 const Right = styled.aside<{ $open: boolean }>`
-  ${({ theme }) => css`
+  ${({ theme, $open }) => css`
     position: relative;
+    --flow-handle-inset: ${$open ? "1rem" : "0px"};
     width: 100%;
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${PANEL_RADIUS};
@@ -191,15 +192,14 @@ const Right = styled.aside<{ $open: boolean }>`
 
 const Collapse = styled.button`
   ${({ theme }) => css`
-    /* A slim handle on the panel's left edge. The assistant header starts
-       0.75rem in, so a 0.75rem-wide handle sits beside "ASSISTANT", never
-       on top of it. */
+    /* The handle owns the panel's left gutter; the assistant header reads
+       --flow-handle-inset (set on Right) and starts after it. */
     position: absolute;
     /* Centre on the assistant header row (its eyebrow and chips sit
        ~20px below the panel top): 4px offset + 32px tall = 20px centre. */
     top: 0.25rem;
     left: 0;
-    width: 0.75rem;
+    width: 1.5rem;
     height: 2rem;
     display: flex;
     align-items: center;
