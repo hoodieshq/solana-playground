@@ -191,10 +191,13 @@ const Right = styled.aside<{ $open: boolean }>`
 
 const Collapse = styled.button`
   ${({ theme }) => css`
+    /* A slim handle on the panel's left edge. The assistant header starts
+       0.75rem in, so a 0.75rem-wide handle sits beside "ASSISTANT", never
+       on top of it. */
     position: absolute;
-    top: 0.5rem;
+    top: 0.625rem;
     left: 0;
-    width: 2rem;
+    width: 0.75rem;
     height: 2rem;
     display: flex;
     align-items: center;
