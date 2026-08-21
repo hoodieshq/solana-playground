@@ -33,6 +33,47 @@ const Build = () => {
 
   const ms = msSuffix(flow.buildMs);
 
+  // `out` only fills in once a build reaches the compiler and returns; a
+  // build that fails before that (e.g. the build server is unreachable)
+  // still flips `flow.build` to "failed", but `out` stays `null` or, if a
+  // previous run left one behind, goes stale.
+  const outIsStale =
+    out !== null &&
+    flow.buildStartedAt !== null &&
+    out.at < flow.buildStartedAt;
+  if (flow.build === "failed" && (!out || outIsStale)) {
+    return (
+      <Surface>
+        <StatusRow>
+          <StatusGlyph viewBox="0 0 14 14" width="18" height="18" aria-hidden>
+            <circle cx="7" cy="7" r="6" className="fill" />
+            <path
+              d="M4.6 4.6l4.8 4.8M9.4 4.6l-4.8 4.8"
+              fill="none"
+              stroke="var(--on-fill)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </StatusGlyph>
+          <Headline $error>
+            Build failed
+            <Ms>{ms}</Ms>
+          </Headline>
+        </StatusRow>
+        <Muted>
+          Build failed before the compiler ran - see the console. This usually
+          means the build server could not be reached; check the build server
+          URL in settings.
+        </Muted>
+        <Actions>
+          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
+            Retry build
+          </Button>
+        </Actions>
+      </Surface>
+    );
+  }
+
   if (!out) {
     return (
       <Surface>
@@ -96,7 +137,13 @@ const Build = () => {
   }
 
   const report: BuildReport = parseBuildReport(out.stderr);
-  const n = report.diagnostics.length;
+  // `countErrors` (the header badge's own count) and `parseBuildReport`
+  // share one parsing convention, but rustc output that convention can't
+  // split into diagnostics still leaves the badge with a count and this
+  // surface with none -- fall back to the header's count rather than
+  // silently showing "0 errors" next to raw compiler output that says
+  // otherwise.
+  const n = report.diagnostics.length || flow.buildErrorCount;
   return (
     <Surface>
       <StatusRow>
@@ -120,6 +167,32 @@ const Build = () => {
       </StatusRow>
 
       <CardList>
+        {report.diagnostics.length === 0 && (
+          <Card>
+            <CardHead>
+              <Index aria-hidden>01</Index>
+              <CardHeadText>
+                <CardTitle>Unparsed compiler error</CardTitle>
+              </CardHeadText>
+            </CardHead>
+            <Muted>
+              The compiler reported an error without a parseable diagnostic; see
+              raw output.
+            </Muted>
+            <CardActions>
+              <GradientButton
+                onClick={() =>
+                  PgAssistant.requestPrompt(
+                    "Explain this build failure and propose a fix:\n" +
+                      out.stderr
+                  )
+                }
+              >
+                Fix with assistant
+              </GradientButton>
+            </CardActions>
+          </Card>
+        )}
         {report.diagnostics.map((d, i) => {
           const fix = () =>
             PgAssistant.requestPrompt(

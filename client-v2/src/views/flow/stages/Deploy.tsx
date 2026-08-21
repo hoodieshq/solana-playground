@@ -14,6 +14,7 @@ import {
   PgCommand,
   PgConnection,
   PgExplorer,
+  PgGlobal,
   PgProgramInfo,
 } from "../../../utils";
 import { PgDeployHistory } from "../state/deploy-history";
@@ -26,6 +27,7 @@ const Deploy = () => {
   const [history, setHistory] = useState<DeployRecord[]>([]);
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
+  const deployState = useRenderOnChange(PgGlobal.onDidChangeDeployState);
   useRenderOnChange(PgConnection.onDidChangeCluster);
 
   useEffect(() => {
@@ -42,6 +44,13 @@ const Deploy = () => {
   }, []);
 
   const built = flow.build === "done";
+  // A second click on Deploy while one is already running pauses it
+  // (`deployState` becomes "paused") rather than starting a new one, which
+  // upstream's sidebar exposes as an explicit "Continue"/pause toggle. Flow
+  // does not offer that control, so a click here would either be a no-op
+  // that returns without deploying or an unintended pause -- disable the
+  // button instead of risking either.
+  const deploying = deployState === "loading";
   const latest = history[0] ?? null;
   const onChain = programInfo.onChain;
   const cluster = PgConnection.cluster;
@@ -73,11 +82,20 @@ const Deploy = () => {
         </Headline>
       </StatusRow>
       <Muted>{description}</Muted>
+      {flow.deploy === "failed" && (
+        <ErrorNotice role="alert">Deploy failed - see the console.</ErrorNotice>
+      )}
 
       <Actions>
         <GradientButton
-          disabled={!built}
-          title={built ? undefined : "Build successfully first"}
+          disabled={!built || deploying}
+          title={
+            !built
+              ? "Build successfully first"
+              : deploying
+              ? "A deploy is already running"
+              : undefined
+          }
           onClick={() => {
             // Interact's deployment switcher may have pointed the project
             // at an imported id; redeploying always targets the project's
@@ -86,7 +104,13 @@ const Deploy = () => {
             PgCommand.deploy.execute();
           }}
         >
-          {latest ? "Redeploy to devnet" : "Deploy to devnet"}
+          {deploying
+            ? latest
+              ? "Upgrading..."
+              : "Deploying..."
+            : latest
+            ? "Redeploy to devnet"
+            : "Deploy to devnet"}
         </GradientButton>
         <IdlActions showUpload />
       </Actions>
@@ -103,7 +127,9 @@ const Deploy = () => {
             <Button.Copy copyText={latest.programId} />
             <Link
               href={explorer.getAddressUrl(latest.programId)}
-              aria-label={`View latest deployment (${latest.programId}) on Explorer`}
+              aria-label={
+                `View latest deployment (${latest.programId}) ` + "on Explorer"
+              }
             >
               Explorer
             </Link>
@@ -118,7 +144,10 @@ const Deploy = () => {
               <Mono>{latest.signature.slice(0, 20)}&hellip;</Mono>
               <Link
                 href={explorer.getTxUrl(latest.signature)}
-                aria-label={`View latest deployment transaction (${latest.signature}) on Explorer`}
+                aria-label={
+                  `View latest deployment transaction ` +
+                  `(${latest.signature}) on Explorer`
+                }
               >
                 Explorer
               </Link>
@@ -207,6 +236,19 @@ const StatusRow = styled.div`
   display: flex;
   align-items: center;
   gap: 0.625rem;
+`;
+
+const ErrorNotice = styled.p`
+  ${({ theme }) => css`
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid ${theme.colors.state.error.color};
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.state.error.color +
+    theme.default.transparency.high};
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.other.size.small};
+  `}
 `;
 
 const ReadyGlyph = styled.svg<{ $ready: boolean }>`
