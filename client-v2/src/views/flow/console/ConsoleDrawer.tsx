@@ -1,11 +1,12 @@
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Terminal from "../../main/secondary/terminal/Component/Terminal";
 import { useKeybind } from "../../../hooks";
 import { PgCommand } from "../../../utils";
 import { PgFlow } from "../state/stage";
+import type { StageStatus } from "../state/stage";
 
 /**
  * The console lives at the bottom of the center column and collapses by
@@ -14,15 +15,17 @@ import { PgFlow } from "../state/stage";
  */
 const ConsoleDrawer: FC = () => {
   const [open, setOpen] = useState(false);
+  const prevDeploy = useRef<StageStatus | null>(null);
   useKeybind("Ctrl+J", () => setOpen((o) => !o));
 
-  // Deploy is the only stage that still leans on `waitForInput` prompts and
-  // plain terminal errors instead of a surface notice, so it is the one
-  // that needs the console open to be seen at all.
+  // Opens on deploy start and on the transition into failure; never
+  // re-opens on unrelated state changes.
   useEffect(() => {
     const a = PgCommand.deploy.onDidStart(() => setOpen(true));
     const b = PgFlow.onDidChange((flow) => {
-      if (flow.deploy === "failed") setOpen(true);
+      const prev = prevDeploy.current;
+      prevDeploy.current = flow.deploy;
+      if (flow.deploy === "failed" && prev !== "failed") setOpen(true);
     });
     return () => {
       a.dispose();
