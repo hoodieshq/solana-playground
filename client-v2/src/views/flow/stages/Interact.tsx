@@ -12,7 +12,7 @@ import type { DeployRecord } from "../state/deploy-history";
  * project's own key stays in charge; any other record wins by import.
  *
  * Deploy history is user-editable `localStorage`, so `programId` isn't
- * guaranteed to be a valid base58 public key — skip silently (and leave
+ * guaranteed to be a valid base58 public key -- skip silently (and leave
  * `customPk` untouched) rather than throwing out of a `useEffect`. */
 const target = (record: DeployRecord) => {
   const ownPk = PgProgramInfo.kp?.publicKey.toBase58();
@@ -74,9 +74,9 @@ const Interact = () => {
             {history.length === 0 && <option value="">none yet</option>}
             {history.map((r, i) => (
               <option key={r.id} value={r.id}>
-                {i === 0 ? "latest · " : ""}
-                {r.cluster} · {r.programId.slice(0, 6)}&hellip; ·{" "}
-                {new Date(r.at).toLocaleTimeString()}
+                {i === 0 ? "latest \u00b7 " : ""}
+                {r.cluster} {"\u00b7"} {r.programId.slice(0, 6)}&hellip;{" "}
+                {"\u00b7"} {new Date(r.at).toLocaleTimeString()}
               </option>
             ))}
           </Select>
@@ -135,6 +135,10 @@ const Select = styled.select`
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
     }
   `}
 `;

@@ -89,7 +89,22 @@ const Flow = () => {
             }
             onClick={() => setAssistantOpen((o) => !o)}
           >
-            {assistantOpen ? "›" : "‹"}
+            <ChevronGlyph
+              viewBox="0 0 8 10"
+              width="6"
+              height="8"
+              $open={assistantOpen}
+              aria-hidden
+            >
+              <path
+                d="M2 1L6 5L2 9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </ChevronGlyph>
           </Collapse>
           {assistantOpen && <Assistant />}
         </Right>
@@ -164,14 +179,27 @@ const Collapse = styled.button`
     position: absolute;
     top: 0.5rem;
     left: 0;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     cursor: pointer;
     z-index: 1;
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
+`;
+
+const ChevronGlyph = styled.svg<{ $open: boolean }>`
+  flex-shrink: 0;
+  transform: rotate(${({ $open }) => ($open ? "0deg" : "180deg")});
 `;
 
 const PortalAbove = styled.div`
