@@ -73,7 +73,12 @@ at runtime before it can be switched on.
 
 ## How it works, technically
 
-The assistant runs **entirely in the browser**. No backend of ours.
+The assistant runs **in the browser**, with one exception: a small MCP gateway
+we deploy alongside the client (`client-v2/api/mcp.mjs`). It forwards MCP
+JSON-RPC to a fixed list of documentation servers and nothing else — no model
+calls, no key, no quota, no state. Everything else, including every model call
+and every tool that touches your project, stays in the browser. See
+`decisions.md` → D19.
 
 - Four providers share one vendor-neutral tool set (`createTools()`): the
   Demo backend (a scripted walkthrough, no key, no network), Anthropic
@@ -147,10 +152,13 @@ Done:
   workspace, that records each real deploy as it happens.
 
 Ecosystem grounding shipped: skills the model loads on demand
-(`list_skills` / `load_skill` / `read_skill_reference`, working on every
-backend), and remote MCP servers through the Anthropic connector, configured
-in the panel's Sources tab. Both are wired but, like the Anthropic provider
-itself, have not been exercised against a live key.
+(`list_skills` / `load_skill` / `read_skill_reference`), and MCP tools — both
+working on every backend, configured in the panel's Sources tab. MCP no longer
+needs an Anthropic key: the Solana Developer MCP is reached through a gateway
+we deploy with the client, and its tools can be called from a console with no
+model connected at all. The `tools/list` and `tools/call` round trips are
+verified against the live server; what has not been exercised is a full turn
+where a *model* chooses to call one, since that needs a key.
 
 Not started: real wallet adapters; responsive/tablet layout.
 
@@ -183,11 +191,13 @@ Honesty rule for the demo — never present a mocked step as working.
   airdrops returned 429 (rate limited) during this pass, so the demo wallet
   needs to be pre-funded ahead of a live run rather than airdropped on
   demand.
-- **Real, Anthropic only:** the Solana Developer MCP tools, including
-  `program_autofixer`. Anthropic opens the connection server-side; the browser
-  never talks to the MCP server. Backends other than Anthropic have no
-  server-side connector, so they get skills but no MCP, and the Sources tab
-  says so rather than offering a dead toggle.
+- **Real, on every backend:** the Solana Developer MCP tools, including
+  `program_autofixer`. That server sends no CORS headers, so a page cannot call
+  it; our gateway does, which means the tools work with no Anthropic key at all
+  — including in a console with no model connected. The Explorer MCP is
+  browser-direct and stays off until you supply its bypass secret. Which
+  applies is a property of each server, shown in the Sources tab, not of the
+  backend you picked.
 - **Scripted:** the Demo backend's reasoning — it walks a fixed script rather
   than calling a model, so it works with no key and no network.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,

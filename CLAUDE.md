@@ -69,6 +69,23 @@ whole UI, editor, terminal, Playnet and wallet work. What you lose: Rust
 intellisense and the `solana` / `anchor` / `spl-token` / `sugar` commands, plus
 Seahorse builds. Each throws a clear message pointing at `wasm/build.sh`.
 
+**`yarn dev` when you need the API endpoint.** It runs the cheap generate
+subset (`yarn generate-fast`) and then `npx vercel dev`, which starts the CRA
+dev server *and* serves `client-v2/api/*` functions locally — the assistant's
+MCP gateway needs that, and plain `craco start` serves no `/api` path (the SPA
+rewrite would hand back `index.html`, so you get `Unexpected token '<'` rather
+than a 404). Listens on 3000; override with `VERCEL_DEV_PORT`.
+
+Two things it needs that `craco start` does not: `vercel login` **and** access
+to this Vercel team — `vercel dev` calls the API to retrieve the project before
+it serves anything, so it is neither offline nor available to a contributor
+without team access. It also has to run from the repo root (`--cwd ..`, already
+in the script): the only `.vercel/project.json` is there, it sets
+`rootDirectory: client-v2`, and running the CLI from `client-v2` makes it
+resolve that path twice, miss `vercel.json`, fall back to the `dev` script and
+abort on recursive invocation. Anything that does not touch `/api` should use
+`npx craco start` instead.
+
 **Use `npx craco start`, not `yarn start`.** `yarn start` runs `yarn generate`,
 which includes `generate-crates.mjs`; that script skips itself only when rustc is
 *absent*, so with Rust installed it will `cargo install syn-file-expand-cli` and

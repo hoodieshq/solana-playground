@@ -781,3 +781,102 @@ who greps for one and finds the other.
 the `#root-dir` selectors above (watch `views/sidebar/explorer/**` diffs),
 or when the concept boards themselves change and Flow's chrome needs a
 second pass to follow.
+
+---
+
+## D19 — Corrects D12: MCP is per-server, not per-provider, and we run the gateway
+
+**Date:** 2026-08-21 · **Status:** chosen · **Corrects:** D12
+
+D12 recorded that MCP is Anthropic-only and that custom headers cannot be
+delivered. **Both are wrong**, and the framing was the real error: it described
+a symptom as a rule.
+
+MCP tools are ordinary tools. Any backend that calls tools can use them — our
+`ToolDefinition` layer is already vendor-neutral, which is why skills work
+everywhere. The only thing that varies is **who executes the call**, and that
+is a property of the server, not of the connected agent:
+
+| Server | CORS | Executor | Reachable from |
+| --- | --- | --- | --- |
+| `explorer.solana.com/mcp` | `*`, session id exposed | `browser` | every backend, and the keyless console |
+| `mcp.solana.com/mcp` | none (preflight 405) | our gateway | every backend |
+
+Explorer's headers are read from `solana-explorer/app/mcp/route.ts`;
+`mcp.solana.com`'s absence of them was measured twice, by curl and from a real
+browser. So `McpServerEntry` carries `executor: "browser" | "server"`, the
+Anthropic connector declares only `server` entries, and the browser client
+handles the rest. Nothing is declared twice, so the model never sees one tool
+from two sources.
+
+**The gateway.** `client-v2/api/mcp.mjs` speaks MCP in and MCP out — the
+JSON-RPC envelope is forwarded verbatim — so the browser client needs a
+different URL and no second code path. `?server[]=solana&server[]=explorer`
+selects upstreams and omitting it selects all; with several, `tools/list` is
+merged with `<id>__` prefixes and `tools/call` routes on that prefix. Being
+transparent rather than a bespoke JSON API is what lets the same client, and
+the same local dev story, serve both paths.
+
+**Upstreams are configured in the function and never taken from the request.**
+A gateway that dials a caller-supplied host is an SSRF and an open relay;
+defending it properly needs DNS-resolution checks, private-range blocks,
+per-caller keys and rate limits, plus an encrypted blob to carry credentials
+past Anthropic's connector, which can only pass a URL and a bearer token.
+Refusing the input removes the class. Adding an upstream is a deploy.
+
+**Explorer stays off the gateway on purpose.** Fronting it with a bypass secret
+of ours would hand anyone who finds our endpoint a way around bot protection
+the Foundation deliberately switched on. It is an upstream only if
+`MCP_EXPLORER_BYPASS` is set; unset, it stays browser-direct on the user's own
+bypass. If that ever changes, per-caller access keys stop being optional.
+
+**Consequence for D1 and the product claim.** "The assistant runs entirely in
+the browser. No backend of ours" is no longer true. This is a narrow, scoped
+version of D1-B: MCP transport only, no model calls, no quota, no key. D1-B
+itself stays parked.
+
+**Revisit when** a credential genuinely cannot ride in a query string or a
+bearer token, or when putting a secret in a URL stops being acceptable — both
+point at the same place, per-caller keys on the gateway.
+
+---
+
+## D20 — Local API routes are served by the dev server, not by `vercel dev`
+
+**Date:** 2026-08-21 · **Status:** chosen, explicitly a stopgap
+
+`api/*.mjs` is served in development by a middleware in `craco.config.js`.
+`yarn dev` is craco and nothing else; `yarn dev-vercel` remains for exercising
+the real runtime before a deploy.
+
+**Why not `vercel dev`, which was the first attempt.** It calls the Vercel API
+to retrieve the project before serving anything, so it needs `vercel login`
+*and* membership of this team. For a project whose principle is "everything
+stays open source", that would make the API-serving dev command unavailable to
+any outside contributor — they would be stuck on `craco start`, which serves no
+`/api` path, and so could not develop the gateway at all. Next.js would have
+given us a local route runner for free; CRA has none, so we supply the missing
+piece ourselves.
+
+**Shape.** Handlers are plain ESM on raw Node `req`/`res`: `api/` sits outside
+the TypeScript build (`tsconfig.json` includes `src` only, so TS there would be
+unchecked anyway), and `VercelResponse` extends Node's `ServerResponse`, so one
+file runs unchanged under the dev server, `vercel dev`, and a deployment. The
+middleware wraps CRA's `onBeforeSetupMiddleware` rather than using
+`setupMiddlewares`, because webpack-dev-server 4 throws if both are set and CRA
+sets the deprecated one.
+
+**An unknown `/api` route 404s** instead of falling through. Falling through
+hands it to the history fallback, which answers `200 text/html` with
+`index.html` and surfaces in a client as `Unexpected token '<'`. The same trap
+already bites elsewhere: `/crates/*.toml` is missing unless `generate-crates`
+has run, so rust-analyzer parses `index.html` as TOML and panics — visible in
+the console on every dev boot.
+
+**Route names are constrained to `^[a-z0-9-]+$`** rather than sanitised, since
+the path selects which module is imported. Encoded traversal, suffixed
+traversal, nesting and casing were all checked.
+
+**Revisit when** this app moves to a framework that owns its own API routes.
+These handlers belong there, and this adapter should be deleted rather than
+maintained.

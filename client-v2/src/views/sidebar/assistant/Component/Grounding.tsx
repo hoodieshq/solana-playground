@@ -2,6 +2,7 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import Checkbox from "../../../../components/Checkbox";
+import ServerConsole from "./ServerConsole";
 import { useRenderOnChange } from "../../../../hooks";
 import { PgAssistant } from "../store";
 import {
@@ -12,8 +13,14 @@ import {
 } from "../grounding";
 import { PROVIDERS } from "../model/types";
 
-/** The only backend with a server-side MCP connector */
-const MCP_PROVIDER = "anthropic";
+/**
+ * Backends that can execute a `server`-executor MCP server on our behalf.
+ *
+ * Not a statement about which backends can use MCP — every backend can use
+ * `browser` servers. This is only about who performs the call for the ones a
+ * page cannot reach.
+ */
+const SERVER_EXECUTORS: readonly string[] = ["anthropic"];
 
 const Grounding = () => {
   useRenderOnChange(PgAssistant.onDidChange);
@@ -22,7 +29,8 @@ const Grounding = () => {
   const servers = PgAssistant.mcpServers;
   const providerId = PgAssistant.connection?.id;
   const providerName = PROVIDERS.find((p) => p.id === providerId)?.name;
-  const mcpUsable = providerId === MCP_PROVIDER;
+  const hasServerExecutor =
+    !!providerId && SERVER_EXECUTORS.includes(providerId);
 
   const [draft, setDraft] = useState(() => serializeServers(servers));
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +45,8 @@ const Grounding = () => {
       // Show the normalised result, so defaults the parser filled in are visible
       setDraft(serializeServers(parsed));
       setError(null);
+      // So the model gets the tools without anyone opening a console first
+      PgAssistant.discoverMcpTools();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -77,26 +87,27 @@ const Grounding = () => {
       <Section>
         <Heading>MCP SERVERS</Heading>
         <Lead>
-          Tools the model calls on a remote server. Anthropic opens the
-          connection on its side, which is why servers that send no CORS headers
-          still work.
+          Tools from remote servers, available to whichever backend is
+          connected. What differs per server is who makes the call:{" "}
+          <code>browser</code> means we call it here, which works everywhere and
+          needs no key; <code>server</code> means a page cannot reach it, so
+          something server-side has to.
         </Lead>
 
-        {providerId && !mcpUsable && (
-          <Warning>
-            {providerName} cannot use MCP — it has no server-side connector.
-            Skills still work on every backend. Switch to Anthropic for MCP.
-          </Warning>
-        )}
+        {servers
+          .filter((server) => server.enabled)
+          .map((server) => (
+            <ServerConsole
+              key={server.id}
+              server={server}
+              providerName={providerName}
+              hasServerExecutor={hasServerExecutor}
+            />
+          ))}
 
-        <Active>
-          {servers.filter((s) => s.enabled).length
-            ? `In effect: ${servers
-                .filter((s) => s.enabled)
-                .map((s) => s.name || s.id)
-                .join(", ")}`
-            : "In effect: nothing — every server is disabled."}
-        </Active>
+        {!servers.some((server) => server.enabled) && (
+          <Active>Every server is disabled.</Active>
+        )}
 
         <Json
           value={draft}
@@ -116,13 +127,16 @@ const Grounding = () => {
         </Actions>
 
         <Note>
-          <code>authToken</code> is sent as a bearer token.{" "}
-          <code>queryParams</code> is folded into the URL — the only way to pass
-          a credential a server wants outside the Authorization header, such as
-          a bot-protection bypass. <code>headers</code> is accepted but{" "}
-          <strong>not sent</strong>: the connector&apos;s server definition has
-          no header map, so a server that truly needs a custom header is out of
-          reach until we run a proxy. See docs/decisions.md &rarr; D12.
+          <code>executor</code> is <code>browser</code> or <code>server</code>,
+          and defaults to <code>browser</code>. <code>authToken</code> is a
+          bearer token on either. <code>queryParams</code> rides in the URL —
+          the only way to pass a credential a server wants outside the
+          Authorization header, such as a bot-protection bypass, and the only
+          way past a CORS policy that does not allow that header name.{" "}
+          <code>headers</code> is sent on <code>browser</code> only; the
+          connector has no header map. A header the server&apos;s
+          Access-Control-Allow-Headers omits will fail the preflight rather than
+          be ignored.
         </Note>
       </Section>
     </Wrapper>
@@ -172,18 +186,6 @@ const RowNote = styled.div`
     padding-top: 0.1875rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
-  `}
-`;
-
-const Warning = styled.div`
-  ${({ theme }) => css`
-    margin-bottom: 0.875rem;
-    padding: 0.5rem 0.625rem;
-    border: 1px solid ${theme.colors.state.warning.color}55;
-    border-radius: ${theme.default.borderRadius};
-    color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
-    line-height: 1.55;
   `}
 `;
 

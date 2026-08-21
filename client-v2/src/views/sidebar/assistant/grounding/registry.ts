@@ -37,28 +37,35 @@ export const SKILLS: SkillEntry[] = [
 ];
 
 /**
- * MCP servers the connector can reach.
+ * MCP servers, each with the executor its own reachability forces.
  *
- * `mcp.solana.com` is public and needs no token. It sends no CORS headers, so
- * it is only reachable because Anthropic opens the connection server-side —
- * see `docs/decisions.md`.
+ * The executor is measured, not chosen: `mcp.solana.com` answers a CORS
+ * preflight with 405 and no `access-control-allow-origin` (2026-08-20), so no
+ * page can call it. Explorer sets `access-control-allow-origin: *` and exposes
+ * `mcp-session-id` (read from `solana-explorer/app/mcp/route.ts`, 2026-08-21),
+ * so it is callable from anywhere.
  */
 export const MCP_SERVERS: McpServerEntry[] = [
   {
     id: "solana",
     name: "Solana Developer MCP",
-    url: "https://mcp.solana.com/mcp",
+    // Through our own gateway (`api/mcp.mjs`): the upstream sends no CORS
+    // headers, so a page cannot call it, but our origin can. Point this at
+    // `https://mcp.solana.com/mcp` with `executor: "server"` instead to go
+    // back through Anthropic's connector.
+    url: "/api/mcp?server[]=solana",
     enabled: true,
+    executor: "browser",
   },
   {
     // Off by default: the endpoint answers every request with a Vercel bot
     // challenge until a bypass secret is supplied. The key is spelled out so
-    // only the value has to be filled in — whether the query-param form of the
-    // bypass satisfies challenge mode is unverified, see `docs/decisions.md`.
+    // only the value has to be filled in.
     id: "explorer",
     name: "Solana Explorer MCP",
     url: "https://explorer.solana.com/mcp",
     enabled: false,
+    executor: "browser",
     queryParams: { "x-vercel-protection-bypass": "" },
   },
 ];
