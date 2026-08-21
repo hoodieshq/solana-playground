@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Chat from "./Chat";
 import Grounding from "./Grounding";
 import Plan from "./Plan";
+import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { PgConnection, PgExplorer } from "../../../../utils";
 
@@ -30,6 +31,14 @@ const Assistant = () => {
     !!PgBuildOutput.latest?.failed
   );
   const [cluster, setCluster] = useState(PgConnection.cluster);
+
+  // Ask the gateway what it serves and what those servers offer. Has to happen
+  // here rather than only in the Sources tab: `createTools` reads the result,
+  // so a model connected before this ran would be offered no MCP tool at all,
+  // with nothing on screen to say why.
+  useEffect(() => {
+    PgAssistant.initMcp();
+  }, []);
 
   useEffect(() => {
     const a = PgExplorer.onDidOpenFile(() =>

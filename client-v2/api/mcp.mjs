@@ -13,7 +13,8 @@
  *
  * Upstreams are configured here and never taken from the request. A gateway
  * that dials a caller-supplied host is an SSRF and an open relay; refusing the
- * input removes the whole class. Adding one is a deploy.
+ * input removes the whole class. Adding one is a deploy, and the only thing the
+ * environment may move is the URL of an upstream already named here.
  *
  * Plain ESM on raw Node request/response APIs — see `api/health.mjs` for why.
  */
@@ -23,27 +24,39 @@ const PROTOCOL_VERSION = "2025-06-18";
 /** Separates upstream id from tool name when several are selected */
 const SEPARATOR = "__";
 
+/** Explorer's production MCP endpoint, overridable to test a preview */
+const EXPLORER_URL = "https://explorer.solana.com/mcp";
+
 /**
  * Configured upstreams.
  *
  * Explorer is present only when a bypass is supplied through the environment.
- * It is deliberately not enabled by default: its endpoint sits behind bot
- * protection its owners chose to switch on, and fronting it with a secret of
- * ours would offer anyone who finds this endpoint a way around that. Left
- * unset, Explorer stays a browser-direct server using the user's own bypass.
+ * It is deliberately absent by default: its endpoint sits behind bot protection
+ * its owners chose to switch on, and fronting it with a secret of ours would
+ * offer anyone who finds this endpoint a way around that. Left unset, the
+ * panel's Explorer entry simply has nothing to talk to — which is why it also
+ * ships disabled. Previews only; production needs per-caller keys first.
  */
 const upstreams = () => {
   const configured = {
-    solana: { url: "https://mcp.solana.com/mcp" },
+    solana: {
+      name: "Solana Developer MCP",
+      url: "https://mcp.solana.com/mcp",
+    },
   };
 
   const bypass = process.env.MCP_EXPLORER_BYPASS;
   if (bypass) {
     configured.explorer = {
-      url: "https://explorer.solana.com/mcp",
-      queryParams: { "x-vercel-protection-bypass": bypass },
-      // Explorer gates on MCP_ACCESS_KEYS when its deployment sets them
-      authToken: process.env.MCP_EXPLORER_TOKEN,
+      name: "Solana Explorer MCP",
+      url: process.env.MCP_EXPLORER_URL || EXPLORER_URL,
+      headers: {
+        "x-vercel-protection-bypass": bypass,
+        // Explorer gates on MCP_ACCESS_KEYS when its deployment sets them
+        ...(process.env.MCP_EXPLORER_TOKEN
+          ? { authorization: `Bearer ${process.env.MCP_EXPLORER_TOKEN}` }
+          : {}),
+      },
     };
   }
 
@@ -85,10 +98,14 @@ const selected = (url, configured) => {
 
   const unknown = asked.filter((id) => !configured[id]);
   if (unknown.length) {
+    // Explorer's absence is a missing env var rather than a typo
+    const hint = unknown.includes("explorer")
+      ? " Set MCP_EXPLORER_BYPASS on the server to enable explorer."
+      : "";
     throw new Error(
       `Unknown server: ${unknown.join(", ")}. Configured: ${
         Object.keys(configured).join(", ") || "none"
-      }`
+      }.${hint}`
     );
   }
   return asked;
@@ -101,20 +118,13 @@ const selected = (url, configured) => {
  * unwrapped here and the caller only ever sees JSON.
  */
 const call = async (upstream, payload) => {
-  const url = new URL(upstream.url);
-  for (const [key, value] of Object.entries(upstream.queryParams ?? {})) {
-    url.searchParams.set(key, value);
-  }
-
-  const response = await fetch(url.href, {
+  const response = await fetch(upstream.url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       "mcp-protocol-version": PROTOCOL_VERSION,
-      ...(upstream.authToken
-        ? { authorization: `Bearer ${upstream.authToken}` }
-        : {}),
+      ...upstream.headers,
     },
     body: JSON.stringify(payload),
   });
@@ -204,12 +214,27 @@ const callTool = async (id, ids, configured, params) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("allow", "POST");
-    return sendJson(res, 405, { error: "Use POST with a JSON-RPC body." });
+  const configured = upstreams();
+
+  // Discovery. The server decides which upstreams exist — the client asks
+  // rather than carrying its own list, so adding one is a deploy and an
+  // operator can enable Explorer by setting its bypass with no client change.
+  // Ids and names only; nothing here reveals a credential.
+  if (req.method === "GET") {
+    return sendJson(res, 200, {
+      servers: Object.entries(configured).map(([id, upstream]) => ({
+        id,
+        name: upstream.name ?? id,
+      })),
+    });
   }
 
-  const configured = upstreams();
+  if (req.method !== "POST") {
+    res.setHeader("allow", "GET, POST");
+    return sendJson(res, 405, {
+      error: "Use GET to list servers, POST for JSON-RPC.",
+    });
+  }
   const url = new URL(req.url ?? "/", "http://localhost");
 
   let body;

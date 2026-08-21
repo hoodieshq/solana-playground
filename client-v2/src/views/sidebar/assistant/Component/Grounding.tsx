@@ -6,7 +6,7 @@ import ServerConsole from "./ServerConsole";
 import { useRenderOnChange } from "../../../../hooks";
 import { PgAssistant } from "../store";
 import {
-  MCP_SERVERS,
+  LOCAL_MCP_SERVERS,
   parseServers,
   serializeServers,
   SKILLS,
@@ -32,10 +32,12 @@ const Grounding = () => {
   const hasServerExecutor =
     !!providerId && SERVER_EXECUTORS.includes(providerId);
 
-  const [draft, setDraft] = useState(() => serializeServers(servers));
+  // The editor edits local additions only; the gateway owns the rest
+  const local = PgAssistant.localMcpServers;
+  const [draft, setDraft] = useState(() => serializeServers(local));
   const [error, setError] = useState<string | null>(null);
 
-  const applied = serializeServers(servers);
+  const applied = serializeServers(local);
   const dirty = draft !== applied;
 
   const apply = () => {
@@ -45,15 +47,15 @@ const Grounding = () => {
       // Show the normalised result, so defaults the parser filled in are visible
       setDraft(serializeServers(parsed));
       setError(null);
-      // So the model gets the tools without anyone opening a console first
-      PgAssistant.discoverMcpTools();
+      // The config changed, so re-read even servers already cached
+      PgAssistant.discoverMcpTools(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
 
   const reset = () => {
-    setDraft(serializeServers(MCP_SERVERS));
+    setDraft(serializeServers(LOCAL_MCP_SERVERS));
     setError(null);
   };
 
@@ -106,8 +108,18 @@ const Grounding = () => {
           ))}
 
         {!servers.some((server) => server.enabled) && (
-          <Active>Every server is disabled.</Active>
+          <Active>
+            No servers. The gateway reports which ones it serves, so an empty
+            list means it is not running (use <code>yarn dev</code>) or has none
+            configured.
+          </Active>
         )}
+
+        <Heading>ADDITIONAL SERVERS</Heading>
+        <Active>
+          The gateway above owns its own list — these are extra entries, and
+          they are the only ones this editor changes.
+        </Active>
 
         <Json
           value={draft}

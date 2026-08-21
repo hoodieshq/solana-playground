@@ -57,8 +57,8 @@ The assistant is grounded in the ecosystem's own sources — the Solana Develope
 MCP for documentation, the official Solana skill — with a channel for plugging
 in new MCP servers and skills, so the environment inherits ecosystem knowledge
 without waiting for a release. The Explorer MCP for on-chain lookups sits
-behind bot protection, so it ships disabled and needs a bypass secret supplied
-at runtime before it can be switched on.
+behind bot protection, so it ships disabled and stays that way until whoever
+runs the deployment configures its bypass secret on the server.
 
 ## Principles we hold ourselves to
 
@@ -194,10 +194,11 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Real, on every backend:** the Solana Developer MCP tools, including
   `program_autofixer`. That server sends no CORS headers, so a page cannot call
   it; our gateway does, which means the tools work with no Anthropic key at all
-  — including in a console with no model connected. The Explorer MCP is
-  browser-direct and stays off until you supply its bypass secret. Which
-  applies is a property of each server, shown in the Sources tab, not of the
-  backend you picked.
+  — including in a console with no model connected. The Explorer MCP goes
+  through the same gateway and stays off unless the deployment configures its
+  bypass secret; you cannot switch it on from the panel alone. Which applies is
+  a property of each server, shown in the Sources tab, not of the backend you
+  picked.
 - **Scripted:** the Demo backend's reasoning — it walks a fixed script rather
   than calling a model, so it works with no key and no network.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,
