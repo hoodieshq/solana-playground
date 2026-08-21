@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
+import Eyebrow from "./Eyebrow";
 import { useRenderOnChange } from "../../../hooks";
 import { PgExplorer } from "../../../utils";
 
@@ -15,6 +16,7 @@ const ProjectsTab: FC<ProjectsTabProps> = ({ onNew }) => {
 
   return (
     <Wrapper>
+      <Eyebrow>Projects</Eyebrow>
       <List>
         {names.map((name) => (
           <Row
