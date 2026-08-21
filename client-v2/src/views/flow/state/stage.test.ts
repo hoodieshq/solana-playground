@@ -19,7 +19,7 @@ jest.mock("../../../utils", () => ({
   },
 }));
 
-import { INITIAL_FLOW_STATE, PgFlow } from "./stage";
+import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
 
 describe("PgFlow.reduce", () => {
   it("starts on write with everything upcoming", () => {
@@ -90,6 +90,28 @@ describe("PgFlow.reduce", () => {
     expect(PgFlow.reduce(built, { type: "workspace-change" })).toEqual(
       INITIAL_FLOW_STATE
     );
+  });
+});
+
+describe("countErrors", () => {
+  it("counts real diagnostics, not the summary lines", () => {
+    // `resetMocks` (CRA's Jest default) clears the factory's identity
+    // implementation before every test, so it has to be restored here.
+    const {
+      stripKnownNoise,
+    } = require("../../sidebar/assistant/bridge/build-output");
+    (stripKnownNoise as jest.Mock).mockImplementation((s: string) => s);
+
+    const stderr = `error[E0308]: mismatched types
+  --> src/lib.rs:12:18
+   |
+12 |         let x: u64 = "1";
+   |                ---   ^^^ expected \`u64\`, found \`&str\`
+
+error: aborting due to previous error
+
+error: could not compile \`hello\` due to previous error`;
+    expect(countErrors(stderr)).toBe(1);
   });
 });
 
