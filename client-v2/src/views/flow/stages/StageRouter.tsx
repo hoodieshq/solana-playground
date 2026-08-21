@@ -28,9 +28,21 @@ const StageRouter: FC<StageRouterProps> = ({ stage }) => (
       <Write />
     </WriteSlot>
     <Suspense fallback={<SpinnerWithBg loading size="2rem" />}>
-      {stage === "build" && <Build />}
-      {stage === "deploy" && <Deploy />}
-      {stage === "interact" && <Interact />}
+      {stage === "build" && (
+        <Fade key="build">
+          <Build />
+        </Fade>
+      )}
+      {stage === "deploy" && (
+        <Fade key="deploy">
+          <Deploy />
+        </Fade>
+      )}
+      {stage === "interact" && (
+        <Fade key="interact">
+          <Interact />
+        </Fade>
+      )}
     </Suspense>
   </>
 );
@@ -42,4 +54,32 @@ const WriteSlot = styled.div<{ $hidden: boolean }>`
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
+  transition: opacity 150ms ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+/**
+ * Plays a one-shot rise-and-fade when the surface it wraps mounts. Keyed by
+ * stage in `StageRouter` so switching between Build / Deploy / Interact
+ * remounts this wrapper and replays the animation. Never used around
+ * `Write` -- see the note above `WriteSlot`.
+ */
+const Fade = styled.div`
+  animation: rise 220ms cubic-bezier(0.2, 0, 0, 1);
+  height: 100%;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
