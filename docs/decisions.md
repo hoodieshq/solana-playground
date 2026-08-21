@@ -697,3 +697,87 @@ gallery says so rather than claiming they will build.
 
 **Revisit when:** the stepper is tested with newcomers (D10's trigger), or
 when the classic layout has had no use for a milestone — then delete it.
+
+## D18 — Flow visual parity — the concept boards are the source of truth for Flow chrome
+
+**Date:** 2026-08-21 · **Status:** implemented (prototype)
+
+D17 shipped Flow's anatomy (panels, stepper, stages) in the pre-existing
+component styling — upstream chip/card/button looks, not the language the
+concept boards (`docs/design/screenshots/concept/b-flow-*.png`) actually
+draw. This iteration re-skins the same anatomy against those boards, token
+by token, with no behavior change: `views/flow/**` and the assistant
+header only.
+
+**Matched** (see `docs/design/screenshots/flow-visual/README.md` for the
+side-by-side screenshots): the floating-panel language (gutters, 1px
+border, corner radius, raised background) across the left/center/right
+columns and the console drawer sitting inside the center panel; the header
+(gradient logomark, project switcher, centered pill stepper with
+shape-coded status, right-aligned cluster/wallet/gear chips); the bare
+`FILES` tree with a plain `+ New file` footer, workspace picker and
+per-section action buttons hidden; the console collapsed to a one-line
+status handle; the humanized Build card with a real-source excerpt around
+the failing line, not just rustc's own gutter snippet; the assistant
+header's eyebrow + live chips above the tab strip; and card language
+("Latest deployment" / "History", a header meta line) on Deploy and
+Interact.
+
+**Deliberately left:** the editor's own tab strip (upstream
+`EditorWithTabs` chrome, untouched); syntax highlighting inside the Build
+excerpt (plain monospace, not the editor's tokenizer); the assistant's
+internals below the header (chat bubbles, composer, backend picker —
+unchanged from the prior iteration); `Test.tsx`'s account/instruction
+cards on Interact, unverified against the board this pass because the
+session's wallet held 0 SOL and the devnet faucet returned 429 (D17
+already logged this same friction) — the header and toolbar match, the
+populated panel does not.
+
+**The CSS reaches into upstream DOM, on three call sites, each with a
+documented failure mode:**
+
+- `left/LeftPanel.tsx`'s `ExplorerContainer` hides Explorer's workspace
+  picker, icon toolbar and per-section Build/Deploy/Run/Test buttons via
+  structural (`nth-child`) selectors anchored on `#root-dir` and this
+  wrapper's own DOM position — none of the hidden elements carry a stable
+  `id`/`class`. Guarded with `:has(> button)` so a selector only ever
+  matches a section-header row, never a folder/file row. Failure mode: a
+  project with *no* workspaces renders Explorer's single-branch "create a
+  project" empty state instead of Workspaces + Folders — the same
+  first-two-children rule would hide that state's intro line and "Create a
+  new project" button too, but Flow only mounts once a project is open, so
+  this should not occur in practice. Fixed this iteration:
+  `024e836d` guards the Program-section rule so a project without `src`
+  (no Build/Deploy buttons rendered at all) does not have the guard
+  misfire.
+- `settings/GearSidebar.tsx`'s `SettingsFrame` strips upstream
+  `Settings`'s own popover chrome (background, border, shadow, sizing) by
+  overriding its single root `<div>` through a `> div` descendant
+  selector, so it reads as a continuation of the panel instead of a nested
+  card. Failure mode: if upstream `Settings` ever wraps its root in an
+  additional element, the selector stops matching and the popover chrome
+  reappears nested inside the panel — a visual regression, not a broken
+  one, and one `craco start` would show immediately.
+- `gallery/NewWorkspaceModal.tsx`'s `ModalWidthOverride` widens
+  `components/Modal`'s hardcoded `max-width` via a global `:has(> * > *
+  > [data-gallery-modal])` selector three direct-child hops above a
+  `data-gallery-modal` marker this component itself renders — chosen so no
+  other modal in the app can match the same shape. Failure mode: if
+  `components/Modal`'s own wrapper depth ever changes, the hop count goes
+  stale and either stops widening this modal or (if the count coincides)
+  widens the wrong one; the marker attribute makes the second case
+  vanishingly unlikely.
+
+**Two `PANEL_RADIUS` constants, to reconcile:** `views/flow/tokens.ts`
+defines its own `PANEL_RADIUS = "12px"` for the three floating panels,
+separate from the Solana V2 theme's `PANEL_RADIUS = "14px"`
+(`themes/solana-v2/theme.ts`, used by the editor/terminal/sidebar page
+chrome elsewhere). They were tuned independently against the boards and
+happen to read close enough not to clash, but two names for the same
+concept in one theme is an accident waiting to surprise the next person
+who greps for one and finds the other.
+
+**Revisit when:** upstream changes the Explorer DOM shape enough to break
+the `#root-dir` selectors above (watch `views/sidebar/explorer/**` diffs),
+or when the concept boards themselves change and Flow's chrome needs a
+second pass to follow.
