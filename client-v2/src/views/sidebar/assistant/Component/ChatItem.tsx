@@ -252,6 +252,18 @@ const Card = styled.div<{ $pending: boolean }>`
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
     overflow: hidden;
+    /*
+     * Messages (Chat.tsx) is a flex column that scrolls, and every other
+     * item in it leaves overflow visible, so its content height is also
+     * its flex-shrink floor. This card is the one item that sets its own
+     * overflow: hidden, which per the flexbox spec drops its automatic
+     * minimum size to 0 -- with a full conversation above it, flex-shrink
+     * then crushes just this card down to a sliver (title visible, diff
+     * and Apply/Reject clipped away) to keep Messages from overflowing.
+     * flex-shrink: 0 opts it back out, so it renders at content height and
+     * the list scrolls instead, same as every other item.
+     */
+    flex-shrink: 0;
   `}
 `;
 

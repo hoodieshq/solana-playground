@@ -28,6 +28,10 @@ const StageRouter: FC<StageRouterProps> = ({ stage }) => (
       <Write />
     </WriteSlot>
     <Suspense fallback={<SpinnerWithBg loading size="2rem" />}>
+      {/* Each branch's own `key` is redundant today -- only one of the
+          three ever renders -- but keeps the remount-per-stage behavior
+          intact if this ever collapses into a single ternary/lookup that
+          would otherwise reuse one `Fade` element across stage switches. */}
       {stage === "build" && (
         <Fade key="build">
           <Build />
