@@ -81,8 +81,14 @@ export interface ProviderInfo {
   /**
    * OpenAI-compatible endpoint settings, editable on the connect screen.
    * Present only on providers driven by the generic chat-completions loop.
+   * `models` offers known-good ids as one-click presets; the field stays free
+   * text, since any id the endpoint serves is valid.
    */
-  endpoint?: { baseUrl: string; model: string };
+  endpoint?: {
+    baseUrl: string;
+    model: string;
+    models?: readonly string[];
+  };
   /** Model and effort pickers, for backends without a base URL */
   modelSettings?: ModelSettings;
   /** Declared but not implemented yet — shown, but cannot be selected */
@@ -133,6 +139,9 @@ export const PROVIDERS: ProviderInfo[] = [
       baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
       // 2.5-flash is deprecated: 404s for new keys, migration target is 3.6
       model: "gemini-3.6-flash",
+      // Pro reasons harder about build errors but is the first to 503 on the
+      // free tier; a preview id, so expect it to be renamed
+      models: ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
     },
   },
   {
