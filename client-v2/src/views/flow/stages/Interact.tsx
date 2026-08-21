@@ -9,15 +9,24 @@ import type { DeployRecord } from "../state/deploy-history";
 
 /** Point `PgProgramInfo`'s target at the given deployment. Selecting the
  * record that matches the project's own keypair clears the override so the
- * project's own key stays in charge; any other record wins by import. */
+ * project's own key stays in charge; any other record wins by import.
+ *
+ * Deploy history is user-editable `localStorage`, so `programId` isn't
+ * guaranteed to be a valid base58 public key — skip silently (and leave
+ * `customPk` untouched) rather than throwing out of a `useEffect`. */
 const target = (record: DeployRecord) => {
   const ownPk = PgProgramInfo.kp?.publicKey.toBase58();
-  PgProgramInfo.update({
-    customPk:
-      record.programId === ownPk
-        ? null
-        : new PgWeb3.PublicKey(record.programId),
-  });
+  if (record.programId === ownPk) {
+    PgProgramInfo.update({ customPk: null });
+    return;
+  }
+
+  try {
+    const customPk = new PgWeb3.PublicKey(record.programId);
+    PgProgramInfo.update({ customPk });
+  } catch (e) {
+    console.error("Invalid deploy record program id", record.programId, e);
+  }
 };
 
 const Interact = () => {
