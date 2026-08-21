@@ -53,10 +53,13 @@ const ConsoleDrawer: FC = () => {
 
 export default ConsoleDrawer;
 
+// Transparent: this drawer lives inside \`Center\`'s single floating panel
+// (\`views/flow/Flow.tsx\`), which already supplies the panel background --
+// the top border is only the internal divider between stage and console.
 const Wrapper = styled.div`
   ${({ theme }) => css`
     border-top: 1px solid ${theme.colors.default.border};
-    background: ${theme.colors.default.bgPrimary};
+    background: transparent;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;

@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 
 import ProjectsTab from "./ProjectsTab";
 import Explorer from "../../sidebar/explorer/Component";
+import { PANEL_RADIUS } from "../tokens";
 
 type Tab = "projects" | "files";
 
@@ -49,13 +50,18 @@ const LeftPanel: FC<LeftPanelProps> = ({ onNewProject }) => {
 
 export default LeftPanel;
 
+// A floating panel like Center and Right (see \`views/flow/tokens.ts\`):
+// full 1px border, rounded corners, the raised surface background instead
+// of the black page ground.
 const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 14.5rem;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid ${theme.colors.default.border};
-    background: ${theme.colors.default.bgPrimary};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${PANEL_RADIUS};
+    background: ${theme.colors.default.bgSecondary};
+    overflow: hidden;
   `}
 `;
 

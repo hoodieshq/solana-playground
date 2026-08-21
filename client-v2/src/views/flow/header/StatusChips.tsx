@@ -36,11 +36,18 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
         onClick={() => PgCommand.connect.execute()}
         aria-label={wallet ? "Toggle wallet" : "Connect wallet"}
       >
-        {wallet
-          ? `${shortenPk(wallet.publicKey.toBase58())} - ${
-              typeof balance === "number" ? `${balance.toFixed(2)} SOL` : "..."
-            }`
-          : "Connect wallet"}
+        {wallet ? (
+          <>
+            <span>{shortenPk(wallet.publicKey.toBase58())}</span>
+            <Balance>
+              {typeof balance === "number"
+                ? `${balance.toFixed(2)} SOL`
+                : "..."}
+            </Balance>
+          </>
+        ) : (
+          "Connect wallet"
+        )}
       </WalletChip>
       <IconButton aria-label="Open settings" onClick={onOpenSettings}>
         <GearIcon />
@@ -79,7 +86,7 @@ const Chip = styled.span`
     gap: 0.375rem;
     padding: 0.25rem 0.625rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
+    border-radius: 999px;
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.code.size.small};
     color: ${theme.colors.default.textSecondary};
@@ -97,7 +104,7 @@ const WalletChip = styled.button`
     gap: 0.375rem;
     padding: 0.25rem 0.625rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
+    border-radius: 999px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     font-family: ${theme.font.code.family};
@@ -121,6 +128,10 @@ const WalletChip = styled.button`
   `}
 `;
 
+const Balance = styled.span`
+  color: ${({ theme }) => theme.colors.state.success.color};
+`;
+
 const ClusterDot = styled.span<{ $down: boolean }>`
   ${({ theme, $down }) => css`
     width: 0.4rem;
@@ -137,10 +148,10 @@ const IconButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 28px;
+    height: 28px;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
+    border-radius: 50%;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     cursor: pointer;
