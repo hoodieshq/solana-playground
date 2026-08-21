@@ -34,7 +34,12 @@ export const INITIAL_FLOW_STATE: FlowState = {
   buildMs: null,
 };
 
-export const STAGES: readonly Stage[] = ["write", "build", "deploy", "interact"];
+export const STAGES: readonly Stage[] = [
+  "write",
+  "build",
+  "deploy",
+  "interact",
+];
 
 /** Count `error[...]` and `error:` lines the way the terminal does */
 export const countErrors = (stderr: string) =>
@@ -109,14 +114,17 @@ export class PgFlow {
           type: "build-finish",
           failed: out.failed,
           errorCount: out.failed ? Math.max(1, countErrors(out.stderr)) : 0,
-          ms: startedAt ? out.at - startedAt : 0,
+          ms: startedAt === 0 ? 0 : out.at - startedAt,
         });
       }),
       PgCommand.deploy.onDidStart(() =>
         PgFlow._dispatch({ type: "deploy-start" })
       ),
       PgCommand.deploy.onDidFinish((result) =>
-        PgFlow._dispatch({ type: "deploy-finish", ok: result !== undefined })
+        PgFlow._dispatch({
+          type: "deploy-finish",
+          ok: !("err" in result),
+        })
       ),
       PgExplorer.onDidSwitchWorkspace(() =>
         PgFlow._dispatch({ type: "workspace-change" })
