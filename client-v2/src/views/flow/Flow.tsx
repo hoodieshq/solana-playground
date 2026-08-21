@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
+import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
 import LeftPanel from "./left/LeftPanel";
 import StageRouter from "./stages/StageRouter";
@@ -13,7 +14,7 @@ import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
-import { PgView } from "../../utils";
+import { PgExplorer, PgView } from "../../utils";
 
 /**
  * The Flow layout: header, left project/file tabs, the stage router in the
@@ -36,9 +37,22 @@ const Flow = () => {
     return () => subs.forEach((s) => s.dispose());
   }, []);
 
-  // Gallery and settings are wired in Tasks 7 and 8; until then they no-op.
-  const openGallery = () => PgView.setModal(null);
+  const openGallery = () => PgView.setModal(NewWorkspaceModal);
+
+  // Settings is wired in Task 8; until then it no-ops.
   const openSettings = () => undefined;
+
+  useEffect(() => {
+    // `PgExplorer` initializes asynchronously (`routes/common.tsx`), so
+    // `allWorkspaceNames` may still be `undefined` on the first render --
+    // only decide once it has actually settled, otherwise every cold start
+    // would flash the gallery before we know whether there are projects.
+    const openIfEmpty = () => {
+      if (PgExplorer.allWorkspaceNames?.length === 0) openGallery();
+    };
+    if (PgExplorer.allWorkspaceNames) openIfEmpty();
+    return PgExplorer.onDidInit(openIfEmpty).dispose;
+  }, []);
 
   return (
     <Wrapper>

@@ -568,3 +568,51 @@ tutorial step sets its own page anyway.
 
 **Revisit when** the panel stops being the fork's headline, or the rail grows
 enough that its order needs a rule rather than a judgement.
+
+---
+
+## D16 — Friction log: opening an unstarted tutorial from an active project
+can crash and bounce back to `/`
+
+**Date:** 2026-08-21 · **Status:** logged, not fixed (out of scope for the
+gallery)
+
+**What happens.** The New Workspace gallery's Tutorials tab calls
+`PgTutorial.open(name)` — the same call `TutorialCard.tsx` already makes. For
+a tutorial that has **not** been started yet, clicked while a real project
+(e.g. `flow-demo`) is the active workspace, the app briefly navigates to
+`/tutorials/<name>`, then either throws `Current tutorial has not been set`
+(shown by the generic `ErrorBoundary`) or silently lands back on `/` with no
+visible error. An **already-started** tutorial opens correctly from the same
+starting state — the failure is specific to the first-time transition.
+
+**Root cause.** `routes/tutorials/tutorials.tsx`'s `handleTutorial` calls
+`PgExplorer.init({ name: tutorial.name })` for an unstarted tutorial, which
+has no persisted workspace to switch to and falls back to keeping the
+previously-active one. That still fires `PgExplorer.onDidSwitchWorkspace`,
+and `handleTutorial`'s own listener for that event
+(`if (name !== tutorial.name) { ... else PgRouter.navigate(); }`) reads
+"switched to `flow-demo`, which isn't a tutorial" and navigates to `/`
+(`utils/router.ts`'s `PgRouter.init()` does the same on any thrown
+`route.handle()` rejection) — racing against `<Tutorial>`'s own render, which
+is why the symptom alternates between a clean bounce and a caught crash.
+
+**Why not fixed here.** `routes/tutorials/tutorials.tsx` is shared with the
+classic layout and not on the touch-list for this branch (`CLAUDE.md`'s merge
+safety table doesn't list it, and D15 explicitly treats it as untouched). The
+classic UI never hit this path because its only route to a tutorial goes
+through the Tutorials list page first, which has no active workspace to
+switch away from — the gallery is the first place in the app that lets you
+jump directly from a live project into an unstarted tutorial in one click.
+
+**Confirmed scope.** Reproduced with two different unstarted tutorials
+(`Hello Anchor`, `Hello Solana`) from an active `flow-demo` project, in the
+Flow layout. Opening an **already-started** tutorial — from the same active,
+unrelated project — works cleanly with no crash. A hard page load straight to
+`/tutorials/<name>` also works, since nothing is active to switch away from.
+
+**Revisit when** someone picks up the gallery's follow-ups: likely fix is
+either guarding `handleTutorial`'s `onDidSwitchWorkspace` listener against the
+"explorer fell back to the previous workspace" case, or having
+`PgExplorer.init` distinguish "switched" from "stayed put" so the listener
+doesn't fire on a no-op.
