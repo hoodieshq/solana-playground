@@ -90,8 +90,13 @@ export const createAnthropicProvider = (
     label: model,
 
     async send(input, signal) {
-      // Read per turn, so toggling a server applies without reconnecting
-      const servers = PgAssistant.enabledMcpServers;
+      // Read per turn, so toggling a server applies without reconnecting.
+      // Only `server`-executor entries go to the connector — the rest are
+      // called from the browser and reach the model as ordinary tools, so
+      // declaring them here too would show the model each one twice.
+      const servers = PgAssistant.enabledMcpServers.filter(
+        (server) => server.executor === "server"
+      );
       const mcp = declareMcp(servers);
       const serverName = (id: string) =>
         servers.find((server) => server.id === id)?.name ?? id;

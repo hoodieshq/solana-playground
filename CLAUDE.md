@@ -69,7 +69,31 @@ whole UI, editor, terminal, Playnet and wallet work. What you lose: Rust
 intellisense and the `solana` / `anchor` / `spl-token` / `sugar` commands, plus
 Seahorse builds. Each throws a clear message pointing at `wasm/build.sh`.
 
-**Use `npx craco start`, not `yarn start`.** `yarn start` runs `yarn generate`,
+**`yarn dev` is the normal command, and it serves `/api`.** It runs the cheap
+generate subset (`yarn generate-fast`) and then `craco start`. The handlers in
+`client-v2/api/*.mjs` are served by a middleware in `craco.config.js`, so the
+assistant's MCP gateway works with no Vercel and no login — `decisions.md` D20
+records why we supply that piece ourselves rather than using `vercel dev`. An
+unknown `/api` route answers a `404` JSON body instead of falling through to
+`index.html`, which is what used to surface as `Unexpected token '<'`.
+
+Env vars those handlers read go in `client-v2/.env.local` (gitignored):
+react-scripts loads it into `process.env` at boot and the middleware reads it
+per request. Do not reach for `REACT_APP_*` for anything secret — CRA inlines
+those into the bundle.
+
+**`yarn dev-vercel` only to rehearse the real runtime** before a deploy. It
+needs `vercel login` **and** membership of this Vercel team, because `vercel
+dev` calls the API to retrieve the project before it serves anything — neither
+offline nor available to an outside contributor, which is the whole reason the
+middleware exists. It also has to run from the repo root (`--cwd ..`, already
+in the script): the only `.vercel/project.json` is there, it sets
+`rootDirectory: client-v2`, and running the CLI from `client-v2` makes it
+resolve that path twice, miss `vercel.json`, fall back to the `dev` script and
+abort on recursive invocation. Listens on 3000; override with
+`VERCEL_DEV_PORT`.
+
+**Use `yarn dev`, not `yarn start`.** `yarn start` runs `yarn generate`,
 which includes `generate-crates.mjs`; that script skips itself only when rustc is
 *absent*, so with Rust installed it will `cargo install syn-file-expand-cli` and
 churn through the crate registry. Its only output is Rust-Analyzer crate data,

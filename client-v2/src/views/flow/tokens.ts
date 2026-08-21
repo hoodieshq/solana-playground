@@ -1,0 +1,15 @@
+/** Shared layout/color constants for the Flow canvas (panels, header). */
+
+/** Gutter between the black page ground and each floating panel. */
+export const GAP = "8px";
+
+/** Corner radius of the three floating panels (left, center, right). */
+export const PANEL_RADIUS = "12px";
+
+/**
+ * The brand gradient, verbatim from
+ * `views/sidebar/assistant/Component/GradientButton.tsx` -- that component
+ * is the existing precedent for this literal (logomark, stepper active dot,
+ * the one decisive CTA per view).
+ */
+export const GRADIENT = "linear-gradient(135deg, #9945ff 10%, #14f195 90%)";

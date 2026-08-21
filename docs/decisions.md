@@ -697,3 +697,202 @@ gallery says so rather than claiming they will build.
 
 **Revisit when:** the stepper is tested with newcomers (D10's trigger), or
 when the classic layout has had no use for a milestone — then delete it.
+
+## D18 — Flow visual parity — the concept boards are the source of truth for Flow chrome
+
+**Date:** 2026-08-21 · **Status:** implemented (prototype)
+
+D17 shipped Flow's anatomy (panels, stepper, stages) in the pre-existing
+component styling — upstream chip/card/button looks, not the language the
+concept boards (`docs/design/screenshots/concept/b-flow-*.png`) actually
+draw. This iteration re-skins the same anatomy against those boards, token
+by token, with no behavior change: `views/flow/**` and the assistant
+header only.
+
+**Matched** (see `docs/design/screenshots/flow-visual/README.md` for the
+side-by-side screenshots): the floating-panel language (gutters, 1px
+border, corner radius, raised background) across the left/center/right
+columns and the console drawer sitting inside the center panel; the header
+(gradient logomark, project switcher, centered pill stepper with
+shape-coded status, right-aligned cluster/wallet/gear chips); the bare
+`FILES` tree with a plain `+ New file` footer, workspace picker and
+per-section action buttons hidden; the console collapsed to a one-line
+status handle; the humanized Build card with a real-source excerpt around
+the failing line, not just rustc's own gutter snippet; the assistant
+header's eyebrow + live chips above the tab strip; and card language
+("Latest deployment" / "History", a header meta line) on Deploy and
+Interact.
+
+**Deliberately left:** the editor's own tab strip (upstream
+`EditorWithTabs` chrome, untouched); syntax highlighting inside the Build
+excerpt (plain monospace, not the editor's tokenizer); the assistant's
+internals below the header (chat bubbles, composer, backend picker —
+unchanged from the prior iteration); `Test.tsx`'s account/instruction
+cards on Interact, unverified against the board this pass because the
+session's wallet held 0 SOL and the devnet faucet returned 429 (D17
+already logged this same friction) — the header and toolbar match, the
+populated panel does not.
+
+**The CSS reaches into upstream DOM, on three call sites, each with a
+documented failure mode:**
+
+- `left/LeftPanel.tsx`'s `ExplorerContainer` hides Explorer's workspace
+  picker, icon toolbar and per-section Build/Deploy/Run/Test buttons via
+  structural (`nth-child`) selectors anchored on `#root-dir` and this
+  wrapper's own DOM position — none of the hidden elements carry a stable
+  `id`/`class`. Guarded with `:has(> button)` so a selector only ever
+  matches a section-header row, never a folder/file row. Failure mode: a
+  project with *no* workspaces renders Explorer's single-branch "create a
+  project" empty state instead of Workspaces + Folders — the same
+  first-two-children rule would hide that state's intro line and "Create a
+  new project" button too, but Flow only mounts once a project is open, so
+  this should not occur in practice. Fixed this iteration:
+  `024e836d` guards the Program-section rule so a project without `src`
+  (no Build/Deploy buttons rendered at all) does not have the guard
+  misfire.
+- `settings/GearSidebar.tsx`'s `SettingsFrame` strips upstream
+  `Settings`'s own popover chrome (background, border, shadow, sizing) by
+  overriding its single root `<div>` through a `> div` descendant
+  selector, so it reads as a continuation of the panel instead of a nested
+  card. Failure mode: if upstream `Settings` ever wraps its root in an
+  additional element, the selector stops matching and the popover chrome
+  reappears nested inside the panel — a visual regression, not a broken
+  one, and one `craco start` would show immediately.
+- `gallery/NewWorkspaceModal.tsx`'s `ModalWidthOverride` widens
+  `components/Modal`'s hardcoded `max-width` via a global `:has(> * > *
+  > [data-gallery-modal])` selector three direct-child hops above a
+  `data-gallery-modal` marker this component itself renders — chosen so no
+  other modal in the app can match the same shape. Failure mode: if
+  `components/Modal`'s own wrapper depth ever changes, the hop count goes
+  stale and either stops widening this modal or (if the count coincides)
+  widens the wrong one; the marker attribute makes the second case
+  vanishingly unlikely.
+
+**Two `PANEL_RADIUS` constants, to reconcile:** `views/flow/tokens.ts`
+defines its own `PANEL_RADIUS = "12px"` for the three floating panels,
+separate from the Solana V2 theme's `PANEL_RADIUS = "14px"`
+(`themes/solana-v2/theme.ts`, used by the editor/terminal/sidebar page
+chrome elsewhere). They were tuned independently against the boards and
+happen to read close enough not to clash, but two names for the same
+concept in one theme is an accident waiting to surprise the next person
+who greps for one and finds the other.
+
+**Revisit when:** upstream changes the Explorer DOM shape enough to break
+the `#root-dir` selectors above (watch `views/sidebar/explorer/**` diffs),
+or when the concept boards themselves change and Flow's chrome needs a
+second pass to follow.
+
+---
+
+## D19 — Corrects D12: MCP is per-server, not per-provider, and we run the gateway
+
+**Date:** 2026-08-21 · **Status:** chosen · **Corrects:** D12
+
+D12 recorded that MCP is Anthropic-only and that custom headers cannot be
+delivered. **Both are wrong**, and the framing was the real error: it described
+a symptom as a rule.
+
+MCP tools are ordinary tools. Any backend that calls tools can use them — our
+`ToolDefinition` layer is already vendor-neutral, which is why skills work
+everywhere. The only thing that varies is **who executes the call**, and that
+is a property of the server, not of the connected agent:
+
+| Server | CORS | Executor | Reachable from |
+| --- | --- | --- | --- |
+| `explorer.solana.com/mcp` | `*`, session id exposed | `browser`, via our gateway | every backend, and the keyless console |
+| `mcp.solana.com/mcp` | none (preflight 405) | `browser`, via our gateway | every backend |
+
+Explorer's headers are read from `solana-explorer/app/mcp/route.ts`;
+`mcp.solana.com`'s absence of them was measured twice, by curl and from a real
+browser. So `McpServerEntry` carries `executor: "browser" | "server"`, the
+Anthropic connector declares only `server` entries, and the browser client
+handles the rest. Nothing is declared twice, so the model never sees one tool
+from two sources.
+
+**The gateway.** `client-v2/api/mcp.mjs` speaks MCP in and MCP out — the
+JSON-RPC envelope is forwarded verbatim — so the browser client needs a
+different URL and no second code path. `?server[]=solana&server[]=explorer`
+selects upstreams and omitting it selects all; with several, `tools/list` is
+merged with `<id>__` prefixes and `tools/call` routes on that prefix. Being
+transparent rather than a bespoke JSON API is what lets the same client, and
+the same local dev story, serve both paths.
+
+**Upstreams are configured in the function and never taken from the request.**
+A gateway that dials a caller-supplied host is an SSRF and an open relay;
+defending it properly needs DNS-resolution checks, private-range blocks,
+per-caller keys and rate limits, plus an encrypted blob to carry credentials
+past Anthropic's connector, which can only pass a URL and a bearer token.
+Refusing the input removes the class. Adding an upstream is a deploy.
+
+**Explorer moved onto the gateway too (2026-08-21), reversing what this entry
+first recorded.** Browser-direct was the plan while the bypass was thought of
+as the user's own, pasted into the panel. It is not: the secret we have is one
+for everybody, and a value the browser sends is a value in the bundle, which
+`CLAUDE.md` forbids and which publishing would leak to every visitor. So the
+gateway holds it, `MCP_EXPLORER_URL` moves the endpoint to a preview
+deployment, and the panel entry is a gateway URL like Solana's.
+
+What that costs is exactly the objection that kept Explorer off: fronting bot
+protection the Foundation deliberately switched on hands anyone who finds our
+endpoint a way around it. What keeps it narrow is that the upstream exists only
+when `MCP_EXPLORER_BYPASS` is set, so a default deployment and every outside
+checkout have no such hole. The variable is therefore for previews only:
+**setting it on a public production deployment makes per-caller access keys a
+prerequisite, not an option**, and is not a decision to take without talking to
+whoever switched the protection on.
+
+The bypass travels as an `x-vercel-protection-bypass` header rather than a
+query param. Explorer's `Access-Control-Allow-Headers` omits it, so a browser
+would fail preflight — irrelevant server-side, where there is no preflight,
+and the form the Foundation's own MCP config uses.
+
+**Consequence for D1 and the product claim.** "The assistant runs entirely in
+the browser. No backend of ours" is no longer true. This is a narrow, scoped
+version of D1-B: MCP transport only, no model calls, no quota, no key. D1-B
+itself stays parked.
+
+**Revisit when** the Explorer bypass is wanted on a production deployment, or
+when a second shared credential appears — both point at the same place,
+per-caller keys on the gateway.
+
+---
+
+## D20 — Local API routes are served by the dev server, not by `vercel dev`
+
+**Date:** 2026-08-21 · **Status:** chosen, explicitly a stopgap
+
+`api/*.mjs` is served in development by a middleware in `craco.config.js`.
+`yarn dev` is craco and nothing else; `yarn dev-vercel` remains for exercising
+the real runtime before a deploy.
+
+**Why not `vercel dev`, which was the first attempt.** It calls the Vercel API
+to retrieve the project before serving anything, so it needs `vercel login`
+*and* membership of this team. For a project whose principle is "everything
+stays open source", that would make the API-serving dev command unavailable to
+any outside contributor — they would be stuck on `craco start`, which serves no
+`/api` path, and so could not develop the gateway at all. Next.js would have
+given us a local route runner for free; CRA has none, so we supply the missing
+piece ourselves.
+
+**Shape.** Handlers are plain ESM on raw Node `req`/`res`: `api/` sits outside
+the TypeScript build (`tsconfig.json` includes `src` only, so TS there would be
+unchecked anyway), and `VercelResponse` extends Node's `ServerResponse`, so one
+file runs unchanged under the dev server, `vercel dev`, and a deployment. The
+middleware wraps CRA's `onBeforeSetupMiddleware` rather than using
+`setupMiddlewares`, because webpack-dev-server 4 throws if both are set and CRA
+sets the deprecated one.
+
+**An unknown `/api` route 404s** instead of falling through. Falling through
+hands it to the history fallback, which answers `200 text/html` with
+`index.html` and surfaces in a client as `Unexpected token '<'`. The same trap
+already bites elsewhere: `/crates/*.toml` is missing unless `generate-crates`
+has run, so rust-analyzer parses `index.html` as TOML and panics — visible in
+the console on every dev boot.
+
+**Route names are constrained to `^[a-z0-9-]+$`** rather than sanitised, since
+the path selects which module is imported. Encoded traversal, suffixed
+traversal, nesting and casing were all checked.
+
+**Revisit when** this app moves to a framework that owns its own API routes.
+These handlers belong there, and this adapter should be deleted rather than
+maintained.

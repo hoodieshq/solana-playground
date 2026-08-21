@@ -37,31 +37,20 @@ export const SKILLS: SkillEntry[] = [
 ];
 
 /**
- * MCP servers the connector can reach.
+ * Extra MCP servers, added from the client.
  *
- * `mcp.solana.com` is public and needs no token. It sends no CORS headers, so
- * it is only reachable because Anthropic opens the connection server-side —
- * see `docs/decisions.md`.
+ * **Not the source of truth.** The gateway (`api/mcp.mjs`) owns the list and
+ * the panel asks it at startup, so enabling an upstream is a deploy plus an
+ * env var rather than a client change — that is how an operator turns Explorer
+ * on without shipping anything, and why its absence from the panel means the
+ * server has no bypass configured.
+ *
+ * This list is only for servers wanted *in addition*: something CORS-open a
+ * page can reach directly, or an `executor: "server"` entry to route through
+ * Anthropic's connector instead. Empty by default, and deliberately not a
+ * mirror of what the gateway serves — two lists would disagree.
  */
-export const MCP_SERVERS: McpServerEntry[] = [
-  {
-    id: "solana",
-    name: "Solana Developer MCP",
-    url: "https://mcp.solana.com/mcp",
-    enabled: true,
-  },
-  {
-    // Off by default: the endpoint answers every request with a Vercel bot
-    // challenge until a bypass secret is supplied. The key is spelled out so
-    // only the value has to be filled in — whether the query-param form of the
-    // bypass satisfies challenge mode is unverified, see `docs/decisions.md`.
-    id: "explorer",
-    name: "Solana Explorer MCP",
-    url: "https://explorer.solana.com/mcp",
-    enabled: false,
-    queryParams: { "x-vercel-protection-bypass": "" },
-  },
-];
+export const LOCAL_MCP_SERVERS: McpServerEntry[] = [];
 
 /** Skills that are on unless the user turns them off */
 export const DEFAULT_SKILL_IDS = SKILLS.map((skill) => skill.id);

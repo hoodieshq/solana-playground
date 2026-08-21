@@ -81,6 +81,15 @@ const WriteSlot = styled.div<{ $hidden: boolean }>`
   opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
   transition: opacity 150ms ease;
 
+  /* The upstream tab strip (PgView.ids.TABS) butts its right-aligned
+     Wallet button against the panel edge, which sits under the floating
+     panel's rounded corner. Give it the same inset the panel uses
+     elsewhere. Failure mode: if upstream renames the id the inset is
+     simply lost, nothing breaks. */
+  & #tabs {
+    padding-right: 0.75rem;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }

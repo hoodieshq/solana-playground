@@ -23,24 +23,41 @@ export interface SkillEntry {
 }
 
 /**
- * A remote MCP server, reached through the Anthropic connector.
+ * Who calls an MCP server on our behalf.
  *
- * What the connector can carry, and what it cannot:
+ * A property of the server's own reachability, not of the connected backend:
+ * MCP tools are ordinary tools, and any backend that calls tools can use them.
+ * What varies is only who performs the call.
  *
- * - `authToken` becomes `authorization_token`, sent as a bearer token.
- * - `queryParams` is appended to the URL, which is the only way to pass a
- *   credential the server expects outside the `Authorization` header — a
- *   Vercel `x-vercel-protection-bypass`, for instance.
- * - `headers` is **not sent**. The connector's server definition has no header
- *   map, so this is carried for the parked proxy path only. See
- *   `docs/decisions.md` -> D12.
+ * - `browser` — we call it ourselves. Works on every backend, and in the
+ *   console with no model at all. Needs the server to send CORS headers.
+ * - `server` — something server-side calls it, because the browser cannot.
+ *   Anthropic's connector today; our own gateway later. Only available on
+ *   backends that provide such an executor.
+ */
+export type McpExecutor = "browser" | "server";
+
+/**
+ * A remote MCP server.
+ *
+ * What reaches the server depends on the executor:
+ *
+ * - `authToken` is a bearer token on both paths.
+ * - `queryParams` rides in the URL on both. It is the only way to pass a
+ *   credential a server wants outside the `Authorization` header — a Vercel
+ *   `x-vercel-protection-bypass`, for instance — and on `browser` it is also
+ *   the only way past a CORS policy that does not allow that header name.
+ * - `headers` is sent on `browser` only; the connector's server definition has
+ *   no header map. Note a header the server's `Access-Control-Allow-Headers`
+ *   omits will fail preflight rather than be ignored.
  */
 export interface McpServerEntry {
-  /** Also the `mcp_server_name` the toolset references; must be unique */
+  /** Also the `mcp_server_name` the connector references; must be unique */
   id: string;
   name: string;
   url: string;
   enabled: boolean;
+  executor: McpExecutor;
   authToken?: string;
   queryParams?: Record<string, string>;
   headers?: Record<string, string>;
