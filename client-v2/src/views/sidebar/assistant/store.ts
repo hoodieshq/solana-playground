@@ -1,6 +1,6 @@
-import { DEFAULT_SKILL_IDS, MCP_SERVERS } from "./grounding";
+import { DEFAULT_SKILL_IDS, listTools, MCP_SERVERS } from "./grounding";
 import type { Disposable } from "../../../utils";
-import type { McpServerEntry } from "./grounding";
+import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
@@ -172,6 +172,42 @@ export class PgAssistant {
   static setMcpServers(servers: readonly McpServerEntry[]) {
     PgAssistant._mcpServers = servers;
     PgAssistant._emit();
+  }
+
+  /**
+   * Tools discovered from browser-executed servers, by server id.
+   *
+   * Cached because discovery is a network round trip and `createTools()` is
+   * synchronous — a server missing from here contributes no tools this turn
+   * rather than blocking it.
+   */
+  static get mcpTools(): Readonly<Record<string, readonly McpTool[]>> {
+    return PgAssistant._mcpTools;
+  }
+
+  static setMcpTools(serverId: string, tools: readonly McpTool[]) {
+    PgAssistant._mcpTools = { ...PgAssistant._mcpTools, [serverId]: tools };
+    PgAssistant._emit();
+  }
+
+  /**
+   * Discover tools for every enabled browser-executed server.
+   *
+   * Failures are left out rather than raised: a server being unreachable is a
+   * fact about that server, and the console is where it gets explained.
+   */
+  static async discoverMcpTools() {
+    const servers = PgAssistant.enabledMcpServers.filter(
+      (server) => server.executor === "browser"
+    );
+
+    await Promise.all(
+      servers.map(async (server) => {
+        try {
+          PgAssistant.setMcpTools(server.id, await listTools(server));
+        } catch {}
+      })
+    );
   }
 
   static setStatus(status: AssistantStatus) {
@@ -361,6 +397,7 @@ export class PgAssistant {
   private static _mcpServers: readonly McpServerEntry[] = MCP_SERVERS.map(
     (server) => ({ ...server })
   );
+  private static _mcpTools: Readonly<Record<string, readonly McpTool[]>> = {};
   private static readonly _pending = new Map<
     string,
     (allowed: boolean) => void

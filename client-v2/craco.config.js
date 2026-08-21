@@ -304,8 +304,57 @@ module.exports = {
       "Cross-Origin-Opener-Policy": "same-origin",
     };
 
+    // Serve `api/*.mjs` from the dev server itself, so local API work needs
+    // neither `vercel dev` (which wants a login and team access) nor a second
+    // process. Wrapping CRA's hook rather than using `setupMiddlewares`:
+    // webpack-dev-server 4 throws if both are set, and CRA sets this one.
+    const onBefore = devServerConfig.onBeforeSetupMiddleware;
+    devServerConfig.onBeforeSetupMiddleware = (devServer) => {
+      onBefore?.(devServer);
+      devServer.app.use("/api", serveApiRoute);
+    };
+
     return devServerConfig;
   },
+};
+
+/** Answer as the platform would, not as the SPA fallback would */
+const sendJson = (res, status, body) => {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify(body));
+};
+
+/**
+ * Dispatch `/api/<name>` to `api/<name>.mjs`, matching how the deployed
+ * function is invoked.
+ *
+ * Never calls `next()`: falling through would hand an unknown `/api` path to
+ * the history fallback, which answers `200 text/html` with `index.html` and
+ * shows up in a client as `Unexpected token '<'`. A 404 is both the truth and
+ * what the deployment does.
+ *
+ * @param {import("http").IncomingMessage & {url: string}} req
+ * @param {import("http").ServerResponse} res
+ */
+const serveApiRoute = async (req, res) => {
+  // Mounted on `/api`, so `req.url` is the remainder
+  const name = req.url.split("?")[0].replace(/^\/+/, "");
+  // Constrained rather than sanitised: the path decides which module is
+  // imported, so anything unexpected must not reach `import()`
+  if (!/^[a-z0-9-]+$/.test(name)) {
+    return sendJson(res, 404, { error: `No API route at /api/${name}` });
+  }
+
+  try {
+    const route = await import(`./api/${name}.mjs`);
+    await route.default(req, res);
+  } catch (e) {
+    if (e.code === "ERR_MODULE_NOT_FOUND") {
+      return sendJson(res, 404, { error: `No API route at /api/${name}` });
+    }
+    sendJson(res, 500, { error: e.message });
+  }
 };
 
 /**
