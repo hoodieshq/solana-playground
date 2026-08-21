@@ -174,10 +174,11 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Honest wording, not new work:** "Generate IDL" on the Build surface
   reveals and downloads the IDL a successful build already produced; it
   does not generate anything the build did not already output.
-- **View-only:** the New Workspace gallery's ecosystem program cards import
-  from GitHub through upstream's own mechanism, but any program targeting
-  Anchor newer than the pinned 0.29 will not compile on this build server,
-  so they open read-only rather than claim to be buildable.
+- **Not view-only:** the New Workspace gallery's ecosystem program cards
+  import from GitHub through upstream's own mechanism (`PgGithub.import`)
+  into a normal, editable project -- they open as a normal project; those
+  targeting Anchor newer than the pinned 0.29 will not compile on this build
+  server.
 - **Not yet verified live:** a full deploy round-trip through Flow. Devnet
   airdrops returned 429 (rate limited) during this pass, so the demo wallet
   needs to be pre-funded ahead of a live run rather than airdropped on
