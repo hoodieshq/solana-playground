@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
@@ -42,16 +42,32 @@ const Flow = () => {
   // Settings is wired in Task 8; until then it no-ops.
   const openSettings = () => undefined;
 
+  // Whether the empty-workspace gallery has already been opened once for
+  // this mount of `Flow`.
+  const openedGalleryOnInit = useRef(false);
+
   useEffect(() => {
     // `PgExplorer` initializes asynchronously (`routes/common.tsx`), so
     // `allWorkspaceNames` may still be `undefined` on the first render --
     // only decide once it has actually settled, otherwise every cold start
     // would flash the gallery before we know whether there are projects.
+    //
+    // `PgExplorer.init()` reruns on every route navigation, so `onDidInit`
+    // fires more than once for the lifetime of `Flow`. Open the gallery at
+    // most once: dispose the subscription right after it fires so later
+    // navigations (e.g. into and out of a tutorial) never stack a second
+    // modal on top of one the user already interacted with.
     const openIfEmpty = () => {
-      if (PgExplorer.allWorkspaceNames?.length === 0) openGallery();
+      if (openedGalleryOnInit.current) return;
+      if (PgExplorer.allWorkspaceNames?.length === 0) {
+        openedGalleryOnInit.current = true;
+        sub.dispose();
+        openGallery();
+      }
     };
+    const sub = PgExplorer.onDidInit(openIfEmpty);
     if (PgExplorer.allWorkspaceNames) openIfEmpty();
-    return PgExplorer.onDidInit(openIfEmpty).dispose;
+    return sub.dispose;
   }, []);
 
   return (
