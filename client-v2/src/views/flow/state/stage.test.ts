@@ -1,5 +1,6 @@
 jest.mock("../../sidebar/assistant/bridge/build-output", () => ({
   PgBuildOutput: {
+    latest: null,
     onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
   },
   stripKnownNoise: jest.fn((s) => s),
@@ -8,6 +9,7 @@ jest.mock("../../../utils", () => ({
   PgCommand: {
     build: {
       onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidFinish: jest.fn(() => ({ dispose: jest.fn() })),
     },
     deploy: {
       onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
@@ -17,9 +19,14 @@ jest.mock("../../../utils", () => ({
   PgExplorer: {
     onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
   },
+  PgGlobal: {
+    deployState: "ready",
+  },
 }));
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
+
+const BUILD_OUTPUT_PATH = "../../sidebar/assistant/bridge/build-output";
 
 describe("PgFlow.reduce", () => {
   it("starts on write with everything upcoming", () => {
@@ -30,13 +37,18 @@ describe("PgFlow.reduce", () => {
       interact: "upcoming",
       buildErrorCount: 0,
       buildMs: null,
+      buildStartedAt: null,
     });
   });
 
-  it("build-start marks build running and routes to build", () => {
-    const s = PgFlow.reduce(INITIAL_FLOW_STATE, { type: "build-start" });
+  it("build-start marks build running, routes to build, records `at`", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-start",
+      at: 1000,
+    });
     expect(s.build).toBe("running");
     expect(s.stage).toBe("build");
+    expect(s.buildStartedAt).toBe(1000);
   });
 
   it("failed build is failed with a count; deploy stays upcoming", () => {
@@ -86,7 +98,10 @@ describe("PgFlow.reduce", () => {
   });
 
   it("workspace-change resets to the initial state", () => {
-    const built = PgFlow.reduce(INITIAL_FLOW_STATE, { type: "build-start" });
+    const built = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-start",
+      at: 1000,
+    });
     expect(PgFlow.reduce(built, { type: "workspace-change" })).toEqual(
       INITIAL_FLOW_STATE
     );
@@ -117,13 +132,18 @@ error: could not compile \`hello\` due to previous error`;
 
 describe("PgFlow.init wiring", () => {
   it("deploy-finish detects success and failure via result shape", () => {
-    const { PgCommand, PgExplorer } = require("../../../utils");
+    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+    PgGlobal.deployState = "ready";
     let deployCallback: ((result: unknown) => void) | undefined;
 
     // Store and verify all mocks return disposables
     const buildStartMock = PgCommand.build.onDidStart as jest.Mock;
     const buildStartReturn = { dispose: jest.fn() };
     buildStartMock.mockReturnValueOnce(buildStartReturn);
+
+    const buildFinishMock = PgCommand.build.onDidFinish as jest.Mock;
+    const buildFinishReturn = { dispose: jest.fn() };
+    buildFinishMock.mockReturnValueOnce(buildFinishReturn);
 
     const buildOutputMock =
       require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
@@ -163,6 +183,151 @@ describe("PgFlow.init wiring", () => {
     expect(PgFlow.state.stage).toBe("deploy");
 
     // Clean up
+    sub.dispose();
+  });
+
+  it("ignores a deploy-finish caused only by a pause or resume click", () => {
+    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+    let deployStartCallback: (() => void) | undefined;
+    let deployFinishCallback: ((result: unknown) => void) | undefined;
+
+    (PgCommand.build.onDidStart as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (PgCommand.build.onDidFinish as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (
+      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
+        .onDidChange as jest.Mock
+    ).mockReturnValueOnce({ dispose: jest.fn() });
+    (PgCommand.deploy.onDidStart as jest.Mock).mockImplementation((cb) => {
+      deployStartCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgCommand.deploy.onDidFinish as jest.Mock).mockImplementation((cb) => {
+      deployFinishCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+
+    const sub = PgFlow.init();
+
+    deployStartCallback!();
+    expect(PgFlow.state.deploy).toBe("running");
+
+    // A second click while loading flips `deployState` to "paused" and
+    // resolves with `ok: undefined` -- not a real completion.
+    PgGlobal.deployState = "paused";
+    deployFinishCallback!({ ok: undefined });
+    expect(PgFlow.state.deploy).toBe("running");
+
+    // Clicking again to resume flips it to "loading" and also resolves
+    // immediately -- still not a real completion.
+    PgGlobal.deployState = "loading";
+    deployFinishCallback!({ ok: undefined });
+    expect(PgFlow.state.deploy).toBe("running");
+
+    // The deploy command itself always settles back to "ready" before its
+    // own real finish event fires, success or failure.
+    PgGlobal.deployState = "ready";
+    deployFinishCallback!({ ok: "sig" });
+    expect(PgFlow.state.deploy).toBe("done");
+
+    sub.dispose();
+  });
+
+  it("fails the build when it never reaches the compiler", () => {
+    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+    PgGlobal.deployState = "ready";
+    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    buildOutputModule.PgBuildOutput.latest = null;
+
+    let buildStartCallback: (() => void) | undefined;
+    let buildFinishCallback: ((result: unknown) => void) | undefined;
+
+    (PgCommand.build.onDidStart as jest.Mock).mockImplementation((cb) => {
+      buildStartCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgCommand.build.onDidFinish as jest.Mock).mockImplementation((cb) => {
+      buildFinishCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (
+      buildOutputModule.PgBuildOutput.onDidChange as jest.Mock
+    ).mockReturnValueOnce({ dispose: jest.fn() });
+    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+
+    const sub = PgFlow.init();
+
+    buildStartCallback!();
+    expect(PgFlow.state.build).toBe("running");
+
+    // The build server was unreachable: the `build` command rejects and
+    // `PgBuildOutput` never received a value for this run.
+    buildFinishCallback!({ err: new Error("Failed to fetch") });
+    expect(PgFlow.state.build).toBe("failed");
+    expect(PgFlow.state.buildErrorCount).toBe(0);
+
+    sub.dispose();
+  });
+
+  it("ignores build.onDidFinish's err when real output already arrived", () => {
+    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+    PgGlobal.deployState = "ready";
+    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+
+    let buildStartCallback: (() => void) | undefined;
+    let buildFinishCallback: ((result: unknown) => void) | undefined;
+
+    (PgCommand.build.onDidStart as jest.Mock).mockImplementation((cb) => {
+      buildStartCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgCommand.build.onDidFinish as jest.Mock).mockImplementation((cb) => {
+      buildFinishCallback = cb;
+      return { dispose: jest.fn() };
+    });
+    (
+      buildOutputModule.PgBuildOutput.onDidChange as jest.Mock
+    ).mockReturnValueOnce({ dispose: jest.fn() });
+    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
+      dispose: jest.fn(),
+    });
+
+    const sub = PgFlow.init();
+
+    buildStartCallback!();
+    // The real build output for this run already arrived and was handled.
+    buildOutputModule.PgBuildOutput.latest = {
+      stderr: "error: could not compile `hello`",
+      failed: true,
+      at: Date.now() + 1000,
+    };
+
+    buildFinishCallback!({ err: new Error("build command threw") });
+    // Still "running" -- the onDidFinish handler declined to dispatch a
+    // second, redundant `build-finish` on top of the real one.
+    expect(PgFlow.state.build).toBe("running");
+
+    buildOutputModule.PgBuildOutput.latest = null;
     sub.dispose();
   });
 });
