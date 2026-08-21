@@ -7,29 +7,35 @@ import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { PgView } from "../../utils";
+import Flow from "../../views/flow";
 
-const Panels = () => (
-  <Wrapper>
-    <TopWrapper>
-      <Side />
-      <Main />
-    </TopWrapper>
+const useClassic = new URLSearchParams(window.location.search).has("classic");
 
-    <Bottom />
+const Panels = () =>
+  useClassic ? (
+    <Wrapper>
+      <TopWrapper>
+        <Side />
+        <Main />
+      </TopWrapper>
 
-    <Wallet />
+      <Bottom />
 
-    {/* A portal that is *above* the modal backdrop stacking context */}
-    <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
+      <Wallet />
 
-    <StyledModalBackdrop />
+      {/* A portal that is *above* the modal backdrop stacking context */}
+      <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
 
-    {/* A portal that is *below* the modal backdrop stacking context */}
-    <PortalBelow id={PgView.ids.PORTAL_BELOW}>
-      <Toast />
-    </PortalBelow>
-  </Wrapper>
-);
+      <StyledModalBackdrop />
+
+      {/* A portal that is *below* the modal backdrop stacking context */}
+      <PortalBelow id={PgView.ids.PORTAL_BELOW}>
+        <Toast />
+      </PortalBelow>
+    </Wrapper>
+  ) : (
+    <Flow />
+  );
 
 const Wrapper = styled.div`
   width: 100vw;
