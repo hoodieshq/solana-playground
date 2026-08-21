@@ -101,15 +101,21 @@ const Body = styled.div`
  * header's stepper now owns those actions. The upstream `SectionButton`s
  * carry no stable `title`/`aria-label` for "Build"/"Deploy" (only their
  * text differs, and their generated class names are not stable), so this
- * targets the "Program" section's entire button row via `#root-dir`
- * (`PgView.ids.ROOT_DIR`, a stable id upstream itself relies on) -- that
- * row is always the first child of the root explorer element. This also
- * hides the "+" add-program button in the rare case a project has no `src`
- * folder yet; "Run" and "Test" live in a separate ("Client") section row
- * and are unaffected.
+ * targets them structurally via `#root-dir` (`PgView.ids.ROOT_DIR`, a
+ * stable id upstream itself relies on): the "Program" section's row is
+ * always the first child of the root explorer element, and its buttons
+ * are exactly `SectionHeader`, then either two buttons (Build, Deploy) or
+ * one (the "+" add-program button when the project has no `src` folder
+ * yet) -- never both. `nth-child(2):nth-last-child(2)` only matches the
+ * first of *two* button siblings (Build), and `nth-child(3)` only exists
+ * when there is a second (Deploy); a lone "+" button is `nth-child(2)`
+ * with no `nth-child(3)`, so neither selector matches it and it stays
+ * visible. "Run" and "Test" live in a separate ("Client") section row and
+ * are unaffected either way.
  */
 const ExplorerContainer = styled.div`
-  #root-dir > div:first-child button {
+  #root-dir > div:first-child > button:nth-child(2):nth-last-child(2),
+  #root-dir > div:first-child > button:nth-child(3) {
     display: none;
   }
 `;
