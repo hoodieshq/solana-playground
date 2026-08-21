@@ -1,0 +1,88 @@
+import { FC } from "react";
+import styled, { css } from "styled-components";
+
+import { Body, Card, Empty, Eyebrow, Grid, Sub, Title } from "./TutorialsTab";
+import Button from "../../../components/Button";
+import Img from "../../../components/Img";
+import { PgGithub, PgView } from "../../../utils";
+
+/** One entry of `public/programs/programs.json`. */
+export interface ProgramListing {
+  name: string;
+  description: string;
+  repo: string;
+  icon: string;
+  framework: string;
+  categories: string[];
+}
+
+interface ProgramsTabProps {
+  /** Lowercased search query from the modal's search box */
+  query: string;
+  /** `null` while the JSON hasn't resolved yet */
+  programs: ProgramListing[] | null;
+}
+
+/**
+ * Lists the upstream ecosystem program registry (same data as the classic
+ * `/programs` route). "Open" reuses the exact import path the rest of the
+ * app already uses for a program card: `PgGithub.import`, which fetches the
+ * repo via the GitHub Contents API, converts it to the playground layout,
+ * and creates (or switches to) a workspace named after the repo.
+ */
+const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
+  if (programs === null) {
+    return <Empty>Loading programs...</Empty>;
+  }
+
+  const q = query.trim().toLowerCase();
+  const items = q
+    ? programs.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.categories.some((c) => c.toLowerCase().includes(q))
+      )
+    : programs;
+
+  if (!items.length) {
+    return <Empty>No programs match &ldquo;{query}&rdquo;.</Empty>;
+  }
+
+  return (
+    <Grid>
+      {items.map((p) => (
+        <Card key={p.repo}>
+          <Icon src={p.icon} alt="" />
+          <Body>
+            <Eyebrow>
+              {p.framework}
+              {p.categories[0] ? ` \u00b7 ${p.categories[0]}` : ""}
+            </Eyebrow>
+            <Title>{p.name}</Title>
+            <Sub>{p.description}</Sub>
+          </Body>
+          <Button
+            onClick={async () => {
+              await PgGithub.import(p.repo);
+              PgView.setModal(null);
+            }}
+          >
+            Open
+          </Button>
+        </Card>
+      ))}
+    </Grid>
+  );
+};
+
+export default ProgramsTab;
+
+const Icon = styled(Img)`
+  ${({ theme }) => css`
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgSecondary};
+  `}
+`;
