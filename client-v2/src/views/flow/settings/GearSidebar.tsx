@@ -49,6 +49,7 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: Endpoint }> = [
  */
 const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusTo = useRef<HTMLElement | null>(null);
 
   // Modals opened from this panel (Import from GitHub/files, and the
   // upstream Settings' own "Custom" value modal) render into `ModalBackdrop`
@@ -57,6 +58,7 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
   // first click inside such a modal (e.g. focusing its input) reads as an
   // "outside" click and slides this panel shut behind the modal's
   // translucent backdrop.
+  // Tracks the latest MODAL_SET event, not a modal stack.
   const [modalOpen, setModalOpen] = useState(false);
   useSetStatic(
     PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
@@ -78,9 +80,20 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
   const pk = PgProgramInfo.getPkStr();
 
   // Focus the panel itself on open so keyboard users land somewhere sane
-  // without having to guess which control comes first.
+  // without having to guess which control comes first. On close, restore
+  // focus to the element that was active before the panel opened.
   useEffect(() => {
-    if (open) panelRef.current?.focus();
+    if (open) {
+      if (document.activeElement instanceof HTMLElement) {
+        returnFocusTo.current = document.activeElement;
+      }
+      panelRef.current?.focus();
+    } else {
+      if (returnFocusTo.current && document.contains(returnFocusTo.current)) {
+        returnFocusTo.current.focus();
+      }
+      returnFocusTo.current = null;
+    }
   }, [open]);
 
   // Close on Escape while open. Scoped to `open` (and skipped while a modal
