@@ -174,7 +174,10 @@ const DotSvg = styled.svg<{ $status: StageStatus }>`
         : theme.colors.state.error.color};
     }
     .mark {
-      stroke: ${theme.colors.default.bgPrimary};
+      /* Tracks whatever the button's actual background currently is
+         (transparent-over-bar, hover or selected) -- see \`--dot-bg\`
+         on \`StageButton\`. */
+      stroke: var(--dot-bg, ${theme.colors.default.bgPrimary});
     }
     .ring {
       stroke: ${$status === "active" || $status === "running"
@@ -231,6 +234,12 @@ const StageButton = styled.button<{
     border: 1px solid transparent;
     border-radius: ${theme.default.borderRadius};
     background: ${$selected ? theme.colors.default.bgSecondary : "transparent"};
+    /* The dot's checkmark/cross glyph is a cutout stroked in this color so
+       it reads as a hole in the filled circle -- it has to track whatever
+       is actually behind it, which changes with $selected and :hover. */
+    --dot-bg: ${$selected
+      ? theme.colors.default.bgSecondary
+      : theme.colors.default.bgPrimary};
     color: ${$status === "upcoming"
       ? theme.colors.default.textSecondary
       : theme.colors.default.textPrimary};
@@ -247,6 +256,7 @@ const StageButton = styled.button<{
 
     &:hover {
       background: ${theme.colors.default.bgSecondary};
+      --dot-bg: ${theme.colors.default.bgSecondary};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};

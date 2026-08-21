@@ -21,11 +21,14 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
   const wallet = useWallet();
   const balance = useBalance();
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
+  const isClusterDown = useRenderOnChange(
+    PgConnection.onDidChangeIsClusterDown
+  );
 
   return (
     <Wrapper>
       <Chip title={connection?.rpcEndpoint}>
-        <ClusterDot $down={PgConnection.isClusterDown === true} />
+        <ClusterDot $down={isClusterDown === true} />
         {cluster ?? "unknown"}
       </Chip>
       <Chip>
