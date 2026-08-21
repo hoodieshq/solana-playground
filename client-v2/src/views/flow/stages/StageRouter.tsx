@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import styled from "styled-components";
 
 import Write from "./Write";
-import { Spinner } from "../../../components/Loading";
+import { SpinnerWithBg } from "../../../components/Loading";
 import type { Stage } from "../state/stage";
 
 const Build = lazy(() => import("./Build"));
@@ -27,7 +27,7 @@ const StageRouter: FC<StageRouterProps> = ({ stage }) => (
     <WriteSlot $hidden={stage !== "write"}>
       <Write />
     </WriteSlot>
-    <Suspense fallback={<Spinner />}>
+    <Suspense fallback={<SpinnerWithBg loading size="2rem" />}>
       {stage === "build" && <Build />}
       {stage === "deploy" && <Deploy />}
       {stage === "interact" && <Interact />}

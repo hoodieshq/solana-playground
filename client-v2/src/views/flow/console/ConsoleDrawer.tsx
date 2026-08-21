@@ -19,12 +19,13 @@ const ConsoleDrawer: FC = () => {
       <Handle
         type="button"
         aria-expanded={open}
+        aria-controls="flow-console-drawer-body"
         onClick={() => setOpen((o) => !o)}
       >
         Console {open ? "▾" : "▴"}
         <Hint>Cmd+J</Hint>
       </Handle>
-      <Body $open={open}>
+      <Body id="flow-console-drawer-body" $open={open}>
         <Terminal />
       </Body>
     </Wrapper>
