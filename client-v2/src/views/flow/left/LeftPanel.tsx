@@ -19,8 +19,10 @@ const LeftPanel: FC<LeftPanelProps> = ({ onNewProject }) => {
         {(["projects", "files"] as const).map((t) => (
           <TabButton
             key={t}
+            id={`flow-left-tab-${t}`}
             role="tab"
             aria-selected={tab === t}
+            aria-controls="flow-left-tabpanel"
             $active={tab === t}
             onClick={() => setTab(t)}
           >
@@ -28,7 +30,11 @@ const LeftPanel: FC<LeftPanelProps> = ({ onNewProject }) => {
           </TabButton>
         ))}
       </Tabs>
-      <Body>
+      <Body
+        id="flow-left-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`flow-left-tab-${tab}`}
+      >
         {tab === "projects" ? (
           <ProjectsTab onNew={onNewProject} />
         ) : (
