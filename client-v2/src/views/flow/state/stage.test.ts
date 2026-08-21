@@ -64,14 +64,32 @@ describe("PgFlow.reduce", () => {
     expect(s.deploy).toBe("upcoming");
   });
 
-  it("successful build is done and routes back to write", () => {
-    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+  it("successful build is done and stays on the build surface", () => {
+    const building = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-start",
+      at: 1,
+    });
+    const s = PgFlow.reduce(building, {
       type: "build-finish",
       failed: false,
       errorCount: 0,
       ms: 3100,
     });
     expect(s.build).toBe("done");
+    expect(s.stage).toBe("build");
+  });
+
+  it("successful build does not pull the user away from another stage", () => {
+    const elsewhere = PgFlow.reduce(
+      PgFlow.reduce(INITIAL_FLOW_STATE, { type: "build-start", at: 1 }),
+      { type: "set-stage", stage: "write" }
+    );
+    const s = PgFlow.reduce(elsewhere, {
+      type: "build-finish",
+      failed: false,
+      errorCount: 0,
+      ms: 3100,
+    });
     expect(s.stage).toBe("write");
   });
 
