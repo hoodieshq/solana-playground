@@ -115,7 +115,7 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
       $open={open}
       tabIndex={-1}
       aria-hidden={!open}
-      role="dialog"
+      role="region"
       aria-label="Settings"
     >
       <Head>
@@ -290,8 +290,12 @@ const Chip = styled.button<{ $active: boolean }>`
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.code.size.small};
     cursor: pointer;
-    transition: all ${theme.default.transition.duration.short}
-      ${theme.default.transition.type};
+    transition: color ${theme.default.transition.duration.short}
+        ${theme.default.transition.type},
+      border-color ${theme.default.transition.duration.short}
+        ${theme.default.transition.type},
+      background ${theme.default.transition.duration.short}
+        ${theme.default.transition.type};
 
     &:hover {
       color: ${theme.colors.default.primary};

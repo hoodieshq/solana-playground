@@ -19,12 +19,17 @@ interface StageRouterProps {
  *
  * `Write` (which hosts upstream's `Primary`) stays mounted at all times and
  * is only ever hidden with CSS. `Primary`'s content is handed to it once by
- * the router through a one-shot custom event — unmounting it on every stage
+ * the router through a one-shot custom event -- unmounting it on every stage
  * change would leave it permanently blank the next time `Write` remounts.
  */
 const StageRouter: FC<StageRouterProps> = ({ stage }) => (
   <>
-    <WriteSlot $hidden={stage !== "write"}>
+    <WriteSlot
+      $hidden={stage !== "write"}
+      id="flow-stage-panel-write"
+      role="tabpanel"
+      aria-labelledby="flow-stage-tab-write"
+    >
       <Write />
     </WriteSlot>
     <Suspense fallback={<SpinnerWithBg loading size="2rem" />}>
@@ -33,17 +38,32 @@ const StageRouter: FC<StageRouterProps> = ({ stage }) => (
           intact if this ever collapses into a single ternary/lookup that
           would otherwise reuse one `Fade` element across stage switches. */}
       {stage === "build" && (
-        <Fade key="build">
+        <Fade
+          key="build"
+          id="flow-stage-panel-build"
+          role="tabpanel"
+          aria-labelledby="flow-stage-tab-build"
+        >
           <Build />
         </Fade>
       )}
       {stage === "deploy" && (
-        <Fade key="deploy">
+        <Fade
+          key="deploy"
+          id="flow-stage-panel-deploy"
+          role="tabpanel"
+          aria-labelledby="flow-stage-tab-deploy"
+        >
           <Deploy />
         </Fade>
       )}
       {stage === "interact" && (
-        <Fade key="interact">
+        <Fade
+          key="interact"
+          id="flow-stage-panel-interact"
+          role="tabpanel"
+          aria-labelledby="flow-stage-tab-interact"
+        >
           <Interact />
         </Fade>
       )}

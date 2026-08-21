@@ -81,6 +81,10 @@ export const Card = styled.div`
     &:hover {
       border-color: ${theme.colors.default.textSecondary};
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 

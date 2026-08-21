@@ -47,7 +47,7 @@ const Deploy = () => {
   const cluster = PgConnection.cluster;
 
   const description = !built
-    ? "Build the program first — the stepper unlocks Deploy once it " +
+    ? "Build the program first -- the stepper unlocks Deploy once it " +
       "compiles cleanly."
     : latest
     ? "The program id stays constant across deploys; redeploying upgrades " +

@@ -190,6 +190,10 @@ const FrameworkOption = styled.button<{ $active: boolean }>`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 
