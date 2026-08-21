@@ -104,7 +104,9 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.625rem 0.75rem 0.5rem;
+  /* A host may reserve room on the left for its own control (Flow's
+     collapse handle sets --flow-handle-inset); elsewhere it is 0. */
+  padding: 0.625rem 0.75rem 0.5rem calc(0.75rem + var(--flow-handle-inset, 0px));
   flex-shrink: 0;
 `;
 
