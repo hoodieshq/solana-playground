@@ -10,7 +10,12 @@ import {
   useProgramInfo,
   useRenderOnChange,
 } from "../../../hooks";
-import { PgCommand, PgConnection, PgExplorer } from "../../../utils";
+import {
+  PgCommand,
+  PgConnection,
+  PgExplorer,
+  PgProgramInfo,
+} from "../../../utils";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
@@ -73,12 +78,21 @@ const Deploy = () => {
         <GradientButton
           disabled={!built}
           title={built ? undefined : "Build successfully first"}
-          onClick={() => PgCommand.deploy.execute()}
+          onClick={() => {
+            // Interact's deployment switcher may have pointed the project
+            // at an imported id; redeploying always targets the project's
+            // own key, never whatever Interact last selected.
+            PgProgramInfo.update({ customPk: null });
+            PgCommand.deploy.execute();
+          }}
         >
           {latest ? "Redeploy to devnet" : "Deploy to devnet"}
         </GradientButton>
         <IdlActions showUpload />
       </Actions>
+      {built && !latest && programInfo.pk && (
+        <Muted>Program id: {programInfo.pk.toBase58()}</Muted>
+      )}
 
       {latest && (
         <Card>
@@ -87,7 +101,10 @@ const Deploy = () => {
             <Key>Program id</Key>
             <Mono title={latest.programId}>{latest.programId}</Mono>
             <Button.Copy copyText={latest.programId} />
-            <Link href={explorer.getAddressUrl(latest.programId)}>
+            <Link
+              href={explorer.getAddressUrl(latest.programId)}
+              aria-label={`View latest deployment (${latest.programId}) on Explorer`}
+            >
               Explorer
             </Link>
           </Row>
@@ -99,7 +116,12 @@ const Deploy = () => {
             <Row>
               <Key>Transaction</Key>
               <Mono>{latest.signature.slice(0, 20)}&hellip;</Mono>
-              <Link href={explorer.getTxUrl(latest.signature)}>Explorer</Link>
+              <Link
+                href={explorer.getTxUrl(latest.signature)}
+                aria-label={`View latest deployment transaction (${latest.signature}) on Explorer`}
+              >
+                Explorer
+              </Link>
             </Row>
           )}
           {onChain?.deployed && (
@@ -150,7 +172,12 @@ const Deploy = () => {
                   {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
                 </Mono>
                 <Time>{new Date(r.at).toLocaleString()}</Time>
-                <Link href={explorer.getAddressUrl(r.programId)}>Explorer</Link>
+                <Link
+                  href={explorer.getAddressUrl(r.programId)}
+                  aria-label={`View deployment (${r.programId}) on Explorer`}
+                >
+                  Explorer
+                </Link>
               </HistoryRow>
             ))}
           </List>
