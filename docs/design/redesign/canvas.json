@@ -1,0 +1,16 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Before / after", "x": 0, "y": 0, "w": 1180, "h": 980 },
+    { "file": "Tokens.dc.html", "title": "Token sheet", "x": 1240, "y": 0, "w": 880, "h": 1180 }
+  ],
+  "annotations": [
+    {
+      "id": "note-live",
+      "x": 0,
+      "y": -130,
+      "w": 560,
+      "text": "Solana-brand redesign, implemented in the client - not a mockup.\n\nEverything in the After shots is running at localhost:3000 as the fork's default theme. Old themes stay in the switcher."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

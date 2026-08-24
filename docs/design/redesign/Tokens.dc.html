@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "Space Grotesk", -apple-system, sans-serif; }
+    a { color: #9945FF; } a:hover { color: #14F195; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 880px; min-height: 1180px; background: #0F0D13; color: #ECEBF1; padding: 40px 44px; display: flex; flex-direction: column; gap: 32px">
+
+  <div>
+    <div style="font-size: 13px; letter-spacing: .12em; color: #9C98A9; padding-bottom: 8px">SOLANA PLAYGROUND — REDESIGN</div>
+    <div style="font-size: 32px; font-weight: 700; letter-spacing: -0.01em">Token sheet</div>
+    <div style="padding-top: 8px; color: #9C98A9; font-size: 14px; line-height: 1.6; max-width: 620px">
+      Every value below was found in solana.com's served CSS or on the official brand page —
+      sources and reasoning in <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #ECEBF1">docs/design/brand-research.md</span>.
+      Implemented as the <b>Solana V2</b> theme, the fork's default.
+    </div>
+  </div>
+
+  <!-- surfaces -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">SURFACES — VIOLET-BLACK FAMILY</div>
+    <div style="display: flex; gap: 12px">
+      <div style="flex: 1; border-radius: 12px; border: 1px solid #ECE4FD1F; overflow: hidden">
+        <div style="height: 72px; background: #000000"></div>
+        <div style="padding: 10px 12px; background: #1A1721; font-family: 'JetBrains Mono', monospace; font-size: 12px">#000000<br><span style="color:#9C98A9">bgBase · chrome</span></div>
+      </div>
+      <div style="flex: 1; border-radius: 12px; border: 1px solid #ECE4FD1F; overflow: hidden">
+        <div style="height: 72px; background: #0F0D13"></div>
+        <div style="padding: 10px 12px; background: #1A1721; font-family: 'JetBrains Mono', monospace; font-size: 12px">#0F0D13<br><span style="color:#9C98A9">bgSurface · panels</span></div>
+      </div>
+      <div style="flex: 1; border-radius: 12px; border: 1px solid #ECE4FD1F; overflow: hidden">
+        <div style="height: 72px; background: #1A1721"></div>
+        <div style="padding: 10px 12px; background: #1A1721; font-family: 'JetBrains Mono', monospace; font-size: 12px">#1A1721<br><span style="color:#9C98A9">bgRaised · cards</span></div>
+      </div>
+      <div style="flex: 1; border-radius: 12px; border: 1px solid #ECE4FD1F; overflow: hidden">
+        <div style="height: 72px; background: #262230"></div>
+        <div style="padding: 10px 12px; background: #1A1721; font-family: 'JetBrains Mono', monospace; font-size: 12px">#262230<br><span style="color:#9C98A9">bgHover</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- brand + states -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">BRAND & STATES</div>
+    <div style="display: flex; gap: 12px">
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #9945FF; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px">#9945FF<br>purple · primary</div>
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #14F195; color: #050505; font-family: 'JetBrains Mono', monospace; font-size: 12px">#14F195<br>green · success</div>
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #80ECFF; color: #050505; font-family: 'JetBrains Mono', monospace; font-size: 12px">#80ECFF<br>cyan · info</div>
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #FF4D6A; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px">#FF4D6A<br>error</div>
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #FFD666; color: #050505; font-family: 'JetBrains Mono', monospace; font-size: 12px">#FFD666<br>warning</div>
+    </div>
+  </div>
+
+  <!-- gradient -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">THE CANONICAL GRADIENT — VERBATIM FROM SOLANA.COM CSS</div>
+    <div style="height: 56px; border-radius: 9999px; background: linear-gradient(135deg, #9945FF 10%, #14F195 90%); display: flex; align-items: center; justify-content: center; color: #050505; font-weight: 700">linear-gradient(135deg, #9945FF 10%, #14F195 90%)</div>
+    <div style="padding-top: 10px; color: #9C98A9; font-size: 13px; line-height: 1.6">
+      Appears in exactly three places: the single decisive CTA of a view (Apply / Allow / Connect),
+      the build-and-deploy progress indicator, and nowhere else as decoration. Everything else is flat purple or green —
+      wallpapered gradients stop meaning anything.
+    </div>
+  </div>
+
+  <!-- type -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">TYPE — TWO TRACKS</div>
+    <div style="display: flex; gap: 12px">
+      <div style="flex: 1.2; padding: 18px; border-radius: 16px; background: #1A1721; border: 1px solid #ECE4FD1F">
+        <div style="font-size: 26px; font-weight: 700">Space Grotesk</div>
+        <div style="padding-top: 6px; color: #9C98A9; font-size: 13px; line-height: 1.6">
+          Chrome, titles, buttons, Home, content. Solana's own faces (Diatype, ABC Mono) are proprietary —
+          Space Grotesk ships in solana.com's own font stacks, so the substitute has brand provenance, not just resemblance.
+        </div>
+      </div>
+      <div style="flex: 1; padding: 18px; border-radius: 16px; background: #1A1721; border: 1px solid #ECE4FD1F">
+        <div style="font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace">JetBrains Mono</div>
+        <div style="padding-top: 6px; color: #9C98A9; font-size: 13px; line-height: 1.6">
+          Editor, terminal, explorer tree, the assistant conversation. The IDE's monospace identity — kept.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- shape -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">SHAPE & BORDERS</div>
+    <div style="display: flex; gap: 12px; align-items: stretch">
+      <div style="flex: 1; padding: 14px; border-radius: 12px; background: #1A1721; border: 1px solid #ECE4FD1F; font-size: 13px">12px default<br><span style="color:#9C98A9">panels, inputs, menus</span></div>
+      <div style="flex: 1; padding: 14px; border-radius: 16px; background: #1A1721; border: 1px solid #ECE4FD1F; font-size: 13px">16px cards<br><span style="color:#9C98A9">Home, proposals</span></div>
+      <div style="flex: 1; padding: 14px; border-radius: 9999px; background: #9945FF; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center">9999px pills — buttons</div>
+    </div>
+    <div style="padding-top: 10px; color: #9C98A9; font-size: 13px; line-height: 1.6">
+      Borders are lavender-white at low alpha (<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color:#ECEBF1">#ECE4FD1F / #ECE4FD33</span>) —
+      solana.com's own trick; it is what keeps the dark UI warm instead of gray.
+    </div>
+  </div>
+
+  <!-- syntax -->
+  <div>
+    <div style="font-size: 12px; letter-spacing: .1em; color: #9C98A9; padding-bottom: 12px">SYNTAX ON BRAND</div>
+    <div style="padding: 16px 18px; border-radius: 12px; background: #000; border: 1px solid #ECE4FD1F; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.9">
+      <span style="color: #EB54BC">pub fn</span> <span style="color: #14F195">process_instruction</span>(<br>
+      &nbsp;&nbsp;program_id: &amp;<span style="color: #80ECFF; font-style: italic">Pubkey</span>,&nbsp;&nbsp;<span style="color: #6E6880">// keywords pink · fns green</span><br>
+      ) -&gt; <span style="color: #80ECFF; font-style: italic">ProgramResult</span> {<br>
+      &nbsp;&nbsp;<span style="color: #14F195">msg!</span>(<span style="color: #FFD666">"literals purple, strings amber"</span>);<br>
+      &nbsp;&nbsp;<span style="color: #80ECFF; font-style: italic">Ok</span>(<span style="color: #9945FF">0</span>)<br>
+      }
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 880, "height": 1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

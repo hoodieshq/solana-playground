@@ -1,0 +1,299 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    a { color: #5288f2; } a:hover { color: #46c9d7; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #293244; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #151721; color: #f2f2f7; font-size: 14px; overflow: hidden">
+
+  <div style="flex-grow: 1; display: flex; min-height: 0">
+
+    <!-- icon rail -->
+    <div style="width: 48px; background: #0e1019; border-right: 1px solid #293244; display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px">
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: .5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c1ce" stroke-width="1.6"><path d="M3 7h6l2 2h10v10a2 2 0 01-2 2H3z"/></svg>
+      </div>
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: .5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c1ce" stroke-width="1.6"><path d="M14 2v6h6"/><path d="M4 13V4a2 2 0 012-2h8l6 6v11a2 2 0 01-2 2H6"/><path d="M2 17l4 4 4-4"/></svg>
+      </div>
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: .5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c1ce" stroke-width="1.6"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
+      </div>
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #212431; border-left: 2px solid #5288f2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5288f2" stroke-width="1.7"><path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/><path d="M9 11h6M9 15h3"/></svg>
+      </div>
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: .5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c1ce" stroke-width="1.6"><path d="M12 2l9 4.5v11L12 22 3 17.5v-11z"/><path d="M3 6.5l9 4.5 9-4.5M12 22V11"/></svg>
+      </div>
+      <div style="flex-grow: 1"></div>
+      <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: .5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c1ce" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+      </div>
+    </div>
+
+    <!-- ============ ASSISTANT PANEL ============ -->
+    <div style="width: 420px; flex-shrink: 0; background: #151721; border-right: 1px solid #293244; display: flex; flex-direction: column; min-height: 0">
+
+      <div style="height: 44px; display: flex; align-items: center; justify-content: center; letter-spacing: .06em; font-size: 20px; color: #f2f2f7; flex-shrink: 0">ASSISTANT</div>
+
+      <div style="display: flex; border-bottom: 1px solid #293244; flex-shrink: 0; padding: 0 12px; gap: 4px">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+          <div onClick="{{t.pick}}" style="padding: 8px 10px 7px; font-size: 13px; color: {{t.color}}; border-bottom: 2px solid {{t.rule}}; cursor: pointer; white-space: nowrap">{{t.label}}</div>
+        </sc-for>
+      </div>
+
+      <!-- ---- CHAT ---- -->
+      <sc-if value="{{isChat}}" hint-placeholder-val="{{ true }}">
+      <div style="flex-grow: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 18px; min-height: 0">
+
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8">YOU</div>
+          <div style="color: #f2f2f7; line-height: 1.55">the build failed, what's wrong?</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 11px; letter-spacing: .1em; color: #5288f2">ASSISTANT</div>
+          <div style="color: #c0c1ce; line-height: 1.6">
+            Line 12 assigns a string literal to a <span style="color: #38ccff">u32</span>. Rust has no
+            implicit conversion, so <span style="color: #ffd174">rustc</span> stops with
+            <span style="color: #c63453">E0308</span>.
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; color: #9BA8C8; font-size: 12px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#29cd7d" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            <span>read</span>
+            <span style="color: #c0c1ce">src/lib.rs</span>
+          </div>
+
+          <!-- ===== proposal ===== -->
+          <div style="border: 1px solid #293244; border-radius: 8px; background: #0e1019; overflow: hidden">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #293244">
+              <div style="display: flex; align-items: center; gap: 7px; min-width: 0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5288f2" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span style="font-size: 12px; color: #c0c1ce">src/lib.rs</span>
+              </div>
+              <span style="font-size: 10px; letter-spacing: .08em; color: {{propColor}}">{{propLabel}}</span>
+            </div>
+
+            <div style="font-size: 12.5px; padding: 6px 0">
+              <sc-for list="{{diff}}" as="d" hint-placeholder-count="4">
+                <div style="display: flex; height: 22px; line-height: 22px; background: {{d.bg}}">
+                  <span style="width: 34px; text-align: right; padding-right: 10px; color: #9BA8C8; flex-shrink: 0">{{d.n}}</span>
+                  <span style="width: 12px; color: {{d.sc}}; flex-shrink: 0">{{d.sign}}</span>
+                  <span style="white-space: pre; min-width: 0"><sc-for list="{{d.tokens}}" as="k" hint-placeholder-count="4"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></span>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; gap: 8px; padding: 10px; border-top: 1px solid #293244">
+              <div onClick="{{apply}}" style="flex-grow: 1; text-align: center; padding: 7px 0; border-radius: 12px; background: #5288f2; color: #0e1019; font-size: 13px; font-weight: 700; cursor: pointer">Apply</div>
+              <div onClick="{{reject}}" style="padding: 7px 16px; border-radius: 12px; border: 1px solid #293244; color: #c0c1ce; font-size: 13px; cursor: pointer">Reject</div>
+            </div>
+            </sc-if>
+
+            <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; border-top: 1px solid #293244; color: #29cd7d; font-size: 12px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#29cd7d" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              <span>written to src/lib.rs</span>
+            </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
+          <div style="color: #c0c1ce; line-height: 1.6; padding-top: 2px">Applied, and it compiles. Deploy to devnet when you're ready.</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #293244; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 6px; padding: 7px 12px 0; font-size: 11px; color: #9BA8C8; flex-wrap: wrap">
+          <span style="letter-spacing: .08em">CONTEXT</span>
+          <sc-for list="{{ctx}}" as="c" hint-placeholder-count="3">
+            <span style="padding: 1px 7px; border: 1px solid #293244; border-radius: 8px; color: #c0c1ce">{{c.label}}</span>
+          </sc-for>
+        </div>
+        <div style="padding: 8px 12px 12px">
+          <div style="border: 1px solid #293244; border-radius: 8px; background: #0e1019; padding: 9px 10px; display: flex; align-items: center; gap: 8px">
+            <span style="flex-grow: 1; color: #9BA8C8; font-size: 13px">Ask about this project…</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5288f2" stroke-width="1.8"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 7px; font-size: 10.5px; color: #9BA8C8">
+            <span>claude-opus-5</span>
+            <span>nothing is written without your click</span>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ---- ROADMAP ---- -->
+      <sc-if value="{{isPlan}}" hint-placeholder-val="{{ false }}">
+      <div style="flex-grow: 1; overflow-y: auto; padding: 18px 14px; min-height: 0">
+        <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8; padding-bottom: 8px">PLAYGROUND V2</div>
+        <div style="color: #f2f2f7; font-size: 16px; line-height: 1.5; padding-bottom: 14px">AI assistance that arrives before the setup barrier.</div>
+        <div style="color: #c0c1ce; font-size: 13px; line-height: 1.65; padding-bottom: 20px">Playground is the first place a newcomer lands, and the only place help can arrive before any local install. Today there is none inside it.</div>
+        <sc-for list="{{focus}}" as="f" hint-placeholder-count="3">
+          <div style="display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #293244">
+            <div style="color: {{f.color}}; font-size: 12px; padding-top: 2px">{{f.n}}</div>
+            <div style="min-width: 0">
+              <div style="color: #f2f2f7; font-size: 13.5px; padding-bottom: 4px">{{f.title}}</div>
+              <div style="color: #c0c1ce; font-size: 12.5px; line-height: 1.6">{{f.body}}</div>
+              <div style="color: {{f.color}}; font-size: 11px; padding-top: 6px; letter-spacing: .06em">{{f.status}}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- ============ EDITOR + TERMINAL ============ -->
+    <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0">
+      <div style="height: 36px; background: #0e1019; border-bottom: 1px solid #293244; display: flex; align-items: stretch; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 0 14px; background: #151721; border-right: 1px solid #293244; border-top: 2px solid #5288f2; font-size: 13px">
+          <span style="color: #ffd174">lib.rs</span>
+          <span style="color: #9BA8C8">&#215;</span>
+        </div>
+      </div>
+
+      <div style="flex-grow: 1; background: linear-gradient(315deg, #151721, #212431); padding: 12px 0; overflow: hidden; font-size: 13px; min-height: 0">
+        <sc-for list="{{code}}" as="l" hint-placeholder-count="15">
+          <div style="display: flex; height: 24px; line-height: 24px; background: {{l.bg}}">
+            <span style="width: 48px; text-align: right; padding-right: 16px; color: #9BA8C8; flex-shrink: 0">{{l.n}}</span>
+            <span style="white-space: pre"><sc-for list="{{l.tokens}}" as="k" hint-placeholder-count="3"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="height: 210px; background: #0e1019; border-top: 1px solid #293244; flex-shrink: 0; display: flex; flex-direction: column">
+        <div style="display: flex; justify-content: flex-end; gap: 14px; padding: 7px 14px; color: #9BA8C8">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 15l-6-6-6 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+        <div style="padding: 4px 16px 14px; font-size: 13px; overflow: hidden">
+          <sc-for list="{{term}}" as="t" hint-placeholder-count="7">
+            <div style="white-space: pre; height: 23px; line-height: 23px"><sc-for list="{{t.tokens}}" as="k" hint-placeholder-count="2"><span style="color: {{k.c}}">{{k.t}}</span></sc-for></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 24px; background: #0e1019; border-top: 1px solid #293244; display: flex; align-items: center; padding: 0 12px; gap: 8px; font-size: 11px; color: #c0c1ce; flex-shrink: 0">
+    <span style="width: 7px; height: 7px; border-radius: 50%; background: #c63453"></span>
+    <span>Not connected</span>
+    <span style="flex-grow: 1"></span>
+    <span style="color: #9BA8C8">devnet</span>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "tab": {"editor": "enum", "options": ["chat", "plan"], "default": "chat", "section": "State"},
+  "proposalApplied": {"editor": "boolean", "default": false, "section": "State"},
+  "$preview": {"width": 1440, "height": 900}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tab = this.state.tab ?? this.props.tab ?? 'chat';
+    const applied = this.state.applied ?? this.props.proposalApplied ?? false;
+
+    const PLAIN = '#c0c1ce', KEY = '#d57bee', TYPE = '#38ccff', STR = '#2ef0b1',
+          FN = '#ffd174', NUM = '#ffd174', DIM = '#9BA8C8', ERR = '#c63453',
+          OK = '#29cd7d', INFO = '#5288f2';
+    const t = (text, c) => ({ t: text, c: c || PLAIN });
+
+    const tabs = [
+      { label: 'Chat', key: 'chat' },
+      { label: "What we're building", key: 'plan' },
+    ].map((x) => ({
+      label: x.label,
+      color: tab === x.key ? '#f2f2f7' : DIM,
+      rule: tab === x.key ? INFO : 'transparent',
+      pick: () => this.setState({ tab: x.key }),
+    }));
+
+    const lineBad = [t('    '), t('let', KEY), t(' counter: '), t('u32', TYPE), t(' = '), t('"hello"', STR), t(';')];
+    const lineGood = [t('    '), t('let', KEY), t(' counter: '), t('u32', TYPE), t(' = '), t('0', NUM), t(';')];
+
+    const diff = [
+      { n: 11, sign: ' ', bg: 'transparent', sc: DIM, tokens: [t('    '), t('let', KEY), t(' total = accounts.len();')] },
+      { n: 12, sign: '-', bg: 'rgba(198,52,83,.14)', sc: ERR, tokens: lineBad },
+      { n: 12, sign: '+', bg: 'rgba(41,205,125,.14)', sc: OK, tokens: lineGood },
+      { n: 13, sign: ' ', bg: 'transparent', sc: DIM, tokens: [t('    '), t('msg!', FN), t('("Counter is {}", counter);')] },
+    ];
+
+    const code = [
+      { n: 1, bg: 'transparent', tokens: [t('use', KEY), t(' solana_program::{')] },
+      { n: 2, bg: 'transparent', tokens: [t('    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult,')] },
+      { n: 3, bg: 'transparent', tokens: [t('    msg, pubkey::Pubkey,')] },
+      { n: 4, bg: 'transparent', tokens: [t('};')] },
+      { n: 5, bg: 'transparent', tokens: [t(' ')] },
+      { n: 6, bg: 'transparent', tokens: [t('entrypoint!', FN), t('(process_instruction);')] },
+      { n: 7, bg: 'transparent', tokens: [t(' ')] },
+      { n: 8, bg: 'transparent', tokens: [t('pub fn', KEY), t(' '), t('process_instruction', FN), t('(')] },
+      { n: 9, bg: 'transparent', tokens: [t('    program_id: &'), t('Pubkey', TYPE), t(',')] },
+      { n: 10, bg: 'transparent', tokens: [t('    accounts: &['), t('AccountInfo', TYPE), t('],')] },
+      { n: 11, bg: 'transparent', tokens: [t(') -> '), t('ProgramResult', TYPE), t(' {')] },
+      applied
+        ? { n: 12, bg: 'rgba(41,205,125,.10)', tokens: lineGood }
+        : { n: 12, bg: 'rgba(198,52,83,.13)', tokens: lineBad },
+      { n: 13, bg: 'transparent', tokens: [t('    '), t('msg!', FN), t('("Counter is {}", counter);')] },
+      { n: 14, bg: 'transparent', tokens: [t('    '), t('Ok', TYPE), t('(())')] },
+      { n: 15, bg: 'transparent', tokens: [t('}')] },
+    ];
+
+    const term = applied
+      ? [
+          { tokens: [t('$ '), t('build', FN)] },
+          { tokens: [t('Building...', INFO)] },
+          { tokens: [t('Build successful.', OK), t(' Completed in 3.42s.')] },
+          { tokens: [t('$ '), t('█', DIM)] },
+        ]
+      : [
+          { tokens: [t('$ '), t('build', FN)] },
+          { tokens: [t('Building...', INFO)] },
+          { tokens: [t('error[E0308]: mismatched types', ERR)] },
+          { tokens: [t('  --> src/lib.rs:12:24', DIM)] },
+          { tokens: [t('   |', DIM)] },
+          { tokens: [t('12 |     let counter: u32 = "hello";')] },
+          { tokens: [t('   |                  ---   ', DIM), t('^^^^^^^', ERR), t(' expected `u32`, found `&str`', DIM)] },
+        ];
+
+    return {
+      tabs,
+      isChat: tab === 'chat',
+      isPlan: tab === 'plan',
+      diff, code, term,
+      pending: !applied,
+      applied,
+      propLabel: applied ? 'APPLIED' : 'PROPOSED',
+      propColor: applied ? OK : DIM,
+      apply: () => this.setState({ applied: true }),
+      reject: () => this.setState({ applied: false }),
+      ctx: [{ label: 'lib.rs' }, { label: 'build error' }, { label: 'no idl yet' }],
+      focus: [
+        { n: '01', title: 'AI assistant inside the environment', body: 'Shares context with the open project and can act on it — explain the real error, propose a patch, build, deploy.', status: 'IN PROGRESS', color: INFO },
+        { n: '02', title: 'Real wallet support', body: 'Standard adapters alongside the in-browser keypair. Zero-friction first run, then connect the wallet you actually use.', status: 'PLANNED', color: DIM },
+        { n: '03', title: 'Modern, responsive interface', body: 'Current visual language, layouts that work on tablet, room for the assistant and wallet flows.', status: 'PLANNED', color: DIM },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

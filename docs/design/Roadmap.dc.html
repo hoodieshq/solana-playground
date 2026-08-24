@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    a { color: #5288f2; } a:hover { color: #46c9d7; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 420px; height: 760px; background: #151721; color: #f2f2f7; font-size: 14px; display: flex; flex-direction: column; border: 1px solid #293244; overflow: hidden">
+
+  <div style="height: 44px; display: flex; align-items: center; justify-content: center; letter-spacing: .06em; font-size: 20px; flex-shrink: 0">ASSISTANT</div>
+  <div style="display: flex; border-bottom: 1px solid #293244; flex-shrink: 0; padding: 0 12px; gap: 4px">
+    <div style="padding: 8px 10px 7px; font-size: 13px; color: #9BA8C8; border-bottom: 2px solid transparent">Chat</div>
+    <div style="padding: 8px 10px 7px; font-size: 13px; color: #f2f2f7; border-bottom: 2px solid #5288f2">What we're building</div>
+  </div>
+
+  <div style="flex-grow: 1; overflow-y: auto; min-height: 0">
+
+    <div style="padding: 20px 16px 18px; border-bottom: 1px solid #293244">
+      <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8; padding-bottom: 9px">PLAYGROUND V2</div>
+      <div style="font-size: 16px; line-height: 1.5; padding-bottom: 12px">AI assistance that arrives before the setup barrier.</div>
+      <div style="color: #c0c1ce; font-size: 12.5px; line-height: 1.7">
+        Playground sits at the top of the Solana onboarding funnel — the first place a newcomer
+        lands, and the only place help can reach them before any local install. Today there is
+        no assistance inside it at all.
+      </div>
+    </div>
+
+    <div style="padding: 4px 16px 0">
+      <sc-for list="{{focus}}" as="f" hint-placeholder-count="3">
+        <div onClick="{{f.toggle}}" style="padding: 14px 0; border-bottom: 1px solid #293244; cursor: pointer">
+          <div style="display: flex; gap: 12px; align-items: flex-start">
+            <span style="color: {{f.color}}; font-size: 12px; padding-top: 2px; flex-shrink: 0">{{f.n}}</span>
+            <div style="min-width: 0; flex-grow: 1">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span style="font-size: 13.5px; line-height: 1.4">{{f.title}}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 7px; padding-top: 6px">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: {{f.color}}"></span>
+                <span style="color: {{f.color}}; font-size: 10.5px; letter-spacing: .07em">{{f.status}}</span>
+              </div>
+              <sc-if value="{{f.open}}" hint-placeholder-val="{{ true }}">
+                <div style="color: #c0c1ce; font-size: 12.5px; line-height: 1.7; padding-top: 10px">{{f.body}}</div>
+              </sc-if>
+            </div>
+            <span style="color: #9BA8C8; font-size: 11px; flex-shrink: 0; padding-top: 3px">{{f.chevron}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding: 18px 16px 4px">
+      <div style="font-size: 11px; letter-spacing: .1em; color: #9BA8C8; padding-bottom: 11px">HOW WE WORK</div>
+      <sc-for list="{{principles}}" as="p" hint-placeholder-count="4">
+        <div style="display: flex; gap: 10px; padding-bottom: 11px; align-items: flex-start">
+          <span style="color: #5288f2; flex-shrink: 0; padding-top: 3px">&#183;</span>
+          <div style="min-width: 0">
+            <span style="color: #f2f2f7; font-size: 12.5px">{{p.title}}</span>
+            <span style="color: #c0c1ce; font-size: 12.5px; line-height: 1.65"> — {{p.body}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding: 8px 16px 20px">
+      <div style="border: 1px solid #293244; border-radius: 8px; background: #0e1019; padding: 12px">
+        <div style="color: #c0c1ce; font-size: 12.5px; line-height: 1.6; padding-bottom: 10px">
+          The assistant reads this page too — ask it anything about the plan, the decisions
+          behind it, or where the work stands.
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #5288f2; border-radius: 12px; cursor: pointer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5288f2" stroke-width="1.8" style="flex-shrink: 0"><path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/></svg>
+          <span style="color: #5288f2; font-size: 12px; line-height: 1.4">Ask about our current status</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding: 0 16px 24px; color: #9BA8C8; font-size: 11px; line-height: 1.6">
+      Source: <span style="color: #c0c1ce">docs/product-brief.md</span> ·
+      <span style="color: #c0c1ce">docs/decisions.md</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "openIndex": {"editor": "int", "default": 0, "min": -1, "max": 2, "section": "State"},
+  "$preview": {"width": 420, "height": 760}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    const open = this.state.open ?? this.props.openIndex ?? 0;
+
+    const raw = [
+      {
+        title: 'AI assistant inside the environment',
+        status: 'IN PROGRESS',
+        color: '#5288f2',
+        body: 'A chat module beside the editor that shares context with the open project and can act on it: explain a build error against the actual code, propose a patch you apply with one click, then build and deploy. Grounded later in the ecosystem’s own sources — the Solana Developer MCP, the official Solana skill, the Explorer MCP.',
+      },
+      {
+        title: 'Real wallet support',
+        status: 'PLANNED',
+        color: '#9BA8C8',
+        body: 'Standard wallet adapters alongside the existing in-browser keypair. Zero friction on the first run, then connect the wallet you actually use — closer to how real Solana development works.',
+      },
+      {
+        title: 'Modern, responsive interface',
+        status: 'PLANNED',
+        color: '#9BA8C8',
+        body: 'Current visual language, layouts that work on a tablet, and room for the assistant and wallet flows the present UI has no space for.',
+      },
+    ];
+
+    return {
+      focus: raw.map((f, i) => ({
+        ...f,
+        n: '0' + (i + 1),
+        open: open === i,
+        chevron: open === i ? '−' : '+',
+        toggle: () => this.setState({ open: open === i ? -1 : i }),
+      })),
+      principles: [
+        { title: 'Propose automatically, apply explicitly', body: 'anything that changes files, builds or transactions needs a human action.' },
+        { title: 'Bring your own key', body: 'plus a small quota for first-time users. Never an open unlimited endpoint.' },
+        { title: 'Traceability', body: 'a record of what the assistant did, and on what basis.' },
+        { title: 'Open by default', body: 'the client and any service integrated into it stay public.' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
