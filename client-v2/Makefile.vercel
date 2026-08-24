@@ -1,0 +1,43 @@
+# Local Vercel deploy targets. See client-v2/docs/deploy-client-vercel.md.
+# Targets assume repo-root cwd (.vercel/ state at root); the built directory is
+# forced to $(CLIENT_DIR) below, so the dashboard Root Directory only governs
+# the Git-integration deploys.
+# `vercel build` reads $(CLIENT_DIR)/vercel.json (installCommand, buildCommand) so install/build chain isn't duplicated here.
+
+CLIENT_DIR := client-v2
+
+.PHONY: vercel-bootstrap vercel-link-preview deploy-client-to-vercel-preview
+
+# Resolve orgId from Vercel API + write .vercel/project.json. Requires jq.
+vercel-bootstrap: ## Link the local checkout to the dashboard project (run once; needs VERCEL_TOKEN, VERCEL_PROJECT_ID)
+	@: $${VERCEL_TOKEN:?VERCEL_TOKEN is unset}
+	@: $${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is unset}
+	@command -v jq >/dev/null 2>&1 || { echo "jq required — see https://jqlang.org/download/" >&2; exit 1; }
+	@response=$$(curl -sH "Authorization: Bearer $${VERCEL_TOKEN}" "https://api.vercel.com/v9/projects/$${VERCEL_PROJECT_ID}"); \
+		org_id=$$(echo "$$response" | jq -r '.accountId // empty'); \
+		if [ -z "$$org_id" ]; then echo "Bootstrap failed. Vercel API response: $$response" >&2; exit 1; fi; \
+		mkdir -p .vercel; \
+		jq -n --arg org "$$org_id" --arg proj "$${VERCEL_PROJECT_ID}" '{orgId: $$org, projectId: $$proj}' > .vercel/project.json; \
+		echo "Wrote .vercel/project.json"
+
+# Both IDs come from the link file because an exported VERCEL_PROJECT_ID outranks
+# it in the CLI's project resolution, leaving orgId unresolved.
+vercel-link-preview: ## Pull preview env vars from Vercel
+	@: $${VERCEL_TOKEN:?VERCEL_TOKEN is unset}
+	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
+	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
+		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
+		npx vercel@latest pull --yes --environment=preview --token="$${VERCEL_TOKEN}"
+	@# pull overwrites the cached settings with the dashboard's Root Directory; force ours back.
+	@jq --arg dir '$(CLIENT_DIR)' '.settings.rootDirectory = $$dir' \
+		.vercel/project.json > .vercel/project.json.next
+	@mv .vercel/project.json.next .vercel/project.json
+	@echo "Root Directory pinned to $(CLIENT_DIR)"
+
+deploy-client-to-vercel-preview: vercel-link-preview ## Build + deploy a unique preview URL
+	@: $${VERCEL_TOKEN:?VERCEL_TOKEN is unset}
+	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
+		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
+		set -a && . ./.vercel/.env.preview.local && set +a && \
+		npx vercel@latest build --token="$${VERCEL_TOKEN}" && \
+		npx vercel@latest deploy --prebuilt --token="$${VERCEL_TOKEN}"

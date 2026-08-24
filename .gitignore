@@ -32,3 +32,19 @@ server/programs/*
 # WASM
 **/www
 .vercel
+
+# WASM build output (real packages from wasm/build.sh, or stubs from wasm/stub-packages.sh)
+wasm/*/pkg/
+
+# macOS
+.DS_Store
+
+
+# Synced from docs/assistant-context.md by client-v2/scripts/sync-assistant-context.mjs
+client-v2/src/views/sidebar/assistant/content/assistant-context.md
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Playwright MCP session artifacts
+.playwright-mcp/
