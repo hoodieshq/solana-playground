@@ -41,6 +41,25 @@ const Chat = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const turn = useRef<AbortController | null>(null);
+  // Bridges `onDidRequestPrompt`, which must subscribe unconditionally, to
+  // `send`, which only exists once a backend is connected below
+  const sendRef = useRef<(text: string) => void>(() => {});
+
+  // "Fix with assistant" and similar callers outside the panel ask for a
+  // prompt to be sent through `PgAssistant.requestPrompt`; this is the only
+  // place that turns the request into an actual send
+  useEffect(() => {
+    return PgAssistant.onDidRequestPrompt((text) => {
+      if (!PgAssistant.isConnected) {
+        setInput(text);
+        PgAssistant.addNotice(
+          "Connect a backend to send this to the assistant."
+        );
+        return;
+      }
+      sendRef.current(text);
+    }).dispose;
+  }, []);
 
   const items = PgAssistant.items;
   const status = PgAssistant.status;
@@ -94,6 +113,7 @@ const Chat = () => {
       PgAssistant.setStatus("idle");
     }
   };
+  sendRef.current = send;
 
   /**
    * Aborting the request is not enough on its own: a tool waiting on an
