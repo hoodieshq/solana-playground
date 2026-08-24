@@ -26,7 +26,7 @@ const ChatItem: FC<{
       );
 
     case "assistant":
-      // Nothing streamed yet — the chat's thinking indicator stands in, so
+      // Nothing streamed yet -- the chat's thinking indicator stands in, so
       // don't render a role header with nothing under it
       if (!item.text) return null;
       return (
@@ -47,7 +47,15 @@ const ChatItem: FC<{
     case "tool":
       return (
         <ToolLine>
-          <Tick aria-hidden>✓</Tick>
+          <Tick viewBox="0 0 12 12" width="12" height="12" aria-hidden>
+            <path
+              d="M2.5 6.3l2.4 2.4 4.6-5.4"
+              fill="none"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Tick>
           {item.label}
         </ToolLine>
       );
@@ -130,7 +138,7 @@ const PatchTitle: FC<{
       {request.path}
       <Counts>
         <Added>+{added}</Added>
-        <Removed>−{removed}</Removed>
+        <Removed>-{removed}</Removed>
       </Counts>
     </CardTitle>
   );
@@ -192,9 +200,10 @@ const ToolLine = styled.div`
   `}
 `;
 
-const Tick = styled.span`
+const Tick = styled.svg`
   ${({ theme }) => css`
-    color: ${theme.colors.state.success.color};
+    flex-shrink: 0;
+    stroke: ${theme.colors.state.success.color};
   `}
 `;
 
@@ -210,8 +219,10 @@ const MakeChange = styled.button`
     font: inherit;
     font-size: ${theme.font.code.size.xsmall};
     cursor: pointer;
-    transition: all ${theme.default.transition.duration.medium}
-      ${theme.default.transition.type};
+    transition: background ${theme.default.transition.duration.medium}
+        ${theme.default.transition.type},
+      border-color ${theme.default.transition.duration.medium}
+        ${theme.default.transition.type};
 
     &:hover {
       background: ${theme.colors.state.hover.bg};
@@ -221,6 +232,10 @@ const MakeChange = styled.button`
     &:focus-visible {
       outline: 1px solid ${theme.colors.default.primary};
       outline-offset: -1px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
     }
   `}
 `;
@@ -252,6 +267,18 @@ const Card = styled.div<{ $pending: boolean }>`
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
     overflow: hidden;
+    /*
+     * Messages (Chat.tsx) is a flex column that scrolls, and every other
+     * item in it leaves overflow visible, so its content height is also
+     * its flex-shrink floor. This card is the one item that sets its own
+     * overflow: hidden, which per the flexbox spec drops its automatic
+     * minimum size to 0 -- with a full conversation above it, flex-shrink
+     * then crushes just this card down to a sliver (title visible, diff
+     * and Apply/Reject clipped away) to keep Messages from overflowing.
+     * flex-shrink: 0 opts it back out, so it renders at content height and
+     * the list scrolls instead, same as every other item.
+     */
+    flex-shrink: 0;
   `}
 `;
 
@@ -328,9 +355,9 @@ const DiffRow = styled.div<{ $kind: string }>`
     display: flex;
     line-height: 1.6;
     background: ${$kind === "added"
-      ? theme.colors.state.success.color + "22"
+      ? theme.colors.state.success.color + theme.default.transparency.low
       : $kind === "removed"
-      ? theme.colors.state.error.color + "22"
+      ? theme.colors.state.error.color + theme.default.transparency.low
       : "transparent"};
   `}
 `;
