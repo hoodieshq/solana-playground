@@ -10,6 +10,7 @@ import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
+import { GAP, PANEL_RADIUS } from "./tokens";
 import Assistant from "../sidebar/assistant/Component";
 import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
@@ -125,12 +126,15 @@ const Flow = () => {
 export default Flow;
 
 const Wrapper = styled.div`
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
+  ${({ theme }) => css`
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: ${theme.colors.default.bgPrimary};
+  `}
 `;
 
 const Columns = styled.div<{ $assistant: boolean }>`
@@ -139,14 +143,24 @@ const Columns = styled.div<{ $assistant: boolean }>`
   grid-template-columns:
     auto 1fr
     ${({ $assistant }) => ($assistant ? "21.75rem" : "1.5rem")};
+  gap: ${GAP};
+  padding: 0 ${GAP} ${GAP};
   overflow: hidden;
 `;
 
+// The floating center panel: a single bordered/rounded surface holding both
+// the stage and the console drawer, so the drawer's status line reads as
+// the bottom edge of one panel rather than a separate box (see the board).
 const Center = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: ${theme.colors.default.bgSecondary};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${PANEL_RADIUS};
+    overflow: hidden;
+  `}
 `;
 
 // display: flex here matters: Primary's own wrapper sizes itself with
@@ -163,11 +177,13 @@ const Stage = styled.div`
 `;
 
 const Right = styled.aside<{ $open: boolean }>`
-  ${({ theme }) => css`
+  ${({ theme, $open }) => css`
     position: relative;
+    --flow-handle-inset: ${$open ? "1rem" : "0px"};
     width: 100%;
-    border-left: 1px solid ${theme.colors.default.border};
-    background: ${theme.colors.default.bgPrimary};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${PANEL_RADIUS};
+    background: ${theme.colors.default.bgSecondary};
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -176,10 +192,14 @@ const Right = styled.aside<{ $open: boolean }>`
 
 const Collapse = styled.button`
   ${({ theme }) => css`
+    /* The handle owns the panel's left gutter; the assistant header reads
+       --flow-handle-inset (set on Right) and starts after it. */
     position: absolute;
-    top: 0.5rem;
+    /* Centre on the assistant header row (its eyebrow and chips sit
+       ~20px below the panel top): 4px offset + 32px tall = 20px centre. */
+    top: 0.25rem;
     left: 0;
-    width: 2rem;
+    width: 1.5rem;
     height: 2rem;
     display: flex;
     align-items: center;

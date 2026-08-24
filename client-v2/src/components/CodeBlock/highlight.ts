@@ -26,12 +26,22 @@ export const highlight = async (
   lang: OrString<Lang>,
   theme: IRawTheme
 ) => {
+  // A fence names whatever its author typed, and `shiki` throws on a name it
+  // does not bundle, taking down everything rendering the Markdown with it.
+  if (!isSupportedLanguage(lang)) return "";
+
   await initializeHighlighter();
   await Promise.all([loadLanguage(lang as Lang), loadTheme(theme)]);
 
   const tokens = highlighter.codeToThemedTokens(code, lang, theme.name);
   return renderToHtml(tokens, { bg: "inherit", themeName: theme.name });
 };
+
+/** Whether `shiki` bundles a grammar for this language or an alias of it. */
+const isSupportedLanguage = (lang: string) =>
+  BUNDLED_LANGUAGES.some(
+    (bundled) => bundled.id === lang || bundled.aliases?.includes(lang)
+  );
 
 /** `shiki` highlighter */
 let highlighter: Highlighter;

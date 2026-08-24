@@ -3,7 +3,8 @@ import styled, { css, keyframes } from "styled-components";
 
 import IdlActions from "./IdlActions";
 import { parseBuildReport } from "./build-report";
-import type { BuildReport } from "./build-report";
+import type { BuildDiagnostic, BuildReport } from "./build-report";
+import { humanize } from "./humanize";
 import Button from "../../../components/Button";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
@@ -11,11 +12,51 @@ import GradientButton from "../../sidebar/assistant/Component/GradientButton";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { PgCommand, PgExplorer, PgFramework } from "../../../utils";
+import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 
 /** `flow.buildMs` as a ` - 3.2s` suffix, or nothing while it is unknown */
 const msSuffix = (ms: number | null) =>
   ms === null ? "" : ` - ${(ms / 1000).toFixed(1)}s`;
+
+/** `flow.buildMs` as a plain `2.9s`, or `null` while it is unknown */
+const msLabel = (ms: number | null) =>
+  ms === null ? null : `${(ms / 1000).toFixed(1)}s`;
+
+/**
+ * The text rustc prints after the last run of `^` on a diagnostic's marker
+ * line, e.g. `` expected `u64`, found `&str` `` -- with the backticks
+ * stripped, since this is rendered as plain text, not markdown.
+ */
+const extractLabel = (excerpt: string): string | null => {
+  const match = excerpt.match(/\^+\s*(.+)$/m);
+  return match ? match[1].replace(/`/g, "") : null;
+};
+
+interface SourceLine {
+  num: number;
+  text: string;
+  failing: boolean;
+}
+
+/**
+ * The real source lines surrounding a diagnostic (`line - 1` through
+ * `line + 1`), read live from the explorer. `null` when the file or line is
+ * missing, or the file cannot be read -- callers fall back to rustc's own
+ * gutter excerpt in that case.
+ */
+const readSourceLines = (d: BuildDiagnostic): SourceLine[] | null => {
+  if (!d.file || !d.line) return null;
+  const content = PgExplorer.getFileContent(d.file);
+  if (!content) return null;
+
+  const all = content.split("\n");
+  const lines: SourceLine[] = [];
+  for (let n = d.line - 1; n <= d.line + 1; n++) {
+    if (n < 1 || n > all.length) continue;
+    lines.push({ num: n, text: all[n - 1], failing: n === d.line });
+  }
+  return lines.length ? lines : null;
+};
 
 const Build = () => {
   const [out, setOut] = useState<BuildOutput | null>(null);
@@ -99,39 +140,42 @@ const Build = () => {
   if (!out.failed) {
     return (
       <Surface>
-        <StatusRow>
-          <StatusGlyph
-            $ok
-            viewBox="0 0 14 14"
-            width="18"
-            height="18"
-            aria-hidden
-          >
-            <circle cx="7" cy="7" r="6" className="fill" />
-            <path
-              d="M4.2 7.3l1.9 1.9 3.7-4"
-              fill="none"
-              stroke="var(--on-fill)"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </StatusGlyph>
-          <Headline $ok>
-            Build succeeded
-            <Ms>{ms}</Ms>
-          </Headline>
-        </StatusRow>
-        <Muted>The IDL below reflects this build. Deploy when ready.</Muted>
-        <Actions>
-          <GradientButton onClick={() => PgFlow.setStage("deploy")}>
-            Continue to Deploy
-          </GradientButton>
-          <IdlActions showGenerate />
-          <Button onClick={() => PgFramework.exportWorkspace()}>
-            Export project
-          </Button>
-        </Actions>
+        <Card>
+          <Eyebrow>Build</Eyebrow>
+          <StatusRow>
+            <StatusGlyph
+              $ok
+              viewBox="0 0 14 14"
+              width="18"
+              height="18"
+              aria-hidden
+            >
+              <circle cx="7" cy="7" r="6" className="fill" />
+              <path
+                d="M4.2 7.3l1.9 1.9 3.7-4"
+                fill="none"
+                stroke="var(--on-fill)"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </StatusGlyph>
+            <Headline $ok>
+              Build succeeded
+              <Ms>{ms}</Ms>
+            </Headline>
+          </StatusRow>
+          <Muted>The IDL below reflects this build. Deploy when ready.</Muted>
+          <Actions>
+            <GradientButton onClick={() => PgFlow.setStage("deploy")}>
+              Continue to Deploy
+            </GradientButton>
+            <IdlActions showGenerate />
+            <Button onClick={() => PgFramework.exportWorkspace()}>
+              Export project
+            </Button>
+          </Actions>
+        </Card>
       </Surface>
     );
   }
@@ -144,52 +188,62 @@ const Build = () => {
   // silently showing "0 errors" next to raw compiler output that says
   // otherwise.
   const n = report.diagnostics.length || flow.buildErrorCount;
+  // Top-level `warning:` blocks only -- an indented `= note:`/`= help:`
+  // line under an error does not start at the beginning of the line, so
+  // `^warning:` does not match it.
+  const warningCount = (report.raw.match(/^warning:/gm) ?? []).length;
+  const host = new URL(PgSettings.server.endpoint).host;
+  const meta = [`${n} error${n === 1 ? "" : "s"}`, msLabel(flow.buildMs), host]
+    .filter(Boolean)
+    .join(" \u00b7 ");
+
+  const compilerToggle = (
+    <Toggle
+      type="button"
+      aria-expanded={showRaw}
+      onClick={() => setShowRaw((s) => !s)}
+    >
+      {showRaw ? "Hide" : "Show"} compiler output
+      <Chevron $open={showRaw} aria-hidden>
+        <path d="M3 2l4 4-4 4" fill="none" strokeWidth="1.4" />
+      </Chevron>
+    </Toggle>
+  );
+
   return (
     <Surface>
-      <StatusRow>
-        <StatusGlyph viewBox="0 0 14 14" width="18" height="18" aria-hidden>
-          <circle cx="7" cy="7" r="6" className="fill" />
-          <path
-            d="M4.6 4.6l4.8 4.8M9.4 4.6l-4.8 4.8"
-            fill="none"
-            stroke="var(--on-fill)"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-        </StatusGlyph>
-        <Headline $error>
-          Build failed
-          <Count>
-            {n} error{n === 1 ? "" : "s"}
-          </Count>
-          <Ms>{ms}</Ms>
-        </Headline>
-      </StatusRow>
+      <HeaderRow>
+        <HeaderText>
+          <Headline>Build failed</Headline>
+          <Meta>{meta}</Meta>
+        </HeaderText>
+        <Button kind="outline" onClick={() => PgCommand.build.execute()}>
+          Rebuild
+        </Button>
+      </HeaderRow>
 
       <CardList>
         {report.diagnostics.length === 0 && (
-          <Card>
-            <CardHead>
-              <Index aria-hidden>01</Index>
-              <CardHeadText>
-                <CardTitle>Unparsed compiler error</CardTitle>
-              </CardHeadText>
-            </CardHead>
-            <Muted>
+          <Card $tone="error">
+            <CardTitle>Unparsed compiler error</CardTitle>
+            <Explanation>
               The compiler reported an error without a parseable diagnostic; see
               raw output.
-            </Muted>
+            </Explanation>
             <CardActions>
-              <GradientButton
-                onClick={() =>
-                  PgAssistant.requestPrompt(
-                    "Explain this build failure and propose a fix:\n" +
-                      out.stderr
-                  )
-                }
-              >
-                Fix with assistant
-              </GradientButton>
+              <CardActionsLeft>
+                <GradientButton
+                  onClick={() =>
+                    PgAssistant.requestPrompt(
+                      "Explain this build failure and propose a fix:\n" +
+                        out.stderr
+                    )
+                  }
+                >
+                  Fix with assistant
+                </GradientButton>
+              </CardActionsLeft>
+              {compilerToggle}
             </CardActions>
           </Card>
         )}
@@ -199,62 +253,84 @@ const Build = () => {
               `Explain this build error and propose a fix: ` +
                 `${d.code ?? ""} ${d.title} at ${d.file}:${d.line}`
             );
-          return (
-            <Card key={i}>
-              <CardHead>
-                <Index aria-hidden>{String(i + 1).padStart(2, "0")}</Index>
-                <CardHeadText>
-                  <CardTitle>
-                    {d.code && <CodeChip>{d.code}</CodeChip>}
-                    {d.title}
-                  </CardTitle>
-                  {d.file && (
-                    <Location>
-                      {d.file}
-                      <LocationDim>
-                        :{d.line}:{d.col}
-                      </LocationDim>
-                    </Location>
-                  )}
-                </CardHeadText>
-              </CardHead>
+          const label = extractLabel(d.excerpt);
+          const humanized = humanize(d.code, d.title, label);
+          const explanation = [
+            humanized.explanation,
+            label ? `Rustc says: ${label}.` : null,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const sourceLines = readSourceLines(d);
 
-              {d.excerpt && <Excerpt>{d.excerpt}</Excerpt>}
+          return (
+            <Card key={i} $tone="error">
+              <CardTitle>
+                {d.code && <CodeChip>{d.code}</CodeChip>}
+                {humanized.title}
+              </CardTitle>
+
+              {explanation && <Explanation>{explanation}</Explanation>}
+
+              {sourceLines ? (
+                <CodeExcerpt>
+                  {sourceLines.map((line) => (
+                    <CodeLine key={line.num} $failing={line.failing}>
+                      <LineNum>{line.num}</LineNum>
+                      <LineText>{line.text}</LineText>
+                      {line.failing && label && (
+                        <InlineLabel>{`<- ${label}`}</InlineLabel>
+                      )}
+                    </CodeLine>
+                  ))}
+                </CodeExcerpt>
+              ) : (
+                d.excerpt && <Excerpt>{d.excerpt}</Excerpt>
+              )}
 
               <CardActions>
-                {/* Gradient is reserved for one CTA per screen; only the
-                    first card gets it, the rest use a plain `Button`. */}
-                {i === 0 ? (
-                  <GradientButton onClick={fix}>
-                    Fix with assistant
-                  </GradientButton>
-                ) : (
-                  <Button onClick={fix}>Fix with assistant</Button>
-                )}
-                {d.file && (
-                  <Button onClick={() => PgExplorer.openFile(d.file as string)}>
-                    Open in editor
-                  </Button>
-                )}
+                <CardActionsLeft>
+                  {/* Gradient is reserved for one CTA per screen; only the
+                      first card gets it, the rest use a plain `Button`. */}
+                  {i === 0 ? (
+                    <GradientButton onClick={fix}>
+                      Fix with assistant
+                    </GradientButton>
+                  ) : (
+                    <Button onClick={fix}>Fix with assistant</Button>
+                  )}
+                  {d.file && (
+                    <Button
+                      onClick={() => PgExplorer.openFile(d.file as string)}
+                    >
+                      Open in editor
+                    </Button>
+                  )}
+                </CardActionsLeft>
+                {compilerToggle}
               </CardActions>
             </Card>
           );
         })}
       </CardList>
 
-      <RawSection>
-        <Toggle
-          type="button"
-          aria-expanded={showRaw}
-          onClick={() => setShowRaw((s) => !s)}
-        >
-          <Chevron $open={showRaw} aria-hidden>
-            <path d="M3 2l4 4-4 4" fill="none" strokeWidth="1.4" />
-          </Chevron>
-          {showRaw ? "Hide" : "Show"} raw compiler output
-        </Toggle>
-        {showRaw && <Raw>{report.raw}</Raw>}
-      </RawSection>
+      {(warningCount > 0 || showRaw) && (
+        <RawSection>
+          {warningCount > 0 && (
+            <Toggle
+              type="button"
+              aria-expanded={showRaw}
+              onClick={() => setShowRaw((s) => !s)}
+            >
+              Warnings ({warningCount})
+              <Chevron $open={showRaw} aria-hidden>
+                <path d="M3 2l4 4-4 4" fill="none" strokeWidth="1.4" />
+              </Chevron>
+            </Toggle>
+          )}
+          {showRaw && <Raw>{report.raw}</Raw>}
+        </RawSection>
+      )}
     </Surface>
   );
 };
@@ -324,14 +400,6 @@ const Headline = styled.h2<{ $ok?: boolean; $error?: boolean }>`
   `}
 `;
 
-const Count = styled.span`
-  ${({ theme }) => css`
-    font-size: ${theme.font.other.size.medium};
-    font-weight: 400;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
 const Ms = styled.span`
   ${({ theme }) => css`
     font-family: ${theme.font.code.family};
@@ -359,6 +427,40 @@ const Actions = styled.div`
   margin-top: 0.25rem;
 `;
 
+const Eyebrow = styled.div`
+  ${({ theme }) => css`
+    font-size: ${theme.font.other.size.xsmall};
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  max-width: 42rem;
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+`;
+
+const Meta = styled.span`
+  ${({ theme }) => css`
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.other.size.small};
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
 const CardList = styled.div`
   display: flex;
   flex-direction: column;
@@ -368,12 +470,17 @@ const CardList = styled.div`
   margin-top: 0.5rem;
 `;
 
-const Card = styled.section`
-  ${({ theme }) => css`
+const Card = styled.section<{ $tone?: "error" }>`
+  ${({ theme, $tone }) => css`
+    width: 100%;
+    max-width: 42rem;
     padding: 1.125rem 1.25rem;
-    border: 1px solid ${theme.colors.default.border};
+    border: 1px solid
+      ${$tone === "error"
+        ? theme.colors.state.error.color + theme.default.transparency.medium
+        : theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    background: ${theme.components.tooltip.bg};
     display: flex;
     flex-direction: column;
     gap: 0.875rem;
@@ -383,30 +490,6 @@ const Card = styled.section`
       animation: none;
     }
   `}
-`;
-
-const CardHead = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-`;
-
-const Index = styled.span`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    padding-top: 0.125rem;
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
-    color: ${theme.colors.state.error.color};
-    opacity: 0.7;
-  `}
-`;
-
-const CardHeadText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.3125rem;
-  min-width: 0;
 `;
 
 const CardTitle = styled.h3`
@@ -432,16 +515,11 @@ const CodeChip = styled.span`
   `}
 `;
 
-const Location = styled.div`
+const Explanation = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
-    color: ${theme.colors.default.textPrimary};
-  `}
-`;
-
-const LocationDim = styled.span`
-  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.small};
+    line-height: 1.55;
     color: ${theme.colors.default.textSecondary};
   `}
 `;
@@ -461,7 +539,67 @@ const Excerpt = styled.pre`
   `}
 `;
 
+const CodeExcerpt = styled.div`
+  ${({ theme }) => css`
+    margin: 0;
+    overflow-x: auto;
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgPrimary};
+    border: 1px solid ${theme.colors.default.border};
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.code.size.small};
+    line-height: 1.7;
+  `}
+`;
+
+const CodeLine = styled.div<{ $failing?: boolean }>`
+  ${({ theme, $failing }) => css`
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.0625rem 0.875rem;
+    white-space: pre;
+    border-left: 2px solid
+      ${$failing ? theme.colors.state.error.color : "transparent"};
+    background: ${$failing ? theme.components.tooltip.bg : "transparent"};
+  `}
+`;
+
+const LineNum = styled.span`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.375rem;
+    text-align: right;
+    color: ${theme.colors.default.textSecondary};
+    opacity: 0.6;
+    user-select: none;
+  `}
+`;
+
+const LineText = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    white-space: pre;
+  `}
+`;
+
+const InlineLabel = styled.span`
+  ${({ theme }) => css`
+    margin-left: 0.5rem;
+    color: ${theme.colors.state.error.color};
+    white-space: pre;
+  `}
+`;
+
 const CardActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const CardActionsLeft = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;

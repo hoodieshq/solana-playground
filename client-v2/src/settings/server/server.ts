@@ -8,7 +8,12 @@ export const server = [
     description: "Build server URL",
     values: [
       { name: "Local", value: "http://localhost:8080" },
-      { name: "SolPg", value: "https://api.solpg.io" },
+      // { name: "SolPg", value: "https://api.solpg.io" },
+      {
+        name: "Solana Foundation",
+        value:
+          "https://playground-server-dot-analytics-324114.de.r.appspot.com",
+      },
     ],
     default:
       // Docker builds use this environment variable to set the server URL

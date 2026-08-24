@@ -81,8 +81,14 @@ export interface ProviderInfo {
   /**
    * OpenAI-compatible endpoint settings, editable on the connect screen.
    * Present only on providers driven by the generic chat-completions loop.
+   * `models` offers known-good ids as one-click presets; the field stays free
+   * text, since any id the endpoint serves is valid.
    */
-  endpoint?: { baseUrl: string; model: string };
+  endpoint?: {
+    baseUrl: string;
+    model: string;
+    models?: readonly string[];
+  };
   /** Model and effort pickers, for backends without a base URL */
   modelSettings?: ModelSettings;
   /** Declared but not implemented yet — shown, but cannot be selected */
@@ -91,20 +97,12 @@ export interface ProviderInfo {
 
 export const PROVIDERS: ProviderInfo[] = [
   {
-    id: "scripted",
-    name: "Demo",
-    description:
-      "A scripted walkthrough of the build-error path. No key, no network — " +
-      "useful for seeing the flow and for demoing without depending on an API.",
-    needsKey: false,
-  },
-  {
     id: "anthropic",
     name: "Anthropic",
     description:
-      "The SDK's tool runner, and the only backend with a server-side MCP " +
-      "connector. Sonnet costs roughly a third of Opus per turn; effort is " +
-      "the other cost lever.",
+      "The SDK's tool runner, with Anthropic's own MCP connector for servers " +
+      "routed that way. Sonnet costs roughly a third of Opus per turn; " +
+      "effort is the other cost lever.",
     needsKey: true,
     keyUrl: "https://console.anthropic.com/",
     keyPlaceholder: "sk-ant-…",
@@ -141,6 +139,9 @@ export const PROVIDERS: ProviderInfo[] = [
       baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
       // 2.5-flash is deprecated: 404s for new keys, migration target is 3.6
       model: "gemini-3.6-flash",
+      // Pro reasons harder about build errors but is the first to 503 on the
+      // free tier; a preview id, so expect it to be renamed
+      models: ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
     },
   },
   {
@@ -156,5 +157,14 @@ export const PROVIDERS: ProviderInfo[] = [
       baseUrl: "https://openrouter.ai/api/v1",
       model: "deepseek/deepseek-chat-v3.1:free",
     },
+  },
+  // Last: it demonstrates the interaction rather than being a way to run it
+  {
+    id: "scripted",
+    name: "Demo",
+    description:
+      "A scripted walkthrough of the build-error path. No key, no network — " +
+      "useful for seeing the flow and for demoing without depending on an API.",
+    needsKey: false,
   },
 ];
