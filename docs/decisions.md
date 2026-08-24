@@ -896,3 +896,36 @@ traversal, nesting and casing were all checked.
 **Revisit when** this app moves to a framework that owns its own API routes.
 These handlers belong there, and this adapter should be deleted rather than
 maintained.
+
+---
+
+## D21 — Reprioritized: GitHub identity first, tutorials second, wallet later
+
+**Date:** 2026-08-24 · **Status:** chosen, after team-lead feedback
+
+The team meeting produced three candidate work streams. We ordered them:
+
+1. **Sign in with GitHub ID.** Enables airdrop and the future features the
+   Solana Foundation would build around models/agents. Feedback from Cat:
+   signing in only pays off if programs are saved per user instead of in
+   local storage — so this stream implicitly includes persistent project
+   storage, which by our own constraint cannot live in `server/` and needs
+   a separate service.
+2. **Tutorials as a scenario.** Suggestions for tutorials — connected
+   tutorials, learning curves, connected prompts for agents. Cat has a demo
+   of how tutorials would work (currently broken, but the intent reads).
+3. **Wallet-adapter integration — deprioritized.** It was Focus 2 in the
+   product brief.
+
+**Why wallet moved down.** It cuts through the deploy process and the whole
+wallet flow — exactly the hottest upstream files (`commands/deploy/deploy.ts`
+at 29 commits in six months, `utils/wallet/wallet.ts` at 9), so it is the
+riskiest stream for merge safety, and it earns little visible value right
+now compared to identity and tutorials.
+
+**Left uncertain by the team, not scheduled:** updating Anchor to a modern
+version, and better builds with Kora. Both partially blocked by Acheron's
+grant.
+
+**Revisit when** the GitHub OAuth stream lands, or when mainnet-facing work
+makes the local-keypair wallet an actual blocker rather than a mismatch.

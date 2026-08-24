@@ -27,9 +27,13 @@ A second client, developed in parallel inside the fork, running against the exis
 
 **Focus 1 — AI assistant inside the environment.** A chat module next to the editor that shares context with the open project and can act on it: explain a build error against the actual code, propose a patch the user applies with one click, then build and deploy. Grounded in the ecosystem's own sources — Solana Developer MCP for documentation, the official Solana skill, the Explorer MCP for on-chain lookups — with a channel for plugging in new MCP servers and skills, so the environment inherits ecosystem knowledge without waiting for a release.
 
-**Focus 2 — Real wallet support.** Standard wallet adapters alongside the existing in-browser key: zero-friction first run, then connect the wallet you actually use.
+**Focus 2 — GitHub identity.** Sign in with GitHub ID to enable airdrop and the future features the Solana Foundation would build around models and agents. Signing in only pays off if programs are saved per user instead of in browser storage, so this focus carries persistent project storage with it — as a separate service, not a change to the existing backend.
 
-**Focus 3 — Modern, responsive interface.** Current visual language, layouts that work on tablet, room for the assistant and wallet flows that the present UI does not have.
+**Focus 3 — Tutorials as a scenario.** Suggestions for tutorials: connected tutorials, learning curves, connected prompts for agents — so the scattered learning material starts to have a path through the environment.
+
+**Focus 4 — Modern, responsive interface.** Current visual language, layouts that work on tablet, room for the assistant and wallet flows that the present UI does not have.
+
+Real wallet support (standard wallet adapters alongside the in-browser key) was Focus 2 and is deprioritized for now: it cuts through the deploy process and the whole wallet flow — the hottest upstream files — and earns little visible value until mainnet-facing work makes the local keypair an actual blocker. See `decisions.md` D21.
 
 ## Principles
 
@@ -48,5 +52,5 @@ Aggregating existing learning material into the environment · integrating with 
 - Preferred agent framework or provider — is there an existing choice we should validate rather than introduce another vendor?
 - Who covers inference in production, and what quota is acceptable for anonymous first-time users?
 - How the execution layer is expected to evolve — testing, generated clients, current framework versions — since it sets the ceiling on what the environment can teach.
-- Whether persistent user identity (saved projects, progress, history) is wanted here.
+- Persistent user identity (saved projects, progress, history) is now on the roadmap via GitHub sign-in — the open part is where the per-user storage service should live and who operates it.
 - If content aggregation is worth doing, which sources should be treated as canonical.
