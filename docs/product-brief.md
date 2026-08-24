@@ -42,6 +42,7 @@ Real wallet support (standard wallet adapters alongside the in-browser key) was 
 - **Traceability.** A record of what the assistant did and on what basis.
 - **Open by default.** The client and any service integrated into it stay public, consistent with how the project has always been maintained.
 - **No backend changes.** The build server, crate list, deploy mechanics and sharing infrastructure are out of scope.
+- **Concept on paper, simplified in code.** This is an MVP prototype: complex architecture (per-user storage, agent infrastructure) is written down as a concept in the docs, while each iteration ships a deliberately simplified cut of it.
 
 ## Later candidates
 
