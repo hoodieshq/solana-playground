@@ -62,6 +62,7 @@ const Button = styled.button`
 `;
 
 const Name = styled.span`
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

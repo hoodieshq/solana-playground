@@ -71,27 +71,45 @@ const Interact = () => {
     }
   };
 
+  const selectedIndex = history.findIndex((r) => r.id === selected);
+  const selectedRecord = selectedIndex >= 0 ? history[selectedIndex] : null;
+  const meta = selectedRecord
+    ? [
+        selectedIndex === 0 ? "latest" : null,
+        selectedRecord.cluster,
+        `${selectedRecord.programId.slice(0, 4)}...`,
+      ]
+        .filter(Boolean)
+        .join(" \u00b7 ")
+    : "no deployments yet";
+
   return (
     <Surface>
       <Toolbar>
-        <Label>
-          Deployment
-          <Select
-            value={selected ?? ""}
-            onChange={(ev) => pick(ev.target.value)}
-            disabled={history.length === 0}
-          >
-            {history.length === 0 && <option value="">none yet</option>}
-            {history.map((r, i) => (
-              <option key={r.id} value={r.id}>
-                {i === 0 ? "latest \u00b7 " : ""}
-                {r.cluster} {"\u00b7"} {r.programId.slice(0, 6)}&hellip;{" "}
-                {"\u00b7"} {new Date(r.at).toLocaleTimeString()}
-              </option>
-            ))}
-          </Select>
-        </Label>
-        <IdlActions showUpload />
+        <HeaderText>
+          <Headline>Interact</Headline>
+          <Meta>{meta}</Meta>
+        </HeaderText>
+        <ToolbarActions>
+          <Label>
+            Deployment
+            <Select
+              value={selected ?? ""}
+              onChange={(ev) => pick(ev.target.value)}
+              disabled={history.length === 0}
+            >
+              {history.length === 0 && <option value="">none yet</option>}
+              {history.map((r, i) => (
+                <option key={r.id} value={r.id}>
+                  {i === 0 ? "latest \u00b7 " : ""}
+                  {r.cluster} {"\u00b7"} {r.programId.slice(0, 6)}&hellip;{" "}
+                  {"\u00b7"} {new Date(r.at).toLocaleTimeString()}
+                </option>
+              ))}
+            </Select>
+          </Label>
+          <IdlActions showUpload />
+        </ToolbarActions>
       </Toolbar>
       <Panel>
         <Test />
@@ -119,6 +137,37 @@ const Toolbar = styled.div`
     border-bottom: 1px solid ${theme.colors.default.border};
     font-family: ${theme.font.other.family};
   `}
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+`;
+
+const Headline = styled.h2`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.xlarge};
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  `}
+`;
+
+const Meta = styled.span`
+  ${({ theme }) => css`
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.other.size.small};
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const ToolbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 `;
 
 const Label = styled.label`
