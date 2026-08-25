@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import {
@@ -7,7 +8,7 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgCommand, PgConnection } from "../../../utils";
+import { PgCommand, PgConnection, PgGithubAuth } from "../../../utils";
 
 interface StatusChipsProps {
   onOpenSettings: () => void;
@@ -24,6 +25,18 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
   const isClusterDown = useRenderOnChange(
     PgConnection.onDidChangeIsClusterDown
   );
+  useRenderOnChange(PgGithubAuth.onDidChange);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const github = PgGithubAuth.user;
+
+  const signIn = async () => {
+    setAuthError(null);
+    try {
+      await PgGithubAuth.signIn();
+    } catch (e) {
+      setAuthError((e as Error).message);
+    }
+  };
 
   return (
     <Wrapper>
@@ -49,6 +62,27 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
           "Connect wallet"
         )}
       </WalletChip>
+      {github ? (
+        <GithubChip
+          type="button"
+          onClick={() => PgGithubAuth.signOut()}
+          title={`Signed in as ${github.login} - click to sign out`}
+          aria-label={`GitHub: ${github.login}. Sign out`}
+        >
+          <Avatar src={github.avatarUrl} alt="" aria-hidden />
+          <span>{github.login}</span>
+        </GithubChip>
+      ) : (
+        <GithubChip
+          type="button"
+          onClick={signIn}
+          aria-label="Sign in with GitHub"
+        >
+          <GithubMark />
+          <span>Sign in</span>
+        </GithubChip>
+      )}
+      {authError && <AuthError role="alert">{authError}</AuthError>}
       <IconButton aria-label="Open settings" onClick={onOpenSettings}>
         <GearIcon />
       </IconButton>
@@ -70,6 +104,22 @@ const GearIcon: FC = () => (
     <circle cx="10" cy="3.5" r="1.6" fill="currentColor" />
     <circle cx="5" cy="8" r="1.6" fill="currentColor" />
     <circle cx="11" cy="12.5" r="1.6" fill="currentColor" />
+  </svg>
+);
+
+// Kept as one unbroken path string -- see the note above `GearIcon`
+// about manual line wrapping breaking SVG path data mid-render.
+const GITHUB_MARK_PATH =
+  "M8 .2a8 8 0 0 0-2.5 15.6c.4 0 .5-.2.5-.4v-1.4c-2 .4-2.5-.9-2.5-.9" +
+  "-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.9 1.2.9.7 1.2 1.9.9" +
+  " 2.4.7 0-.5.3-.9.5-1.1-1.8-.2-3.7-.9-3.7-4a3 3 0 0 1 .8-2.1 2.9" +
+  " 2.9 0 0 1 .1-2.1s.7-.2 2.2.8a7.6 7.6 0 0 1 4 0c1.5-1 2.2-.8" +
+  " 2.2-.8.3.7.3 1.5.1 2.1a3 3 0 0 1 .8 2.1c0 3.1-1.9 3.8-3.7 4" +
+  " .3.3.6.8.6 1.5v2.1c0 .2.1.4.5.4A8 8 0 0 0 8 .2Z";
+
+const GithubMark: FC = () => (
+  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden>
+    <path fill="currentColor" d={GITHUB_MARK_PATH} />
   </svg>
 );
 
@@ -125,6 +175,23 @@ const WalletChip = styled.button`
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
+  `}
+`;
+
+const GithubChip = styled(WalletChip)`
+  gap: 0.375rem;
+`;
+
+const Avatar = styled.img`
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+`;
+
+const AuthError = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.code.size.xsmall};
   `}
 `;
 
