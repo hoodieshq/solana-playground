@@ -3,6 +3,7 @@ import styled, { css } from "styled-components";
 
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
+import { GRADIENT } from "../tokens";
 
 const LABEL: Record<Stage, string> = {
   write: "Write",
@@ -23,8 +24,8 @@ interface StepperProps {
 
 /**
  * The write -> build -> deploy -> interact loop, rendered as a horizontal
- * stepper. Each stage's status is carried by dot shape and an inline glyph
- * as well as color, so the sequence reads correctly without color vision.
+ * pill stepper. Each stage's status is carried by dot/glyph shape as well
+ * as color, so the sequence reads correctly without color vision.
  */
 const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
   <Wrapper role="tablist" aria-label="Development loop">
@@ -33,7 +34,7 @@ const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
       const selected = state.stage === stage;
       const suffix =
         stage === "build" && status === "failed"
-          ? ` - ${state.buildErrorCount} error${
+          ? ` ${state.buildErrorCount} error${
               state.buildErrorCount === 1 ? "" : "s"
             }`
           : "";
@@ -53,10 +54,8 @@ const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Label $status={status}>
-              {LABEL[stage]}
-              {suffix}
-            </Label>
+            <Label $status={status}>{LABEL[stage]}</Label>
+            {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
       );
@@ -79,7 +78,7 @@ const Item = styled.div`
 
 const Connector = styled.span<{ $done: boolean }>`
   ${({ theme, $done }) => css`
-    width: 1.5rem;
+    width: 24px;
     height: 1px;
     margin: 0 0.25rem;
     background: ${$done
@@ -88,114 +87,62 @@ const Connector = styled.span<{ $done: boolean }>`
   `}
 `;
 
-/** Icon glyphs so each `StageStatus` reads by shape, not only by color. */
-const glyphOf = (status: StageStatus) => {
-  switch (status) {
-    case "done":
-      // Filled circle, checkmark cut out of the fill.
-      return (
-        <>
-          <circle cx="7" cy="7" r="6" className="fill" />
-          <path
-            d="M4.2 7.3l1.9 1.9 3.7-4"
-            className="mark"
-            fill="none"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
-      );
-    case "failed":
-      // Filled circle, cross cut out of the fill.
-      return (
-        <>
-          <circle cx="7" cy="7" r="6" className="fill" />
-          <path
-            d="M4.6 4.6l4.8 4.8M9.4 4.6l-4.8 4.8"
-            className="mark"
-            fill="none"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-        </>
-      );
-    case "active":
-    case "running":
-      // Outlined ring with a small solid core -- "in progress" target shape.
-      return (
-        <>
-          <circle
-            cx="7"
-            cy="7"
-            r="5.25"
-            className="ring"
-            fill="none"
-            strokeWidth="1.5"
-          />
-          <circle cx="7" cy="7" r="2.1" className="core" />
-        </>
-      );
-    default:
-      // Upcoming: hollow outline only, no fill and no glyph.
-      return (
-        <circle
-          cx="7"
-          cy="7"
-          r="5.25"
-          className="ring"
-          fill="none"
-          strokeWidth="1.5"
-        />
-      );
-  }
-};
-
+/**
+ * `done` renders as a plain checkmark glyph (no fill), everything else as a
+ * small circular dot -- the shape difference (check vs. hollow ring vs.
+ * filled circle) is what carries the status when color is unavailable.
+ */
 const Dot: FC<{ $status: StageStatus; "aria-hidden"?: boolean }> = ({
   $status,
   ...rest
-}) => (
-  <DotSvg
-    $status={$status}
-    viewBox="0 0 14 14"
-    width="14"
-    height="14"
-    {...rest}
-  >
-    {glyphOf($status)}
-  </DotSvg>
-);
+}) =>
+  $status === "done" ? (
+    <CheckGlyph viewBox="0 0 14 14" width="14" height="14" {...rest}>
+      <path
+        d="M3 7.3l2.6 2.6L11 4.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </CheckGlyph>
+  ) : (
+    <DotCircle $status={$status} {...rest} />
+  );
 
-const DotSvg = styled.svg<{ $status: StageStatus }>`
+const CheckGlyph = styled.svg`
+  flex-shrink: 0;
+  color: ${({ theme }) => theme.colors.state.success.color};
+`;
+
+const DotCircle = styled.span<{ $status: StageStatus }>`
   ${({ theme, $status }) => css`
     flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-sizing: border-box;
 
-    .fill {
-      fill: ${$status === "done"
-        ? theme.colors.state.success.color
-        : theme.colors.state.error.color};
-    }
-    .mark {
-      /* Tracks whatever the button's actual background currently is
-         (transparent-over-bar, hover or selected) -- see \`--dot-bg\`
-         on \`StageButton\`. */
-      stroke: var(--dot-bg, ${theme.colors.default.bgPrimary});
-    }
-    .ring {
-      stroke: ${$status === "active" || $status === "running"
-        ? theme.colors.default.primary
-        : theme.colors.default.border};
-    }
-    .core {
-      fill: ${theme.colors.default.primary};
-    }
+    ${$status === "active" || $status === "running"
+      ? css`
+          /* Gradient policy (GradientButton, docs/design/brand-research.md):
+             the 135deg brand gradient marks the active stage's dot. */
+          background: ${GRADIENT};
+        `
+      : $status === "failed"
+      ? css`
+          background: ${theme.colors.state.error.color};
+        `
+      : css`
+          background: transparent;
+          border: 1px solid ${theme.colors.default.textSecondary};
+        `}
 
     ${$status === "running" &&
     css`
-      .ring {
-        transform-origin: center;
-        animation: stepper-pulse 1.2s ease-in-out infinite;
-      }
+      animation: stepper-pulse 1.2s ease-in-out infinite;
+
       @keyframes stepper-pulse {
         0%,
         100% {
@@ -208,9 +155,7 @@ const DotSvg = styled.svg<{ $status: StageStatus }>`
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .ring {
-          animation: none;
-        }
+        animation: none;
       }
     `}
   `}
@@ -218,10 +163,14 @@ const DotSvg = styled.svg<{ $status: StageStatus }>`
 
 const Label = styled.span<{ $status: StageStatus }>`
   ${({ $status }) =>
-    $status === "failed" &&
+    ($status === "active" || $status === "running" || $status === "failed") &&
     css`
-      font-weight: 600;
+      font-weight: 700;
     `}
+`;
+
+const ErrorSuffix = styled.span`
+  color: ${({ theme }) => theme.colors.state.error.color};
 `;
 
 const StageButton = styled.button<{
@@ -232,16 +181,15 @@ const StageButton = styled.button<{
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.375rem 0.75rem;
+    padding: 6px 14px;
     border: 1px solid transparent;
-    border-radius: ${theme.default.borderRadius};
-    background: ${$selected ? theme.colors.default.bgSecondary : "transparent"};
-    /* The dot's checkmark/cross glyph is a cutout stroked in this color so
-       it reads as a hole in the filled circle -- it has to track whatever
-       is actually behind it, which changes with $selected and :hover. */
-    --dot-bg: ${$selected
-      ? theme.colors.default.bgSecondary
-      : theme.colors.default.bgPrimary};
+    border-radius: 999px;
+    background: ${$selected ||
+    $status === "active" ||
+    $status === "running" ||
+    $status === "failed"
+      ? theme.components.tooltip.bg
+      : "transparent"};
     color: ${$status === "upcoming"
       ? theme.colors.default.textSecondary
       : theme.colors.default.textPrimary};
@@ -258,7 +206,6 @@ const StageButton = styled.button<{
 
     &:hover {
       background: ${theme.colors.default.bgSecondary};
-      --dot-bg: ${theme.colors.default.bgSecondary};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
