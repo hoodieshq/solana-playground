@@ -20,8 +20,8 @@ ONBUILD COPY --from=solana-playground-server /home/${USER}/.cargo /root/.cargo
 ################################### No server ##################################
 FROM ${IMAGE} AS server-false
 
-# Set build server URL to the production API
-ONBUILD ENV REACT_APP_SERVER_URL="https://api.solpg.io"
+# Set build server URL to the fork's production API
+ONBUILD ENV REACT_APP_SERVER_URL="https://playground-server-dot-analytics-324114.de.r.appspot.com"
 
 ###################### Build and start development client ######################
 FROM server-${HAS_SERVER}
@@ -34,12 +34,16 @@ COPY . .
 # The WASM image has to be built before, which is handled by the compose file
 COPY --from=solana-playground-wasm /wasm wasm
 
-# Initialize submodules
-RUN git submodule update --init
+# Only client/public: client-v2 has no submodule of its own, it mirrors this one
+RUN git submodule update --init client/public
 
 # Install dependencies
-WORKDIR /home/${USER}/client
+WORKDIR /home/${USER}/client-v2
 RUN yarn
+
+# Bake the assets in, so the container does not need the network to start.
+# `yarn start`/`yarn build` re-run this and it is idempotent.
+RUN node scripts/update-static.mjs
 
 # Start client
 EXPOSE 3000

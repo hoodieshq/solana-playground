@@ -44,6 +44,9 @@ wasm/*/pkg/
 # Synced from docs/assistant-context.md by client-v2/scripts/sync-assistant-context.mjs
 client-v2/src/views/sidebar/assistant/content/assistant-context.md
 
+# Mirrored from the client/public submodule by `make update-static`
+client-v2/public/
+
 # Claude Code worktrees
 .claude/worktrees/
 
