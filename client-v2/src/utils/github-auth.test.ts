@@ -37,6 +37,10 @@ describe("PgGithubAuth", () => {
     }) as jest.Mock;
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it("is signed out initially and checkGithubSignIn throws", () => {
     expect(PgGithubAuth.user).toBeNull();
     expect(PgGithubAuth.token).toBeNull();
@@ -122,5 +126,26 @@ describe("PgGithubAuth", () => {
     expect(cb).toHaveBeenCalledTimes(1);
     expect(PgGithubAuth.user).toBeNull();
     dispose();
+  });
+
+  it("rejects when the popup is closed without a message", async () => {
+    jest.useFakeTimers();
+    const popup = { closed: false, close: jest.fn() };
+    const openSpy = jest
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+    const promise = PgGithubAuth.signIn();
+    // Simulate popup being closed
+    popup.closed = true;
+    // Advance timers past one poll tick
+    jest.advanceTimersByTime(500);
+    const result = await promise.then(
+      () => "resolved",
+      (e: Error) => e.message
+    );
+    expect(result).toMatch(/cancelled/i);
+    expect(PgGithubAuth.token).toBeNull();
+    expect(PgGithubAuth.user).toBeNull();
+    openSpy.mockRestore();
   });
 });

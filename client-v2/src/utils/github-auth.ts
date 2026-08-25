@@ -54,8 +54,12 @@ export class PgGithubAuth {
         return;
       }
 
+      let pollInterval: number;
+      let messageReceived = false;
+
       const done = (err?: Error) => {
         window.removeEventListener("message", onMessage);
+        window.clearInterval(pollInterval);
         if (err) reject(err);
         else resolve();
       };
@@ -63,6 +67,8 @@ export class PgGithubAuth {
       const onMessage = async (ev: MessageEvent) => {
         if (ev.origin !== window.location.origin) return;
         if (!isAuthMessage(ev.data)) return;
+
+        messageReceived = true;
 
         if (ev.data.error || !ev.data.token) {
           done(new Error(ev.data.error ?? "Sign-in was cancelled."));
@@ -83,6 +89,12 @@ export class PgGithubAuth {
       };
 
       window.addEventListener("message", onMessage);
+
+      pollInterval = window.setInterval(() => {
+        if (popup.closed && !messageReceived) {
+          done(new Error("Sign-in was cancelled."));
+        }
+      }, 500);
     });
   }
 
