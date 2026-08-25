@@ -20,11 +20,15 @@ const isAuthMessage = (data: unknown): data is AuthMessage =>
 /**
  * GitHub identity for this tab.
  *
- * The token lives in module memory only. Project code - including code
- * from shared projects - executes in a same-origin iframe guarded by a
- * string blacklist, which is why the model keys never touch
- * `localStorage` (decision D3); the same reasoning applies here. A
- * reload signs the user out.
+ * The token lives in module memory only, so a reload signs the user out -
+ * the same reasoning that keeps the model keys out of `localStorage`
+ * (decision D3).
+ *
+ * This is not a barrier against project code. That code runs in a
+ * same-origin iframe whose blacklist (`js-runtime.ts` BLACKLISTED_GLOBALS)
+ * covers `window`/`top` but not `parent`, and is a substring check on
+ * source text besides - so project code can reach into this module. What
+ * bounds the damage is the empty OAuth scope, not the storage choice.
  */
 export class PgGithubAuth {
   static get user(): GithubUser | null {
@@ -86,17 +90,20 @@ export class PgGithubAuth {
           return;
         }
 
+        // Only the fetch is guarded: a throwing subscriber inside `_notify`
+        // must not be mistaken for a failed profile fetch and wipe the session
+        const token = data.token;
+        let failure: Error | undefined;
         try {
-          const user = await PgGithubAuth._fetchUser(data.token);
-          PgGithubAuth._state = { token: data.token, user };
-          PgGithubAuth._notify();
-          done();
+          const user = await PgGithubAuth._fetchUser(token);
+          PgGithubAuth._state = { token, user };
         } catch (e) {
           // Never keep a token without an identity to show
           PgGithubAuth._state = null;
-          PgGithubAuth._notify();
-          done(e as Error);
+          failure = e as Error;
         }
+        PgGithubAuth._notify();
+        done(failure);
       };
 
       const onMessage = (ev: MessageEvent) => {
@@ -129,7 +136,7 @@ export class PgGithubAuth {
 
   static onDidChange(cb: () => void): Disposable {
     PgGithubAuth._listeners.add(cb);
-    cb();
+    PgGithubAuth._notifyOne(cb);
     return { dispose: () => PgGithubAuth._listeners.delete(cb) };
   }
 
@@ -155,7 +162,16 @@ export class PgGithubAuth {
   }
 
   private static _notify() {
-    for (const cb of PgGithubAuth._listeners) cb();
+    for (const cb of PgGithubAuth._listeners) PgGithubAuth._notifyOne(cb);
+  }
+
+  /** One faulty subscriber must not stop the others or abort the caller */
+  private static _notifyOne(cb: () => void) {
+    try {
+      cb();
+    } catch (e) {
+      console.error("github-auth: onDidChange subscriber threw", e);
+    }
   }
 
   private static _state: { token: string; user: GithubUser } | null = null;

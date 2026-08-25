@@ -25,6 +25,39 @@ const completeSignIn = async (
   return result;
 };
 
+/**
+ * Assert a message never reaches the accept path. `fetch` not being called is
+ * the signal unique to rejection - a null token is also what you get when
+ * nothing ran at all.
+ */
+const expectIgnored = async (origin: string, data: unknown) => {
+  const popup = { closed: false, close: jest.fn() };
+  const openSpy = jest
+    .spyOn(window, "open")
+    .mockReturnValue(popup as unknown as Window);
+  let settled = false;
+  const promise = PgGithubAuth.signIn().finally(() => {
+    settled = true;
+  });
+
+  window.dispatchEvent(new MessageEvent("message", { data, origin }));
+  await new Promise((r) => setTimeout(r, 0));
+
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(settled).toBe(false);
+  expect(PgGithubAuth.token).toBeNull();
+
+  // Complete it legitimately so the listener is cleaned up
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { type: "pg-github-auth", token: "gho_ok" },
+      origin: window.location.origin,
+    })
+  );
+  await promise;
+  openSpy.mockRestore();
+};
+
 describe("PgGithubAuth", () => {
   beforeEach(() => {
     PgGithubAuth._reset();
@@ -39,13 +72,13 @@ describe("PgGithubAuth", () => {
     jest.useRealTimers();
   });
 
-  it("is signed out initially and checkGithubSignIn throws", () => {
+  it("should be signed out initially and reject the airdrop pre-check", () => {
     expect(PgGithubAuth.user).toBeNull();
     expect(PgGithubAuth.token).toBeNull();
     expect(() => checkGithubSignIn()).toThrow(/sign in with github/i);
   });
 
-  it("stores identity on a well-formed message from own origin", async () => {
+  it("should store identity on a well-formed message from own origin", async () => {
     const result = await completeSignIn({
       type: "pg-github-auth",
       token: "gho_x",
@@ -60,36 +93,25 @@ describe("PgGithubAuth", () => {
     expect(() => checkGithubSignIn()).not.toThrow();
   });
 
-  it("ignores messages from a foreign origin", async () => {
-    const popup = { closed: false, close: jest.fn() };
-    const openSpy = jest
-      .spyOn(window, "open")
-      .mockReturnValue(popup as unknown as Window);
-    let settled = false;
-    const promise = PgGithubAuth.signIn().finally(() => {
-      settled = true;
+  it("should ignore a message from a foreign origin", async () => {
+    await expectIgnored("https://evil.test", {
+      type: "pg-github-auth",
+      token: "gho_evil",
     });
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { type: "pg-github-auth", token: "gho_evil" },
-        origin: "https://evil.test",
-      })
-    );
-    await Promise.resolve();
-    expect(settled).toBe(false);
-    expect(PgGithubAuth.token).toBeNull();
-    // complete it legitimately so the listener is cleaned up
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { type: "pg-github-auth", token: "gho_ok" },
-        origin: window.location.origin,
-      })
-    );
-    await promise;
-    openSpy.mockRestore();
   });
 
-  it("rejects on an error payload and stays signed out", async () => {
+  it("should ignore a message with a wrong type", async () => {
+    await expectIgnored(window.location.origin, {
+      type: "other",
+      token: "gho_evil",
+    });
+  });
+
+  it("should ignore a non-object payload", async () => {
+    await expectIgnored(window.location.origin, "gho_evil");
+  });
+
+  it("should relay a server error payload and stay signed out", async () => {
     const result = await completeSignIn({
       type: "pg-github-auth",
       error: "state mismatch",
@@ -98,24 +120,48 @@ describe("PgGithubAuth", () => {
     expect(PgGithubAuth.token).toBeNull();
   });
 
-  it("clears state when the profile fetch fails", async () => {
+  it("should clear an existing identity when a re-auth profile fetch fails", async () => {
+    // Sign in for real first, so the assertion cannot pass by never having run
+    await completeSignIn({ type: "pg-github-auth", token: "gho_x" });
+    expect(PgGithubAuth.token).toBe("gho_x");
+
+    const cb = jest.fn();
+    const { dispose } = PgGithubAuth.onDidChange(cb);
+    cb.mockClear(); // onDidChange fires once on subscribe
+
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false });
+    const result = await completeSignIn({
+      type: "pg-github-auth",
+      token: "gho_y",
+    });
+
+    expect(result).toMatch(/profile/i);
+    expect(PgGithubAuth.token).toBeNull();
+    expect(PgGithubAuth.user).toBeNull();
+    expect(cb).toHaveBeenCalled();
+    dispose();
+  });
+
+  it("should keep the session when an onDidChange subscriber throws", async () => {
+    const { dispose } = PgGithubAuth.onDidChange(() => {
+      throw new Error("subscriber blew up");
+    });
     const result = await completeSignIn({
       type: "pg-github-auth",
       token: "gho_x",
     });
-    expect(result).toMatch(/profile/i);
-    expect(PgGithubAuth.token).toBeNull();
-    expect(PgGithubAuth.user).toBeNull();
+    expect(result).toBe("resolved");
+    expect(PgGithubAuth.token).toBe("gho_x");
+    dispose();
   });
 
-  it("rejects when the popup is blocked", async () => {
+  it("should reject when the popup is blocked", async () => {
     const openSpy = jest.spyOn(window, "open").mockReturnValue(null);
     await expect(PgGithubAuth.signIn()).rejects.toThrow(/popup/i);
     openSpy.mockRestore();
   });
 
-  it("signOut clears state and notifies", async () => {
+  it("should clear state and notify on signOut", async () => {
     await completeSignIn({ type: "pg-github-auth", token: "gho_x" });
     const cb = jest.fn();
     const { dispose } = PgGithubAuth.onDidChange(cb);
@@ -126,7 +172,7 @@ describe("PgGithubAuth", () => {
     dispose();
   });
 
-  it("stores identity on a token delivered via BroadcastChannel", async () => {
+  it("should store identity on a token delivered via BroadcastChannel", async () => {
     type Listener = ((ev: { data: unknown }) => void) | null;
     class FakeBroadcastChannel {
       onmessage: Listener = null;
@@ -172,7 +218,7 @@ describe("PgGithubAuth", () => {
     }
   });
 
-  it("rejects when the popup is closed without a message", async () => {
+  it("should reject when the popup is closed without a message", async () => {
     jest.useFakeTimers();
     const popup = { closed: false, close: jest.fn() };
     const openSpy = jest
