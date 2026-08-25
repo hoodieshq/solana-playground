@@ -39,6 +39,7 @@ export default async function handler(req, res) {
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", redirectUri);
     authorize.searchParams.set("state", state);
+    authorize.searchParams.set("scope", "");
     res.statusCode = 302;
     res.setHeader(
       "set-cookie",
@@ -89,7 +90,7 @@ function sendResult(res, { token, error }) {
   const payload = JSON.stringify({
     type: "pg-github-auth",
     ...(token ? { token } : { error }),
-  });
+  }).replace(/</g, "\\u003c");
   res.statusCode = 200;
   res.setHeader("content-type", "text/html; charset=utf-8");
   // Own origin only: the opener is our SPA on the same host
