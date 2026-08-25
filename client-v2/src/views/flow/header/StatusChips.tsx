@@ -82,7 +82,11 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
           <span>Sign in</span>
         </GithubChip>
       )}
-      {authError && <AuthError role="alert">{authError}</AuthError>}
+      {authError && (
+        <AuthError role="alert" title={authError}>
+          {authError}
+        </AuthError>
+      )}
       <IconButton aria-label="Open settings" onClick={onOpenSettings}>
         <GearIcon />
       </IconButton>
@@ -178,9 +182,7 @@ const WalletChip = styled.button`
   `}
 `;
 
-const GithubChip = styled(WalletChip)`
-  gap: 0.375rem;
-`;
+const GithubChip = styled(WalletChip)``;
 
 const Avatar = styled.img`
   width: 1rem;
@@ -192,6 +194,10 @@ const AuthError = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.state.error.color};
     font-size: ${theme.font.code.size.xsmall};
+    white-space: nowrap;
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   `}
 `;
 
