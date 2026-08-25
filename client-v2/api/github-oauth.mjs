@@ -2,9 +2,10 @@
  * GitHub OAuth web-flow exchange.
  *
  * `?action=start` redirects to GitHub's authorize page with a random
- * `state` pinned in a short-lived HttpOnly cookie. `?action=callback`
- * verifies the state, exchanges the code for an access token using the
- * client secret - which therefore never reaches the browser - and
+ * `state` and a PKCE `code_challenge`, pinning the nonce and the
+ * verifier in short-lived HttpOnly cookies. `?action=callback` checks
+ * the state, exchanges the code using the client secret and the
+ * `code_verifier` - neither of which ever reaches the browser - and
  * answers a page that posts the token to `window.opener` (same origin
  * only) and closes itself. The SPA keeps the token in memory; nothing
  * is persisted anywhere.
@@ -17,6 +18,7 @@
  * @param {import("node:http").ServerResponse} res
  */
 const COOKIE = "pg_gh_oauth_state";
+const VERIFIER_COOKIE = "pg_gh_oauth_verifier";
 
 export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -34,21 +36,36 @@ export default async function handler(req, res) {
 
   if (action === "start") {
     const state = randomHex(16);
+    // Hex is already `code_verifier`-safe: unreserved, and 64 chars is inside
+    // the 43-128 range RFC 7636 allows
+    const verifier = randomHex(32);
     const redirectUri = `${proto}://${req.headers.host}/api/github-oauth?action=callback`;
     const authorize = new URL("https://github.com/login/oauth/authorize");
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", redirectUri);
     authorize.searchParams.set("state", state);
     authorize.searchParams.set("scope", "");
+    authorize.searchParams.set(
+      "code_challenge",
+      await sha256Base64Url(verifier)
+    );
+    authorize.searchParams.set("code_challenge_method", "S256");
     res.statusCode = 302;
-    res.setHeader("set-cookie", stateCookie(state, 600, proto));
+    res.setHeader("set-cookie", [
+      cookie(COOKIE, state, 600, proto),
+      cookie(VERIFIER_COOKIE, verifier, 600, proto),
+    ]);
     res.setHeader("location", authorize.toString());
     return res.end();
   }
 
   if (action === "callback") {
-    // Expire the nonce on first use so the same `state` cannot be replayed
-    res.setHeader("set-cookie", stateCookie("", 0, proto));
+    const verifier = readCookie(req.headers.cookie, VERIFIER_COOKIE);
+    // Expire both on first use so neither `state` nor the verifier can be replayed
+    res.setHeader("set-cookie", [
+      cookie(COOKIE, "", 0, proto),
+      cookie(VERIFIER_COOKIE, "", 0, proto),
+    ]);
 
     // A declined consent screen comes back here as `error`, with no `code`
     const denied = url.searchParams.get("error");
@@ -72,6 +89,10 @@ export default async function handler(req, res) {
       return sendResult(res, { error: "GitHub sent no code. Try again." });
     }
 
+    if (!verifier) {
+      return sendResult(res, { error: "Sign-in expired. Try again." });
+    }
+
     const resp = await fetch("https://github.com/login/oauth/access_token", {
       method: "POST",
       headers: {
@@ -82,6 +103,7 @@ export default async function handler(req, res) {
         client_id: clientId,
         client_secret: clientSecret,
         code,
+        code_verifier: verifier,
       }),
     });
     const data = await resp.json().catch(() => ({}));
@@ -132,10 +154,22 @@ function randomHex(bytes) {
     .join("");
 }
 
+/** PKCE S256 challenge - RFC 7636 4.2 */
+async function sha256Base64Url(verifier) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier)
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
 /** `Secure` only over https - it would stop the cookie working on localhost */
-function stateCookie(value, maxAge, proto) {
+function cookie(name, value, maxAge, proto) {
   return (
-    `${COOKIE}=${value}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Path=/api` +
+    `${name}=${value}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Path=/api` +
     (proto === "https" ? "; Secure" : "")
   );
 }
