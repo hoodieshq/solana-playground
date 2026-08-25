@@ -1,4 +1,5 @@
 import {
+  checkGithubSignIn,
   PgCommon,
   PgConnection,
   PgTerminal,
@@ -24,7 +25,7 @@ export const airdrop = createCmd({
       },
     },
   ]),
-  preChecks: checkWallet,
+  preChecks: [checkWallet, checkGithubSignIn],
   handle: async (input) => {
     const defaultAmount = PgConnection.getAirdropAmount();
     if (typeof defaultAmount !== "number") {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { PgCommand, PgConnection } from "../../../utils";
+import { PgCommand, PgConnection, PgGithubAuth } from "../../../utils";
 
 export const useAirdrop = () => {
   const [airdropCondition, setAirdropCondition] = useState(false);
@@ -12,5 +12,10 @@ export const useAirdrop = () => {
     return dispose;
   }, []);
 
-  return { airdrop: PgCommand.airdrop.execute, airdropCondition };
+  const airdrop = async () => {
+    if (!PgGithubAuth.user) await PgGithubAuth.signIn();
+    await PgCommand.airdrop.execute();
+  };
+
+  return { airdrop, airdropCondition };
 };
