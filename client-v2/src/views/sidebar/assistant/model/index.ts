@@ -1,7 +1,6 @@
 import { createAnthropicProvider } from "./anthropic";
 import { createOpenAiProvider } from "./openai";
-import { createScriptedProvider } from "./scripted";
-import { PROVIDERS } from "./types";
+import { DEFAULT_BACKEND_URL, PROVIDERS } from "./types";
 import type { Effort, Provider, ProviderId } from "./types";
 
 export * from "./types";
@@ -29,8 +28,16 @@ export const createProvider = ({
   settings,
 }: ProviderConnection): Provider => {
   switch (id) {
-    case "scripted":
-      return createScriptedProvider();
+    // The model is the server's to pick, so none is sent and none is shown
+    case "default":
+      return createOpenAiProvider({
+        id,
+        url: DEFAULT_BACKEND_URL,
+        baseUrl: "",
+        model: "",
+        apiKey: "",
+        label: "default backend",
+      });
     case "anthropic":
       return createAnthropicProvider(apiKey, settings);
     case "openai":

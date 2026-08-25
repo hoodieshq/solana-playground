@@ -14,6 +14,10 @@ export interface OpenAiConfig {
   model: string;
   /** Empty for endpoints that do not check one (local proxies) */
   apiKey: string;
+  /** Whole endpoint URL, for a backend not laid out as `${baseUrl}/chat/completions` */
+  url?: string;
+  /** Shown in the panel footer; defaults to the model id */
+  label?: string;
 }
 
 /** The slice of a chat-completions message the loop needs to carry */
@@ -49,7 +53,7 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
 
   return {
     id: config.id,
-    label: config.model,
+    label: config.label ?? config.model,
 
     async send(input, signal) {
       history.push({ role: "user", content: input });
@@ -67,7 +71,9 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
           // Neither text nor a tool call: say so rather than ending silently
           if (!message.content) {
             PgAssistant.addError(
-              `${config.model} returned an empty response. Try again, or pick another model.`
+              `${
+                config.label ?? config.model
+              } returned an empty response. Try again, or pick another model.`
             );
           }
           return;
@@ -122,36 +128,39 @@ const streamOneCompletion = async (
   history: ChatMessage[],
   signal?: AbortSignal
 ): Promise<ChatMessage> => {
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      // The key is the user's own and goes only to the endpoint they typed in.
-      // See docs/decisions.md -> D3 for why it is not persisted anywhere.
-      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-    },
-    body: JSON.stringify({
-      model: config.model,
-      stream: true,
-      messages: [
-        { role: "system", content: systemPrompt() },
-        {
-          role: "system",
-          content: `Current project state:\n\n${describeProject()}`,
-        },
-        ...history,
-      ],
-      tools: tools.map((tool) => ({
-        type: "function",
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.schema,
-        },
-      })),
-    }),
-  });
+  const response = await fetch(
+    config.url ?? `${config.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        // The key is the user's own and goes only to the endpoint they typed in.
+        // See docs/decisions.md -> D3 for why it is not persisted anywhere.
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: config.model,
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt() },
+          {
+            role: "system",
+            content: `Current project state:\n\n${describeProject()}`,
+          },
+          ...history,
+        ],
+        tools: tools.map((tool) => ({
+          type: "function",
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.schema,
+          },
+        })),
+      }),
+    }
+  );
 
   if (!response.ok || !response.body) {
     const body = await response.text().catch(() => "");

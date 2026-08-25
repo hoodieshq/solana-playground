@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import GradientButton from "./GradientButton";
@@ -7,6 +7,7 @@ import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
 import {
+  DEFAULT_BACKEND_URL,
   PROVIDERS,
   type Effort,
   type ProviderId,
@@ -35,15 +36,40 @@ const CAPABILITIES = [
   },
 ];
 
+/**
+ * Whether this deployment configured a default backend.
+ *
+ * `undefined` while the answer is outstanding: the option is neither offered
+ * nor ruled out until the server has said, so a fork with no key of its own
+ * never preselects a backend that cannot answer.
+ */
+const useDefaultBackend = () => {
+  const [configured, setConfigured] = useState<boolean>();
+
+  useEffect(() => {
+    let live = true;
+    fetch(DEFAULT_BACKEND_URL)
+      .then((r) => (r.ok ? r.json() : { configured: false }))
+      .catch(() => ({ configured: false }))
+      .then((body) => live && setConfigured(!!body.configured));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return configured;
+};
+
 const Connect = () => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
+  const defaultBackend = useDefaultBackend();
 
-  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "scripted"))!;
+  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
 
   const [providerId, setProviderId] = useState<ProviderId>(
-    current?.id ?? "scripted"
+    current?.id ?? "default"
   );
   const [key, setKey] = useState(current?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
@@ -54,7 +80,17 @@ const Connect = () => {
     current?.settings ? { ...current.settings } : defaultSettings(initial)
   );
 
-  const provider = PROVIDERS.find((p) => p.id === providerId)!;
+  /** Declared unavailable, or a default backend this deployment did not configure */
+  const isUnavailable = (p: ProviderInfo) =>
+    !!p.unavailable || (p.id === "default" && defaultBackend === false);
+
+  // The probe can rule out the preselected default after the fact; fall back
+  // rather than leaving a dead option selected
+  const fallenBack =
+    providerId === "default" && defaultBackend === false ? "anthropic" : null;
+  const provider = PROVIDERS.find((p) => p.id === (fallenBack ?? providerId))!;
+  // The fallback never went through `pickProvider`, so its pickers need seeding
+  const activeSettings = settings ?? defaultSettings(provider);
 
   const pickProvider = (p: typeof PROVIDERS[number]) => {
     setProviderId(p.id);
@@ -74,16 +110,16 @@ const Connect = () => {
   const endpointReady =
     !provider.endpoint ||
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
-  const ready = keyReady && endpointReady;
+  const ready = keyReady && endpointReady && !isUnavailable(provider);
 
   const trimmedEndpoint = endpoint
     ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
     : undefined;
   const next = {
-    id: providerId,
+    id: provider.id,
     apiKey: key.trim(),
     endpoint: trimmedEndpoint,
-    settings,
+    settings: activeSettings,
   };
   const switching = !!current && !PgAssistant.isCurrent(next);
 
@@ -110,6 +146,13 @@ const Connect = () => {
             patches you apply yourself.
           </Lead>
         )}
+        {!current && defaultBackend && (
+          <Lead>
+            Out of the box it runs on this deployment's own backend, with the
+            capabilities listed below. Bring your own key to run it on something
+            else.
+          </Lead>
+        )}
       </Intro>
 
       <Label as="div">BACKEND</Label>
@@ -117,16 +160,21 @@ const Connect = () => {
         {PROVIDERS.map((p) => (
           <ProviderOption
             key={p.id}
-            aria-pressed={p.id === providerId}
-            $selected={p.id === providerId}
-            disabled={p.unavailable}
+            aria-pressed={p.id === provider.id}
+            $selected={p.id === provider.id}
+            disabled={isUnavailable(p)}
             onClick={() => pickProvider(p)}
           >
-            <ProviderName $selected={p.id === providerId}>
+            <ProviderName $selected={p.id === provider.id}>
               {p.name}
-              {!p.needsKey && !p.unavailable && <NoKey>no key needed</NoKey>}
+              {!p.needsKey && !isUnavailable(p) && <NoKey>no key needed</NoKey>}
             </ProviderName>
-            <ProviderDescription>{p.description}</ProviderDescription>
+            <ProviderDescription>
+              {p.id === "default" && defaultBackend === false
+                ? "Not configured on this deployment — pick a backend below " +
+                  "and supply your own key."
+                : p.description}
+            </ProviderDescription>
           </ProviderOption>
         ))}
       </Providers>
@@ -171,7 +219,7 @@ const Connect = () => {
         </>
       )}
 
-      {provider.modelSettings && settings && (
+      {provider.modelSettings && activeSettings && (
         <>
           <Label as="div">MODEL</Label>
           <Picker>
@@ -180,9 +228,13 @@ const Connect = () => {
                 label: m,
                 value: m,
               }))}
-              value={{ label: settings.model, value: settings.model }}
+              value={{
+                label: activeSettings.model,
+                value: activeSettings.model,
+              }}
               onChange={(option) =>
-                option && setSettings({ ...settings, model: option.value })
+                option &&
+                setSettings({ ...activeSettings, model: option.value })
               }
               isSearchable={false}
             />
@@ -195,10 +247,16 @@ const Connect = () => {
                 label: e,
                 value: e,
               }))}
-              value={{ label: settings.effort, value: settings.effort }}
+              value={{
+                label: activeSettings.effort,
+                value: activeSettings.effort,
+              }}
               onChange={(option) =>
                 option &&
-                setSettings({ ...settings, effort: option.value as Effort })
+                setSettings({
+                  ...activeSettings,
+                  effort: option.value as Effort,
+                })
               }
               isSearchable={false}
             />

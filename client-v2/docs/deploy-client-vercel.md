@@ -50,6 +50,23 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 `vercel-link-preview` runs automatically as a prerequisite. Local production deploys are intentionally not supported — production goes out only via the `master` Git integration.
 
+## Assistant default backend
+
+`api/agent.mjs` is the assistant's **Default** backend: the panel posts a
+chat-completions turn to it and the route forwards that upstream with a key the
+browser never sees. Set all three or the option reports itself unconfigured and
+the panel falls back to bring-your-own-key:
+
+| Variable | Meaning |
+|---|---|
+| `AGENT_URL` | Upstream chat-completions endpoint, e.g. `https://api.openai.com/v1/chat/completions` |
+| `AGENT_MODEL` | Model id the upstream should run — the client never picks one |
+| `AGENT_API_KEY` | Bearer token for the upstream; omit only for an endpoint that checks none |
+
+There is no cost gate in front of this route. Anything that can reach the
+deployment can spend that key, so put a challenge and a per-session limit
+in front of it before pointing it at a paid account.
+
 ## Endpoint routing
 
 - All non-share routes → the hardcoded Solana Foundation server URL in `client-v2/src/settings/server/server.ts` (also user-overridable via the `server.endpoint` setting), so forks can point at their own backend.

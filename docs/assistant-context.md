@@ -64,8 +64,9 @@ runs the deployment configures its bypass secret on the server.
 
 - **Propose automatically, apply explicitly.** Anything that changes state —
   files, builds, transactions — requires a human action.
-- **Bring your own key, plus a limited demo mode.** A small quota for first-time
-  users; never an open unlimited endpoint.
+- **A default backend, or bring your own key.** The deployment may configure a
+  backend so there is nothing to enter; every other option runs on a key the
+  user supplies. Never an open unlimited endpoint.
 - **Traceability.** A record of what the assistant did and on what basis.
 - **Open by default.** The client and any service integrated into it stay public.
 - **No backend changes.** The build server, crate list, deploy mechanics and
@@ -73,19 +74,21 @@ runs the deployment configures its bypass secret on the server.
 
 ## How it works, technically
 
-The assistant runs **in the browser**, with one exception: a small MCP gateway
-we deploy alongside the client (`client-v2/api/mcp.mjs`). It forwards MCP
-JSON-RPC to a fixed list of documentation servers and nothing else — no model
-calls, no key, no quota, no state. Everything else, including every model call
-and every tool that touches your project, stays in the browser. See
-`decisions.md` → D19.
+The assistant runs **in the browser**, with two exceptions, both small routes
+we deploy alongside the client. The MCP gateway (`client-v2/api/mcp.mjs`)
+forwards MCP JSON-RPC to a fixed list of documentation servers and nothing
+else — no model calls, no key, no quota, no state. The default backend
+(`client-v2/api/agent.mjs`) is where a model call does leave the browser: it
+forwards a chat-completions turn to an upstream configured server-side, so the
+key stays off the client. Every tool that touches your project still runs in
+the browser, behind the same approval gates. See `decisions.md` → D19.
 
-- Four providers share one vendor-neutral tool set (`createTools()`): the
-  Demo backend (a scripted walkthrough, no key, no network), Anthropic
-  (`claude-opus-5` via `@anthropic-ai/sdk`'s Tool Runner), and an
-  OpenAI-compatible chat-completions provider with ready-made presets for
-  OpenRouter and Gemini. The Anthropic provider is implemented but has not
-  yet been exercised against a live key.
+- The providers share one vendor-neutral tool set (`createTools()`): the
+  default backend (whatever this deployment configured, reached through
+  `/api/agent`), Anthropic (`claude-opus-5` via `@anthropic-ai/sdk`'s Tool
+  Runner), and an OpenAI-compatible chat-completions provider with ready-made
+  presets for OpenRouter and Gemini. The Anthropic provider is implemented but
+  has not yet been exercised against a live key.
 - The tools map onto the playground: read and list files, read the last build
   error, write a file, build, deploy. The gate lives inside each
   state-changing tool's own `run` — `write_file`, `build` and `deploy` each
@@ -132,10 +135,10 @@ Done:
   (`https://api.solpg.io`) — CORS allows `http://localhost:3000` and a real build
   returned in 3.5 seconds. No Docker, no Rust toolchain needed.
 - Runtime and architecture decided and written down (`decisions.md`).
-- The assistant panel: the Demo backend needs no key; Anthropic, and
-  OpenAI-compatible with ready-made OpenRouter and Gemini presets, are
-  selectable. The Anthropic provider has not yet been exercised against a
-  live key.
+- The assistant panel: the default backend needs no key and is preselected
+  when the deployment configured one; Anthropic, and OpenAI-compatible with
+  ready-made OpenRouter and Gemini presets, are selectable. The Anthropic
+  provider has not yet been exercised against a live key.
 - Three redesign iterations shipped: the Solana-brand theme (tokens sourced
   from solana.com, `Solana V2` as the fork's default), the floating-panel
   layout (anatomy and navigation built on top of it), then **Flow** —
@@ -200,14 +203,14 @@ Honesty rule for the demo — never present a mocked step as working.
   bypass secret; you cannot switch it on from the panel alone. Which applies is
   a property of each server, shown in the Sources tab, not of the backend you
   picked.
-- **Scripted:** the Demo backend's reasoning — it walks a fixed script rather
-  than calling a model, so it works with no key and no network.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,
   `spl-token`, `sugar` terminal commands — stubbed out to skip the hour-long
   WASM build. They throw a clear message pointing at `wasm/build.sh`.
 - **Prototype-grade:** the assistant's key handling — kept in memory only,
-  re-entered per session, never written to storage — and the absence of a
-  demo quota.
+  re-entered per session, never written to storage — and the default backend's
+  complete absence of a cost gate: anything that reaches our origin can spend
+  the configured key, so it needs a challenge and a per-session limit before it
+  points at a paid account.
 
 ## Answering questions about this project
 
