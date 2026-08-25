@@ -8,10 +8,9 @@ const { execSync } = require("child_process");
 // CRA's missing-index.html error gives no hint that public/ is a submodule.
 if (!fs.existsSync(path.join(__dirname, "public", "index.html"))) {
   throw new Error(
-    "client-v2/public has no index.html - the assets submodule is not " +
-      "checked out.\nRun: git submodule update --init\nIf that fails with " +
-      '"destination path already exists", nothing in client-v2/public is ' +
-      "tracked yet - delete the directory and re-run."
+    "client-v2/public has no index.html. These assets are tracked files, " +
+      "not a submodule, so a normal checkout has them.\n" +
+      "To restore: make update-static"
   );
 }
 
@@ -211,14 +210,9 @@ module.exports = {
                   data.pageCount = fs.readdirSync(
                     path.join(tutorialDir, "pages")
                   ).length;
-                  data.unixTimestamp = execSync(
-                    "git log --follow --format=%ad --date=unix --diff-filter=A .",
-                    { cwd: tutorialDir }
-                  )
-                    .toString()
-                    .split("\n")
-                    .filter(Boolean)
-                    .pop();
+                  data.unixTimestamp =
+                    TUTORIAL_TIMESTAMPS[tutorialName] ??
+                    gitAddedTimestamp(tutorialDir);
 
                   const thumbnailFileName = tutorialDirItems.find((name) =>
                     name.startsWith("thumbnail")
@@ -356,6 +350,22 @@ const serveApiRoute = async (req, res) => {
     sendJson(res, 500, { error: e.message });
   }
 };
+
+/** Real asset-repo dates captured by `make update-static`; see that script */
+const TUTORIAL_TIMESTAMPS = (() => {
+  const file = path.join("public", "tutorial-timestamps.json");
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+})();
+
+/** When the directory's first file was added, per git history */
+const gitAddedTimestamp = (dir) =>
+  execSync("git log --follow --format=%ad --date=unix --diff-filter=A .", {
+    cwd: dir,
+  })
+    .toString()
+    .split("\n")
+    .filter(Boolean)
+    .pop();
 
 /**
  * Define global variable based on the items in `public` directory.
