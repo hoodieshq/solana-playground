@@ -16,9 +16,7 @@ const completeSignIn = async (
     .spyOn(window, "open")
     .mockReturnValue(popup as unknown as Window);
   const promise = PgGithubAuth.signIn();
-  window.dispatchEvent(
-    new MessageEvent("message", { data: message, origin })
-  );
+  window.dispatchEvent(new MessageEvent("message", { data: message, origin }));
   const result = await promise.then(
     () => "resolved",
     (e: Error) => e.message

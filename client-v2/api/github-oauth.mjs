@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     res.statusCode = 302;
     res.setHeader(
       "set-cookie",
-      `${COOKIE}=${state}; HttpOnly; SameSite=Lax; Max-Age=600; Path=/api`,
+      `${COOKIE}=${state}; HttpOnly; SameSite=Lax; Max-Age=600; Path=/api`
     );
     res.setHeader("location", authorize.toString());
     return res.end();
@@ -102,7 +102,7 @@ function sendResult(res, { token, error }) {
       `}` +
       `window.close();` +
       `</script>` +
-      `<p>You can close this window.</p>`,
+      `<p>You can close this window.</p>`
   );
 }
 
