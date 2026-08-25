@@ -1,4 +1,4 @@
-import type { McpServerEntry } from "./types";
+import type { McpExecutor, McpServerEntry } from "./types";
 
 /** `mcp_server_name` is an identifier on the wire, not free text */
 const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -10,7 +10,8 @@ const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
  * has no header map and needs credentials here, and the browser client.
  */
 export const serverUrl = (server: McpServerEntry) => {
-  const url = new URL(server.url.trim());
+  // Relative for our own gateway (`/api/mcp?...`), absolute for anything else
+  const url = new URL(server.url.trim(), window.location.origin);
   for (const [key, value] of Object.entries(server.queryParams ?? {})) {
     url.searchParams.set(key, value);
   }
@@ -76,7 +77,7 @@ export const parseServers = (text: string): McpServerEntry[] => {
     }
 
     const entry = raw as Record<string, unknown>;
-    const { id, name, url, enabled, authToken } = entry;
+    const { id, name, url, enabled, executor, authToken } = entry;
 
     if (typeof id !== "string" || !ID_PATTERN.test(id)) {
       fail(`${where}: "id" must be letters, digits, dashes or underscores.`);
@@ -89,9 +90,15 @@ export const parseServers = (text: string): McpServerEntry[] => {
     if (typeof url !== "string" || !url.trim()) {
       fail(`${where}: "url" is required.`);
     }
-    // The connector reaches public https servers only
-    if (!(url as string).trim().startsWith("https://")) {
-      fail(`${where}: "url" must start with https://.`);
+    // https for a remote server; a leading `/` is our own gateway. The
+    // connector reaches public https servers only, so a relative URL is
+    // browser-only by construction.
+    const target = (url as string).trim();
+    if (!target.startsWith("https://") && !target.startsWith("/")) {
+      fail(`${where}: "url" must start with https:// or / for the gateway.`);
+    }
+    if (target.startsWith("/") && executor === "server") {
+      fail(`${where}: a gateway URL cannot use the "server" executor.`);
     }
     if (name !== undefined && typeof name !== "string") {
       fail(`${where}: "name" must be a string.`);
@@ -101,6 +108,13 @@ export const parseServers = (text: string): McpServerEntry[] => {
     }
     if (authToken !== undefined && typeof authToken !== "string") {
       fail(`${where}: "authToken" must be a string.`);
+    }
+    if (
+      executor !== undefined &&
+      executor !== "browser" &&
+      executor !== "server"
+    ) {
+      fail(`${where}: "executor" must be "browser" or "server".`);
     }
 
     const queryParams = readStringMap(
@@ -124,6 +138,9 @@ export const parseServers = (text: string): McpServerEntry[] => {
       name: (name as string | undefined) ?? (id as string),
       url: (url as string).trim(),
       enabled: isEnabled,
+      // Browser is the default: it works on every backend, and a server that
+      // cannot be reached that way says so on the first call
+      executor: (executor as McpExecutor | undefined) ?? "browser",
       ...(authToken ? { authToken: authToken as string } : {}),
       ...(queryParams ? { queryParams } : {}),
       ...(headers ? { headers } : {}),

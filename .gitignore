@@ -13,6 +13,7 @@
 
 # Misc
 .env
+.env*.local
 */deploy.sh
 
 */npm-debug.log*

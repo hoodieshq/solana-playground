@@ -54,6 +54,10 @@ const Deploy = () => {
   const latest = history[0] ?? null;
   const onChain = programInfo.onChain;
   const cluster = PgConnection.cluster;
+  const n = history.length;
+  const meta = [cluster, `${n} deployment${n === 1 ? "" : "s"}`]
+    .filter(Boolean)
+    .join(" \u00b7 ");
 
   const description = !built
     ? "Build the program first -- the stepper unlocks Deploy once it " +
@@ -66,21 +70,23 @@ const Deploy = () => {
 
   return (
     <Surface>
-      <StatusRow>
-        <ReadyGlyph
-          $ready={built}
-          viewBox="0 0 14 14"
-          width="16"
-          height="16"
-          aria-hidden
-        >
-          <circle cx="7" cy="7" r="6" />
-        </ReadyGlyph>
-        <Headline>
-          Deploy
-          {cluster && <Chip>{cluster}</Chip>}
-        </Headline>
-      </StatusRow>
+      <HeaderRow>
+        <HeaderText>
+          <Headline>
+            <ReadyGlyph
+              $ready={built}
+              viewBox="0 0 14 14"
+              width="16"
+              height="16"
+              aria-hidden
+            >
+              <circle cx="7" cy="7" r="6" />
+            </ReadyGlyph>
+            Deploy
+          </Headline>
+          <Meta>{meta}</Meta>
+        </HeaderText>
+      </HeaderRow>
       <Muted>{description}</Muted>
       {flow.deploy === "failed" && (
         <ErrorNotice role="alert">Deploy failed - see the console.</ErrorNotice>
@@ -120,7 +126,7 @@ const Deploy = () => {
 
       {latest && (
         <Card>
-          <CardTitle>Latest deployment</CardTitle>
+          <Eyebrow>Latest deployment</Eyebrow>
           <Row>
             <Key>Program id</Key>
             <Mono title={latest.programId}>{latest.programId}</Mono>
@@ -187,8 +193,8 @@ const Deploy = () => {
         </Card>
       )}
 
-      <HistorySection>
-        <CardTitle as="h3">Deploy history</CardTitle>
+      <Card as="section">
+        <Eyebrow>History</Eyebrow>
         {history.length === 0 && (
           <Muted>No deployments yet for this project.</Muted>
         )}
@@ -211,7 +217,7 @@ const Deploy = () => {
             ))}
           </List>
         )}
-      </HistorySection>
+      </Card>
     </Surface>
   );
 };
@@ -232,10 +238,38 @@ const Surface = styled.div`
   `}
 `;
 
-const StatusRow = styled.div`
+const HeaderRow = styled.div`
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  max-width: 42rem;
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: 0.625rem;
+`;
+
+const Meta = styled.span`
+  ${({ theme }) => css`
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.other.size.small};
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const Eyebrow = styled.div`
+  ${({ theme }) => css`
+    font-size: ${theme.font.other.size.xsmall};
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: ${theme.colors.default.textSecondary};
+  `}
 `;
 
 const ErrorNotice = styled.p`
@@ -318,18 +352,10 @@ const Card = styled.section`
     padding: 1.125rem 1.25rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    background: ${theme.components.tooltip.bg};
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
-  `}
-`;
-
-const CardTitle = styled.h3`
-  ${({ theme }) => css`
-    margin: 0;
-    font-size: ${theme.font.other.size.medium};
-    font-weight: 600;
   `}
 `;
 
@@ -359,15 +385,6 @@ const Mono = styled.span`
 
 const Time = styled(Mono)`
   color: ${({ theme }) => theme.colors.default.textSecondary};
-`;
-
-const HistorySection = styled.div`
-  width: 100%;
-  max-width: 42rem;
-  margin-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 `;
 
 const List = styled.div`

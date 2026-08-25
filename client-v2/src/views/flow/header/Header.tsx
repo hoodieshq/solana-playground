@@ -7,6 +7,7 @@ import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
 import { INITIAL_FLOW_STATE, PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
+import { GRADIENT } from "../tokens";
 
 interface HeaderProps {
   onOpenGallery: () => void;
@@ -24,10 +25,7 @@ const Header: FC<HeaderProps> = ({ onOpenGallery, onOpenSettings }) => {
   return (
     <Bar>
       <Zone>
-        <Mark viewBox="0 0 16 16" width="16" height="16" aria-hidden>
-          <circle cx="8" cy="8" r="6.5" fill="none" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="2.25" />
-        </Mark>
+        <Logomark aria-hidden="true" />
         <ProjectSwitcher onOpenGallery={onOpenGallery} />
       </Zone>
       <Zone $center>
@@ -42,6 +40,8 @@ const Header: FC<HeaderProps> = ({ onOpenGallery, onOpenSettings }) => {
 
 export default Header;
 
+// Transparent on the black page ground -- the floating panels below carry
+// their own edges, so the header needs none of its own.
 const Bar = styled.header`
   ${({ theme }) => css`
     height: 3.5rem;
@@ -49,8 +49,7 @@ const Bar = styled.header`
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 0 0.75rem;
-    background: ${theme.colors.default.bgPrimary};
-    border-bottom: 1px solid ${theme.colors.default.border};
+    background: transparent;
     font-family: ${theme.font.other.family};
   `}
 `;
@@ -64,10 +63,10 @@ const Zone = styled.div<{ $center?: boolean; $end?: boolean }>`
     $center ? "center" : $end ? "flex-end" : "flex-start"};
 `;
 
-const Mark = styled.svg`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    stroke: ${theme.colors.default.primary};
-    fill: ${theme.colors.default.primary};
-  `}
+const Logomark = styled.div`
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: ${GRADIENT};
 `;
