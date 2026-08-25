@@ -169,7 +169,8 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Real:** the editor, file explorer, terminal, build against the build
   server, compiler stderr capture, deploy to devnet, the IDL-driven test
   panel, the wallet. All of it is the existing playground.
-- **Real:** the build server. It is the production one at `api.solpg.io`.
+- **Real:** the build server. It is the Solana Foundation's deployment, not
+  upstream's `api.solpg.io`.
 - **Real:** the assistant's tool calls, the diff it proposes, Apply, and the
   Explorer link after a deploy.
 - **Real:** the skills — fetched from the Foundation's own repository at
