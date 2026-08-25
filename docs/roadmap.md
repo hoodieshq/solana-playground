@@ -7,6 +7,9 @@ identity -> tutorials -> everything else). Update this file whenever a
 stream changes state; it lives on `context-archive` with the other
 working docs.
 
+Visual version (for syncs): https://claude.ai/code/artifact/0d8574bd-8e6b-4fd8-9632-09e301829e12
+-- regenerated from this file; update both together.
+
 ## Shipped
 
 | What | Where | Notes |
