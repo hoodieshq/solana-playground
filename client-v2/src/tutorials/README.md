@@ -128,4 +128,11 @@ After you've finished preparing your tutorial, the last step is to send pull req
    git submodule update --remote
    ```
 
+   `client-v2/public` is tracked files rather than a submodule, so mirror the
+   new assets into it (from `client-v2`):
+
+   ```sh
+   make update-static
+   ```
+
    Finally, commit the changes and make a PR.

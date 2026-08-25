@@ -19,6 +19,25 @@ x-client: &client
   ports:
     - ${PG_CLIENT_PORT:-3000}:3000
 
+x-client-v2: &client-v2
+  platform: linux/amd64
+  depends_on:
+    wasm:
+      condition: service_completed_successfully
+    server:
+      condition: service_started
+  build:
+    context: .
+    dockerfile: ./client-v2/Dockerfile
+    args:
+      USER: solpg
+      HAS_SERVER: true
+    additional_contexts:
+      solana-playground-wasm: service:wasm
+      solana-playground-server: service:server
+  ports:
+    - ${PG_CLIENT_V2_PORT:-3000}:3000
+
 x-server: &server
   platform: linux/amd64
   build:
@@ -31,6 +50,8 @@ x-server: &server
   profiles:
     - dev
     - prod
+    - v2
+    - v2-prod
 
 services:
   client:
@@ -45,6 +66,19 @@ services:
     command: ["sh", "-c", "yarn build && npx serve -s build"]
     profiles:
       - prod
+
+  client-v2:
+    <<: *client-v2
+    tty: true
+    stdin_open: true
+    profiles:
+      - v2
+
+  client-v2-prod:
+    <<: *client-v2
+    command: ["sh", "-c", "yarn build && npx serve -s build"]
+    profiles:
+      - v2-prod
 
   # Client without server
   client-standalone:
@@ -86,6 +120,8 @@ services:
       - dev
       - prod
       - client-standalone
+      - v2
+      - v2-prod
 
   db:
     image: mongo:7
@@ -97,6 +133,8 @@ services:
     profiles:
       - dev
       - prod
+      - v2
+      - v2-prod
 
 volumes:
   mongodb:

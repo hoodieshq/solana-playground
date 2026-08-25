@@ -16,23 +16,42 @@ Start the dev server:
 yarn start
 ```
 
+### Fresh clone or new worktree
+
+`wasm/*/pkg` and `public/` are both gitignored, so a checkout that has never been
+built needs the WASM stand-ins before `yarn install` will resolve its local file
+dependencies:
+
+```sh
+bash ../wasm/stub-packages.sh   # placeholders; the real WASM build takes ~1h
+yarn install
+yarn start
+```
+
+`public/` is mirrored from the `client/public` submodule, and `yarn start` /
+`yarn build` refresh it automatically. Run `make update-static` by hand only
+after bumping that submodule to change asset content.
+
+Worktrees are supported: the mirror is always copied from the *primary*
+checkout, so a worktree never initialises a submodule of its own. (A submodule's
+git dir is shared via `.git/modules`, so initialising one in a second worktree
+detaches it in the first — which is why `public/` is not a submodule here.)
+
 ## Docker
 
-You can run the client locally via [Docker Compose](https://github.com/docker/compose):
+Run client-v2 together with the build server via [Docker Compose](https://github.com/docker/compose):
 
 ```sh
-docker compose -f ../compose.yaml --profile dev up --build
+docker compose -f ../compose.yaml --profile v2 up --build
 ```
 
-### Standalone (client only, without the server)
+The client is served on `http://localhost:3000` (override with
+`PG_CLIENT_V2_PORT`) and the build server on `http://localhost:8080`.
 
-To run only the client without building or depending on the server, use the `client-standalone` profile. The client will use the production API (`https://api.solpg.io`) instead of a local server:
+For a production build served statically, use the `v2-prod` profile instead.
 
-```sh
-docker compose -f ../compose.yaml --profile client-standalone up --build
-```
-
-See the [root README](../README.md#run-with-docker) for more options.
+The `dev`, `prod` and `client-standalone` profiles build the upstream `client/`,
+not this one. See the [root README](../README.md#run-with-docker).
 
 ## Deployment
 
