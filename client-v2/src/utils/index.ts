@@ -6,7 +6,6 @@ export * from "./connection";
 export * from "./editor";
 export * from "./explorer/";
 export * from "./framework";
-export * from "./github-auth";
 export * from "./github";
 export * from "./global";
 export * from "./js-runtime";

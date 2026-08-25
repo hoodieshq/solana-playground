@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { PgCommand, PgConnection, PgGithubAuth } from "../../../utils";
+import { PgGithubAuth } from "../../../features/github-oauth";
+import { PgCommand, PgConnection } from "../../../utils";
 
 export const useAirdrop = () => {
   const [airdropCondition, setAirdropCondition] = useState(false);

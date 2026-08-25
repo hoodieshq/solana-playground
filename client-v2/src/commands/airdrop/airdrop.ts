@@ -1,5 +1,5 @@
+import { checkGithubSignIn } from "../../features/github-oauth";
 import {
-  checkGithubSignIn,
   PgCommon,
   PgConnection,
   PgTerminal,

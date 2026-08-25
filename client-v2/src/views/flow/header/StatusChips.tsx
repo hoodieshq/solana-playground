@@ -8,7 +8,8 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgCommand, PgConnection, PgGithubAuth } from "../../../utils";
+import { PgGithubAuth } from "../../../features/github-oauth";
+import { PgCommand, PgConnection } from "../../../utils";
 
 interface StatusChipsProps {
   onOpenSettings: () => void;
