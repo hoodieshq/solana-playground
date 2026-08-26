@@ -1,27 +1,47 @@
-import { PgCommon } from "./common";
 import { PgExplorer, TupleFiles } from "./explorer";
 import { PgFramework } from "./framework";
 import { PgLanguage } from "./language";
-import type { Arrayable } from "./types";
 
-type GithubRepositoryData = {
-  name: string;
+/** Single entry of a Git tree */
+type GithubTreeItem = {
+  /** Path relative to the repository root */
   path: string;
+  /** `blob` for files, `tree` for directories, `commit` for submodules */
+  type: string;
+  /** Object hash */
   sha: string;
-  size: number;
-  url: string;
-  html_url: string;
-  git_url: string;
-} & (
-  | {
-      type: "file";
-      download_url: string;
+  /** File size in bytes, only present for blobs */
+  size?: number;
+};
+
+/** Response of the Git Trees API */
+type GithubTree = {
+  /** Tree entries, recursive when requested */
+  tree: GithubTreeItem[];
+  /** Whether GitHub left entries out because the tree is too large */
+  truncated: boolean;
+};
+
+/** Maximum amount of file contents to download at the same time */
+const MAX_PARALLEL_DOWNLOADS = 8;
+
+/**
+ * Get the repository files that are worth importing.
+ *
+ * @param tree recursive Git tree of the repository
+ * @param path path to the program folder, empty for the repository root
+ * @returns the blobs inside `path` written in a supported language
+ */
+export const filterRepoFiles = (tree: GithubTreeItem[], path: string) => {
+  const prefix = path.replace(/^\/+|\/+$/g, "");
+  return tree.filter((item) => {
+    if (item.type !== "blob") return false;
+    if (prefix && item.path !== prefix && !item.path.startsWith(prefix + "/")) {
+      return false;
     }
-  | {
-      type: "dir";
-      download_url: null;
-    }
-);
+    return !!PgLanguage.getFromPath(item.path);
+  });
+};
 
 export class PgGithub {
   /**
@@ -90,61 +110,153 @@ export class PgGithub {
   }
 
   /**
-   * Get Github repository data and map the files to `TupleFiles`.
+   * Get the repository files and map them to `TupleFiles`.
+   *
+   * The whole repository layout comes from a single Git Trees request, which
+   * keeps the import within GitHub's unauthenticated rate limit of 60 requests
+   * per hour. Walking the `contents` API one directory at a time used to spend
+   * that budget on a single import and then fail for the rest of the hour.
    *
    * @param url Github link to the program's folder in the repository
    * @returns files, owner, repo, path
    */
   private static async _getRepository(url: string) {
-    const { data, owner, repo, path } = await this._getRepositoryData(url);
+    const { owner, repo, ref, path } = this.parseUrl(url);
+    const treeRef = ref ?? "HEAD";
 
-    const files: TupleFiles = [];
-    const recursivelyGetFiles = async (
-      dirData: GithubRepositoryData[],
-      currentUrl: string
-    ) => {
-      // TODO: Filter `dirData` to only include the files we could need
-      // Fetching all files one by one and just returning them without dealing
-      // with any of the framework related checks is great here but it comes
-      // with the cost of using excessive amounts of network requests to fetch
-      // bigger repositories. This is especially a problem if the repository we
-      // are fetching have unrelated files in their program workspace folder.
-      for (const itemData of dirData) {
-        if (itemData.type === "file") {
-          // Skip fetching the content if the language is not supported
-          if (!PgLanguage.getFromPath(itemData.path)) continue;
+    const tree = await this._getTree(owner, repo, treeRef);
+    if (tree.truncated) {
+      throw new Error(
+        `Repository "${owner}/${repo}" is too large to import because GitHub ` +
+          "only returns part of its file list."
+      );
+    }
 
-          const content = await PgCommon.fetchText(itemData.download_url!);
-          files.push([itemData.path, content]);
-        } else if (itemData.type === "dir") {
-          const insideDirUrl = PgCommon.joinPaths(currentUrl, itemData.name);
-          const { data: insideDirData } = await this._getRepositoryData(
-            insideDirUrl
-          );
-          await recursivelyGetFiles(insideDirData, insideDirUrl);
-        }
-      }
-    };
-    await recursivelyGetFiles(data, url);
+    const items = filterRepoFiles(tree.tree, path);
+    if (!items.length) {
+      const location = path ? `"${path}" in ` : "";
+      throw new Error(
+        `No source files found in ${location}"${owner}/${repo}".`
+      );
+    }
 
+    const files = await this._getFileContents(owner, repo, treeRef, items);
     return { files, owner, repo, path };
   }
 
   /**
-   * Get GitHub repository data.
+   * Get the recursive Git tree of the given repository.
    *
-   * @param url GitHub link to the program's folder in the repository
-   * @returns GitHub repository data, owner, repo, path
+   * @param owner repository owner
+   * @param repo repository name
+   * @param ref branch, tag or commit
+   * @returns the Git tree
    */
-  private static async _getRepositoryData(url: string) {
-    const { owner, repo, ref, path } = this.parseUrl(url);
-    const refParam = ref ? `?ref=${ref}` : "";
+  private static async _getTree(owner: string, repo: string, ref: string) {
+    const url =
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/` +
+      `${encodeURIComponent(ref)}?recursive=1`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(this._getErrorMessage(response, `${owner}/${repo}`));
+    }
 
-    // If it's a single file fetch request, Github returns an object instead of an array
-    const data: Arrayable<GithubRepositoryData> = await PgCommon.fetchJSON(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${path}${refParam}`
+    return (await response.json()) as GithubTree;
+  }
+
+  /**
+   * Download the contents of the given tree entries.
+   *
+   * Contents come from `raw.githubusercontent.com`, which is not part of the
+   * API rate limit. Downloads run in parallel but the returned order matches
+   * the given entries.
+   *
+   * @param owner repository owner
+   * @param repo repository name
+   * @param ref branch, tag or commit
+   * @param items tree entries to download
+   * @returns explorer files
+   */
+  private static async _getFileContents(
+    owner: string,
+    repo: string,
+    ref: string,
+    items: GithubTreeItem[]
+  ) {
+    const files: TupleFiles = new Array(items.length);
+    let nextIndex = 0;
+
+    const download = async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex++;
+        const { path } = items[index];
+        files[index] = [path, await this._getFile(owner, repo, ref, path)];
+      }
+    };
+
+    const parallelCount = Math.min(MAX_PARALLEL_DOWNLOADS, items.length);
+    await Promise.all(Array.from({ length: parallelCount }, download));
+
+    return files;
+  }
+
+  /**
+   * Download a single file from `raw.githubusercontent.com`.
+   *
+   * @param owner repository owner
+   * @param repo repository name
+   * @param ref branch, tag or commit
+   * @param path file path relative to the repository root
+   * @returns the file content
+   */
+  private static async _getFile(
+    owner: string,
+    repo: string,
+    ref: string,
+    path: string
+  ) {
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(
+      `https://raw.githubusercontent.com/${owner}/${repo}/` +
+        `${encodeURIComponent(ref)}/${encodedPath}`
     );
+    if (!response.ok) {
+      throw new Error(this._getErrorMessage(response, path));
+    }
 
-    return { data: PgCommon.toArray(data), owner, repo, path };
+    return await response.text();
+  }
+
+  /**
+   * Turn a failed response into a message that explains what to do next.
+   *
+   * @param response failed response
+   * @param subject repository or file the request was about
+   * @returns the error message
+   */
+  private static _getErrorMessage(response: Response, subject: string) {
+    switch (response.status) {
+      case 403:
+      case 429:
+        if (response.headers.get("x-ratelimit-remaining") === "0") {
+          return (
+            "GitHub's hourly request limit for this browser has been " +
+            "reached. Please try again later."
+          );
+        }
+        return `GitHub refused the request for "${subject}".`;
+
+      case 404:
+        return (
+          `"${subject}" was not found on GitHub. It may be private or the ` +
+          "link may be out of date."
+        );
+
+      default:
+        return (
+          `GitHub request for "${subject}" failed with status ` +
+          `${response.status}.`
+        );
+    }
   }
 }

@@ -35,9 +35,9 @@ interface ProgramsTabProps {
 /**
  * Lists the upstream ecosystem program registry (same data as the classic
  * `/programs` route). "Open" reuses the exact import path the rest of the
- * app already uses for a program card: `PgGithub.import`, which fetches the
- * repo via the GitHub Contents API, converts it to the playground layout,
- * and creates (or switches to) a workspace named after the repo.
+ * app already uses for a program card: `PgGithub.import`, which reads the
+ * repo layout from the GitHub Trees API, converts it to the playground
+ * layout, and creates (or switches to) a workspace named after the repo.
  */
 const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
   const [error, setError] = useState<{ repo: string; message: string } | null>(
