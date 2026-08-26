@@ -1,4 +1,4 @@
-import { filterRepoFiles, PgGithub } from "./github";
+import { filterRepoFiles, ImportCancelledError, PgGithub } from "./github";
 import type { ImportProgress } from "./github";
 
 // `./explorer` boots lightning-fs on import, which needs a real IndexedDB.
@@ -6,6 +6,14 @@ jest.mock("./explorer", () => ({ PgExplorer: {} }));
 
 jest.mock("./framework", () => ({
   PgFramework: { convertToPlaygroundLayout: (files: unknown) => files },
+}));
+
+const mockSetModal = jest.fn();
+jest.mock("./view", () => ({
+  PgView: { setModal: (...args: unknown[]) => mockSetModal(...args) },
+}));
+jest.mock("../frameworks/SelectProgram", () => ({
+  SelectProgram: "SelectProgram",
 }));
 
 // Mirrors the extensions of the languages the app ships with.
@@ -89,6 +97,8 @@ describe("PgGithub.getFiles", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     return fetchMock;
   };
+
+  beforeEach(() => mockSetModal.mockReset());
 
   const treeResponse = (paths: string[], truncated = false) => ({
     body: { truncated, tree: paths.map(blob) },
@@ -198,6 +208,66 @@ describe("PgGithub.getFiles", () => {
         "https://github.com/solana-labs/example/tree/master/docs"
       )
     ).rejects.toThrow(/No source files found in "docs"/);
+  });
+
+  it("asks which program to import before downloading anything", async () => {
+    const fetchMock = mockFetch((url) => {
+      if (url.startsWith("https://api.github.com/")) {
+        return treeResponse([
+          "programs/alpha/src/lib.rs",
+          "programs/alpha/src/state.rs",
+          "programs/beta/src/lib.rs",
+          "tests/shared.ts",
+        ]);
+      }
+      return { body: "content" };
+    });
+    mockSetModal.mockResolvedValueOnce("alpha");
+
+    const files = await PgGithub.getFiles(
+      "https://github.com/solana-labs/example"
+    );
+
+    expect(mockSetModal).toHaveBeenCalledWith("SelectProgram", {
+      programNames: ["alpha", "beta"],
+    });
+    expect(files.map(([path]) => path)).toEqual([
+      "programs/alpha/src/lib.rs",
+      "programs/alpha/src/state.rs",
+      "tests/shared.ts",
+    ]);
+    // 1 tree request + 3 files, `beta` is never downloaded
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not ask when the repository holds a single program", async () => {
+    mockFetch((url) => {
+      if (url.startsWith("https://api.github.com/")) {
+        return treeResponse(["programs/alpha/src/lib.rs"]);
+      }
+      return { body: "content" };
+    });
+
+    await PgGithub.getFiles("https://github.com/solana-labs/example");
+
+    expect(mockSetModal).not.toHaveBeenCalled();
+  });
+
+  it("cancels the import when the selection is closed", async () => {
+    mockFetch((url) => {
+      if (url.startsWith("https://api.github.com/")) {
+        return treeResponse([
+          "programs/alpha/src/lib.rs",
+          "programs/beta/src/lib.rs",
+        ]);
+      }
+      return { body: "content" };
+    });
+    mockSetModal.mockResolvedValueOnce(null);
+
+    await expect(
+      PgGithub.getFiles("https://github.com/solana-labs/example")
+    ).rejects.toBeInstanceOf(ImportCancelledError);
   });
 
   it("reports a file that cannot be downloaded", async () => {

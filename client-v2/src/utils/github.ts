@@ -39,6 +39,25 @@ const IGNORED_DIRECTORY_REGEX =
 /** Files that match a supported language but are never worth downloading */
 const IGNORED_FILE_REGEX = /(^|\/)package-lock\.json$/;
 
+/**
+ * Anchor's monorepo layout, `programs/<name>/src/...`.
+ *
+ * The same convention `frameworks/anchor/import.ts` uses to find program
+ * names. Keep the two in step.
+ */
+const PROGRAM_SRC_REGEX = /(^|\/)programs\/([^/]+)\/src\//;
+
+/** Any path that belongs to a program folder of a monorepo */
+const PROGRAM_DIR_REGEX = /(^|\/)programs\/([^/]+)\//;
+
+/** Thrown when the user closes the program selection without choosing */
+export class ImportCancelledError extends Error {
+  constructor() {
+    super("Import cancelled");
+    this.name = "ImportCancelledError";
+  }
+}
+
 /** Progress of a repository import */
 export type ImportProgress = {
   /** Amount of files downloaded so far */
@@ -175,10 +194,51 @@ export class PgGithub {
       owner,
       repo,
       treeRef,
-      items,
+      await this._selectProgram(items),
       onProgress
     );
     return { files, owner, repo, path };
+  }
+
+  /**
+   * Narrow the given entries down to a single program when the repository
+   * holds several.
+   *
+   * Playground supports one program per project, and
+   * `frameworks/anchor/import.ts` already asks which one to keep -- but it
+   * asks after the files have been downloaded, so a monorepo pays for every
+   * program to end up with one. The tree already carries the answer, so ask
+   * here and download only what the answer needs.
+   *
+   * @param items tree entries to narrow
+   * @throws {ImportCancelledError} if the user closes the selection
+   * @returns the entries of the selected program plus everything outside
+   * the program folders
+   */
+  private static async _selectProgram(items: GithubTreeItem[]) {
+    const programNames = [
+      ...new Set(
+        items
+          .map((item) => PROGRAM_SRC_REGEX.exec(item.path)?.[2])
+          .filter((name): name is string => !!name)
+      ),
+    ];
+    if (programNames.length < 2) return items;
+
+    const [{ SelectProgram }, { PgView }] = await Promise.all([
+      import("../frameworks/SelectProgram"),
+      import("./view"),
+    ]);
+    const programName = await PgView.setModal<
+      string,
+      { programNames: string[] }
+    >(SelectProgram, { programNames });
+    if (!programName) throw new ImportCancelledError();
+
+    return items.filter((item) => {
+      const otherProgram = PROGRAM_DIR_REGEX.exec(item.path)?.[2];
+      return !otherProgram || otherProgram === programName;
+    });
   }
 
   /**

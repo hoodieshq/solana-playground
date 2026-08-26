@@ -13,7 +13,7 @@ import {
 } from "./TutorialsTab";
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
-import { PgGithub, PgView } from "../../../utils";
+import { ImportCancelledError, PgGithub, PgView } from "../../../utils";
 import type { ImportProgress } from "../../../utils";
 
 /** One entry of `public/programs/programs.json`. */
@@ -93,11 +93,14 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
                 });
                 PgView.setModal(null);
               } catch (e) {
-                setError({
-                  repo: p.repo,
-                  message:
-                    e instanceof Error ? e.message : "Could not open program",
-                });
+                // Closing the program selection is a choice, not a failure
+                if (!(e instanceof ImportCancelledError)) {
+                  setError({
+                    repo: p.repo,
+                    message:
+                      e instanceof Error ? e.message : "Could not open program",
+                  });
+                }
               } finally {
                 setProgress(null);
               }
