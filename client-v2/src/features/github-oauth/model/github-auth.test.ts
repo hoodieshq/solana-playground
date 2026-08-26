@@ -6,6 +6,13 @@ const USER = {
   avatar_url: "https://example.test/a.png",
 };
 
+/** The per-flow nonce the client actually put on the `start` URL */
+const flowNonceFrom = (openSpy: jest.SpyInstance) =>
+  new URL(
+    String(openSpy.mock.calls.at(-1)?.[0]),
+    window.location.origin
+  ).searchParams.get("nonce");
+
 /** Resolve a `signIn()` round trip by faking the popup and the message */
 const completeSignIn = async (
   message: unknown,
@@ -16,9 +23,13 @@ const completeSignIn = async (
     .spyOn(window, "open")
     .mockReturnValue(popup as unknown as Window);
   const promise = GithubAuth.signIn();
+  const data =
+    message && typeof message === "object"
+      ? { ...message, nonce: flowNonceFrom(openSpy) }
+      : message;
   window.dispatchEvent(
     new MessageEvent("message", {
-      data: message,
+      data,
       origin,
       source: popup as unknown as Window,
     })
@@ -38,7 +49,8 @@ const completeSignIn = async (
  */
 const expectIgnored = async (
   origin: string,
-  data: unknown,
+  /** Receives the real nonce, so each case can vary exactly one thing */
+  makeData: (nonce: string | null) => unknown,
   /** Defaults to the popup itself; pass another window to test the source check */
   source?: unknown
 ) => {
@@ -50,10 +62,11 @@ const expectIgnored = async (
   const promise = GithubAuth.signIn().finally(() => {
     settled = true;
   });
+  const nonce = flowNonceFrom(openSpy);
 
   window.dispatchEvent(
     new MessageEvent("message", {
-      data,
+      data: makeData(nonce),
       origin,
       source: (source ?? popup) as unknown as Window,
     })
@@ -67,7 +80,7 @@ const expectIgnored = async (
   // Complete it legitimately so the listener is cleaned up
   window.dispatchEvent(
     new MessageEvent("message", {
-      data: { type: "pg-github-auth", token: "gho_ok" },
+      data: { type: "pg-github-auth", nonce, token: "gho_ok" },
       origin: window.location.origin,
       source: popup as unknown as Window,
     })
@@ -112,30 +125,40 @@ describe("GithubAuth", () => {
   });
 
   it("should ignore a message from a foreign origin", async () => {
-    await expectIgnored("https://evil.test", {
+    await expectIgnored("https://evil.test", (nonce) => ({
       type: "pg-github-auth",
+      nonce,
       token: "gho_evil",
-    });
+    }));
   });
 
   it("should ignore a message with a wrong type", async () => {
-    await expectIgnored(window.location.origin, {
+    await expectIgnored(window.location.origin, (nonce) => ({
       type: "other",
+      nonce,
       token: "gho_evil",
-    });
+    }));
   });
 
   it("should ignore a non-object payload", async () => {
-    await expectIgnored(window.location.origin, "gho_evil");
+    await expectIgnored(window.location.origin, () => "gho_evil");
   });
 
   /** The same-origin project iframe can post; only the popup we opened counts */
   it("should ignore a valid message from another same-origin window", async () => {
     await expectIgnored(
       window.location.origin,
-      { type: "pg-github-auth", token: "gho_evil" },
+      (nonce) => ({ type: "pg-github-auth", nonce, token: "gho_evil" }),
       { closed: false, close: jest.fn() }
     );
+  });
+
+  it("should ignore a message carrying the wrong nonce", async () => {
+    await expectIgnored(window.location.origin, () => ({
+      type: "pg-github-auth",
+      nonce: "0".repeat(32),
+      token: "gho_evil",
+    }));
   });
 
   it("should relay a server error payload and stay signed out", async () => {
@@ -229,7 +252,11 @@ describe("GithubAuth", () => {
       const instance = FakeBroadcastChannel._instances.at(-1);
       expect(instance?.name).toBe("pg-github-auth");
       instance?.onmessage?.({
-        data: { type: "pg-github-auth", token: "gho_channel" },
+        data: {
+          type: "pg-github-auth",
+          nonce: flowNonceFrom(openSpy),
+          token: "gho_channel",
+        },
       });
       await promise;
       expect(GithubAuth.token).toBe("gho_channel");

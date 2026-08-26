@@ -9,6 +9,8 @@ export interface GithubUser {
 
 interface AuthMessage {
   type: "pg-github-auth";
+  /** Echo of the per-flow nonce; see `signIn` */
+  nonce?: string;
   token?: string;
   error?: string;
 }
@@ -17,6 +19,12 @@ const isAuthMessage = (data: unknown): data is AuthMessage =>
   !!data &&
   typeof data === "object" &&
   (data as Record<string, unknown>).type === "pg-github-auth";
+
+/** 128 bits of hex - matches the `isFlowNonce` shape the handler validates */
+const randomNonce = () =>
+  [...crypto.getRandomValues(new Uint8Array(16))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
 /**
  * GitHub identity for this tab.
@@ -52,12 +60,17 @@ export class GithubAuth {
    * and only in the expected shape.
    */
   static async signIn(): Promise<void> {
+    // A BroadcastChannel reaches every same-origin context, so shape alone
+    // cannot tell our popup's reply from anything else on the page. The
+    // handler pins this in an HttpOnly cookie and echoes it back; script here
+    // can read neither the cookie nor this closure, so it cannot forge a match.
+    const flowNonce = randomNonce();
     const channel = openPopupChannel({
-      url: "/api/github-oauth?action=start",
+      url: `/api/github-oauth?action=start&nonce=${flowNonce}`,
       name: "pg-github-auth",
       features: "width=980,height=720",
       broadcastName: "pg-github-auth",
-      accept: isAuthMessage,
+      accept: (data) => isAuthMessage(data) && data.nonce === flowNonce,
     });
     if (!channel) throw new Error("Allow popups for this site to sign in.");
 
