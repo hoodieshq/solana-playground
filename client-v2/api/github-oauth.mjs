@@ -12,9 +12,21 @@
  * together. This file is plain ESM on raw Node request/response APIs, which is
  * what lets one function serve the craco dev server, `vercel dev` and a real
  * deployment unchanged - see `api/health.mjs`.
+ *
+ * FIXME(@rogaldh): hand-rolling PKCE, state and cookie handling is a liability -
+ * replace it with Better Auth. No database needed: omitting `database` selects
+ * stateless mode, and `account.storeAccountCookie` still yields the GitHub
+ * access token. Deferred so this PR could land working; the security tests in
+ * `model/github-auth.integration.spec.ts` must be re-pointed, not deleted.
  */
-import { GITHUB_AUTHORIZE_URL, OAUTH_ROUTE } from "../src/features/github-oauth/config.mjs";
-import { randomHex, sha256Base64Url } from "../src/features/github-oauth/server/crypto.mjs";
+import {
+  GITHUB_AUTHORIZE_URL,
+  OAUTH_ROUTE,
+} from "../src/features/github-oauth/config.mjs";
+import {
+  randomHex,
+  sha256Base64Url,
+} from "../src/features/github-oauth/server/crypto.mjs";
 import {
   clearFlowCookies,
   isFlowNonce,
@@ -74,7 +86,16 @@ async function route(req, res) {
   // One expression for both branches: GitHub matches the value sent at the
   // exchange against the one sent at authorize time, so they must be identical
   const redirectUri = `${proto}://${req.headers.host}${OAUTH_ROUTE}?action=callback`;
-  const flow = { req, res, url, nonce, proto, redirectUri, clientId, clientSecret };
+  const flow = {
+    req,
+    res,
+    url,
+    nonce,
+    proto,
+    redirectUri,
+    clientId,
+    clientSecret,
+  };
 
   if (action === "start") return start(flow);
   if (action === "callback") return callback(flow);

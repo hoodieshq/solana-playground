@@ -39,8 +39,11 @@ const call = async (url: string, headers: Record<string, string> = {}) => {
   // The handler only reads `url`/`headers` and writes via the four members
   // `FakeRes` implements; casting keeps the fakes minimal.
   await handler(
-    { url, headers: { host: "app.test", ...headers } } as unknown as IncomingMessage,
-    res as unknown as ServerResponse,
+    {
+      url,
+      headers: { host: "app.test", ...headers },
+    } as unknown as IncomingMessage,
+    res as unknown as ServerResponse
   );
   return res;
 };
