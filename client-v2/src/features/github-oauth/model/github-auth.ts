@@ -1,3 +1,9 @@
+import {
+  CHANNEL_NAME,
+  GITHUB_USER_URL,
+  MESSAGE_TYPE,
+  OAUTH_ROUTE,
+} from "../config.mjs";
 import { openPopupChannel } from "../lib/popup-channel";
 import type { Disposable } from "../../../utils/types";
 
@@ -8,7 +14,8 @@ export interface GithubUser {
 }
 
 interface AuthMessage {
-  type: "pg-github-auth";
+  /** Checked against `MESSAGE_TYPE` by the guard below, never read after */
+  type: string;
   /** Echo of the per-flow nonce; see `signIn` */
   nonce?: string;
   token?: string;
@@ -18,7 +25,7 @@ interface AuthMessage {
 const isAuthMessage = (data: unknown): data is AuthMessage =>
   !!data &&
   typeof data === "object" &&
-  (data as Record<string, unknown>).type === "pg-github-auth";
+  (data as Record<string, unknown>).type === MESSAGE_TYPE;
 
 /** 128 bits of hex - matches the `isFlowNonce` shape the handler validates */
 const randomNonce = () =>
@@ -65,10 +72,10 @@ export class GithubAuth {
     // can read neither the cookie nor this closure, so it cannot forge a match.
     const flowNonce = randomNonce();
     const channel = openPopupChannel({
-      url: `/api/github-oauth?action=start&nonce=${flowNonce}`,
-      name: "pg-github-auth",
+      url: `${OAUTH_ROUTE}?action=start&nonce=${flowNonce}`,
+      name: CHANNEL_NAME,
       features: "width=980,height=720",
-      broadcastName: "pg-github-auth",
+      broadcastName: CHANNEL_NAME,
       accept: (data) => isAuthMessage(data) && data.nonce === flowNonce,
     });
     if (!channel) throw new Error("Allow popups for this site to sign in.");
@@ -124,7 +131,7 @@ export class GithubAuth {
   }
 
   private static async _fetchUser(token: string): Promise<GithubUser> {
-    const resp = await fetch("https://api.github.com/user", {
+    const resp = await fetch(GITHUB_USER_URL, {
       headers: { authorization: `Bearer ${token}` },
     });
     if (!resp.ok) {

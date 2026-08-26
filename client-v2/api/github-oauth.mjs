@@ -21,6 +21,14 @@
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
+import {
+  CHANNEL_NAME,
+  GITHUB_AUTHORIZE_URL,
+  GITHUB_TOKEN_URL,
+  MESSAGE_TYPE,
+  OAUTH_ROUTE,
+} from "../src/features/github-oauth/config.mjs";
+
 const COOKIE = "pg_gh_oauth_state";
 const VERIFIER_COOKIE = "pg_gh_oauth_verifier";
 const NONCE_COOKIE = "pg_gh_oauth_nonce";
@@ -89,7 +97,7 @@ async function route(req, res) {
     .trim();
   // One expression for both branches: GitHub matches the value sent here against
   // the one sent at authorize time, so they must be identical
-  const redirectUri = `${proto}://${req.headers.host}/api/github-oauth?action=callback`;
+  const redirectUri = `${proto}://${req.headers.host}${OAUTH_ROUTE}?action=callback`;
 
   if (action === "start") {
     if (!isFlowNonce(queryNonce)) {
@@ -103,7 +111,7 @@ async function route(req, res) {
     // Hex is already `code_verifier`-safe: unreserved, and 64 chars is inside
     // the 43-128 range RFC 7636 allows
     const verifier = randomHex(32);
-    const authorize = new URL("https://github.com/login/oauth/authorize");
+    const authorize = new URL(GITHUB_AUTHORIZE_URL);
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", redirectUri);
     authorize.searchParams.set("state", state);
@@ -177,7 +185,7 @@ async function route(req, res) {
       });
     }
 
-    const resp = await fetch("https://github.com/login/oauth/access_token", {
+    const resp = await fetch(GITHUB_TOKEN_URL, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -226,7 +234,7 @@ async function route(req, res) {
 /** The page that hands the result to the app and closes the popup */
 function sendResult(res, { token, error, flowNonce }) {
   const payload = JSON.stringify({
-    type: "pg-github-auth",
+    type: MESSAGE_TYPE,
     // Echoed so the client can tell its own flow from anything else on the
     // page; omitted rather than forged when we never had a valid one
     ...(isFlowNonce(flowNonce) ? { nonce: flowNonce } : {}),
@@ -258,7 +266,8 @@ function sendResult(res, { token, error, flowNonce }) {
       `sent = true;` +
       `} else {` +
       `try {` +
-      `new BroadcastChannel("pg-github-auth").postMessage(${payload});` +
+      `new BroadcastChannel(${JSON.stringify(CHANNEL_NAME)})` +
+      `.postMessage(${payload});` +
       `sent = true;` +
       `} catch (e) {}` +
       `}` +
