@@ -1,17 +1,17 @@
 import { GithubAuth, checkGithubSignIn } from "./github-auth";
 
 /** Shaped like the `/user` response: snake_case, as GitHub sends it */
-const USER = {
+const PROFILE = {
   login: "stub-user",
   name: "Stub User",
-  avatar_url: "https://example.test/a.png",
+  avatar_url: "https://example.test/avatar.png",
 };
 
-/** `USER` after the mapping under test - spelled out so a rename can't hide it */
+/** `PROFILE` after the mapping under test - spelled out so a rename can't hide it */
 const EXPECTED_USER = {
-  login: USER.login,
-  name: USER.name,
-  avatarUrl: USER.avatar_url,
+  login: PROFILE.login,
+  name: PROFILE.name,
+  avatarUrl: PROFILE.avatar_url,
 };
 
 /** The per-flow nonce the client actually put on the `start` URL */
@@ -103,7 +103,7 @@ describe("GithubAuth", () => {
     (global.fetch as jest.Mock | undefined)?.mockRestore?.();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(USER),
+      json: () => Promise.resolve(PROFILE),
     }) as jest.Mock;
   });
 
