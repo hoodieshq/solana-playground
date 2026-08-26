@@ -8,12 +8,8 @@ import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
 import { BOTTOM_BAR_HEIGHT, PANEL_RADIUS } from "../tokens";
-import { PgExplorer } from "../../../utils";
 
 type Tab = "projects" | "files";
-
-/** How long the rail's "+" waits for the explorer tree before giving up. */
-const MAX_TREE_WAIT_FRAMES = 60;
 
 interface LeftPanelProps {
   onNewProject: () => void;
@@ -33,26 +29,15 @@ const LeftPanel: FC<LeftPanelProps> = ({
   const { createItem } = useCreateItem();
   const [pendingCreate, setPendingCreate] = useState(false);
 
-  // `createItem` portals its input into the explorer tree and dereferences
-  // `getRootFolderEl()` unchecked, so the rail's "+" expands the panel first
-  // and waits for the tree to actually mount -- it lands a few frames after
-  // the expand, not on the same commit. Bounded so a tree that never renders
-  // (e.g. the tab switched mid-wait) drops the request instead of spinning.
+  // `createItem` portals its input into the explorer tree, so it cannot run
+  // in the rail button's own handler -- the tree is still unmounted at that
+  // point. Expanding sets this flag instead and the create happens here, on
+  // the commit that mounts the tree.
   useEffect(() => {
     if (collapsed || !pendingCreate) return;
 
-    let frame = 0;
-    let id = requestAnimationFrame(function tick() {
-      if (PgExplorer.getRootFolderEl()) {
-        setPendingCreate(false);
-        createItem();
-      } else if (++frame < MAX_TREE_WAIT_FRAMES) {
-        id = requestAnimationFrame(tick);
-      } else {
-        setPendingCreate(false);
-      }
-    });
-    return () => cancelAnimationFrame(id);
+    setPendingCreate(false);
+    createItem();
   }, [collapsed, pendingCreate, createItem]);
 
   // Sits in the tab row when open and at the top of the rail when collapsed,

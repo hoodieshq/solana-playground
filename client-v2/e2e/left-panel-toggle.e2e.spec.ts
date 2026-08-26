@@ -1,26 +1,57 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 /**
- * Cmd/Ctrl+B collapses the Flow left panel to a rail and back.
+ * Collapsing the Flow left panel to a rail and back.
  *
- * Keyboard only: on a cold profile the empty-workspace gallery is open and
- * intercepts pointer events, so covering the chevron and the rail's "+"
- * would need a seeded workspace fixture that does not exist yet. The keybind
- * is unaffected by the overlay.
+ * The rail's "+" is the one worth a browser: it expands the panel and then
+ * waits for the explorer tree to mount before creating, and that hand-off has
+ * no unit-testable seam.
  */
 
 const OPEN_PX = 232; // 14.5rem
 const RAIL_PX = 24; // 1.5rem
 
-test("cmd+b toggles the left panel", async ({ page }) => {
-  await page.goto("/");
+const panel = (page: import("@playwright/test").Page) =>
+  page.locator("aside").first();
 
-  const panel = page.locator("aside").first();
-  await expect(panel).toHaveJSProperty("offsetWidth", OPEN_PX);
-
-  await page.keyboard.press("Meta+b");
-  await expect(panel).toHaveJSProperty("offsetWidth", RAIL_PX);
+test("cmd+b toggles the left panel", async ({ seededPage: page }) => {
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
 
   await page.keyboard.press("Meta+b");
-  await expect(panel).toHaveJSProperty("offsetWidth", OPEN_PX);
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", RAIL_PX);
+
+  await page.keyboard.press("Meta+b");
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
+});
+
+test("the chevron toggles the panel and the hint survives collapse", async ({
+  seededPage: page,
+}) => {
+  const collapse = page.getByRole("button", { name: "Collapse project panel" });
+  const expand = page.getByRole("button", { name: "Expand project panel" });
+
+  await collapse.click();
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", RAIL_PX);
+  // Collapsed, this hint is the only affordance saying how to get the panel
+  // back, so losing it is a real regression rather than a cosmetic one.
+  await expect(expand).toContainText("⌘B");
+
+  await expand.click();
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
+  await expect(collapse).toContainText("⌘B");
+});
+
+test("the rail's + expands the panel and opens the new-file input", async ({
+  seededPage: page,
+}) => {
+  await page.keyboard.press("Meta+b");
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", RAIL_PX);
+
+  // Only the rail's "+" exists while collapsed; the footer button is unmounted.
+  await page.getByRole("button", { name: "New file" }).click();
+
+  await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
+  const input = page.locator("#root-dir input");
+  await expect(input).toBeVisible();
+  await expect(input).toBeFocused();
 });
