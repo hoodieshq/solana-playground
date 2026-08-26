@@ -51,14 +51,21 @@ async function route(req, res) {
     });
   }
 
-  const proto = req.headers["x-forwarded-proto"] ?? "http";
+  // Chained proxies send "https,https" - the first hop is the client-facing one.
+  // Taking the whole value would both corrupt `redirectUri` and, because it stops
+  // equalling "https", silently drop `Secure` from the cookies.
+  const proto = (req.headers["x-forwarded-proto"] ?? "http")
+    .split(",")[0]
+    .trim();
+  // One expression for both branches: GitHub matches the value sent here against
+  // the one sent at authorize time, so they must be identical
+  const redirectUri = `${proto}://${req.headers.host}/api/github-oauth?action=callback`;
 
   if (action === "start") {
     const state = randomHex(16);
     // Hex is already `code_verifier`-safe: unreserved, and 64 chars is inside
     // the 43-128 range RFC 7636 allows
     const verifier = randomHex(32);
-    const redirectUri = `${proto}://${req.headers.host}/api/github-oauth?action=callback`;
     const authorize = new URL("https://github.com/login/oauth/authorize");
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", redirectUri);
@@ -129,6 +136,8 @@ async function route(req, res) {
         client_id: clientId,
         client_secret: clientSecret,
         code,
+        // GitHub matches this against the authorize-time value to bind the code
+        redirect_uri: redirectUri,
         code_verifier: verifier,
       }),
     });
