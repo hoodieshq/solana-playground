@@ -103,10 +103,9 @@ export const PROVIDERS: ProviderInfo[] = [
     id: "default",
     name: "Default",
     description:
-      "The backend this playground is deployed with. The model and the key " +
-      "it runs on are configured server-side, so there is nothing to enter — " +
-      "and it gets the same tools and the same approval gates as any other " +
-      "backend.",
+      "The agentic backend this playground is deployed with — what you talk " +
+      "to unless you pick something else. Its model and key live server-side, " +
+      "so there is nothing to enter.",
     needsKey: false,
   },
   {
