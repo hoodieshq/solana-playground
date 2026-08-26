@@ -1,4 +1,5 @@
 import { filterRepoFiles, PgGithub } from "./github";
+import type { ImportProgress } from "./github";
 
 // `./explorer` boots lightning-fs on import, which needs a real IndexedDB.
 jest.mock("./explorer", () => ({ PgExplorer: {} }));
@@ -47,6 +48,28 @@ describe("filterRepoFiles", () => {
   it("ignores surrounding slashes in the path", () => {
     const files = filterRepoFiles([blob("src/lib.rs")], "/src/");
     expect(files.map((f) => f.path)).toEqual(["src/lib.rs"]);
+  });
+
+  it("skips directories that never hold program source", () => {
+    const files = filterRepoFiles(
+      [
+        blob("src/lib.rs"),
+        blob("node_modules/pkg/index.js"),
+        blob("target/debug/build.rs"),
+        blob(".github/workflows/ci.js"),
+        blob("app/dist/bundle.js"),
+      ],
+      ""
+    );
+    expect(files.map((f) => f.path)).toEqual(["src/lib.rs"]);
+  });
+
+  it("skips lock files that happen to be JSON", () => {
+    const files = filterRepoFiles(
+      [blob("package.json"), blob("package-lock.json")],
+      ""
+    );
+    expect(files.map((f) => f.path)).toEqual(["package.json"]);
   });
 });
 
@@ -97,6 +120,28 @@ describe("PgGithub.getFiles", () => {
       "https://api.github.com/repos/solana-labs/example/git/trees/master" +
         "?recursive=1"
     );
+  });
+
+  it("reports progress from the layout request to the last file", async () => {
+    mockFetch((url) => {
+      if (url.startsWith("https://api.github.com/")) {
+        return treeResponse(["a.rs", "b.rs", "c.rs"]);
+      }
+      return { body: "content" };
+    });
+
+    const progress: ImportProgress[] = [];
+    await PgGithub.getFiles("https://github.com/solana-labs/example", (next) =>
+      progress.push(next)
+    );
+
+    expect(progress).toEqual([
+      { loaded: 0, total: null },
+      { loaded: 0, total: 3 },
+      { loaded: 1, total: 3 },
+      { loaded: 2, total: 3 },
+      { loaded: 3, total: 3 },
+    ]);
   });
 
   it("falls back to HEAD when the URL has no ref", async () => {

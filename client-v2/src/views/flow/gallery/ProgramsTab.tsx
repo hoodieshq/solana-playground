@@ -14,6 +14,7 @@ import {
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { PgGithub, PgView } from "../../../utils";
+import type { ImportProgress } from "../../../utils";
 
 /** One entry of `public/programs/programs.json`. */
 export interface ProgramListing {
@@ -43,6 +44,9 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
   const [error, setError] = useState<{ repo: string; message: string } | null>(
     null
   );
+  const [progress, setProgress] = useState<
+    ({ repo: string } & ImportProgress) | null
+  >(null);
 
   if (programs === null) {
     return <Empty>Loading programs...</Empty>;
@@ -75,12 +79,18 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
             <Title>{p.name}</Title>
             <Sub>{p.description}</Sub>
             {error?.repo === p.repo && <ErrorText>{error.message}</ErrorText>}
+            {progress?.repo === p.repo && (
+              <ProgressText>{getProgressText(progress)}</ProgressText>
+            )}
           </Body>
           <Button
             onClick={async () => {
               setError(null);
+              setProgress({ repo: p.repo, loaded: 0, total: null });
               try {
-                await PgGithub.import(p.repo);
+                await PgGithub.import(p.repo, (next) => {
+                  setProgress({ repo: p.repo, ...next });
+                });
                 PgView.setModal(null);
               } catch (e) {
                 setError({
@@ -88,6 +98,8 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
                   message:
                     e instanceof Error ? e.message : "Could not open program",
                 });
+              } finally {
+                setProgress(null);
               }
             }}
           >
@@ -100,6 +112,20 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
 };
 
 export default ProgramsTab;
+
+/** Describe where the import currently is, in the user's terms. */
+const getProgressText = ({ loaded, total }: ImportProgress) => {
+  if (total === null) return "Reading the repository...";
+  return `Downloading ${loaded}/${total} files...`;
+};
+
+const ProgressText = styled.div`
+  ${({ theme }) => css`
+    margin-top: 0.25rem;
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.other.size.small};
+  `}
+`;
 
 const Icon = styled(Img)`
   ${({ theme }) => css`
