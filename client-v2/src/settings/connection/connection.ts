@@ -1,4 +1,8 @@
-import { Endpoint } from "../../constants";
+import {
+  DEFAULT_ENDPOINT,
+  Endpoint,
+  PLATFORM_ENDPOINTS,
+} from "../../constants";
 import { PgCommon } from "../../utils";
 import { createSetting } from "../create";
 
@@ -19,8 +23,9 @@ export const connection = [
       { name: "Devnet", value: Endpoint.DEVNET },
       { name: "Testnet", value: Endpoint.TESTNET },
       { name: "Mainnet Beta", value: Endpoint.MAINNET_BETA },
+      ...PLATFORM_ENDPOINTS.map(({ name, value }) => ({ name, value })),
     ],
-    default: Endpoint.DEVNET,
+    default: DEFAULT_ENDPOINT,
     custom: {
       parse: (v) => {
         if (PgCommon.isUrl(v)) return v;
