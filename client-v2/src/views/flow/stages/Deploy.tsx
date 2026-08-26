@@ -133,9 +133,7 @@ const Deploy = () => {
             <Button.Copy copyText={latest.programId} />
             <Link
               href={explorer.getAddressUrl(latest.programId)}
-              aria-label={
-                `View latest deployment (${latest.programId}) ` + "on Explorer"
-              }
+              aria-label={`View latest deployment (${latest.programId}) on Explorer`}
             >
               Explorer
             </Link>
