@@ -49,11 +49,17 @@ nothing on ecosystem program cards. Root cause: `PgGithub` walked the
 repo with one `contents` request per directory, blew through GitHub's
 60-requests-per-hour unauthenticated limit (reproduced live: 403 from
 request #63 on), and `PgCommon.fetchJSON` parsed the 403 body as a
-directory listing, so the import silently produced zero files. Replaced
-by a single `git/trees?recursive=1` request plus parallel
-`raw.githubusercontent.com` downloads, with rate-limit, not-found,
-truncated-tree and empty-match errors surfaced on the card. Branched
-from master-2.0, 11 new tests, awaiting review.
+directory listing, so the import silently produced zero files. Now one
+`git/trees?recursive=1` request, parallel `raw.githubusercontent.com`
+downloads, and readable errors on the card. Four follow-ups landed in
+the same PR after manual testing: 24 downloads in flight instead of 8
+(9 s -> 0.5 s on a cold CDN), noise paths skipped, per-file progress on
+the card, and the "which program?" question moved ahead of the download
+so a monorepo downloads one program instead of twelve. One upstream
+file changed by two lines: Anchor's framework check treated any `.py`
+as Seahorse, which made marginfi unimportable. Branched from
+master-2.0, 75 tests, verified live on seven repositories, awaiting
+review.
 
 **Teammate PRs reviewed (findings posted to GitHub):**
 #12 — APPROVE (trivial, correct). #13 — APPROVE-WITH-COMMENTS:

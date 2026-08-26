@@ -973,3 +973,24 @@ refused with an explanation instead.
 **Revisit when** imports need private repositories, or when a legitimately
 huge monorepo makes the truncated-tree refusal a real obstacle - a
 subtree-scoped Trees request on the parent tree would be the answer.
+
+**Follow-ups inside the same PR (2026-08-26 evening).** Manual testing
+turned the fix into four more: 24 parallel downloads instead of 8
+(`raw.githubusercontent.com` is HTTP/2, so they multiplex on one
+connection - 190 files went from ~8.9 s to ~0.5 s on a cold CDN);
+skipping paths that match a supported language but never hold program
+source (`node_modules`, `target`, `dist`, `build`, `coverage`, `.git`,
+`.github`, `package-lock.json`); a progress callback so the card says
+"Downloading 84/195 files..." rather than spinning; and moving the
+"which program?" question ahead of the download, which is the part that
+matters - a monorepo card used to download all twelve programs to keep
+one. The picker lives in `frameworks/` and is reached with a dynamic
+import, the same way frameworks lazy-load their conversion modules.
+
+**One upstream file changed:** `frameworks/anchor/anchor.ts`. Its
+framework check bowed out on any `.py` file, on the grounds that every
+Seahorse workspace is a valid Anchor workspace; marginfi keeps
+`fuzz/generate_corpus.py` next to the program, so it was unimportable
+("Could not identify framework"). The check now matches Seahorse's own -
+a Python file importing `seahorse.prelude` - which is what the upstream
+TODO above it asks for.
