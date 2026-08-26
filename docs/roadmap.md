@@ -44,7 +44,18 @@ PR #9, awaiting one approval (rogaldh) to squash-merge. Spec:
 - Full OAuth round trip verified live on localhost (instant re-auth
   after the one-time consent). 66 unit tests green.
 
-**Teammate PRs reviewed (findings not yet posted to GitHub):**
+**GitHub import fixed (PR #14)** - the gallery's Open button did
+nothing on ecosystem program cards. Root cause: `PgGithub` walked the
+repo with one `contents` request per directory, blew through GitHub's
+60-requests-per-hour unauthenticated limit (reproduced live: 403 from
+request #63 on), and `PgCommon.fetchJSON` parsed the 403 body as a
+directory listing, so the import silently produced zero files. Replaced
+by a single `git/trees?recursive=1` request plus parallel
+`raw.githubusercontent.com` downloads, with rate-limit, not-found,
+truncated-tree and empty-match errors surfaced on the card. Branched
+from master-2.0, 11 new tests, awaiting review.
+
+**Teammate PRs reviewed (findings posted to GitHub):**
 #12 — APPROVE (trivial, correct). #13 — APPROVE-WITH-COMMENTS:
 fix before merge M2 (Default offered while the `/api/agent` probe is
 outstanding) and M3 (JSON `null` body crashes the handler to 500);
@@ -78,10 +89,9 @@ resumes. Ties into GitHub identity later (quota per user).
 
 ## Backlog (not ordered)
 
-- **Error-UX scenarios** — interface behavior when things fail.
-  First known case: template gallery dialog's Open button does nothing
-  (reported 2026-08-24, not yet reproduced). Collect cases, then fix
-  as one polish pass.
+- **Error-UX scenarios** - interface behavior when things fail.
+  The first known case is fixed (PR #14, below); collect the remaining
+  cases, then fix them as one polish pass.
 - **Wallet-adapter integration** — demoted by D21: cuts through the
   hottest upstream files (`commands/deploy/deploy.ts`,
   `utils/wallet/wallet.ts`) for little visible value now. Revisit when

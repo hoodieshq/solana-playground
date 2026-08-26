@@ -929,3 +929,47 @@ grant.
 
 **Revisit when** the GitHub OAuth stream lands, or when mainnet-facing work
 makes the local-keypair wallet an actual blocker rather than a mismatch.
+
+---
+
+## D22 - GitHub imports read the repository layout from the Trees API
+
+**Date:** 2026-08-26 - **Status:** implemented (PR #14)
+
+Upstream's `PgGithub` walked a repository with one `api.github.com/.../
+contents` request per directory, with a `TODO` acknowledging the cost. The
+unauthenticated API budget is 60 requests per hour per IP, so a single
+import of a repository with more than a handful of folders exhausted it -
+reproduced live, request #63 onward returned `403`. Because
+`PgCommon.fetchJSON` never checks `response.ok`, the `403` body was parsed
+as a directory listing: the walk found nothing, the import produced zero
+files, and nothing threw. The gallery's Open button appeared dead.
+
+**Chosen:** one `GET /repos/{owner}/{repo}/git/trees/{ref}?recursive=1`
+request for the whole layout, file contents from
+`raw.githubusercontent.com` (outside the API rate limit) eight at a time
+with order preserved, and explicit status handling that turns a rate limit,
+a missing repository, a truncated tree or an empty match into a message the
+UI shows. One API request per import instead of one per directory.
+
+**Rejected - fixing `PgCommon.fetchJSON` to throw on `!response.ok`.** It
+would surface the failure but not prevent it, and `common.ts` is one of the
+hottest upstream files (15 commits in six months). Every caller would
+inherit new throwing behavior in the same change. The fix belongs in
+`github.ts`, which the fork can own.
+
+**Rejected - authenticating the requests with the OAuth token from D19.**
+It raises the limit to 5,000/hour but makes importing a public example
+require sign-in, and the token would have to reach a module that runs
+before identity exists. The Trees API removes the pressure without it. If
+imports ever need private repositories, the token becomes the reason to
+revisit - not the rate limit.
+
+**Rejected - importing a truncated tree anyway.** GitHub truncates trees
+above ~100k entries. A partial import that silently drops files is the same
+class of failure this decision exists to remove, so a truncated tree is
+refused with an explanation instead.
+
+**Revisit when** imports need private repositories, or when a legitimately
+huge monorepo makes the truncated-tree refusal a real obstacle - a
+subtree-scoped Trees request on the parent tree would be the answer.
