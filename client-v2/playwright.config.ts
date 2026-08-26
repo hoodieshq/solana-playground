@@ -8,7 +8,11 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   // The dev server is slow to boot: wasm chunks plus the generate step
-  timeout: 45_000,
+  // Per test. A hang should surface in seconds, not a minute. Override either
+  // way - tighter to catch a stall sooner, looser when slowMo paces the run:
+  //   E2E_TIMEOUT=15000 yarn test-e2e
+  //   SLOWMO=800 E2E_TIMEOUT=60000 yarn test-e2e --headed
+  timeout: Number(process.env.E2E_TIMEOUT ?? 30_000),
   expect: { timeout: 10_000 },
   fullyParallel: false,
   reporter: process.env.CI ? "list" : "line",
