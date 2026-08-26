@@ -28,8 +28,12 @@ const BG_BASE = "#000000", // chrome: rail, topbar, status bar, terminal
   // Syntax
   COMMENT = "#6E6880";
 
-/** Corner radius of the floating panels (editor, terminal, sidebar page) */
-const PANEL_RADIUS = "14px";
+/**
+ * Corner radius of every floating panel, in both layouts -- the classic
+ * editor/terminal/sidebar cards and Flow's left/center/right columns, which
+ * read it back through `theme.default.borderRadius`.
+ */
+const PANEL_RADIUS = "12px";
 
 /** Display font for chrome (titles, buttons, topbar); code stays monospace */
 const DISPLAY_FONT = `"Space Grotesk", -apple-system, BlinkMacSystemFont,
@@ -71,7 +75,7 @@ const SOLANA_V2: ThemeParam = {
 
   default: {
     backdrop: { backdropFilter: "blur(12px)" },
-    borderRadius: "12px",
+    borderRadius: PANEL_RADIUS,
     boxShadow: "rgba(0, 0, 0, 0.5) 0px 8px 32px",
   },
 

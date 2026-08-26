@@ -7,7 +7,7 @@ import ProjectsTab from "./ProjectsTab";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
-import { BOTTOM_BAR_HEIGHT, PANEL_RADIUS } from "../tokens";
+import { BOTTOM_BAR_HEIGHT } from "../tokens";
 
 type Tab = "projects" | "files";
 
@@ -122,9 +122,8 @@ const LeftPanel: FC<LeftPanelProps> = ({
 
 export default LeftPanel;
 
-// A floating panel like Center and Right (see `views/flow/tokens.ts`):
-// full 1px border, rounded corners, the raised surface background instead
-// of the black page ground.
+// A floating panel like Center and Right: full 1px border, rounded corners,
+// the raised surface background instead of the black page ground.
 // Width comes from `Columns` in `Flow.tsx` (14.5rem open, 1.5rem collapsed)
 // so the grid and the panel can never disagree about the column size.
 const Wrapper = styled.aside`
@@ -133,7 +132,7 @@ const Wrapper = styled.aside`
     display: flex;
     flex-direction: column;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${PANEL_RADIUS};
+    border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
     overflow: hidden;
   `}

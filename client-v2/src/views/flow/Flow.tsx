@@ -11,7 +11,7 @@ import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
-import { GAP, PANEL_RADIUS } from "./tokens";
+import { GAP } from "./tokens";
 import Assistant from "../sidebar/assistant/Component";
 import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
@@ -152,7 +152,7 @@ const Center = styled.div`
     min-width: 0;
     background: ${theme.colors.default.bgSecondary};
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${PANEL_RADIUS};
+    border-radius: ${theme.default.borderRadius};
     overflow: hidden;
   `}
 `;
@@ -176,7 +176,7 @@ const Right = styled.aside<{ $open: boolean }>`
     --flow-handle-inset: ${$open ? "1rem" : "0px"};
     width: 100%;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${PANEL_RADIUS};
+    border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
     display: flex;
     flex-direction: column;
