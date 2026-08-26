@@ -1,3 +1,4 @@
+import { openPopupChannel } from "../lib/popup-channel";
 import type { Disposable } from "../../../utils/types";
 
 export interface GithubUser {
@@ -50,86 +51,36 @@ export class PgGithubAuth {
    * from `window` are additionally accepted from our own origin only,
    * and only in the expected shape.
    */
-  static signIn(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const popup = window.open(
-        "/api/github-oauth?action=start",
-        "pg-github-auth",
-        "width=980,height=720"
-      );
-      if (!popup) {
-        reject(new Error("Allow popups for this site to sign in."));
-        return;
-      }
-
-      let pollInterval: number;
-      let messageReceived = false;
-
-      const channel: BroadcastChannel | null =
-        typeof BroadcastChannel === "undefined"
-          ? null
-          : new BroadcastChannel("pg-github-auth");
-
-      const done = (err?: Error) => {
-        window.removeEventListener("message", onMessage);
-        channel?.close();
-        window.clearInterval(pollInterval);
-        if (err) reject(err);
-        else resolve();
-      };
-
-      const handlePayload = async (data: AuthMessage) => {
-        // Set synchronously, before any await: the same payload can
-        // arrive on both the channel and the window listener, and only
-        // the first should trigger the profile fetch.
-        if (messageReceived) return;
-        messageReceived = true;
-
-        if (data.error || !data.token) {
-          done(new Error(data.error ?? "Sign-in was cancelled."));
-          return;
-        }
-
-        // Only the fetch is guarded: a throwing subscriber inside `_notify`
-        // must not be mistaken for a failed profile fetch and wipe the session
-        const token = data.token;
-        let failure: Error | undefined;
-        try {
-          const user = await PgGithubAuth._fetchUser(token);
-          PgGithubAuth._state = { token, user };
-        } catch (e) {
-          // Never keep a token without an identity to show
-          PgGithubAuth._state = null;
-          failure = e as Error;
-        }
-        PgGithubAuth._notify();
-        done(failure);
-      };
-
-      const onMessage = (ev: MessageEvent) => {
-        if (ev.origin !== window.location.origin) return;
-        // Origin alone is not enough: project code runs in a same-origin iframe,
-        // so require the message to come from the popup we opened
-        if (ev.source !== popup) return;
-        if (!isAuthMessage(ev.data)) return;
-        handlePayload(ev.data);
-      };
-
-      window.addEventListener("message", onMessage);
-
-      if (channel) {
-        channel.onmessage = (ev: MessageEvent) => {
-          if (!isAuthMessage(ev.data)) return;
-          handlePayload(ev.data);
-        };
-      }
-
-      pollInterval = window.setInterval(() => {
-        if (popup.closed && !messageReceived) {
-          done(new Error("Sign-in was cancelled."));
-        }
-      }, 500);
+  static async signIn(): Promise<void> {
+    const channel = openPopupChannel({
+      url: "/api/github-oauth?action=start",
+      name: "pg-github-auth",
+      features: "width=980,height=720",
+      broadcastName: "pg-github-auth",
+      accept: isAuthMessage,
     });
+    if (!channel) throw new Error("Allow popups for this site to sign in.");
+
+    const message = await channel.receive();
+    if (!isAuthMessage(message)) throw new Error("Sign-in was cancelled.");
+    if (message.error || !message.token) {
+      throw new Error(message.error ?? "Sign-in was cancelled.");
+    }
+
+    // Only the fetch is guarded: a throwing subscriber inside `_notify` must
+    // not be mistaken for a failed profile fetch and wipe the session
+    const token = message.token;
+    let failure: Error | undefined;
+    try {
+      const user = await PgGithubAuth._fetchUser(token);
+      PgGithubAuth._state = { token, user };
+    } catch (e) {
+      // Never keep a token without an identity to show
+      PgGithubAuth._state = null;
+      failure = e as Error;
+    }
+    PgGithubAuth._notify();
+    if (failure) throw failure;
   }
 
   static signOut() {
