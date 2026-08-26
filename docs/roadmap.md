@@ -24,22 +24,37 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 
 ## In progress
 
-**GitHub OAuth sign-in with a gated airdrop** — built and in review as
-PR #9. Spec: `docs/superpowers/specs/2026-08-25-github-oauth-design.md`;
-plan: `docs/superpowers/plans/2026-08-25-github-oauth.md`. rogaldh
-rebased the PR onto master-2.0 and hardened it (PKCE S256, Web Crypto
-state nonce, `.env.example`, store moved to `features/github-oauth/`).
-Outstanding: port three final-review fixes onto the rebase
-(unconfigured-deployment dead end, automatic-airdrop cache poisoning,
-silent wallet-menu failures — the fourth, `no-store`, is covered), set
-up commit signing (branch now requires signed commits), run the live
-OAuth round trip, then 1 approval to merge (squash).
+**GitHub OAuth sign-in with a gated airdrop** — feature-complete on
+PR #9, awaiting one approval (rogaldh) to squash-merge. Spec:
+`docs/superpowers/specs/2026-08-25-github-oauth-design.md`; plan:
+`docs/superpowers/plans/2026-08-25-github-oauth.md`. State as of
+2026-08-26 evening:
+- rogaldh's hardening (PKCE S256, Web Crypto nonce, `.env.example`,
+  store moved to `features/github-oauth/`) is in.
+- The three final-review fixes are ported onto that structure and
+  pushed (signed commits; signing key registered 2026-08-26).
+- Live e2e uncovered a real transport bug — `window.opener.postMessage`
+  does not survive the GitHub navigation — fixed by making a
+  same-origin BroadcastChannel the primary delivery path (opener as
+  fallback), +1 unit test.
+- Manual-testing feedback (chip click signed the user out) fixed with
+  a profile popover: avatar/name/@login card, Open GitHub profile
+  link, Sign out behind an inline confirmation; focus management and
+  ARIA reviewed and fixed.
+- Full OAuth round trip verified live on localhost (instant re-auth
+  after the one-time consent). 66 unit tests green.
 
-**Teammate PRs to review:** #12 (one-file deploy-label fix) and
-#13 (Default backend replacing the scripted Demo via `api/agent.mjs`,
-server-held key — implements the server half of the parked
-playground-tokens design; review against that design and retire or
-rebase the parked concept).
+**Teammate PRs reviewed (findings not yet posted to GitHub):**
+#12 — APPROVE (trivial, correct). #13 — APPROVE-WITH-COMMENTS:
+fix before merge M2 (Default offered while the `/api/agent` probe is
+outstanding) and M3 (JSON `null` body crashes the handler to 500);
+fix before configuring a real key H1 (no body/If cap, origin check or
+rate limit — an open LLM relay otherwise) and M4 (no `maxDuration`
+for a streaming function). Product note: deleting Demo kills the only
+offline demo path — suggest keeping it last and unselected. #13
+implements the transport half of the parked playground-tokens design;
+what remains of that design is metering, now a blocking dependency
+for pointing `/api/agent` at a paid key.
 
 ## Next (in D21 order)
 
