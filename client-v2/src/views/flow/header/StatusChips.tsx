@@ -50,7 +50,7 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [profileOpen]);
+  }, [profileOpen, closeProfile]);
 
   useEffect(() => {
     if (profileOpen) {
