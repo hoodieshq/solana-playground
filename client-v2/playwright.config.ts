@@ -15,6 +15,8 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    // Watch the flow at human speed: SLOWMO=600 yarn test-e2e --headed
+    launchOptions: { slowMo: Number(process.env.SLOWMO ?? 0) },
   },
   webServer: {
     // `dev` runs `generate-fast`: still syncs public/, but skips
