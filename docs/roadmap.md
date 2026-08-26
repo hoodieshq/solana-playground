@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-08-25. One page for the whole effort: what shipped, what
+Updated: 2026-08-26. One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
 or decision that carries the detail. Priorities follow D21 (GitHub
 identity -> tutorials -> everything else). Update this file whenever a
@@ -19,17 +19,27 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 | Flow visual parity with the concept boards (iteration 4) | PR #7, merged | Token-by-token re-skin, a11y audit applied |
 | Model-provider fallbacks | in iterations 3-4 | OpenAI-compatible + Gemini presets + OpenRouter free tier; Gemini quirks documented in `model/openai.ts` |
 | PR hygiene | PRs #5-#7, `context-archive` | Working docs stripped from PR branches (filter-repo, 2026-08-24); archive branch is their home |
+| Flow visual parity + MCP gateway in master | PR #10, merged (rogaldh) | Iteration 4 reached master-2.0 |
+| Static assets + docker profile | PR #11, merged (rogaldh) | client-v2 assets tracked, compose profile added |
 
 ## In progress
 
-**GitHub OAuth sign-in with a gated airdrop** — the first cut of D21's
-stream 1. Spec approved and committed:
-`docs/superpowers/specs/2026-08-25-github-oauth-design.md`
-(`context-archive`). Real OAuth identity + client-side gate on the
-existing devnet faucet; storage stays local. Next step: implementation
-plan, then build on `feat/flow-ui-follow-ups`.
-Waiting on Slava: two GitHub OAuth Apps (dev/prod) and their
-`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` in `.env.local` and Vercel.
+**GitHub OAuth sign-in with a gated airdrop** — built and in review as
+PR #9. Spec: `docs/superpowers/specs/2026-08-25-github-oauth-design.md`;
+plan: `docs/superpowers/plans/2026-08-25-github-oauth.md`. rogaldh
+rebased the PR onto master-2.0 and hardened it (PKCE S256, Web Crypto
+state nonce, `.env.example`, store moved to `features/github-oauth/`).
+Outstanding: port three final-review fixes onto the rebase
+(unconfigured-deployment dead end, automatic-airdrop cache poisoning,
+silent wallet-menu failures — the fourth, `no-store`, is covered), set
+up commit signing (branch now requires signed commits), run the live
+OAuth round trip, then 1 approval to merge (squash).
+
+**Teammate PRs to review:** #12 (one-file deploy-label fix) and
+#13 (Default backend replacing the scripted Demo via `api/agent.mjs`,
+server-held key — implements the server half of the parked
+playground-tokens design; review against that design and retire or
+rebase the parked concept).
 
 ## Next (in D21 order)
 
