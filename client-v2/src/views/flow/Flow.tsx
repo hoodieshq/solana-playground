@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
+import Chevron from "./Chevron";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
@@ -16,6 +17,7 @@ import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
+import { useKeybind } from "../../hooks";
 import { PgExplorer, PgView } from "../../utils";
 
 /**
@@ -25,8 +27,11 @@ import { PgExplorer, PgView } from "../../utils";
  */
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
+  const [leftOpen, setLeftOpen] = useState(true);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useKeybind("Ctrl+B", () => setLeftOpen((o) => !o));
 
   useEffect(() => {
     const subs = [
@@ -74,8 +79,12 @@ const Flow = () => {
   return (
     <Wrapper>
       <Header onOpenGallery={openGallery} onOpenSettings={openSettings} />
-      <Columns $assistant={assistantOpen}>
-        <LeftPanel onNewProject={openGallery} />
+      <Columns $assistant={assistantOpen} $left={leftOpen}>
+        <LeftPanel
+          onNewProject={openGallery}
+          collapsed={!leftOpen}
+          onToggle={() => setLeftOpen((o) => !o)}
+        />
         <Center>
           <Stage>
             <StageRouter stage={state.stage} />
@@ -90,22 +99,7 @@ const Flow = () => {
             }
             onClick={() => setAssistantOpen((o) => !o)}
           >
-            <ChevronGlyph
-              viewBox="0 0 8 10"
-              width="6"
-              height="8"
-              $open={assistantOpen}
-              aria-hidden
-            >
-              <path
-                d="M2 1L6 5L2 9"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </ChevronGlyph>
+            <Chevron $flip={!assistantOpen} />
           </Collapse>
           {assistantOpen && <Assistant />}
         </Right>
@@ -137,11 +131,11 @@ const Wrapper = styled.div`
   `}
 `;
 
-const Columns = styled.div<{ $assistant: boolean }>`
+const Columns = styled.div<{ $assistant: boolean; $left: boolean }>`
   flex: 1;
   display: grid;
   grid-template-columns:
-    auto 1fr
+    ${({ $left }) => ($left ? "14.5rem" : "1.5rem")} 1fr
     ${({ $assistant }) => ($assistant ? "21.75rem" : "1.5rem")};
   gap: ${GAP};
   padding: 0 ${GAP} ${GAP};
@@ -215,11 +209,6 @@ const Collapse = styled.button`
       outline-offset: 2px;
     }
   `}
-`;
-
-const ChevronGlyph = styled.svg<{ $open: boolean }>`
-  flex-shrink: 0;
-  transform: rotate(${({ $open }) => ($open ? "0deg" : "180deg")});
 `;
 
 const PortalAbove = styled.div`

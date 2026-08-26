@@ -1,63 +1,135 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
 import ProjectsTab from "./ProjectsTab";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
-import { PANEL_RADIUS } from "../tokens";
+import Chevron from "../Chevron";
+import { BOTTOM_BAR_HEIGHT, PANEL_RADIUS } from "../tokens";
+import { PgExplorer } from "../../../utils";
 
 type Tab = "projects" | "files";
 
+/** How long the rail's "+" waits for the explorer tree before giving up. */
+const MAX_TREE_WAIT_FRAMES = 60;
+
 interface LeftPanelProps {
   onNewProject: () => void;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
-const LeftPanel: FC<LeftPanelProps> = ({ onNewProject }) => {
+const LeftPanel: FC<LeftPanelProps> = ({
+  onNewProject,
+  collapsed,
+  onToggle,
+}) => {
   const [tab, setTab] = useState<Tab>("files");
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
   const { createItem } = useCreateItem();
+  const [pendingCreate, setPendingCreate] = useState(false);
+
+  // `createItem` portals its input into the explorer tree and dereferences
+  // `getRootFolderEl()` unchecked, so the rail's "+" expands the panel first
+  // and waits for the tree to actually mount -- it lands a few frames after
+  // the expand, not on the same commit. Bounded so a tree that never renders
+  // (e.g. the tab switched mid-wait) drops the request instead of spinning.
+  useEffect(() => {
+    if (collapsed || !pendingCreate) return;
+
+    let frame = 0;
+    let id = requestAnimationFrame(function tick() {
+      if (PgExplorer.getRootFolderEl()) {
+        setPendingCreate(false);
+        createItem();
+      } else if (++frame < MAX_TREE_WAIT_FRAMES) {
+        id = requestAnimationFrame(tick);
+      } else {
+        setPendingCreate(false);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [collapsed, pendingCreate, createItem]);
+
+  // Sits in the tab row when open and at the top of the rail when collapsed,
+  // so it lines up with the tab labels instead of floating above them.
+  const toggle = (
+    <Collapse
+      type="button"
+      $collapsed={collapsed}
+      aria-expanded={!collapsed}
+      aria-label={collapsed ? "Expand project panel" : "Collapse project panel"}
+      onClick={onToggle}
+    >
+      {/* Collapsed, this hint is the only thing telling you how to get the
+          panel back, so the rail stacks it under the chevron rather than
+          dropping it. */}
+      {collapsed && <Chevron $flip={false} />}
+      <Hint>&#8984;B</Hint>
+      {!collapsed && <Chevron $flip />}
+    </Collapse>
+  );
 
   return (
     <Wrapper>
-      <Tabs role="tablist">
-        {(["projects", "files"] as const).map((t) => (
-          <TabButton
-            key={t}
-            id={`flow-left-tab-${t}`}
-            role="tab"
-            aria-selected={tab === t}
-            aria-controls="flow-left-tabpanel"
-            $active={tab === t}
-            onClick={() => setTab(t)}
+      {collapsed && toggle}
+      {collapsed && tab === "files" && (
+        <RailAction
+          type="button"
+          onClick={() => {
+            setPendingCreate(true);
+            onToggle();
+          }}
+          aria-label="New file"
+          title="New file"
+        >
+          +
+        </RailAction>
+      )}
+      {!collapsed && (
+        <>
+          <Tabs role="tablist">
+            {(["projects", "files"] as const).map((t) => (
+              <TabButton
+                key={t}
+                id={`flow-left-tab-${t}`}
+                role="tab"
+                aria-selected={tab === t}
+                aria-controls="flow-left-tabpanel"
+                $active={tab === t}
+                onClick={() => setTab(t)}
+              >
+                {t === "projects" ? "Projects" : "Files"}
+              </TabButton>
+            ))}
+            {toggle}
+          </Tabs>
+          <Body
+            id="flow-left-tabpanel"
+            role="tabpanel"
+            aria-labelledby={`flow-left-tab-${tab}`}
           >
-            {t === "projects" ? "Projects" : "Files"}
-          </TabButton>
-        ))}
-      </Tabs>
-      <Body
-        id="flow-left-tabpanel"
-        role="tabpanel"
-        aria-labelledby={`flow-left-tab-${tab}`}
-      >
-        {tab === "projects" ? (
-          <ProjectsTab onNew={onNewProject} />
-        ) : (
-          <>
-            <Eyebrow>Files</Eyebrow>
-            <ExplorerContainer>
-              <Explorer />
-            </ExplorerContainer>
-          </>
-        )}
-      </Body>
-      {tab === "files" && (
-        <Footer type="button" onClick={createItem}>
-          + New file
-        </Footer>
+            {tab === "projects" ? (
+              <ProjectsTab onNew={onNewProject} />
+            ) : (
+              <>
+                <Eyebrow>Files</Eyebrow>
+                <ExplorerContainer>
+                  <Explorer />
+                </ExplorerContainer>
+              </>
+            )}
+          </Body>
+          {tab === "files" && (
+            <Footer type="button" onClick={createItem}>
+              + New file
+            </Footer>
+          )}
+        </>
       )}
     </Wrapper>
   );
@@ -68,9 +140,11 @@ export default LeftPanel;
 // A floating panel like Center and Right (see `views/flow/tokens.ts`):
 // full 1px border, rounded corners, the raised surface background instead
 // of the black page ground.
+// Width comes from `Columns` in `Flow.tsx` (14.5rem open, 1.5rem collapsed)
+// so the grid and the panel can never disagree about the column size.
 const Wrapper = styled.aside`
   ${({ theme }) => css`
-    width: 14.5rem;
+    width: 100%;
     display: flex;
     flex-direction: column;
     border: 1px solid ${theme.colors.default.border};
@@ -80,9 +154,80 @@ const Wrapper = styled.aside`
   `}
 `;
 
+// A flex child either way -- last in the tab row when open, top of the rail
+// when collapsed -- so `align-items: center` lines it up with the tab labels
+// rather than the panel's top edge.
+const Collapse = styled.button<{ $collapsed: boolean }>`
+  ${({ theme, $collapsed }) => css`
+    flex-shrink: 0;
+    width: ${$collapsed ? "100%" : "auto"};
+    padding: ${$collapsed ? "0.375rem 0" : "0 0.5rem"};
+    display: flex;
+    flex-direction: ${$collapsed ? "column" : "row"};
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    /* The rail has 1.5rem of width to spend, so "⌘B" only fits below the
+       chevron and only at a smaller size than the expanded panel uses. */
+    font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};
+    border: none;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+    z-index: 1;
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+// The console handle's `⌘J` hint (`console/ConsoleDrawer.tsx`), same
+// treatment so both shortcuts read as one family.
+const Hint = styled.span`
+  ${({ theme }) => css`
+    font-family: ${theme.font.code.family};
+    font-size: inherit;
+    line-height: 1;
+    opacity: 0.6;
+  `}
+`;
+
+// The collapsed stand-in for `Footer`: same bottom edge, same divider, so
+// the action does not move when the panel opens.
+const RailAction = styled.button`
+  ${({ theme }) => css`
+    margin-top: auto;
+    flex-shrink: 0;
+    width: 100%;
+    height: ${BOTTOM_BAR_HEIGHT};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-top: 1px solid ${theme.colors.default.border};
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+      background: ${theme.colors.default.bgPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+  `}
+`;
+
 const Tabs = styled.div`
   ${({ theme }) => css`
     display: flex;
+    align-items: stretch;
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
@@ -125,7 +270,10 @@ const Footer = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
     width: 100%;
-    padding: 0.625rem 0.75rem;
+    height: ${BOTTOM_BAR_HEIGHT};
+    padding: 0 0.75rem;
+    display: flex;
+    align-items: center;
     border: none;
     border-top: 1px solid ${theme.colors.default.border};
     background: transparent;
