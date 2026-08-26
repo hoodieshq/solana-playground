@@ -90,6 +90,16 @@ const WriteSlot = styled.div<{ $hidden: boolean }>`
     padding-right: 0.75rem;
   }
 
+  /* Primary's own wrapper carries a border and a 14px radius from
+     theme.views.main.primary.default, which the classic layout needs to make
+     it a floating panel. Inside Flow it sits within Center, which already
+     draws that chrome -- so it reads as a second rounded border nested
+     inside the first. */
+  & > div {
+    border: none;
+    border-radius: 0;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
