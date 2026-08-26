@@ -52,3 +52,7 @@ client-v2/public/
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# Playwright test output
+client-v2/test-results/
+client-v2/playwright-report/

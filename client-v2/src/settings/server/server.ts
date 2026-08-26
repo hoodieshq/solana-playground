@@ -17,8 +17,9 @@ export const server = [
     default:
       // Docker builds use this environment variable to set the server URL
       // to the production API (instead of local) if the user has not yet
-      // built the server image
-      process.env.REACT_APP_SERVER_URL ??
+      // built the server image. `||` not `??`: sourcing an env file leaves
+      // unfilled keys as "", which is not nullish and would win.
+      process.env.REACT_APP_SERVER_URL ||
       (process.env.NODE_ENV === "production"
         ? FOUNDATION_ENDPOINT
         : LOCAL_ENDPOINT),
