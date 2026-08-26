@@ -31,13 +31,13 @@ const isAuthMessage = (data: unknown): data is AuthMessage =>
  * source text besides - so project code can reach into this module. What
  * bounds the damage is the empty OAuth scope, not the storage choice.
  */
-export class PgGithubAuth {
+export class GithubAuth {
   static get user(): GithubUser | null {
-    return PgGithubAuth._state?.user ?? null;
+    return GithubAuth._state?.user ?? null;
   }
 
   static get token(): string | null {
-    return PgGithubAuth._state?.token ?? null;
+    return GithubAuth._state?.token ?? null;
   }
 
   /**
@@ -72,32 +72,32 @@ export class PgGithubAuth {
     const token = message.token;
     let failure: Error | undefined;
     try {
-      const user = await PgGithubAuth._fetchUser(token);
-      PgGithubAuth._state = { token, user };
+      const user = await GithubAuth._fetchUser(token);
+      GithubAuth._state = { token, user };
     } catch (e) {
       // Never keep a token without an identity to show
-      PgGithubAuth._state = null;
+      GithubAuth._state = null;
       failure = e as Error;
     }
-    PgGithubAuth._notify();
+    GithubAuth._notify();
     if (failure) throw failure;
   }
 
   static signOut() {
-    PgGithubAuth._state = null;
-    PgGithubAuth._notify();
+    GithubAuth._state = null;
+    GithubAuth._notify();
   }
 
   static onDidChange(cb: () => void): Disposable {
-    PgGithubAuth._listeners.add(cb);
-    PgGithubAuth._notifyOne(cb);
-    return { dispose: () => PgGithubAuth._listeners.delete(cb) };
+    GithubAuth._listeners.add(cb);
+    GithubAuth._notifyOne(cb);
+    return { dispose: () => GithubAuth._listeners.delete(cb) };
   }
 
   /** Test-only: back to the signed-out state without notifying */
   static _reset() {
-    PgGithubAuth._state = null;
-    PgGithubAuth._listeners.clear();
+    GithubAuth._state = null;
+    GithubAuth._listeners.clear();
   }
 
   private static async _fetchUser(token: string): Promise<GithubUser> {
@@ -132,7 +132,7 @@ export class PgGithubAuth {
   }
 
   private static _notify() {
-    for (const cb of PgGithubAuth._listeners) PgGithubAuth._notifyOne(cb);
+    for (const cb of GithubAuth._listeners) GithubAuth._notifyOne(cb);
   }
 
   /** One faulty subscriber must not stop the others or abort the caller */
@@ -150,7 +150,7 @@ export class PgGithubAuth {
 
 /** Command pre-check: the airdrop demo requires a GitHub identity */
 export const checkGithubSignIn = () => {
-  if (!PgGithubAuth.user) {
+  if (!GithubAuth.user) {
     throw new Error("Sign in with GitHub to request devnet SOL.");
   }
 };

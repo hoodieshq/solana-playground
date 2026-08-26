@@ -9,7 +9,7 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgGithubAuth } from "../../../features/github-oauth";
+import { GithubAuth as PgGithubAuth } from "../../../features/github-oauth";
 import { PgCommand, PgConnection } from "../../../utils";
 
 interface StatusChipsProps {

@@ -1,4 +1,4 @@
-import { PgGithubAuth } from "../../features/github-oauth";
+import { GithubAuth as PgGithubAuth } from "../../features/github-oauth";
 import {
   Cluster,
   PgCommand,

@@ -1,4 +1,4 @@
-import { PgGithubAuth, checkGithubSignIn } from "./github-auth";
+import { GithubAuth, checkGithubSignIn } from "./github-auth";
 
 const USER = {
   login: "octocat",
@@ -15,7 +15,7 @@ const completeSignIn = async (
   const openSpy = jest
     .spyOn(window, "open")
     .mockReturnValue(popup as unknown as Window);
-  const promise = PgGithubAuth.signIn();
+  const promise = GithubAuth.signIn();
   window.dispatchEvent(
     new MessageEvent("message", {
       data: message,
@@ -47,7 +47,7 @@ const expectIgnored = async (
     .spyOn(window, "open")
     .mockReturnValue(popup as unknown as Window);
   let settled = false;
-  const promise = PgGithubAuth.signIn().finally(() => {
+  const promise = GithubAuth.signIn().finally(() => {
     settled = true;
   });
 
@@ -62,7 +62,7 @@ const expectIgnored = async (
 
   expect(global.fetch).not.toHaveBeenCalled();
   expect(settled).toBe(false);
-  expect(PgGithubAuth.token).toBeNull();
+  expect(GithubAuth.token).toBeNull();
 
   // Complete it legitimately so the listener is cleaned up
   window.dispatchEvent(
@@ -76,9 +76,9 @@ const expectIgnored = async (
   openSpy.mockRestore();
 };
 
-describe("PgGithubAuth", () => {
+describe("GithubAuth", () => {
   beforeEach(() => {
-    PgGithubAuth._reset();
+    GithubAuth._reset();
     (global.fetch as jest.Mock | undefined)?.mockRestore?.();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -91,8 +91,8 @@ describe("PgGithubAuth", () => {
   });
 
   it("should be signed out initially and reject the airdrop pre-check", () => {
-    expect(PgGithubAuth.user).toBeNull();
-    expect(PgGithubAuth.token).toBeNull();
+    expect(GithubAuth.user).toBeNull();
+    expect(GithubAuth.token).toBeNull();
     expect(() => checkGithubSignIn()).toThrow(/sign in with github/i);
   });
 
@@ -102,8 +102,8 @@ describe("PgGithubAuth", () => {
       token: "gho_x",
     });
     expect(result).toBe("resolved");
-    expect(PgGithubAuth.token).toBe("gho_x");
-    expect(PgGithubAuth.user).toEqual({
+    expect(GithubAuth.token).toBe("gho_x");
+    expect(GithubAuth.user).toEqual({
       login: "octocat",
       name: "The Octocat",
       avatarUrl: "https://example.test/a.png",
@@ -144,16 +144,16 @@ describe("PgGithubAuth", () => {
       error: "state mismatch",
     });
     expect(result).toBe("state mismatch");
-    expect(PgGithubAuth.token).toBeNull();
+    expect(GithubAuth.token).toBeNull();
   });
 
   it("should clear an existing identity when a re-auth profile fetch fails", async () => {
     // Sign in for real first, so the assertion cannot pass by never having run
     await completeSignIn({ type: "pg-github-auth", token: "gho_x" });
-    expect(PgGithubAuth.token).toBe("gho_x");
+    expect(GithubAuth.token).toBe("gho_x");
 
     const cb = jest.fn();
-    const { dispose } = PgGithubAuth.onDidChange(cb);
+    const { dispose } = GithubAuth.onDidChange(cb);
     cb.mockClear(); // onDidChange fires once on subscribe
 
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false });
@@ -163,14 +163,14 @@ describe("PgGithubAuth", () => {
     });
 
     expect(result).toMatch(/profile/i);
-    expect(PgGithubAuth.token).toBeNull();
-    expect(PgGithubAuth.user).toBeNull();
+    expect(GithubAuth.token).toBeNull();
+    expect(GithubAuth.user).toBeNull();
     expect(cb).toHaveBeenCalled();
     dispose();
   });
 
   it("should keep the session when an onDidChange subscriber throws", async () => {
-    const { dispose } = PgGithubAuth.onDidChange(() => {
+    const { dispose } = GithubAuth.onDidChange(() => {
       throw new Error("subscriber blew up");
     });
     const result = await completeSignIn({
@@ -178,24 +178,24 @@ describe("PgGithubAuth", () => {
       token: "gho_x",
     });
     expect(result).toBe("resolved");
-    expect(PgGithubAuth.token).toBe("gho_x");
+    expect(GithubAuth.token).toBe("gho_x");
     dispose();
   });
 
   it("should reject when the popup is blocked", async () => {
     const openSpy = jest.spyOn(window, "open").mockReturnValue(null);
-    await expect(PgGithubAuth.signIn()).rejects.toThrow(/popup/i);
+    await expect(GithubAuth.signIn()).rejects.toThrow(/popup/i);
     openSpy.mockRestore();
   });
 
   it("should clear state and notify on signOut", async () => {
     await completeSignIn({ type: "pg-github-auth", token: "gho_x" });
     const cb = jest.fn();
-    const { dispose } = PgGithubAuth.onDidChange(cb);
+    const { dispose } = GithubAuth.onDidChange(cb);
     cb.mockClear(); // onDidChange fires once on subscribe
-    PgGithubAuth.signOut();
+    GithubAuth.signOut();
     expect(cb).toHaveBeenCalledTimes(1);
-    expect(PgGithubAuth.user).toBeNull();
+    expect(GithubAuth.user).toBeNull();
     dispose();
   });
 
@@ -225,15 +225,15 @@ describe("PgGithubAuth", () => {
       .mockReturnValue(popup as unknown as Window);
 
     try {
-      const promise = PgGithubAuth.signIn();
+      const promise = GithubAuth.signIn();
       const instance = FakeBroadcastChannel._instances.at(-1);
       expect(instance?.name).toBe("pg-github-auth");
       instance?.onmessage?.({
         data: { type: "pg-github-auth", token: "gho_channel" },
       });
       await promise;
-      expect(PgGithubAuth.token).toBe("gho_channel");
-      expect(PgGithubAuth.user).toEqual({
+      expect(GithubAuth.token).toBe("gho_channel");
+      expect(GithubAuth.user).toEqual({
         login: "octocat",
         name: "The Octocat",
         avatarUrl: "https://example.test/a.png",
@@ -251,7 +251,7 @@ describe("PgGithubAuth", () => {
     const openSpy = jest
       .spyOn(window, "open")
       .mockReturnValue(popup as unknown as Window);
-    const promise = PgGithubAuth.signIn();
+    const promise = GithubAuth.signIn();
     // Simulate popup being closed
     popup.closed = true;
     // Advance timers past one poll tick
@@ -261,8 +261,8 @@ describe("PgGithubAuth", () => {
       (e: Error) => e.message
     );
     expect(result).toMatch(/cancelled/i);
-    expect(PgGithubAuth.token).toBeNull();
-    expect(PgGithubAuth.user).toBeNull();
+    expect(GithubAuth.token).toBeNull();
+    expect(GithubAuth.user).toBeNull();
     openSpy.mockRestore();
   });
 });

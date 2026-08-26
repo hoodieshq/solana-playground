@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { PgGithubAuth } from "../../../features/github-oauth";
+import { GithubAuth as PgGithubAuth } from "../../../features/github-oauth";
 import { PgCommand, PgConnection, PgTerminal } from "../../../utils";
 
 export const useAirdrop = () => {
