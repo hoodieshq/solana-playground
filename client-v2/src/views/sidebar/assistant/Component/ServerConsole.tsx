@@ -13,6 +13,9 @@ interface ServerConsoleProps {
   hasServerExecutor: boolean;
 }
 
+/** Descriptions past this many characters start collapsed */
+const LONG_DESCRIPTION = 220;
+
 /** A starting point for the argument box, from the tool's own schema */
 const skeletonFor = (tool: McpTool) => {
   const properties = tool.inputSchema?.properties;
@@ -44,6 +47,12 @@ const ServerConsole = ({
   const [selected, setSelected] = useState<string | null>(null);
   const [args, setArgs] = useState("{}");
   const [result, setResult] = useState<string | null>(null);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+
+  const description =
+    tools.find((t) => t.name === selected)?.description ?? "No description.";
+  // Long enough to bury the argument box: some servers write a page here
+  const descriptionIsLong = description.length > LONG_DESCRIPTION;
 
   const explain = (e: unknown) => {
     if (e instanceof McpUnreachableError) return e.message;
@@ -66,6 +75,8 @@ const ServerConsole = ({
   const pick = (name: string) => {
     setSelected(name);
     setResult(null);
+    // Each tool gets its own first impression, however long the last one was
+    setDescriptionOpen(false);
     const tool = tools.find((t) => t.name === name);
     setArgs(tool ? skeletonFor(tool) : "{}");
   };
@@ -143,10 +154,18 @@ const ServerConsole = ({
 
               {selected && (
                 <>
-                  <Description>
-                    {tools.find((t) => t.name === selected)?.description ??
-                      "No description."}
+                  <Description $clamped={!descriptionOpen && descriptionIsLong}>
+                    {description}
                   </Description>
+                  {descriptionIsLong && (
+                    <Disclosure
+                      type="button"
+                      aria-expanded={descriptionOpen}
+                      onClick={() => setDescriptionOpen((open) => !open)}
+                    >
+                      {descriptionOpen ? "Show less" : "Show more"}
+                    </Disclosure>
+                  )}
 
                   <Label htmlFor={`mcp-args-${server.id}`}>ARGUMENTS</Label>
                   <Json
@@ -241,12 +260,45 @@ const Picker = styled.select`
   `}
 `;
 
-const Description = styled.div`
-  ${({ theme }) => css`
+const Description = styled.div<{ $clamped: boolean }>`
+  ${({ theme, $clamped }) => css`
     padding-top: 0.375rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.5;
+    white-space: pre-wrap;
+
+    ${$clamped &&
+    css`
+      /* Clamped rather than sliced, so the full text stays selectable */
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+    `}
+  `}
+`;
+
+const Disclosure = styled.button`
+  ${({ theme }) => css`
+    margin-top: 0.25rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
 `;
 
