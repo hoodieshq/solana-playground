@@ -19,18 +19,36 @@
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
 
+/** An operator's kill switch: off even when the rail is fully configured */
+const enabled = () =>
+  !/^(false|0|off|no)$/i.test(process.env.AGENT_ENABLED ?? "");
+
 /**
  * The configured upstream, or `null` when this deployment has none.
  *
  * Absent by default: with nothing set the panel simply reports the default
  * backend as unavailable, which is what a fork with no key of its own wants.
+ *
+ * `AGENT_BASE_URL` is a base, not a full path -- the same shape the panel's
+ * OpenAI-compatible provider takes, so one endpoint is configured identically
+ * whether it is reached through here or entered by hand.
  */
 const upstream = () => {
-  const url = process.env.AGENT_URL;
+  const configured = process.env.AGENT_BASE_URL?.trim();
   const model = process.env.AGENT_MODEL;
-  if (!url || !model) return null;
+  if (!enabled() || !configured || !model) return null;
 
-  return { url, model, apiKey: process.env.AGENT_API_KEY ?? "" };
+  // Tolerate a pasted full endpoint: provider docs quote the completions path,
+  // the panel's own field wants the base, and both mean the same deployment
+  const baseUrl = configured
+    .replace(/\/+$/, "")
+    .replace(/\/chat\/completions$/, "");
+
+  return {
+    url: `${baseUrl}/chat/completions`,
+    model,
+    apiKey: process.env.AGENT_API_KEY ?? "",
+  };
 };
 
 const sendJson = (res, status, body) => {

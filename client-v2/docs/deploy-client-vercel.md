@@ -59,9 +59,10 @@ the panel falls back to bring-your-own-key:
 
 | Variable | Meaning |
 |---|---|
-| `AGENT_URL` | Upstream chat-completions endpoint, e.g. `https://api.openai.com/v1/chat/completions` |
+| `AGENT_BASE_URL` | OpenAI-compatible base URL, e.g. `https://api.openai.com/v1` — the same shape the panel's own provider field takes. A pasted `/chat/completions` suffix is tolerated |
 | `AGENT_MODEL` | Model id the upstream should run — the client never picks one |
 | `AGENT_API_KEY` | Bearer token for the upstream; omit only for an endpoint that checks none |
+| `AGENT_ENABLED` | Optional kill switch. `false`, `0`, `off` or `no` disables the backend even when the three above are set; unset means on |
 
 There is no cost gate in front of this route. Anything that can reach the
 deployment can spend that key, so put a challenge and a per-session limit
