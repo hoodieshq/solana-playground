@@ -17,7 +17,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "yarn start",
+    // `dev` runs `generate-fast`: still syncs public/, but skips
+    // `generate-crates`, which shells out to cargo and dominates the runtime
+    command: "yarn dev",
     url: "http://localhost:3000",
     // Reuse a dev server you already have running; CI always starts its own
     reuseExistingServer: !process.env.CI,
