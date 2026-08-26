@@ -108,6 +108,9 @@ export class PgGithubAuth {
 
       const onMessage = (ev: MessageEvent) => {
         if (ev.origin !== window.location.origin) return;
+        // Origin alone is not enough: project code runs in a same-origin iframe,
+        // so require the message to come from the popup we opened
+        if (ev.source !== popup) return;
         if (!isAuthMessage(ev.data)) return;
         handlePayload(ev.data);
       };
@@ -151,13 +154,29 @@ export class PgGithubAuth {
       headers: { authorization: `Bearer ${token}` },
     });
     if (!resp.ok) {
-      throw new Error("Could not load your GitHub profile. Try again.");
+      console.error(`github-auth: /user failed with ${resp.status}`);
+      if (resp.status === 401) {
+        throw new Error("GitHub rejected the sign-in token. Sign in again.");
+      }
+      if (resp.status === 403 || resp.status === 429) {
+        throw new Error("GitHub rate limit reached. Wait a minute and retry.");
+      }
+      throw new Error(
+        `Could not load your GitHub profile (HTTP ${resp.status}). Try again.`
+      );
     }
-    const raw = await resp.json();
+
+    // An unvalidated body yields `{login: undefined}` - truthy, so the airdrop
+    // gate would open on a proxy page or a changed API
+    const raw = await resp.json().catch(() => undefined);
+    if (typeof raw?.login !== "string" || !raw.login) {
+      console.error("github-auth: /user returned an unexpected shape", raw);
+      throw new Error("GitHub returned an unexpected profile. Try again.");
+    }
     return {
       login: raw.login,
-      name: raw.name ?? null,
-      avatarUrl: raw.avatar_url,
+      name: typeof raw.name === "string" ? raw.name : null,
+      avatarUrl: typeof raw.avatar_url === "string" ? raw.avatar_url : "",
     };
   }
 

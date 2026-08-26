@@ -16,7 +16,13 @@ const completeSignIn = async (
     .spyOn(window, "open")
     .mockReturnValue(popup as unknown as Window);
   const promise = PgGithubAuth.signIn();
-  window.dispatchEvent(new MessageEvent("message", { data: message, origin }));
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: message,
+      origin,
+      source: popup as unknown as Window,
+    })
+  );
   const result = await promise.then(
     () => "resolved",
     (e: Error) => e.message
@@ -30,7 +36,12 @@ const completeSignIn = async (
  * the signal unique to rejection - a null token is also what you get when
  * nothing ran at all.
  */
-const expectIgnored = async (origin: string, data: unknown) => {
+const expectIgnored = async (
+  origin: string,
+  data: unknown,
+  /** Defaults to the popup itself; pass another window to test the source check */
+  source?: unknown
+) => {
   const popup = { closed: false, close: jest.fn() };
   const openSpy = jest
     .spyOn(window, "open")
@@ -40,7 +51,13 @@ const expectIgnored = async (origin: string, data: unknown) => {
     settled = true;
   });
 
-  window.dispatchEvent(new MessageEvent("message", { data, origin }));
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data,
+      origin,
+      source: (source ?? popup) as unknown as Window,
+    })
+  );
   await new Promise((r) => setTimeout(r, 0));
 
   expect(global.fetch).not.toHaveBeenCalled();
@@ -52,6 +69,7 @@ const expectIgnored = async (origin: string, data: unknown) => {
     new MessageEvent("message", {
       data: { type: "pg-github-auth", token: "gho_ok" },
       origin: window.location.origin,
+      source: popup as unknown as Window,
     })
   );
   await promise;
@@ -109,6 +127,15 @@ describe("PgGithubAuth", () => {
 
   it("should ignore a non-object payload", async () => {
     await expectIgnored(window.location.origin, "gho_evil");
+  });
+
+  /** The same-origin project iframe can post; only the popup we opened counts */
+  it("should ignore a valid message from another same-origin window", async () => {
+    await expectIgnored(
+      window.location.origin,
+      { type: "pg-github-auth", token: "gho_evil" },
+      { closed: false, close: jest.fn() }
+    );
   });
 
   it("should relay a server error payload and stay signed out", async () => {
