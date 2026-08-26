@@ -1,9 +1,17 @@
 import { GithubAuth, checkGithubSignIn } from "./github-auth";
 
+/** Shaped like the `/user` response: snake_case, as GitHub sends it */
 const USER = {
-  login: "octocat",
-  name: "The Octocat",
+  login: "stub-user",
+  name: "Stub User",
   avatar_url: "https://example.test/a.png",
+};
+
+/** `USER` after the mapping under test - spelled out so a rename can't hide it */
+const EXPECTED_USER = {
+  login: USER.login,
+  name: USER.name,
+  avatarUrl: USER.avatar_url,
 };
 
 /** The per-flow nonce the client actually put on the `start` URL */
@@ -116,11 +124,7 @@ describe("GithubAuth", () => {
     });
     expect(result).toBe("resolved");
     expect(GithubAuth.token).toBe("gho_x");
-    expect(GithubAuth.user).toEqual({
-      login: "octocat",
-      name: "The Octocat",
-      avatarUrl: "https://example.test/a.png",
-    });
+    expect(GithubAuth.user).toEqual(EXPECTED_USER);
     expect(() => checkGithubSignIn()).not.toThrow();
   });
 
@@ -159,6 +163,35 @@ describe("GithubAuth", () => {
       nonce: "0".repeat(32),
       token: "gho_evil",
     }));
+  });
+
+  it("should report a rejected reply as unverified, not as cancelled", async () => {
+    jest.useFakeTimers();
+    const popup = { closed: false, close: jest.fn() };
+    const openSpy = jest
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+    const promise = GithubAuth.signIn();
+
+    // Right shape, right window, wrong nonce - a forgery, not a cancellation
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "pg-github-auth", nonce: "0".repeat(32), token: "evil" },
+        origin: window.location.origin,
+        source: popup as unknown as Window,
+      })
+    );
+
+    popup.closed = true;
+    jest.advanceTimersByTime(500);
+
+    const result = await promise.then(
+      () => "resolved",
+      (e: Error) => e.message
+    );
+    expect(result).toMatch(/could not be verified/i);
+    expect(GithubAuth.token).toBeNull();
+    openSpy.mockRestore();
   });
 
   it("should relay a server error payload and stay signed out", async () => {
@@ -260,11 +293,7 @@ describe("GithubAuth", () => {
       });
       await promise;
       expect(GithubAuth.token).toBe("gho_channel");
-      expect(GithubAuth.user).toEqual({
-        login: "octocat",
-        name: "The Octocat",
-        avatarUrl: "https://example.test/a.png",
-      });
+      expect(GithubAuth.user).toEqual(EXPECTED_USER);
     } finally {
       openSpy.mockRestore();
       (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =

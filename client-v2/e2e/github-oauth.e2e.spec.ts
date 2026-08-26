@@ -13,8 +13,8 @@ import type { BrowserContext, Page } from "@playwright/test";
  */
 
 const PROFILE = {
-  login: "octocat",
-  name: "The Octocat",
+  login: "stub-user",
+  name: "Stub User",
   avatar_url: "https://example.test/avatar.png",
 };
 
@@ -54,6 +54,21 @@ const mockGithubOAuth = async (
   await context.route("https://api.github.com/user", (route) =>
     route.fulfill({ status: 200, json: PROFILE })
   );
+
+  // Unmocked, this is a real DNS lookup to a domain that does not exist, and
+  // the broken-image placeholder resolves late enough to shift the header -
+  // which moves the chip out from under a click that is already in progress.
+  await context.route(PROFILE.avatar_url, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/gif",
+      // 1x1 transparent gif
+      body: Buffer.from(
+        "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+        "base64"
+      ),
+    })
+  );
 };
 
 const signInButton = "button[aria-label='Sign in with GitHub']";
@@ -83,17 +98,21 @@ test.describe("github sign-in — real popup, mocked GitHub", () => {
     await mockGithubOAuth(context);
     await openApp(page);
 
-    // The popup must be awaited before the click resolves, or it is missed
-    const popup = page.waitForEvent("popup");
     await page.click(signInButton);
-    await (await popup).waitForEvent("close");
 
     await expect(page.locator(profileChip)).toBeVisible();
     await expect(page.locator(profileChip)).toContainText(PROFILE.login);
 
-    // Sign out: chip opens the popover, then the row, then the confirmation
+    // Sign out: chip opens the popover, then the row, then the confirmation.
+    // Assert each step so a failure names the one that broke.
     await page.click(profileChip);
+    await expect(
+      page.getByRole("link", { name: "Open GitHub profile" })
+    ).toBeVisible();
+
     await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page.getByText("Sign out of GitHub?")).toBeVisible();
+
     await page.getByRole("button", { name: "Sign out" }).click();
 
     await expect(page.locator(signInButton)).toBeVisible();
@@ -107,12 +126,13 @@ test.describe("github sign-in — real popup, mocked GitHub", () => {
     await mockGithubOAuth(context, { nonce: "wrong" });
     await openApp(page);
 
-    const popup = page.waitForEvent("popup");
     await page.click(signInButton);
-    await (await popup).waitForEvent("close");
 
-    // The forged payload is dropped, so the popup closing reads as a cancel
-    await expect(page.getByRole("alert")).toContainText(/cancelled/i);
+    // A forgery must not be reported as the user cancelling something
+    await expect(page.getByRole("alert")).toContainText(
+      /could not be verified/i
+    );
+    await expect(page.getByRole("alert")).not.toContainText(/cancelled/i);
     await expect(page.locator(signInButton)).toBeVisible();
   });
 
@@ -123,9 +143,7 @@ test.describe("github sign-in — real popup, mocked GitHub", () => {
     await mockGithubOAuth(context);
     await openApp(page);
 
-    const popup = page.waitForEvent("popup");
     await page.click(signInButton);
-    await (await popup).waitForEvent("close");
     await expect(page.locator(profileChip)).toBeVisible();
 
     await page.reload();

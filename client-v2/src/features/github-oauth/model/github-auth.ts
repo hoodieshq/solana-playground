@@ -73,7 +73,18 @@ export class GithubAuth {
     });
     if (!channel) throw new Error("Allow popups for this site to sign in.");
 
-    const message = await channel.receive();
+    const receipt = await channel.receive();
+    if (!receipt.delivered) {
+      // A rejected reply is not a cancellation: telling the user they cancelled
+      // a sign-in they completed sends them to retry the wrong thing
+      throw new Error(
+        receipt.reason === "rejected"
+          ? "Sign-in could not be verified. Try again."
+          : "Sign-in was cancelled."
+      );
+    }
+
+    const message = receipt.data;
     if (!isAuthMessage(message)) throw new Error("Sign-in was cancelled.");
     if (message.error || !message.token) {
       throw new Error(message.error ?? "Sign-in was cancelled.");

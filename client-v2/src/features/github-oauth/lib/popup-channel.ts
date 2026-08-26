@@ -1,17 +1,27 @@
+// A one-shot channel to a service that answers in a popup we opened.
+//
+// The service navigates the popup through its own pages and finally posts one
+// message back. The channel owns only the transport: which window may speak,
+// from which origin, and what it means when it closes instead of answering.
+// Deciding whether a payload is meaningful stays with the caller, via `accept`.
+
 /**
- * A one-shot channel to a service that answers in a popup we opened.
+ * Why the channel stopped waiting with nothing delivered.
  *
- * The service navigates the popup through its own pages and finally posts one
- * message back. The channel owns only the transport: which window may speak,
- * from which origin, and what it means when it closes instead of answering.
- * Deciding whether a payload is meaningful stays with the caller, via `accept`.
+ * `cancelled` means the popup closed in silence - the user dismissed it.
+ * `rejected` means something claiming to be this flow's reply arrived and was
+ * turned away. Collapsing the two would tell a user they cancelled a sign-in
+ * they never cancelled, and hide a forged or stale message behind it.
  */
+export type PopupChannelFailure = "cancelled" | "rejected";
+
+export type PopupReceipt =
+  | { delivered: true; data: unknown }
+  | { delivered: false; reason: PopupChannelFailure };
+
 export interface PopupChannel {
-  /**
-   * The first accepted message, or `undefined` when the popup closed without
-   * sending one - the user dismissing the window rather than an error.
-   */
-  receive: () => Promise<unknown>;
+  /** The first accepted message, or why waiting ended without one */
+  receive: () => Promise<PopupReceipt>;
 }
 
 interface PopupChannelOptions {
@@ -58,37 +68,40 @@ export const openPopupChannel = (
   if (!popup) return undefined;
 
   const receive = () =>
-    new Promise<unknown>((resolve) => {
+    new Promise<PopupReceipt>((resolve) => {
       let pollInterval: number;
+      // Set when a message purporting to be this flow's reply was turned away,
+      // so a close afterwards is reported as a rejection, not a cancellation.
+      let sawRejected = false;
       const broadcast =
         opts.broadcastName && typeof BroadcastChannel !== "undefined"
           ? new BroadcastChannel(opts.broadcastName)
           : undefined;
 
-      const settle = (data: unknown) => {
+      const settle = (receipt: PopupReceipt) => {
         window.removeEventListener("message", onMessage);
         broadcast?.close();
         window.clearInterval(pollInterval);
-        resolve(data);
+        resolve(receipt);
+      };
+
+      const reject = (why: string) => {
+        sawRejected = true;
+        console.warn(`popup-channel: ${why}`);
       };
 
       const onMessage = (ev: MessageEvent) => {
         // Origin alone is not enough: same-origin code elsewhere on the page
-        // (the project iframe) could post too, so pin it to this window
+        // (the project iframe) could post too, so pin it to this window.
+        // A foreign origin is ordinary page noise, so it is not a rejection.
         if (ev.origin !== window.location.origin) return;
         if (ev.source !== popup) {
-          // A dropped message here reads to the user as a cancellation, so say
-          // which guard rejected it rather than returning in silence
-          console.warn(
-            "popup-channel: same-origin message from another window"
-          );
-          return;
+          return reject("same-origin message from another window");
         }
         if (!opts.accept(ev.data)) {
-          console.warn("popup-channel: window message rejected by accept()");
-          return;
+          return reject("window message rejected by accept()");
         }
-        settle(ev.data);
+        settle({ delivered: true, data: ev.data });
       };
 
       window.addEventListener("message", onMessage);
@@ -96,17 +109,18 @@ export const openPopupChannel = (
       if (broadcast) {
         broadcast.onmessage = (ev: MessageEvent) => {
           if (!opts.accept(ev.data)) {
-            console.warn("popup-channel: broadcast rejected by accept()");
-            return;
+            return reject("broadcast rejected by accept()");
           }
-          settle(ev.data);
+          settle({ delivered: true, data: ev.data });
         };
       }
 
       pollInterval = window.setInterval(() => {
         if (popup.closed) {
-          console.warn("popup-channel: popup closed before any message landed");
-          settle(undefined);
+          settle({
+            delivered: false,
+            reason: sawRejected ? "rejected" : "cancelled",
+          });
         }
       }, opts.pollMs ?? 500);
     });
