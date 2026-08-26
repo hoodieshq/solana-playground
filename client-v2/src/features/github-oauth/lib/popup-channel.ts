@@ -76,8 +76,18 @@ export const openPopupChannel = (
         // Origin alone is not enough: same-origin code elsewhere on the page
         // (the project iframe) could post too, so pin it to this window
         if (ev.origin !== window.location.origin) return;
-        if (ev.source !== popup) return;
-        if (!opts.accept(ev.data)) return;
+        if (ev.source !== popup) {
+          // A dropped message here reads to the user as a cancellation, so say
+          // which guard rejected it rather than returning in silence
+          console.warn(
+            "popup-channel: same-origin message from another window"
+          );
+          return;
+        }
+        if (!opts.accept(ev.data)) {
+          console.warn("popup-channel: window message rejected by accept()");
+          return;
+        }
         settle(ev.data);
       };
 
@@ -85,13 +95,19 @@ export const openPopupChannel = (
 
       if (broadcast) {
         broadcast.onmessage = (ev: MessageEvent) => {
-          if (!opts.accept(ev.data)) return;
+          if (!opts.accept(ev.data)) {
+            console.warn("popup-channel: broadcast rejected by accept()");
+            return;
+          }
           settle(ev.data);
         };
       }
 
       pollInterval = window.setInterval(() => {
-        if (popup.closed) settle(undefined);
+        if (popup.closed) {
+          console.warn("popup-channel: popup closed before any message landed");
+          settle(undefined);
+        }
       }, opts.pollMs ?? 500);
     });
 

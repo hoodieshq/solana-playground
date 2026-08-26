@@ -51,13 +51,12 @@ export class GithubAuth {
   /**
    * Run the OAuth popup flow.
    *
-   * Opens `/api/github-oauth?action=start`; the callback page delivers
-   * the result over a same-origin `BroadcastChannel` - the primary path,
-   * since `window.opener` is not reliable across the GitHub navigation
-   * (COOP severing and similar) - and falls back to posting to
-   * `window.opener` for runtimes without `BroadcastChannel`. Messages
-   * from `window` are additionally accepted from our own origin only,
-   * and only in the expected shape.
+   * Opens `/api/github-oauth?action=start`; the callback page posts the
+   * result to `window.opener`, which is addressed and pinned by
+   * targetOrigin, and falls back to a same-origin `BroadcastChannel` when
+   * COOP has severed the opener. Window messages must additionally come
+   * from our own origin and from the popup itself; the nonce below is what
+   * guards the broadcast path, which no window binding can reach.
    */
   static async signIn(): Promise<void> {
     // A BroadcastChannel reaches every same-origin context, so shape alone
