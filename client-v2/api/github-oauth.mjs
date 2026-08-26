@@ -133,10 +133,17 @@ function sendResult(res, { token, error }) {
   res.setHeader("content-type", "text/html; charset=utf-8");
   // This body carries the access token - RFC 6749 5.1
   res.setHeader("cache-control", "no-store");
-  // Own origin only: the opener is our SPA on the same host
+  // Own origin only: the opener is our SPA on the same host. The
+  // BroadcastChannel is the primary path - `window.opener` is not
+  // reliable across the GitHub navigation (COOP severing and similar) -
+  // and stays same-origin by construction, so no origin check is needed
+  // on the receiving end.
   res.end(
     `<!doctype html><meta charset="utf-8"><title>Signing in...</title>` +
       `<script>` +
+      `try {` +
+      `new BroadcastChannel("pg-github-auth").postMessage(${payload});` +
+      `} catch (e) {}` +
       `if (window.opener) {` +
       `window.opener.postMessage(${payload}, window.location.origin);` +
       `}` +

@@ -38,9 +38,13 @@ export class PgGithubAuth {
   /**
    * Run the OAuth popup flow.
    *
-   * Opens `/api/github-oauth?action=start`; the callback page posts the
-   * token back and closes itself. Messages are accepted from our own
-   * origin only, and only in the expected shape.
+   * Opens `/api/github-oauth?action=start`; the callback page delivers
+   * the result over a same-origin `BroadcastChannel` - the primary path,
+   * since `window.opener` is not reliable across the GitHub navigation
+   * (COOP severing and similar) - and falls back to posting to
+   * `window.opener` for runtimes without `BroadcastChannel`. Messages
+   * from `window` are additionally accepted from our own origin only,
+   * and only in the expected shape.
    */
   static signIn(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -57,27 +61,34 @@ export class PgGithubAuth {
       let pollInterval: number;
       let messageReceived = false;
 
+      const channel: BroadcastChannel | null =
+        typeof BroadcastChannel === "undefined"
+          ? null
+          : new BroadcastChannel("pg-github-auth");
+
       const done = (err?: Error) => {
         window.removeEventListener("message", onMessage);
+        channel?.close();
         window.clearInterval(pollInterval);
         if (err) reject(err);
         else resolve();
       };
 
-      const onMessage = async (ev: MessageEvent) => {
-        if (ev.origin !== window.location.origin) return;
-        if (!isAuthMessage(ev.data)) return;
-
+      const handlePayload = async (data: AuthMessage) => {
+        // Set synchronously, before any await: the same payload can
+        // arrive on both the channel and the window listener, and only
+        // the first should trigger the profile fetch.
+        if (messageReceived) return;
         messageReceived = true;
 
-        if (ev.data.error || !ev.data.token) {
-          done(new Error(ev.data.error ?? "Sign-in was cancelled."));
+        if (data.error || !data.token) {
+          done(new Error(data.error ?? "Sign-in was cancelled."));
           return;
         }
 
         try {
-          const user = await PgGithubAuth._fetchUser(ev.data.token);
-          PgGithubAuth._state = { token: ev.data.token, user };
+          const user = await PgGithubAuth._fetchUser(data.token);
+          PgGithubAuth._state = { token: data.token, user };
           PgGithubAuth._notify();
           done();
         } catch (e) {
@@ -88,7 +99,20 @@ export class PgGithubAuth {
         }
       };
 
+      const onMessage = (ev: MessageEvent) => {
+        if (ev.origin !== window.location.origin) return;
+        if (!isAuthMessage(ev.data)) return;
+        handlePayload(ev.data);
+      };
+
       window.addEventListener("message", onMessage);
+
+      if (channel) {
+        channel.onmessage = (ev: MessageEvent) => {
+          if (!isAuthMessage(ev.data)) return;
+          handlePayload(ev.data);
+        };
+      }
 
       pollInterval = window.setInterval(() => {
         if (popup.closed && !messageReceived) {

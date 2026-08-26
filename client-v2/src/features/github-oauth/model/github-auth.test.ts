@@ -126,6 +126,52 @@ describe("PgGithubAuth", () => {
     dispose();
   });
 
+  it("stores identity on a token delivered via BroadcastChannel", async () => {
+    type Listener = ((ev: { data: unknown }) => void) | null;
+    class FakeBroadcastChannel {
+      onmessage: Listener = null;
+      constructor(public name: string) {
+        FakeBroadcastChannel._instances.push(this);
+      }
+      postMessage() {
+        // Nothing sends on this end in the test - the fake plays the
+        // callback page's role by driving `onmessage` directly.
+      }
+      close() {}
+      static _instances: FakeBroadcastChannel[] = [];
+    }
+
+    const original = (globalThis as { BroadcastChannel?: unknown })
+      .BroadcastChannel;
+    (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =
+      FakeBroadcastChannel;
+
+    const popup = { closed: false, close: jest.fn() };
+    const openSpy = jest
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+
+    try {
+      const promise = PgGithubAuth.signIn();
+      const instance = FakeBroadcastChannel._instances.at(-1);
+      expect(instance?.name).toBe("pg-github-auth");
+      instance?.onmessage?.({
+        data: { type: "pg-github-auth", token: "gho_channel" },
+      });
+      await promise;
+      expect(PgGithubAuth.token).toBe("gho_channel");
+      expect(PgGithubAuth.user).toEqual({
+        login: "octocat",
+        name: "The Octocat",
+        avatarUrl: "https://example.test/a.png",
+      });
+    } finally {
+      openSpy.mockRestore();
+      (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =
+        original;
+    }
+  });
+
   it("rejects when the popup is closed without a message", async () => {
     jest.useFakeTimers();
     const popup = { closed: false, close: jest.fn() };
