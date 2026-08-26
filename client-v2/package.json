@@ -65,6 +65,7 @@
   },
   "devDependencies": {
     "@craco/craco": "^6.4.3",
+    "@playwright/test": "^1.62.1",
     "@types/bn.js": "^5.1.1",
     "@types/jest": "^27.5.0",
     "@types/mocha": "^9.1.1",
@@ -106,7 +107,8 @@
     "sync-readme": "node scripts/sync-readme.mjs",
     "test": "yarn test-types && yarn test-unit && yarn build",
     "test-types": "tsc --noEmit",
-    "test-unit": "craco test --watchAll=false"
+    "test-unit": "craco test --watchAll=false",
+    "test-e2e": "playwright test"
   },
   "eslintConfig": {
     "extends": [
