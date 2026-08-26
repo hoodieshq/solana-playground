@@ -1,10 +1,11 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import {
   useBalance,
   useConnection,
+  useOnClickOutside,
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
@@ -29,6 +30,38 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
   useRenderOnChange(PgGithubAuth.onDidChange);
   const [authError, setAuthError] = useState<string | null>(null);
   const github = PgGithubAuth.user;
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const profileWrapperRef = useRef<HTMLDivElement>(null);
+  const profileChipRef = useRef<HTMLButtonElement>(null);
+  const firstMenuRowRef = useRef<HTMLAnchorElement>(null);
+  const wasProfileOpenRef = useRef(false);
+
+  const closeProfile = () => setProfileOpen(false);
+
+  useOnClickOutside(profileWrapperRef, closeProfile, profileOpen);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") closeProfile();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [profileOpen]);
+
+  useEffect(() => {
+    if (profileOpen) {
+      wasProfileOpenRef.current = true;
+      firstMenuRowRef.current?.focus();
+    } else {
+      setConfirmingSignOut(false);
+      if (wasProfileOpenRef.current) profileChipRef.current?.focus();
+      wasProfileOpenRef.current = false;
+    }
+  }, [profileOpen]);
 
   const signIn = async () => {
     setAuthError(null);
@@ -64,15 +97,73 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
         )}
       </WalletChip>
       {github ? (
-        <GithubChip
-          type="button"
-          onClick={() => PgGithubAuth.signOut()}
-          title={`Signed in as ${github.login} - click to sign out`}
-          aria-label={`GitHub: ${github.login}. Sign out`}
-        >
-          <Avatar src={github.avatarUrl} alt="" aria-hidden />
-          <span>{github.login}</span>
-        </GithubChip>
+        <ProfileWrapper ref={profileWrapperRef}>
+          <GithubChip
+            ref={profileChipRef}
+            type="button"
+            onClick={() => setProfileOpen((open) => !open)}
+            title="GitHub profile"
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+            aria-label={`GitHub profile: ${github.login}`}
+          >
+            <Avatar src={github.avatarUrl} alt="" aria-hidden />
+            <span>{github.login}</span>
+          </GithubChip>
+          {profileOpen && (
+            <Popover role="menu" aria-label="GitHub profile">
+              {confirmingSignOut ? (
+                <ConfirmBody>
+                  <ConfirmText>Sign out of GitHub?</ConfirmText>
+                  <ConfirmActions>
+                    <ConfirmSignOutButton
+                      type="button"
+                      onClick={() => {
+                        PgGithubAuth.signOut();
+                        closeProfile();
+                      }}
+                    >
+                      Sign out
+                    </ConfirmSignOutButton>
+                    <CancelButton
+                      type="button"
+                      onClick={() => setConfirmingSignOut(false)}
+                    >
+                      Cancel
+                    </CancelButton>
+                  </ConfirmActions>
+                </ConfirmBody>
+              ) : (
+                <>
+                  <ProfileHeader>
+                    <ProfileAvatar src={github.avatarUrl} alt="" />
+                    <ProfileNames>
+                      <DisplayName>{github.name ?? github.login}</DisplayName>
+                      <Login>@{github.login}</Login>
+                    </ProfileNames>
+                  </ProfileHeader>
+                  <MenuLink
+                    ref={firstMenuRowRef}
+                    href={`https://github.com/${github.login}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    role="menuitem"
+                  >
+                    Open GitHub profile
+                  </MenuLink>
+                  <Separator />
+                  <MenuButtonRow
+                    type="button"
+                    role="menuitem"
+                    onClick={() => setConfirmingSignOut(true)}
+                  >
+                    Sign out
+                  </MenuButtonRow>
+                </>
+              )}
+            </Popover>
+          )}
+        </ProfileWrapper>
       ) : (
         <GithubChip
           type="button"
@@ -189,6 +280,190 @@ const Avatar = styled.img`
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
+`;
+
+// Anchors the popover under the chip; `position: relative` is the only
+// layout role this plays, so it doesn't disturb the flex row it sits in.
+const ProfileWrapper = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+`;
+
+const Popover = styled.div`
+  ${({ theme }) => css`
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    right: 0;
+    z-index: 5;
+    width: 14rem;
+    padding: 0.375rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgSecondary};
+    box-shadow: ${theme.default.boxShadow};
+    font-family: ${theme.font.code.family};
+  `}
+`;
+
+const ProfileHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+`;
+
+const ProfileAvatar = styled.img`
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+`;
+
+const ProfileNames = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const DisplayName = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    font-size: ${theme.font.code.size.small};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `}
+`;
+
+const Login = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textSecondary};
+    font-size: ${theme.font.code.size.xsmall};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `}
+`;
+
+// Shared look for the popover's interactive rows, applied to both the
+// anchor (profile link) and the button (sign out) so neither needs a
+// polymorphic `as` prop to type-check.
+const menuRowCss = css`
+  ${({ theme }) => css`
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    border: none;
+    border-radius: calc(${theme.default.borderRadius} - 2px);
+    background: transparent;
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    font-size: ${theme.font.code.size.small};
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 140ms ease;
+
+    &:hover {
+      background: ${theme.colors.default.bgPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const MenuLink = styled.a`
+  ${menuRowCss}
+`;
+
+const MenuButtonRow = styled.button`
+  ${menuRowCss}
+`;
+
+const Separator = styled.div`
+  height: 1px;
+  margin: 0.25rem 0.125rem;
+  background: ${({ theme }) => theme.colors.default.border};
+`;
+
+const ConfirmBody = styled.div`
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+`;
+
+const ConfirmText = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    font-size: ${theme.font.code.size.small};
+  `}
+`;
+
+const ConfirmActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const CancelButton = styled.button`
+  ${({ theme }) => css`
+    flex: 1;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: calc(${theme.default.borderRadius} - 2px);
+    background: transparent;
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    font-size: ${theme.font.code.size.small};
+    cursor: pointer;
+    transition: background 140ms ease;
+
+    &:hover {
+      background: ${theme.colors.default.bgPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const ConfirmSignOutButton = styled.button`
+  ${({ theme }) => css`
+    flex: 1;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid ${theme.colors.state.error.color};
+    border-radius: calc(${theme.default.borderRadius} - 2px);
+    background: transparent;
+    color: ${theme.colors.state.error.color};
+    font: inherit;
+    font-size: ${theme.font.code.size.small};
+    cursor: pointer;
+    transition: background 140ms ease;
+
+    &:hover {
+      background: ${theme.colors.state.error.bg};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.state.error.color};
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
 `;
 
 const AuthError = styled.span`
