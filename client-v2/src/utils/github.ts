@@ -42,13 +42,11 @@ const IGNORED_FILE_REGEX = /(^|\/)package-lock\.json$/;
 /**
  * Anchor's monorepo layout, `programs/<name>/src/...`.
  *
- * The same convention `frameworks/anchor/import.ts` uses to find program
- * names. Keep the two in step.
+ * Deliberately the same shape as the regular expression in
+ * `frameworks/anchor/import.ts`, including the lazy group: a name can hold
+ * a slash, as in marginfi's `marginfi/fuzz`. Keep the two in step.
  */
-const PROGRAM_SRC_REGEX = /(^|\/)programs\/([^/]+)\/src\//;
-
-/** Any path that belongs to a program folder of a monorepo */
-const PROGRAM_DIR_REGEX = /(^|\/)programs\/([^/]+)\//;
+const PROGRAM_SRC_REGEX = /programs\/(.+?)\/src/;
 
 /** Thrown when the user closes the program selection without choosing */
 export class ImportCancelledError extends Error {
@@ -219,7 +217,7 @@ export class PgGithub {
     const programNames = [
       ...new Set(
         items
-          .map((item) => PROGRAM_SRC_REGEX.exec(item.path)?.[2])
+          .map((item) => PROGRAM_SRC_REGEX.exec(item.path)?.[1])
           .filter((name): name is string => !!name)
       ),
     ];
@@ -235,9 +233,18 @@ export class PgGithub {
     >(SelectProgram, { programNames });
     if (!programName) throw new ImportCancelledError();
 
+    // A path can sit inside two names when one nests in the other
+    // (`marginfi` and `marginfi/fuzz`); the longest one owns it.
+    const getOwner = (path: string) => {
+      return programNames
+        .filter((name) => path.includes(`programs/${name}/`))
+        .sort((a, b) => b.length - a.length)
+        .at(0);
+    };
+
     return items.filter((item) => {
-      const otherProgram = PROGRAM_DIR_REGEX.exec(item.path)?.[2];
-      return !otherProgram || otherProgram === programName;
+      const owner = getOwner(item.path);
+      return !owner || owner === programName;
     });
   }
 

@@ -240,6 +240,32 @@ describe("PgGithub.getFiles", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
+  it("treats a nested program folder as its own program", async () => {
+    mockFetch((url) => {
+      if (url.startsWith("https://api.github.com/")) {
+        return treeResponse([
+          "programs/marginfi/src/lib.rs",
+          "programs/marginfi/fuzz/src/lib.rs",
+          "programs/marginfi/fuzz/corpus.py",
+        ]);
+      }
+      return { body: "content" };
+    });
+    mockSetModal.mockResolvedValueOnce("marginfi");
+
+    const files = await PgGithub.getFiles(
+      "https://github.com/mrgnlabs/marginfi-v2"
+    );
+
+    expect(mockSetModal).toHaveBeenCalledWith("SelectProgram", {
+      programNames: ["marginfi", "marginfi/fuzz"],
+    });
+    // Everything under the deeper `marginfi/fuzz` belongs to that program
+    expect(files.map(([path]) => path)).toEqual([
+      "programs/marginfi/src/lib.rs",
+    ]);
+  });
+
   it("does not ask when the repository holds a single program", async () => {
     mockFetch((url) => {
       if (url.startsWith("https://api.github.com/")) {
