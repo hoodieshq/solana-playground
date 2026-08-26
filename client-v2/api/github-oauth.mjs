@@ -27,6 +27,11 @@ export default async function handler(req, res) {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
+    if (action === "start" || action === "callback") {
+      return sendResult(res, {
+        error: "GitHub OAuth is not configured in this deployment",
+      });
+    }
     return sendJson(res, 503, {
       error: "GitHub OAuth is not configured in this deployment",
     });
