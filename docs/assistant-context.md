@@ -5,7 +5,8 @@ It is loaded into the assistant's context so that questions like "what is this?"
 "how does it work?", "what's the status?" and "what did you decide and why?" are
 answered from maintained documents rather than invented.
 
-It is also the content behind the panel's **"What we're building"** tab.
+The panel does not render it: it is context the assistant answers from, not a
+page to read.
 
 > **Maintained by hand, for now.** Keep it short and keep it true. When it
 > disagrees with `decisions.md`, `product-brief.md` or `codebase-map.yaml`,
@@ -44,7 +45,7 @@ guidance, no connection to the ecosystem's own documentation tooling.
 Three focus areas, in priority order:
 
 1. **AI assistant inside the environment** — a chat module beside the editor that
-   shares project context and can act on it. *Shipped; see Status below.*
+   shares project context and can act on it. *Shipped.*
 2. **Real wallet support** — standard wallet adapters (Phantom, Solflare,
    Backpack) alongside the existing in-browser keypair.
 3. **Modern, responsive interface** — current visual language, works on tablet.
