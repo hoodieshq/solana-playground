@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import {
@@ -38,7 +38,7 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
   const firstMenuRowRef = useRef<HTMLAnchorElement>(null);
   const wasProfileOpenRef = useRef(false);
 
-  const closeProfile = () => setProfileOpen(false);
+  const closeProfile = useCallback(() => setProfileOpen(false), []);
 
   useOnClickOutside(profileWrapperRef, closeProfile, profileOpen);
 
@@ -103,7 +103,6 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
             type="button"
             onClick={() => setProfileOpen((open) => !open)}
             title="GitHub profile"
-            aria-haspopup="menu"
             aria-expanded={profileOpen}
             aria-label={`GitHub profile: ${github.login}`}
           >
@@ -111,7 +110,7 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
             <span>{github.login}</span>
           </GithubChip>
           {profileOpen && (
-            <Popover role="menu" aria-label="GitHub profile">
+            <Popover aria-label="GitHub profile">
               {confirmingSignOut ? (
                 <ConfirmBody>
                   <ConfirmText>Sign out of GitHub?</ConfirmText>
@@ -147,14 +146,13 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
                     href={`https://github.com/${github.login}`}
                     target="_blank"
                     rel="noreferrer"
-                    role="menuitem"
+                    onClick={closeProfile}
                   >
                     Open GitHub profile
                   </MenuLink>
                   <Separator />
                   <MenuButtonRow
                     type="button"
-                    role="menuitem"
                     onClick={() => setConfirmingSignOut(true)}
                   >
                     Sign out
@@ -166,6 +164,7 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
         </ProfileWrapper>
       ) : (
         <GithubChip
+          ref={profileChipRef}
           type="button"
           onClick={signIn}
           aria-label="Sign in with GitHub"
