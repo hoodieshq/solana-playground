@@ -57,6 +57,11 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
 
   return (
     <Wrapper>
+      <Text>
+        <Eyebrow>{described.number}</Eyebrow>
+        <Objective>{described.objective}</Objective>
+        <VerifiedBy>{described.verifiedBy}</VerifiedBy>
+      </Text>
       <Back
         type="button"
         disabled={!canGoBack}
@@ -70,11 +75,6 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
       >
         &#8592;
       </Back>
-      <Text>
-        <Eyebrow>{described.number}</Eyebrow>
-        <Objective>{described.objective}</Objective>
-        <VerifiedBy>{described.verifiedBy}</VerifiedBy>
-      </Text>
       {step.readPage && (
         <Secondary type="button" onClick={onRead}>
           Read the page
@@ -109,8 +109,8 @@ const Wrapper = styled.div`
   `}
 `;
 
-// Leads the band rather than joining the actions on the right: it moves you
-// between steps, it does not act on this one
+// Joins the actions on the right so the objective text stays flush left, but
+// stays a bare circle: it moves you between steps rather than acting on one
 const Back = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
