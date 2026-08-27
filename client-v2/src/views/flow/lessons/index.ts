@@ -9,5 +9,6 @@ registerPaths(
 
 export { currentStep } from "./progress";
 export { getLessonPath } from "./registry";
+export { verifyingStage } from "./verify";
 export { INITIAL_LESSON_STATE, PgLesson } from "./store";
 export type { LessonState } from "./store";

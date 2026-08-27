@@ -18,17 +18,28 @@ const ChatItem: FC<{
   /** Render it as a quiet way out rather than the obvious next step */
   makeChangeIsLastResort?: boolean;
   /**
-   * Offered after the assistant has changed something mid-lesson: move to the
-   * next step. Recorded as a skip — nothing in the chat proves a step.
+   * Runs the action that can prove the current lesson step — the move after a
+   * patch lands, and the reply's main CTA when offered.
    */
-  onContinueStep?: () => void;
-  continueStepTitle?: string | false | null;
+  onVerifyStep?: () => void;
+  verifyStepLabel?: string;
+  verifyStepTitle?: string | false | null;
+  /**
+   * The mid-lesson escape valve, offered only once a build has already been
+   * attempted on this step. Recorded as a skip — nothing in the chat proves a
+   * step.
+   */
+  onSkipStep?: () => void;
+  skipStepTitle?: string | false | null;
 }> = ({
   item,
   onMakeChange,
   makeChangeIsLastResort,
-  onContinueStep,
-  continueStepTitle,
+  onVerifyStep,
+  verifyStepLabel,
+  verifyStepTitle,
+  onSkipStep,
+  skipStepTitle,
 }) => {
   switch (item.kind) {
     case "user":
@@ -60,13 +71,23 @@ const ChatItem: FC<{
               {makeChangeIsLastResort ? "Write it for me" : "Make this change"}
             </MakeChange>
           )}
-          {onContinueStep && (
+          {onVerifyStep && (
+            <VerifyStep
+              kind="primary"
+              size="small"
+              title={verifyStepTitle || undefined}
+              onClick={onVerifyStep}
+            >
+              {verifyStepLabel}
+            </VerifyStep>
+          )}
+          {onSkipStep && (
             <MakeChange
               $quiet
-              title={continueStepTitle || undefined}
-              onClick={onContinueStep}
+              title={skipStepTitle || undefined}
+              onClick={onSkipStep}
             >
-              Next step
+              Skip this step
             </MakeChange>
           )}
         </Turn>
@@ -233,6 +254,13 @@ const Tick = styled.svg`
     flex-shrink: 0;
     stroke: ${theme.colors.state.success.color};
   `}
+`;
+
+// Left-aligned with the reply's own text rather than stretched, so it reads as
+// this message's next move and not as the panel's
+const VerifyStep = styled(Button)`
+  align-self: flex-start;
+  margin-top: 0.5rem;
 `;
 
 const MakeChange = styled.button<{ $quiet?: boolean }>`

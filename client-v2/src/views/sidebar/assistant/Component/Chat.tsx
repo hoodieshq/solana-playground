@@ -5,14 +5,23 @@ import ChatItem from "./ChatItem";
 import Connect from "./Connect";
 import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
-import { PgAssistant, turnProducedApproval } from "../store";
+import {
+  PgAssistant,
+  turnAppliedApproval,
+  turnProducedApproval,
+} from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
-import { PgExplorer, PgProgramInfo } from "../../../../utils";
+import { PgCommand, PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
-import { INITIAL_LESSON_STATE, PgLesson } from "../../../flow/lessons";
+import {
+  currentStep,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+  verifyingStage,
+} from "../../../flow/lessons";
 import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
@@ -200,13 +209,33 @@ const Chat = () => {
       ? lastItem.id
       : null;
 
-  // Once the assistant has changed something, the next useful move is the step
-  // rather than another edit. Same action as the rail's, and same honesty: it
-  // records a skip, since nothing here proved the step.
-  const continuableId =
-    !busy && lesson && wroteThisTurn && lastItem?.kind === "assistant"
+  /**
+   * The two mid-lesson actions on a finished reply, offered one at a time so
+   * the reply always names the single next move:
+   *
+   * - the patch has landed but no build has run yet: the move is that build,
+   *   which is also the only thing that can prove the step. This is the CTA
+   *   the reply used to end on, except it pointed at the next step instead of
+   *   at the action, so taking it skipped the step it was meant to finish.
+   * - a build has run and the step is still unverified: the learner may be
+   *   right and the grader wrong, so the escape valve appears. Nothing here
+   *   proves anything, so it stays labelled as the skip it records.
+   */
+  const onFinishedReply = !busy && lesson && lastItem?.kind === "assistant";
+  const step =
+    lessonState.path && currentStep(lessonState.path, lessonState.progress);
+  const stage = step && verifyingStage(step.verify);
+
+  const verifiableId =
+    onFinishedReply &&
+    !lessonState.attempted &&
+    stage &&
+    turnAppliedApproval(items)
       ? lastItem.id
       : null;
+
+  const skippableId =
+    onFinishedReply && lessonState.attempted ? lastItem.id : null;
 
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the dots come down.
@@ -247,14 +276,24 @@ const Chat = () => {
               // Inside a lesson the same click skips the hint ladder, so it is
               // offered as a way out rather than as the obvious next step
               makeChangeIsLastResort={!!lesson}
-              onContinueStep={
-                item.id === continuableId
+              onVerifyStep={
+                item.id === verifiableId
+                  ? () => PgCommand[stage!].execute()
+                  : undefined
+              }
+              verifyStepLabel={stage === "deploy" ? "Deploy" : "Build"}
+              verifyStepTitle={
+                lesson &&
+                `${lesson.verifiedBy} — this is what proves it, and the only thing that can.`
+              }
+              onSkipStep={
+                item.id === skippableId
                   ? () => PgLesson.skipStep()
                   : undefined
               }
-              continueStepTitle={
+              skipStepTitle={
                 lesson &&
-                `This step is not verified yet — ${lesson.verifiedBy}. Building is what proves it; moving on now is recorded as a skip.`
+                `This step is still not verified — ${lesson.verifiedBy}. Skipping records that you moved past it unproven; you can come back with the arrows.`
               }
             />
           ))

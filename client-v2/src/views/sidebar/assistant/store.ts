@@ -59,6 +59,22 @@ export const turnProducedApproval = (items: readonly ChatItem[]) => {
   return false;
 };
 
+/**
+ * Whether the turn ending at the last item actually wrote something.
+ *
+ * Stricter than `turnProducedApproval`, which counts a card the user denied.
+ * An action offered on the strength of a rejected patch would point at code
+ * that is not there.
+ */
+export const turnAppliedApproval = (items: readonly ChatItem[]) => {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item.kind === "user") return false;
+    if (item.kind === "approval" && item.status === "allowed") return true;
+  }
+  return false;
+};
+
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
   id: ProviderId;

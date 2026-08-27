@@ -1,9 +1,32 @@
 import type { Idl } from "@coral-xyz/anchor";
 
 import type { VerifyCondition } from "./types";
-import type { FlowState } from "../state/stage";
+import type { FlowState, Stage } from "../state/stage";
 
 const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * The stage whose action can prove a condition, or `null` when nothing free
+ * can. Derived from `verify` rather than carried beside it, so the action a
+ * step offers cannot drift from what actually grades it.
+ *
+ * Narrower than `Stage`: only these two name a runnable command, which is what
+ * lets a caller dispatch the result without re-checking it.
+ */
+export const verifyingStage = (
+  c: VerifyCondition
+): Extract<Stage, "build" | "deploy"> | null => {
+  switch (c.kind) {
+    case "build-passes":
+    case "idl":
+      return "build";
+    case "deployed":
+      return "deploy";
+    // The objective band's `Continue` is the only way past a reading step
+    case "read":
+      return null;
+  }
+};
 
 /**
  * Whether a step's condition is met right now.
