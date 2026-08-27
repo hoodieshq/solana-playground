@@ -1,4 +1,6 @@
 import { PgBuildOutput, stripKnownNoise } from "./build-output";
+import { describeLesson } from "./lesson-context";
+import type { LessonContext } from "./lesson-context";
 import {
   PgBlockExplorer,
   PgCommand,
@@ -8,6 +10,7 @@ import {
   PgProgramInfo,
   PgWallet,
 } from "../../../../utils";
+import { PgLesson } from "../../../flow/lessons";
 
 /** A condensed view of the program's interface, cheaper than the whole IDL */
 export interface IdlSummary {
@@ -35,6 +38,8 @@ export interface ProjectContext {
   deployState: "ready" | "loading" | "paused" | "cancelled";
   cluster: string;
   walletConnected: boolean;
+  /** The lesson step the learner is on, when they are in a lesson */
+  lesson: LessonContext | null;
 }
 
 /** A change the assistant proposes to one file */
@@ -108,6 +113,7 @@ export const realBridge: PlaygroundBridge = {
       deployState: PgGlobal.deployState,
       cluster: PgConnection.current.rpcEndpoint,
       walletConnected: !!PgWallet.current,
+      lesson: describeLesson(PgLesson.state),
     };
   },
 

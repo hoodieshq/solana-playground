@@ -7,10 +7,13 @@ import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
+import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
 import { PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
+import { INITIAL_LESSON_STATE, PgLesson } from "../../../flow/lessons";
+import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
 
@@ -86,6 +89,10 @@ const Chat = () => {
     if (!busy) inputRef.current?.focus();
   }, [busy]);
 
+  const [lessonState, setLessonState] =
+    useState<LessonState>(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
+
   const connection = PgAssistant.connection;
   if (!connection || PgAssistant.isPickingBackend) return <Connect />;
 
@@ -141,7 +148,14 @@ const Chat = () => {
   const currentFilePath = PgExplorer.currentFilePath;
   const filePaths = realBridge.listFiles();
   const openPaths = realBridge.listOpenFiles();
+  const lesson = describeLesson(lessonState);
   const chips = [
+    lesson
+      ? {
+          label: `step ${lesson.stepIndex} of ${lesson.stepCount}`,
+          title: lesson.objective,
+        }
+      : null,
     {
       label: `${filePaths.length} ${filePaths.length === 1 ? "file" : "files"}`,
       title: `Every path is sent each turn, and the assistant can read any of them:\n\n${filePaths.join(

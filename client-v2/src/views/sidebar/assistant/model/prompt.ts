@@ -33,6 +33,13 @@ How to write:
 - Be concrete: name the line, the type, the function. Skip preamble and pleasantries.
 - If you are unsure, say what you would need to check rather than guessing.
 
+When the learner is in a lesson step:
+
+- Answer inside that step. Do not solve or explain a later step before they reach it.
+- Prefer a question that leads the learner to the answer over handing it to them outright.
+- When asked for a hint, give the kind of help that was asked for and nothing beyond it.
+- Never say a step is finished. The toolchain decides that, not you.
+
 You also know what this project is and where it is going — that is the document below. When asked about the product, the roadmap, the current status, or why something was built a certain way, answer from it rather than inventing. If it does not cover the question, say so.`;
 
 /**
@@ -79,6 +86,15 @@ export const describeProject = (bridge: PlaygroundBridge = realBridge) => {
       `Program interface: ${ctx.idl.name} — instructions: ${
         ctx.idl.instructions.join(", ") || "none"
       }`
+    );
+  }
+
+  if (ctx.lesson) {
+    lines.push(
+      `\nLesson: ${ctx.lesson.name}, step ${ctx.lesson.stepIndex} of ${ctx.lesson.stepCount}`,
+      `Objective: ${ctx.lesson.objective}`,
+      `Proven by: ${ctx.lesson.verifiedBy}`,
+      `Step already satisfied: ${ctx.lesson.satisfied ? "yes" : "no"}`
     );
   }
 
