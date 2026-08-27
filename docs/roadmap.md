@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-08-27. One page for the whole effort: what shipped, what
+Updated: 2026-08-27 (evening prep). One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
 or decision that carries the detail. Priorities follow D21 (GitHub
 identity -> tutorials -> everything else). Update this file whenever a
@@ -24,21 +24,34 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 | Deploy Explorer label fix | PR #12, merged 2026-08-26 | Trivial `no-useless-concat`; also unblocked `CI=true yarn build` |
 | GitHub OAuth sign-in with a gated airdrop | PR #9, merged 2026-08-26 (`0bfce60b`, approved by rogaldh) | Spec `2026-08-25-github-oauth-design.md`; PKCE S256, BroadcastChannel transport, profile popover, 3 playwright e2e |
 
+## Tonight
+
+The demo has to show a working prototype plus the next step. Three PRs
+are ready and blocked only on an approval; getting them into
+`master-2.0` is the whole of today's P0. Wallet-adapter work is
+deliberately out -- it runs in parallel at the last moment.
+
+One decision is still open: **does the demo run on the Default backend
+(`/api/agent`, PR #13)?** If it does, M3 and M4 below stop being
+review notes and become demo blockers, and H1 -- an unmetered LLM relay
+on a public URL -- becomes a live exposure rather than a future one.
+
 ## Open pull requests
 
 Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone.
+merges on a comment alone. All four branches were rebased onto
+`master-2.0` on 2026-08-27 and force-pushed; #13, #15 and #16 are
+rogaldh's, so he needs to reset his local copies.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
-| #14 | `fix/github-import` | Ready | Needs one approval. No conflicts, no review yet |
-| #15 | `feat/flow-left-panel-toggle` | Ready after a rebase | rogaldh said "could be merged" in a comment but never submitted an approval; branch still shows #9's 39 commits |
-| #16 | `feat/platform-rpc-endpoints` | Conflicts | `.env.example` and `StatusChips.tsx` conflict with merged #9; no review yet |
-| #13 | `feat/default-backend` | Draft | `.env.example` conflicts; two review items still open (M3, M4) |
+| #14 | `fix/github-import` | `MERGEABLE` | One approval. Cannot be self-approved |
+| #15 | `feat/flow-left-panel-toggle` | `MERGEABLE` | One approval. rogaldh's "could be merged" was a comment, not a review |
+| #16 | `feat/platform-rpc-endpoints` | `MERGEABLE` | One approval. Verified after the rebase: tsc, prettier, 91 tests, build |
+| #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key |
 
 Vercel is the only check that reports on a PR, and it is an ignored
-build. There is no CI for `client-v2` — see the engineering-hygiene
-follow-ups below.
+build. There is no CI for `client-v2` -- see P1 below.
 
 ### PR #14 — GitHub import through the Trees API
 
@@ -66,11 +79,13 @@ action; nested editor chrome removed; the two `PANEL_RADIUS` constants
 reconciled on the theme's 12px (closing a follow-up from #7 and #10).
 81 unit tests, 6 e2e including a new `seededPage` fixture.
 
-**Needs a rebase before it can be read.** #9 was squash-merged, so its
-commits are not ancestors of `master-2.0` and this branch's merge base
-is still `dc2cb20c`. GitHub therefore displays 39 commits and 32 files
-(+2333/-84) when the real delta against `master-2.0` is 10 files
-(+343/-78). The rebase is conflict-free.
+**Rebased 2026-08-27** (`d0aed271` -> `f2c6685d`). #9 was
+squash-merged, so its commits are not ancestors of `master-2.0` and
+this branch's merge base was still `dc2cb20c`; GitHub displayed 39
+commits and 32 files (+2333/-84) for what is really 4 commits and 9
+files (+340/-77). The rebase was conflict-free and the tree is
+byte-identical to the old tip except for `Deploy.tsx`, which picked
+up #12's already-merged lint fix.
 
 ### PR #16 — Platform RPC endpoints and a header cluster toggle
 
@@ -82,12 +97,21 @@ turned into a settings toggle (with the `mousedown`/`click` wiggle
 fixed via `useOnClickOutside`'s new `ignoreSelector`). 67 unit tests,
 12 of them new.
 
-**Conflicts with merged #9** on `client-v2/.env.example` (add/add,
-resolution is "keep both sections", as the PR body predicts) and on
-`client-v2/src/views/flow/header/StatusChips.tsx`, which #9 also
-rewrote for the GitHub identity chip. `yarn build` was never run on
-this branch — the worktree cannot install its `file:` wasm deps — and
-CI does not cover `client-v2`, so nothing has built it.
+**Rebased 2026-08-27** (`81fe47dc` -> `d1f7da0e`), resolving two
+conflicts with merged #9:
+- `client-v2/.env.example` (add/add) — master's text kept, the
+  Platform RPC block appended.
+- `client-v2/src/views/flow/header/StatusChips.tsx` — #9 rewrote this
+  file for the GitHub identity chip while #16 collapsed `Chip` and
+  `WalletChip` into one `ChipButton`. Kept #9's whole GitHub block,
+  renamed its closing tag, took #16's toggle `IconButton`, and
+  repointed `GithubChip` at `ChipButton` since `WalletChip` no longer
+  exists.
+
+Verified after the rebase, which nobody had ever done for this branch:
+`tsc --noEmit` clean, prettier clean, 91 tests in 9 suites, and
+`yarn build` compiles. `CI=true yarn build` fails, but on every branch
+including `master-2.0` — see the CI item in P1.
 
 ### PR #13 — Replace the Demo backend with a real default one (draft)
 
@@ -96,6 +120,10 @@ same-origin chat-completions route whose upstream, key and model come
 from the environment only. Also carries four unrelated panel changes
 (Ctrl+R toggle, MCP description collapse, BYO-key accordion, drop the
 "What we're building" tab).
+
+**Rebased 2026-08-27** (`861876ab` -> `a890f975`), resolving the
+`client-v2/.env.example` add/add the same way: master's text kept, the
+`AGENT_*` block appended. tsc, prettier and 81 tests clean afterwards.
 
 Review posted 2026-08-26 (approve-with-comments). Since then:
 - **M2 fixed** — `isUnavailable` now tests `defaultBackend !== true`,
@@ -116,71 +144,117 @@ Review posted 2026-08-26 (approve-with-comments). Since then:
 design; what remains of that design is metering, now a blocking
 dependency for pointing `/api/agent` at a paid key.
 
-## Open follow-ups carried by merged PRs
+## Follow-ups, prioritized
 
-Collected from the merged PR descriptions so they stop living only
-there. Verified against `master-2.0` on 2026-08-27.
+Every item below was collected from a merged PR description or a
+review and then **checked against `master-2.0` on 2026-08-27** -- these
+are the ones still true in the code, not the ones still written down.
+Each carries where it came from and where it now belongs.
 
-**Engineering hygiene**
-- No CI for `client-v2`. `.github/workflows/reusable-checks.yml` covers
-  `client/`, `server/` and `wasm/` only; every type-check, prettier run
-  and build on this fork's frontend is run by hand. (#5, #9)
-- `check-format` globs `src/` only, so `api/*.mjs` never sees prettier;
-  `yarn test` does not run it at all. (#9)
+### P0 -- in the way of tonight
 
-**Assistant panel** (all still true in `master-2.0`)
-- `requestApproval` returns a bare boolean, so parallel tool calls
-  cannot label the right card; it should return `{ id, allowed }`. (#5)
-- The project snapshot goes to the model in the `system` role with no
-  untrusted-data delimiters, and shared projects are attacker-controlled
-  text. (#5)
-- No UI calls `disconnect()`; a stuck approval still needs a reload. (#5)
-- `Chat.tsx` reads `PgBuildOutput.latest` but does not subscribe to its
-  change event. (#5)
-- Space Grotesk is still a runtime Google Fonts `@import` in
-  `src/index.css:1` rather than self-hosted. (#5)
+1. **Merge #14, #15, #16.** All three are `MERGEABLE` and blocked only
+   on an approval. #14 cannot be self-approved.
+2. **Decide whether the demo runs the Default backend.** If yes, #13's
+   M3 (`null` body -> 500) and M4 (no `maxDuration`, streams cut) are
+   demo blockers, both small; and H1 is live, not future.
 
-**Flow surfaces**
-- Build state is memory-only: Deploy stays disabled after a reload
-  until a rebuild. (#8)
-- The Deploy button is not disabled while a chunked deploy is paused;
+### P1 -- important, next in line
+
+3. **Verification you can trust** -- a new step, see *Next*. Nothing
+   automated checks this fork today.
+   - No CI for `client-v2`: `.github/workflows/reusable-checks.yml`
+     covers `client/`, `server/` and `wasm/` only. (#5, #9)
+   - `check-format` globs `src/` only, so `api/*.mjs` never sees
+     prettier, and `yarn test` does not run it at all. (#9)
+   - `CI=true yarn build` fails on **every** branch, `master-2.0`
+     included: `src/tutorials/__template/` holds both `Template.tsx`
+     and `template.ts`, and webpack's lazy tutorial context resolves
+     both on a case-insensitive filesystem, which `CI=true` promotes
+     from warning to error. Found 2026-08-27 while verifying #16. Fix
+     the case pair before wiring the build into CI, or the first green
+     run is impossible. Upstream file -- keep the change to a rename.
+4. **Harden `/api/agent` before it ever holds a paid key** -- part of
+   the metering step, see *Designed, parked*. Body-size cap,
+   messages/tools count caps, `Origin`/`sec-fetch-site` same-origin
+   check, per-IP token bucket. Without these the route is an
+   unauthenticated general-purpose LLM relay. (#13 review, H1)
+5. **Wrap the project snapshot in untrusted-data delimiters** and move
+   it out of the `system` role. Shared projects are attacker-controlled
+   text and go to the model unmarked today. (#5)
+6. **`requestApproval` should return `{ id, allowed }`.** It returns a
+   bare boolean, so two tool calls in flight cannot label the right
+   approval card -- visible the moment a demo runs parallel tools. (#5)
+
+### P2 -- real, and cheap to defer
+
+Part of the **Error-UX pass** already in the backlog:
+- No UI calls `disconnect()`; a stuck approval still needs a
+  reload. (#5)
+- Build state is memory-only, so Deploy is dead after a reload until a
+  rebuild. (#8)
+- Deploy is not disabled while a chunked deploy is paused;
   `useDeployHistory` was never extracted. (#8)
-- Roving tabindex on tab/radiogroup widgets — done for `GearSidebar`'s
-  network list in #16, still open elsewhere. (#8)
+- `Chat.tsx` reads `PgBuildOutput.latest` but never subscribes to its
+  change event. (#5)
+
+Loose ends with no home yet:
+- Space Grotesk is still a runtime Google Fonts `@import`
+  (`src/index.css:1`) rather than self-hosted. (#5)
 - The dead `useDbServer` branch in `utils/server.ts` and the `Share`
-  modal it serves are still there, with sharing disabled in this
-  fork. (#9, #10)
-- Interact's populated `Test.tsx` account/instruction cards have never
-  been checked against the board — needs a funded devnet wallet. (#7, #10)
+  modal it serves survive, with sharing disabled in this fork. (#9, #10)
+- Roving tabindex: done for `GearSidebar`'s network list in #16, open
+  everywhere else. (#8)
+- The classic layout carries one-off radii (`10px`, `16px`) that no
+  constant owns. (#15)
+- `PgKeybind` never asserts a modifier is *absent*, so `Ctrl+Shift+B`
+  also matches `"Ctrl+B"`. Harmless today; a trap for the next
+  `Ctrl+Shift+<key>` binding in Flow. (#15)
+- Interact's populated `Test.tsx` cards have never been checked against
+  the boards -- needs a funded devnet wallet. (#7, #10)
 - Editor tab strip, excerpt syntax highlighting and the assistant's
-  internals below the header were deferred by iteration 4. (#7, #10)
-- `PANEL_RADIUS` reconcile — **done in #15**, unmerged. (#7, #10)
-- The classic layout still carries one-off radii (`10px`, `16px`) that
-  no constant owns. (#15)
-- `PgKeybind` does not assert a modifier is absent, so `Ctrl+Shift+B`
-  also matches `"Ctrl+B"`. Harmless today; a collision waiting for the
-  next `Ctrl+Shift+<key>` binding in Flow. (#15)
-
-**Named owners**
-- Replace the hand-rolled OAuth flow with Better Auth —
-  `FIXME(@rogaldh)` at the top of `api/github-oauth.mjs`. Stateless
-  mode needs no database; the security tests must be re-pointed, not
-  deleted. (#9)
-- Server-side enforcement of the airdrop gate, if it is ever meant to
-  be a control rather than a deterrent. (#9)
-
-**Housekeeping**
+  internals below the header, all deferred by iteration 4. (#7, #10)
 - The orphaned `.git/modules/client-v2/public` directory survives on
   existing clones; `git submodule deinit -f client-v2/public` clears
   it. (#11)
-
-**Proposed in #14 and #16, not filed anywhere else**
 - Route platform endpoints through a same-origin `/api/rpc` proxy so a
-  keyed provider URL never ships in the bundle. (#16)
-- Only one platform endpoint per cluster is expressible today. (#16)
+  keyed provider URL never ships in the bundle. Only one platform
+  endpoint per cluster is expressible today. (#16)
 
-## Next (in D21 order)
+### Blocked, or not ours to do
 
+- **Replace the hand-rolled OAuth flow with Better Auth** --
+  `FIXME(@rogaldh)` at the top of `api/github-oauth.mjs`. Stateless
+  mode needs no database; the security tests must be re-pointed, not
+  deleted. rogaldh's call. (#9)
+- **Server-side enforcement of the airdrop gate** -- waits on the
+  Foundation's verifying faucet, which does not exist. Until then the
+  gate is a deterrent by design, and that is written down. (#9)
+
+### Closed since the last pass
+
+- `PANEL_RADIUS` reconcile (#7, #10) -- done in #15, waiting on its
+  merge.
+- `.env.example` missing the `AGENT_*` vars (#13 review) -- done.
+- Default offered while the `/api/agent` probe is outstanding (#13
+  review, M2) -- done.
+- The pre-existing `no-useless-concat` in `Deploy.tsx` (#13 checklist)
+  -- done by #12.
+
+## Next
+
+D21 set the order (GitHub identity -> tutorials -> everything else).
+Identity has landed, so tutorials is next in that order; the
+verification step below is new, cuts across everything, and is the one
+thing that is cheaper the earlier it happens.
+
+0. **Verification you can trust** (new, 2026-08-27). Wire `client-v2`
+   into CI: types, prettier over `src/` **and** `api/`, unit tests,
+   build. Blocked first by the `__template` case pair described in P1.
+   Filed as a step rather than a chore because right now the only
+   thing standing between a broken `master-2.0` and a demo is somebody
+   remembering to run four commands by hand -- which is exactly how
+   #16 reached "ready to merge" without ever having been built.
 1. **Tutorials as a scenario** — connected tutorials, learning curves,
    connected prompts for agents. Not designed yet. Input to collect
    before the brainstorm: Cat's tutorials demo (currently broken, the
@@ -188,6 +262,9 @@ there. Verified against `master-2.0` on 2026-08-27.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
    off. Concept only until designed (candidate D23): a separate
    service, never `server/`. Feeds back into the OAuth stream.
+3. **Metering in front of `/api/agent`** — the surviving half of the
+   parked playground-tokens design, and the gate on pointing the
+   Default backend at a paid account. Carries P1 item 4.
 
 ## Designed, parked
 
@@ -206,10 +283,10 @@ resumes. Its metering half is now the blocking dependency for pointing
 - **Error-UX scenarios** - interface behavior when things fail.
   The first known case is fixed (PR #14); collect the remaining
   cases, then fix them as one polish pass.
-- **Wallet-adapter integration** — demoted by D21: cuts through the
-  hottest upstream files (`commands/deploy/deploy.ts`,
-  `utils/wallet/wallet.ts`) for little visible value now. Revisit when
-  mainnet-facing work makes the local keypair a blocker.
+- **Wallet-adapter integration** — demoted by D21 and deliberately out
+  of tonight's demo: it runs in parallel at the last moment. Cuts
+  through the hottest upstream files (`commands/deploy/deploy.ts`,
+  `utils/wallet/wallet.ts`) for little visible value now.
 - **Focus 4 remainder** — responsive/tablet layouts, light-theme
   variant, assistant-as-permanent-column follow-through.
 
