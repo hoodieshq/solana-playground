@@ -115,6 +115,11 @@
       "react-app"
     ]
   },
+  "jest": {
+    "transform": {
+      "^(?!.*\\.(js|jsx|mjs|cjs|ts|tsx|css|json)$)": "<rootDir>/config/jest/fileTransform.js"
+    }
+  },
   "browserslist": {
     "production": [
       "chrome >= 67",
