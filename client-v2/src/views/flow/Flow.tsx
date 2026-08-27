@@ -6,6 +6,12 @@ import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
 import LeftPanel from "./left/LeftPanel";
+import {
+  clampLeftWidth,
+  DEFAULT_LEFT_WIDTH,
+  MIN_LEFT_WIDTH,
+} from "./left/width";
+import Resizable from "../../components/Resizable";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 import { currentStep } from "./lessons/progress";
@@ -38,6 +44,10 @@ const Flow = () => {
   const [leftOpen, setLeftOpen] = useState(true);
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
+  // Session-only, like `leftOpen` and `assistantOpen` above.
+  // TODO: persist to `localStorage` so a width dragged to read a long path
+  // survives a reload.
+  const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT_WIDTH);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
@@ -116,10 +126,29 @@ const Flow = () => {
         settingsOpen={settingsOpen}
       />
       <Columns $assistant={assistantOpen} $left={leftOpen}>
-        <LeftPanel
-          collapsed={!leftOpen}
-          onToggle={() => setLeftOpen((o) => !o)}
-        />
+        {leftOpen ? (
+          <Resizable
+            enable="right"
+            size={{ width: leftWidth, height: "100%" }}
+            minWidth={MIN_LEFT_WIDTH}
+            maxWidth={clampLeftWidth(Infinity, window.innerWidth)}
+            onResizeStop={(_ev, _dir, ref) => {
+              setLeftWidth(
+                clampLeftWidth(
+                  ref.getBoundingClientRect().width,
+                  window.innerWidth
+                )
+              );
+            }}
+          >
+            <LeftPanel
+              collapsed={false}
+              onToggle={() => setLeftOpen((o) => !o)}
+            />
+          </Resizable>
+        ) : (
+          <LeftPanel collapsed onToggle={() => setLeftOpen((o) => !o)} />
+        )}
         <Center>
           <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
           <Stage>
@@ -178,11 +207,13 @@ const Wrapper = styled.div`
   `}
 `;
 
+// Open, the left track is `auto` so the `Resizable` around `LeftPanel` sets
+// its own width; collapsed, the track is fixed and there is no `Resizable`
 const Columns = styled.div<{ $assistant: boolean; $left: boolean }>`
   flex: 1;
   display: grid;
   grid-template-columns:
-    ${({ $left }) => ($left ? "14.5rem" : "1.5rem")} 1fr
+    ${({ $left }) => ($left ? "auto" : "1.5rem")} 1fr
     ${({ $assistant }) => ($assistant ? "21.75rem" : "1.5rem")};
   gap: ${GAP};
   padding: 0 ${GAP} ${GAP};
