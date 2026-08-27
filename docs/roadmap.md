@@ -9,6 +9,8 @@ working docs.
 
 Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
 -- regenerated from this file; update both together.
+Lesson-paths retrospective (research -> prototype -> result -> next):
+https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 
 ## Shipped
 
