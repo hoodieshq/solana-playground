@@ -257,6 +257,23 @@ const Wrapper = styled.div`
   gap: 0.5rem;
 `;
 
+// Non-interactive: the "Signing in..." status wraps a live message and its
+// own `Cancel` button, so the wrapper itself must not also read as a control.
+const Chip = styled.span`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 999px;
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.code.size.small};
+    color: ${theme.colors.default.textSecondary};
+    white-space: nowrap;
+  `}
+`;
+
 // A chip-shaped `<button>`, used for both the cluster and the wallet. Declared
 // as `styled.button` rather than a polymorphic `as="button"` so the native
 // button props (`type`, `onClick`) type-check without a fight.
