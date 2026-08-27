@@ -65,10 +65,12 @@ three edits: `Flow.tsx` and `LeftPanel.tsx` (both fork-owned) and one
 branch in `routes/tutorials/tutorials.tsx`, which we have to edit anyway
 for D16.
 
-### 1. `lessons/paths.ts` — the metadata layer
+### 1. `lessons/types.ts` and `lessons/registry.ts` — the metadata layer
 
 Upstream prose stays upstream. A path is an ordered list of steps that
-points at it.
+points at it. The shapes live in `types.ts`, validation and lookup in
+`registry.ts`, and the content itself in `lessons/paths/<tutorial>.ts`,
+so adding a path never means editing the machinery.
 
 ```ts
 export type VerifyCondition =
@@ -298,9 +300,10 @@ changes:
 
 `PgAssistant.requestPrompt` already carries this with no new transport —
 it was built for "Fix with assistant", it buffers when `Chat` is not
-mounted, and `Flow.tsx` already reopens the panel on a request. The reply
-is labelled `hint N of 3` in the UI, because a ladder nobody counts
-silently becomes an answer machine — the JetBrains and metacognition
+mounted, and `Flow.tsx` already reopens the panel on a request. The rung is named
+inside the prompt text itself, so it appears in the transcript as the
+learner's own visible message and needs no change to how replies render.
+A ladder nobody counts silently becomes an answer machine — the JetBrains and metacognition
 studies found AI supplying exact solution code in over half of debugging
 interactions despite stated hint-first policies.
 
