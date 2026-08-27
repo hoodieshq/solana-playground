@@ -153,6 +153,11 @@ export default LeftPanel;
 const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 100%;
+    // Explicit rather than inherited: as a grid item this stretched on its
+    // own, but the resize wrapper it now sits inside is a plain block, so
+    // without this the panel ends at its content and stops short of the
+    // editor beside it
+    height: 100%;
     display: flex;
     flex-direction: column;
     border: 1px solid ${theme.colors.default.border};
