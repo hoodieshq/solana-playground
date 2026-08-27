@@ -241,10 +241,13 @@ const StageButton = styled.button<{
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;
 
+    /* Dashed, and no glow: the focus ring is a solid outline in the same
+       colour, so shape is what tells "the lesson points here" apart from
+       "your keyboard is here". */
     ${$target &&
     css`
+      border-style: dashed;
       border-color: ${theme.colors.default.primary};
-      box-shadow: 0 0 0 3px ${theme.colors.default.primary}33;
     `}
 
     ${$status === "failed" &&
