@@ -994,3 +994,62 @@ Seahorse workspace is a valid Anchor workspace; marginfi keeps
 ("Could not identify framework"). The check now matches Seahorse's own -
 a Python file importing `seahorse.prelude` - which is what the upstream
 TODO above it asks for.
+
+---
+
+## D23 - `popup.closed` is not a cancellation signal for an OAuth popup
+
+**Date:** 2026-08-27 - **Status:** implemented (PR #17)
+
+`popup-channel.ts` waited for the sign-in reply and, in parallel, polled
+`popup.closed` every 500 ms to notice a user who dismissed the window. That
+poll is the reason sign-in failed on the first attempt and worked on the
+second.
+
+Once a popup commits a cross-origin document that sets COOP - which every
+GitHub login and consent page does - the browser swaps the browsing context
+group and disowns the handle the opener holds. `closed` then answers `true`
+while the window is still on screen and the user is still typing in it. The
+poll declared the flow over about a second after the click; the real reply
+arrived minutes later on the same-origin `BroadcastChannel` with nothing
+listening. Only the *first* authorization is affected: once the grant
+exists GitHub answers `/login/oauth/authorize` with a bare redirect, no
+document is committed, and the handle survives - which is why this looked
+like flakiness rather than a defect, and why every new user would meet it.
+
+**Chosen:** the wait ends on an accepted reply, on an explicit `cancel()`,
+or on a timeout tied to the handler's cookie lifetime. `popup.closed` is
+not consulted at all. The lifetime moved to `config.mjs` as
+`FLOW_MAX_AGE_SECONDS`, so the browser's wait and the server's cookies read
+one value - a wait outliving the cookies would strand the user on a flow
+the server has already forgotten. Because nothing can now tell the app that
+a user dismissed the window, the header grows a visible `Signing in...`
+state with a `Cancel` beside it; without that the only exit would be the
+ten-minute timeout.
+
+**Rejected - a grace period after `closed` turns true.** The obvious
+patch: on the first `closed` reading, wait a few seconds for a reply before
+giving up. It does not work, because severance happens when GitHub's login
+page loads, and the user still has a password, possibly 2FA, and a consent
+screen ahead of them. The grace would have to span the whole flow, which is
+the timeout above with extra machinery and a worse name.
+
+**Rejected - detecting severance to keep close-detection in the good
+case.** A severed handle and a genuinely closed window are indistinguishable
+from the opener: both report `closed === true`, and any attempt to read the
+popup's `location` throws either way. Heuristics on timing ("closed within
+two seconds of opening means severance") would trade a real bug for an
+unpredictable one.
+
+**Rejected - keeping `sawRejected` on every same-origin message.** Any
+same-origin `postMessage` used to mark the flow as having seen a forgery,
+and the page has plenty - the project iframe among them. So a wait that
+merely ran out was reported as "could not be verified", which is what sent
+the diagnosis after a security problem that did not exist. Only our own
+message shape may count as a claim now; the window-binding check that
+guards against a genuine forgery is untouched.
+
+**Revisit when** the Better Auth swap in `api/github-oauth.mjs`
+(`FIXME(@rogaldh)`) happens - it owns the same transport and should inherit
+this constraint rather than rediscover it - or if a browser ever offers a
+way to distinguish a disowned handle from a closed window.

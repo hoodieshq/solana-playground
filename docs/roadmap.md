@@ -26,10 +26,14 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 
 ## Tonight
 
-The demo has to show a working prototype plus the next step. Three PRs
+The demo has to show a working prototype plus the next step. Four PRs
 are ready and blocked only on an approval; getting them into
 `master-2.0` is the whole of today's P0. Wallet-adapter work is
 deliberately out -- it runs in parallel at the last moment.
+
+Signing in on the demo machine now works from the first click: #17
+fixes a failure that hit only the *first* authorization of a GitHub
+account, which is precisely what an audience sees.
 
 One decision is still open: **does the demo run on the Default backend
 (`/api/agent`, PR #13)?** If it does, M3 and M4 below stop being
@@ -41,13 +45,15 @@ on a public URL -- becomes a live exposure rather than a future one.
 Branch protection: PR + **one approval** + signed commits. Nothing
 merges on a comment alone. All four branches were rebased onto
 `master-2.0` on 2026-08-27 and force-pushed; #13, #15 and #16 are
-rogaldh's, so he needs to reset his local copies.
+rogaldh's, so he needs to reset his local copies. #17 was branched
+after the rebases and needs none.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
 | #14 | `fix/github-import` | `MERGEABLE` | One approval. Cannot be self-approved |
 | #15 | `feat/flow-left-panel-toggle` | `MERGEABLE` | One approval. rogaldh's "could be merged" was a comment, not a review |
 | #16 | `feat/platform-rpc-endpoints` | `MERGEABLE` | One approval. Verified after the rebase: tsc, prettier, 91 tests, build |
+| #17 | `fix/oauth-popup-coop` | `MERGEABLE` | One approval. Cannot be self-approved. Land after #16 -- both touch `StatusChips.tsx` |
 | #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key |
 
 Vercel is the only check that reports on a PR, and it is an ignored
@@ -113,6 +119,40 @@ Verified after the rebase, which nobody had ever done for this branch:
 `yarn build` compiles. `CI=true yarn build` fails, but on every branch
 including `master-2.0` — see the CI item in P1.
 
+### PR #17 — Keep the GitHub sign-in alive when COOP severs the popup
+
+Sign-in failed on the first attempt and worked on the second, reporting
+`Sign-in could not be verified.` while the GitHub window was still open.
+`popup-channel.ts` ended the wait on `popup.closed`, which stops being
+an answer once GitHub commits a page of its own: COOP disowns the
+handle and `closed` reports true with the window still on screen, so
+the 500 ms poll declared the flow over about a second after the click.
+The reply -- a valid token, on the broadcast -- arrived minutes later
+with nothing listening. Only the **first** authorization is affected:
+afterwards GitHub answers with a bare redirect, no document is
+committed, and the handle survives. Every new user would have hit it.
+
+Evidence before any change: no `github-oauth` line in the server log
+for the failing attempt (so neither a state mismatch nor a failed token
+exchange), and a probe on the broadcast bus recording the reply arriving
+intact long after the app had given up.
+
+Two smaller faults sat behind it. Any same-origin `postMessage` set
+`sawRejected` -- and the page has plenty, the project iframe among them
+-- so a wait that merely ran out was reported as a forgery, which sent
+the diagnosis after a security problem that did not exist. And a second
+click started a second flow through the same named window, leaving the
+first wait listening for a nonce the handler had already replaced.
+
+The wait now ends on an answer, on `cancel()`, or on a timeout tied to
+the handler's cookie lifetime, which both sides read from `config.mjs`
+instead of the client not knowing it at all. While it waits the chip
+reads `Signing in...` and offers `Cancel`, because nothing can tell the
+app that the user closed the popup. 83 tests in 8 suites; the new one
+was written first and failed with the exact production symptom.
+Verified live by revoking the grant to restore the first-auth path.
+Decision: D23.
+
 ### PR #13 — Replace the Demo backend with a real default one (draft)
 
 Deletes the scripted `Demo` provider and adds `api/agent.mjs`, a
@@ -153,8 +193,9 @@ Each carries where it came from and where it now belongs.
 
 ### P0 -- in the way of tonight
 
-1. **Merge #14, #15, #16.** All three are `MERGEABLE` and blocked only
-   on an approval. #14 cannot be self-approved.
+1. **Merge #14, #15, #16, #17.** All four are `MERGEABLE` and blocked
+   only on an approval. #14 and #17 cannot be self-approved. Order
+   matters once: #16 before #17, both touch `StatusChips.tsx`.
 2. **Decide whether the demo runs the Default backend.** If yes, #13's
    M3 (`null` body -> 500) and M4 (no `maxDuration`, streams cut) are
    demo blockers, both small; and H1 is live, not future.
@@ -217,6 +258,11 @@ Loose ends with no home yet:
 - The orphaned `.git/modules/client-v2/public` directory survives on
   existing clones; `git submodule deinit -f client-v2/public` clears
   it. (#11)
+- A reload signs the user out of GitHub: the token lives in module
+  memory only, by D3's reasoning about the same-origin project iframe.
+  Deliberate, not a defect -- but it re-prompts on every refresh, and
+  the fix belongs with per-user storage in *Next* step 2, not in
+  browser storage. (#9, #17)
 - Route platform endpoints through a same-origin `/api/rpc` proxy so a
   keyed provider URL never ships in the bundle. Only one platform
   endpoint per cluster is expressible today. (#16)
@@ -260,8 +306,14 @@ thing that is cheaper the earlier it happens.
    before the brainstorm: Cat's tutorials demo (currently broken, the
    intent reads).
 2. **Per-user program storage** — Cat's condition for sign-in to pay
-   off. Concept only until designed (candidate D23): a separate
+   off. Concept only until designed (candidate D24): a separate
    service, never `server/`. Feeds back into the OAuth stream.
+   Carries the session question with it: the GitHub token is held in
+   module memory only, so a reload signs the user out (D3's reasoning,
+   applied to the token). That is deliberate and correct while project
+   code shares the origin, but a durable session is exactly what this
+   step has to answer -- a server-side session against per-user
+   storage, rather than putting the token in browser storage.
 3. **Metering in front of `/api/agent`** — the surviving half of the
    parked playground-tokens design, and the gate on pointing the
    Default backend at a paid account. Carries P1 item 4.
