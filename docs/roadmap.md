@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-08-27 (evening prep). One page for the whole effort: what shipped, what
+Updated: 2026-08-27 (night). One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
 or decision that carries the detail. Priorities follow D21 (GitHub
 identity -> tutorials -> everything else). Update this file whenever a
@@ -24,18 +24,23 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 | Deploy Explorer label fix | PR #12, merged 2026-08-26 | Trivial `no-useless-concat`; also unblocked `CI=true yarn build` |
 | GitHub OAuth sign-in with a gated airdrop | PR #9, merged 2026-08-26 (`0bfce60b`, approved by rogaldh) | Spec `2026-08-25-github-oauth-design.md`; PKCE S256, BroadcastChannel transport, profile popover, 3 playwright e2e |
 | Toggle the Flow left panel with cmd+b | PR #15, merged 2026-08-27 (`2c87079e`) | `⌘B` to match `⌘J`, collapsed rail, `PANEL_RADIUS` reconciled |
+| GitHub import through the Trees API | PR #14, merged 2026-08-27 (`dbf9a365`) | One rate-limited request instead of one per directory; readable errors. Decision: D22 |
+| Platform RPC endpoints and a header cluster toggle | PR #16, merged 2026-08-27 (`20f71642`) | Build-time RPC per cluster, cluster badge as a settings toggle. Rebased twice, one non-blocking review note (P2) |
+| Sign-in survives the GitHub hop | PR #17, merged 2026-08-27 (`423d9119`) | `popup.closed` lies once COOP severs the handle; first-time sign-in now works. Decision: D23 |
 
 ## Tonight
 
-The demo has to show a working prototype plus the next step. #15 is
-merged; three more PRs are ready and blocked only on an approval, and
-getting them into `master-2.0` is the whole of today's P0.
-Wallet-adapter work is deliberately out -- it runs in parallel at the
-last moment.
+#14, #15, #16 and #17 are merged. Signing in on the demo machine now
+works from the first click: #17 fixed a failure that hit only the
+*first* authorization of a GitHub account, which is precisely what an
+audience sees.
 
-Signing in on the demo machine now works from the first click: #17
-fixes a failure that hit only the *first* authorization of a GitHub
-account, which is precisely what an audience sees.
+**`master-2.0` briefly did not typecheck.** #16 and #17 were
+concurrent branches; #16 renamed the component #17's new "Signing
+in..." chip depended on, each merged clean on its own, and nothing
+re-ran `tsc` after both landed. Found while rebasing #13, fixed as
+#18 -- that is now the only thing in the way of a clean build on
+`master-2.0` and today's real P0.
 
 One decision is still open: **does the demo run on the Default backend
 (`/api/agent`, PR #13)?** If it does, M3 and M4 below stop being
@@ -45,112 +50,33 @@ on a public URL -- becomes a live exposure rather than a future one.
 ## Open pull requests
 
 Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone. #15 merged 2026-08-27; #13, #16 and #17 are
-`MERGEABLE`. #13 and #16 are rogaldh's, so he needs to reset his local
-copy of #16 -- rebased twice now, the second time to absorb #15.
+merges on a comment alone. #14, #15, #16, #17 merged 2026-08-27. Two
+PRs open, both `MERGEABLE`; #13 is rogaldh's.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
-| #14 | `fix/github-import` | `MERGEABLE` | One approval. Cannot be self-approved |
-| #16 | `feat/platform-rpc-endpoints` | `MERGEABLE` | One approval. Verified after both rebases: tsc, prettier, 91 tests, build. One non-blocking review note left |
-| #17 | `fix/oauth-popup-coop` | `MERGEABLE` | One approval. Cannot be self-approved. Land after #16 -- both touch `StatusChips.tsx` |
-| #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key |
+| #18 | `fix/status-chip-typecheck` | `MERGEABLE` | One approval. Cannot be self-approved. Fixes `master-2.0`'s current typecheck break -- land first |
+| #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key; inherits #18's typecheck break until #18 merges |
 
 Vercel is the only check that reports on a PR, and it is an ignored
 build. There is no CI for `client-v2` -- see P1 below.
 
-### PR #14 — GitHub import through the Trees API
+### PR #18 — Restore the Chip component master-2.0 currently fails to compile without
 
-The gallery's Open button did nothing on ecosystem program cards. Root
-cause: `PgGithub` walked the repo with one `contents` request per
-directory, blew through GitHub's 60-requests-per-hour unauthenticated
-limit (reproduced live: 403 from request #63 on), and
-`PgCommon.fetchJSON` parsed the 403 body as a directory listing, so the
-import silently produced zero files. Now one `git/trees?recursive=1`
-request, parallel `raw.githubusercontent.com` downloads, and readable
-errors on the card. Four follow-ups landed in the same PR after manual
-testing: 24 downloads in flight instead of 8 (9 s -> 0.5 s on a cold
-CDN), noise paths skipped, per-file progress on the card, and the
-"which program?" question moved ahead of the download so a monorepo
-downloads one program instead of twelve. One upstream file changed by
-two lines: Anchor's framework check treated any `.py` as Seahorse,
-which made marginfi unimportable. 75 tests, verified live on seven
-repositories. Decision: D22.
+`tsc --noEmit` fails on `master-2.0` right now:
+`StatusChips.tsx(186,10): error TS2304: Cannot find name 'Chip'`.
+#16 renamed the cluster/wallet chips to `ChipButton` and deleted the
+old non-interactive `Chip`; #17, merged after, added a `Signing in...`
+status block that used `<Chip role="status">` -- the branches were
+concurrent, so #17 had no reason to know #16 had removed the
+component, and nothing re-ran `tsc` after both landed to catch it.
+Found 2026-08-27 while rebasing #13.
 
-### PR #16 — Platform RPC endpoints and a header cluster toggle
-
-Build-time `REACT_APP_{DEVNET,TESTNET,MAINNET}_RPC_URL` entries added
-to both network lists, a dedupe rule that keeps the URL the unique
-identity of an option, `getCluster()` short-circuited so a platform
-endpoint costs no genesis-hash round trip, and the header cluster badge
-turned into a settings toggle (with the `mousedown`/`click` wiggle
-fixed via `useOnClickOutside`'s new `ignoreSelector`). 67 unit tests,
-12 of them new.
-
-**Rebased 2026-08-27** (`81fe47dc` -> `d1f7da0e`), resolving two
-conflicts with merged #9:
-- `client-v2/.env.example` (add/add) — master's text kept, the
-  Platform RPC block appended.
-- `client-v2/src/views/flow/header/StatusChips.tsx` — #9 rewrote this
-  file for the GitHub identity chip while #16 collapsed `Chip` and
-  `WalletChip` into one `ChipButton`. Kept #9's whole GitHub block,
-  renamed its closing tag, took #16's toggle `IconButton`, and
-  repointed `GithubChip` at `ChipButton` since `WalletChip` no longer
-  exists.
-
-Verified after the rebase, which nobody had ever done for this branch:
-`tsc --noEmit` clean, prettier clean, 91 tests in 9 suites, and
-`yarn build` compiles. `CI=true yarn build` fails, but on every branch
-including `master-2.0` — see the CI item in P1.
-
-**Rebased again 2026-08-27** (`d1f7da0e` -> `94c92984`) once #15
-merged: both touch `Flow.tsx`, #15 adding the left-panel toggle props
-and this PR adding the settings-toggle props on the same
-`<Header>`/`<Columns>`/`<LeftPanel>` call. Merged both sets of props
-in; conflict-free elsewhere. Re-verified: tsc, prettier, 91 tests in 9
-suites, build.
-
-**Reviewed 2026-08-27, comment (non-blocking).** `toggleSettings` in
-`Flow.tsx` flips `settingsOpen` unconditionally regardless of which
-control called it: opening the panel from the gear icon and then
-clicking the cluster chip closes the panel instead of retargeting it
-to the network section, since the chip's own click also toggles.
-Surprising, not broken -- flagged for whenever it's convenient, not a
-merge blocker.
-
-### PR #17 — Keep the GitHub sign-in alive when COOP severs the popup
-
-Sign-in failed on the first attempt and worked on the second, reporting
-`Sign-in could not be verified.` while the GitHub window was still open.
-`popup-channel.ts` ended the wait on `popup.closed`, which stops being
-an answer once GitHub commits a page of its own: COOP disowns the
-handle and `closed` reports true with the window still on screen, so
-the 500 ms poll declared the flow over about a second after the click.
-The reply -- a valid token, on the broadcast -- arrived minutes later
-with nothing listening. Only the **first** authorization is affected:
-afterwards GitHub answers with a bare redirect, no document is
-committed, and the handle survives. Every new user would have hit it.
-
-Evidence before any change: no `github-oauth` line in the server log
-for the failing attempt (so neither a state mismatch nor a failed token
-exchange), and a probe on the broadcast bus recording the reply arriving
-intact long after the app had given up.
-
-Two smaller faults sat behind it. Any same-origin `postMessage` set
-`sawRejected` -- and the page has plenty, the project iframe among them
--- so a wait that merely ran out was reported as a forgery, which sent
-the diagnosis after a security problem that did not exist. And a second
-click started a second flow through the same named window, leaving the
-first wait listening for a nonce the handler had already replaced.
-
-The wait now ends on an answer, on `cancel()`, or on a timeout tied to
-the handler's cookie lifetime, which both sides read from `config.mjs`
-instead of the client not knowing it at all. While it waits the chip
-reads `Signing in...` and offers `Cancel`, because nothing can tell the
-app that the user closed the popup. 83 tests in 8 suites; the new one
-was written first and failed with the exact production symptom.
-Verified live by revoking the grant to restore the first-auth path.
-Decision: D23.
+Restored `Chip` as `styled.span`, matching its pre-#16 definition,
+deliberately not `ChipButton`: the status block wraps a live message
+and its own `Cancel` button, so the wrapper must not also present as
+a control (cursor, hover, focus-visible) the way `ChipButton` does.
+tsc, prettier and 111 tests (10 suites) clean.
 
 ### PR #13 — Replace the Demo backend with a real default one (draft)
 
@@ -163,6 +89,14 @@ from the environment only. Also carries four unrelated panel changes
 **Rebased 2026-08-27** (`861876ab` -> `a890f975`), resolving the
 `client-v2/.env.example` add/add the same way: master's text kept, the
 `AGENT_*` block appended. tsc, prettier and 81 tests clean afterwards.
+
+**Rebased again 2026-08-27** (`a890f975` -> `30463841`) once #14, #16
+and #17 merged, resolving the same `.env.example` pattern against
+#16's own new block. Introduces nothing new, but inherits `master-2.0`'s
+typecheck break (see #18): `tsc` shows the same two errors here as on
+master-2.0 itself, harmless and not this branch's doing. Once #18
+merges this needs the same routine rebase as always. 111 tests (10
+suites) and prettier clean now.
 
 Review posted 2026-08-26 (approve-with-comments). Since then:
 - **M2 fixed** — `isUnavailable` now tests `defaultBackend !== true`,
@@ -192,10 +126,8 @@ Each carries where it came from and where it now belongs.
 
 ### P0 -- in the way of tonight
 
-1. **Merge #14, #16, #17.** All three are `MERGEABLE` and blocked
-   only on an approval; #15 is already in. #14 and #17 cannot be
-   self-approved. Order matters once: #16 before #17, both touch
-   `StatusChips.tsx`.
+1. **Merge #18.** `master-2.0` fails `tsc --noEmit` right now (see
+   *Tonight*); cannot be self-approved.
 2. **Decide whether the demo runs the Default backend.** If yes, #13's
    M3 (`null` body -> 500) and M4 (no `maxDuration`, streams cut) are
    demo blockers, both small; and H1 is live, not future.
@@ -266,6 +198,11 @@ Loose ends with no home yet:
 - Route platform endpoints through a same-origin `/api/rpc` proxy so a
   keyed provider URL never ships in the bundle. Only one platform
   endpoint per cluster is expressible today. (#16)
+- `toggleSettings` in `Flow.tsx` flips `settingsOpen` unconditionally
+  regardless of which control called it: open the panel from the gear
+  icon, then click the cluster chip meaning to jump to the network
+  section, and it closes instead of retargeting. Surprising, not
+  broken. (#16 review)
 
 ### Blocked, or not ours to do
 
@@ -285,6 +222,7 @@ Loose ends with no home yet:
   review, M2) -- done.
 - The pre-existing `no-useless-concat` in `Deploy.tsx` (#13 checklist)
   -- done by #12.
+- #14, #15, #16, #17 merged to `master-2.0`.
 
 ## Next
 
