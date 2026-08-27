@@ -56,3 +56,6 @@ client-v2/public/
 # Playwright test output
 client-v2/test-results/
 client-v2/playwright-report/
+
+# Scratch space for plan-execution tooling
+.superpowers/
