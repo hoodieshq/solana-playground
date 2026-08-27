@@ -52,12 +52,13 @@ on a public URL -- becomes a live exposure rather than a future one.
 ## Open pull requests
 
 Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone. #14, #15, #16, #17 merged 2026-08-27. Two
-PRs open, both `MERGEABLE`; #13 is rogaldh's.
+merges on a comment alone. #14, #15, #16, #17 merged 2026-08-27. Three
+PRs open; #13 is rogaldh's.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
 | #18 | `fix/status-chip-typecheck` | `MERGEABLE` | One approval. Cannot be self-approved. Fixes `master-2.0`'s current typecheck break -- land first |
+| #19 | `feat/lesson-paths` | needs a rebase | One approval. Cannot be self-approved. Roadmap step 1, implemented: 24 commits, 157 unit tests in 18 suites, 5 e2e. Based on `master-2.0` before #14-#17, so `Flow.tsx`, `Header.tsx` and `LeftPanel.tsx` need a hand merge |
 | #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key; inherits #18's typecheck break until #18 merges |
 
 Vercel is the only check that reports on a PR, and it is an ignored
