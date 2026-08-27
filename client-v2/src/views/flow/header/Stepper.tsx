@@ -12,8 +12,17 @@ const LABEL: Record<Stage, string> = {
   interact: "Interact",
 };
 
-const statusOf = (state: FlowState, stage: Stage): StageStatus => {
-  if (stage === "write") return state.stage === "write" ? "active" : "done";
+/**
+ * Writing has no completion signal of its own, so it is inferred: reaching a
+ * build is what puts it behind you. Going back to the Write tab to look at
+ * your code does not un-write it — deriving `done` from the selected tab alone
+ * greyed the connector every time the learner glanced at their own source.
+ */
+export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
+  if (stage === "write") {
+    if (state.buildStartedAt !== null) return "done";
+    return state.stage === "write" ? "active" : "done";
+  }
   return state[stage];
 };
 
@@ -64,10 +73,8 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Label $status={status} $selected={selected}>
-              <Full>{LABEL[stage]}</Full>
-              <Initial>{LABEL[stage][0]}</Initial>
-            </Label>
+            <Full>{LABEL[stage]}</Full>
+            <Initial>{LABEL[stage][0]}</Initial>
             {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
@@ -172,17 +179,6 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
       }
     `}
   `}
-`;
-
-const Label = styled.span<{ $status: StageStatus; $selected: boolean }>`
-  ${({ $status, $selected }) =>
-    ($selected ||
-      $status === "active" ||
-      $status === "running" ||
-      $status === "failed") &&
-    css`
-      font-weight: 700;
-    `}
 `;
 
 /**
