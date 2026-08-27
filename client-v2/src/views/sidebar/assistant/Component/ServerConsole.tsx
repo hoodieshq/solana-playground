@@ -2,6 +2,7 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgAssistant } from "../store";
+import { PgConnection } from "../../../../utils";
 import { callTool, listTools, McpUnreachableError } from "../grounding";
 import type { McpServerEntry, McpTool } from "../grounding";
 
@@ -16,16 +17,37 @@ interface ServerConsoleProps {
 /** Descriptions past this many characters start collapsed */
 const LONG_DESCRIPTION = 220;
 
+/** Argument names that mean the Solana cluster, whatever the server calls it */
+const CLUSTER_KEYS = ["cluster", "network"];
+
+/**
+ * A starting value for one argument.
+ *
+ * A cluster argument starts on the one the app is pointed at, but only when the
+ * tool's own enum admits it — `localnet` is nobody's hosted cluster.
+ */
+const startingValue = (key: string, schema: unknown, cluster: string) => {
+  const allowed = (schema as { enum?: unknown[] } | undefined)?.enum;
+
+  return CLUSTER_KEYS.includes(key.toLowerCase()) &&
+    Array.isArray(allowed) &&
+    allowed.includes(cluster)
+    ? cluster
+    : "";
+};
+
 /** A starting point for the argument box, from the tool's own schema */
-const skeletonFor = (tool: McpTool) => {
+const skeletonFor = (tool: McpTool, cluster: string) => {
   const properties = tool.inputSchema?.properties;
   if (!properties || typeof properties !== "object") return "{}";
 
-  const keys = Object.keys(properties as Record<string, unknown>);
-  if (!keys.length) return "{}";
+  const entries = Object.entries(properties as Record<string, unknown>);
+  if (!entries.length) return "{}";
 
   return JSON.stringify(
-    Object.fromEntries(keys.map((key) => [key, ""])),
+    Object.fromEntries(
+      entries.map(([key, schema]) => [key, startingValue(key, schema, cluster)])
+    ),
     null,
     2
   );
@@ -78,7 +100,28 @@ const ServerConsole = ({
     // Each tool gets its own first impression, however long the last one was
     setDescriptionOpen(false);
     const tool = tools.find((t) => t.name === name);
-    setArgs(tool ? skeletonFor(tool) : "{}");
+    // Null on a custom endpoint, which no server's enum can match anyway
+    setArgs(tool ? skeletonFor(tool, PgConnection.cluster ?? "") : "{}");
+  };
+
+  /**
+   * Hand the same call to the connected backend instead of running it here.
+   *
+   * Left in the composer rather than sent: the arguments are a skeleton the
+   * user probably wants to fill in, and the model sees the prefixed tool name
+   * `createMcpTools` gives it, not the server's own.
+   */
+  const askAssistant = () => {
+    if (!selected) return;
+
+    PgAssistant.requestPrompt(
+      `Call the \`${server.id}__${selected}\` tool with these arguments:\n\n` +
+        "```json\n" +
+        args.trim() +
+        "\n```\n\n" +
+        "Then tell me what it returned.",
+      { send: false }
+    );
   };
 
   const call = async () => {
@@ -180,6 +223,11 @@ const ServerConsole = ({
                     <Action onClick={call} disabled={busy}>
                       {busy ? "Calling…" : "Call"}
                     </Action>
+                    {PgAssistant.isConnected && (
+                      <Action onClick={askAssistant} disabled={busy}>
+                        Ask {providerName ?? "the assistant"}
+                      </Action>
+                    )}
                   </Actions>
                 </>
               )}
