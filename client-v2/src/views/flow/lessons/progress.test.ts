@@ -5,7 +5,9 @@ import {
   continueRead,
   currentStep,
   EMPTY_PROGRESS,
+  canStepBack,
   skipStep,
+  stepBack,
   stepNumber,
 } from "./progress";
 import type { LessonProgress } from "./progress";
@@ -170,6 +172,69 @@ describe("skipStep", () => {
     const next = advance(PATH, skipped, flow({ deploy: "done" }), null);
 
     expect(currentStep(PATH, next)?.id).toBe("client");
+  });
+});
+
+describe("stepBack", () => {
+  it("returns to the step behind, undoing an accidental Next step", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    expect(currentStep(PATH, skipped)?.id).toBe("deploy");
+
+    const back = stepBack(PATH, skipped);
+    expect(currentStep(PATH, back)?.id).toBe("write");
+    expect(back.skippedStepIds).toEqual([]);
+  });
+
+  it("goes back to any depth, one step at a time", () => {
+    let p = skipStep(PATH, EMPTY_PROGRESS);
+    p = skipStep(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("client");
+
+    p = stepBack(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("deploy");
+    p = stepBack(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("write");
+  });
+
+  it("reaches a verified step without un-verifying it", () => {
+    const done = advance(PATH, EMPTY_PROGRESS, flow({ build: "done" }), IDL);
+    expect(currentStep(PATH, done)?.id).toBe("deploy");
+
+    const back = stepBack(PATH, done);
+    expect(currentStep(PATH, back)?.id).toBe("write");
+    expect(back.completedStepIds).toEqual(["write"]);
+  });
+
+  it("stops at the first step", () => {
+    expect(stepBack(PATH, EMPTY_PROGRESS)).toBe(EMPTY_PROGRESS);
+    expect(canStepBack(PATH, EMPTY_PROGRESS)).toBe(false);
+  });
+
+  it("lands on the last step when the path is finished", () => {
+    const done: LessonProgress = {
+      completedStepIds: ["write", "deploy", "client"],
+      currentStepId: null,
+    };
+    expect(currentStep(PATH, stepBack(PATH, done))?.id).toBe("client");
+  });
+
+  it("does not re-skip a verified step when stepping forward off it", () => {
+    const done = advance(PATH, EMPTY_PROGRESS, flow({ build: "done" }), IDL);
+    const back = stepBack(PATH, done);
+    const forward = skipStep(PATH, back);
+
+    expect(forward.skippedStepIds).toEqual([]);
+    expect(currentStep(PATH, forward)?.id).toBe("deploy");
+  });
+
+  it("leaves the learner where they are when a build lands elsewhere", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    const back = stepBack(PATH, skipped);
+    // They are on "write"; a deploy completing must not yank them forward
+    const next = advance(PATH, back, flow({ deploy: "done" }), null);
+
+    expect(next.completedStepIds).toEqual([]);
+    expect(currentStep(PATH, next)?.id).toBe("write");
   });
 });
 

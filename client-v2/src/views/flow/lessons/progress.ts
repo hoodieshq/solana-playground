@@ -36,12 +36,23 @@ const firstUnfinished = (path: LessonPath, done: string[]) =>
   path.steps.find((s) => !done.includes(s.id)) ?? null;
 
 /**
- * @returns the step the learner is on, or `null` when the path is done
+ * The step the learner is on.
+ *
+ * `currentStepId` is authoritative when it names a real step, because going
+ * back has to be able to land on a step that is already behind them --
+ * deriving the position from `behind` alone would snap them forward again.
+ * It falls back to the first unfinished step, which covers a fresh start and
+ * records written before the pointer meant anything.
+ *
+ * @returns the step, or `null` once the path is done
  */
 export const currentStep = (
   path: LessonPath,
   progress: LessonProgress
-): LessonStep | null => firstUnfinished(path, behind(progress));
+): LessonStep | null =>
+  (progress.currentStepId
+    ? path.steps.find((s) => s.id === progress.currentStepId) ?? null
+    : null) ?? firstUnfinished(path, behind(progress));
 
 /**
  * @returns a 1-based step number, or one past the end when finished, so
@@ -91,11 +102,17 @@ export const advance = (
 
   if (completed.length === progress.completedStepIds.length) return progress;
 
+  // Only pull the learner forward when the step they were on is what just
+  // finished; a build landing while they are back reviewing must not move them
+  const wasAt = currentStep(path, progress);
+  const stayPut = wasAt && !completed.includes(wasAt.id);
+
   return {
     completedStepIds: completed,
     skippedStepIds: skipped,
-    currentStepId:
-      firstUnfinished(path, [...completed, ...skipped])?.id ?? null,
+    currentStepId: stayPut
+      ? wasAt.id
+      : firstUnfinished(path, [...completed, ...skipped])?.id ?? null,
   };
 };
 
@@ -113,14 +130,52 @@ export const skipStep = (
   const step = currentStep(path, progress);
   if (!step) return progress;
 
-  const skipped = [...(progress.skippedStepIds ?? []), step.id];
+  const known = progress.skippedStepIds ?? [];
+  // Stepping forward off a step the toolchain already proved is not a skip
+  const alreadyBehind =
+    progress.completedStepIds.includes(step.id) || known.includes(step.id);
+
+  const skipped = alreadyBehind ? known : [...known, step.id];
+  const next = path.steps[path.steps.indexOf(step) + 1] ?? null;
+
   return {
     completedStepIds: progress.completedStepIds,
     skippedStepIds: skipped,
-    currentStepId:
-      firstUnfinished(path, [...progress.completedStepIds, ...skipped])?.id ??
-      null,
+    currentStepId: next?.id ?? null,
   };
+};
+
+/**
+ * Move to the previous step, however far back the learner wants to go.
+ *
+ * Navigation only -- the record is what it was, minus the skip mark on the
+ * step being returned to, since they are working on it again rather than
+ * passing over it. A verified step keeps its verification: going back to look
+ * at it cannot un-run the build that proved it.
+ */
+export const stepBack = (
+  path: LessonPath,
+  progress: LessonProgress
+): LessonProgress => {
+  const step = currentStep(path, progress);
+  // Past the last step, back lands on it rather than nowhere
+  const index = step ? path.steps.indexOf(step) : path.steps.length;
+  if (index <= 0) return progress;
+
+  const target = path.steps[index - 1];
+  return {
+    completedStepIds: progress.completedStepIds,
+    skippedStepIds: (progress.skippedStepIds ?? []).filter(
+      (id) => id !== target.id
+    ),
+    currentStepId: target.id,
+  };
+};
+
+/** Whether there is a step behind the one the learner is on */
+export const canStepBack = (path: LessonPath, progress: LessonProgress) => {
+  const step = currentStep(path, progress);
+  return (step ? path.steps.indexOf(step) : path.steps.length) > 0;
 };
 
 /**
@@ -140,7 +195,6 @@ export const continueRead = (
   return {
     completedStepIds: completed,
     skippedStepIds: skipped,
-    currentStepId:
-      firstUnfinished(path, [...completed, ...skipped])?.id ?? null,
+    currentStepId: path.steps[path.steps.indexOf(step) + 1]?.id ?? null,
   };
 };

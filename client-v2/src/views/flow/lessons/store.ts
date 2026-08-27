@@ -7,6 +7,7 @@ import {
   currentStep,
   EMPTY_PROGRESS,
   skipStep,
+  stepBack,
 } from "./progress";
 import type { LessonProgress } from "./progress";
 import { getLessonPath } from "./registry";
@@ -63,7 +64,8 @@ export type LessonEvent =
     }
   | { type: "evaluate"; flow: FlowState; idl: Idl | null }
   | { type: "continue-read"; buildStartedAt: number | null }
-  | { type: "skip-step"; buildStartedAt: number | null };
+  | { type: "skip-step"; buildStartedAt: number | null }
+  | { type: "step-back" };
 
 /** Pure reducer, so the ratchet's rules are testable without a browser. */
 export const reduceLesson = (
@@ -134,6 +136,15 @@ export const reduceLesson = (
         attemptBaseline: ev.buildStartedAt,
       };
     }
+
+    case "step-back": {
+      if (!state.path) return state;
+      const progress = stepBack(state.path, state.progress);
+      if (progress === state.progress) return state;
+      // `attempted` is deliberately untouched: going back to a step you
+      // already built for should not take your hint ladder away again
+      return { ...state, progress };
+    }
   }
 };
 
@@ -183,6 +194,11 @@ export class PgLesson {
       type: "skip-step",
       buildStartedAt: PgFlow.state.buildStartedAt,
     });
+  }
+
+  /** Go back one step — see `stepBack`. */
+  static stepBack() {
+    PgLesson._dispatch({ type: "step-back" });
   }
 
   /** Subscribe to client events. Call once from the Flow layout. */
@@ -245,8 +261,14 @@ export class PgLesson {
 
     PgLesson._state = next;
 
-    // A fresh step gets a fresh ladder.
-    if (PgLesson._stepId(next) !== before) PgLessonHints.reset();
+    // A fresh step gets a fresh ladder -- but the counts are keyed by step id
+    // and stepping back returns to a step the learner already spent rungs on,
+    // so clearing them here would make walking back and forth a hint farm.
+    // `load` still resets on a workspace change, which is what a genuinely
+    // fresh ladder means.
+    if (ev.type !== "step-back" && PgLesson._stepId(next) !== before) {
+      PgLessonHints.reset();
+    }
 
     // The lesson's own name is captured now, at the moment the write is
     // queued, rather than read back out of `PgLesson._state` inside

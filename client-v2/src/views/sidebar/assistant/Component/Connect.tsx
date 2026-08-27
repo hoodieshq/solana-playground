@@ -22,8 +22,8 @@ const CAPABILITIES = [
   {
     tag: "READS",
     text:
-      "the tab you are looking at, every file in the project, the last " +
-      "compiler error",
+      "the tab you are looking at, every file in the project, your cluster, " +
+      "wallet status and program id, the last failed build's compiler output",
   },
   {
     tag: "WRITES",
@@ -33,6 +33,12 @@ const CAPABILITIES = [
   {
     tag: "KNOWS",
     text: "this project's roadmap, decisions and current status",
+  },
+  {
+    tag: "KNOWS",
+    text:
+      "where you are in a lesson — the step, its objective and whether it " +
+      "is proven yet",
   },
 ];
 
@@ -359,9 +365,10 @@ const Connect = () => {
 
       {!current && (
         <Capabilities>
-          {CAPABILITIES.map(({ tag, text }) => (
-            <Capability key={tag}>
-              <Tag>{tag}</Tag>
+          {CAPABILITIES.map(({ tag, text }, i) => (
+            <Capability key={text}>
+              {/* One tag per run of rows sharing it, so it reads as a group */}
+              <Tag>{tag === CAPABILITIES[i - 1]?.tag ? "" : tag}</Tag>
               <span>{text}</span>
             </Capability>
           ))}

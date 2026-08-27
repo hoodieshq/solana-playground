@@ -7,7 +7,7 @@ registerPaths(
   TUTORIALS.map((t) => t.name)
 );
 
-export { currentStep } from "./progress";
+export { canStepBack, currentStep } from "./progress";
 export { getLessonPath } from "./registry";
 export { INITIAL_LESSON_STATE, PgLesson } from "./store";
 export type { LessonState } from "./store";
