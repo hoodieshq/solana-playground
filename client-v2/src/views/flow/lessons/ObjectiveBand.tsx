@@ -62,33 +62,35 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
         <Objective>{described.objective}</Objective>
         <VerifiedBy>{described.verifiedBy}</VerifiedBy>
       </Text>
-      <Back
-        type="button"
-        disabled={!canGoBack}
-        aria-label="Previous step"
-        title={
-          canGoBack
-            ? "Go back a step. Nothing already proved is undone."
-            : "You are on the first step"
-        }
-        onClick={() => PgLesson.stepBack()}
-      >
-        &#8592;
-      </Back>
-      {step.readPage && (
-        <Secondary type="button" onClick={onRead}>
-          Read the page
-        </Secondary>
-      )}
-      {isRead ? (
-        <Primary type="button" onClick={() => PgLesson.continueRead()}>
-          Continue
-        </Primary>
-      ) : (
-        <Primary type="button" onClick={askForHelp}>
-          {assistantLabel(rung, state.attempted)}
-        </Primary>
-      )}
+      <Actions>
+        <Back
+          type="button"
+          disabled={!canGoBack}
+          aria-label="Previous step"
+          title={
+            canGoBack
+              ? "Go back a step. Nothing already proved is undone."
+              : "You are on the first step"
+          }
+          onClick={() => PgLesson.stepBack()}
+        >
+          &#8592;
+        </Back>
+        {step.readPage && (
+          <Secondary type="button" onClick={onRead}>
+            Read the page
+          </Secondary>
+        )}
+        {isRead ? (
+          <Primary type="button" onClick={() => PgLesson.continueRead()}>
+            Continue
+          </Primary>
+        ) : (
+          <Primary type="button" onClick={askForHelp}>
+            {assistantLabel(rung, state.attempted)}
+          </Primary>
+        )}
+      </Actions>
     </Wrapper>
   );
 };
@@ -107,6 +109,15 @@ const Wrapper = styled.div`
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
   `}
+`;
+
+// One wrapping unit: narrow enough and the whole group drops under the text
+// together, rather than the band shedding one button at a time
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
 `;
 
 // Joins the actions on the right so the objective text stays flush left, but
