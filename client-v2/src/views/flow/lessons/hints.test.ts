@@ -61,4 +61,43 @@ describe("PgLessonHints", () => {
     expect(PgLessonHints.rung(step.id)).toBe(2);
     expect(PgLessonHints.rung(other.id)).toBe(0);
   });
+
+  describe("onDidChange", () => {
+    it("calls the subscriber once immediately, from the current count", () => {
+      const cb = jest.fn();
+      PgLessonHints.onDidChange(cb);
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("notifies on every climbed rung", () => {
+      const cb = jest.fn();
+      PgLessonHints.onDidChange(cb);
+      cb.mockClear();
+
+      PgLessonHints.nextPrompt(step, true);
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      PgLessonHints.nextPrompt(step, true);
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+
+    it("notifies on reset", () => {
+      const cb = jest.fn();
+      PgLessonHints.onDidChange(cb);
+      cb.mockClear();
+
+      PgLessonHints.reset();
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops notifying once disposed", () => {
+      const cb = jest.fn();
+      const { dispose } = PgLessonHints.onDidChange(cb);
+      cb.mockClear();
+
+      dispose();
+      PgLessonHints.nextPrompt(step, true);
+      expect(cb).not.toHaveBeenCalled();
+    });
+  });
 });

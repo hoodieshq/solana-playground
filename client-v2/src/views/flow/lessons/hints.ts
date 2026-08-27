@@ -1,4 +1,5 @@
 import type { LessonStep } from "./types";
+import type { Disposable } from "../../../utils";
 
 /** Question -> locate -> propose */
 export const RUNG_COUNT = 3;
@@ -31,6 +32,7 @@ export class PgLessonHints {
 
     const rung = used + 1;
     PgLessonHints._rungs.set(step.id, rung);
+    PgLessonHints._emit();
 
     return [
       `Hint ${rung} of ${RUNG_COUNT}.`,
@@ -48,7 +50,29 @@ export class PgLessonHints {
   /** Clear every count. Called when the workspace changes. */
   static reset() {
     PgLessonHints._rungs.clear();
+    PgLessonHints._emit();
+  }
+
+  /**
+   * The counts live outside React's data flow (a module-static map, not
+   * `LessonState`), so a rung display has to subscribe here to stay
+   * live -- reading `rung()` during render without this would freeze on
+   * whatever a later, unrelated render last saw.
+   *
+   * @param cb runs whenever a rung changes, and once immediately on
+   * subscribe so a fresh subscriber renders from the current count
+   * @returns a disposable to clear the event
+   */
+  static onDidChange(cb: () => void): Disposable {
+    PgLessonHints._listeners.add(cb);
+    cb();
+    return { dispose: () => PgLessonHints._listeners.delete(cb) };
+  }
+
+  private static _emit() {
+    for (const cb of PgLessonHints._listeners) cb();
   }
 
   private static readonly _rungs = new Map<string, number>();
+  private static readonly _listeners = new Set<() => void>();
 }

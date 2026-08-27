@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
@@ -22,9 +23,26 @@ interface ObjectiveBandProps {
  * are aiming at.
  */
 const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
+  // The rung count lives outside React's data flow (a module-static map
+  // on `PgLessonHints`, not `LessonState`), so reading it during render
+  // needs this subscription to stay live -- without it, the label below
+  // would freeze on whatever a later, unrelated render (driven only by
+  // `PgFlow.onDidChange`, i.e. builds) last saw, even as clicks keep
+  // climbing the ladder underneath it.
+  const [, forceRender] = useState(0);
+  useEffect(() => {
+    const { dispose } = PgLessonHints.onDidChange(() =>
+      forceRender((n) => n + 1)
+    );
+    return dispose;
+  }, []);
+
   const described = describeStep(state);
   if (!described || !state.path) return null;
 
+  // `described` truthy only narrows `describeStep`'s own return value --
+  // it says nothing to TypeScript about this separately computed call,
+  // so `step` still needs its own null check before it can be used below.
   const step = currentStep(state.path, state.progress);
   if (!step) return null;
 
