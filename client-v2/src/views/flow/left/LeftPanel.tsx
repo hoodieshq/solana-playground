@@ -267,7 +267,9 @@ const Body = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  // File names are never shortened, so a name wider than the panel scrolls
+  // here rather than being clipped
+  overflow-x: auto;
 `;
 
 // Quiet, full-width footer button pinned below the scrollable tree (a

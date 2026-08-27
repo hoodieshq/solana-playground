@@ -442,6 +442,21 @@ const RootWrapper = styled.div`
         theme.colors.default.primary + theme.default.transparency.low
       };
     }
+
+    /*
+     * Nothing in a row gives. Text will not compress below its own width, so
+     * a flex row with a long name takes the slack out of the indent and the
+     * chevron instead -- both collapse to zero and a deeply nested folder
+     * loses the control that expands it. Names are never shortened either;
+     * a row wider than the panel scrolls it rather than hiding characters.
+     */
+    & > * {
+      flex-shrink: 0;
+    }
+
+    & > span {
+      white-space: nowrap;
+    }
 `}
 `;
 
