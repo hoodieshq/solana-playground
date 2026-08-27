@@ -20,6 +20,16 @@ export const GITHUB_USER_URL = "https://api.github.com/user";
  *  as `redirect_uri`, and GitHub matches the two. */
 export const OAUTH_ROUTE = "/api/github-oauth";
 
+/**
+ * How long one flow may take, in seconds.
+ *
+ * It bounds two things that have to agree: the lifetime of the cookies the
+ * handler pins, and how long the browser waits for the popup to answer. The
+ * wait outliving the cookies would leave the user watching a spinner for a
+ * flow the server had already forgotten.
+ */
+export const FLOW_MAX_AGE_SECONDS = 600;
+
 /** Discriminates our messages from anything else on the page */
 export const MESSAGE_TYPE = "pg-github-auth";
 

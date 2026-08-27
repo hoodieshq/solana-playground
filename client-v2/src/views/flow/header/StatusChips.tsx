@@ -35,6 +35,7 @@ const StatusChips: FC<StatusChipsProps> = ({
   );
   useRenderOnChange(PgGithubAuth.onDidChange);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
   const github = PgGithubAuth.user;
 
   const [profileOpen, setProfileOpen] = useState(false);
@@ -71,10 +72,13 @@ const StatusChips: FC<StatusChipsProps> = ({
 
   const signIn = async () => {
     setAuthError(null);
+    setSigningIn(true);
     try {
       await PgGithubAuth.signIn();
     } catch (e) {
       setAuthError((e as Error).message);
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -175,6 +179,17 @@ const StatusChips: FC<StatusChipsProps> = ({
             </Popover>
           )}
         </ProfileWrapper>
+      ) : signingIn ? (
+        // The popup cannot be asked whether it is still open once GitHub has
+        // taken it over, so this is the only way out of the wait short of the
+        // ten-minute timeout -- see `popup-channel.ts`.
+        <Chip role="status">
+          <GithubMark />
+          <span>Signing in...</span>
+          <CancelSignIn type="button" onClick={PgGithubAuth.cancelSignIn}>
+            Cancel
+          </CancelSignIn>
+        </Chip>
       ) : (
         <GithubChip
           ref={profileChipRef}
@@ -476,6 +491,27 @@ const AuthError = styled.span`
     max-width: 16rem;
     overflow: hidden;
     text-overflow: ellipsis;
+  `}
+`;
+
+const CancelSignIn = styled.button`
+  ${({ theme }) => css`
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.small};
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
 `;
 
