@@ -40,7 +40,7 @@ export const INITIAL_LESSON_STATE: LessonState = {
 export type LessonEvent =
   | { type: "load"; path: LessonPath | null; progress?: LessonProgress }
   | { type: "evaluate"; flow: FlowState; idl: Idl | null }
-  | { type: "continue-read" };
+  | { type: "continue-read"; buildStartedAt: number | null };
 
 /** Pure reducer, so the ratchet's rules are testable without a browser. */
 export const reduceLesson = (
@@ -49,6 +49,11 @@ export const reduceLesson = (
 ): LessonState => {
   switch (ev.type) {
     case "load":
+      // `attemptBaseline: null` is safe here for a reason this branch
+      // does not enforce itself: entering a lesson is a workspace
+      // change, and `PgFlow` reduces `workspace-change` to
+      // `INITIAL_FLOW_STATE`, so `buildStartedAt` is already `null` by
+      // the time the next `evaluate` runs.
       return ev.path
         ? {
             path: ev.path,
@@ -86,7 +91,12 @@ export const reduceLesson = (
       if (!state.path) return state;
       const progress = continueRead(state.path, state.progress);
       if (progress === state.progress) return state;
-      return { ...state, progress, attempted: false, attemptBaseline: null };
+      return {
+        ...state,
+        progress,
+        attempted: false,
+        attemptBaseline: ev.buildStartedAt,
+      };
     }
   }
 };
@@ -117,7 +127,10 @@ export class PgLesson {
 
   /** The manual advance, offered only for a `read` step. */
   static continueRead() {
-    PgLesson._dispatch({ type: "continue-read" });
+    PgLesson._dispatch({
+      type: "continue-read",
+      buildStartedAt: PgFlow.state.buildStartedAt,
+    });
   }
 
   /** Subscribe to client events. Call once from the Flow layout. */

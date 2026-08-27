@@ -42,6 +42,31 @@ const IDL = {
   instructions: [{ name: "hello", accounts: [], args: [] }],
 } as Idl;
 
+// Mirrors the real Hello Anchor path's shape: a `read` step immediately
+// followed by a build-verified step, the only sequence `continue-read`
+// can transition into a build-gated step from.
+const READ_THEN_BUILD_PATH: LessonPath = {
+  tutorial: "Hello Anchor",
+  steps: [
+    {
+      id: "intro",
+      objective: "Read the overview",
+      verifiedBy: "you have read it",
+      verify: { kind: "read" },
+      target: "write",
+      hints,
+    },
+    {
+      id: "build-it",
+      objective: "Define hello",
+      verifiedBy: "the interface shows hello",
+      verify: { kind: "idl", instruction: "hello" },
+      target: "build",
+      hints,
+    },
+  ],
+};
+
 describe("reduceLesson", () => {
   const loaded = { ...INITIAL_LESSON_STATE, path: PATH };
 
@@ -92,6 +117,30 @@ describe("reduceLesson", () => {
     expect(next.progress.completedStepIds).toEqual(["one"]);
     expect(next.attempted).toBe(false);
     expect(next.attemptBaseline).toBe(1000);
+  });
+
+  it("carries the live build baseline through continue-read", () => {
+    // The learner already built once earlier in the session
+    // (`buildStartedAt: 1000`), then lands on a `read` step and clicks
+    // "Continue reading" into the build-verified step that follows.
+    const onReadStep = {
+      ...loaded,
+      path: READ_THEN_BUILD_PATH,
+      progress: { completedStepIds: [], currentStepId: "intro" },
+    };
+    const afterContinue = reduceLesson(onReadStep, {
+      type: "continue-read",
+      buildStartedAt: 1000,
+    });
+
+    // No new build has happened -- the very next `evaluate` sees the
+    // same `buildStartedAt` the flow already had.
+    const next = reduceLesson(afterContinue, {
+      type: "evaluate",
+      flow: { ...INITIAL_FLOW_STATE, buildStartedAt: 1000 },
+      idl: null,
+    });
+    expect(next.attempted).toBe(false);
   });
 
   it("resets everything when the workspace stops being a lesson", () => {
