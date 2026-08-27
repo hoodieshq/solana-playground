@@ -8,3 +8,5 @@ registerPaths(
 );
 
 export { getLessonPath } from "./registry";
+export { INITIAL_LESSON_STATE, PgLesson } from "./store";
+export type { LessonState } from "./store";
