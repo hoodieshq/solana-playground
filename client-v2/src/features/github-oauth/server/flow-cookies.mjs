@@ -5,12 +5,11 @@
 // lifetime and one set of attributes, so they are issued, read and expired
 // together rather than being spelled out at each call site.
 
+import { FLOW_MAX_AGE_SECONDS } from "../config.mjs";
+
 const STATE_COOKIE = "pg_gh_oauth_state";
 const VERIFIER_COOKIE = "pg_gh_oauth_verifier";
 const NONCE_COOKIE = "pg_gh_oauth_nonce";
-
-/** Long enough for a consent screen, short enough to be worthless if leaked */
-const MAX_AGE_SECONDS = 600;
 
 /**
  * `HttpOnly` is what makes the nonce a binding: same-origin script cannot read
@@ -26,9 +25,9 @@ export const isFlowNonce = (value) =>
   typeof value === "string" && /^[a-f0-9]{32}$/.test(value);
 
 export const issueFlowCookies = ({ state, verifier, nonce, proto }) => [
-  cookie(STATE_COOKIE, state, MAX_AGE_SECONDS, proto),
-  cookie(VERIFIER_COOKIE, verifier, MAX_AGE_SECONDS, proto),
-  cookie(NONCE_COOKIE, nonce, MAX_AGE_SECONDS, proto),
+  cookie(STATE_COOKIE, state, FLOW_MAX_AGE_SECONDS, proto),
+  cookie(VERIFIER_COOKIE, verifier, FLOW_MAX_AGE_SECONDS, proto),
+  cookie(NONCE_COOKIE, nonce, FLOW_MAX_AGE_SECONDS, proto),
 ];
 
 /** Expire all three on first use, so nothing here can be replayed */

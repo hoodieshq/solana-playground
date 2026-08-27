@@ -1,10 +1,12 @@
 import {
   CHANNEL_NAME,
+  FLOW_MAX_AGE_SECONDS,
   GITHUB_USER_URL,
   MESSAGE_TYPE,
   OAUTH_ROUTE,
 } from "../config.mjs";
 import { openPopupChannel } from "../lib/popup-channel";
+import type { PopupChannel, PopupChannelFailure } from "../lib/popup-channel";
 import type { Disposable } from "../../../utils/types";
 
 export interface GithubUser {
@@ -26,6 +28,18 @@ const isAuthMessage = (data: unknown): data is AuthMessage =>
   !!data &&
   typeof data === "object" &&
   (data as Record<string, unknown>).type === MESSAGE_TYPE;
+
+/**
+ * What an unanswered wait means to the person who clicked.
+ *
+ * The three stay apart all the way to the wording: telling someone they
+ * cancelled a sign-in they completed sends them to retry the wrong thing.
+ */
+const FAILURE_MESSAGE: Record<PopupChannelFailure, string> = {
+  cancelled: "Sign-in was cancelled.",
+  rejected: "Sign-in could not be verified. Try again.",
+  expired: "Sign-in did not finish. Try again.",
+};
 
 /** 128 bits of hex - matches the `isFlowNonce` shape the handler validates */
 const randomNonce = () =>
@@ -55,9 +69,40 @@ export class GithubAuth {
     return GithubAuth._state?.token ?? null;
   }
 
+  /** Whether a sign-in is waiting on the popup right now */
+  static get isSigningIn(): boolean {
+    return GithubAuth._inFlight !== null;
+  }
+
   /**
-   * Run the OAuth popup flow.
+   * Run the OAuth popup flow, or join the one already running.
    *
+   * A second click must not open a second flow: `window.open` reuses the
+   * window by name, so the first wait would be left listening for a nonce the
+   * handler has already replaced, and would read the reply as a forgery.
+   */
+  static signIn(): Promise<void> {
+    if (GithubAuth._inFlight) return GithubAuth._inFlight;
+    const flow = GithubAuth._signIn().finally(() => {
+      GithubAuth._inFlight = null;
+      GithubAuth._channel = null;
+    });
+    GithubAuth._inFlight = flow;
+    return flow;
+  }
+
+  /**
+   * Give up on the running flow.
+   *
+   * The popup handle is disowned the moment GitHub commits a page of its own,
+   * so an explicit request is the only cancellation the app can observe - see
+   * the note at the top of `popup-channel.ts`.
+   */
+  static cancelSignIn() {
+    GithubAuth._channel?.cancel();
+  }
+
+  /**
    * Opens `/api/github-oauth?action=start`; the callback page posts the
    * result to `window.opener`, which is addressed and pinned by
    * targetOrigin, and falls back to a same-origin `BroadcastChannel` when
@@ -65,7 +110,7 @@ export class GithubAuth {
    * from our own origin and from the popup itself; the nonce below is what
    * guards the broadcast path, which no window binding can reach.
    */
-  static async signIn(): Promise<void> {
+  private static async _signIn(): Promise<void> {
     // A BroadcastChannel reaches every same-origin context, so shape alone
     // cannot tell our popup's reply from anything else on the page. The
     // handler pins this in an HttpOnly cookie and echoes it back; script here
@@ -77,19 +122,18 @@ export class GithubAuth {
       features: "width=980,height=720",
       broadcastName: CHANNEL_NAME,
       accept: (data) => isAuthMessage(data) && data.nonce === flowNonce,
+      // Only our own message shape may count as a forgery; the page posts
+      // plenty else, the project iframe included
+      claims: isAuthMessage,
+      // Waiting past the handler's cookies would leave the user on a flow the
+      // server has already forgotten
+      timeoutMs: FLOW_MAX_AGE_SECONDS * 1000,
     });
     if (!channel) throw new Error("Allow popups for this site to sign in.");
+    GithubAuth._channel = channel;
 
     const receipt = await channel.receive();
-    if (!receipt.delivered) {
-      // A rejected reply is not a cancellation: telling the user they cancelled
-      // a sign-in they completed sends them to retry the wrong thing
-      throw new Error(
-        receipt.reason === "rejected"
-          ? "Sign-in could not be verified. Try again."
-          : "Sign-in was cancelled."
-      );
-    }
+    if (!receipt.delivered) throw new Error(FAILURE_MESSAGE[receipt.reason]);
 
     const message = receipt.data;
     if (!isAuthMessage(message)) throw new Error("Sign-in was cancelled.");
@@ -127,6 +171,8 @@ export class GithubAuth {
   /** Test-only: back to the signed-out state without notifying */
   static _reset() {
     GithubAuth._state = null;
+    GithubAuth._channel = null;
+    GithubAuth._inFlight = null;
     GithubAuth._listeners.clear();
   }
 
@@ -175,6 +221,8 @@ export class GithubAuth {
   }
 
   private static _state: { token: string; user: GithubUser } | null = null;
+  private static _channel: PopupChannel | null = null;
+  private static _inFlight: Promise<void> | null = null;
   private static _listeners: Set<() => void> = new Set();
 }
 
