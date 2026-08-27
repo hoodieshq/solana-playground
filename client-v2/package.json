@@ -88,7 +88,7 @@
     "node": "^22.20.0"
   },
   "scripts": {
-    "setup": "yarn build-wasm && yarn generate",
+    "setup": "yarn build-wasm && yarn install && yarn generate",
     "start": "yarn generate && craco start",
     "dev": "yarn generate-fast && craco start",
     "dev-cra": "BROWSER=none craco start",
