@@ -5,6 +5,7 @@ import {
   continueRead,
   currentStep,
   EMPTY_PROGRESS,
+  skipStep,
   stepNumber,
 } from "./progress";
 import type { LessonProgress } from "./progress";
@@ -124,6 +125,51 @@ describe("advance", () => {
   it("returns the same object when nothing changed, so renders are cheap", () => {
     const done = advance(PATH, EMPTY_PROGRESS, flow({ build: "done" }), IDL);
     expect(advance(PATH, done, flow({ build: "done" }), IDL)).toBe(done);
+  });
+});
+
+describe("skipStep", () => {
+  it("moves to the next step without claiming the skipped one was verified", () => {
+    const next = skipStep(PATH, EMPTY_PROGRESS);
+    expect(next.completedStepIds).toEqual([]);
+    expect(next.skippedStepIds).toEqual(["write"]);
+    expect(next.currentStepId).toBe("deploy");
+    expect(currentStep(PATH, next)?.id).toBe("deploy");
+  });
+
+  it("counts a skipped step as behind the learner for numbering", () => {
+    expect(stepNumber(PATH, skipStep(PATH, EMPTY_PROGRESS))).toBe(2);
+  });
+
+  it("does nothing once the path is behind the learner", () => {
+    const done: LessonProgress = {
+      completedStepIds: ["write", "deploy", "client"],
+      currentStepId: null,
+    };
+    expect(skipStep(PATH, done)).toBe(done);
+  });
+
+  it("promotes a skipped step to completed once the toolchain proves it", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    const next = advance(PATH, skipped, flow({ build: "done" }), IDL);
+
+    expect(next.completedStepIds).toContain("write");
+    expect(next.skippedStepIds).toEqual([]);
+  });
+
+  it("leaves a skipped step skipped while its condition stays unmet", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    const next = advance(PATH, skipped, flow({ build: "failed" }), null);
+
+    expect(next.completedStepIds).not.toContain("write");
+    expect(next.skippedStepIds).toEqual(["write"]);
+  });
+
+  it("does not re-offer a skipped step as current after a later advance", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    const next = advance(PATH, skipped, flow({ deploy: "done" }), null);
+
+    expect(currentStep(PATH, next)?.id).toBe("client");
   });
 });
 

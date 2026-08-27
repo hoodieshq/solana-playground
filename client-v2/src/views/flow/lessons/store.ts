@@ -1,7 +1,13 @@
 import type { Idl } from "@coral-xyz/anchor";
 
 import { PgLessonHints } from "./hints";
-import { advance, continueRead, currentStep, EMPTY_PROGRESS } from "./progress";
+import {
+  advance,
+  continueRead,
+  currentStep,
+  EMPTY_PROGRESS,
+  skipStep,
+} from "./progress";
 import type { LessonProgress } from "./progress";
 import { getLessonPath } from "./registry";
 import type { LessonPath } from "./types";
@@ -56,7 +62,8 @@ export type LessonEvent =
       loadFailed?: boolean;
     }
   | { type: "evaluate"; flow: FlowState; idl: Idl | null }
-  | { type: "continue-read"; buildStartedAt: number | null };
+  | { type: "continue-read"; buildStartedAt: number | null }
+  | { type: "skip-step"; buildStartedAt: number | null };
 
 /** Pure reducer, so the ratchet's rules are testable without a browser. */
 export const reduceLesson = (
@@ -115,6 +122,18 @@ export const reduceLesson = (
         attemptBaseline: ev.buildStartedAt,
       };
     }
+
+    case "skip-step": {
+      if (!state.path) return state;
+      const progress = skipStep(state.path, state.progress);
+      if (progress === state.progress) return state;
+      return {
+        ...state,
+        progress,
+        attempted: false,
+        attemptBaseline: ev.buildStartedAt,
+      };
+    }
   }
 };
 
@@ -154,6 +173,14 @@ export class PgLesson {
   static continueRead() {
     PgLesson._dispatch({
       type: "continue-read",
+      buildStartedAt: PgFlow.state.buildStartedAt,
+    });
+  }
+
+  /** Move past the current step unproven — see `skipStep`. */
+  static skipStep() {
+    PgLesson._dispatch({
+      type: "skip-step",
       buildStartedAt: PgFlow.state.buildStartedAt,
     });
   }

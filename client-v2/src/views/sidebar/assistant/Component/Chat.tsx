@@ -194,11 +194,17 @@ const Chat = () => {
   // only there: an older message describes code that has since moved on, and a
   // turn ending in an approval card has already produced its patch.
   const lastItem = items[items.length - 1];
+  const wroteThisTurn = turnProducedApproval(items);
   const changeableId =
-    !busy &&
-    lastItem?.kind === "assistant" &&
-    lastItem.text &&
-    !turnProducedApproval(items)
+    !busy && lastItem?.kind === "assistant" && lastItem.text && !wroteThisTurn
+      ? lastItem.id
+      : null;
+
+  // Once the assistant has changed something, the next useful move is the step
+  // rather than another edit. Same action as the rail's, and same honesty: it
+  // records a skip, since nothing here proved the step.
+  const continuableId =
+    !busy && lesson && wroteThisTurn && lastItem?.kind === "assistant"
       ? lastItem.id
       : null;
 
@@ -241,6 +247,15 @@ const Chat = () => {
               // Inside a lesson the same click skips the hint ladder, so it is
               // offered as a way out rather than as the obvious next step
               makeChangeIsLastResort={!!lesson}
+              onContinueStep={
+                item.id === continuableId
+                  ? () => PgLesson.skipStep()
+                  : undefined
+              }
+              continueStepTitle={
+                lesson &&
+                `This step is not verified yet — ${lesson.verifiedBy}. Building is what proves it; moving on now is recorded as a skip.`
+              }
             />
           ))
         )}

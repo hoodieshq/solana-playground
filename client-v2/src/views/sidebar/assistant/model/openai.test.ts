@@ -75,8 +75,9 @@ const provider = () =>
 
 const errors = () =>
   PgAssistant.items
-    .filter((item): item is Extract<ChatItem, { kind: "error" }> =>
-      item.kind === "error"
+    .filter(
+      (item): item is Extract<ChatItem, { kind: "error" }> =>
+        item.kind === "error"
     )
     .map((item) => item.text);
 

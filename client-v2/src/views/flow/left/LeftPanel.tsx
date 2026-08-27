@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
-import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
+import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
@@ -65,6 +65,9 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
 
   const inLesson = !!lesson.path;
   const showSteps = inLesson && tab === "steps";
+  const activeStep = lesson.path
+    ? currentStep(lesson.path, lesson.progress)
+    : null;
 
   return (
     <Wrapper>
@@ -119,6 +122,17 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
               </>
             )}
           </Body>
+          {/* Pinned below the rail for the same reason as the files footer:
+              a way out that scrolls away is not a way out. */}
+          {showSteps && activeStep && (
+            <SkipFooter
+              type="button"
+              title={`Nothing has proved this step yet — ${activeStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
+              onClick={() => PgLesson.skipStep()}
+            >
+              Next step
+            </SkipFooter>
+          )}
           {!showSteps && (
             <Footer type="button" onClick={createItem}>
               + New file
@@ -283,6 +297,16 @@ const Footer = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -2px;
     }
+  `}
+`;
+
+// The files footer's shape, dimmed further: skipping is the way out of a
+// step, never the way through it
+const SkipFooter = styled(Footer)`
+  ${({ theme }) => css`
+    justify-content: center;
+    font-size: ${theme.font.other.size.small};
+    text-decoration: underline;
   `}
 `;
 

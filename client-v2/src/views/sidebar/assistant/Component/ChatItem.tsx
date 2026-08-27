@@ -17,7 +17,19 @@ const ChatItem: FC<{
   onMakeChange?: () => void;
   /** Render it as a quiet way out rather than the obvious next step */
   makeChangeIsLastResort?: boolean;
-}> = ({ item, onMakeChange, makeChangeIsLastResort }) => {
+  /**
+   * Offered after the assistant has changed something mid-lesson: move to the
+   * next step. Recorded as a skip — nothing in the chat proves a step.
+   */
+  onContinueStep?: () => void;
+  continueStepTitle?: string | false | null;
+}> = ({
+  item,
+  onMakeChange,
+  makeChangeIsLastResort,
+  onContinueStep,
+  continueStepTitle,
+}) => {
   switch (item.kind) {
     case "user":
       return (
@@ -46,6 +58,15 @@ const ChatItem: FC<{
               onClick={onMakeChange}
             >
               {makeChangeIsLastResort ? "Write it for me" : "Make this change"}
+            </MakeChange>
+          )}
+          {onContinueStep && (
+            <MakeChange
+              $quiet
+              title={continueStepTitle || undefined}
+              onClick={onContinueStep}
+            >
+              Next step
             </MakeChange>
           )}
         </Turn>

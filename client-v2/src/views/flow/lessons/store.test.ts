@@ -143,6 +143,18 @@ describe("reduceLesson", () => {
     expect(next.attempted).toBe(false);
   });
 
+  it("moves past a skipped step without marking it completed", () => {
+    const next = reduceLesson(loaded, {
+      type: "skip-step",
+      buildStartedAt: 1000,
+    });
+
+    expect(next.progress.completedStepIds).toEqual([]);
+    expect(next.progress.skippedStepIds).toEqual(["one"]);
+    expect(next.attempted).toBe(false);
+    expect(next.attemptBaseline).toBe(1000);
+  });
+
   it("resets everything when the workspace stops being a lesson", () => {
     const dirty = {
       path: PATH,

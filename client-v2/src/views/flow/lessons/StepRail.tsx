@@ -25,19 +25,36 @@ const StepRail: FC<StepRailProps> = ({ state }) => {
     <List>
       {path.steps.map((step) => {
         const done = progress.completedStepIds.includes(step.id);
+        const skipped = !!progress.skippedStepIds?.includes(step.id);
         const isCurrent = step.id === active?.id;
-        const status = done ? "done" : isCurrent ? "current" : "locked";
+        const status = done
+          ? "done"
+          : skipped
+          ? "skipped"
+          : isCurrent
+          ? "current"
+          : "locked";
 
         return (
           <Row key={step.id} $status={status}>
             <Mark $status={status} aria-hidden>
-              {done ? <>&#10003;</> : isCurrent ? <>&#9679;</> : <>&#9675;</>}
+              {done ? (
+                <>&#10003;</>
+              ) : skipped ? (
+                <>&#8594;</>
+              ) : isCurrent ? (
+                <>&#9679;</>
+              ) : (
+                <>&#9675;</>
+              )}
             </Mark>
             <Text>
               <Objective>{step.objective}</Objective>
               <Meta>
                 {done
                   ? step.verifiedBy
+                  : skipped
+                  ? "skipped — not verified"
                   : isCurrent
                   ? `aiming at ${step.target}`
                   : "locked"}
@@ -52,7 +69,7 @@ const StepRail: FC<StepRailProps> = ({ state }) => {
 
 export default StepRail;
 
-type Status = "done" | "current" | "locked";
+type Status = "done" | "skipped" | "current" | "locked";
 
 const List = styled.div`
   flex: 1;
@@ -76,7 +93,7 @@ const Row = styled.div<{ $status: Status }>`
     background: ${$status === "current"
       ? theme.colors.default.bgSecondary
       : "transparent"};
-    opacity: ${$status === "locked" ? 0.5 : 1};
+    opacity: ${rowOpacity($status)};
   `}
 `;
 
@@ -89,6 +106,10 @@ const Mark = styled.span<{ $status: Status }>`
       : theme.colors.default.textSecondary};
   `}
 `;
+
+// A skipped row reads as passed-over, never as finished
+const rowOpacity = (status: Status) =>
+  status === "locked" ? 0.5 : status === "skipped" ? 0.7 : 1;
 
 const Text = styled.span`
   min-width: 0;
