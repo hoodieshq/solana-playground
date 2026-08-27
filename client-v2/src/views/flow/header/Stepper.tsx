@@ -64,7 +64,10 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Label $status={status}>{LABEL[stage]}</Label>
+            <Label $status={status}>
+              <Full>{LABEL[stage]}</Full>
+              <Initial>{LABEL[stage][0]}</Initial>
+            </Label>
             {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
@@ -177,6 +180,28 @@ const Label = styled.span<{ $status: StageStatus }>`
     css`
       font-weight: 700;
     `}
+`;
+
+/**
+ * Below `STEPPER_COMPACT_AT` the four labels collapse to their initials, which
+ * is what stops the status chips overlapping the stepper on a narrow window.
+ * The full name stays in each button's `aria-label` either way, so nothing is
+ * lost to a screen reader.
+ */
+const STEPPER_COMPACT_AT = "80rem";
+
+const Full = styled.span`
+  @media (max-width: ${STEPPER_COMPACT_AT}) {
+    display: none;
+  }
+`;
+
+const Initial = styled.span`
+  display: none;
+
+  @media (max-width: ${STEPPER_COMPACT_AT}) {
+    display: inline;
+  }
 `;
 
 const ErrorSuffix = styled.span`
