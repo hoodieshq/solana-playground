@@ -12,14 +12,30 @@ const LABEL: Record<Stage, string> = {
   interact: "Interact",
 };
 
-const statusOf = (state: FlowState, stage: Stage): StageStatus => {
-  if (stage === "write") return state.stage === "write" ? "active" : "done";
+/**
+ * Writing has no completion signal of its own, so it is inferred: reaching a
+ * build is what puts it behind you. Going back to the Write tab to look at
+ * your code does not un-write it — deriving `done` from the selected tab alone
+ * greyed the connector every time the learner glanced at their own source.
+ */
+export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
+  if (stage === "write") {
+    if (state.buildStartedAt !== null) return "done";
+    return state.stage === "write" ? "active" : "done";
+  }
   return state[stage];
 };
 
 interface StepperProps {
   state: FlowState;
   onSelect: (stage: Stage) => void;
+  /**
+   * The stage the current lesson step is aiming at, drawn as a ring.
+   * `null` outside a lesson. Nothing else about the stepper changes:
+   * the loop stays a loop, and this only says where the lesson is
+   * pointing.
+   */
+  target?: Stage | null;
 }
 
 /**
@@ -27,7 +43,7 @@ interface StepperProps {
  * pill stepper. Each stage's status is carried by dot/glyph shape as well
  * as color, so the sequence reads correctly without color vision.
  */
-const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
+const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
   <Wrapper role="tablist" aria-label="Development loop">
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
@@ -48,13 +64,17 @@ const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
             role="tab"
             aria-selected={selected}
             aria-controls={`flow-stage-panel-${stage}`}
-            aria-label={`${LABEL[stage]}: ${status}${suffix}`}
+            aria-label={`${LABEL[stage]}: ${status}${suffix}${
+              stage === target ? ", current lesson target" : ""
+            }`}
             $status={status}
             $selected={selected}
+            $target={stage === target}
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Label $status={status}>{LABEL[stage]}</Label>
+            <Full>{LABEL[stage]}</Full>
+            <Initial>{LABEL[stage][0]}</Initial>
             {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
@@ -161,12 +181,26 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
   `}
 `;
 
-const Label = styled.span<{ $status: StageStatus }>`
-  ${({ $status }) =>
-    ($status === "active" || $status === "running" || $status === "failed") &&
-    css`
-      font-weight: 700;
-    `}
+/**
+ * Below `STEPPER_COMPACT_AT` the four labels collapse to their initials, which
+ * is what stops the status chips overlapping the stepper on a narrow window.
+ * The full name stays in each button's `aria-label` either way, so nothing is
+ * lost to a screen reader.
+ */
+const STEPPER_COMPACT_AT = "80rem";
+
+const Full = styled.span`
+  @media (max-width: ${STEPPER_COMPACT_AT}) {
+    display: none;
+  }
+`;
+
+const Initial = styled.span`
+  display: none;
+
+  @media (max-width: ${STEPPER_COMPACT_AT}) {
+    display: inline;
+  }
 `;
 
 const ErrorSuffix = styled.span`
@@ -176,8 +210,9 @@ const ErrorSuffix = styled.span`
 const StageButton = styled.button<{
   $status: StageStatus;
   $selected: boolean;
+  $target: boolean;
 }>`
-  ${({ theme, $status, $selected }) => css`
+  ${({ theme, $status, $selected, $target }) => css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -190,14 +225,26 @@ const StageButton = styled.button<{
     $status === "failed"
       ? theme.components.tooltip.bg
       : "transparent"};
-    color: ${$status === "upcoming"
-      ? theme.colors.default.textSecondary
-      : theme.colors.default.textPrimary};
+    /* Selection and status are separate axes: an upcoming stage you have
+       selected still reads as the one you are on, or it renders dimmer than
+       the stages you are not looking at. The dot still carries the status. */
+    color: ${$selected || $status !== "upcoming"
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
     font: inherit;
     font-family: ${theme.font.other.family};
     font-size: ${theme.font.other.size.small};
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;
+
+    /* Dashed, and no glow: the focus ring is a solid outline in the same
+       colour, so shape is what tells "the lesson points here" apart from
+       "your keyboard is here". */
+    ${$target &&
+    css`
+      border-style: dashed;
+      border-color: ${theme.colors.default.primary};
+    `}
 
     ${$status === "failed" &&
     css`

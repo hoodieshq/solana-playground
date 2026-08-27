@@ -5,10 +5,14 @@ import styled, { css } from "styled-components";
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
+import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
+import type { LessonState } from "../lessons";
+import { currentStep } from "../lessons/progress";
 import type { SettingsFocus } from "../settings/GearSidebar";
-import { INITIAL_FLOW_STATE, PgFlow } from "../state/stage";
+import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { GRADIENT } from "../tokens";
+import { useKeybind } from "../../../hooks";
 
 interface HeaderProps {
   onOpenGallery: () => void;
@@ -28,6 +32,28 @@ const Header: FC<HeaderProps> = ({
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
 
+  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
+
+  const target = lesson.path
+    ? currentStep(lesson.path, lesson.progress)?.target ?? null
+    : null;
+
+  // Cmd/Ctrl+1..4 jump to a stage. `PgKeybind` folds `metaKey` into CTRL, so
+  // one binding covers both platforms.
+  useKeybind(
+    STAGES.map((stage, i) => ({
+      keybind: `Ctrl+${i + 1}`,
+      handle: () => {
+        PgFlow.setStage(stage);
+        // Focus follows the shortcut, so the keyboard user lands on the tab
+        // they just selected rather than being left wherever they were
+        document.getElementById(`flow-stage-tab-${stage}`)?.focus();
+      },
+    })),
+    []
+  );
+
   return (
     <Bar>
       <Zone>
@@ -35,7 +61,7 @@ const Header: FC<HeaderProps> = ({
         <ProjectSwitcher onOpenGallery={onOpenGallery} />
       </Zone>
       <Zone $center>
-        <Stepper state={state} onSelect={PgFlow.setStage} />
+        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
       </Zone>
       <Zone $end>
         <StatusChips

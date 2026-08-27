@@ -21,7 +21,9 @@ const PROGRAMS_URL = "/programs/programs.json";
  * created is reinvented here.
  */
 const NewWorkspaceModal = () => {
-  const [tab, setTab] = useState<Tab>("programs");
+  // Tutorials lead: a verified path is what this fork is for, and a gallery
+  // opening on the program list buries it behind a tab nobody clicks
+  const [tab, setTab] = useState<Tab>("tutorials");
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
 
@@ -60,18 +62,6 @@ const NewWorkspaceModal = () => {
             <TabButton
               type="button"
               role="tab"
-              id="gallery-tab-programs"
-              aria-selected={tab === "programs"}
-              aria-controls="gallery-panel"
-              $active={tab === "programs"}
-              onClick={() => setTab("programs")}
-            >
-              Programs
-              <Count>{programs ? programs.length : "..."}</Count>
-            </TabButton>
-            <TabButton
-              type="button"
-              role="tab"
               id="gallery-tab-tutorials"
               aria-selected={tab === "tutorials"}
               aria-controls="gallery-panel"
@@ -80,6 +70,18 @@ const NewWorkspaceModal = () => {
             >
               Tutorials
               <Count>{tutorialCount}</Count>
+            </TabButton>
+            <TabButton
+              type="button"
+              role="tab"
+              id="gallery-tab-programs"
+              aria-selected={tab === "programs"}
+              aria-controls="gallery-panel"
+              $active={tab === "programs"}
+              onClick={() => setTab("programs")}
+            >
+              Programs
+              <Count>{programs ? programs.length : "..."}</Count>
             </TabButton>
           </Tabs>
 

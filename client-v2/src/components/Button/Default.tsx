@@ -4,6 +4,7 @@ import {
   MouseEvent,
   ReactNode,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import styled, { css, CSSProperties } from "styled-components";
@@ -79,6 +80,16 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       setIsDisabled(disabled);
     }, [disabled]);
 
+    // A handler that closes a modal unmounts this button before its `finally`
+    // runs, and restoring state on a gone component is what React warns about
+    const mounted = useRef(true);
+    useEffect(() => {
+      mounted.current = true;
+      return () => {
+        mounted.current = false;
+      };
+    }, []);
+
     const handleOnClick = async (ev: MouseEvent<HTMLButtonElement>) => {
       const shouldSetIsDisabled = getIsLoading(loading) === undefined;
       const shouldSetIsLoading = shouldSetIsDisabled && props.kind !== "icon";
@@ -87,9 +98,19 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         if (shouldSetIsDisabled) setIsDisabled(true);
         if (shouldSetIsLoading) setIsLoading(true);
         await onClick?.(ev);
+      } catch (e) {
+        // A rejecting handler is expected here: a command reports its own
+        // failure (`PgTerm.process` prints it to the terminal) and rethrows so
+        // callers can react. React drops this promise, so without a catch the
+        // rethrow lands as an unhandled rejection on top of the message the
+        // user already got. Logged rather than dropped -- a handler that is
+        // not a command may be failing for a reason nothing else reports.
+        console.error("Button click handler failed:", e);
       } finally {
-        if (shouldSetIsDisabled) setIsDisabled(false);
-        if (shouldSetIsLoading) setIsLoading(false);
+        if (mounted.current) {
+          if (shouldSetIsDisabled) setIsDisabled(false);
+          if (shouldSetIsLoading) setIsLoading(false);
+        }
       }
     };
 

@@ -96,6 +96,27 @@ const handleTutorial = (name: string, page: string) => {
       // Refresh tutorial state
       await PgTutorial.refresh();
 
+      // A tutorial the fork has given a lesson path gets Flow's own
+      // chrome instead: steps in the rail, the objective above the
+      // editor, the page in a reader. Upstream's component would put
+      // its markdown pane on the same edge as the assistant. Every
+      // other tutorial takes the branch below, unchanged.
+      // The barrel, not `./registry` -- importing it is what registers
+      // the paths, and this route can run before Flow has mounted.
+      // Whether a lesson path exists is all this one-shot callback
+      // decides -- it is fixed for the life of the tutorial. Whether the
+      // tutorial is *started* changes within the same routed session
+      // (Start runs inside upstream's own component, well after this
+      // callback has already returned), so `LessonRoute` makes that half
+      // of the decision itself, reactively. See its own comment.
+      const { getLessonPath } = await import("../../views/flow/lessons");
+      if (getLessonPath(tutorial.name)) {
+        const { default: LessonRoute } = await import(
+          "../../views/flow/lessons/LessonRoute"
+        );
+        return <LessonRoute tutorial={tutorial} />;
+      }
+
       const { default: Tutorial } = await tutorial.importComponent();
       return <Tutorial {...tutorial} />;
     });
@@ -115,6 +136,25 @@ const handleTutorial = (name: string, page: string) => {
           // TODO: Find a way to dispose this *just before* the next navigation
           // and remove this check
           if (p.route && p.name !== "Tutorials") return;
+
+          // The property this listener is derived from is recomputed
+          // asynchronously (debounced) off of `sidebar.name`'s own change
+          // event. When `sidebar.name` changes twice in quick succession --
+          // e.g. the default-sidebar-page assignment in `routes/common.tsx`
+          // landing late, right as this route synchronously sets it to
+          // "Tutorials" -- the *earlier* change's callback can still fire
+          // after the later one, delivering a stale `p` here that no longer
+          // matches the live sidebar page. Ignore it; the live value's own
+          // (correct) dispatch follows right behind. See D16.
+          if (p.name !== PgView.sidebar.name) return;
+
+          // `setMainPrimary`'s callback is async, so `PgTutorial.refresh()`
+          // may not have resolved when the synchronous sidebar-name
+          // assignment below fires this listener. Both branches read
+          // tutorial state that does not exist yet at that moment:
+          // `openAboutPage()` throws, and the `isStarted` branch navigates
+          // away mid-open. Wait for the next change instead. See D16.
+          if (!PgTutorial.current) return;
 
           if (p.name === "Tutorials") PgTutorial.openAboutPage();
           else if (!PgTutorial.isStarted(tutorial.name)) PgRouter.navigate();

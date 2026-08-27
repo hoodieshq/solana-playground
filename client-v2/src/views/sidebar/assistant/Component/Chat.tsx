@@ -5,12 +5,24 @@ import ChatItem from "./ChatItem";
 import Connect from "./Connect";
 import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
-import { PgAssistant } from "../store";
+import {
+  PgAssistant,
+  turnAppliedApproval,
+  turnProducedApproval,
+} from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
+import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
-import { PgExplorer, PgProgramInfo } from "../../../../utils";
+import { PgCommand, PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
+import {
+  currentStep,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+  verifyingStage,
+} from "../../../flow/lessons";
+import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
 
@@ -24,11 +36,17 @@ const SUGGESTIONS = [
  * Sent by "Make this change": models often describe an edit in prose instead of
  * calling `write_file`. This asks for the same edit as a patch, which lands in
  * the usual approval card.
+ *
+ * Phrased to work mid-lesson too, where the assistant is holding back a hint
+ * and has described no edit yet — and leaving it a line to say afterwards, so
+ * the turn does not end on a silence the panel has to explain.
  */
 const MAKE_CHANGE =
-  "Make the change you just described, using write_file with the complete " +
-  "new content of the file. If it touches more than one file, do them one " +
-  "at a time. Do not describe it again.";
+  "Write this change for me, using write_file with the complete new content " +
+  "of the file — the change you just described, or the one this step needs " +
+  "if you have not described one yet. If it touches more than one file, do " +
+  "them one at a time. Skip the explanation you would usually give first and " +
+  "summarise it in one line afterwards.";
 
 const Chat = () => {
   useRenderOnChange(PgAssistant.onDidChange);
@@ -86,6 +104,10 @@ const Chat = () => {
     if (!busy) inputRef.current?.focus();
   }, [busy]);
 
+  const [lessonState, setLessonState] =
+    useState<LessonState>(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
+
   const connection = PgAssistant.connection;
   if (!connection || PgAssistant.isPickingBackend) return <Connect />;
 
@@ -141,7 +163,14 @@ const Chat = () => {
   const currentFilePath = PgExplorer.currentFilePath;
   const filePaths = realBridge.listFiles();
   const openPaths = realBridge.listOpenFiles();
+  const lesson = describeLesson(lessonState);
   const chips = [
+    lesson
+      ? {
+          label: `step ${lesson.stepIndex} of ${lesson.stepCount}`,
+          title: lesson.objective,
+        }
+      : null,
     {
       label: `${filePaths.length} ${filePaths.length === 1 ? "file" : "files"}`,
       title: `Every path is sent each turn, and the assistant can read any of them:\n\n${filePaths.join(
@@ -174,10 +203,39 @@ const Chat = () => {
   // only there: an older message describes code that has since moved on, and a
   // turn ending in an approval card has already produced its patch.
   const lastItem = items[items.length - 1];
+  const wroteThisTurn = turnProducedApproval(items);
   const changeableId =
-    !busy && lastItem?.kind === "assistant" && lastItem.text
+    !busy && lastItem?.kind === "assistant" && lastItem.text && !wroteThisTurn
       ? lastItem.id
       : null;
+
+  /**
+   * The two mid-lesson actions on a finished reply, offered one at a time so
+   * the reply always names the single next move:
+   *
+   * - the patch has landed but no build has run yet: the move is that build,
+   *   which is also the only thing that can prove the step. This is the CTA
+   *   the reply used to end on, except it pointed at the next step instead of
+   *   at the action, so taking it skipped the step it was meant to finish.
+   * - a build has run and the step is still unverified: the learner may be
+   *   right and the grader wrong, so the escape valve appears. Nothing here
+   *   proves anything, so it stays labelled as the skip it records.
+   */
+  const onFinishedReply = !busy && lesson && lastItem?.kind === "assistant";
+  const step =
+    lessonState.path && currentStep(lessonState.path, lessonState.progress);
+  const stage = step && verifyingStage(step.verify);
+
+  const verifiableId =
+    onFinishedReply &&
+    !lessonState.attempted &&
+    stage &&
+    turnAppliedApproval(items)
+      ? lastItem.id
+      : null;
+
+  const skippableId =
+    onFinishedReply && lessonState.attempted ? lastItem.id : null;
 
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the dots come down.
@@ -214,6 +272,28 @@ const Chat = () => {
               item={item}
               onMakeChange={
                 item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
+              }
+              // Inside a lesson the same click skips the hint ladder, so it is
+              // offered as a way out rather than as the obvious next step
+              makeChangeIsLastResort={!!lesson}
+              onVerifyStep={
+                item.id === verifiableId
+                  ? () => PgCommand[stage!].execute()
+                  : undefined
+              }
+              verifyStepLabel={stage === "deploy" ? "Deploy" : "Build"}
+              verifyStepTitle={
+                lesson &&
+                `${lesson.verifiedBy} — this is what proves it, and the only thing that can.`
+              }
+              onSkipStep={
+                item.id === skippableId
+                  ? () => PgLesson.skipStep()
+                  : undefined
+              }
+              skipStepTitle={
+                lesson &&
+                `This step is still not verified — ${lesson.verifiedBy}. Skipping records that you moved past it unproven; you can come back with the arrows.`
               }
             />
           ))

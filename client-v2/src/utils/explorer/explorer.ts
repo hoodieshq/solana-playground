@@ -554,11 +554,30 @@ export class PgExplorer {
     PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_RENAME_WORKSPACE);
   }
 
-  /** Delete the current workspace. */
-  static async deleteWorkspace() {
-    const workspacePath = this.getRequiredCurrentWorkspacePath();
-    const workspace = this._workspace!;
-    const workspaceName = this.currentWorkspaceName!;
+  /**
+   * Delete a workspace and everything in it.
+   *
+   * @param name the workspace to delete; defaults to the current one
+   * @throws if not in a workspace, or if `name` is not one
+   *
+   * Deleting a workspace the user is not in leaves them where they are — the
+   * switch below would otherwise discard unsaved editor state in the project
+   * they are actually working on, to remove a different one.
+   */
+  static async deleteWorkspace(name?: string) {
+    if (!this._workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
+    const workspace = this._workspace;
+    const workspaceName = name ?? this.currentWorkspaceName;
+    if (!workspaceName) throw new Error(PgWorkspace.errors.CURRENT_NOT_FOUND);
+    if (!workspace.allNames.includes(workspaceName)) {
+      throw new Error(PgWorkspace.errors.NOT_FOUND);
+    }
+
+    const isCurrent = workspaceName === this.currentWorkspaceName;
+    const workspacePath = PgCommon.joinPaths(
+      PgExplorer.PATHS.ROOT_DIR_PATH,
+      PgCommon.appendSlash(workspaceName)
+    );
 
     // Delete from `indexedDB`
     await this.deleteItem(workspacePath);
@@ -566,7 +585,9 @@ export class PgExplorer {
     // Delete from state
     workspace.delete(workspaceName);
 
-    if (workspace.allNames.length) {
+    if (!isCurrent) {
+      await this._saveWorkspaces();
+    } else if (workspace.allNames.length) {
       const lastWorkspace = workspace.allNames.at(-1)!;
       await this.switchWorkspace(lastWorkspace);
     } else {

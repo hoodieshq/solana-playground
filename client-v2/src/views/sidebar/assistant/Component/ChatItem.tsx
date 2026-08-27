@@ -15,7 +15,32 @@ const ChatItem: FC<{
    * nothing is written on this click.
    */
   onMakeChange?: () => void;
-}> = ({ item, onMakeChange }) => {
+  /** Render it as a quiet way out rather than the obvious next step */
+  makeChangeIsLastResort?: boolean;
+  /**
+   * Runs the action that can prove the current lesson step — the move after a
+   * patch lands, and the reply's main CTA when offered.
+   */
+  onVerifyStep?: () => void;
+  verifyStepLabel?: string;
+  verifyStepTitle?: string | false | null;
+  /**
+   * The mid-lesson escape valve, offered only once a build has already been
+   * attempted on this step. Recorded as a skip — nothing in the chat proves a
+   * step.
+   */
+  onSkipStep?: () => void;
+  skipStepTitle?: string | false | null;
+}> = ({
+  item,
+  onMakeChange,
+  makeChangeIsLastResort,
+  onVerifyStep,
+  verifyStepLabel,
+  verifyStepTitle,
+  onSkipStep,
+  skipStepTitle,
+}) => {
   switch (item.kind) {
     case "user":
       return (
@@ -35,10 +60,34 @@ const ChatItem: FC<{
           <Markdown codeFontOnly>{item.text}</Markdown>
           {onMakeChange && (
             <MakeChange
-              title="Ask the assistant to write this change, for you to review"
+              $quiet={makeChangeIsLastResort}
+              title={
+                makeChangeIsLastResort
+                  ? "Skip the rest of the hints and have the assistant write it, for you to review"
+                  : "Ask the assistant to write this change, for you to review"
+              }
               onClick={onMakeChange}
             >
-              Make this change
+              {makeChangeIsLastResort ? "Write it for me" : "Make this change"}
+            </MakeChange>
+          )}
+          {onVerifyStep && (
+            <VerifyStep
+              kind="primary"
+              size="small"
+              title={verifyStepTitle || undefined}
+              onClick={onVerifyStep}
+            >
+              {verifyStepLabel}
+            </VerifyStep>
+          )}
+          {onSkipStep && (
+            <MakeChange
+              $quiet
+              title={skipStepTitle || undefined}
+              onClick={onSkipStep}
+            >
+              Skip this step
             </MakeChange>
           )}
         </Turn>
@@ -207,17 +256,27 @@ const Tick = styled.svg`
   `}
 `;
 
-const MakeChange = styled.button`
-  ${({ theme }) => css`
+// Left-aligned with the reply's own text rather than stretched, so it reads as
+// this message's next move and not as the panel's
+const VerifyStep = styled(Button)`
+  align-self: flex-start;
+  margin-top: 0.5rem;
+`;
+
+const MakeChange = styled.button<{ $quiet?: boolean }>`
+  ${({ theme, $quiet }) => css`
     align-self: flex-start;
     margin-top: 0.5rem;
     padding: 0.1875rem 0.5rem;
     background: transparent;
-    border: 1px solid ${theme.colors.default.border};
+    border: 1px solid ${$quiet ? "transparent" : theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
-    color: ${theme.colors.default.textPrimary};
+    color: ${$quiet
+      ? theme.colors.default.textSecondary
+      : theme.colors.default.textPrimary};
     font: inherit;
     font-size: ${theme.font.code.size.xsmall};
+    text-decoration: ${$quiet ? "underline" : "none"};
     cursor: pointer;
     transition: background ${theme.default.transition.duration.medium}
         ${theme.default.transition.type},

@@ -1,6 +1,9 @@
 import { PgCommon } from "./common";
 import type { Arrayable, Disposable } from "./types";
 
+/** Modifier tokens, matched exactly rather than by presence */
+const MODIFIERS = ["CTRL", "ALT", "SHIFT"];
+
 /** Keys of the keybind */
 type Keybind = string;
 
@@ -37,18 +40,19 @@ export class PgKeybind {
 
     const handle = (ev: KeyboardEvent) => {
       const keybind = keybinds.find(({ keybind }) => {
-        return keybind
-          .toUpperCase()
-          .replaceAll(" ", "")
-          .split("+")
-          .map((key) => {
+        const keys = keybind.toUpperCase().replaceAll(" ", "").split("+");
+
+        // A modifier the keybind does not name has to be up, so "Ctrl+R" keeps
+        // its hands off Ctrl+Shift+R
+        const names = (modifier: string) => keys.includes(modifier);
+        if ((ev.ctrlKey || ev.metaKey) !== names("CTRL")) return false;
+        if (ev.altKey !== names("ALT")) return false;
+        if (ev.shiftKey !== names("SHIFT")) return false;
+
+        return keys
+          .filter((key) => !MODIFIERS.includes(key))
+          .every((key) => {
             switch (key) {
-              case "CTRL":
-                return ev.ctrlKey || ev.metaKey;
-              case "ALT":
-                return ev.altKey;
-              case "SHIFT":
-                return ev.shiftKey;
               case "SPACE":
                 return ev.key === " ";
               case "`":
@@ -57,8 +61,7 @@ export class PgKeybind {
               default:
                 return key === ev.key.toUpperCase();
             }
-          })
-          .reduce((acc, cur) => acc && cur, true);
+          });
       });
       if (!keybind) return;
 

@@ -59,6 +59,12 @@ const randomNonce = () =>
  * covers `window`/`top` but not `parent`, and is a substring check on
  * source text besides - so project code can reach into this module. What
  * bounds the damage is the empty OAuth scope, not the storage choice.
+ *
+ * TODO: sign-in currently buys identity and nothing else - programs still
+ * live in this browser's `PgExplorer` storage, so a signed-in user loses
+ * their work on another machine. Persist workspaces against the GitHub
+ * identity instead of locally. Needs a scope wider than the empty one above,
+ * which is the decision to make first.
  */
 export class GithubAuth {
   static get user(): GithubUser | null {

@@ -110,11 +110,23 @@ export const createTools = (
     run: async (input) => {
       const path = str(input, "path");
       const content = str(input, "content");
+      const before = bridge.readFile(path);
+
+      // Rewriting a file with what it already holds is not a change. Showing it
+      // as one lets a lesson step look confirmed by an approval card that did
+      // nothing — the assertion the toolchain is supposed to be grading.
+      if (before === content) {
+        return (
+          `${path} already contains exactly that content, so there is nothing ` +
+          `to change. Do not propose it again — tell the user what still has ` +
+          `to happen for this to be proven.`
+        );
+      }
 
       const allowed = await PgAssistant.requestApproval({
         type: "patch",
         path,
-        before: bridge.readFile(path),
+        before,
         after: content,
       });
       const approvalId = PgAssistant.lastApprovalId;

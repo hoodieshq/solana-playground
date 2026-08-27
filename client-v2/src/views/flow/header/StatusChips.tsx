@@ -198,7 +198,7 @@ const StatusChips: FC<StatusChipsProps> = ({
           aria-label="Sign in with GitHub"
         >
           <GithubMark />
-          <span>Sign in</span>
+          <CompactHidden>Sign in</CompactHidden>
         </GithubChip>
       )}
       {authError && (
@@ -532,7 +532,25 @@ const CancelSignIn = styled.button`
   `}
 `;
 
-const Balance = styled.span`
+/**
+ * Where the chips give way.
+ *
+ * The header centres the stepper by giving both side zones an equal `1fr`
+ * track, so the narrow left zone reserves as much width as this one needs.
+ * Rather than move the stepper off centre, the two least load-bearing pieces
+ * here — the balance and the "Sign in" wording — drop out on a narrow window.
+ * Both remain reachable: the balance in the wallet panel, the wording in the
+ * button's `aria-label`.
+ */
+const CHIPS_COMPACT_AT = "72rem";
+
+const CompactHidden = styled.span`
+  @media (max-width: ${CHIPS_COMPACT_AT}) {
+    display: none;
+  }
+`;
+
+const Balance = styled(CompactHidden)`
   color: ${({ theme }) => theme.colors.state.success.color};
 `;
 

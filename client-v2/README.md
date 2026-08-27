@@ -4,29 +4,34 @@ This is the main application of Solana Playground.
 
 ## Setup
 
-For the initial setup, run:
+`wasm/*/pkg` and `public/` are both gitignored, so a fresh clone or a new
+worktree has never built them. `yarn install` cannot resolve the local `file:`
+dependencies until `wasm/*/pkg` exists, which leaves two paths.
+
+**UI work (seconds).** Write placeholder WASM packages, no Rust toolchain needed:
 
 ```sh
-yarn setup
-```
-
-Start the dev server:
-
-```sh
-yarn start
-```
-
-### Fresh clone or new worktree
-
-`wasm/*/pkg` and `public/` are both gitignored, so a checkout that has never been
-built needs the WASM stand-ins before `yarn install` will resolve its local file
-dependencies:
-
-```sh
-bash ../wasm/stub-packages.sh   # placeholders; the real WASM build takes ~1h
+bash ../wasm/stub-packages.sh
 yarn install
 yarn start
 ```
+
+You lose Rust intellisense and the `solana`, `anchor`, `spl-token` and `sugar`
+terminal commands plus Seahorse builds. The UI, Monaco, rustfmt, Playnet, the
+wallet, and Rust program builds via the build server all keep working.
+
+**Full setup (~1h).** Compile the WASM packages from Rust, then install and
+generate:
+
+```sh
+yarn setup
+yarn start
+```
+
+`yarn setup` rebuilds `wasm/*/pkg` unconditionally, so running it after
+`stub-packages.sh` replaces the stubs with the real packages.
+
+### Static assets and worktrees
 
 `public/` is mirrored from the `client/public` submodule, and `yarn start` /
 `yarn build` refresh it automatically. Run `make update-static` by hand only

@@ -108,8 +108,9 @@ the browser, behind the same approval gates. See `decisions.md` → D19.
   changed without losing the conversation, **Stop** ends a turn in flight (and
   denies anything waiting on your approval), and when a reply describes an edit
   in prose instead of writing it, **Make this change** asks for the same edit as
-  a patch — which still arrives as a diff you accept or reject. See
-  `decisions.md` → D14.
+  a patch — which still arrives as a diff you accept or reject. Inside a lesson
+  step it reads **Write it for me**, because taking it skips the rest of the
+  hints. See `decisions.md` → D14.
 
 **One gap we had to close.** The client did not keep the compiler's output
 anywhere — the raw `stderr` was printed to the terminal and discarded, leaving
