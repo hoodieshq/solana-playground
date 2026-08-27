@@ -70,3 +70,56 @@ preconditions — a deploy needing a wallet and SOL — the control explains
 what is missing rather than failing on click, which is the "explainer
 triggered by the action" shape. `PgFlow` already holds per-stage status, so
 the band can render running and failed states from state it can see.
+
+---
+
+# Task — Give the tutorial flow a real StateMachine abstraction (hoodieshq)
+
+**Context.** Three stores drive a lesson today, each a hand-rolled reducer
+over its own event union: `PgFlow` (`views/flow/state/stage.ts`) for the
+dev loop, `PgLesson` (`views/flow/lessons/store.ts`) for step position,
+and `PgAssistant` (`views/sidebar/assistant/store.ts`) for the chat. They
+are coupled only by `PgLesson` subscribing to `PgFlow.onDidChange` and
+re-grading from scratch. Position lives in a single `currentStepId`
+pointer plus two id arrays (`completedStepIds`, `skippedStepIds`).
+
+**Problem.** Legal transitions are not stated anywhere, so each new
+affordance re-derives them and gets them subtly wrong. Concrete instances
+already hit: the chat offered its skip valve straight after a patch, moving
+the learner to `deploy` with nothing built; and `stepBack` cleared the skip
+mark on the step it returned to, which lowered the frontier and left the
+learner unable to return without recording a skip they never took. Both
+were guard conditions scattered across call sites rather than a machine
+refusing an illegal edge. There is also no history: the stores keep only
+current state, so nothing can replay how a learner got here, and the
+assistant is handed a snapshot (`bridge/lesson-context.ts`) with no notion
+of the sequence that produced it.
+
+**Why to solve.** The step ratchet is the feature's central claim — the
+toolchain grades, not a click. Every guard living at a call site is another
+place that claim can be broken by a new button, and the two bugs above were
+both found by a learner rather than by a test. A machine that enumerates
+its transitions makes the illegal ones unrepresentable, and makes agent
+navigation reviewable: the agent should drive the lesson by emitting the
+same event series a human does, not by calling setters.
+
+**Potential Solution.** One `StateMachine` over an explicit transition
+table, with the existing reducers as its first citizens:
+
+- Enumerate states and edges — the four `Stage`s, the per-step
+  `locked / current / completed / skipped` lifecycle, and the guards each
+  edge carries (`isSatisfied` for a verified edge, an explicit skip for an
+  unproven one). An edge with no guard is a bug the table makes visible.
+- Keep the event log, not just the fold. `PgFlow` and `PgLesson` are
+  already pure reducers over event unions, so persisting the events and
+  folding on read is a small change — and it is what buys history: back
+  becomes replay to an earlier index rather than a mutation, which is the
+  honest version of the arrows now in `ObjectiveBand`.
+- Let the agent emit events through the same entry point as the UI, so an
+  agent-driven step and a learner-driven step are the same series and
+  differ only in provenance. Provenance on each event also gives the
+  record something it cannot state today: who advanced this step.
+- Fold `attempted` / `attemptBaseline` into the machine. They exist because
+  the hint ladder needs to know a build happened since the step began — a
+  question about the event series that is currently answered by a
+  hand-maintained pair of fields.
