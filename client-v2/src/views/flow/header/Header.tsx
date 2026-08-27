@@ -5,20 +5,26 @@ import styled, { css } from "styled-components";
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
+import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { GRADIENT } from "../tokens";
 
 interface HeaderProps {
   onOpenGallery: () => void;
-  onOpenSettings: () => void;
+  onToggleSettings: (focus?: SettingsFocus) => void;
+  settingsOpen: boolean;
 }
 
 /**
  * The Flow layout's top bar: project switcher on the left, the dev-loop
  * stepper centered, cluster/wallet/settings on the right.
  */
-const Header: FC<HeaderProps> = ({ onOpenGallery, onOpenSettings }) => {
+const Header: FC<HeaderProps> = ({
+  onOpenGallery,
+  onToggleSettings,
+  settingsOpen,
+}) => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
 
@@ -32,7 +38,10 @@ const Header: FC<HeaderProps> = ({ onOpenGallery, onOpenSettings }) => {
         <Stepper state={state} onSelect={PgFlow.setStage} />
       </Zone>
       <Zone $end>
-        <StatusChips onOpenSettings={onOpenSettings} />
+        <StatusChips
+          onToggleSettings={onToggleSettings}
+          settingsOpen={settingsOpen}
+        />
       </Zone>
     </Bar>
   );

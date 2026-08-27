@@ -1,3 +1,4 @@
+import { PLATFORM_ENDPOINTS } from "../constants";
 import { PgCommon } from "./common";
 import { createDerivable, declareDecorator, derivable } from "./decorators";
 import { OverridableConnection, PgPlaynet } from "./playnet";
@@ -196,6 +197,11 @@ class _PgConnection {
       case PgCommon.appendSlash(PgWeb3.clusterApiUrl("mainnet-beta")):
         return "mainnet-beta";
     }
+
+    // Platform endpoints declare their cluster, so resolve them without
+    // paying for the genesis hash round trip below.
+    const platform = PLATFORM_ENDPOINTS.find((e) => e.value === endpoint);
+    if (platform) return platform.cluster;
 
     // Decide custom endpoints from the genesis hash of the cluster
     const genesisHash = await PgConnection.create({

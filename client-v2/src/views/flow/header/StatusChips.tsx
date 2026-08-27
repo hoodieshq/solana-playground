@@ -11,15 +11,21 @@ import {
 } from "../../../hooks";
 import { GithubAuth as PgGithubAuth } from "../../../features/github-oauth";
 import { PgCommand, PgConnection } from "../../../utils";
+import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
+import type { SettingsFocus } from "../settings/GearSidebar";
 
 interface StatusChipsProps {
-  onOpenSettings: () => void;
+  onToggleSettings: (focus?: SettingsFocus) => void;
+  settingsOpen: boolean;
 }
 
 const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
 
 /** Cluster, wallet + balance and a settings entry point. */
-const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
+const StatusChips: FC<StatusChipsProps> = ({
+  onToggleSettings,
+  settingsOpen,
+}) => {
   const connection = useConnection();
   const wallet = useWallet();
   const balance = useBalance();
@@ -74,11 +80,18 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
 
   return (
     <Wrapper>
-      <Chip title={connection?.rpcEndpoint}>
+      <ChipButton
+        type="button"
+        title={connection?.rpcEndpoint}
+        aria-label={`Change cluster, currently ${cluster ?? "unknown"}`}
+        aria-expanded={settingsOpen}
+        {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
+        onClick={() => onToggleSettings("network")}
+      >
         <ClusterDot $down={isClusterDown === true} />
         {cluster ?? "unknown"}
-      </Chip>
-      <WalletChip
+      </ChipButton>
+      <ChipButton
         type="button"
         onClick={() => PgCommand.connect.execute()}
         aria-label={wallet ? "Toggle wallet" : "Connect wallet"}
@@ -95,7 +108,7 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
         ) : (
           "Connect wallet"
         )}
-      </WalletChip>
+      </ChipButton>
       {github ? (
         <ProfileWrapper ref={profileWrapperRef}>
           <GithubChip
@@ -178,7 +191,12 @@ const StatusChips: FC<StatusChipsProps> = ({ onOpenSettings }) => {
           {authError}
         </AuthError>
       )}
-      <IconButton aria-label="Open settings" onClick={onOpenSettings}>
+      <IconButton
+        aria-label={settingsOpen ? "Close settings" : "Open settings"}
+        aria-expanded={settingsOpen}
+        {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
+        onClick={() => onToggleSettings()}
+      >
         <GearIcon />
       </IconButton>
     </Wrapper>
@@ -224,25 +242,10 @@ const Wrapper = styled.div`
   gap: 0.5rem;
 `;
 
-const Chip = styled.span`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 999px;
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
-    color: ${theme.colors.default.textSecondary};
-    white-space: nowrap;
-  `}
-`;
-
-// A `<button>` with `Chip`'s look -- kept as its own styled component
-// (rather than `Chip` rendered with a polymorphic `as="button"`) so the
-// native button props (`type`, `onClick`) type-check without a fight.
-const WalletChip = styled.button`
+// A chip-shaped `<button>`, used for both the cluster and the wallet. Declared
+// as `styled.button` rather than a polymorphic `as="button"` so the native
+// button props (`type`, `onClick`) type-check without a fight.
+const ChipButton = styled.button`
   ${({ theme }) => css`
     display: flex;
     align-items: center;
@@ -273,7 +276,7 @@ const WalletChip = styled.button`
   `}
 `;
 
-const GithubChip = styled(WalletChip)``;
+const GithubChip = styled(ChipButton)``;
 
 const Avatar = styled.img`
   width: 1rem;

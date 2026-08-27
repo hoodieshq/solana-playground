@@ -6,7 +6,7 @@ import Grounding from "./Grounding";
 import Plan from "./Plan";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
-import { PgConnection, PgExplorer } from "../../../../utils";
+import { PgExplorer } from "../../../../utils";
 
 type Tab = "chat" | "sources" | "plan";
 
@@ -30,7 +30,6 @@ const Assistant = () => {
   const [buildFailed, setBuildFailed] = useState(
     !!PgBuildOutput.latest?.failed
   );
-  const [cluster, setCluster] = useState(PgConnection.cluster);
 
   // Ask the gateway what it serves and what those servers offer. Has to happen
   // here rather than only in the Sources tab: `createTools` reads the result,
@@ -45,18 +44,18 @@ const Assistant = () => {
       setCurrentFilePath(PgExplorer.currentFilePath)
     );
     const b = PgBuildOutput.onDidChange((out) => setBuildFailed(!!out?.failed));
-    const c = PgConnection.onDidChangeCluster(setCluster);
     return () => {
       a.dispose();
       b.dispose();
-      c.dispose();
     };
   }, []);
 
   const fileName = currentFilePath
     ? PgExplorer.getItemNameFromPath(currentFilePath)
     : null;
-  const statusLabel = buildFailed ? "build error" : cluster;
+  // The cluster lives in the app header; only the build state is worth
+  // repeating here.
+  const statusLabel = buildFailed ? "build error" : null;
 
   return (
     <Wrapper>
