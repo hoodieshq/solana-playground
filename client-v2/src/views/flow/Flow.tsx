@@ -47,6 +47,10 @@ const Flow = () => {
     return () => subs.forEach((s) => s.dispose());
   }, []);
 
+  // Takes over the browser's reload shortcut, same as Ctrl+J does for the
+  // console drawer
+  useKeybind("Ctrl+R", () => setAssistantOpen((o) => !o));
+
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
   // Toggles rather than opens: the header controls are the only way in, so a
   // second click on one has to be the way out.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import GradientButton from "./GradientButton";
@@ -7,6 +7,7 @@ import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
 import {
+  DEFAULT_BACKEND_URL,
   PROVIDERS,
   type Effort,
   type ProviderId,
@@ -35,16 +36,46 @@ const CAPABILITIES = [
   },
 ];
 
+/**
+ * Whether this deployment configured a default backend.
+ *
+ * `undefined` while the answer is outstanding: the option is neither offered
+ * nor ruled out until the server has said, so a fork with no key of its own
+ * never preselects a backend that cannot answer.
+ */
+const useDefaultBackend = () => {
+  const [configured, setConfigured] = useState<boolean>();
+
+  useEffect(() => {
+    let live = true;
+    fetch(DEFAULT_BACKEND_URL)
+      .then((r) => (r.ok ? r.json() : { configured: false }))
+      .catch(() => ({ configured: false }))
+      .then((body) => live && setConfigured(!!body.configured));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return configured;
+};
+
+const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
+/** Everything behind the accordion: each of these needs a key of your own */
+const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
+
 const Connect = () => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
+  const defaultBackend = useDefaultBackend();
 
-  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "scripted"))!;
+  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
 
   const [providerId, setProviderId] = useState<ProviderId>(
-    current?.id ?? "scripted"
+    current?.id ?? "default"
   );
+  const [expanded, setExpanded] = useState(false);
   const [key, setKey] = useState(current?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
@@ -54,10 +85,29 @@ const Connect = () => {
     current?.settings ? { ...current.settings } : defaultSettings(initial)
   );
 
-  const provider = PROVIDERS.find((p) => p.id === providerId)!;
+  /** The probe is still out: the default is neither offered nor ruled out yet */
+  const pending = defaultBackend === undefined;
+
+  /**
+   * Declared unavailable, or a default backend this deployment has not
+   * confirmed. Pending counts as unavailable, so the option is never shown
+   * ready and then withdrawn a moment later.
+   */
+  const isUnavailable = (p: ProviderInfo) =>
+    !!p.unavailable || (p.id === "default" && defaultBackend !== true);
+
+  // The probe can rule out the preselected default after the fact; fall back
+  // rather than leaving a dead option selected
+  const fallenBack =
+    providerId === "default" && defaultBackend === false ? "anthropic" : null;
+  const provider = PROVIDERS.find((p) => p.id === (fallenBack ?? providerId))!;
+  // The fallback never went through `pickProvider`, so its pickers need seeding
+  const activeSettings = settings ?? defaultSettings(provider);
 
   const pickProvider = (p: typeof PROVIDERS[number]) => {
     setProviderId(p.id);
+    // Picking is the end of browsing: fold the list back to the two bars
+    setExpanded(false);
     // Seed the endpoint fields with the provider's defaults, editable from there
     setEndpoint(p.endpoint ? { ...p.endpoint } : null);
     setSettings(
@@ -74,22 +124,63 @@ const Connect = () => {
   const endpointReady =
     !provider.endpoint ||
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
-  const ready = keyReady && endpointReady;
+  const ready = keyReady && endpointReady && !isUnavailable(provider);
 
   const trimmedEndpoint = endpoint
     ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
     : undefined;
   const next = {
-    id: providerId,
+    id: provider.id,
     apiKey: key.trim(),
     endpoint: trimmedEndpoint,
-    settings,
+    settings: activeSettings,
   };
   const switching = !!current && !PgAssistant.isCurrent(next);
 
   // `Button` restores its own state after awaiting this handler, so unmounting
   // synchronously would leave it setting state on an unmounted component.
   const connect = () => setTimeout(() => PgAssistant.connect(next), 0);
+
+  // Nothing selectable is on screen while the default is ruled out, so the
+  // alternatives stay open and the toggle that could hide them goes away
+  const forcedOpen = !!fallenBack;
+  const showAlternatives = expanded || forcedOpen;
+  /** Kept visible while collapsed, so the picked backend is never hidden */
+  const selectedAlternative = ALTERNATIVES.find((p) => p.id === provider.id);
+  /** Nothing reads as chosen while the default is still unconfirmed */
+  const selectedBar = pending && provider.id === "default" ? null : provider.id;
+
+  const defaultDescription = (p: ProviderInfo) => {
+    if (pending) return "Checking this deployment for a default backend…";
+    return defaultBackend
+      ? p.description
+      : "Not configured on this deployment — pick a backend below and supply " +
+          "your own key.";
+  };
+
+  /**
+   * @param compact drop the description, so the open list stays short enough
+   * to keep the toggle and the connect button above the fold
+   */
+  const providerBar = (p: ProviderInfo, compact = false) => (
+    <ProviderOption
+      key={p.id}
+      aria-pressed={selectedBar === p.id}
+      $selected={selectedBar === p.id}
+      disabled={isUnavailable(p)}
+      onClick={() => pickProvider(p)}
+    >
+      <ProviderName $selected={selectedBar === p.id}>
+        {p.name}
+        {!p.needsKey && !isUnavailable(p) && <NoKey>no key needed</NoKey>}
+      </ProviderName>
+      {!compact && (
+        <ProviderDescription>
+          {p.id === "default" ? defaultDescription(p) : p.description}
+        </ProviderDescription>
+      )}
+    </ProviderOption>
+  );
 
   return (
     <Wrapper>
@@ -110,25 +201,31 @@ const Connect = () => {
             patches you apply yourself.
           </Lead>
         )}
+        {!current && defaultBackend && (
+          <Lead>
+            Out of the box it runs on this deployment's own backend, with the
+            capabilities listed below. Bring your own key to run it on something
+            else.
+          </Lead>
+        )}
       </Intro>
 
       <Label as="div">BACKEND</Label>
       <Providers>
-        {PROVIDERS.map((p) => (
-          <ProviderOption
-            key={p.id}
-            aria-pressed={p.id === providerId}
-            $selected={p.id === providerId}
-            disabled={p.unavailable}
-            onClick={() => pickProvider(p)}
+        {providerBar(DEFAULT_PROVIDER)}
+        {showAlternatives
+          ? ALTERNATIVES.map((p) => providerBar(p, p.id !== provider.id))
+          : selectedAlternative && providerBar(selectedAlternative)}
+        {!forcedOpen && (
+          <Toggle
+            type="button"
+            aria-expanded={showAlternatives}
+            onClick={() => setExpanded(!showAlternatives)}
           >
-            <ProviderName $selected={p.id === providerId}>
-              {p.name}
-              {!p.needsKey && !p.unavailable && <NoKey>no key needed</NoKey>}
-            </ProviderName>
-            <ProviderDescription>{p.description}</ProviderDescription>
-          </ProviderOption>
-        ))}
+            {showAlternatives ? "Hide other backends" : "Bring your own key"}
+            <Chevron $open={showAlternatives}>▾</Chevron>
+          </Toggle>
+        )}
       </Providers>
 
       {provider.endpoint && endpoint && (
@@ -171,7 +268,7 @@ const Connect = () => {
         </>
       )}
 
-      {provider.modelSettings && settings && (
+      {provider.modelSettings && activeSettings && (
         <>
           <Label as="div">MODEL</Label>
           <Picker>
@@ -180,9 +277,13 @@ const Connect = () => {
                 label: m,
                 value: m,
               }))}
-              value={{ label: settings.model, value: settings.model }}
+              value={{
+                label: activeSettings.model,
+                value: activeSettings.model,
+              }}
               onChange={(option) =>
-                option && setSettings({ ...settings, model: option.value })
+                option &&
+                setSettings({ ...activeSettings, model: option.value })
               }
               isSearchable={false}
             />
@@ -195,10 +296,16 @@ const Connect = () => {
                 label: e,
                 value: e,
               }))}
-              value={{ label: settings.effort, value: settings.effort }}
+              value={{
+                label: activeSettings.effort,
+                value: activeSettings.effort,
+              }}
               onChange={(option) =>
                 option &&
-                setSettings({ ...settings, effort: option.value as Effort })
+                setSettings({
+                  ...activeSettings,
+                  effort: option.value as Effort,
+                })
               }
               isSearchable={false}
             />
@@ -396,6 +503,41 @@ const ProviderDescription = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.5;
+  `}
+`;
+
+const Toggle = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.375rem;
+    padding: 0.125rem 0;
+    background: transparent;
+    border: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+const Chevron = styled.span<{ $open: boolean }>`
+  ${({ theme, $open }) => css`
+    display: inline-block;
+    line-height: 1;
+    transform: rotate(${$open ? "180deg" : "0deg"});
+    transition: transform ${theme.default.transition.duration.medium}
+      ${theme.default.transition.type};
   `}
 `;
 

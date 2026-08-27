@@ -2,6 +2,7 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgAssistant } from "../store";
+import { PgConnection } from "../../../../utils";
 import { callTool, listTools, McpUnreachableError } from "../grounding";
 import type { McpServerEntry, McpTool } from "../grounding";
 
@@ -13,16 +14,40 @@ interface ServerConsoleProps {
   hasServerExecutor: boolean;
 }
 
+/** Descriptions past this many characters start collapsed */
+const LONG_DESCRIPTION = 220;
+
+/** Argument names that mean the Solana cluster, whatever the server calls it */
+const CLUSTER_KEYS = ["cluster", "network"];
+
+/**
+ * A starting value for one argument.
+ *
+ * A cluster argument starts on the one the app is pointed at, but only when the
+ * tool's own enum admits it — `localnet` is nobody's hosted cluster.
+ */
+const startingValue = (key: string, schema: unknown, cluster: string) => {
+  const allowed = (schema as { enum?: unknown[] } | undefined)?.enum;
+
+  return CLUSTER_KEYS.includes(key.toLowerCase()) &&
+    Array.isArray(allowed) &&
+    allowed.includes(cluster)
+    ? cluster
+    : "";
+};
+
 /** A starting point for the argument box, from the tool's own schema */
-const skeletonFor = (tool: McpTool) => {
+const skeletonFor = (tool: McpTool, cluster: string) => {
   const properties = tool.inputSchema?.properties;
   if (!properties || typeof properties !== "object") return "{}";
 
-  const keys = Object.keys(properties as Record<string, unknown>);
-  if (!keys.length) return "{}";
+  const entries = Object.entries(properties as Record<string, unknown>);
+  if (!entries.length) return "{}";
 
   return JSON.stringify(
-    Object.fromEntries(keys.map((key) => [key, ""])),
+    Object.fromEntries(
+      entries.map(([key, schema]) => [key, startingValue(key, schema, cluster)])
+    ),
     null,
     2
   );
@@ -44,6 +69,12 @@ const ServerConsole = ({
   const [selected, setSelected] = useState<string | null>(null);
   const [args, setArgs] = useState("{}");
   const [result, setResult] = useState<string | null>(null);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+
+  const description =
+    tools.find((t) => t.name === selected)?.description ?? "No description.";
+  // Long enough to bury the argument box: some servers write a page here
+  const descriptionIsLong = description.length > LONG_DESCRIPTION;
 
   const explain = (e: unknown) => {
     if (e instanceof McpUnreachableError) return e.message;
@@ -66,8 +97,31 @@ const ServerConsole = ({
   const pick = (name: string) => {
     setSelected(name);
     setResult(null);
+    // Each tool gets its own first impression, however long the last one was
+    setDescriptionOpen(false);
     const tool = tools.find((t) => t.name === name);
-    setArgs(tool ? skeletonFor(tool) : "{}");
+    // Null on a custom endpoint, which no server's enum can match anyway
+    setArgs(tool ? skeletonFor(tool, PgConnection.cluster ?? "") : "{}");
+  };
+
+  /**
+   * Hand the same call to the connected backend instead of running it here.
+   *
+   * Left in the composer rather than sent: the arguments are a skeleton the
+   * user probably wants to fill in, and the model sees the prefixed tool name
+   * `createMcpTools` gives it, not the server's own.
+   */
+  const askAssistant = () => {
+    if (!selected) return;
+
+    PgAssistant.requestPrompt(
+      `Call the \`${server.id}__${selected}\` tool with these arguments:\n\n` +
+        "```json\n" +
+        args.trim() +
+        "\n```\n\n" +
+        "Then tell me what it returned.",
+      { send: false }
+    );
   };
 
   const call = async () => {
@@ -143,10 +197,18 @@ const ServerConsole = ({
 
               {selected && (
                 <>
-                  <Description>
-                    {tools.find((t) => t.name === selected)?.description ??
-                      "No description."}
+                  <Description $clamped={!descriptionOpen && descriptionIsLong}>
+                    {description}
                   </Description>
+                  {descriptionIsLong && (
+                    <Disclosure
+                      type="button"
+                      aria-expanded={descriptionOpen}
+                      onClick={() => setDescriptionOpen((open) => !open)}
+                    >
+                      {descriptionOpen ? "Show less" : "Show more"}
+                    </Disclosure>
+                  )}
 
                   <Label htmlFor={`mcp-args-${server.id}`}>ARGUMENTS</Label>
                   <Json
@@ -161,6 +223,11 @@ const ServerConsole = ({
                     <Action onClick={call} disabled={busy}>
                       {busy ? "Calling…" : "Call"}
                     </Action>
+                    {PgAssistant.isConnected && (
+                      <Action onClick={askAssistant} disabled={busy}>
+                        Ask {providerName ?? "the assistant"}
+                      </Action>
+                    )}
                   </Actions>
                 </>
               )}
@@ -241,12 +308,45 @@ const Picker = styled.select`
   `}
 `;
 
-const Description = styled.div`
-  ${({ theme }) => css`
+const Description = styled.div<{ $clamped: boolean }>`
+  ${({ theme, $clamped }) => css`
     padding-top: 0.375rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.5;
+    white-space: pre-wrap;
+
+    ${$clamped &&
+    css`
+      /* Clamped rather than sliced, so the full text stays selectable */
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+    `}
+  `}
+`;
+
+const Disclosure = styled.button`
+  ${({ theme }) => css`
+    margin-top: 0.25rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.code.size.xsmall};
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 1px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
 `;
 

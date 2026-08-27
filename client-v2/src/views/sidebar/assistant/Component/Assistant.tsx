@@ -3,17 +3,15 @@ import styled, { css } from "styled-components";
 
 import Chat from "./Chat";
 import Grounding from "./Grounding";
-import Plan from "./Plan";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { PgExplorer } from "../../../../utils";
 
-type Tab = "chat" | "sources" | "plan";
+type Tab = "chat" | "sources";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "chat", label: "Chat" },
   { id: "sources", label: "Sources" },
-  { id: "plan", label: "What we're building" },
 ];
 
 const Assistant = () => {
@@ -37,6 +35,12 @@ const Assistant = () => {
   // with nothing on screen to say why.
   useEffect(() => {
     PgAssistant.initMcp();
+  }, []);
+
+  // A prompt raised from another tab (a Sources tool call, say) lands in the
+  // composer, which is no use while that other tab is still on screen
+  useEffect(() => {
+    return PgAssistant.onDidRequestPrompt(() => setTab("chat")).dispose;
   }, []);
 
   useEffect(() => {
@@ -83,7 +87,6 @@ const Assistant = () => {
 
       {tab === "chat" && <Chat />}
       {tab === "sources" && <Grounding />}
-      {tab === "plan" && <Plan />}
     </Wrapper>
   );
 };
@@ -148,7 +151,7 @@ const Tabs = styled.div`
     gap: 0.25rem;
     padding: 0 0.75rem;
     flex-shrink: 0;
-    /* Three labels overflow the narrowest sidebar width */
+    /* Labels can still overflow the narrowest sidebar width */
     overflow-x: auto;
     border-bottom: 1px solid ${theme.colors.default.border};
   `}

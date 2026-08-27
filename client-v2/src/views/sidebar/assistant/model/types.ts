@@ -26,11 +26,14 @@ export interface ToolDefinition {
 
 /** Which model backend the panel is talking to */
 export type ProviderId =
-  | "scripted"
+  | "default"
   | "anthropic"
   | "openai"
   | "openrouter"
   | "gemini";
+
+/** Same-origin rail whose upstream and key are configured server-side */
+export const DEFAULT_BACKEND_URL = "/api/agent";
 
 /**
  * One conversation with one backend.
@@ -97,6 +100,15 @@ export interface ProviderInfo {
 
 export const PROVIDERS: ProviderInfo[] = [
   {
+    id: "default",
+    name: "Default",
+    description:
+      "The agentic backend this playground is deployed with — what you talk " +
+      "to unless you pick something else. Its model and key live server-side, " +
+      "so there is nothing to enter.",
+    needsKey: false,
+  },
+  {
     id: "anthropic",
     name: "Anthropic",
     description:
@@ -157,14 +169,5 @@ export const PROVIDERS: ProviderInfo[] = [
       baseUrl: "https://openrouter.ai/api/v1",
       model: "deepseek/deepseek-chat-v3.1:free",
     },
-  },
-  // Last: it demonstrates the interaction rather than being a way to run it
-  {
-    id: "scripted",
-    name: "Demo",
-    description:
-      "A scripted walkthrough of the build-error path. No key, no network — " +
-      "useful for seeing the flow and for demoing without depending on an API.",
-    needsKey: false,
   },
 ];
