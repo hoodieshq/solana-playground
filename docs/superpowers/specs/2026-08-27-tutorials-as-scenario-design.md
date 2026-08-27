@@ -147,8 +147,30 @@ Pure, synchronous, no network:
 | --- | --- |
 | `build-passes` | `flow.build === "done"` |
 | `deployed` | `flow.deploy === "done"` |
-| `idl` | `PgProgramInfo.idl` — instruction present, and its `args` / `accounts` contain the named entry |
+| `idl` | `flow.build === "done"` **and** `PgProgramInfo.idl` — instruction present, and its `args` / `accounts` contain the named entry |
 | `read` | never satisfied automatically; see the objective band |
+
+**The `idl` condition also requires the build, amended 2026-08-27.** The
+first implementation gated only on the IDL being non-null. `PgProgramInfo.idl`
+is workspace-persisted and refreshed on a workspace switch through a
+debounced batch, while every other input the grader reads comes from
+`PgFlow`, which resets on `workspace-change`. So inside that refresh window
+any `PgFlow` event — a stepper-tab click suffices — could grade a newly
+entered lesson against the previous project's IDL. Requiring the build
+closes the only path to a green the toolchain did not give for this
+workspace. The cost is parity with the other conditions: re-entering a
+lesson in a new session needs a fresh build before an unfinished `idl` step
+can be graded, because `FlowState` is in-memory only.
+
+**A `read` step must not borrow the word "verified", amended 2026-08-27.**
+Nothing machine-checks a reading step, so its band line reads "Not
+machine-checked — continue when ..." rather than "Verified when ...", and
+its `verifiedBy` is phrased as self-report. The first version shipped a
+step claiming "Verified when you have run the client and read its output"
+beside a button that checks nothing — the mechanism was honest and one word
+of copy undid it. A guard test now asserts a reading step's copy never
+claims program behaviour was observed; the original guard only searched for
+the word "transaction" and this string walked past it.
 
 The `idl` condition is what makes this worth building. After a successful
 Anchor build the regenerated IDL is a real artifact of the learner's own
@@ -307,9 +329,33 @@ A ladder nobody counts silently becomes an answer machine — the JetBrains and 
 studies found AI supplying exact solution code in over half of debugging
 interactions despite stated hint-first policies.
 
-The system prompt gains a lesson block only when `lesson` is non-null,
-appended after the stable prefix so the cached prompt prefix stays
-byte-stable (the same discipline D12 applies to skills).
+**Amended during implementation, 2026-08-27.** This section originally said
+the system prompt gains a lesson block only when `lesson` is non-null. Two
+things changed once the code was in front of us:
+
+- **The per-turn facts live in `describeProject`, not the system prompt.**
+  `model/prompt.ts` already separates the two, and its own comment says why:
+  `describeProject` "changes every turn -- keeping it apart leaves the
+  stable half cacheable". A lesson step changes turn to turn, so that is
+  where it belongs. Note `describeProject` enumerates `ProjectContext`
+  fields by hand rather than spreading the object, so a field added to the
+  interface and nowhere else is dead code the model never sees.
+- **The coaching rules are unconditional, not gated on `lesson`.** A
+  conditional block yields two prompt prefixes and a cache miss every time
+  someone enters a lesson. Phrased to be inert outside a lesson ("When the
+  learner is in a lesson step, ..."), they keep the prefix byte-stable
+  forever, which is the property this section actually wanted.
+
+The rules also carry an **explicit override**: the surrounding `BEHAVIOUR`
+block already tells the assistant, unconditionally, to "lead with the
+answer" and to "propose the smallest change that fixes the problem". The
+lesson rules sat below those and were therefore outranked -- a model
+reconciling them follows the specific unconditional instruction. The block
+now states that inside a lesson step it supersedes both, and the rung rule
+is an imperative (rungs 1 and 2: a question or a pointer, no code, no
+file-plus-line, no `write_file`) rather than a preference. A policy stated
+below its own contradiction is the failure mode the research names, not a
+mitigation for it.
 
 ## Error handling
 
@@ -348,6 +394,18 @@ shows `hello(name)`"* — which is both true and a stronger statement than
 
 ## Concept: where this grows (not in this cut)
 
+- **Path-scoped step ids, before a second path exists.** Ids are bare
+  strings today, and both the hint-ladder counter and the reader's React
+  key use them unqualified. Two paths that each have a step called
+  `deploy` would share a rung count and a reader instance. Prefix the id
+  with the path when the second path lands.
+- **`describeLesson` must not report a finished `read` step as satisfied.**
+  It reports `satisfied: true` once the path is complete, using the last
+  step's copy regardless of that step's kind. `hello-anchor` ends on an
+  `idl` step so it is unreachable today, but a path ending in a reading
+  step would tell the assistant an unchecked step was verified -- the same
+  honesty bug that was caught in the UI, reappearing in what the model is
+  told.
 - **Verification by transaction log.** `{ kind: "log-contains" }`, reading
   the logs of an instruction call the learner made from Interact. It is
   the most convincing verification we could offer and costs an RPC round

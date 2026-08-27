@@ -238,18 +238,37 @@ thing that is cheaper the earlier it happens.
    thing standing between a broken `master-2.0` and a demo is somebody
    remembering to run four commands by hand -- which is exactly how
    #16 reached "ready to merge" without ever having been built.
-1. **Tutorials as a scenario** — **designed 2026-08-27**, spec awaiting
-   review: `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`.
-   Research in `docs/research/2026-08-27-tutorials-as-scenario.md`;
-   concept canvas
-   <https://claude.ai/code/artifact/c1b8b3f5-80e2-4bc5-88f1-0540723038d9>.
+1. **Tutorials as a scenario** — **implemented 2026-08-27** on
+   `feat/lesson-paths`, not yet a PR. 24 commits, 41 files, +2775/-142.
+   Spec `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`
+   (amended during implementation), plan
+   `docs/superpowers/plans/2026-08-27-tutorials-as-scenario.md`, research
+   `docs/research/2026-08-27-tutorials-as-scenario.md`. Decision: **D24**.
    Cat's prototype (solana-learning-playground.vercel.app) was walked
    through live and is the source of the connected-prompt mechanic.
-   The thesis: a lesson step is finished by the toolchain, not by a
-   click — verification reads `FlowState` and the regenerated IDL, so we
-   author objectives and prompts and never an answer key. Carries a
-   navigation consolidation (one project switcher instead of two) and
-   makes D16 a blocking prerequisite. Candidate D24.
+
+   The thesis holds in code: a lesson step is finished by the toolchain,
+   not by a click. Verification reads `FlowState` and the IDL an Anchor
+   build regenerates, and because the seeded program is a single comment,
+   step 1 cannot go green without a real compile of the learner's own
+   code. Observed working end to end during implementation — a real build
+   satisfied step 1's `idl` condition and the ratchet advanced.
+
+   Shipped: the four-step Hello Anchor path, step rail, objective band,
+   reader overlay, one project switcher instead of two (the rail's
+   Projects tab is deleted), a target ring on the stepper, a lesson-aware
+   assistant with a three-rung hint ladder and an unaided-first-attempt
+   gate. 157 unit tests in 18 suites, 5 playwright e2e. **D16 fixed** as
+   its prerequisite — and needed two guards, not the one it predicted.
+
+   Known follow-ups, all recorded in D24 and the spec's concept section:
+   step ids are not path-scoped; `describeLesson` would misreport a path
+   ending in a reading step; one `useLesson()` hook would collapse six
+   hand-rolled subscriptions; `verify.ts`'s `build-passes` and `account`
+   sub-condition are unused surface. Merge note: this branch is based on
+   `master-2.0` before #15 landed, so `LeftPanel.tsx` needs a hand merge
+   with #15's collapse toggle, and `ProjectsTab.tsx` is a delete/modify
+   conflict if #15 touched it.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
    off. Concept only until designed (candidate D24): a separate
    service, never `server/`. Feeds back into the OAuth stream.

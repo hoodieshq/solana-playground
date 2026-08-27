@@ -1053,3 +1053,100 @@ guards against a genuine forgery is untouched.
 (`FIXME(@rogaldh)`) happens - it owns the same transport and should inherit
 this constraint rather than rediscover it - or if a browser ever offers a
 way to distinguish a disowned handle from a closed window.
+
+---
+
+## D24 - A lesson step is finished by the toolchain, not by a click
+
+**Date:** 2026-08-27 - **Status:** implemented on `feat/lesson-paths`
+
+Spec: `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`
+Plan: `docs/superpowers/plans/2026-08-27-tutorials-as-scenario.md`
+Research: `docs/research/2026-08-27-tutorials-as-scenario.md`
+
+Upstream ships twenty tutorials whose only completion signal is that the
+user reached the last page. That cannot tell whether anyone learned
+anything, and cannot tell its maintainers when a tutorial has rotted.
+
+**Chosen:** a lesson path is an ordered list of steps over an unmodified
+upstream tutorial, and a step is satisfied by state the client already
+holds - `FlowState`'s build and deploy status, and the IDL an Anchor build
+regenerates. Authored content is limited to the objective, the
+verification condition in the learner's words, and three hint prompts.
+The compiler supplies the answer key.
+
+The `idl` condition is what makes this worth building: after a successful
+build the regenerated IDL is a real artifact of the learner's own code, so
+"`hello` now takes a `name`" is checkable for free, with no RPC and no
+hand-written checker. The seeded program is a single comment, so the first
+step cannot be satisfied by anything but a real compile.
+
+**Rejected - hand-written per-step checkers.** The authoring cost that
+kills these products, and unnecessary when the toolchain already answers.
+The research note covers TutorialKit, Epic React and Killercoda: high
+quality, low scalability, and the reason content rots once the authors move
+on.
+
+**Rejected - our own verification service or credential.** Blueshift
+already does verified builds and on-chain credentials. Teaching and
+credentialing stay separate concerns owned by separate products.
+
+**Rejected - a fourth column for lesson prose.** Textbook simultaneous
+visibility, but on a 1440px screen it leaves the editor about 560px, where
+Rust with Anchor types begins wrapping, and it puts two reading columns
+either side of the code.
+
+**Rejected - merging the lesson into the assistant column** (what Cat's
+prototype does): cheapest and it demos well, but one scroll serves two jobs
+and the objective is gone three turns into a conversation. It also blurs
+authored curriculum and generated answers into one voice.
+
+**Two guardrails are load-bearing, not decoration.** A three-rung hint
+ladder whose rung is named inside the prompt, and an unaided-first-attempt
+gate. *The Effortless Trap* (2026) found unguarded AI access left students
+17% worse on unaided exams than a no-tool control, and that the same model
+redesigned to withhold answers erased the harm. The lesson rules therefore
+carry an explicit override saying they supersede the assistant's general
+"lead with the answer" instruction - a policy stated *below* its own
+contradiction is the failure mode, not a mitigation.
+
+**Honesty constraint that shaped the content.** This cut verifies a build,
+a deploy and the IDL. It cannot see a transaction or a client run, so a
+step that is not machine-checked says so: its band line reads "Not
+machine-checked" rather than "Verified when". A guard test asserts a
+reading step's copy never claims program behaviour was observed. The first
+version shipped a `read` step advertising "Verified when you have run the
+client and read its output", which the final review caught - the mechanism
+was honest and one word of copy undid it.
+
+**Revisit when** a second lesson path exists - step ids are not
+path-scoped today, and both the hint counter and the reader's key use a
+bare id - or when the Interact stage can hand us a transaction signature,
+which is what a `log-contains` condition needs.
+
+---
+
+## D16 - Resolved 2026-08-27: two races, not one
+
+The friction logged in D16 is fixed on `feat/lesson-paths`, and the
+original diagnosis was incomplete in a way worth recording.
+
+The guard D16 predicted - `PgTutorial.current` being read before the async
+`refresh()` inside `setMainPrimary` resolves - is real and necessary, but
+**it does not fix the crash on its own.** A second race sits behind it:
+`currentSidebarPage` is a derivable whose recompute is dispatched through a
+debounced batch, so when `sidebar.name` changes twice in quick succession
+the earlier change's callback can still fire after the later one,
+delivering a stale value that no longer matches the live sidebar page. Both
+guards are needed; verified with instrumented traces, and the e2e
+reproduced the failure before the fix and passed after.
+
+Note for whoever touches this next: `app/Panels/Side/Side.tsx` and
+`Right.tsx` subscribe to the same derivable and may carry the same latent
+staleness. Unverified.
+
+The codebase already had a different remedy for this symptom class -
+`await PgCommon.sleep(0)` before subscribing, at `routes/common.tsx:75-77`.
+We used a listener-level guard instead because it is targeted rather than
+reordering the whole `disposables` block, at the cost of two idioms for one
+framework quirk.
