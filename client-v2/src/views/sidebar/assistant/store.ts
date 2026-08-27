@@ -54,6 +54,13 @@ export interface Connection {
   settings?: { model: string; effort: Effort };
 }
 
+/** A prompt the panel is asked to run on the user's behalf */
+export interface PromptRequest {
+  text: string;
+  /** `false` puts it in the composer instead, for the user to edit and send */
+  send: boolean;
+}
+
 /** What the panel is doing right now */
 export type AssistantStatus =
   /** Waiting for the user to type */
@@ -278,37 +285,53 @@ export class PgAssistant {
    * inside `Chat`), so this only notifies; it does not append a message
    * itself.
    *
-   * `Flow` subscribes here too, only to reopen the panel when it is
-   * collapsed - it never sends anything. When it is the only listener
-   * (the panel is collapsed, so `Chat` is unmounted), the text would
-   * otherwise be lost between this call and `Chat` mounting a moment
-   * later, so it is buffered in `_pendingPrompt` for the next subscriber
-   * to claim.
+   * Observers subscribe too and never send: `Flow` reopens the panel when it
+   * is collapsed, `Assistant` switches to the chat tab. `Chat` is the only
+   * subscriber that can act on a request, so with none registered the request
+   * is buffered in `_pendingPrompt` until one mounts a moment later and claims
+   * it -- which is exactly the collapsed-panel and other-tab cases.
    *
    * @param text the prompt to send
+   * @param opts `send: false` leaves it in the composer for the user to edit,
+   * which is what a prompt they did not type themselves wants
    */
-  static requestPrompt(text: string) {
-    const hasRealListener = PgAssistant._promptListeners.size > 1;
-    PgAssistant._pendingPrompt = hasRealListener ? null : text;
-    for (const cb of PgAssistant._promptListeners) cb(text);
+  static requestPrompt(text: string, opts?: { send?: boolean }) {
+    const request = { text, send: opts?.send !== false };
+    PgAssistant._pendingPrompt = PgAssistant._promptSenders.size
+      ? null
+      : request;
+    for (const cb of PgAssistant._promptListeners) cb(request);
   }
 
   /**
    * @param cb runs whenever `requestPrompt` is called. Not called on
    * subscribe with anything new - this is an event, not state, same as
    * `onDidChange` - except a prompt left buffered by `requestPrompt` (see
-   * above) is delivered once and cleared, so it still reaches whichever
-   * subscriber shows up next.
+   * above), which only a `sends` subscriber claims, since an observer cannot
+   * act on it.
+   * @param opts `sends: true` marks the subscriber that can actually run a
+   * prompt, and so the one whose absence makes a request worth buffering
    * @returns a disposable to clear the event
    */
-  static onDidRequestPrompt(cb: (text: string) => void): Disposable {
+  static onDidRequestPrompt(
+    cb: (request: PromptRequest) => void,
+    opts?: { sends?: boolean }
+  ): Disposable {
     PgAssistant._promptListeners.add(cb);
-    if (PgAssistant._pendingPrompt !== null) {
+    if (opts?.sends) PgAssistant._promptSenders.add(cb);
+
+    if (opts?.sends && PgAssistant._pendingPrompt !== null) {
       const pending = PgAssistant._pendingPrompt;
       PgAssistant._pendingPrompt = null;
       cb(pending);
     }
-    return { dispose: () => PgAssistant._promptListeners.delete(cb) };
+
+    return {
+      dispose: () => {
+        PgAssistant._promptListeners.delete(cb);
+        PgAssistant._promptSenders.delete(cb);
+      },
+    };
   }
 
   /** Start an assistant message and return its id so text can stream into it */
@@ -453,10 +476,16 @@ export class PgAssistant {
     (allowed: boolean) => void
   >();
   private static readonly _listeners = new Set<() => void>();
-  private static readonly _promptListeners = new Set<(text: string) => void>();
+  private static readonly _promptListeners = new Set<
+    (request: PromptRequest) => void
+  >();
+  /** The subset of `_promptListeners` that can actually run a prompt */
+  private static readonly _promptSenders = new Set<
+    (request: PromptRequest) => void
+  >();
   // Set by `requestPrompt` when `Chat` is not around to receive it live;
   // claimed and cleared by the next `onDidRequestPrompt` subscriber.
-  private static _pendingPrompt: string | null = null;
+  private static _pendingPrompt: PromptRequest | null = null;
 
   private static _emit() {
     for (const cb of PgAssistant._listeners) cb();

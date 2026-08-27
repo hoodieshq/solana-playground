@@ -37,6 +37,12 @@ const Assistant = () => {
     PgAssistant.initMcp();
   }, []);
 
+  // A prompt raised from another tab (a Sources tool call, say) lands in the
+  // composer, which is no use while that other tab is still on screen
+  useEffect(() => {
+    return PgAssistant.onDidRequestPrompt(() => setTab("chat")).dispose;
+  }, []);
+
   useEffect(() => {
     const a = PgExplorer.onDidOpenFile(() =>
       setCurrentFilePath(PgExplorer.currentFilePath)

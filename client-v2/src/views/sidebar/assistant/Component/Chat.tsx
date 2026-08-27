@@ -49,16 +49,25 @@ const Chat = () => {
   // prompt to be sent through `PgAssistant.requestPrompt`; this is the only
   // place that turns the request into an actual send
   useEffect(() => {
-    return PgAssistant.onDidRequestPrompt((text) => {
-      if (!PgAssistant.isConnected) {
-        setInput(text);
-        PgAssistant.addNotice(
-          "Connect a backend to send this to the assistant."
-        );
-        return;
-      }
-      sendRef.current(text);
-    }).dispose;
+    return PgAssistant.onDidRequestPrompt(
+      ({ text, send }) => {
+        if (!PgAssistant.isConnected) {
+          setInput(text);
+          PgAssistant.addNotice(
+            "Connect a backend to send this to the assistant."
+          );
+          return;
+        }
+        // A prompt the user did not type gets one look before it costs a turn
+        if (!send) {
+          setInput(text);
+          inputRef.current?.focus();
+          return;
+        }
+        sendRef.current(text);
+      },
+      { sends: true }
+    ).dispose;
   }, []);
 
   const items = PgAssistant.items;
