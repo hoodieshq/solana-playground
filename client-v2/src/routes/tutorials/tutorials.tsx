@@ -103,23 +103,18 @@ const handleTutorial = (name: string, page: string) => {
       // other tutorial takes the branch below, unchanged.
       // The barrel, not `./registry` -- importing it is what registers
       // the paths, and this route can run before Flow has mounted.
-      // Also requires `isStarted`: `PgTutorial.start()` -- the only thing
-      // that creates the tutorial's workspace -- lives inside upstream's
-      // `Tutorial` component, so an unstarted lesson has to fall through
-      // to it first, which shows About/Start and lets Start create the
-      // workspace. A fresh evaluation of this handler after that (a
-      // reload, or leaving and reopening the lesson from the switcher)
-      // correctly picks this branch. KNOWN GAP: `isTutorialInView` below
-      // guards this whole `setMainPrimary` call to run once per routed
-      // "session", so clicking Start does not itself re-run this check --
-      // the view stays on upstream's `Main` (its own markdown pane) until
-      // the next fresh evaluation. See task-12-report.md's fix-up section.
+      // Whether a lesson path exists is all this one-shot callback
+      // decides -- it is fixed for the life of the tutorial. Whether the
+      // tutorial is *started* changes within the same routed session
+      // (Start runs inside upstream's own component, well after this
+      // callback has already returned), so `LessonRoute` makes that half
+      // of the decision itself, reactively. See its own comment.
       const { getLessonPath } = await import("../../views/flow/lessons");
-      if (getLessonPath(tutorial.name) && PgTutorial.isStarted(tutorial.name)) {
-        const { default: LessonSurface } = await import(
-          "../../views/flow/lessons/LessonSurface"
+      if (getLessonPath(tutorial.name)) {
+        const { default: LessonRoute } = await import(
+          "../../views/flow/lessons/LessonRoute"
         );
-        return <LessonSurface />;
+        return <LessonRoute tutorial={tutorial} />;
       }
 
       const { default: Tutorial } = await tutorial.importComponent();
