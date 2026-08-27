@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { groupWorkspaces } from "./workspaces";
@@ -31,7 +31,21 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useOnClickOutside(wrapperRef, () => setOpen(false), open);
+  const closeMenu = useCallback(() => setOpen(false), []);
+  useOnClickOutside(wrapperRef, closeMenu, open);
+
+  // Same pattern as `StatusChips.tsx`'s profile popover: Escape closes,
+  // no `role="menu"` -- this is a popover of plain buttons, not the full
+  // WAI-ARIA menu pattern (which would also need roving arrow-key focus).
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") closeMenu();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, closeMenu]);
 
   const current = PgExplorer.currentWorkspaceName ?? null;
   const { lessons, projects } = groupWorkspaces(
@@ -57,7 +71,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
     <Wrapper ref={wrapperRef}>
       <Trigger
         onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
       >
         <Name>{label}</Name>
@@ -74,12 +88,11 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
       </Trigger>
 
       {open && (
-        <Menu role="menu">
+        <Menu aria-label="Projects and lessons">
           {lessons.length > 0 && <Group>Lessons</Group>}
           {lessons.map((entry) => (
             <Row
               key={entry.name}
-              role="menuitem"
               $active={entry.name === current}
               onClick={() => choose(entry)}
             >
@@ -92,7 +105,6 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
           {projects.map((entry) => (
             <Row
               key={entry.name}
-              role="menuitem"
               $active={entry.name === current}
               onClick={() => choose(entry)}
             >
@@ -102,7 +114,6 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
 
           <Separator />
           <Row
-            role="menuitem"
             $active={false}
             onClick={() => {
               setOpen(false);
@@ -195,7 +206,7 @@ const Menu = styled.div`
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
-    box-shadow: 0 12px 28px #00000066;
+    box-shadow: ${theme.default.boxShadow};
   `}
 `;
 

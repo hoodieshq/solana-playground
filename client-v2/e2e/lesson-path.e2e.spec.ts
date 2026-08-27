@@ -29,10 +29,11 @@ test("opens an unstarted tutorial from an active project", async ({ page }) => {
 
   // Reopen the gallery from the header's project switcher
   // (`views/flow/header/ProjectSwitcher.tsx`) now that a project is active.
-  // The switcher opens a menu; `Browse gallery` is the item that opens the
-  // gallery itself.
-  await page.locator('button[aria-haspopup="menu"]').click();
-  await page.getByRole("menuitem", { name: "Browse gallery" }).click();
+  // The switcher opens a popover of plain buttons (no `role="menu"`, same
+  // pattern as `StatusChips.tsx`'s profile popover); `Browse gallery` is
+  // the item that opens the gallery itself.
+  await page.locator('button[aria-haspopup="true"]').click();
+  await page.getByRole("button", { name: "Browse gallery" }).click();
   await expect(gallery).toBeVisible();
 
   await page.getByRole("tab", { name: /tutorials/i }).click();
