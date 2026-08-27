@@ -12,6 +12,46 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 Lesson-paths retrospective (research -> prototype -> result -> next):
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 
+## The week's brief, item by item
+
+The list agreed at the meeting of Friday 2026-08-22, laid against what
+exists on 2026-08-27. Six items were declared; four are ours to do. Of
+those four: one shipped and merged, one is built and waiting on review,
+one is deferred by an explicit decision, one is the next stream. Two are
+external and unchanged. Keep this table current -- it is what the
+presentation reads from.
+
+| # | Declared | State | Evidence | Next |
+| --- | --- | --- | --- | --- |
+| 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Deferred by decision** | D21; backlog entry below | Runs in parallel once #19 lands, with its own spec |
+| 2 | Sign in with GitHub; airdrop behind it | **Shipped** | #9 merged (`0bfce60b`), #17 merged (`423d9119`); D23; spec `2026-08-25-github-oauth-design.md` | Durable session, answered with item 6 |
+| 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Built, in review** | PR #19; D24; spec + plan + research of 2026-08-27 | Rebase, one approval, then the visual pass and more paths |
+| 4 | Modern Anchor version | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
+| 5 | Better builds with Kora | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
+| 6 | Programs saved per user, not locally (Cat, after the meeting) | **Next stream, concept only** | Step 2 in Next below | Design it after #19 lands |
+
+Item 1's cost is the reason it waits: wallet-adapter cuts through
+`commands/deploy/deploy.ts` (29 commits in six months) and
+`utils/wallet/wallet.ts` (9), the two hottest files upstream keeps
+changing, for little the demo can show -- and the fork's merge strategy
+is to stay a fast-forward.
+
+Item 2's honest boundary, to be said out loud in any demo: the gate is
+client-side, and nothing server-side verifies sign-in, because the
+Foundation's verifying faucet does not exist. Written down in the spec
+rather than implied.
+
+Items 4 and 5 rest on an environment fact worth carrying into the
+conversation: the supported-crate list is a fixed whitelist,
+`anchor-lang` is pinned at 0.29 and `solana-program` at 1.16, and there
+is no Pinocchio template. Upstream intends to address that; we do not
+fork it.
+
+**Not on the list, delivered anyway** -- review follow-ups and
+demo-readiness, not scope creep: #14 (GitHub import through the Trees
+API, D22), #15 (`cmd+B` panel toggle), #16 (platform RPC endpoints and
+the cluster toggle), #12, #17, #18. Step 0 below came out of #18.
+
 ## Shipped
 
 | What | Where | Notes |
