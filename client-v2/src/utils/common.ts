@@ -210,11 +210,20 @@ export class PgCommon {
   /**
    * Fetch the response from the given URL and return the text response.
    *
+   * A dev server answers an unknown path with the SPA shell, so without the
+   * status check callers get HTML that parses as a valid file -- which is how
+   * a missing `public/crates` asset reached Rust Analyzer's WASM and panicked
+   * it mid-borrow, leaving every later call to report recursive use.
+   *
    * @param url URL
+   * @throws if the response status is not ok
    * @returns the text response
    */
   static async fetchText(url: string) {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status}): ${url}`);
+    }
     return await response.text();
   }
 
