@@ -7,6 +7,7 @@ import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
 import LeftPanel from "./left/LeftPanel";
 import GearSidebar from "./settings/GearSidebar";
+import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
@@ -30,6 +31,7 @@ const Flow = () => {
   const [leftOpen, setLeftOpen] = useState(true);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
   useKeybind("Ctrl+B", () => setLeftOpen((o) => !o));
 
@@ -46,7 +48,12 @@ const Flow = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  const openSettings = () => setSettingsOpen(true);
+  // Toggles rather than opens: the header controls are the only way in, so a
+  // second click on one has to be the way out.
+  const toggleSettings = (focus: SettingsFocus = "panel") => {
+    setSettingsFocus(focus);
+    setSettingsOpen((open) => !open);
+  };
 
   // Whether the empty-workspace gallery has already been opened once for
   // this mount of `Flow`.
@@ -78,7 +85,11 @@ const Flow = () => {
 
   return (
     <Wrapper>
-      <Header onOpenGallery={openGallery} onOpenSettings={openSettings} />
+      <Header
+        onOpenGallery={openGallery}
+        onToggleSettings={toggleSettings}
+        settingsOpen={settingsOpen}
+      />
       <Columns $assistant={assistantOpen} $left={leftOpen}>
         <LeftPanel
           onNewProject={openGallery}
@@ -105,7 +116,11 @@ const Flow = () => {
         </Right>
       </Columns>
 
-      <GearSidebar open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <GearSidebar
+        open={settingsOpen}
+        focus={settingsFocus}
+        onClose={() => setSettingsOpen(false)}
+      />
 
       <Wallet />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />

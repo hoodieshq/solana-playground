@@ -10,7 +10,7 @@ import {
   ImportFile,
 } from "../../../components/Icons";
 import Link from "../../../components/Link";
-import { Endpoint } from "../../../constants";
+import { Endpoint, PLATFORM_ENDPOINTS } from "../../../constants";
 import {
   useBlockExplorer,
   useOnClickOutside,
@@ -31,15 +31,31 @@ import {
   ImportGithub,
 } from "../../sidebar/explorer/Component/Modals";
 
+/** Which control the panel puts focus on when it opens */
+export type SettingsFocus = "panel" | "network";
+
+/**
+ * Marks the controls that toggle this panel, so `useOnClickOutside` does not
+ * read a click on one as an outside click.
+ */
+export const SETTINGS_TRIGGER_ATTR = "data-settings-trigger";
+
 interface GearSidebarProps {
   open: boolean;
   onClose: () => void;
+  focus?: SettingsFocus;
 }
 
-const NETWORKS: ReadonlyArray<{ label: string; endpoint: Endpoint }> = [
+// `string`, not `Endpoint`: platform endpoints are build-time URLs, not enum
+// members.
+const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
   { label: "Devnet", endpoint: Endpoint.DEVNET },
   { label: "Testnet", endpoint: Endpoint.TESTNET },
   { label: "Localnet", endpoint: Endpoint.LOCALNET },
+  ...PLATFORM_ENDPOINTS.map(({ name, value }) => ({
+    label: name,
+    endpoint: value,
+  })),
 ];
 
 /**
@@ -47,8 +63,13 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: Endpoint }> = [
  * and import, Explorer shortcuts, then the upstream declarative settings
  * form (connection, build, editor, notification, block-explorer, ...).
  */
-const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
+const GearSidebar: FC<GearSidebarProps> = ({
+  open,
+  onClose,
+  focus = "panel",
+}) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
   // Modals opened from this panel (Import from GitHub/files, and the
@@ -66,13 +87,22 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
       setModalOpen(!!detail?.elementable)
   );
 
-  useOnClickOutside(panelRef, onClose, open && !modalOpen);
+  // The header's toggles are excluded: this hook fires on `mousedown`, so
+  // without that a toggle's own `click` would re-open what the `mousedown`
+  // just closed -- one render each way, which reads as the panel wiggling.
+  useOnClickOutside(
+    panelRef,
+    onClose,
+    open && !modalOpen,
+    `[${SETTINGS_TRIGGER_ATTR}]`
+  );
 
   // Re-render on endpoint change (e.g. from the embedded upstream select)
   // and read the current value straight off `PgSettings`, matching how the
   // rest of the codebase consumes non-React-owned static state.
   useRenderOnChange(PgSettings.onDidChangeConnectionEndpoint);
   const endpoint = PgSettings.connection.endpoint;
+  const activeNetwork = NETWORKS.findIndex((n) => n.endpoint === endpoint);
 
   const explorer = useBlockExplorer();
   const wallet = useWallet();
@@ -80,21 +110,47 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
   const pk = PgProgramInfo.getPkStr();
 
   // Focus the panel itself on open so keyboard users land somewhere sane
-  // without having to guess which control comes first. On close, restore
-  // focus to the element that was active before the panel opened.
+  // without having to guess which control comes first -- unless the caller
+  // asked for a specific control, as the header's cluster chip does. On close,
+  // restore focus to the element that was active before the panel opened.
   useEffect(() => {
     if (open) {
       if (document.activeElement instanceof HTMLElement) {
         returnFocusTo.current = document.activeElement;
       }
-      panelRef.current?.focus();
+      // Falls back to the first chip when the endpoint is one `NETWORKS` does
+      // not list (Playnet, Mainnet Beta, a custom URL).
+      const target =
+        focus === "network"
+          ? chipsRef.current?.querySelector<HTMLElement>(
+              '[role="radio"][aria-checked="true"]'
+            ) ?? chipsRef.current?.querySelector<HTMLElement>('[role="radio"]')
+          : null;
+      (target ?? panelRef.current)?.focus();
     } else {
       if (returnFocusTo.current && document.contains(returnFocusTo.current)) {
         returnFocusTo.current.focus();
       }
       returnFocusTo.current = null;
     }
-  }, [open]);
+  }, [open, focus]);
+
+  // Arrow keys move between clusters, selecting as they go. A radiogroup of
+  // `<button>`s gets none of this for free, unlike real radio inputs.
+  const moveNetworkFocus = (delta: number) => {
+    const chips =
+      chipsRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    if (!chips?.length) return;
+
+    const current = Array.from(chips).indexOf(
+      document.activeElement as HTMLButtonElement
+    );
+    const next =
+      ((current === -1 ? 0 : current) + delta + chips.length) % chips.length;
+
+    PgSettings.connection.endpoint = NETWORKS[next].endpoint;
+    chips[next].focus();
+  };
 
   // Close on Escape while open. Scoped to `open` (and skipped while a modal
   // is open, for the same reason as the outside-click guard above) rather
@@ -127,13 +183,36 @@ const GearSidebar: FC<GearSidebarProps> = ({ open, onClose }) => {
 
       <Section>
         <Eyebrow>Network</Eyebrow>
-        <Chips role="radiogroup" aria-label="Network">
-          {NETWORKS.map((n) => (
+        <Chips
+          ref={chipsRef}
+          role="radiogroup"
+          aria-label="Network"
+          onKeyDown={(ev) => {
+            const delta =
+              ev.key === "ArrowRight" || ev.key === "ArrowDown"
+                ? 1
+                : ev.key === "ArrowLeft" || ev.key === "ArrowUp"
+                ? -1
+                : 0;
+            if (!delta) return;
+            ev.preventDefault();
+            moveNetworkFocus(delta);
+          }}
+        >
+          {NETWORKS.map((n, i) => (
             <Chip
               key={n.endpoint}
               type="button"
               role="radio"
               aria-checked={endpoint === n.endpoint}
+              // Roving tabindex: one stop for the whole group. Index 0 takes it
+              // when the endpoint is not one of these, so the group stays
+              // reachable by Tab.
+              tabIndex={
+                endpoint === n.endpoint || (activeNetwork === -1 && i === 0)
+                  ? 0
+                  : -1
+              }
               $active={endpoint === n.endpoint}
               onClick={() => (PgSettings.connection.endpoint = n.endpoint)}
             >
