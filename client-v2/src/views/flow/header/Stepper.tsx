@@ -20,6 +20,13 @@ const statusOf = (state: FlowState, stage: Stage): StageStatus => {
 interface StepperProps {
   state: FlowState;
   onSelect: (stage: Stage) => void;
+  /**
+   * The stage the current lesson step is aiming at, drawn as a ring.
+   * `null` outside a lesson. Nothing else about the stepper changes:
+   * the loop stays a loop, and this only says where the lesson is
+   * pointing.
+   */
+  target?: Stage | null;
 }
 
 /**
@@ -27,7 +34,7 @@ interface StepperProps {
  * pill stepper. Each stage's status is carried by dot/glyph shape as well
  * as color, so the sequence reads correctly without color vision.
  */
-const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
+const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
   <Wrapper role="tablist" aria-label="Development loop">
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
@@ -48,9 +55,12 @@ const Stepper: FC<StepperProps> = ({ state, onSelect }) => (
             role="tab"
             aria-selected={selected}
             aria-controls={`flow-stage-panel-${stage}`}
-            aria-label={`${LABEL[stage]}: ${status}${suffix}`}
+            aria-label={`${LABEL[stage]}: ${status}${suffix}${
+              stage === target ? ", current lesson target" : ""
+            }`}
             $status={status}
             $selected={selected}
+            $target={stage === target}
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
@@ -176,8 +186,9 @@ const ErrorSuffix = styled.span`
 const StageButton = styled.button<{
   $status: StageStatus;
   $selected: boolean;
+  $target: boolean;
 }>`
-  ${({ theme, $status, $selected }) => css`
+  ${({ theme, $status, $selected, $target }) => css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -202,6 +213,12 @@ const StageButton = styled.button<{
     ${$status === "failed" &&
     css`
       border-color: ${theme.colors.state.error.color};
+    `}
+
+    ${$target &&
+    css`
+      border-color: ${theme.colors.default.primary};
+      box-shadow: 0 0 0 3px ${theme.colors.default.primary}33;
     `}
 
     &:hover {

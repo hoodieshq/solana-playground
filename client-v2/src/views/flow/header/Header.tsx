@@ -5,6 +5,9 @@ import styled, { css } from "styled-components";
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
+import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
+import type { LessonState } from "../lessons";
+import { currentStep } from "../lessons/progress";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
@@ -28,6 +31,13 @@ const Header: FC<HeaderProps> = ({
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
 
+  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
+
+  const target = lesson.path
+    ? currentStep(lesson.path, lesson.progress)?.target ?? null
+    : null;
+
   return (
     <Bar>
       <Zone>
@@ -35,7 +45,7 @@ const Header: FC<HeaderProps> = ({
         <ProjectSwitcher onOpenGallery={onOpenGallery} />
       </Zone>
       <Zone $center>
-        <Stepper state={state} onSelect={PgFlow.setStage} />
+        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
       </Zone>
       <Zone $end>
         <StatusChips
