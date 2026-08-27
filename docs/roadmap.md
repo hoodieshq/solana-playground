@@ -25,7 +25,7 @@ presentation reads from.
 | --- | --- | --- | --- | --- |
 | 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Deferred by decision** | D21; backlog entry below | Runs in parallel once #19 lands, with its own spec |
 | 2 | Sign in with GitHub; airdrop behind it | **Shipped** | #9 merged (`0bfce60b`), #17 merged (`423d9119`); D23; spec `2026-08-25-github-oauth-design.md` | Durable session, answered with item 6 |
-| 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Built, in review** | PR #19; D24; spec + plan + research of 2026-08-27 | Rebase, one approval, then the visual pass and more paths |
+| 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Built, in review** | PR #19; D24; spec + plan + research of 2026-08-27 | `master-2.0` merged in; one approval, then the visual pass and more paths |
 | 4 | Modern Anchor version | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
 | 5 | Better builds with Kora | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
 | 6 | Programs saved per user, not locally (Cat, after the meeting) | **Next stream, concept only** | Step 2 in Next below | Design it after #19 lands |
@@ -50,7 +50,8 @@ fork it.
 **Not on the list, delivered anyway** -- review follow-ups and
 demo-readiness, not scope creep: #14 (GitHub import through the Trees
 API, D22), #15 (`cmd+B` panel toggle), #16 (platform RPC endpoints and
-the cluster toggle), #12, #17, #18. Step 0 below came out of #18.
+the cluster toggle), #13 (a real Default backend behind `/api/agent`),
+#12, #17, #18. Step 0 below came out of #18.
 
 ## Shipped
 
@@ -69,44 +70,68 @@ the cluster toggle), #12, #17, #18. Step 0 below came out of #18.
 | GitHub import through the Trees API | PR #14, merged 2026-08-27 (`dbf9a365`) | One rate-limited request instead of one per directory; readable errors. Decision: D22 |
 | Platform RPC endpoints and a header cluster toggle | PR #16, merged 2026-08-27 (`20f71642`) | Build-time RPC per cluster, cluster badge as a settings toggle. Rebased twice, one non-blocking review note (P2) |
 | Sign-in survives the GitHub hop | PR #17, merged 2026-08-27 (`423d9119`) | `popup.closed` lies once COOP severs the handle; first-time sign-in now works. Decision: D23 |
+| Chip status wrapper restored | PR #18, merged 2026-08-27 (`49c128e6`) | Cleared the typecheck break #16 and #17 created between them |
+| A real Default backend | PR #13, merged 2026-08-27 (`8bbf28de`, rogaldh) | Same-origin `/api/agent`; the scripted Demo provider is gone. H1 (no metering) still stands before any paid key |
 
 ## Tonight
 
-#14, #15, #16 and #17 are merged. Signing in on the demo machine now
-works from the first click: #17 fixed a failure that hit only the
-*first* authorization of a GitHub account, which is precisely what an
-audience sees.
+**`master-2.0` typechecks again and carries everything but the
+lessons.** #18 cleared the break #16 and #17 created between them, and
+#13 landed after it, so the scripted Demo provider is gone and
+`/api/agent` is the default path. Signing in works from the first click.
 
-**`master-2.0` briefly did not typecheck.** #16 and #17 were
-concurrent branches; #16 renamed the component #17's new "Signing
-in..." chip depended on, each merged clean on its own, and nothing
-re-ran `tsc` after both landed. Found while rebasing #13, fixed as
-#18 -- that is now the only thing in the way of a clean build on
-`master-2.0` and today's real P0.
+**#19 is merged up and unblocked.** Current `master-2.0` is merged into
+`feat/lesson-paths`: the three predicted conflicts (`Flow.tsx`,
+`Header.tsx`, `LeftPanel.tsx`) are resolved by hand -- #15's collapse
+behaviour kept as-is, with the Projects-tab gates rewritten as
+"whatever the panel is actually showing" now that the tab is gone.
+`MERGEABLE`; the only thing left is one approval, which cannot be mine.
 
-One decision is still open: **does the demo run on the Default backend
-(`/api/agent`, PR #13)?** If it does, M3 and M4 below stop being
-review notes and become demo blockers, and H1 -- an unmetered LLM relay
-on a public URL -- becomes a live exposure rather than a future one.
+Verified on the merged tree: tsc clean, prettier clean, 187 unit tests
+in 20 suites, 5 e2e over exactly this surface. One pre-existing e2e
+failure is named rather than hidden: `github-oauth`'s wrong-nonce case
+stalls at "Signing in..." and fails identically on plain `master-2.0`
+with a byte-identical spec, so it predates the merge. Both runs were on
+a non-3000 port while the GitHub app's callback is registered on 3000 --
+so a run on 3000 is what settles whether it is real or an artifact.
+
+With #13 merged, the open decision is no longer whether to adopt the
+Default backend but whether the demo *points it at a paid key*: H1
+(an unmetered LLM relay on a public URL) is the gate, and metering is
+step 3 below.
 
 ## Open pull requests
 
 Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone. #14, #15, #16, #17 merged 2026-08-27. Three
-PRs open; #13 is rogaldh's.
+merges on a comment alone. #13, #14, #15, #16, #17, #18 all merged
+2026-08-27. One PR open.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
-| #18 | `fix/status-chip-typecheck` | `MERGEABLE` | One approval. Cannot be self-approved. Fixes `master-2.0`'s current typecheck break -- land first |
-| #19 | `feat/lesson-paths` | needs a rebase | One approval. Cannot be self-approved. Roadmap step 1, implemented: 24 commits, 157 unit tests in 18 suites, 5 e2e. Based on `master-2.0` before #14-#17, so `Flow.tsx`, `Header.tsx` and `LeftPanel.tsx` need a hand merge |
-| #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key; inherits #18's typecheck break until #18 merges |
+| #19 | `feat/lesson-paths` | `MERGEABLE` | One approval. Cannot be self-approved. Roadmap step 1: 25 commits, 187 unit tests in 20 suites, 5 e2e; `master-2.0` merged in and the three conflicts resolved by hand |
 
 Vercel is the only check that reports on a PR, and it is an ignored
 build. There is no CI for `client-v2` -- see P1 below.
 
-### PR #18 — Restore the Chip component master-2.0 currently fails to compile without
+### PR #19 — Tutorials as a scenario
 
-`tsc --noEmit` fails on `master-2.0` right now:
+Roadmap step 1, in review. The work is described in *Next* step 1; the
+merge of current `master-2.0` into it is described in *Tonight*.
+
+### What #13's merge left behind
+
+#13 shipped the transport half of the parked playground-tokens design.
+Three items from its review were still open when it merged, so they are
+live on `master-2.0` now rather than branch notes: **M3** and **M4** are
+P0 below, **H1** is P1 item 5 and the gate on any paid key. One product
+question is still unanswered: deleting Demo removed the only
+zero-network backend, so a fork without `AGENT_*` set opens on a dead
+preselected option.
+
+### Historical: PR #18 — the Chip master-2.0 could not compile without
+
+Merged (`49c128e6`). Kept because it is the clearest case for step 0.
+`tsc --noEmit` failed on `master-2.0`:
 `StatusChips.tsx(186,10): error TS2304: Cannot find name 'Chip'`.
 #16 renamed the cluster/wallet chips to `ChipButton` and deleted the
 old non-interactive `Chip`; #17, merged after, added a `Signing in...`
@@ -121,9 +146,9 @@ and its own `Cancel` button, so the wrapper must not also present as
 a control (cursor, hover, focus-visible) the way `ChipButton` does.
 tsc, prettier and 111 tests (10 suites) clean.
 
-### PR #13 — Replace the Demo backend with a real default one (draft)
+### Historical: PR #13 — the Demo backend replaced by a real default
 
-Deletes the scripted `Demo` provider and adds `api/agent.mjs`, a
+Merged (`8bbf28de`, rogaldh). Deletes the scripted `Demo` provider and adds `api/agent.mjs`, a
 same-origin chat-completions route whose upstream, key and model come
 from the environment only. Also carries four unrelated panel changes
 (Ctrl+R toggle, MCP description collapse, BYO-key accordion, drop the
@@ -169,15 +194,22 @@ Each carries where it came from and where it now belongs.
 
 ### P0 -- in the way of tonight
 
-1. **Merge #18.** `master-2.0` fails `tsc --noEmit` right now (see
-   *Tonight*); cannot be self-approved.
-2. **Decide whether the demo runs the Default backend.** If yes, #13's
-   M3 (`null` body -> 500) and M4 (no `maxDuration`, streams cut) are
-   demo blockers, both small; and H1 is live, not future.
+1. **Approve and merge #19.** `MERGEABLE`, `master-2.0` merged in, the
+   three conflicts resolved by hand; cannot be self-approved. It is the
+   only open PR and the whole of roadmap step 1.
+2. **M3 and M4, now live on master.** #13 merged with both open, so the
+   demo runs on them either way: a `null` JSON body returns 500
+   (`api/agent.mjs:131`), and no `maxDuration` in `vercel.json` means a
+   streaming answer is cut at the default function timeout. Both small.
+3. **Run the OAuth e2e on port 3000.** The wrong-nonce case fails on
+   `master-2.0` and on #19 alike, stalling at "Signing in...". Every run
+   so far was on another port while the GitHub app's callback is pinned
+   to 3000, so one run there says whether this is a real regression in
+   the sign-in path or a test-environment artifact.
 
 ### P1 -- important, next in line
 
-3. **Verification you can trust** -- a new step, see *Next*. Nothing
+4. **Verification you can trust** -- a new step, see *Next*. Nothing
    automated checks this fork today.
    - No CI for `client-v2`: `.github/workflows/reusable-checks.yml`
      covers `client/`, `server/` and `wasm/` only. (#5, #9)
@@ -190,15 +222,15 @@ Each carries where it came from and where it now belongs.
      from warning to error. Found 2026-08-27 while verifying #16. Fix
      the case pair before wiring the build into CI, or the first green
      run is impossible. Upstream file -- keep the change to a rename.
-4. **Harden `/api/agent` before it ever holds a paid key** -- part of
+5. **Harden `/api/agent` before it ever holds a paid key** -- part of
    the metering step, see *Designed, parked*. Body-size cap,
    messages/tools count caps, `Origin`/`sec-fetch-site` same-origin
    check, per-IP token bucket. Without these the route is an
    unauthenticated general-purpose LLM relay. (#13 review, H1)
-5. **Wrap the project snapshot in untrusted-data delimiters** and move
+6. **Wrap the project snapshot in untrusted-data delimiters** and move
    it out of the `system` role. Shared projects are attacker-controlled
    text and go to the model unmarked today. (#5)
-6. **`requestApproval` should return `{ id, allowed }`.** It returns a
+7. **`requestApproval` should return `{ id, allowed }`.** It returns a
    bare boolean, so two tool calls in flight cannot label the right
    approval card -- visible the moment a demo runs parallel tools. (#5)
 
@@ -265,7 +297,10 @@ Loose ends with no home yet:
   review, M2) -- done.
 - The pre-existing `no-useless-concat` in `Deploy.tsx` (#13 checklist)
   -- done by #12.
-- #14, #15, #16, #17 merged to `master-2.0`.
+- #14, #15, #16, #17, #18 and #13 all merged to `master-2.0`.
+- `master-2.0`'s typecheck break -- closed by #18 (`49c128e6`).
+- #19's pending hand merge with #15 -- done (`55de28a4`), #19 is
+  `MERGEABLE` and waiting on one approval.
 
 ## Next
 
@@ -308,10 +343,10 @@ thing that is cheaper the earlier it happens.
    step ids are not path-scoped; `describeLesson` would misreport a path
    ending in a reading step; one `useLesson()` hook would collapse six
    hand-rolled subscriptions; `verify.ts`'s `build-passes` and `account`
-   sub-condition are unused surface. Merge note: this branch is based on
-   `master-2.0` before #15 landed, so `LeftPanel.tsx` needs a hand merge
-   with #15's collapse toggle, and `ProjectsTab.tsx` is a delete/modify
-   conflict if #15 touched it.
+   sub-condition are unused surface. Merged up 2026-08-27 (`55de28a4`):
+   current `master-2.0` is in, the three predicted conflicts resolved by
+   hand, and `ProjectsTab.tsx`'s deletion carried through without a
+   delete/modify conflict because #15 never touched it. See *Tonight*.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
    off. Concept only until designed (candidate D24): a separate
    service, never `server/`. Feeds back into the OAuth stream.
@@ -323,7 +358,7 @@ thing that is cheaper the earlier it happens.
    storage, rather than putting the token in browser storage.
 3. **Metering in front of `/api/agent`** — the surviving half of the
    parked playground-tokens design, and the gate on pointing the
-   Default backend at a paid account. Carries P1 item 4.
+   Default backend at a paid account. Carries P1 item 5.
 
 ## Designed, parked
 
