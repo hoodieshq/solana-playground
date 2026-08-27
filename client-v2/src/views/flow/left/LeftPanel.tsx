@@ -3,26 +3,30 @@ import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
-import ProjectsTab from "./ProjectsTab";
+import StepRail from "../lessons/StepRail";
+import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
 
-type Tab = "projects" | "files";
+type Tab = "steps" | "files";
 
 interface LeftPanelProps {
-  onNewProject: () => void;
   collapsed: boolean;
   onToggle: () => void;
 }
 
-const LeftPanel: FC<LeftPanelProps> = ({
-  onNewProject,
-  collapsed,
-  onToggle,
-}) => {
-  const [tab, setTab] = useState<Tab>("files");
+/**
+ * Where you are inside the current project. Which project you are in is
+ * the header switcher's job -- the rail used to answer that too, and two
+ * controls for one question is what this change removed.
+ */
+const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
+  const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
+
+  const [tab, setTab] = useState<Tab>("steps");
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
@@ -59,10 +63,13 @@ const LeftPanel: FC<LeftPanelProps> = ({
     </Collapse>
   );
 
+  const inLesson = !!lesson.path;
+  const showSteps = inLesson && tab === "steps";
+
   return (
     <Wrapper>
       {collapsed && toggle}
-      {collapsed && tab === "files" && (
+      {collapsed && !showSteps && (
         <RailAction
           type="button"
           onClick={() => {
@@ -77,39 +84,42 @@ const LeftPanel: FC<LeftPanelProps> = ({
       )}
       {!collapsed && (
         <>
-          <Tabs role="tablist">
-            {(["projects", "files"] as const).map((t) => (
-              <TabButton
-                key={t}
-                id={`flow-left-tab-${t}`}
-                role="tab"
-                aria-selected={tab === t}
-                aria-controls="flow-left-tabpanel"
-                $active={tab === t}
-                onClick={() => setTab(t)}
-              >
-                {t === "projects" ? "Projects" : "Files"}
-              </TabButton>
-            ))}
+          {/* Rendered outside a lesson too, where it carries no tabs: the row
+              is the toggle's only home when the panel is open. */}
+          <Tabs role={inLesson ? "tablist" : undefined}>
+            {inLesson &&
+              (["steps", "files"] as const).map((t) => (
+                <TabButton
+                  key={t}
+                  id={`flow-left-tab-${t}`}
+                  role="tab"
+                  aria-selected={tab === t}
+                  aria-controls="flow-left-tabpanel"
+                  $active={tab === t}
+                  onClick={() => setTab(t)}
+                >
+                  {t === "steps" ? "Steps" : "Files"}
+                </TabButton>
+              ))}
             {toggle}
           </Tabs>
           <Body
             id="flow-left-tabpanel"
-            role="tabpanel"
-            aria-labelledby={`flow-left-tab-${tab}`}
+            role={inLesson ? "tabpanel" : undefined}
+            aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
           >
-            {tab === "projects" ? (
-              <ProjectsTab onNew={onNewProject} />
+            {showSteps ? (
+              <StepRail state={lesson} />
             ) : (
               <>
-                <Eyebrow>Files</Eyebrow>
+                {!inLesson && <Eyebrow>Files</Eyebrow>}
                 <ExplorerContainer>
                   <Explorer />
                 </ExplorerContainer>
               </>
             )}
           </Body>
-          {tab === "files" && (
+          {!showSteps && (
             <Footer type="button" onClick={createItem}>
               + New file
             </Footer>

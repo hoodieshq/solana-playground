@@ -96,7 +96,6 @@ const Flow = () => {
       />
       <Columns $assistant={assistantOpen} $left={leftOpen}>
         <LeftPanel
-          onNewProject={openGallery}
           collapsed={!leftOpen}
           onToggle={() => setLeftOpen((o) => !o)}
         />

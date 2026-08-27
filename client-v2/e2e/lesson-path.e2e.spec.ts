@@ -29,7 +29,10 @@ test("opens an unstarted tutorial from an active project", async ({ page }) => {
 
   // Reopen the gallery from the header's project switcher
   // (`views/flow/header/ProjectSwitcher.tsx`) now that a project is active.
-  await page.locator('button[aria-haspopup="dialog"]').click();
+  // The switcher opens a menu; `Browse gallery` is the item that opens the
+  // gallery itself.
+  await page.locator('button[aria-haspopup="menu"]').click();
+  await page.getByRole("menuitem", { name: "Browse gallery" }).click();
   await expect(gallery).toBeVisible();
 
   await page.getByRole("tab", { name: /tutorials/i }).click();
