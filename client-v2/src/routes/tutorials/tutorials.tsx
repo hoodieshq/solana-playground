@@ -116,6 +116,25 @@ const handleTutorial = (name: string, page: string) => {
           // and remove this check
           if (p.route && p.name !== "Tutorials") return;
 
+          // The property this listener is derived from is recomputed
+          // asynchronously (debounced) off of `sidebar.name`'s own change
+          // event. When `sidebar.name` changes twice in quick succession --
+          // e.g. the default-sidebar-page assignment in `routes/common.tsx`
+          // landing late, right as this route synchronously sets it to
+          // "Tutorials" -- the *earlier* change's callback can still fire
+          // after the later one, delivering a stale `p` here that no longer
+          // matches the live sidebar page. Ignore it; the live value's own
+          // (correct) dispatch follows right behind. See D16.
+          if (p.name !== PgView.sidebar.name) return;
+
+          // `setMainPrimary`'s callback is async, so `PgTutorial.refresh()`
+          // may not have resolved when the synchronous sidebar-name
+          // assignment below fires this listener. Both branches read
+          // tutorial state that does not exist yet at that moment:
+          // `openAboutPage()` throws, and the `isStarted` branch navigates
+          // away mid-open. Wait for the next change instead. See D16.
+          if (!PgTutorial.current) return;
+
           if (p.name === "Tutorials") PgTutorial.openAboutPage();
           else if (!PgTutorial.isStarted(tutorial.name)) PgRouter.navigate();
           else PgTutorial.open(tutorial.name);
