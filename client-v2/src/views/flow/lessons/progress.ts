@@ -148,10 +148,13 @@ export const skipStep = (
 /**
  * Move to the previous step, however far back the learner wants to go.
  *
- * Navigation only -- the record is what it was, minus the skip mark on the
- * step being returned to, since they are working on it again rather than
- * passing over it. A verified step keeps its verification: going back to look
- * at it cannot un-run the build that proved it.
+ * Pure navigation: the record is exactly what it was. Marks are left alone in
+ * both directions -- a verified step keeps its verification, because looking at
+ * it cannot un-run the build that proved it, and a skipped step keeps its skip,
+ * because a click cannot un-skip one either. Building it is what repairs the
+ * mark, through `advance`'s `proven` pass. Leaving the record untouched is also
+ * what keeps `stepForward` free: clearing the mark here would drop the frontier
+ * to this step and strand the learner on it.
  */
 export const stepBack = (
   path: LessonPath,
@@ -162,13 +165,9 @@ export const stepBack = (
   const index = step ? path.steps.indexOf(step) : path.steps.length;
   if (index <= 0) return progress;
 
-  const target = path.steps[index - 1];
   return {
-    completedStepIds: progress.completedStepIds,
-    skippedStepIds: (progress.skippedStepIds ?? []).filter(
-      (id) => id !== target.id
-    ),
-    currentStepId: target.id,
+    ...progress,
+    currentStepId: path.steps[index - 1].id,
   };
 };
 
@@ -176,6 +175,35 @@ export const stepBack = (
 export const canStepBack = (path: LessonPath, progress: LessonProgress) => {
   const step = currentStep(path, progress);
   return (step ? path.steps.indexOf(step) : path.steps.length) > 0;
+};
+
+/**
+ * Return forward after looking back, up to the frontier and no further.
+ *
+ * The other half of `stepBack`: reviewing an earlier step has to be a round
+ * trip, or the only way home is `skipStep` and the record gains a skip the
+ * learner never took. Moving off a step already behind them changes nothing,
+ * since the record already says what happened there -- which is exactly why
+ * this stops at the frontier. Crossing it is a claim about unproven work, and
+ * that stays `skipStep`'s to make.
+ */
+export const stepForward = (
+  path: LessonPath,
+  progress: LessonProgress
+): LessonProgress => {
+  if (!canStepForward(path, progress)) return progress;
+
+  const step = currentStep(path, progress)!;
+  return {
+    ...progress,
+    currentStepId: path.steps[path.steps.indexOf(step) + 1]?.id ?? null,
+  };
+};
+
+/** Whether the learner is behind the frontier and can return towards it */
+export const canStepForward = (path: LessonPath, progress: LessonProgress) => {
+  const step = currentStep(path, progress);
+  return !!step && behind(progress).includes(step.id);
 };
 
 /**

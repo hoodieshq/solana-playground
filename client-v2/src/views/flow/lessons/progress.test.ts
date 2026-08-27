@@ -6,8 +6,10 @@ import {
   currentStep,
   EMPTY_PROGRESS,
   canStepBack,
+  canStepForward,
   skipStep,
   stepBack,
+  stepForward,
   stepNumber,
 } from "./progress";
 import type { LessonProgress } from "./progress";
@@ -176,13 +178,23 @@ describe("skipStep", () => {
 });
 
 describe("stepBack", () => {
-  it("returns to the step behind, undoing an accidental Next step", () => {
+  it("returns to the step behind without rewriting the record", () => {
     const skipped = skipStep(PATH, EMPTY_PROGRESS);
     expect(currentStep(PATH, skipped)?.id).toBe("deploy");
 
     const back = stepBack(PATH, skipped);
     expect(currentStep(PATH, back)?.id).toBe("write");
-    expect(back.skippedStepIds).toEqual([]);
+    // Navigation only: a click cannot un-skip a step. Building it is what
+    // repairs the mark, via `advance`'s `proven` pass.
+    expect(back.skippedStepIds).toEqual(["write"]);
+  });
+
+  it("lets a build repair the skip mark on the step returned to", () => {
+    const back = stepBack(PATH, skipStep(PATH, EMPTY_PROGRESS));
+    const built = advance(PATH, back, flow({ build: "done" }), IDL);
+
+    expect(built.completedStepIds).toContain("write");
+    expect(built.skippedStepIds).toEqual([]);
   });
 
   it("goes back to any depth, one step at a time", () => {
@@ -233,8 +245,73 @@ describe("stepBack", () => {
     // They are on "write"; a deploy completing must not yank them forward
     const next = advance(PATH, back, flow({ deploy: "done" }), null);
 
-    expect(next.completedStepIds).toEqual([]);
     expect(currentStep(PATH, next)?.id).toBe("write");
+    // The deploy still earns its credit -- it is the review that must not move
+    // them, not the toolchain that must stop grading
+    expect(next.completedStepIds).toEqual(["deploy"]);
+  });
+});
+
+describe("stepForward", () => {
+  it("returns to where the learner was after reviewing a verified step", () => {
+    const done = advance(PATH, EMPTY_PROGRESS, flow({ build: "done" }), IDL);
+    const back = stepBack(PATH, done);
+    expect(currentStep(PATH, back)?.id).toBe("write");
+
+    const forward = stepForward(PATH, back);
+    expect(currentStep(PATH, forward)?.id).toBe("deploy");
+    // Review costs nothing: the record is exactly what it was
+    expect(forward.completedStepIds).toEqual(done.completedStepIds);
+    expect(forward.skippedStepIds ?? []).toEqual(done.skippedStepIds ?? []);
+  });
+
+  it("returns to where the learner was after reviewing a skipped step", () => {
+    const skipped = skipStep(PATH, EMPTY_PROGRESS);
+    const back = stepBack(PATH, skipped);
+
+    const forward = stepForward(PATH, back);
+    expect(currentStep(PATH, forward)?.id).toBe("deploy");
+    expect(forward.skippedStepIds).toEqual(["write"]);
+  });
+
+  it("refuses to cross the frontier, so it cannot stand in for a skip", () => {
+    expect(stepForward(PATH, EMPTY_PROGRESS)).toBe(EMPTY_PROGRESS);
+    expect(canStepForward(PATH, EMPTY_PROGRESS)).toBe(false);
+  });
+
+  it("walks forward to any depth, one step at a time", () => {
+    let p = skipStep(PATH, EMPTY_PROGRESS);
+    p = skipStep(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("client");
+
+    p = stepBack(PATH, stepBack(PATH, p));
+    expect(currentStep(PATH, p)?.id).toBe("write");
+
+    p = stepForward(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("deploy");
+    p = stepForward(PATH, p);
+    expect(currentStep(PATH, p)?.id).toBe("client");
+    expect(canStepForward(PATH, p)).toBe(false);
+  });
+
+  it("lands past the end when every step is behind the learner", () => {
+    const done: LessonProgress = {
+      completedStepIds: ["write", "deploy", "client"],
+      currentStepId: "client",
+    };
+    const forward = stepForward(PATH, done);
+
+    expect(forward.currentStepId).toBeNull();
+    expect(currentStep(PATH, forward)).toBeNull();
+  });
+
+  it("has nothing to do once the path is finished", () => {
+    const done: LessonProgress = {
+      completedStepIds: ["write", "deploy", "client"],
+      currentStepId: null,
+    };
+    expect(stepForward(PATH, done)).toBe(done);
+    expect(canStepForward(PATH, done)).toBe(false);
   });
 });
 

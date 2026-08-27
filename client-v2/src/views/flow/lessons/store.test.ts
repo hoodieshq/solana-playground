@@ -155,6 +155,29 @@ describe("reduceLesson", () => {
     expect(next.attemptBaseline).toBe(1000);
   });
 
+  it("keeps the hint ladder across a review round trip", () => {
+    const skipped = reduceLesson(loaded, {
+      type: "skip-step",
+      buildStartedAt: 1000,
+    });
+    const attempted = { ...skipped, attempted: true, attemptBaseline: 2000 };
+
+    const back = reduceLesson(attempted, { type: "step-back" });
+    expect(back.progress.currentStepId).toBe("one");
+
+    const forward = reduceLesson(back, { type: "step-forward" });
+    expect(forward.progress.currentStepId).toBe("two");
+    // Neither direction touches the ladder or the record
+    expect(forward.attempted).toBe(true);
+    expect(forward.attemptBaseline).toBe(2000);
+    expect(forward.progress.completedStepIds).toEqual([]);
+    expect(forward.progress.skippedStepIds).toEqual(["one"]);
+  });
+
+  it("has nothing to step forward to at the frontier", () => {
+    expect(reduceLesson(loaded, { type: "step-forward" })).toBe(loaded);
+  });
+
   it("resets everything when the workspace stops being a lesson", () => {
     const dirty = {
       path: PATH,

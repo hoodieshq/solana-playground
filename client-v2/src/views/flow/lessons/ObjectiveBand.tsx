@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 
 import { assistantLabel, describeStep } from "./band-copy";
 import { PgLessonHints } from "./hints";
-import { canStepBack, currentStep } from "./progress";
+import { canStepBack, canStepForward, currentStep } from "./progress";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { PgAssistant } from "../../sidebar/assistant/store";
@@ -49,6 +49,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   const rung = PgLessonHints.rung(step.id);
   const isRead = step.verify.kind === "read";
   const canGoBack = canStepBack(state.path, state.progress);
+  const canGoForward = canStepForward(state.path, state.progress);
 
   const askForHelp = () => {
     const prompt = PgLessonHints.nextPrompt(step, state.attempted);
@@ -63,7 +64,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
         <VerifiedBy>{described.verifiedBy}</VerifiedBy>
       </Text>
       <Actions>
-        <Back
+        <Nav
           type="button"
           disabled={!canGoBack}
           aria-label="Previous step"
@@ -75,7 +76,20 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
           onClick={() => PgLesson.stepBack()}
         >
           &#8592;
-        </Back>
+        </Nav>
+        <Nav
+          type="button"
+          disabled={!canGoForward}
+          aria-label="Next step"
+          title={
+            canGoForward
+              ? "Return to where you were. Nothing is recorded either way."
+              : "This is as far as you have got — build to go on, or skip the step"
+          }
+          onClick={() => PgLesson.stepForward()}
+        >
+          &#8594;
+        </Nav>
         {step.readPage && (
           <Secondary type="button" onClick={onRead}>
             Read the page
@@ -122,7 +136,7 @@ const Actions = styled.div`
 
 // Joins the actions on the right so the objective text stays flush left, but
 // stays a bare circle: it moves you between steps rather than acting on one
-const Back = styled.button`
+const Nav = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
     width: 1.75rem;

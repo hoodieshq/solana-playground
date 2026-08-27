@@ -130,7 +130,7 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
               title={`Nothing has proved this step yet — ${activeStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
               onClick={() => PgLesson.skipStep()}
             >
-              Next step
+              Skip this step
             </SkipFooter>
           )}
           {!showSteps && (
