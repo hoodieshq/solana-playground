@@ -4,6 +4,7 @@ import {
   MouseEvent,
   ReactNode,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import styled, { css, CSSProperties } from "styled-components";
@@ -79,6 +80,16 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       setIsDisabled(disabled);
     }, [disabled]);
 
+    // A handler that closes a modal unmounts this button before its `finally`
+    // runs, and restoring state on a gone component is what React warns about
+    const mounted = useRef(true);
+    useEffect(() => {
+      mounted.current = true;
+      return () => {
+        mounted.current = false;
+      };
+    }, []);
+
     const handleOnClick = async (ev: MouseEvent<HTMLButtonElement>) => {
       const shouldSetIsDisabled = getIsLoading(loading) === undefined;
       const shouldSetIsLoading = shouldSetIsDisabled && props.kind !== "icon";
@@ -88,8 +99,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         if (shouldSetIsLoading) setIsLoading(true);
         await onClick?.(ev);
       } finally {
-        if (shouldSetIsDisabled) setIsDisabled(false);
-        if (shouldSetIsLoading) setIsLoading(false);
+        if (mounted.current) {
+          if (shouldSetIsDisabled) setIsDisabled(false);
+          if (shouldSetIsLoading) setIsLoading(false);
+        }
       }
     };
 
