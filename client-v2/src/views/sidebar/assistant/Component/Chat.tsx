@@ -5,7 +5,7 @@ import ChatItem from "./ChatItem";
 import Connect from "./Connect";
 import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
-import { PgAssistant } from "../store";
+import { PgAssistant, turnProducedApproval } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
@@ -27,11 +27,17 @@ const SUGGESTIONS = [
  * Sent by "Make this change": models often describe an edit in prose instead of
  * calling `write_file`. This asks for the same edit as a patch, which lands in
  * the usual approval card.
+ *
+ * Phrased to work mid-lesson too, where the assistant is holding back a hint
+ * and has described no edit yet — and leaving it a line to say afterwards, so
+ * the turn does not end on a silence the panel has to explain.
  */
 const MAKE_CHANGE =
-  "Make the change you just described, using write_file with the complete " +
-  "new content of the file. If it touches more than one file, do them one " +
-  "at a time. Do not describe it again.";
+  "Write this change for me, using write_file with the complete new content " +
+  "of the file — the change you just described, or the one this step needs " +
+  "if you have not described one yet. If it touches more than one file, do " +
+  "them one at a time. Skip the explanation you would usually give first and " +
+  "summarise it in one line afterwards.";
 
 const Chat = () => {
   useRenderOnChange(PgAssistant.onDidChange);
@@ -189,7 +195,10 @@ const Chat = () => {
   // turn ending in an approval card has already produced its patch.
   const lastItem = items[items.length - 1];
   const changeableId =
-    !busy && lastItem?.kind === "assistant" && lastItem.text
+    !busy &&
+    lastItem?.kind === "assistant" &&
+    lastItem.text &&
+    !turnProducedApproval(items)
       ? lastItem.id
       : null;
 
@@ -229,6 +238,9 @@ const Chat = () => {
               onMakeChange={
                 item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
               }
+              // Inside a lesson the same click skips the hint ladder, so it is
+              // offered as a way out rather than as the obvious next step
+              makeChangeIsLastResort={!!lesson}
             />
           ))
         )}

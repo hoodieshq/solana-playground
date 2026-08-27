@@ -15,7 +15,9 @@ const ChatItem: FC<{
    * nothing is written on this click.
    */
   onMakeChange?: () => void;
-}> = ({ item, onMakeChange }) => {
+  /** Render it as a quiet way out rather than the obvious next step */
+  makeChangeIsLastResort?: boolean;
+}> = ({ item, onMakeChange, makeChangeIsLastResort }) => {
   switch (item.kind) {
     case "user":
       return (
@@ -35,10 +37,15 @@ const ChatItem: FC<{
           <Markdown codeFontOnly>{item.text}</Markdown>
           {onMakeChange && (
             <MakeChange
-              title="Ask the assistant to write this change, for you to review"
+              $quiet={makeChangeIsLastResort}
+              title={
+                makeChangeIsLastResort
+                  ? "Skip the rest of the hints and have the assistant write it, for you to review"
+                  : "Ask the assistant to write this change, for you to review"
+              }
               onClick={onMakeChange}
             >
-              Make this change
+              {makeChangeIsLastResort ? "Write it for me" : "Make this change"}
             </MakeChange>
           )}
         </Turn>
@@ -207,17 +214,20 @@ const Tick = styled.svg`
   `}
 `;
 
-const MakeChange = styled.button`
-  ${({ theme }) => css`
+const MakeChange = styled.button<{ $quiet?: boolean }>`
+  ${({ theme, $quiet }) => css`
     align-self: flex-start;
     margin-top: 0.5rem;
     padding: 0.1875rem 0.5rem;
     background: transparent;
-    border: 1px solid ${theme.colors.default.border};
+    border: 1px solid ${$quiet ? "transparent" : theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
-    color: ${theme.colors.default.textPrimary};
+    color: ${$quiet
+      ? theme.colors.default.textSecondary
+      : theme.colors.default.textPrimary};
     font: inherit;
     font-size: ${theme.font.code.size.xsmall};
+    text-decoration: ${$quiet ? "underline" : "none"};
     cursor: pointer;
     transition: background ${theme.default.transition.duration.medium}
         ${theme.default.transition.type},

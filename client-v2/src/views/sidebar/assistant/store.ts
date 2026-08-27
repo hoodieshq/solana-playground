@@ -45,6 +45,20 @@ export type ChatItem =
   /** Something the panel did, not the model — e.g. the user stopped the turn */
   | { kind: "notice"; id: string; text: string };
 
+/**
+ * Whether the turn ending at the last item already produced an approval card.
+ *
+ * "Make this change" is offered on a finished reply, but never on one whose
+ * turn already wrote its patch — asking again just rewrites the same file.
+ */
+export const turnProducedApproval = (items: readonly ChatItem[]) => {
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i].kind === "user") return false;
+    if (items[i].kind === "approval") return true;
+  }
+  return false;
+};
+
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
   id: ProviderId;

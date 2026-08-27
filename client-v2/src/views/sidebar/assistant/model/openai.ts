@@ -57,6 +57,7 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
 
     async send(input, signal) {
       history.push({ role: "user", content: input });
+      let ranTool = false;
 
       for (let i = 0; i < MAX_ITERATIONS; i++) {
         const message = await streamOneCompletion(
@@ -68,8 +69,10 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
         history.push(message);
 
         if (!message.tool_calls?.length) {
-          // Neither text nor a tool call: say so rather than ending silently
-          if (!message.content) {
+          // Neither text nor a tool call. A turn that already did its work and
+          // simply had nothing to add ends quietly — telling the user to retry
+          // would run the tools a second time.
+          if (!message.content && !ranTool) {
             PgAssistant.addError(
               `${
                 config.label ?? config.model
@@ -78,6 +81,8 @@ export const createOpenAiProvider = (config: OpenAiConfig): Provider => {
           }
           return;
         }
+
+        ranTool = true;
 
         for (const call of message.tool_calls) {
           // A tool can sit on an approval for a long time; do not start the
@@ -178,6 +183,12 @@ const streamOneCompletion = async (
 
   try {
     for await (const data of sseEvents(response.body)) {
+      // An upstream that fails after the headers reports it in the stream; without
+      // this the turn just ends empty and the panel blames the model
+      if (data.error) {
+        throw new Error(data.error.message ?? "The backend reported an error.");
+      }
+
       const delta = data.choices?.[0]?.delta;
       if (!delta) continue;
 
@@ -216,6 +227,7 @@ const streamOneCompletion = async (
 
 /** Parse an SSE body into the JSON payload of each `data:` event */
 async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{
+  error?: { message?: string };
   choices?: Array<{
     delta?: {
       content?: string | null;
