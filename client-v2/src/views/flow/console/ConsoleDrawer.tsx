@@ -8,6 +8,7 @@ import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgCommand } from "../../../utils";
 import { PgFlow } from "../state/stage";
 import type { StageStatus } from "../state/stage";
+import { BOTTOM_BAR_HEIGHT } from "../tokens";
 import { describeConsoleStatus } from "./status";
 import type { ConsoleStatus } from "./status";
 
@@ -95,7 +96,7 @@ const Handle = styled.button`
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    height: 1.75rem;
+    height: ${BOTTOM_BAR_HEIGHT};
     padding: 0 0.75rem;
     border: none;
     background: transparent;

@@ -3,8 +3,12 @@
 /** Gutter between the black page ground and each floating panel. */
 export const GAP = "8px";
 
-/** Corner radius of the three floating panels (left, center, right). */
-export const PANEL_RADIUS = "12px";
+/**
+ * Height of the bar pinned to a panel's bottom edge -- the console handle and
+ * the left panel's new-file action. Shared so their top borders read as one
+ * line across the canvas.
+ */
+export const BOTTOM_BAR_HEIGHT = "1.75rem";
 
 /**
  * The brand gradient, verbatim from
