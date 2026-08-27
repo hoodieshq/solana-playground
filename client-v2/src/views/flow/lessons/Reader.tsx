@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import type { LessonStep } from "./types";
@@ -22,23 +22,54 @@ interface ReaderProps {
 const Reader: FC<ReaderProps> = ({ step, onClose }) => {
   const [content, setContent] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useAsyncEffect(async () => {
-    if (!step.readPage) return;
-    try {
-      setContent(await step.readPage());
-    } catch {
-      setFailed(true);
-    }
+    const { readPage } = step;
+    if (!readPage) return;
+
+    // Fire the load without awaiting it here, so this effect's own
+    // promise settles immediately and its cleanup (below) is wired up
+    // before the load can finish. `live` is then checked before either
+    // state update, so a step closed mid-load never touches state after
+    // this component has unmounted.
+    let live = true;
+    (async () => {
+      try {
+        const page = await readPage();
+        if (live) setContent(page);
+      } catch {
+        if (live) setFailed(true);
+      }
+    })();
+
+    return () => {
+      live = false;
+    };
   }, [step]);
 
   useKeybind("Escape", onClose);
 
+  // Move focus into the sheet on open, and give it back on close. This
+  // is the half of dialog behaviour that carries real value without a
+  // focus trap: `aria-modal` is deliberately not claimed below, since
+  // nothing here makes the background inert.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => previouslyFocused?.focus();
+  }, []);
+
   return (
-    <Sheet role="dialog" aria-modal="true" aria-label={step.objective}>
+    <Sheet role="dialog" aria-label={step.objective}>
       <Bar>
         <Title>{step.objective}</Title>
-        <Close type="button" onClick={onClose} aria-label="Close the page">
+        <Close
+          ref={closeRef}
+          type="button"
+          onClick={onClose}
+          aria-label="Close the page"
+        >
           &times;
         </Close>
       </Bar>
@@ -48,6 +79,8 @@ const Reader: FC<ReaderProps> = ({ step, onClose }) => {
             This page could not be loaded. The step is unaffected -- prose is
             not what verifies it.
           </Failure>
+        ) : !step.readPage ? (
+          <Failure>This step has no page to read.</Failure>
         ) : content === null ? (
           <SpinnerWithBg loading size="2rem" />
         ) : (
