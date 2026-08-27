@@ -97,6 +97,38 @@ const expectIgnored = async (
   openSpy.mockRestore();
 };
 
+type BroadcastListener = ((ev: { data: unknown }) => void) | null;
+
+/** Stands in for the callback page's end of the same-origin broadcast bus */
+class FakeBroadcastChannel {
+  onmessage: BroadcastListener = null;
+  constructor(public name: string) {
+    FakeBroadcastChannel._instances.push(this);
+  }
+  postMessage() {
+    // Nothing sends on this end - tests play the callback page by driving
+    // `onmessage` directly.
+  }
+  close() {}
+  static _instances: FakeBroadcastChannel[] = [];
+}
+
+/** Swap the global in, and hand back the way to put it back */
+const installFakeBroadcastChannel = () => {
+  const original = (globalThis as { BroadcastChannel?: unknown })
+    .BroadcastChannel;
+  FakeBroadcastChannel._instances = [];
+  (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =
+    FakeBroadcastChannel;
+  return {
+    instances: FakeBroadcastChannel._instances,
+    restore: () => {
+      (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =
+        original;
+    },
+  };
+};
+
 describe("GithubAuth", () => {
   beforeEach(() => {
     GithubAuth._reset();
@@ -182,8 +214,7 @@ describe("GithubAuth", () => {
       })
     );
 
-    popup.closed = true;
-    jest.advanceTimersByTime(500);
+    jest.advanceTimersByTime(600_000);
 
     const result = await promise.then(
       () => "resolved",
@@ -301,24 +332,78 @@ describe("GithubAuth", () => {
     }
   });
 
-  it("should reject when the popup is closed without a message", async () => {
+  it("should report an explicit cancel as a cancellation", async () => {
+    const popup = { closed: false, close: jest.fn() };
+    const openSpy = jest
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+    const promise = GithubAuth.signIn();
+
+    GithubAuth.cancelSignIn();
+
+    const result = await promise.then(
+      () => "resolved",
+      (e: Error) => e.message
+    );
+    expect(result).toMatch(/cancelled/i);
+    // Spares the user a click while the handle is still ours to close
+    expect(popup.close).toHaveBeenCalled();
+    expect(GithubAuth.token).toBeNull();
+    expect(GithubAuth.user).toBeNull();
+    openSpy.mockRestore();
+  });
+
+  it("should report an unanswered wait as unfinished, not cancelled", async () => {
     jest.useFakeTimers();
     const popup = { closed: false, close: jest.fn() };
     const openSpy = jest
       .spyOn(window, "open")
       .mockReturnValue(popup as unknown as Window);
     const promise = GithubAuth.signIn();
-    // Simulate popup being closed
-    popup.closed = true;
-    // Advance timers past one poll tick
-    jest.advanceTimersByTime(500);
+
+    // The handler's cookies expire at ten minutes; the wait ends with them
+    jest.advanceTimersByTime(600_000);
+
     const result = await promise.then(
       () => "resolved",
       (e: Error) => e.message
     );
-    expect(result).toMatch(/cancelled/i);
+    expect(result).toMatch(/did not finish/i);
     expect(GithubAuth.token).toBeNull();
-    expect(GithubAuth.user).toBeNull();
+    openSpy.mockRestore();
+  });
+
+  /**
+   * `window.open` reuses the window by name, so a second flow re-navigates the
+   * first one and replaces the handler's nonce. The first wait would then turn
+   * the reply away as a forgery - which is what "could not be verified" on a
+   * double click used to be.
+   */
+  it("should join a sign-in already in flight rather than open another", async () => {
+    const popup = { closed: false, close: jest.fn() };
+    const openSpy = jest
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+
+    const first = GithubAuth.signIn();
+    const second = GithubAuth.signIn();
+    expect(second).toBe(first);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          type: "pg-github-auth",
+          nonce: flowNonceFrom(openSpy),
+          token: "gho_once",
+        },
+        origin: window.location.origin,
+        source: popup as unknown as Window,
+      })
+    );
+
+    await first;
+    expect(GithubAuth.token).toBe("gho_once");
     openSpy.mockRestore();
   });
 });
