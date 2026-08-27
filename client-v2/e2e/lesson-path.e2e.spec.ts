@@ -98,24 +98,13 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // The rail switches to the lesson's steps, and the band names step 1.
   // `hello-anchor.ts` has four steps, so this is also a count check.
   //
-  // KNOWN FAILURE as of this commit: this assertion is red. Clicking
-  // "Open" on a lesson-registered tutorial that has never been started
-  // navigates to `/tutorials/hello-anchor` and unconditionally renders
-  // `views/flow/lessons/LessonSurface.tsx` (wired in
-  // `routes/tutorials/tutorials.tsx`'s `handleTutorial`, the
-  // `getLessonPath(tutorial.name)` branch added in "Give a lesson its
-  // own main surface"). That branch never checks
-  // `PgTutorial.isStarted(tutorial.name)` the way the upstream
-  // `<Tutorial>` component it replaces does, so the one thing that
-  // creates the workspace -- the About page's "Start" button, which
-  // calls `PgTutorial.start()` -> `PgExplorer.createWorkspace()` -- is
-  // never reached. `PgExplorer.currentWorkspaceName` never becomes
-  // "Hello Anchor", `getLessonPath(PgExplorer.currentWorkspaceName)`
-  // in `PgLesson.init()` keeps returning `null`, and the "Steps" tab
-  // never renders. This is a real, reproducible regression, not a
-  // timing issue -- no amount of waiting resolves it, since nothing is
-  // converging. Out of scope for this task (e2e spec file only); see
-  // task-15-report.md for the full trace. Left unweakened on purpose.
+  // This, and everything up to the "aiming at build" assertion below, is
+  // Flow's own outer chrome -- it mounts regardless of whether the main
+  // surface underneath is `LessonSurface` or upstream's own `Tutorial`,
+  // so none of it actually guards the bug two commits back in this
+  // branch (`LessonRoute` picking the wrong surface after Start). The
+  // assertion right after this block is the one that does: see its own
+  // comment.
   await expect(page.getByRole("tab", { name: "Steps" })).toBeVisible();
   await expect(page.getByText("Step 1 of 4")).toBeVisible();
 
@@ -131,6 +120,23 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // Nothing has been verified yet, so the rail still names what the
   // current step is aiming at rather than marking it done.
   await expect(page.getByText("aiming at build")).toBeVisible();
+
+  // The one assertion in this test that actually guards the Start-time
+  // bug: the main surface has to be `LessonSurface` (editor alone), not
+  // upstream's `Tutorial` rendering its own `Main` (editor plus markdown
+  // pane) beside it. Every assertion above this line passes either way,
+  // since Flow's outer chrome (rail, band) reacts to the workspace
+  // independently of which component is mounted in the main area -- this
+  // is what let the bug ship past three manual checks in this plan.
+  //
+  // "Next" is `components/Tutorial/views/Main.tsx`'s own hardcoded label
+  // above its page-navigation button (`NextText`), present on every page
+  // but the last regardless of which tutorial is open -- structural, not
+  // this tutorial's prose, so it stays true if the wording of Hello
+  // Anchor's own pages ever changes. `LessonSurface` renders nothing but
+  // `EditorWithTabs`, so if `Main` is what is actually mounted, "Next"
+  // is on the page; if `LessonSurface` is mounted, it is not.
+  await expect(page.getByText("Next", { exact: true })).toHaveCount(0);
 
   // The page opens over the editor and closes again.
   await page.getByRole("button", { name: "Read the page" }).click();
