@@ -23,13 +23,15 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 | Static assets + docker profile | PR #11, merged (rogaldh) | client-v2 assets tracked, compose profile added |
 | Deploy Explorer label fix | PR #12, merged 2026-08-26 | Trivial `no-useless-concat`; also unblocked `CI=true yarn build` |
 | GitHub OAuth sign-in with a gated airdrop | PR #9, merged 2026-08-26 (`0bfce60b`, approved by rogaldh) | Spec `2026-08-25-github-oauth-design.md`; PKCE S256, BroadcastChannel transport, profile popover, 3 playwright e2e |
+| Toggle the Flow left panel with cmd+b | PR #15, merged 2026-08-27 (`2c87079e`) | `⌘B` to match `⌘J`, collapsed rail, `PANEL_RADIUS` reconciled |
 
 ## Tonight
 
-The demo has to show a working prototype plus the next step. Four PRs
-are ready and blocked only on an approval; getting them into
-`master-2.0` is the whole of today's P0. Wallet-adapter work is
-deliberately out -- it runs in parallel at the last moment.
+The demo has to show a working prototype plus the next step. #15 is
+merged; three more PRs are ready and blocked only on an approval, and
+getting them into `master-2.0` is the whole of today's P0.
+Wallet-adapter work is deliberately out -- it runs in parallel at the
+last moment.
 
 Signing in on the demo machine now works from the first click: #17
 fixes a failure that hit only the *first* authorization of a GitHub
@@ -43,16 +45,14 @@ on a public URL -- becomes a live exposure rather than a future one.
 ## Open pull requests
 
 Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone. All four branches were rebased onto
-`master-2.0` on 2026-08-27 and force-pushed; #13, #15 and #16 are
-rogaldh's, so he needs to reset his local copies. #17 was branched
-after the rebases and needs none.
+merges on a comment alone. #15 merged 2026-08-27; #13, #16 and #17 are
+`MERGEABLE`. #13 and #16 are rogaldh's, so he needs to reset his local
+copy of #16 -- rebased twice now, the second time to absorb #15.
 
 | PR | Branch | State | Blocker |
 | --- | --- | --- | --- |
 | #14 | `fix/github-import` | `MERGEABLE` | One approval. Cannot be self-approved |
-| #15 | `feat/flow-left-panel-toggle` | `MERGEABLE` | One approval. rogaldh's "could be merged" was a comment, not a review |
-| #16 | `feat/platform-rpc-endpoints` | `MERGEABLE` | One approval. Verified after the rebase: tsc, prettier, 91 tests, build |
+| #16 | `feat/platform-rpc-endpoints` | `MERGEABLE` | One approval. Verified after both rebases: tsc, prettier, 91 tests, build. One non-blocking review note left |
 | #17 | `fix/oauth-popup-coop` | `MERGEABLE` | One approval. Cannot be self-approved. Land after #16 -- both touch `StatusChips.tsx` |
 | #13 | `feat/default-backend` | `MERGEABLE`, draft | M3, M4 open; draft flag; H1 before any paid key |
 
@@ -76,22 +76,6 @@ downloads one program instead of twelve. One upstream file changed by
 two lines: Anchor's framework check treated any `.py` as Seahorse,
 which made marginfi unimportable. 75 tests, verified live on seven
 repositories. Decision: D22.
-
-### PR #15 — Toggle the Flow left panel with cmd+b
-
-`⌘B` for the left project panel, matching `⌘J` for the console; a
-collapsed rail that keeps the panel edge, the keybind hint and the `+`
-action; nested editor chrome removed; the two `PANEL_RADIUS` constants
-reconciled on the theme's 12px (closing a follow-up from #7 and #10).
-81 unit tests, 6 e2e including a new `seededPage` fixture.
-
-**Rebased 2026-08-27** (`d0aed271` -> `f2c6685d`). #9 was
-squash-merged, so its commits are not ancestors of `master-2.0` and
-this branch's merge base was still `dc2cb20c`; GitHub displayed 39
-commits and 32 files (+2333/-84) for what is really 4 commits and 9
-files (+340/-77). The rebase was conflict-free and the tree is
-byte-identical to the old tip except for `Deploy.tsx`, which picked
-up #12's already-merged lint fix.
 
 ### PR #16 — Platform RPC endpoints and a header cluster toggle
 
@@ -118,6 +102,21 @@ Verified after the rebase, which nobody had ever done for this branch:
 `tsc --noEmit` clean, prettier clean, 91 tests in 9 suites, and
 `yarn build` compiles. `CI=true yarn build` fails, but on every branch
 including `master-2.0` — see the CI item in P1.
+
+**Rebased again 2026-08-27** (`d1f7da0e` -> `94c92984`) once #15
+merged: both touch `Flow.tsx`, #15 adding the left-panel toggle props
+and this PR adding the settings-toggle props on the same
+`<Header>`/`<Columns>`/`<LeftPanel>` call. Merged both sets of props
+in; conflict-free elsewhere. Re-verified: tsc, prettier, 91 tests in 9
+suites, build.
+
+**Reviewed 2026-08-27, comment (non-blocking).** `toggleSettings` in
+`Flow.tsx` flips `settingsOpen` unconditionally regardless of which
+control called it: opening the panel from the gear icon and then
+clicking the cluster chip closes the panel instead of retargeting it
+to the network section, since the chip's own click also toggles.
+Surprising, not broken -- flagged for whenever it's convenient, not a
+merge blocker.
 
 ### PR #17 — Keep the GitHub sign-in alive when COOP severs the popup
 
@@ -193,9 +192,10 @@ Each carries where it came from and where it now belongs.
 
 ### P0 -- in the way of tonight
 
-1. **Merge #14, #15, #16, #17.** All four are `MERGEABLE` and blocked
-   only on an approval. #14 and #17 cannot be self-approved. Order
-   matters once: #16 before #17, both touch `StatusChips.tsx`.
+1. **Merge #14, #16, #17.** All three are `MERGEABLE` and blocked
+   only on an approval; #15 is already in. #14 and #17 cannot be
+   self-approved. Order matters once: #16 before #17, both touch
+   `StatusChips.tsx`.
 2. **Decide whether the demo runs the Default backend.** If yes, #13's
    M3 (`null` body -> 500) and M4 (no `maxDuration`, streams cut) are
    demo blockers, both small; and H1 is live, not future.
@@ -279,8 +279,7 @@ Loose ends with no home yet:
 
 ### Closed since the last pass
 
-- `PANEL_RADIUS` reconcile (#7, #10) -- done in #15, waiting on its
-  merge.
+- `PANEL_RADIUS` reconcile (#7, #10) -- done and merged in #15.
 - `.env.example` missing the `AGENT_*` vars (#13 review) -- done.
 - Default offered while the `/api/agent` probe is outstanding (#13
   review, M2) -- done.
