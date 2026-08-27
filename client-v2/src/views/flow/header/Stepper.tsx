@@ -64,7 +64,7 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Label $status={status}>
+            <Label $status={status} $selected={selected}>
               <Full>{LABEL[stage]}</Full>
               <Initial>{LABEL[stage][0]}</Initial>
             </Label>
@@ -174,9 +174,12 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
   `}
 `;
 
-const Label = styled.span<{ $status: StageStatus }>`
-  ${({ $status }) =>
-    ($status === "active" || $status === "running" || $status === "failed") &&
+const Label = styled.span<{ $status: StageStatus; $selected: boolean }>`
+  ${({ $status, $selected }) =>
+    ($selected ||
+      $status === "active" ||
+      $status === "running" ||
+      $status === "failed") &&
     css`
       font-weight: 700;
     `}
@@ -226,9 +229,12 @@ const StageButton = styled.button<{
     $status === "failed"
       ? theme.components.tooltip.bg
       : "transparent"};
-    color: ${$status === "upcoming"
-      ? theme.colors.default.textSecondary
-      : theme.colors.default.textPrimary};
+    /* Selection and status are separate axes: an upcoming stage you have
+       selected still reads as the one you are on, or it renders dimmer than
+       the stages you are not looking at. The dot still carries the status. */
+    color: ${$selected || $status !== "upcoming"
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
     font: inherit;
     font-family: ${theme.font.other.family};
     font-size: ${theme.font.other.size.small};

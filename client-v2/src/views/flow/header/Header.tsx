@@ -44,7 +44,12 @@ const Header: FC<HeaderProps> = ({
   useKeybind(
     STAGES.map((stage, i) => ({
       keybind: `Ctrl+${i + 1}`,
-      handle: () => PgFlow.setStage(stage),
+      handle: () => {
+        PgFlow.setStage(stage);
+        // Focus follows the shortcut, so the keyboard user lands on the tab
+        // they just selected rather than being left wherever they were
+        document.getElementById(`flow-stage-tab-${stage}`)?.focus();
+      },
     })),
     []
   );
