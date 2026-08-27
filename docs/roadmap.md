@@ -301,10 +301,18 @@ thing that is cheaper the earlier it happens.
    thing standing between a broken `master-2.0` and a demo is somebody
    remembering to run four commands by hand -- which is exactly how
    #16 reached "ready to merge" without ever having been built.
-1. **Tutorials as a scenario** — connected tutorials, learning curves,
-   connected prompts for agents. Not designed yet. Input to collect
-   before the brainstorm: Cat's tutorials demo (currently broken, the
-   intent reads).
+1. **Tutorials as a scenario** — **designed 2026-08-27**, spec awaiting
+   review: `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`.
+   Research in `docs/research/2026-08-27-tutorials-as-scenario.md`;
+   concept canvas
+   <https://claude.ai/code/artifact/c1b8b3f5-80e2-4bc5-88f1-0540723038d9>.
+   Cat's prototype (solana-learning-playground.vercel.app) was walked
+   through live and is the source of the connected-prompt mechanic.
+   The thesis: a lesson step is finished by the toolchain, not by a
+   click — verification reads `FlowState` and the regenerated IDL, so we
+   author objectives and prompts and never an answer key. Carries a
+   navigation consolidation (one project switcher instead of two) and
+   makes D16 a blocking prerequisite. Candidate D24.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
    off. Concept only until designed (candidate D24): a separate
    service, never `server/`. Feeds back into the OAuth stream.
