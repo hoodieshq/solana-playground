@@ -7,7 +7,8 @@ import type { WorkspaceEntry } from "./workspaces";
 import { getLessonPath, PgLesson } from "../lessons";
 import { stepNumber } from "../lessons/progress";
 import { useOnClickOutside, useRenderOnChange } from "../../../hooks";
-import { PgExplorer, PgTutorial } from "../../../utils";
+import { PgExplorer, PgTutorial, PgView } from "../../../utils";
+import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
 
 interface ProjectSwitcherProps {
   onOpenGallery: () => void;
@@ -61,6 +62,15 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
     else await PgExplorer.switchWorkspace(entry.name);
   };
 
+  // The modal owns the confirmation; deleting anything but the current
+  // workspace leaves the user where they are
+  const remove = (entry: WorkspaceEntry) => {
+    setOpen(false);
+    PgView.setModal(
+      <DeleteWorkspace name={entry.name} isLesson={entry.isLesson} />
+    );
+  };
+
   const label = current
     ? `${current}${
         describeProgress(current) ? ` - ${describeProgress(current)}` : ""
@@ -91,37 +101,57 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
         <Menu aria-label="Projects and lessons">
           {lessons.length > 0 && <Group>Lessons</Group>}
           {lessons.map((entry) => (
-            <Row
-              key={entry.name}
-              $active={entry.name === current}
-              onClick={() => choose(entry)}
-            >
-              <RowName>{entry.name}</RowName>
-              {entry.progress && <RowMeta>{entry.progress}</RowMeta>}
-            </Row>
+            <RowGroup key={entry.name} $active={entry.name === current}>
+              <Row
+                $active={entry.name === current}
+                onClick={() => choose(entry)}
+              >
+                <RowName>{entry.name}</RowName>
+                {entry.progress && <RowMeta>{entry.progress}</RowMeta>}
+              </Row>
+              <Delete
+                type="button"
+                aria-label={`Delete ${entry.name}`}
+                title={`Delete ${entry.name}`}
+                onClick={() => remove(entry)}
+              >
+                &#215;
+              </Delete>
+            </RowGroup>
           ))}
 
           {projects.length > 0 && <Group>Projects</Group>}
           {projects.map((entry) => (
-            <Row
-              key={entry.name}
-              $active={entry.name === current}
-              onClick={() => choose(entry)}
-            >
-              <RowName>{entry.name}</RowName>
-            </Row>
+            <RowGroup key={entry.name} $active={entry.name === current}>
+              <Row
+                $active={entry.name === current}
+                onClick={() => choose(entry)}
+              >
+                <RowName>{entry.name}</RowName>
+              </Row>
+              <Delete
+                type="button"
+                aria-label={`Delete ${entry.name}`}
+                title={`Delete ${entry.name}`}
+                onClick={() => remove(entry)}
+              >
+                &#215;
+              </Delete>
+            </RowGroup>
           ))}
 
           <Separator />
-          <Row
-            $active={false}
-            onClick={() => {
-              setOpen(false);
-              onOpenGallery();
-            }}
-          >
-            <RowName>Browse gallery</RowName>
-          </Row>
+          <RowGroup $active={false}>
+            <Row
+              $active={false}
+              onClick={() => {
+                setOpen(false);
+                onOpenGallery();
+              }}
+            >
+              <RowName>Browse gallery</RowName>
+            </Row>
+          </RowGroup>
         </Menu>
       )}
     </Wrapper>
@@ -220,24 +250,73 @@ const Group = styled.div`
   `}
 `;
 
-const Row = styled.button<{ $active: boolean }>`
+/**
+ * Holds the choose button and the delete button side by side.
+ *
+ * The row used to be one `<button>`; delete cannot nest inside that, so the
+ * two are siblings and this carries the hover and active background for both.
+ */
+const RowGroup = styled.div<{ $active: boolean }>`
   ${({ theme, $active }) => css`
+    display: flex;
+    align-items: center;
+    border-radius: ${theme.default.borderRadius};
+    background: ${$active ? theme.colors.default.bgPrimary : "transparent"};
+
+    &:hover {
+      background: ${theme.colors.default.bgPrimary};
+    }
+
+    /* Revealed on hover, and on focus so it is reachable by keyboard */
+    &:hover > button:last-child,
+    & > button:last-child:focus-visible {
+      opacity: 1;
+    }
+  `}
+`;
+
+const Row = styled.button<{ $active: boolean }>`
+  ${({ theme }) => css`
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 0.5rem;
     border: none;
     border-radius: ${theme.default.borderRadius};
-    background: ${$active ? theme.colors.default.bgPrimary : "transparent"};
+    background: transparent;
     color: ${theme.colors.default.textPrimary};
     font: inherit;
     text-align: left;
     cursor: pointer;
 
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+    }
+  `}
+`;
+
+const Delete = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: ${theme.default.borderRadius};
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    opacity: 0;
+    cursor: pointer;
+
     &:hover {
-      background: ${theme.colors.default.bgPrimary};
+      color: ${theme.colors.state.error.color};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};

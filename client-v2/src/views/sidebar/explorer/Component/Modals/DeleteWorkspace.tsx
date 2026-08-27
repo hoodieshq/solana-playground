@@ -1,34 +1,51 @@
+import type { FC } from "react";
 import styled, { css } from "styled-components";
 
 import Modal from "../../../../../components/Modal";
 import { Warning } from "../../../../../components/Icons";
 import { PgExplorer } from "../../../../../utils";
 
-export const DeleteWorkspace = () => (
-  <Modal
-    title
-    buttonProps={{
-      text: "Delete",
-      kind: "error",
-      onSubmit: () => PgExplorer.deleteWorkspace(),
-    }}
-  >
-    <Content>
-      <IconWrapper>
-        <Warning color="warning" />
-      </IconWrapper>
-      <ContentText>
-        <Main>
-          Are you sure you want to delete workspace '
-          {PgExplorer.currentWorkspaceName}'?
-        </Main>
-        <Desc>This action is irreversable!</Desc>
-        <Desc>- All files and folders will be deleted.</Desc>
-        <Desc>- Program credentials will be deleted.</Desc>
-      </ContentText>
-    </Content>
-  </Modal>
-);
+interface DeleteWorkspaceProps {
+  /** Which workspace to delete; defaults to the one the user is in */
+  name?: string;
+  /** Adds the line about losing lesson progress */
+  isLesson?: boolean;
+}
+
+export const DeleteWorkspace: FC<DeleteWorkspaceProps> = ({
+  name,
+  isLesson,
+}) => {
+  const workspaceName = name ?? PgExplorer.currentWorkspaceName;
+
+  return (
+    <Modal
+      title
+      buttonProps={{
+        text: "Delete",
+        kind: "error",
+        onSubmit: () => PgExplorer.deleteWorkspace(workspaceName),
+      }}
+    >
+      <Content>
+        <IconWrapper>
+          <Warning color="warning" />
+        </IconWrapper>
+        <ContentText>
+          <Main>
+            Are you sure you want to delete workspace '{workspaceName}'?
+          </Main>
+          <Desc>This action is irreversable!</Desc>
+          <Desc>- All files and folders will be deleted.</Desc>
+          <Desc>- Program credentials will be deleted.</Desc>
+          {/* Progress lives in `.workspace/tutorial-storage.json`, inside the
+              directory about to be removed */}
+          {isLesson && <Desc>- Your progress through the lesson is lost.</Desc>}
+        </ContentText>
+      </Content>
+    </Modal>
+  );
+};
 
 const Content = styled.div`
   display: flex;
