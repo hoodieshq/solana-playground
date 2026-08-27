@@ -4,12 +4,7 @@ import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
-import {
-  canStepBack,
-  currentStep,
-  INITIAL_LESSON_STATE,
-  PgLesson,
-} from "../lessons";
+import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
@@ -73,7 +68,6 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
   const activeStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
     : null;
-  const canGoBack = !!lesson.path && canStepBack(lesson.path, lesson.progress);
 
   return (
     <Wrapper>
@@ -110,21 +104,6 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
                   {t === "steps" ? "Steps" : "Files"}
                 </TabButton>
               ))}
-            {showSteps && (
-              <Back
-                type="button"
-                disabled={!canGoBack}
-                aria-label="Previous step"
-                title={
-                  canGoBack
-                    ? "Go back a step. Nothing already proved is undone."
-                    : "You are on the first step"
-                }
-                onClick={() => PgLesson.stepBack()}
-              >
-                &#8592;
-              </Back>
-            )}
             {toggle}
           </Tabs>
           <Body
@@ -258,35 +237,6 @@ const Tabs = styled.div`
     display: flex;
     align-items: stretch;
     border-bottom: 1px solid ${theme.colors.default.border};
-  `}
-`;
-
-// Sits between the tabs and the collapse control, sized to its glyph so the
-// tab labels keep the width they had
-const Back = styled.button`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    padding: 0 0.625rem;
-    border: none;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    cursor: pointer;
-
-    &:disabled {
-      opacity: 0.35;
-      cursor: default;
-    }
-
-    &:not(:disabled):hover {
-      color: ${theme.colors.default.textPrimary};
-      background: ${theme.colors.default.bgPrimary};
-    }
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: -2px;
-    }
   `}
 `;
 

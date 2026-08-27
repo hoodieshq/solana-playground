@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 
 import { assistantLabel, describeStep } from "./band-copy";
 import { PgLessonHints } from "./hints";
-import { currentStep } from "./progress";
+import { canStepBack, currentStep } from "./progress";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { PgAssistant } from "../../sidebar/assistant/store";
@@ -48,6 +48,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
 
   const rung = PgLessonHints.rung(step.id);
   const isRead = step.verify.kind === "read";
+  const canGoBack = canStepBack(state.path, state.progress);
 
   const askForHelp = () => {
     const prompt = PgLessonHints.nextPrompt(step, state.attempted);
@@ -56,6 +57,19 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
 
   return (
     <Wrapper>
+      <Back
+        type="button"
+        disabled={!canGoBack}
+        aria-label="Previous step"
+        title={
+          canGoBack
+            ? "Go back a step. Nothing already proved is undone."
+            : "You are on the first step"
+        }
+        onClick={() => PgLesson.stepBack()}
+      >
+        &#8592;
+      </Back>
       <Text>
         <Eyebrow>{described.number}</Eyebrow>
         <Objective>{described.objective}</Objective>
@@ -92,6 +106,40 @@ const Wrapper = styled.div`
     border: 1px solid ${theme.colors.default.primary};
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
+  `}
+`;
+
+// Leads the band rather than joining the actions on the right: it moves you
+// between steps, it does not act on this one
+const Back = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 9999px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    &:not(:disabled):hover {
+      border-color: ${theme.colors.default.primary};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
   `}
 `;
 
