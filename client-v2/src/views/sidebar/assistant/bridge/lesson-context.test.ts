@@ -62,6 +62,7 @@ describe("describeLesson", () => {
       progress: { completedStepIds: ["one", "two"], currentStepId: null },
       attempted: false,
       attemptBaseline: null,
+      loadFailed: false,
     });
     expect(done).toEqual({
       name: "Hello Anchor",

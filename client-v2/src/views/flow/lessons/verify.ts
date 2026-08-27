@@ -29,6 +29,13 @@ export const isSatisfied = (
       return flow.deploy === "done";
 
     case "idl": {
+      // `idl` is workspace-persisted and refreshes on a workspace switch
+      // through a debounced batch, while `flow` resets immediately on
+      // `workspace-change`. Requiring a finished build closes the
+      // window where a `PgFlow` event lands before that refresh, which
+      // would otherwise grade a freshly entered lesson against the
+      // previous project's IDL.
+      if (flow.build !== "done") return false;
       if (!idl) return false;
 
       const ix = idl.instructions.find((i) => sameName(i.name, c.instruction));

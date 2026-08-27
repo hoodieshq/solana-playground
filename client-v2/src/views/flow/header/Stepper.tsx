@@ -210,15 +210,15 @@ const StageButton = styled.button<{
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;
 
-    ${$status === "failed" &&
-    css`
-      border-color: ${theme.colors.state.error.color};
-    `}
-
     ${$target &&
     css`
       border-color: ${theme.colors.default.primary};
       box-shadow: 0 0 0 3px ${theme.colors.default.primary}33;
+    `}
+
+    ${$status === "failed" &&
+    css`
+      border-color: ${theme.colors.state.error.color};
     `}
 
     &:hover {

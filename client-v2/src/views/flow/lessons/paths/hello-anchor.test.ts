@@ -35,6 +35,22 @@ describe("the Hello Anchor path", () => {
     }
   });
 
+  it("never claims a read step observed program behaviour", () => {
+    // A `read` step's `verify` checks nothing -- the ratchet only
+    // advances it on a manual "Continue". Its `verifiedBy` must not
+    // describe a build, a deploy or a client run as something the app
+    // witnessed, since that is exactly the false claim this suite
+    // exists to catch (see the spec's honesty map). Chosen words: past
+    // participles and nouns an honest, self-reported phrasing
+    // ("you have marked this page as read") would never need.
+    for (const step of helloAnchorPath.steps) {
+      if (step.verify.kind !== "read") continue;
+      expect(step.verifiedBy).not.toMatch(
+        /\b(built|interface|deployed|devnet|logged|ran|output)\b/i
+      );
+    }
+  });
+
   it("loads its prose from the tutorial", async () => {
     const page = await helloAnchorPath.steps[0].readPage?.();
     expect(typeof page).toBe("string");

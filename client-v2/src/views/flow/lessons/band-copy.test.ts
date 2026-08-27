@@ -40,6 +40,20 @@ const PATH: LessonPath = {
   ],
 };
 
+const READ_PATH: LessonPath = {
+  tutorial: "Hello Anchor",
+  steps: [
+    {
+      id: "one",
+      objective: "Read the intro",
+      verifiedBy: "you have marked this page as read",
+      verify: { kind: "read" },
+      target: "write",
+      hints,
+    },
+  ],
+};
+
 describe("describeStep", () => {
   it("is null outside a lesson", () => {
     expect(describeStep(INITIAL_LESSON_STATE)).toBeNull();
@@ -60,8 +74,19 @@ describe("describeStep", () => {
       progress: { completedStepIds: ["one", "two"], currentStepId: null },
       attempted: false,
       attemptBaseline: null,
+      loadFailed: false,
     });
     expect(d).toBeNull();
+  });
+
+  it("does not claim a read step is machine-checked", () => {
+    const d = describeStep({ ...INITIAL_LESSON_STATE, path: READ_PATH });
+    expect(d).toEqual({
+      number: "Step 1 of 1",
+      objective: "Read the intro",
+      verifiedBy:
+        "Not machine-checked -- continue when you have marked this page as read.",
+    });
   });
 });
 

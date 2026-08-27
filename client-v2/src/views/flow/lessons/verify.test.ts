@@ -91,6 +91,23 @@ describe("idl", () => {
     const c = { kind: "idl", instruction: "Hello", arg: "Name" } as const;
     expect(isSatisfied(c, state, IDL_WITH_ARG)).toBe(true);
   });
+
+  it("is not satisfied by a matching IDL while the build is not done", () => {
+    // The IDL can be stale from a previous project during the window
+    // right after a workspace switch, before `PgProgramInfo.idl`
+    // catches up. A `PgFlow` event alone must not be enough to grade
+    // against it.
+    const c = { kind: "idl", instruction: "hello" } as const;
+    expect(isSatisfied(c, flow({ build: "upcoming" }), IDL_WITHOUT_ARG)).toBe(
+      false
+    );
+    expect(isSatisfied(c, flow({ build: "running" }), IDL_WITHOUT_ARG)).toBe(
+      false
+    );
+    expect(isSatisfied(c, flow({ build: "failed" }), IDL_WITHOUT_ARG)).toBe(
+      false
+    );
+  });
 });
 
 describe("read", () => {

@@ -17,7 +17,10 @@ export const describeStep = (state: LessonState) => {
       state.path.steps.length
     }`,
     objective: step.objective,
-    verifiedBy: `Verified when ${step.verifiedBy}.`,
+    verifiedBy:
+      step.verify.kind === "read"
+        ? `Not machine-checked -- continue when ${step.verifiedBy}.`
+        : `Verified when ${step.verifiedBy}.`,
   };
 };
 

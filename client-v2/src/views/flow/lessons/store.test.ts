@@ -149,8 +149,26 @@ describe("reduceLesson", () => {
       progress: { completedStepIds: ["one"], currentStepId: "two" },
       attempted: true,
       attemptBaseline: 1000,
+      loadFailed: false,
     };
     const next = reduceLesson(dirty, { type: "load", path: null });
     expect(next).toEqual(INITIAL_LESSON_STATE);
+  });
+
+  it("carries a failed load's flag into state", () => {
+    const next = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "load",
+      path: PATH,
+      loadFailed: true,
+    });
+    expect(next.loadFailed).toBe(true);
+  });
+
+  it("defaults a load's flag to false when it is not given", () => {
+    const next = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "load",
+      path: PATH,
+    });
+    expect(next.loadFailed).toBe(false);
   });
 });
