@@ -96,6 +96,21 @@ const handleTutorial = (name: string, page: string) => {
       // Refresh tutorial state
       await PgTutorial.refresh();
 
+      // A tutorial the fork has given a lesson path gets Flow's own
+      // chrome instead: steps in the rail, the objective above the
+      // editor, the page in a reader. Upstream's component would put
+      // its markdown pane on the same edge as the assistant. Every
+      // other tutorial takes the branch below, unchanged.
+      // The barrel, not `./registry` -- importing it is what registers
+      // the paths, and this route can run before Flow has mounted.
+      const { getLessonPath } = await import("../../views/flow/lessons");
+      if (getLessonPath(tutorial.name)) {
+        const { default: LessonSurface } = await import(
+          "../../views/flow/lessons/LessonSurface"
+        );
+        return <LessonSurface />;
+      }
+
       const { default: Tutorial } = await tutorial.importComponent();
       return <Tutorial {...tutorial} />;
     });
