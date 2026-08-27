@@ -6,6 +6,13 @@ import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
 import LeftPanel from "./left/LeftPanel";
+import ObjectiveBand from "./lessons/ObjectiveBand";
+import Reader from "./lessons/Reader";
+import { currentStep } from "./lessons/progress";
+// The barrel registers every lesson path as a side effect, so importing
+// it here is also what populates the registry for the whole app.
+import { INITIAL_LESSON_STATE, PgLesson } from "./lessons";
+import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
@@ -29,6 +36,8 @@ import { PgExplorer, PgView } from "../../utils";
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [leftOpen, setLeftOpen] = useState(true);
+  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
+  const [reading, setReading] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
@@ -38,8 +47,10 @@ const Flow = () => {
   useEffect(() => {
     const subs = [
       PgFlow.init(),
+      PgLesson.init(),
       PgDeployHistory.init(),
       PgFlow.onDidChange(setState),
+      PgLesson.onDidChange(setLesson),
       // So a "Fix with assistant" click while collapsed reopens the panel
       // and the user sees where the click went.
       PgAssistant.onDidRequestPrompt(() => setAssistantOpen(true)),
@@ -87,6 +98,16 @@ const Flow = () => {
     return sub.dispose;
   }, []);
 
+  const readingStep = lesson.path
+    ? currentStep(lesson.path, lesson.progress)
+    : null;
+
+  // A learner who fixes the code while the page is open should come back
+  // to the editor, not to the next step's prose.
+  useEffect(() => {
+    setReading(false);
+  }, [readingStep?.id]);
+
   return (
     <Wrapper>
       <Header
@@ -100,8 +121,16 @@ const Flow = () => {
           onToggle={() => setLeftOpen((o) => !o)}
         />
         <Center>
+          <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
           <Stage>
             <StageRouter stage={state.stage} />
+            {reading && readingStep && (
+              <Reader
+                key={readingStep.id}
+                step={readingStep}
+                onClose={() => setReading(false)}
+              />
+            )}
           </Stage>
           <ConsoleDrawer />
         </Center>
@@ -186,6 +215,8 @@ const Stage = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* The lesson reader covers the stage, not the whole layout */
+  position: relative;
 `;
 
 const Right = styled.aside<{ $open: boolean }>`
