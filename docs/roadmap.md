@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-08-27 (night). One page for the whole effort: what shipped, what
+Updated: 2026-08-28. One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
 or decision that carries the detail. Priorities follow D21 (GitHub
 identity -> tutorials -> everything else). Update this file whenever a
@@ -15,20 +15,19 @@ https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 ## The week's brief, item by item
 
 The list agreed at the meeting of Friday 2026-08-22, laid against what
-exists on 2026-08-27. Six items were declared; four are ours to do. Of
-those four: one shipped and merged, one is built and waiting on review,
-one is deferred by an explicit decision, one is the next stream. Two are
-external and unchanged. Keep this table current -- it is what the
-presentation reads from.
+exists on 2026-08-28. Six items were declared; four are ours to do. Of
+those four: two shipped and merged, one is deferred by an explicit
+decision, one is the next stream. Two are external and unchanged. Keep
+this table current -- it is what the presentation reads from.
 
 | # | Declared | State | Evidence | Next |
 | --- | --- | --- | --- | --- |
-| 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Deferred by decision** | D21; backlog entry below | Runs in parallel once #19 lands, with its own spec |
-| 2 | Sign in with GitHub; airdrop behind it | **Shipped** | #9 merged (`0bfce60b`), #17 merged (`423d9119`); D23; spec `2026-08-25-github-oauth-design.md` | Durable session, answered with item 6 |
-| 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Built, in review** | PR #19; D24; spec + plan + research of 2026-08-27 | `master-2.0` merged in; one approval, then the visual pass and more paths |
+| 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Deferred by decision** | D21; backlog entry below | Runs in parallel when scheduled, with its own spec |
+| 2 | Sign in with GitHub; airdrop behind it | **Shipped** | #9 merged (`7a559c0a`), #17 merged (`dd871c5c`); D23; spec `2026-08-25-github-oauth-design.md` | Durable session, answered with item 6 |
+| 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Shipped, thesis amended in review** | #19 merged 2026-08-28 (`1d908844`); D24; spec + plan + research of 2026-08-27 | Make the step criterion legible before more paths -- see *The ratchet, after review* |
 | 4 | Modern Anchor version | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
 | 5 | Better builds with Kora | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
-| 6 | Programs saved per user, not locally (Cat, after the meeting) | **Next stream, concept only** | Step 2 in Next below | Design it after #19 lands |
+| 6 | Programs saved per user, not locally (Cat, after the meeting) | **Next stream, concept only** | Step 2 in Next below | Design it now that #19 has landed |
 
 Item 1's cost is the reason it waits: wallet-adapter cuts through
 `commands/deploy/deploy.ts` (29 commits in six months) and
@@ -64,73 +63,131 @@ the cluster toggle), #13 (a real Default backend behind `/api/agent`),
 | PR hygiene | PRs #5-#7, `context-archive` | Working docs stripped from PR branches (filter-repo, 2026-08-24); archive branch is their home |
 | Flow visual parity + MCP gateway in master | PR #10, merged (rogaldh) | Iteration 4 reached master-2.0 |
 | Static assets + docker profile | PR #11, merged (rogaldh) | client-v2 assets tracked, compose profile added |
-| Deploy Explorer label fix | PR #12, merged 2026-08-26 | Trivial `no-useless-concat`; also unblocked `CI=true yarn build` |
-| GitHub OAuth sign-in with a gated airdrop | PR #9, merged 2026-08-26 (`0bfce60b`, approved by rogaldh) | Spec `2026-08-25-github-oauth-design.md`; PKCE S256, BroadcastChannel transport, profile popover, 3 playwright e2e |
-| Toggle the Flow left panel with cmd+b | PR #15, merged 2026-08-27 (`2c87079e`) | `⌘B` to match `⌘J`, collapsed rail, `PANEL_RADIUS` reconciled |
-| GitHub import through the Trees API | PR #14, merged 2026-08-27 (`dbf9a365`) | One rate-limited request instead of one per directory; readable errors. Decision: D22 |
-| Platform RPC endpoints and a header cluster toggle | PR #16, merged 2026-08-27 (`20f71642`) | Build-time RPC per cluster, cluster badge as a settings toggle. Rebased twice, one non-blocking review note (P2) |
-| Sign-in survives the GitHub hop | PR #17, merged 2026-08-27 (`423d9119`) | `popup.closed` lies once COOP severs the handle; first-time sign-in now works. Decision: D23 |
-| Chip status wrapper restored | PR #18, merged 2026-08-27 (`49c128e6`) | Cleared the typecheck break #16 and #17 created between them |
-| A real Default backend | PR #13, merged 2026-08-27 (`8bbf28de`, rogaldh) | Same-origin `/api/agent`; the scripted Demo provider is gone. H1 (no metering) still stands before any paid key |
+| Deploy Explorer label fix | PR #12, merged 2026-08-26 (`4ec87d0c`) | Trivial `no-useless-concat`; also unblocked `CI=true yarn build` |
+| GitHub OAuth sign-in with a gated airdrop | PR #9, merged 2026-08-26 (`7a559c0a`, approved by rogaldh) | Spec `2026-08-25-github-oauth-design.md`; PKCE S256, BroadcastChannel transport, profile popover, 3 playwright e2e |
+| Toggle the Flow left panel with cmd+b | PR #15, merged 2026-08-27 (`7e9fe677`) | `⌘B` to match `⌘J`, collapsed rail, `PANEL_RADIUS` reconciled |
+| GitHub import through the Trees API | PR #14, merged 2026-08-27 (`a6586b9d`) | One rate-limited request instead of one per directory; readable errors. Decision: D22 |
+| Platform RPC endpoints and a header cluster toggle | PR #16, merged 2026-08-27 (`eb17fed9`) | Build-time RPC per cluster, cluster badge as a settings toggle. Rebased twice, one non-blocking review note (P2) |
+| Sign-in survives the GitHub hop | PR #17, merged 2026-08-27 (`dd871c5c`) | `popup.closed` lies once COOP severs the handle; first-time sign-in now works. Decision: D23 |
+| Chip status wrapper restored | PR #18, merged 2026-08-27 (`01e726e8`) | Cleared the typecheck break #16 and #17 created between them |
+| A real Default backend | PR #13, merged 2026-08-27 (`18a2b531`, rogaldh) | Same-origin `/api/agent`; the scripted Demo provider is gone. H1 (no metering) still stands before any paid key |
+| Tutorials as a scenario | PR #19, merged 2026-08-28 (`1d908844`, approved by rogaldh) | Four-step Hello Anchor path, step rail, objective band, reader, lesson-aware assistant. rogaldh added 23 commits before merging, including the escape valve that amends D24 -- see below. Decision: D24 |
 
-## Tonight
+**Every hash above changed on 2026-08-27**: `master-2.0` was rebased onto
+upstream `master` (`57479351`) and force-pushed, so the old ids in earlier
+versions of this file no longer resolve. The fork is now 13 linear commits
+on top of the current upstream tip, and `client/` is still byte-identical
+to it.
 
-**`master-2.0` typechecks again and carries everything but the
-lessons.** #18 cleared the break #16 and #17 created between them, and
-#13 landed after it, so the scripted Demo provider is gone and
-`/api/agent` is the default path. Signing in works from the first click.
+## Where we are
 
-**#19 is merged up and unblocked.** Current `master-2.0` is merged into
-`feat/lesson-paths`: the three predicted conflicts (`Flow.tsx`,
-`Header.tsx`, `LeftPanel.tsx`) are resolved by hand -- #15's collapse
-behaviour kept as-is, with the Projects-tab gates rewritten as
-"whatever the panel is actually showing" now that the tab is gone.
-`MERGEABLE`; the only thing left is one approval, which cannot be mine.
+**Everything declared for the week is merged, and nothing is open.**
+#19 landed 2026-08-28 and was the last of twelve PRs; the queue is
+empty. `master-2.0` is a clean linear branch on the current upstream
+tip, and `client/` is still byte-identical to upstream, so the next
+upstream sync stays a fast-forward.
 
-Verified on the merged tree: tsc clean, prettier clean, 187 unit tests
-in 20 suites, 5 e2e over exactly this surface. One pre-existing e2e
-failure is named rather than hidden: `github-oauth`'s wrong-nonce case
-stalls at "Signing in..." and fails identically on plain `master-2.0`
-with a byte-identical spec, so it predates the merge. Both runs were on
-a non-3000 port while the GitHub app's callback is registered on 3000 --
-so a run on 3000 is what settles whether it is real or an artifact.
+Checked on the merged tree today rather than assumed: `tsc --noEmit`
+clean, **242 unit tests in 27 suites** green, one prettier miss
+(`Chat.tsx:287-291`, an `onSkipStep` ternary that wants one line).
 
-With #13 merged, the open decision is no longer whether to adopt the
-Default backend but whether the demo *points it at a paid key*: H1
-(an unmetered LLM relay on a public URL) is the gate, and metering is
-step 3 below.
+**CI stays as it is, deliberately.** The 2.0 line ships nothing --
+no deploys, and the demos are screencasts recorded from a local
+machine -- so wiring `client-v2` into a workflow would gate work that
+never leaves the laptop. Decided 2026-08-28. What replaces it: run
+`tsc --noEmit`, `prettier --check` and `craco test` by hand on the
+merged tree, which is what produced the numbers above. Revisit when the
+fork starts deploying; the `__template` case pair below is the first
+thing to fix on that day.
+
+The one demo question left open by #13 is unchanged: not whether to
+adopt the Default backend, but whether the demo *points it at a paid
+key*. H1 -- an unmetered LLM relay on a public URL -- is the gate, and
+metering is step 3 below.
+
+## The ratchet, after review
+
+D24's thesis was that a lesson step is finished by the toolchain, not
+by a click, and that the path is monotonic. rogaldh reviewed the
+running feature and amended it before merging (23 commits on top of the
+handoff). The objection, in his words: the flow "only lets you through
+once you have completed a step, and the criterion for a completed step
+is itself unclear" -- so in hackathon conditions the strictness costs
+more than it buys. Recorded in `docs/lesson-paths-todo.md`, which he
+added to the project on purpose so the next reader finds it beside the
+code.
+
+**What actually changed, precisely.** The learner can now move past a
+step without proof, and can walk back to any earlier step. What did
+*not* change is the part that carries the claim: the record is still
+append-only, and only the toolchain can mark a step *proved*. A
+pass-without-proof is written to a separate `skippedStepIds` field, and
+a later build that does satisfy the condition upgrades it to a real
+completion. So the honest statement is no longer "the path never runs
+backwards" -- it is **the ledger never runs backwards; the learner
+may**. Anything that still says otherwise is stale, including the
+visual version of this file.
+
+**Where it goes next.** The strictness is not the problem; the
+illegible criterion is. A learner who is one unlabelled click from
+finishing a step is not stuck, and rogaldh observed exactly that: after
+the assistant wrote the file, nothing told the learner a build was the
+move, so they reached for the escape valve. Fixing the signposting is
+what makes it reasonable to consider restoring monotonicity -- with
+the verification criteria themselves to be settled with Cat. Two of
+the three tasks in `lesson-paths-todo.md` are that work; see *Next*.
+
+**Two edges the reviews did not catch**, found 2026-08-28 by probing
+`progress.ts` directly. Both are in P1 below with reproductions, and
+both are the class of bug the StateMachine task predicts: guards that
+live at call sites rather than in a transition table.
+
+## Upstream drift in `client-v2`
+
+New as of the 2026-08-27 rebase, and the most expensive thing on this
+page. `client-v2` is a fork copy of `client/`, and `client/` just moved
+**24 commits** -- none of which are in `client-v2`. Three land on the
+demo path:
+
+- `3e72bea6` replaced the `packages` route with `bundle`, so
+  `server/src/routes/` no longer has `packages.rs` or `types.rs` at
+  all. `client-v2/src/utils/server.ts:82,107` still calls
+  `/unstable/packages/:name` and `/unstable/types/:name`. Against
+  `api.solpg.io` this still works -- that deployment is older -- so it
+  is a scheduled break, not a visible one.
+- `4e7a933b`, `ef8ba918` and `dd1bafd6` cover program upgrades:
+  upstream added `MINIMUM_EXTEND_PROGRAM_BYTES` and uses it in
+  `deploy.ts:398`. The symbol does not exist in `client-v2`, so
+  redeploying after a patch -- the demo's own scenario -- hits
+  SIMD-0431 once the feature gate activates.
+- `57479351` routes non-prod `/build` and `/deploy` through sandboxed
+  unstable routes; `client-v2` lost that option in the copy.
+
+Worth reading for a different reason: `82766e9b` ("Suggest solutions
+for common build errors") is upstream starting on the thing the
+assistant sells. Input for the next Foundation conversation, not a
+merge task.
 
 ## Open pull requests
 
-Branch protection: PR + **one approval** + signed commits. Nothing
-merges on a comment alone. #13, #14, #15, #16, #17, #18 all merged
-2026-08-27. One PR open.
-
-| PR | Branch | State | Blocker |
-| --- | --- | --- | --- |
-| #19 | `feat/lesson-paths` | `MERGEABLE` | One approval. Cannot be self-approved. Roadmap step 1: 25 commits, 187 unit tests in 20 suites, 5 e2e; `master-2.0` merged in and the three conflicts resolved by hand |
-
-Vercel is the only check that reports on a PR, and it is an ignored
-build. There is no CI for `client-v2` -- see P1 below.
-
-### PR #19 — Tutorials as a scenario
-
-Roadmap step 1, in review. The work is described in *Next* step 1; the
-merge of current `master-2.0` into it is described in *Tonight*.
+None. Branch protection stays as it was: PR + **one approval** +
+signed commits, and nothing merges on a comment alone. #13 through #19
+all merged over 2026-08-27/28.
 
 ### What #13's merge left behind
 
 #13 shipped the transport half of the parked playground-tokens design.
 Three items from its review were still open when it merged, so they are
 live on `master-2.0` now rather than branch notes: **M3** and **M4** are
-P0 below, **H1** is P1 item 5 and the gate on any paid key. One product
+P0 below, **H1** is P1 item 6 and the gate on any paid key. One product
 question is still unanswered: deleting Demo removed the only
 zero-network backend, so a fork without `AGENT_*` set opens on a dead
 preselected option.
 
 ### Historical: PR #18 — the Chip master-2.0 could not compile without
 
-Merged (`49c128e6`). Kept because it is the clearest case for step 0.
+Merged (`01e726e8`). Kept because it is the clearest case for running
+the checks by hand after two concurrent branches land.
 `tsc --noEmit` failed on `master-2.0`:
 `StatusChips.tsx(186,10): error TS2304: Cannot find name 'Chip'`.
 #16 renamed the cluster/wallet chips to `ChipButton` and deleted the
@@ -148,7 +205,7 @@ tsc, prettier and 111 tests (10 suites) clean.
 
 ### Historical: PR #13 — the Demo backend replaced by a real default
 
-Merged (`8bbf28de`, rogaldh). Deletes the scripted `Demo` provider and adds `api/agent.mjs`, a
+Merged (`18a2b531`, rogaldh). Deletes the scripted `Demo` provider and adds `api/agent.mjs`, a
 same-origin chat-completions route whose upstream, key and model come
 from the environment only. Also carries four unrelated panel changes
 (Ctrl+R toggle, MCP description collapse, BYO-key accordion, drop the
@@ -192,45 +249,59 @@ review and then **checked against `master-2.0` on 2026-08-27** -- these
 are the ones still true in the code, not the ones still written down.
 Each carries where it came from and where it now belongs.
 
-### P0 -- in the way of tonight
+### P0 -- in the way of the demo and of more lesson paths
 
-1. **Approve and merge #19.** `MERGEABLE`, `master-2.0` merged in, the
-   three conflicts resolved by hand; cannot be self-approved. It is the
-   only open PR and the whole of roadmap step 1.
-2. **M3 and M4, now live on master.** #13 merged with both open, so the
-   demo runs on them either way: a `null` JSON body returns 500
-   (`api/agent.mjs:131`), and no `maxDuration` in `vercel.json` means a
-   streaming answer is cut at the default function timeout. Both small.
-3. **Run the OAuth e2e on port 3000.** The wrong-nonce case fails on
-   `master-2.0` and on #19 alike, stalling at "Signing in...". Every run
-   so far was on another port while the GitHub app's callback is pinned
-   to 3000, so one run there says whether this is a real regression in
-   the sign-in path or a test-environment artifact.
+1. **Make the step criterion legible.** The direct answer to the review
+   above, and task 2 of `lesson-paths-todo.md`. Every `LessonStep`
+   already carries `target: Stage`, read today only for a tooltip
+   (`StepRail.tsx:42`); promote it to the affordance the band offers, so
+   a step that a build proves shows Build, and a `deploy` step explains
+   its preconditions -- a funded wallet and a cluster -- instead of
+   failing on click. Until this exists, every skip taken for want of a
+   signpost is a step the toolchain never got to prove.
+2. **Sync the three upstream changes that touch the demo path** -- the
+   `packages`/`bundle` route swap, `MINIMUM_EXTEND_PROGRAM_BYTES`, and
+   the sandboxed non-prod routes. See *Upstream drift* above. The first
+   is a break already scheduled against any server built from this tree;
+   the second bites the demo's own redeploy step.
+3. **M3 and M4, live on master.** #13 merged with both open: a `null`
+   JSON body returns 500 (`api/agent.mjs:131`, the check sits outside
+   the try that wraps parsing), and no `maxDuration` in `vercel.json`
+   means a streaming answer is cut at the default function timeout.
+   Re-verified in the code 2026-08-28. Both small.
 
 ### P1 -- important, next in line
 
-4. **Verification you can trust** -- a new step, see *Next*. Nothing
-   automated checks this fork today.
-   - No CI for `client-v2`: `.github/workflows/reusable-checks.yml`
-     covers `client/`, `server/` and `wasm/` only. (#5, #9)
-   - `check-format` globs `src/` only, so `api/*.mjs` never sees
-     prettier, and `yarn test` does not run it at all. (#9)
-   - `CI=true yarn build` fails on **every** branch, `master-2.0`
-     included: `src/tutorials/__template/` holds both `Template.tsx`
-     and `template.ts`, and webpack's lazy tutorial context resolves
-     both on a case-insensitive filesystem, which `CI=true` promotes
-     from warning to error. Found 2026-08-27 while verifying #16. Fix
-     the case pair before wiring the build into CI, or the first green
-     run is impossible. Upstream file -- keep the change to a rename.
-5. **Harden `/api/agent` before it ever holds a paid key** -- part of
+4. **Two ratchet edges, found 2026-08-28.** Both reproduced against
+   `progress.ts` directly; the 242-test suite does not cover either.
+   - `advance()` promises in a comment that "a build landing while they
+     are back reviewing must not move them", but its guard is
+     `stayPut = wasAt && !completed.includes(wasAt.id)` -- and a step
+     you can step back onto is by definition already behind you.
+     `{completed:["s1","s2"], current:"s1"}` plus a successful deploy
+     yields `currentStepId: null`: the reader is thrown to the end of
+     the lesson. The guard only ever fires for *skipped* steps.
+   - `continueRead()` does not check whether the step is already
+     complete, and `ObjectiveBand` renders **Continue** for any `read`
+     step including one reached by going back. Same input yields
+     `completedStepIds: ["s1","s2","s1"]` -- a duplicate id per click,
+     persisted to the lesson's workspace record.
+5. **Run the OAuth e2e on port 3000.** Demoted from P0 on 2026-08-28:
+   sign-in itself works from the first click (#17), so this is a
+   question about the test, not the feature. The wrong-nonce case
+   stalls at "Signing in..." on `master-2.0`; every run so far was on
+   another port while the GitHub app's callback is pinned to 3000, so
+   one run there says whether it is a real gap in the failure path or a
+   test-environment artifact.
+6. **Harden `/api/agent` before it ever holds a paid key** -- part of
    the metering step, see *Designed, parked*. Body-size cap,
    messages/tools count caps, `Origin`/`sec-fetch-site` same-origin
    check, per-IP token bucket. Without these the route is an
    unauthenticated general-purpose LLM relay. (#13 review, H1)
-6. **Wrap the project snapshot in untrusted-data delimiters** and move
+7. **Wrap the project snapshot in untrusted-data delimiters** and move
    it out of the `system` role. Shared projects are attacker-controlled
    text and go to the model unmarked today. (#5)
-7. **`requestApproval` should return `{ id, allowed }`.** It returns a
+8. **`requestApproval` should return `{ id, allowed }`.** It returns a
    bare boolean, so two tool calls in flight cannot label the right
    approval card -- visible the moment a demo runs parallel tools. (#5)
 
@@ -246,6 +317,24 @@ Part of the **Error-UX pass** already in the backlog:
 - `Chat.tsx` reads `PgBuildOutput.latest` but never subscribes to its
   change event. (#5)
 
+Kept from the retired "verification you can trust" step, because the
+facts outlive the step (see *Where we are* for why it is retired):
+- `CI=true yarn build` fails on **every** branch, `master-2.0`
+  included: `src/tutorials/__template/` holds both `Template.tsx` and
+  `template.ts`, and webpack's lazy tutorial context resolves both on a
+  case-insensitive filesystem, which `CI=true` promotes from warning to
+  error. Found 2026-08-27 while verifying #16. Upstream file -- keep any
+  fix to a rename. This is the first thing to clear if the fork ever
+  does start deploying.
+- `check-format` globs `src/` only, so `api/*.mjs` never sees prettier,
+  and `yarn test` does not run it at all. Run prettier over `api/` by
+  hand along with `src/`. (#9)
+- `docs/lesson-paths-todo.md` lives on `master-2.0`, against the
+  convention that working docs stay on `context-archive`. Deliberate on
+  its author's part -- the point was that the next reader finds it beside
+  the code it describes. Worth one decision either way rather than
+  drifting.
+
 Loose ends with no home yet:
 - Space Grotesk is still a runtime Google Fonts `@import`
   (`src/index.css:1`) rather than self-hosted. (#5)
@@ -255,9 +344,6 @@ Loose ends with no home yet:
   everywhere else. (#8)
 - The classic layout carries one-off radii (`10px`, `16px`) that no
   constant owns. (#15)
-- `PgKeybind` never asserts a modifier is *absent*, so `Ctrl+Shift+B`
-  also matches `"Ctrl+B"`. Harmless today; a trap for the next
-  `Ctrl+Shift+<key>` binding in Flow. (#15)
 - Interact's populated `Test.tsx` cards have never been checked against
   the boards -- needs a funded devnet wallet. (#7, #10)
 - Editor tab strip, excerpt syntax highlighting and the assistant's
@@ -298,55 +384,66 @@ Loose ends with no home yet:
 - The pre-existing `no-useless-concat` in `Deploy.tsx` (#13 checklist)
   -- done by #12.
 - #14, #15, #16, #17, #18 and #13 all merged to `master-2.0`.
-- `master-2.0`'s typecheck break -- closed by #18 (`49c128e6`).
-- #19's pending hand merge with #15 -- done (`55de28a4`), #19 is
-  `MERGEABLE` and waiting on one approval.
+- `master-2.0`'s typecheck break -- closed by #18 (`01e726e8`).
+- #19 merged (`1d908844`). The queue is empty.
+- `PgKeybind` never asserting a modifier is *absent*, so `Ctrl+Shift+B`
+  also matched `"Ctrl+B"` (#15) -- fixed inside #19 by rogaldh, with
+  `keybind.test.ts` as the guard.
+- The `Button` component restoring its state after a click handler had
+  already unmounted it -- fixed inside #19 by rogaldh.
+- "Wire `client-v2` into CI" -- **retired, not done.** See *Where we
+  are*: the 2.0 line deploys nothing, so the checks would gate work that
+  never leaves the laptop. The facts it collected are kept under P2.
 
 ## Next
 
 D21 set the order (GitHub identity -> tutorials -> everything else).
-Identity has landed, so tutorials is next in that order; the
-verification step below is new, cuts across everything, and is the one
-thing that is cheaper the earlier it happens.
+Both have now landed, so the order below is what comes after them. Step
+1 is not new scope: it is finishing the feature that just shipped, on
+the terms its own review set.
 
-0. **Verification you can trust** (new, 2026-08-27). Wire `client-v2`
-   into CI: types, prettier over `src/` **and** `api/`, unit tests,
-   build. Blocked first by the `__template` case pair described in P1.
-   Filed as a step rather than a chore because right now the only
-   thing standing between a broken `master-2.0` and a demo is somebody
-   remembering to run four commands by hand -- which is exactly how
-   #16 reached "ready to merge" without ever having been built.
-1. **Tutorials as a scenario** — **implemented 2026-08-27** on
-   `feat/lesson-paths`, not yet a PR. 24 commits, 41 files, +2775/-142.
-   Spec `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`
-   (amended during implementation), plan
-   `docs/superpowers/plans/2026-08-27-tutorials-as-scenario.md`, research
-   `docs/research/2026-08-27-tutorials-as-scenario.md`. Decision: **D24**.
-   Cat's prototype (solana-learning-playground.vercel.app) was walked
-   through live and is the source of the connected-prompt mechanic.
+1. **Make the lesson honest and legible** — the successor to "tutorials
+   as a scenario", which merged on 2026-08-28 (#19, `1d908844`,
+   D24, spec + plan + research of 2026-08-27; Cat's prototype at
+   solana-learning-playground.vercel.app was the source of the
+   connected-prompt mechanic).
 
-   The thesis holds in code: a lesson step is finished by the toolchain,
-   not by a click. Verification reads `FlowState` and the IDL an Anchor
-   build regenerates, and because the seeded program is a single comment,
-   step 1 cannot go green without a real compile of the learner's own
-   code. Observed working end to end during implementation — a real build
-   satisfied step 1's `idl` condition and the ratchet advanced.
+   *What shipped:* the four-step Hello Anchor path, step rail, objective
+   band, reader overlay, one project switcher instead of two, a target
+   ring on the stepper, a lesson-aware assistant with a three-rung hint
+   ladder and an unaided-first-attempt gate — plus, from rogaldh's 23
+   review commits, a resizable panel, delete-from-switcher, a stepper
+   that collapses to initials with `Ctrl/Cmd+1-4`, and the escape valve.
+   242 unit tests in 27 suites, 5 playwright e2e. **D16 fixed** as its
+   prerequisite, with two guards rather than the one it predicted.
 
-   Shipped: the four-step Hello Anchor path, step rail, objective band,
-   reader overlay, one project switcher instead of two (the rail's
-   Projects tab is deleted), a target ring on the stepper, a lesson-aware
-   assistant with a three-rung hint ladder and an unaided-first-attempt
-   gate. 157 unit tests in 18 suites, 5 playwright e2e. **D16 fixed** as
-   its prerequisite — and needed two guards, not the one it predicted.
+   *What is left, in order:*
+   - The signposting fix (P0 item 1) — the direct answer to the review.
+   - The two ratchet edges (P1 item 4).
+   - Settle the verification criteria with Cat. This is the
+     conversation that decides whether monotonicity can come back, and
+     it is also where `hello-anchor` step 3 gets an answer: it is a
+     `read` step today because nothing free proves a client call
+     happened, and `lesson-paths-todo.md` task 1 lays out the three
+     candidates (a `logs` kind, a snippet `match` kind, agent judgement
+     as a last resort).
+   - Then, and only then, more paths.
 
-   Known follow-ups, all recorded in D24 and the spec's concept section:
+   *The larger design underneath*, recorded as task 3 of
+   `lesson-paths-todo.md` and worth its own spec before any code: one
+   `StateMachine` over an explicit transition table, replacing three
+   hand-rolled reducers whose guards live at call sites. It keeps the
+   event log rather than only the fold, which makes "back" a replay to
+   an earlier index instead of a mutation, and lets the agent drive a
+   lesson by emitting the same events a human does — with provenance,
+   so the record can finally say *who* advanced a step. Both bugs in P1
+   item 4 are instances of the problem it removes.
+
+   Known follow-ups from D24 and the spec's concept section, unchanged:
    step ids are not path-scoped; `describeLesson` would misreport a path
    ending in a reading step; one `useLesson()` hook would collapse six
    hand-rolled subscriptions; `verify.ts`'s `build-passes` and `account`
-   sub-condition are unused surface. Merged up 2026-08-27 (`55de28a4`):
-   current `master-2.0` is in, the three predicted conflicts resolved by
-   hand, and `ProjectsTab.tsx`'s deletion carried through without a
-   delete/modify conflict because #15 never touched it. See *Tonight*.
+   sub-condition are unused surface.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
    off. Concept only until designed (candidate D24): a separate
    service, never `server/`. Feeds back into the OAuth stream.
@@ -358,7 +455,14 @@ thing that is cheaper the earlier it happens.
    storage, rather than putting the token in browser storage.
 3. **Metering in front of `/api/agent`** — the surviving half of the
    parked playground-tokens design, and the gate on pointing the
-   Default backend at a paid account. Carries P1 item 5.
+   Default backend at a paid account. Carries P1 item 6.
+4. **Keep `client-v2` in step with upstream** — a standing chore, newly
+   real: 24 upstream commits are already ahead of the copy. Cheapest as
+   a small sync PR after each upstream rebase, most expensive as one
+   large catch-up later. The three demo-path items are P0 item 2; the
+   rest (the `Error` route replacing `NotFound`, the removed `Approve`
+   modal, `PgPackage` renamed to `PgWasmPackage`, `PgCompression`) can
+   travel together.
 
 ## Designed, parked
 
@@ -392,8 +496,10 @@ resumes. Its metering half is now the blocking dependency for pointing
 - **Foundation's verifying faucet** — does not exist yet; our airdrop
   gate imitates the experience it would enforce. Its appearance is the
   revisit trigger recorded in the OAuth spec.
-- **Cat's tutorials demo** — broken; needed as input for the
-  tutorials brainstorm.
+- **Cat, on the verification criteria** — the open half of Next step 1.
+  Her prototype was already walked through live and fed the
+  connected-prompt mechanic; what is needed now is agreement on what
+  counts as proof for a step that no free artefact can grade.
 
 ## Concepts on paper (deliberately not built)
 
