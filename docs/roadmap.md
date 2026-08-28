@@ -407,9 +407,11 @@ Both have now landed, so the order below is what comes after them. Step
 1 is not new scope: it is finishing the feature that just shipped, on
 the terms its own review set.
 
-1. **Make the lesson honest and legible** — the successor to "tutorials
-   as a scenario", which merged on 2026-08-28 (#19, `1d908844`,
-   D24, spec + plan + research of 2026-08-27; Cat's prototype at
+1. **Make the lesson honest and legible** — **taken as the next task,
+   2026-08-28**; brief for the session that runs it:
+   `docs/internal/2026-08-28-lesson-architecture-brief.md`. The successor
+   to "tutorials as a scenario", which merged on 2026-08-28 (#19,
+   `1d908844`, D24, spec + plan + research of 2026-08-27; Cat's prototype at
    solana-learning-playground.vercel.app was the source of the
    connected-prompt mechanic).
 
