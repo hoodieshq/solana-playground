@@ -257,13 +257,15 @@ Each carries where it came from and where it now belongs.
 ### P0 -- in the way of the demo and of more lesson paths
 
 1. **Make the step criterion legible.** The direct answer to the review
-   above, and task 2 of `lesson-paths-todo.md`. Every `LessonStep`
-   already carries `target: Stage`, read today only for a tooltip
-   (`StepRail.tsx:42`); promote it to the affordance the band offers, so
-   a step that a build proves shows Build, and a `deploy` step explains
-   its preconditions -- a funded wallet and a cluster -- instead of
-   failing on click. Until this exists, every skip taken for want of a
-   signpost is a step the toolchain never got to prove.
+   above, and task 2 of `lesson-paths-todo.md`. **Designed 2026-08-28**
+   -- `docs/superpowers/specs/2026-08-28-lesson-state-machine-design.md`,
+   D25 -- so what is left here is implementation. The design derives the
+   verifying action from the condition rather than promoting the
+   authored `target: Stage`, which has already drifted (`hello-anchor`
+   step 3 declares `target: "interact"` for a step no stage can prove),
+   and makes preconditions explain rather than fail. Until it ships,
+   every skip taken for want of a signpost is a step the toolchain never
+   got to prove.
 2. **Sync the three upstream changes that touch the demo path** -- the
    `packages`/`bundle` route swap, `MINIMUM_EXTEND_PROGRAM_BYTES`, and
    the sandboxed non-prod routes. See *Upstream drift* above. The first
@@ -277,8 +279,10 @@ Each carries where it came from and where it now belongs.
 
 ### P1 -- important, next in line
 
-4. **Two ratchet edges, found 2026-08-28.** Both reproduced against
-   `progress.ts` directly; the 242-test suite does not cover either.
+4. **Three ratchet edges, found 2026-08-28.** All reproduced against
+   `progress.ts` directly. **All three are answered by D25's model** as
+   cases it makes unrepresentable, so they are fixed by that
+   implementation rather than separately.
    - `advance()` promises in a comment that "a build landing while they
      are back reviewing must not move them", but its guard is
      `stayPut = wasAt && !completed.includes(wasAt.id)` -- and a step
@@ -286,11 +290,17 @@ Each carries where it came from and where it now belongs.
      `{completed:["s1","s2"], current:"s1"}` plus a successful deploy
      yields `currentStepId: null`: the reader is thrown to the end of
      the lesson. The guard only ever fires for *skipped* steps.
+     Uncovered by the 242-test suite.
    - `continueRead()` does not check whether the step is already
      complete, and `ObjectiveBand` renders **Continue** for any `read`
      step including one reached by going back. Same input yields
      `completedStepIds: ["s1","s2","s1"]` -- a duplicate id per click,
-     persisted to the lesson's workspace record.
+     persisted to the lesson's workspace record. Uncovered.
+   - **`continueRead()` writes a click into `completedStepIds`** -- the
+     field D24's amendment reserves for toolchain proof, so the shipped
+     record already claims verifications that never happened. Not
+     uncovered but *asserted*: `progress.test.ts:325` expects it. The
+     worst of the three, and the reason D25 is not only bug prevention.
 5. **Run the OAuth e2e on port 3000.** Demoted from P0 on 2026-08-28:
    sign-in itself works from the first click (#17), so this is a
    question about the test, not the feature. The wrong-nonce case
@@ -407,9 +417,11 @@ Both have now landed, so the order below is what comes after them. Step
 1 is not new scope: it is finishing the feature that just shipped, on
 the terms its own review set.
 
-1. **Make the lesson honest and legible** — **taken as the next task,
-   2026-08-28**; brief for the session that runs it:
-   `docs/internal/2026-08-28-lesson-architecture-brief.md`. The successor
+1. **Make the lesson honest and legible** — **designed 2026-08-28;
+   implementation is the next task.** Round brief:
+   `docs/internal/2026-08-28-lesson-architecture-brief.md`. Result:
+   `docs/superpowers/specs/2026-08-28-lesson-state-machine-design.md`
+   and D25. The successor
    to "tutorials as a scenario", which merged on 2026-08-28 (#19,
    `1d908844`, D24, spec + plan + research of 2026-08-27; Cat's prototype at
    solana-learning-playground.vercel.app was the source of the
@@ -425,26 +437,29 @@ the terms its own review set.
    prerequisite, with two guards rather than the one it predicted.
 
    *What is left, in order:*
-   - The signposting fix (P0 item 1) — the direct answer to the review.
-   - The two ratchet edges (P1 item 4).
-   - Settle the verification criteria with Cat. This is the
-     conversation that decides whether monotonicity can come back, and
-     it is also where `hello-anchor` step 3 gets an answer: it is a
-     `read` step today because nothing free proves a client call
-     happened, and `lesson-paths-todo.md` task 1 lays out the three
-     candidates (a `logs` kind, a snippet `match` kind, agent judgement
-     as a last resort).
+   - Implement D25 — one machine, two folds over an event log. It
+     carries the signposting fix (P0 item 1) and all three ratchet edges
+     (P1 item 4) with it, because the model makes them
+     unrepresentable rather than patching them.
+   - Cat settles `hello-anchor` step 3's *wording*. The mechanism is no
+     longer open: D25 chose the transaction's own logs, read on demand,
+     and rejected the snippet `match` (an answer key) and agent
+     judgement (contradicts `prompt.ts`, non-deterministic). What is
+     left is a curriculum question — does the step stay "call the
+     instruction" or become "call it and see your own log line".
    - Then, and only then, more paths.
 
-   *The larger design underneath*, recorded as task 3 of
-   `lesson-paths-todo.md` and worth its own spec before any code: one
-   `StateMachine` over an explicit transition table, replacing three
-   hand-rolled reducers whose guards live at call sites. It keeps the
-   event log rather than only the fold, which makes "back" a replay to
-   an earlier index instead of a mutation, and lets the agent drive a
-   lesson by emitting the same events a human does — with provenance,
-   so the record can finally say *who* advanced a step. Both bugs in P1
-   item 4 are instances of the problem it removes.
+   *The larger design underneath* — task 3 of `lesson-paths-todo.md` —
+   **is D25.** It is narrower than the task's wording in one deliberate
+   way: `PgFlow` stays its own reducer and becomes an event source, and
+   `PgAssistant` is untouched, because rewriting the store that drives
+   the stepper, the stages and the chips buys the lesson nothing. It
+   also declines the task's "back as a replay to an earlier log index":
+   a fold replayed to index `i` drops proofs earned after `i`, which
+   contradicts the monotonic ledger, so back appends a `move` and
+   truncates nothing. What it keeps is the point — an explicit table, an
+   event log, and provenance on every event, so the record can finally
+   say *who* advanced a step.
 
    Known follow-ups from D24 and the spec's concept section, unchanged:
    step ids are not path-scoped; `describeLesson` would misreport a path

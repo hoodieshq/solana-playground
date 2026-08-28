@@ -1187,3 +1187,113 @@ The codebase already had a different remedy for this symptom class -
 We used a listener-level guard instead because it is targeted rather than
 reordering the whole `disposables` block, at the cost of two idioms for one
 framework quirk.
+
+---
+
+## D25 - Lesson state is a ledger and a cursor, folded from an event log
+
+**Date:** 2026-08-28 - **Status:** designed, not implemented
+
+Spec: `docs/superpowers/specs/2026-08-28-lesson-state-machine-design.md`
+Round brief: `docs/internal/2026-08-28-lesson-architecture-brief.md`
+Answers the three tasks in `docs/lesson-paths-todo.md` on `master-2.0`.
+
+D24's amendment left three things open: the criterion is illegible, the
+guards live at call sites rather than in a table, and nobody had decided
+what proves a step no free artefact can grade. They are one problem -
+no chain worked through to the end, at either the UX or the logic level.
+
+**Chosen:** the lesson's record becomes an append-only event log, read by
+two independent folds. A per-step **ledger** over
+`open | proved | attested | passed`, monotonic, where which edges a step
+has is a function of its condition's grader class. A single **cursor**,
+free to move anywhere `legal`, where `legal(i)` is `mark(i) != open` or
+`i = frontier`. `completedStepIds`, `skippedStepIds`, `currentStepId`,
+`attempted` and `attemptBaseline` all stop being fields and become
+queries.
+
+**The load-bearing rule: every guard reads the event, not the fold.**
+That is the difference the two known bugs turn on. `advance` asks "is the
+step under the cursor anywhere in the completed set" - true of every step
+you can step back onto, so its documented promise to leave a reviewing
+learner alone never held. The edge asks "did the step under the cursor
+just become proved by *this* grade", which only an event can answer.
+
+**A third defect, found while designing and worse than either.**
+`continueRead` appends a click to `completedStepIds` - the exact field
+this decision's parent reserves for toolchain proof. Reproduced by
+compiling the merged `progress.ts` and running it, and the suite does not
+merely miss it - `progress.test.ts:325` asserts it. So D24's central
+sentence is false in the shipped code, and the model is not only bug
+prevention: `attest` reaches `attested` and `proved` has exactly one
+guard, so no click can reach it. `passed` and `attested` stay separate
+marks because they are different facts - a criterion that went unmet
+versus no machine criterion at all.
+
+**Monotonicity, settled.** It never left the ledger, which is where D24
+claimed it; what was missing was the claim's truth. Position stays free
+permanently, because marks only grow and therefore `legal` only grows -
+a position once reachable is reachable forever, which is the formal
+reason the arrows need no escape hatch. `pass` stays available even when
+every step is machine-graded, because no grader is provably right; once
+the criterion is legible, the rate of passes becomes the signal that one
+is wrong.
+
+**The criterion becomes the interface.** `target: Stage` is deleted as an
+authored field - it has already drifted, `hello-anchor` step 3 declaring
+`target: "interact"` for a step no stage can prove - and the band's
+primary action is derived from the condition instead. Preconditions
+explain rather than fail: a deploy missing SOL says so, including that
+the airdrop is behind GitHub sign-in since #9. Promoting the criterion
+demotes **I'm stuck** to a secondary, which is guardrail 4 of D24 bought
+by layout rather than by a disabled control.
+
+**Rejected - a flat status enum plus an edge table.** The literal reading
+of the todo and the smallest diff, but mark and position stay on one
+axis, and one axis is what forces a guard to ask the ledger a question
+about position. It also cannot answer provenance or the hint ladder at
+all.
+
+**Rejected - a machine library (XState or similar).** A dependency for a
+three-state ledger, against a codebase whose convention is pure reducers
+over named event unions - and it would not help, because the guards would
+still need the event-versus-fold distinction that is the actual content
+of the round.
+
+**Rejected - unifying `PgFlow` and `PgAssistant` into the machine.** The
+todo's "existing reducers as first citizens" reads that way, but `PgFlow`
+drives the stepper, the stages and the chips, and rewriting it buys the
+lesson nothing while putting the demo path at risk. It becomes an event
+source. The chat's streaming and tool lifecycle has nothing to do with
+lesson position.
+
+**Rejected - back as replay to an earlier log index.** The todo proposes
+it as the honest version of the arrows. A fold replayed to index `i`
+would also drop proofs earned after `i`, which contradicts the monotonic
+ledger. Replay is right for what the learner *sees* and wrong for what
+the record *says*, so back appends a `move` event and truncates nothing.
+
+**What proves `hello-anchor` step 3:** the transaction's own logs -
+`getSignaturesForAddress(programId)` then `getTransaction`, reading
+`meta.logMessages`. No captured signature, no Interact change, no answer
+key, no relaxed prompt rule. **Rejected - snippet `match`:** an answer
+key, which research finding 03 rules out, against tutorial code blocks
+that are illustrative fragments rather than per-step solutions.
+**Rejected for now - agent judgement:** contradicts `prompt.ts` and is
+non-deterministic; it stays the last resort. The chosen grader is async
+and can fail, so it cannot run on every state change - hence a third
+grader class (synchronous / on-demand / attestation) in the table from
+the start. Designing it in now means step 3 later changes only its
+condition.
+
+**The agent emits no ledger event.** It gets the same entry point and the
+same event shapes a human uses - the todo's ask - but marking a step
+changes state, so it proposes through the existing approval card and the
+event lands as `{ actor: "learner", via: "agent" }`. That is what lets
+the record say who advanced a step honestly, and it keeps the escape
+valve something a learner takes rather than something an agent can
+automate.
+
+**Revisit when** Cat settles step 3's wording, which the mechanism now
+allows but does not decide; or when a second lesson path lands, since
+step ids are still not path-scoped.
