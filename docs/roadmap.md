@@ -11,6 +11,11 @@ Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b
 -- regenerated from this file; update both together.
 Lesson-paths retrospective (research -> prototype -> result -> next):
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
+Tutorials-as-scenario study, 2026-08-27 (the evidence and the three
+anatomies the design was chosen from; republished 2026-08-28 from a local
+export after the original artifact was deleted -- content unchanged, so it
+still describes a five-step path where four shipped):
+https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f
 
 ## The week's brief, item by item
 
