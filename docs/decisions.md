@@ -1058,7 +1058,8 @@ way to distinguish a disowned handle from a closed window.
 
 ## D24 - A lesson step is finished by the toolchain, not by a click
 
-**Date:** 2026-08-27 - **Status:** implemented on `feat/lesson-paths`
+**Date:** 2026-08-27 - **Status:** merged 2026-08-28 (#19, `1d908844`),
+**amended in review - see the amendment at the end of this entry**
 
 Spec: `docs/superpowers/specs/2026-08-27-tutorials-as-scenario-design.md`
 Plan: `docs/superpowers/plans/2026-08-27-tutorials-as-scenario.md`
@@ -1123,6 +1124,42 @@ was honest and one word of copy undid it.
 path-scoped today, and both the hint counter and the reader's key use a
 bare id - or when the Interact stage can hand us a transaction signature,
 which is what a `log-contains` condition needs.
+
+**Amended 2026-08-28, by rogaldh, before merging.** The monotonic half of
+this decision did not survive contact with a learner. The objection: the
+flow only lets you through once a step is complete, and *the criterion for
+a complete step is itself unclear* - so in hackathon conditions the
+strictness costs more than it buys. The learner can now move past a step
+without proof, and walk back to any earlier step.
+
+**What the amendment deliberately did not touch**, and why it is an
+amendment rather than a reversal: only the toolchain can still mark a step
+*proved*. A pass-without-proof is recorded in a separate `skippedStepIds`
+field, never in `completedStepIds`, so the record cannot claim a
+verification that did not happen; and a later build that does satisfy the
+condition upgrades the skip into a real completion. `stepBack` is pure
+navigation and leaves every mark alone in both directions. The accurate
+statement is therefore no longer "the path is monotonic" but **the ledger
+is monotonic; the learner's position is not**. The spec's "Monotonic by
+construction" section is superseded on the second half only.
+
+**What this leaves open**, all three recorded in
+`docs/lesson-paths-todo.md` on `master-2.0`, deliberately placed beside
+the code rather than here:
+- The criterion is illegible, which is the actual complaint. `LessonStep`
+  already carries `target: Stage`, used today only for a tooltip; promoting
+  it to the action the objective band offers is what tells a learner that
+  Build is the thing that proves this step. Observed failure: after the
+  assistant wrote the file, nothing signposted the build, and the learner
+  reached for the escape valve instead.
+- Whether monotonicity comes back at all is Cat's conversation, because it
+  depends on what counts as proof for a step no free artefact can grade -
+  `hello-anchor` step 3 being the live example.
+- The guards now live at call sites rather than in a transition table,
+  which is how both of the bugs found on 2026-08-28 got in. A real
+  `StateMachine` with an event log is the structural answer, and it is
+  also what would let the agent drive a lesson by emitting the same events
+  a human does, with provenance recording who advanced each step.
 
 ---
 

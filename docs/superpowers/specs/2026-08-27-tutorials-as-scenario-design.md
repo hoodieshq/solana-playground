@@ -195,6 +195,12 @@ interface LessonProgress {
 never removed. A later failing build moves the stepper, never the
 ratchet. The current step is the first step not in the completed set.
 
+> **Superseded in part, 2026-08-28** (see D24's amendment). The first two
+> sentences still hold and are the point. The third does not: the learner
+> can now step back and forward freely, so position comes from an explicit
+> `currentStepId` pointer, and a step passed without proof is recorded in
+> a separate `skippedStepIds` field rather than in the completed set.
+
 Evaluation runs on `PgFlow.onDidChange` and on the IDL changing. The
 storage API is async (IndexedDB under `PgExplorer.fs`), so the store
 keeps the progress in memory, renders from that, and writes through.
