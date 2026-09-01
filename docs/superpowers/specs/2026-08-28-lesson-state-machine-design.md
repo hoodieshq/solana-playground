@@ -249,10 +249,13 @@ which edges exist and how the interface offers them.
 > by the same sandboxed TypeScript runtime the product already uses
 > for tests, against the learner's deployed program on devnet. Pass
 > emits `graded`; failure emits `checked(i, false)` carrying the test
-> output, which feeds the hint ladder. No new class, no new state, no
-> new edge. `logs` stays the cheap declarative option of the class;
-> `test` is the escalation for steps whose objective is behavior.
-> Backend grading endpoints were considered and rejected - see D26.
+> output, which the assistant receives as hint context. Both on-demand
+> verdicts are the grader's, so `checked` carries `actor: toolchain` -
+> the learner's click requested the check; it did not produce the
+> verdict. No new class, no new state, no new edge. `logs` stays the
+> cheap declarative option of the class; `test` is the escalation for
+> steps whose objective is behavior. Backend grading endpoints were
+> considered and rejected - see D26.
 
 ### What proves `hello-anchor` step 3
 
@@ -428,6 +431,10 @@ arise.
 `loadFailed` stays exactly as it is and matters more than before:
 appending to a log needs the prior log, so an unreadable file must still
 refuse the write rather than replace a real record with a shorter one.
+
+The log assumes a single writing tab. `loadFailed` guards the worst case
+- an unreadable record is never replaced by a shorter one - and
+cross-tab merging is explicitly out of scope for this cut.
 
 Past a cap the log is trimmed to a ledger snapshot plus recent events.
 Only the attempt and rung queries need history, and both are step-local,
