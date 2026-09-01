@@ -6,6 +6,26 @@ import type { FlowState, Stage } from "../state/stage";
 const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /**
+ * How a condition is evaluated, which decides which ledger edges the
+ * step has and how the band offers them. No condition maps to
+ * `on-demand` yet: the class exists so D26's `logs`/`test` later only
+ * extend this switch, without reopening the transition table.
+ */
+export type GraderClass = "synchronous" | "on-demand" | "attestation";
+
+export const graderClass = (c: VerifyCondition): GraderClass => {
+  switch (c.kind) {
+    case "build-passes":
+    case "deployed":
+    case "idl":
+      return "synchronous";
+    // The learner is the grader, and the record says so
+    case "read":
+      return "attestation";
+  }
+};
+
+/**
  * The stage whose action can prove a condition, or `null` when nothing free
  * can. Derived from `verify` rather than carried beside it, so the action a
  * step offers cannot drift from what actually grades it.
