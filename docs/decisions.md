@@ -1408,15 +1408,19 @@ callback, the build path of D28 - and it is also the *agent's*
 hosting: `/api/agent` ships on the same origin, so the site operator
 operates an LLM relay); who pays for inference at launch (fallback
 BYO-key, which removes metering as a blocker but raises the entry
-barrier). Step zero - Slava's dev-process tooling list - was
-requested three times and not yet supplied, so it stays a budgeted
-slot in week 1, not invented on his behalf.
+barrier).
 
 **Team size, answered 2026-09-02: 1.5.** Slava full-time working with
-AI agents; a second person can join at need, and step zero exists so
-they join without rework. The 25-in-28 arithmetic still binds human
-review bandwidth, so the cut list stays in force as insurance rather
-than as the plan.
+AI agents; a second person can join at need. The 25-in-28 arithmetic
+still binds human review bandwidth, so the cut list stays in force as
+insurance rather than as the plan.
+
+**Step zero, removed 2026-09-02 (Slava, the same day it entered):**
+dev-process tooling does not belong on the product roadmap at all -
+it is internal kitchen, part of how the product is built rather than
+what ships. The setup story is told after the result, when someone
+asks how it was done. Tooling work happens as needed, unbudgeted and
+unlisted; do not reintroduce it as a roadmap item.
 
 **Revisit when** any of the three owner-side answers arrives, or when
 the team size changes mid-month.

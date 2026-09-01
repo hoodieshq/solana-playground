@@ -35,7 +35,7 @@ dependency, not a taste, and D27 records why.
 
 | Week | Track | What lands |
 | --- | --- | --- |
-| 1 | The floor + the cheap half of identity | production bundle, CI, hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`), step-zero budget |
+| 1 | The floor + the cheap half of identity | production bundle, CI, hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
 | 2 | Learning core | D25/D26 — the lesson-ledger round, already briefed and unchanged in shape (`docs/internal/2026-09-01-lesson-implementation-brief.md`, branch `feat/lesson-ledger`) |
 | 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
 | 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
@@ -67,11 +67,12 @@ routes; it has no separate week because it rides the floor and step 3.
 fallback of each): hosting and operator; who pays for inference at
 launch (fallback BYO-key). **Team size is answered (2026-09-02): 1.5**
 — Slava full-time working with AI agents, a second person joinable at
-need; step zero exists precisely so they join without rework. The
-solo arithmetic still applies to human review bandwidth, so the cut
-list stays in force as insurance rather than as the plan. Step zero —
-Slava's dev-process tooling list — is a budgeted week-1 slot awaiting
-his list.
+need. The solo arithmetic still applies to human review bandwidth, so
+the cut list stays in force as insurance rather than as the plan.
+**Dev-process tooling ("step zero") is deliberately not on this
+roadmap** (Slava, 2026-09-02): it is internal kitchen — how the
+product is built, not what ships — and the setup story is told after
+the result, when someone asks how it was done.
 
 **New launch blockers surfaced by the frame change:**
 - `CI=true yarn build` fails on every branch (`__template` case pair)
