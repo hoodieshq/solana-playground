@@ -1,9 +1,5 @@
 import { graderClass } from "./verify";
-import type {
-  LessonMark,
-  LessonRecordEvent,
-  StoredLesson,
-} from "./events";
+import type { LessonMark, LessonRecordEvent, StoredLesson } from "./events";
 import type { LessonPath, LessonStep } from "./types";
 
 /**
@@ -69,7 +65,7 @@ interface FoldState {
 }
 
 const resolve = (path: LessonPath, to: string | "end"): LessonPosition | null =>
-  to === "end" ? "end" : (i => (i === -1 ? null : i))(indexOf(path, to));
+  to === "end" ? "end" : ((i) => (i === -1 ? null : i))(indexOf(path, to));
 
 /**
  * After a fired mark edge at `k` there is always a legal position
@@ -344,6 +340,13 @@ export const cursorStep = (
   path: LessonPath,
   view: LessonView
 ): LessonStep | null => stepAt(path, view.cursor);
+
+/**
+ * @returns a 1-based step number, or one past the end when finished,
+ * so the UI can render "4 of 4" and "done" from the same value
+ */
+export const positionNumber = (path: LessonPath, view: LessonView): number =>
+  view.cursor === "end" ? path.steps.length + 1 : view.cursor + 1;
 
 /**
  * Whether an `attempt` landed after the cursor's *first* arrival at

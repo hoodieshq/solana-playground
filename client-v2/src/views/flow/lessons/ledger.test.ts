@@ -27,7 +27,6 @@ const PATH: LessonPath = {
       objective: "Define hello",
       verifiedBy: "the interface shows hello",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       hints,
     },
     {
@@ -35,15 +34,13 @@ const PATH: LessonPath = {
       objective: "Deploy it",
       verifiedBy: "it is on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
       hints,
     },
     {
       id: "client",
       objective: "Call it from the client",
       verifiedBy: "you have read the page",
-      verify: { kind: "read" },
-      target: "interact",
+      verify: { kind: "read", at: "interact" },
       hints,
     },
   ],
@@ -51,9 +48,7 @@ const PATH: LessonPath = {
 
 /** Append events with seq/at assigned in order, learner unless said */
 const record = (
-  ...events: Array<
-    Partial<LessonRecordEvent> & Pick<LessonRecordEvent, "type">
-  >
+  ...events: Array<Partial<LessonRecordEvent> & Pick<LessonRecordEvent, "type">>
 ): StoredLesson => ({
   v: 2,
   events: events.map(
@@ -61,16 +56,14 @@ const record = (
       ({
         seq: i + 1,
         at: (i + 1) * 1000,
-        actor: e.type === "graded" || e.type === "checked"
-          ? "toolchain"
-          : "learner",
+        actor:
+          e.type === "graded" || e.type === "checked" ? "toolchain" : "learner",
         ...e,
       } as LessonRecordEvent)
   ),
 });
 
-const graded = (...stepIds: string[]) =>
-  ({ type: "graded", stepIds } as const);
+const graded = (...stepIds: string[]) => ({ type: "graded", stepIds } as const);
 const pass = (stepId: string, actor: LessonActor = "learner") =>
   ({ type: "pass", stepId, actor } as const);
 const attest = (stepId: string, actor: LessonActor = "learner") =>
@@ -127,7 +120,10 @@ describe("the ledger fold", () => {
     } as const;
     expect(admits(PATH, view, late)).toBe(false);
 
-    const withIt = foldRecord(PATH, { ...behind, events: [...behind.events, late] });
+    const withIt = foldRecord(PATH, {
+      ...behind,
+      events: [...behind.events, late],
+    });
     expect(marksOf(withIt)).toEqual(marksOf(view));
     expect(withIt.cursor).toBe(view.cursor);
   });
@@ -172,18 +168,18 @@ describe("the ledger fold", () => {
       foldRecord(PATH, record(pass("write", "toolchain"))).marks.get("write")
     ).toBe("open");
     // Behind the frontier: no edge
-    expect(
-      foldRecord(PATH, record(pass("deploy"))).marks.get("deploy")
-    ).toBe("open");
+    expect(foldRecord(PATH, record(pass("deploy"))).marks.get("deploy")).toBe(
+      "open"
+    );
     // An attestation kind cannot be passed -- its escape is attest
     const atRead = record(graded("write", "deploy"), pass("client"));
     expect(foldRecord(PATH, atRead).marks.get("client")).toBe("open");
   });
 
   it("attests only attestation kinds", () => {
-    expect(
-      foldRecord(PATH, record(attest("write"))).marks.get("write")
-    ).toBe("open");
+    expect(foldRecord(PATH, record(attest("write"))).marks.get("write")).toBe(
+      "open"
+    );
   });
 
   it("repairs a passed step into proved when a later grade lands", () => {
@@ -215,8 +211,9 @@ describe("the ledger fold", () => {
 describe("the cursor fold", () => {
   it("moves to any non-open step, and refuses open ones ahead", () => {
     const proved = record(graded("write"));
-    expect(foldRecord(PATH, { ...proved, events: [...proved.events] }).cursor)
-      .toBe(1);
+    expect(
+      foldRecord(PATH, { ...proved, events: [...proved.events] }).cursor
+    ).toBe(1);
 
     const back = foldRecord(PATH, record(graded("write"), move("write")));
     expect(back.cursor).toBe(0);
@@ -326,9 +323,9 @@ describe("admits", () => {
       { type: "checked", stepId: "write" } as const,
       { type: "hint", stepId: "write", rung: 1 } as const,
     ]) {
-      expect(
-        admits(PATH, v, { seq: 1, at: 1, actor: "learner", ...ev })
-      ).toBe(true);
+      expect(admits(PATH, v, { seq: 1, at: 1, actor: "learner", ...ev })).toBe(
+        true
+      );
     }
   });
 
@@ -430,10 +427,7 @@ describe("properties over random series", () => {
     return seed / 4294967296;
   };
 
-  const randomEvent = (
-    rand: () => number,
-    seq: number
-  ): LessonRecordEvent => {
+  const randomEvent = (rand: () => number, seq: number): LessonRecordEvent => {
     const ids = PATH.steps.map((s) => s.id);
     const id = ids[Math.floor(rand() * ids.length)];
     const base = { seq, at: seq, actor: "learner" as const };

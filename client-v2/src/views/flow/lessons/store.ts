@@ -1,18 +1,22 @@
 import type { Idl } from "@coral-xyz/anchor";
 
-import { PgLessonHints } from "./hints";
+import { EMPTY_STORED, nextSeq, trimRecord } from "./events";
+import type { LessonActor, LessonRecordEvent, StoredLesson } from "./events";
+import { hintPrompt, RUNG_COUNT } from "./hints";
 import {
-  advance,
-  continueRead,
-  currentStep,
-  EMPTY_PROGRESS,
-  skipStep,
-  stepBack,
-  stepForward,
-} from "./progress";
-import type { LessonProgress } from "./progress";
+  admits,
+  attempted,
+  cursorStep,
+  foldRecord,
+  nextLegal,
+  prevLegal,
+  rung,
+} from "./ledger";
+import type { LessonView } from "./ledger";
+import { isV1, isV2, migrateV1 } from "./migrate";
 import { getLessonPath } from "./registry";
 import type { LessonPath } from "./types";
+import { graderClass, isSatisfied } from "./verify";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { PgExplorer, PgProgramInfo, PgTutorial } from "../../../utils";
@@ -21,145 +25,204 @@ import type { Disposable } from "../../../utils";
 export interface LessonState {
   /** `null` whenever the active workspace is not a lesson with a path */
   path: LessonPath | null;
-  progress: LessonProgress;
-  /**
-   * Whether the learner has run a build since the current step became
-   * current. Gates the hint ladder above rung one -- an unaided first
-   * attempt is the one intervention with RCT evidence behind it.
-   */
-  attempted: boolean;
-  /**
-   * `flow.buildStartedAt` at the moment the current step began. An
-   * attempt is any build started after this. Derived rather than
-   * event-driven because `PgExplorer` has no file-write event, and a
-   * build is the truer signal anyway: editing without building is not
-   * an attempt at a build-verified step.
-   */
-  attemptBaseline: number | null;
+  /** The event log -- the only thing stored; everything the UI shows
+   * is a fold over it (`foldRecord` in `ledger.ts`) */
+  record: StoredLesson;
   /**
    * Set when the most recent load could not tell a clean first visit
-   * (no saved file yet, `progress` is genuinely empty) apart from a
-   * read that failed silently (a file exists but came back unreadable,
-   * so `progress` is empty even though a real record might not be).
-   * `_persist` refuses to write while this is set, so the cost of an
-   * unreadable file is a skipped write, not the real record getting
-   * overwritten with a shorter one.
+   * (no saved file yet, the record is genuinely empty) apart from a
+   * read that failed silently. `_persist` refuses to write while this
+   * is set: appending to a log needs the prior log, so an unreadable
+   * file must refuse the write rather than replace a real record with
+   * a shorter one.
    */
   loadFailed: boolean;
 }
 
 export const INITIAL_LESSON_STATE: LessonState = {
   path: null,
-  progress: EMPTY_PROGRESS,
-  attempted: false,
-  attemptBaseline: null,
+  record: EMPTY_STORED,
   loadFailed: false,
 };
 
-export type LessonEvent =
+/**
+ * What the store can be asked. Each action carries `at` so the reducer
+ * stays pure -- the wall clock is the caller's to read. The reducer
+ * turns an action into at most a couple of appended record events; an
+ * action whose event has no edge returns the same state object.
+ */
+export type LessonAction =
   | {
       type: "load";
       path: LessonPath | null;
-      progress?: LessonProgress;
+      record?: StoredLesson;
       loadFailed?: boolean;
+      at: number;
     }
-  | { type: "evaluate"; flow: FlowState; idl: Idl | null }
-  | { type: "continue-read"; buildStartedAt: number | null }
-  | { type: "skip-step"; buildStartedAt: number | null }
-  | { type: "step-back" }
-  | { type: "step-forward" };
+  | { type: "evaluate"; flow: FlowState; idl: Idl | null; at: number }
+  | { type: "pass"; at: number }
+  | { type: "attest"; at: number }
+  | { type: "move"; to: string | "end"; at: number }
+  | { type: "hint"; at: number };
 
-/** Pure reducer, so the ratchet's rules are testable without a browser. */
+/** Append one event, through the same guard the fold replays with */
+const append = (
+  state: LessonState,
+  payload:
+    | { type: "enter" }
+    | { type: "graded"; stepIds: string[] }
+    | { type: "pass"; stepId: string }
+    | { type: "attest"; stepId: string }
+    | { type: "move"; to: string | "end" }
+    | { type: "attempt"; startedAt: number }
+    | { type: "hint"; stepId: string; rung: number },
+  actor: LessonActor,
+  at: number
+): LessonState => {
+  if (!state.path) return state;
+  const path = state.path;
+
+  const ev = {
+    ...payload,
+    seq: nextSeq(state.record),
+    at,
+    actor,
+  } as LessonRecordEvent;
+  if (!admits(path, foldRecord(path, state.record), ev)) return state;
+
+  const record = trimRecord(
+    { ...state.record, events: [...state.record.events, ev] },
+    (r) => [...foldRecord(path, r).marks.entries()]
+  );
+  return { ...state, record };
+};
+
+/** Pure reducer, so the machine's rules are testable without a browser */
 export const reduceLesson = (
   state: LessonState,
-  ev: LessonEvent
+  action: LessonAction
 ): LessonState => {
-  switch (ev.type) {
-    case "load":
-      // `attemptBaseline: null` is safe here for a reason this branch
-      // does not enforce itself: entering a lesson is a workspace
-      // change, and `PgFlow` reduces `workspace-change` to
-      // `INITIAL_FLOW_STATE`, so `buildStartedAt` is already `null` by
-      // the time the next `evaluate` runs.
-      return ev.path
-        ? {
-            path: ev.path,
-            progress: ev.progress ?? EMPTY_PROGRESS,
-            attempted: false,
-            attemptBaseline: null,
-            loadFailed: ev.loadFailed ?? false,
-          }
-        : INITIAL_LESSON_STATE;
+  switch (action.type) {
+    case "load": {
+      if (!action.path) return INITIAL_LESSON_STATE;
+      const loaded: LessonState = {
+        path: action.path,
+        record: action.record ?? EMPTY_STORED,
+        loadFailed: action.loadFailed ?? false,
+      };
+      return append(loaded, { type: "enter" }, "learner", action.at);
+    }
 
     case "evaluate": {
       if (!state.path) return state;
+      const { flow, idl } = action;
+      let next = state;
 
-      const progress = advance(state.path, state.progress, ev.flow, ev.idl);
-      const stepChanged = progress !== state.progress;
-
-      // A new step starts with no attempt behind it, so the ladder caps
-      // at rung one again and the baseline moves to now.
-      if (stepChanged) {
-        return {
-          ...state,
-          progress,
-          attempted: false,
-          attemptBaseline: ev.flow.buildStartedAt,
-        };
+      // The attempt first: a build that starts and later proves a step
+      // arrives as two separate `PgFlow` notifications, so the attempt
+      // is already behind the `graded` that moves the cursor -- which
+      // is what keeps the new step's ladder capped at rung one
+      if (
+        flow.buildStartedAt !== null &&
+        !next.record.events.some(
+          (e) => e.type === "attempt" && e.startedAt === flow.buildStartedAt
+        )
+      ) {
+        next = append(
+          next,
+          { type: "attempt", startedAt: flow.buildStartedAt },
+          "learner",
+          action.at
+        );
       }
 
-      const attempted =
-        ev.flow.buildStartedAt !== null &&
-        ev.flow.buildStartedAt !== state.attemptBaseline;
-      if (attempted === state.attempted) return state;
-      return { ...state, attempted };
+      // Grade every open or passed step against current state,
+      // whatever route the learner took -- a grade is a fact about
+      // their code, not a claim about their route
+      const view = foldRecord(state.path, next.record);
+      const stepIds = state.path.steps
+        .filter((s) => {
+          const mark = view.marks.get(s.id);
+          return (
+            (mark === "open" || mark === "passed") &&
+            graderClass(s.verify) !== "attestation" &&
+            isSatisfied(s.verify, flow, idl)
+          );
+        })
+        .map((s) => s.id);
+      if (stepIds.length > 0) {
+        next = append(
+          next,
+          { type: "graded", stepIds },
+          "toolchain",
+          action.at
+        );
+      }
+      return next;
     }
 
-    case "continue-read": {
-      if (!state.path) return state;
-      const progress = continueRead(state.path, state.progress);
-      if (progress === state.progress) return state;
-      return {
-        ...state,
-        progress,
-        attempted: false,
-        attemptBaseline: ev.buildStartedAt,
-      };
+    case "pass": {
+      const step = onFrontier(state);
+      if (!step) return state;
+      return append(
+        state,
+        { type: "pass", stepId: step.id },
+        "learner",
+        action.at
+      );
     }
 
-    case "skip-step": {
-      if (!state.path) return state;
-      const progress = skipStep(state.path, state.progress);
-      if (progress === state.progress) return state;
-      return {
-        ...state,
-        progress,
-        attempted: false,
-        attemptBaseline: ev.buildStartedAt,
-      };
+    case "attest": {
+      const step = onFrontier(state);
+      if (!step) return state;
+      return append(
+        state,
+        { type: "attest", stepId: step.id },
+        "learner",
+        action.at
+      );
     }
 
-    // Both directions are review navigation, so `attempted` is deliberately
-    // untouched: walking back and forth over a step you already built for
-    // must not take your hint ladder away again
-    case "step-back": {
-      if (!state.path) return state;
-      const progress = stepBack(state.path, state.progress);
-      if (progress === state.progress) return state;
-      return { ...state, progress };
-    }
+    case "move":
+      return append(
+        state,
+        { type: "move", to: action.to },
+        "learner",
+        action.at
+      );
 
-    case "step-forward": {
+    case "hint": {
       if (!state.path) return state;
-      const progress = stepForward(state.path, state.progress);
-      if (progress === state.progress) return state;
-      return { ...state, progress };
+      const view = foldRecord(state.path, state.record);
+      const step = cursorStep(state.path, view);
+      if (!step) return state;
+
+      const used = rung(view, step.id);
+      // The unaided first attempt caps the ladder at rung one
+      const ceiling = attempted(state.path, view, step.id) ? RUNG_COUNT : 1;
+      if (used >= ceiling) return state;
+
+      return append(
+        state,
+        { type: "hint", stepId: step.id, rung: used + 1 },
+        "learner",
+        action.at
+      );
     }
   }
 };
 
-const STORAGE_DEFAULT: { lesson: LessonProgress } = {
-  lesson: EMPTY_PROGRESS,
+/** The cursor's step, only while it stands at the frontier -- the one
+ * place the learner's escape valves exist */
+const onFrontier = (state: LessonState) => {
+  if (!state.path) return null;
+  const view = foldRecord(state.path, state.record);
+  if (view.cursor !== view.frontier) return null;
+  return cursorStep(state.path, view);
+};
+
+const STORAGE_DEFAULT: { lesson: StoredLesson } = {
+  lesson: EMPTY_STORED,
 };
 
 /**
@@ -173,15 +236,26 @@ const STORAGE_PATH = ".workspace/tutorial-storage.json";
 /**
  * The lesson the learner is in, if any.
  *
- * Progress is written through to `PgTutorial.getStorage`, whose file
- * lives at `.workspace/tutorial-storage.json` inside the lesson's own
- * workspace -- so it is scoped to the lesson and survives everything the
- * dev loop does. Reads and writes are async (IndexedDB under
- * `PgExplorer.fs`), so the store renders from memory and writes behind.
+ * One entry point for everything that happens to a lesson: the UI's
+ * calls land here as events carrying `actor: "learner"`, the evaluator
+ * lands `graded` as the toolchain's, and the record is written through
+ * to `PgTutorial.getStorage` (`.workspace/tutorial-storage.json` inside
+ * the lesson's own workspace). The log assumes a single writing tab;
+ * `loadFailed` guards the worst case.
  */
 export class PgLesson {
   static get state(): LessonState {
     return PgLesson._state;
+  }
+
+  /** The folds over the current record, memoized per state object */
+  static view(): LessonView | null {
+    if (!PgLesson._state.path) return null;
+    if (PgLesson._viewOf !== PgLesson._state) {
+      PgLesson._view = foldRecord(PgLesson._state.path, PgLesson._state.record);
+      PgLesson._viewOf = PgLesson._state;
+    }
+    return PgLesson._view;
   }
 
   static onDidChange(cb: (s: LessonState) => void): Disposable {
@@ -190,68 +264,109 @@ export class PgLesson {
     return { dispose: () => PgLesson._listeners.delete(cb) };
   }
 
-  /** The manual advance, offered only for a `read` step. */
-  static continueRead() {
-    PgLesson._dispatch({
-      type: "continue-read",
-      buildStartedAt: PgFlow.state.buildStartedAt,
-    });
+  /** Affirm the attestation step at the frontier ("Mark as read") */
+  static attest() {
+    PgLesson._dispatch({ type: "attest", at: Date.now() });
   }
 
-  /** Move past the current step unproven — see `skipStep`. */
-  static skipStep() {
-    PgLesson._dispatch({
-      type: "skip-step",
-      buildStartedAt: PgFlow.state.buildStartedAt,
-    });
+  /** Move past the frontier step without proof -- recorded as `passed` */
+  static pass() {
+    PgLesson._dispatch({ type: "pass", at: Date.now() });
   }
 
-  /** Go back one step — see `stepBack`. */
-  static stepBack() {
-    PgLesson._dispatch({ type: "step-back" });
+  /** Whether the pass edge exists right now: the cursor stands on the
+   * frontier and the step there is machine-graded. Both skip valves --
+   * the rail's and the chat's -- are this one edge. */
+  static canPass(): boolean {
+    const { path } = PgLesson._state;
+    const view = PgLesson.view();
+    if (!path || !view) return false;
+    if (view.cursor !== view.frontier) return false;
+    const step = cursorStep(path, view);
+    return !!step && graderClass(step.verify) !== "attestation";
   }
 
-  /** Return towards the frontier — see `stepForward`. */
-  static stepForward() {
-    PgLesson._dispatch({ type: "step-forward" });
+  /** Pure navigation to any legal position */
+  static move(to: string | "end") {
+    PgLesson._dispatch({ type: "move", to, at: Date.now() });
+  }
+
+  /** Go back to the nearest legal position */
+  static moveBack() {
+    PgLesson._moveTo(prevLegal);
+  }
+
+  /** Return towards the frontier, one legal position at a time */
+  static moveForward() {
+    PgLesson._moveTo(nextLegal);
+  }
+
+  /**
+   * Climb one hint rung on the cursor's step, if one is available.
+   *
+   * @returns the prompt to send, or `null` when this step has no rung
+   * left -- the ladder is spent, or the first-attempt cap is holding
+   */
+  static requestHint(): string | null {
+    const { path } = PgLesson._state;
+    const view = PgLesson.view();
+    if (!path || !view) return null;
+    const step = cursorStep(path, view);
+    if (!step) return null;
+
+    const used = rung(view, step.id);
+    const before = PgLesson._state;
+    PgLesson._dispatch({ type: "hint", at: Date.now() });
+    if (PgLesson._state === before) return null;
+
+    return hintPrompt(step, used + 1);
   }
 
   /** Subscribe to client events. Call once from the Flow layout. */
   static init(): Disposable {
     const load = async () => {
-      PgLessonHints.reset();
       const path = getLessonPath(PgExplorer.currentWorkspaceName);
       if (!path) {
-        PgLesson._dispatch({ type: "load", path: null });
+        PgLesson._dispatch({ type: "load", path: null, at: Date.now() });
         return;
       }
 
-      let progress = EMPTY_PROGRESS;
+      let record = EMPTY_STORED;
       let loadFailed = false;
       try {
         const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
         const hasFile = await PgExplorer.fs.exists(STORAGE_PATH);
-        const loaded = await storage.getItem("lesson");
+        const loaded: unknown = await storage.getItem("lesson");
         // `getItem` cannot actually throw -- `readToJSONOrDefault`
         // swallows every read or parse error and returns the same
-        // empty default a genuine first visit would also produce.
-        // Checking the file's existence separately is what tells the
-        // two apart: a missing file is a clean first visit, safe to
-        // persist over; an existing file that still came back as the
-        // default means the read failed silently, and that must not be
-        // persisted over.
-        if (hasFile && loaded === EMPTY_PROGRESS) {
+        // default a genuine first visit would also produce. Checking
+        // the file's existence separately is what tells the two apart.
+        if (hasFile && loaded === EMPTY_STORED) {
           loadFailed = true;
+        } else if (loaded == null || loaded === EMPTY_STORED) {
+          record = EMPTY_STORED;
+        } else if (isV2(loaded)) {
+          record = loaded;
+        } else if (isV1(loaded)) {
+          // The one-time replay: v1's fields become events that carry
+          // no timestamp and no actor, so the record never claims
+          // provenance it does not have
+          record = migrateV1(path, loaded);
         } else {
-          progress = loaded ?? EMPTY_PROGRESS;
+          // A file exists and holds something neither version wrote.
+          // Refusing to write is cheaper than being wrong about it.
+          loadFailed = true;
         }
       } catch {
-        // An unexpected error somewhere in the check above leaves us
-        // unable to tell a first visit from a failed read either, so
-        // treat it the same cautious way.
         loadFailed = true;
       }
-      PgLesson._dispatch({ type: "load", path, progress, loadFailed });
+      PgLesson._dispatch({
+        type: "load",
+        path,
+        record,
+        loadFailed,
+        at: Date.now(),
+      });
     };
 
     const subs: Disposable[] = [
@@ -261,6 +376,7 @@ export class PgLesson {
           type: "evaluate",
           flow,
           idl: PgProgramInfo.idl ?? null,
+          at: Date.now(),
         })
       ),
     ];
@@ -269,55 +385,43 @@ export class PgLesson {
     return { dispose: () => subs.forEach((s) => s.dispose()) };
   }
 
-  private static _dispatch(ev: LessonEvent) {
-    const before = PgLesson._stepId(PgLesson._state);
-    const next = reduceLesson(PgLesson._state, ev);
+  private static _moveTo(pick: typeof prevLegal) {
+    const { path } = PgLesson._state;
+    const view = PgLesson.view();
+    if (!path || !view) return;
+    const p = pick(path, view);
+    if (p === null) return;
+    PgLesson.move(p === "end" ? "end" : path.steps[p].id);
+  }
+
+  private static _dispatch(action: LessonAction) {
+    const next = reduceLesson(PgLesson._state, action);
     if (next === PgLesson._state) return;
 
     PgLesson._state = next;
-
-    // A fresh step gets a fresh ladder -- but the counts are keyed by step id
-    // and review navigation returns to steps the learner already spent rungs
-    // on, so clearing them here would make walking back and forth a hint farm.
-    // `load` still resets on a workspace change, which is what a genuinely
-    // fresh ladder means.
-    const reviewing = ev.type === "step-back" || ev.type === "step-forward";
-    if (!reviewing && PgLesson._stepId(next) !== before) {
-      PgLessonHints.reset();
-    }
 
     // The lesson's own name is captured now, at the moment the write is
     // queued, rather than read back out of `PgLesson._state` inside
     // `_persist` once its await settles -- by then a workspace switch
     // could have already moved `_state` on, and `_persist` would be
     // guarding against the wrong name.
-    if (ev.type !== "load" && next.path) {
-      void PgLesson._persist(
-        next.path.tutorial,
-        next.progress,
-        next.loadFailed
-      );
+    if (action.type !== "load" && next.path) {
+      void PgLesson._persist(next.path.tutorial, next.record, next.loadFailed);
     }
     for (const cb of PgLesson._listeners) cb(next);
-  }
-
-  /** @returns the current step's id, or `null` outside a lesson */
-  private static _stepId(state: LessonState) {
-    if (!state.path) return null;
-    return currentStep(state.path, state.progress)?.id ?? null;
   }
 
   /**
    * @param tutorial the lesson this write belongs to, captured when the
    * write was queued
-   * @param progress the progress to write, captured the same way
-   * @param loadFailed whether the load that produced `progress` could
-   * not tell a real empty record apart from a failed read -- if so, the
+   * @param record the record to write, captured the same way
+   * @param loadFailed whether the load that produced `record` could not
+   * tell a real empty record apart from a failed read -- if so, the
    * write is skipped rather than risk shortening the real record
    */
   private static async _persist(
     tutorial: string,
-    progress: LessonProgress,
+    record: StoredLesson,
     loadFailed: boolean
   ) {
     if (loadFailed) return;
@@ -329,13 +433,15 @@ export class PgLesson {
 
     try {
       const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
-      await storage.setItem("lesson", progress);
+      await storage.setItem("lesson", record);
     } catch {
-      // The in-memory ratchet is still correct for this session; a
-      // reload loses one step. An error toast mid-lesson costs more.
+      // The in-memory record is still correct for this session; a
+      // reload loses its tail. An error toast mid-lesson costs more.
     }
   }
 
   private static _state: LessonState = INITIAL_LESSON_STATE;
+  private static _view: LessonView | null = null;
+  private static _viewOf: LessonState | null = null;
   private static readonly _listeners = new Set<(s: LessonState) => void>();
 }

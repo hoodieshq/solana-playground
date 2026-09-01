@@ -42,11 +42,21 @@ export const verifyingStage = (
       return "build";
     case "deployed":
       return "deploy";
-    // The objective band's `Continue` is the only way past a reading step
+    // No runnable command proves an attestation; the band's
+    // "Mark as read" is its way past
     case "read":
       return null;
   }
 };
+
+/**
+ * The stage the stepper rings while a step is current. For the three
+ * machine-graded kinds it is the verifying stage; an attestation has
+ * none, so its condition carries the pointer itself (`at`). Derived
+ * here so a mismatched target has no way to be written down.
+ */
+export const targetStage = (c: VerifyCondition): Stage =>
+  c.kind === "read" ? c.at : verifyingStage(c)!;
 
 /**
  * Whether a step's condition is met right now.

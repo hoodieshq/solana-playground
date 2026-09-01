@@ -17,7 +17,9 @@ import { createProvider } from "../model";
 import { PgCommand, PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
 import {
-  currentStep,
+  attempted,
+  cursorStep,
+  foldRecord,
   INITIAL_LESSON_STATE,
   PgLesson,
   verifyingStage,
@@ -222,20 +224,27 @@ const Chat = () => {
    *   proves anything, so it stays labelled as the skip it records.
    */
   const onFinishedReply = !busy && lesson && lastItem?.kind === "assistant";
-  const step =
-    lessonState.path && currentStep(lessonState.path, lessonState.progress);
+  const view = lessonState.path
+    ? foldRecord(lessonState.path, lessonState.record)
+    : null;
+  const step = lessonState.path && view && cursorStep(lessonState.path, view);
   const stage = step && verifyingStage(step.verify);
+  const stepAttempted = !!(
+    lessonState.path &&
+    view &&
+    step &&
+    attempted(lessonState.path, view, step.id)
+  );
 
   const verifiableId =
-    onFinishedReply &&
-    !lessonState.attempted &&
-    stage &&
-    turnAppliedApproval(items)
+    onFinishedReply && !stepAttempted && stage && turnAppliedApproval(items)
       ? lastItem.id
       : null;
 
+  // The chat's skip card is the same edge as the rail's pinned valve,
+  // so it is offered under the same precondition and nowhere else
   const skippableId =
-    onFinishedReply && lessonState.attempted ? lastItem.id : null;
+    onFinishedReply && stepAttempted && PgLesson.canPass() ? lastItem.id : null;
 
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the dots come down.
@@ -287,9 +296,7 @@ const Chat = () => {
                 `${lesson.verifiedBy} — this is what proves it, and the only thing that can.`
               }
               onSkipStep={
-                item.id === skippableId
-                  ? () => PgLesson.skipStep()
-                  : undefined
+                item.id === skippableId ? () => PgLesson.pass() : undefined
               }
               skipStepTitle={
                 lesson &&
