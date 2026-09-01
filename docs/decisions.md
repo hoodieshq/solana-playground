@@ -1404,12 +1404,19 @@ D26).
 
 **Still undecided, owner-side, with fallbacks the plan builds on:**
 hosting and operator (gates CI/CD target, the production OAuth
-callback, the build path of D28); who pays for inference at launch
-(fallback BYO-key, which removes metering as a blocker but raises the
-entry barrier); team size (plan assumes two, fits solo only with the
-cut list). Step zero - Slava's dev-process tooling list - was
+callback, the build path of D28 - and it is also the *agent's*
+hosting: `/api/agent` ships on the same origin, so the site operator
+operates an LLM relay); who pays for inference at launch (fallback
+BYO-key, which removes metering as a blocker but raises the entry
+barrier). Step zero - Slava's dev-process tooling list - was
 requested three times and not yet supplied, so it stays a budgeted
 slot in week 1, not invented on his behalf.
+
+**Team size, answered 2026-09-02: 1.5.** Slava full-time working with
+AI agents; a second person can join at need, and step zero exists so
+they join without rework. The 25-in-28 arithmetic still binds human
+review bandwidth, so the cut list stays in force as insurance rather
+than as the plan.
 
 **Revisit when** any of the three owner-side answers arrives, or when
 the team size changes mid-month.

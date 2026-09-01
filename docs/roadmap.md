@@ -51,9 +51,25 @@ first cut is the storage service — it degrades to project
 export/import as a single file plus an honest banner that programs
 live in the browser. Identity and learning both survive the cut.
 
+**The AI agent is a launch surface of its own, not a footnote.** The
+assistant is the flagship story, and it ships as `/api/agent` on the
+same origin — so the week-1 hosting decision *is* the agent's hosting
+decision, and whoever operates the site operates an LLM relay. Its
+launch mode is the inference-payer axis: **BYO-key** (the cheap
+fallback — no metering needed, but an entry barrier for exactly the
+newcomers the lessons target) or an **operator-paid key** (requires
+metering — Next step 3 — and H1 before it can exist; H1 is in the
+floor either way, because D28's `/api/build` widens the same work).
+The agent surface at launch = hosting + this choice + the hardened
+routes; it has no separate week because it rides the floor and step 3.
+
 **Owner-side answers still pending** (the plan builds on the cheap
 fallback of each): hosting and operator; who pays for inference at
-launch (fallback BYO-key); team size for September. Step zero —
+launch (fallback BYO-key). **Team size is answered (2026-09-02): 1.5**
+— Slava full-time working with AI agents, a second person joinable at
+need; step zero exists precisely so they join without rework. The
+solo arithmetic still applies to human review bandwidth, so the cut
+list stays in force as insurance rather than as the plan. Step zero —
 Slava's dev-process tooling list — is a budgeted week-1 slot awaiting
 his list.
 
