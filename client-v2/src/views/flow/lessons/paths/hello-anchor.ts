@@ -21,7 +21,6 @@ export const helloAnchorPath: LessonPath = {
       objective: "Define the hello instruction and log a message",
       verifiedBy: "the built interface shows a hello instruction",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       readPage: () => require("../../../../tutorials/hello-anchor/pages/1.md"),
       hints: [
         "Ask me one question about what my program is still missing. Name no API and show no code.",
@@ -34,7 +33,6 @@ export const helloAnchorPath: LessonPath = {
       objective: "Deploy the program to devnet",
       verifiedBy: "the program is live on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
       readPage: () => require("../../../../tutorials/hello-anchor/pages/2.md"),
       hints: [
         "Ask me one question about what has to be true before a deploy can succeed.",
@@ -46,8 +44,7 @@ export const helloAnchorPath: LessonPath = {
       id: "call-client",
       objective: "Call the instruction from the TypeScript client",
       verifiedBy: "you have marked this page as read",
-      verify: { kind: "read" },
-      target: "interact",
+      verify: { kind: "read", at: "interact" },
       readPage: () => require("../../../../tutorials/hello-anchor/pages/3.md"),
       hints: [
         "Ask me one question about how the client knows my program's interface.",
@@ -60,7 +57,6 @@ export const helloAnchorPath: LessonPath = {
       objective: "Give hello a name argument and log it",
       verifiedBy: "the built interface shows hello taking a name",
       verify: { kind: "idl", instruction: "hello", arg: "name" },
-      target: "build",
       readPage: () => require("../../../../tutorials/hello-anchor/pages/4.md"),
       hints: [
         "Ask me one question about what an instruction argument has to be for Anchor to serialize it. Show no code.",

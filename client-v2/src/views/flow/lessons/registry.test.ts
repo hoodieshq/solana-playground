@@ -11,7 +11,6 @@ const validPath: LessonPath = {
       objective: "Define the hello instruction",
       verifiedBy: "the interface shows hello",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       hints: ["one", "two", "three"],
     },
     {
@@ -19,7 +18,6 @@ const validPath: LessonPath = {
       objective: "Deploy it to devnet",
       verifiedBy: "the program is on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
       hints: ["one", "two", "three"],
     },
   ],

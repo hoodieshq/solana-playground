@@ -4,7 +4,12 @@ import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
-import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
+import {
+  cursorStep,
+  foldRecord,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+} from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import Chevron from "../Chevron";
@@ -65,9 +70,13 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
 
   const inLesson = !!lesson.path;
   const showSteps = inLesson && tab === "steps";
-  const activeStep = lesson.path
-    ? currentStep(lesson.path, lesson.progress)
-    : null;
+  // The pass edge exists only at the frontier, so the valve is only
+  // offered there -- a step the learner walked back onto has no edge
+  // for the click to travel, and the control is absent rather than inert
+  const frontierStep =
+    lesson.path && PgLesson.canPass()
+      ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
+      : null;
 
   return (
     <Wrapper>
@@ -124,11 +133,11 @@ const LeftPanel: FC<LeftPanelProps> = ({ collapsed, onToggle }) => {
           </Body>
           {/* Pinned below the rail for the same reason as the files footer:
               a way out that scrolls away is not a way out. */}
-          {showSteps && activeStep && (
+          {showSteps && frontierStep && (
             <SkipFooter
               type="button"
-              title={`Nothing has proved this step yet — ${activeStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
-              onClick={() => PgLesson.skipStep()}
+              title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
+              onClick={() => PgLesson.pass()}
             >
               Skip this step
             </SkipFooter>

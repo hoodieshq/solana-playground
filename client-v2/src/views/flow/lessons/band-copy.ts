@@ -1,26 +1,76 @@
-import { currentStep, stepNumber } from "./progress";
 import { RUNG_COUNT } from "./hints";
+import { cursorStep, foldRecord, positionNumber } from "./ledger";
 import type { LessonState } from "./store";
+import type { LessonMark } from "./events";
+import type { VerifyCondition } from "./types";
+import { graderClass, verifyingStage } from "./verify";
 
 /**
- * @returns what the band shows, or `null` when there is no current step
- * -- outside a lesson, or once the path is finished
+ * The band's primary action *is* the criterion: one control, labelled
+ * by what proves the step. Derived from the condition so the action a
+ * step offers cannot drift from what actually grades it.
+ */
+export const primaryLabel = (c: VerifyCondition): string => {
+  switch (graderClass(c)) {
+    case "synchronous":
+      return verifyingStage(c) === "deploy"
+        ? "Deploy to prove this"
+        : "Build to prove this";
+    // No on-demand condition ships yet; the label exists so adding one
+    // later is a data change, not a band change
+    case "on-demand":
+      return "Check for a transaction";
+    case "attestation":
+      return "Mark as read";
+  }
+};
+
+/** What a non-open step's sub-line says. Copy and record must agree:
+ * `attested` never reads as verified, `passed` never reads as done. */
+const markLine = (mark: LessonMark, verifiedBy: string): string => {
+  switch (mark) {
+    case "proved":
+      return `Proved -- ${verifiedBy}.`;
+    case "attested":
+      return "You marked this read -- not machine-checked.";
+    case "passed":
+      return "Skipped -- not verified.";
+    case "open":
+      return "";
+  }
+};
+
+/**
+ * @returns what the band shows, or `null` when the cursor is past the
+ * end -- outside a lesson, or once the path is finished
  */
 export const describeStep = (state: LessonState) => {
   if (!state.path) return null;
 
-  const step = currentStep(state.path, state.progress);
+  const view = foldRecord(state.path, state.record);
+  const step = cursorStep(state.path, view);
   if (!step) return null;
 
+  const mark = view.marks.get(step.id) ?? "open";
+  const open = mark === "open";
+
   return {
-    number: `Step ${stepNumber(state.path, state.progress)} of ${
+    number: `Step ${positionNumber(state.path, view)} of ${
       state.path.steps.length
     }`,
     objective: step.objective,
-    verifiedBy:
-      step.verify.kind === "read"
+    verifiedBy: open
+      ? step.verify.kind === "read"
         ? `Not machine-checked -- continue when ${step.verifiedBy}.`
-        : `Verified when ${step.verifiedBy}.`,
+        : `Verified when ${step.verifiedBy}.`
+      : markLine(mark, step.verifiedBy),
+    mark,
+    /** An open step offers its primary only at the frontier, where its
+     * mark edges live. A passed step offers it anywhere: the repair
+     * edge (`passed -> proved` on a later grade) is exactly what the
+     * skip valve promised -- "clears itself if you come back and prove
+     * it" -- and coming back is how the learner takes that offer. */
+    offersPrimary: open ? view.cursor === view.frontier : mark === "passed",
   };
 };
 
