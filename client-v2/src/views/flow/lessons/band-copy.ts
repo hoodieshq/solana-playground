@@ -65,9 +65,12 @@ export const describeStep = (state: LessonState) => {
         : `Verified when ${step.verifiedBy}.`
       : markLine(mark, step.verifiedBy),
     mark,
-    /** The primary control exists only here: mark edges live at the
-     * frontier and nowhere else */
-    offersPrimary: open && view.cursor === view.frontier,
+    /** An open step offers its primary only at the frontier, where its
+     * mark edges live. A passed step offers it anywhere: the repair
+     * edge (`passed -> proved` on a later grade) is exactly what the
+     * skip valve promised -- "clears itself if you come back and prove
+     * it" -- and coming back is how the learner takes that offer. */
+    offersPrimary: open ? view.cursor === view.frontier : mark === "passed",
   };
 };
 

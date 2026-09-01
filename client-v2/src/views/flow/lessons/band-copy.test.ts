@@ -136,14 +136,17 @@ describe("describeStep", () => {
     });
   });
 
-  it("never says a passed step is done", () => {
+  it("never says a passed step is done, and offers the repair", () => {
+    // The skip valve's own copy promises the mark "clears itself if
+    // you come back and prove it" -- so coming back must offer the
+    // proving action, which the `passed -> proved` edge makes honest
     const passed = withEvents(PATH, [
       { seq: 1, at: 1, actor: "learner", type: "pass", stepId: "one" },
       { seq: 2, at: 2, actor: "learner", type: "move", to: "one" },
     ]);
     expect(describeStep(passed)).toMatchObject({
       mark: "passed",
-      offersPrimary: false,
+      offersPrimary: true,
       verifiedBy: "Skipped -- not verified.",
     });
   });
