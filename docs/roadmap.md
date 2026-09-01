@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-08-28. One page for the whole effort: what shipped, what
+Updated: 2026-09-01. One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
 or decision that carries the detail. Priorities follow D21 (GitHub
 identity -> tutorials -> everything else). Update this file whenever a
@@ -16,6 +16,10 @@ anatomies the design was chosen from; republished 2026-08-28 after the
 original artifact was deleted, at the spec-aligned four-step revision --
 the earlier five-step draft is kept under it in the version picker):
 https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f
+The lesson-ratchet concept walkthrough (internal; D25, D26 and the
+frame revision as presented to the team on 2026-08-31, revised after
+review 2026-09-01):
+https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3
 
 ## The week's brief, item by item
 
@@ -265,7 +269,13 @@ Each carries where it came from and where it now belongs.
    step 3 declares `target: "interact"` for a step no stage can prove),
    and makes preconditions explain rather than fail. Until it ships,
    every skip taken for want of a signpost is a step the toolchain never
-   got to prove.
+   got to prove. **Amended by D26 (2026-09-01)** after the team call:
+   the on-demand grader class gains an authored `test` condition for
+   steps whose objective is behavior; backend grading endpoints were
+   rejected. **Implementation round brief:
+   `docs/internal/2026-09-01-lesson-implementation-brief.md`** - branch
+   `feat/lesson-ledger` off `master-2.0`; the frame revision is
+   explicitly out of that PR's scope until recorded as a decision.
 2. **Sync the three upstream changes that touch the demo path** -- the
    `packages`/`bundle` route swap, `MINIMUM_EXTEND_PROGRAM_BYTES`, and
    the sandboxed non-prod routes. See *Upstream drift* above. The first
@@ -440,13 +450,27 @@ the terms its own review set.
    - Implement D25 — one machine, two folds over an event log. It
      carries the signposting fix (P0 item 1) and all three ratchet edges
      (P1 item 4) with it, because the model makes them
-     unrepresentable rather than patching them.
+     unrepresentable rather than patching them. **Round brief:
+     `docs/internal/2026-09-01-lesson-implementation-brief.md`**;
+     branch `feat/lesson-ledger` off `master-2.0`; the implementation
+     doubles as the spec's stress test, with a friction log as its
+     second deliverable.
+   - Record the frame revision (2026-08-31; walkthrough chapter 07:
+     files-only left column, band-as-navigation with a step-map
+     dropdown, guide column of page-over-chat on the right) as a
+     decision — an amendment beside D24 — once the team agrees. Not
+     started as code until then.
    - Cat settles `hello-anchor` step 3's *wording*. The mechanism is no
      longer open: D25 chose the transaction's own logs, read on demand,
      and rejected the snippet `match` (an answer key) and agent
-     judgement (contradicts `prompt.ts`, non-deterministic). What is
+     judgement (contradicts `prompt.ts`, non-deterministic); D26
+     (2026-09-01) added the escalation for behavior steps — an authored
+     `test` bundled with the path and run by the client's own sandboxed
+     TS runtime, backend endpoints rejected. What is
      left is a curriculum question — does the step stay "call the
-     instruction" or become "call it and see your own log line".
+     instruction" or become "call it and see your own log line". Either
+     grader switch is its own release: the v1 migration must never land
+     together with a grader-class change.
    - Then, and only then, more paths.
 
    *The larger design underneath* — task 3 of `lesson-paths-todo.md` —
