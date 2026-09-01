@@ -1297,3 +1297,61 @@ automate.
 **Revisit when** Cat settles step 3's wording, which the mechanism now
 allows but does not decide; or when a second lesson path lands, since
 step ids are still not path-scoped.
+
+---
+
+## D26 - Business logic is graded by an authored test the client runs
+
+**Date:** 2026-09-01 - **Status:** designed, not implemented
+
+Raised by the team on the lesson walkthrough: deploy alone cannot grade
+an advanced step - "it deployed" says nothing about what the program
+does. The remedy the comment proposed was backend endpoints that would
+go and test the deployed program.
+
+**Chosen:** a `test` condition kind in D25's on-demand grader class. An
+authored behavioral check in TypeScript, shipped with the lesson path
+in the client bundle - never written into the learner's workspace,
+where it would be editable and the grader forgeable - and run by the
+same sandboxed runtime the product already uses for TypeScript tests,
+against the learner's deployed program on devnet. It sits behind an
+explicit button like every on-demand check. Pass emits `graded` and
+the mark becomes proved; failure emits `checked: false` carrying the
+test output, which goes to the assistant as context - "expected the
+log to greet by name, the transaction logged Hello, World" is ready
+fuel for the hint ladder.
+
+Nothing changes in the machine: no new class, no new state, no new
+edge. The conditions inventory grows by one. `logs` stays the cheap
+declarative option of the same class; `test` is the escalation for
+steps whose objective is behavior.
+
+**Not an answer key.** Research finding 03 forbids authoring reference
+solutions; a behavioral test is not one - any correct implementation
+passes. What stays forbidden is matching the learner's source text.
+
+**Not a reversal of D24's checker rejection.** D24 rejected
+hand-written per-step checkers as the base mechanism, on authoring
+cost. The base stays free (build, IDL, deploy); an authored test is an
+opt-in escalation for the steps the free artifacts cannot see -
+one test per advanced step, only where it is necessary.
+
+**Rejected - grading endpoints on a backend.** (1) The fork has no
+backend by hard constraint; server capacity for lessons would mean a
+separate service with auth and rate limiting. (2) A backend buys no
+secrecy: the client is open source, the test ships in the repo either
+way. (3) D24 already rejected our own verification service - teaching
+and credentialing are separate products, and credentialing is
+Blueshift's. The client-side grader is honest-by-default, not
+tamper-proof, and that is a deliberate stance: progress is local and
+the stake is learning, not a credential. (4) The browser already has
+everything the check needs - devnet RPC plus a TypeScript runtime.
+
+**Also settled in the same discussion:** a path with no on-chain step
+is legal by construction - deploy is one grader among several, not a
+stage of every lesson. An on-chain step is the most expensive kind
+(SOL, GitHub sign-in since #9, devnet rate limits), so including one
+is a path-authoring decision, not a default.
+
+**Revisit when** anti-cheat or credentialing becomes a goal - and the
+answer then is the Blueshift integration, not our endpoint.

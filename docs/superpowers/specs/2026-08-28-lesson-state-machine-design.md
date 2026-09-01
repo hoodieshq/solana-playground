@@ -242,6 +242,18 @@ which edges exist and how the interface offers them.
 | on-demand | the step-3 grader below | only behind an explicit human click; may fail |
 | attestation | `read` | never - the learner is the grader, and the record says so |
 
+> **Amended 2026-09-01 (D26).** The on-demand class gains a second
+> condition kind: `test` - an authored behavioral check, shipped with
+> the path in the client bundle (never written into the learner's
+> workspace, where it would be editable and the grader forgeable), run
+> by the same sandboxed TypeScript runtime the product already uses
+> for tests, against the learner's deployed program on devnet. Pass
+> emits `graded`; failure emits `checked(i, false)` carrying the test
+> output, which feeds the hint ladder. No new class, no new state, no
+> new edge. `logs` stays the cheap declarative option of the class;
+> `test` is the escalation for steps whose objective is behavior.
+> Backend grading endpoints were considered and rejected - see D26.
+
 ### What proves `hello-anchor` step 3
 
 The mechanism is settled here; the curriculum wording is Cat's and is
