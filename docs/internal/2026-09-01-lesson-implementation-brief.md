@@ -37,11 +37,13 @@ codebase disagree is a finding, not an obstacle to route around.
    self-merge. No AI attribution anywhere.
 5. Nothing from `docs/` and no `CLAUDE.md` lands on the PR branch.
    English only in everything committed.
-6. Verification is by hand, by decision (no CI on the 2.0 line):
-   `tsc --noEmit`, `prettier --check` (also over `api/` - the glob
-   misses it), `craco test`. Baseline on `master-2.0`:
-   242 unit tests in 27 suites. Known and out of scope:
-   `CI=true yarn build` fails on every branch (`__template` case pair).
+6. Verification is by hand until the week-1 CI workflow lands (D27
+   revisited the no-CI decision): `tsc --noEmit`, `prettier --check`
+   (also over `api/` - the glob misses it), `craco test`. Baseline on
+   `master-2.0`: 242 unit tests in 27 suites. Known and out of scope
+   **for this PR only**: `CI=true yarn build` fails on every branch
+   (`__template` case pair) - under D27 that is a launch blocker owned
+   by the week-1 floor, not by this round.
 
 ## Scope of PR 1 - the machine under the existing frame
 

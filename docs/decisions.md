@@ -1355,3 +1355,95 @@ is a path-authoring decision, not a default.
 
 **Revisit when** anti-cheat or credentialing becomes a goal - and the
 answer then is the Blueshift integration, not our endpoint.
+
+## D27 - September is a public launch: the floor, then ledger, then storage
+
+**Date:** 2026-09-02 - **Status:** decided (Slava, closing the three
+open questions of the 2026-09-02 scope handoff)
+
+The frame changed on 2026-08-31: the project is handed to us for real
+implementation, the deadline is the **end of September 2026**, and what
+happens at the deadline is a **public launch** (chosen over a
+conference demo; the owner's conference intent exists but has no date).
+The hackathon premise - "the 2.0 line ships nothing" - is gone, and
+every decision that rested on it is reopened, starting with "CI stays
+as it is" from 2026-08-28.
+
+**Chosen - the shape of the month.** Launching the current surface
+unchanged was rejected by Slava ("this adds no value as a month's
+product"); both durable identity (B) and the learning path (C) are
+required. The order is C before B, and it is a dependency, not a
+preference: D25 makes lesson state an append-only event log, while the
+shipped record still lies (`continueRead()` writes a click into
+`completedStepIds`, asserted by `progress.test.ts:325`) - storage
+before the ledger would persist false verifications and then require
+repairing both code and accumulated data; storage after the ledger
+inherits an append-only log, the cheapest sync format there is. The
+cheap half of B - a durable session as an httpOnly cookie issued by
+our `/api` after the OAuth exchange - is independent and lands in
+week 1.
+
+Week 1: the production floor plus the durable session. Week 2: D25/D26
+(the lesson-ledger round, unchanged in shape). Week 3: per-user
+storage through our `/api`, never `server/`. Week 4: content, polish,
+upstream sync, one full launch rehearsal.
+
+**The cut list, if the month is solo.** ~25 working days in 28
+calendar days leaves no slack. The first cut is the expensive half of
+B: the storage service degrades to project export/import as a single
+file plus an honest banner that programs live in the browser. Identity
+and learning both survive the cut; an entire service leaves the
+critical path. Decided now so the cut is a plan, not a panic.
+
+**Cat's question, reframed.** Not "which track has priority" - the
+order is forced by the dependency above and putting it to her would
+give away a determined decision. What only she can settle, needed by
+the start of week 3: **what counts as proof of a step in new lessons**
+(the open half of `lesson-paths-todo.md` task 1, partly answered by
+D26).
+
+**Still undecided, owner-side, with fallbacks the plan builds on:**
+hosting and operator (gates CI/CD target, the production OAuth
+callback, the build path of D28); who pays for inference at launch
+(fallback BYO-key, which removes metering as a blocker but raises the
+entry barrier); team size (plan assumes two, fits solo only with the
+cut list). Step zero - Slava's dev-process tooling list - was
+requested three times and not yet supplied, so it stays a budgeted
+slot in week 1, not invented on his behalf.
+
+**Revisit when** any of the three owner-side answers arrives, or when
+the team size changes mid-month.
+
+## D28 - Production builds go through a same-origin /api/build proxy
+
+**Date:** 2026-09-02 - **Status:** decided, not implemented
+
+Found 2026-08-31, recorded in the scope handoff: `api.solpg.io`
+filters by an origin allowlist. Measured with `OPTIONS
+https://api.solpg.io/build` - `localhost:3000` and `beta.solpg.io` get
+`access-control-allow-origin` echoed back; `https://solpg.io` gets no
+header. Every build this fork ever ran went through an allowlisted
+origin, which is why it never surfaced; on a production domain the
+browser call dies at the preflight, and it would have surfaced at
+deploy time.
+
+**Chosen:** proxy builds through a same-origin `/api/build`, and ask
+the Foundation for an allowlist entry **in parallel**. Server-to-server
+requests are not subject to CORS, and `client-v2/api/*.mjs` already
+hosts exactly this kind of thin handler (D20 supplies the local
+runtime for it). The cost is owned honestly: our origin becomes the
+traffic source in front of the Foundation's build server, so rate
+limiting becomes our obligation - the same work as H1 on
+`/api/agent`, widened to `/api/build`. If the Foundation grants the
+allowlist entry, the proxy thins out or disappears; the ask costs
+nothing and removes our infrastructure from their traffic path.
+
+**Rejected - waiting on the Foundation alone:** an external dependency
+on their schedule, sitting in the critical path of the launch.
+**Rejected - running our own build server:** `compose.yaml` exists but
+every service is pinned `linux/amd64`, and it needs the Solana
+toolchain, real hosting and money - the most expensive path, kept as
+the fallback of last resort.
+
+**Revisit when** the Foundation answers the allowlist ask, or when
+build volume makes proxying their server impolite.

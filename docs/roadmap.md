@@ -1,9 +1,10 @@
 # Roadmap and status
 
-Updated: 2026-09-01. One page for the whole effort: what shipped, what
+Updated: 2026-09-02. One page for the whole effort: what shipped, what
 is in flight, what is next, and what waits — with pointers to the spec
-or decision that carries the detail. Priorities follow D21 (GitHub
-identity -> tutorials -> everything else). Update this file whenever a
+or decision that carries the detail. **The frame is now D27: a public
+launch at the end of September 2026** — the hackathon phase (D21's
+order, both items shipped) is closed. Update this file whenever a
 stream changes state; it lives on `context-archive` with the other
 working docs.
 
@@ -20,6 +21,52 @@ The lesson-ratchet concept walkthrough (internal; D25, D26 and the
 frame revision as presented to the team on 2026-08-31, revised after
 review 2026-09-01):
 https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3
+
+## The September frame (D27)
+
+Reported by Slava 2026-08-31, decided 2026-09-02; the full context is
+`docs/internal/2026-09-02-september-launch-scope-handoff.md`. The
+project is handed to us for real implementation; the deadline is the
+**end of September 2026** and what ships at it is a **public launch**.
+Regular owner sessions are part of the process. Launching the current
+surface unchanged was rejected — both durable identity and the
+learning path are in; the order (ledger before storage) is a
+dependency, not a taste, and D27 records why.
+
+| Week | Track | What lands |
+| --- | --- | --- |
+| 1 | The floor + the cheap half of identity | production bundle, CI, hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`), step-zero budget |
+| 2 | Learning core | D25/D26 — the lesson-ledger round, already briefed and unchanged in shape (`docs/internal/2026-09-01-lesson-implementation-brief.md`, branch `feat/lesson-ledger`) |
+| 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
+| 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
+
+**The floor is not the month's content — it is the condition for the
+content arriving.** ~6–8 days, almost all known and mechanical. Two
+people parallelize weeks 1–2 with no shared files (the floor lives in
+`api/*.mjs`, configs and CI; D25 lives in `views/flow/lessons/`).
+
+**The arithmetic and the cut list.** ~25 working days in 28 calendar
+days: solo means no slack. Decided in D27: if the month is solo, the
+first cut is the storage service — it degrades to project
+export/import as a single file plus an honest banner that programs
+live in the browser. Identity and learning both survive the cut.
+
+**Owner-side answers still pending** (the plan builds on the cheap
+fallback of each): hosting and operator; who pays for inference at
+launch (fallback BYO-key); team size for September. Step zero —
+Slava's dev-process tooling list — is a budgeted week-1 slot awaiting
+his list.
+
+**New launch blockers surfaced by the frame change:**
+- `CI=true yarn build` fails on every branch (`__template` case pair)
+  — under the old frame a P2 fact, under this one **we cannot produce a
+  production bundle at all**. First item of the floor; the fix is a
+  rename in an upstream file.
+- `api.solpg.io` allowlists origins, so a production domain is refused
+  at preflight — found 2026-08-31, decided as D28: same-origin
+  `/api/build` proxy, Foundation allowlist ask in parallel.
+- The live GitHub OAuth app is localhost-only; production needs its
+  own app and callback.
 
 ## The week's brief, item by item
 
@@ -100,14 +147,13 @@ Checked on the merged tree today rather than assumed: `tsc --noEmit`
 clean, **242 unit tests in 27 suites** green, one prettier miss
 (`Chat.tsx:287-291`, an `onSkipStep` ternary that wants one line).
 
-**CI stays as it is, deliberately.** The 2.0 line ships nothing --
-no deploys, and the demos are screencasts recorded from a local
-machine -- so wiring `client-v2` into a workflow would gate work that
-never leaves the laptop. Decided 2026-08-28. What replaces it: run
-`tsc --noEmit`, `prettier --check` and `craco test` by hand on the
-merged tree, which is what produced the numbers above. Revisit when the
-fork starts deploying; the `__template` case pair below is the first
-thing to fix on that day.
+**The CI decision of 2026-08-28 is revisited, as its own text said it
+would be.** It rested on "the 2.0 line ships nothing"; D27's public
+launch removes that premise, so a `client-v2` CI workflow (tsc,
+prettier including `api/`, tests, `CI=true` build) is now part of the
+week-1 floor, and the `__template` case pair is the first thing it
+must catch. Until the workflow lands, the checks stay by hand — which
+is what produced the numbers above.
 
 The one demo question left open by #13 is unchanged: not whether to
 adopt the Default backend, but whether the demo *points it at a paid
@@ -422,10 +468,11 @@ Loose ends with no home yet:
 
 ## Next
 
-D21 set the order (GitHub identity -> tutorials -> everything else).
-Both have now landed, so the order below is what comes after them. Step
-1 is not new scope: it is finishing the feature that just shipped, on
-the terms its own review set.
+D27 sets the order now (floor -> ledger -> storage -> content); the
+week table above is the calendar. The steps below carry the detail
+each week draws on. Step 1 is not new scope: it is finishing the
+feature that shipped, on the terms its own review set — and it is
+week 2.
 
 1. **Make the lesson honest and legible** — **designed 2026-08-28;
    implementation is the next task.** Round brief:
@@ -491,7 +538,12 @@ the terms its own review set.
    hand-rolled subscriptions; `verify.ts`'s `build-passes` and `account`
    sub-condition are unused surface.
 2. **Per-user program storage** — Cat's condition for sign-in to pay
-   off. Concept only until designed (candidate D24): a separate
+   off, and week 3 under D27, deliberately *after* the ledger: an
+   append-only log is the cheapest sync format, and storing the
+   pre-ledger record would persist false verifications. The durable
+   session (httpOnly cookie via our `/api`) is split off into week 1;
+   if the month is solo, this service is the first cut (D27) —
+   export/import as a single file plus an honest banner. A separate
    service, never `server/`. Feeds back into the OAuth stream.
    Carries the session question with it: the GitHub token is held in
    module memory only, so a reload signs the user out (D3's reasoning,
