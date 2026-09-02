@@ -196,6 +196,27 @@ Commits: present tense, no prefix for client changes (`"Add feature"`), location
 prefix for others (`"server: Add feature"`). Prefer small, reviewable commits —
 this branch will be demoed and read by others.
 
+## Pull requests
+
+Every PR description must let a reviewer understand and check the change
+without asking: what it is and why, how it works, links to the spec /
+decision / brief it implements, and instructions for testing it by hand.
+
+**The final step of preparing any PR — especially at the end of a
+Superpowers round — is visual testing, and its screenshots go into the
+description.** If the change is visual in any way (a new surface, a
+changed control, different copy in the UI), the description must carry
+**before and after screenshots** — before from the base branch, after
+from the PR branch, same view and same state so the diff reads at a
+glance. A feature with no prior UI needs only the after shots. A change
+with no visual surface at all states that explicitly instead of
+skipping the section.
+
+Screenshots are committed to `docs/internal/assets/` on
+`context-archive` (never to the PR branch) and embedded in the PR body
+via their `raw.githubusercontent.com` URLs — the repo is public, so
+they render inline.
+
 ## Working agreement
 
 - Update `docs/decisions.md` when you make a call worth remembering — especially

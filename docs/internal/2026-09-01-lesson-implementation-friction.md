@@ -85,7 +85,23 @@ toolchain" rather than "the learner". One line in `ledger.ts`
 (`isHuman`); worth a sentence in the spec's provenance section if it is
 ever amended. **spec** (minor).
 
-## 8. What the suite says now
+## 8. Rollback is one-way: v1 code crashes on a v2 record
+
+Found while shooting the PR's before/after screenshots (2026-09-03):
+running the `master-2.0` build against a workspace whose record the new
+build had already migrated takes down the whole app -- the project
+switcher renders every lesson's progress via `stepNumber -> behind`,
+which spreads `completedStepIds` out of what is now a `{v: 2, events}`
+object ("progress.completedStepIds is not iterable", full-screen error
+boundary). The spec never promised forward compatibility, but the blast
+radius (the switcher, not just the lesson) is worth knowing: **once a
+learner's record migrates, rolling the deploy back to a pre-ledger
+build breaks their client until the record is cleared.** Mitigation if
+a rollback is ever needed: it must ship with a guard that treats a
+`v: 2` record as `loadFailed` rather than as progress. **decision-adjacent**
+-- worth one line in D25's entry at round close.
+
+## 9. What the suite says now
 
 Baseline 242 tests / 27 suites; after the round 265 / 29 (+`events`,
 `ledger`, `migrate` suites; `progress` deleted). The D-c inversion the
