@@ -150,7 +150,7 @@ Expected: no output.
 - [ ] **Step 5: Type-check and format-check**
 
 ```sh
-npx tsc --noEmit && npx prettier --check 'src/**/*' 'api/**/*'
+npx tsc --noEmit && npx prettier --check src/ api/
 ```
 Expected: no tsc errors; "All matched files use Prettier code style!".
 
