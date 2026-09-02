@@ -121,9 +121,11 @@ questions for Cat are written out and ready to send ahead of it:
    call. *Meanwhile:* we build same-origin `/api/*` — it runs on any
    host and survives either answer: the build proxy's upstream is one
    env var (`BUILD_SERVER_URL`) away from any backend they hand us.
-   (Measured 2026-09-02: the same Hello Anchor build is ~4 s on
-   `api.solpg.io` and ~77 s on the appspot deployment, where builds
-   serialize on a file lock — the upstream choice is not cosmetic.)
+   (Measured 2026-09-02, corrected same day: both hosts build the same
+   program in ~4-5 s with an empty queue; builds serialize behind a
+   file lock and a client timeout never cancels one server-side — so
+   the H1-relevant abuse on any upstream is *enqueueing*, and the
+   upstream choice is about operation, not raw speed.)
 1. **Hosting and operator** (if the answer to 0 is "us"): the
    production target, the domain, who holds the keys and answers
    pages. Whoever operates the site operates an LLM relay — that is
