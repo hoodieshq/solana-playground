@@ -17,9 +17,13 @@ export const ROUTES = [
 /** Matches the server's own PAYLOAD_LIMIT default (server/src/config.rs) */
 export const MAX_BODY_BYTES = 1024 * 1024;
 
-/** The deployment the client already defaults to in production */
-export const DEFAULT_UPSTREAM =
-  "https://playground-server-dot-analytics-324114.de.r.appspot.com";
+/**
+ * Upstream's own production deployment. Measured 2026-09-02: a Hello Anchor
+ * build answers in ~4 s here, while the App Engine deployment the client's
+ * picker calls "Solana Foundation" serializes builds behind a file lock and
+ * took 77 s for the same program.
+ */
+export const DEFAULT_UPSTREAM = "https://api.solpg.io";
 
 /**
  * The build-server path this request asks for.

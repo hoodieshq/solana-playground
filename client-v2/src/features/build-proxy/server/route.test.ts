@@ -5,8 +5,7 @@ import {
   upstreamBase,
 } from "./route.mjs";
 
-const FOUNDATION =
-  "https://playground-server-dot-analytics-324114.de.r.appspot.com";
+const SOLPG = "https://api.solpg.io";
 
 describe("resolveUpstreamPath", () => {
   it("takes the URL remainder under the dev server", () => {
@@ -93,11 +92,11 @@ describe("isCrossSite", () => {
 });
 
 describe("upstreamBase", () => {
-  it("defaults to the Foundation deployment and strips a trailing slash", () => {
-    expect(upstreamBase({})).toBe(FOUNDATION);
+  it("defaults to api.solpg.io and strips a trailing slash", () => {
+    expect(upstreamBase({})).toBe(SOLPG);
     expect(upstreamBase({ BUILD_SERVER_URL: "http://localhost:8080/" })).toBe(
       "http://localhost:8080"
     );
-    expect(upstreamBase({ BUILD_SERVER_URL: "  " })).toBe(FOUNDATION);
+    expect(upstreamBase({ BUILD_SERVER_URL: "  " })).toBe(SOLPG);
   });
 });

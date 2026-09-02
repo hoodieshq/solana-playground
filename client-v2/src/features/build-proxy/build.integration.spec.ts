@@ -7,8 +7,7 @@ import { ReadableStream } from "node:stream/web";
 
 import handler from "../../../api/build.mjs";
 
-const FOUNDATION =
-  "https://playground-server-dot-analytics-324114.de.r.appspot.com";
+const SOLPG = "https://api.solpg.io";
 
 interface FakeRes {
   statusCode: number;
@@ -113,7 +112,7 @@ describe("api/build", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(`${FOUNDATION}/build`);
+    expect(url).toBe(`${SOLPG}/build`);
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "content-type": "application/json" });
     expect(Buffer.from(init.body).toString()).toBe('{"files":[]}');

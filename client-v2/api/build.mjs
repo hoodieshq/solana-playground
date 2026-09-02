@@ -6,8 +6,8 @@
  * lives on a domain it does not know, so the browser's direct call dies at
  * the preflight. Server-to-server requests have no preflight: the client
  * talks to this route on its own origin and this route talks to the build
- * server. If the Foundation grants the allowlist entry, this route thins out
- * or disappears.
+ * server (api.solpg.io unless BUILD_SERVER_URL says otherwise). If the
+ * Foundation grants the allowlist entry, this route thins out or disappears.
  *
  * What it forwards is exactly the client's request surface -- POST /build,
  * GET /deploy/:uuid, GET /unstable/{packages,types}/:name -- and it forwards
