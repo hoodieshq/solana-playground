@@ -1422,6 +1422,10 @@ what ships. The setup story is told after the result, when someone
 asks how it was done. Tooling work happens as needed, unbudgeted and
 unlisted; do not reintroduce it as a roadmap item.
 
+**Status 2026-09-03:** the floor's first item (production bundle +
+`client-v2` CI) is PR #21; the `/api/build` proxy (D28) follows in the
+same stream.
+
 **Revisit when** any of the three owner-side answers arrives, or when
 the team size changes mid-month.
 

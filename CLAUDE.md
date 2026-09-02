@@ -97,7 +97,11 @@ abort on recursive invocation. Listens on 3000; override with
 which includes `generate-crates.mjs`; that script skips itself only when rustc is
 *absent*, so with Rust installed it will `cargo install syn-file-expand-cli` and
 churn through the crate registry. Its only output is Rust-Analyzer crate data,
-which the stubs make moot.
+which the stubs make moot. The same applies to `yarn build`: for a production
+bundle without the crate step use **`CI=true yarn build-fast`**, which is what
+the `client-v2` GitHub Actions workflow runs (with `test-types`,
+`check-format` over `src/` and `api/`, and `test-unit`) on every PR to
+`master-2.0`.
 
 **No backend needed.** The client can point at the public build server. Settings
 (gear, bottom of the icon rail) → **Build server URL** → `SolPg`
@@ -109,8 +113,9 @@ Silicon it is all emulated and slow. You almost certainly do not need it.
 **Gotchas.** Yarn 1 *copies* `file:` deps into `node_modules` instead of
 symlinking — editing anything under `wasm/*/pkg` needs a re-install or a manual
 copy, and clear `node_modules/.cache` since webpack does not watch node_modules.
-One pre-existing webpack warning about `src/tutorials/__template` is a filename
-case mismatch and unrelated to anything we do.
+In a linked worktree, run `git submodule update` in the *primary* checkout
+first — `scripts/update-static.mjs` copies whatever `client/public` has checked
+out there, and a stale checkout silently ships older assets than CI builds.
 
 ## What we are building
 

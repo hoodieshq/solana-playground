@@ -35,7 +35,7 @@ dependency, not a taste, and D27 records why.
 
 | Week | Track | What lands |
 | --- | --- | --- |
-| 1 | The floor + the cheap half of identity | production bundle, CI, hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
+| 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-03), hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
 | 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-03, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed) |
 | 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
 | 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
@@ -77,8 +77,11 @@ the result, when someone asks how it was done.
 **New launch blockers surfaced by the frame change:**
 - `CI=true yarn build` fails on every branch (`__template` case pair)
   — under the old frame a P2 fact, under this one **we cannot produce a
-  production bundle at all**. First item of the floor; the fix is a
-  rename in an upstream file.
+  production bundle at all**. **Fixed in PR #21** (2026-09-03): the
+  rename, a `build-fast` script, and the `client-v2` Actions workflow
+  (tsc, prettier over `src/`+`api/`, unit suite, `CI=true` bundle) on
+  every PR to `master-2.0`. The clash was macOS-only — see friction log
+  `2026-09-03-launch-floor-friction.md` #1.
 - `api.solpg.io` allowlists origins, so a production domain is refused
   at preflight — found 2026-08-31, decided as D28: same-origin
   `/api/build` proxy, Foundation allowlist ask in parallel.
