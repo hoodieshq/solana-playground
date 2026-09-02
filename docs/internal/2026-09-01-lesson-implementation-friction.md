@@ -1,6 +1,6 @@
 # Friction log: implementing the lesson ledger (PR 1)
 
-Round: 2026-09-01 brief, executed 2026-09-02/03 on `feat/lesson-ledger`
+Round: 2026-09-01 brief, executed overnight 2026-09-02 on `feat/lesson-ledger`
 (PR #20). Every entry is a place the spec and reality disagreed, or a
 call the spec left to the implementation that turned out non-obvious.
 The end-of-round docs pass turns the ones marked **spec** into dated
@@ -87,7 +87,7 @@ ever amended. **spec** (minor).
 
 ## 8. Rollback is one-way: v1 code crashes on a v2 record
 
-Found while shooting the PR's before/after screenshots (2026-09-03):
+Found while shooting the PR's before/after screenshots (2026-09-02):
 running the `master-2.0` build against a workspace whose record the new
 build had already migrated takes down the whole app -- the project
 switcher renders every lesson's progress via `stepNumber -> behind`,

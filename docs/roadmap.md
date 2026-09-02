@@ -125,7 +125,7 @@ dependency, not a taste, and D27 records why.
 | Week | Track | What lands |
 | --- | --- | --- |
 | 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-02, CI green), hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
-| 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-03, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed) |
+| 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-02, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed) |
 | 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
 | 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
 
@@ -426,7 +426,7 @@ Each carries where it came from and where it now belongs.
 1. **Make the step criterion legible.** The direct answer to the review
    above, and task 2 of `lesson-paths-todo.md`. **Designed 2026-08-28**
    -- `docs/superpowers/specs/2026-08-28-lesson-state-machine-design.md`,
-   D25 -- and **implemented 2026-09-03 (PR #20, in review)**; what is
+   D25 -- and **implemented 2026-09-02 (PR #20, in review)**; what is
    left here is the review and the round-close docs pass (spec
    amendments from the friction log). The design derives the
    verifying action from the condition rather than promoting the
@@ -591,7 +591,7 @@ feature that shipped, on the terms its own review set — and it is
 week 2.
 
 1. **Make the lesson honest and legible** — **designed 2026-08-28;
-   implemented 2026-09-03 on `feat/lesson-ledger` (PR #20, in
+   implemented 2026-09-02 on `feat/lesson-ledger` (PR #20, in
    review).** Round brief:
    `docs/internal/2026-08-28-lesson-architecture-brief.md`. Result:
    `docs/superpowers/specs/2026-08-28-lesson-state-machine-design.md`
@@ -611,7 +611,7 @@ week 2.
    prerequisite, with two guards rather than the one it predicted.
 
    *What is left, in order:*
-   - ~~Implement D25~~ **Done 2026-09-03 — PR #20 (draft, awaiting
+   - ~~Implement D25~~ **Done 2026-09-02 — PR #20 (draft, awaiting
      rogaldh), five commits on `feat/lesson-ledger`.** One machine, two
      folds over an event log; the three defects are impossible-case
      tests (D-c's old assertion at `progress.test.ts:325` is inverted,
