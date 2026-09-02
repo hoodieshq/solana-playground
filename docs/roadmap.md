@@ -1,26 +1,115 @@
 # Roadmap and status
 
-Updated: 2026-09-02. One page for the whole effort: what shipped, what
-is in flight, what is next, and what waits — with pointers to the spec
-or decision that carries the detail. **The frame is now D27: a public
-launch at the end of September 2026** — the hackathon phase (D21's
-order, both items shipped) is closed. Update this file whenever a
-stream changes state; it lives on `context-archive` with the other
-working docs.
+Updated: 2026-09-02 (evening). One page for the whole effort, in the
+shape the board uses: **initiative -> tracks -> items**, every item with
+a status and, where it applies, whose move it is. The prose sections
+below the board carry the detail and the history; update this file
+whenever a stream changes state. It lives on `context-archive` with the
+other working docs.
 
-Visual version (for syncs): https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
--- regenerated from this file 2026-09-02; update both together.
-Lesson-paths retrospective (research -> prototype -> result -> next):
+Visual version (for syncs), regenerated from this file 2026-09-02:
+https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
+-- update both together.
+Companion pages: the lesson-ratchet walkthrough (D25/D26)
+https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3 ·
+tutorials-as-scenario study (2026-08-27)
+https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f ·
+lesson-paths retrospective
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
-Tutorials-as-scenario study, 2026-08-27 (the evidence and the three
-anatomies the design was chosen from; republished 2026-08-28 after the
-original artifact was deleted, at the spec-aligned four-step revision --
-the earlier five-step draft is kept under it in the version picker):
-https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f
-The lesson-ratchet concept walkthrough (internal; D25, D26 and the
-frame revision as presented to the team on 2026-08-31, revised after
-review 2026-09-01):
-https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3
+
+## Status board (2026-09-02)
+
+Statuses: **done** · **review** (PR open, awaiting one approval) ·
+**active** (being built now) · **next** (not started, in order) ·
+**waiting: <who>** (the next move is someone else's) · **parked**.
+
+**Initiative: Playground v2 -- public launch, 30 Sep 2026 (D27).**
+Day 1 of 28. Order fixed by dependency: floor -> learning core ->
+identity/storage -> content. Team 1.5. Cut list decided in advance
+(storage -> export/import + banner if solo). Dev tooling deliberately
+off this list.
+
+**Where we are now.** The hackathon phase is closed (14 PRs merged,
+#5-#19). Two streams run in parallel: the floor (this file's week 1)
+and the lesson-ledger corrections (week 2's track, built ahead of its
+week). In review: **#20** (lesson ledger, 265 tests / 29 suites) and
+**#21** (production bundle + `client-v2` CI, green in 4m04s). Active:
+the same-origin `/api/build` proxy (D28). Next, in order: M3/M4 on
+`/api/agent`; the three upstream demo-path commits; H1; the durable
+session. Waiting on the owner: hosting + first deploy, the production
+OAuth app.
+
+**Week 1 (2-8 Sep) -- The launch floor** · 0/8 done, 1 in review, 1 active
+- [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
+      (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
+      over `src/`+`api/`, 242 tests, `CI=true` bundle)
+- [ ] active · Same-origin `/api/build` proxy (D28) -- measured
+      2026-09-02: the allowlist also covers `/deploy` and `/unstable`,
+      so the proxy covers the deploy round trip; cheap H1 rides along
+- [ ] next · M3 + M4 on `/api/agent` (null body -> 500; no `maxDuration`)
+- [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
+      `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes)
+- [ ] next · H1: rate limit and caps on `/api/agent` + `/api/build`
+- [ ] next · Durable session (httpOnly cookie via our `/api`)
+- [ ] waiting: owner · Hosting + first deploy
+- [ ] waiting: owner · Production GitHub OAuth app (live app is
+      localhost-only)
+
+**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/6 done, 1 in review
+- [x] done · Design: lesson state as a ledger and a cursor (D25, D26)
+- [x] review · Implement the ledger (events, folds, migration, band,
+      rail) -- **PR #20**; trivial `Chat.tsx` conflict with #21, take
+      #20's side
+- [ ] next · Round-close docs pass: two spec amendments from the
+      friction log (`attempt` payload; the cursor's multi-step `graded`
+      fixpoint), the one-way-rollback note beside D25, one walkthrough
+      refresh
+- [ ] next · Readiness explainer (`needs-build` / wallet / cluster /
+      sol) -- consciously out of #20
+- [ ] waiting: team · The frame revision as a decision beside D24
+- [ ] waiting: Cat · Step 3 wording / proof criteria for new lessons
+      (needed by 16 Sep)
+
+**Week 3 (16-22 Sep) -- Identity, expensive half** · 0/3 · C before B
+by dependency: storage only after the ledger, because the pre-ledger
+record lies
+- [ ] next · Per-user storage service behind our `/api`, never `server/`
+- [ ] next · Progress log + project files synced per user (answers the
+      reload-signs-you-out case properly)
+- [ ] parked · Fallback if solo: export/import + honest banner (the cut
+      list's first cut)
+
+**Week 4 (23-30 Sep) -- Content, polish, rehearsal** · 0/5
+- [ ] next · New lesson paths (needs Cat's answer above)
+- [ ] next · Error-UX pass
+- [ ] next · Upstream sync, the remaining ~21 commits
+- [ ] waiting: owner · Metering in front of `/api/agent` -- only if
+      inference is operator-paid
+- [ ] next · Full launch rehearsal on the production origin
+
+**Before the frame -- shipped 19-28 Aug** (15 items, all merged; the
+table under *Shipped* has the hashes): assistant panel + Solana
+redesign + `client-v2` home (#5), Flow (#8), Flow visual parity (#7),
+MCP gateway (#10), static assets + docker (#11), Explorer label (#12),
+GitHub sign-in with gated airdrop (#9), Default backend (#13), Trees
+API import (#14), cmd+B (#15), platform RPC + cluster toggle (#16),
+COOP fix (#17), Chip restore (#18), tutorials as a scenario (#19).
+
+**The agent is a launch surface of its own.** `/api/agent` ships on the
+same origin, so the hosting decision is the agent's hosting decision;
+launch mode is BYO-key (fallback) or operator-paid (needs metering +
+H1); H1 is in the floor either way because D28 widens it.
+
+**Open questions, not ours to answer:** 1. hosting and operator
+(owner) · 2. who pays for inference at launch (owner) · 3. what counts
+as proof of a step in new lessons (Cat, by 16 Sep) · 4. the frame
+revision as a decision (team) · 5. an origin allowlist entry at
+`api.solpg.io` (Foundation, asked in parallel with D28).
+
+**Deferred by decision:** wallet-adapter (D21); modern Anchor / Kora
+(Acheron's grant); Better Auth (rogaldh); verifying faucet
+(Foundation); playground-tokens mode (parked, its metering half gates
+a paid key).
 
 ## The September frame (D27)
 
@@ -35,7 +124,7 @@ dependency, not a taste, and D27 records why.
 
 | Week | Track | What lands |
 | --- | --- | --- |
-| 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-03), hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
+| 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-02, CI green), hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
 | 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-03, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed) |
 | 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
 | 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
@@ -77,7 +166,7 @@ the result, when someone asks how it was done.
 **New launch blockers surfaced by the frame change:**
 - `CI=true yarn build` fails on every branch (`__template` case pair)
   — under the old frame a P2 fact, under this one **we cannot produce a
-  production bundle at all**. **Fixed in PR #21** (2026-09-03): the
+  production bundle at all**. **Fixed in PR #21** (2026-09-02): the
   rename, a `build-fast` script, and the `client-v2` Actions workflow
   (tsc, prettier over `src/`+`api/`, unit suite, `CI=true` bundle) on
   every PR to `master-2.0`. The clash was macOS-only — see friction log
@@ -157,23 +246,25 @@ to it.
 
 ## Where we are
 
-**Everything declared for the week is merged, and nothing is open.**
-#19 landed 2026-08-28 and was the last of twelve PRs; the queue is
-empty. `master-2.0` is a clean linear branch on the current upstream
+**Everything declared for the hackathon week is merged; two PRs of
+the September plan are open** (#20, #21 -- see *Open pull requests*).
+#19 landed 2026-08-28 and was the last of the hackathon PRs. `master-2.0` is a clean linear branch on the current upstream
 tip, and `client/` is still byte-identical to upstream, so the next
 upstream sync stays a fast-forward.
 
-Checked on the merged tree today rather than assumed: `tsc --noEmit`
+Checked on the merged tree rather than assumed: `tsc --noEmit`
 clean, **242 unit tests in 27 suites** green, one prettier miss
-(`Chat.tsx:287-291`, an `onSkipStep` ternary that wants one line).
+(`Chat.tsx:290-292`, an `onSkipStep` ternary that wants one line --
+fixed in #21).
 
 **The CI decision of 2026-08-28 is revisited, as its own text said it
 would be.** It rested on "the 2.0 line ships nothing"; D27's public
 launch removes that premise, so a `client-v2` CI workflow (tsc,
 prettier including `api/`, tests, `CI=true` build) is now part of the
-week-1 floor, and the `__template` case pair is the first thing it
-must catch. Until the workflow lands, the checks stay by hand — which
-is what produced the numbers above.
+week-1 floor. **Landed as PR #21 (2026-09-02)**: the workflow runs on
+every PR to `master-2.0`; the `__template` clash turned out to be a
+case-insensitive-filesystem defect a Linux runner alone would never
+have caught (friction log `2026-09-03-launch-floor-friction.md` #1).
 
 The one demo question left open by #13 is unchanged: not whether to
 adopt the Default backend, but whether the demo *points it at a paid
@@ -245,9 +336,15 @@ merge task.
 
 ## Open pull requests
 
-None. Branch protection stays as it was: PR + **one approval** +
-signed commits, and nothing merges on a comment alone. #13 through #19
-all merged over 2026-08-27/28.
+- **#20** `feat/lesson-ledger` -- the lesson ledger (D25), in review
+  since 2026-09-01; corrections continue in its own session.
+- **#21** `fix/ci-production-bundle` -- production bundle + `client-v2`
+  CI, opened 2026-09-02, the workflow green on its first run (4m04s).
+  Formats `Chat.tsx:290-292`, which #20 rewrites: whichever lands
+  second takes #20's side of a one-line conflict.
+
+Branch protection stays as it was: PR + **one approval** + signed
+commits, and nothing merges on a comment alone.
 
 ### What #13's merge left behind
 
@@ -412,16 +509,14 @@ Part of the **Error-UX pass** already in the backlog:
 
 Kept from the retired "verification you can trust" step, because the
 facts outlive the step (see *Where we are* for why it is retired):
-- `CI=true yarn build` fails on **every** branch, `master-2.0`
-  included: `src/tutorials/__template/` holds both `Template.tsx` and
-  `template.ts`, and webpack's lazy tutorial context resolves both on a
-  case-insensitive filesystem, which `CI=true` promotes from warning to
-  error. Found 2026-08-27 while verifying #16. Upstream file -- keep any
-  fix to a rename. This is the first thing to clear if the fork ever
-  does start deploying.
-- `check-format` globs `src/` only, so `api/*.mjs` never sees prettier,
-  and `yarn test` does not run it at all. Run prettier over `api/` by
-  hand along with `src/`. (#9)
+- ~~`CI=true yarn build` fails on every branch~~ -- **fixed in #21**
+  (`__template/template.ts` -> `__template.ts`); the clash was
+  macOS-only. New P2 from the same round: Rust Analyzer's crate data
+  has never been in any production bundle this fork produced
+  (`generate-crates` finds an empty registry locally and no rustc on
+  Vercel) -- friction log #3.
+- ~~`check-format` globs `src/` only~~ -- **fixed in #21**: `format` and
+  `check-format` cover `api/`, and CI runs `check-format`.
 - `docs/lesson-paths-todo.md` lives on `master-2.0`, against the
   convention that working docs stay on `context-archive`. Deliberate on
   its author's part -- the point was that the next reader finds it beside
@@ -484,9 +579,8 @@ Loose ends with no home yet:
   `keybind.test.ts` as the guard.
 - The `Button` component restoring its state after a click handler had
   already unmounted it -- fixed inside #19 by rogaldh.
-- "Wire `client-v2` into CI" -- **retired, not done.** See *Where we
-  are*: the 2.0 line deploys nothing, so the checks would gate work that
-  never leaves the laptop. The facts it collected are kept under P2.
+- "Wire `client-v2` into CI" -- retired 2026-08-28 under the
+  hackathon frame, **reopened by D27 and done in #21** (2026-09-02).
 
 ## Next
 
