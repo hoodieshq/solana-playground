@@ -110,3 +110,28 @@ form `prettier --check src/`, which only visits files prettier can
 parse. The workflow calls `yarn check-format`, i.e. the script, so
 local and CI run the same thing; the plan's verification line is
 corrected to the script.
+
+## Half-project 2: the same-origin build proxy
+
+### 7. The allowlist gates every route, and the client's production server is not `api.solpg.io`
+
+**D28:** "measured with `OPTIONS https://api.solpg.io/build`"; the fix
+is "a same-origin `/api/build`".
+**Reality (measured 2026-09-02, `curl -X OPTIONS` with an `Origin`):**
+the CORS layer in `server/src/middlewares/cors.rs` is a prefix match
+of `Origin` against `CLIENT_URLS` (default
+`http://localhost,https://beta.solpg.io`) applied to the whole router,
+so `/deploy/:uuid` and `/unstable/{packages,types}/:name` are refused
+for a production origin exactly like `/build`. A `/build`-only proxy
+would pass the compile and then fail the demo's very next step, the
+ELF fetch for deploy. Second finding on the way: `client-v2`'s
+production default is the appspot deployment
+(`playground-server-dot-analytics-324114.de.r.appspot.com`, a fork
+edit; upstream's `client/` still says `api.solpg.io`), and the two
+answer differently (`/unstable/types/mocha`: 200 on appspot, 404 on
+`api.solpg.io`), consistent with the roadmap's note that
+`api.solpg.io` is the older deployment.
+**Decided:** the proxy forwards the client's whole request surface
+(four routes, allowlisted by method and pattern) and defaults its
+upstream to the appspot URL, `BUILD_SERVER_URL` overriding.
+**decision** (D28: name the routes and the upstream).
