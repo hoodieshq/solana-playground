@@ -33,19 +33,20 @@ off this list.
 #5-#19). Two streams run in parallel: the floor (this file's week 1)
 and the lesson-ledger corrections (week 2's track, built ahead of its
 week). In review: **#20** (lesson ledger, 265 tests / 29 suites) and
-**#21** (production bundle + `client-v2` CI, green in 4m04s). Active:
-the same-origin `/api/build` proxy (D28). Next, in order: M3/M4 on
+**#21** (production bundle + `client-v2` CI, green in 4m04s) and
+**#22** (builds on a production domain through `/api/build`, D28).
+Nothing active until a review lands. Next, in order: M3/M4 on
 `/api/agent`; the three upstream demo-path commits; H1; the durable
 session. Waiting on the owner: hosting + first deploy, the production
 OAuth app.
 
-**Week 1 (2-8 Sep) -- The launch floor** · 0/8 done, 1 in review, 1 active
+**Week 1 (2-8 Sep) -- The launch floor** · 0/8 done, 2 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
-- [ ] active · Same-origin `/api/build` proxy (D28) -- measured
-      2026-09-02: the allowlist also covers `/deploy` and `/unstable`,
-      so the proxy covers the deploy round trip; cheap H1 rides along
+- [x] review · Build works on a production domain: same-origin
+      `/api/build` proxy (D28) -- **PR #22**; covers the deploy round
+      trip too (the allowlist gates every route); cheap H1 rides along
 - [ ] next · M3 + M4 on `/api/agent` (null body -> 500; no `maxDuration`)
 - [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
       `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes)

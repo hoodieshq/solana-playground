@@ -135,3 +135,71 @@ answer differently (`/unstable/types/mocha`: 200 on appspot, 404 on
 (four routes, allowlisted by method and pattern) and defaults its
 upstream to the appspot URL, `BUILD_SERVER_URL` overriding.
 **decision** (D28: name the routes and the upstream).
+
+### 8. The two Foundation deployments, and a timeout that cancels nothing
+
+**Plan (decision 1):** default the proxy's upstream to the App Engine URL
+the client's picker calls "Solana Foundation", because the fork already
+points production there.
+**Reality:** the first proxied build hit the proxy's 60 s timeout, a
+direct call to the same host ran past 300 s, and a later Hello Anchor
+build there took 77 s with `stderr` opening "Blocking waiting for file
+lock on build directory". `api.solpg.io` built the same program in
+3.5-4 s. Re-measured once the queue drained: the App Engine host builds
+it in 5 s. The 77 s was self-inflicted - two of this session's own
+requests were still compiling there, because **the proxy's timeout
+(and a browser's abort) ends the HTTP request, not the build; builds
+serialize behind a file lock per server.** A commit blamed the host
+before the re-measurement; a later commit corrects it.
+**Decided:** upstream default `https://api.solpg.io` - the endpoint D28
+measured and upstream's own production URL - with `BUILD_SERVER_URL`
+overriding; the "Solana Foundation" picker entry stays as it was.
+**H1 relevance:** anyone who can reach `/api/build` can enqueue
+compiles that outlive their request; per-IP limiting is not optional
+for a public origin. **decision** (D28 status), **roadmap** (H1 item).
+
+### 9. Nested paths under the D20 middleware, and where `vercel.json` lives
+
+**D20:** `/api/<name>` maps to `api/<name>.mjs`, names constrained to
+`^[a-z0-9-]+$`.
+**Reality:** the client's `PgServer._send` joins the configured endpoint
+with `/build`, `/deploy/<uuid>`, `/unstable/...`, so a same-origin
+endpoint means `/api/build/deploy/<uuid>` - a nested path the
+middleware rejected, and a path Vercel's file routing has no function
+for. Also the plan located `vercel.json` at the repo root; it is
+`client-v2/vercel.json` (`rootDirectory: client-v2`), the root only has
+`.vercel/project.json`.
+**Decided:** the middleware takes the first segment as the module and
+strips it from `req.url` (the handler sees the remainder); production
+gets one rewrite `/api/build/:path*` -> `/api/build?path=:path*`, and
+`route.mjs` reads `?path=` first, remainder second, so one function
+serves both runtimes. `..` has to be refused on the raw URL: the WHATWG
+parser resolves `/deploy/../admin` to `/admin` before any check could
+see it (caught by the unit test, red first). **decision** (D20: nested
+paths are now a supported shape).
+
+### 10. Three small things a relative endpoint breaks, and what the proxy does not carry
+
+- `Build.tsx` did `new URL(PgSettings.server.endpoint).host` for the
+  stage's meta line; a relative `/api/build` throws. Now resolved
+  against `window.location.origin`, so the line reads `localhost:3000`
+  (or the production host) - which is also the visible "after" for the
+  PR.
+- The URL setting's `custom.parse` demanded an absolute URL; a named
+  picker value bypasses it, but the Custom dialog and the terminal's
+  `setting` command would have refused the same string. Relaxed to
+  accept a leading-slash path.
+- Jest 27's node environment has no `Response`/`fetch` globals; the
+  handler spec builds the upstream double from `node:stream/web`, and
+  the OAuth spec's `as unknown as IncomingMessage` pattern types the
+  fakes. `@types/node` 17 has no `Readable.toWeb`.
+- `/unstable/{packages,types}` are called only when
+  `NODE_ENV !== "production"` (`js-runtime/package.ts`,
+  `declarations/helper.ts`); production bundles packages and serves
+  types from `/packages/*.json`. The proxy's production surface is
+  `/build` + `/deploy`; the two dev-only routes stay allowlisted and
+  404 honestly on `api.solpg.io`, which does not serve them (the App
+  Engine host does).
+- The branch is cut from `master-2.0`, so `CI=true yarn build-fast`
+  fails here for #21's `__template` reason; the inlining check ran on
+  a non-CI build. Once #21 merges, this PR's rebase gets the workflow.

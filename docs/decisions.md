@@ -1460,5 +1460,20 @@ every service is pinned `linux/amd64`, and it needs the Solana
 toolchain, real hosting and money - the most expensive path, kept as
 the fallback of last resort.
 
+**Status 2026-09-02:** implemented as PR #22 (`feat/api-build-proxy`).
+Shape as built: `api/build.mjs` forwards the client's whole request
+surface - `POST /build`, `GET /deploy/:uuid`, `GET
+/unstable/{packages,types}/:name` - because the allowlist gates every
+route, not `/build` alone (friction #7); upstream default
+`https://api.solpg.io` (the endpoint measured above; `BUILD_SERVER_URL`
+overrides; friction #8 on the App Engine host); the client's
+*production* default becomes `/api/build`, development keeps
+`localhost:8080`, the picker gains "This site (proxy)". Cheap H1 here:
+route allowlist, 1 MiB cap, cross-site refusal, no header pass-through,
+60 s timeout. Not here: per-IP rate limiting - and note that a timeout
+does not cancel a build server-side, so enqueueing is the abuse to
+limit. The dev middleware of D20 now serves nested `/api/<name>/<rest>`
+paths; production does the same through one `vercel.json` rewrite.
+
 **Revisit when** the Foundation answers the allowlist ask, or when
 build volume makes proxying their server impolite.
