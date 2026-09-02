@@ -1,0 +1,74 @@
+name: client-v2
+
+# Types, formatting, the unit suite and the CI=true production bundle for
+# the fork's frontend. Upstream's ci.yml guards `client/` on master; this
+# one guards `client-v2/` on master-2.0 and never touches the Rust
+# workspaces.
+on:
+  push:
+    branches: ["master-2.0"]
+  pull_request:
+    branches: ["master-2.0"]
+
+  workflow_dispatch:
+
+concurrency:
+  group: client-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+
+    defaults:
+      run:
+        working-directory: client-v2
+
+    steps:
+      # `client-v2/public` is not tracked: scripts/update-static.mjs copies
+      # it out of the `client/public` submodule and dates each tutorial
+      # from that submodule's history, so the submodule is checked out
+      # with full history.
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: client-v2/.nvmrc
+          cache: "yarn"
+          cache-dependency-path: "client-v2/yarn.lock"
+
+      # Six of the eight local `wasm/*/pkg` deps are compiled from Rust
+      # (about an hour). `yarn install` refuses to run while the
+      # directories are missing, so stand them in; none is on the UI or
+      # test path.
+      - name: Stub the unbuilt WASM packages
+        run: ../wasm/stub-packages.sh
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      # Same cheap chain as `yarn dev`: static assets, export barrels,
+      # package and tutorial data, assistant context. The build step runs
+      # it again internally; it is here so type-check and tests see the
+      # generated files too.
+      - name: Generate
+        run: yarn generate-fast
+
+      - name: Check types
+        run: yarn test-types
+
+      - name: Check format
+        run: yarn check-format
+
+      - name: Unit tests
+        run: yarn test-unit
+
+      - name: Production build
+        run: yarn build-fast
