@@ -100,11 +100,54 @@ same origin, so the hosting decision is the agent's hosting decision;
 launch mode is BYO-key (fallback) or operator-paid (needs metering +
 H1); H1 is in the floor either way because D28 widens it.
 
-**Open questions, not ours to answer:** 1. hosting and operator
-(owner) · 2. who pays for inference at launch (owner) · 3. what counts
-as proof of a step in new lessons (Cat, by 16 Sep) · 4. the frame
-revision as a decision (team) · 5. an origin allowlist entry at
-`api.solpg.io` (Foundation, asked in parallel with D28).
+**Open questions — the discussion block.** This board is what Slava
+takes to his tech lead and manager, so each question carries its
+context, what it gates, the options, and what we do meanwhile — none
+of them blocks a feature stream (features-first: uncertainty resolves
+in parallel). **First weekly call with Cat: 2026-09-11.** The aim is
+to arrive with the functionality done, so the call spends itself on
+technical questions and polish, not on demos of unfinished work. The
+questions for Cat are written out and ready to send ahead of it:
+`docs/internal/2026-09-02-questions-for-cat.md`.
+
+0. **The responsibility boundary: do we operate the backend at all?**
+   Everything below assumes we run `/api/*` on our origin — the agent
+   relay, the build proxy (D28), later per-user storage. That
+   assumption is unvalidated: the alternative is that the customer's
+   side provides a backend and hands us endpoints. This one question
+   gates four others: hosting, the OAuth callback, H1's scope, and the
+   storage service's shape. *Who:* customer side, at the 2026-09-11
+   call. *Meanwhile:* we build same-origin `/api/*` — it runs on any
+   host and survives either answer: the build proxy's upstream is one
+   env var (`BUILD_SERVER_URL`) away from any backend they hand us.
+   (Measured 2026-09-02: the same Hello Anchor build is ~4 s on
+   `api.solpg.io` and ~77 s on the appspot deployment, where builds
+   serialize on a file lock — the upstream choice is not cosmetic.)
+1. **Hosting and operator** (if the answer to 0 is "us"): the
+   production target, the domain, who holds the keys and answers
+   pages. Whoever operates the site operates an LLM relay — that is
+   the weight of this choice. *Who:* owner. *Meanwhile:* Vercel
+   previews keep every PR clickable; nothing waits.
+2. **Who pays for inference at launch:** BYO-key (no metering needed,
+   but an entry barrier for exactly the newcomers the lessons target)
+   vs operator-paid (needs metering + H1 first). *Who:* owner.
+   *Meanwhile:* the plan builds on BYO-key; metering stays a week-4
+   item that only exists if the answer is operator-paid.
+3. **What counts as proof of a step in new lessons** — the mechanism
+   is settled (D25/D26: synchronous conditions, on-demand log checks,
+   authored behavioral tests), what is left is curriculum: does step 3
+   stay "call the instruction" or become "call it and see your own log
+   line", and what proves each step of the next paths. *Who:* Cat, by
+   16 Sep — questions sent ahead of the 11 Sep call. *Meanwhile:*
+   week-4 content is the only thing gated; everything else proceeds.
+4. **The frame revision as a decision** (files-only left column,
+   band-as-navigation, guide column — walkthrough ch. 07). *Who:* the
+   team, beside D24. *Meanwhile:* no code until recorded; PR #20
+   deliberately excluded it.
+5. **An origin allowlist entry at `api.solpg.io`** for our production
+   domain. *Who:* Foundation, asked in parallel with D28. *Meanwhile:*
+   the proxy covers build and deploy either way; if granted, it thins
+   or disappears.
 
 **Deferred by decision:** wallet-adapter (D21); modern Anchor / Kora
 (Acheron's grant); Better Auth (rogaldh); verifying faucet
