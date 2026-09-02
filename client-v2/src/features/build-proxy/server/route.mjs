@@ -18,10 +18,11 @@ export const ROUTES = [
 export const MAX_BODY_BYTES = 1024 * 1024;
 
 /**
- * Upstream's own production deployment. Measured 2026-09-02: a Hello Anchor
- * build answers in ~4 s here, while the App Engine deployment the client's
- * picker calls "Solana Foundation" serializes builds behind a file lock and
- * took 77 s for the same program.
+ * Upstream's own production deployment, the one D28 measured. The App Engine
+ * URL the client's picker calls "Solana Foundation" builds the same program
+ * in the same ~4-5 s when idle; both serialize builds behind a file lock, so
+ * a build that is still compiling there (this proxy's timeout does not cancel
+ * it server-side) makes the next caller wait for it.
  */
 export const DEFAULT_UPSTREAM = "https://api.solpg.io";
 
