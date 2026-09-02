@@ -1,0 +1,12 @@
+$ curl -s -X POST http://localhost:3000/api/build/build -H "content-type: application/json" --data @hello.json | jq "{uuid, idl: (.idl|type), stderr_len: (.stderr|length)}"
+{"uuid": "e7931126-0507-4c95-8ca3-9d76b6a749cc", "idl": "NoneType", "stderr_len": 598}
+$ curl -s -D - -o program.so -w '%{http_code} %{size_download} bytes %{time_total}s
+' http://localhost:3000/api/build/deploy/e7931126-0507-4c95-8ca3-9d76b6a749cc
+HTTP/1.1 200 OK
+content-type: application/octet-stream
+200 784 bytes 0.856343s
+$ file program.so
+/private/tmp/claude-501/-Users-viacheslav-koreshkov-git-hoodies-solana-playground/0397d6ec-a64e-4790-bfe2-71e1970e4501/scratchpad/program.so: ELF 64-bit LSB shared object, eBPF, version 1 (SYSV), dynamically linked, stripped
+$ curl -s -o /dev/null -w "%{http_code} %{content_type}
+" http://localhost:3000/api/build/unstable/types/mocha
+404 text/html

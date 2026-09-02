@@ -1,0 +1,17 @@
+$ curl -s -o /dev/null -w "%{http_code}
+" http://localhost:3000/api/health
+200
+$ curl -si http://localhost:3000/api/build/build   # wrong method
+HTTP/1.1 405 Method Not Allowed
+allow: POST
+{"error":"Use POST for /build."}
+$ curl -s -w "
+%{http_code}
+" http://localhost:3000/api/build/nope
+{"error":"No build route at /nope."}
+404
+$ curl -s -w "
+%{http_code}
+" -X POST http://localhost:3000/api/build/build -H "origin: https://evil.example" -H "content-type: application/json" -d "{}"
+{"error":"The build proxy serves this site only."}
+403
