@@ -1,0 +1,101 @@
+yarn run v1.22.22
+$ yarn generate && GENERATE_SOURCEMAP=false craco build
+$ node scripts/update-static.mjs && yarn generate-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context
+Synced 201 files from client/public@df14c26, dated 13 tutorials
+$ node scripts/generate-crates.mjs
+Crate `anchor-lang(v0.29.0)` not found. Skipping...
+Crate `anchor-spl(v0.29.0)` not found. Skipping...
+Crate `arrayref(v0.3.7)` not found. Skipping...
+Crate `borsh(v0.10.3)` not found. Skipping...
+Crate `borsh-derive(v0.10.3)` not found. Skipping...
+Crate `bytemuck(v1.14.0)` not found. Skipping...
+Crate `bytemuck_derive(v1.5.0)` not found. Skipping...
+Crate `mpl-bubblegum(v1.0.0)` not found. Skipping...
+Crate `mpl-token-auth-rules(v1.4.3)` not found. Skipping...
+Crate `num-derive(v0.4.0)` not found. Skipping...
+Crate `num-traits(v0.2.16)` not found. Skipping...
+Crate `pyth-sdk(v0.8.0)` not found. Skipping...
+Crate `pyth-sdk-solana(v0.8.0)` not found. Skipping...
+Crate `serde(v1.0.193)` not found. Skipping...
+Crate `solana-program(v1.16.24)` not found. Skipping...
+Crate `spl-account-compression(v0.2.0)` not found. Skipping...
+Crate `spl-associated-token-account(v2.2.0)` not found. Skipping...
+Crate `spl-pod(v0.1.0)` not found. Skipping...
+Crate `spl-tlv-account-resolution(v0.4.0)` not found. Skipping...
+Crate `spl-token(v4.0.0)` not found. Skipping...
+Crate `spl-token-2022(v0.9.0)` not found. Skipping...
+Crate `spl-token-metadata-interface(v0.2.0)` not found. Skipping...
+Crate `spl-transfer-hook-interface(v0.3.0)` not found. Skipping...
+Crate `spl-type-length-value(v0.3.0)` not found. Skipping...
+Crate `switchboard-solana(v0.29.79)` not found. Skipping...
+Crate `switchboard-v2(v0.4.0)` not found. Skipping...
+Crate `thiserror(v1.0.48)` not found. Skipping...
+$ node scripts/generate-exports.mjs
+$ node scripts/generate-packages.mjs
+{ name: 'buffer', version: '6.0.3', fileCount: 1 }
+{ name: '@solana/web3.js', version: '1.98.4', fileCount: 1 }
+{ name: 'bn.js', version: '5.1.1', fileCount: 1 }
+{ name: '@coral-xyz/anchor', version: '0.29.0', fileCount: 50 }
+{ name: '@clockwork-xyz/sdk', version: '0.3.1', fileCount: 15 }
+{ name: 'borsh', version: '0.7.0', fileCount: 1 }
+{
+  name: '@metaplex-foundation/mpl-token-metadata',
+  version: '2.13.0',
+  fileCount: 129
+}
+{
+  name: '@solana/spl-account-compression',
+  version: '0.1.10',
+  fileCount: 32
+}
+{ name: '@solana/buffer-layout', version: '4.0.0', fileCount: 1 }
+{ name: '@solana/spl-token-metadata', version: '0.1.2', fileCount: 5 }
+{ name: '@solana/spl-token', version: '0.4.14', fileCount: 125 }
+{ name: '@metaplex-foundation/js', version: '0.19.4', fileCount: 295 }
+{
+  name: '@metaplex-foundation/mpl-bubblegum',
+  version: '0.7.0',
+  fileCount: 37
+}
+{ name: '@project-serum/anchor', version: '0.23.0', fileCount: 49 }
+{ name: 'assert', fileCount: 1 }
+{ name: 'mocha', version: '9.1.1', fileCount: 1 }
+$ node scripts/generate-tutorials.mjs
+$ node scripts/sync-assistant-context.mjs
+Synced assistant context (12804 chars)
+(node:98913) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Browserslist: caniuse-lite is outdated. Please run:
+  npx browserslist@latest --update-db
+  Why you should do it regularly: https://github.com/browserslist/browserslist#browsers-data-updating
+Browserslist: caniuse-lite is outdated. Please run:
+  npx browserslist@latest --update-db
+  Why you should do it regularly: https://github.com/browserslist/browserslist#browsers-data-updating
+Browserslist: caniuse-lite is outdated. Please run:
+  npx browserslist@latest --update-db
+  Why you should do it regularly: https://github.com/browserslist/browserslist#browsers-data-updating
+Browserslist: caniuse-lite is outdated. Please run:
+  npx browserslist@latest --update-db
+  Why you should do it regularly: https://github.com/browserslist/browserslist#browsers-data-updating
+
+Treating warnings as errors because process.env.CI = true.
+Most CI servers set it automatically.
+
+Failed to compile.
+
+There are multiple modules with names that only differ in casing.
+This can lead to unexpected behavior when compiling on a filesystem with other case-semantic.
+Use equal casing. Compare these module identifiers:
+* /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/node_modules/babel-loader/lib/index.js??ruleSet[1].rules[0].oneOf[3]!/Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/src/tutorials/__template/Template.ts
+    Used by 1 module(s), i. e.
+    /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/src/tutorials|lazy|/^\.\/.*\/.*$/|groupOptions: {}|namespace object
+* /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/node_modules/babel-loader/lib/index.js??ruleSet[1].rules[0].oneOf[3]!/Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/src/tutorials/__template/template.ts
+    Used by 2 module(s), i. e.
+    /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/ci-production-bundle/client-v2/src/tutorials|lazy|/^\.\/.*\/.*$/|groupOptions: {}|namespace object
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+CI=true yarn build  168.56s user 10.16s system 294% cpu 1:00.60 total
+exit=1
