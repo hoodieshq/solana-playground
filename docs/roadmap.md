@@ -41,8 +41,10 @@ below). In review: **#20** (lesson ledger, 265 tests / 29 suites),
 (builds on a production domain through `/api/build`, D28).
 
 **The binding constraint right now is review, not build capacity.**
-All three PRs are `MERGEABLE` and carry zero reviews: #20 has been open
-since 1 Sep, #21 and #22 since 2 Sep. Nothing in the floor is
+The three v2 PRs are `MERGEABLE` and carry zero reviews: #20 has been
+open since 1 Sep, #21 and #22 since 2 Sep. (#23, the upstream feature,
+opened today for its own internal round and is not part of the launch
+scope.) Nothing in the floor is
 *blocked* by that -- the next items start in order anyway -- but the
 week-1 count cannot move to done, and #21 has to land before #22
 rebases onto the workflow. **The one ask for the team sync: name who
@@ -110,7 +112,7 @@ record lies
       **est ~1 d**
 
 **In parallel -- outside the launch scope: server-side rust-analyzer
-(upstream)** · 3/5 done · asked for by the upstream maintainer
+(upstream)** · 3/5 done, 1 in review · asked for by the upstream maintainer
 (acheron) on 2026-09-04 and taken because it touches none of the v2
 files: the work is in upstream's `client/` and `server/`, on
 `feat/rust-analyzer-lsp` off `upstream/master`, and it reaches v2 later
@@ -132,11 +134,13 @@ plain-language version for the call:
       `initialize` 0.2 s, an edit surfaced as `rustc E0308` in the
       editor in ~9 s (1 CPU, emulated). 21 review findings folded in --
       no root in the container, `Origin` check, byte cap, cancellation
-- [ ] next · Open the upstream PR -- **est ~30 min**: the PR text with
-      the numbers and the honest scope note is all that is left (the
-      README paragraph for the `PG_LSP_*` env vars is done and folded
-      into the server commit; the branch has nothing else pending).
-      Nothing is pushed without the owner's word
+- [x] review · **PR #23** in the fork (base `upstream-master`, head
+      `feat/rust-analyzer-lsp`) -- the internal review round before
+      anything goes to upstream, at the owner's request. +3157/-6 over
+      23 files; evidence hosted at
+      `docs/internal/assets/2026-09-04-pr23/` (hover, completion,
+      `rustc E0308` through the Node bridge and the same through the
+      real server + real Docker)
 - [ ] waiting: upstream · Whether they enable it on their server (it
       sits behind their `--features unstable` either way)
 
