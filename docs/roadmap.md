@@ -1,13 +1,13 @@
 # Roadmap and status
 
-Updated: 2026-09-02 (evening). One page for the whole effort, in the
+Updated: 2026-09-04 (evening). One page for the whole effort, in the
 shape the board uses: **initiative -> tracks -> items**, every item with
 a status and, where it applies, whose move it is. The prose sections
 below the board carry the detail and the history; update this file
 whenever a stream changes state. It lives on `context-archive` with the
 other working docs.
 
-Visual version (for syncs), regenerated from this file 2026-09-02:
+Visual version (for syncs), regenerated from this file 2026-09-04:
 https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
 -- update both together.
 Companion pages: the lesson-ratchet walkthrough (D25/D26)
@@ -17,28 +17,40 @@ https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f ·
 lesson-paths retrospective
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 
-## Status board (2026-09-02)
+## Status board (2026-09-04)
 
 Statuses: **done** · **review** (PR open, awaiting one approval) ·
 **active** (being built now) · **next** (not started, in order) ·
 **waiting: <who>** (the next move is someone else's) · **parked**.
 
 **Initiative: Playground v2 -- public launch, 30 Sep 2026 (D27).**
-Day 1 of 28. Order fixed by dependency: floor -> learning core ->
-identity/storage -> content. Team 1.5. Cut list decided in advance
-(storage -> export/import + banner if solo). Dev tooling deliberately
-off this list.
+Day 3 of 28; **19 working days left**, and the estimates below add up
+to about 17 of them -- so the month has no slack, exactly as D27 said.
+Order fixed by dependency: floor -> learning core -> identity/storage
+-> content. Team 1.5. Cut list decided in advance (storage ->
+export/import + banner if solo). Dev tooling deliberately off this
+list.
 
 **Where we are now.** The hackathon phase is closed (14 PRs merged,
-#5-#19). Two streams run in parallel: the floor (this file's week 1)
-and the lesson-ledger corrections (week 2's track, built ahead of its
-week). In review: **#20** (lesson ledger, 265 tests / 29 suites) and
-**#21** (production bundle + `client-v2` CI, green in 4m04s) and
-**#22** (builds on a production domain through `/api/build`, D28).
-Nothing active until a review lands. Next, in order: M3/M4 on
-`/api/agent`; the three upstream demo-path commits; H1; the durable
-session. Waiting on the owner: hosting + first deploy, the production
-OAuth app.
+#5-#19). Three streams have run in parallel since 2 Sep: the floor
+(week 1), the lesson-ledger corrections (week 2's track, built ahead of
+its week), and -- outside the launch scope -- an upstream feature the
+maintainer asked for (server-side rust-analyzer; see *In parallel*
+below). In review: **#20** (lesson ledger, 265 tests / 29 suites),
+**#21** (production bundle + `client-v2` CI, green in 4m04s), **#22**
+(builds on a production domain through `/api/build`, D28).
+
+**The binding constraint right now is review, not build capacity.**
+All three PRs are `MERGEABLE` and carry zero reviews: #20 has been open
+since 1 Sep, #21 and #22 since 2 Sep. Nothing in the floor is
+*blocked* by that -- the next items start in order anyway -- but the
+week-1 count cannot move to done, and #21 has to land before #22
+rebases onto the workflow. **The one ask for the team sync: name who
+reviews, or agree that we self-merge the two PRs that are ours.**
+
+Next, in order: M3/M4 on `/api/agent` (~2 h); the three upstream
+demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d).
+Waiting on the owner: hosting + first deploy, the production OAuth app.
 
 **Week 1 (2-8 Sep) -- The launch floor** · 0/8 done, 2 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
@@ -47,12 +59,17 @@ OAuth app.
 - [x] review · Build works on a production domain: same-origin
       `/api/build` proxy (D28) -- **PR #22**; covers the deploy round
       trip too (the allowlist gates every route); cheap H1 rides along
-- [ ] next · M3 + M4 on `/api/agent` (null body -> 500; no `maxDuration`)
+- [ ] next · M3 + M4 on `/api/agent` (null body -> 500; no
+      `maxDuration`) -- **est ~2 h**
 - [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
-      `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes)
-- [ ] next · H1: rate limit and caps on `/api/agent` + `/api/build`
-- [ ] next · Durable session (httpOnly cookie via our `/api`)
-- [ ] waiting: owner · Hosting + first deploy
+      `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes) --
+      **est ~0.5 d**
+- [ ] next · H1: rate limit and caps on `/api/agent` + `/api/build` --
+      **est ~1 d**
+- [ ] next · Durable session (httpOnly cookie via our `/api`) --
+      **est ~1 d**
+- [ ] waiting: owner · Hosting + first deploy -- **est ~0.5 d** of our
+      work once the answer exists
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
 
@@ -64,9 +81,10 @@ OAuth app.
 - [ ] next · Round-close docs pass: two spec amendments from the
       friction log (`attempt` payload; the cursor's multi-step `graded`
       fixpoint), the one-way-rollback note beside D25, one walkthrough
-      refresh
+      refresh -- **est ~3 h**
 - [ ] next · Readiness explainer (`needs-build` / wallet / cluster /
-      sol) -- consciously out of #20
+      sol) -- consciously out of #20; **est ~1.5 d**, and it is the
+      cheapest visible thing available to start today (stacked on #20)
 - [ ] waiting: team · The frame revision as a decision beside D24
 - [ ] waiting: Cat · Step 3 wording / proof criteria for new lessons
       (needed by 16 Sep)
@@ -74,19 +92,63 @@ OAuth app.
 **Week 3 (16-22 Sep) -- Identity, expensive half** · 0/3 · C before B
 by dependency: storage only after the ledger, because the pre-ledger
 record lies
-- [ ] next · Per-user storage service behind our `/api`, never `server/`
+- [ ] next · Per-user storage service behind our `/api`, never
+      `server/` -- **est ~3 d**
 - [ ] next · Progress log + project files synced per user (answers the
-      reload-signs-you-out case properly)
+      reload-signs-you-out case properly) -- **est ~2 d**
 - [ ] parked · Fallback if solo: export/import + honest banner (the cut
-      list's first cut)
+      list's first cut) -- **est ~1 d** if it replaces the two above
 
 **Week 4 (23-30 Sep) -- Content, polish, rehearsal** · 0/5
-- [ ] next · New lesson paths (needs Cat's answer above)
-- [ ] next · Error-UX pass
-- [ ] next · Upstream sync, the remaining ~21 commits
+- [ ] next · New lesson paths (needs Cat's answer above) -- **est ~3 d**
+      for two paths, once the wording exists
+- [ ] next · Error-UX pass -- **est ~1.5 d**
+- [ ] next · Upstream sync, the remaining ~21 commits -- **est ~2 d**
 - [ ] waiting: owner · Metering in front of `/api/agent` -- only if
-      inference is operator-paid
-- [ ] next · Full launch rehearsal on the production origin
+      inference is operator-paid; **est ~2 d** if it happens
+- [ ] next · Full launch rehearsal on the production origin --
+      **est ~1 d**
+
+**In parallel -- outside the launch scope: server-side rust-analyzer
+(upstream)** · 3/5 done · asked for by the upstream maintainer
+(acheron) on 2026-09-04 and taken because it touches none of the v2
+files: the work is in upstream's `client/` and `server/`, on
+`feat/rust-analyzer-lsp` off `upstream/master`, and it reaches v2 later
+through the normal upstream sync. Spec:
+`docs/superpowers/specs/2026-09-04-rust-analyzer-lsp-design.md`; the
+plain-language version for the call:
+`docs/internal/2026-09-04-call-notes-rust-analyzer-lsp.md`.
+- [x] done · Editor side: a WebSocket LSP client and a setting that
+      picks the backend (WASM stays the default) -- ~1100 lines,
+      23 tests
+- [x] done · Server side: `GET /unstable/lsp`, one container per
+      session, limits from config (4 sessions, 10 min idle, 4 GiB,
+      1 CPU); `rust-analyzer` + a warm `cargo check` in the template
+      image
+- [x] done · Verified against real Docker (2026-09-04): image built
+      under amd64 emulation in 17 min; session start 1.65 s,
+      `initialize` 0.2 s, a saved type error surfaced as `rustc E0308`
+      in ~9 s. 21 review findings folded in
+- [ ] next · Finish and open the upstream PR -- **est ~1-2 h**
+      (`rust-src` sysroot in the image, README paragraph for the
+      `PG_LSP_*` env vars, PR text). Nothing is pushed without the
+      owner's word
+- [ ] waiting: upstream · Whether they enable it on their server (it
+      sits behind their `--features unstable` either way)
+
+Effort so far: **~4.5 h** in one day. What it buys, in user terms: Rust
+hints in the editor that match the *current* toolchain (Anchor 1.1.2 on
+Solana 3.x) instead of the frozen 0.29 set -- real hover docs, account
+completion after `ctx.accounts.`, and compiler errors before the learner
+presses Build. What it costs us later: this backend speaks WebSocket,
+and our v2 Vercel proxy cannot carry one, so offering it in v2 needs a
+direct server URL (friction log #11) -- not a launch item.
+
+**Estimates.** The `est` figures are our own engineering estimates, not
+measurements, in days of one person's work with agents. The ~17-day
+total counts the `next` items only: it excludes the parked storage
+fallback, the owner-side items, metering (which exists only if
+inference is operator-paid), and this parallel upstream stream.
 
 **Before the frame -- shipped 19-28 Aug** (15 items, all merged; the
 table under *Shipped* has the hashes): assistant panel + Solana

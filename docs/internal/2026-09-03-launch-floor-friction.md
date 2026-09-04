@@ -203,3 +203,18 @@ paths are now a supported shape).
 - The branch is cut from `master-2.0`, so `CI=true yarn build-fast`
   fails here for #21's `__template` reason; the inlining check ran on
   a non-CI build. Once #21 merges, this PR's rebase gets the workflow.
+
+### 11. The proxy carries requests, not sockets
+
+Found from the other side, on 2026-09-04, while building the
+server-side rust-analyzer backend upstream (spec:
+`docs/superpowers/specs/2026-09-04-rust-analyzer-lsp-design.md`). That
+feature reaches the build server over a **WebSocket**, and a Vercel
+function cannot carry one - so the same-origin `/api/build` proxy that
+D28 makes the production path for build and deploy has no answer for
+it. If v2 ever offers that backend, it needs a *direct* server URL for
+the LSP socket (a setting beside the build-server picker), which also
+means the origin allowlist question comes back for that one route.
+Nothing to change in D28 today: the feature is upstream's, behind their
+`--features unstable`, and v2 does not expose it. Worth recording
+because it is the first capability the proxy cannot proxy.
