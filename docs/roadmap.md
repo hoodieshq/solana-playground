@@ -132,9 +132,11 @@ plain-language version for the call:
       `initialize` 0.2 s, an edit surfaced as `rustc E0308` in the
       editor in ~9 s (1 CPU, emulated). 21 review findings folded in --
       no root in the container, `Origin` check, byte cap, cancellation
-- [ ] next · Open the upstream PR -- **est ~1 h** (README paragraph for
-      the `PG_LSP_*` env vars, PR text with the numbers and the honest
-      scope note). Nothing is pushed without the owner's word
+- [ ] next · Open the upstream PR -- **est ~30 min**: the PR text with
+      the numbers and the honest scope note is all that is left (the
+      README paragraph for the `PG_LSP_*` env vars is done and folded
+      into the server commit; the branch has nothing else pending).
+      Nothing is pushed without the owner's word
 - [ ] waiting: upstream · Whether they enable it on their server (it
       sits behind their `--features unstable` either way)
 
