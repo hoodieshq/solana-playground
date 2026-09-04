@@ -19,6 +19,12 @@ pub struct Config {
     pub db_name: String,
     /// Maximum amount of concurrent builds
     pub build_concurrency: usize,
+    /// Maximum amount of concurrent language server sessions
+    pub lsp_concurrency: usize,
+    /// Seconds without a client message before a language server session is closed
+    pub lsp_idle_timeout: u64,
+    /// Seconds after which a language server session is closed regardless of activity
+    pub lsp_max_lifetime: u64,
 }
 
 impl Config {
@@ -39,6 +45,9 @@ impl Config {
             db_uri: get_env("DB_URI", "mongodb://localhost:27017"),
             db_name: get_env("DB_NAME", "solpg"),
             build_concurrency: get_env("BUILD_CONCURRENCY", 16usize),
+            lsp_concurrency: get_env("LSP_CONCURRENCY", 4usize),
+            lsp_idle_timeout: get_env("LSP_IDLE_TIMEOUT", 600u64),
+            lsp_max_lifetime: get_env("LSP_MAX_LIFETIME", 4 * 3600u64),
         }
     }
 }
