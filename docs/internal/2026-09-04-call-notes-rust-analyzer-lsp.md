@@ -70,8 +70,8 @@ capacity for the unstable deployment.
 
 - Today: spike (risk measured), client, server route, Dockerfile, tests,
   review pass, real-Docker verification.
-- Remaining before PR: ~1 h -- README paragraph for the new `PG_LSP_*`
-  env vars, PR text with the numbers and the honest scope note.
+- Remaining before PR: ~30 min -- the PR text with the numbers and the
+  honest scope note (README paragraph done, folded into the server commit).
 - Follow-ups the maintainer may ask for: reconnect on drop, code
   actions, opening crate sources from go-to-definition, sharing the
   template-selection code with the build route.
