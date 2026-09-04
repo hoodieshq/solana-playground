@@ -43,17 +43,21 @@ diagnostics 1.2 s.
   - `jsonrpc.ts` -- JSON-RPC 2.0 over `WebSocket`, one message per
     frame: request/notify, server->client requests
     (`workDoneProgress/create`, `registerCapability`,
-    `workspace/configuration` answered with `null`s), pending requests
-    fail on close. Reconnect is out of scope for v1: a dropped socket
+    `workspace/configuration` answered with the same config sent at
+    initialize), `$/cancelRequest` on Monaco cancellation, pending
+    requests fail on close. Reconnect is out of scope for v1: a dropped socket
     surfaces as a terminal line.
   - `client.ts` -- the socket is JSON-RPC from the first byte. The
     bridge answers two methods itself: `solpg/open` (request: project
-    files in, `{rootUri, programPath}` out) and `solpg/sync`
-    (notification: rewrite the tree after create/rename/delete). Every
-    other message is forwarded to rust-analyzer verbatim. Document sync:
-    `didOpen` every project `.rs`, `didChange` (full text) on model
-    change, a debounced `didSave` one second after the last edit because
-    rust-analyzer runs `cargo check` on save and the playground autosaves.
+    files in, `{rootUri, programPath}` out) and `solpg/sync` (request:
+    rewrite the tree; a failure is one terminal line, not the end of the
+    session). Every other message is forwarded to rust-analyzer verbatim.
+    Document sync: `didOpen` every project `.rs`, `didChange` (full text)
+    on model change, then one second after the last edit a `sync`
+    followed by `didSave` -- rust-analyzer runs `cargo check` on save,
+    `cargo check` reads the disk, and the playground autosaves. A save is
+    also sent once after opening so the project gets compiler
+    diagnostics on load.
   - `workspace.ts` -- path mapping `/<workspace>/src/lib.rs` <->
     `<rootUri>/<programPath>/src/lib.rs`; documents outside the project
     (crate sources) are dropped from results.
@@ -68,8 +72,11 @@ diagnostics 1.2 s.
 ### Server (`server/`)
 
 - `GET /unstable/lsp` (axum `ws` feature), new module
-  `routes/unstable/lsp.rs`; one route in `main.rs`; two `Config` fields
-  (`PG_LSP_CONCURRENCY` default 4, `PG_LSP_IDLE_TIMEOUT` default 600 s).
+  `routes/unstable/lsp.rs`; one route in `main.rs`; `Config` fields
+  `PG_LSP_CONCURRENCY` (4), `PG_LSP_IDLE_TIMEOUT` (600 s),
+  `PG_LSP_MAX_LIFETIME` (4 h); `PG_PAYLOAD_LIMIT` caps the project bytes
+  and `PG_CLIENT_URLS` is the WebSocket `Origin` allowlist (browsers do
+  not apply CORS to WebSockets).
 - Session: `solpg/open` carries `files` (same shape and path rules as
   the build request, minus the legacy `/` prefix); the template is
   chosen from the `cargo` files exactly as `unstable/build` does; one
@@ -78,15 +85,18 @@ diagnostics 1.2 s.
   is how the template was picked), `rust-analyzer` runs on stdio via
   `docker exec -i`, and a single `select!` loop pumps: WebSocket text ->
   `Content-Length`-framed stdin, framed stdout -> WebSocket text,
-  `solpg/sync` -> rewrite `src/`, idle deadline -> close. Socket close
-  or server exit kills the container (`--rm` removes it).
+  `solpg/sync` -> rewrite `src/`, ping every 30 s, idle or lifetime
+  deadline -> close. Socket close or server exit kills the container
+  (`--rm` removes it); on startup the server kills containers with the
+  `solpg.lsp` label left by a previous process.
 - `LspSession` (`server/src/lsp.rs`) next to `Sandbox`, not a mode of
   it: a long-lived streamed process does not fit run -> exec -> remove,
   and `sandbox.rs` is under active change by the maintainer. Same
   hardening flags as builds; 4 GiB memory (`cargo check` on an Anchor
-  program), 1 CPU, 256 PIDs. `docker cp` creates root-owned files, so
-  the sync removes and `chown`s as root.
-- `Dockerfile.program`: `rustup component add rust-analyzer` and a
+  program), 1 CPU, 256 PIDs. Files travel as a tar stream unpacked by
+  the image user: `--cap-drop=ALL` leaves even root without
+  `CAP_DAC_OVERRIDE`/`CAP_CHOWN`, so `docker cp` + `chown` cannot work.
+- `Dockerfile.program`: `rustup component add rust-analyzer rust-src` and a
   `cargo check --locked` warm-up after the initial build. Without the
   latter the first analysis costs the 38 s above under a 1-CPU limit and
   Anchor proc-macros do not expand (no built proc-macro crates), which
@@ -110,26 +120,27 @@ diagnostics 1.2 s.
 
 ## Delivery
 
-1. Client + setting (commits `d2d6170d`, `77e1e994`), demonstrated
-   2026-09-04 against a throwaway Node dev bridge (WS <-> local
-   `rust-analyzer` on the template; scratchpad only, never committed):
-   hover with anchor-lang 1.1.2 docs, account completion, rustc E0308
-   in the editor, go to definition, terminal error when the server is
-   down. 23 jest tests (converters, JSON-RPC).
-2. Server route, `LspSession`, Dockerfile changes, limits from config
-   (commit `e54cd116`): compiles, 4 unit tests (framing, path rules,
-   method detection), exercised end-to-end with a `docker` shell
-   stand-in first, then **against real Docker on 2026-09-04**: the
-   `program-anchor-1.1.2` image built under amd64 emulation on the Mac
-   in 17 minutes (not the hour feared), and the real axum route drove
-   it -- container start + project write + rust-analyzer up in 1.65 s,
-   `initialize` 0.2 s, `didSave` -> `cargo check` -> `rustc E0308`
-   published in ~9 s. The "Linux box or emulation" question is
-   therefore closed: emulation suffices, and the PR does not wait on
-   a VPS.
-3. An independent code review of the branch raised 21 findings; the
-   ones that mattered are fixed and folded into the three commits.
-4. Remaining before the PR (~1-2 h): the `rust-src` sysroot component
-   in the image, a README paragraph for the `PG_LSP_*` env vars, and
-   the PR text with the numbers above. Nothing is pushed upstream
-   without the owner's word.
+1. Client + setting, demonstrated 2026-09-04 against a throwaway Node dev
+   bridge (scratchpad only, never committed): hover with anchor-lang
+   1.1.2 docs, account completion, rustc E0308 in the editor, go to
+   definition, terminal error when the server is down. 23 jest tests.
+2. Server route, `LspSession`, Dockerfile changes, limits from config:
+   compiles, clippy-clean, 7 unit tests. Independent code review (21
+   findings) folded into the commits: no root inside the container
+   (tar as the image user), `sync` before every save so `cargo check`
+   sees edits, `sync` as a request whose failure does not end the
+   session, `Origin` check, project byte cap, max session lifetime,
+   keepalive pings, leftover-container cleanup on server start, request
+   cancellation, `workspace/configuration` answered with the real
+   config, shutdown with a timeout, WASM backend disposable.
+3. **Verified against real Docker** 2026-09-04 16:40-17:00 WITA: image
+   `program-anchor-1.1.2` built on the Mac under amd64 emulation
+   (17 min), real axum route -> container -> rust-analyzer: open 1.7 s,
+   initialize 0.2 s, edit -> rustc E0308 in the editor ~9 s (1 CPU,
+   emulated). Only the anchor image was built; the server was started
+   behind a `docker` shim that skips `build` and maps the default
+   (legacy) image to it -- test harness only, not in the branch.
+4. Next: README paragraph for `PG_LSP_*`, PR to upstream with the numbers
+   above and the honest scope note. Deferred, to raise in the PR:
+   reconnect, code actions, sharing template selection with the build
+   route, image size (2.35 GB for anchor-1.1.2).

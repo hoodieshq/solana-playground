@@ -1,6 +1,6 @@
 # rust-analyzer over WebSocket -- notes for the 2026-09-04 call
 
-Plain-language version first, technical status after.
+Plain-language version first, technical status after. Updated 17:05 WITA.
 
 ## What it is, in one paragraph
 
@@ -13,67 +13,65 @@ using the *current* toolchain (Anchor 1.1.2, Solana 3.x). The editor
 talks to it over a WebSocket. A setting switches between the two modes;
 the old mode stays the default.
 
-## What works today (built 2026-09-04, ~4 hours)
+## What works today (built 2026-09-04, ~5 hours)
 
-Shown in the browser against a real rust-analyzer:
+Shown in the browser against the real server and a real Docker container
+built from our Dockerfile:
 
 - Hover on `Account` / `Signer`: real documentation from anchor-lang 1.1.2.
 - Autocomplete after `ctx.accounts.` lists the program's own accounts
   (`new_account`, `signer`, `system_program`) -- this requires expanding
   Anchor's macros, which the browser copy cannot do for new versions.
 - A type error (`u8` vs `u64`) shows as a red squiggle with the real
-  compiler message `rustc E0308` -- before pressing Build.
+  compiler message `rustc E0308` -- before pressing Build. Edits reach
+  the compiler: pause typing for a second, the check runs on the server.
 - Go to Definition jumps to the struct.
 - Adding a file in the explorer reaches the server.
 - If the server is down, one clear line in the terminal; nothing breaks.
 
-Numbers: first autocomplete 2.2 s after opening; compiler diagnostics
-1.2 s after a pause in typing (warm). One-off warm-up per image 38 s.
+Numbers (real Docker, amd64 emulated on the Mac, 1 CPU per session):
+container start + files + rust-analyzer up 1.7 s; initialize 0.2 s;
+edit -> compiler diagnostics in the editor ~9 s. Native (no emulation):
+first autocomplete 2.2 s, diagnostics 1.2 s. One-off image build: 17 min
+on the Mac under emulation (a Linux box would be ~3x faster).
 
 ## What is real and what is not (honest scope)
 
 Real and committed (3 commits on `feat/rust-analyzer-lsp`, off upstream):
-- The whole editor side (client): ~1100 lines, 23 unit tests.
-- The server route in Rust: starts a container per session, pipes
-  messages, enforces limits (max 4 sessions, 10 min idle, 4 GiB RAM,
-  1 CPU). Compiles, 4 unit tests, exercised end-to-end from the browser.
-- The Docker image change (install rust-analyzer, warm the cache).
-
-Verified against real Docker (2026-09-04, later the same day): Docker
-Desktop on the Mac built the `program-anchor-1.1.2` image under amd64
-emulation in 17 minutes, and the real server route drove a real
-container: session start 1.65 s, `initialize` 0.2 s, a saved type error
-surfaced as `rustc E0308` in about 9 s. An independent code review of
-the branch raised 21 findings; the ones that mattered are fixed inside
-the three commits.
+- The whole editor side (client): ~1200 lines, 23 unit tests.
+- The server route in Rust: one container per session, message pipe,
+  limits (max 4 sessions, 10 min idle, 4 h max, 4 GiB RAM, 1 CPU,
+  1 MiB project, allowed origins only), keepalive pings, cleanup of
+  leftover containers on restart. Compiles, clippy-clean, 7 unit tests.
+- The Docker image change (rust-analyzer + std sources, warm cache).
+- Independent code review done (21 findings); the correctness and
+  security ones are fixed and folded into the commits.
 
 Not yet done:
-- Remaining before the PR, ~1-2 h: the `rust-src` sysroot component in
-  the image, a README paragraph for the two new env vars, the PR text.
 - Not deployed anywhere; upstream decides when/if to enable it on their
-  server (it is behind their `--features unstable` flag anyway).
+  server (it is behind their `--features unstable` flag anyway). A
+  session costs 1 CPU + up to 4 GiB for as long as the editor is open --
+  that is the maintainer's capacity call, not ours.
+- No automatic reconnect if the socket drops; the user re-selects the
+  setting. Quick fixes (code actions) and the WASM backend's code lenses
+  are not wired for the server mode yet.
 - Our own v2 deployment proxies the build server through Vercel, which
   cannot carry WebSockets -- this feature needs a direct server URL there.
 
-## The question for the call -- answered before it happened
+## The question for the call (now smaller)
 
-It was: where do we verify with real Docker before opening the upstream
-PR -- a Linux VPS for an afternoon, the Mac under emulation, or ask the
-maintainer to run it? Option (b) won on the same day: the image builds
-in 17 minutes under emulation and the route was driven against a real
-container, so no VPS is needed and no one else's time is spent.
-
-The question that remains for the call is smaller and ours: our own v2
-deployment proxies the build server through Vercel, which cannot carry
-WebSockets -- so if we ever want this backend in v2, v2 needs a direct
-server URL for it (a setting, not a proxy route).
+Docker verification happened on the Mac, so no VPS is needed for the PR.
+What remains to decide: do we open the upstream PR this week as-is
+(recommended -- the maintainer asked for a self-contained feature and
+this is one), and who runs the conversation with him about server
+capacity for the unstable deployment.
 
 ## Effort so far and remaining
 
-- 2026-09-04, ~4.5 h: spike (risk measured), client, server route,
-  Dockerfile, tests, real-Docker verification, review fixes.
-- Remaining before the PR, ~1-2 h: the `rust-src` sysroot component, a
-  README paragraph for the new env vars, PR text with the numbers.
-- Follow-ups the maintainer may ask for: reconnect on drop, opening
-  crate sources from go-to-definition, sharing the template-selection
-  code with the build route.
+- Today: spike (risk measured), client, server route, Dockerfile, tests,
+  review pass, real-Docker verification.
+- Remaining before PR: ~1 h -- README paragraph for the new `PG_LSP_*`
+  env vars, PR text with the numbers and the honest scope note.
+- Follow-ups the maintainer may ask for: reconnect on drop, code
+  actions, opening crate sources from go-to-definition, sharing the
+  template-selection code with the build route.

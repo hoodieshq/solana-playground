@@ -119,24 +119,26 @@ through the normal upstream sync. Spec:
 plain-language version for the call:
 `docs/internal/2026-09-04-call-notes-rust-analyzer-lsp.md`.
 - [x] done · Editor side: a WebSocket LSP client and a setting that
-      picks the backend (WASM stays the default) -- ~1100 lines,
+      picks the backend (WASM stays the default) -- ~1200 lines,
       23 tests
 - [x] done · Server side: `GET /unstable/lsp`, one container per
-      session, limits from config (4 sessions, 10 min idle, 4 GiB,
-      1 CPU); `rust-analyzer` + a warm `cargo check` in the template
-      image
-- [x] done · Verified against real Docker (2026-09-04): image built
-      under amd64 emulation in 17 min; session start 1.65 s,
-      `initialize` 0.2 s, a saved type error surfaced as `rustc E0308`
-      in ~9 s. 21 review findings folded in
-- [ ] next · Finish and open the upstream PR -- **est ~1-2 h**
-      (`rust-src` sysroot in the image, README paragraph for the
-      `PG_LSP_*` env vars, PR text). Nothing is pushed without the
-      owner's word
+      session, limits from config (4 sessions, 10 min idle, 4 h max
+      lifetime, 4 GiB, 1 CPU, 1 MiB project, `Origin` allowlist),
+      keepalive pings and leftover-container cleanup; `rust-analyzer` +
+      `rust-src` + a warm `cargo check` in the template image.
+      Clippy-clean, 7 unit tests
+- [x] done · Verified against real Docker (2026-09-04, 16:40-17:00):
+      image built under amd64 emulation in 17 min; session open 1.7 s,
+      `initialize` 0.2 s, an edit surfaced as `rustc E0308` in the
+      editor in ~9 s (1 CPU, emulated). 21 review findings folded in --
+      no root in the container, `Origin` check, byte cap, cancellation
+- [ ] next · Open the upstream PR -- **est ~1 h** (README paragraph for
+      the `PG_LSP_*` env vars, PR text with the numbers and the honest
+      scope note). Nothing is pushed without the owner's word
 - [ ] waiting: upstream · Whether they enable it on their server (it
       sits behind their `--features unstable` either way)
 
-Effort so far: **~4.5 h** in one day. What it buys, in user terms: Rust
+Effort so far: **~5 h** in one day. What it buys, in user terms: Rust
 hints in the editor that match the *current* toolchain (Anchor 1.1.2 on
 Solana 3.x) instead of the frozen 0.29 set -- real hover docs, account
 completion after `ctx.accounts.`, and compiler errors before the learner
