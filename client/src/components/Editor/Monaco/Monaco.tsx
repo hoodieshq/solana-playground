@@ -180,7 +180,7 @@ const Monaco = () => {
 
     // Initialize language grammars and configurations
     const { dispose } = await PgCommon.transition(() => {
-      return initLanguages(PgTheme.convertToTextMateTheme(theme));
+      return initLanguages(PgTheme.toTextMateTheme(theme));
     });
 
     setIsThemeSet(true);
@@ -591,7 +591,7 @@ const Monaco = () => {
             ""
           );
 
-          const formattedCode = PgCommon.prettyJSON(
+          const formattedCode = PgCommon.toPrettyJson(
             JSON.parse(editor.getValue())
           );
           const searchIndex = formattedCode.indexOf(searchText);

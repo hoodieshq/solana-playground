@@ -128,7 +128,7 @@ const program: anchor.${programType};`
         "target/types",
         `export type ${idlTypeName} = ${convertedIdl};
 export const IDL: ${idlTypeName} = ${convertedIdl};`,
-        PgExplorer.convertToFullPath(`target/types/${idl.name}.ts`)
+        PgExplorer.toAbsolutePath(`target/types/${idl.name}.ts`)
       )
     );
 

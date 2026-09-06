@@ -307,7 +307,7 @@ export const processCreateConfig = async () => {
       )) === 0;
   }
 
-  const prettyConfigData = PgCommon.prettyJSON(configData);
+  const prettyConfigData = PgCommon.toPrettyJson(configData);
 
   if (saveFile) {
     term.println(

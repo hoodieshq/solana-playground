@@ -116,10 +116,10 @@ const getTypes = async (
   packageName: JsRuntimePackageName
 ): ReturnType<typeof PgJsPackage["getTypes"]> => {
   if (process.env.NODE_ENV === "production") {
-    const files = await PgCommon.fetchJSON(
+    const files = await PgCommon.fetchJson(
       `/packages/${packageName}/types.json`
     );
-    const dependencies = await PgCommon.fetchJSON(
+    const dependencies = await PgCommon.fetchJson(
       `/packages/${packageName}/deps.json`
     );
     return { files, dependencies };

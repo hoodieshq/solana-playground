@@ -118,7 +118,7 @@ export const getJSDependencies = async (files: TupleFiles) => {
     typescript: "^5.2.2",
   };
 
-  return PgCommon.prettyJSON({ dependencies, devDependencies }).slice(2, -2);
+  return PgCommon.toPrettyJson({ dependencies, devDependencies }).slice(2, -2);
 };
 
 /**
@@ -130,7 +130,7 @@ export const getJSDependencies = async (files: TupleFiles) => {
 const getVersions = async (
   kind: "crates" | "packages"
 ): Promise<Record<string, string>> => {
-  return await PgCommon.fetchJSON(`/${kind}/versions.json`);
+  return await PgCommon.fetchJson(`/${kind}/versions.json`);
 };
 
 /**

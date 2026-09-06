@@ -52,7 +52,7 @@ export const loadConfigData = async (): Promise<ConfigData> => {
 export const saveConfigData = async (configData: ConfigData) => {
   await PgExplorer.createItem(
     PgSugar.PATHS.CANDY_MACHINE_CONFIG_FILEPATH,
-    PgCommon.prettyJSON({
+    PgCommon.toPrettyJson({
       ...configData,
       size: configData.size.toNumber(),
       hiddenSettings: configData.hiddenSettings

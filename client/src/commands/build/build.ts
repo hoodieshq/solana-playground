@@ -162,10 +162,12 @@ const getBuildFiles = () => {
     // Remove the workspace from path because build only needs /src
     const buildPath = PgCommon.joinPaths(
       PgExplorer.PATHS.ROOT_DIR_PATH,
-      PgExplorer.getRelativePath(path)
+      PgExplorer.toRelativePath(path)
     );
     buildFiles.push([buildPath, content]);
   }
+
+  // TODO: Add `cargo` files
 
   return buildFiles;
 };

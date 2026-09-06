@@ -47,7 +47,7 @@ export const markdownTutorials = MARKDOWN_TUTORIALS.map((tutorial) => {
 
     const info: {
       files: string[];
-    } = await PgCommon.fetchJSON(tutorialPath + "content.json");
+    } = await PgCommon.fetchJson(tutorialPath + "content.json");
 
     const about = await fetchText("about.md");
     const pages = (

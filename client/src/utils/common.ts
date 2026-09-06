@@ -224,7 +224,7 @@ export class PgCommon {
    * @param url URL
    * @returns the JSON response
    */
-  static async fetchJSON(url: string) {
+  static async fetchJson(url: string) {
     const response = await fetch(url);
     return await response.json();
   }
@@ -617,7 +617,7 @@ export class PgCommon {
    *
    * @returns the operating system of the user
    */
-  static getOS() {
+  static getOs() {
     const userAgent = navigator.userAgent.toLowerCase();
     if (userAgent.includes("win")) return "Windows";
     if (userAgent.includes("mac")) return "MacOS";
@@ -630,10 +630,8 @@ export class PgCommon {
    * @param keybind keybind text
    * @returns the correct text based on OS
    */
-  static getKeybindTextOS(keybind: string) {
-    if (this.getOS() === "MacOS") {
-      keybind = keybind.replace("Ctrl", "Cmd");
-    }
+  static getKeybindTextOs(keybind: string) {
+    if (this.getOs() === "MacOS") keybind = keybind.replace("Ctrl", "Cmd");
     return keybind;
   }
 
@@ -654,7 +652,7 @@ export class PgCommon {
    * @param unit CSS unit
    * @returns the pixel value
    */
-  static convertToPx(unit: string) {
+  static toPx(unit: string) {
     const el = document.createElement("div");
     el.style.width = unit;
     el.style.zIndex = "-1";
@@ -1190,12 +1188,12 @@ export class PgCommon {
   }
 
   /**
-   * Convert objects into pretty JSON strings
+   * Convert objects into pretty JSON strings.
    *
-   * @param obj json object
+   * @param obj JSON object
    * @returns prettified string output
    */
-  static prettyJSON(obj: object) {
+  static toPrettyJson(obj: object) {
     return JSON.stringify(obj, null, 2);
   }
 
