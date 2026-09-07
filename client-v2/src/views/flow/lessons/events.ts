@@ -52,17 +52,24 @@ export type LessonRecordEvent = LessonEventBase &
     | { type: "move"; to: string | "end" }
     | { type: "attempt"; startedAt: number }
     | { type: "hint"; stepId: string; rung: number }
+    /** The learner opened this step's page. Recorded once per step;
+     * proves nothing -- `attest` is the only edge a read step has */
+    | { type: "opened"; stepId: string }
   );
 
 /**
- * What a trim leaves behind for the events it drops: every mark, and
- * the last `move` target so `enter` can still restore the cursor. No
- * mark can be forgotten; only the step-local `attempt`/`hint` history
- * ages out, which is why the tail is bounded rather than empty.
+ * What a trim leaves behind for the events it drops: every mark, the
+ * opened set, and the last `move` target so `enter` can still restore
+ * the cursor. No mark can be forgotten; only the step-local
+ * `attempt`/`hint` history ages out, which is why the tail is bounded
+ * rather than empty.
  */
 export interface LessonSnapshot {
   marks: Array<[string, LessonMark]>;
   moveTarget?: string | "end";
+  /** Step ids whose page was opened, so the band's signpost survives a
+   * trim -- a signpost that forgot would nag again */
+  opened?: string[];
 }
 
 export interface StoredLesson {
@@ -94,11 +101,14 @@ export const nextSeq = (r: StoredLesson): number =>
  * @param foldMarks the ledger fold over a whole record -- passed in
  * rather than imported so this module does not depend on `ledger.ts`,
  * which depends on it
+ * @param foldOpened the opened-pages fold over a whole record, for the
+ * same reason
  * @returns the same object while under the cap
  */
 export const trimRecord = (
   r: StoredLesson,
-  foldMarks: (record: StoredLesson) => Array<[string, LessonMark]>
+  foldMarks: (record: StoredLesson) => Array<[string, LessonMark]>,
+  foldOpened: (record: StoredLesson) => string[]
 ): StoredLesson => {
   if (r.events.length <= TRIM_CAP) return r;
 
@@ -123,6 +133,7 @@ export const trimRecord = (
       // no edge to travel -- and it keeps the guarantee simple: the
       // snapshot holds every mark the record has ever produced
       marks: foldMarks(r),
+      opened: foldOpened(r),
       ...(moveTarget !== undefined ? { moveTarget } : {}),
     },
     events: r.events.slice(-TRIM_KEEP),

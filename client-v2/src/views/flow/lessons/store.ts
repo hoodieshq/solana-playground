@@ -92,7 +92,8 @@ const append = (
 
   const record = trimRecord(
     { ...state.record, events: [...state.record.events, ev] },
-    (r) => [...foldRecord(path, r).marks.entries()]
+    (r) => [...foldRecord(path, r).marks.entries()],
+    (r) => [...foldRecord(path, r).opened]
   );
   return { ...state, record };
 };
