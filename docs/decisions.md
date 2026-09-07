@@ -1823,3 +1823,28 @@ questions for Cat say, and what her answer by 16 Sep settles.
 
 **Revisit when** the authored-test class proves too coarse for a step
 somebody actually wants to teach.
+
+---
+
+## D35 - Team-facing artifacts inherit the product's own theme
+
+**Date:** 2026-09-08 - **Status:** decided (Slava)
+
+Three artifacts had grown three visual systems - the dark status board,
+a light editorial digest, a steel-blue private deck - and read as
+unrelated documents. Slava's rule: one style, and the style is the
+product's, because the board already inherits `client-v2`'s default
+theme and reads as the application it describes.
+
+**Chosen:** every page published for the team or the customer uses the
+status board's tokens, type and building blocks, written down in
+`docs/design/artifact-style.md`. The board is the reference
+implementation; new pages copy from it. Digests additionally carry no
+codes - no decision numbers, PR numbers, paths or code tokens - so they
+read on the first pass.
+
+**Exception, deliberate:** a personal page nobody else sees keeps a
+different look, so it can never be mistaken for a shareable one.
+
+**Revisit when** the product's default theme changes, or when an
+artifact class appears that the style file does not cover.
