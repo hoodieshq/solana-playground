@@ -1,15 +1,21 @@
 # Roadmap and status
 
-Updated: 2026-09-04 (evening). One page for the whole effort, in the
-shape the board uses: **initiative -> tracks -> items**, every item with
-a status and, where it applies, whose move it is. The prose sections
-below the board carry the detail and the history; update this file
-whenever a stream changes state. It lives on `context-archive` with the
-other working docs.
+Updated: 2026-09-07, folding in the 2026-09-04 tech-lead call. One
+page for the whole effort, in the shape the board uses: **initiative ->
+tracks -> items**, every item with a status and, where it applies,
+whose move it is. The prose sections below the board carry the detail and the
+history; update this file whenever a stream changes state. It lives on
+`context-archive` with the other working docs.
 
-Visual version (for syncs), regenerated from this file 2026-09-04:
+**This page states the current decision, not the route to it.** Where a
+decision replaced an earlier one, the history stays in
+`docs/decisions.md` - the old entry is never rewritten, it gains an
+amendment. Read this file for what is true now; read that one for why.
+
+Visual version (for syncs), regenerated 2026-09-07 with D29-D34:
 https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
--- update both together.
+-- update both together. Compact digest for the team (done / in flight /
+open questions): https://claude.ai/code/artifact/73c85eb5-2d35-4422-b03f-8cd5f2b04579
 Companion pages: the lesson-ratchet walkthrough (D25/D26)
 https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3 ·
 tutorials-as-scenario study (2026-08-27)
@@ -17,19 +23,24 @@ https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f ·
 lesson-paths retrospective
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 
-## Status board (2026-09-04)
+## Status board (2026-09-07)
 
 Statuses: **done** · **review** (PR open, awaiting one approval) ·
 **active** (being built now) · **next** (not started, in order) ·
 **waiting: <who>** (the next move is someone else's) · **parked**.
 
-**Initiative: Playground v2 -- public launch, 30 Sep 2026 (D27).**
-Day 3 of 28; **19 working days left**, and the estimates below add up
-to about 17 of them -- so the month has no slack, exactly as D27 said.
-Order fixed by dependency: floor -> learning core -> identity/storage
--> content. Team 1.5. Cut list decided in advance (storage ->
-export/import + banner if solo). Dev tooling deliberately off this
-list.
+**Initiative: Playground v2 -- the 30 September checkpoint (D27 as
+amended by D32).** Day 6 of 28; week 1 closes tomorrow. Our current
+understanding of the date: a conference at which Cat's side wants to
+present the project, so it is the **first checkpoint** and something
+has to be done by it. What exactly is expected is the first question
+for Cat on 11 Sep -- D27's "public launch" is now one reading among
+others. The date is a checkpoint, not a cliff: work continues after
+the presentation, and nothing is cut to fit the 30th. What did leave
+the plan left it on scope: the per-user storage service is out because
+nobody asked for the cabinet behind it (D31). Order still fixed by
+dependency: floor -> learning core -> content pipeline -> content.
+Team 1.5. Dev tooling deliberately off this list.
 
 **Where we are now.** The hackathon phase is closed (14 PRs merged,
 #5-#19). Three streams have run in parallel since 2 Sep: the floor
@@ -40,21 +51,63 @@ below). In review: **#20** (lesson ledger, 265 tests / 29 suites),
 **#21** (production bundle + `client-v2` CI, green in 4m04s), **#22**
 (builds on a production domain through `/api/build`, D28).
 
+**The tech-lead call of 2026-09-04 rewrote parts of this page.** It
+answered hosting, reversed our stance on the default build server,
+removed the per-user storage service, promoted the tutorial content
+pipeline, settled the frame question, and took the cliff out of the
+deadline -- D29 through D34, with the discussion recorded in
+`docs/internal/2026-09-04-call-notes-sergey.md`. Where a section
+below carries an "amended" or "rewritten" note, that is the source.
+
+**Priorities after the call -- confirmed by Slava 2026-09-07.** Stated
+as a list so the change of focus is visible as a change, not only as
+weeks that look different:
+
+- **First: tutorials.** All of next week, and it stays there. Week 1
+  is effectively closed; much of the tutorial work was built ahead.
+- **Inside tutorials, the priority is legibility, not looks.** The
+  general frame is fine and reads like every IDE on purpose. What is
+  broken is the way in: you open a tutorial and land in the code, and
+  nothing says "read the lesson first" (D34).
+- **Promoted: the tutorial content pipeline** (D33) -- where content
+  lives, how a new lesson is added, the submodule that fights
+  worktrees. It was "somewhere at the end, after the Cat conversation";
+  it is now week 3. Part of the product, not a build detail.
+- **Promoted: the wallet adapter** (D21 as amended) -- "very important,
+  and it has to be done". From backlog to week 3. Kora changes its cost
+  and shape, not whether it happens.
+- **Out on scope: a user cabinet and a storage service of ours** (D31).
+  Identity stays GitHub OAuth; projects go to the learner's own GitHub.
+- **Moved to the bonus bucket: frame rework and layout research**
+  (D34). Polish that is sized at the end by what time is left -- it may
+  be a short polish of a working interface or a deep rework, and which
+  is decided only once the priority list is done. Not scheduled, no
+  estimate.
+- **Struck from the roadmap entirely: assistant-side optimisation**
+  (memory, code analysis). Developer experience, not a product feature
+  -- internal kitchen, by the same rule that keeps dev tooling off this
+  page. It is not deprioritised; it is not a roadmap item.
+
 **The binding constraint right now is review, not build capacity.**
 The three v2 PRs are `MERGEABLE` and carry zero reviews: #20 has been
-open since 1 Sep, #21 and #22 since 2 Sep. (#23, the upstream feature,
-opened today for its own internal round and is not part of the launch
-scope.) Nothing in the floor is
+open since 1 Sep, #21 and #22 since 2 Sep. Nothing in the floor is
 *blocked* by that -- the next items start in order anyway -- but the
 week-1 count cannot move to done, and #21 has to land before #22
-rebases onto the workflow. **The one ask for the team sync: name who
-reviews, or agree that we self-merge the two PRs that are ours.**
+rebases onto the workflow.
+
+**The reviewer is named: Sergey (`rogaldh`).** Answered on the
+2026-09-04 call, which also removes the ask this board used to carry.
+The open risk is the queue's order rather than its owner: he committed
+to **#23 first**, the one PR outside the launch scope, while #20 has
+been waiting since 1 Sep. The two PRs that are ours (#21, #22) still
+cannot be self-approved under branch protection.
 
 Next, in order: M3/M4 on `/api/agent` (~2 h); the three upstream
-demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d).
-Waiting on the owner: hosting + first deploy, the production OAuth app.
+demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d);
+the default-build-server switch (D30). Waiting on the owner: the
+production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
-**Week 1 (2-8 Sep) -- The launch floor** · 0/8 done, 2 in review
+**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 2 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
@@ -70,12 +123,22 @@ Waiting on the owner: hosting + first deploy, the production OAuth app.
       **est ~1 d**
 - [ ] next · Durable session (httpOnly cookie via our `/api`) --
       **est ~1 d**
-- [ ] waiting: owner · Hosting + first deploy -- **est ~0.5 d** of our
-      work once the answer exists
+- [ ] next · Default build server is Solana's, not `api.solpg.io`
+      (D30). Checked in the code 2026-09-04, and smaller than it
+      sounded: the client already defaults to the Foundation's App
+      Engine host in production builds. The real work is **PR #22**,
+      whose `BUILD_SERVER_URL` falls back to `https://api.solpg.io` --
+      that default has to change before it merges -- plus adding SolPg
+      as a labelled option in the server setting (today the selector
+      offers only Local and Solana Foundation) -- **est ~2 h**
+- [ ] next · Hosting + first deploy on Vercel (D29) -- **est ~0.5 d**
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
 
-**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/6 done, 1 in review
+**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 1 in review
+· the week is deliberately all tutorials and stays there (2026-09-04
+call); week 1 is effectively closed and much of this week was built
+ahead of it
 - [x] done · Design: lesson state as a ledger and a cursor (D25, D26)
 - [x] review · Implement the ledger (events, folds, migration, band,
       rail) -- **PR #20**; trivial `Chat.tsx` conflict with #21, take
@@ -87,19 +150,39 @@ Waiting on the owner: hosting + first deploy, the production OAuth app.
 - [ ] next · Readiness explainer (`needs-build` / wallet / cluster /
       sol) -- consciously out of #20; **est ~1.5 d**, and it is the
       cheapest visible thing available to start today (stacked on #20)
-- [ ] waiting: team · The frame revision as a decision beside D24
+- [ ] next · Entering a lesson is legible (D34): clicking a tutorial
+      lands on the tutorial, the reader is signposted before the code,
+      closing something leaves you somewhere -- the tech lead's own
+      first complaint; **est ~1 d**
+- [ ] next · Assets-repository research (D33), the 30-60 min box
+      Sergey scoped: where tutorial content actually lives and how it
+      reaches the client today
 - [ ] waiting: Cat · Step 3 wording / proof criteria for new lessons
       (needed by 16 Sep)
 
-**Week 3 (16-22 Sep) -- Identity, expensive half** · 0/3 · C before B
-by dependency: storage only after the ledger, because the pre-ledger
-record lies
-- [ ] next · Per-user storage service behind our `/api`, never
-      `server/` -- **est ~3 d**
-- [ ] next · Progress log + project files synced per user (answers the
-      reload-signs-you-out case properly) -- **est ~2 d**
-- [ ] parked · Fallback if solo: export/import + honest banner (the cut
-      list's first cut) -- **est ~1 d** if it replaces the two above
+**Week 3 (16-22 Sep) -- The content pipeline, and where projects live**
+· 0/5 · **rewritten 2026-09-04**: identity's expensive half is out
+(D31) and the week goes to the block the tech-lead call promoted (D33)
+- [ ] next · Tutorial content pipeline as a written plan (D33): where
+      content lives, how a new tutorial is added, what a backend would
+      need if one ever reads them -- **est ~1 d** after the research
+      above
+- [ ] next · Act on the plan: get `client-v2/public` off the submodule
+      that fights worktrees, or justify keeping it -- **est ~1 d**
+- [ ] next · Push a project to the user's own GitHub repository (D31)
+      -- the replacement for a storage service, and the import
+      direction already exists (D22); **est ~2 d**, and it starts only
+      after Cat confirms this is what she meant
+- [ ] parked · Per-user storage service behind our `/api` -- **cut on
+      scope, not on time (D31)**: it existed to back a cabinet nobody
+      asked for, endpoints stay public, identity stays GitHub OAuth.
+      The reload-signs-you-out case loses its planned answer and needs
+      its own
+- [ ] next · Wallet adapter (D21, scheduled 2026-09-07): "very
+      important, and it has to be done". Its shape depends on Kora --
+      adapter beside the built-in deploy wallet, or instead of it --
+      and its cost with it; the multi-transaction deploy is the hard
+      part either way. **est ~2-3 d**; needs its own spec first
 
 **Week 4 (23-30 Sep) -- Content, polish, rehearsal** · 0/5
 - [ ] next · New lesson paths (needs Cat's answer above) -- **est ~3 d**
@@ -110,6 +193,19 @@ record lies
       inference is operator-paid; **est ~2 d** if it happens
 - [ ] next · Full launch rehearsal on the production origin --
       **est ~1 d**
+
+**Bonus -- polish, sized by what is left** · not scheduled, no
+estimates · done after the priority list, with whatever time remains
+(Slava, 2026-09-07). Each item may turn out short or deep, and which is
+decided only then.
+- [ ] bonus · Frame rework and layout research (D34): the 2026-08-31
+      revision (files-only left column, band-as-navigation, guide
+      column), organizers borrowed from other IDEs, layout alternatives
+      to show Cat
+- [ ] bonus · Focus 4 remainder: responsive/tablet layouts, light
+      theme, assistant-as-permanent-column follow-through
+- [ ] bonus · Classic-layout radii, roving tabindex beyond the network
+      list, editor tab strip -- the loose ends under *Follow-ups*
 
 **In parallel -- outside the launch scope: server-side rust-analyzer
 (upstream)** · 3/5 done, 1 in review · asked for by the upstream maintainer
@@ -140,7 +236,9 @@ plain-language version for the call:
       23 files; evidence hosted at
       `docs/internal/assets/2026-09-04-pr23/` (hover, completion,
       `rustc E0308` through the Node bridge and the same through the
-      real server + real Docker)
+      real server + real Docker). **Sergey committed to reviewing this
+      one first, on 2026-09-04** -- ahead of the three launch-floor PRs,
+      which is the queue risk named in the board above
 - [ ] waiting: upstream · Whether they enable it on their server (it
       sits behind their `--features unstable` either way)
 
@@ -153,10 +251,13 @@ and our v2 Vercel proxy cannot carry one, so offering it in v2 needs a
 direct server URL (friction log #11) -- not a launch item.
 
 **Estimates.** The `est` figures are our own engineering estimates, not
-measurements, in days of one person's work with agents. The ~17-day
-total counts the `next` items only: it excludes the parked storage
-fallback, the owner-side items, metering (which exists only if
-inference is operator-paid), and this parallel upstream stream.
+measurements, in days of one person's work with agents. They count the
+`next` items only: they exclude the parked storage service, the
+owner-side items, the wallet candidate, metering (which exists only if
+inference is operator-paid), and this parallel upstream stream. The
+running total is no longer compared against the days remaining -- D32
+withdrew that arithmetic, because the deadline is a target and not a
+cliff.
 
 **Before the frame -- shipped 19-28 Aug** (15 items, all merged; the
 table under *Shipped* has the hashes): assistant panel + Solana
@@ -167,65 +268,103 @@ API import (#14), cmd+B (#15), platform RPC + cluster toggle (#16),
 COOP fix (#17), Chip restore (#18), tutorials as a scenario (#19).
 
 **The agent is a launch surface of its own.** `/api/agent` ships on the
-same origin, so the hosting decision is the agent's hosting decision;
-launch mode is BYO-key (fallback) or operator-paid (needs metering +
-H1); H1 is in the floor either way because D28 widens it.
+same origin, so the hosting decision is the agent's hosting decision --
+answered as Vercel (D29), which means we operate the LLM relay. Launch
+mode is still the inference-payer axis: BYO-key (fallback) or
+operator-paid (needs metering + H1); H1 is in the floor either way
+because D28 widens it. The one open half is whose model: the customer
+side may hand us a token, and if it is OpenAI-compatible the route
+already accepts it -- see open question 0.
 
-**Open questions — the discussion block.** This board is what Slava
-takes to his tech lead and manager, so each question carries its
+**Open questions — the discussion block.** Each question carries its
 context, what it gates, the options, and what we do meanwhile — none
 of them blocks a feature stream (features-first: uncertainty resolves
-in parallel). **First weekly call with Cat: 2026-09-11.** The aim is
-to arrive with the functionality done, so the call spends itself on
-technical questions and polish, not on demos of unfinished work. The
-questions for Cat are written out and ready to send ahead of it:
+in parallel). **The tech-lead call happened on 2026-09-04** and closed
+four of the six that stood here; what it changed is recorded in
+`docs/internal/2026-09-04-call-notes-sergey.md` and in D29-D34.
+**First weekly call with Cat: 2026-09-11**, and its shape changed too:
+his instruction is to arrive with our answers and have her validate
+them, not to arrive with questions. The list to take is
 `docs/internal/2026-09-02-questions-for-cat.md`.
 
-0. **The responsibility boundary: do we operate the backend at all?**
-   Everything below assumes we run `/api/*` on our origin — the agent
-   relay, the build proxy (D28), later per-user storage. That
-   assumption is unvalidated: the alternative is that the customer's
-   side provides a backend and hands us endpoints. This one question
-   gates four others: hosting, the OAuth callback, H1's scope, and the
-   storage service's shape. *Who:* customer side, at the 2026-09-11
-   call. *Meanwhile:* we build same-origin `/api/*` — it runs on any
-   host and survives either answer: the build proxy's upstream is one
-   env var (`BUILD_SERVER_URL`) away from any backend they hand us.
-   (Measured 2026-09-02, corrected same day: both hosts build the same
-   program in ~4-5 s with an empty queue; builds serialize behind a
-   file lock and a client timeout never cancels one server-side — so
-   the H1-relevant abuse on any upstream is *enqueueing*, and the
-   upstream choice is about operation, not raw speed.)
-1. **Hosting and operator** (if the answer to 0 is "us"): the
-   production target, the domain, who holds the keys and answers
-   pages. Whoever operates the site operates an LLM relay — that is
-   the weight of this choice. *Who:* owner. *Meanwhile:* Vercel
-   previews keep every PR clickable; nothing waits.
-2. **Who pays for inference at launch:** BYO-key (no metering needed,
-   but an entry barrier for exactly the newcomers the lessons target)
-   vs operator-paid (needs metering + H1 first). *Who:* owner.
-   *Meanwhile:* the plan builds on BYO-key; metering stays a week-4
-   item that only exists if the answer is operator-paid.
-3. **What counts as proof of a step in new lessons** — the mechanism
-   is settled (D25/D26: synchronous conditions, on-demand log checks,
-   authored behavioral tests), what is left is curriculum: does step 3
-   stay "call the instruction" or become "call it and see your own log
-   line", and what proves each step of the next paths. *Who:* Cat, by
-   16 Sep — questions sent ahead of the 11 Sep call. *Meanwhile:*
-   week-4 content is the only thing gated; everything else proceeds.
-4. **The frame revision as a decision** (files-only left column,
-   band-as-navigation, guide column — walkthrough ch. 07). *Who:* the
-   team, beside D24. *Meanwhile:* no code until recorded; PR #20
-   deliberately excluded it.
-5. **An origin allowlist entry at `api.solpg.io`** for our production
-   domain. *Who:* Foundation, asked in parallel with D28. *Meanwhile:*
-   the proxy covers build and deploy either way; if granted, it thins
-   or disappears.
+**Closed on 2026-09-04** — kept here as a one-line record so nobody
+re-opens them from an old copy of this page; the reasoning is in the
+decisions:
 
-**Deferred by decision:** wallet-adapter (D21); modern Anchor / Kora
-(Acheron's grant); Better Auth (rogaldh); verifying faucet
-(Foundation); playground-tokens mode (parked, its metering half gates
-a paid key).
+- ~~Hosting and operator~~ — **Vercel** (D29). The static bundle and
+  `/api/*` on one deployment; a Next rewrite is a direction, not a
+  task. We therefore operate the LLM relay.
+- ~~An origin allowlist entry at `api.solpg.io`~~ — **the ask is
+  retired** (D30). We should not be defaulting to that host at all:
+  the default becomes our build server on Solana's capacity, whose
+  allowlist we set at deploy. SolPg stays a selectable option.
+- ~~The frame revision as a decision~~ — **the frame is settled**
+  (D34). It reads like every IDE on purpose. The work moves to the
+  legibility of entering a lesson, and the layout alternatives are
+  ours to show rather than Cat's to choose.
+- ~~The storage service's shape~~ — **there is no cabinet** (D31), so
+  there is no service. Half of this stays open below.
+
+**Still open:**
+
+0. **Whose model runs behind `/api/agent`, and over what protocol?**
+   Both Slava and Sergey read Cat the same way in the earlier
+   conversation — that her side would have models and would simply
+   hand us a token — and both note there is no information behind that
+   impression. *Who:* Cat, 2026-09-11, and the call's main question.
+   *How to ask it:* present first — we have a default agent backend
+   with a model under the hood, we talk to it over an API, and the
+   user's own or a local model stays available — then ask which models
+   they will provide, how it is meant to work, and what must change in
+   our endpoint to serve theirs. *Meanwhile:* nothing waits.
+   `/api/agent` is OpenAI-compatible, so a token against a compatible
+   model is a configuration change, and `BUILD_SERVER_URL`-style
+   indirection means the same for anything else they hand us.
+1. **Who pays for inference at launch:** BYO-key (no metering needed,
+   but an entry barrier for exactly the newcomers the lessons target)
+   vs operator-paid (needs metering + H1 first). *Who:* Cat / owner,
+   and it partly collapses into question 0 — a token from them is an
+   answer. *Meanwhile:* the plan builds on BYO-key; metering stays a
+   week-4 item that only exists if the answer is operator-paid.
+2. **What counts as proof of a step in new lessons** — the mechanism
+   is settled (D25/D26, reaffirmed on the 2026-09-04 call: synchronous
+   conditions, on-demand log checks, authored behavioral tests), what
+   is left is curriculum: does step 3 stay "call the instruction" or
+   become "call it and see your own log line", and what proves each
+   step of the next paths. The argument to bring: **a program building
+   is not proof that it is right** — a learner can write anything that
+   compiles. *Who:* Cat, by 16 Sep. *Meanwhile:* week-4 content is the
+   only thing gated.
+3. **Do projects persist into the learner's own GitHub repository?**
+   Sergey's reading of Cat's correspondence is that they should — the
+   learner grants permission and the playground pushes there, which is
+   why no cabinet is needed (D31). It needs her confirmation before we
+   build it, and his own expectation is that a cabinet stays out of
+   scope. *Who:* Cat, 2026-09-11. *Meanwhile:* week 3 holds the push
+   as its item and nothing depends on it; the reload-signs-you-out
+   case is unanswered either way.
+4. **How does new tutorial content arrive?** Ours to propose and hers
+   to react to (D33): where content lives, how a new tutorial is
+   added, who authors it. She may have her own flow in mind. *Who:*
+   us first, then Cat. *Meanwhile:* the research and the plan are
+   weeks 2-3.
+5. **What are the deadlines, and what is expected at each?** Leads
+   the 11 Sep agenda. Our understanding: around 30 Sep there is a
+   conference at which her side wants to present the project, so it is
+   the first checkpoint. What we need from her: what happens at the end
+   of September and on which dates; what is expected to be shown by
+   then; what constraints, requirements and limits apply; and what
+   deadlines follow. Her vision first -- then we reconcile it with what
+   is real on our side, and they may already coincide. *Who:* Cat,
+   2026-09-11. *Meanwhile:* the date is unchanged, the plan is built for
+   it, and it is treated as a checkpoint rather than a cliff (D32).
+
+**Deferred by decision:** modern Anchor / Kora (Acheron's grant);
+Better Auth (rogaldh); verifying faucet (Foundation); playground-tokens
+mode (parked, its metering half gates a paid key); per-user storage
+service (D31, rejected); a Next rewrite of the client (D29); frame
+rework and layout research (D34 -- the bonus bucket). The wallet
+adapter is no longer on this line: scheduled, week 3.
 
 ## The September frame (D27)
 
@@ -235,14 +374,24 @@ project is handed to us for real implementation; the deadline is the
 **end of September 2026** and what ships at it is a **public launch**.
 Regular owner sessions are part of the process. Launching the current
 surface unchanged was rejected — both durable identity and the
-learning path are in; the order (ledger before storage) is a
-dependency, not a taste, and D27 records why.
+learning path are in.
+
+**Amended 2026-09-07 (D32).** The date and the week structure stand.
+Its character does not: our understanding is now a conference at which
+Cat's side presents the project -- the first checkpoint, after which
+work continues -- and what is expected at it is the first question for
+Cat rather than the "public launch" this section records. The "no
+slack" arithmetic below is withdrawn. Week 3's dependency argument,
+storage-only-after-the-ledger, is moot: there is no storage service to
+sequence (D31); the week goes to the content pipeline and the wallet
+adapter. The order that survives is floor -> learning core -> content
+pipeline -> content.
 
 | Week | Track | What lands |
 | --- | --- | --- |
-| 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-02, CI green), hosting + first deploy, production OAuth app, `/api/build` proxy (D28), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
-| 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-02, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed) |
-| 3 | Identity, expensive half | per-user storage: the progress log and project files through our `/api`, never `server/` |
+| 1 | The floor + the cheap half of identity | production bundle + CI (**PR #21**, 2026-09-02, CI green), first deploy on Vercel (D29), production OAuth app, `/api/build` proxy (D28), the default-server switch (D30), H1 hardening, M3/M4, the three upstream demo-path commits, durable session (httpOnly cookie via our `/api`) |
+| 2 | Learning core | D25/D26 — the lesson-ledger round: **implemented 2026-09-02, PR #20 in review** (brief: `docs/internal/2026-09-01-lesson-implementation-brief.md`; friction log committed), plus lesson-entry legibility and the layout options (D34) |
+| 3 | The content pipeline, and where projects live | **rewritten 2026-09-04:** the tutorial pipeline as a plan and then as code (D33); pushing a project to the learner's own GitHub instead of a storage service of ours (D31) |
 | 4 | Content, polish, rehearsal | new lesson paths (needs Cat's proof-criteria answer by the start of week 3), Error-UX pass, upstream sync, one full launch rehearsal |
 
 **The floor is not the month's content — it is the condition for the
@@ -250,11 +399,12 @@ content arriving.** ~6–8 days, almost all known and mechanical. Two
 people parallelize weeks 1–2 with no shared files (the floor lives in
 `api/*.mjs`, configs and CI; D25 lives in `views/flow/lessons/`).
 
-**The arithmetic and the cut list.** ~25 working days in 28 calendar
-days: solo means no slack. Decided in D27: if the month is solo, the
-first cut is the storage service — it degrades to project
-export/import as a single file plus an honest banner that programs
-live in the browser. Identity and learning both survive the cut.
+**The arithmetic and the cut list — withdrawn 2026-09-04 (D32).** The
+"~25 working days in 28, solo means no slack" framing rested on the
+deadline being a cliff, and it is not one. The storage service did
+leave the plan, but on scope rather than on time (D31), and no other
+item is pre-cut. What survives from D27 is the habit: if something has
+to go, decide which before the week it would have been built in.
 
 **The AI agent is a launch surface of its own, not a footnote.** The
 assistant is the flagship story, and it ships as `/api/agent` on the
@@ -269,8 +419,9 @@ The agent surface at launch = hosting + this choice + the hardened
 routes; it has no separate week because it rides the floor and step 3.
 
 **Owner-side answers still pending** (the plan builds on the cheap
-fallback of each): hosting and operator; who pays for inference at
-launch (fallback BYO-key). **Team size is answered (2026-09-02): 1.5**
+fallback of each): who pays for inference at launch (fallback
+BYO-key); the production GitHub OAuth app. **Hosting is answered
+(2026-09-04): Vercel** — D29. **Team size is answered (2026-09-02): 1.5**
 — Slava full-time working with AI agents, a second person joinable at
 need. The solo arithmetic still applies to human review bandwidth, so
 the cut list stays in force as insurance rather than as the plan.
@@ -290,6 +441,10 @@ the result, when someone asks how it was done.
 - `api.solpg.io` allowlists origins, so a production domain is refused
   at preflight — found 2026-08-31, decided as D28: same-origin
   `/api/build` proxy, Foundation allowlist ask in parallel.
+  **Superseded 2026-09-04 (D30):** the allowlist ask is retired,
+  because that host stops being the default. The proxy stays for its
+  other reasons; the new work is switching the default to Solana's
+  server and removing the hardcoded occurrences of the old one.
 - The live GitHub OAuth app is localhost-only; production needs its
   own app and callback.
 
@@ -303,12 +458,12 @@ this table current -- it is what the presentation reads from.
 
 | # | Declared | State | Evidence | Next |
 | --- | --- | --- | --- | --- |
-| 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Deferred by decision** | D21; backlog entry below | Runs in parallel when scheduled, with its own spec |
+| 1 | Wallet-adapter instead of the local wallet (Phantom et al.) | **Scheduled -- week 3** | D21 as amended 2026-09-04 and 2026-09-07 | The tech lead dictated the problem for the record: nobody uses the built-in wallet, it has to be specially funded, and the multi-transaction deploy is what makes an external wallet hard. "Very important, and it has to be done." Needs its own spec; shape and cost depend on whether Acheron delivers Kora |
 | 2 | Sign in with GitHub; airdrop behind it | **Shipped** | #9 merged (`7a559c0a`), #17 merged (`dd871c5c`); D23; spec `2026-08-25-github-oauth-design.md` | Durable session, answered with item 6 |
 | 3 | Improve the tutorials scenario -- connected tutorials, learning curves, connected prompts for agents | **Shipped, thesis amended in review** | #19 merged 2026-08-28 (`1d908844`); D24; spec + plan + research of 2026-08-27 | Make the step criterion legible before more paths -- see *The ratchet, after review* |
 | 4 | Modern Anchor version | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
 | 5 | Better builds with Kora | **External, unchanged** | D21; Acheron's grant | Revisit when the grant resolves |
-| 6 | Programs saved per user, not locally (Cat, after the meeting) | **Next stream, concept only** | Step 2 in Next below | Design it now that #19 has landed |
+| 6 | Programs saved per user, not locally (Cat, after the meeting) | **Reshaped 2026-09-04** | D31; step 2 in Next below | Not a storage service of ours: push the project to the learner's own GitHub repository. Confirm with Cat on 11 Sep that this is what she meant |
 
 Item 1's cost is the reason it waits: wallet-adapter cuts through
 `commands/deploy/deploy.ts` (29 commits in six months) and
@@ -567,6 +722,28 @@ Each carries where it came from and where it now belongs.
    the try that wraps parsing), and no `maxDuration` in `vercel.json`
    means a streaming answer is cut at the default function timeout.
    Re-verified in the code 2026-08-28. Both small.
+4. **Stop defaulting to `api.solpg.io`** (D30, 2026-09-04), and the
+   state of it checked against the code the same day rather than taken
+   from the call. Three findings, in order of cost:
+   - **PR #22 is where the decision actually bites, and it is in
+     review now.** `client-v2/api/build.mjs` falls back to
+     `https://api.solpg.io` when `BUILD_SERVER_URL` is unset, and
+     `.env.example` documents that fallback. Under D30 the fallback
+     must be the Foundation's server, so a deployment that forgets the
+     variable still serves Solana's own infrastructure. Cheapest to
+     fix before the merge, not after.
+   - **The selector has no SolPg entry.**
+     `client-v2/src/settings/server/server.ts` offers `Local` and
+     `Solana Foundation` only. D30 wants SolPg present as a labelled
+     alternative, so a user can choose it knowingly; the custom-URL
+     field already covers the escape hatch.
+   - **The client default is already right.** In production builds the
+     default is `FOUNDATION_ENDPOINT`
+     (`playground-server-dot-analytics-324114.de.r.appspot.com`), so
+     "spread through the project and in places hardcoded" turns out to
+     be one occurrence, at `utils/server.ts:166`, inside the dead
+     `useDbServer` branch already listed under loose ends. Nothing to
+     migrate; the App Engine URL is in the tree and needs no ask.
 
 ### P1 -- important, next in line
 
@@ -657,9 +834,12 @@ Loose ends with no home yet:
   it. (#11)
 - A reload signs the user out of GitHub: the token lives in module
   memory only, by D3's reasoning about the same-origin project iframe.
-  Deliberate, not a defect -- but it re-prompts on every refresh, and
-  the fix belongs with per-user storage in *Next* step 2, not in
-  browser storage. (#9, #17)
+  Deliberate, not a defect -- but it re-prompts on every refresh.
+  **Re-homed 2026-09-04:** the fix used to belong with the per-user
+  storage service, which D31 removed, so it now rests entirely on the
+  durable session in week 1 -- an httpOnly cookie from our `/api`,
+  never the token in browser storage. If that cookie does not cover
+  the GitHub token itself, this stays open with no owner. (#9, #17)
 - Route platform endpoints through a same-origin `/api/rpc` proxy so a
   keyed provider URL never ships in the bundle. Only one platform
   endpoint per cluster is expressible today. (#16)
@@ -700,11 +880,11 @@ Loose ends with no home yet:
 
 ## Next
 
-D27 sets the order now (floor -> ledger -> storage -> content); the
-week table above is the calendar. The steps below carry the detail
-each week draws on. Step 1 is not new scope: it is finishing the
-feature that shipped, on the terms its own review set — and it is
-week 2.
+D27 sets the order, as amended on 2026-09-04: floor -> learning core
+-> content pipeline -> content. The week table above is the calendar.
+The steps below carry the detail each week draws on. Step 1 is not new
+scope: it is finishing the feature that shipped, on the terms its own
+review set — and it is week 2.
 
 1. **Make the lesson honest and legible** — **designed 2026-08-28;
    implemented 2026-09-02 on `feat/lesson-ledger` (PR #20, in
@@ -776,24 +956,42 @@ week 2.
    ending in a reading step; one `useLesson()` hook would collapse six
    hand-rolled subscriptions; `verify.ts`'s `build-passes` and `account`
    sub-condition are unused surface.
-2. **Per-user program storage** — Cat's condition for sign-in to pay
-   off, and week 3 under D27, deliberately *after* the ledger: an
-   append-only log is the cheapest sync format, and storing the
-   pre-ledger record would persist false verifications. The durable
-   session (httpOnly cookie via our `/api`) is split off into week 1;
-   if the month is solo, this service is the first cut (D27) —
-   export/import as a single file plus an honest banner. A separate
-   service, never `server/`. Feeds back into the OAuth stream.
-   Carries the session question with it: the GitHub token is held in
-   module memory only, so a reload signs the user out (D3's reasoning,
-   applied to the token). That is deliberate and correct while project
-   code shares the origin, but a durable session is exactly what this
-   step has to answer -- a server-side session against per-user
-   storage, rather than putting the token in browser storage.
-3. **Metering in front of `/api/agent`** — the surviving half of the
+2. **Where a learner's work is kept — rewritten 2026-09-04 (D31).**
+   The per-user storage service is out. Not on its design but on its
+   premise: it existed to back a user cabinet, and there is no cabinet
+   — `/api/*` stays public and identity stays the GitHub OAuth that
+   already ships. What replaces it is pushing the project into the
+   learner's **own GitHub repository** through the GitHub API, which
+   is Cat's stated preference and needs her confirmation on 11 Sep
+   before it is built; the import direction already exists (D22).
+
+   *What this leaves unanswered, deliberately.* The reload
+   signs-you-out case had its answer inside the deleted service. The
+   GitHub token lives in module memory only (D3's reasoning applied to
+   the token: project code shares the origin), so a refresh
+   re-prompts. The durable session in week 1 — an httpOnly cookie
+   issued by our `/api` after the OAuth exchange — covers
+   re-authentication, and is unrelated to where projects live; it
+   stays in the floor. Progress, achievements and any gamification
+   depend on Cat's picture of the end result and are unscheduled.
+3. **The tutorial content pipeline (D33).** Promoted from a footnote
+   by the tech-lead call: where content lives, how a new tutorial is
+   added, and what a backend would need if one ever read them, written
+   as a plan and then acted on. It is part of what we ship, because
+   content keeps arriving after launch and Cat may have her own
+   authoring flow. Two facts to start from: the playground is two
+   repositories — `solana-playground` and an Assets repository that
+   probably holds the tutorials, unverified — and the
+   `client-v2/public` submodule actively fights git worktrees, which
+   is why the current arrangement is copy scripts rather than a live
+   checkout. One dependency settles more than it looks: a backend that
+   grades tutorials forces the content to live inside the project, and
+   D26 already rejected backend grading, so both point the same way.
+4. **Metering in front of `/api/agent`** — the surviving half of the
    parked playground-tokens design, and the gate on pointing the
-   Default backend at a paid account. Carries P1 item 6.
-4. **Keep `client-v2` in step with upstream** — a standing chore, newly
+   Default backend at a paid account. Carries P1 item 6. Exists only
+   if inference is operator-paid, which open question 1 decides.
+5. **Keep `client-v2` in step with upstream** — a standing chore, newly
    real: 24 upstream commits are already ahead of the copy. Cheapest as
    a small sync PR after each upstream rebase, most expensive as one
    large catch-up later. The three demo-path items are P0 item 2; the
@@ -818,18 +1016,34 @@ resumes. Its metering half is now the blocking dependency for pointing
 - **Error-UX scenarios** - interface behavior when things fail.
   The first known case is fixed (PR #14); collect the remaining
   cases, then fix them as one polish pass.
-- **Wallet-adapter integration** — demoted by D21 and deliberately out
-  of tonight's demo: it runs in parallel at the last moment. Cuts
-  through the hottest upstream files (`commands/deploy/deploy.ts`,
-  `utils/wallet/wallet.ts`) for little visible value now.
+- **Wallet-adapter integration** — demoted by D21, **scheduled again on
+  2026-09-07** (week 3). The tech lead dictated the problem for the
+  record: the built-in wallet is not a local convenience but a wallet
+  that has to be specially funded, needing a flow of its own, and
+  everyone working on-chain already uses an extension or a hardware
+  wallet — nobody uses the built-in one. The unresolved half is that a
+  program deploy is a series of transactions, each needing a signature,
+  which is exactly what makes an external browser wallet painful. Still
+  cuts through the hottest upstream files (`commands/deploy/deploy.ts`,
+  `utils/wallet/wallet.ts`); needs its own spec; shape depends on Kora
+  — see *Blocked on others*.
 - **Focus 4 remainder** — responsive/tablet layouts, light-theme
-  variant, assistant-as-permanent-column follow-through.
+  variant, assistant-as-permanent-column follow-through. Now in the
+  *Bonus* bucket on the board, sized at the end.
 
 ## Blocked on others / external
 
 - **Modern Anchor version; better builds with Kora** — team calls
   them uncertain; partially blocked by Acheron's grant. Not scheduled
-  (D21).
+  (D21). **Kora acquired a consequence on 2026-09-04:** under the
+  grant, Jonas / Acheron are expected to deliver free-or-near-free
+  program deploys through it, and if that lands the wallet adapter
+  gets much cheaper — the multi-transaction deploy is the whole reason
+  signing with an external wallet is hard, and the built-in deploy
+  wallet could then be dropped rather than hidden. Open: whether
+  Acheron actually does it, and when. Also unverified: what Kora does
+  is second-hand from the call, so check it before repeating the
+  "free deploys" line anywhere customer-facing.
 - **Foundation's verifying faucet** — does not exist yet; our airdrop
   gate imitates the experience it would enforce. Its appearance is the
   revisit trigger recorded in the OAuth spec.
@@ -841,7 +1055,10 @@ resumes. Its metering half is now the blocking dependency for pointing
 ## Concepts on paper (deliberately not built)
 
 Per the "concept on paper, simplified in code" principle
-(`product-brief.md`): verifying faucet endpoint, per-user program
-storage service, cookie-based session persistence, per-identity token
-accounting. Each is written where it belongs — the OAuth spec's
-concept section — and ships only when its stream is scheduled.
+(`product-brief.md`): verifying faucet endpoint, cookie-based session
+persistence, per-identity token accounting. Each is written where it
+belongs — the OAuth spec's concept section — and ships only when its
+stream is scheduled. **The per-user program storage service left this
+list on 2026-09-04**: it is not a concept awaiting its turn, it is
+rejected (D31), and the concept text in the OAuth spec should say so
+rather than read as a plan.

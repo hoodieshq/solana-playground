@@ -1477,3 +1477,349 @@ paths; production does the same through one `vercel.json` rewrite.
 
 **Revisit when** the Foundation answers the allowlist ask, or when
 build volume makes proxying their server impolite.
+
+---
+
+## D29 - Hosting is Vercel; the client's long-term shape is Next
+
+**Date:** 2026-09-04 - **Status:** decided (Sergey, the tech lead)
+
+Source: `docs/internal/2026-09-04-call-notes-sergey.md`. Closes the
+first of D27's three owner-side unknowns and the roadmap's open
+question 1.
+
+**Chosen:** Vercel, without alternatives considered - "I am 100% sure
+it will be Vercel, there are no other questions here." Today's shape
+is transitional: the static bundle on Vercel plus a Node endpoint
+running on a server. The intended end state is one Vercel deployment
+carrying both the client and the `/api/*` routes, which is what
+`client-v2` already builds towards.
+
+**Recorded as a direction, not scheduled:** the client should
+eventually be rewritten as an ordinary Next application rather than
+Create React App. Nothing in the September plan depends on it, and
+`client-v2` is a fork copy of an upstream CRA app, so the rewrite is
+a fork-divergence decision of its own when it arrives.
+
+**What this does not answer:** who operates the production domain and
+holds the keys. The build/deploy server is a separate deployment on
+Solana's capacity (D30), so "we host the site on Vercel" and "Solana
+operates the build server" are both true at once.
+
+**Revisit when** the `/api/*` surface needs something Vercel functions
+cannot carry. One such case already exists and is not hypothetical:
+the rust-analyzer LSP backend speaks WebSocket, which the Vercel proxy
+cannot forward (friction log #11).
+
+---
+
+## D30 - The default build server is Solana's; api.solpg.io becomes an option
+
+**Date:** 2026-09-04 - **Status:** decided (Sergey, the tech lead)
+
+Source: `docs/internal/2026-09-04-call-notes-sergey.md`. Reverses the
+roadmap's open question 5 and fires D28's revisit trigger.
+
+**The argument is about responsibility, not latency.** The original
+project's premise - every service public, no authentication - was
+right for Acheron's own deployment. Once Solana serves the playground
+on its own domain to its own users, those users must be served by
+infrastructure Solana operates: Solana guarantees the service it
+deploys and carries the impression the product leaves, and from a
+product standpoint Acheron is an outside party whose capacity we
+cannot answer for while answering for Solana's reputation.
+
+**Chosen:** the default build and deploy host is our own server on
+Solana's capacity - Google App Engine today, on an AppSpot domain that
+will later be pinned to something of the shape
+`api.playground.solana.com`. `api.solpg.io` stays reachable as a
+**selectable alternative** in the build-server setting, labelled as
+the original backend, alongside the custom-host field that already
+exists; a user who selects it accepts the trade knowingly. The Rust
+server's origin allowlist is a deploy-time environment variable and
+needs no change.
+
+**Accepted cost:** the first deploy of a program against the
+Solana-hosted server takes around two minutes. Known, and cheaper than
+the alternative.
+
+**Follow-up this creates, checked against the code the same day**
+rather than taken from the call. His "spread through the project, in
+places hardcoded" is truer of the fork's near future than of its
+present:
+
+- `client-v2` already defaults to the Foundation's App Engine host in
+  production builds (`settings/server/server.ts`), so the default is
+  not what needs changing.
+- **PR #22, in review now, is where this decision lands.**
+  `api/build.mjs` falls back to `https://api.solpg.io` when
+  `BUILD_SERVER_URL` is unset. Under this decision the fallback must
+  be the Foundation's server, so a deployment that forgets the
+  variable still serves Solana's infrastructure. Fix before merge.
+- The server selector offers `Local` and `Solana Foundation` only, so
+  the "SolPg as a labelled option" half is an addition, not a
+  demotion.
+- The one hardcoded occurrence is `utils/server.ts:166`, in the dead
+  `useDbServer` branch.
+
+**One honesty claim depends on this.** `assistant-context.md` tells
+customers "the build server is the Solana Foundation's deployment, not
+upstream's `api.solpg.io`". That is true today and would quietly stop
+being true if #22 merged with its current fallback.
+
+**What it does to D28.** The `/api/build` proxy was justified by
+`api.solpg.io` refusing a production origin at preflight. With a
+default server whose allowlist we configure at deploy, that
+justification is gone; the proxy survives on its remaining merits -
+one origin for the browser, no upstream URL in the bundle, and a
+single place to rate-limit - and the Foundation allowlist ask is
+retired rather than answered.
+
+**Revisit when** Solana's server cannot carry the load, or if the
+Foundation asks us to point at theirs.
+
+---
+
+## D31 - No user cabinet: projects go to the user's own GitHub
+
+**Date:** 2026-09-04 - **Status:** decided (Sergey), one half to
+validate with Cat on 2026-09-11
+
+Source: `docs/internal/2026-09-04-call-notes-sergey.md`. Narrows D21's
+first stream and parks week 3 of D27.
+
+Having a backend does not imply having authentication. The `/api/*`
+endpoints are public; identity is the GitHub OAuth that already ships;
+a user cabinet or profile is explicitly not in scope - "we are not
+talking about that yet."
+
+**Chosen instead of a storage service of ours:** persistence goes to
+the learner's own GitHub. Cat's stated preference, from her
+correspondence with Sergey, is that the playground use the GitHub API
+to push the project into the user's repository - they sign in, grant
+permission, and their work lands somewhere they already own. No shared
+cabinet, no per-user store to operate, and the import direction
+already exists (D22).
+
+**Rejected for now:** the per-user storage service of D27's week 3.
+Not on its design but on its premise - it exists to back a cabinet
+nobody has asked for. D27's cut list already named it the first cut;
+this decision makes the cut the plan rather than the insurance.
+
+**Consequences.** The durable session stays in the floor: a session is
+about not re-authenticating on reload, which is unrelated to where
+projects live. Progress, achievements and gamification depend on Cat's
+picture of the end result and are unscheduled. The reload-signs-you-out
+case is no longer answered by a storage service and needs its own
+answer.
+
+**Validate with Cat, 2026-09-11:** that GitHub push is what she meant
+and that no cabinet is expected. Sergey's own expectation is that the
+answer is "no, we do not build that."
+
+**Revisit when** the playground gains paid tiers or per-profile
+features - his stated trigger - or if Cat's answer contradicts the
+reading above.
+
+---
+
+## D32 - Amends D27: 30 September is a checkpoint with an audience
+
+**Date:** 2026-09-07 - **Status:** decided (Slava); the expectations
+behind the date go to Cat on 2026-09-11 as the first question
+
+**Our current understanding of the date.** On or around 30 September
+there is a conference at which Cat, or someone on her side, wants to
+present the project. That makes it the **first checkpoint**: something
+has to be done by it. What exactly is not known. D27 recorded the date
+as a "public launch"; after the 2026-09-04 call that reading is one
+hypothesis among others, not a fact.
+
+**Chosen.** The date stays, and the plan stays built for it. Two things
+about it change:
+
+1. **It is a checkpoint, not a cliff.** After the presentation there is
+   time to keep working, so nothing is cut to fit the 30th. D27's cut
+   list survives as a habit - decide what goes before the week it would
+   have been built in - not as a plan.
+2. **The expectations attached to it are a question, not an
+   assumption.** What happens at the end of September, which dates,
+   what is expected to be shown, what constraints, requirements and
+   limits apply, and what deadlines follow. That is Cat's vision to
+   state; we expect to negotiate and to reconcile her expectations with
+   what is real on our side - they may already coincide. It goes to the
+   top of the 11 Sep agenda.
+
+**Withdrawn.** The "19 working days, no slack" arithmetic, which rested
+on the date being a gate. And "November" as the first hard breakpoint:
+that was Sergey's word with "probably" attached, and it is now folded
+into the question above rather than carried as a planning input.
+
+**Revisit when** Cat answers on 2026-09-11 - the answer may rename this
+decision.
+---
+
+## D33 - The tutorial content pipeline is a product block, not a build detail
+
+**Date:** 2026-09-04 - **Status:** decided that it is in scope; the
+shape is open, research first
+
+Source: `docs/internal/2026-09-04-call-notes-sergey.md`. Raised by
+Sergey and accepted by Slava as a priority move rather than a note.
+
+Where tutorials live and how new ones arrive is part of what we ship,
+not an implementation detail of the build. Content will keep arriving
+after launch, Cat may have her own idea about how it arrives, and the
+answer has to exist as a written flow rather than as whatever the
+scripts happen to do.
+
+**What is known.** The playground is two repositories:
+`solana-playground` and an Assets repository holding fixed material -
+images and some data - which is probably where tutorials live, not yet
+verified. `client-v2/public` is a submodule, and the submodule is
+actively in the way: git worktrees and submodules do not compose, so
+the checkout costs more than it gives. Sergey already worked around it
+with scripts that copy the files into `public/` instead of keeping a
+submodule populated.
+
+**Open, and to be answered as a plan section:** where tutorial content
+lives (copied into `client-v2`; a neighbouring repository we download
+from; a separate repository, which he called bad and then partly
+reconsidered), how a new tutorial is added, and how a backend would
+read them if one ever does.
+
+**One dependency that forces the answer:** if a backend ever grades
+tutorials, the tutorial content has to live inside the project. Any
+choice that puts content outside the repository is a choice against
+backend grading - which D26 already rejected on other grounds, so the
+two agree.
+
+**First step, scoped by him:** 30-60 minutes of research into the
+Assets repository and how the content reaches the client today.
+
+**Revisit when** the research lands, or when Cat describes an
+authoring flow of her own.
+
+---
+
+## D34 - The frame is settled; lesson entry is priority, frame polish is bonus
+
+**Date:** 2026-09-04, amended 2026-09-07 (Slava) - **Status:** decided,
+replacing the roadmap's open question 4
+
+Source: `docs/internal/2026-09-04-call-notes-sergey.md`.
+
+**Chosen:** the general composition stays - file panel left, assistant
+right, console bottom. It is the experience every developer already
+has from every IDE, and inheriting it is the point rather than a
+shortfall; the remaining complaints are minor.
+
+**Priority work: the legibility of entering a lesson.** Today you open
+a tutorial and land in the code. The document is visibly a clickable
+tab, but nothing tells the learner to read the lesson first - "maybe
+when I click a tutorial I should land on the tutorial." Where the
+learner goes after closing something is the same class of gap. This is
+the same defect the ledger round named from the other side: a learner
+one unlabelled click from finishing a step is not stuck, they are
+unsignposted. It belongs to the tutorials focus and stays in week 2.
+
+**Bonus work: everything else about the frame.** Reworking the frame,
+researching layouts, borrowing organizers from other IDEs, and the
+2026-08-31 frame revision (files-only left column, band-as-navigation,
+guide column - which Grisha's request corroborates) all move to a
+**polish bucket that is sized at the end**. Slava's framing: this work
+can be very short - polishing an interface that already works - or a
+deep piece of research that substantially reworks it, and which of the
+two it turns out to be is decided only after everything with priority
+is done, by how much time and resource is left. It is therefore not
+scheduled in any of the four weeks and carries no estimate.
+
+**Revisit when** the priority list is done and the remaining time is
+known.
+---
+
+## D21 - Amended 2026-09-04: the wallet adapter waits on Kora, not on taste
+
+**Date:** 2026-09-04 - **Status:** amendment (Sergey, dictated for the
+record)
+
+D21 deprioritized wallet-adapter integration on merge-safety grounds -
+it cuts through the hottest upstream files for little visible value.
+That still holds, but the call adds the shape of the problem and a
+dependency D21 did not have.
+
+**The problem, as he put it.** Deploying a program is a series of
+transactions, each needing a signature, which is why a built-in wallet
+exists at all. Two objections to it: it is not a local convenience but
+a wallet that has to be specially funded, which needs a flow of its
+own, while everyone actually working on-chain uses a browser extension
+or a hardware wallet - nobody uses the built-in one. So the standard
+adapter is what makes the app work the way its users expect. But the
+same multi-transaction deploy is what makes signing with an external
+browser wallet painful, and that is unresolved.
+
+**The dependency.** Under the grant, Jonas / Acheron are expected to
+work on free deploys via Kora, described on the call as making program
+deployment easy and near-free. If that lands, the deploy objection
+dissolves and we can connect the standard Solana wallet adapter and
+drop the built-in deploy wallet; if it does not, the built-in wallet
+may survive as an internal mechanism behind the adapter.
+
+**Unverified, and not to be repeated as fact:** what Kora actually
+does. It reached us second-hand on a call; check before it goes into
+anything customer-facing.
+
+**Status change, 2026-09-07 (Slava):** from backlog to **scheduled**.
+"A very important part, and it has to be done." Kora's status changes
+its cost and its shape - adapter beside the built-in wallet, or adapter
+instead of it - not whether it happens. Placed in week 3 beside the
+content pipeline, in the room the storage service left (D31). The open
+question "does Acheron do it, and when" travels with it.
+
+**Revisit when** Kora's status is known, or when the adapter is
+scheduled and needs a spec of its own.
+
+---
+
+## D25/D26 - Amended 2026-09-04: "it builds" is not proof
+
+**Date:** 2026-09-04 - **Status:** amendment; the mechanism is
+unchanged
+
+Two things came out of the tech-lead call. The first is the best
+argument D25 and D26 have and was missing from both. The second is a
+reopening that resolves to the answer already recorded.
+
+**"It builds" cannot be a criterion.** A learner can write anything
+that compiles, and it need not match the lesson's plan; a successful
+build says the toolchain accepted the code, not that the
+implementation is the one the step asked for. Build works as a
+criterion only for the case of producing a new program from nothing.
+This is why D26 exists, and it is also why `verify.ts`'s `build-passes`
+condition has stayed unused surface rather than a grader for
+implementation steps.
+
+**The reopening.** Sergey listed the grading options as still open:
+ask the agent whether the program's state matches what is expected
+(simplest, but spends tokens on every check); a per-tutorial backend
+that validates the deployed program by interacting with it or by
+synthetic tests; synthetic tests run in the playground itself; or
+something more advanced, which costs more to build and therefore
+delays. He had not read D26.
+
+**Resolution: nothing changes.** His own preferred option - tests that
+run right in the playground - is D26 exactly: an authored behavioral
+test shipped with the path, never written into the learner's
+workspace, run by the client's own sandboxed TypeScript runtime. Agent
+judgement stays rejected by D25 (non-deterministic, contradicts
+`prompt.ts`, and pays tokens per check - his own objection reached the
+same place). Backend grading endpoints stay rejected by D26, and D33
+adds a second reason: a grading backend would force tutorial content
+to live inside the project, constraining the content pipeline for a
+mechanism we do not want.
+
+**What remains open is curriculum, not mechanism** - which is what the
+questions for Cat say, and what her answer by 16 Sep settles.
+
+**Revisit when** the authored-test class proves too coarse for a step
+somebody actually wants to teach.

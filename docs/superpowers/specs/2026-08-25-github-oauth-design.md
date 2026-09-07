@@ -158,10 +158,16 @@ State this in the PR body and demo script; do not state it in the UI.
    and performs the airdrop from a funded keypair with per-identity
    quotas. Our `api/` layer can prototype it; production belongs to a
    real service with abuse controls.
-2. **Per-user program storage** — Cat's condition for sign-in to pay
+2. **Per-user program storage** — ~~Cat's condition for sign-in to pay
    off. A separate service (not `server/`), addressed per GitHub
    identity; candidate decision D22 once designed. Until then projects
-   stay local.
+   stay local.~~ **Rejected 2026-09-04 (D31), not deferred.** There is
+   no user cabinet to back: `/api/*` stays public and identity stays
+   this spec's GitHub OAuth. Sign-in still has to pay off, but by
+   pushing the project into the learner's **own GitHub repository**
+   through the GitHub API — which is what Cat asked for, and which the
+   import direction (D22) already half-implements. Nothing in this
+   spec's shipped cut changes; only this concept step does.
 3. **Session persistence** — an HttpOnly cookie session issued by our
    API layer, removing the reload-signs-out limitation without ever
    exposing the token to page JS (and so to the project iframe).

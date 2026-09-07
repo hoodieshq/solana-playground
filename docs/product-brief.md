@@ -27,7 +27,7 @@ A second client, developed in parallel inside the fork, running against the exis
 
 **Focus 1 — AI assistant inside the environment.** A chat module next to the editor that shares context with the open project and can act on it: explain a build error against the actual code, propose a patch the user applies with one click, then build and deploy. Grounded in the ecosystem's own sources — Solana Developer MCP for documentation, the official Solana skill, the Explorer MCP for on-chain lookups — with a channel for plugging in new MCP servers and skills, so the environment inherits ecosystem knowledge without waiting for a release.
 
-**Focus 2 — GitHub identity.** Sign in with GitHub ID to enable airdrop and the future features the Solana Foundation would build around models and agents. Signing in only pays off if programs are saved per user instead of in browser storage, so this focus carries persistent project storage with it — as a separate service, not a change to the existing backend.
+**Focus 2 — GitHub identity.** Sign in with GitHub ID to enable airdrop and the future features the Solana Foundation would build around models and agents. Signing in only pays off if programs outlive the browser — but the way they do that changed on 2026-09-04 (`decisions.md` D31): not a per-user storage service of ours, but a push into the learner's **own GitHub repository** through the GitHub API, with their permission. No user cabinet, no store to operate, and the work lands somewhere they already own. The import direction already ships (D22).
 
 **Focus 3 — Tutorials as a scenario.** Suggestions for tutorials: connected tutorials, learning curves, connected prompts for agents — so the scattered learning material starts to have a path through the environment.
 
@@ -41,8 +41,8 @@ Real wallet support (standard wallet adapters alongside the in-browser key) was 
 - **Bring your own key, plus a limited demo mode.** A small quota for first-time users; never an open unlimited endpoint.
 - **Traceability.** A record of what the assistant did and on what basis.
 - **Open by default.** The client and any service integrated into it stay public, consistent with how the project has always been maintained.
-- **No backend changes.** The build server, crate list, deploy mechanics and sharing infrastructure are out of scope.
-- **Concept on paper, simplified in code.** This is an MVP prototype: complex architecture (per-user storage, agent infrastructure) is written down as a concept in the docs, while each iteration ships a deliberately simplified cut of it.
+- **No backend changes.** The build server's code, crate list, deploy mechanics and sharing infrastructure are out of scope. *Which* build server the client points at is not a backend change and is now a product decision: the default is the deployment Solana operates, because a user on Solana's domain should be served by infrastructure Solana answers for (`decisions.md` D30).
+- **Concept on paper, simplified in code.** This is an MVP prototype: complex architecture is written down as a concept in the docs, while each iteration ships a deliberately simplified cut of it. Per-user storage used to be the standing example and no longer is — it was rejected outright (D31) rather than deferred, which is a different thing and should not be softened into "a concept awaiting its turn".
 
 ## Later candidates
 
@@ -50,8 +50,9 @@ Aggregating existing learning material into the environment · integrating with 
 
 ## Open questions for the Foundation
 
-- Preferred agent framework or provider — is there an existing choice we should validate rather than introduce another vendor?
+- **Whose model runs the assistant, and over what protocol?** The expectation on our side is that the Foundation supplies models and hands us a token; there is no information behind that expectation yet. `/api/agent` is OpenAI-compatible, so a compatible token is a configuration change — anything else needs to be named. The sharpest form of the older "preferred agent framework or provider" question, and the one that has to be answered first.
 - Who covers inference in production, and what quota is acceptable for anonymous first-time users?
 - How the execution layer is expected to evolve — testing, generated clients, current framework versions — since it sets the ceiling on what the environment can teach.
-- Persistent user identity (saved projects, progress, history) is now on the roadmap via GitHub sign-in — the open part is where the per-user storage service should live and who operates it.
+- Persistent user identity (saved projects, progress, history) arrives via GitHub sign-in, and the intended shape is now a push into the learner's own repository rather than a service of ours (D31) — the open part is whether that is what the Foundation meant, and whether cross-device continuation and progress tracking are expected at launch.
+- How new tutorial content is authored and where it lives — content keeps arriving after launch, so this is a flow to agree on rather than a one-off (D33).
 - If content aggregation is worth doing, which sources should be treated as canonical.

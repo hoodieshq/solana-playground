@@ -90,3 +90,38 @@ working, per the product brief's traceability principle.
   a thought signature) against the OpenAI-compatible backend at a
   `localhost` base URL reproduced all of the above and verified each fix. Worth
   keeping that trick for the next shim.
+
+## 2026-09-04 — named by the tech lead on the call
+
+Both of these are his observations rather than ours, recorded here
+because they are the same class of thing: the environment charging for
+a structural choice made earlier. Context:
+`docs/internal/2026-09-04-call-notes-sergey.md`.
+
+- **Git worktrees and submodules do not compose.** `client-v2/public`
+  is a submodule, and worktrees are how this project is worked on — one
+  per branch, several live at once. They technically coexist and
+  practically fight: a linked worktree does not get the submodule
+  populated the way the primary checkout does, so the cost lands as
+  silently stale assets rather than an error. His workaround is already
+  in the tree: two scripts that copy the files into `public/` instead of
+  keeping a submodule checked out. The decision about where tutorial
+  content should live (D33) is partly a decision about paying this or
+  not.
+- **`api.solpg.io` is spread through the project, in places
+  hardcoded.** It was the sensible default while the playground was
+  Acheron's own deployment, and it silently became a product problem
+  the moment the fork started serving Solana's users from Solana's
+  domain (D30). The friction is not the value but its distribution:
+  changing a default should be one edit, and here it is a search.
+
+## 2026-09-04 — the November question, as process friction
+
+Not an environment problem, worth logging anyway because it cost real
+planning. The board carried "19 working days left, no slack" and a
+pre-agreed cut list for a month whose deadline turned out to be a
+target rather than a gate (D32). The schedule was never confirmed with
+the customer side; it was inferred from a date and then reasoned from
+as though it were a constraint. The cheap fix for next time: a date
+without a stated consequence for missing it is not a deadline, and the
+consequence is a question to ask, not to derive.
