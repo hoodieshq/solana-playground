@@ -216,4 +216,28 @@ describe("reduceLesson", () => {
   it("defaults a load's flag to false when it is not given", () => {
     expect(load().loadFailed).toBe(false);
   });
+
+  it("records an opened page once", () => {
+    const state = reduceLesson(load(), {
+      type: "opened",
+      stepId: "one",
+      at: 2,
+    });
+    expect(view(state).opened.has("one")).toBe(true);
+    const again = reduceLesson(state, {
+      type: "opened",
+      stepId: "one",
+      at: 3,
+    });
+    expect(again).toBe(state);
+  });
+
+  it("refuses opened outside a lesson", () => {
+    const next = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "opened",
+      stepId: "one",
+      at: 2,
+    });
+    expect(next).toBe(INITIAL_LESSON_STATE);
+  });
 });
