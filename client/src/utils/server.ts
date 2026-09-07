@@ -60,7 +60,7 @@ export class PgServer {
 
     const response = await this._send("/build", {
       post: { body: JSON.stringify(req) },
-      unstable: process.env.NODE_ENV !== "production",
+      unstable: PgSettings.experimental.unstable,
     });
     return (await response.json()) as BuildResponse;
   }
@@ -76,7 +76,7 @@ export class PgServer {
    */
   static async deploy(uuid: string) {
     const response = await this._send(`/deploy/${uuid}`, {
-      unstable: process.env.NODE_ENV !== "production",
+      unstable: PgSettings.experimental.unstable,
     });
     const arrayBuffer = await response.arrayBuffer();
     return new Uint8Array(arrayBuffer);
@@ -102,7 +102,7 @@ export class PgServer {
 
     const response = await this._send("/bundle", {
       post: { body: JSON.stringify(req) },
-      unstable: process.env.NODE_ENV !== "production",
+      unstable: PgSettings.experimental.unstable,
     });
     return (await response.json()) as BundleResponse;
   }
