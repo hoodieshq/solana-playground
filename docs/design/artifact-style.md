@@ -80,6 +80,16 @@ page holds on any host ground.
 - **Footer** - mono 11px `--ink-3`, begins `INTERNAL - for syncs`,
   names the written source.
 
+## Layout: navigation, not decoration
+
+The tokens carry the identity; the layout's only job is to be easy to
+move through. **A digest is a single-column list**: a label on the left,
+items stacked on the right, one row shape repeated, read top to bottom.
+No card grids, no two-column question layouts, no hero. The board may
+use grids because it is a dashboard that is scanned; a digest is read.
+When a restyle is asked for, change the tokens and the type and leave
+the markup alone - the layout was approved, the colours were not.
+
 ## Content rules by artifact class
 
 - **The status board** carries everything: decision numbers, PR
