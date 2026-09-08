@@ -23,7 +23,7 @@ https://claude.ai/code/artifact/4c4d6654-3eec-4297-b072-8d74ff68378f ·
 lesson-paths retrospective
 https://claude.ai/code/artifact/3857c497-58b3-4f06-8647-96e3fd9b05ed
 
-## Status board (2026-09-07)
+## Status board (2026-09-08)
 
 Statuses: **done** · **review** (PR open, awaiting one approval) ·
 **active** (being built now) · **next** (not started, in order) ·
@@ -47,9 +47,19 @@ Team 1.5. Dev tooling deliberately off this list.
 (week 1), the lesson-ledger corrections (week 2's track, built ahead of
 its week), and -- outside the launch scope -- an upstream feature the
 maintainer asked for (server-side rust-analyzer; see *In parallel*
-below). In review: **#20** (lesson ledger, 265 tests / 29 suites),
-**#21** (production bundle + `client-v2` CI, green in 4m04s), **#22**
-(builds on a production domain through `/api/build`, D28).
+below). In review, seven PRs deep as of 2026-09-08: **#20** (lesson
+ledger, 265 tests / 29 suites), **#21** (production bundle +
+`client-v2` CI, green in 4m04s), **#22** (builds on a production domain
+through `/api/build`, D28, and since 8 Sep the D30 default), **#23**
+(rust-analyzer, upstream), **#24** (lesson entry, D34), **#25** (M3/M4
+plus the same body defect in `/api/mcp`), **#26** (the readiness
+explainer).
+
+**Three of those are one stack**: #20 -> #24 -> #26. Building on a
+branch that has not been reviewed is not a preference, it is what the
+queue left: #20 has been open since 1 Sep and the tutorials work that
+follows it could not wait. The stack merges bottom-up, or each base is
+retargeted as the one below it lands.
 
 **The tech-lead call of 2026-09-04 rewrote parts of this page.** It
 answered hosting, reversed our stance on the default build server,
@@ -88,12 +98,14 @@ weeks that look different:
   -- internal kitchen, by the same rule that keeps dev tooling off this
   page. It is not deprioritised; it is not a roadmap item.
 
-**The binding constraint right now is review, not build capacity.**
-The three v2 PRs are `MERGEABLE` and carry zero reviews: #20 has been
-open since 1 Sep, #21 and #22 since 2 Sep. Nothing in the floor is
-*blocked* by that -- the next items start in order anyway -- but the
-week-1 count cannot move to done, and #21 has to land before #22
-rebases onto the workflow.
+**The binding constraint is review, not build capacity, and a week on
+it has compounded.** All six v2 PRs are `MERGEABLE` and carry zero
+reviews: #20 has been open since 1 Sep, #21 and #22 since 2 Sep, #24,
+#25 and #26 since 8 Sep. Nothing is *blocked* by that -- the next items
+start in order anyway, which is exactly how the queue grew -- but no
+count can move to done, #21 has to land before #22 rebases onto the
+workflow, and the review cost of the stack rises with every branch
+added on top of an unread one.
 
 **The reviewer is named: Sergey (`rogaldh`).** Answered on the
 2026-09-04 call, which also removes the ask this board used to carry.
@@ -102,9 +114,10 @@ to **#23 first**, the one PR outside the launch scope, while #20 has
 been waiting since 1 Sep. The two PRs that are ours (#21, #22) still
 cannot be self-approved under branch protection.
 
-Next, in order: M3/M4 on `/api/agent` (~2 h); the three upstream
-demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d);
-the default-build-server switch (D30). Waiting on the owner: the
+Next, in order, with M3/M4 and D30 now done (#25, #22): the three
+upstream demo-path commits (~0.5 d); H1 (~1 d); the durable session
+(~1 d); then week 2's remaining tutorials work -- the round-close docs
+pass and the assets-repository research. Waiting on the owner: the
 production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
 **Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 4 in review
