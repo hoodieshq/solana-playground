@@ -26,6 +26,9 @@ const FILES_FILE: &str = "files.json";
 /// IDL file name
 const IDL_FILE: &str = "idl.json";
 
+/// Maximum program build output stdout length
+const MAX_STDOUT_LEN: usize = 1024 * 1024 * 1024; // 1 MiB
+
 /// Build request
 #[derive(Deserialize)]
 pub struct BuildRequest {
@@ -44,7 +47,9 @@ pub struct BuildRequest {
 /// Build response
 #[derive(Serialize)]
 struct BuildResponse {
-    /// Solana build tools output to `stderr` regardless of the compilation status
+    /// Build output to `stdout` regardless of the compilation status
+    stdout: String,
+    /// Build output to `stderr` regardless of the compilation status (main output)
     stderr: String,
     /// UUID of the program, `None` if the [`BuildRequest`] includes `uuid`
     uuid: Option<String>,
@@ -173,11 +178,8 @@ pub async fn build(Json(payload): Json<BuildRequest>) -> Result<impl IntoRespons
         .await?;
 
     // Check output length
-    if output.stderr.len() > MAX_STDERR_LEN {
-        return Err(anyhow!(
-            "Exceeded maximum build output length: {} > {MAX_STDERR_LEN}",
-            output.stderr.len()
-        ))?;
+    if output.stdout.len() > MAX_STDOUT_LEN || output.stderr.len() > MAX_STDERR_LEN {
+        return Err(anyhow!("Exceeded maximum build output length"))?;
     }
 
     // Check unexpected build process errors (not regular compilation errors)
@@ -188,6 +190,8 @@ pub async fn build(Json(payload): Json<BuildRequest>) -> Result<impl IntoRespons
         ))?;
     }
 
+    let stdout = String::from_utf8(output.stdout)
+        .map_err(|e| anyhow!("Failed to convert stdout output to UTF-8: {e}"))?;
     let stderr = String::from_utf8(output.stderr)
         .map_err(|e| anyhow!("Failed to convert stderr output to UTF-8: {e}"))?;
 
@@ -198,6 +202,7 @@ pub async fn build(Json(payload): Json<BuildRequest>) -> Result<impl IntoRespons
     };
 
     Ok(Json(BuildResponse {
+        stdout,
         stderr,
         uuid: respond_with_uuid.then_some(uuid),
         idl,
