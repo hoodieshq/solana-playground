@@ -22,7 +22,7 @@ describe("experimental.unstable", () => {
     expect(setting?.values).toBeUndefined();
   });
 
-  it("defaults to off, whatever NODE_ENV says", () => {
+  it("defaults to off, as a literal rather than a NODE_ENV rule", () => {
     expect(process.env.NODE_ENV).toBe("test");
     expect(setting?.default).toBe(false);
   });
