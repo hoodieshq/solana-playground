@@ -4,7 +4,10 @@ Every page we publish for the team or the customer - the status board,
 the digest, a walkthrough, a call-prep page - looks like one system,
 and that system is the product's own: `client-v2`'s default theme
 (`Solana V2`, dark). The status board is the reference implementation:
-https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448.
+https://claude.ai/code/artifact/0d8574bd-8e6b-4fd8-9632-09e301829e12
+(the 2026-09-08 evening regeneration; the 2026-09-07 board was deleted).
+The digest beside it:
+https://claude.ai/code/artifact/2c78a1ed-f073-464e-befa-a742518aaa01.
 When in doubt, copy from it rather than invent. Decision: D35.
 
 ## Why
