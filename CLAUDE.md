@@ -12,6 +12,7 @@ if you learn something that contradicts what is written here, fix it here.
 | --- | --- |
 | `docs/product-brief.md` | Why this work exists, the roadmap, principles, open questions for the Foundation |
 | `docs/decisions.md` | What we chose, what we rejected, and what would make us revisit |
+| `docs/upstream-divergences.md` | Every place `client-v2` differs from `client/` and why -- read before a roadmap update, a release, or an upstream sync |
 | `docs/codebase-map.yaml` (+ `.html`) | How the existing client actually works — verified by reading and running, with file paths |
 | `docs/assistant-context.md` | What the in-product assistant knows about itself |
 | `docs/superpowers/specs/` | Design specs for work in progress |
@@ -224,6 +225,9 @@ they render inline.
 
 ## Working agreement
 
+- Record every edit to a pre-existing upstream file, and every behaviour
+  that differs from upstream, in `docs/upstream-divergences.md` in the
+  same round -- with the decision that justifies it (Slava, 2026-09-08).
 - Update `docs/decisions.md` when you make a call worth remembering — especially
   when you reject something. The rejected options are why the next person does
   not re-litigate.

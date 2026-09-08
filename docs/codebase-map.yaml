@@ -661,9 +661,11 @@ upstream_sync:
     upstream: solana-foundation/solana-playground
     fork: hoodieshq/solana-playground
     status: >
-      Zero divergence at the time of mapping. Local master, hoodieshq/master and
-      solana-foundation/master are all at 40050103 (2026-08-06). The fork is a
-      clean 1:1 starting point.
+      Zero divergence at the time of mapping (2026-08-06, 40050103). No longer
+      true for client-v2: it was copied from client/ at 849670c7 (2026-08-05)
+      and has since edited 60 pre-existing upstream files and added 143. The
+      live register is docs/upstream-divergences.md (since 2026-09-08); client/
+      itself is still byte-identical to upstream.
     note: >
       README and CLAUDE.md refer to the upstream org as `solana-playground`; the
       GitHub API reports the fork's parent as `solana-foundation/solana-playground`.

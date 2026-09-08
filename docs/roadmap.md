@@ -115,8 +115,10 @@ to **#23 first**, the one PR outside the launch scope, while #20 has
 been waiting since 1 Sep. The two PRs that are ours (#21, #22) still
 cannot be self-approved under branch protection.
 
-Next, in order, with M3/M4, D30 and the demo-path port now done (#25,
-#22, #27): H1 (~1 d); the durable session (~1 d); then week 2's remaining tutorials work -- the round-close docs
+Next, with M3/M4, D30 and the demo-path port now done (#25, #22, #27):
+**tutorials first** (Slava, 2026-09-08, restating the 2026-09-07
+priority) -- the assets-repository research and the content pipeline
+(D33); H1 (~1 d) and the durable session (~1 d) come after; then week 2's remaining tutorials work -- the round-close docs
 pass and the assets-repository research. Waiting on the owner: the
 production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
@@ -649,6 +651,11 @@ both are the class of bug the StateMachine task predicts: guards that
 live at call sites rather than in a transition table.
 
 ## Upstream drift in `client-v2`
+
+**The register is `docs/upstream-divergences.md`** (since 2026-09-08):
+every behavioural difference, every fork-edited upstream file with the
+side that wins on sync, and every upstream commit not yet in
+`client-v2`. This section is the status; that file is the list.
 
 New as of the 2026-08-27 rebase, and the most expensive thing on this
 page. `client-v2` is a fork copy of `client/`, and `client/` just moved

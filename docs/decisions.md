@@ -1990,6 +1990,11 @@ deliberate act now: run a server from this tree with the feature on,
 point the picker at it, tick the box. That is the pair that was always
 required; the setting only makes the second half visible.
 
+**Recorded** as B1 in `docs/upstream-divergences.md`, the register
+Slava asked for on 2026-09-08 so that a fork default like this one is
+re-decided on purpose at the next roadmap update, release and upstream
+sync rather than rediscovered.
+
 **Revisit when** a hosted server enables `unstable`, or when the
 `/api/build` proxy (D28) fronts one that does. Then the default can
 follow the environment the way upstream's does, and the proxy's
