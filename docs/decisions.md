@@ -1895,3 +1895,44 @@ different look, so it can never be mistaken for a shareable one.
 
 **Revisit when** the product's default theme changes, or when an
 artifact class appears that the style file does not cover.
+
+---
+
+## D36 - `/api/agent` runs for 300 s, and the number is a floor we chose blind
+
+**Date:** 2026-09-08 - **Status:** decided (Slava), PR #25
+
+M4 asked for a `maxDuration` on the streaming rail, on the premise that
+the platform default cuts a long answer off mid-sentence. Acting on it
+turned up a trap worth writing down.
+
+**A `maxDuration` in `vercel.json` overrides the platform default in
+both directions**, and which default applies depends on a project
+setting nobody on our side has checked:
+
+| Compute mode | Default | Max (Enterprise) |
+| --- | --- | --- |
+| Fluid (on by default for projects created since ~2025-04) | 300 s | 800 s |
+| Legacy serverless | 15 s | 900 s |
+
+**Rejected: 60 s**, which is what the first pass set. On legacy it fixes
+the truncation; on Fluid it *causes* it, lowering a 300 s default to 60
+and cutting off exactly the answers M4 exists to protect. A setting that
+is right under one reading and harmful under the other is not a fix.
+
+**Chosen: 300 s** - the one value that is correct either way. It raises
+the legacy default twentyfold and matches the Fluid one, so the change
+is a floor, never a ceiling.
+
+**What this is not.** A duration cap is not truncation handling. The
+proxy now aborts its upstream when the browser leaves and reports a
+failed stream as an SSE `error` event, but the client still cannot tell
+a stream that ended early from one that finished: `openai.ts` returns on
+a bare EOF exactly as on `data: [DONE]` and never reads `finish_reason`.
+That belongs to the error-UX pass, and is recorded so the duration knob
+is not mistaken for the answer.
+
+**Revisit when** somebody with dashboard access confirms whether the
+project runs Fluid compute (Settings -> Functions). The number can then
+be chosen on evidence rather than on the safe overlap; the table and the
+open check live in `client-v2/docs/deploy-client-vercel.md`.

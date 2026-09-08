@@ -115,10 +115,20 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
       `/api/build` proxy (D28) -- **PR #22**; covers the deploy round
       trip too (the allowlist gates every route); cheap H1 rides along
 - [x] review · M3 + M4 on `/api/agent` (null body -> 500; no
-      `maxDuration`) -- **PR #25** (2026-09-08): a non-object body
-      answers 400, `api/agent.mjs` gets `maxDuration: 60` in
-      `vercel.json`; pinned by an integration spec against the real
-      handler
+      `maxDuration`) -- **PR #25** (2026-09-08). Grew on review, and
+      each addition is the same defect seen properly: the body reader is
+      now one shared module, so `/api/mcp` -- which carried a byte-identical
+      copy and destructured `null` outside its own try -- stops answering
+      500 too; the truthiness check that made a pre-parsed `null` read as
+      `{}` on Vercel is gone, which is where the report came from; and
+      `maxDuration` is **300, not 60**, because a value there overrides the
+      platform default in both directions and 60 would have *lowered* it
+      on Fluid compute -- causing the truncation it was meant to prevent.
+      The raised ceiling also forced the streaming path to be honest: the
+      upstream is aborted when the browser leaves, and a stream that ends
+      early says so instead of passing half an answer off as whole.
+      280 tests / 30 suites; verified by hand,
+      `docs/internal/assets/2026-09-08-pr25/curl-agent-mcp.txt`
 - [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
       `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes) --
       **est ~0.5 d**
@@ -139,7 +149,7 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
 
-**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 2 in review
+**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 3 in review
 · the week is deliberately all tutorials and stays there (2026-09-04
 call); week 1 is effectively closed and much of this week was built
 ahead of it
@@ -151,9 +161,15 @@ ahead of it
       friction log (`attempt` payload; the cursor's multi-step `graded`
       fixpoint), the one-way-rollback note beside D25, one walkthrough
       refresh -- **est ~3 h**
-- [ ] next · Readiness explainer (`needs-build` / wallet / cluster /
-      sol) -- consciously out of #20; **est ~1.5 d**, and it is the
-      cheapest visible thing available to start today (stacked on #20)
+- [x] review · Readiness explainer (`needs-build` / wallet / cluster /
+      sol) -- consciously out of #20, done 2026-09-08 as **PR #26**
+      (stacked on #24). A pure `readiness(condition, env)` beside
+      `verify.ts`: only a deploy has preconditions, and the band names
+      each with a live remedy rather than letting the step fail. Two
+      honesty rules: a balance the client does not know is never guessed
+      at, and a *low* balance is the deploy command's call, since it
+      knows the real cost. `needs-sol` states the whole chain -- sign in,
+      then airdrop -- because #9 put the devnet airdrop behind sign-in
 - [x] review · Entering a lesson is legible (D34): clicking a tutorial
       lands on the tutorial, the reader is signposted before the code,
       closing something leaves you somewhere -- the tech lead's own
@@ -629,9 +645,14 @@ merge task.
   2026-09-08 as a draft **stacked on #20** (base `feat/lesson-ledger`);
   it merges after #20, or its base is retargeted to `master-2.0` once
   #20 lands.
-- **#25** `fix/agent-null-body-timeout` -- M3 + M4 on `/api/agent`,
-  opened 2026-09-08 as a draft off `master-2.0`; independent of the
-  others.
+- **#25** `fix/agent-null-body-timeout` -- M3 + M4 on `/api/agent`, and
+  on review the same body defect in `/api/mcp` plus the streaming path
+  the raised duration cap exposed; opened 2026-09-08 as a draft off
+  `master-2.0`; independent of the others.
+- **#26** `feat/lesson-readiness` -- the readiness explainer (week 2),
+  opened 2026-09-08 as a draft **stacked on #24**, which is itself
+  stacked on #20. The stack merges bottom-up, or each base is retargeted
+  as the one below it lands.
 
 Branch protection stays as it was: PR + **one approval** + signed
 commits, and nothing merges on a comment alone.

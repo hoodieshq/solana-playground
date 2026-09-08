@@ -1,0 +1,38 @@
+M3 verified by hand, 2026-09-08, against `yarn dev` (the D20 dev
+middleware serving api/*.mjs), with AGENT_BASE_URL pointed at an
+unreachable host -- the 400 is reached before any upstream call, so no
+network is needed and no key is spent.
+
+$ curl -s -X POST localhost:3000/api/agent -H 'content-type: application/json' -d 'null'
+400 {"error":"Malformed request body: Expected a JSON object"}
+    (before this change: 500, an unhandled TypeError on `body.messages`)
+
+$ curl -s -X POST localhost:3000/api/agent -d '[]'
+400 {"error":"Malformed request body: Expected a JSON object"}
+
+$ curl -s -X POST localhost:3000/api/agent -d '42'
+400 {"error":"Malformed request body: Expected a JSON object"}
+
+$ curl -s -X POST localhost:3000/api/agent -d '{}'
+400 {"error":"`messages` must be a non-empty array."}
+    (unchanged -- an object with nothing in it is a different mistake)
+
+$ curl -s -X POST localhost:3000/api/agent -d '{not json'
+400 {"error":"Malformed request body: Expected property name or '}' in JSON at position 1 (line 1 column 2)"}
+    (unchanged -- JSON.parse's own message still reaches the client)
+
+$ curl -s localhost:3000/api/agent
+200 {"configured":true,"model":"test-model"}
+    (discovery still answers; the key never leaves the server)
+
+The same defect one file over, fixed by the same shared reader:
+
+$ curl -s -X POST localhost:3000/api/mcp -H 'content-type: application/json' -d 'null'
+400 {"error":"Expected a JSON object"}
+    (before this change: 500, an unhandled TypeError destructuring `body`)
+
+$ curl -s -X POST localhost:3000/api/mcp -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+202 (no body -- a notification expects none)
+
+$ curl -s localhost:3000/api/health
+200 {"ok":true,"node":"v22.23.2","at":"2026-09-08T01:30:49.739Z"}
