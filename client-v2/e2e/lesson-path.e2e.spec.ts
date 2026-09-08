@@ -58,7 +58,7 @@ test("opens an unstarted tutorial from an active project", async ({ page }) => {
 /**
  * The path this covers: `views/flow/lessons/paths/hello-anchor.ts`. Its
  * step 1 (`write-program`) has no attempt recorded and no page verified,
- * so the band still names it "aiming at build" and the assistant action
+ * so the rail still names it "build to prove this" and the assistant action
  * is at rung zero.
  */
 test("a lesson step is finished by the toolchain, not by a click", async ({
@@ -98,7 +98,7 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // The rail switches to the lesson's steps, and the band names step 1.
   // `hello-anchor.ts` has four steps, so this is also a count check.
   //
-  // This, and everything up to the "aiming at build" assertion below, is
+  // This, and everything up to the "build to prove this" assertion below, is
   // Flow's own outer chrome -- it mounts regardless of whether the main
   // surface underneath is `LessonSurface` or upstream's own `Tutorial`,
   // so none of it actually guards the bug two commits back in this
@@ -106,20 +106,25 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // assertion right after this block is the one that does: see its own
   // comment.
   await expect(page.getByRole("tab", { name: "Steps" })).toBeVisible();
-  await expect(page.getByText("Step 1 of 4")).toBeVisible();
+  // "Step 1 of 4" is on the page twice on entry -- the band's eyebrow and
+  // the open reader's -- and the band renders first in DOM order.
+  await expect(page.getByText("Step 1 of 4").first()).toBeVisible();
 
-  // The objective text is rendered twice at once -- once in the band,
-  // once in the step rail's own row for the current step -- so scope to
-  // the band's own text block (the "Step 1 of 4" eyebrow's parent) to
-  // keep this a single-element locator.
-  const band = page.getByText("Step 1 of 4").locator("..");
+  // The objective text is rendered more than once -- in the band, in the
+  // step rail's own row for the current step, in the reader's bar -- so
+  // scope to the band's own text block (its eyebrow's parent) to keep
+  // this a single-element locator.
+  const band = page.getByText("Step 1 of 4").first().locator("..");
   await expect(
     band.getByText("Define the hello instruction and log a message")
   ).toBeVisible();
 
   // Nothing has been verified yet, so the rail still names what the
-  // current step is aiming at rather than marking it done.
-  await expect(page.getByText("aiming at build")).toBeVisible();
+  // current step is aiming at rather than marking it done. `exact` and
+  // the case matter: the band's primary is "Build to prove this".
+  await expect(
+    page.getByText("build to prove this", { exact: true })
+  ).toBeVisible();
 
   // The one assertion in this test that actually guards the Start-time
   // bug: the main surface has to be `LessonSurface` (editor alone), not
@@ -138,15 +143,21 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // is on the page; if `LessonSurface` is mounted, it is not.
   await expect(page.getByText("Next", { exact: true })).toHaveCount(0);
 
-  // The page opens over the editor and closes again.
-  await page.getByRole("button", { name: "Read the page" }).click();
+  // Entering the lesson lands on its page (D34): the sheet is open with
+  // no click, its footer names the way on, and closing it leaves the
+  // band pointing at the code with the plain label -- the record now
+  // knows the page was opened, so the "read first" signpost has rested.
   await expect(
     page.getByRole("dialog", { name: /hello instruction/i })
   ).toBeVisible();
+  await expect(page.getByText("Back to the code")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("dialog", { name: /hello instruction/i })
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Read the page" })
+  ).toBeVisible();
 
   // The first ask opens the door rather than answering outright. The e2e
   // has no connected model, so there is no transcript to assert on --
