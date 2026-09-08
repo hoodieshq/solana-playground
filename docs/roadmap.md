@@ -163,7 +163,7 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
 
-**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 3 in review
+**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 2/7 done, 3 in review
 · the week is deliberately all tutorials and stays there (2026-09-04
 call); week 1 is effectively closed and much of this week was built
 ahead of it
@@ -171,10 +171,14 @@ ahead of it
 - [x] review · Implement the ledger (events, folds, migration, band,
       rail) -- **PR #20**; trivial `Chat.tsx` conflict with #21, take
       #20's side
-- [ ] next · Round-close docs pass: two spec amendments from the
-      friction log (`attempt` payload; the cursor's multi-step `graded`
-      fixpoint), the one-way-rollback note beside D25, one walkthrough
-      refresh -- **est ~3 h**
+- [x] done · Round-close docs pass (2026-09-08): three spec amendments
+      from the friction log -- `attempt` carries `startedAt`, the
+      cursor's `graded` rule is a fixpoint rather than one application,
+      and the escape-valve guard reads "not the toolchain" so a migrated
+      record can replay its own skips -- plus the one-way-rollback note
+      beside D25: a pre-ledger build does not lose a migrated learner's
+      progress, it takes their whole client down. **Left**: the
+      walkthrough artifact refresh
 - [x] review · Readiness explainer (`needs-build` / wallet / cluster /
       sol) -- consciously out of #20, done 2026-09-08 as **PR #26**
       (stacked on #24). A pure `readiness(condition, env)` beside

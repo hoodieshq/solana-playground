@@ -123,13 +123,21 @@ Every event carries `seq`, `at` and `actor`.
 | `pass(i)` | the learner moves past `i` without proof |
 | `attest(i)` | the learner affirms an attestation-kind step |
 | `move(j)` | the learner moves the cursor to `j` |
-| `attempt` | a build started |
+| `attempt(startedAt)` | a build started |
 | `hint(i, rung)` | a hint rung was spent on `i` |
 
 There is no `checked(i, true)`: an on-demand grader that says yes emits
 `graded`, the same event the synchronous ones produce, so `checked` only
 ever records a negative. One outcome, one event kind - a grader cannot
 report success two different ways.
+
+**Amended 2026-09-02 (implementation, PR #20):** `attempt` carries
+`startedAt`, the flow's own `buildStartedAt`. The store learns about
+builds from `PgFlow.onDidChange`, which fires on every state change and
+not once per build, so without an identity on the event a single build
+would be recorded as an attempt once per notification. `startedAt` is an
+honest fact about the attempt - when its build started - and it doubles
+as the dedupe key.
 
 ### The ledger fold
 
@@ -177,6 +185,16 @@ Every guard reads *this event*, never the accumulated fold.
 
 The third row is D-a, fixed by asking the question the old code could
 not.
+
+**Amended 2026-09-02 (implementation, PR #20):** the second row applies
+as a **fixpoint, not once**. Several steps can prove in one event - the
+learner who builds and deploys before reading, this spec's own example
+under *grading is per step* - and applying the rule a single time moves
+the cursor from step 0 to step 1 while step 1 is also in `S`, stranding
+the learner on a step that just proved instead of at the frontier. The
+cursor therefore walks while its own step is in the event's set, and
+stops at the first position that is not. It is still a guard on the
+event and never on the accumulated fold, so D-a is untouched.
 
 ### Legality only grows
 
@@ -383,6 +401,14 @@ not "the agent did", but "the learner accepted the agent's proposal at
 through a whole path unaided, which is the failure the escape valve
 exists to make visible, not to automate. Cursor `move` events follow the
 same rule: proposing is automatic, moving is not.
+
+**Amended 2026-09-02 (implementation, PR #20):** the guard on `pass` and
+`attest` is written as *not the toolchain*, not as *the learner*. A v1
+record migrates into events carrying `actor: "unknown"` -- the migration
+cannot claim a provenance nobody recorded -- and those events must still
+travel the escape-valve edges, or a migrated record could not replay its
+own skips. `unknown` therefore counts as human for the guard's purpose,
+while still reading as unknown in the record.
 
 ## The hint ladder and `attempted`
 

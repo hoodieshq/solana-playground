@@ -1294,6 +1294,17 @@ the record say who advanced a step honestly, and it keeps the escape
 valve something a learner takes rather than something an agent can
 automate.
 
+**Rollback is one-way, found while implementing (2026-09-02).** Once a
+learner's record has migrated to `{ v: 2, events }`, a pre-ledger build
+does not merely lose their progress - it takes the whole client down for
+them. The project switcher renders every lesson's progress by spreading
+`completedStepIds`, which no longer exists on the record, so the app
+lands in its full-screen error boundary rather than in one broken panel.
+The spec never promised forward compatibility; the blast radius is what
+is worth knowing. **If a rollback is ever needed it has to ship with a
+guard that reads a `v: 2` record as `loadFailed` rather than as
+progress.**
+
 **Revisit when** Cat settles step 3's wording, which the mechanism now
 allows but does not decide; or when a second lesson path lands, since
 step ids are still not path-scoped.
