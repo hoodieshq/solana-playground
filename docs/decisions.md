@@ -1489,6 +1489,25 @@ paths; production does the same through one `vercel.json` rewrite.
 **Revisit when** the Foundation answers the allowlist ask, or when
 build volume makes proxying their server impolite.
 
+**Amended 2026-09-08 -- overturned on review, pending our answer.**
+Sergey's review of PR #22 disputes the premise for the server that
+matters: the measurement above was against `api.solpg.io`, but D30
+(2026-09-04) made the Foundation's App Engine deployment the default,
+and that server is deployed by *this repository's* `cicd.yml` with a
+`PG_CLIENT_URLS` allowlist that already covers production, previews,
+`beta.solpg.io` and `localhost` (committed before #22's base). He
+verified an `OPTIONS /build` with the production origin live. So D30
+made D28 moot, and the proxy's remaining merits do not hold: the
+upstream URL ships in the bundle anyway, and rate limiting is neither
+implemented nor a chokepoint while direct hosts stay pickable. Costs
+he names: a 60 s ceiling on builds that had none, two streaming bugs,
+no logging, a second config surface. His ask: keep the D30 default,
+the picker, `default-endpoint.ts` and `.env.example`; drop
+`api/build.mjs`, the build-proxy feature, the rewrites and
+`BUILD_SERVER_URL`. The register entry B2 in
+`docs/upstream-divergences.md` carries the same status. Not yet
+answered; the rework is the next move on `feat/api-build-proxy`.
+
 ---
 
 ## D29 - Hosting is Vercel; the client's long-term shape is Next

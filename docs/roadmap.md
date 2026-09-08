@@ -1,6 +1,9 @@
 # Roadmap and status
 
-Updated: 2026-09-08 -- PR #27 (upstream demo-path port, D37) opened;
+Updated: 2026-09-08 (evening) -- **first reviews from Sergey: #21
+approved, #22 changes requested (drop the proxy, keep D30)**; PR #27
+(upstream demo-path port, D37) opened and ready for review; the
+upstream-divergences register started;
 PRs #24, #25 and #26 opened, D30 folded into #22, D36 recorded; 2026-09-07 folded in the 2026-09-04 tech-lead call. One
 page for the whole effort, in the shape the board uses: **initiative ->
 tracks -> items**, every item with a status and, where it applies,
@@ -99,36 +102,48 @@ weeks that look different:
   -- internal kitchen, by the same rule that keeps dev tooling off this
   page. It is not deprioritised; it is not a roadmap item.
 
-**The binding constraint is review, not build capacity, and a week on
-it has compounded.** All six v2 PRs are `MERGEABLE` and carry zero
-reviews: #20 has been open since 1 Sep, #21 and #22 since 2 Sep, #24,
-#25 and #26 since 8 Sep. Nothing is *blocked* by that -- the next items
-start in order anyway, which is exactly how the queue grew -- but no
-count can move to done, #21 has to land before #22 rebases onto the
-workflow, and the review cost of the stack rises with every branch
-added on top of an unread one.
+**The review queue started moving on 2026-09-08.** Sergey
+(`rogaldh`) reviewed the two launch-floor PRs first, not #23:
 
-**The reviewer is named: Sergey (`rogaldh`).** Answered on the
-2026-09-04 call, which also removes the ask this board used to carry.
-The open risk is the queue's order rather than its owner: he committed
-to **#23 first**, the one PR outside the launch scope, while #20 has
-been waiting since 1 Sep. The two PRs that are ours (#21, #22) still
-cannot be self-approved under branch protection.
+- **#21 approved** (14:57). It can merge; nothing else is needed.
+- **#22 changes requested** (14:43), with a written verdict: the
+  `/api/build` proxy "solves a problem this repo does not have" --
+  the default build server is *our own* App Engine deployment
+  (`cicd.yml` deploys `server/app.yaml` to the same service), and its
+  `PG_CLIENT_URLS` allowlist already admits production, previews,
+  `beta.solpg.io` and `localhost`; he verified an `OPTIONS /build`
+  with the production origin live. Costs he names: a 60 s ceiling on
+  builds that had none (a 77 s build is on record), two streaming
+  bugs, no logging, a second config surface. **Keep** (~120 of 777
+  lines): the D30 default and picker, `default-endpoint.ts` and its
+  test, `.env.example`. **Drop**: `api/build.mjs`, the build-proxy
+  feature, the `vercel.json` and craco rewrites, `BUILD_SERVER_URL`.
+  This overturns D28 (amended below and in `decisions.md`); the
+  answer and the rework are the next move on that branch.
+
+Six PRs still carry no review: #20 (since 1 Sep), #23, #24, #25, #26,
+#27. Nothing is blocked by that, but no count can move to done, and
+the review cost of the #20 -> #24 -> #26 stack rises with every branch
+on top of an unread one. Our own PRs cannot be self-approved.
 
 Next, with M3/M4, D30 and the demo-path port now done (#25, #22, #27):
 **tutorials first** (Slava, 2026-09-08, restating the 2026-09-07
 priority) -- the assets-repository research and the content pipeline
-(D33); H1 (~1 d) and the durable session (~1 d) come after; then week 2's remaining tutorials work -- the round-close docs
-pass and the assets-repository research. Waiting on the owner: the
-production GitHub OAuth app. Hosting is answered -- Vercel (D29).
+(D33); H1 (~1 d) and the durable session (~1 d) come after. Before
+any of it: answer Sergey on #22 and rework the branch to what he asked
+to keep. Waiting on the owner: the production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
 **Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 5 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
-- [x] review · Build works on a production domain: same-origin
-      `/api/build` proxy (D28) -- **PR #22**; covers the deploy round
-      trip too (the allowlist gates every route); cheap H1 rides along
+- [ ] review: changes requested · Build works on a production domain
+      -- **PR #22**. Sergey's verdict (2026-09-08): the premise is
+      false for the server D30 made the default, whose allowlist
+      already admits our domains; drop the `/api/build` proxy (D28),
+      keep the D30 default, picker and `.env.example`. The item
+      shrinks to D30 plus one line in `PG_CLIENT_URLS` for any origin
+      we do not control server-side. Rework pending
 - [x] review · M3 + M4 on `/api/agent` (null body -> 500; no
       `maxDuration`) -- **PR #25** (2026-09-08). Grew on review, and
       each addition is the same defect seen properly: the body reader is
@@ -158,7 +173,9 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
       Hand-off to #22: its proxy allowlist still names
       `/unstable/(packages|types)`, which no client asks for now;
       whichever lands second drops them
-- [ ] next · H1: rate limit and caps on `/api/agent` + `/api/build` --
+- [ ] next · H1: rate limit and caps on `/api/agent` (and
+      `/api/build` only if the proxy survives #22's review; the
+      server's own concurrency limit covers builds otherwise) --
       **est ~1 d**
 - [ ] next · Durable session (httpOnly cookie via our `/api`) --
       **est ~1 d**
@@ -686,7 +703,11 @@ merge task.
 - **#20** `feat/lesson-ledger` -- the lesson ledger (D25), in review
   since 2026-09-01; corrections continue in its own session.
 - **#21** `fix/ci-production-bundle` -- production bundle + `client-v2`
-  CI, opened 2026-09-02, the workflow green on its first run (4m04s).
+  CI, opened 2026-09-02, the workflow green on its first run (4m04s);
+  **approved by Sergey 2026-09-08**, ready to merge.
+- **#22** `feat/api-build-proxy` -- the `/api/build` proxy (D28) and
+  the D30 default; **changes requested by Sergey 2026-09-08**: drop
+  the proxy, keep D30. Rework pending on its branch.
   Formats `Chat.tsx:290-292`, which #20 rewrites: whichever lands
   second takes #20's side of a one-line conflict.
 - **#24** `feat/lesson-entry` -- lesson entry legibility (D34), opened
