@@ -146,7 +146,7 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
       `docs/internal/assets/2026-09-08-pr25/curl-agent-mcp.txt`
 - [x] review · Three upstream demo-path commits (`packages`->`bundle`,
       `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes) --
-      **PR #27** (2026-09-08, draft off `master-2.0`). Thirteen upstream
+      **PR #27** (2026-09-08, off `master-2.0`; ready for review since the same evening, after a code-review pass folded in the `ProgramSettings` hunk from `876fa552`). Thirteen upstream
       commits taken, every touched file byte-identical to upstream
       before the port; the one fork edit inside it is the deploy length
       arithmetic pulled into a pure tested module. The unstable routes
@@ -703,8 +703,8 @@ merge task.
   as the one below it lands.
 - **#27** `feat/upstream-demo-path` -- the three upstream demo-path
   changes (bundle route, SIMD-0431, unstable routes behind a setting,
-  D37), opened 2026-09-08 as a draft off `master-2.0`; independent of
-  the others. Spec
+  D37), opened 2026-09-08 off `master-2.0`, ready for review the same day;
+  independent of the others. Spec
   `docs/superpowers/specs/2026-09-08-upstream-demo-path-port-design.md`.
 
 Branch protection stays as it was: PR + **one approval** + signed
