@@ -154,7 +154,11 @@ const Flow = () => {
           <LeftPanel collapsed onToggle={() => setLeftOpen((o) => !o)} />
         )}
         <Center>
-          <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+          <ObjectiveBand
+            state={lesson}
+            onRead={() => setReading(true)}
+            onOpenGallery={openGallery}
+          />
           <Stage>
             <StageRouter stage={state.stage} />
             {reading && readingStep && (
