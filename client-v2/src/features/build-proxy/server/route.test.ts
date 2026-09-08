@@ -5,7 +5,9 @@ import {
   upstreamBase,
 } from "./route.mjs";
 
-const SOLPG = "https://api.solpg.io";
+/** The Solana Foundation's own server -- the default under D30 */
+const FOUNDATION =
+  "https://playground-server-dot-analytics-324114.de.r.appspot.com";
 
 describe("resolveUpstreamPath", () => {
   it("takes the URL remainder under the dev server", () => {
@@ -92,11 +94,18 @@ describe("isCrossSite", () => {
 });
 
 describe("upstreamBase", () => {
-  it("defaults to api.solpg.io and strips a trailing slash", () => {
-    expect(upstreamBase({})).toBe(SOLPG);
+  it("defaults to the Foundation's server, never api.solpg.io (D30)", () => {
+    expect(upstreamBase({})).toBe(FOUNDATION);
+    expect(upstreamBase({ BUILD_SERVER_URL: "  " })).toBe(FOUNDATION);
+    expect(upstreamBase({})).not.toMatch(/solpg\.io/);
+  });
+
+  it("honours BUILD_SERVER_URL and strips a trailing slash", () => {
     expect(upstreamBase({ BUILD_SERVER_URL: "http://localhost:8080/" })).toBe(
       "http://localhost:8080"
     );
-    expect(upstreamBase({ BUILD_SERVER_URL: "  " })).toBe(SOLPG);
+    expect(upstreamBase({ BUILD_SERVER_URL: "https://api.solpg.io" })).toBe(
+      "https://api.solpg.io"
+    );
   });
 });

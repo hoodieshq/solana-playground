@@ -1,13 +1,16 @@
 /**
  * Same-origin proxy to the Solana Playground build server (D28).
  *
- * The Foundation's server answers CORS preflights only for an allowlist of
- * origins (localhost, beta.solpg.io). A production deployment of this fork
- * lives on a domain it does not know, so the browser's direct call dies at
- * the preflight. Server-to-server requests have no preflight: the client
- * talks to this route on its own origin and this route talks to the build
- * server (api.solpg.io unless BUILD_SERVER_URL says otherwise). If the
- * Foundation grants the allowlist entry, this route thins out or disappears.
+ * A build server answers CORS preflights only for an allowlist of origins
+ * (localhost, beta.solpg.io). A production deployment of this fork lives on
+ * a domain it does not know, so the browser's direct call dies at the
+ * preflight. Server-to-server requests have no preflight: the client talks
+ * to this route on its own origin and this route talks to the build server
+ * -- the Solana Foundation's own deployment unless BUILD_SERVER_URL says
+ * otherwise (D30; upstream's api.solpg.io is a choice, never the fallback).
+ * With a default server whose allowlist we set at deploy, the route survives
+ * on its other merits: one origin for the browser, no upstream URL in the
+ * bundle, one place to rate-limit.
  *
  * What it forwards is exactly the client's request surface -- POST /build,
  * GET /deploy/:uuid, GET /unstable/{packages,types}/:name -- and it forwards

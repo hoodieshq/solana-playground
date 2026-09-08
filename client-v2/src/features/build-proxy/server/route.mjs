@@ -18,13 +18,21 @@ export const ROUTES = [
 export const MAX_BODY_BYTES = 1024 * 1024;
 
 /**
- * Upstream's own production deployment, the one D28 measured. The App Engine
- * URL the client's picker calls "Solana Foundation" builds the same program
- * in the same ~4-5 s when idle; both serialize builds behind a file lock, so
- * a build that is still compiling there (this proxy's timeout does not cancel
- * it server-side) makes the next caller wait for it.
+ * The Solana Foundation's own build server -- the App Engine deployment the
+ * client's picker calls "Solana Foundation" and defaults to in production.
+ * Under D30 this is the only default: users served on Solana's domain are
+ * served by infrastructure Solana operates, so a deployment that forgets
+ * `BUILD_SERVER_URL` still lands here and never on upstream's `api.solpg.io`.
+ * That host stays reachable -- set `BUILD_SERVER_URL` to it, or pick it in
+ * the client -- but as a choice, not a fallback.
+ *
+ * Both servers build the same program in the same ~4-5 s when idle, and
+ * both serialize builds behind a file lock, so a build still compiling there
+ * (this proxy's timeout does not cancel it server-side) makes the next
+ * caller wait for it.
  */
-export const DEFAULT_UPSTREAM = "https://api.solpg.io";
+export const DEFAULT_UPSTREAM =
+  "https://playground-server-dot-analytics-324114.de.r.appspot.com";
 
 /**
  * The build-server path this request asks for.
