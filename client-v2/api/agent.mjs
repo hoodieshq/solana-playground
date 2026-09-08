@@ -14,6 +14,10 @@
  * before it is pointed at a paid account.
  *
  * Plain ESM on raw Node request/response APIs — see `api/health.mjs` for why.
+ *
+ * The answer is streamed, so this function has to be allowed to live as long
+ * as a long answer takes: `vercel.json` gives it its own `maxDuration`, since
+ * the platform default cuts the stream off mid-sentence.
  */
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
@@ -125,6 +129,14 @@ export default async function handler(req, res) {
   } catch (e) {
     return sendJson(res, 400, {
       error: `Malformed request body: ${e.message}`,
+    });
+  }
+
+  // `JSON.parse` happily returns `null`, a number or an array, and reading
+  // `.messages` off `null` used to throw past the try above into a 500
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return sendJson(res, 400, {
+      error: "The request body must be a JSON object.",
     });
   }
 
