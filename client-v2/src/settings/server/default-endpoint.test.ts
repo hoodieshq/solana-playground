@@ -1,9 +1,37 @@
 import {
   defaultServerEndpoint,
+  FOUNDATION_ENDPOINT,
   SAME_ORIGIN_ENDPOINT,
+  SERVER_ENDPOINT_OPTIONS,
+  SOLPG_ENDPOINT,
 } from "./default-endpoint";
 
 const LOCAL = "http://localhost:8080";
+
+describe("SERVER_ENDPOINT_OPTIONS", () => {
+  it("offers upstream's api.solpg.io as a labelled choice, after Solana's", () => {
+    const names = SERVER_ENDPOINT_OPTIONS.map((o) => o.name);
+    const solpg = SERVER_ENDPOINT_OPTIONS.find(
+      (o) => o.value === SOLPG_ENDPOINT
+    );
+    expect(SOLPG_ENDPOINT).toBe("https://api.solpg.io");
+    expect(solpg?.name).toBe("SolPg (original backend)");
+    expect(names.indexOf("Solana Foundation")).toBeLessThan(
+      names.indexOf("SolPg (original backend)")
+    );
+    expect(
+      SERVER_ENDPOINT_OPTIONS.find((o) => o.name === "Solana Foundation")?.value
+    ).toBe(FOUNDATION_ENDPOINT);
+  });
+
+  it("never defaults to api.solpg.io (D30)", () => {
+    for (const env of ["production", "development", "test"]) {
+      expect(
+        defaultServerEndpoint({ NODE_ENV: env }, { local: LOCAL })
+      ).not.toBe(SOLPG_ENDPOINT);
+    }
+  });
+});
 
 describe("defaultServerEndpoint", () => {
   it("is the same-origin proxy in production", () => {
