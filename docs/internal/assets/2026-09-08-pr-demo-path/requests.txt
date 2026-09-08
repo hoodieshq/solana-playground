@@ -17,3 +17,7 @@ $pminstall
 Processerror:Serverrequestfailed(https://playground-server-dot-analytics-324114.de.r.ap
 pspot.com/bundle):
 $
+
+# Re-run 2026-09-08 after 'git submodule update' + 'make update-static' (assets at 1098ecfa):
+# the first run above fetched /frameworks/package.json as index.html (SPA fallback, 200)
+# and posted HTML as the manifest; see requests-pm.txt for the real one

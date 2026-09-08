@@ -31,7 +31,7 @@ row: what differs, why, the decision, and what to do on sync / release.
 
 | # | Divergence | Why | Decision | On sync | On release |
 | --- | --- | --- | --- | --- | --- |
-| B1 | `experimental.unstable` defaults to **`false` everywhere**; upstream defaults to `NODE_ENV !== "production"` | No hosted build server enables the `unstable` feature; upstream's default turns every dev build into a 404 | D37 (PR #27) | `settings/experimental/experimental.ts` is ours by one line; keep ours. When upstream's `876fa552` arrives, take everything but the `default` | If a production server ever enables `unstable`, revisit the default and the `/api/build` allowlist |
+| B1 | `experimental.unstable` defaults to **`false` everywhere**; upstream defaults to `NODE_ENV !== "production"` | No hosted build server enables the `unstable` feature; upstream's default turns every dev build into a 404 | D37 (PR #27) | `settings/experimental/experimental.ts` is ours by one line (`default`) and the description wording; keep ours. `876fa552`'s other four files are already verbatim | If a production server ever enables `unstable`, revisit the default and the `/api/build` allowlist |
 | B2 | Default build server in production is the **same-origin `/api/build` proxy**, forwarding to the Foundation's App Engine server; upstream talks to `api.solpg.io` directly | The Foundation's server allowlists origins and a fork deployment is not on the list (D28); Solana's users are served by Solana's infrastructure, not Acheron's (D30) | D28, D30 (PR #22) | `settings/server/server.ts` and `default-endpoint.ts` are ours; upstream's `server.ts` setting is a two-line default -- never take it | `BUILD_SERVER_URL` must be set at deploy; the fallback is the Foundation, never `api.solpg.io` |
 | B3 | Deploy's upgrade length arithmetic lives in **`commands/deploy/additional-len.ts`** (pure, 6 tests); upstream inlines it in `deploy.ts` | `deploy.ts` is hot (29 upstream commits / 6 months) and untestable without the whole module; the merge-safety rule asks for a two-line delegate | Spec 2026-09-08 demo-path port, confirmed by Slava 2026-09-08 (PR #27) | When `getAdditionalLen` changes upstream, port the change into `additional-len.ts` and keep the delegate | none |
 | B4 | The client boots on **Flow** (stepper, stages, left/right panels) instead of upstream's sidebar-and-tabs layout; classic behind a flag | The product is the dev loop as navigation | D10, D17, D18 | Flow is all new files under `views/flow/`; the touch points in upstream files are listed in section 2 | Flow *is* the product surface |
@@ -89,6 +89,7 @@ next sync**; the *Why* column says which side wins.
 | `src/utils/wallet/wallet.ts` | GitHub identity (D21); port of `ef8ba918` (PR #27); **hot** | merge |
 | `src/utils/web3/bpf-loader-upgradeable.ts` | port of `4e7a933b` (PR #27) | identical to upstream at `57479351` |
 | `src/views/index.ts`, `src/views/sidebar/index.ts`, `src/views/sidebar/sidebar.ts`, `src/views/sidebar/create.ts` | assistant page registered (D2, D15) | ours; cold registries |
+| `src/views/sidebar/build-deploy/Component/ProgramSettings/ProgramSettings.tsx` | port of `876fa552` (PR #27) | identical to upstream at `876fa552` |
 | `src/views/sidebar/build-deploy/build-deploy.ts`, `src/views/sidebar/explorer/explorer.ts`, `src/views/sidebar/programs/programs.ts`, `src/views/sidebar/test/test.ts`, `src/views/sidebar/tutorials/tutorials.ts` | sidebar pages re-homed for Flow (#5, D15, D16) | ours |
 | `src/views/sidebar/explorer/Component/ExplorerButtons.tsx`, `Folders.tsx`, `Workspaces.tsx`, `Modals/DeleteWorkspace.tsx` | Flow parity (#10), theme (D9), tutorials (#19) | merge |
 
@@ -123,7 +124,7 @@ Deleted relative to upstream: `public` (the submodule; B13).
 | `e3a221b1` | 09-04 | Fix being unable to pass `PgExplorer.getRelativePath` as a callback | safe |
 | `da2528b4` | 09-05 | Cache package import `Blob` URLs in `PgJsPackage` | take with the next sync; `js-package.ts` is verbatim upstream |
 | `2519b9cf` | 09-06 | Fix method name inconsistencies | rename sweep; check the assistant bridge |
-| `876fa552` | 09-07 | Add `experimental.unstable` setting | **already ported in PR #27, one line differs (B1)** |
+| `876fa552` | 09-07 | Add `experimental.unstable` setting | **ported whole in PR #27** (setting, `server.ts`, template, `helper.ts`, `ProgramSettings.tsx`); only the `default` differs (B1) |
 
 ### 3c. In `upstream/master` beyond `master-2.0` (server, 8)
 

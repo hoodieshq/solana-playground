@@ -1,0 +1,17 @@
+<- 200 http://localhost:3000/frameworks/anchor/icon.png content-type=image/png
+<- 200 http://localhost:3000/frameworks/native/icon.png content-type=image/png
+<- 200 http://localhost:3000/frameworks/seahorse/icon.png content-type=image/png
+<- 304 http://localhost:3000/frameworks/anchor/icon.png content-type=undefined
+<- 304 http://localhost:3000/frameworks/native/icon.png content-type=undefined
+<- 304 http://localhost:3000/frameworks/seahorse/icon.png content-type=undefined
+<- 200 http://localhost:3000/frameworks/package.json content-type=application/json; charset=UTF-8
+<- 200 http://localhost:3000/frameworks/yarn.lock content-type=application/octet-stream
+-> POST https://playground-server-dot-analytics-324114.de.r.appspot.com/bundle
+<- 404 https://playground-server-dot-analytics-324114.de.r.appspot.com/bundle
+manifest sent to /bundle starts with: "{\n  \"name\": \"@solana-playground/js-runtime-packages\",\n  \"des"
+--- terminal tail ---
+Typehelptoseeallcommands.
+$pminstall
+pminstallProcesserror:Serverrequestfailed(https://playground-server-dot-analytics-3241
+14.de.r.appspot.com/bundle):
+$

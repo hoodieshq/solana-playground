@@ -45,7 +45,10 @@ overview:
     server/src/main.rs: >
       axum Router; binds 0.0.0.0:PG_PORT. Routes: POST /build, GET
       /deploy/{uuid}, GET /share/{id}, POST /new, and behind the `unstable`
-      cargo feature GET /unstable/packages/{*name} and /unstable/types/{*name}.
+      cargo feature POST /unstable/build (sandboxed), GET
+      /unstable/deploy/{uuid} and POST /unstable/bundle (upstream 3e72bea6
+      replaced the packages/types routes; neither hosted server enables the
+      feature as of 2026-09-08, see docs/upstream-divergences.md B1).
     wasm/build.sh: >
       Builds the six from-source WASM packages with wasm-pack.
 

@@ -159,3 +159,19 @@ consequence is a question to ask, not to derive.
   `M client/public` for days. Harmless until something reads the new
   files; `git submodule update` and `make update-static` are the fix,
   and nothing in the tree reminds anyone.
+- **Server-supplied JS runs in the main window, and now persists.**
+  `PgJsPackage.importChunk` executes bundle code from the build server
+  through a same-origin Blob `import()` with the page's full reach,
+  `localStorage` and the built-in wallet included. `PgServer.packages`
+  did the same, so PR #27 widens nothing -- but the code is now stored
+  under `.workspace/js-packages` and re-executed in later sessions, and
+  `window.__pgImportChunk` lets any loaded bundle read any file there.
+  Behind `experimental.unstable = false` and a user-chosen server, which
+  is the right gate; the assistant's own security story leans on the
+  iframe blacklist, which this path never passes through. For the
+  Foundation conversation. Raised by the PR #27 code review.
+- **The dev server's SPA fallback hides missing assets.** Any unknown
+  path answers `index.html` with 200, so a fetch-then-parse of a missing
+  static file succeeds with HTML in hand. It made the first `pm install`
+  hand-check of PR #27 hollow. The same trap already bit the Rust
+  Analyzer crate assets (`common.fetch.test.ts`'s reason to exist).

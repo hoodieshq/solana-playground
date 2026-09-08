@@ -42,9 +42,12 @@ Two facts checked on 2026-09-08 change how the third item is taken:
   submodule at `1098ecfa`, which `master-2.0` pins for `client/public`,
   carries `frameworks/package.json` and `frameworks/yarn.lock`;
   `make update-static` mirrors them into `client-v2/public`. No repo
-  change, but the primary checkout's submodule is stale at `df14c26e`
-  (`git status` shows `M client/public`) and needs
-  `git submodule update`.
+  change, but the primary checkout's submodule was stale at `df14c26e`
+  (`git status` showed `M client/public`) until `git submodule update`
+  on 2026-09-08. **Without it the fallback is silently wrong in
+  development**: the dev server answers an unknown path with
+  `index.html` and status 200, so `fetchText` does not throw and
+  `pm install` posts HTML as the manifest. Found by the code review.
 
 ## Scope
 
