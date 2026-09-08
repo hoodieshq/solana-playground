@@ -8,6 +8,7 @@ const DEPLOYED: VerifyCondition = { kind: "deployed" };
 const READY: ReadinessEnv = {
   build: "done",
   built: true,
+  lastBuildFailed: false,
   wallet: true,
   balance: 2.5,
   cluster: "devnet",
@@ -58,6 +59,24 @@ describe("readiness", () => {
     ]);
   });
 
+  it("says a deploy would upload the previous build after a failure", () => {
+    // `checkProgram` in `commands/deploy/deploy.ts` warns that the server
+    // kept the last successful binary and asks whether to deploy it
+    // anyway, defaulting to no. A learner who never sees that prompt
+    // would otherwise prove the step with code that is not theirs.
+    expect(blockers({ lastBuildFailed: true })).toEqual([
+      { kind: "needs-rebuild" },
+    ]);
+  });
+
+  it("asks for a first build rather than a rebuild when there is none", () => {
+    // Nothing was ever built, so "the last build failed" would be a
+    // confusing way to say "there is no build"
+    expect(
+      kinds({ build: "failed", built: false, lastBuildFailed: true })
+    ).toEqual(["needs-build"]);
+  });
+
   it("does not ask for a build a reload only forgot", () => {
     // `PgFlow` is memory-only and starts over at `upcoming`; the program's
     // build-server uuid is on disk, so the deploy would in fact succeed
@@ -104,6 +123,7 @@ describe("readiness", () => {
     const bare: ReadinessEnv = {
       build: "upcoming",
       built: false,
+      lastBuildFailed: true,
       wallet: false,
       balance: 0,
       cluster: null,
@@ -128,6 +148,12 @@ describe("readinessLine", () => {
       { kind: "needs-wallet" },
     ]);
     expect(building?.lead).toBe("Before you can build:");
+  });
+
+  it("names a stale binary as the risk it is", () => {
+    expect(
+      readinessLine(DEPLOYED, [{ kind: "needs-rebuild" }])?.items[0].text
+    ).toBe("build again -- the last build failed");
   });
 
   it("says what stands in the way, each with its remedy", () => {

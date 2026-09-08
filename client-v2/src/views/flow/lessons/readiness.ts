@@ -21,6 +21,14 @@ export type Blocker =
   /** No successful build to deploy. `running` while one is in flight,
    * where there is nothing to click and nothing to fix -- only to wait */
   | { kind: "needs-build"; running: boolean }
+  /**
+   * A build exists, but the last one failed. The build server keeps the
+   * previous binary, so a deploy now would upload code the learner did
+   * not write -- and prove the step with it. `checkProgram` in
+   * `commands/deploy/deploy.ts` asks about exactly this, in a terminal
+   * prompt that defaults to no and that a collapsed console hides.
+   */
+  | { kind: "needs-rebuild" }
   /** No wallet to sign with */
   | { kind: "needs-wallet" }
   /** The lesson deploys to devnet and the client points somewhere else */
@@ -43,6 +51,9 @@ export interface ReadinessEnv {
    * deploy that "needs a build" would in fact have succeeded.
    */
   built: boolean;
+  /** Whether the most recent build attempt failed, which the build
+   * server outlives: it still holds the last binary that compiled */
+  lastBuildFailed: boolean;
   wallet: boolean;
   /** SOL, or `null` while unknown -- never guessed about */
   balance: number | null;
@@ -75,6 +86,11 @@ export const readiness = (c: VerifyCondition, env: ReadinessEnv): Blocker[] => {
           kind: "needs-build",
           running: env.build === "running",
         });
+      } else if (env.lastBuildFailed) {
+        // Only once something has been built: with nothing to fall back
+        // to, "the last build failed" is a confusing way to say "there
+        // is no build", and the line above already says the plain thing
+        blockers.push({ kind: "needs-rebuild" });
       }
       if (!env.wallet) blockers.push({ kind: "needs-wallet" });
       // Before the SOL question, because an airdrop on the wrong cluster
@@ -131,6 +147,8 @@ const itemText = (b: Blocker): string => {
   switch (b.kind) {
     case "needs-build":
       return b.running ? "building..." : "build first";
+    case "needs-rebuild":
+      return "build again -- the last build failed";
     case "needs-wallet":
       return "connect a wallet";
     case "needs-cluster":

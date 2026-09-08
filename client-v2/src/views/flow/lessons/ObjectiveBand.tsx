@@ -131,9 +131,12 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
         step.verify,
         readiness(step.verify, {
           build: flow.build,
+          // The same expression `checkProgram` uses in the deploy
+          // command, so the explainer asks what the command asks
           built:
             !!PgProgramInfo.uuid ||
             !!PgProgramInfo.importedProgram?.bytes.length,
+          lastBuildFailed: !!PgProgramInfo.lastBuildFailed,
           wallet: !!wallet,
           balance: typeof balance === "number" ? balance : null,
           cluster: cluster ?? null,

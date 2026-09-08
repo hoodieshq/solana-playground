@@ -16,6 +16,7 @@ import { PgCommand, PgSettings, PgTerminal } from "../../../utils";
 export const remedy = (b: Blocker): (() => void) => {
   switch (b.kind) {
     case "needs-build":
+    case "needs-rebuild":
       return () => PgCommand.build.execute();
 
     case "needs-wallet":

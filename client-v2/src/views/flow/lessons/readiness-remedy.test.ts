@@ -45,6 +45,11 @@ describe("remedy", () => {
     expect(PgCommand.build.execute).toHaveBeenCalledTimes(1);
   });
 
+  it("rebuilds through the same command a first build uses", () => {
+    remedy({ kind: "needs-rebuild" })();
+    expect(PgCommand.build.execute).toHaveBeenCalledTimes(1);
+  });
+
   it("runs the same connect the header chip runs", () => {
     remedy({ kind: "needs-wallet" })();
     expect(PgCommand.connect.execute).toHaveBeenCalledTimes(1);
