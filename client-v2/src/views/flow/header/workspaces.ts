@@ -1,7 +1,8 @@
 export interface WorkspaceEntry {
   name: string;
   isLesson: boolean;
-  /** e.g. "3/4", or `null` for a project or an unpathed lesson */
+  /** e.g. "3 of 4" or "done", or `null` for a project or an unpathed
+   * lesson */
   progress: string | null;
 }
 

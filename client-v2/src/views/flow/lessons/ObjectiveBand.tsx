@@ -1,15 +1,14 @@
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
-import { assistantLabel, describeStep, primaryLabel } from "./band-copy";
 import {
-  attempted,
-  cursorStep,
-  foldRecord,
-  nextLegal,
-  prevLegal,
-  rung,
-} from "./ledger";
+  assistantLabel,
+  describeFinish,
+  describeStep,
+  primaryLabel,
+  readLabel,
+} from "./band-copy";
+import { attempted, foldRecord, nextLegal, prevLegal, rung } from "./ledger";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
@@ -19,6 +18,7 @@ import { PgCommand } from "../../../utils";
 interface ObjectiveBandProps {
   state: LessonState;
   onRead: () => void;
+  onOpenGallery: () => void;
 }
 
 /**
@@ -28,19 +28,77 @@ interface ObjectiveBandProps {
  * proves the step and dispatches the same command the header stepper
  * does. The assistant sits beside it as a secondary -- the unaided
  * first attempt, bought by layout rather than by a disabled button.
+ * The page comes first among the actions, and until it has been opened
+ * it is the band's signpost (D34).
  */
-const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
-  const described = describeStep(state);
-  if (!described || !state.path) return null;
-
+const ObjectiveBand: FC<ObjectiveBandProps> = ({
+  state,
+  onRead,
+  onOpenGallery,
+}) => {
+  if (!state.path) return null;
   const view = foldRecord(state.path, state.record);
-  const step = cursorStep(state.path, view);
-  if (!step) return null;
-
-  const spent = rung(view, step.id);
-  const tried = attempted(state.path, view, step.id);
   const canGoBack = prevLegal(state.path, view) !== null;
   const canGoForward = nextLegal(state.path, view) !== null;
+
+  const nav = (
+    <>
+      <Nav
+        type="button"
+        disabled={!canGoBack}
+        aria-label="Previous step"
+        title={
+          canGoBack
+            ? "Go back a step. Nothing already proved is undone."
+            : "There is nothing to go back to"
+        }
+        onClick={() => PgLesson.moveBack()}
+      >
+        &#8592;
+      </Nav>
+      <Nav
+        type="button"
+        disabled={!canGoForward}
+        aria-label="Next step"
+        title={
+          canGoForward
+            ? "Move forward. Nothing is recorded either way."
+            : "This is as far as anything proved reaches"
+        }
+        onClick={() => PgLesson.moveForward()}
+      >
+        &#8594;
+      </Nav>
+    </>
+  );
+
+  // No step under the cursor means the path is finished: say so, and say
+  // where to go. The rail's rows are still legal positions, so the back
+  // arrow still works.
+  const shown = describeStep(state);
+  if (!shown) {
+    const finished = describeFinish(state);
+    if (!finished) return null;
+    return (
+      <Wrapper>
+        <Text>
+          <Eyebrow>{finished.number}</Eyebrow>
+          <Objective>{finished.objective}</Objective>
+          <VerifiedBy>{finished.verifiedBy}</VerifiedBy>
+        </Text>
+        <Actions>
+          {nav}
+          <Secondary type="button" onClick={onOpenGallery}>
+            Browse gallery
+          </Secondary>
+        </Actions>
+      </Wrapper>
+    );
+  }
+
+  const { step } = shown;
+  const spent = rung(view, step.id);
+  const tried = attempted(state.path, view, step.id);
 
   const askForHelp = () => {
     const prompt = PgLesson.requestHint();
@@ -56,46 +114,25 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   return (
     <Wrapper>
       <Text>
-        <Eyebrow>{described.number}</Eyebrow>
-        <Objective>{described.objective}</Objective>
-        <VerifiedBy>{described.verifiedBy}</VerifiedBy>
+        <Eyebrow>{shown.number}</Eyebrow>
+        <Objective>{shown.objective}</Objective>
+        <VerifiedBy>{shown.verifiedBy}</VerifiedBy>
       </Text>
       <Actions>
-        <Nav
-          type="button"
-          disabled={!canGoBack}
-          aria-label="Previous step"
-          title={
-            canGoBack
-              ? "Go back a step. Nothing already proved is undone."
-              : "There is nothing to go back to"
-          }
-          onClick={() => PgLesson.moveBack()}
-        >
-          &#8592;
-        </Nav>
-        <Nav
-          type="button"
-          disabled={!canGoForward}
-          aria-label="Next step"
-          title={
-            canGoForward
-              ? "Move forward. Nothing is recorded either way."
-              : "This is as far as anything proved reaches"
-          }
-          onClick={() => PgLesson.moveForward()}
-        >
-          &#8594;
-        </Nav>
+        {nav}
+        {/* First among the actions on purpose: reading comes before
+            proving, and until the page has been opened this is the one
+            control that says "read first" */}
         {step.readPage && (
-          <Secondary type="button" onClick={onRead}>
-            Read the page
+          <Secondary type="button" $unread={!shown.opened} onClick={onRead}>
+            {!shown.opened && <Dot aria-hidden />}
+            {readLabel(shown.position, shown.opened)}
           </Secondary>
         )}
         <Secondary type="button" onClick={askForHelp}>
           {assistantLabel(spent, tried)}
         </Secondary>
-        {described.offersPrimary && (
+        {shown.offersPrimary && (
           <Primary type="button" onClick={prove}>
             {primaryLabel(step.verify)}
           </Primary>
@@ -193,10 +230,16 @@ const VerifiedBy = styled.span`
   `}
 `;
 
-const Secondary = styled.button`
-  ${({ theme }) => css`
+// `$unread` is the signpost: the primary colour on the border, never a
+// filled background -- the filled primary stays the criterion's alone
+const Secondary = styled.button<{ $unread?: boolean }>`
+  ${({ theme, $unread }) => css`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.375rem 0.75rem;
-    border: 1px solid ${theme.colors.default.border};
+    border: 1px solid
+      ${$unread ? theme.colors.default.primary : theme.colors.default.border};
     border-radius: 9999px;
     background: transparent;
     color: ${theme.colors.default.textPrimary};
@@ -210,6 +253,17 @@ const Secondary = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;
     }
+  `}
+`;
+
+// The unread marker: one dot in the primary colour, nothing that could
+// be mistaken for a badge count
+const Dot = styled.span`
+  ${({ theme }) => css`
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: ${theme.colors.default.primary};
   `}
 `;
 

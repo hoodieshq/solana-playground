@@ -63,7 +63,8 @@ export type LessonAction =
   | { type: "pass"; at: number }
   | { type: "attest"; at: number }
   | { type: "move"; to: string | "end"; at: number }
-  | { type: "hint"; at: number };
+  | { type: "hint"; at: number }
+  | { type: "opened"; stepId: string; at: number };
 
 /** Append one event, through the same guard the fold replays with */
 const append = (
@@ -75,7 +76,8 @@ const append = (
     | { type: "attest"; stepId: string }
     | { type: "move"; to: string | "end" }
     | { type: "attempt"; startedAt: number }
-    | { type: "hint"; stepId: string; rung: number },
+    | { type: "hint"; stepId: string; rung: number }
+    | { type: "opened"; stepId: string },
   actor: LessonActor,
   at: number
 ): LessonState => {
@@ -92,7 +94,8 @@ const append = (
 
   const record = trimRecord(
     { ...state.record, events: [...state.record.events, ev] },
-    (r) => [...foldRecord(path, r).marks.entries()]
+    (r) => [...foldRecord(path, r).marks.entries()],
+    (r) => [...foldRecord(path, r).opened]
   );
   return { ...state, record };
 };
@@ -209,6 +212,14 @@ export const reduceLesson = (
         action.at
       );
     }
+
+    case "opened":
+      return append(
+        state,
+        { type: "opened", stepId: action.stepId },
+        "learner",
+        action.at
+      );
   }
 };
 
@@ -320,6 +331,12 @@ export class PgLesson {
     if (PgLesson._state === before) return null;
 
     return hintPrompt(step, used + 1);
+  }
+
+  /** Record that the learner opened this step's page. A fact, not a
+   * proof: it drives the band's signpost and nothing else. */
+  static opened(stepId: string) {
+    PgLesson._dispatch({ type: "opened", stepId, at: Date.now() });
   }
 
   /** Subscribe to client events. Call once from the Flow layout. */

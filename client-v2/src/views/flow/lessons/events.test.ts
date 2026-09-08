@@ -33,6 +33,7 @@ const MARKS: Array<[string, LessonMark]> = [
   ["deploy", "open"],
 ];
 const foldMarks = () => MARKS;
+const foldOpened = () => [] as string[];
 
 describe("nextSeq", () => {
   it("starts a fresh record at 1", () => {
@@ -47,7 +48,7 @@ describe("nextSeq", () => {
     const long = record(
       Array.from({ length: TRIM_CAP + 1 }, (_, i) => attempt(i + 1))
     );
-    const trimmed = trimRecord(long, foldMarks);
+    const trimmed = trimRecord(long, foldMarks, foldOpened);
     expect(nextSeq(trimmed)).toBe(TRIM_CAP + 2);
   });
 });
@@ -55,18 +56,18 @@ describe("nextSeq", () => {
 describe("trimRecord", () => {
   it("returns the same object while under the cap", () => {
     const r = record([attempt(1)]);
-    expect(trimRecord(r, foldMarks)).toBe(r);
+    expect(trimRecord(r, foldMarks, foldOpened)).toBe(r);
     const atCap = record(
       Array.from({ length: TRIM_CAP }, (_, i) => attempt(i + 1))
     );
-    expect(trimRecord(atCap, foldMarks)).toBe(atCap);
+    expect(trimRecord(atCap, foldMarks, foldOpened)).toBe(atCap);
   });
 
   it("keeps the last TRIM_KEEP events once past the cap", () => {
     const long = record(
       Array.from({ length: TRIM_CAP + 1 }, (_, i) => attempt(i + 1))
     );
-    const trimmed = trimRecord(long, foldMarks);
+    const trimmed = trimRecord(long, foldMarks, foldOpened);
     expect(trimmed.events).toHaveLength(TRIM_KEEP);
     expect(trimmed.events[0].seq).toBe(TRIM_CAP + 1 - TRIM_KEEP + 1);
     expect(trimmed.events[trimmed.events.length - 1].seq).toBe(TRIM_CAP + 1);
@@ -76,15 +77,25 @@ describe("trimRecord", () => {
     const long = record(
       Array.from({ length: TRIM_CAP + 1 }, (_, i) => attempt(i + 1))
     );
-    expect(trimRecord(long, foldMarks).snapshot?.marks).toEqual(MARKS);
+    expect(trimRecord(long, foldMarks, foldOpened).snapshot?.marks).toEqual(
+      MARKS
+    );
   });
 
   it("carries the dropped prefix's last move target", () => {
     const events = Array.from({ length: TRIM_CAP + 1 }, (_, i) =>
       i === 2 ? move(i + 1, "deploy") : attempt(i + 1)
     );
-    const trimmed = trimRecord(record(events), foldMarks);
+    const trimmed = trimRecord(record(events), foldMarks, foldOpened);
     expect(trimmed.snapshot?.moveTarget).toBe("deploy");
+  });
+
+  it("carries the opened set into the snapshot", () => {
+    const long = record(
+      Array.from({ length: TRIM_CAP + 1 }, (_, i) => attempt(i + 1))
+    );
+    const trimmed = trimRecord(long, foldMarks, () => ["write"]);
+    expect(trimmed.snapshot?.opened).toEqual(["write"]);
   });
 
   it("keeps a prior snapshot's move target when the prefix has none", () => {
@@ -93,6 +104,8 @@ describe("trimRecord", () => {
       snapshot: { marks: [], moveTarget: "end" },
       events: Array.from({ length: TRIM_CAP + 1 }, (_, i) => attempt(i + 1)),
     };
-    expect(trimRecord(prior, foldMarks).snapshot?.moveTarget).toBe("end");
+    expect(trimRecord(prior, foldMarks, foldOpened).snapshot?.moveTarget).toBe(
+      "end"
+    );
   });
 });

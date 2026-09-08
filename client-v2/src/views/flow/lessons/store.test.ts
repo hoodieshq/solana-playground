@@ -216,4 +216,41 @@ describe("reduceLesson", () => {
   it("defaults a load's flag to false when it is not given", () => {
     expect(load().loadFailed).toBe(false);
   });
+
+  it("records an opened page once", () => {
+    const state = reduceLesson(load(), {
+      type: "opened",
+      stepId: "one",
+      at: 2,
+    });
+    expect(view(state).opened.has("one")).toBe(true);
+    const again = reduceLesson(state, {
+      type: "opened",
+      stepId: "one",
+      at: 3,
+    });
+    expect(again).toBe(state);
+  });
+
+  it("keeps the opened set across a trim of the record", () => {
+    let state = reduceLesson(load(), { type: "opened", stepId: "one", at: 2 });
+    // Enough distinct builds to push the log past the cap -- each is an
+    // admitted `attempt`, so the record trims to a snapshot plus a tail
+    // that no longer holds the `opened` event itself
+    for (let i = 0; i < 260; i++) {
+      state = evaluate(state, { buildStartedAt: 1000 + i });
+    }
+    expect(state.record.snapshot).toBeDefined();
+    expect(state.record.events.some((e) => e.type === "opened")).toBe(false);
+    expect(view(state).opened.has("one")).toBe(true);
+  });
+
+  it("refuses opened outside a lesson", () => {
+    const next = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "opened",
+      stepId: "one",
+      at: 2,
+    });
+    expect(next).toBe(INITIAL_LESSON_STATE);
+  });
 });

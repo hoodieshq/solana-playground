@@ -26,6 +26,8 @@ export interface LessonView {
   attempts: readonly number[];
   /** `hint` event counts per step id */
   rungs: ReadonlyMap<string, number>;
+  /** Step ids whose page the learner has opened, ever */
+  opened: ReadonlySet<string>;
 }
 
 /** A toolchain event cannot take the learner's escape valves */
@@ -62,6 +64,7 @@ interface FoldState {
   firstArrival: Map<number, number>;
   attempts: number[];
   rungs: Map<string, number>;
+  opened: Set<string>;
 }
 
 const resolve = (path: LessonPath, to: string | "end"): LessonPosition | null =>
@@ -211,6 +214,7 @@ const applyCursor = (
     case "attempt":
     case "checked":
     case "hint":
+    case "opened":
       return;
   }
 };
@@ -231,6 +235,7 @@ export const foldRecord = (
     firstArrival: new Map(),
     attempts: [],
     rungs: new Map(),
+    opened: new Set(record.snapshot?.opened ?? []),
   };
 
   // The initial position is an `enter` in all but name: the snapshot's
@@ -249,6 +254,7 @@ export const foldRecord = (
     if (ev.type === "hint") {
       state.rungs.set(ev.stepId, (state.rungs.get(ev.stepId) ?? 0) + 1);
     }
+    if (ev.type === "opened") state.opened.add(ev.stepId);
     const flipped = applyMarks(path, state, ev);
     applyCursor(path, state, ev, flipped);
   }
@@ -260,6 +266,7 @@ export const foldRecord = (
     firstArrival: state.firstArrival,
     attempts: state.attempts,
     rungs: state.rungs,
+    opened: state.opened,
   };
 };
 
@@ -298,7 +305,8 @@ export const nextLegal = (
  * move that goes somewhere new. The dispatcher refuses what this
  * refuses, so the log never records a click the table has no row for
  * -- while the recorded facts (`enter`, `attempt`, `checked`, `hint`)
- * are always admitted.
+ * are always admitted, except `opened`, which is new only the first
+ * time for a step the path actually has.
  */
 export const admits = (
   path: LessonPath,
@@ -315,6 +323,7 @@ export const admits = (
         firstArrival: new Map(),
         attempts: [],
         rungs: new Map(),
+        opened: new Set(),
       };
       return applyMarks(path, state, ev).length > 0;
     }
@@ -322,6 +331,11 @@ export const admits = (
       const p = resolve(path, ev.to);
       return p !== null && p !== view.cursor && legal(path, view, p);
     }
+    // A fact, but one that is only new the first time, and only about a
+    // step the path has -- the set is surfaced in the snapshot and read
+    // by copy, so it should never hold an id nobody can render
+    case "opened":
+      return indexOf(path, ev.stepId) !== -1 && !view.opened.has(ev.stepId);
     case "enter":
     case "attempt":
     case "checked":
