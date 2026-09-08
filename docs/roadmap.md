@@ -1,6 +1,7 @@
 # Roadmap and status
 
-Updated: 2026-09-08 (PRs #24, #25 opened); 2026-09-07 folded in the 2026-09-04 tech-lead call. One
+Updated: 2026-09-08 -- PRs #24, #25 and #26 opened, D30 folded into #22,
+D36 recorded; 2026-09-07 folded in the 2026-09-04 tech-lead call. One
 page for the whole effort, in the shape the board uses: **initiative ->
 tracks -> items**, every item with a status and, where it applies,
 whose move it is. The prose sections below the board carry the detail and the
