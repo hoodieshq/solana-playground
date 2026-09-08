@@ -203,7 +203,14 @@ ahead of it
       to), that `flow.build` cannot answer across a reload while the
       program's uuid can, and that the cluster remedy ignored a
       deployment's own devnet -- all folded in, with the remedy map
-      pulled out into its own tested module
+      pulled out into its own tested module. A verification pass then
+      compared the blocker list against the commands' own `preChecks`
+      and found one more: after a failed build the server keeps the last
+      binary that compiled, so a deploy would upload code the learner
+      did not write and prove the step with it. The band now says
+      *build again -- the last build failed*. The same pass confirmed
+      the build side has no preconditions at all, so saying nothing
+      there is right rather than missing
 - [x] review · Entering a lesson is legible (D34): clicking a tutorial
       lands on the tutorial, the reader is signposted before the code,
       closing something leaves you somewhere -- the tech lead's own
