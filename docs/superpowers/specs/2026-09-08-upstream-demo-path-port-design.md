@@ -96,9 +96,10 @@ shape) instead of `process.env.NODE_ENV`.
 
 Upstream's file verbatim. `install()` posts the project's
 `package.json` and `yarn.lock` (or the framework defaults from
-`/frameworks/`) to `bundle`, wipes `.workspace/js-packages`, and writes
-manifest, lock, one `bundle.js` per package, chunk files, `types.json`
-and `dependencies.json`. `import(name)` loads a package's bundle
+`/frameworks/`) to `bundle`, wipes `.workspace/js-packages`, writes the
+resolved manifest and lock back to the project root, and writes one
+`bundle.js` per package, its chunk files, `types.json` and
+`dependencies.json` under `.workspace/js-packages`. `import(name)` loads a package's bundle
 through a Blob URL and picks the module by its normalised name;
 `importChunk` is exposed on `window.__pgImportChunk` because the
 server-generated bundles lazy-load their chunks through it.
