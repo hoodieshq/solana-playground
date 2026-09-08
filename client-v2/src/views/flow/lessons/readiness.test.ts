@@ -7,35 +7,70 @@ const DEPLOYED: VerifyCondition = { kind: "deployed" };
 /** Everything a deploy needs, in place */
 const READY: ReadinessEnv = {
   build: "done",
+  built: true,
   wallet: true,
   balance: 2.5,
   cluster: "devnet",
   signedIn: true,
 };
 
+const blockers = (env: Partial<ReadinessEnv>, c: VerifyCondition = DEPLOYED) =>
+  readiness(c, { ...READY, ...env });
+
 const kinds = (env: Partial<ReadinessEnv>, c: VerifyCondition = DEPLOYED) =>
-  readiness(c, { ...READY, ...env }).map((b) => b.kind);
+  blockers(env, c).map((b) => b.kind);
 
 describe("readiness", () => {
   it("has nothing to say when a deploy can go ahead", () => {
     expect(readiness(DEPLOYED, READY)).toEqual([]);
   });
 
-  it("names a missing build, wallet and cluster, in the order to fix them", () => {
+  it("names what is missing, in the order to fix it", () => {
     expect(
-      kinds({ build: "upcoming", wallet: false, cluster: "localnet" })
+      kinds({
+        build: "upcoming",
+        built: false,
+        wallet: false,
+        cluster: "localnet",
+      })
     ).toEqual(["needs-build", "needs-wallet", "needs-cluster"]);
-    expect(kinds({ build: "failed" })).toEqual(["needs-build"]);
-    expect(kinds({ build: "running" })).toEqual(["needs-build"]);
+  });
+
+  it("puts the cluster before the SOL, since an airdrop needs the right one", () => {
+    expect(kinds({ cluster: "testnet", balance: 0 })).toEqual([
+      "needs-cluster",
+      "needs-sol",
+    ]);
+  });
+
+  it("asks for a build whenever no build has landed, however it failed", () => {
+    for (const build of ["upcoming", "failed", "running"] as const) {
+      expect(kinds({ build, built: false })).toEqual(["needs-build"]);
+    }
+  });
+
+  it("says a build is running rather than offering to start another", () => {
+    expect(blockers({ build: "running", built: false })).toEqual([
+      { kind: "needs-build", running: true },
+    ]);
+    expect(blockers({ build: "failed", built: false })).toEqual([
+      { kind: "needs-build", running: false },
+    ]);
+  });
+
+  it("does not ask for a build a reload only forgot", () => {
+    // `PgFlow` is memory-only and starts over at `upcoming`; the program's
+    // build-server uuid is on disk, so the deploy would in fact succeed
+    expect(kinds({ build: "upcoming", built: true })).toEqual([]);
   });
 
   it("names an empty wallet, with sign-in first when the airdrop needs it", () => {
-    expect(readiness(DEPLOYED, { ...READY, balance: 0 })).toEqual([
+    expect(blockers({ balance: 0 })).toEqual([
       { kind: "needs-sol", signedIn: true },
     ]);
-    expect(
-      readiness(DEPLOYED, { ...READY, balance: 0, signedIn: false })
-    ).toEqual([{ kind: "needs-sol", signedIn: false }]);
+    expect(blockers({ balance: 0, signedIn: false })).toEqual([
+      { kind: "needs-sol", signedIn: false },
+    ]);
   });
 
   it("does not guess about a balance it does not know", () => {
@@ -45,22 +80,30 @@ describe("readiness", () => {
     expect(kinds({ balance: 0.3 })).toEqual([]);
   });
 
-  it("does not ask about SOL when there is no wallet to hold it", () => {
-    expect(kinds({ wallet: false, balance: 0 })).toEqual(["needs-wallet"]);
+  it("does not guess about a cluster it does not know either", () => {
+    // A custom RPC whose genesis hash has not come back reads as `null`.
+    // Telling a learner already on devnet to switch to devnet is worse
+    // than saying nothing.
+    expect(kinds({ cluster: null })).toEqual([]);
   });
 
-  it("carries the current cluster so the copy can name it", () => {
-    expect(readiness(DEPLOYED, { ...READY, cluster: "mainnet-beta" })).toEqual([
+  it("names the cluster it found, whichever it is", () => {
+    expect(blockers({ cluster: "playnet" })).toEqual([
+      { kind: "needs-cluster", cluster: "playnet" },
+    ]);
+    expect(blockers({ cluster: "mainnet-beta" })).toEqual([
       { kind: "needs-cluster", cluster: "mainnet-beta" },
     ]);
-    expect(readiness(DEPLOYED, { ...READY, cluster: null })).toEqual([
-      { kind: "needs-cluster", cluster: null },
-    ]);
+  });
+
+  it("does not ask about SOL when there is no wallet to hold it", () => {
+    expect(kinds({ wallet: false, balance: 0 })).toEqual(["needs-wallet"]);
   });
 
   it("has no preconditions for a build or a reading", () => {
     const bare: ReadinessEnv = {
       build: "upcoming",
+      built: false,
       wallet: false,
       balance: 0,
       cluster: null,
@@ -74,31 +117,49 @@ describe("readiness", () => {
 
 describe("readinessLine", () => {
   it("is null when nothing is missing", () => {
-    expect(readinessLine([])).toBeNull();
+    expect(readinessLine(DEPLOYED, [])).toBeNull();
+  });
+
+  it("names the action it is explaining, from the condition", () => {
+    const line = readinessLine(DEPLOYED, [{ kind: "needs-wallet" }]);
+    expect(line?.lead).toBe("Before you can deploy:");
+
+    const building = readinessLine({ kind: "build-passes" }, [
+      { kind: "needs-wallet" },
+    ]);
+    expect(building?.lead).toBe("Before you can build:");
   });
 
   it("says what stands in the way, each with its remedy", () => {
-    const line = readinessLine([
-      { kind: "needs-build" },
+    const line = readinessLine(DEPLOYED, [
+      { kind: "needs-build", running: false },
       { kind: "needs-wallet" },
       { kind: "needs-cluster", cluster: "localnet" },
       { kind: "needs-sol", signedIn: false },
     ]);
-    expect(line?.lead).toBe("Before you can deploy:");
     expect(line?.items.map((i) => i.text)).toEqual([
       "build first",
       "connect a wallet",
       "switch from localnet to devnet",
       "sign in, then airdrop -- the wallet holds no SOL",
     ]);
+    expect(line?.items.every((i) => i.actionable)).toBe(true);
   });
 
-  it("names the whole chain for an empty wallet, or just the airdrop", () => {
+  it("offers nothing to click while a build is already running", () => {
+    const line = readinessLine(DEPLOYED, [
+      { kind: "needs-build", running: true },
+    ]);
+    expect(line?.items[0]).toMatchObject({
+      text: "building...",
+      actionable: false,
+    });
+  });
+
+  it("drops the sign-in half of the chain once the learner is signed in", () => {
     expect(
-      readinessLine([{ kind: "needs-sol", signedIn: true }])?.items[0].text
+      readinessLine(DEPLOYED, [{ kind: "needs-sol", signedIn: true }])?.items[0]
+        .text
     ).toBe("airdrop -- the wallet holds no SOL");
-    expect(
-      readinessLine([{ kind: "needs-cluster", cluster: null }])?.items[0].text
-    ).toBe("switch to devnet");
   });
 });

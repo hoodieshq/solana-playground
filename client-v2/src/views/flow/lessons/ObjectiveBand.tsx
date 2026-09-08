@@ -10,16 +10,20 @@ import {
 } from "./band-copy";
 import { attempted, foldRecord, nextLegal, prevLegal, rung } from "./ledger";
 import { readiness, readinessLine } from "./readiness";
-import type { Blocker } from "./readiness";
+import { remedy } from "./readiness-remedy";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import type { FlowState } from "../state/stage";
-import { Endpoint } from "../../../constants";
 import { GithubAuth } from "../../../features/github-oauth";
-import { useBalance, useRenderOnChange, useWallet } from "../../../hooks";
-import { PgCommand, PgConnection, PgSettings } from "../../../utils";
+import {
+  useBalance,
+  useProgramInfo,
+  useRenderOnChange,
+  useWallet,
+} from "../../../hooks";
+import { PgCommand, PgConnection, PgProgramInfo } from "../../../utils";
 
 interface ObjectiveBandProps {
   state: LessonState;
@@ -27,28 +31,6 @@ interface ObjectiveBandProps {
   onRead: () => void;
   onOpenGallery: () => void;
 }
-
-/**
- * The one action that clears a blocker. Each is the same thing the
- * header chip or the stage button does, so the explainer never has a
- * path of its own to drift on.
- */
-const remedy = (b: Blocker) => {
-  switch (b.kind) {
-    case "needs-build":
-      return () => PgCommand.build.execute();
-    case "needs-wallet":
-      return () => PgCommand.connect.execute();
-    case "needs-cluster":
-      return () => {
-        PgSettings.connection.endpoint = Endpoint.DEVNET;
-      };
-    case "needs-sol":
-      return b.signedIn
-        ? () => PgCommand.airdrop.execute()
-        : () => GithubAuth.signIn();
-  }
-};
 
 /**
  * One ask, above the editor, always visible.
@@ -72,6 +54,10 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
   const wallet = useWallet();
   const balance = useBalance();
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
+  // A built program survives a reload while `PgFlow` does not, so the
+  // explainer has to watch it or it will ask for a build that already
+  // happened -- and contradict the rail above it
+  useProgramInfo();
   useRenderOnChange(GithubAuth.onDidChange);
 
   if (!state.path) return null;
@@ -136,18 +122,25 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
 
   const { step } = shown;
   const spent = rung(view, step.id);
-  const explainer =
-    shown.offersPrimary && shown.mark === "open"
-      ? readinessLine(
-          readiness(step.verify, {
-            build: flow.build,
-            wallet: !!wallet,
-            balance: typeof balance === "number" ? balance : null,
-            cluster: cluster ?? null,
-            signedIn: !!GithubAuth.user,
-          })
-        )
-      : null;
+  // Wherever the proving action is offered -- which includes a step the
+  // learner skipped and came back to. That is the repair edge the skip
+  // valve promised, and the one place they have already said they were
+  // stuck, so it is the last place to withhold the explanation.
+  const explainer = shown.offersPrimary
+    ? readinessLine(
+        step.verify,
+        readiness(step.verify, {
+          build: flow.build,
+          built:
+            !!PgProgramInfo.uuid ||
+            !!PgProgramInfo.importedProgram?.bytes.length,
+          wallet: !!wallet,
+          balance: typeof balance === "number" ? balance : null,
+          cluster: cluster ?? null,
+          signedIn: !!GithubAuth.user,
+        })
+      )
+    : null;
   const tried = attempted(state.path, view, step.id);
 
   const askForHelp = () => {
@@ -168,19 +161,27 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
         <Objective>{shown.objective}</Objective>
         <VerifiedBy>{shown.verifiedBy}</VerifiedBy>
         {/* Only where the proving action is offered: behind the frontier
-            there is nothing to be ready for */}
+            there is nothing to be ready for. `aria-live` because the
+            list shrinks as the learner fixes things, and a change
+            nobody is looking at is a change nobody hears. */}
         {explainer && (
-          <Readiness>
+          <Readiness aria-live="polite">
             <Lead>{explainer.lead}</Lead>
-            {explainer.items.map((item) => (
-              <Remedy
-                key={item.blocker.kind}
-                type="button"
-                onClick={remedy(item.blocker)}
-              >
-                {item.text}
-              </Remedy>
-            ))}
+            {explainer.items.map((item) =>
+              item.actionable ? (
+                <Remedy
+                  key={item.blocker.kind}
+                  type="button"
+                  onClick={remedy(item.blocker)}
+                >
+                  {item.text}
+                </Remedy>
+              ) : (
+                // Nothing to click: a build already running is a thing
+                // to wait for, and a second one would only queue behind it
+                <Waiting key={item.blocker.kind}>{item.text}</Waiting>
+              )
+            )}
           </Readiness>
         )}
       </Text>
@@ -311,6 +312,12 @@ const Readiness = styled.div`
 
 const Lead = styled.span`
   color: ${({ theme }) => theme.colors.default.textPrimary};
+`;
+
+// A blocker with nothing to act on, in the sub-line's own quiet colour
+// so it never reads as a control that failed to respond
+const Waiting = styled.span`
+  color: ${({ theme }) => theme.colors.default.textSecondary};
 `;
 
 const Remedy = styled.button`

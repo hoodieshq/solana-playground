@@ -1,4 +1,5 @@
 import type { VerifyCondition } from "./types";
+import { verifyingStage } from "./verify";
 import type { StageStatus } from "../state/stage";
 
 /**
@@ -9,16 +10,21 @@ import type { StageStatus } from "../state/stage";
  * so the band can ask on every render. The action itself stays live --
  * a dead control in a demo is worse than a label that explains itself
  * -- and each blocker carries the remedy the band offers beside it.
+ *
+ * Nothing here guesses. A fact the client does not know yet (a balance
+ * still loading, a cluster whose genesis hash has not come back) is
+ * never read as a fact against the learner: telling somebody to switch
+ * to devnet while they are already on devnet is worse than silence.
  */
 
 export type Blocker =
-  /** No successful build to deploy */
-  | { kind: "needs-build" }
+  /** No successful build to deploy. `running` while one is in flight,
+   * where there is nothing to click and nothing to fix -- only to wait */
+  | { kind: "needs-build"; running: boolean }
   /** No wallet to sign with */
   | { kind: "needs-wallet" }
-  /** The lesson deploys to devnet and the client points elsewhere;
-   * `cluster` is the current name, or `null` when it is unknown */
-  | { kind: "needs-cluster"; cluster: string | null }
+  /** The lesson deploys to devnet and the client points somewhere else */
+  | { kind: "needs-cluster"; cluster: string }
   /**
    * The wallet holds nothing. The devnet airdrop is behind GitHub
    * sign-in (#9), so the remedy is a chain when the learner is signed
@@ -28,11 +34,20 @@ export type Blocker =
   | { kind: "needs-sol"; signedIn: boolean };
 
 export interface ReadinessEnv {
+  /** The dev loop's build status, which is memory-only */
   build: StageStatus;
+  /**
+   * Whether a built program exists at all. Survives a reload, which
+   * `build` does not: after one, `PgFlow` starts over at `upcoming`
+   * while the program's build-server uuid is still on disk, and the
+   * deploy that "needs a build" would in fact have succeeded.
+   */
+  built: boolean;
   wallet: boolean;
   /** SOL, or `null` while unknown -- never guessed about */
   balance: number | null;
-  /** The cluster's name (`devnet`, `localnet`, ...) or `null` */
+  /** The cluster's name (`devnet`, `localnet`, ...), or `null` while
+   * unknown -- also never guessed about */
   cluster: string | null;
   signedIn: boolean;
 }
@@ -46,8 +61,8 @@ export const LESSON_CLUSTER = "devnet";
  */
 export const readiness = (c: VerifyCondition, env: ReadinessEnv): Blocker[] => {
   switch (c.kind) {
-    // A build is its own feedback: a failed one says why in the console,
-    // and a reading has nothing to be ready for
+    // A build is its own feedback -- a failed one says why in the
+    // console -- and a reading has nothing to be ready for
     case "build-passes":
     case "idl":
     case "read":
@@ -55,9 +70,16 @@ export const readiness = (c: VerifyCondition, env: ReadinessEnv): Blocker[] => {
 
     case "deployed": {
       const blockers: Blocker[] = [];
-      if (env.build !== "done") blockers.push({ kind: "needs-build" });
+      if (env.build !== "done" && !env.built) {
+        blockers.push({
+          kind: "needs-build",
+          running: env.build === "running",
+        });
+      }
       if (!env.wallet) blockers.push({ kind: "needs-wallet" });
-      if (env.cluster !== LESSON_CLUSTER) {
+      // Before the SOL question, because an airdrop on the wrong cluster
+      // buys the learner nothing
+      if (env.cluster !== null && env.cluster !== LESSON_CLUSTER) {
         blockers.push({ kind: "needs-cluster", cluster: env.cluster });
       }
       // Only a wallet known to be empty. A low balance is the deploy
@@ -74,33 +96,50 @@ export const readiness = (c: VerifyCondition, env: ReadinessEnv): Blocker[] => {
 export interface ReadinessItem {
   blocker: Blocker;
   text: string;
+  /** Whether there is anything to click. A build already running is a
+   * thing to wait for, not a thing to start again */
+  actionable: boolean;
 }
 
 /**
- * The explainer's copy: a lead and one item per blocker, each naming its
- * remedy in the learner's words. `null` when the list is empty, so the
- * band renders nothing rather than an empty lead.
+ * The explainer's copy: a lead naming the action being explained, and
+ * one item per blocker with its remedy in the learner's words.
+ *
+ * @returns `null` when nothing is missing, so the band renders nothing
+ * rather than an empty lead
  */
 export const readinessLine = (
+  c: VerifyCondition,
   blockers: Blocker[]
 ): { lead: string; items: ReadinessItem[] } | null => {
   if (!blockers.length) return null;
+
+  // Derived from the condition rather than written down, so a blocker
+  // on some later kind cannot inherit a lead about deploying
+  const stage = verifyingStage(c);
   return {
-    lead: "Before you can deploy:",
-    items: blockers.map((blocker) => ({ blocker, text: itemText(blocker) })),
+    lead: `Before you can ${stage ?? "continue"}:`,
+    items: blockers.map((blocker) => ({
+      blocker,
+      text: itemText(blocker),
+      actionable: !(blocker.kind === "needs-build" && blocker.running),
+    })),
   };
 };
 
 const itemText = (b: Blocker): string => {
   switch (b.kind) {
     case "needs-build":
-      return "build first";
+      return b.running ? "building..." : "build first";
     case "needs-wallet":
       return "connect a wallet";
     case "needs-cluster":
-      return b.cluster
-        ? `switch from ${b.cluster} to ${LESSON_CLUSTER}`
-        : `switch to ${LESSON_CLUSTER}`;
+      return `switch from ${b.cluster} to ${LESSON_CLUSTER}`;
+    // The whole chain in one line: the airdrop is behind sign-in, and a
+    // learner told only to "airdrop" would find that out by failing.
+    // The links still arrive one at a time across blockers -- there is
+    // no wallet to be empty until one is connected -- which is the
+    // order the learner fixes them in anyway.
     case "needs-sol":
       return b.signedIn
         ? "airdrop -- the wallet holds no SOL"

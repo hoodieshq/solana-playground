@@ -193,6 +193,10 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   await expect(
     page.getByRole("button", { name: "connect a wallet" })
   ).toBeVisible();
+  // ...and says nothing about the cluster, because the profile is already
+  // on devnet. Blaming a cluster that is right -- or one the client has
+  // not resolved yet -- is worse than saying nothing at all.
+  await expect(page.getByText(/switch .*to devnet/)).toHaveCount(0);
   // `exact`: the rail's row for the step is a button whose text also
   // ends in "deploy to prove this"
   await expect(
