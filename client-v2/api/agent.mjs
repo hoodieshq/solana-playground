@@ -16,9 +16,13 @@
  * Plain ESM on raw Node request/response APIs — see `api/health.mjs` for why.
  *
  * The answer is streamed, so this function has to be allowed to live as long
- * as a long answer takes: `vercel.json` gives it its own `maxDuration`, since
- * the platform default cuts the stream off mid-sentence.
+ * as a long answer takes, and no longer: `vercel.json` gives it its own
+ * `maxDuration` (see `docs/deploy-client-vercel.md` on why the number is
+ * what it is), and a client that goes away aborts the upstream request
+ * rather than leaving the invocation to burn tokens nobody will read.
  */
+
+import { readJson } from "../src/features/api/server/read-json.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
@@ -61,33 +65,52 @@ const sendJson = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
-/** Read the request body, whether the platform pre-parsed it or not */
-const readJson = async (req) => {
-  if (req.body) {
-    return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-  }
-
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-};
-
-/** Copy the upstream's event stream to the client until either end stops */
-const pipeStream = async (req, res, body) => {
+/**
+ * Copy the upstream's event stream to the client until either end stops.
+ *
+ * The 200 and the SSE headers are already sent by the time this runs, so
+ * everything it has to say has to go inside the stream: ending quietly
+ * on a failure would let a half-finished answer pass for a complete one.
+ *
+ * @param res the response, already committed
+ * @param body the upstream's web stream
+ */
+const pipeStream = async (res, body) => {
   const reader = body.getReader();
-  req.on("close", () => reader.cancel().catch(() => {}));
 
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      // A full write buffer means the client is slower than the upstream
+      // Nobody left to write to: the caller's `close` handler has already
+      // aborted the upstream, and writing on a dead socket is a no-op
+      if (res.destroyed || res.writableEnded) break;
+
+      // A full write buffer means the client is slower than the upstream.
+      // A socket that goes away mid-wait never drains, so `close` has to
+      // be able to end the wait too -- otherwise the invocation parks
+      // here until the platform's duration cap kills it.
       if (!res.write(value)) {
-        await new Promise((resolve) => res.once("drain", resolve));
+        await new Promise((resolve) => {
+          const settle = () => {
+            res.off("drain", settle);
+            res.off("close", settle);
+            resolve();
+          };
+          res.once("drain", settle);
+          res.once("close", settle);
+        });
       }
     }
+  } catch (e) {
+    if (!res.writableEnded && !res.destroyed) {
+      // The shape the panel's provider loop already reads (`openai.ts`)
+      const message = `Upstream stream failed: ${e.message}`;
+      res.write(`data: ${JSON.stringify({ error: { message } })}\n\n`);
+    }
   } finally {
-    res.end();
+    await reader.cancel().catch(() => {});
+    if (!res.writableEnded) res.end();
   }
 };
 
@@ -132,24 +155,24 @@ export default async function handler(req, res) {
     });
   }
 
-  // `JSON.parse` happily returns `null`, a number or an array, and reading
-  // `.messages` off `null` used to throw past the try above into a 500
-  if (body === null || typeof body !== "object" || Array.isArray(body)) {
-    return sendJson(res, 400, {
-      error: "The request body must be a JSON object.",
-    });
-  }
-
   if (!Array.isArray(body.messages) || !body.messages.length) {
     return sendJson(res, 400, {
       error: "`messages` must be a non-empty array.",
     });
   }
 
+  // A browser that closes the tab should not keep paying for tokens
+  // nobody will read: closing the response aborts the upstream request,
+  // which is also what ends `pipeStream`'s read loop. Fires on a normal
+  // end too, by which point the fetch has already settled.
+  const abortUpstream = new AbortController();
+  res.on("close", () => abortUpstream.abort());
+
   let response;
   try {
     response = await fetch(configured.url, {
       method: "POST",
+      signal: abortUpstream.signal,
       headers: {
         "content-type": "application/json",
         accept: "text/event-stream",
@@ -183,5 +206,5 @@ export default async function handler(req, res) {
   res.statusCode = 200;
   res.setHeader("content-type", "text/event-stream");
   res.setHeader("cache-control", "no-cache, no-transform");
-  await pipeStream(req, res, response.body);
+  await pipeStream(res, response.body);
 }
