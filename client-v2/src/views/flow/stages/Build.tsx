@@ -192,7 +192,7 @@ const Build = () => {
   // line under an error does not start at the beginning of the line, so
   // `^warning:` does not match it.
   const warningCount = (report.raw.match(/^warning:/gm) ?? []).length;
-  const host = new URL(PgSettings.server.endpoint).host;
+  const host = new URL(PgSettings.server.endpoint, window.location.origin).host;
   const meta = [`${n} error${n === 1 ? "" : "s"}`, msLabel(flow.buildMs), host]
     .filter(Boolean)
     .join(" \u00b7 ");
