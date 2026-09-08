@@ -16,12 +16,13 @@ decision replaced an earlier one, the history stays in
 `docs/decisions.md` - the old entry is never rewritten, it gains an
 amendment. Read this file for what is true now; read that one for why.
 
-Visual version (for syncs), regenerated 2026-09-08 evening (the
-2026-09-07 board and digest were deleted from the gallery; these are
-their replacements, same house style):
-https://claude.ai/code/artifact/0d8574bd-8e6b-4fd8-9632-09e301829e12
+Visual version (for syncs), regenerated 2026-09-08 evening with the
+first reviews, PR #27 and D37:
+https://claude.ai/code/artifact/d7db5420-2295-4698-b0a1-9d9c03056448
 -- update both together. Compact digest for the team (done / in flight /
-next / we need): https://claude.ai/code/artifact/2c78a1ed-f073-464e-befa-a742518aaa01
+open questions): https://claude.ai/code/artifact/73c85eb5-2d35-4422-b03f-8cd5f2b04579
+(Both live in the corporate account; a personal-account login does not
+see them, which briefly looked like a deletion on 2026-09-08.)
 Companion pages: the lesson-ratchet walkthrough (D25/D26)
 https://claude.ai/code/artifact/5fcd0491-04f4-4b8e-87e5-c79e751686f3 ·
 tutorials-as-scenario study (2026-08-27)
