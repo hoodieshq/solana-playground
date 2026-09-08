@@ -187,7 +187,13 @@ ahead of it
       honesty rules: a balance the client does not know is never guessed
       at, and a *low* balance is the deploy command's call, since it
       knows the real cost. `needs-sol` states the whole chain -- sign in,
-      then airdrop -- because #9 put the devnet airdrop behind sign-in
+      then airdrop -- because #9 put the devnet airdrop behind sign-in.
+      A code review then found the explainer was withheld from the one
+      step that most needed it (a *skipped* deploy the learner came back
+      to), that `flow.build` cannot answer across a reload while the
+      program's uuid can, and that the cluster remedy ignored a
+      deployment's own devnet -- all folded in, with the remedy map
+      pulled out into its own tested module
 - [x] review · Entering a lesson is legible (D34): clicking a tutorial
       lands on the tutorial, the reader is signposted before the code,
       closing something leaves you somewhere -- the tech lead's own
