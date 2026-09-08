@@ -183,6 +183,26 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   await expect(
     page.getByRole("button", { name: "Read step 2 first" })
   ).toBeVisible();
+
+  // The deploy step explains what it still needs rather than failing: on
+  // a fresh profile there is no build and no wallet, and the band names
+  // both, each as a live remedy (`lessons/readiness.ts`). The primary
+  // stays offered either way.
+  await expect(page.getByText("Before you can deploy:")).toBeVisible();
+  await expect(page.getByRole("button", { name: "build first" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "connect a wallet" })
+  ).toBeVisible();
+  // ...and says nothing about the cluster, because the profile is already
+  // on devnet. Blaming a cluster that is right -- or one the client has
+  // not resolved yet -- is worse than saying nothing at all.
+  await expect(page.getByText(/switch .*to devnet/)).toHaveCount(0);
+  // `exact`: the rail's row for the step is a button whose text also
+  // ends in "deploy to prove this"
+  await expect(
+    page.getByRole("button", { name: "Deploy to prove this", exact: true })
+  ).toBeVisible();
+
   await skip.click();
   await page.getByRole("button", { name: "Read step 3 first" }).click();
   const sheet = page.getByRole("dialog", { name: /TypeScript client/i });
