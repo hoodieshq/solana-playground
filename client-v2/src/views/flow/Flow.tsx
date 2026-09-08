@@ -18,11 +18,13 @@ import Reader from "./lessons/Reader";
 // it here is also what populates the registry for the whole app.
 import {
   cursorStep,
+  entryReading,
   foldRecord,
   INITIAL_LESSON_STATE,
   PgLesson,
 } from "./lessons";
 import type { LessonState } from "./lessons";
+import { describeStep } from "./lessons/band-copy";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
@@ -115,12 +117,32 @@ const Flow = () => {
   const readingStep = lesson.path
     ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
     : null;
+  const described = describeStep(lesson);
+
+  // Every way the page opens goes through here, so the record learns
+  // about it exactly once per step and the band's signpost can rest
+  const read = (stepId: string) => {
+    setReading(true);
+    PgLesson.opened(stepId);
+  };
 
   // A learner who fixes the code while the page is open should come back
   // to the editor, not to the next step's prose.
   useEffect(() => {
     setReading(false);
   }, [readingStep?.id]);
+
+  // Entering the lesson lands on the page -- once (D34). Declared after
+  // the effect above so that, on the commit where both fire (a load
+  // moves the cursor too), open wins. Recording `opened` moves the
+  // record's tail off `enter`, so the next state returns null here and
+  // the effect is inert; closing the sheet by hand does not reopen it.
+  const entryStep = entryReading(lesson);
+  useEffect(() => {
+    if (entryStep) read(entryStep.id);
+    // `read` is recreated every render; the step id is the real trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryStep?.id]);
 
   return (
     <Wrapper>
@@ -156,16 +178,25 @@ const Flow = () => {
         <Center>
           <ObjectiveBand
             state={lesson}
-            onRead={() => setReading(true)}
+            onRead={() => readingStep && read(readingStep.id)}
             onOpenGallery={openGallery}
           />
           <Stage>
             <StageRouter stage={state.stage} />
-            {reading && readingStep && (
+            {reading && readingStep && described && (
               <Reader
                 key={readingStep.id}
                 step={readingStep}
+                position={described.number}
+                criterion={described.verifiedBy}
+                offersAttest={
+                  described.offersPrimary && readingStep.verify.kind === "read"
+                }
                 onClose={() => setReading(false)}
+                onAttest={() => {
+                  PgLesson.attest();
+                  setReading(false);
+                }}
               />
             )}
           </Stage>

@@ -9,17 +9,37 @@ import { useAsyncEffect, useKeybind } from "../../../hooks";
 
 interface ReaderProps {
   step: LessonStep;
+  /** "Step 2 of 4" */
+  position: string;
+  /** The band's criterion line, so the sheet and the band agree */
+  criterion: string;
+  /**
+   * Whether "Mark as read" is the step's edge right now (an attestation
+   * kind, cursor at the frontier) -- then the proof sits where the
+   * reading ends rather than in the band behind the sheet
+   */
+  offersAttest: boolean;
   onClose: () => void;
+  onAttest: () => void;
 }
 
 /**
- * The lesson page, over the editor, only when asked for.
+ * The lesson page, over the editor.
  *
  * Reading is deliberately not a stepper stage: it is not part of the dev
  * loop, and making it one would put a surface into the rotation whose
- * job is to hide the code.
+ * job is to hide the code. The sheet says where you are (the eyebrow)
+ * and where you go next (the footer), so closing it is never a leap
+ * into the unknown.
  */
-const Reader: FC<ReaderProps> = ({ step, onClose }) => {
+const Reader: FC<ReaderProps> = ({
+  step,
+  position,
+  criterion,
+  offersAttest,
+  onClose,
+  onAttest,
+}) => {
   const [content, setContent] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +83,10 @@ const Reader: FC<ReaderProps> = ({ step, onClose }) => {
   return (
     <Sheet role="dialog" aria-label={step.objective}>
       <Bar>
-        <Title>{step.objective}</Title>
+        <Heading>
+          <Eyebrow>{position}</Eyebrow>
+          <Title>{step.objective}</Title>
+        </Heading>
         <Close
           ref={closeRef}
           type="button"
@@ -87,6 +110,20 @@ const Reader: FC<ReaderProps> = ({ step, onClose }) => {
           <Markdown>{content}</Markdown>
         )}
       </Body>
+      {/* Always visible under the page: what proves this step, and the
+          one way on. Esc and the close button still work. */}
+      <Footer>
+        <Criterion>{criterion}</Criterion>
+        {offersAttest ? (
+          <FooterPrimary type="button" onClick={onAttest}>
+            Mark as read
+          </FooterPrimary>
+        ) : (
+          <FooterAction type="button" onClick={onClose}>
+            Back to the code
+          </FooterAction>
+        )}
+      </Footer>
     </Sheet>
   );
 };
@@ -112,6 +149,24 @@ const Bar = styled.div`
     gap: 1rem;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const Heading = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+`;
+
+// The band's eyebrow, repeated here so the sheet says where you are
+// without the band having to show through it
+const Eyebrow = styled.span`
+  ${({ theme }) => css`
+    font-size: ${theme.font.other.size.small};
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: ${theme.colors.default.textSecondary};
   `}
 `;
 
@@ -152,4 +207,52 @@ const Body = styled.div`
 
 const Failure = styled.p`
   color: ${({ theme }) => theme.colors.default.textSecondary};
+`;
+
+const Footer = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const Criterion = styled.span`
+  ${({ theme }) => css`
+    font-size: ${theme.font.other.size.small};
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+// The band's secondary and primary, in the same shapes, so the two
+// surfaces read as one family
+const FooterAction = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 9999px;
+    background: transparent;
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      border-color: ${theme.colors.default.primary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+const FooterPrimary = styled(FooterAction)`
+  ${({ theme }) => css`
+    border-color: transparent;
+    background: ${theme.colors.default.primary};
+  `}
 `;
