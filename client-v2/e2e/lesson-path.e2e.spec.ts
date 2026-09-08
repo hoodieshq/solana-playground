@@ -183,6 +183,22 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   await expect(
     page.getByRole("button", { name: "Read step 2 first" })
   ).toBeVisible();
+
+  // The deploy step explains what it still needs rather than failing: on
+  // a fresh profile there is no build and no wallet, and the band names
+  // both, each as a live remedy (`lessons/readiness.ts`). The primary
+  // stays offered either way.
+  await expect(page.getByText("Before you can deploy:")).toBeVisible();
+  await expect(page.getByRole("button", { name: "build first" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "connect a wallet" })
+  ).toBeVisible();
+  // `exact`: the rail's row for the step is a button whose text also
+  // ends in "deploy to prove this"
+  await expect(
+    page.getByRole("button", { name: "Deploy to prove this", exact: true })
+  ).toBeVisible();
+
   await skip.click();
   await page.getByRole("button", { name: "Read step 3 first" }).click();
   const sheet = page.getByRole("dialog", { name: /TypeScript client/i });
