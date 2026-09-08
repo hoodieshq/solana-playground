@@ -107,7 +107,7 @@ demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d);
 the default-build-server switch (D30). Waiting on the owner: the
 production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
-**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 3 in review
+**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 4 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
@@ -126,14 +126,15 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
       **est ~1 d**
 - [ ] next · Durable session (httpOnly cookie via our `/api`) --
       **est ~1 d**
-- [ ] next · Default build server is Solana's, not `api.solpg.io`
-      (D30). Checked in the code 2026-09-04, and smaller than it
-      sounded: the client already defaults to the Foundation's App
-      Engine host in production builds. The real work is **PR #22**,
-      whose `BUILD_SERVER_URL` falls back to `https://api.solpg.io` --
-      that default has to change before it merges -- plus adding SolPg
-      as a labelled option in the server setting (today the selector
-      offers only Local and Solana Foundation) -- **est ~2 h**
+- [x] review · Default build server is Solana's, not `api.solpg.io`
+      (D30) -- **landed in PR #22 on 2026-09-08** as two commits on its
+      branch, since #22 is where the decision bites: the proxy's
+      `BUILD_SERVER_URL` fallback is now the Foundation's App Engine
+      server (never `api.solpg.io`), and the picker offers **SolPg
+      (original backend)** as a labelled choice, with the option list
+      beside the default so the two cannot disagree. The client's own
+      production default was already right. Evidence:
+      `docs/internal/assets/2026-09-03-pr22/after-picker-d30.png`
 - [ ] next · Hosting + first deploy on Vercel (D29) -- **est ~0.5 d**
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
