@@ -1,0 +1,17 @@
+CI=true GENERATE_SOURCEMAP=false npx craco build  # 2026-09-08, feat/upstream-demo-path at c46202a1
+
+Most CI servers set it automatically.
+
+Failed to compile.
+
+There are multiple modules with names that only differ in casing.
+This can lead to unexpected behavior when compiling on a filesystem with other case-semantic.
+Use equal casing. Compare these module identifiers:
+* /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/node_modules/babel-loader/lib/index.js??ruleSet[1].rules[0].oneOf[3]!/Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/src/tutorials/__template/Template.ts
+    Used by 1 module(s), i. e.
+    /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/src/tutorials|lazy|/^\.\/.*\/.*$/|groupOptions: {}|namespace object
+* /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/node_modules/babel-loader/lib/index.js??ruleSet[1].rules[0].oneOf[3]!/Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/src/tutorials/__template/template.ts
+    Used by 2 module(s), i. e.
+    /Users/viacheslav_koreshkov/git/hoodies/solana-playground/.claude/worktrees/upstream-demo-path/client-v2/src/tutorials|lazy|/^\.\/.*\/.*$/|groupOptions: {}|namespace object
+
+

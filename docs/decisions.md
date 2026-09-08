@@ -1947,3 +1947,50 @@ is not mistaken for the answer.
 project runs Fluid compute (Settings -> Functions). The number can then
 be chosen on evidence rather than on the safe overlap; the table and the
 open check live in `client-v2/docs/deploy-client-vercel.md`.
+
+---
+
+## D37 - The unstable switch is a setting, and it is off everywhere
+
+**Date:** 2026-09-08 - **Status:** decided (Slava), implemented in
+PR #27 (`feat/upstream-demo-path`)
+
+Upstream sends `/build`, `/deploy` and `/bundle` through the server's
+`/unstable/...` routes outside production - first hard-wired to
+`NODE_ENV` (`57479351`), then, on 2026-09-07, behind an
+`experimental.unstable` setting that still defaults to
+`NODE_ENV !== "production"` (`876fa552`). Porting the demo-path
+commits into `client-v2` had to pick a shape and a default.
+
+**Chosen: the setting, defaulting to `false` in every environment.**
+The setting is upstream's own newer shape, taken one commit ahead of
+where `master-2.0`'s `client/` stands so the next sync finds
+`client-v2` already there. The default is ours. Checked on 2026-09-08:
+neither the Foundation's App Engine server nor `api.solpg.io` enables
+the `unstable` feature - every `/unstable/...` route answers 404 - and
+this fork's documented development flow builds against those servers
+(CLAUDE.md, "No backend needed"). With upstream's default, every
+`yarn dev` build would fail with a 404 until the developer found a
+checkbox; with `false`, nothing anyone does today changes. A side
+effect in our favour: the test runtime's package import and Monaco's
+package types, which took the `/unstable/packages` branch in
+development and got a 404 from every hosted server, now take the
+static production path and start working outside production too.
+
+**Rejected: upstream's default (`NODE_ENV !== "production"`).** Right
+for a team that runs a local server built with `--features unstable`,
+wrong for one that does not have one. A default that breaks the
+documented setup is not a default.
+
+**Rejected: `NODE_ENV` hard-wired, as in `57479351`.** No way out
+short of a rebuild, and upstream has already moved off it.
+
+**What it costs.** The sandboxed routes and the package bundle are a
+deliberate act now: run a server from this tree with the feature on,
+point the picker at it, tick the box. That is the pair that was always
+required; the setting only makes the second half visible.
+
+**Revisit when** a hosted server enables `unstable`, or when the
+`/api/build` proxy (D28) fronts one that does. Then the default can
+follow the environment the way upstream's does, and the proxy's
+allowlist has to learn the three prefixed routes.

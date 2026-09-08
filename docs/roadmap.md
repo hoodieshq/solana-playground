@@ -1,7 +1,7 @@
 # Roadmap and status
 
-Updated: 2026-09-08 -- PRs #24, #25 and #26 opened, D30 folded into #22,
-D36 recorded; 2026-09-07 folded in the 2026-09-04 tech-lead call. One
+Updated: 2026-09-08 -- PR #27 (upstream demo-path port, D37) opened;
+PRs #24, #25 and #26 opened, D30 folded into #22, D36 recorded; 2026-09-07 folded in the 2026-09-04 tech-lead call. One
 page for the whole effort, in the shape the board uses: **initiative ->
 tracks -> items**, every item with a status and, where it applies,
 whose move it is. The prose sections below the board carry the detail and the
@@ -48,13 +48,13 @@ Team 1.5. Dev tooling deliberately off this list.
 (week 1), the lesson-ledger corrections (week 2's track, built ahead of
 its week), and -- outside the launch scope -- an upstream feature the
 maintainer asked for (server-side rust-analyzer; see *In parallel*
-below). In review, seven PRs deep as of 2026-09-08: **#20** (lesson
+below). In review, eight PRs deep as of 2026-09-08: **#20** (lesson
 ledger, 265 tests / 29 suites), **#21** (production bundle +
 `client-v2` CI, green in 4m04s), **#22** (builds on a production domain
 through `/api/build`, D28, and since 8 Sep the D30 default), **#23**
 (rust-analyzer, upstream), **#24** (lesson entry, D34), **#25** (M3/M4
 plus the same body defect in `/api/mcp`), **#26** (the readiness
-explainer).
+explainer), **#27** (the three upstream demo-path changes, D37).
 
 **Three of those are one stack**: #20 -> #24 -> #26. Building on a
 branch that has not been reviewed is not a preference, it is what the
@@ -115,13 +115,12 @@ to **#23 first**, the one PR outside the launch scope, while #20 has
 been waiting since 1 Sep. The two PRs that are ours (#21, #22) still
 cannot be self-approved under branch protection.
 
-Next, in order, with M3/M4 and D30 now done (#25, #22): the three
-upstream demo-path commits (~0.5 d); H1 (~1 d); the durable session
-(~1 d); then week 2's remaining tutorials work -- the round-close docs
+Next, in order, with M3/M4, D30 and the demo-path port now done (#25,
+#22, #27): H1 (~1 d); the durable session (~1 d); then week 2's remaining tutorials work -- the round-close docs
 pass and the assets-repository research. Waiting on the owner: the
 production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
-**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 4 in review
+**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 5 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
@@ -143,9 +142,20 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
       early says so instead of passing half an answer off as whole.
       280 tests / 30 suites; verified by hand,
       `docs/internal/assets/2026-09-08-pr25/curl-agent-mcp.txt`
-- [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
+- [x] review · Three upstream demo-path commits (`packages`->`bundle`,
       `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes) --
-      **est ~0.5 d**
+      **PR #27** (2026-09-08, draft off `master-2.0`). Thirteen upstream
+      commits taken, every touched file byte-identical to upstream
+      before the port; the one fork edit inside it is the deploy length
+      arithmetic pulled into a pure tested module. The unstable routes
+      sit behind `experimental.unstable`, **off in every environment**
+      (D37): no hosted server enables the feature, so upstream's
+      non-production default would have turned every `yarn dev` build
+      into a 404. 264 tests / 31 suites; verified by hand against the
+      Foundation server, `docs/internal/assets/2026-09-08-pr-demo-path/`.
+      Hand-off to #22: its proxy allowlist still names
+      `/unstable/(packages|types)`, which no client asks for now;
+      whichever lands second drops them
 - [ ] next · H1: rate limit and caps on `/api/agent` + `/api/build` --
       **est ~1 d**
 - [ ] next · Durable session (httpOnly cookie via our `/api`) --
@@ -677,6 +687,11 @@ merge task.
   opened 2026-09-08 as a draft **stacked on #24**, which is itself
   stacked on #20. The stack merges bottom-up, or each base is retargeted
   as the one below it lands.
+- **#27** `feat/upstream-demo-path` -- the three upstream demo-path
+  changes (bundle route, SIMD-0431, unstable routes behind a setting,
+  D37), opened 2026-09-08 as a draft off `master-2.0`; independent of
+  the others. Spec
+  `docs/superpowers/specs/2026-09-08-upstream-demo-path-port-design.md`.
 
 Branch protection stays as it was: PR + **one approval** + signed
 commits, and nothing merges on a comment alone.
@@ -780,7 +795,8 @@ Each carries where it came from and where it now belongs.
    `packages`/`bundle` route swap, `MINIMUM_EXTEND_PROGRAM_BYTES`, and
    the sandboxed non-prod routes. See *Upstream drift* above. The first
    is a break already scheduled against any server built from this tree;
-   the second bites the demo's own redeploy step.
+   the second bites the demo's own redeploy step. **In review as PR #27
+   (2026-09-08)**, with the unstable switch off by default (D37).
 3. **M3 and M4, live on master.** #13 merged with both open: a `null`
    JSON body returns 500 (`api/agent.mjs:131`, the check sits outside
    the try that wraps parsing), and no `maxDuration` in `vercel.json`

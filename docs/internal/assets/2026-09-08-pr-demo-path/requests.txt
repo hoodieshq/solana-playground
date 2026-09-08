@@ -1,0 +1,19 @@
+workspace seeded
+experimental.unstable at start: false
+-> POST https://playground-server-dot-analytics-324114.de.r.appspot.com/build
+<- 200 https://playground-server-dot-analytics-324114.de.r.appspot.com/build
+experimental.unstable now: true
+-> POST https://playground-server-dot-analytics-324114.de.r.appspot.com/unstable/build
+<- 404 https://playground-server-dot-analytics-324114.de.r.appspot.com/unstable/build
+experimental.unstable now: false
+-> POST https://playground-server-dot-analytics-324114.de.r.appspot.com/bundle
+<- 404 https://playground-server-dot-analytics-324114.de.r.appspot.com/bundle
+--- terminal tail ---
+$build
+Building...
+buildProcesserror:Serverrequestfailed(https://playground-server-dot-analytics-324114.de
+.r.appspot.com/unstable/build):
+$pminstall
+Processerror:Serverrequestfailed(https://playground-server-dot-analytics-324114.de.r.ap
+pspot.com/bundle):
+$

@@ -125,3 +125,37 @@ the customer side; it was inferred from a date and then reasoned from
 as though it were a constraint. The cheap fix for next time: a date
 without a stated consequence for missing it is not a deadline, and the
 consequence is a question to ask, not to derive.
+
+## 2026-09-08 — porting upstream into `client-v2`
+
+- **The package import was already dead in development.** Outside
+  production, `client-v2` sent every importable package and every
+  package's types to `/unstable/packages` and `/unstable/types`, and no
+  server this team uses enables the `unstable` feature: the Foundation's
+  App Engine server and `api.solpg.io` both answer 404 there. Nobody
+  noticed because the test runtime is rarely exercised in development
+  and production takes the static path. Found while deciding the
+  default of `experimental.unstable` (D37); the port fixes it as a side
+  effect, and it is the kind of break the fork will keep finding as long
+  as `client-v2` trails `client/` -- the week-4 sync is the real answer.
+- **The `utils` barrel cannot be imported under jest.** `settings.ts`
+  reads `GLOBAL_SETTINGS`, a webpack `DefinePlugin` global, at module
+  load, so any test that imports `../../utils` -- the way every source
+  file does -- dies before the first assertion. Each of the four new
+  suites mocks the barrel or reaches for the deep module instead. That
+  is why the deploy arithmetic had to leave `deploy.ts` to be tested at
+  all, and it taxes every future test of upstream code the same way.
+- **`jest.mock` factories and the hoist.** A mock factory cannot close
+  over a `const` declared beside it (babel hoists the mock above the
+  imports, and the `mock`-prefix escape hatch still runs before the
+  declaration when an import triggers the factory). Twenty minutes to
+  learn that the fake has to be built *inside* the factory and reached
+  through the mocked module afterwards. Written down so the next suite
+  does not pay it again.
+- **The assets submodule is behind in the primary checkout.**
+  `master-2.0` pins `client/public` at `1098ecfa` (which adds the
+  `/frameworks/` manifest and lock that `PgJsPackage` falls back to);
+  the working tree still has `df14c26e`, and `git status` has shown
+  `M client/public` for days. Harmless until something reads the new
+  files; `git submodule update` and `make update-static` are the fix,
+  and nothing in the tree reminds anyone.
