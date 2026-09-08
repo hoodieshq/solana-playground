@@ -18,13 +18,13 @@ import Reader from "./lessons/Reader";
 // it here is also what populates the registry for the whole app.
 import {
   cursorStep,
+  describeStep,
   entryReading,
   foldRecord,
   INITIAL_LESSON_STATE,
   PgLesson,
 } from "./lessons";
 import type { LessonState } from "./lessons";
-import { describeStep } from "./lessons/band-copy";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";

@@ -8,14 +8,7 @@ import {
   primaryLabel,
   readLabel,
 } from "./band-copy";
-import {
-  attempted,
-  cursorStep,
-  foldRecord,
-  nextLegal,
-  prevLegal,
-  rung,
-} from "./ledger";
+import { attempted, foldRecord, nextLegal, prevLegal, rung } from "./ledger";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
@@ -43,10 +36,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
   onRead,
   onOpenGallery,
 }) => {
-  const described = describeStep(state);
-  const finished = describeFinish(state);
-  if (!state.path || (!described && !finished)) return null;
-
+  if (!state.path) return null;
   const view = foldRecord(state.path, state.record);
   const canGoBack = prevLegal(state.path, view) !== null;
   const canGoForward = nextLegal(state.path, view) !== null;
@@ -82,9 +72,13 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
     </>
   );
 
-  // Past the last step: say so, and say where to go. The rail's rows
-  // are still legal positions, so the back arrow still works.
-  if (finished) {
+  // No step under the cursor means the path is finished: say so, and say
+  // where to go. The rail's rows are still legal positions, so the back
+  // arrow still works.
+  const shown = describeStep(state);
+  if (!shown) {
+    const finished = describeFinish(state);
+    if (!finished) return null;
     return (
       <Wrapper>
         <Text>
@@ -102,12 +96,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
     );
   }
 
-  // Not finished, so `describeStep` found the cursor's step
-  const shown = described as NonNullable<typeof described>;
-  const step = cursorStep(state.path, view) as NonNullable<
-    ReturnType<typeof cursorStep>
-  >;
-
+  const { step } = shown;
   const spent = rung(view, step.id);
   const tried = attempted(state.path, view, step.id);
 

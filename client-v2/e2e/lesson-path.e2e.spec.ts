@@ -170,4 +170,24 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   await expect(
     page.getByRole("button", { name: "Try it first" })
   ).toBeVisible();
+
+  // Skipping to the read step: its page has never been opened, so the
+  // band signposts it, and the reader's footer offers the step's own
+  // edge -- "Mark as read" -- where the reading ends. The band offers
+  // the same label, so scope to the sheet.
+  const skip = page.getByRole("button", {
+    name: "Skip this step",
+    exact: true,
+  });
+  await skip.click();
+  await expect(
+    page.getByRole("button", { name: "Read step 2 first" })
+  ).toBeVisible();
+  await skip.click();
+  await page.getByRole("button", { name: "Read step 3 first" }).click();
+  const sheet = page.getByRole("dialog", { name: /TypeScript client/i });
+  await expect(
+    sheet.getByRole("button", { name: "Mark as read", exact: true })
+  ).toBeVisible();
+  await expect(sheet.getByText("Back to the code")).toHaveCount(0);
 });

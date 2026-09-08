@@ -364,6 +364,12 @@ describe("opened pages", () => {
     expect(admits(PATH, v, { ...base, ...opened("deploy") })).toBe(true);
   });
 
+  it("refuses opened for a step the path does not have", () => {
+    const v = foldRecord(PATH, record());
+    const base = { seq: 1, at: 1, actor: "learner" } as const;
+    expect(admits(PATH, v, { ...base, ...opened("nowhere") })).toBe(false);
+  });
+
   it("restores opened from a snapshot", () => {
     const v = foldRecord(PATH, {
       v: 2,

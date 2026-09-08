@@ -305,7 +305,8 @@ export const nextLegal = (
  * move that goes somewhere new. The dispatcher refuses what this
  * refuses, so the log never records a click the table has no row for
  * -- while the recorded facts (`enter`, `attempt`, `checked`, `hint`)
- * are always admitted.
+ * are always admitted, except `opened`, which is new only the first
+ * time for a step the path actually has.
  */
 export const admits = (
   path: LessonPath,
@@ -330,9 +331,11 @@ export const admits = (
       const p = resolve(path, ev.to);
       return p !== null && p !== view.cursor && legal(path, view, p);
     }
-    // A fact, but one that is only new the first time
+    // A fact, but one that is only new the first time, and only about a
+    // step the path has -- the set is surfaced in the snapshot and read
+    // by copy, so it should never hold an id nobody can render
     case "opened":
-      return !view.opened.has(ev.stepId);
+      return indexOf(path, ev.stepId) !== -1 && !view.opened.has(ev.stepId);
     case "enter":
     case "attempt":
     case "checked":

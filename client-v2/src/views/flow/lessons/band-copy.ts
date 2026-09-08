@@ -69,6 +69,8 @@ export const describeStep = (state: LessonState) => {
   const open = mark === "open";
 
   return {
+    /** The step under the cursor, so the band never re-derives it */
+    step,
     number: `Step ${positionNumber(state.path, view)} of ${
       state.path.steps.length
     }`,

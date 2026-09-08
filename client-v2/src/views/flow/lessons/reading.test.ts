@@ -51,7 +51,7 @@ describe("entryReading", () => {
     expect(entryReading(INITIAL_LESSON_STATE)).toBeNull();
   });
 
-  it("names the cursor step right after enter when its page is unopened", () => {
+  it("names the cursor step on enter when its page is unopened", () => {
     expect(entryReading(load())?.id).toBe("one");
   });
 
