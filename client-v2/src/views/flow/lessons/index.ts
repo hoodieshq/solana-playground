@@ -18,6 +18,7 @@ export {
   rung,
 } from "./ledger";
 export type { LessonView } from "./ledger";
+export { positionLabel } from "./band-copy";
 export { entryReading } from "./reading";
 export { getLessonPath } from "./registry";
 export { graderClass, targetStage, verifyingStage } from "./verify";

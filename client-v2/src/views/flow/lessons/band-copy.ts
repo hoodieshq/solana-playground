@@ -1,8 +1,9 @@
 import { RUNG_COUNT } from "./hints";
 import { cursorStep, foldRecord, positionNumber } from "./ledger";
+import type { LessonView } from "./ledger";
 import type { LessonState } from "./store";
 import type { LessonMark } from "./events";
-import type { VerifyCondition } from "./types";
+import type { LessonPath, VerifyCondition } from "./types";
 import { graderClass, verifyingStage } from "./verify";
 
 /**
@@ -24,6 +25,19 @@ export const primaryLabel = (c: VerifyCondition): string => {
       return "Mark as read";
   }
 };
+
+/**
+ * The read button's label. Until the page has been opened it is the
+ * signpost D34 asked for -- the one thing that says "read first".
+ */
+export const readLabel = (position: number, opened: boolean): string =>
+  opened ? "Read the page" : `Read step ${position} first`;
+
+/** "2 of 4" inside the path, "done" past its end -- never "5 of 4" */
+export const positionLabel = (path: LessonPath, view: LessonView): string =>
+  view.cursor === "end"
+    ? "done"
+    : `${positionNumber(path, view)} of ${path.steps.length}`;
 
 /** What a non-open step's sub-line says. Copy and record must agree:
  * `attested` never reads as verified, `passed` never reads as done. */
@@ -58,6 +72,9 @@ export const describeStep = (state: LessonState) => {
     number: `Step ${positionNumber(state.path, view)} of ${
       state.path.steps.length
     }`,
+    position: positionNumber(state.path, view),
+    /** Whether the learner has ever opened this step's page */
+    opened: view.opened.has(step.id),
     objective: step.objective,
     verifiedBy: open
       ? step.verify.kind === "read"
@@ -71,6 +88,36 @@ export const describeStep = (state: LessonState) => {
      * skip valve promised -- "clears itself if you come back and prove
      * it" -- and coming back is how the learner takes that offer. */
     offersPrimary: open ? view.cursor === view.frontier : mark === "passed",
+  };
+};
+
+/**
+ * @returns what the band shows once the cursor is past the last step,
+ * or `null` while any step is ahead. The summary uses the record's own
+ * vocabulary so it can never claim more than the marks do.
+ */
+export const describeFinish = (state: LessonState) => {
+  const { path } = state;
+  if (!path) return null;
+  const view = foldRecord(path, state.record);
+  if (view.cursor !== "end") return null;
+
+  const count = (mark: LessonMark) =>
+    path.steps.filter((s) => view.marks.get(s.id) === mark).length;
+  const proved = count("proved");
+  const attested = count("attested");
+  const passed = count("passed");
+
+  const parts = [
+    proved > 0 ? `${proved} proved` : null,
+    attested > 0 ? `${attested} marked read` : null,
+    passed > 0 ? `${passed} skipped -- go back to prove it` : null,
+  ].filter((p): p is string => p !== null);
+
+  return {
+    number: `${path.steps.length} of ${path.steps.length} steps`,
+    objective: `You have finished ${path.tutorial}.`,
+    verifiedBy: `${parts.join(", ")}.`,
   };
 };
 

@@ -12,7 +12,15 @@ jest.mock("../../../utils", () => ({
   PgTutorial: { getStorage: jest.fn() },
 }));
 
-import { assistantLabel, describeStep, primaryLabel } from "./band-copy";
+import {
+  assistantLabel,
+  describeFinish,
+  describeStep,
+  positionLabel,
+  primaryLabel,
+  readLabel,
+} from "./band-copy";
+import { foldRecord } from "./ledger";
 import { INITIAL_LESSON_STATE } from "./store";
 import type { LessonState } from "./store";
 import type { LessonRecordEvent } from "./events";
@@ -85,11 +93,20 @@ describe("describeStep", () => {
     const d = describeStep(withEvents(PATH, []));
     expect(d).toMatchObject({
       number: "Step 1 of 2",
+      position: 1,
       objective: "Define hello",
       verifiedBy: "Verified when the interface shows hello.",
       mark: "open",
+      opened: false,
       offersPrimary: true,
     });
+  });
+
+  it("knows whether the page has been opened", () => {
+    const opened = withEvents(PATH, [
+      { seq: 1, at: 1, actor: "learner", type: "opened", stepId: "one" },
+    ]);
+    expect(describeStep(opened)?.opened).toBe(true);
   });
 
   it("is null once the path is finished", () => {
@@ -149,6 +166,75 @@ describe("describeStep", () => {
       offersPrimary: true,
       verifiedBy: "Skipped -- not verified.",
     });
+  });
+});
+
+describe("readLabel", () => {
+  it("points at the page until it has been opened", () => {
+    expect(readLabel(2, false)).toBe("Read step 2 first");
+    expect(readLabel(2, true)).toBe("Read the page");
+  });
+});
+
+describe("positionLabel", () => {
+  it("counts within the path and says done past its end", () => {
+    const start = withEvents(PATH, []);
+    expect(positionLabel(PATH, foldRecord(PATH, start.record))).toBe("1 of 2");
+    const done = withEvents(PATH, [
+      {
+        seq: 1,
+        at: 1,
+        actor: "toolchain",
+        type: "graded",
+        stepIds: ["one", "two"],
+      },
+    ]);
+    expect(positionLabel(PATH, foldRecord(PATH, done.record))).toBe("done");
+  });
+});
+
+describe("describeFinish", () => {
+  it("is null while any step is ahead", () => {
+    expect(describeFinish(INITIAL_LESSON_STATE)).toBeNull();
+    expect(describeFinish(withEvents(PATH, []))).toBeNull();
+  });
+
+  it("summarises an all-proved path", () => {
+    const done = withEvents(PATH, [
+      {
+        seq: 1,
+        at: 1,
+        actor: "toolchain",
+        type: "graded",
+        stepIds: ["one", "two"],
+      },
+    ]);
+    expect(describeFinish(done)).toEqual({
+      number: "2 of 2 steps",
+      objective: "You have finished Hello Anchor.",
+      verifiedBy: "2 proved.",
+    });
+  });
+
+  it("names attested and skipped steps in the record's own words", () => {
+    const attested = withEvents(READ_PATH, [
+      { seq: 1, at: 1, actor: "learner", type: "attest", stepId: "one" },
+    ]);
+    expect(describeFinish(attested)?.verifiedBy).toBe("1 marked read.");
+
+    const skipped = withEvents(PATH, [
+      { seq: 1, at: 1, actor: "learner", type: "pass", stepId: "one" },
+      {
+        seq: 2,
+        at: 2,
+        actor: "toolchain",
+        type: "graded",
+        stepIds: ["two"],
+      },
+    ]);
+    expect(describeFinish(skipped)?.verifiedBy).toBe(
+      "1 proved, 1 skipped -- go back to prove it."
+    );
   });
 });
 
