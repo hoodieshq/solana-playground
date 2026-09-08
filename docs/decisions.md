@@ -1826,6 +1826,53 @@ somebody actually wants to teach.
 
 ---
 
+## D25 - Amended 2026-09-08: the record learns `opened`
+
+**Date:** 2026-09-08 - **Status:** amendment (Slava), implementing D34
+on `feat/lesson-entry` (PR #24, stacked on #20)
+
+Source: `docs/superpowers/specs/2026-09-08-lesson-entry-design.md`.
+
+D34 asked that entering a lesson land on the lesson page and that the
+band say "read first" until the page has been read. Both need one fact
+the record did not hold: whether the learner ever opened a step's page.
+
+**Chosen:** a ninth event kind, `{ type: "opened"; stepId }` - "the
+learner opened this step's page". A recorded fact in the same class as
+`attempt` and `hint`: no mark edge, no cursor effect, admitted once per
+step and only for a step the path has (a repeat has nothing to do, like
+a `move` to where the cursor stands). The fold gains
+`opened: ReadonlySet<string>`; the trim snapshot gains
+`opened?: string[]`, so the fact survives a trim - a signpost that
+forgot would nag again.
+
+**`opened` is not `attest`.** Opening a page proves nothing. D26's
+"Mark as read" stays the only edge a read step has, and stays a human
+click at the frontier.
+
+**Rejected: a session-only set of opened pages.** It would re-open the
+page on every reload and forget it on every workspace switch, and it
+would be a second store beside the one the ledger round exists to make
+the only one.
+
+**One rule follows from it.** The page opens by itself only when the
+lesson is entered (the record's tail is `enter`) and only if the
+cursor's page is unopened; everywhere else the band points at it. A
+build that proves a step never opens the next page over its own result.
+
+**One consequence for the friction log's §5 (persist-on-load stays
+off).** The entry rule appends `opened` right after `enter`, so a first
+visit now writes storage on load. `_persist` still refuses while
+`loadFailed` is set, which was the reason the rule existed.
+
+**The v1 migration writes no `opened`**: a migrated learner's current
+step reads as unopened once and its page opens once. Accepted.
+
+**Revisit when** the assistant's lesson context wants to know whether
+the page was read - it can now, from the same fold.
+
+---
+
 ## D35 - Team-facing artifacts inherit the product's own theme
 
 **Date:** 2026-09-08 - **Status:** decided (Slava)

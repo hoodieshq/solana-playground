@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Updated: 2026-09-07, folding in the 2026-09-04 tech-lead call. One
+Updated: 2026-09-08 (PRs #24, #25 opened); 2026-09-07 folded in the 2026-09-04 tech-lead call. One
 page for the whole effort, in the shape the board uses: **initiative ->
 tracks -> items**, every item with a status and, where it applies,
 whose move it is. The prose sections below the board carry the detail and the
@@ -107,15 +107,18 @@ demo-path commits (~0.5 d); H1 (~1 d); the durable session (~1 d);
 the default-build-server switch (D30). Waiting on the owner: the
 production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 
-**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 2 in review
+**Week 1 (2-8 Sep) -- The launch floor** · 0/9 done, 3 in review
 - [x] review · Production bundle builds; `client-v2` CI -- **PR #21**
       (`__template` rename, `yarn build-fast`, workflow: tsc, prettier
       over `src/`+`api/`, 242 tests, `CI=true` bundle)
 - [x] review · Build works on a production domain: same-origin
       `/api/build` proxy (D28) -- **PR #22**; covers the deploy round
       trip too (the allowlist gates every route); cheap H1 rides along
-- [ ] next · M3 + M4 on `/api/agent` (null body -> 500; no
-      `maxDuration`) -- **est ~2 h**
+- [x] review · M3 + M4 on `/api/agent` (null body -> 500; no
+      `maxDuration`) -- **PR #25** (2026-09-08): a non-object body
+      answers 400, `api/agent.mjs` gets `maxDuration: 60` in
+      `vercel.json`; pinned by an integration spec against the real
+      handler
 - [ ] next · Three upstream demo-path commits (`packages`->`bundle`,
       `MINIMUM_EXTEND_PROGRAM_BYTES`, sandboxed non-prod routes) --
       **est ~0.5 d**
@@ -135,7 +138,7 @@ production GitHub OAuth app. Hosting is answered -- Vercel (D29).
 - [ ] waiting: owner · Production GitHub OAuth app (live app is
       localhost-only)
 
-**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 1 in review
+**Week 2 (9-15 Sep) -- Learning core: the lesson ledger** · 1/7 done, 2 in review
 · the week is deliberately all tutorials and stays there (2026-09-04
 call); week 1 is effectively closed and much of this week was built
 ahead of it
@@ -150,10 +153,18 @@ ahead of it
 - [ ] next · Readiness explainer (`needs-build` / wallet / cluster /
       sol) -- consciously out of #20; **est ~1.5 d**, and it is the
       cheapest visible thing available to start today (stacked on #20)
-- [ ] next · Entering a lesson is legible (D34): clicking a tutorial
+- [x] review · Entering a lesson is legible (D34): clicking a tutorial
       lands on the tutorial, the reader is signposted before the code,
       closing something leaves you somewhere -- the tech lead's own
-      first complaint; **est ~1 d**
+      first complaint; **PR #24** (2026-09-08, stacked on #20). One
+      rule: the page opens by itself only on entering the lesson and
+      only if never opened; the record learns `opened` (D25 amended);
+      the band signposts *Read step N first*; the reader gains a footer
+      with the criterion and *Mark as read* / *Back to the code*; a
+      finished path shows a finished band and the switcher says *done*
+      instead of *5 of 4*. Spec
+      `docs/superpowers/specs/2026-09-08-lesson-entry-design.md`,
+      evidence `docs/internal/assets/2026-09-08-lesson-entry/`
 - [ ] next · Assets-repository research (D33), the 30-60 min box
       Sergey scoped: where tutorial content actually lives and how it
       reaches the client today
@@ -613,6 +624,13 @@ merge task.
   CI, opened 2026-09-02, the workflow green on its first run (4m04s).
   Formats `Chat.tsx:290-292`, which #20 rewrites: whichever lands
   second takes #20's side of a one-line conflict.
+- **#24** `feat/lesson-entry` -- lesson entry legibility (D34), opened
+  2026-09-08 as a draft **stacked on #20** (base `feat/lesson-ledger`);
+  it merges after #20, or its base is retargeted to `master-2.0` once
+  #20 lands.
+- **#25** `fix/agent-null-body-timeout` -- M3 + M4 on `/api/agent`,
+  opened 2026-09-08 as a draft off `master-2.0`; independent of the
+  others.
 
 Branch protection stays as it was: PR + **one approval** + signed
 commits, and nothing merges on a comment alone.
