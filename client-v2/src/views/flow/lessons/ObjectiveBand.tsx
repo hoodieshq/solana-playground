@@ -9,17 +9,46 @@ import {
   readLabel,
 } from "./band-copy";
 import { attempted, foldRecord, nextLegal, prevLegal, rung } from "./ledger";
+import { readiness, readinessLine } from "./readiness";
+import type { Blocker } from "./readiness";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
 import { PgAssistant } from "../../sidebar/assistant/store";
-import { PgCommand } from "../../../utils";
+import type { FlowState } from "../state/stage";
+import { Endpoint } from "../../../constants";
+import { GithubAuth } from "../../../features/github-oauth";
+import { useBalance, useRenderOnChange, useWallet } from "../../../hooks";
+import { PgCommand, PgConnection, PgSettings } from "../../../utils";
 
 interface ObjectiveBandProps {
   state: LessonState;
+  flow: FlowState;
   onRead: () => void;
   onOpenGallery: () => void;
 }
+
+/**
+ * The one action that clears a blocker. Each is the same thing the
+ * header chip or the stage button does, so the explainer never has a
+ * path of its own to drift on.
+ */
+const remedy = (b: Blocker) => {
+  switch (b.kind) {
+    case "needs-build":
+      return () => PgCommand.build.execute();
+    case "needs-wallet":
+      return () => PgCommand.connect.execute();
+    case "needs-cluster":
+      return () => {
+        PgSettings.connection.endpoint = Endpoint.DEVNET;
+      };
+    case "needs-sol":
+      return b.signedIn
+        ? () => PgCommand.airdrop.execute()
+        : () => GithubAuth.signIn();
+  }
+};
 
 /**
  * One ask, above the editor, always visible.
@@ -33,9 +62,18 @@ interface ObjectiveBandProps {
  */
 const ObjectiveBand: FC<ObjectiveBandProps> = ({
   state,
+  flow,
   onRead,
   onOpenGallery,
 }) => {
+  // What the proving action needs, from the same sources the header's
+  // chips read. Subscribed here, before the early return below, so the
+  // hooks run on every render.
+  const wallet = useWallet();
+  const balance = useBalance();
+  const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
+  useRenderOnChange(GithubAuth.onDidChange);
+
   if (!state.path) return null;
   const view = foldRecord(state.path, state.record);
   const canGoBack = prevLegal(state.path, view) !== null;
@@ -98,6 +136,18 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
 
   const { step } = shown;
   const spent = rung(view, step.id);
+  const explainer =
+    shown.offersPrimary && shown.mark === "open"
+      ? readinessLine(
+          readiness(step.verify, {
+            build: flow.build,
+            wallet: !!wallet,
+            balance: typeof balance === "number" ? balance : null,
+            cluster: cluster ?? null,
+            signedIn: !!GithubAuth.user,
+          })
+        )
+      : null;
   const tried = attempted(state.path, view, step.id);
 
   const askForHelp = () => {
@@ -117,6 +167,22 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
         <Eyebrow>{shown.number}</Eyebrow>
         <Objective>{shown.objective}</Objective>
         <VerifiedBy>{shown.verifiedBy}</VerifiedBy>
+        {/* Only where the proving action is offered: behind the frontier
+            there is nothing to be ready for */}
+        {explainer && (
+          <Readiness>
+            <Lead>{explainer.lead}</Lead>
+            {explainer.items.map((item) => (
+              <Remedy
+                key={item.blocker.kind}
+                type="button"
+                onClick={remedy(item.blocker)}
+              >
+                {item.text}
+              </Remedy>
+            ))}
+          </Readiness>
+        )}
       </Text>
       <Actions>
         {nav}
@@ -227,6 +293,45 @@ const VerifiedBy = styled.span`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+// The explainer: a lead and the remedies as inline link-buttons, one
+// line, wrapping. Reads as a sentence, acts as a row of controls.
+const Readiness = styled.div`
+  ${({ theme }) => css`
+    margin-top: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.625rem;
+    font-size: ${theme.font.other.size.small};
+  `}
+`;
+
+const Lead = styled.span`
+  color: ${({ theme }) => theme.colors.default.textPrimary};
+`;
+
+const Remedy = styled.button`
+  ${({ theme }) => css`
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: ${theme.colors.default.primary};
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
   `}
 `;
 
