@@ -3,9 +3,7 @@
 
 packages/*
 !packages/plugins
-!packages/package.json
-!packages/webpack.config.js
-!packages/yarn.lock
+!packages/webpack.base.config.js
 programs/*
 !programs/default
 !programs/Cargo.*

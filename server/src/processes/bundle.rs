@@ -55,8 +55,15 @@ type Dependencies = HashMap<String, String>;
 
 /// Install packages.
 fn install_packages() -> Result<Manifest> {
-    // TODO: Install
-    // TODO: Validate?
+    let status = Command::new("yarn")
+        .current_dir(PACKAGES_DIR)
+        .arg("--ignore-scripts")
+        // TODO: Remove
+        .arg("--offline")
+        .status()?;
+    if !status.success() {
+        return Err(anyhow!("Failed to install"));
+    }
 
     let packages_path = Path::new(PACKAGES_DIR);
     let out_path = get_out_path();
@@ -98,7 +105,7 @@ fn generate_bundle(manifest: &Manifest) -> Result<()> {
     }
 
     // Add entries to the webpack config
-    let webpack_cfg_path = packages_path.join(WEBPACK_CONFIG_FILE);
+    let webpack_cfg_path = packages_path.join(WEBPACK_BASE_CONFIG_FILE);
     let webpack_cfg = fs::read_to_string(&webpack_cfg_path)?
         .replace("/* <DYNAMIC_ENTRIES> */", &entries.join(","));
     fs::write(webpack_cfg_path, webpack_cfg)?;
@@ -331,8 +338,8 @@ fn convert_type_files(files: Vec<(PathBuf, String)>) -> anyhow::Result<Files> {
 /// Build directory (`webpack`)
 const BUILD_DIR: &str = "dist";
 
-/// `weppack` config file
-const WEBPACK_CONFIG_FILE: &str = "webpack.config.js";
+/// Base `webpack` config file
+const WEBPACK_BASE_CONFIG_FILE: &str = "webpack.base.config.js";
 
 /// The default directory of where the JS packages are stored
 const NODE_MODULES: &str = "node_modules";

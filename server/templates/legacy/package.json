@@ -1,6 +1,5 @@
 {
-  "name": "@solana-playground/js-runtime-packages",
-  "description": "Dynamic packages for Solana Playground",
+  "name": "legacy",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
