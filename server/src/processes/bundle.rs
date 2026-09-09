@@ -179,6 +179,12 @@ where
 }
 
 /// Generate type declaration files.
+///
+/// Currently, the server tries to collect the minimum amount of type files instead of serving all
+/// type declaration files inside `node_modules`. This is a design decision to make the types as
+/// light as possible, as the the target client is a web browser.
+//
+// TODO: Cache
 fn generate_types(manifest: &Manifest) -> Result<()> {
     for dep in manifest.get_all_dependencies().keys() {
         if let Err(e) = generate_package_types(dep) {
@@ -203,7 +209,8 @@ fn generate_types(manifest: &Manifest) -> Result<()> {
 /// [`generate-packages.mjs`]: https://github.com/solana-playground/solana-playground/blob/7d9f365a5009fd65aaa388e85bc541e5f4f51ae9/client/scripts/generate-packages.mjs
 fn generate_package_types(name: &str) -> Result<()> {
     let build_path = get_build_path();
-    let out_path = build_path.join(name);
+    // Flatten the `@types` into the out directory so that clients have a easier time importing
+    let out_path = build_path.join(name.replace("@types/", ""));
     let types_path = out_path.join(TYPES_FILE);
     let deps_path = out_path.join(DEPENDENCIES_FILE);
 
@@ -224,7 +231,6 @@ fn generate_package_types(name: &str) -> Result<()> {
         return Ok(());
     }
 
-    // FIXME: `@types` are broken
     let pkg_roots = [&node_modules, &node_modules.join("@types")];
     for pkg_root in pkg_roots {
         let pkg_path = pkg_root.join(name);
@@ -237,11 +243,11 @@ fn generate_package_types(name: &str) -> Result<()> {
         let type_root = manifest
             .types
             .as_ref()
-            .ok_or_else(|| anyhow!("Unexpected `types` field: `{name}`"))
+            .ok_or_else(|| anyhow!("Unexpected `types` field"))
             .map(Path::new)
             .map(|type_root| pkg_path.join(type_root))?;
         let files = get_all_declaration_files(&type_root)
-            .map_err(|e| anyhow!("Failed to get type paths: `{name}`: {e}"))
+            .map_err(|e| anyhow!("Failed to get type paths: {e}"))
             .map(convert_type_files)??;
 
         // Save type declarations
@@ -251,13 +257,16 @@ fn generate_package_types(name: &str) -> Result<()> {
         // Get transitive dependencies that are being referenced in type declarations
         let deps = manifest
             .get_all_dependencies()
-            .keys()
+            .into_keys()
             // TODO: Make this more robust (if necesssary)
-            .filter(|dep| files.iter().any(|(_, content)| content.contains(*dep)))
+            .filter(|dep| files.iter().any(|(_, content)| content.contains(dep)))
             .fold(vec![], |mut acc, dep| {
-                match generate_package_types(dep) {
-                    Ok(_) => acc.push(dep.to_owned()),
-                    Err(e) => eprintln!("Failed to generate types for `{dep}`: {e}"),
+                match generate_package_types(&dep) {
+                    Ok(_) => acc.push(dep),
+                    Err(e1) => match generate_package_types(&format!("@types/{dep}")) {
+                        Ok(_) => acc.push(dep),
+                        Err(e2) => eprintln!("Failed to generate types for `{dep}`: {e1}\n{e2}"),
+                    },
                 }
 
                 acc
@@ -269,7 +278,7 @@ fn generate_package_types(name: &str) -> Result<()> {
         return Ok(());
     }
 
-    Err(anyhow!("Could not find type declarations ({name})"))
+    Err(anyhow!("Could not find type declarations"))
 }
 
 /// Get all type declaration files recursively.
