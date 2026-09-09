@@ -34,7 +34,7 @@ const Monaco = () => {
     // Compiler options
     const compilerOptions: monaco.languages.typescript.CompilerOptions = {
       lib: ["es2020"],
-      target: monaco.languages.typescript.ScriptTarget.ES2017,
+      target: monaco.languages.typescript.ScriptTarget.ES2020,
       module: monaco.languages.typescript.ModuleKind.ESNext,
       moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
       allowNonTsExtensions: true,
