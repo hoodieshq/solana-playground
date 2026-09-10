@@ -287,9 +287,7 @@ const Chat = () => {
                 `${lesson.verifiedBy} — this is what proves it, and the only thing that can.`
               }
               onSkipStep={
-                item.id === skippableId
-                  ? () => PgLesson.skipStep()
-                  : undefined
+                item.id === skippableId ? () => PgLesson.skipStep() : undefined
               }
               skipStepTitle={
                 lesson &&

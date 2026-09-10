@@ -77,7 +77,7 @@ Make sure you've done the initial setup mentioned in [How to add a tutorial](#ho
 2. Rename the directory and file names to fit your tutorial's name e.g. if your tutorial name is "Cool Tutorial", rename the:
 
    - Directory to `cool-tutorial`
-   - `template.ts` file to `cool-tutorial.ts`
+   - `__template.ts` file to `cool-tutorial.ts`
    - `Template.tsx` file to `CoolTutorial.tsx`
 
 3. Change content
