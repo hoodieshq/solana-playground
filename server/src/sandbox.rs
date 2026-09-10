@@ -24,13 +24,6 @@ impl<'a> Sandbox<'a> {
         Self::default()
     }
 
-    /// Set the timeout limit for the overall process.
-    #[must_use]
-    pub fn timeout(mut self, timeout: u64) -> Self {
-        self.cfg.timeout.replace(timeout);
-        self
-    }
-
     /// Set the Docker image.
     #[must_use]
     pub fn image(mut self, image: impl ToString) -> Self {
@@ -46,24 +39,38 @@ impl<'a> Sandbox<'a> {
         self
     }
 
+    /// Set the limits for the overall process.
+    #[must_use]
+    pub fn limits(mut self, limits: Limits) -> Self {
+        self.cfg.limits = limits;
+        self
+    }
+
+    /// Set the timeout limit for the overall process.
+    #[must_use]
+    pub fn timeout_limit(mut self, timeout_limit: u64) -> Self {
+        self.cfg.limits.timeout.replace(timeout_limit);
+        self
+    }
+
     /// Set the CPU (cores) limit.
     #[must_use]
     pub fn cpu_limit(mut self, cpu_limit: usize) -> Self {
-        self.cfg.cpu_limit.replace(cpu_limit);
+        self.cfg.limits.cpu.replace(cpu_limit);
         self
     }
 
     /// Set the memory limit.
     #[must_use]
     pub fn memory_limit(mut self, memory_limit: usize) -> Self {
-        self.cfg.memory_limit.replace(memory_limit);
+        self.cfg.limits.memory.replace(memory_limit);
         self
     }
 
     /// Set the process (PIDs) limit.
     #[must_use]
     pub fn process_limit(mut self, process_limit: usize) -> Self {
-        self.cfg.process_limit.replace(process_limit);
+        self.cfg.limits.process.replace(process_limit);
         self
     }
 
@@ -119,15 +126,15 @@ impl<'a> Sandbox<'a> {
                 cmd.arg("--user");
                 cmd.arg(user);
             }
-            if let Some(cpu) = self.cfg.cpu_limit {
+            if let Some(cpu) = self.cfg.limits.cpu {
                 cmd.arg("--cpus");
                 cmd.arg(cpu.to_string());
             }
-            if let Some(mem) = self.cfg.memory_limit {
+            if let Some(mem) = self.cfg.limits.memory {
                 cmd.arg("--memory");
                 cmd.arg(format!("{mem}b"));
             }
-            if let Some(pids) = self.cfg.process_limit {
+            if let Some(pids) = self.cfg.limits.process {
                 cmd.arg("--pids-limit");
                 cmd.arg(pids.to_string());
             }
@@ -195,7 +202,7 @@ impl<'a> Sandbox<'a> {
         };
 
         // Wait for completion
-        let result = match self.cfg.timeout {
+        let result = match self.cfg.limits.timeout {
             Some(to) => match timeout(Duration::from_secs(to), fut).await {
                 Ok(res) => res,
                 Err(_) => Err(anyhow!("Timed out")),
@@ -215,18 +222,25 @@ impl<'a> Sandbox<'a> {
 /// Sandbox configuration
 #[derive(Debug, Default)]
 struct Config {
-    /// Timeout limit
-    timeout: Option<u64>,
     /// Docker image
     image: Option<String>,
     /// Docker image user
     user: Option<String>,
+    /// Container limits
+    limits: Limits,
+}
+
+/// Sandbox limits
+#[derive(Copy, Clone, Debug, Default)]
+pub struct Limits {
+    /// Timeout limit
+    pub timeout: Option<u64>,
     /// CPU (cores) limit
-    cpu_limit: Option<usize>,
+    pub cpu: Option<usize>,
     /// Memory limit (in bytes)
-    memory_limit: Option<usize>,
+    pub memory: Option<usize>,
     /// Process (PIDs) limit
-    process_limit: Option<usize>,
+    pub process: Option<usize>,
     // TODO: Storage limit
 }
 

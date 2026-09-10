@@ -9,4 +9,4 @@ pub mod templates;
 pub mod utils;
 
 pub use error::{Error, Result};
-pub use sandbox::Sandbox;
+pub use sandbox::{Limits as SandboxLimits, Sandbox};

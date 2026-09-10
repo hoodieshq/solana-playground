@@ -15,6 +15,8 @@ use tokio::{
     sync::{Mutex, OwnedSemaphorePermit, Semaphore},
 };
 
+use crate::config::BundleConfig;
+
 #[derive(Deserialize)]
 pub struct BundleRequest {
     /// Package manifest (`package.json`)
@@ -36,13 +38,23 @@ struct BundleResponse {
 }
 
 /// Bundle state
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct BundleState {
+    /// Bundle configuration
+    config: Arc<BundleConfig>,
     /// Permits for sequential processing based on hash
     permits: Arc<Mutex<HashMap<Hash, Arc<Semaphore>>>>,
 }
 
 impl BundleState {
+    /// Create bundle state.
+    pub fn new(config: BundleConfig) -> Self {
+        Self {
+            config: Arc::new(config),
+            permits: Default::default(),
+        }
+    }
+
     /// Acquire a sequential processing permit for the given hash.
     async fn acquire_sequential(&self, hash: Hash) -> Result<OwnedSemaphorePermit> {
         let mut permits = self.permits.lock().await;
@@ -103,11 +115,7 @@ pub async fn bundle(
         let output = Sandbox::new()
             .image(get_image_name("bundle"))
             .user("solpg")
-            // TODO: Set limits from config
-            .cpu_limit(4) // diminishing returns after 4
-            .memory_limit(4 * 1024 * 1024 * 1024) // 4 GiB (also affects speed)
-            .process_limit(64)
-            .timeout(300)
+            .limits(state.config.limits.sandbox)
             .copy(
                 format!("{}/.", temp_host_path.display()),
                 format!("container:{PACKAGES_DIR}"),

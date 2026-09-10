@@ -42,17 +42,21 @@ async fn main() -> Result<()> {
         .route("/new", post(share_new));
 
     let unstable_routes = if cfg!(feature = "unstable") {
+        let build_concurrency = config.unstable_build.limits.route.concurrency;
+        let bundle_concurrency = config.unstable_bundle.limits.route.concurrency;
         Router::new()
             .route(
                 "/build",
-                post(unstable::build).layer(concurrency_limit(config.build_concurrency)),
+                post(unstable::build)
+                    .with_state(unstable::BuildState::new(config.unstable_build))
+                    .layer(concurrency_limit(build_concurrency)),
             )
             .route("/deploy/{uuid}", get(unstable::deploy))
             .route(
                 "/bundle",
                 post(unstable::bundle)
-                    .with_state(unstable::BundleState::default())
-                    .layer(concurrency_limit(config.bundle_concurrency)),
+                    .with_state(unstable::BundleState::new(config.unstable_bundle))
+                    .layer(concurrency_limit(bundle_concurrency)),
             )
     } else {
         Router::new()

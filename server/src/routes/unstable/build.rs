@@ -1,7 +1,13 @@
-use std::{path::Path, sync::LazyLock};
+use std::{
+    path::Path,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::anyhow;
-use axum::{extract::Json, response::IntoResponse};
+use axum::{
+    extract::{Json, State},
+    response::IntoResponse,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use solpg_server::{
@@ -13,6 +19,8 @@ use solpg_server::{
 };
 use tokio::{fs, io, process::Command};
 use uuid::Uuid;
+
+use crate::config::BuildConfig;
 
 /// Input directory name
 const INPUT_DIR: &str = "in";
@@ -57,8 +65,27 @@ struct BuildResponse {
     idl: Option<serde_json::Value>,
 }
 
+/// Build state
+#[derive(Clone)]
+pub struct BuildState {
+    /// Build configuration
+    config: Arc<BuildConfig>,
+}
+
+impl BuildState {
+    /// Create build state.
+    pub fn new(config: BuildConfig) -> Self {
+        Self {
+            config: Arc::new(config),
+        }
+    }
+}
+
 /// Build the program.
-pub async fn build(Json(payload): Json<BuildRequest>) -> Result<impl IntoResponse> {
+pub async fn build(
+    State(state): State<BuildState>,
+    Json(payload): Json<BuildRequest>,
+) -> Result<impl IntoResponse> {
     let (uuid, respond_with_uuid) = match payload.uuid {
         Some(uuid) => Uuid::try_parse(&uuid)
             .map(|_| (uuid, false))
@@ -154,11 +181,7 @@ pub async fn build(Json(payload): Json<BuildRequest>) -> Result<impl IntoRespons
     let output = Sandbox::new()
         .image(image)
         .user("solpg")
-        // TODO: Set limits from config
-        .cpu_limit(1)
-        .memory_limit(2 * 1024 * 1024 * 1024) // 2 GiB
-        .process_limit(64)
-        .timeout(30)
+        .limits(state.config.limits.sandbox)
         .copy(
             format!("{}/.", host_path.display()),
             format!("container:{}", input_path.display()),
