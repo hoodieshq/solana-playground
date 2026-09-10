@@ -14,6 +14,37 @@ Vercel's native Git integration auto-deploys: `master` → production; any other
 | Production Branch | `master` |
 | Ignored Build Step | Automatic |
 
+## How long a function may run
+
+`vercel.json` sets `functions."api/agent.mjs".maxDuration = 300`. That
+route streams a model's answer, so it is the only one that can outlive a
+default; every other `api/*.mjs` handler answers in one round trip and
+keeps the platform default.
+
+**Why 300 and not less.** A value in `vercel.json` overrides the
+platform default in *both* directions, and which default applies depends
+on a project setting nobody has checked here:
+
+| Compute mode | Default | Max (Enterprise) |
+| --- | --- | --- |
+| Fluid (on by default for projects created since ~2025-04) | 300 s | 800 s |
+| Legacy serverless | 15 s | 900 s |
+
+On legacy, 15 s cuts a long streamed answer off mid-sentence, which is
+what this setting exists to prevent. On Fluid, a smaller number would
+*lower* a limit that is already fine — a `maxDuration` of 60 would have
+introduced the very truncation it was meant to fix. 300 is the one value
+that is right under either reading: it raises the legacy default and
+matches the Fluid one.
+
+**Open, and needs the dashboard:** confirm whether this project runs
+Fluid compute (Settings → Functions). Once known, this number can be
+chosen on evidence rather than on the safe overlap.
+
+A cut-off stream is not silent on the client side either: `api/agent.mjs`
+aborts the upstream request when the browser goes away, and reports a
+failed stream as an SSE `error` event rather than ending quietly.
+
 ## Which client gets deployed
 
 The dashboard and the Makefile currently disagree, on purpose:
