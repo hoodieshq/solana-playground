@@ -4,7 +4,8 @@ import {
   Disposable,
   JsRuntimePackageName,
   PgCommon,
-  PgServer,
+  PgJsPackage,
+  PgSettings,
 } from "../../../../../../utils";
 
 /**
@@ -111,11 +112,11 @@ export const declarePackage = async (
 };
 
 /** Get type declarations. */
-// TODO: Remove this and inline `PgServer.types` once the feature stabilizes.
+// TODO: Remove this and inline once the feature stabilizes.
 const getTypes = async (
   packageName: JsRuntimePackageName
-): ReturnType<typeof PgServer["types"]> => {
-  if (process.env.NODE_ENV === "production") {
+): ReturnType<typeof PgJsPackage["getTypes"]> => {
+  if (!PgSettings.experimental.unstable) {
     const files = await PgCommon.fetchJSON(
       `/packages/${packageName}/types.json`
     );
@@ -125,7 +126,7 @@ const getTypes = async (
     return { files, dependencies };
   }
 
-  return await PgServer.types(packageName);
+  return await PgJsPackage.getTypes(packageName);
 };
 
 /** Declared package names cache */

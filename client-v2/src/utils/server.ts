@@ -5,7 +5,7 @@ import { PgSettings } from "./settings";
 import type { TupleFiles } from "./explorer";
 
 /** Rust `Option` type */
-type Option<T> = T | null | undefined;
+type Option<T> = T | null;
 
 /** `/build` request */
 interface BuildRequest {
@@ -22,6 +22,14 @@ interface BuildRequest {
     /** Whether to enable Anchor safety checks */
     safetyChecks?: Option<boolean>;
   }>;
+}
+
+/** `/bundle` request */
+interface BundleRequest {
+  /** Package manifest file (`package.json`) */
+  manifest: string;
+  /** Package lock file */
+  lock?: Option<string>;
 }
 
 /** `/new` request */
@@ -45,15 +53,15 @@ export class PgServer {
       /** Build output */
       stderr: string;
       /** UUID of the program */
-      uuid: string | null;
+      uuid: Option<string>;
       /** Anchor IDL */
-      idl: Idl | null;
+      idl: Option<Idl>;
     }
 
     const response = await this._send("/build", {
       post: { body: JSON.stringify(req) },
+      unstable: PgSettings.experimental.unstable,
     });
-
     return (await response.json()) as BuildResponse;
   }
 
@@ -67,45 +75,36 @@ export class PgServer {
    * @returns the program binary bytes
    */
   static async deploy(uuid: string) {
-    const response = await this._send(`/deploy/${uuid}`);
+    const response = await this._send(`/deploy/${uuid}`, {
+      unstable: PgSettings.experimental.unstable,
+    });
     const arrayBuffer = await response.arrayBuffer();
     return new Uint8Array(arrayBuffer);
   }
 
   /**
-   * Get the ESM package.
+   * Bundle ESM.
    *
-   * @param name package name
-   * @returns the package module
+   * @param req bundle request
+   * @returns the bundle response
    */
-  static async packages(name: string) {
-    const response = await this._send(`/unstable/packages/${name}`);
-    const text = await response.text();
-    const blob = new Blob([text], { type: "text/javascript" });
-    const blobUrl = URL.createObjectURL(blob);
-    try {
-      return await import(/* webpackIgnore: true */ blobUrl);
-    } finally {
-      URL.revokeObjectURL(blobUrl);
-    }
-  }
-
-  /**
-   * Get the package type declarations.
-   *
-   * @param name package name
-   * @returns the package module
-   */
-  static async types(name: string) {
-    interface TypesResponse {
+  static async bundle(req: BundleRequest) {
+    interface BundleResponse {
+      /** Bundle files */
+      bundle: TupleFiles;
       /** Type declaration files */
-      files: TupleFiles;
-      /** Type dependencies */
-      dependencies: string[];
+      types: TupleFiles;
+      /** Manifest file */
+      manifest: string;
+      /** Lock file */
+      lock: string;
     }
 
-    const response = await this._send(`/unstable/types/${name}`);
-    return (await response.json()) as TypesResponse;
+    const response = await this._send("/bundle", {
+      post: { body: JSON.stringify(req) },
+      unstable: PgSettings.experimental.unstable,
+    });
+    return (await response.json()) as BundleResponse;
   }
 
   /**
@@ -151,7 +150,12 @@ export class PgServer {
    */
   private static async _send(
     path: string,
-    opts?: { cache?: boolean; post?: { body: string }; useDbServer?: boolean }
+    opts?: {
+      cache?: boolean;
+      post?: { body: string };
+      useDbServer?: boolean;
+      unstable?: boolean;
+    }
   ) {
     const requestInit: RequestInit = {};
     if (!opts?.cache) requestInit.cache = "no-store";
@@ -165,6 +169,7 @@ export class PgServer {
     const serverUrl = opts?.useDbServer
       ? "https://api.solpg.io"
       : PgSettings.server.endpoint;
+    if (opts?.unstable) path = PgCommon.joinPaths("unstable", path);
     const requestUrl = PgCommon.joinPaths(serverUrl, path);
     try {
       const response = await fetch(requestUrl, requestInit);

@@ -8,6 +8,7 @@ export * from "./explorer/";
 export * from "./framework";
 export * from "./github";
 export * from "./global";
+export * from "./js-package";
 export * from "./js-runtime";
 export * from "./keybind";
 export * from "./language";
