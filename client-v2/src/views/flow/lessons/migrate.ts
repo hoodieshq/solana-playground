@@ -78,7 +78,14 @@ export const migrateV1 = (
       }
     }
     if ((v1.skippedStepIds ?? []).includes(step.id)) {
-      append({ type: "pass", stepId: step.id });
+      // v1 offered its skip on any kind; on an attestation step the
+      // click means the same thing `attest` does, and `pass` would be
+      // refused by the fold, silently re-opening the step
+      if (graderClass(step.verify) === "attestation") {
+        append({ type: "attest", stepId: step.id });
+      } else {
+        append({ type: "pass", stepId: step.id });
+      }
     }
   }
 

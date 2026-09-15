@@ -55,14 +55,16 @@ export type LessonRecordEvent = LessonEventBase &
   );
 
 /**
- * What a trim leaves behind for the events it drops: every mark, and
- * the last `move` target so `enter` can still restore the cursor. No
- * mark can be forgotten; only the step-local `attempt`/`hint` history
- * ages out, which is why the tail is bounded rather than empty.
+ * What a trim leaves behind for the events it drops: the fold at the
+ * cut -- every mark plus the cursor -- so the kept tail replays over it
+ * exactly as it replayed over the dropped prefix. Only the step-local
+ * `attempt`/`hint` history ages out, which is why the tail is bounded
+ * rather than empty.
  */
 export interface LessonSnapshot {
   marks: Array<[string, LessonMark]>;
-  moveTarget?: string | "end";
+  /** Step id under the cursor at the cut, or `end` */
+  cursor: string | "end";
 }
 
 export interface StoredLesson {
@@ -74,11 +76,6 @@ export interface StoredLesson {
 
 export const EMPTY_STORED: StoredLesson = { v: 2, events: [] };
 
-/** Trim once the log grows past this many events... */
-export const TRIM_CAP = 200;
-/** ...down to this many, so trims stay rare rather than per-append */
-export const TRIM_KEEP = 120;
-
 /**
  * @returns the seq the next appended event should carry. A trimmed
  * record always keeps a non-empty tail, so an empty `events` means a
@@ -86,45 +83,3 @@ export const TRIM_KEEP = 120;
  */
 export const nextSeq = (r: StoredLesson): number =>
   r.events.length ? r.events[r.events.length - 1].seq + 1 : 1;
-
-/**
- * Trim a record past the cap to a ledger snapshot plus a bounded tail.
- *
- * @param r the record to trim
- * @param foldMarks the ledger fold over a whole record -- passed in
- * rather than imported so this module does not depend on `ledger.ts`,
- * which depends on it
- * @returns the same object while under the cap
- */
-export const trimRecord = (
-  r: StoredLesson,
-  foldMarks: (record: StoredLesson) => Array<[string, LessonMark]>
-): StoredLesson => {
-  if (r.events.length <= TRIM_CAP) return r;
-
-  const dropped = r.events.slice(0, -TRIM_KEEP);
-  // The snapshot describes everything before the kept tail; the tail's
-  // own moves replay over it, so only the dropped prefix's last target
-  // needs to survive here
-  const lastDroppedMove = [...dropped]
-    .reverse()
-    .find((e): e is Extract<LessonRecordEvent, { type: "move" }> => {
-      return e.type === "move";
-    });
-  const moveTarget = lastDroppedMove
-    ? lastDroppedMove.to
-    : r.snapshot?.moveTarget;
-
-  return {
-    v: 2,
-    snapshot: {
-      // Folding the whole record (not just the prefix) is safe because
-      // re-applying the tail's mark events over their own outcome has
-      // no edge to travel -- and it keeps the guarantee simple: the
-      // snapshot holds every mark the record has ever produced
-      marks: foldMarks(r),
-      ...(moveTarget !== undefined ? { moveTarget } : {}),
-    },
-    events: r.events.slice(-TRIM_KEEP),
-  };
-};

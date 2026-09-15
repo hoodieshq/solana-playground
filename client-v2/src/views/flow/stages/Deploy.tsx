@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import IdlActions from "./IdlActions";
 import Button from "../../../components/Button";
 import Link from "../../../components/Link";
-import GradientButton from "../../sidebar/assistant/Component/GradientButton";
+import GradientButton from "../../../shared/ui/gradient-button";
 import {
   useBlockExplorer,
   useProgramInfo,
@@ -65,8 +65,8 @@ const Deploy = () => {
     : latest
     ? "The program id stays constant across deploys; redeploying upgrades " +
       "it in place."
-    : "Nothing deployed yet. Deploying sends the compiled program to " +
-      "devnet using the connected wallet.";
+    : `Nothing deployed yet. Deploying sends the compiled program to ` +
+      `${cluster} using the connected wallet.`;
 
   return (
     <Surface>
@@ -115,8 +115,8 @@ const Deploy = () => {
               ? "Upgrading..."
               : "Deploying..."
             : latest
-            ? "Redeploy to devnet"
-            : "Deploy to devnet"}
+            ? `Redeploy to ${cluster}`
+            : `Deploy to ${cluster}`}
         </GradientButton>
         <IdlActions showUpload />
       </Actions>

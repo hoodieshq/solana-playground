@@ -66,6 +66,21 @@ describe("migrateV1", () => {
     expect(v.cursor).toBe(1);
   });
 
+  it("migrates a skipped read step to attested, so the lesson stays done", () => {
+    // v1 offered its skip on any step kind, so shipped records hold
+    // read steps in `skippedStepIds`; replaying those as `pass` would
+    // be refused and re-open a finished lesson
+    const r = migrateV1(PATH, {
+      completedStepIds: ["write", "deploy"],
+      skippedStepIds: ["client"],
+      currentStepId: null,
+    });
+    const v = foldRecord(PATH, r);
+    expect(v.marks.get("client")).toBe("attested");
+    expect(v.cursor).toBe("end");
+    expect(v.frontier).toBe("end");
+  });
+
   it("collapses D-b's duplicate completions on the way in", () => {
     const r = migrateV1(PATH, {
       completedStepIds: ["write", "deploy", "deploy", "deploy", "deploy"],

@@ -58,7 +58,6 @@ const legalWith = (
 interface FoldState {
   marks: Map<string, LessonMark>;
   cursor: LessonPosition;
-  lastMove?: string | "end";
   firstArrival: Map<number, number>;
   attempts: number[];
   rungs: Map<string, number>;
@@ -163,7 +162,6 @@ const applyCursor = (
 
   switch (ev.type) {
     case "move": {
-      state.lastMove = ev.to;
       const p = resolve(path, ev.to);
       if (p !== null && legalWith(path, state.marks, frontier, p)) {
         state.cursor = p;
@@ -197,17 +195,10 @@ const applyCursor = (
       return;
     }
 
-    case "enter": {
-      const target =
-        state.lastMove !== undefined ? resolve(path, state.lastMove) : null;
-      state.cursor =
-        target !== null && legalWith(path, state.marks, frontier, target)
-          ? target
-          : frontier;
-      arrive(state, ev.seq);
-      return;
-    }
-
+    // `enter` is a recorded fact like the rest: the replay already
+    // carries the cursor, so re-deriving it here could only lose the
+    // position a mark edge earned (the reload half of the D-d defect)
+    case "enter":
     case "attempt":
     case "checked":
     case "hint":
@@ -227,17 +218,16 @@ export const foldRecord = (
   const state: FoldState = {
     marks,
     cursor: 0,
-    lastMove: record.snapshot?.moveTarget,
     firstArrival: new Map(),
     attempts: [],
     rungs: new Map(),
   };
 
-  // The initial position is an `enter` in all but name: the snapshot's
-  // move target if it is still legal, else the frontier
+  // The initial position: the snapshot's cursor while it still names a
+  // legal position (the path may have been edited since), else the
+  // frontier
   const frontier = frontierOf(path, marks);
-  const target =
-    state.lastMove !== undefined ? resolve(path, state.lastMove) : null;
+  const target = record.snapshot ? resolve(path, record.snapshot.cursor) : null;
   state.cursor =
     target !== null && legalWith(path, marks, frontier, target)
       ? target
@@ -328,6 +318,37 @@ export const admits = (
     case "hint":
       return true;
   }
+};
+
+/** Trim once the log grows past this many events... */
+export const TRIM_CAP = 200;
+/** ...down to this many, so trims stay rare rather than per-append */
+export const TRIM_KEEP = 120;
+
+/**
+ * Trim a record past the cap to a snapshot plus a bounded tail. The
+ * snapshot is the fold at the cut, so the tail replays over it exactly
+ * as it replayed over the dropped prefix -- a trim can never change
+ * what the whole record folds to.
+ *
+ * @returns the same object while under the cap
+ */
+export const trimRecord = (path: LessonPath, r: StoredLesson): StoredLesson => {
+  if (r.events.length <= TRIM_CAP) return r;
+
+  const cut = foldRecord(path, {
+    v: 2,
+    snapshot: r.snapshot,
+    events: r.events.slice(0, -TRIM_KEEP),
+  });
+  return {
+    v: 2,
+    snapshot: {
+      marks: [...cut.marks.entries()],
+      cursor: cut.cursor === "end" ? "end" : path.steps[cut.cursor].id,
+    },
+    events: r.events.slice(-TRIM_KEEP),
+  };
 };
 
 export const stepAt = (

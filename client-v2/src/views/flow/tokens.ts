@@ -12,7 +12,7 @@ export const BOTTOM_BAR_HEIGHT = "1.75rem";
 
 /**
  * The brand gradient, verbatim from
- * `views/sidebar/assistant/Component/GradientButton.tsx` -- that component
+ * `shared/ui/gradient-button/GradientButton.tsx` -- that component
  * is the existing precedent for this literal (logomark, stepper active dot,
  * the one decisive CTA per view).
  */
