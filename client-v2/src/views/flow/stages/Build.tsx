@@ -73,6 +73,7 @@ const Build = () => {
   }, []);
 
   const ms = msSuffix(flow.buildMs);
+  const building = flow.build === "running";
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
@@ -115,6 +116,10 @@ const Build = () => {
     );
   }
 
+  // Also reached while a retry after a pre-compiler failure is in flight:
+  // `flow.build` flips to "running" and `out` is still null, so without the
+  // `building` branch this surface would flash "Nothing built yet" with a
+  // live Build button between two failures.
   if (!out) {
     return (
       <Surface>
@@ -123,14 +128,18 @@ const Build = () => {
           <rect x="17" y="12" width="6" height="22" />
           <rect x="28" y="6" width="6" height="28" />
         </EmptyMark>
-        <Headline>Nothing built yet</Headline>
+        <Headline>{building ? "Building..." : "Nothing built yet"}</Headline>
         <Muted>
           Build compiles your program on the server. Nothing leaves your browser
           except the source.
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Build"}
           </Button>
         </Actions>
       </Surface>
@@ -217,8 +226,12 @@ const Build = () => {
           <Headline>Build failed</Headline>
           <Meta>{meta}</Meta>
         </HeaderText>
-        <Button kind="outline" onClick={() => PgCommand.build.execute()}>
-          Rebuild
+        <Button
+          kind="outline"
+          disabled={building}
+          onClick={() => PgCommand.build.execute()}
+        >
+          {building ? "Building..." : "Rebuild"}
         </Button>
       </HeaderRow>
 
