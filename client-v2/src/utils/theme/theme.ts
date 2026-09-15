@@ -28,8 +28,12 @@ export class PgTheme {
   /** Theme key in localStorage */
   private static readonly _THEME_KEY = "theme";
 
-  /** One-time storage migration flag for the "Solana V2" default switch */
-  private static readonly _MIGRATION_KEY = "theme-migration-solana-v2";
+  /** One-time storage migration flag for the "Solana V2" default switch.
+   * Bumping the suffix re-runs the reset once in every existing profile. */
+  private static readonly _MIGRATION_KEY = "theme-migration-solana-v2-r2";
+
+  /** Superseded migration flags, removed on the next `set` */
+  private static readonly _STALE_MIGRATION_KEYS = ["theme-migration-solana-v2"];
 
   /** Font key in localStorage */
   private static readonly _FONT_KEY = "font";
@@ -117,6 +121,9 @@ export class PgTheme {
       localStorage.setItem(PgTheme._MIGRATION_KEY, "1");
       if (localStorage.getItem(PgTheme._THEME_KEY) === "Playground") {
         localStorage.removeItem(PgTheme._THEME_KEY);
+      }
+      for (const key of PgTheme._STALE_MIGRATION_KEYS) {
+        localStorage.removeItem(key);
       }
     }
     const { themeName, fontFamily } = PgCommon.setDefault(params, {
