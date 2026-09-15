@@ -151,4 +151,48 @@ describe("shape guards", () => {
     expect(isV2({ v: 1, events: [] })).toBe(false);
     expect(isV2("junk")).toBe(false);
   });
+
+  it("refuses a malformed snapshot instead of folding garbage", () => {
+    // The fold does `new Map(marks)` / `new Set(opened)` unguarded, so a
+    // shape the types promise but storage does not hold must fail here,
+    // into the load's `loadFailed` refusal
+    const good = {
+      v: 2,
+      snapshot: { marks: [["write", "proved"]], cursor: "write" },
+      events: [],
+    };
+    expect(isV2(good)).toBe(true);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: {
+          marks: [["write", "proved"]],
+          cursor: "write",
+          opened: ["write"],
+        },
+        events: [],
+      })
+    ).toBe(true);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: {
+          marks: [["write", "proved"]],
+          cursor: "write",
+          opened: "write",
+        },
+        events: [],
+      })
+    ).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: { marks: ["write"], cursor: "write" },
+        events: [],
+      })
+    ).toBe(false);
+    expect(isV2({ v: 2, snapshot: { marks: [], cursor: 3 }, events: [] })).toBe(
+      false
+    );
+  });
 });

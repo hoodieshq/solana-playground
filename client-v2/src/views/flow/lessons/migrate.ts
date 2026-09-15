@@ -20,10 +20,33 @@ export const isV1 = (raw: unknown): raw is LessonProgressV1 => {
   );
 };
 
+// The fold consumes the snapshot unguarded (`new Map(marks)`,
+// `new Set(opened)`), so a malformed one must fail here, into the load's
+// `loadFailed` refusal, rather than crash or fold garbage
+const isSnapshot = (raw: unknown): boolean => {
+  if (typeof raw !== "object" || raw === null) return false;
+  const s = raw as Record<string, unknown>;
+  return (
+    Array.isArray(s.marks) &&
+    s.marks.every(
+      (m) =>
+        Array.isArray(m) && typeof m[0] === "string" && typeof m[1] === "string"
+    ) &&
+    typeof s.cursor === "string" &&
+    (s.opened === undefined ||
+      (Array.isArray(s.opened) &&
+        s.opened.every((id) => typeof id === "string")))
+  );
+};
+
 export const isV2 = (raw: unknown): raw is StoredLesson => {
   if (typeof raw !== "object" || raw === null) return false;
   const r = raw as Record<string, unknown>;
-  return r.v === 2 && Array.isArray(r.events);
+  return (
+    r.v === 2 &&
+    Array.isArray(r.events) &&
+    (r.snapshot === undefined || isSnapshot(r.snapshot))
+  );
 };
 
 /**

@@ -322,8 +322,9 @@ export const admits = (
       return p !== null && p !== view.cursor && legal(path, view, p);
     }
     // A fact, but one that is only new the first time, and only about a
-    // step the path has -- the set is surfaced in the snapshot and read
-    // by copy, so it should never hold an id nobody can render
+    // step the path has -- the log never records an id nobody can
+    // render. A snapshot written before a path edit may still seed stale
+    // ids into the set; they are harmless, only ever `has`-checked.
     case "opened":
       return indexOf(path, ev.stepId) !== -1 && !view.opened.has(ev.stepId);
     case "enter":

@@ -383,15 +383,37 @@ describe("opened pages", () => {
 
   it("admits opened once per step", () => {
     const v = foldRecord(PATH, record(opened("write")));
-    const base = { seq: 2, at: 2, actor: "learner" } as const;
-    expect(admits(PATH, v, { ...base, ...opened("write") })).toBe(false);
-    expect(admits(PATH, v, { ...base, ...opened("deploy") })).toBe(true);
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "write",
+      })
+    ).toBe(false);
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "deploy",
+      })
+    ).toBe(true);
   });
 
   it("refuses opened for a step the path does not have", () => {
     const v = foldRecord(PATH, record());
-    const base = { seq: 1, at: 1, actor: "learner" } as const;
-    expect(admits(PATH, v, { ...base, ...opened("nowhere") })).toBe(false);
+    expect(
+      admits(PATH, v, {
+        seq: 1,
+        at: 1,
+        actor: "learner",
+        type: "opened",
+        stepId: "nowhere",
+      })
+    ).toBe(false);
   });
 
   it("restores opened from a snapshot", () => {

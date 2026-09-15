@@ -19,6 +19,9 @@ interface ReaderProps {
    * reading ends rather than in the band behind the sheet
    */
   offersAttest: boolean;
+  /** Fired once the page content actually loads -- the record's `opened`
+   * fact must not rest on a page the learner never saw */
+  onLoaded: () => void;
   onClose: () => void;
   onAttest: () => void;
 }
@@ -37,6 +40,7 @@ const Reader: FC<ReaderProps> = ({
   position,
   criterion,
   offersAttest,
+  onLoaded,
   onClose,
   onAttest,
 }) => {
@@ -57,8 +61,12 @@ const Reader: FC<ReaderProps> = ({
     (async () => {
       try {
         const page = await readPage();
-        if (live) setContent(page);
-      } catch {
+        if (live) {
+          setContent(page);
+          onLoaded();
+        }
+      } catch (e) {
+        console.error("lesson page failed to load", e);
         if (live) setFailed(true);
       }
     })();
