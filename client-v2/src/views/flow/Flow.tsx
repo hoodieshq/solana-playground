@@ -14,10 +14,14 @@ import {
 import Resizable from "../../components/Resizable";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
-import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
-import { INITIAL_LESSON_STATE, PgLesson } from "./lessons";
+import {
+  cursorStep,
+  foldRecord,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+} from "./lessons";
 import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
@@ -109,7 +113,7 @@ const Flow = () => {
   }, []);
 
   const readingStep = lesson.path
-    ? currentStep(lesson.path, lesson.progress)
+    ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
     : null;
 
   // A learner who fixes the code while the page is open should come back

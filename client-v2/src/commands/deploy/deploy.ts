@@ -14,6 +14,7 @@ import {
 } from "../../utils";
 import { checkWallet } from "../checks";
 import { createCmd } from "../create";
+import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 
 export const deploy = createCmd({
@@ -187,7 +188,13 @@ const processDeploy = async () => {
     );
     if (!confirmed) throw new Error("Insufficient balance");
 
-    await PgCommand.airdrop.execute();
+    // Request only what the deployment is missing, not the cluster's
+    // full faucet default (100 SOL on localnet)
+    const amount = airdropTopUp(
+      PgWeb3.lamportsToSol(requiredBalanceWithoutFees - userBalance),
+      airdropAmount
+    );
+    await PgCommand.airdrop.execute(amount.toString());
   }
 
   // If deploying from a standard wallet, transfer the required lamports for

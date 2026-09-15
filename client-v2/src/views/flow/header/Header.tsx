@@ -5,9 +5,14 @@ import styled, { css } from "styled-components";
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
-import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
+import {
+  cursorStep,
+  foldRecord,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+  targetStage,
+} from "../lessons";
 import type { LessonState } from "../lessons";
-import { currentStep } from "../lessons/progress";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
@@ -35,9 +40,10 @@ const Header: FC<HeaderProps> = ({
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
-  const target = lesson.path
-    ? currentStep(lesson.path, lesson.progress)?.target ?? null
+  const step = lesson.path
+    ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
     : null;
+  const target = step ? targetStage(step.verify) : null;
 
   // Cmd/Ctrl+1..4 jump to a stage. `PgKeybind` folds `metaKey` into CTRL, so
   // one binding covers both platforms.

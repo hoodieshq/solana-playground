@@ -10,7 +10,13 @@ export interface ToastChildProps {
   id: number;
 }
 
-const Toast = () => {
+interface ToastProps {
+  /** Offset the container past the classic layout's icon rail; the flow
+   * layout has no rail, so it keeps the standard edge margin */
+  sidebarOffset?: boolean;
+}
+
+const Toast = ({ sidebarOffset = false }: ToastProps) => {
   const setToast = useCallback(({ elementable, props }) => {
     const id = PgCommon.generateRandomInt(0, 2 ** 12);
     elementable = PgView.normalizeElement(elementable, {
@@ -27,14 +33,16 @@ const Toast = () => {
     <StyledContainer
       position={toast.POSITION.BOTTOM_LEFT}
       closeOnClick={false}
+      $sidebarOffset={sidebarOffset}
     />
   );
 };
 
-const StyledContainer = styled(ToastContainer)`
-  ${({ theme }) => css`
+const StyledContainer = styled(ToastContainer)<{ $sidebarOffset: boolean }>`
+  ${({ theme, $sidebarOffset }) => css`
     &&&.Toastify__toast-container {
-      left: ${theme.views.sidebar.left.default.width};
+      left: ${$sidebarOffset ? theme.views.sidebar.left.default.width : "1rem"};
+      bottom: 1rem;
     }
 
     .Toastify__toast {

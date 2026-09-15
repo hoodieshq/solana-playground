@@ -7,8 +7,18 @@ registerPaths(
   TUTORIALS.map((t) => t.name)
 );
 
-export { currentStep } from "./progress";
+export {
+  attempted,
+  cursorStep,
+  foldRecord,
+  legal,
+  nextLegal,
+  positionNumber,
+  prevLegal,
+  rung,
+} from "./ledger";
+export type { LessonView } from "./ledger";
 export { getLessonPath } from "./registry";
-export { verifyingStage } from "./verify";
+export { graderClass, targetStage, verifyingStage } from "./verify";
 export { INITIAL_LESSON_STATE, PgLesson } from "./store";
 export type { LessonState } from "./store";

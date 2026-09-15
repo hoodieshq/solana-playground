@@ -112,7 +112,7 @@ describe("idl", () => {
 
 describe("read", () => {
   it("is never satisfied automatically", () => {
-    const c = { kind: "read" } as const;
+    const c = { kind: "read", at: "interact" } as const;
     expect(
       isSatisfied(c, flow({ build: "done", deploy: "done" }), IDL_WITH_ARG)
     ).toBe(false);

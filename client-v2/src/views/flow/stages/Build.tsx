@@ -8,7 +8,7 @@ import { humanize } from "./humanize";
 import Button from "../../../components/Button";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import GradientButton from "../../sidebar/assistant/Component/GradientButton";
+import GradientButton from "../../../shared/ui/gradient-button";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";

@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
-import { assistantLabel, describeStep } from "./band-copy";
-import { PgLessonHints } from "./hints";
-import { canStepBack, canStepForward, currentStep } from "./progress";
+import { assistantLabel, describeStep, primaryLabel } from "./band-copy";
+import {
+  attempted,
+  cursorStep,
+  foldRecord,
+  nextLegal,
+  prevLegal,
+  rung,
+} from "./ledger";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
+import { verifyingStage } from "./verify";
 import { PgAssistant } from "../../sidebar/assistant/store";
+import { PgCommand } from "../../../utils";
 
 interface ObjectiveBandProps {
   state: LessonState;
@@ -17,43 +24,33 @@ interface ObjectiveBandProps {
 /**
  * One ask, above the editor, always visible.
  *
- * The whole band is the granularity finding made concrete: a single
- * action per step reads faster than a chapter, and the verification
- * condition sits under it in plain words so the learner knows what they
- * are aiming at.
+ * The primary action is the criterion: the control is labelled by what
+ * proves the step and dispatches the same command the header stepper
+ * does. The assistant sits beside it as a secondary -- the unaided
+ * first attempt, bought by layout rather than by a disabled button.
  */
 const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
-  // The rung count lives outside React's data flow (a module-static map
-  // on `PgLessonHints`, not `LessonState`), so reading it during render
-  // needs this subscription to stay live -- without it, the label below
-  // would freeze on whatever a later, unrelated render (driven only by
-  // `PgFlow.onDidChange`, i.e. builds) last saw, even as clicks keep
-  // climbing the ladder underneath it.
-  const [, forceRender] = useState(0);
-  useEffect(() => {
-    const { dispose } = PgLessonHints.onDidChange(() =>
-      forceRender((n) => n + 1)
-    );
-    return dispose;
-  }, []);
-
   const described = describeStep(state);
   if (!described || !state.path) return null;
 
-  // `described` truthy only narrows `describeStep`'s own return value --
-  // it says nothing to TypeScript about this separately computed call,
-  // so `step` still needs its own null check before it can be used below.
-  const step = currentStep(state.path, state.progress);
+  const view = foldRecord(state.path, state.record);
+  const step = cursorStep(state.path, view);
   if (!step) return null;
 
-  const rung = PgLessonHints.rung(step.id);
-  const isRead = step.verify.kind === "read";
-  const canGoBack = canStepBack(state.path, state.progress);
-  const canGoForward = canStepForward(state.path, state.progress);
+  const spent = rung(view, step.id);
+  const tried = attempted(state.path, view, step.id);
+  const canGoBack = prevLegal(state.path, view) !== null;
+  const canGoForward = nextLegal(state.path, view) !== null;
 
   const askForHelp = () => {
-    const prompt = PgLessonHints.nextPrompt(step, state.attempted);
+    const prompt = PgLesson.requestHint();
     if (prompt) PgAssistant.requestPrompt(prompt);
+  };
+
+  const prove = () => {
+    const stage = verifyingStage(step.verify);
+    if (stage) PgCommand[stage].execute();
+    else PgLesson.attest();
   };
 
   return (
@@ -71,9 +68,9 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
           title={
             canGoBack
               ? "Go back a step. Nothing already proved is undone."
-              : "You are on the first step"
+              : "There is nothing to go back to"
           }
-          onClick={() => PgLesson.stepBack()}
+          onClick={() => PgLesson.moveBack()}
         >
           &#8592;
         </Nav>
@@ -83,10 +80,10 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
           aria-label="Next step"
           title={
             canGoForward
-              ? "Return to where you were. Nothing is recorded either way."
-              : "This is as far as you have got — build to go on, or skip the step"
+              ? "Move forward. Nothing is recorded either way."
+              : "This is as far as anything proved reaches"
           }
-          onClick={() => PgLesson.stepForward()}
+          onClick={() => PgLesson.moveForward()}
         >
           &#8594;
         </Nav>
@@ -95,13 +92,12 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
             Read the page
           </Secondary>
         )}
-        {isRead ? (
-          <Primary type="button" onClick={() => PgLesson.continueRead()}>
-            Continue
-          </Primary>
-        ) : (
-          <Primary type="button" onClick={askForHelp}>
-            {assistantLabel(rung, state.attempted)}
+        <Secondary type="button" onClick={askForHelp}>
+          {assistantLabel(spent, tried)}
+        </Secondary>
+        {described.offersPrimary && (
+          <Primary type="button" onClick={prove}>
+            {primaryLabel(step.verify)}
           </Primary>
         )}
       </Actions>

@@ -12,8 +12,10 @@ jest.mock("../../../utils", () => ({
   PgTutorial: { getStorage: jest.fn() },
 }));
 
-import { assistantLabel, describeStep } from "./band-copy";
+import { assistantLabel, describeStep, primaryLabel } from "./band-copy";
 import { INITIAL_LESSON_STATE } from "./store";
+import type { LessonState } from "./store";
+import type { LessonRecordEvent } from "./events";
 import type { LessonPath } from "./types";
 
 const hints: [string, string, string] = ["a", "b", "c"];
@@ -26,7 +28,6 @@ const PATH: LessonPath = {
       objective: "Define hello",
       verifiedBy: "the interface shows hello",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       hints,
     },
     {
@@ -34,7 +35,6 @@ const PATH: LessonPath = {
       objective: "Deploy it",
       verifiedBy: "it is on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
       hints,
     },
   ],
@@ -47,45 +47,107 @@ const READ_PATH: LessonPath = {
       id: "one",
       objective: "Read the intro",
       verifiedBy: "you have marked this page as read",
-      verify: { kind: "read" },
-      target: "write",
+      verify: { kind: "read", at: "write" },
       hints,
     },
   ],
 };
+
+const withEvents = (
+  path: LessonPath,
+  events: LessonRecordEvent[]
+): LessonState => ({
+  path,
+  record: { v: 2, events },
+  loadFailed: false,
+});
+
+describe("primaryLabel", () => {
+  it("names the action that proves the step", () => {
+    expect(primaryLabel({ kind: "idl", instruction: "hello" })).toBe(
+      "Build to prove this"
+    );
+    expect(primaryLabel({ kind: "build-passes" })).toBe("Build to prove this");
+    expect(primaryLabel({ kind: "deployed" })).toBe("Deploy to prove this");
+  });
+
+  it("never says an attestation verifies anything", () => {
+    expect(primaryLabel({ kind: "read", at: "write" })).toBe("Mark as read");
+  });
+});
 
 describe("describeStep", () => {
   it("is null outside a lesson", () => {
     expect(describeStep(INITIAL_LESSON_STATE)).toBeNull();
   });
 
-  it("names the current step and its position", () => {
-    const d = describeStep({ ...INITIAL_LESSON_STATE, path: PATH });
-    expect(d).toEqual({
+  it("names the current step, its position and its criterion", () => {
+    const d = describeStep(withEvents(PATH, []));
+    expect(d).toMatchObject({
       number: "Step 1 of 2",
       objective: "Define hello",
       verifiedBy: "Verified when the interface shows hello.",
+      mark: "open",
+      offersPrimary: true,
     });
   });
 
   it("is null once the path is finished", () => {
-    const d = describeStep({
-      path: PATH,
-      progress: { completedStepIds: ["one", "two"], currentStepId: null },
-      attempted: false,
-      attemptBaseline: null,
-      loadFailed: false,
-    });
-    expect(d).toBeNull();
+    const done = withEvents(PATH, [
+      {
+        seq: 1,
+        at: 1,
+        actor: "toolchain",
+        type: "graded",
+        stepIds: ["one", "two"],
+      },
+    ]);
+    expect(describeStep(done)).toBeNull();
   });
 
   it("does not claim a read step is machine-checked", () => {
-    const d = describeStep({ ...INITIAL_LESSON_STATE, path: READ_PATH });
-    expect(d).toEqual({
+    const d = describeStep(withEvents(READ_PATH, []));
+    expect(d).toMatchObject({
       number: "Step 1 of 1",
       objective: "Read the intro",
       verifiedBy:
         "Not machine-checked -- continue when you have marked this page as read.",
+      offersPrimary: true,
+    });
+  });
+
+  it("offers no primary behind the frontier and names the mark", () => {
+    const back = withEvents(PATH, [
+      {
+        seq: 1,
+        at: 1,
+        actor: "toolchain",
+        type: "graded",
+        stepIds: ["one"],
+      },
+      { seq: 2, at: 2, actor: "learner", type: "move", to: "one" },
+    ]);
+    const d = describeStep(back);
+    expect(d).toMatchObject({
+      number: "Step 1 of 2",
+      mark: "proved",
+      offersPrimary: false,
+      verifiedBy: "Proved -- the interface shows hello.",
+    });
+  });
+
+  it("never says a passed step is done, and offers the repair", () => {
+    // The skip valve's own copy promises the mark "clears itself if
+    // you come back and prove it" -- so coming back must offer the
+    // proving action, which the `passed -> proved` edge makes honest
+    const passed = withEvents(PATH, [
+      { seq: 1, at: 1, actor: "learner", type: "pass", stepId: "one" },
+      { seq: 2, at: 2, actor: "learner", type: "move", to: "one" },
+    ]);
+    expect(describeStep(passed)).toMatchObject({
+      mark: "passed",
+      offersPrimary: true,
+      verifiedBy: "Skipped -- not verified.",
     });
   });
 });

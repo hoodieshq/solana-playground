@@ -26,7 +26,6 @@ const PATH: LessonPath = {
       objective: "Define hello",
       verifiedBy: "the interface shows hello",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       hints,
     },
     {
@@ -34,7 +33,6 @@ const PATH: LessonPath = {
       objective: "Deploy it",
       verifiedBy: "it is on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
       hints,
     },
   ],
@@ -46,7 +44,13 @@ describe("describeLesson", () => {
   });
 
   it("describes the current step", () => {
-    expect(describeLesson({ ...INITIAL_LESSON_STATE, path: PATH })).toEqual({
+    expect(
+      describeLesson({
+        ...INITIAL_LESSON_STATE,
+        path: PATH,
+        record: { v: 2, events: [] },
+      })
+    ).toEqual({
       name: "Hello Anchor",
       stepIndex: 1,
       stepCount: 2,
@@ -59,9 +63,18 @@ describe("describeLesson", () => {
   it("reports a finished path without a current step", () => {
     const done = describeLesson({
       path: PATH,
-      progress: { completedStepIds: ["one", "two"], currentStepId: null },
-      attempted: false,
-      attemptBaseline: null,
+      record: {
+        v: 2,
+        events: [
+          {
+            seq: 1,
+            at: 1,
+            actor: "toolchain",
+            type: "graded",
+            stepIds: ["one", "two"],
+          },
+        ],
+      },
       loadFailed: false,
     });
     expect(done).toEqual({

@@ -8,7 +8,10 @@ jest.mock("../../../utils", () => ({
 }));
 
 import { INITIAL_LESSON_STATE, reduceLesson } from "./store";
+import type { LessonState } from "./store";
+import { attempted, cursorStep, foldRecord, rung } from "./ledger";
 import { INITIAL_FLOW_STATE } from "../state/stage";
+import type { FlowState } from "../state/stage";
 import type { LessonPath } from "./types";
 import type { Idl } from "@coral-xyz/anchor";
 
@@ -22,7 +25,6 @@ const PATH: LessonPath = {
       objective: "Define hello",
       verifiedBy: "the interface shows hello",
       verify: { kind: "idl", instruction: "hello" },
-      target: "build",
       hints,
     },
     {
@@ -30,7 +32,13 @@ const PATH: LessonPath = {
       objective: "Deploy it",
       verifiedBy: "it is on devnet",
       verify: { kind: "deployed" },
-      target: "deploy",
+      hints,
+    },
+    {
+      id: "three",
+      objective: "Read the wrap-up",
+      verifiedBy: "you have marked this page as read",
+      verify: { kind: "read", at: "interact" },
       hints,
     },
   ],
@@ -42,168 +50,170 @@ const IDL = {
   instructions: [{ name: "hello", accounts: [], args: [] }],
 } as Idl;
 
-// Mirrors the real Hello Anchor path's shape: a `read` step immediately
-// followed by a build-verified step, the only sequence `continue-read`
-// can transition into a build-gated step from.
-const READ_THEN_BUILD_PATH: LessonPath = {
-  tutorial: "Hello Anchor",
-  steps: [
-    {
-      id: "intro",
-      objective: "Read the overview",
-      verifiedBy: "you have read it",
-      verify: { kind: "read" },
-      target: "write",
-      hints,
-    },
-    {
-      id: "build-it",
-      objective: "Define hello",
-      verifiedBy: "the interface shows hello",
-      verify: { kind: "idl", instruction: "hello" },
-      target: "build",
-      hints,
-    },
-  ],
-};
+const flow = (over: Partial<FlowState>): FlowState => ({
+  ...INITIAL_FLOW_STATE,
+  ...over,
+});
+
+const load = (state = INITIAL_LESSON_STATE): LessonState =>
+  reduceLesson(state, { type: "load", path: PATH, at: 1 });
+
+const evaluate = (state: LessonState, over: Partial<FlowState>, idl = IDL) =>
+  reduceLesson(state, { type: "evaluate", flow: flow(over), idl, at: 2 });
+
+const view = (state: LessonState) => foldRecord(PATH, state.record);
 
 describe("reduceLesson", () => {
-  const loaded = { ...INITIAL_LESSON_STATE, path: PATH };
-
   it("does nothing without a path", () => {
     const next = reduceLesson(INITIAL_LESSON_STATE, {
       type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, build: "done" },
+      flow: flow({ build: "done" }),
       idl: IDL,
+      at: 2,
     });
     expect(next).toBe(INITIAL_LESSON_STATE);
   });
 
-  it("advances the ratchet on evaluate", () => {
-    const next = reduceLesson(loaded, {
-      type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, build: "done" },
-      idl: IDL,
-    });
-    expect(next.progress.completedStepIds).toEqual(["one"]);
+  it("records an enter on load", () => {
+    const state = load();
+    expect(state.record.events.map((e) => e.type)).toEqual(["enter"]);
   });
 
-  it("counts a build started since the step began as an attempt", () => {
-    const next = reduceLesson(loaded, {
-      type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, buildStartedAt: 1000 },
-      idl: null,
-    });
-    expect(next.attempted).toBe(true);
-  });
-
-  it("does not count a build that predates the step", () => {
-    const started = { ...loaded, attemptBaseline: 1000 };
-    const next = reduceLesson(started, {
-      type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, buildStartedAt: 1000 },
-      idl: null,
-    });
-    expect(next.attempted).toBe(false);
-  });
-
-  it("clears the attempt when the step advances", () => {
-    const attempted = { ...loaded, attempted: true, attemptBaseline: null };
-    const next = reduceLesson(attempted, {
-      type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, build: "done", buildStartedAt: 1000 },
-      idl: IDL,
-    });
-    expect(next.progress.completedStepIds).toEqual(["one"]);
-    expect(next.attempted).toBe(false);
-    expect(next.attemptBaseline).toBe(1000);
-  });
-
-  it("carries the live build baseline through continue-read", () => {
-    // The learner already built once earlier in the session
-    // (`buildStartedAt: 1000`), then lands on a `read` step and clicks
-    // "Continue reading" into the build-verified step that follows.
-    const onReadStep = {
-      ...loaded,
-      path: READ_THEN_BUILD_PATH,
-      progress: { completedStepIds: [], currentStepId: "intro" },
-    };
-    const afterContinue = reduceLesson(onReadStep, {
-      type: "continue-read",
-      buildStartedAt: 1000,
-    });
-
-    // No new build has happened -- the very next `evaluate` sees the
-    // same `buildStartedAt` the flow already had.
-    const next = reduceLesson(afterContinue, {
-      type: "evaluate",
-      flow: { ...INITIAL_FLOW_STATE, buildStartedAt: 1000 },
-      idl: null,
-    });
-    expect(next.attempted).toBe(false);
-  });
-
-  it("moves past a skipped step without marking it completed", () => {
-    const next = reduceLesson(loaded, {
-      type: "skip-step",
-      buildStartedAt: 1000,
-    });
-
-    expect(next.progress.completedStepIds).toEqual([]);
-    expect(next.progress.skippedStepIds).toEqual(["one"]);
-    expect(next.attempted).toBe(false);
-    expect(next.attemptBaseline).toBe(1000);
-  });
-
-  it("keeps the hint ladder across a review round trip", () => {
-    const skipped = reduceLesson(loaded, {
-      type: "skip-step",
-      buildStartedAt: 1000,
-    });
-    const attempted = { ...skipped, attempted: true, attemptBaseline: 2000 };
-
-    const back = reduceLesson(attempted, { type: "step-back" });
-    expect(back.progress.currentStepId).toBe("one");
-
-    const forward = reduceLesson(back, { type: "step-forward" });
-    expect(forward.progress.currentStepId).toBe("two");
-    // Neither direction touches the ladder or the record
-    expect(forward.attempted).toBe(true);
-    expect(forward.attemptBaseline).toBe(2000);
-    expect(forward.progress.completedStepIds).toEqual([]);
-    expect(forward.progress.skippedStepIds).toEqual(["one"]);
-  });
-
-  it("has nothing to step forward to at the frontier", () => {
-    expect(reduceLesson(loaded, { type: "step-forward" })).toBe(loaded);
-  });
-
-  it("resets everything when the workspace stops being a lesson", () => {
-    const dirty = {
-      path: PATH,
-      progress: { completedStepIds: ["one"], currentStepId: "two" },
-      attempted: true,
-      attemptBaseline: 1000,
-      loadFailed: false,
-    };
-    const next = reduceLesson(dirty, { type: "load", path: null });
+  it("resets when the workspace stops being a lesson", () => {
+    const next = reduceLesson(load(), { type: "load", path: null, at: 1 });
     expect(next).toEqual(INITIAL_LESSON_STATE);
   });
 
-  it("carries a failed load's flag into state", () => {
-    const next = reduceLesson(INITIAL_LESSON_STATE, {
+  it("proves a step through evaluate and moves the cursor", () => {
+    const state = evaluate(load(), { build: "done" });
+    const v = view(state);
+    expect(v.marks.get("one")).toBe("proved");
+    expect(v.cursor).toBe(1);
+    const graded = state.record.events.find((e) => e.type === "graded");
+    expect(graded?.actor).toBe("toolchain");
+  });
+
+  it("appends one attempt per started build, not one per notification", () => {
+    let state = evaluate(load(), { buildStartedAt: 1000 });
+    state = evaluate(state, { buildStartedAt: 1000 });
+    expect(
+      state.record.events.filter((e) => e.type === "attempt")
+    ).toHaveLength(1);
+    state = evaluate(state, { buildStartedAt: 2000 });
+    expect(
+      state.record.events.filter((e) => e.type === "attempt")
+    ).toHaveLength(2);
+  });
+
+  it("returns the same object when nothing changed", () => {
+    const state = load();
+    expect(evaluate(state, {})).toBe(state);
+  });
+
+  it("D-a: a deploy landing does not move a reviewing cursor", () => {
+    let state = evaluate(load(), { build: "done" });
+    state = reduceLesson(state, { type: "move", to: "one", at: 3 });
+    expect(view(state).cursor).toBe(0);
+
+    state = evaluate(state, { build: "done", deploy: "done" });
+    const v = view(state);
+    expect(v.cursor).toBe(0);
+    expect(v.marks.get("two")).toBe("proved");
+  });
+
+  it("attests the frontier read step and never marks it proved", () => {
+    let state = evaluate(load(), { build: "done", deploy: "done" });
+    expect(view(state).cursor).toBe(2);
+
+    state = reduceLesson(state, { type: "attest", at: 4 });
+    const v = view(state);
+    expect(v.marks.get("three")).toBe("attested");
+    expect(v.cursor).toBe("end");
+  });
+
+  it("refuses attest on a machine-graded step", () => {
+    const state = load();
+    expect(reduceLesson(state, { type: "attest", at: 4 })).toBe(state);
+  });
+
+  it("passes the frontier step and records it as passed", () => {
+    const state = reduceLesson(load(), { type: "pass", at: 4 });
+    const v = view(state);
+    expect(v.marks.get("one")).toBe("passed");
+    expect(v.cursor).toBe(1);
+  });
+
+  it("refuses pass anywhere but the frontier", () => {
+    let state = evaluate(load(), { build: "done" });
+    state = reduceLesson(state, { type: "move", to: "one", at: 3 });
+    expect(reduceLesson(state, { type: "pass", at: 4 })).toBe(state);
+  });
+
+  it("refuses an illegal move", () => {
+    const state = load();
+    expect(reduceLesson(state, { type: "move", to: "three", at: 3 })).toBe(
+      state
+    );
+  });
+
+  it("caps the hint ladder at rung one until an attempt exists", () => {
+    let state = load();
+    state = reduceLesson(state, { type: "hint", at: 5 });
+    expect(rung(view(state), "one")).toBe(1);
+
+    const again = reduceLesson(state, { type: "hint", at: 6 });
+    expect(again).toBe(state);
+  });
+
+  it("releases the cap once an attempt exists, up to the last rung", () => {
+    let state = reduceLesson(load(), { type: "hint", at: 5 });
+    state = evaluate(state, { buildStartedAt: 1000 });
+    expect(attempted(PATH, view(state), "one")).toBe(true);
+
+    state = reduceLesson(state, { type: "hint", at: 6 });
+    state = reduceLesson(state, { type: "hint", at: 7 });
+    expect(rung(view(state), "one")).toBe(3);
+    expect(reduceLesson(state, { type: "hint", at: 8 })).toBe(state);
+  });
+
+  it("keeps spent rungs across a reload, in the record itself", () => {
+    let state = reduceLesson(load(), { type: "hint", at: 5 });
+    const reloaded = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "load",
+      path: PATH,
+      record: state.record,
+      at: 9,
+    });
+    expect(rung(view(reloaded), "one")).toBe(1);
+  });
+
+  it("restores the reviewed position on reload through enter", () => {
+    let state = evaluate(load(), { build: "done" });
+    state = reduceLesson(state, { type: "move", to: "one", at: 3 });
+
+    const reloaded = reduceLesson(INITIAL_LESSON_STATE, {
+      type: "load",
+      path: PATH,
+      record: state.record,
+      at: 9,
+    });
+    expect(view(reloaded).cursor).toBe(0);
+    expect(cursorStep(PATH, view(reloaded))?.id).toBe("one");
+  });
+
+  it("carries a failed load's flag through later actions", () => {
+    let state = reduceLesson(INITIAL_LESSON_STATE, {
       type: "load",
       path: PATH,
       loadFailed: true,
+      at: 1,
     });
-    expect(next.loadFailed).toBe(true);
+    expect(state.loadFailed).toBe(true);
+    state = evaluate(state, { buildStartedAt: 1000 });
+    expect(state.loadFailed).toBe(true);
   });
 
   it("defaults a load's flag to false when it is not given", () => {
-    const next = reduceLesson(INITIAL_LESSON_STATE, {
-      type: "load",
-      path: PATH,
-    });
-    expect(next.loadFailed).toBe(false);
+    expect(load().loadFailed).toBe(false);
   });
 });

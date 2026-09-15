@@ -139,29 +139,42 @@ const CheckGlyph = styled.svg`
 const DotCircle = styled.span<{ $status: StageStatus }>`
   ${({ theme, $status }) => css`
     flex-shrink: 0;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    box-sizing: border-box;
+    /* Same 14px box as CheckGlyph, so flipping done <-> other never
+       shifts the label */
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 
-    ${$status === "active" || $status === "running"
-      ? css`
-          /* Gradient policy (GradientButton, docs/design/brand-research.md):
+    &::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-sizing: border-box;
+
+      ${$status === "active" || $status === "running"
+        ? css`
+            /* Gradient policy (GradientButton, docs/design/brand-research.md):
              the 135deg brand gradient marks the active stage's dot. */
-          background: ${GRADIENT};
-        `
-      : $status === "failed"
-      ? css`
-          background: ${theme.colors.state.error.color};
-        `
-      : css`
-          background: transparent;
-          border: 1px solid ${theme.colors.default.textSecondary};
-        `}
+            background: ${GRADIENT};
+          `
+        : $status === "failed"
+        ? css`
+            background: ${theme.colors.state.error.color};
+          `
+        : css`
+            background: transparent;
+            border: 1px solid ${theme.colors.default.textSecondary};
+          `}
+    }
 
     ${$status === "running" &&
     css`
-      animation: stepper-pulse 1.2s ease-in-out infinite;
+      &::before {
+        animation: stepper-pulse 1.2s ease-in-out infinite;
+      }
 
       @keyframes stepper-pulse {
         0%,
@@ -175,7 +188,9 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        animation: none;
+        &::before {
+          animation: none;
+        }
       }
     `}
   `}

@@ -1,5 +1,6 @@
 import { helloAnchorPath } from "./hello-anchor";
 import { validatePath } from "../registry";
+import { targetStage } from "../verify";
 
 describe("the Hello Anchor path", () => {
   it("is valid against the tutorial it names", () => {
@@ -19,10 +20,12 @@ describe("the Hello Anchor path", () => {
     });
   });
 
-  it("gives every step three hints and a target stage", () => {
+  it("gives every step three hints and a derivable target stage", () => {
     for (const step of helloAnchorPath.steps) {
       expect(step.hints).toHaveLength(3);
-      expect(["write", "build", "deploy", "interact"]).toContain(step.target);
+      expect(["write", "build", "deploy", "interact"]).toContain(
+        targetStage(step.verify)
+      );
     }
   });
 
