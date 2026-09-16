@@ -37,7 +37,7 @@ const Test = () => {
     );
   }
 
-  // An IDL can arrive without a build -- "Upload IDL" -- and must not be
+  // An IDL can arrive without a build -- "Load IDL file" -- and must not be
   // blocked behind the build artefacts; the `deployed` check below still
   // guards actual calls
   const { idl } = programInfo;

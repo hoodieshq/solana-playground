@@ -11,8 +11,9 @@ interface IdlActionsProps {
 }
 
 /**
- * "Generate IDL" is honest about what it does: the build already produced
- * the IDL, this only surfaces and downloads it.
+ * Labels promise no more than what happens in the browser: "Download IDL"
+ * saves what the build already produced, "Load IDL file" replaces the IDL
+ * this app uses -- neither touches the chain.
  */
 const IdlActions: FC<IdlActionsProps> = ({ showGenerate, showUpload }) => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
@@ -42,18 +43,22 @@ const IdlActions: FC<IdlActionsProps> = ({ showGenerate, showUpload }) => {
     <Row>
       {showGenerate && idl && (
         <Button.Export href={idl} fileName="idl.json">
-          Generate IDL
+          Download IDL
         </Button.Export>
       )}
       {showGenerate && !idl && (
         <Button disabled title="Build successfully first">
-          Generate IDL
+          Download IDL
         </Button>
       )}
       {showUpload && (
         <>
-          <Button.Import accept=".json" onImport={handleUpload}>
-            Upload IDL
+          <Button.Import
+            accept=".json"
+            title="Replaces the IDL this browser uses in Interact -- nothing is written on-chain"
+            onImport={handleUpload}
+          >
+            Load IDL file
           </Button.Import>
           {note && <Note $error={note.error}>{note.text}</Note>}
         </>
