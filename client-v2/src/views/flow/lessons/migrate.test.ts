@@ -195,4 +195,43 @@ describe("shape guards", () => {
       false
     );
   });
+
+  it("refuses malformed events instead of crashing the fold", () => {
+    // The first fold runs outside the load's try; an element the fold
+    // cannot walk must be refused here, into `loadFailed`
+    expect(isV2({ v: 2, events: [null] })).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        events: [{ seq: 1, at: 1, actor: "toolchain", type: "graded" }],
+      })
+    ).toBe(false);
+    expect(isV2({ v: 2, events: [{ type: "enter" }] })).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        events: [
+          { seq: 1, at: 1, actor: "learner", type: "enter" },
+          {
+            seq: 2,
+            at: null,
+            actor: "toolchain",
+            type: "graded",
+            stepIds: ["write"],
+          },
+          { seq: 3, at: 3, actor: "learner", type: "move", to: "end" },
+          { seq: 4, at: 4, actor: "learner", type: "attempt", startedAt: 4 },
+          {
+            seq: 5,
+            at: 5,
+            actor: "learner",
+            type: "hint",
+            stepId: "write",
+            rung: 1,
+          },
+          { seq: 6, at: 6, actor: "learner", type: "opened", stepId: "write" },
+        ],
+      })
+    ).toBe(true);
+  });
 });

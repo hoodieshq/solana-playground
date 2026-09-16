@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import IdlActions from "./IdlActions";
@@ -79,9 +79,7 @@ const Build = () => {
   // swapping surfaces for that round trip reads as a blink (failed ->
   // building -> failed). While a run is in flight the previous surface
   // stays put and only its action shows "Building...".
-  const settledRef = useRef(flow.build);
-  if (!building) settledRef.current = flow.build;
-  const settled = settledRef.current;
+  const settled = building ? flow.buildSettled : flow.build;
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)

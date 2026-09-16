@@ -50,9 +50,10 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
       const selected = state.stage === stage;
       // Spoken only, never rendered: a visible count would widen the pill
       // on failure, and the loop's density must not change with status --
-      // the red border and dot already carry "failed".
+      // the red border and dot already carry "failed". A pre-compiler
+      // failure has no count, so saying "0 errors" would mislead.
       const suffix =
-        stage === "build" && status === "failed"
+        stage === "build" && status === "failed" && state.buildErrorCount > 0
           ? `, ${state.buildErrorCount} error${
               state.buildErrorCount === 1 ? "" : "s"
             }`

@@ -20,6 +20,8 @@ export const isV1 = (raw: unknown): raw is LessonProgressV1 => {
   );
 };
 
+const MARKS = ["open", "proved", "attested", "passed"];
+
 // The fold consumes the snapshot unguarded (`new Map(marks)`,
 // `new Set(opened)`), so a malformed one must fail here, into the load's
 // `loadFailed` refusal, rather than crash or fold garbage
@@ -30,7 +32,7 @@ const isSnapshot = (raw: unknown): boolean => {
     Array.isArray(s.marks) &&
     s.marks.every(
       (m) =>
-        Array.isArray(m) && typeof m[0] === "string" && typeof m[1] === "string"
+        Array.isArray(m) && typeof m[0] === "string" && MARKS.includes(m[1])
     ) &&
     typeof s.cursor === "string" &&
     (s.opened === undefined ||
@@ -39,12 +41,47 @@ const isSnapshot = (raw: unknown): boolean => {
   );
 };
 
+// The fold walks events just as unguarded (`ev.type`, `for (const id of
+// ev.stepIds)`), and the first fold runs outside the load's try -- a
+// malformed element must fail here, not as an unhandled rejection
+const isEvent = (raw: unknown): boolean => {
+  if (typeof raw !== "object" || raw === null) return false;
+  const e = raw as Record<string, unknown>;
+  if (typeof e.seq !== "number") return false;
+  if (e.at !== null && typeof e.at !== "number") return false;
+  if (typeof e.actor !== "string") return false;
+
+  switch (e.type) {
+    case "enter":
+      return true;
+    case "graded":
+      return (
+        Array.isArray(e.stepIds) &&
+        e.stepIds.every((id) => typeof id === "string")
+      );
+    case "checked":
+    case "pass":
+    case "attest":
+    case "opened":
+      return typeof e.stepId === "string";
+    case "move":
+      return typeof e.to === "string";
+    case "attempt":
+      return typeof e.startedAt === "number";
+    case "hint":
+      return typeof e.stepId === "string" && typeof e.rung === "number";
+    default:
+      return false;
+  }
+};
+
 export const isV2 = (raw: unknown): raw is StoredLesson => {
   if (typeof raw !== "object" || raw === null) return false;
   const r = raw as Record<string, unknown>;
   return (
     r.v === 2 &&
     Array.isArray(r.events) &&
+    r.events.every(isEvent) &&
     (r.snapshot === undefined || isSnapshot(r.snapshot))
   );
 };
