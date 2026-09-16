@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import IdlActions from "./IdlActions";
@@ -74,6 +74,14 @@ const Build = () => {
 
   const ms = msSuffix(flow.buildMs);
   const building = flow.build === "running";
+  // The surface is chosen by the last *settled* status, never by
+  // "running": an unreachable build server fails in milliseconds, and
+  // swapping surfaces for that round trip reads as a blink (failed ->
+  // building -> failed). While a run is in flight the previous surface
+  // stays put and only its action shows "Building...".
+  const settledRef = useRef(flow.build);
+  if (!building) settledRef.current = flow.build;
+  const settled = settledRef.current;
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
@@ -83,7 +91,7 @@ const Build = () => {
     out !== null &&
     flow.buildStartedAt !== null &&
     out.at < flow.buildStartedAt;
-  if (flow.build === "failed" && (!out || outIsStale)) {
+  if (settled === "failed" && (!out || outIsStale)) {
     return (
       <Surface>
         <StatusRow>
@@ -108,18 +116,21 @@ const Build = () => {
           URL in settings.
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Retry build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Retry build"}
           </Button>
         </Actions>
       </Surface>
     );
   }
 
-  // Also reached while a retry after a pre-compiler failure is in flight:
-  // `flow.build` flips to "running" and `out` is still null, so without the
-  // `building` branch this surface would flash "Nothing built yet" with a
-  // live Build button between two failures.
+  // Also reached while the very first build is in flight: there is no
+  // previous surface to hold onto, so the empty state itself says
+  // "Building..." instead of offering a live Build button mid-run.
   if (!out) {
     return (
       <Surface>
