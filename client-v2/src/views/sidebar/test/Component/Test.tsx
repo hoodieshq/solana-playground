@@ -37,10 +37,18 @@ const Test = () => {
     );
   }
 
-  if (!programInfo.importedProgram && !programInfo.uuid) {
+  // An IDL can arrive without a build -- "Upload IDL" -- and must not be
+  // blocked behind the build artefacts; the `deployed` check below still
+  // guards actual calls
+  const { idl } = programInfo;
+  if (!idl) {
     return (
       <InitialWrapper>
-        <Text>Program is not built.</Text>
+        <Text>
+          {programInfo.importedProgram || programInfo.uuid
+            ? "Anchor IDL not found."
+            : "Program is not built."}
+        </Text>
       </InitialWrapper>
     );
   }
@@ -49,15 +57,6 @@ const Test = () => {
     return (
       <InitialWrapper>
         <Text>The program has no public key.</Text>
-      </InitialWrapper>
-    );
-  }
-
-  const { idl } = programInfo;
-  if (!idl) {
-    return (
-      <InitialWrapper>
-        <Text>Anchor IDL not found.</Text>
       </InitialWrapper>
     );
   }
