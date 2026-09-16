@@ -52,19 +52,25 @@ export type LessonRecordEvent = LessonEventBase &
     | { type: "move"; to: string | "end" }
     | { type: "attempt"; startedAt: number }
     | { type: "hint"; stepId: string; rung: number }
+    /** The learner opened this step's page. Recorded once per step;
+     * proves nothing -- `attest` is the only edge a read step has */
+    | { type: "opened"; stepId: string }
   );
 
 /**
  * What a trim leaves behind for the events it drops: the fold at the
- * cut -- every mark plus the cursor -- so the kept tail replays over it
- * exactly as it replayed over the dropped prefix. Only the step-local
- * `attempt`/`hint` history ages out, which is why the tail is bounded
- * rather than empty.
+ * cut -- every mark, the opened set, plus the cursor -- so the kept
+ * tail replays over it exactly as it replayed over the dropped prefix.
+ * Only the step-local `attempt`/`hint` history ages out, which is why
+ * the tail is bounded rather than empty.
  */
 export interface LessonSnapshot {
   marks: Array<[string, LessonMark]>;
   /** Step id under the cursor at the cut, or `end` */
   cursor: string | "end";
+  /** Step ids whose page was opened, so the band's signpost survives a
+   * trim -- a signpost that forgot would nag again */
+  opened?: string[];
 }
 
 export interface StoredLesson {

@@ -11,6 +11,11 @@ export type StageStatus = "upcoming" | "active" | "done" | "failed" | "running";
 export interface FlowState {
   stage: Stage;
   build: StageStatus;
+  /** The last build status that was not "running". The Build surface is
+   * chosen by this, never by the run in flight, so an instant failure
+   * cannot blink the surface -- and unlike component state it survives a
+   * remount mid-run. */
+  buildSettled: StageStatus;
   deploy: StageStatus;
   interact: StageStatus;
   buildErrorCount: number;
@@ -32,6 +37,7 @@ export type FlowEvent =
 export const INITIAL_FLOW_STATE: FlowState = {
   stage: "write",
   build: "upcoming",
+  buildSettled: "upcoming",
   deploy: "upcoming",
   interact: "upcoming",
   buildErrorCount: 0,
@@ -95,6 +101,7 @@ export class PgFlow {
               ...state,
               stage: "build",
               build: "failed",
+              buildSettled: "failed",
               buildErrorCount: ev.errorCount,
               buildMs: ev.ms,
             }
@@ -104,6 +111,7 @@ export class PgFlow {
               // back to Write hid it (reported during the first demo run).
               ...state,
               build: "done",
+              buildSettled: "done",
               deploy: state.deploy === "upcoming" ? "active" : state.deploy,
               buildErrorCount: 0,
               buildMs: ev.ms,

@@ -48,9 +48,13 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
       const selected = state.stage === stage;
+      // Spoken only, never rendered: a visible count would widen the pill
+      // on failure, and the loop's density must not change with status --
+      // the red border and dot already carry "failed". A pre-compiler
+      // failure has no count, so saying "0 errors" would mislead.
       const suffix =
-        stage === "build" && status === "failed"
-          ? ` ${state.buildErrorCount} error${
+        stage === "build" && status === "failed" && state.buildErrorCount > 0
+          ? `, ${state.buildErrorCount} error${
               state.buildErrorCount === 1 ? "" : "s"
             }`
           : "";
@@ -75,7 +79,6 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             <Dot $status={status} aria-hidden />
             <Full>{LABEL[stage]}</Full>
             <Initial>{LABEL[stage][0]}</Initial>
-            {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
       );
@@ -216,10 +219,6 @@ const Initial = styled.span`
   @media (max-width: ${STEPPER_COMPACT_AT}) {
     display: inline;
   }
-`;
-
-const ErrorSuffix = styled.span`
-  color: ${({ theme }) => theme.colors.state.error.color};
 `;
 
 const StageButton = styled.button<{

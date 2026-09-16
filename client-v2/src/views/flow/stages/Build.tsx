@@ -73,6 +73,13 @@ const Build = () => {
   }, []);
 
   const ms = msSuffix(flow.buildMs);
+  const building = flow.build === "running";
+  // The surface is chosen by the last *settled* status, never by
+  // "running": an unreachable build server fails in milliseconds, and
+  // swapping surfaces for that round trip reads as a blink (failed ->
+  // building -> failed). While a run is in flight the previous surface
+  // stays put and only its action shows "Building...".
+  const settled = building ? flow.buildSettled : flow.build;
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
@@ -82,7 +89,7 @@ const Build = () => {
     out !== null &&
     flow.buildStartedAt !== null &&
     out.at < flow.buildStartedAt;
-  if (flow.build === "failed" && (!out || outIsStale)) {
+  if (settled === "failed" && (!out || outIsStale)) {
     return (
       <Surface>
         <StatusRow>
@@ -107,14 +114,21 @@ const Build = () => {
           URL in settings.
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Retry build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Retry build"}
           </Button>
         </Actions>
       </Surface>
     );
   }
 
+  // Also reached while the very first build is in flight: there is no
+  // previous surface to hold onto, so the empty state itself says
+  // "Building..." instead of offering a live Build button mid-run.
   if (!out) {
     return (
       <Surface>
@@ -123,14 +137,18 @@ const Build = () => {
           <rect x="17" y="12" width="6" height="22" />
           <rect x="28" y="6" width="6" height="28" />
         </EmptyMark>
-        <Headline>Nothing built yet</Headline>
+        <Headline>{building ? "Building..." : "Nothing built yet"}</Headline>
         <Muted>
           Build compiles your program on the server. Nothing leaves your browser
           except the source.
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Build"}
           </Button>
         </Actions>
       </Surface>
@@ -217,8 +235,12 @@ const Build = () => {
           <Headline>Build failed</Headline>
           <Meta>{meta}</Meta>
         </HeaderText>
-        <Button kind="outline" onClick={() => PgCommand.build.execute()}>
-          Rebuild
+        <Button
+          kind="outline"
+          disabled={building}
+          onClick={() => PgCommand.build.execute()}
+        >
+          {building ? "Building..." : "Rebuild"}
         </Button>
       </HeaderRow>
 

@@ -151,4 +151,87 @@ describe("shape guards", () => {
     expect(isV2({ v: 1, events: [] })).toBe(false);
     expect(isV2("junk")).toBe(false);
   });
+
+  it("refuses a malformed snapshot instead of folding garbage", () => {
+    // The fold does `new Map(marks)` / `new Set(opened)` unguarded, so a
+    // shape the types promise but storage does not hold must fail here,
+    // into the load's `loadFailed` refusal
+    const good = {
+      v: 2,
+      snapshot: { marks: [["write", "proved"]], cursor: "write" },
+      events: [],
+    };
+    expect(isV2(good)).toBe(true);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: {
+          marks: [["write", "proved"]],
+          cursor: "write",
+          opened: ["write"],
+        },
+        events: [],
+      })
+    ).toBe(true);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: {
+          marks: [["write", "proved"]],
+          cursor: "write",
+          opened: "write",
+        },
+        events: [],
+      })
+    ).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        snapshot: { marks: ["write"], cursor: "write" },
+        events: [],
+      })
+    ).toBe(false);
+    expect(isV2({ v: 2, snapshot: { marks: [], cursor: 3 }, events: [] })).toBe(
+      false
+    );
+  });
+
+  it("refuses malformed events instead of crashing the fold", () => {
+    // The first fold runs outside the load's try; an element the fold
+    // cannot walk must be refused here, into `loadFailed`
+    expect(isV2({ v: 2, events: [null] })).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        events: [{ seq: 1, at: 1, actor: "toolchain", type: "graded" }],
+      })
+    ).toBe(false);
+    expect(isV2({ v: 2, events: [{ type: "enter" }] })).toBe(false);
+    expect(
+      isV2({
+        v: 2,
+        events: [
+          { seq: 1, at: 1, actor: "learner", type: "enter" },
+          {
+            seq: 2,
+            at: null,
+            actor: "toolchain",
+            type: "graded",
+            stepIds: ["write"],
+          },
+          { seq: 3, at: 3, actor: "learner", type: "move", to: "end" },
+          { seq: 4, at: 4, actor: "learner", type: "attempt", startedAt: 4 },
+          {
+            seq: 5,
+            at: 5,
+            actor: "learner",
+            type: "hint",
+            stepId: "write",
+            rung: 1,
+          },
+          { seq: 6, at: 6, actor: "learner", type: "opened", stepId: "write" },
+        ],
+      })
+    ).toBe(true);
+  });
 });

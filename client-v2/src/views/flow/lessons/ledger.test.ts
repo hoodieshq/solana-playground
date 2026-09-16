@@ -77,6 +77,7 @@ const attempt = (startedAt: number) =>
   ({ type: "attempt", startedAt } as const);
 const hint = (stepId: string, r: number) =>
   ({ type: "hint", stepId, rung: r } as const);
+const opened = (stepId: string) => ({ type: "opened", stepId } as const);
 
 const marksOf = (v: LessonView) =>
   PATH.steps.map((s) => v.marks.get(s.id) ?? "open");
@@ -372,6 +373,59 @@ describe("admits", () => {
   });
 });
 
+describe("opened pages", () => {
+  it("folds opened into a set and never touches marks or cursor", () => {
+    const v = foldRecord(PATH, record(opened("write"), opened("deploy")));
+    expect([...v.opened]).toEqual(["write", "deploy"]);
+    expect(marksOf(v)).toEqual(["open", "open", "open"]);
+    expect(v.cursor).toBe(0);
+  });
+
+  it("admits opened once per step", () => {
+    const v = foldRecord(PATH, record(opened("write")));
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "write",
+      })
+    ).toBe(false);
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "deploy",
+      })
+    ).toBe(true);
+  });
+
+  it("refuses opened for a step the path does not have", () => {
+    const v = foldRecord(PATH, record());
+    expect(
+      admits(PATH, v, {
+        seq: 1,
+        at: 1,
+        actor: "learner",
+        type: "opened",
+        stepId: "nowhere",
+      })
+    ).toBe(false);
+  });
+
+  it("restores opened from a snapshot", () => {
+    const v = foldRecord(PATH, {
+      v: 2,
+      snapshot: { marks: [], cursor: "write", opened: ["write"] },
+      events: [],
+    });
+    expect(v.opened.has("write")).toBe(true);
+  });
+});
+
 describe("queries over the log", () => {
   it("attempted is true once an attempt lands after first arrival", () => {
     const v = foldRecord(PATH, record(graded("write"), attempt(50)));
@@ -482,6 +536,14 @@ describe("trimming", () => {
     expect(v.marks.get("write")).toBe("proved");
     expect(v.cursor).toBe(1);
   });
+
+  it("carries the opened set into the snapshot", () => {
+    const whole = recordFrom([opened("write")], attempts(TRIM_CAP));
+    const trimmed = trimRecord(PATH, whole);
+    expect(trimmed.events.some((e) => e.type === "opened")).toBe(false);
+    expect(trimmed.snapshot?.opened).toEqual(["write"]);
+    expect(foldRecord(PATH, trimmed).opened.has("write")).toBe(true);
+  });
 });
 
 describe("folding from a snapshot", () => {
@@ -537,7 +599,7 @@ describe("properties over random series", () => {
     const ids = PATH.steps.map((s) => s.id);
     const id = ids[Math.floor(rand() * ids.length)];
     const base = { seq, at: seq, actor: "learner" as const };
-    switch (Math.floor(rand() * 7)) {
+    switch (Math.floor(rand() * 8)) {
       case 0:
         return {
           ...base,
@@ -555,6 +617,8 @@ describe("properties over random series", () => {
         return { ...base, type: "attempt", startedAt: seq };
       case 5:
         return { ...base, type: "hint", stepId: id, rung: 1 };
+      case 6:
+        return { ...base, type: "opened", stepId: id };
       default:
         return { ...base, type: "enter" };
     }
