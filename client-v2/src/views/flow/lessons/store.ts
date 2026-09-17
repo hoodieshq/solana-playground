@@ -233,9 +233,16 @@ const onFrontier = (state: LessonState) => {
   return cursorStep(state.path, view);
 };
 
-const STORAGE_DEFAULT: { lesson: StoredLesson } = {
+/**
+ * A fresh wrapper per `getStorage` call: the storage's `setItem` mutates
+ * the default it was handed (`readToJSONOrDefault` returns it by
+ * reference on a missing or unreadable file), so a shared object would
+ * leak one lesson's record into the next lesson's load and break the
+ * `loaded === EMPTY_STORED` failed-read check below.
+ */
+const storageDefault = (): { lesson: StoredLesson } => ({
   lesson: EMPTY_STORED,
-};
+});
 
 /**
  * Mirrors the private path inside `PgTutorial.getStorage`. Duplicated
@@ -353,7 +360,7 @@ export class PgLesson {
       let record = EMPTY_STORED;
       let loadFailed = false;
       try {
-        const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
+        const storage = PgTutorial.getStorage(storageDefault());
         const hasFile = await PgExplorer.fs.exists(STORAGE_PATH);
         const loaded: unknown = await storage.getItem("lesson");
         // `getItem` cannot actually throw -- `readToJSONOrDefault`
@@ -376,7 +383,8 @@ export class PgLesson {
           // Refusing to write is cheaper than being wrong about it.
           loadFailed = true;
         }
-      } catch {
+      } catch (e) {
+        console.error("lesson load failed", e);
         loadFailed = true;
       }
       PgLesson._dispatch({
@@ -451,7 +459,7 @@ export class PgLesson {
     if (PgExplorer.currentWorkspaceName !== tutorial) return;
 
     try {
-      const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
+      const storage = PgTutorial.getStorage(storageDefault());
       await storage.setItem("lesson", record);
     } catch {
       // The in-memory record is still correct for this session; a

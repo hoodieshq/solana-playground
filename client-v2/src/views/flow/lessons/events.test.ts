@@ -14,6 +14,13 @@ const record = (events: LessonRecordEvent[]): StoredLesson => ({
   events,
 });
 
+describe("EMPTY_STORED", () => {
+  it("is frozen -- the load path detects a failed read by identity against it", () => {
+    expect(Object.isFrozen(EMPTY_STORED)).toBe(true);
+    expect(Object.isFrozen(EMPTY_STORED.events)).toBe(true);
+  });
+});
+
 describe("nextSeq", () => {
   it("starts a fresh record at 1", () => {
     expect(nextSeq(EMPTY_STORED)).toBe(1);
