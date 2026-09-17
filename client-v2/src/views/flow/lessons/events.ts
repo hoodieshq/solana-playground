@@ -80,7 +80,14 @@ export interface StoredLesson {
   events: LessonRecordEvent[];
 }
 
-export const EMPTY_STORED: StoredLesson = { v: 2, events: [] };
+// Frozen: the load path detects a failed read by identity against this
+// sentinel, so a mutation anywhere would poison every fresh lesson
+const NO_EVENTS: LessonRecordEvent[] = [];
+Object.freeze(NO_EVENTS);
+export const EMPTY_STORED: StoredLesson = Object.freeze({
+  v: 2,
+  events: NO_EVENTS,
+});
 
 /**
  * @returns the seq the next appended event should carry. A trimmed

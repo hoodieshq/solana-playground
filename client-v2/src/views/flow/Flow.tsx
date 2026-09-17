@@ -171,6 +171,7 @@ const Flow = () => {
         <Center>
           <ObjectiveBand
             state={lesson}
+            flow={state}
             onRead={read}
             onOpenGallery={openGallery}
           />
