@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-import Button from "../../../../components/Button";
+import Button from "../../../components/Button";
 
 /**
  * The one decisive action of a view, carrying the brand gradient.
@@ -13,7 +13,11 @@ import Button from "../../../../components/Button";
  */
 const GradientButton = styled(Button)`
   && {
-    background: linear-gradient(135deg, #9945ff 10%, #14f195 90%);
+    /* border-box: the gradient's positioning area defaults to the padding
+       box, so the base Button's 1px border ring was painted by the
+       repeated tile's far end -- a mint stripe on the left edge */
+    background: linear-gradient(135deg, #9945ff 10%, #14f195 90%) border-box;
+    border-color: transparent;
     color: #050505;
     font-weight: 700;
 

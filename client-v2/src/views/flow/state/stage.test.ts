@@ -33,12 +33,26 @@ describe("PgFlow.reduce", () => {
     expect(INITIAL_FLOW_STATE).toEqual({
       stage: "write",
       build: "upcoming",
+      buildSettled: "upcoming",
       deploy: "upcoming",
       interact: "upcoming",
       buildErrorCount: 0,
       buildMs: null,
       buildStartedAt: null,
     });
+  });
+
+  it("keeps the settled status while a retry is in flight", () => {
+    const failed = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-finish",
+      failed: true,
+      errorCount: 0,
+      ms: 5,
+    });
+    expect(failed.buildSettled).toBe("failed");
+    const retrying = PgFlow.reduce(failed, { type: "build-start", at: 2000 });
+    expect(retrying.build).toBe("running");
+    expect(retrying.buildSettled).toBe("failed");
   });
 
   it("build-start marks build running, routes to build, records `at`", () => {

@@ -7,8 +7,12 @@ import {
   nextLegal,
   prevLegal,
   rung,
+  TRIM_CAP,
+  TRIM_KEEP,
+  trimRecord,
 } from "./ledger";
 import type { LessonView } from "./ledger";
+import { EMPTY_STORED, nextSeq } from "./events";
 import type {
   LessonActor,
   LessonMark,
@@ -250,6 +254,26 @@ describe("the cursor fold", () => {
     expect(v.frontier).toBe(1);
   });
 
+  it("keeps the cursor where a grade left it across a reload's enter", () => {
+    // The learner reviews, returns to "deploy", a build proves it, the
+    // cursor walks on -- reopening the lesson must not walk it back
+    const walked = record(
+      graded("write"),
+      move("write"),
+      move("deploy"),
+      graded("deploy")
+    );
+    expect(foldRecord(PATH, walked).cursor).toBe(2);
+    const reloaded = record(
+      graded("write"),
+      move("write"),
+      move("deploy"),
+      graded("deploy"),
+      { type: "enter" }
+    );
+    expect(foldRecord(PATH, reloaded).cursor).toBe(2);
+  });
+
   it("enter restores the last move target", () => {
     const v = foldRecord(
       PATH,
@@ -359,21 +383,43 @@ describe("opened pages", () => {
 
   it("admits opened once per step", () => {
     const v = foldRecord(PATH, record(opened("write")));
-    const base = { seq: 2, at: 2, actor: "learner" } as const;
-    expect(admits(PATH, v, { ...base, ...opened("write") })).toBe(false);
-    expect(admits(PATH, v, { ...base, ...opened("deploy") })).toBe(true);
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "write",
+      })
+    ).toBe(false);
+    expect(
+      admits(PATH, v, {
+        seq: 2,
+        at: 2,
+        actor: "learner",
+        type: "opened",
+        stepId: "deploy",
+      })
+    ).toBe(true);
   });
 
   it("refuses opened for a step the path does not have", () => {
     const v = foldRecord(PATH, record());
-    const base = { seq: 1, at: 1, actor: "learner" } as const;
-    expect(admits(PATH, v, { ...base, ...opened("nowhere") })).toBe(false);
+    expect(
+      admits(PATH, v, {
+        seq: 1,
+        at: 1,
+        actor: "learner",
+        type: "opened",
+        stepId: "nowhere",
+      })
+    ).toBe(false);
   });
 
   it("restores opened from a snapshot", () => {
     const v = foldRecord(PATH, {
       v: 2,
-      snapshot: { marks: [], opened: ["write"] },
+      snapshot: { marks: [], cursor: "write", opened: ["write"] },
       events: [],
     });
     expect(v.opened.has("write")).toBe(true);
@@ -419,10 +465,91 @@ describe("queries over the log", () => {
   });
 });
 
+describe("trimming", () => {
+  type Payload = Parameters<typeof record>[number];
+
+  /** `n` attempt payloads -- the filler that grows a record */
+  const attempts = (n: number): Payload[] =>
+    Array.from({ length: n }, () => attempt(1));
+
+  /** Like `record`, but from plain arrays so long series read flat */
+  const recordFrom = (...groups: Payload[][]): StoredLesson =>
+    record(...groups.flat());
+
+  /** Append attempts with real seqs until the record passes the cap */
+  const grownPastCap = (r: StoredLesson): StoredLesson => {
+    const events = r.events.slice();
+    while (events.length <= TRIM_CAP) {
+      events.push({
+        seq: events[events.length - 1].seq + 1,
+        at: 1,
+        actor: "learner",
+        type: "attempt",
+        startedAt: 1,
+      });
+    }
+    return { v: 2, snapshot: r.snapshot, events };
+  };
+
+  it("returns the same object while under the cap", () => {
+    expect(trimRecord(PATH, EMPTY_STORED)).toBe(EMPTY_STORED);
+
+    const one = record(attempt(1));
+    expect(trimRecord(PATH, one)).toBe(one);
+
+    const atCap = recordFrom(attempts(TRIM_CAP));
+    expect(trimRecord(PATH, atCap)).toBe(atCap);
+  });
+
+  it("keeps the last TRIM_KEEP events once past the cap", () => {
+    const long = recordFrom(attempts(TRIM_CAP + 1));
+    const trimmed = trimRecord(PATH, long);
+    expect(trimmed.events).toHaveLength(TRIM_KEEP);
+    expect(trimmed.events[0].seq).toBe(TRIM_CAP + 1 - TRIM_KEEP + 1);
+    expect(nextSeq(trimmed)).toBe(TRIM_CAP + 2);
+  });
+
+  it("folding a trimmed record matches folding the whole record", () => {
+    // An early move in the dropped prefix, a grade in the kept tail --
+    // the trim half of the D-d defect: the learner must not be thrown
+    // back to where they last explicitly moved
+    const whole = recordFrom([move("write")], attempts(TRIM_CAP - 1), [
+      graded("write"),
+    ]);
+    const trimmed = trimRecord(PATH, whole);
+    expect(trimmed.events.length).toBeLessThan(whole.events.length);
+
+    const a = foldRecord(PATH, whole);
+    const b = foldRecord(PATH, trimmed);
+    expect(b.cursor).toBe(a.cursor);
+    expect(marksOf(b)).toEqual(marksOf(a));
+    expect(b.frontier).toBe(a.frontier);
+  });
+
+  it("a second trim folds the prior snapshot into the next one", () => {
+    const first = trimRecord(
+      PATH,
+      recordFrom([graded("write")], attempts(TRIM_CAP))
+    );
+    const again = trimRecord(PATH, grownPastCap(first));
+    const v = foldRecord(PATH, again);
+    expect(v.marks.get("write")).toBe("proved");
+    expect(v.cursor).toBe(1);
+  });
+
+  it("carries the opened set into the snapshot", () => {
+    const whole = recordFrom([opened("write")], attempts(TRIM_CAP));
+    const trimmed = trimRecord(PATH, whole);
+    expect(trimmed.events.some((e) => e.type === "opened")).toBe(false);
+    expect(trimmed.snapshot?.opened).toEqual(["write"]);
+    expect(foldRecord(PATH, trimmed).opened.has("write")).toBe(true);
+  });
+});
+
 describe("folding from a snapshot", () => {
   const trimmed: StoredLesson = {
     v: 2,
-    snapshot: { marks: [["write", "proved"]], moveTarget: "write" },
+    snapshot: { marks: [["write", "proved"]], cursor: "write" },
     events: [],
   };
 
@@ -432,7 +559,7 @@ describe("folding from a snapshot", () => {
     expect(v.frontier).toBe(1);
   });
 
-  it("restores the snapshot's move target as the cursor", () => {
+  it("restores the snapshot's cursor", () => {
     expect(foldRecord(PATH, trimmed).cursor).toBe(0);
   });
 
@@ -442,6 +569,15 @@ describe("folding from a snapshot", () => {
       events: [{ seq: 121, at: 1, actor: "learner", type: "enter" }],
     });
     expect(v.cursor).toBe(0);
+  });
+
+  it("falls back to the frontier when the cursor's step is gone", () => {
+    const v = foldRecord(PATH, {
+      v: 2,
+      snapshot: { marks: [["write", "proved"]], cursor: "removed-step" },
+      events: [],
+    });
+    expect(v.cursor).toBe(1);
   });
 });
 

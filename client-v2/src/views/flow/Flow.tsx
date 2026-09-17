@@ -17,10 +17,9 @@ import Reader from "./lessons/Reader";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
 import {
-  cursorStep,
   describeStep,
   entryReading,
-  foldRecord,
+  graderClass,
   INITIAL_LESSON_STATE,
   PgLesson,
 } from "./lessons";
@@ -114,32 +113,26 @@ const Flow = () => {
     return sub.dispose;
   }, []);
 
-  const readingStep = lesson.path
-    ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
-    : null;
   const described = describeStep(lesson);
 
-  // Every way the page opens goes through here, so the record learns
-  // about it exactly once per step and the band's signpost can rest
-  const read = (stepId: string) => {
-    setReading(true);
-    PgLesson.opened(stepId);
-  };
+  const read = () => setReading(true);
 
   // A learner who fixes the code while the page is open should come back
   // to the editor, not to the next step's prose.
   useEffect(() => {
     setReading(false);
-  }, [readingStep?.id]);
+  }, [described?.step.id]);
 
   // Entering the lesson lands on the page -- once (D34). Declared after
   // the effect above so that, on the commit where both fire (a load
-  // moves the cursor too), open wins. Recording `opened` moves the
-  // record's tail off `enter`, so the next state returns null here and
-  // the effect is inert; closing the sheet by hand does not reopen it.
+  // moves the cursor too), open wins. The record learns `opened` from
+  // the Reader once the page content actually loads, which moves the
+  // record's tail off `enter` -- so the next state returns null here and
+  // the effect is inert; closing the sheet by hand does not reopen it,
+  // while a page that failed to load gets another chance on re-entry.
   const entryStep = entryReading(lesson);
   useEffect(() => {
-    if (entryStep) read(entryStep.id);
+    if (entryStep) read();
     // `read` is recreated every render; the step id is the real trigger
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryStep?.id]);
@@ -179,20 +172,22 @@ const Flow = () => {
           <ObjectiveBand
             state={lesson}
             flow={state}
-            onRead={() => readingStep && read(readingStep.id)}
+            onRead={read}
             onOpenGallery={openGallery}
           />
           <Stage>
             <StageRouter stage={state.stage} />
-            {reading && readingStep && described && (
+            {reading && described && (
               <Reader
-                key={readingStep.id}
-                step={readingStep}
+                key={described.step.id}
+                step={described.step}
                 position={described.number}
                 criterion={described.verifiedBy}
                 offersAttest={
-                  described.offersPrimary && readingStep.verify.kind === "read"
+                  described.offersPrimary &&
+                  graderClass(described.step.verify) === "attestation"
                 }
+                onLoaded={() => PgLesson.opened(described.step.id)}
                 onClose={() => setReading(false)}
                 onAttest={() => {
                   PgLesson.attest();

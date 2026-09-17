@@ -151,6 +151,13 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
     page.getByRole("dialog", { name: /hello instruction/i })
   ).toBeVisible();
   await expect(page.getByText("Back to the code")).toBeVisible();
+  // The record learns `opened` only once the page content actually
+  // loads, so wait for the band's signpost (visible beside the sheet) to
+  // rest before closing -- an Escape that outruns the load leaves the
+  // page unread on purpose.
+  await expect(
+    page.getByRole("button", { name: "Read the page" })
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("dialog", { name: /hello instruction/i })
@@ -210,4 +217,28 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
     sheet.getByRole("button", { name: "Mark as read", exact: true })
   ).toBeVisible();
   await expect(sheet.getByText("Back to the code")).toHaveCount(0);
+
+  // The footer's edge actually fires: the step attests, the sheet
+  // closes, and the cursor walks on. A dead or mis-wired `onAttest`
+  // fails here, not at the visibility check above.
+  await sheet
+    .getByRole("button", { name: "Mark as read", exact: true })
+    .click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText("Step 4 of 4").first()).toBeVisible();
+
+  // Skipping the last step lands past the end: the band sums the path in
+  // the record's own vocabulary and offers the gallery as the way on,
+  // with the back arrow still live for the repair edge.
+  await skip.click();
+  await expect(page.getByText("You have finished Hello Anchor.")).toBeVisible();
+  await expect(
+    page.getByText("1 marked read, 3 skipped -- go back to prove it.")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Browse gallery" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Previous step" })
+  ).toBeEnabled();
 });

@@ -1,6 +1,6 @@
 import type { Idl } from "@coral-xyz/anchor";
 
-import { EMPTY_STORED, nextSeq, trimRecord } from "./events";
+import { EMPTY_STORED, nextSeq } from "./events";
 import type { LessonActor, LessonRecordEvent, StoredLesson } from "./events";
 import { hintPrompt, RUNG_COUNT } from "./hints";
 import {
@@ -11,6 +11,7 @@ import {
   nextLegal,
   prevLegal,
   rung,
+  trimRecord,
 } from "./ledger";
 import type { LessonView } from "./ledger";
 import { isV1, isV2, migrateV1 } from "./migrate";
@@ -92,12 +93,12 @@ const append = (
   } as LessonRecordEvent;
   if (!admits(path, foldRecord(path, state.record), ev)) return state;
 
-  const record = trimRecord(
-    { ...state.record, events: [...state.record.events, ev] },
-    (r) => [...foldRecord(path, r).marks.entries()],
-    (r) => [...foldRecord(path, r).opened]
-  );
-  return { ...state, record };
+  const record = trimRecord(path, {
+    v: 2,
+    snapshot: state.record.snapshot,
+    events: state.record.events.concat(ev),
+  });
+  return { path: state.path, record, loadFailed: state.loadFailed };
 };
 
 /** Pure reducer, so the machine's rules are testable without a browser */
@@ -334,7 +335,8 @@ export class PgLesson {
   }
 
   /** Record that the learner opened this step's page. A fact, not a
-   * proof: it drives the band's signpost and nothing else. */
+   * proof: it drives the read signpost and gates the entry auto-open,
+   * never a mark. */
   static opened(stepId: string) {
     PgLesson._dispatch({ type: "opened", stepId, at: Date.now() });
   }

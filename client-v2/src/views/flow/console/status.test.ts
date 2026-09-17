@@ -29,6 +29,7 @@ const buildOutput: MockBuildOutput = jest.requireMock(
 const DEFAULT_STATE: FlowState = {
   stage: "write",
   build: "upcoming",
+  buildSettled: "upcoming",
   deploy: "upcoming",
   interact: "upcoming",
   buildErrorCount: 0,
