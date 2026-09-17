@@ -1,7 +1,6 @@
 import { report } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
-import type { ServerProject } from "./project-sync";
 
 /** What one pass of `syncProjectsFromServer` did */
 export interface SyncResult {
