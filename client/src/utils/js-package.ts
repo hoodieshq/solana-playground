@@ -6,11 +6,15 @@ import { PgServer } from "./server";
 const fs = PgExplorer.fs;
 
 export class PgJsPackage {
-  /** Install packages as a bundle. */
-  static async install() {
+  /**
+   * Install packages as a bundle.
+   *
+   * @param command package manager command tokens
+   */
+  static async install(command?: string[]) {
     const manifest = await this._getManifest();
     const lock = await this._getLock();
-    const result = await PgServer.bundle({ manifest, lock });
+    const result = await PgServer.bundle({ manifest, lock, command });
 
     // Clear the existing data for fresh installs each time
     const internalRootDirPath = this._PATHS.INTERNAL_ROOT_DIR;
@@ -47,7 +51,6 @@ export class PgJsPackage {
    * @returns the imported package
    */
   static async import(name: string) {
-    // TODO: Cache
     const mod = await this.importChunk(
       PgCommon.joinPaths(name, this._PATHS.BUNDLE_FILE),
       { cache: true }
@@ -66,12 +69,14 @@ export class PgJsPackage {
    * @returns the imported chunk
    */
   static async importChunk(path: string, opts?: { cache?: boolean }) {
+    // Make caching per-project rather than global
+    path = PgExplorer.toAbsolutePath(this._getInternalPath(path));
     if (opts?.cache) {
       const blobUrl = this._importCache.get(path);
       if (blobUrl) return await import(/* webpackIgnore: true */ blobUrl);
     }
 
-    const chunk = await fs.readToString(this._getInternalPath(path));
+    const chunk = await fs.readToString(path);
     const blob = new Blob([chunk], { type: "text/javascript" });
     // TODO: Revoke the URL
     const blobUrl = URL.createObjectURL(blob);
@@ -89,13 +94,37 @@ export class PgJsPackage {
    */
   static async getTypes(name: string) {
     const pkgPath = this._getInternalPath(name);
-    const files = await fs.readToJSON<TupleFiles>(
+    const files = await fs.readToJson<TupleFiles>(
       PgCommon.joinPaths(pkgPath, this._PATHS.TYPES_FILE)
     );
-    const dependencies = await fs.readToJSON<string[]>(
+    const dependencies = await fs.readToJson<string[]>(
       PgCommon.joinPaths(pkgPath, this._PATHS.DEPENDENCIES_FILE)
     );
     return { files, dependencies };
+  }
+
+  /** Get the parsed manifest (`package.json`). */
+  static async getParsedManifest() {
+    const manifest = await fs.readToJson<Manifest>(this._PATHS.MANIFEST_FILE);
+    const { name } = manifest;
+    if (name !== undefined && typeof name !== "string") {
+      throw new Error(`Invalid manifest name: ${name}`);
+    }
+
+    const depKeys = [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ] as const;
+    depKeys.forEach((key) => {
+      const value = manifest[key];
+      if (value !== undefined && typeof value !== "object") {
+        throw new Error(`Invalid dependencies: ${key}: ${value}`);
+      }
+    });
+
+    return manifest;
   }
 
   /** Known package-related paths */
@@ -122,24 +151,12 @@ export class PgJsPackage {
 
   /** Get the manifest file content (`package.json`). */
   private static async _getManifest() {
-    try {
-      return await fs.readToString(this._PATHS.MANIFEST_FILE);
-    } catch {
-      // TODO: Make this based on framework and version
-      return await PgCommon.fetchText(
-        "/frameworks/" + this._PATHS.MANIFEST_FILE
-      );
-    }
+    return await fs.readToString(this._PATHS.MANIFEST_FILE);
   }
 
   /** Get the lock file content. */
   private static async _getLock() {
-    try {
-      return await fs.readToString(this._PATHS.LOCK_FILE);
-    } catch {
-      // TODO: Make this based on framework and version
-      return await PgCommon.fetchText("/frameworks/" + this._PATHS.LOCK_FILE);
-    }
+    return await fs.readToString(this._PATHS.LOCK_FILE);
   }
 
   /**
@@ -159,6 +176,23 @@ export class PgJsPackage {
       .replaceAll(".", "");
   }
 }
+
+/** `package.json` */
+interface Manifest {
+  /** Project name */
+  name?: string;
+  /** Main dependencies */
+  dependencies?: Dependencies;
+  /** Development dependencies */
+  devDependencies?: Dependencies;
+  /** Peer dependencies */
+  peerDependencies?: Dependencies;
+  /** Optional dependencies */
+  optionalDependencies?: Dependencies;
+}
+
+/** `package.json` dependencies map */
+type Dependencies = Record<string, string>;
 
 // Server bundles use this to import.
 //

@@ -19,6 +19,13 @@ pub struct Sandbox<'a> {
 
 impl<'a> Sandbox<'a> {
     /// Create a new [`Sandbox`] instance.
+    ///
+    /// # Note
+    ///
+    /// It's recommended to set [the timeout limit] when the process can be cancelled externally.
+    /// Not doing so may leave orphan containers.
+    ///
+    /// [the timeout limit]: Self::timeout_limit
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -36,6 +43,17 @@ impl<'a> Sandbox<'a> {
     #[must_use]
     pub fn user(mut self, user: impl ToString) -> Self {
         self.cfg.user.replace(user.to_string());
+        self
+    }
+
+    /// Allow networking.
+    ///
+    /// # Note
+    ///
+    /// This is dangerous. Only allow if it's absolutely necessary.
+    #[must_use]
+    pub fn allow_networking(mut self) -> Self {
+        self.cfg.allow_networking = true;
         self
     }
 
@@ -116,15 +134,16 @@ impl<'a> Sandbox<'a> {
                 .arg("--rm")
                 .arg("--cap-drop=ALL")
                 .arg("--memory-swap=-1")
-                // TODO: Allow networking (customizable)
                 // TODO: Allow creating a new network with only specified URLs whitelisted (e.g. npmjs.com)?
-                .arg("--network=none")
                 .arg("--oom-score-adj=1000") // Make the container easily killable when OOM
                 .arg("--security-opt=no-new-privileges");
 
             if let Some(user) = &self.cfg.user {
                 cmd.arg("--user");
                 cmd.arg(user);
+            }
+            if !self.cfg.allow_networking {
+                cmd.arg("--network=none");
             }
             if let Some(cpu) = self.cfg.limits.cpu {
                 cmd.arg("--cpus");
@@ -144,7 +163,12 @@ impl<'a> Sandbox<'a> {
                 _ => return Err(anyhow!("Image not specified")),
             };
 
-            cmd.args(["sh", "-lc", "sleep infinity"]);
+            cmd.arg("sleep");
+            match self.cfg.limits.timeout {
+                Some(timeout) => cmd.arg(timeout.to_string()),
+                _ => cmd.arg("infinity"),
+            };
+
             run_cmd(&mut cmd).await?;
 
             let mut all_output = Output {
@@ -160,22 +184,52 @@ impl<'a> Sandbox<'a> {
                         // running container and make the path absolute.
                         //
                         // TODO: Only run when there is a relative container path
-                        let output = Command::new("docker")
-                            .arg("exec")
-                            .arg(&container)
-                            .arg("pwd")
-                            .output()
-                            .await?;
-                        if !output.status.success() {
-                            return Err(anyhow!("Failed to get Docker WORKDIR"));
-                        }
+                        let workdir = output_cmd(
+                            Command::new("docker")
+                                .arg("exec")
+                                .arg(&container)
+                                .arg("pwd"),
+                        )
+                        .await
+                        .map(PathBuf::from)?;
 
-                        let workdir = str::from_utf8(&output.stdout)
-                            .map(|x| x.trim())
-                            .map(Path::new)?;
-                        let src = Action::copy_path(src, &container, workdir)?;
-                        let dst = Action::copy_path(dst, &container, workdir)?;
-                        run_cmd(Command::new("docker").arg("cp").arg(src).arg(dst)).await?;
+                        let src = Action::copy_path(src, &container, &workdir)?;
+                        let stripped_container_dst = dst
+                            .to_str()
+                            .ok_or_else(|| anyhow!("Invalid path: {dst:?}"))?
+                            .strip_prefix("container:")
+                            .map(Path::new);
+                        match (&self.cfg.user, stripped_container_dst) {
+                            // If transfering to the container, `docker cp` does not set the current
+                            // user as the owner. The owner cannot be changed because `CAP_CHOWN` is
+                            // removed (by `--cap-drop=ALL`). As a workaround, `docker cp` into a
+                            // temp directory and then copy the files to the actual destination
+                            // using the current user.
+                            (Some(_), Some(stripped_container_dst)) => {
+                                // TODO: Get temp dir from the container instead of hardcoding
+                                let temp_dst = Path::new("/tmp").join(stripped_container_dst);
+                                let dst = Action::copy_path(
+                                    &PathBuf::from(format!("container:{}", temp_dst.display())),
+                                    &container,
+                                    &workdir,
+                                )?;
+                                run_cmd(Command::new("docker").arg("cp").arg(src).arg(dst)).await?;
+                                run_cmd(
+                                    Command::new("docker")
+                                        .arg("exec")
+                                        .arg(&container)
+                                        .arg("cp")
+                                        .arg("--recursive")
+                                        .arg(temp_dst)
+                                        .arg(stripped_container_dst),
+                                )
+                                .await?;
+                            }
+                            _ => {
+                                let dst = Action::copy_path(dst, &container, &workdir)?;
+                                run_cmd(Command::new("docker").arg("cp").arg(src).arg(dst)).await?;
+                            }
+                        }
                     }
                     Action::Run(cmd) => {
                         let cmd = cmd.as_std();
@@ -185,6 +239,8 @@ impl<'a> Sandbox<'a> {
                             .arg(cmd.get_program())
                             .args(cmd.get_args())
                             .env_clear()
+                            // Without `PATH`, `docker` resolves only via the OS fallback path, which lacks `/usr/local/bin` on macOS
+                            .envs(std::env::var_os("PATH").map(|path| ("PATH", path)))
                             .envs(cmd.get_envs().filter_map(|(k, v)| v.map(|v| (k, v))))
                             .output()
                             .await?;
@@ -222,10 +278,12 @@ impl<'a> Sandbox<'a> {
 /// Sandbox configuration
 #[derive(Debug, Default)]
 struct Config {
-    /// Docker image
+    /// Image name
     image: Option<String>,
-    /// Docker image user
+    /// Image user
     user: Option<String>,
+    /// Whether to allow networking
+    allow_networking: bool,
     /// Container limits
     limits: Limits,
 }
@@ -293,4 +351,24 @@ async fn run_cmd(cmd: &mut Command) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Run a command and get its output from `stdout` (trimmed).
+///
+/// If the command fails, an error is returned.
+async fn output_cmd(cmd: &mut Command) -> Result<String> {
+    let output = cmd.output().await?;
+    if !output.status.success() {
+        let cmd = cmd.as_std();
+        return Err(anyhow!(
+            "Failed to run `{:?} {:?}",
+            cmd.get_program(),
+            cmd.get_args()
+        ));
+    }
+
+    str::from_utf8(&output.stdout)
+        .map(|s| s.trim())
+        .map(ToOwned::to_owned)
+        .map_err(Into::into)
 }

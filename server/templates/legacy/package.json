@@ -1,7 +1,6 @@
 {
   "name": "legacy",
-  "version": "0.0.0",
-  "private": true,
+  "type": "module",
   "dependencies": {
     "@clockwork-xyz/sdk": "^0.3.1",
     "@coral-xyz/anchor": "^0.29.0",
@@ -18,11 +17,7 @@
     "bn.js": "*",
     "borsh": "*",
     "buffer": "*",
-    "crypto-browserify": "^3.12.0",
-    "events": "^3.3.0",
-    "mocha": "^10.0.0",
-    "process": "^0.11.10",
-    "stream-browserify": "^3.0.0"
+    "mocha": "^10.0.0"
   },
   "devDependencies": {
     "@types/bn.js": "=5.1.1",
