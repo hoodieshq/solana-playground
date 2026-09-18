@@ -4,6 +4,7 @@ import styled, { css, keyframes } from "styled-components";
 import IdlActions from "./IdlActions";
 import { parseBuildReport } from "./build-report";
 import type { BuildDiagnostic, BuildReport } from "./build-report";
+import { isRestoredBuild, ownOutput } from "./build-surface";
 import { humanize } from "./humanize";
 import Button from "../../../components/Button";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
@@ -81,15 +82,59 @@ const Build = () => {
   // stays put and only its action shows "Building...".
   const settled = building ? flow.buildSettled : flow.build;
 
+  // `PgBuildOutput` keeps one value for the whole session, so a report from
+  // the project opened before this one is still sitting in `out`. Anything
+  // another workspace recorded is not this surface's to show.
+  const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
+
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
   // still flips `flow.build` to "failed", but `out` stays `null` or, if a
   // previous run left one behind, goes stale.
   const outIsStale =
-    out !== null &&
+    own !== null &&
     flow.buildStartedAt !== null &&
-    out.at < flow.buildStartedAt;
-  if (settled === "failed" && (!out || outIsStale)) {
+    own.at < flow.buildStartedAt;
+
+  // The workspace's own record outlived the page; the compiler's words did
+  // not. Say what is known and no more -- the branches below would either
+  // offer a first build over a finished one, or blame a build server for a
+  // failure whose cause this page never saw.
+  if (isRestoredBuild(settled, own, flow.buildStartedAt)) {
+    const failed = settled === "failed";
+    return (
+      <Surface>
+        <Card>
+          <Eyebrow>Build</Eyebrow>
+          <StatusRow>
+            <Headline $ok={!failed} $error={failed}>
+              {failed ? "Last build failed" : "Built earlier"}
+            </Headline>
+          </StatusRow>
+          <Muted>
+            This project was built before the page was reloaded, so the
+            compiler's report is no longer here. Build again to see it.
+          </Muted>
+          <Actions>
+            <Button
+              kind="primary"
+              disabled={building}
+              onClick={() => PgCommand.build.execute()}
+            >
+              {building ? "Building..." : "Build"}
+            </Button>
+            {!failed && (
+              <GradientButton onClick={() => PgFlow.setStage("deploy")}>
+                Continue to Deploy
+              </GradientButton>
+            )}
+          </Actions>
+        </Card>
+      </Surface>
+    );
+  }
+
+  if (settled === "failed" && (!own || outIsStale)) {
     return (
       <Surface>
         <StatusRow>
@@ -129,7 +174,7 @@ const Build = () => {
   // Also reached while the very first build is in flight: there is no
   // previous surface to hold onto, so the empty state itself says
   // "Building..." instead of offering a live Build button mid-run.
-  if (!out) {
+  if (!own) {
     return (
       <Surface>
         <EmptyMark viewBox="0 0 40 40" width="40" height="40" aria-hidden>
@@ -155,7 +200,7 @@ const Build = () => {
     );
   }
 
-  if (!out.failed) {
+  if (!own.failed) {
     return (
       <Surface>
         <Card>
@@ -198,7 +243,7 @@ const Build = () => {
     );
   }
 
-  const report: BuildReport = parseBuildReport(out.stderr);
+  const report: BuildReport = parseBuildReport(own.stderr);
   // `countErrors` (the header badge's own count) and `parseBuildReport`
   // share one parsing convention, but rustc output that convention can't
   // split into diagnostics still leaves the badge with a count and this
@@ -258,7 +303,7 @@ const Build = () => {
                   onClick={() =>
                     PgAssistant.requestPrompt(
                       "Explain this build failure and propose a fix:\n" +
-                        out.stderr
+                        own.stderr
                     )
                   }
                 >
