@@ -205,9 +205,24 @@ this branch will be demoed and read by others.
 
 ## Pull requests
 
+**Every PR description opens with a link to its Linear ticket** — the
+`linear.app/solana-fndn/issue/HOO-...` URL on its own line, before anything
+else. Work with no ticket says so in that line instead. See
+`docs/linear-conventions.md` for filing one.
+
 Every PR description must let a reviewer understand and check the change
 without asking: what it is and why, how it works, links to the spec /
 decision / brief it implements, and instructions for testing it by hand.
+
+**That list is a floor, not a licence.** `CONTRIBUTING.md` asks for a
+description that is *concise (no slop)*, and it wins on length: the body
+answers **"can this merge?"** and nothing else. Reasoning that explains *how
+the code came to be this way* belongs in the commit messages, where this
+repo already keeps it; background belongs in the ticket. If the body is long
+because the change is surprising, that is a signal the change wants
+splitting, not a longer preamble.
+
+A reviewer should reach the diff within a screen of reading.
 
 **The final step of preparing any PR — especially at the end of a
 Superpowers round — is visual testing, and its screenshots go into the
