@@ -6,6 +6,11 @@
   "devCommand": "yarn dev-cra",
   "outputDirectory": "build",
   "trailingSlash": false,
+  "functions": {
+    "api/agent.mjs": {
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!static/|.*\\..*).*)",
