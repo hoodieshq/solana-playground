@@ -332,8 +332,11 @@ const sendJson = (res, status, body) => {
  * @param {import("http").ServerResponse} res
  */
 const serveApiRoute = async (req, res) => {
-  // Mounted on `/api`, so `req.url` is the remainder
-  const name = req.url.split("?")[0].replace(/^\/+/, "");
+  // Mounted on `/api`, so `req.url` is the remainder. The first segment
+  // picks the module; the rest stays on `req.url` for routes that carry a
+  // path of their own (`/api/build/deploy/<uuid>`), the way the vercel.json
+  // rewrite hands it to the deployed function
+  const [name] = req.url.split("?")[0].replace(/^\/+/, "").split("/");
   // Constrained rather than sanitised: the path decides which module is
   // imported, so anything unexpected must not reach `import()`
   if (!/^[a-z0-9-]+$/.test(name)) {
@@ -342,6 +345,7 @@ const serveApiRoute = async (req, res) => {
 
   try {
     const route = await import(`./api/${name}.mjs`);
+    req.url = req.url.replace(new RegExp(`^/${name}(?=/|\\?|$)`), "") || "/";
     await route.default(req, res);
   } catch (e) {
     if (e.code === "ERR_MODULE_NOT_FOUND") {
