@@ -15,6 +15,7 @@ if you learn something that contradicts what is written here, fix it here.
 | `docs/upstream-divergences.md` | Every place `client-v2` differs from `client/` and why -- read before a roadmap update, a release, or an upstream sync |
 | `docs/codebase-map.yaml` (+ `.html`) | How the existing client actually works — verified by reading and running, with file paths |
 | `docs/assistant-context.md` | What the in-product assistant knows about itself |
+| `docs/linear-conventions.md` | How to file a ticket for this repo — the team, the project, and the two substitutions the shared Bug template needs |
 | `docs/superpowers/specs/` | Design specs for work in progress |
 
 `codebase-map.yaml` is the reference for anything about the existing client —
