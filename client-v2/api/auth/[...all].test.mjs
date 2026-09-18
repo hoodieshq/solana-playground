@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
 const load = async () => {
-  const url = new URL("./auth.mjs", import.meta.url);
+  const url = new URL("./[...all].mjs", import.meta.url);
   url.searchParams.set("t", String(Math.random()));
   return import(url.href);
 };

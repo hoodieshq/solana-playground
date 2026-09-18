@@ -29,10 +29,6 @@ let instance = null;
  * through to Better Auth's own default instead of being handed a base URL that
  * is not one.
  *
- * This settles the origin, not sign-in. GitHub rejects a callback it holds no
- * registration for and an OAuth app holds exactly one, so previews still need
- * the `oAuthProxy` plugin pointed at a deployed production origin.
- *
  * @returns {string | undefined} the origin, or `undefined` to let Better Auth decide
  */
 const resolveBaseURL = () =>

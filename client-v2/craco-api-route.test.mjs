@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { describe, it } from "node:test";
 
 const require = createRequire(import.meta.url);
-const { resolveApiRoute } = require("./craco.config.js");
+const { resolveApiRoute, apiModule } = require("./craco.config.js");
 
 describe("resolveApiRoute", () => {
   it("resolves a flat route", () => {
@@ -28,5 +28,19 @@ describe("resolveApiRoute", () => {
   it("refuses an empty or malformed first segment", () => {
     assert.equal(resolveApiRoute("/"), null);
     assert.equal(resolveApiRoute("/Health"), null);
+  });
+});
+
+describe("apiModule", () => {
+  it("finds a flat route", () => {
+    assert.equal(apiModule("health"), "./api/health.mjs");
+  });
+
+  it("finds a catch-all route, which is how the platform serves a subtree", () => {
+    assert.equal(apiModule("auth"), "./api/auth/[...all].mjs");
+  });
+
+  it("has nothing for an unknown name", () => {
+    assert.equal(apiModule("nope"), null);
   });
 });

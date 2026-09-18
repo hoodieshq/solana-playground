@@ -8,7 +8,7 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/((?!static/|.*\\..*).*)",
+      "source": "/((?!api/|static/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
