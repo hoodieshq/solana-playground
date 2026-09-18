@@ -322,10 +322,11 @@ const sendJson = (res, status, body) => {
 /**
  * Map an `/api` sub-path to the module that serves it.
  *
- * Only the first segment selects the module, so `api/auth/[...all].mjs` serves
- * every `/api/auth/...` path the way the platform catch-all it is named for
- * does. Every segment is still constrained rather than sanitised, because the
- * value reaches `import()`.
+ * Only the first segment selects the module, so `api/auth.mjs` serves every
+ * `/api/auth/...` path -- which on the platform takes a `vercel.json` rewrite,
+ * because no `api/` file name spans segments (see `api-routing.test.mjs`).
+ * Every segment is still constrained rather than sanitised, because the value
+ * reaches `import()`.
  *
  * @param {string} url the path below `/api`, query string included
  * @returns {{name: string} | null} the module to import, or `null` for 404
@@ -346,23 +347,8 @@ const resolveApiRoute = (url) => {
 };
 
 /**
- * The file that serves a route, in the two shapes the platform routes:
- * `api/<name>.mjs` for a single path, `api/<name>/[...all].mjs` for a subtree.
- *
- * Existence is checked here rather than read off a failed `import()`, which
- * cannot tell a route that does not exist from a missing import inside one.
- *
- * @param {string} name the first path segment, already constrained
- * @returns {string | null} the specifier to import, or `null` for 404
- */
-const apiModule = (name) =>
-  [`./api/${name}.mjs`, `./api/${name}/[...all].mjs`].find((specifier) =>
-    fs.existsSync(path.join(__dirname, specifier))
-  ) ?? null;
-
-/**
- * Dispatch `/api/<name>` to the module that serves it, matching how the
- * deployed function is invoked.
+ * Dispatch `/api/<name>` to `api/<name>.mjs`, matching how the deployed
+ * function is invoked.
  *
  * Never calls `next()`: falling through would hand an unknown `/api` path to
  * the history fallback, which answers `200 text/html` with `index.html` and
@@ -382,15 +368,19 @@ const serveApiRoute = async (req, res) => {
   // as "does not provide an export named X". Restart the dev server after such
   // an edit.
   const route = resolveApiRoute(req.url);
-  const specifier = route && apiModule(route.name);
-  if (!specifier) {
+  if (!route) {
     return sendJson(res, 404, { error: `No API route at /api${req.url}` });
   }
 
   try {
-    const mod = await import(specifier);
+    const mod = await import(`./api/${route.name}.mjs`);
     await mod.default(req, res);
   } catch (e) {
+    if (e.code === "ERR_MODULE_NOT_FOUND") {
+      return sendJson(res, 404, {
+        error: `No API route at /api/${route.name}`,
+      });
+    }
     sendJson(res, 500, { error: e.message });
   }
 };
@@ -431,4 +421,3 @@ const defineFromPublicDir = (dirName, cb) => {
 // Exported for tests only. The craco config itself is the default export
 // above; this is the one pure function in the file worth covering directly.
 module.exports.resolveApiRoute = resolveApiRoute;
-module.exports.apiModule = apiModule;
