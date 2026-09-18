@@ -17,6 +17,29 @@ import { getPool } from "../../persistence/server/db.mjs";
 let instance = null;
 
 /**
+ * The origin Better Auth builds its callback and redirect URLs from.
+ *
+ * Production sets `AUTH_BASE_URL` explicitly. A preview cannot: every deployment
+ * gets its own URL and only learns it once it exists, so there is nothing to put
+ * in the variable beforehand. Vercel injects that URL at runtime as `VERCEL_URL`
+ * -- hostname only, no scheme -- which lets a preview describe itself and need
+ * no configuration at all.
+ *
+ * `undefined` rather than `""` when neither is set, so local development falls
+ * through to Better Auth's own default instead of being handed a base URL that
+ * is not one.
+ *
+ * This settles the origin, not sign-in. GitHub rejects a callback it holds no
+ * registration for and an OAuth app holds exactly one, so previews still need
+ * the `oAuthProxy` plugin pointed at a deployed production origin.
+ *
+ * @returns {string | undefined} the origin, or `undefined` to let Better Auth decide
+ */
+const resolveBaseURL = () =>
+  process.env.AUTH_BASE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
+/**
  * The auth instance, created on first use.
  *
  * @returns {ReturnType<typeof betterAuth> | null} the instance, or `null` when
@@ -32,7 +55,7 @@ export const getAuth = () => {
   if (!instance) {
     instance = betterAuth({
       database: pool,
-      baseURL: process.env.AUTH_BASE_URL,
+      baseURL: resolveBaseURL(),
       secret: process.env.AUTH_SECRET,
       user: {
         additionalFields: {

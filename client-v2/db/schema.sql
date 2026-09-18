@@ -7,10 +7,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ygmpVuLtbWkgSsXaOznUfTxmWd2UhZ738bwIlR5etpCRxjfmFy4bOs4wDbKKa4z
 
--- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
--- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg13+2)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -330,7 +327,6 @@ ALTER TABLE ONLY public.session
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ygmpVuLtbWkgSsXaOznUfTxmWd2UhZ738bwIlR5etpCRxjfmFy4bOs4wDbKKa4z
 
 --
 -- Applied migrations
@@ -339,10 +335,7 @@ ALTER TABLE ONLY public.session
 -- PostgreSQL database dump
 --
 
-\restrict QozVXjUIigZfXwb3PJ7oHschFvTnXQhuTF01NBpD5izy4xvxVzOebs1AHo26WUC
 
--- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
--- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg13+2)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -369,5 +362,4 @@ COPY public.schema_migrations (version) FROM stdin;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QozVXjUIigZfXwb3PJ7oHschFvTnXQhuTF01NBpD5izy4xvxVzOebs1AHo26WUC
 

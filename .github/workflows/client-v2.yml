@@ -100,6 +100,19 @@ jobs:
       - name: Apply migrations
         run: yarn db-migrate
 
+      # db/schema.sql is derived from db/migrations/, and a stale one misleads
+      # every reviewer -- it is the file people actually read. Regenerating it
+      # from the migrations just applied proves it still matches. `db-dump`
+      # takes pg_dump from the postgres:16 image here too, so its output matches
+      # a local re-dump byte for byte.
+      - name: Check db/schema.sql is current
+        run: |
+          yarn db-dump
+          git diff --exit-code -- db/schema.sql || {
+            echo "::error::db/schema.sql is stale -- run 'yarn db-dump' and commit the result"
+            exit 1
+          }
+
       - name: Check types
         run: yarn test-types
 
