@@ -17,10 +17,15 @@ const LABEL: Record<Stage, string> = {
  * build is what puts it behind you. Going back to the Write tab to look at
  * your code does not un-write it — deriving `done` from the selected tab alone
  * greyed the connector every time the learner glanced at their own source.
+ *
+ * A build restored from the workspace's own record counts too: it happened,
+ * even though `buildStartedAt` names a run this page never watched.
  */
 export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
   if (stage === "write") {
-    if (state.buildStartedAt !== null) return "done";
+    if (state.buildStartedAt !== null || state.build !== "upcoming") {
+      return "done";
+    }
     return state.stage === "write" ? "active" : "done";
   }
   return state[stage];

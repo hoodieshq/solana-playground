@@ -22,6 +22,12 @@ jest.mock("../../../utils", () => ({
   PgGlobal: {
     deployState: "ready",
   },
+  PgProgramInfo: {
+    lastBuildFailed: null,
+    onChain: null,
+    onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidChangeOnChain: jest.fn(() => ({ dispose: jest.fn() })),
+  },
 }));
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
@@ -163,6 +169,17 @@ error: could not compile \`hello\` due to previous error`;
 });
 
 describe("PgFlow.init wiring", () => {
+  // `resetMocks` (CRA's Jest default) drops the factory's implementation
+  // before every test, so each subscription `init` makes has to hand back a
+  // disposable again. These tests are about the build and deploy events, so
+  // the restore subscription just needs to not throw.
+  beforeEach(() => {
+    const { PgProgramInfo } = require("../../../utils");
+    (PgProgramInfo.onDidChangeOnChain as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+  });
+
   it("deploy-finish detects success and failure via result shape", () => {
     const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
     PgGlobal.deployState = "ready";
@@ -361,5 +378,156 @@ describe("PgFlow.init wiring", () => {
 
     buildOutputModule.PgBuildOutput.latest = null;
     sub.dispose();
+  });
+});
+
+describe("PgFlow.reduce, restoring a workspace after a reload", () => {
+  it("marks build done when the workspace's last build succeeded", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: false,
+      deployed: false,
+    });
+    expect(s.build).toBe("done");
+  });
+
+  /**
+   * `build-finish` points at Deploy as the next step. A restored build has to
+   * do the same, or a reload leaves the learner with a finished Build and
+   * nothing saying where to go -- which is the reported bug one stage earlier.
+   */
+  it("points at Deploy as the next step, the way finishing a build does", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: false,
+      deployed: false,
+    });
+    expect(s.deploy).toBe("active");
+  });
+
+  it("leaves Deploy alone when the recorded build failed", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: true,
+      deployed: false,
+    });
+    expect(s.deploy).toBe("upcoming");
+  });
+
+  it("marks build failed when the workspace's last build failed", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: true,
+      deployed: false,
+    });
+    expect(s.build).toBe("failed");
+  });
+
+  it("leaves build alone when the workspace has never been built", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: null,
+      deployed: false,
+    });
+    expect(s.build).toBe("upcoming");
+  });
+
+  it("offers Interact for a program that is already on-chain", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: false,
+      deployed: true,
+    });
+    expect(s.deploy).toBe("done");
+    expect(s.interact).toBe("active");
+  });
+
+  /**
+   * `buildSettled` picks the Build surface. Left at `upcoming` by a restore,
+   * the stepper would read "built" while the surface still offered a first
+   * build.
+   */
+  it("settles the build surface too, not just the stepper", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: false,
+      deployed: false,
+    });
+    expect(s.buildSettled).toBe("done");
+  });
+
+  it("does not overwrite a build that is running right now", () => {
+    const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-start",
+      at: 1000,
+    });
+    // The workspace's persisted verdict belongs to the *previous* build.
+    const s = PgFlow.reduce(running, {
+      type: "restore",
+      built: false,
+      deployed: false,
+    });
+    expect(s.build).toBe("running");
+  });
+});
+
+describe("PgFlow.init, seeding a reloaded page", () => {
+  /** Wire every subscription `init` makes, handing back the two callbacks
+   * this suite drives. Each mock returns its own disposable. */
+  const initWithCapturedCallbacks = () => {
+    const { PgCommand, PgExplorer, PgProgramInfo } = require("../../../utils");
+    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    let workspaceChange: (() => void) | undefined;
+    let onChainChange: (() => void) | undefined;
+
+    (PgCommand.build.onDidStart as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+    (PgCommand.build.onDidFinish as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+    (buildOutputModule.PgBuildOutput.onDidChange as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValue({
+      dispose: jest.fn(),
+    });
+    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockImplementation((cb) => {
+      workspaceChange = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgProgramInfo.onDidChangeOnChain as jest.Mock).mockImplementation((cb) => {
+      onChainChange = cb;
+      return { dispose: jest.fn() };
+    });
+
+    const sub = PgFlow.init();
+    return {
+      sub,
+      reset: () => workspaceChange!(),
+      onChainArrived: () => onChainChange!(),
+    };
+  };
+
+  it("reads Deploy and Interact back from the on-chain program", () => {
+    const { PgProgramInfo } = require("../../../utils");
+    const wiring = initWithCapturedCallbacks();
+    wiring.reset();
+
+    // The workspace built cleanly and its program is live on the cluster.
+    PgProgramInfo.lastBuildFailed = false;
+    PgProgramInfo.onChain = { deployed: true };
+    wiring.onChainArrived();
+
+    expect(PgFlow.state.build).toBe("done");
+    expect(PgFlow.state.deploy).toBe("done");
+    expect(PgFlow.state.interact).toBe("active");
+
+    PgProgramInfo.lastBuildFailed = null;
+    PgProgramInfo.onChain = null;
+    wiring.sub.dispose();
   });
 });
