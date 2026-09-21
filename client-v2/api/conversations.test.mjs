@@ -202,4 +202,51 @@ describe("/api/conversations", () => {
       assert.equal(mod.isValidItem(null), false);
     });
   });
+
+  describe("the parameters a thread may be created with", () => {
+    it("accepts the four that identify a backend", async () => {
+      const { paramsProblem } = await load();
+      assert.equal(
+        paramsProblem({
+          provider: "openai",
+          model: "gpt-5.1",
+          baseUrl: "https://api.openai.com/v1",
+          effort: "high",
+        }),
+        null
+      );
+    });
+
+    it("accepts none at all, for a thread nothing has answered in", async () => {
+      const { paramsProblem } = await load();
+      assert.equal(paramsProblem(undefined), null);
+    });
+
+    it("refuses an API key, which is the whole point of the allowlist", async () => {
+      const { paramsProblem } = await load();
+      for (const key of ["apiKey", "key", "token", "apiKeyHash"]) {
+        assert.match(
+          paramsProblem({ provider: "anthropic", [key]: "sk-ant-secret" }),
+          /Unexpected parameter/,
+          `${key} must be refused`
+        );
+      }
+    });
+
+    it("refuses a provider the database would reject anyway", async () => {
+      const { paramsProblem } = await load();
+      assert.match(paramsProblem({ provider: "hotmail" }), /Unknown provider/);
+    });
+
+    it("refuses a value that is not a string", async () => {
+      const { paramsProblem } = await load();
+      assert.match(paramsProblem({ model: 7 }), /model must be a string/);
+    });
+
+    it("refuses something that is not an object", async () => {
+      const { paramsProblem } = await load();
+      assert.match(paramsProblem(["anthropic"]), /must be an object/);
+      assert.match(paramsProblem("anthropic"), /must be an object/);
+    });
+  });
 });

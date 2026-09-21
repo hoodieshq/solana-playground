@@ -4,16 +4,49 @@
  * Every statement is scoped by `user_id`, in the statement itself rather than
  * in a caller's check: a route that forgets the guard then returns nothing
  * instead of returning someone else's thread.
+ *
+ * A thread is identified by its own id, minted on the client like every
+ * message id. That is what lets a project hold more than one conversation,
+ * and what makes a repeated push a no-op rather than a second thread.
  */
 import { getPool, query, run } from "./db.mjs";
 
 /**
- * Ensure a project row and its conversation exist.
+ * A thread id that exists but belongs to somebody else.
+ *
+ * Its own type so the route can answer 404 -- the same answer as an id that
+ * does not exist at all, which is what a client guessing at uuids should be
+ * told either way.
+ */
+export class NotYours extends Error {
+  constructor() {
+    super("No such thread");
+    this.name = "NotYours";
+  }
+}
+
+/** Columns a thread listing returns. Never the messages. */
+const THREAD_COLUMNS = `id, project_id as "projectId", title,
+  provider, model, base_url as "baseUrl", effort,
+  created_at as "createdAt", updated_at as "updatedAt"`;
+
+/**
+ * Ensure the project row and the thread row exist, and are this user's.
+ *
+ * The insert is `on conflict (id) do nothing` rather than an upsert: the
+ * parameters describe the backend the thread was *created* with, so a later
+ * push from a re-pointed panel must not rewrite them. What each turn actually
+ * ran on is on the messages.
  *
  * @param {import("pg").PoolClient} client
- * @returns {Promise<string>} the conversation id
+ * @param {{threadId: string, projectId: string, title?: string|null,
+ *   params?: {provider?: string, model?: string, baseUrl?: string,
+ *   effort?: string}}} thread
+ * @returns {Promise<string>} the thread id
+ * @throws {NotYours} when the id is already somebody else's thread
  */
-const ensureConversation = async (client, userId, projectId) => {
+const ensureThread = async (client, userId, thread) => {
+  const { threadId, projectId, title = null, params = {} } = thread;
   const kind = projectId.startsWith("tut:") ? "tutorial" : "project";
 
   // `(user_id, id)`, not `id`: a tutorial's id is derived, so every user who
@@ -26,26 +59,68 @@ const ensureConversation = async (client, userId, projectId) => {
     [projectId, userId, kind]
   );
 
-  // Newest live thread, because a project may hold several. No `on conflict`
-  // to lean on -- that index is deliberately not unique any more.
-  const existing = await run(
+  await run(
     client,
-    `select id from conversations
-      where user_id = $1 and project_id = $2 and deleted_at is null
-      order by updated_at desc
-      limit 1`,
-    [userId, projectId]
+    `insert into conversations
+       (id, user_id, project_id, title, provider, model, base_url, effort)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (id) do nothing`,
+    [
+      threadId,
+      userId,
+      projectId,
+      title,
+      params.provider ?? null,
+      params.model ?? null,
+      params.baseUrl ?? null,
+      params.effort ?? null,
+    ]
   );
-  if (existing.rows.length) return existing.rows[0].id;
 
-  const created = await run(
+  // The insert above is silent when the id is taken, and a uuid can be
+  // guessed. Without this read the next statement would append a stranger's
+  // messages to a stranger's thread.
+  const { rows } = await run(
     client,
-    `insert into conversations (id, user_id, project_id)
-     values (gen_random_uuid(), $1, $2)
-     returning id`,
+    `select id from conversations where id = $1 and user_id = $2`,
+    [threadId, userId]
+  );
+  if (!rows.length) throw new NotYours();
+
+  return rows[0].id;
+};
+
+/**
+ * One thread's row, without its messages.
+ *
+ * @returns {Promise<object|null>}
+ */
+export const getThread = async (userId, threadId) => {
+  const { rows } = await query(
+    `select ${THREAD_COLUMNS} from conversations
+      where id = $1 and user_id = $2 and deleted_at is null`,
+    [threadId, userId]
+  );
+  return rows[0] ?? null;
+};
+
+/**
+ * Every live thread on one project, newest first.
+ *
+ * Deliberately without messages: this is what a browser that has never seen
+ * the account reads to decide which thread to open, and downloading every
+ * transcript to answer that would cost the whole history.
+ *
+ * @returns {Promise<object[]>}
+ */
+export const listThreads = async (userId, projectId) => {
+  const { rows } = await query(
+    `select ${THREAD_COLUMNS} from conversations
+      where user_id = $1 and project_id = $2 and deleted_at is null
+      order by updated_at desc`,
     [userId, projectId]
   );
-  return created.rows[0].id;
+  return rows;
 };
 
 /**
@@ -53,20 +128,20 @@ const ensureConversation = async (client, userId, projectId) => {
  *
  * @returns {Promise<object[]>} stored chat items, oldest first
  */
-export const listMessages = async (userId, projectId) => {
+export const listMessages = async (userId, threadId) => {
   const { rows } = await query(
     `select m.payload
        from messages m
        join conversations c on c.id = m.conversation_id
-      where c.user_id = $1 and c.project_id = $2 and c.deleted_at is null
+      where c.id = $1 and c.user_id = $2 and c.deleted_at is null
       order by m.created_at, m.id`,
-    [userId, projectId]
+    [threadId, userId]
   );
   return rows.map((row) => row.payload);
 };
 
 /**
- * Append items to a thread.
+ * Append items to a thread, creating it if this is its first push.
  *
  * Ids are minted by the client, so this is safely repeatable: a second dump
  * of the same messages writes nothing. That is what lets sign-in sync run
@@ -75,41 +150,48 @@ export const listMessages = async (userId, projectId) => {
  * Repeatable *within a conversation*, which is as far as a client-minted id
  * can be trusted -- see the `on conflict` below.
  *
+ * @param {{threadId: string, projectId: string, title?: string|null,
+ *   params?: object}} thread
  * @returns {Promise<number>} how many rows were new
+ * @throws {NotYours} when the thread id is somebody else's
  */
-export const appendMessages = async (userId, projectId, items) => {
-  if (!items.length) return 0;
-
+export const appendMessages = async (userId, thread, items) => {
   const client = await getPool().connect();
   try {
     await client.query("begin");
-    const conversationId = await ensureConversation(client, userId, projectId);
+    const conversationId = await ensureThread(client, userId, thread);
 
-    const values = [];
-    const params = [];
-    items.forEach((item, i) => {
-      const at = i * 4;
-      values.push(`($${at + 1}, $${at + 2}, $${at + 3}, $${at + 4})`);
-      params.push(item.id, conversationId, item.kind, JSON.stringify(item));
-    });
+    // Not short-circuited on an empty batch: the first push of a thread that
+    // has nothing in it yet is how the row comes into being, and the panel
+    // does exactly that when a workspace opens.
+    let rowCount = 0;
+    if (items.length) {
+      const values = [];
+      const params = [];
+      items.forEach((item, i) => {
+        const at = i * 4;
+        values.push(`($${at + 1}, $${at + 2}, $${at + 3}, $${at + 4})`);
+        params.push(item.id, conversationId, item.kind, JSON.stringify(item));
+      });
 
-    // `(conversation_id, id)`, not `id`: the id comes verbatim out of the
-    // request body, so it is only unique within the scope that minted it.
-    // Against a global key, one account posting another's id would have its
-    // write dropped in silence -- and the returned count would answer whether
-    // that id exists anywhere at all. Same reasoning as `(user_id, id)` on
-    // `projects`, one level down. Re-dumping a thread still writes nothing:
-    // a repeat carries the same conversation.
-    const { rowCount } = await run(
-      client,
-      `insert into messages (id, conversation_id, kind, payload, created_at)
-       select v.id::uuid, v.conversation_id::uuid, v.kind, v.payload::jsonb,
-              (v.payload::jsonb ->> 'createdAt')::timestamptz
-         from (values ${values.join(", ")})
-              as v(id, conversation_id, kind, payload)
-       on conflict (conversation_id, id) do nothing`,
-      params
-    );
+      // `(conversation_id, id)`, not `id`: the id comes verbatim out of the
+      // request body, so it is only unique within the scope that minted it.
+      // Against a global key, one account posting another's id would have its
+      // write dropped in silence -- and the returned count would answer
+      // whether that id exists anywhere at all. Same reasoning as
+      // `(user_id, id)` on `projects`, one level down. Re-dumping a thread
+      // still writes nothing: a repeat carries the same conversation.
+      ({ rowCount } = await run(
+        client,
+        `insert into messages (id, conversation_id, kind, payload, created_at)
+         select v.id::uuid, v.conversation_id::uuid, v.kind, v.payload::jsonb,
+                (v.payload::jsonb ->> 'createdAt')::timestamptz
+           from (values ${values.join(", ")})
+                as v(id, conversation_id, kind, payload)
+         on conflict (conversation_id, id) do nothing`,
+        params
+      ));
+    }
 
     await run(
       client,

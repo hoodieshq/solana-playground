@@ -10,13 +10,19 @@ import {
 } from "../src/features/auth/server/auth.mjs";
 import {
   appendMessages,
+  getThread,
   listMessages,
+  listThreads,
+  NotYours,
 } from "../src/features/persistence/server/conversations.mjs";
 import { isEnabled } from "../src/features/persistence/server/db.mjs";
 
 /** Anything larger is not a conversation batch, it is an attack or a bug */
 const MAX_BODY_BYTES = 2_000_000;
 const MAX_ITEMS = 500;
+
+/** Long enough for a sentence lifted off the first message, no longer */
+const MAX_TITLE = 200;
 
 /**
  * The kinds `messages_kind_check` accepts. Checked here so that a malformed
@@ -32,9 +38,21 @@ const KINDS = new Set([
   "notice",
 ]);
 
+/** Matches `conversations_provider_check` */
+const PROVIDERS = new Set([
+  "default",
+  "anthropic",
+  "openai",
+  "openrouter",
+  "gemini",
+]);
+
+/** What a thread's parameters may name. Everything else is refused. */
+const PARAM_KEYS = new Set(["provider", "model", "baseUrl", "effort"]);
+
 /**
  * The layout Postgres accepts for a `uuid`, which `appendMessages` casts every
- * item id to.
+ * item id to, and which a `threadId` must also satisfy.
  *
  * Hex groups only, with no attempt to pin the version or variant nibbles --
  * deliberately looser than `crypto.randomUUID`'s output. The job here is to
@@ -124,6 +142,40 @@ const isAllowedOrigin = (req) => {
 };
 
 /**
+ * Validate the parameters a thread is created with.
+ *
+ * An unknown key is an error rather than something to drop quietly, and the
+ * key this exists to keep out -- `apiKey` -- is exactly an unknown key. A
+ * client that sends one is a bug, and a 400 is how that bug gets found
+ * instead of a credential reaching Postgres unnoticed. See `decisions.md`
+ * -> D3: the key is held in memory and is not a parameter we store, in any
+ * form, including a hash of one.
+ *
+ * Exported so the rule can be tested without a database or a session: the
+ * route reaches it only behind the auth gate, and this is the one check whose
+ * failure mode is a credential in Postgres.
+ *
+ * @returns {string|null} the reason it is invalid, or `null` when it is fine
+ */
+export const paramsProblem = (params) => {
+  if (params === undefined) return null;
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
+    return "params must be an object";
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    if (!PARAM_KEYS.has(key)) return `Unexpected parameter: ${key}`;
+    if (value === null || value === undefined) continue;
+    if (typeof value !== "string") return `${key} must be a string`;
+  }
+
+  if (params.provider != null && !PROVIDERS.has(params.provider)) {
+    return `Unknown provider: ${params.provider}`;
+  }
+  return null;
+};
+
+/**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
@@ -143,18 +195,36 @@ export default async function handler(req, res) {
 
   // One `try` around both branches that reach the database: without it a
   // driver error is an unhandled rejection on the platform rather than a
-  // response. Nothing here maps to a status of its own the way a name
-  // collision does in `api/projects.mjs` -- the append either conflicts
-  // harmlessly, which `on conflict do nothing` already absorbs, or fails for a
-  // reason no client can act on, so a generic 500 is the honest answer.
+  // response. `NotYours` is the one failure that maps to a status of its own;
+  // anything else either conflicts harmlessly, which `on conflict do nothing`
+  // already absorbs, or fails for a reason no client can act on, so a generic
+  // 500 is the honest answer.
   try {
     if (req.method === "GET") {
+      const threadId = url.searchParams.get("threadId");
       const projectId = url.searchParams.get("projectId");
-      if (!projectId)
-        return sendJson(res, 400, { error: "projectId required" });
-      return sendJson(res, 200, {
-        items: await listMessages(user.id, projectId),
-      });
+
+      // One thread with its messages
+      if (threadId) {
+        if (!UUID.test(threadId)) {
+          return sendJson(res, 400, { error: "threadId must be a uuid" });
+        }
+        const thread = await getThread(user.id, threadId);
+        if (!thread) return sendJson(res, 404, { error: "No such thread" });
+        return sendJson(res, 200, {
+          thread,
+          items: await listMessages(user.id, threadId),
+        });
+      }
+
+      // Every thread on a project, without their messages
+      if (projectId) {
+        return sendJson(res, 200, {
+          threads: await listThreads(user.id, projectId),
+        });
+      }
+
+      return sendJson(res, 400, { error: "threadId or projectId required" });
     }
 
     if (req.method === "POST") {
@@ -167,10 +237,26 @@ export default async function handler(req, res) {
       }
       if (read.error) return sendJson(res, 400, { error: "Body must be JSON" });
 
-      const { projectId, items } = read.body;
-      if (typeof projectId !== "string" || !Array.isArray(items)) {
-        return sendJson(res, 400, { error: "projectId and items required" });
+      const { threadId, projectId, title, params, items } = read.body;
+      if (typeof threadId !== "string" || !UUID.test(threadId)) {
+        return sendJson(res, 400, { error: "threadId must be a uuid" });
       }
+      if (typeof projectId !== "string" || !projectId) {
+        return sendJson(res, 400, { error: "projectId required" });
+      }
+      if (!Array.isArray(items)) {
+        return sendJson(res, 400, { error: "items required" });
+      }
+      if (
+        title != null &&
+        (typeof title !== "string" || title.length > MAX_TITLE)
+      ) {
+        return sendJson(res, 400, { error: "Malformed title" });
+      }
+
+      const problem = paramsProblem(params);
+      if (problem) return sendJson(res, 400, { error: problem });
+
       if (items.length > MAX_ITEMS) {
         return sendJson(res, 413, {
           error: `At most ${MAX_ITEMS} items`,
@@ -182,10 +268,21 @@ export default async function handler(req, res) {
       }
 
       return sendJson(res, 200, {
-        written: await appendMessages(user.id, projectId, items),
+        written: await appendMessages(
+          user.id,
+          { threadId, projectId, title: title ?? null, params },
+          items
+        ),
       });
     }
   } catch (e) {
+    // An id that is somebody else's reads the same as one that does not
+    // exist: confirming which would turn this route into an oracle for
+    // guessed uuids
+    if (e instanceof NotYours) {
+      return sendJson(res, 404, { error: "No such thread" });
+    }
+
     // The driver's own text stays server side: it names columns, constraints
     // and sometimes the values that tripped them.
     //

@@ -22,16 +22,24 @@ Verified against dbmate 2.35.1.
   `-- migrate:down`; one that cannot be rolled back cannot be reviewed.
 - `yarn db-status` lists applied and pending migrations.
 
-## Before the first deploy, squash
+## Before the first deploy, squash -- but not while a PR is stacked on it
 
-This schema has not shipped. While that is true there are **exactly two
-migrations** -- Better Auth's tables, and ours -- and a new column goes into the
-`create table` that defines it, not into an `ALTER TABLE` bolted on afterwards.
-Roll back, edit, re-apply. The history should read as the schema, not as the
-order things were discovered in.
+This schema has not shipped, and while that is true a new column belongs in the
+`create table` that defines it rather than in an `ALTER TABLE` bolted on
+afterwards. Roll back, edit, re-apply. The history should read as the schema,
+not as the order things were discovered in.
 
-Once it has been deployed the rule inverts: every change becomes its own
-migration, because other databases are already in a state you cannot edit away.
+**The exception, and it is the common case: a migration another open pull
+request also edits gets a new file instead.** Two branches editing one
+`create table` conflict in SQL on every rebase, and everyone holding a preview
+database on the older shape needs a rollback and re-apply before they can run
+either branch. A separate migration costs one extra file and nothing else, and
+the squash can happen once, at the end, when nothing is in flight.
+(Alexander's call on PR #30, 2026-09-23.)
+
+Once the schema has been deployed the rule inverts everywhere: every change
+becomes its own migration, because other databases are already in a state you
+cannot edit away.
 
 **Migrations are the source of truth.** `db/schema.sql` is the whole schema in
 one file, for reading and reviewing — derived, never hand-edited. Regenerate it

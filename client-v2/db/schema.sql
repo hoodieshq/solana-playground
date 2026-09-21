@@ -56,7 +56,12 @@ CREATE TABLE public.conversations (
     title text,
     created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
-    deleted_at timestamp(3) with time zone
+    deleted_at timestamp(3) with time zone,
+    provider text,
+    model text,
+    base_url text,
+    effort text,
+    CONSTRAINT conversations_provider_check CHECK (((provider IS NULL) OR (provider = ANY (ARRAY['default'::text, 'anthropic'::text, 'openai'::text, 'openrouter'::text, 'gemini'::text]))))
 );
 
 
@@ -234,6 +239,13 @@ CREATE INDEX "account_userId_idx" ON public.account USING btree ("userId");
 
 
 --
+-- Name: conversations_params_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX conversations_params_idx ON public.conversations USING btree (user_id, provider, model) WHERE (deleted_at IS NULL);
+
+
+--
 -- Name: conversations_project_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -355,6 +367,7 @@ SET row_security = off;
 COPY public.schema_migrations (version) FROM stdin;
 20260915124433
 20260916032901
+20260923001947
 \.
 
 
