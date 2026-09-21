@@ -13,7 +13,7 @@
  */
 import { toNodeHandler } from "better-auth/node";
 
-import { getAuth } from "../src/features/auth/server/auth.mjs";
+import { getAuth, missingConfig } from "../src/features/auth/server/auth.mjs";
 
 /**
  * Put the requested path back on the request.
@@ -48,11 +48,19 @@ export const restorePath = (req) => {
 export default async function handler(req, res) {
   const auth = getAuth();
   if (!auth) {
+    // `missing` names the variables this deployment lacks. Every deployment
+    // carries its own environment and none of it is visible from the outside,
+    // so without this the only way to tell a misconfigured preview from a
+    // broken one is another deploy. See `missingConfig` for why the names are
+    // safe to say out loud.
     res.statusCode = 503;
     res.setHeader("content-type", "application/json");
     res.setHeader("cache-control", "no-store");
     return res.end(
-      JSON.stringify({ error: "Authentication is not configured" })
+      JSON.stringify({
+        error: "Authentication is not configured",
+        missing: missingConfig(),
+      })
     );
   }
 

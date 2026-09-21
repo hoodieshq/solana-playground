@@ -12,7 +12,7 @@
  */
 import { betterAuth } from "better-auth";
 
-import { getPool } from "../../persistence/server/db.mjs";
+import { getPool, isConfigured } from "../../persistence/server/db.mjs";
 
 let instance = null;
 
@@ -36,17 +36,33 @@ const resolveBaseURL = () =>
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
 
 /**
+ * Which of the settings sign-in needs are absent.
+ *
+ * The same list `getAuth` refuses on, so the two cannot drift, and the reason
+ * `/api/auth` gives for a 503. Names only, never values: on a platform where
+ * every deployment carries its own environment, "which variable is missing
+ * here" is the question a deployment cannot answer from the outside, and the
+ * names are already in `.env.example` and in this file. An unconfigured
+ * deployment is one that does not hold the secrets to begin with.
+ *
+ * @returns {string[]} the missing variable names, empty when sign-in can run
+ */
+export const missingConfig = () =>
+  [
+    isConfigured() ? null : "DATABASE_URL",
+    process.env.GITHUB_CLIENT_ID ? null : "GITHUB_CLIENT_ID",
+    process.env.GITHUB_CLIENT_SECRET ? null : "GITHUB_CLIENT_SECRET",
+  ].filter(Boolean);
+
+/**
  * The auth instance, created on first use.
  *
  * @returns {ReturnType<typeof betterAuth> | null} the instance, or `null` when
  * the database or the GitHub credentials are missing
  */
 export const getAuth = () => {
+  if (missingConfig().length) return null;
   const pool = getPool();
-  if (!pool) return null;
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return null;
-  }
 
   if (!instance) {
     instance = betterAuth({

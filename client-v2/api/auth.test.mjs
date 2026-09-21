@@ -49,6 +49,47 @@ describe("/api/auth", () => {
     );
     assert.equal(res.statusCode, 503);
   });
+
+  // The whole point of the 503 body: a deployment's environment is invisible
+  // from outside, so the answer has to say which half is absent.
+  it("names every missing variable", async () => {
+    const mod = await load();
+    const res = makeRes();
+    await mod.default(
+      { method: "GET", url: "/auth/session", headers: {} },
+      res
+    );
+    assert.deepEqual(JSON.parse(res.body).missing, [
+      "DATABASE_URL",
+      "GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET",
+    ]);
+  });
+
+  it("names only what is actually absent", async () => {
+    process.env.DATABASE_URL = "postgres://x/y";
+    process.env.GITHUB_CLIENT_ID = "id";
+    const mod = await load();
+    const res = makeRes();
+    await mod.default(
+      { method: "GET", url: "/auth/session", headers: {} },
+      res
+    );
+    assert.deepEqual(JSON.parse(res.body).missing, ["GITHUB_CLIENT_SECRET"]);
+  });
+
+  // Names, never values -- the body is public and the secret is a secret
+  it("never puts a value in the body", async () => {
+    process.env.DATABASE_URL = "postgres://user:hunter2@host/db";
+    process.env.GITHUB_CLIENT_ID = "client-id-value";
+    const mod = await load();
+    const res = makeRes();
+    await mod.default(
+      { method: "GET", url: "/auth/session", headers: {} },
+      res
+    );
+    assert.doesNotMatch(res.body, /hunter2|client-id-value/);
+  });
 });
 
 describe("restorePath", () => {
