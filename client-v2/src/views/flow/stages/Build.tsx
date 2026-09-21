@@ -18,6 +18,21 @@ import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 const msSuffix = (ms: number | null) =>
   ms === null ? "" : ` - ${(ms / 1000).toFixed(1)}s`;
 
+/**
+ * The build server's host, for naming it in the UI. Falls back to the raw
+ * setting: the value is parsed as a URL when it is set, but this also runs
+ * on the surface that reports an unreachable server, where throwing would
+ * replace the diagnosis with a blank stage.
+ */
+const serverHost = () => {
+  const endpoint = PgSettings.server.endpoint;
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return endpoint;
+  }
+};
+
 /** `flow.buildMs` as a plain `2.9s`, or `null` while it is unknown */
 const msLabel = (ms: number | null) =>
   ms === null ? null : `${(ms / 1000).toFixed(1)}s`;
@@ -110,8 +125,8 @@ const Build = () => {
         </StatusRow>
         <Muted>
           Build failed before the compiler ran - see the console. This usually
-          means the build server could not be reached; check the build server
-          URL in settings.
+          means the build server could not be reached: {serverHost()}. Change it
+          under Settings -&gt; Build server URL.
         </Muted>
         <Actions>
           <Button
@@ -210,7 +225,7 @@ const Build = () => {
   // line under an error does not start at the beginning of the line, so
   // `^warning:` does not match it.
   const warningCount = (report.raw.match(/^warning:/gm) ?? []).length;
-  const host = new URL(PgSettings.server.endpoint).host;
+  const host = serverHost();
   const meta = [`${n} error${n === 1 ? "" : "s"}`, msLabel(flow.buildMs), host]
     .filter(Boolean)
     .join(" \u00b7 ");
