@@ -2018,3 +2018,67 @@ sync rather than rediscovered.
 `/api/build` proxy (D28) fronts one that does. Then the default can
 follow the environment the way upstream's does, and the proxy's
 allowlist has to learn the three prefixed routes.
+
+## D38 - The package bundler is ported, not developed, and stays off
+
+**Date:** 2026-09-09 (the tech lead's thread), recorded 2026-09-21 -
+**Status:** decided (Sergey, Slava), implemented by omission in PR #27
+(`feat/upstream-demo-path`)
+
+PR #27 brings `pm install` into `client-v2` along with the rest of the
+demo-path port. Sergey asked what the command is for, and then made
+the argument that settles it: *"the very possibility of installing,
+and the loss of control over dependencies - a user being able to name
+the dependency list - opens a potential window for executing malicious
+code on the server"*, followed by *"let us not develop this for now;
+not worth spending time on features whose blast radius is undefined
+while there are other focuses"*.
+
+Read against the code, he is right about the mechanism. On the server
+side of `/unstable/bundle`: package names are validated by nothing -
+no regex, no allowlist, unlike `/unstable/build`, which at least
+checks file paths; the name is pasted as text into a generated
+`import * as X from "<name>"` and into `webpack.config.js`, which
+webpack then executes, so a quote in a package name is arbitrary JS
+inside the container, and the same name is used as a path with no
+`..` guard; isolation is Docker only (`--cap-drop=ALL`,
+`--network=none`, `--security-opt=no-new-privileges`, CPU, memory and
+a 300 s timeout) with no seccomp profile and no read-only filesystem,
+and the daemon access it needs is equivalent to root on the host; the
+result cache grows on disk by manifest hash with no TTL and no size
+limit. What closes the window today is that the server's `Install`
+step is an unfinished TODO and the container has no network - an
+accident of where upstream stopped, not a designed defence.
+
+**Blast radius today is zero, and that is why the port is harmless.**
+The switch defaults to `false` everywhere (D37), `/unstable/bundle`
+exists only on a server compiled with the `unstable` feature, and
+neither the Foundation's server nor `api.solpg.io` enables it -
+checked 2026-09-08, every `/unstable/...` route answers 404. Reaching
+this code takes building the server by hand with the feature on a
+machine with Docker, pointing the picker at it, and ticking the box.
+
+**Chosen: keep the ported command, develop nothing.** We do not build
+a server with the feature, do not enable the switch, do not write
+`pm add`, and do not follow upstream's bundler work further than
+parity requires. The port itself is not a feature we are adding: it
+replaces the `packages` and `types` routes upstream deleted in one
+commit, which `client-v2` still referenced.
+
+**Rejected: cut `pm install` out of `client-v2`.** It would create a
+divergence to carry in the register and re-apply at every sync, in
+exchange for hiding a command no user can reach.
+
+**Rejected for now, kept in reserve: hide `pm` in the terminal while
+the switch is off.** Two lines and one register row. Offered to
+Sergey; take it if the visible command ever bothers anyone.
+
+**What it costs.** When a lesson needs a package outside
+`supported-packages.json`, the answer is the build-time list or a
+content change, not the bundler.
+
+**Revisit when** a hosted server enables `unstable` - the Foundation's
+or, one day, ours. Then the isolation above is reviewed first, the
+switch second, and only then the command.
+
+**Recorded** against B1 in `docs/upstream-divergences.md`.
