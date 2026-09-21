@@ -2070,8 +2070,17 @@ divergence to carry in the register and re-apply at every sync, in
 exchange for hiding a command no user can reach.
 
 **Rejected for now, kept in reserve: hide `pm` in the terminal while
-the switch is off.** Two lines and one register row. Offered to
-Sergey; take it if the visible command ever bothers anyone.
+the switch is off.** Two lines and one register row. Take it if the
+visible command ever bothers anyone.
+
+**The thread closed the same day.** Slava's answer, the morning after
+Sergey's three messages: *"Da, soglasen. Peremudril tut"* - agreed,
+overcomplicated it. Nothing is outstanding in that conversation; this
+entry exists because the agreement was never written down, not because
+an answer is owed. Read narrowly, the agreement is the one recorded
+here: do not develop the bundler. It is not an instruction to cut the
+ported command, which was the more expensive option and the one the
+thread argued against.
 
 **What it costs.** When a lesson needs a package outside
 `supported-packages.json`, the answer is the build-time list or a
