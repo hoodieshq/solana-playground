@@ -2,8 +2,32 @@ import { decodeThread, encodeThread } from "./chat-codec";
 import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
+import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
-import type { ChatItem } from "../../../views/sidebar/assistant/store";
+import type {
+  BackendParams,
+  ChatItem,
+} from "../../../views/sidebar/assistant/store";
+
+/**
+ * The backend a thread was created with, read off the thread itself.
+ *
+ * The first reply that recorded an origin is the answer: a thread carries its
+ * own provenance, so this needs no live connection and works identically for
+ * the open conversation and for one being handed over at sign-out.
+ *
+ * `undefined` when nothing in the thread was produced by a model -- a
+ * conversation of one unsent question, or one restored from before replies
+ * recorded what wrote them.
+ */
+export const paramsOfThread = (
+  items: readonly ChatItem[]
+): BackendParams | undefined => {
+  for (const item of items) {
+    if (item.kind === "assistant" && item.origin) return item.origin;
+  }
+  return undefined;
+};
 
 /** Oldest first, ties broken by id so two devices agree on the order */
 const byTime = (a: ChatItem, b: ChatItem) =>
@@ -50,9 +74,13 @@ export class PgChatSync {
 
     try {
       const response = await fetch(
-        `/api/conversations?projectId=${encodeURIComponent(threadId)}`,
+        `/api/conversations?threadId=${encodeURIComponent(threadId)}`,
         { credentials: "include", cache: "no-store" }
       );
+      // A thread this browser started and has not pushed yet does not exist
+      // on the server, and saying so is the honest answer rather than a
+      // fault: there is simply nothing to merge in.
+      if (response.status === 404) return null;
       if (!response.ok) {
         report(`pull ${threadId}: HTTP ${response.status}`, null);
         return null;
@@ -101,13 +129,24 @@ export class PgChatSync {
     if (items === null) return false;
     if (!items.length) return true;
 
+    // Every thread belongs to a workspace, and the server stores the pair.
+    // A thread the index has lost is one nothing can open, so pushing it
+    // would only put an orphan in Postgres.
+    const projectId = await PgThreadIndex.workspaceOf(threadId);
+    if (!projectId) {
+      report(`push ${threadId}: no workspace in the index`, null);
+      return false;
+    }
+
     try {
       const response = await fetch("/api/conversations", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          projectId: threadId,
+          threadId,
+          projectId,
+          params: paramsOfThread(items),
           items: encodeThread(items),
         }),
       });
@@ -132,11 +171,26 @@ export class PgChatSync {
   static async pushAll(): Promise<HandOver | null> {
     if (!(await PgChatSync._ready())) return null;
 
-    const threadIds = await PgChatStorage.threadIds();
-    // Not `[].every(Boolean)`, which is `true`. Without this, a device that
-    // could not list its own threads reported that all of them had been
-    // handed over, and sign-out cleared the directory on that answer.
-    if (threadIds === null) return null;
+    // The index first: it is what knows which workspace each thread belongs
+    // to -- a push has to name one -- and reading it is also what gives a
+    // thread file still named after its workspace an id of its own. Listing
+    // the directory before that would enumerate names the rename is about to
+    // invalidate.
+    const indexed = Object.values(await PgThreadIndex.all());
+
+    // And the directory as well, because it is the one that can say "I could
+    // not look". Not `[].every(Boolean)`, which is `true`: without this a
+    // device that could not list its own threads reported that all of them
+    // had been handed over, and sign-out cleared local history on that
+    // answer. The index cannot stand in for it -- an unreadable index reads
+    // as an empty one.
+    const stored = await PgChatStorage.threadIds();
+    if (stored === null) return null;
+
+    // A thread the index has not placed is still pushed, and still fails:
+    // `push` refuses one it cannot name a workspace for, which keeps it on
+    // the device rather than dropping it.
+    const threadIds = [...new Set([...indexed, ...stored])];
 
     const outcomes = await Promise.all(
       threadIds.map(async (id) => ({ id, ok: await PgChatSync.push(id) }))
@@ -177,9 +231,16 @@ export class PgChatSync {
     // would leave behind for the next account to inherit.
     if (handed.complete) {
       await PgChatStorage.clear();
+      // The directory went with it, but the index also caches that migration
+      // has run -- and for the next user of this browser it has not.
+      await PgThreadIndex.clear();
       return;
     }
 
+    // Partial: the index keeps pointing at the threads that stayed, and at
+    // the ones just removed. A stale entry costs an empty thread on the next
+    // open, which `PgChatStorage.read` answers with `[]` -- not the wrong
+    // account's messages, which is what this is protecting.
     await Promise.all(handed.pushed.map((id) => PgChatStorage.remove(id)));
   }
 

@@ -1,5 +1,6 @@
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
 import { report } from "../../features/persistence/model/diagnostics";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
 // a webpack-defined global jest has no answer for. Same workaround as the
@@ -17,6 +18,10 @@ import type { Disposable } from "../../utils/types";
  * anyone is looking at it. Otherwise a message sent right after a project
  * switch lands in the previous project's thread, or in none at all.
  *
+ * Which conversation that is comes from the thread index, not from the
+ * workspace id itself: a thread has an id of its own so a project can hold
+ * more than one. The workspace decides which is *active*.
+ *
  * Keyed by the workspace *id*, not its name: the id survives a rename, which
  * is why workspaces have one.
  *
@@ -26,12 +31,18 @@ import type { Disposable } from "../../utils/types";
  * is a no-op and this behaves exactly as it did before.
  */
 export const chatThread = (): Disposable => {
-  const open = async () => {
-    const id = PgExplorer.currentWorkspaceId;
-    // No workspace means nowhere to persist to. Closing rather than leaving
-    // the last thread open stops it collecting messages that belong nowhere.
-    if (!id) return PgAssistant.closeThread();
+  /**
+   * The workspace this effect has already opened a conversation for.
+   *
+   * The explorer announces a switch more than once for the same workspace --
+   * creating one fires on top of initialising it -- and the second pass must
+   * be a no-op. `loadThread` used to provide that guard by itself, by
+   * comparing thread ids; now that the id has to be looked up first, the
+   * guard has to live here, ahead of the close below.
+   */
+  let openedFor: string | null = null;
 
+  const openThread = async (id: string) => {
     await PgAssistant.loadThread(id);
 
     const merged = await PgChatSync.pull(id);
@@ -42,6 +53,42 @@ export const chatThread = (): Disposable => {
       await PgAssistant.loadThread(id, true);
     }
   };
+
+  const open = async () => {
+    const workspaceId = PgExplorer.currentWorkspaceId;
+    // No workspace means nowhere to persist to. Closing rather than leaving
+    // the last thread open stops it collecting messages that belong nowhere.
+    if (!workspaceId) {
+      openedFor = null;
+      return PgAssistant.closeThread();
+    }
+    if (openedFor === workspaceId) return;
+    openedFor = workspaceId;
+
+    // Closed synchronously, before the index is read. Until the new thread is
+    // open the panel must be pointed at no thread at all -- otherwise a
+    // message sent in the gap is filed under the project the user has just
+    // left. With no thread open, `loadThread` adopts it instead.
+    PgAssistant.closeThread();
+
+    // Synchronous whenever the index is already in memory, which is what
+    // `warm` below is for: opening the thread in the same tick as the switch
+    // is what makes a message sent straight afterwards durable.
+    const id = PgThreadIndex.ensureSync(workspaceId);
+    if (id === null) {
+      const read = await PgThreadIndex.ensure(workspaceId);
+      // The switch may have happened while the index was being read
+      if (PgExplorer.currentWorkspaceId !== workspaceId) return;
+      await openThread(read);
+      return;
+    }
+
+    await openThread(id);
+  };
+
+  // Read the index now, so the switch that follows can open its thread in
+  // one tick rather than waiting on storage
+  PgThreadIndex.warm();
 
   /**
    * Whether anything has happened in the thread since it last reached the

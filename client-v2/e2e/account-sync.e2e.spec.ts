@@ -15,6 +15,9 @@ import type { Page, Route } from "@playwright/test";
  * `src/features/persistence/server/projects.test.mjs`.
  */
 
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const LONG = { timeout: 60_000 };
 
 const TUTORIAL = {
@@ -98,7 +101,10 @@ test("a signed-in browser takes on the whole account", async ({ page }) => {
     "Hello Anchor",
     LONG
   );
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadId(page), LONG).toMatch(UUID);
 
   // The gallery greets an empty browser, and this one only looked empty while
   // the account was still answering
@@ -590,7 +596,10 @@ test("a started tutorial hands over its keypair and progress", async ({
     .getByRole("button", { name: "Open" })
     .click();
   await page.getByRole("button", { name: "START", exact: true }).click();
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadId(page), LONG).toMatch(UUID);
   // The keypair is written after the workspace is up, not with it
   await page.waitForTimeout(5000);
 

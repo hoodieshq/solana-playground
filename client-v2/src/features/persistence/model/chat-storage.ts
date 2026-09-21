@@ -131,7 +131,14 @@ export class PgChatStorage {
   static async threadIds(): Promise<string[] | null> {
     try {
       const names = await PgFs.readDir(DIR);
-      return names.filter((name) => name.endsWith(SUFFIX)).map(threadIdOf);
+      return (
+        names
+          .filter((name) => name.endsWith(SUFFIX))
+          .map(threadIdOf)
+          // `index.json` lives in this directory too and is not a thread; see
+          // `thread-index.ts` for what it holds
+          .filter((id) => id !== "index")
+      );
     } catch (e) {
       // No directory yet is the normal state before the first write
       if (isMissing(e)) return [];

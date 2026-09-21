@@ -21,6 +21,9 @@ import type { Page } from "@playwright/test";
  * uuid, and the tutorial reaches its workspace by a different route.
  */
 
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const LONG = { timeout: 60_000 };
 
 type AssistantWindow = Window & {
@@ -108,7 +111,10 @@ test("a tutorial conversation is restored after a reload", async ({ page }) => {
   // Opening only routes there -- START is what creates the workspace, and
   // without one there is no id to key a conversation on
   await page.getByRole("button", { name: "START", exact: true }).click();
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadId(page), LONG).toMatch(UUID);
 
   await remember(page);
   await stillRemembers(page);
