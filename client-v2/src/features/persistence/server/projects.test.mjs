@@ -124,6 +124,74 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.deepEqual((await getProject(userId, "p1")).snapshot, snapshot);
   });
 
+  it("adopts a row a conversation created, rather than refusing it", async () => {
+    // `ensureConversation` inserts a parent `projects` row so a chat turn has
+    // somewhere to hang, name defaulted to the id and no snapshot at all. The
+    // project's own first push carries no token and so takes the create-only
+    // branch -- and refusing it left a project that could never make its first
+    // upload, silently, with a raw uuid for a name in the account's list.
+    await query(
+      `insert into projects (id, user_id, name, kind)
+       values ('p1', $1, 'p1', 'project')`,
+      [userId]
+    );
+
+    const result = await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+
+    assert.notEqual(result.conflict, true);
+    const project = await getProject(userId, "p1");
+    assert.deepEqual(project.snapshot, snapshot);
+    assert.equal(project.name, "one");
+  });
+
+  it("still refuses a row that already holds code", async () => {
+    // The adoption above turns on the snapshot being absent. A row with work
+    // in it is exactly what create-only exists to protect.
+    await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+
+    const result = await saveProject(userId, {
+      id: "p1",
+      name: "two",
+      kind: "project",
+      snapshot: { files: { "src/lib.rs": "someone else" } },
+    });
+
+    assert.equal(result.conflict, true);
+    assert.deepEqual((await getProject(userId, "p1")).snapshot, snapshot);
+  });
+
+  it("does not adopt a tombstoned row, snapshot or no snapshot", async () => {
+    // A tombstone has its snapshot cleared, so "no snapshot" alone would make
+    // every delete undoable by any device that had not seen it
+    await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+    await deleteProject(userId, "p1");
+
+    const result = await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+
+    assert.equal(result.conflict, true);
+    assert.equal(await getProject(userId, "p1"), null);
+  });
+
   it("clobbers only when the caller says so in as many words", async () => {
     await saveProject(userId, {
       id: "p1",

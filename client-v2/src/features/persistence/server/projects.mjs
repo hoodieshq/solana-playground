@@ -73,7 +73,13 @@ const settle = ({ written, current }) =>
  * - without one, create-only. An existing row is reported as a conflict, not
  *   overwritten: a client that has never read cannot be allowed to win by
  *   virtue of having nothing to lose. This is also what stops a tombstoned
- *   project being resurrected by a device that never saw the delete.
+ *   project being resurrected by a device that never saw the delete. The one
+ *   exception is a row that holds no snapshot -- `ensureConversation` creates
+ *   one so a chat turn has a parent project, so a project whose assistant was
+ *   used before its first upload already exists by the time that upload
+ *   arrives. Refusing it meant a project could be permanently unable to make
+ *   its own first push; adopting it is safe precisely because there is no code
+ *   in it to overwrite.
  * - with `force`, an unconditional overwrite that also un-tombstones. This is
  *   the "keep my copy" the user picks after being shown the conflict, and it
  *   is deliberately something a caller has to name.
@@ -130,7 +136,12 @@ export const saveProject = async (userId, input) => {
     `with created as (
        insert into projects (id, user_id, name, kind, snapshot, updated_at)
        values ($2, $1, $3, $4, $5, now())
-       on conflict (user_id, id) do nothing
+       on conflict (user_id, id) do update
+         set name = excluded.name,
+             kind = excluded.kind,
+             snapshot = excluded.snapshot,
+             updated_at = now()
+       where projects.snapshot is null and projects.deleted_at is null
        returning updated_at
      )
      select (select updated_at from created) as written,

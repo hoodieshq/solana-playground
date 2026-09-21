@@ -1,6 +1,7 @@
 import { report } from "./diagnostics";
-import { buildSnapshot, hashSnapshot } from "./snapshot";
+import { buildSnapshot, hashSnapshot, snapshotOf } from "./snapshot";
 import { PgSyncClient } from "./sync-client";
+import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
 // reaches `settings.ts`, which reads a webpack-defined global jest has no
@@ -20,23 +21,52 @@ export interface ServerProject {
 }
 
 /**
+ * What kind of question the user is being asked.
+ *
+ * - `divergent`: both sides moved. Keep this device's copy, or take the other.
+ * - `deleted-elsewhere`: the project was deleted on another device, but this
+ *   one holds work that never got uploaded. Finish the delete, or keep the
+ *   work as a project of its own.
+ */
+export type ConflictKind = "divergent" | "deleted-elsewhere";
+
+export interface Conflict {
+  projectId: string;
+  kind: ConflictKind;
+}
+
+/** What the user picked. The first two answer `divergent`, the rest the other */
+export type Resolution =
+  | "keep-local"
+  | "take-server"
+  | "delete-local"
+  | "keep-as-new";
+
+/**
  * Mirror project snapshots to Postgres.
  *
- * Last write wins, but only among writers that had seen the current state: a
- * client whose `baseUpdatedAt` is stale is refused and raises a conflict.
- * Nothing is ever merged -- two divergent copies of a program are not
- * something an automatic merge can reconcile, and a bad merge is worse than a
- * prompt.
+ * One user, one project at a time -- this is a playground, not a collaborative
+ * editor. The job is that everything you type ends up on the server, and that
+ * signing in elsewhere picks up where you left off. Nothing is ever merged.
+ *
+ * The concurrency this still has to survive is a *stale writer*: a second tab,
+ * or a laptop left open at home. Two things guard against one of those quietly
+ * flattening real work:
+ *
+ * - `PgSyncMark` -- what the server last accepted from this device, persisted,
+ *   so a fresh load can tell a local copy that is behind from one that is
+ *   ahead. That is the whole of the reconcile decision (`project-restore.ts`).
+ * - the server's compare-and-swap on `updated_at`, as a backstop for the race
+ *   between deciding and writing. When it refuses, this stops pushing that
+ *   project and asks -- rather than retrying against a token that can never
+ *   match again, which is what made a single conflict permanent.
  */
 export class PgProjectSync {
   /**
    * Upload the workspace the user is looking at.
    *
-   * The counterpart to `restoreMissingProjects`: that brings other devices'
-   * projects down, and without this there was nothing to bring. `push` had one
-   * caller, driven entirely by file-change events, so a project that was not
-   * edited after signing in never reached the server at all -- which is most
-   * of them, and always the one you just signed in to look at.
+   * The counterpart to the reconcile pass: that brings other devices' projects
+   * down, and without this there was nothing to bring.
    */
   static async pushCurrent(): Promise<PushResult> {
     const id = PgExplorer.currentWorkspaceId;
@@ -56,21 +86,48 @@ export class PgProjectSync {
    * stored under its own id -- and a tutorial imported elsewhere as
    * `tut:hello-anchor` is a name `PgTutorial` does not match, so the tutorial
    * read as unstarted on the second device.
+   * @param opts -
+   * - `force`: overwrite whatever the server holds, without comparing. Only
+   *   ever set by `resolve`, after the user has chosen.
+   * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
+   *   runs *inside* the gate it is the point of -- see below.
    */
   static async push(
     projectId: string,
     snapshot: Snapshot,
-    name?: string
+    name?: string,
+    opts: { force?: boolean; immediate?: boolean } = {}
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
-    // Nothing goes up before this browser has read what the account holds.
-    // A push that arrives first carries no token, which the server can only
-    // treat as a blind create and refuse -- a "conflict" caused by load order
-    // rather than by anything the user did.
-    await PgProjectSync._gate;
+    // Nothing goes up before this browser has reconciled with the account. A
+    // push that arrives first carries no token, which the server can only treat
+    // as a blind create and refuse -- a "conflict" caused by load order rather
+    // than by anything the user did.
+    //
+    // `reconcile` is the exception, and has to be: the gate is held across the
+    // whole pass and released when it returns, so a push issued from inside it
+    // that waited here would wait for itself. The gate exists to keep the
+    // *editor's* debounced pushes from racing the reconcile, and a push the
+    // reconcile decided on is not racing anything.
+    if (!opts.immediate) await PgProjectSync._gate;
 
-    const hash = hashSnapshot(snapshot);
-    if (PgProjectSync._hashes.get(projectId) === hash) return "skipped";
+    // A project with a question outstanding is not pushed again. This is what
+    // turns a conflict from a permanent 409 loop -- the editor's debounce
+    // re-firing every few seconds against a token that can never match -- into
+    // one refusal and one prompt.
+    if (!opts.force && PgProjectSync._conflicts.has(projectId)) {
+      return "skipped";
+    }
+
+    const mark = await PgSyncMark.read(projectId);
+    const hash = await hashSnapshot(snapshot);
+
+    // Unchanged since the server took it, and nothing pending. `dirty` is
+    // checked as well as the hash because an edit that was undone leaves the
+    // content identical while the upload it scheduled is still owed.
+    if (!opts.force && mark && !mark.dirty && mark.hash === hash) {
+      return "skipped";
+    }
 
     try {
       const response = await fetch("/api/projects", {
@@ -82,25 +139,20 @@ export class PgProjectSync {
           name: name ?? PgProjectSync._names.get(projectId) ?? projectId,
           kind: projectId.startsWith("tut:") ? "tutorial" : "project",
           snapshot,
-          baseUpdatedAt: PgProjectSync._base.get(projectId),
+          // Omitted under `force`: the server reads the two as separate doors,
+          // and sending a token alongside would be asking it to check
+          // something the user has already overruled.
+          baseUpdatedAt: opts.force ? undefined : mark?.updatedAt,
+          force: opts.force === true,
         }),
       });
 
       if (response.status === 409) {
-        // Deliberately without recording the hash: the snapshot has not been
-        // accepted, and remembering it would make every later attempt look
-        // unchanged and strand the project out of sync for good.
-        //
-        // Only a device that had actually read the row is told about it. A
-        // refusal with no token of our own means this browser had not caught
-        // up yet -- the reconcile on load is what fixes that, and saying "your
-        // other device changed this" offers a Reload that does nothing, since
-        // the next load would land in exactly the same place. A conflict the
-        // user can act on is two sessions editing one project, and that one
-        // always has a token behind it.
-        if (PgProjectSync._base.has(projectId)) {
-          for (const cb of PgProjectSync._conflictListeners) cb(projectId);
-        }
+        // Deliberately without recording the hash or clearing `dirty`: the
+        // snapshot has not been accepted, and remembering it would make every
+        // later attempt look unchanged and strand the project out of sync for
+        // good.
+        PgProjectSync._raise({ projectId, kind: "divergent" });
         return "conflict";
       }
       if (!response.ok) {
@@ -109,8 +161,12 @@ export class PgProjectSync {
       }
 
       const body = await response.json();
-      PgProjectSync._base.set(projectId, body.updatedAt);
-      PgProjectSync._hashes.set(projectId, hash);
+      await PgSyncMark.write(projectId, {
+        hash,
+        updatedAt: body.updatedAt,
+        dirty: false,
+      });
+      PgProjectSync._clear(projectId);
       return "ok";
     } catch (e) {
       report(`push project ${projectId}`, e);
@@ -144,13 +200,7 @@ export class PgProjectSync {
     }
   }
 
-  /**
-   * Read one project, snapshot included.
-   *
-   * Records the server's token as a side effect, so the next push for this
-   * project is a compare-and-swap against what was actually read rather than
-   * an unconditional write.
-   */
+  /** Read one project, snapshot included. Records nothing -- callers decide */
   static async fetch(
     projectId: string
   ): Promise<(ServerProject & { snapshot: Snapshot | null }) | null> {
@@ -169,14 +219,7 @@ export class PgProjectSync {
       const { project } = await response.json();
       if (!project) return null;
 
-      PgProjectSync.seen(project.id, project.name, project.updatedAt);
-      // This device now holds exactly what the server does, so there is
-      // nothing to send back. Without this, taking the server's copy was
-      // immediately followed by pushing it up again -- a write that bumps the
-      // row and, on the other device, is indistinguishable from an edit.
-      if (project.snapshot) {
-        PgProjectSync._hashes.set(project.id, hashSnapshot(project.snapshot));
-      }
+      PgProjectSync._names.set(project.id, project.name);
       return project;
     } catch (e) {
       report(`fetch project ${projectId}`, e);
@@ -184,28 +227,180 @@ export class PgProjectSync {
     }
   }
 
-  /** Record the server's state for a project we just read */
-  static seen(projectId: string, name: string, updatedAt: string) {
-    PgProjectSync._names.set(projectId, name);
-    PgProjectSync._base.set(projectId, updatedAt);
+  /**
+   * Tombstone a project.
+   *
+   * The row stays behind on the server so the *other* devices see "deleted"
+   * rather than "missing" and do not push their copy back up. Without this the
+   * whole tombstone mechanism was unreachable and deleting a project was undone
+   * by the next reload.
+   */
+  static async remove(projectId: string): Promise<boolean> {
+    if (!(await PgProjectSync._ready())) return false;
+
+    try {
+      const response = await fetch(
+        `/api/projects?id=${encodeURIComponent(projectId)}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!response.ok) {
+        report(`delete project ${projectId}: HTTP ${response.status}`, null);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      report(`delete project ${projectId}`, e);
+      return false;
+    }
   }
 
-  static onDidConflict(cb: (projectId: string) => void): Disposable {
+  /**
+   * Take the server's copy of a project into the local workspace.
+   *
+   * Only ever called where the local copy is known to be expendable -- either
+   * it matches what this device last uploaded, or the user has just said to
+   * discard it. `replaceWorkspaceFiles` clears the directory first, so getting
+   * that wrong is the data loss this whole design exists to prevent.
+   *
+   * @returns the local workspace name, or `null` if nothing was taken
+   */
+  static async adopt(projectId: string): Promise<string | null> {
+    const full = await PgProjectSync.fetch(projectId);
+    // A snapshot that is not a file map would empty the workspace:
+    // `replaceWorkspaceFiles` removes the directory before it discovers it has
+    // nothing to write back. The server validates this on the way in as well;
+    // this is the half that protects rows written before it did.
+    if (!isUsableSnapshot(full?.snapshot)) {
+      if (full) report(`adopt ${projectId}: unusable snapshot`, null);
+      return null;
+    }
+
+    const local = PgExplorer.workspaceNameOf(projectId);
+    if (!local) return null;
+
+    await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
+    await PgSyncMark.write(projectId, {
+      hash: await hashSnapshot(full!.snapshot!),
+      updatedAt: full!.updatedAt,
+      dirty: false,
+    });
+    return local;
+  }
+
+  /**
+   * Act on the user's answer to a conflict, and stop asking.
+   *
+   * @returns whether the conflict is now settled. `false` leaves the prompt up
+   * rather than pretending a failed resolution succeeded.
+   */
+  static async resolve(
+    projectId: string,
+    resolution: Resolution
+  ): Promise<boolean> {
+    const name = PgExplorer.workspaceNameOf(projectId);
+
+    try {
+      switch (resolution) {
+        case "keep-local": {
+          if (!name) return false;
+          const result = await PgProjectSync.push(
+            projectId,
+            await snapshotOf(name),
+            name,
+            { force: true }
+          );
+          return result === "ok";
+        }
+
+        case "take-server": {
+          const local = await PgProjectSync.adopt(projectId);
+          if (!local) return false;
+          PgProjectSync._clear(projectId);
+          // Only the current workspace is held in memory, so it is the only
+          // one whose files changing underneath leaves the editor showing
+          // something that is no longer on disk.
+          if (local === PgExplorer.currentWorkspaceName) {
+            await PgExplorer.switchWorkspace(local);
+          }
+          return true;
+        }
+
+        case "delete-local": {
+          if (name) await PgExplorer.deleteWorkspace(name);
+          await PgSyncMark.remove(projectId);
+          PgProjectSync._clear(projectId);
+          return true;
+        }
+
+        case "keep-as-new": {
+          if (!name) return false;
+          // A new id, because the old one is tombstoned on the server and
+          // every push under it would be refused for the life of the account.
+          // Imported alongside, then the original is removed -- there is no
+          // API for re-keying a workspace in place.
+          const snapshot = await snapshotOf(name);
+          const fresh = `${name} (kept)`;
+          await PgExplorer.importWorkspace(fresh, {
+            id: crypto.randomUUID(),
+            files: snapshot.files,
+          });
+          await PgExplorer.deleteWorkspace(name);
+          await PgSyncMark.remove(projectId);
+          PgProjectSync._clear(projectId);
+          await PgExplorer.switchWorkspace(fresh);
+          return true;
+        }
+      }
+    } catch (e) {
+      report(`resolve ${projectId} as ${resolution}`, e);
+      return false;
+    }
+  }
+
+  /** Raise a conflict from outside the push path -- reconcile's cases */
+  static raise(conflict: Conflict) {
+    PgProjectSync._raise(conflict);
+  }
+
+  /** Every project currently waiting on an answer */
+  static get conflicts(): Conflict[] {
+    return [...PgProjectSync._conflicts.values()];
+  }
+
+  static conflictFor(projectId: string | null | undefined): Conflict | null {
+    if (!projectId) return null;
+    return PgProjectSync._conflicts.get(projectId) ?? null;
+  }
+
+  /**
+   * Fires whenever the set of outstanding conflicts changes, raised *or*
+   * settled. The banner had no way to hear the second, so once shown it stayed
+   * up for the rest of the session -- including over projects with no conflict.
+   */
+  static onDidChangeConflicts(cb: () => void): Disposable {
     PgProjectSync._conflictListeners.add(cb);
-    return { dispose: () => PgProjectSync._conflictListeners.delete(cb) };
+    return {
+      dispose: () => PgProjectSync._conflictListeners.delete(cb),
+    };
+  }
+
+  /** Remember a name for a project whose workspace may not exist locally yet */
+  static rememberName(projectId: string, name: string) {
+    PgProjectSync._names.set(projectId, name);
   }
 
   /**
    * Hold every push until `releasePushes`.
    *
-   * Called once on load, before anything can fire. The alternative is a race:
-   * the editor's own debounce is a few seconds, the reconcile is several
-   * round trips, and whichever wins decides whether the user is accused of a
-   * conflict. Holding makes the answer the same every time.
+   * Called on load and again whenever a backgrounded tab comes back, before
+   * anything can fire. The alternative is a race: the editor's own debounce is
+   * a few seconds, the reconcile is several round trips, and whichever wins
+   * decides whether the user is accused of a conflict. Holding makes the answer
+   * the same every time.
    *
-   * Open by default, so a caller that never reconciles -- a test, or any
-   * entry point that does not run the session effect -- is not left waiting
-   * on something that will never happen.
+   * Open by default, so a caller that never reconciles -- a test, or any entry
+   * point that does not run the session effect -- is not left waiting on
+   * something that will never happen.
    */
   static holdPushes() {
     if (PgProjectSync._release) return;
@@ -221,26 +416,66 @@ export class PgProjectSync {
     PgProjectSync._gate = Promise.resolve();
   }
 
-  /** Test seam */
+  /**
+   * Drop everything derived from the signed-in account.
+   *
+   * Called on sign-out as well as from tests. Leaving it behind meant the next
+   * user on this browser was shown a conflict banner for a project they had
+   * never touched: tutorial ids are derived from the name and so are identical
+   * across accounts, and the previous account's token was still in memory.
+   */
   static reset() {
-    PgProjectSync._base.clear();
-    PgProjectSync._hashes.clear();
     PgProjectSync._names.clear();
+    PgProjectSync._conflicts.clear();
     PgProjectSync._conflictListeners.clear();
     PgProjectSync.releasePushes();
+  }
+
+  /** Sign-out: the account's state goes, the listeners stay */
+  static forgetAccount() {
+    PgProjectSync._names.clear();
+    const had = PgProjectSync._conflicts.size;
+    PgProjectSync._conflicts.clear();
+    if (had) PgProjectSync._emit();
   }
 
   private static _gate: Promise<void> = Promise.resolve();
   private static _release: (() => void) | null = null;
 
-  private static readonly _base = new Map<string, string>();
-  private static readonly _hashes = new Map<string, string>();
   private static readonly _names = new Map<string, string>();
-  private static readonly _conflictListeners = new Set<
-    (projectId: string) => void
-  >();
+  private static readonly _conflicts = new Map<string, Conflict>();
+  private static readonly _conflictListeners = new Set<() => void>();
+
+  private static _raise(conflict: Conflict) {
+    const existing = PgProjectSync._conflicts.get(conflict.projectId);
+    if (existing?.kind === conflict.kind) return;
+    PgProjectSync._conflicts.set(conflict.projectId, conflict);
+    PgProjectSync._emit();
+  }
+
+  private static _clear(projectId: string) {
+    if (PgProjectSync._conflicts.delete(projectId)) PgProjectSync._emit();
+  }
+
+  private static _emit() {
+    for (const cb of PgProjectSync._conflictListeners) cb();
+  }
 
   private static async _ready() {
     return !!PgSession.get() && (await PgSyncClient.available());
   }
 }
+
+/**
+ * Whether a stored snapshot can be written to a workspace.
+ *
+ * Exported because reconcile checks it before the same destructive call, and
+ * both halves have to agree on what "usable" means.
+ */
+export const isUsableSnapshot = (
+  snapshot: Snapshot | null | undefined
+): snapshot is Snapshot => {
+  const files = (snapshot as Snapshot | undefined)?.files;
+  if (!files || typeof files !== "object" || Array.isArray(files)) return false;
+  return Object.values(files).every((content) => typeof content === "string");
+};

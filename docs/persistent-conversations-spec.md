@@ -111,17 +111,75 @@ too.
 ### Code
 
 - Unit: **whole-workspace snapshot**, debounced, upserted.
-- Contents: user files, `.workspace/metadata.json`,
-  `.workspace/tutorial-storage.json`, `.tutorial.json`, and
-  `.workspace/program-info.json` **including the `kp` secret key**. Accepted
-  deliberately: this is a playground, not a production key custodian. It is
-  disclosed in the UI.
-- Conflict: **last-write-wins on `updated_at`**, except that a client whose
-  loaded `updated_at` is stale **does not autosave** — it shows a banner.
-  Never merge. No version history.
-- First sign-in shows an **explicit import prompt** for local projects, because
-  import can create duplicates. Chat sync is automatic, because UUIDs make it
-  idempotent.
+- Contents: user files, `.workspace/tutorial-storage.json`, `.tutorial.json`,
+  and `.workspace/program-info.json` **including the `kp` secret key**.
+  Accepted deliberately: this is a playground, not a production key custodian.
+  It is disclosed in the UI.
+- **`.workspace/metadata.json` is excluded** — as built, against this spec's
+  original list. It holds the open tabs and cursor positions and is rewritten
+  every time a project is opened, so syncing it would make merely *looking* at
+  a project a change the other device has to reconcile, and two idle browsers
+  would trade conflicts over where the caret was
+  (`features/persistence/model/snapshot.ts`).
+- Conflict: **never merge, never guess, ask only when both copies hold work.**
+  See "Reconciling a device with the account" below; this is the part that
+  changed most between spec and build.
+- Local projects are handed over **automatically**, not behind an import
+  prompt. The prompt was there because import can create duplicates; keying on
+  a stable workspace id rather than a name removed that risk, and an opt-in
+  step contradicted the promise that everything is saved. Name collisions still
+  suffix (`my-program (imported)`).
+
+### Reconciling a device with the account
+
+Not in the original spec — it replaced "last-write-wins on `updated_at`, plus a
+banner", which could not be implemented safely. The reason is worth recording:
+
+A client that compares only "local differs from the server" cannot tell a copy
+that is **behind** (the other device did work → take the server's) from one that
+is **ahead** (the last push failed → taking the server's destroys an afternoon).
+The first build resolved that ambiguity by always assuming "behind", because the
+information needed to tell them apart was not written down anywhere — the
+tokens lived in module-level `Map`s that died with the page.
+
+So the device keeps a **sync mark** per project per account, persisted in the
+same IndexedDB volume as the code: the hash of the snapshot the server last
+accepted, the row's `updated_at` at that moment, and a `dirty` flag set when an
+edit lands. Per account because a tutorial's id is derived from its name and so
+is identical across accounts.
+
+Reconcile then has two independent questions and four answers:
+
+|           | server unchanged | server moved |
+| --------- | ---------------- | ------------ |
+| **clean** | nothing          | take server  |
+| **dirty** | push             | **ask**      |
+
+Only the bottom-right cell involves the user. Deletes take the same shape: a
+mark with no server row means "deleted on another device" (the list endpoint
+filters tombstones out, so absence alone is ambiguous) — finished silently when
+the local copy is clean, asked when it is not.
+
+The server's compare-and-swap on `updated_at` stays, demoted from the primary
+mechanism to a backstop for the race between deciding and writing. When it
+refuses, the client **stops pushing that project** and raises the banner, rather
+than retrying a swap that can never match again.
+
+Reconcile runs on sign-in, on load, and when a backgrounded tab returns.
+
+### Tabs
+
+Not in the original spec. One person can still have more than one writer open —
+a second tab, or a laptop left open at home. `PgExplorer` is backed by
+IndexedDB, which tabs share, but the *current* workspace is held in memory per
+tab, so a tab backgrounded for a day holds files that have since moved on and
+uploads them the moment anything nudges it.
+
+Two rules: a tab only pushes while it is visible, and a tab that has just become
+visible reconciles before it is allowed to push again. The pending upload is
+flushed on the way out (`visibilitychange` → `hidden`), where the document is
+still alive and an ordinary fetch completes — `beforeunload` is too late and
+`keepalive`/`sendBeacon` cap the body at ~64 KB against an 8 MB snapshot limit.
 
 ### Identity and lifecycle of projects
 

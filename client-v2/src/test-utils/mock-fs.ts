@@ -39,6 +39,28 @@ export const mockFsModule = () => {
 
     async createDir() {},
 
+    async exists(path: string) {
+      return (
+        files.has(path) ||
+        [...files.keys()].some((key) => key.startsWith(path + "/"))
+      );
+    },
+
+    /**
+     * Enough of `stat` for a directory walk: a path is a directory when
+     * anything is stored beneath it. Matches the real thing in throwing for a
+     * path that is neither.
+     */
+    async getMetadata(path: string) {
+      const isDirectory = [...files.keys()].some((key) =>
+        key.startsWith(path + "/")
+      );
+      if (!isDirectory && !files.has(path)) {
+        throw new Error(`ENOENT: ${path}`);
+      }
+      return { isDirectory: () => isDirectory };
+    },
+
     async removeDir(dir: string) {
       for (const path of [...files.keys()]) {
         if (path.startsWith(dir)) files.delete(path);
@@ -46,13 +68,18 @@ export const mockFsModule = () => {
     },
 
     async readDir(dir: string) {
-      const names = [...files.keys()]
-        .filter((path) => path.startsWith(dir + "/"))
-        .map((path) => path.slice(dir.length + 1));
+      // Immediate children only, like the real thing -- a recursive walk that
+      // was handed whole subpaths here would look like it worked while never
+      // actually recursing
+      const names = new Set(
+        [...files.keys()]
+          .filter((path) => path.startsWith(dir + "/"))
+          .map((path) => path.slice(dir.length + 1).split("/")[0])
+      );
       // Matches the real thing: a directory that does not exist throws rather
       // than reading as empty, which is what `threadIds` relies on
-      if (!names.length) throw new Error(`ENOENT: ${dir}`);
-      return names;
+      if (!names.size) throw new Error(`ENOENT: ${dir}`);
+      return [...names];
     },
 
     async flush() {},

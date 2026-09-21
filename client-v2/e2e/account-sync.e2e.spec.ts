@@ -129,6 +129,29 @@ test("the conversation is on screen before a backend is picked", async ({
   ).toBeVisible(LONG);
 });
 
+const json = (r: Route, body: unknown) =>
+  r.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
+
+/** A project of this browser's own, to hand over and then reload against */
+const makeLocalProject = async (page: Page, name: string) => {
+  await page.goto("/");
+  const gallery = page.locator("[data-gallery-modal]");
+  await expect(gallery).toBeVisible(LONG);
+  await gallery.getByLabel("Project name").fill(name);
+  await gallery.getByRole("button", { name: /^Start/ }).click();
+  await expect(gallery).toBeHidden(LONG);
+
+  return await page.evaluate(
+    () =>
+      (window as unknown as { __pgAssistant?: { threadId?: string } })
+        .__pgAssistant?.threadId as string
+  );
+};
+
 /**
  * A reload is not an edit.
  *
@@ -137,50 +160,22 @@ test("the conversation is on screen before a backend is picked", async ({
  * re-uploaded anything -- the stale in-memory copy it was about to replace, or
  * the copy it had just pulled -- turned two idle browsers into a conflict
  * between them. The only honest number of writes here is none.
+ *
+ * The account's copy here is one this browser actually handed over, rather
+ * than a fixture invented alongside it. That is the round trip that matters:
+ * the snapshot has to survive being built, uploaded, stored and read back and
+ * still hash identically, and the sync mark written by the push has to survive
+ * the reload. Either failing shows up as a write.
  */
 test("reloading a project the account already has writes nothing", async ({
   page,
 }) => {
   test.setTimeout(240_000);
 
-  // A project of this browser's own, so the reload has something to switch
-  // into -- an empty profile never exercises the path at all
-  await page.goto("/");
-  const gallery = page.locator("[data-gallery-modal]");
-  await expect(gallery).toBeVisible(LONG);
-  await gallery.getByLabel("Project name").fill("Shared");
-  await gallery.getByRole("button", { name: /^Start/ }).click();
-  await expect(gallery).toBeHidden(LONG);
+  const localId = await makeLocalProject(page, "Shared");
 
-  const localId = await page.evaluate(
-    () =>
-      (window as unknown as { __pgAssistant?: { threadId?: string } })
-        .__pgAssistant?.threadId as string
-  );
-  // The workspace dotfiles ride along too. If either failed to land on disk,
-  // or came back differently, the snapshot would no longer match and the
-  // assertion below would see a write -- so this is a round trip, not just a
-  // no-op check.
-  const files = {
-    "src/lib.rs": "// the account's copy",
-    ".workspace/program-info.json": '{"kp":[1,2,3]}',
-    ".tutorial.json": '{"pageNumber":3,"completed":false}',
-  };
-
-  const writes: unknown[] = [];
-  const shared = {
-    id: localId,
-    name: "Shared",
-    kind: "project",
-    updatedAt: "2026-02-01T00:00:00.000Z",
-  };
-
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(body),
-    });
+  const writes: Array<{ snapshot?: unknown }> = [];
+  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -189,23 +184,120 @@ test("reloading a project the account already has writes nothing", async ({
   await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
   await page.route("**/api/projects*", (r) => {
     if (r.request().method() === "PUT") {
-      writes.push(JSON.parse(r.request().postData() ?? "{}"));
-      return json(r, { updatedAt: new Date().toISOString() });
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      stored = {
+        snapshot: body.snapshot,
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      };
+      return json(r, { updatedAt: stored.updatedAt });
     }
+    const shared = {
+      id: localId,
+      name: "Shared",
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
+    };
     const id = new URL(r.request().url()).searchParams.get("id");
-    return id
-      ? json(r, { project: { ...shared, snapshot: { files } } })
-      : json(r, { projects: [shared] });
+    if (id) {
+      return json(r, { project: { ...shared, snapshot: stored?.snapshot } });
+    }
+    return json(r, { projects: stored ? [shared] : [] });
   });
 
+  // First sign-in: the account has nothing, so this browser hands the project
+  // over. That write is the one that is meant to happen.
   await page.reload();
+  await expect.poll(() => writes.length, LONG).toBe(1);
+  await page.waitForTimeout(3000);
 
-  // The account's copy is what is open, so the reconcile has finished
+  // Second load: both sides now agree, and the mark says so
+  writes.length = 0;
+  await page.reload();
   await expect.poll(() => threadId(page), LONG).toBe(localId);
   await page.waitForTimeout(8000);
 
   expect(writes).toEqual([]);
   await expect(page.getByText("changed on another device")).toHaveCount(0);
+});
+
+/**
+ * The one question the user is ever asked, and both of its answers.
+ *
+ * Reaching it takes a genuine divergence: this browser has work the account
+ * never took, and the row has moved since it last agreed. Everything else --
+ * taking the server's copy, pushing this one, finishing a delete -- reconcile
+ * decides on its own, because only one side has work in it.
+ */
+test("a divergent project asks, and keeping this version force-pushes it", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Contested");
+
+  const writes: Array<{ force?: boolean; baseUpdatedAt?: string }> = [];
+  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      // Only `force` gets through. A plain swap is refused, standing in for
+      // the other device having written since this one last read.
+      if (!body.force) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: stored?.updatedAt }),
+        });
+      }
+      stored = { snapshot: body.snapshot, updatedAt: "2026-04-01T00:00:00.000Z" };
+      return json(r, { updatedAt: stored.updatedAt });
+    }
+
+    const shared = {
+      id: localId,
+      name: "Contested",
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-03-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (id) {
+      return json(r, {
+        project: {
+          ...shared,
+          snapshot: stored?.snapshot ?? {
+            files: { "src/lib.rs": "// written on the other device" },
+          },
+        },
+      });
+    }
+    return json(r, { projects: [shared] });
+  });
+
+  await page.reload();
+
+  const banner = page.getByText("changed on another device");
+  await expect(banner).toBeVisible(LONG);
+
+  // And it stops pushing while the question is open, rather than re-sending a
+  // swap that can never match again
+  await page.waitForTimeout(8000);
+  const beforeAnswer = writes.length;
+
+  await page.getByRole("button", { name: "Keep this version" }).click();
+
+  await expect.poll(() => writes.at(-1)?.force, LONG).toBe(true);
+  expect(writes.length).toBe(beforeAnswer + 1);
+  // Answered, so the banner goes -- it used to stay up for the rest of the
+  // session, over unrelated projects included
+  await expect(banner).toHaveCount(0, LONG);
 });
 
 /**
@@ -234,12 +326,6 @@ test("a started tutorial hands over its keypair and progress", async ({
   await page.waitForTimeout(5000);
 
   const writes: Array<{ snapshot?: { files: Record<string, string> } }> = [];
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(body),
-    });
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })

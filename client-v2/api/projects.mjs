@@ -21,6 +21,28 @@ const MAX_BODY_BYTES = 8_000_000;
 /** Matches `projects_kind_check`, so a bad kind is a 400 and not a 500 */
 const KINDS = ["project", "tutorial"];
 
+/**
+ * Whether a snapshot is something a client can be handed back.
+ *
+ * Checked on the way *in* because the read side is destructive: restoring a
+ * project clears the workspace directory before writing the snapshot's files,
+ * so a row holding `{}` or `{"files": null}` empties that project on every
+ * device that syncs it, leaving nothing behind but a diagnostics line. The
+ * client re-checks before the same call; this is what stops the bad row
+ * existing in the first place.
+ *
+ * `undefined` is allowed through: `ensureConversation` creates rows with no
+ * snapshot at all, and this endpoint is not the only writer.
+ */
+const isValidSnapshot = (snapshot) => {
+  if (snapshot === undefined || snapshot === null) return true;
+  if (typeof snapshot !== "object" || Array.isArray(snapshot)) return false;
+
+  const { files } = snapshot;
+  if (!files || typeof files !== "object" || Array.isArray(files)) return false;
+  return Object.values(files).every((content) => typeof content === "string");
+};
+
 const sendJson = (res, status, body) => {
   res.statusCode = status;
   res.setHeader("content-type", "application/json");
@@ -76,6 +98,12 @@ export default async function handler(req, res) {
       !KINDS.includes(body.kind)
     ) {
       return sendJson(res, 400, { error: "id, name and kind required" });
+    }
+
+    if (!isValidSnapshot(body.snapshot)) {
+      return sendJson(res, 400, {
+        error: "snapshot.files must be a map of paths to strings",
+      });
     }
 
     // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast error
