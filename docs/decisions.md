@@ -2091,3 +2091,94 @@ or, one day, ours. Then the isolation above is reviewed first, the
 switch second, and only then the command.
 
 **Recorded** against B1 in `docs/upstream-divergences.md`.
+
+---
+
+## D39 - A conversation is a thread with an id of its own, and the key is not a parameter
+
+**Date:** 2026-09-21 · **Status:** chosen, implemented on
+`feat/conversation-threads` (stacked on PR #29) · **Ticket:** HOO-1633 ·
+**Spec:** `docs/superpowers/specs/2026-09-21-conversation-threads-design.md`
+
+HOO-1633 asks for four things. PR #29 already gave two of them -- the
+default agent's history is saved, and it is saved in managed Postgres.
+The other two are this round: a `thread_id` abstraction, and threads
+identified by the parameters they were created or used with.
+
+**The thread id is minted by the client**, with the same `uuid()` that
+mints message ids, and `POST /api/conversations` upserts the row with
+`on conflict (id) do nothing`.
+
+*Why not server-allocated.* A thread has to exist before the browser
+can be sure it can reach a server: the panel works signed out, on a
+deployment with no database, and offline. An id the server hands out
+would mean either no thread until the first successful request, or a
+local id swapped for a real one afterwards -- and every message already
+carries a client-minted id for exactly this reason. The cost is that
+two offline devices can mint two threads for one project. The schema
+already accepts that race in writing, and the newest thread wins the
+default.
+
+*Consequence that had to be paid for.* A guessable global id needs a
+guard: the insert is silent when the id is taken, so the row's
+ownership is re-read before anything is appended, and a thread that is
+not yours reads as 404 rather than 403 -- otherwise the route is an
+oracle for guessed uuids.
+
+**Created-parameters live on the thread; used-parameters live on the
+message.** `conversations` gains `provider`, `model`, `base_url` and
+`effort`, written once at insert. Each assistant message carries
+`payload.origin` with what produced *it*.
+
+*Why both.* "Created or used" are two questions, and a user who
+switches backend mid-thread makes them different answers. One column
+set would record the last push and quietly lose the rest; per-message
+alone would make "which threads ran on Opus" a jsonb scan of every
+message in the account.
+
+**The API key is not a parameter, in any form.** Not the value, not a
+hash, not the last four characters. D3 keeps the key in memory because
+the playground runs shared project code in a same-origin iframe, and
+that has not changed. A fingerprint in Postgres would not put the key
+at risk, but it would answer "which key was this" as a product
+question, taken as a side effect of a persistence ticket rather than on
+purpose.
+
+The route enforces it as an allowlist: `provider`, `model`, `baseUrl`,
+`effort`, and anything else is a 400. A client that sends a key is a
+bug, and a rejected write is how that bug is found rather than a
+credential arriving unnoticed.
+
+**The columns went into the migration that creates the table.** The
+spec proposed a third migration with `ALTER TABLE`, reasoning that
+#29's migration had already run against a preview database.
+`db/README.md` asks for the opposite while the schema is unshipped --
+roll back, edit, re-apply, so the history reads as the schema -- and
+the repo's own rule won. It costs a manual rollback on any preview
+database that already has the old shape.
+
+**Rejected: deriving the thread id from the workspace id.** It would
+make opening a conversation synchronous with no index at all, the way
+`tut:<slug>` is derived. It cannot work: `conversations.id` is a global
+primary key, so every user who starts the same tutorial would derive
+the same id and the second one would be refused. Deriving from the user
+as well is impossible before sign-in.
+
+**Rejected: keeping the workspace-to-thread map in `localStorage`.**
+It would be synchronous, which is what the map has to be. But
+`localStorage` and IndexedDB are cleared independently, and a map lost
+while the thread files remain orphans every conversation with no way
+back -- the file is named by a thread id that nothing points at any
+more. The map lives beside the threads instead, in the same volume, and
+is read into memory once at startup.
+
+**Not in this round:** a thread picker (the schema and the wire are
+shaped so it is a component, not a migration); persisting threads for a
+signed-out user with their own token (needs an anonymous server-side
+identity and its own privacy decision); recording the transcript inside
+`/api/agent` (the client's push already stores it, and making the rail
+write it too is the server logging conversations it currently only
+relays -- a privacy decision, not a persistence one; confirmed with
+Slava, 2026-09-21).
+
+**Recorded** against B14 in `docs/upstream-divergences.md`.

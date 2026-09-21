@@ -1,8 +1,9 @@
 # Conversations are threads, and a thread remembers what produced it (D39)
 
-**Date:** 2026-09-21 · **Status:** design, implementing on
+**Date:** 2026-09-21 · **Status:** implemented on
 `feat/conversation-threads` off `saving-chats-history` (stacked on PR
-#29) · **Ticket:** HOO-1633 · **Decision:** D39
+#29), with the two amendments marked below · **Ticket:** HOO-1633 ·
+**Decision:** D39
 
 ## The problem, in the ticket's words
 
@@ -39,29 +40,37 @@ parameter we store, in any form".
 
 ### 1. The schema learns four columns
 
-A third migration, `alter table` rather than an edit to
-`20260916032901_projects_and_conversations.sql`: PR #29's migration has
-already run against the preview database, so the shape has to arrive as
-a change, not as a different past.
+**Amended while implementing (2026-09-21).** The columns went into
+`20260916032901_projects_and_conversations.sql`'s `create table`, not
+into a third migration. `client-v2/db/README.md` says so in as many
+words while the schema is unshipped -- "a new column goes into the
+`create table` that defines it, not into an `ALTER TABLE` bolted on
+afterwards. Roll back, edit, re-apply" -- and the repo's own rule beats
+this document's reasoning. The cost is a manual rollback on any preview
+database that already has the old shape. The shape below is unchanged;
+only where it is declared moved.
 
 ```sql
-alter table conversations
-  add column provider text,
-  add column model    text,
-  add column base_url text,
-  add column effort   text,
-  add constraint conversations_provider_check
+create table conversations (
+  ...
+  provider   text,
+  model      text,
+  base_url   text,  -- only the OpenAI-compatible providers have one
+  effort     text,  -- Anthropic's reasoning ladder; null elsewhere
+  constraint conversations_provider_check
     check (provider is null or provider in
-      ('default', 'anthropic', 'openai', 'openrouter', 'gemini'));
+      ('default', 'anthropic', 'openai', 'openrouter', 'gemini'))
+);
 
 create index conversations_params_idx
   on conversations (user_id, provider, model)
   where deleted_at is null;
 ```
 
-Every column is nullable, and stays nullable: rows written by PR #29
-before this migration have no parameters to backfill, and inventing
-`'default'` for them would be a guess recorded as a fact.
+Every column is nullable, and stays nullable: a thread can reach the
+server before the panel has connected to anything -- a prompt sent
+while the picker is open, or an older client -- and inventing
+`'default'` for it would be a guess recorded as a fact.
 
 The columns are written **once**, when the row is inserted. They are
 "the parameters this thread was created with". What it was *used* with
@@ -202,6 +211,31 @@ No Playwright: this round changes no UI.
   logging conversations it currently only relays, which is a privacy
   decision and not a persistence one. Confirmed with Slava, 2026-09-21.
 
+## Amended while implementing: opening a thread must be synchronous
+
+The design said nothing about *when* a thread opens, and the first
+implementation paid for it. Resolving the workspace's thread through
+IndexedDB put an await in front of `loadThread`, and a message sent in
+that window had nowhere to be written: it lived in memory until the
+thread opened, and a reload inside the window lost it. The assistant
+effect also mounts a little after the workspace exists, so the window
+is an ordinary sequence rather than a rare one.
+
+Three changes close it, and each is a rule worth keeping:
+
+1. **The index is read into memory once at startup** (`warm`), and
+   `ensureSync` answers from it. A workspace switch opens its thread in
+   the same tick, minting an id on the spot and writing the map behind
+   it.
+2. **`closeThread` does nothing when no thread is open.** There is
+   nothing to close, and clearing threw away exactly the messages that
+   were waiting for one.
+3. **`loadThread` adopts messages that belong to no thread.** Messages
+   that arrived while the panel had no thread become the opening
+   thread's; a switch away from a real thread still leaves that
+   thread's messages behind, which is the distinction that makes
+   adoption safe.
+
 ## Documents this round owes
 
 - **D39** in `docs/decisions.md`: why the thread id is client-minted,
@@ -210,3 +244,19 @@ No Playwright: this round changes no UI.
 - **`docs/upstream-divergences.md`**: a `B14` row for account
   persistence in Postgres. PR #29 introduced the divergence and has not
   registered it; this round writes the row covering both.
+
+Both written, 2026-09-21.
+
+## Found on the way: four e2e specs already failing on PR #29
+
+Measured against `saving-chats-history` with this round's changes
+reverted, so they are the base's, not ours: `chat-threads` (both
+cases), and `account-sync`'s "the conversation is on screen before a
+backend is picked" and "reloading a project the account already has
+writes nothing". The branch with this round applied fails the same
+four and no others.
+
+The `chat-threads` pair is the timing above, in the part this round
+does not reach: the message is sent before the assistant effect has
+mounted at all, so nothing yet exists to adopt it, and the test reloads
+immediately. Worth raising on PR #29 rather than fixing here.
