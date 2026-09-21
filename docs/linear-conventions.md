@@ -3,6 +3,28 @@
 Workspace `solana-fndn`, team **Hoodies** (the only team), project
 **Solana Playground**.
 
+## Every PR has a ticket
+
+A pull request without a Linear issue is not ready for review. The rule has
+two halves:
+
+- **The ticket exists before the PR is asked for.** One issue per PR, in
+  project `Solana Playground`, its state matching reality (`In Review` while
+  the PR is open, `In Progress` while it is a draft), assigned to whoever
+  owns the work.
+- **The PR body links it on the first line**, as a bare markdown link -- the
+  reviewer's first click, above the summary.
+
+**Tickets are filed with `/sx:brief`, never by hand.** The skill reads the
+workspace templates live, applies the substitutions below, and shows the
+draft before it creates anything. Filing by hand is how a ticket ends up in
+the Explorer project with an Explorer heading. If the skill is not available
+in the session, follow its `SKILL.md`: TLDR proposal plus ballpark, a
+horizontal rule, then the template's own sections.
+
+Checked on 2026-09-21: PRs #23, #25, #26, #27, #28 and #29 all carry one
+(HOO-1599, HOO-1707, HOO-1708, HOO-1709, HOO-1651, HOO-1633).
+
 ## The two substitutions
 
 The workspace's `Bug` and `Feature` templates were written for the Solana
