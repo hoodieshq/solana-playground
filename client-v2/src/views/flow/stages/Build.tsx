@@ -154,8 +154,21 @@ const Build = () => {
         </EmptyMark>
         <Headline>{building ? "Building..." : "Nothing built yet"}</Headline>
         <Muted>
-          Build compiles your program on the server. Nothing leaves your browser
-          except the source.
+          {/* A run in flight names the server and warns about the wait. The
+              Foundation's server took 381s on a cold first build and 2.9s on
+              the next one (measured 2026-09-21); six unexplained minutes read
+              as a hang, so say the first build is the slow one. */}
+          {building ? (
+            <>
+              Compiling on {serverHost()}. A first build there can take several
+              minutes.
+            </>
+          ) : (
+            <>
+              Build compiles your program on the server. Nothing leaves your
+              browser except the source.
+            </>
+          )}
         </Muted>
         <Actions>
           <Button
