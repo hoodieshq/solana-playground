@@ -203,8 +203,66 @@ Commits: present tense, no prefix for client changes (`"Add feature"`), location
 prefix for others (`"server: Add feature"`). Prefer small, reviewable commits —
 this branch will be demoed and read by others.
 
+### Feature layout
+
+A feature under `src/features/<name>/` is `model/` (its logic, browser and
+server alike), `Component/` (its React), `lib/` (leaf helpers), and **two
+doors**: `index.ts` for the browser and `server.mjs` for `api/*.mjs`.
+
+- **Nothing outside a feature imports past its door.** `api/conversations.mjs`
+  imports from `features/persistence/server.mjs`, never from
+  `features/persistence/model/db.mjs`. One feature reaching into another goes
+  through the door too — `features/auth/model/auth.mjs` takes its pool from
+  `features/persistence/server.mjs`.
+- **Every statement that touches Postgres lives in `model/`.** There is no
+  `server/` directory; the runtime a module happens to need does not give it a
+  layer of its own. Sergey's review of PR #30 asked for this, and D46 records
+  it.
+- **The server door is `.mjs`, not `.ts`, and cannot become `.ts`.** Vercel
+  executes `api/*.mjs` as plain ESM with no build step, and `tsconfig.json`
+  covers `src` for type-checking only (`noEmit`). Nothing compiles it.
+- A barrel is imports and re-exports only — `CONTRIBUTING.md` already says so
+  for `index.ts`, and `server.mjs` is held to the same rule.
+
+### Naming and duplication
+
+- **`_` prefixes a private static.** 94 private static methods in `client-v2`
+  carry it and none do not; it is upstream's convention in `explorer.ts`,
+  `wallet.ts`, `theme.ts` and the rest. Do not strip it from one file to
+  match a preference — a review comment asking for that is answered with the
+  count.
+- **A uuid is `uuid`'s job.** `validate` to check one, `v4` to mint one, in
+  source and in tests alike. The RFC 4122 regex was written out in five files
+  before PR #30; it is written out in none now. `model/ids.ts` wraps `v4` and
+  is what app code calls.
+- **Prefer a package already in the tree** over a new download. `uuid` was
+  there transitively, so declaring it changed `package.json` and left
+  `yarn.lock` byte-identical, which is also how `CONTRIBUTING.md`'s *"prefer
+  no new dependency when feasible"* is satisfied rather than argued with.
+
+### Migrations
+
+- **A migration another open PR also edits gets a new file, not an edit.** The
+  squash-while-unshipped rule in `client-v2/db/README.md` holds only while
+  nothing is stacked on the file; two branches editing one `create table`
+  conflict in SQL on every rebase and cost everyone with a preview database a
+  rollback. Alexander's call on PR #30; the README carries the exception.
+- Regenerate `db/schema.sql` with `yarn db-dump` and verify on a **clean**
+  Postgres -- a dev database that was migrated from an earlier shape of the
+  same file dumps something the migrations do not produce.
+
 ### Tests
 
+- **The runner is Jest**, via `craco test` out of react-scripts 5 — not
+  vitest. Use `jest.*`; adopting vitest is its own change, tracked separately.
+- **Mock through the runner, do not overwrite the global.**
+  `jest.spyOn(globalThis, "fetch")` with `jest.restoreAllMocks()` in
+  `afterEach`, so a stub one test installs cannot answer the next one's
+  request. `setupTests.ts` puts a throwing `fetch` on the jsdom global for the
+  spy to replace; assigning `global.fetch =` is the older pattern and is being
+  retired file by file.
+- Fixture ids are minted, not typed out. Where a test needs the same id twice,
+  memoise the minted one rather than hand-writing a uuid-shaped string.
 - **A test states the contract, not the bug it came from.** Name it and
   write its header as what the code guarantees ("refuses a body that is
   not a JSON object"), not as history ("answers 400, not 500", "M3 from

@@ -2202,3 +2202,60 @@ relays -- a privacy decision, not a persistence one; confirmed with
 Slava, 2026-09-21).
 
 **Recorded** against B14 in `docs/upstream-divergences.md`.
+from the per-message origin rather than the thread's columns.
+
+---
+
+## D46 - A feature has two doors, and everything else is `model/`
+
+**Date:** 2026-09-23 - **Status:** decided - **Source:** Sergey's review of
+PR #30 (`feat/conversation-threads`), thread on
+`src/features/persistence/server/conversations.mjs`
+
+*"Methods that produce queries to the DB should be moved into the model.
+[...] features/persistence should export a server.ts file which exposes
+methods for this model."*
+
+**What changed.** `src/features/persistence/server/{db,projects,
+conversations}.mjs` moved to `model/`, beside the browser-side models they
+serve, and `src/features/persistence/server.mjs` is now the only path
+`api/*.mjs` may import. `features/auth` got the same treatment in the same
+pass -- `server/auth.mjs` to `model/auth.mjs`, plus `features/auth/server.mjs`
+-- because leaving one feature on each layout in a change about layout is how
+the comment arrives again next round.
+
+A feature is therefore: `model/` (logic, whichever runtime), `Component/`
+(React), `lib/` (leaf helpers), `index.ts` (the browser's door),
+`server.mjs` (the route's door).
+
+**Why `model/` and not `server/`.** The directory was named after the runtime
+a file happens to need, which is not a layer. `db.mjs` is as much this
+feature's logic as `project-sync.ts` is; the only real difference is who calls
+it. Splitting on the caller put a feature's own knowledge in two places and
+gave routes a menu of internals to pick from -- `api/projects.mjs` was
+importing `isEnabled` out of `db.mjs` directly, which is the pool's module.
+
+**Why `.mjs` and not the `server.ts` the comment asked for.** Vercel executes
+`api/*.mjs` as plain ESM with no build step, and `tsconfig.json` covers `src`
+with `noEmit` -- it type-checks, it does not compile. A `.ts` door would have
+to be built before it could be imported, which means owning a second build for
+four files. The extension is the only part of the request we did not take
+literally.
+
+**Rejected: a barrel over the existing `server/` directory.** It would have
+given routes the same single door without moving anything, and it was the
+cheaper diff. It keeps the split the comment was actually about, though: the
+queries stay one directory away from the feature's other logic, and the next
+person adding a server-side model still has two plausible places to put it.
+
+**The trap this closes.** `features/persistence/model/db.mjs` is importable
+from anywhere in `src`, and nothing mechanical stops a route from reaching
+it. The door is a review convention, not a compiler error. What makes it
+checkable is that there is exactly one legitimate import path per feature per
+runtime, so a deep path in a diff is visible on sight.
+
+**Revisit when** a third feature needs a server side, or when a route needs
+something two features both own. Either would be the moment to ask whether
+`api/` should have a shared module of its own rather than importing several
+feature doors -- `api/projects.mjs` already carries four helpers copied from
+`api/conversations.mjs` for want of one.
