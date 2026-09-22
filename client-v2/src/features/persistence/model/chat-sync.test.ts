@@ -1,3 +1,5 @@
+import { v4 as uuid } from "uuid";
+
 import { PgChatStorage } from "./chat-storage";
 import { paramsOfThread, PgChatSync } from "./chat-sync";
 import { PgSyncClient } from "./sync-client";
@@ -9,16 +11,34 @@ import type {
   ChatItem,
 } from "../../../views/sidebar/assistant/store";
 
+/**
+ * A minted id, but the same one every time a key is asked for.
+ *
+ * The merge test writes `item(2)` locally and has the server answer with
+ * `item(2)` as well, and proves the pull does not duplicate it -- which only
+ * means anything while the two share an id. So the ids are real uuids rather
+ * than hand-written strings, and stable rather than fresh per call.
+ */
+const minted = new Map<string, string>();
+const idOf = (key: string): string => {
+  const known = minted.get(key);
+  if (known) return known;
+
+  const fresh = uuid();
+  minted.set(key, fresh);
+  return fresh;
+};
+
 const item = (n: number): ChatItem => ({
   kind: "user",
-  id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+  id: idOf(`item:${n}`),
   createdAt: new Date(n * 1000).toISOString(),
   text: `m${n}`,
 });
 
 const reply = (n: number, origin?: BackendParams): ChatItem => ({
   kind: "assistant",
-  id: `00000000-0000-4000-8000-${String(900 + n).padStart(12, "0")}`,
+  id: idOf(`reply:${n}`),
   createdAt: new Date(n * 1000).toISOString(),
   text: `r${n}`,
   ...(origin ? { origin } : {}),
@@ -28,22 +48,38 @@ const reply = (n: number, origin?: BackendParams): ChatItem => ({
 const signedIn = () =>
   PgSession.refreshWith({ id: "u1", name: null, image: null, login: null });
 
+/**
+ * The spy standing in for `fetch`, reinstalled for each test.
+ *
+ * `jest.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
+ * puts the global back afterwards, so a stub one test installed cannot answer
+ * the next one's request. The stand-in it replaces comes from
+ * `setupTests.ts`, because jsdom has no `fetch` of its own to spy on.
+ */
+let fetchMock: jest.Mock;
+
+beforeEach(() => {
+  fetchMock = jest.spyOn(globalThis, "fetch") as unknown as jest.Mock;
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 /** `/api/sync` says yes; everything else is the caller's to describe */
 const respondingWith = (rest: (url: string) => unknown) =>
-  jest.fn().mockImplementation((url: string) =>
+  fetchMock.mockImplementation((url: string) =>
     url === "/api/sync"
       ? Promise.resolve({
           ok: true,
           json: async () => ({ enabled: true, db: "ok" }),
         })
       : rest(url)
-  ) as unknown as typeof fetch;
+  );
 
 /** The body of the one POST that was made */
 const postedBody = () => {
-  const call = (global.fetch as jest.Mock).mock.calls.find(
-    ([, init]) => init?.method === "POST"
-  );
+  const call = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
   return JSON.parse(call![1].body);
 };
 
@@ -60,16 +96,15 @@ describe("PgChatSync", () => {
   });
 
   it("does nothing when signed out", async () => {
-    global.fetch = jest.fn() as unknown as typeof fetch;
     await PgChatStorage.write(threadId, [item(1)]);
 
     await PgChatSync.push(threadId);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("posts the local thread when signed in", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
     );
     await signedIn();
@@ -77,14 +112,14 @@ describe("PgChatSync", () => {
 
     await PgChatSync.push(threadId);
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       "/api/conversations",
       expect.objectContaining({ method: "POST" })
     );
   });
 
   it("names the thread and its workspace, so the server can key both", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
     );
     await signedIn();
@@ -96,7 +131,7 @@ describe("PgChatSync", () => {
   });
 
   it("sends the backend the thread was created with", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
     );
     await signedIn();
@@ -119,7 +154,7 @@ describe("PgChatSync", () => {
   });
 
   it("never sends the API key, under any name", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
     );
     await signedIn();
@@ -138,21 +173,20 @@ describe("PgChatSync", () => {
   });
 
   it("refuses to push a thread the index cannot place", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
     );
     await signedIn();
-    await PgChatStorage.write("00000000-0000-4000-8000-00000000ffff", [
-      item(1),
-    ]);
+    const unknown = uuid();
+    await PgChatStorage.write(unknown, [item(1)]);
 
-    const ok = await PgChatSync.push("00000000-0000-4000-8000-00000000ffff");
+    const ok = await PgChatSync.push(unknown);
 
     expect(ok).toBe(false);
   });
 
   it("keeps the local thread when the push fails, so nothing is lost", async () => {
-    global.fetch = respondingWith(() => Promise.reject(new Error("offline")));
+    respondingWith(() => Promise.reject(new Error("offline")));
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
@@ -163,7 +197,7 @@ describe("PgChatSync", () => {
   });
 
   it("merges the server thread with local items on pull, without duplicates", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({
         ok: true,
         json: async () => ({ items: [item(1), item(2)] }),
@@ -182,21 +216,21 @@ describe("PgChatSync", () => {
   });
 
   it("pulls by thread id, not by workspace", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ items: [] }) })
     );
     await signedIn();
 
     await PgChatSync.pull(threadId);
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       `/api/conversations?threadId=${threadId}`,
       expect.anything()
     );
   });
 
   it("treats a thread the server has never seen as nothing to merge", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: false, status: 404, json: async () => ({}) })
     );
     await signedIn();
@@ -210,7 +244,7 @@ describe("PgChatSync", () => {
   });
 
   it("leaves the local thread alone when the server cannot be reached", async () => {
-    global.fetch = respondingWith(() => Promise.reject(new Error("offline")));
+    respondingWith(() => Promise.reject(new Error("offline")));
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
@@ -219,19 +253,19 @@ describe("PgChatSync", () => {
   });
 
   it("stays local when the deployment has no database", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    fetchMock.mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve({
             ok: true,
             json: async () => ({ enabled: false, db: "unconfigured" }),
           })
         : Promise.reject(new Error("should not be called"))
-    ) as unknown as typeof fetch;
+    );
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
     expect(await PgChatSync.push(threadId)).toBe(false);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -255,10 +289,8 @@ describe("handing conversations over at sign-out", () => {
     threadId = await PgThreadIndex.ensure("w1");
   });
 
-  afterEach(() => jest.restoreAllMocks());
-
   it("clears local threads once the server has them", async () => {
-    global.fetch = accepted();
+    accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
@@ -268,7 +300,7 @@ describe("handing conversations over at sign-out", () => {
   });
 
   it("keeps them when a push failed", async () => {
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
     );
     await signedIn();
@@ -287,22 +319,20 @@ describe("handing conversations over at sign-out", () => {
     // it: the failed thread is kept either way.
     const second = await PgThreadIndex.ensure("w2");
     const third = await PgThreadIndex.ensure("w3");
-    global.fetch = jest
-      .fn()
-      .mockImplementation((url: string, init?: RequestInit) => {
-        if (url === "/api/sync") {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ enabled: true, db: "ok" }),
-          });
-        }
-        const body = JSON.parse(String(init?.body));
-        return Promise.resolve(
-          body.threadId === second
-            ? { ok: false, status: 500, json: async () => ({}) }
-            : { ok: true, json: async () => ({ written: 1 }) }
-        );
-      }) as unknown as typeof fetch;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/sync") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ enabled: true, db: "ok" }),
+        });
+      }
+      const body = JSON.parse(String(init?.body));
+      return Promise.resolve(
+        body.threadId === second
+          ? { ok: false, status: 500, json: async () => ({}) }
+          : { ok: true, json: async () => ({ written: 1 }) }
+      );
+    });
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
     await PgChatStorage.write(second, [item(2)]);
@@ -318,7 +348,7 @@ describe("handing conversations over at sign-out", () => {
     // `[].every(Boolean)` is `true`. An enumeration that failed used to answer
     // the same as an account with no conversations, and sign-out deleted every
     // thread on the device having uploaded none of them.
-    global.fetch = accepted();
+    accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
     jest.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
@@ -333,20 +363,20 @@ describe("handing conversations over at sign-out", () => {
     // Same shape one level down: an unreadable thread read as an empty one,
     // and `push` reported success for a thread the server never saw -- which
     // is what then let `handOver` delete the one file worth recovering
-    global.fetch = accepted();
+    accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
     mockFiles.set(`/.config/chats/${threadId}.json`, "{ not json");
 
     expect(await PgChatSync.push(threadId)).toBe(false);
-    expect(global.fetch).not.toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/conversations",
       expect.anything()
     );
   });
 
   it("still reports a genuinely empty thread as handed over", async () => {
-    global.fetch = accepted();
+    accepted();
     await signedIn();
 
     expect(await PgChatSync.push(await PgThreadIndex.ensure("w9"))).toBe(true);
@@ -372,7 +402,7 @@ describe("pulling a thread that cannot be read locally", () => {
     // local read answering `[]` for a file it could not parse, that write
     // replaces a recoverable file with the server's copy alone -- destroying
     // exactly the messages that had not been uploaded.
-    global.fetch = respondingWith(() =>
+    respondingWith(() =>
       Promise.resolve({
         ok: true,
         json: async () => ({ items: [] }),

@@ -28,3 +28,18 @@ if (!globalThis.TextEncoder) {
 jest.mock("./utils/explorer/fs", () =>
   require("./test-utils/mock-fs").mockFsModule()
 );
+
+// jsdom ships no `fetch` either. Tests install their own with `jest.spyOn`,
+// which needs something already on the global to replace, so the stand-in is
+// a function that throws: a test that reaches the network without saying what
+// it expects back is a bug, and this is how it says so rather than hanging.
+// `writable` keeps the older tests that assign `global.fetch` working.
+if (!globalThis.fetch) {
+  Object.defineProperty(globalThis, "fetch", {
+    value: () => {
+      throw new Error("fetch is not stubbed in this test");
+    },
+    configurable: true,
+    writable: true,
+  });
+}
