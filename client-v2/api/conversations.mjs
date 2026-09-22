@@ -4,6 +4,8 @@
  * Deliberately plain ESM using raw Node request/response APIs, like the rest
  * of `api/` -- see `api/health.mjs` for why.
  */
+import { validate as isUuid } from "uuid";
+
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   appendMessages,
@@ -49,17 +51,20 @@ const PARAM_KEYS = new Set(["provider", "model", "baseUrl", "effort"]);
 
 /**
  * The layout Postgres accepts for a `uuid`, which `appendMessages` casts every
- * item id to, and which a `threadId` must also satisfy.
+ * item id to.
  *
  * Hex groups only, with no attempt to pin the version or variant nibbles --
- * deliberately looser than `crypto.randomUUID`'s output. The job here is to
- * keep a cast from throwing, not to police how an id was minted: a v7 id, or
- * one carried over from an older client, casts perfectly well, and rejecting
- * it would drop a message the database would have taken. Postgres also accepts
- * a braced or unhyphenated form; we mint our own ids and never write those, so
- * nothing is lost by not matching them.
+ * deliberately looser than `uuid`'s own `validate`, which is why this is not
+ * that. The job here is to keep a cast from throwing, not to police how an id
+ * was minted: a v7 id, or one carried over from an older client, casts
+ * perfectly well, and rejecting it would drop a message the database would
+ * have taken. Postgres also accepts a braced or unhyphenated form; we mint our
+ * own ids and never write those, so nothing is lost by not matching them.
+ *
+ * A `threadId` is the other question and gets the other check: that one is
+ * always ours, always a v4, and `isUuid` is right for it.
  */
-const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const CASTABLE_UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 /**
  * Whether one item is something the insert can be handed.
@@ -76,7 +81,7 @@ const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 export const isValidItem = (i) =>
   !!i &&
   typeof i.id === "string" &&
-  UUID.test(i.id) &&
+  CASTABLE_UUID.test(i.id) &&
   typeof i.createdAt === "string" &&
   !Number.isNaN(Date.parse(i.createdAt)) &&
   KINDS.has(i.kind);
@@ -203,7 +208,7 @@ export default async function handler(req, res) {
 
       // One thread with its messages
       if (threadId) {
-        if (!UUID.test(threadId)) {
+        if (!isUuid(threadId)) {
           return sendJson(res, 400, { error: "threadId must be a uuid" });
         }
         const thread = await getThread(user.id, threadId);
@@ -235,7 +240,7 @@ export default async function handler(req, res) {
       if (read.error) return sendJson(res, 400, { error: "Body must be JSON" });
 
       const { threadId, projectId, title, params, items } = read.body;
-      if (typeof threadId !== "string" || !UUID.test(threadId)) {
+      if (typeof threadId !== "string" || !isUuid(threadId)) {
         return sendJson(res, 400, { error: "threadId must be a uuid" });
       }
       if (typeof projectId !== "string" || !projectId) {

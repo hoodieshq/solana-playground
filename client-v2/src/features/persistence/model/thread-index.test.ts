@@ -1,3 +1,5 @@
+import { validate as isUuid } from "uuid";
+
 import { PgChatStorage } from "./chat-storage";
 import { PgThreadIndex } from "./thread-index";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -5,8 +7,6 @@ import type { ChatItem } from "../../../views/sidebar/assistant/store";
 
 /** The mock's own store, for asserting on what is on disk */
 const mockFiles = (PgFs as unknown as { __files: Map<string, string> }).__files;
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const item = (n: number): ChatItem => ({
   kind: "user",
@@ -29,7 +29,7 @@ describe("PgThreadIndex", () => {
   it("mints a thread for a workspace that has never had one", async () => {
     const id = await PgThreadIndex.ensure("w1");
 
-    expect(id).toMatch(UUID);
+    expect(isUuid(id)).toBe(true);
   });
 
   it("returns the same thread on every later call", async () => {
@@ -73,7 +73,7 @@ describe("PgThreadIndex", () => {
 
       const id = await PgThreadIndex.ensure("tut:hello-anchor");
 
-      expect(id).toMatch(UUID);
+      expect(isUuid(id)).toBe(true);
       expect(await PgChatStorage.read(id)).toEqual([item(1), item(2)]);
     });
 
@@ -118,7 +118,7 @@ describe("PgThreadIndex", () => {
 
     const id = await PgThreadIndex.ensure("w1");
 
-    expect(id).toMatch(UUID);
+    expect(isUuid(id)).toBe(true);
   });
 
   it("drops an index entry that is not a thread id", async () => {

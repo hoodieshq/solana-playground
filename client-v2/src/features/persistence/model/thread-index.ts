@@ -1,3 +1,5 @@
+import { validate as isUuid } from "uuid";
+
 import { report } from "./diagnostics";
 import { uuid } from "./ids";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -25,8 +27,6 @@ const SUFFIX = ".json";
 
 /** Workspace id -> the thread currently open on it */
 type Index = Record<string, string>;
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Whether an error just means "no such file".
@@ -173,7 +173,7 @@ export class PgThreadIndex {
       // must cost that entry, not every workspace's conversation
       return Object.fromEntries(
         Object.entries(parsed as Record<string, unknown>).filter(
-          ([, id]) => typeof id === "string" && UUID.test(id)
+          ([, id]) => typeof id === "string" && isUuid(id)
         )
       ) as Index;
     } catch (e) {
