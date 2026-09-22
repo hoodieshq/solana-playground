@@ -2,17 +2,21 @@ jest.mock("../../../utils", () => ({
   PgExplorer: {
     currentWorkspaceName: null,
     onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
+    fs: { exists: jest.fn(async () => false) },
   },
   PgProgramInfo: { idl: null },
   PgTutorial: { getStorage: jest.fn() },
+  PgView: { setToast: jest.fn() },
 }));
 
-import { INITIAL_LESSON_STATE, reduceLesson } from "./store";
+import { INITIAL_LESSON_STATE, PgLesson, reduceLesson } from "./store";
 import type { LessonState } from "./store";
 import { attempted, cursorStep, foldRecord, rung } from "./ledger";
+import { registerPaths } from "./registry";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import type { LessonPath } from "./types";
+import { PgExplorer, PgTutorial, PgView } from "../../../utils";
 import type { Idl } from "@coral-xyz/anchor";
 
 const hints: [string, string, string] = ["a", "b", "c"];
@@ -252,5 +256,110 @@ describe("reduceLesson", () => {
       at: 2,
     });
     expect(next).toBe(INITIAL_LESSON_STATE);
+  });
+});
+
+describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
+  const PATH_B: LessonPath = {
+    tutorial: "Other Lesson",
+    steps: [
+      {
+        id: "b-one",
+        objective: "Define hello",
+        verifiedBy: "the interface shows hello",
+        verify: { kind: "idl", instruction: "hello" },
+        hints,
+      },
+    ],
+  };
+
+  // Stand-in for `.workspace/tutorial-storage.json`, one per workspace,
+  // with the semantics that caused the shipped leak: a missing file
+  // hands back the caller's default object itself (`readToJSONOrDefault`),
+  // and `setItem` mutates that object before writing it
+  const files = new Map<string, { lesson?: unknown }>();
+  const explorer = PgExplorer as unknown as {
+    currentWorkspaceName: string | null;
+    onDidSwitchWorkspace: jest.Mock;
+    fs: { exists: jest.Mock };
+  };
+  let onSwitch: () => void = () => {};
+
+  const flush = () => new Promise((resolve) => setTimeout(resolve));
+
+  // `beforeEach`, not `beforeAll`: CRA's jest config resets mock
+  // implementations before every test
+  beforeEach(() => {
+    registerPaths([PATH, PATH_B], [PATH.tutorial, PATH_B.tutorial]);
+    explorer.fs.exists.mockImplementation(async () =>
+      files.has(explorer.currentWorkspaceName as string)
+    );
+    explorer.onDidSwitchWorkspace.mockImplementation((cb: () => void) => {
+      onSwitch = cb;
+      return { dispose: jest.fn() };
+    });
+    (PgTutorial.getStorage as jest.Mock).mockImplementation(
+      (defaultValue: { lesson?: unknown }) => ({
+        getItem: async (key: "lesson") => {
+          const ws = explorer.currentWorkspaceName as string;
+          const data = files.get(ws) ?? defaultValue;
+          return data[key];
+        },
+        setItem: async (key: "lesson", value: unknown) => {
+          const ws = explorer.currentWorkspaceName as string;
+          const data = files.get(ws) ?? defaultValue;
+          data[key] = value;
+          files.set(ws, data);
+        },
+      })
+    );
+  });
+
+  it("says so when progress cannot be saved, and toasts once", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    (PgTutorial.getStorage as jest.Mock).mockImplementation(() => ({
+      getItem: async () => undefined,
+      setItem: async () => {
+        throw new Error("quota exceeded");
+      },
+    }));
+    explorer.currentWorkspaceName = PATH.tutorial;
+    const sub = PgLesson.init();
+    await flush();
+
+    PgLesson.opened("one");
+    await flush();
+    PgLesson.opened("two");
+    await flush();
+
+    // Every failed write is in the console; the learner is told once
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/could not be saved/),
+      expect.objectContaining({ message: "quota exceeded" })
+    );
+    expect(warn.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(PgView.setToast).toHaveBeenCalledTimes(1);
+    sub.dispose();
+    warn.mockRestore();
+  });
+
+  it("does not leak one lesson's record into the next workspace's load", async () => {
+    explorer.currentWorkspaceName = PATH.tutorial;
+    const sub = PgLesson.init();
+    await flush();
+    expect(PgLesson.state.path?.tutorial).toBe(PATH.tutorial);
+    expect(PgLesson.state.loadFailed).toBe(false);
+    PgLesson.opened("one");
+    await flush();
+    expect(files.get(PATH.tutorial)).toBeDefined();
+
+    explorer.currentWorkspaceName = PATH_B.tutorial;
+    onSwitch();
+    await flush();
+
+    expect(PgLesson.state.path?.tutorial).toBe(PATH_B.tutorial);
+    expect(PgLesson.state.loadFailed).toBe(false);
+    expect(PgLesson.state.record.events.map((e) => e.type)).toEqual(["enter"]);
+    sub.dispose();
   });
 });

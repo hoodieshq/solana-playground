@@ -20,7 +20,7 @@ import type { LessonPath } from "./types";
 import { graderClass, isSatisfied } from "./verify";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { PgExplorer, PgProgramInfo, PgTutorial } from "../../../utils";
+import { PgExplorer, PgProgramInfo, PgTutorial, PgView } from "../../../utils";
 import type { Disposable } from "../../../utils";
 
 export interface LessonState {
@@ -233,9 +233,16 @@ const onFrontier = (state: LessonState) => {
   return cursorStep(state.path, view);
 };
 
-const STORAGE_DEFAULT: { lesson: StoredLesson } = {
+/**
+ * A fresh wrapper per `getStorage` call: the storage's `setItem` mutates
+ * the default it was handed (`readToJSONOrDefault` returns it by
+ * reference on a missing or unreadable file), so a shared object would
+ * leak one lesson's record into the next lesson's load and break the
+ * `loaded === EMPTY_STORED` failed-read check below.
+ */
+const storageDefault = (): { lesson: StoredLesson } => ({
   lesson: EMPTY_STORED,
-};
+});
 
 /**
  * Mirrors the private path inside `PgTutorial.getStorage`. Duplicated
@@ -353,7 +360,7 @@ export class PgLesson {
       let record = EMPTY_STORED;
       let loadFailed = false;
       try {
-        const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
+        const storage = PgTutorial.getStorage(storageDefault());
         const hasFile = await PgExplorer.fs.exists(STORAGE_PATH);
         const loaded: unknown = await storage.getItem("lesson");
         // `getItem` cannot actually throw -- `readToJSONOrDefault`
@@ -376,7 +383,8 @@ export class PgLesson {
           // Refusing to write is cheaper than being wrong about it.
           loadFailed = true;
         }
-      } catch {
+      } catch (e) {
+        console.error("lesson load failed", e);
         loadFailed = true;
       }
       PgLesson._dispatch({
@@ -451,14 +459,24 @@ export class PgLesson {
     if (PgExplorer.currentWorkspaceName !== tutorial) return;
 
     try {
-      const storage = PgTutorial.getStorage(STORAGE_DEFAULT);
+      const storage = PgTutorial.getStorage(storageDefault());
       await storage.setItem("lesson", record);
-    } catch {
-      // The in-memory record is still correct for this session; a
-      // reload loses its tail. An error toast mid-lesson costs more.
+    } catch (e) {
+      // The in-memory record is still correct for this session; a reload
+      // loses its tail. Every failure goes to the console, and the learner
+      // is told once -- a toast on every step would cost more than the
+      // steps it reports.
+      console.warn("Lesson progress could not be saved:", e);
+      if (!PgLesson._toldSaveFailed) {
+        PgLesson._toldSaveFailed = true;
+        const { default: SaveFailedToast } = await import("./SaveFailedToast");
+        PgView.setToast(SaveFailedToast);
+      }
     }
   }
 
+  /** Whether this session has already shown the save-failure toast */
+  private static _toldSaveFailed = false;
   private static _state: LessonState = INITIAL_LESSON_STATE;
   private static _view: LessonView | null = null;
   private static _viewOf: LessonState | null = null;
