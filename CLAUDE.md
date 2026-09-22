@@ -203,6 +203,14 @@ Commits: present tense, no prefix for client changes (`"Add feature"`), location
 prefix for others (`"server: Add feature"`). Prefer small, reviewable commits —
 this branch will be demoed and read by others.
 
+### Tests
+
+- **A test states the contract, not the bug it came from.** Name it and
+  write its header as what the code guarantees ("refuses a body that is
+  not a JSON object"), not as history ("answers 400, not 500", "M3 from
+  the #13 review"); the history belongs in the commit message. Sergey's
+  review of PR #25.
+
 ## Pull requests
 
 **Every PR description opens with a link to its Linear ticket** — the
