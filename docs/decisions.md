@@ -2019,11 +2019,13 @@ sync rather than rediscovered.
 follow the environment the way upstream's does, and the proxy's
 allowlist has to learn the three prefixed routes.
 
-## D38 - The package bundler is ported, not developed, and stays off
+## D38 - The package bundler is not ported
 
-**Date:** 2026-09-09 (the tech lead's thread), recorded 2026-09-21 -
-**Status:** decided (Sergey, Slava), implemented by omission in PR #27
-(`feat/upstream-demo-path`)
+**Date:** 2026-09-09 (the tech lead's thread), recorded 2026-09-21,
+**amended 2026-09-23** -
+**Status:** decided (Sergey, Slava), implemented in PR #27
+(`feat/upstream-demo-path`). The first reading below -- port the
+command, develop nothing -- is superseded by the amendment at the end.
 
 PR #27 brings `pm install` into `client-v2` along with the rest of the
 demo-path port. Sergey asked what the command is for, and then made
@@ -2090,7 +2092,25 @@ content change, not the bundler.
 or, one day, ours. Then the isolation above is reviewed first, the
 switch second, and only then the command.
 
-**Recorded** against B1 in `docs/upstream-divergences.md`.
+**Recorded** against B1 and B15 in `docs/upstream-divergences.md`.
+
+**Amended 2026-09-23: the bundler is cut, not kept.** Reviewing
+PR #27, Sergey: *"what bothers me in the description is `pm install`
+... I would remove this part from the PR, it does not look needed"*.
+That is the option rejected above, now asked for by the reviewer, and
+Slava agreed. The cut is the whole bundle chain, not the command
+alone: `pm install` was the only caller of `PgJsPackage.install()`,
+so keeping `PgJsPackage` without it would leave the package-import
+and Monaco-types branches reading a bundle nothing installs. Gone:
+`commands/package-manager/`, `utils/js-package.ts` and its test,
+`PgServer.bundle()`, and upstream's `formatSeconds` tweak that came
+with the command. The runtime's package imports and Monaco's package
+types always take the static path now, switch on or off -- which is
+what they already did with it off. `PgServer.packages()` and
+`.types()` are deleted all the same, because the server routes they
+called are gone. The cost the rejection named is now paid: B15 is a
+divergence to carry, and every upstream commit on the bundler is
+skipped at sync.
 
 ---
 

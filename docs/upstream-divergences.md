@@ -45,6 +45,7 @@ row: what differs, why, the decision, and what to do on sync / release.
 | B12 | **`/api/*` handlers** (agent relay, MCP gateway, health; no build proxy -- D28 overturned) served by a craco middleware in dev and Vercel functions in prod; upstream has no API layer | The assistant's server side, without a backend of ours | D1, D12, D19, D20, D28, D36 | `craco.config.js`, `vercel.json`, `api/*.mjs` are ours entirely | `maxDuration` 300 (D36); env vars per `client-v2/.env.example` |
 | B13 | **`client-v2/public` is a gitignored mirror** of the `client/public` submodule, not a submodule | Submodules fight linked worktrees | PR #11; friction log 2026-09-04 | `make update-static` after every submodule bump in the primary checkout | The Docker profile and Vercel install script copy it |
 | B14 | **Projects and conversations persist in Postgres** for a signed-in user (Better Auth session, `/api/projects`, `/api/conversations`, `client-v2/db`); a conversation is a thread with its own id, recording the backend it was created with, and each reply records the backend that wrote it. Upstream has no account, no database and no assistant | Work survives a reload and follows the account across browsers (PR #29); HOO-1633 asks for the history to be identifiable by what produced it | PR #29; D39 (this round) | All new: `client-v2/api/*`, `src/features/auth`, `src/features/persistence`, `db/`. The touch points in pre-existing files are `views/sidebar/assistant/store.ts` and `effects/` -- both fork-only | Needs `DATABASE_URL` and `SYNC_ENABLED`, and the migrations applied as a deploy step. Without them the client is exactly upstream's local-only behaviour; the probe at `/api/sync` is what ships it dark |
+| B15 | **No package bundler**: `/bundle`, `PgJsPackage` and `pm install` are not ported. The runtime's package imports and Monaco's package types always read the bundled packages and the static `/packages/*` files, with the `unstable` switch on or off; upstream reads the installed bundle when the switch is on | Sergey, PR #27 review 2026-09-22: `pm install` is not needed, and the bundler's server side has an undefined blast radius (D38) | D38, amended 2026-09-23 (PR #27) | Skip every upstream commit that touches `js-package.ts`, `commands/package-manager/` or `PgServer.bundle`; in `package-import-template.ts.raw` and `declarations/helper.ts` keep ours | none: no hosted server has `/bundle` |
 
 ## 2. Pre-existing upstream files the fork has edited
 
@@ -62,7 +63,8 @@ next sync**; the *Why* column says which side wins.
 | `Dockerfile`, `Makefile.vercel`, `.prettierignore` | static assets, docker profile (#11) | ours |
 | `README.md`, `docs/deploy-client-vercel.md`, `src/tutorials/README.md` | fork docs | ours |
 | `scripts/generate-crates.mjs`, `scripts/utils.mjs` | worktree-aware paths (#5) | ours |
-| `scripts/package-import-template.ts.raw` | port of `fdbf8040` + `876fa552` (PR #27) | identical to upstream at `876fa552` |
+| `scripts/package-import-template.ts.raw` | always the bundled packages, no `PgJsPackage` branch (PR #27, B15) | ours |
+| `scripts/generate-packages.mjs` | two spaces less on the generated `case` lines, which lost their `if` (PR #27, B15) | ours; re-apply if upstream touches the line |
 | `src/app/Panels/Panels.tsx` | Flow as the default layout (D17) | ours |
 | `src/commands/airdrop/airdrop.ts`, `src/components/Wallet/hooks/useAirdrop.tsx`, `src/effects/automatic-airdrop/automatic-airdrop.tsx` | airdrop behind sign-in (#9, D21) | ours |
 | `src/commands/build/build.ts` | raw stderr capture (D4); **warm upstream file** | take upstream, re-apply the delegating lines |
@@ -71,7 +73,7 @@ next sync**; the *Why* column says which side wins.
 | `src/components/Button/Default.tsx` | tutorials scenario (#19) | ours |
 | `src/components/CodeBlock/highlight.ts` | Flow visual parity (#10) | ours |
 | `src/components/Editor/Monaco/Monaco.tsx` | theme layer (D9) | merge |
-| `src/components/Editor/Monaco/languages/typescript/declarations/helper.ts` | port of `21f8645b` + `876fa552` (PR #27) | identical to upstream at `876fa552` |
+| `src/components/Editor/Monaco/languages/typescript/declarations/helper.ts` | always the static type files, no `PgJsPackage` branch (PR #27, B15) | ours |
 | `src/constants/connection.ts`, `src/settings/connection/connection.ts`, `src/utils/connection.ts` | platform RPC (#16, B9) | ours; watch upstream `1d906604` |
 | `src/frameworks/anchor/anchor.ts`, `src/utils/github.ts` | Trees API import (D22) | ours |
 | `src/hooks/useOnClickOutside.tsx` | header cluster toggle (#16) | merge |
@@ -79,13 +81,12 @@ next sync**; the *Why* column says which side wins.
 | `src/routes/common.tsx`, `src/routes/tutorials/tutorials.tsx` | assistant as landing (D15), tutorial race (D16) | ours |
 | `src/routes/share/share.tsx` | Flow visual parity (#10) | merge |
 | `src/settings/server/server.ts` | picker + proxy default (D28, D30; PR #22) | ours |
-| `src/utils/common.ts` | tutorials (#19); port of `8f4d7567` (PR #27); **hot** | merge; upstream's `formatSeconds` line is already ours |
+| `src/utils/common.ts` | tutorials (#19); **hot** | merge; upstream's `formatSeconds` line (`8f4d7567`) is not ours -- it came with `pm install` (B15) |
 | `src/utils/explorer/explorer.ts` | workspace events (#19); port of `346adeae`/`837732bc` (PR #27) | merge |
 | `src/utils/explorer/fs.ts` | port of `837732bc` (PR #27) | identical to upstream at `57479351` |
-| `src/utils/index.ts` | exports `js-package` (PR #27); not the `wasm-package` rename yet | merge on the rename |
 | `src/utils/keybind.ts` | cmd+B (#15), tutorials (#19) | ours |
 | `src/utils/program-info.ts` | port of `346adeae` (PR #27); **hot** | identical to upstream at `57479351` |
-| `src/utils/server.ts` | port of bundle + unstable (PR #27); flag reads the setting | identical to upstream at `876fa552` |
+| `src/utils/server.ts` | unstable routes ported, `bundle()` not (PR #27, B15); flag reads the setting | take upstream, delete `bundle()` and `BundleRequest` |
 | `src/utils/tutorial/tutorial.ts` | port of `346adeae` (PR #27) | identical to upstream at `57479351` |
 | `src/utils/wallet/wallet.ts` | GitHub identity (D21); port of `ef8ba918` (PR #27); **hot** | merge |
 | `src/utils/web3/bpf-loader-upgradeable.ts` | port of `4e7a933b` (PR #27) | identical to upstream at `57479351` |
@@ -123,7 +124,7 @@ Deleted relative to upstream: `public` (the submodule; B13).
 | `1d906604` | 09-01 | Set `connection.endpoint` default to localnet in non-prod | **conflicts with B9** |
 | `1648e117` | 09-02 | Fix infinite loop due to the override of the default workspaces value | `explorer.ts`, ours-merged |
 | `e3a221b1` | 09-04 | Fix being unable to pass `PgExplorer.getRelativePath` as a callback | safe |
-| `da2528b4` | 09-05 | Cache package import `Blob` URLs in `PgJsPackage` | take with the next sync; `js-package.ts` is verbatim upstream |
+| `da2528b4` | 09-05 | Cache package import `Blob` URLs in `PgJsPackage` | skip: `js-package.ts` is not ported (B15) |
 | `2519b9cf` | 09-06 | Fix method name inconsistencies | rename sweep; check the assistant bridge |
 | `876fa552` | 09-07 | Add `experimental.unstable` setting | **ported whole in PR #27** (setting, `server.ts`, template, `helper.ts`, `ProgramSettings.tsx`); only the `default` differs (B1) |
 
