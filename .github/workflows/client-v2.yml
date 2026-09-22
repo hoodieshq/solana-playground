@@ -122,8 +122,9 @@ jobs:
       - name: Unit tests
         run: yarn test-unit
 
-      # `node --test`, not CRA's Jest: the `api/` and `**/server/` modules are
-      # plain ESM outside the TypeScript build and need real Node.
+      # `node --test`, not CRA's Jest: `api/*.mjs` and the `.mjs` modules
+      # behind each feature's `server.mjs` are plain ESM outside the
+      # TypeScript build and need real Node.
       - name: API tests
         run: yarn test-api
 

@@ -13,7 +13,7 @@
  */
 import { toNodeHandler } from "better-auth/node";
 
-import { getAuth, missingConfig } from "../src/features/auth/server/auth.mjs";
+import { getAuth, missingConfig } from "../src/features/auth/server.mjs";
 
 /**
  * Put the requested path back on the request.

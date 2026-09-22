@@ -83,7 +83,7 @@ migrate-parent-db: vercel-link-preview ## Apply pending migrations to the shared
 	@command -v dbmate >/dev/null 2>&1 || { echo "dbmate required — see $(CLIENT_DIR)/db/README.md" >&2; exit 1; }
 	@# DATABASE_URL is the PgBouncer endpoint and carries `channel_binding`, which
 	@# dbmate's driver cannot parse. The unpooled URL is direct and still carries
-	@# the `sslmode` that both dbmate and src/features/persistence/server/db.mjs
+	@# the `sslmode` that both dbmate and src/features/persistence/model/db.mjs
 	@# require. An inline DATABASE_URL wins over client-v2/.env, so the local
 	@# database is never the one that gets migrated here.
 	@url=$$(grep -m1 '^DATABASE_URL_UNPOOLED=' .vercel/.env.preview.local 2>/dev/null | cut -d= -f2- | tr -d '"'); \

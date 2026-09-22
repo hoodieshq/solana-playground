@@ -4,18 +4,15 @@
  * Deliberately plain ESM using raw Node request/response APIs, like the rest
  * of `api/` -- see `api/health.mjs` for why.
  */
-import {
-  requireUser,
-  resolveBaseURL,
-} from "../src/features/auth/server/auth.mjs";
+import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   appendMessages,
   getThread,
+  isEnabled,
   listMessages,
   listThreads,
   NotYours,
-} from "../src/features/persistence/server/conversations.mjs";
-import { isEnabled } from "../src/features/persistence/server/db.mjs";
+} from "../src/features/persistence/server.mjs";
 
 /** Anything larger is not a conversation batch, it is an attack or a bug */
 const MAX_BODY_BYTES = 2_000_000;

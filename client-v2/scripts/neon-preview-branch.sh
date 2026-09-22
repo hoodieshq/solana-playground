@@ -15,7 +15,7 @@
 # migrations, which need a direct connection rather than the PgBouncer endpoint.
 #
 # `--ssl require` is explicit: dbmate refuses a URL that names no sslmode, and
-# src/features/persistence/server/db.mjs would otherwise be free to connect in
+# src/features/persistence/model/db.mjs would otherwise be free to connect in
 # the clear.
 set -e
 

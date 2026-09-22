@@ -12,7 +12,7 @@ import {
   isConfigured,
   isEnabled,
   query,
-} from "../src/features/persistence/server/db.mjs";
+} from "../src/features/persistence/server.mjs";
 
 const sendJson = (res, status, body) => {
   res.statusCode = status;

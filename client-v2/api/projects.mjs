@@ -9,17 +9,14 @@
  * reasoning that would be worth sharing is written down here once and pointed
  * at from there.
  */
-import {
-  requireUser,
-  resolveBaseURL,
-} from "../src/features/auth/server/auth.mjs";
-import { isEnabled } from "../src/features/persistence/server/db.mjs";
+import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   deleteProject,
   getProject,
+  isEnabled,
   listProjects,
   saveProject,
-} from "../src/features/persistence/server/projects.mjs";
+} from "../src/features/persistence/server.mjs";
 
 /**
  * A workspace larger than this is not something we sync silently.
