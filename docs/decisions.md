@@ -2259,3 +2259,57 @@ something two features both own. Either would be the moment to ask whether
 `api/` should have a shared module of its own rather than importing several
 feature doors -- `api/projects.mjs` already carries four helpers copied from
 `api/conversations.mjs` for want of one.
+
+---
+
+## D47 - An endpoint we provide is stored as the option picked, not its address
+
+**Date:** 2026-09-23 - **Status:** decided (Sergey, Slava), implemented in
+PR #31 (HOO-1688, `78740741`)
+
+Sergey blocked PR #31 on its first review: *"We could not do this change
+until we remove the feature to store endpoints within LocalStorage."*
+Settings are written to `localStorage` as one object on any change
+(`utils/decorators/updatable.ts`), so a profile that ever changed
+anything held `connection.endpoint` and `server.endpoint` as the addresses
+they had then. A platform RPC key rotated in the env, or a build server
+moved, never reached it, and a leaked key kept being used from every
+browser that had stored it.
+
+**Chosen (Sergey's reading, 2026-09-22): persist the option, resolve the
+address.** An address we provide goes into storage as its option's key --
+`devnet`, `devnet-platform`, `foundation`, `configured` for
+`REACT_APP_SERVER_URL` -- and reads back as whatever the env provides now.
+A key whose option is gone reads as the setting's default. A custom
+address is stored as `{ option: "custom", url }` and never touched or
+migrated, since it may carry the user's own API token. Nothing is
+migrated: the new client starts on a fresh origin, so no profile carries
+old settings; a plain string still found (development profiles on
+`localhost:3000`) reads as custom.
+
+The conversion is `settings/stored-endpoint.ts`, called from the settings
+storage in `utils/settings.ts` -- two lines in a pre-existing upstream
+file (B16). The eight readers of these settings, several in hot upstream
+files, still see URLs and are unchanged.
+
+**Rejected: stop persisting the endpoint at all.** The picker would
+forget a choice on every reload.
+
+**Rejected: a one-off migration from `localhost:8080` to the new
+default.** It fixes one stale value and leaves the mechanism that made it
+stale; the next rotated key would need another.
+
+**Rejected here, raised separately: moving settings out of the origin
+project code can reach.** Shared project code runs same-origin
+(`utils/js-runtime`), so it can rewrite a stored custom endpoint. True
+upstream as well. The larger case is the built-in wallet's secret key in
+`localStorage['wallet']`, reported to Sergey on PR #31 as the one item
+worth its own ticket.
+
+**Other settings stay as they are** (Sergey): styles and selected options
+-- theme, font, commitment, automatic airdrop -- are options already, and
+keep `localStorage` plus the existing migration layer.
+
+**Revisit when** another setting starts holding an address we provide;
+it joins `ENDPOINT_SETTINGS` and gets keyed options, or it will go stale
+the same way.
