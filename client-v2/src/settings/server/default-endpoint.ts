@@ -39,10 +39,10 @@ export const SERVER_ENDPOINT_OPTIONS: ReadonlyArray<{
  * `||` not `??`: sourcing an env file leaves unfilled keys as "", which is
  * not nullish and would win.
  *
- * This decides the default only. A value already in `localStorage` is read
- * before defaults are applied (`utils/decorators/updatable.ts`), so a
- * profile that has stored an endpoint keeps it and the environment
- * variable does not reach it -- change it in Settings instead.
+ * This decides the default only. A profile stores the option it picked,
+ * not the address (`settings/stored-endpoint.ts`): one on this default
+ * follows `REACT_APP_SERVER_URL` when it changes, and one that picked
+ * another option keeps that option.
  */
 export const defaultServerEndpoint = (env: {
   REACT_APP_SERVER_URL?: string;

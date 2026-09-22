@@ -1,4 +1,8 @@
 import { declareDecorator, updatable } from "./decorators";
+import {
+  fromStoredEndpoints,
+  toStoredEndpoints,
+} from "../settings/stored-endpoint";
 import type {
   Arrayable,
   Disposable,
@@ -133,12 +137,13 @@ const storage = {
   read() {
     const stateStr = localStorage.getItem(this.KEY);
     if (!stateStr) return defaultState;
-    return JSON.parse(stateStr) as Settings;
+    // Endpoints are stored as the option picked, not its address
+    return fromStoredEndpoints(JSON.parse(stateStr), defaultState) as Settings;
   },
 
   /** Serialize the data and write to storage. */
   write(state: Settings) {
-    localStorage.setItem(this.KEY, JSON.stringify(state));
+    localStorage.setItem(this.KEY, JSON.stringify(toStoredEndpoints(state)));
   },
 };
 
