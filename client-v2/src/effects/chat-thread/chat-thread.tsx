@@ -1,10 +1,15 @@
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
+import { report } from "../../features/persistence/model/diagnostics";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
-import { PgExplorer } from "../../utils";
+// Deep import rather than the `utils` barrel, which reaches `settings.ts` and
+// a webpack-defined global jest has no answer for. Same workaround as the
+// other effects; here it is what makes this file testable at all.
+import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 
 /**
- * Keep the open conversation pointed at the current workspace.
+ * Keep the open conversation pointed at the current workspace, and get it to
+ * the server before the tab goes away.
  *
  * An app-level effect rather than something the assistant panel does, because
  * the panel is not always mounted -- it can be collapsed, or showing the
@@ -38,6 +43,74 @@ export const chatThread = (): Disposable => {
     }
   };
 
+  /**
+   * Whether anything has happened in the thread since it last reached the
+   * server.
+   *
+   * The whole thread is uploaded each time, and the server discards ids it
+   * already has, so a redundant push is harmless -- but it is a request per
+   * tab-switch for every user, so it is worth not making.
+   */
+  let pending = false;
+  const onChange = () => {
+    pending = true;
+  };
+
+  /**
+   * Hand the open thread over while the document is still alive.
+   *
+   * Project code has a debounced push *and* a reconcile that catches anything
+   * the push missed. Conversations have neither: the only push outside the
+   * sign-in and sign-out dumps is at the end of a turn, fire-and-forget, with
+   * the result discarded. A turn that ended while the network was down, or
+   * with the tab about to close, simply never reached the account -- and if
+   * the user next signs out on a different device, never does.
+   *
+   * `visibilitychange` rather than `beforeunload`, for the same reason the
+   * project flush uses it: the document is still alive here, so an ordinary
+   * fetch completes, and it is the only one of the two that fires reliably on
+   * mobile.
+   */
+  const flush = () => {
+    const id = PgAssistant.threadId;
+    if (!pending || !id) return;
+
+    pending = false;
+    void PgChatSync.push(id)
+      .then((ok) => {
+        // Put it back rather than swallowing it: the next hide tries again,
+        // which is the only retry conversations have
+        if (!ok) pending = true;
+      })
+      .catch((e) => {
+        pending = true;
+        report("flush thread", e);
+      });
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") flush();
+  };
+
   void open();
-  return PgExplorer.onDidSwitchWorkspace(() => void open());
+
+  const subscriptions = [
+    PgExplorer.onDidSwitchWorkspace(() => {
+      // The outgoing thread's, not the incoming one's
+      flush();
+      void open();
+    }),
+    PgAssistant.onDidChange(onChange),
+  ];
+
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("pagehide", flush);
+
+  return {
+    dispose: () => {
+      for (const sub of subscriptions) sub.dispose();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", flush);
+    },
+  };
 };

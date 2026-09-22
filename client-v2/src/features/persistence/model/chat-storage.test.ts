@@ -48,7 +48,7 @@ describe("PgChatStorage", () => {
 
     await PgChatStorage.write("t1", many);
 
-    const read = await PgChatStorage.read("t1");
+    const read = (await PgChatStorage.read("t1"))!;
     expect(read).toHaveLength(MAX_MESSAGES_PER_THREAD);
     expect(read[read.length - 1]).toEqual(many[many.length - 1]);
     expect(read[0]).toEqual(many[10]);
@@ -58,7 +58,7 @@ describe("PgChatStorage", () => {
     await PgChatStorage.write("t1", [item(1)]);
     await PgChatStorage.write("t2", [item(2)]);
 
-    expect((await PgChatStorage.threadIds()).sort()).toEqual(["t1", "t2"]);
+    expect((await PgChatStorage.threadIds())!.sort()).toEqual(["t1", "t2"]);
 
     await PgChatStorage.remove("t1");
 
@@ -67,10 +67,13 @@ describe("PgChatStorage", () => {
   });
 
   it("survives a hand-corrupted file rather than losing the panel", async () => {
+    // Still does not throw -- the panel keeps working. It answers `null`
+    // rather than `[]` so that callers which *delete* on "there is nothing
+    // here" can tell the two apart; the panel itself renders either as empty.
     await PgChatStorage.write("t1", [item(1)]);
     mockFiles.set("/.config/chats/t1.json", "{ not json");
 
-    expect(await PgChatStorage.read("t1")).toEqual([]);
+    await expect(PgChatStorage.read("t1")).resolves.toBeNull();
   });
 
   describe("failure reporting", () => {
@@ -84,12 +87,32 @@ describe("PgChatStorage", () => {
       expect(PgChatStorage.lastFailure).toBeNull();
     });
 
-    it("records a read that failed, rather than reporting an empty thread", async () => {
+    it("answers null for a read that failed, rather than an empty thread", async () => {
+      // The distinction the callers need: `[]` means "this conversation is
+      // empty", `null` means "this device could not tell you". Sign-out
+      // deletes local threads once they are safely uploaded, and the second
+      // answer read as the first is how it deletes one it never uploaded.
       await PgChatStorage.write("t1", [item(1)]);
       mockFiles.set("/.config/chats/t1.json", "{ not json");
 
-      expect(await PgChatStorage.read("t1")).toEqual([]);
+      expect(await PgChatStorage.read("t1")).toBeNull();
       expect(PgChatStorage.lastFailure?.what).toMatch(/read t1/);
+    });
+
+    it("answers null when the threads cannot be enumerated", async () => {
+      const spy = jest
+        .spyOn(PgFs, "readDir")
+        .mockRejectedValueOnce(new Error("quota"));
+
+      expect(await PgChatStorage.threadIds()).toBeNull();
+      expect(PgChatStorage.lastFailure?.what).toMatch(/list threads/);
+      spy.mockRestore();
+    });
+
+    it("still answers empty for a directory that is simply not there yet", async () => {
+      // The ordinary state before the first message is ever written
+      expect(await PgChatStorage.threadIds()).toEqual([]);
+      expect(PgChatStorage.lastFailure).toBeNull();
     });
 
     it("records a write that failed", async () => {
@@ -152,7 +175,7 @@ describe("PgChatStorage", () => {
 
     await PgChatStorage.write("t1", [approval]);
 
-    const [read] = await PgChatStorage.read("t1");
+    const [read] = (await PgChatStorage.read("t1"))!;
     if (read.kind !== "approval" || read.request.type !== "patch") {
       throw new Error("expected a stored patch approval");
     }

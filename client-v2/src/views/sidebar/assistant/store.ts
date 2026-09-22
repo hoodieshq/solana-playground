@@ -573,6 +573,7 @@ export class PgAssistant {
   static closeThread() {
     PgAssistant._denyPending();
     PgAssistant._threadId = null;
+    PgAssistant._readOnly = false;
     PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
@@ -605,7 +606,13 @@ export class PgAssistant {
     const items = await PgChatStorage.read(threadId);
     if (PgAssistant._threadId !== threadId) return;
 
-    PgAssistant._items = items;
+    // A thread that could not be read renders as empty -- there is nothing
+    // else the panel can show -- but it must not be *persisted* as empty. The
+    // next `_persist()` would write this back over a file that may still be
+    // recoverable, so the thread stays closed to writes until it reads
+    // cleanly. `__pgChatStorage.lastFailure` says why.
+    PgAssistant._items = items ?? [];
+    PgAssistant._readOnly = items === null;
     PgAssistant._emitOnly();
   }
 
@@ -647,6 +654,8 @@ export class PgAssistant {
   private static _pendingPrompt: PromptRequest | null = null;
 
   private static _threadId: string | null = null;
+  /** Set when the open thread failed to read, cleared when one reads cleanly */
+  private static _readOnly = false;
   private static _lastWrite: Promise<void> = Promise.resolve();
 
   /**
@@ -669,6 +678,11 @@ export class PgAssistant {
    */
   private static _persist() {
     if (!PgAssistant._threadId) return;
+    // The open thread could not be read, so what is in memory is not the
+    // thread -- it is the empty list the panel fell back to. Writing it back
+    // would replace a file that may still be recoverable by hand with
+    // nothing, which is the same mistake as reporting it uploaded.
+    if (PgAssistant._readOnly) return;
 
     // Chained rather than fired independently, so writes cannot land out of
     // order -- two quick messages must not race into the second overwriting

@@ -159,6 +159,33 @@ describe("PgAssistant threads", () => {
     expect(await PgChatStorage.read("t1")).toHaveLength(1);
   });
 
+  it("does not write back over a thread it could not read", async () => {
+    // The panel renders an unreadable thread as empty, because there is
+    // nothing else it can show -- but persisting that empty list would
+    // replace a file that may still be recoverable by hand with nothing.
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    const corrupt = "{ not json";
+    files.set("/.config/chats/t1.json", corrupt);
+
+    await PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("hi");
+    await settled();
+
+    expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
+  });
+
+  it("writes again once a thread reads cleanly", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    files.set("/.config/chats/t1.json", "{ not json");
+    await PgAssistant.loadThread("t1");
+
+    await PgAssistant.loadThread("t2");
+    PgAssistant.addUserMessage("hi");
+    await settled();
+
+    expect(await PgChatStorage.read("t2")).toHaveLength(1);
+  });
+
   it("loads a stored thread when switching to it", async () => {
     await PgAssistant.loadThread("t1");
     PgAssistant.addUserMessage("in one");

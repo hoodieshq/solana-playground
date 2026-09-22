@@ -2,6 +2,7 @@ import { PgChatStorage } from "./chat-storage";
 import { PgChatSync } from "./chat-sync";
 import { PgSyncClient } from "./sync-client";
 import { PgSession } from "../../auth";
+import { PgFs } from "../../../utils/explorer/fs";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 
 const item = (n: number): ChatItem => ({
@@ -110,5 +111,115 @@ describe("PgChatSync", () => {
 
     expect(await PgChatSync.push("t1")).toBe(false);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("handing conversations over at sign-out", () => {
+  const mockFiles = (PgFs as unknown as { __files: Map<string, string> })
+    .__files;
+
+  const accepted = () =>
+    respondingWith(() =>
+      Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
+    );
+
+  beforeEach(async () => {
+    await PgChatStorage.clear();
+    PgSession.reset();
+    PgSyncClient.reset();
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("clears local threads once the server has them", async () => {
+    global.fetch = accepted();
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.threadIds()).toEqual([]);
+  });
+
+  it("keeps them when a push failed", async () => {
+    global.fetch = respondingWith(() =>
+      Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+    );
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+  });
+
+  it("keeps them when the threads could not even be listed", async () => {
+    // `[].every(Boolean)` is `true`. An enumeration that failed used to answer
+    // the same as an account with no conversations, and sign-out deleted every
+    // thread on the device having uploaded none of them.
+    global.fetch = accepted();
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+    jest.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
+
+    expect(await PgChatSync.pushAll()).toBe(false);
+
+    jest.restoreAllMocks();
+    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+  });
+
+  it("does not report a thread it could not read as uploaded", async () => {
+    // Same shape one level down: an unreadable thread read as an empty one,
+    // and `push` reported success for a thread the server never saw -- which
+    // is what then let `handOver` delete the one file worth recovering
+    global.fetch = accepted();
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+    mockFiles.set("/.config/chats/t1.json", "{ not json");
+
+    expect(await PgChatSync.push("t1")).toBe(false);
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/conversations",
+      expect.anything()
+    );
+  });
+
+  it("still reports an genuinely empty thread as handed over", async () => {
+    global.fetch = accepted();
+    await signedIn();
+
+    expect(await PgChatSync.push("never-written")).toBe(true);
+  });
+});
+
+describe("pulling a thread that cannot be read locally", () => {
+  const mockFiles = (PgFs as unknown as { __files: Map<string, string> })
+    .__files;
+
+  beforeEach(async () => {
+    await PgChatStorage.clear();
+    PgSession.reset();
+    PgSyncClient.reset();
+  });
+
+  it("does not overwrite the local file with the server's half", async () => {
+    // `pull` merges local into server and writes the result back. With the
+    // local read answering `[]` for a file it could not parse, that write
+    // replaces a recoverable file with the server's copy alone -- destroying
+    // exactly the messages that had not been uploaded.
+    global.fetch = respondingWith(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => ({ items: [] }),
+      })
+    );
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+    const corrupt = "{ not json";
+    mockFiles.set("/.config/chats/t1.json", corrupt);
+
+    await PgChatSync.pull("t1");
+
+    expect(mockFiles.get("/.config/chats/t1.json")).toBe(corrupt);
   });
 });

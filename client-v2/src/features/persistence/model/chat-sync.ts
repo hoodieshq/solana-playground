@@ -62,7 +62,15 @@ export class PgChatSync {
         );
       }
 
-      const merged = merge(fromServer, await PgChatStorage.read(threadId));
+      const local = await PgChatStorage.read(threadId);
+      // Nothing is written back over a thread this device could not read. The
+      // merge is local-wins-by-id, so treating an unreadable file as empty
+      // would replace it with the server's half -- destroying exactly the
+      // messages that had not been uploaded yet. The server's copy is still
+      // returned, so the panel shows what the account has.
+      if (local === null) return fromServer;
+
+      const merged = merge(fromServer, local);
       await PgChatStorage.write(threadId, merged);
       return merged;
     } catch (e) {
@@ -76,6 +84,9 @@ export class PgChatSync {
     if (!(await PgChatSync._ready())) return false;
 
     const items = await PgChatStorage.read(threadId);
+    // "The thread is now on the server" is a claim, and the caller deletes on
+    // it. It cannot be made about a thread this device could not read.
+    if (items === null) return false;
     if (!items.length) return true;
 
     try {
@@ -107,6 +118,11 @@ export class PgChatSync {
     if (!(await PgChatSync._ready())) return false;
 
     const threadIds = await PgChatStorage.threadIds();
+    // Not `[].every(Boolean)`, which is `true`. Without this, a device that
+    // could not list its own threads reported that all of them had been
+    // handed over, and sign-out cleared the directory on that answer.
+    if (threadIds === null) return false;
+
     const results = await Promise.all(
       threadIds.map((id) => PgChatSync.push(id))
     );

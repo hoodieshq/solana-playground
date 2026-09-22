@@ -55,7 +55,17 @@ const threadIdOf = (fileName: string) =>
  * down with it.
  */
 export class PgChatStorage {
-  static async read(threadId: string): Promise<ChatItem[]> {
+  /**
+   * @returns the thread, `[]` when it has never been written, or **`null`**
+   * when this device could not tell you.
+   *
+   * The third answer is the point. Returning `[]` for a file that failed to
+   * read made "there is nothing here" and "I could not look" the same value,
+   * and sign-out deletes local threads on the strength of the first -- so an
+   * unreadable thread was reported as uploaded and then removed, which is the
+   * one case where the file was worth keeping by hand.
+   */
+  static async read(threadId: string): Promise<ChatItem[] | null> {
     try {
       const raw = await PgFs.readToString(pathOf(threadId));
       const stored = JSON.parse(raw);
@@ -75,8 +85,12 @@ export class PgChatStorage {
       }
       return items;
     } catch (e) {
-      if (!isMissing(e)) report(`read ${threadId}`, e);
-      return [];
+      // A thread that has never been written is the ordinary case -- every
+      // first read of every conversation -- and is genuinely empty
+      if (isMissing(e)) return [];
+
+      report(`read ${threadId}`, e);
+      return null;
     }
   }
 
@@ -105,14 +119,25 @@ export class PgChatStorage {
     }
   }
 
-  static async threadIds(): Promise<string[]> {
+  /**
+   * @returns every thread on this device, `[]` before the first one is
+   * written, or **`null`** when they could not be enumerated.
+   *
+   * Same distinction as `read`, and it mattered more here: `pushAll` reduced
+   * this with `.every(Boolean)`, and `[].every(Boolean)` is `true`. A failed
+   * enumeration therefore answered "all of them uploaded" and sign-out
+   * cleared the directory.
+   */
+  static async threadIds(): Promise<string[] | null> {
     try {
       const names = await PgFs.readDir(DIR);
       return names.filter((name) => name.endsWith(SUFFIX)).map(threadIdOf);
     } catch (e) {
       // No directory yet is the normal state before the first write
-      if (!isMissing(e)) report("list threads", e);
-      return [];
+      if (isMissing(e)) return [];
+
+      report("list threads", e);
+      return null;
     }
   }
 
