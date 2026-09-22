@@ -4,8 +4,8 @@ import {
   Disposable,
   JsRuntimePackageName,
   PgCommon,
-  PgServer,
 } from "../../../../../../utils";
+import type { TupleFiles } from "../../../../../../utils";
 
 /**
  * Some declaration files need to be declared for them to be referenced by other
@@ -110,22 +110,20 @@ export const declarePackage = async (
   };
 };
 
-/** Get type declarations. */
-// TODO: Remove this and inline `PgServer.types` once the feature stabilizes.
+/**
+ * Get type declarations from the static files `generate-packages` writes.
+ *
+ * Always these: the server's `types` route is gone, and its replacement
+ * (`/bundle`) is not ported (D38).
+ */
 const getTypes = async (
   packageName: JsRuntimePackageName
-): ReturnType<typeof PgServer["types"]> => {
-  if (process.env.NODE_ENV === "production") {
-    const files = await PgCommon.fetchJSON(
-      `/packages/${packageName}/types.json`
-    );
-    const dependencies = await PgCommon.fetchJSON(
-      `/packages/${packageName}/deps.json`
-    );
-    return { files, dependencies };
-  }
-
-  return await PgServer.types(packageName);
+): Promise<{ files: TupleFiles; dependencies: string[] }> => {
+  const files = await PgCommon.fetchJSON(`/packages/${packageName}/types.json`);
+  const dependencies = await PgCommon.fetchJSON(
+    `/packages/${packageName}/deps.json`
+  );
+  return { files, dependencies };
 };
 
 /** Declared package names cache */
