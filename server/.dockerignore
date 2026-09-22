@@ -3,7 +3,8 @@
 
 packages/*
 !packages/plugins
-!packages/webpack.base.config.js
+!packages/polyfills
+!packages/webpack.config.js
 programs/*
 !programs/default
 !programs/Cargo.*

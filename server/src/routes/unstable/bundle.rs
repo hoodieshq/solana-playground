@@ -23,18 +23,24 @@ pub struct BundleRequest {
     manifest: String,
     /// Lock file
     lock: Option<String>,
+    /// Package manager command to execute.
+    ///
+    /// The first element is assumed to be the package manager name.
+    ///
+    /// If `None`, defaults to installation-only.
+    command: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
 struct BundleResponse {
-    /// Bundle files
-    bundle: Files,
-    /// Type declaration files
-    types: Files,
     /// Package manifest (`package.json`)
     manifest: String,
     /// Lock file
     lock: String,
+    /// Bundle files
+    bundle: Files,
+    /// Type declaration files
+    types: Files,
 }
 
 /// Bundle state
@@ -83,6 +89,11 @@ pub async fn bundle(
         if let Some(lock) = &payload.lock {
             hasher.update(lock.as_bytes());
         }
+        if let Some(cmd) = &payload.command {
+            for token in cmd {
+                hasher.update(token.as_bytes());
+            }
+        }
         hasher.finalize()
     };
 
@@ -115,12 +126,14 @@ pub async fn bundle(
         let output = Sandbox::new()
             .image(get_image_name("bundle"))
             .user("solpg")
+            // TODO: Allow networking only during the installation step
+            .allow_networking()
             .limits(state.config.limits.sandbox)
             .copy(
                 format!("{}/.", temp_host_path.display()),
                 format!("container:{PACKAGES_DIR}"),
             )
-            .command(&Command::new("bundle"))
+            .command(Command::new("bundle").args(payload.command.unwrap_or_default()))
             .copy(
                 format!("container:{}/.", container_path.display()),
                 &temp_host_path,

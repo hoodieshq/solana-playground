@@ -22,7 +22,8 @@
 # Server
 server/packages/*
 !server/packages/plugins
-!server/packages/webpack.base.config.js
+!server/packages/polyfills
+!server/packages/webpack.config.js
 server/programs/*
 !server/programs/Cargo.*
 !server/programs/default

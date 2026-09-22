@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    env,
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
@@ -15,10 +16,27 @@ use solpg_server::{
 
 // TODO: Make the process output a single compressed archive with all the files in it
 fn main() -> Result<()> {
-    let manifest = install_packages()?;
+    let args = Args::from_env()?;
+    let manifest = handle_package_manager_command(&args)?;
     generate_bundle(&manifest)?;
     generate_types(&manifest)?;
     Ok(())
+}
+
+struct Args {
+    command: Vec<String>,
+}
+
+impl Args {
+    fn from_env() -> Result<Self> {
+        let mut args = env::args();
+        if args.next().is_none() {
+            return Err(anyhow!("Missing program"));
+        };
+
+        let command = args.collect();
+        Ok(Self { command })
+    }
 }
 
 /// `package.json` manifest
@@ -34,6 +52,8 @@ struct Manifest {
     peer_dependencies: Dependencies,
     #[serde(default)]
     optional_dependencies: Dependencies,
+    #[serde(default)]
+    main: Option<String>,
     #[serde(default)]
     types: Option<String>,
 }
@@ -54,15 +74,30 @@ impl Manifest {
 type Dependencies = HashMap<String, String>;
 
 /// Install packages.
-fn install_packages() -> Result<Manifest> {
-    let status = Command::new("yarn")
-        .current_dir(PACKAGES_DIR)
-        .arg("--ignore-scripts")
-        // TODO: Remove
-        .arg("--offline")
-        .status()?;
-    if !status.success() {
-        return Err(anyhow!("Failed to install"));
+fn handle_package_manager_command(args: &Args) -> Result<Manifest> {
+    match args.command.as_slice() {
+        [name, args @ ..] => match name.as_str() {
+            "yarn" => {
+                match args {
+                    [command, args @ ..] => match command.as_str() {
+                        "add" | "install" | "remove" | "upgrade" => run_yarn(
+                            command,
+                            args,
+                            match command.as_str() {
+                                "add" => &["--dev", "-D", "--peer", "-P", "--optional", "-O"],
+                                _ => &[],
+                            },
+                        )?,
+                        _ => return Err(anyhow!("Unsupported command: `{command}`")),
+                    },
+                    // Empty `yarn` defaults to install
+                    _ => run_yarn("install", &[], &[])?,
+                }
+            }
+            _ => return Err(anyhow!("Unsupported package manager: `{name}`")),
+        },
+        // TODO: `npm` as a safer default?
+        _ => run_yarn("install", &[], &[])?,
     }
 
     let packages_path = Path::new(PACKAGES_DIR);
@@ -80,14 +115,64 @@ fn install_packages() -> Result<Manifest> {
         .map_err(Into::into)
 }
 
+/// Run the `yarn` command using safe(r) defaults.
+///
+/// # Safety
+///
+/// Only options specified in `allowed_options` are allowed to be passed in.
+///
+/// **Arguments are not sanitized!**
+fn run_yarn(command: &str, args: &[String], allowed_options: &[&'static str]) -> Result<()> {
+    if let Some(opt) = args
+        .iter()
+        .filter(|arg| arg.starts_with('-'))
+        .find(|arg| !allowed_options.iter().any(|opt| opt == arg))
+    {
+        return Err(anyhow!("Invalid option: `{opt}`"));
+    }
+
+    let status = Command::new("yarn")
+        .current_dir(PACKAGES_DIR)
+        .arg("--ignore-scripts")
+        .arg("--prefer-offline")
+        .arg(command)
+        .args(args)
+        .status()?;
+    if !status.success() {
+        return Err(anyhow!("Failed to {command}"));
+    }
+
+    Ok(())
+}
+
 /// Generate an ESM bundle.
 fn generate_bundle(manifest: &Manifest) -> Result<()> {
     // Create a separate directory for each package
     let packages_path = Path::new(PACKAGES_DIR);
     let src_path = packages_path.join(SRC_DIR);
     let mut entries = vec![];
-    // TODO: Other deps (`optionalDependencies`...)
-    for pkg in manifest.dependencies.keys() {
+    for pkg in manifest.get_all_dependencies().keys() {
+        // Skip the `@types` organization
+        if pkg.starts_with("@types") {
+            continue;
+        }
+
+        // Skip other type only packages
+        let manifest_path = packages_path
+            .join(NODE_MODULES)
+            .join(pkg)
+            .join(MANIFEST_FILE);
+        let manifest =
+            fs::read(manifest_path).map(|b| serde_json::from_slice::<Manifest>(&b))??;
+        let is_type_only = manifest
+            .main
+            .map(|main| main.is_empty())
+            .unwrap_or_default()
+            && manifest.types.is_some();
+        if is_type_only {
+            continue;
+        }
+
         let module = to_module_name(pkg);
         let pkg_path = src_path.join(pkg);
         let entry_path = pkg_path.join("index.js");
@@ -105,7 +190,7 @@ fn generate_bundle(manifest: &Manifest) -> Result<()> {
     }
 
     // Add entries to the webpack config
-    let webpack_cfg_path = packages_path.join(WEBPACK_BASE_CONFIG_FILE);
+    let webpack_cfg_path = packages_path.join(WEBPACK_CONFIG_FILE);
     let webpack_cfg = fs::read_to_string(&webpack_cfg_path)?
         .replace("/* <DYNAMIC_ENTRIES> */", &entries.join(","));
     fs::write(webpack_cfg_path, webpack_cfg)?;
@@ -136,8 +221,6 @@ fn generate_bundle(manifest: &Manifest) -> Result<()> {
 /// Module names must be valid JS variable names.
 ///
 /// NOTE: This must be kept in sync with the client.
-//
-// TODO: It might be better to include a mapping of package names to module names as a separate file
 fn to_module_name(pkg_name: &str) -> String {
     pkg_name.replace(['@', '/', '-', '_', '.'], "")
 }
@@ -348,7 +431,7 @@ fn convert_type_files(files: Vec<(PathBuf, String)>) -> anyhow::Result<Files> {
 const BUILD_DIR: &str = "dist";
 
 /// Base `webpack` config file
-const WEBPACK_BASE_CONFIG_FILE: &str = "webpack.base.config.js";
+const WEBPACK_CONFIG_FILE: &str = "webpack.config.js";
 
 /// The default directory of where the JS packages are stored
 const NODE_MODULES: &str = "node_modules";

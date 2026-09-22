@@ -267,10 +267,14 @@ export class PgTerm {
     // formatted input.
     //
     // Also stops multiline inputs rendering unnecessarily.
-    this._xterm.onResize(({ rows, cols }) => {
-      this._tty.clearInput();
+    this._xterm.onResize(({ cols, rows }) => {
+      // If it's not prompting, clearing and setting the input may print the
+      // previous line without the prompt prefix, resulting in an undesired
+      // duplication that cannot be cleared (without clearing everything)
+      const isPrompting = this._shell.isPrompting();
+      if (isPrompting) this._tty.clearInput();
       this._tty.setTermSize(cols, rows);
-      this._tty.setInput(this._tty.input, true);
+      if (isPrompting) this._tty.setInput(this._tty.input, true);
     });
 
     // Add a custom key handler in order to fix a bug with spaces
@@ -585,12 +589,15 @@ export class PgTerm {
     try {
       return await cb();
     } catch (e: any) {
-      // The previous line is not available until the next event loop
-      await PgCommon.sleep(0);
-
-      const msg = `Process error: ${e?.message ? e.message : e}`;
-      const previousLine = this._tty.getLine(1)?.translateToString().trim();
-      if (previousLine !== msg) this.println(msg);
+      // Only log error if this is the outermost process i.e. a process that is
+      // *not* spawned by another terminal process.
+      //
+      // NOTE: This check is not fully correct because, at the time of writing
+      // this comment, one terminal can have multiple outermost processes at
+      // the same time.
+      if (this._shell.processCount === 1) {
+        this.println(`Process error: ${e?.message ? e.message : e}`);
+      }
 
       throw e;
     } finally {

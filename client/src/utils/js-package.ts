@@ -6,22 +6,41 @@ import { PgServer } from "./server";
 const fs = PgExplorer.fs;
 
 export class PgJsPackage {
-  /** Install packages as a bundle. */
-  static async install() {
+  /** JS package event names */
+  static readonly events = {
+    ON_DID_UPDATE: "jspackageondidupdate",
+  };
+
+  /**
+   * Update the current package.
+   *
+   * The word "update" is used broadly here; an update contains operations such as:
+   *
+   * - full installation
+   * - adding a new package
+   * - removing a package
+   * - updating a package (upgrade and downgrade)
+   *
+   * @param command package manager command tokens
+   */
+  static async update(command?: string[]) {
     const manifest = await this._getManifest();
     const lock = await this._getLock();
-    const result = await PgServer.bundle({ manifest, lock });
+    const result = await PgServer.bundle({ manifest, lock, command });
 
     // Clear the existing data for fresh installs each time
     const internalRootDirPath = this._PATHS.INTERNAL_ROOT_DIR;
     const hasData = await fs.exists(internalRootDirPath);
     if (hasData) await fs.removeDir(internalRootDirPath, { recursive: true });
 
-    // Save manifest
-    await fs.writeFile(this._PATHS.MANIFEST_FILE, result.manifest);
-
-    // Save lock file
-    await fs.writeFile(this._PATHS.LOCK_FILE, result.lock);
+    // Save manifest and lock files
+    const packageFiles: TupleFiles = [
+      [this._PATHS.MANIFEST_FILE, result.manifest],
+      [this._PATHS.LOCK_FILE, result.lock],
+    ];
+    for (const [path, content] of packageFiles) {
+      await PgExplorer.saveItem(path, content);
+    }
 
     // Save bundle: each chunk individually to support lazy-loading
     for (const [path, content] of result.bundle) {
@@ -36,18 +55,23 @@ export class PgJsPackage {
         createParents: true,
       });
     }
+
+    // Dispatch change event
+    PgCommon.createAndDispatchCustomEvent(
+      this.events.ON_DID_UPDATE,
+      this.getParsedManifest()
+    );
   }
 
   /**
    * Import a package.
    *
-   * The packages must be installed before using {@link PgJsPackage.install}.
+   * The packages must be installed before using {@link PgJsPackage.update}.
    *
    * @param name package name
    * @returns the imported package
    */
   static async import(name: string) {
-    // TODO: Cache
     const mod = await this.importChunk(
       PgCommon.joinPaths(name, this._PATHS.BUNDLE_FILE),
       { cache: true }
@@ -66,12 +90,14 @@ export class PgJsPackage {
    * @returns the imported chunk
    */
   static async importChunk(path: string, opts?: { cache?: boolean }) {
+    // Make caching per-project rather than global
+    path = PgExplorer.toAbsolutePath(this._getInternalPath(path));
     if (opts?.cache) {
       const blobUrl = this._importCache.get(path);
       if (blobUrl) return await import(/* webpackIgnore: true */ blobUrl);
     }
 
-    const chunk = await fs.readToString(this._getInternalPath(path));
+    const chunk = await fs.readToString(path);
     const blob = new Blob([chunk], { type: "text/javascript" });
     // TODO: Revoke the URL
     const blobUrl = URL.createObjectURL(blob);
@@ -82,20 +108,65 @@ export class PgJsPackage {
   /**
    * Get type declarations.
    *
-   * The packages must be installed before using {@link PgJsPackage.install}.
+   * The packages must be installed before using {@link PgJsPackage.update}.
    *
    * @param name package name
    * @returns returns type declaration files and type dependencies
    */
   static async getTypes(name: string) {
     const pkgPath = this._getInternalPath(name);
-    const files = await fs.readToJSON<TupleFiles>(
+    const files = await fs.readToJson<TupleFiles>(
       PgCommon.joinPaths(pkgPath, this._PATHS.TYPES_FILE)
     );
-    const dependencies = await fs.readToJSON<string[]>(
+    const dependencies = await fs.readToJson<string[]>(
       PgCommon.joinPaths(pkgPath, this._PATHS.DEPENDENCIES_FILE)
     );
     return { files, dependencies };
+  }
+
+  /**
+   * Get and parse the current manifest (`package.json`).
+   *
+   * Only the fields defined in {@link Manifest} are checked to be valid.
+   *
+   * @returns the parsed manifest
+   */
+  static getParsedManifest() {
+    const manifestStr = PgExplorer.getFileContent(
+      PgJsPackage._PATHS.MANIFEST_FILE
+    );
+    if (!manifestStr) throw new Error("Manifest not found");
+
+    const manifest = JSON.parse(manifestStr) as Manifest;
+    const { name } = manifest;
+    if (name !== undefined && typeof name !== "string") {
+      throw new Error(`Invalid manifest name: ${name}`);
+    }
+
+    const depKeys = [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ] as const;
+    depKeys.forEach((key) => {
+      const value = manifest[key];
+      if (value !== undefined && typeof value !== "object") {
+        throw new Error(`Invalid dependencies: ${key}: ${value}`);
+      }
+    });
+
+    return manifest;
+  }
+
+  /**
+   * Create a listener that runs after {@link PgJsPackage.update}.
+   *
+   * @param cb callback function to run
+   * @returns a dispose function to clear the event
+   */
+  static onDidUpdate(cb: (manifest: Manifest) => unknown) {
+    return PgCommon.onDidChange(PgJsPackage.events.ON_DID_UPDATE, cb);
   }
 
   /** Known package-related paths */
@@ -122,24 +193,12 @@ export class PgJsPackage {
 
   /** Get the manifest file content (`package.json`). */
   private static async _getManifest() {
-    try {
-      return await fs.readToString(this._PATHS.MANIFEST_FILE);
-    } catch {
-      // TODO: Make this based on framework and version
-      return await PgCommon.fetchText(
-        "/frameworks/" + this._PATHS.MANIFEST_FILE
-      );
-    }
+    return await fs.readToString(this._PATHS.MANIFEST_FILE);
   }
 
   /** Get the lock file content. */
   private static async _getLock() {
-    try {
-      return await fs.readToString(this._PATHS.LOCK_FILE);
-    } catch {
-      // TODO: Make this based on framework and version
-      return await PgCommon.fetchText("/frameworks/" + this._PATHS.LOCK_FILE);
-    }
+    return await fs.readToString(this._PATHS.LOCK_FILE);
   }
 
   /**
@@ -159,6 +218,23 @@ export class PgJsPackage {
       .replaceAll(".", "");
   }
 }
+
+/** `package.json` */
+interface Manifest {
+  /** Project name */
+  name?: string;
+  /** Main dependencies */
+  dependencies?: Dependencies;
+  /** Development dependencies */
+  devDependencies?: Dependencies;
+  /** Peer dependencies */
+  peerDependencies?: Dependencies;
+  /** Optional dependencies */
+  optionalDependencies?: Dependencies;
+}
+
+/** `package.json` dependencies map */
+type Dependencies = Record<string, string>;
 
 // Server bundles use this to import.
 //

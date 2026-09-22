@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use anyhow::Result;
 use dotenv::dotenv;
 use solpg_server::SandboxLimits;
 
@@ -24,15 +25,26 @@ pub struct Config {
     pub unstable_build: BuildConfig,
     /// Unstable bundle configuration
     pub unstable_bundle: BundleConfig,
+    /// Maximum amount of concurrent language server sessions
+    pub lsp_concurrency: usize,
+    /// CPU (cores) limit of a language server session container
+    pub lsp_cpu: usize,
+    /// Memory limit of a language server session container in bytes
+    pub lsp_memory: usize,
+    /// Seconds without a client message before a language server session is closed
+    pub lsp_idle_timeout: u64,
+    /// Seconds after which a language server session is closed regardless of activity
+    pub lsp_max_lifetime: u64,
 }
 
 impl Config {
     /// Create [`Config`] from the environment variables.
     ///
     /// `.env` file is supported.
-    pub fn from_env() -> Config {
+    pub fn from_env() -> Result<Config> {
         dotenv().ok();
-        Config {
+
+        Ok(Config {
             client_urls: get_env::<String>("CLIENT_URLS", "http://localhost,https://beta.solpg.io")
                 .split(',')
                 .map(str::trim)
@@ -56,6 +68,9 @@ impl Config {
                             2usize * 1024 * 1024 * 1024, // 2 GiB
                         )),
                         process: Some(get_env("UNSTABLE_BUILD_PROCESS_LIMIT", 64usize)),
+                        storage: get_env_raw("UNSTABLE_BUILD_STORAGE_LIMIT")
+                            .map(|v| v.parse())
+                            .transpose()?,
                         timeout: Some(get_env("UNSTABLE_BUILD_TIMEOUT_LIMIT", 30u64)),
                     },
                 },
@@ -74,11 +89,19 @@ impl Config {
                             4usize * 1024 * 1024 * 1024, // 4 GiB (also affects speed)
                         )),
                         process: Some(get_env("UNSTABLE_BUNDLE_PROCESS_LIMIT", 64usize)),
-                        timeout: Some(get_env("UNSTABLE_BUNDLE_TIMEOUT_LIMIT", 300u64)),
+                        storage: get_env_raw("UNSTABLE_BUNDLE_STORAGE_LIMIT")
+                            .map(|v| v.parse())
+                            .transpose()?,
+                        timeout: Some(get_env("UNSTABLE_BUNDLE_TIMEOUT_LIMIT", 180u64)),
                     },
                 },
             },
-        }
+            lsp_concurrency: get_env("LSP_CONCURRENCY", 4usize),
+            lsp_cpu: get_env("LSP_CPU_LIMIT", 1usize),
+            lsp_memory: get_env("LSP_MEMORY_LIMIT", 4usize * 1024 * 1024 * 1024),
+            lsp_idle_timeout: get_env("LSP_IDLE_TIMEOUT", 600u64),
+            lsp_max_lifetime: get_env("LSP_MAX_LIFETIME", 4 * 3600u64),
+        })
     }
 }
 
@@ -113,11 +136,15 @@ pub struct RouteLimits {
 }
 
 /// Get and parse the environment variable or return the given `default`.
-///
-/// All environment variables are prefixed with `PG_` in order to prevent clashes.
 fn get_env<T: FromStr>(key: &str, default: impl Into<T>) -> T {
-    dotenv::var(format!("PG_{key}"))
-        .ok()
+    get_env_raw(key)
         .and_then(|s| s.parse().ok())
         .unwrap_or(default.into())
+}
+
+/// Get the raw string environment variable.
+///
+/// All environment variables are prefixed with `PG_` in order to prevent clashes.
+fn get_env_raw(key: &str) -> Option<String> {
+    dotenv::var(format!("PG_{key}")).ok()
 }
