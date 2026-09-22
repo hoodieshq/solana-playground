@@ -371,6 +371,15 @@ const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
  * that the next user of the browser sees a project that is not theirs; the
  * cost of being wrong the other way is somebody's afternoon.
  *
+ * Every removal runs inside `whileSigningOut`, because each one reaches the
+ * `project-sync` effect as an ordinary `onDidDeleteWorkspace` -- the same
+ * event a user deleting a project raises, carrying no id and nothing to say
+ * who asked. That effect answers it by tombstoning the row and clearing its
+ * snapshot, so signing out emptied the account and signing back in found
+ * nothing to restore. It is also what stops the switch the explorer dispatches
+ * on the way past from starting a reconcile that re-imports the very
+ * workspaces being removed.
+ *
  * The marks are deliberately left behind rather than cleared alongside. They
  * are keyed per account, so they are not the next user's to read, and they are
  * what makes signing back in free: the server's copy is re-imported by the
@@ -379,35 +388,37 @@ const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
  *
  * @returns the local names of the workspaces removed
  */
-export const releaseLocalProjects = async (): Promise<string[]> => {
-  // The editor's push is debounced by seconds, so the workspace in front of
-  // the user is the one most likely to hold something the server has not seen.
-  // Best effort: if this fails, that project simply fails `isClean` below and
-  // is kept, which is the outcome we want anyway.
-  try {
-    await PgProjectSync.pushCurrent();
-  } catch (e) {
-    report("flush before sign-out", e);
-  }
-
-  // Copied, because `deleteWorkspace` mutates the explorer's own list and
-  // iterating it while it shrinks skips every other entry
-  const names = [...(PgExplorer.allWorkspaceNames ?? [])];
-  const removed: string[] = [];
-
-  for (const name of names) {
+export const releaseLocalProjects = async (): Promise<string[]> =>
+  PgProjectSync.whileSigningOut(async () => {
+    // The editor's push is debounced by seconds, so the workspace in front of
+    // the user is the one most likely to hold something the server has not
+    // seen. Best effort: if this fails, that project simply fails `isClean`
+    // below and is kept, which is the outcome we want anyway.
     try {
-      const id = PgExplorer.workspaceIdOf(name);
-      // No id means nothing was ever synced under it, and `isClean` is false
-      // for a project with no mark -- either way it is not ours to delete
-      if (!id || !(await isClean(id, name))) continue;
-
-      await PgExplorer.deleteWorkspace(name);
-      removed.push(name);
+      await PgProjectSync.pushCurrent();
     } catch (e) {
-      report(`release ${name}`, e);
+      report("flush before sign-out", e);
     }
-  }
 
-  return removed;
-};
+    // Copied, because `deleteWorkspace` mutates the explorer's own list and
+    // iterating it while it shrinks skips every other entry
+    const names = [...(PgExplorer.allWorkspaceNames ?? [])];
+    const removed: string[] = [];
+
+    for (const name of names) {
+      try {
+        const id = PgExplorer.workspaceIdOf(name);
+        // No id means nothing was ever synced under it, and `isClean` is
+        // false for a project with no mark -- either way it is not ours to
+        // delete
+        if (!id || !(await isClean(id, name))) continue;
+
+        await PgExplorer.deleteWorkspace(name);
+        removed.push(name);
+      } catch (e) {
+        report(`release ${name}`, e);
+      }
+    }
+
+    return removed;
+  });

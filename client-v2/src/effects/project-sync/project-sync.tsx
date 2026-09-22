@@ -143,7 +143,16 @@ export const projectSync = (): Disposable => {
     PgFs.onDidWriteFile((path) => {
       if (isSyncedWorkspaceFile(path)) schedule();
     }),
-    PgExplorer.onDidDeleteWorkspace(() => void settleLocalDeletes()),
+    // Not while this tab is signing out. The sign-out path removes this
+    // browser's copy of projects the account keeps, and every one of those
+    // arrives here as the same event a user deleting a project raises --
+    // which `settleLocalDeletes` answers by tombstoning the row and clearing
+    // its snapshot. Signing out therefore emptied the account, and signing
+    // back in restored nothing because nothing was left.
+    PgExplorer.onDidDeleteWorkspace(() => {
+      if (PgProjectSync.isSigningOut) return;
+      void settleLocalDeletes();
+    }),
   ];
 
   /**
@@ -184,6 +193,13 @@ export const projectSync = (): Disposable => {
    */
   let refreshing = false;
   const refresh = (what: string) => {
+    // Deleting the current workspace switches to another one on the way past,
+    // so sign-out's release dispatches switches of its own. Reconciling on
+    // one re-imports every project it has just removed -- the row is live and
+    // the local copy is gone, which is precisely `importFresh` -- and the
+    // account's projects land straight back on a browser being handed over.
+    if (PgProjectSync.isSigningOut) return;
+
     // Not re-entrant, and it has to say so out loud: taking another device's
     // copy re-opens the workspace whose files it just replaced, and re-opening
     // dispatches a switch. Without this, a reconcile that adopts anything

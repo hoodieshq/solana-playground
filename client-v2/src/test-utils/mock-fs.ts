@@ -22,6 +22,14 @@ export const mockFsModule = () => {
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };
 
+  /**
+   * Drop a trailing slash, which lightning-fs tolerates on a directory and a
+   * `startsWith` over a flat map does not. `PgExplorer` appends one to every
+   * directory path it builds, so without this the explorer reads as empty
+   * everywhere it looks.
+   */
+  const dir = (path: string) => path.replace(/\/+$/, "");
+
   const PgFs = {
     /** Test-only handle, for asserting on or corrupting what is stored */
     __files: files,
@@ -45,8 +53,28 @@ export const mockFsModule = () => {
       return content;
     },
 
+    async readToJSON(path: string) {
+      return JSON.parse(await this.readToString(path));
+    },
+
+    async readToJSONOrDefault(path: string, defaultValue: unknown) {
+      try {
+        return await this.readToJSON(path);
+      } catch {
+        return defaultValue;
+      }
+    },
+
     async removeFile(path: string) {
       files.delete(path);
+    },
+
+    async rename(oldPath: string, newPath: string) {
+      for (const [path, content] of [...files.entries()]) {
+        if (path !== oldPath && !path.startsWith(oldPath + "/")) continue;
+        files.delete(path);
+        files.set(newPath + path.slice(oldPath.length), content);
+      }
     },
 
     async createDir() {},
@@ -54,7 +82,7 @@ export const mockFsModule = () => {
     async exists(path: string) {
       return (
         files.has(path) ||
-        [...files.keys()].some((key) => key.startsWith(path + "/"))
+        [...files.keys()].some((key) => key.startsWith(dir(path) + "/"))
       );
     },
 
@@ -65,32 +93,33 @@ export const mockFsModule = () => {
      */
     async getMetadata(path: string) {
       const isDirectory = [...files.keys()].some((key) =>
-        key.startsWith(path + "/")
+        key.startsWith(dir(path) + "/")
       );
       if (!isDirectory && !files.has(path)) {
         throw new Error(`ENOENT: ${path}`);
       }
-      return { isDirectory: () => isDirectory };
+      return { isDirectory: () => isDirectory, isFile: () => !isDirectory };
     },
 
-    async removeDir(dir: string) {
-      for (const path of [...files.keys()]) {
-        if (path.startsWith(dir)) files.delete(path);
+    async removeDir(path: string) {
+      for (const key of [...files.keys()]) {
+        if (key.startsWith(dir(path))) files.delete(key);
       }
     },
 
-    async readDir(dir: string) {
+    async readDir(path: string) {
       // Immediate children only, like the real thing -- a recursive walk that
       // was handed whole subpaths here would look like it worked while never
       // actually recursing
+      const parent = dir(path);
       const names = new Set(
         [...files.keys()]
-          .filter((path) => path.startsWith(dir + "/"))
-          .map((path) => path.slice(dir.length + 1).split("/")[0])
+          .filter((key) => key.startsWith(parent + "/"))
+          .map((key) => key.slice(parent.length + 1).split("/")[0])
       );
       // Matches the real thing: a directory that does not exist throws rather
       // than reading as empty, which is what `threadIds` relies on
-      if (!names.size) throw new Error(`ENOENT: ${dir}`);
+      if (!names.size) throw new Error(`ENOENT: ${path}`);
       return [...names];
     },
 

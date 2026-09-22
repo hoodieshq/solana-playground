@@ -540,6 +540,42 @@ export class PgProjectSync {
   }
 
   /**
+   * Whether this tab is currently giving the browser back.
+   *
+   * Sign-out removes this device's copy of projects the account keeps, so the
+   * next person here is not shown them. Every one of those removals reaches
+   * the explorer as an ordinary delete, and `project-sync` answers a workspace
+   * that no longer resolves by tombstoning it -- which is right when the user
+   * deleted it and catastrophic when they merely signed out. The two are
+   * indistinguishable from the event alone: `onDidDeleteWorkspace` carries no
+   * id, and nothing else says who asked.
+   *
+   * So the sign-out path says so itself, and the effect stops treating its own
+   * teardown as user activity. Without it, signing out emptied the account --
+   * the rows were tombstoned and their snapshots cleared -- and signing back
+   * in restored nothing, because there was nothing left to restore.
+   */
+  static get isSigningOut() {
+    return PgProjectSync._signingOut;
+  }
+
+  /**
+   * Run the sign-out teardown with this tab's own deletes disowned.
+   *
+   * A counter rather than a boolean: sign-out hands over conversations and
+   * projects independently, and a nested or repeated call must not clear the
+   * flag while an outer one is still running.
+   */
+  static async whileSigningOut<T>(fn: () => Promise<T>): Promise<T> {
+    PgProjectSync._signingOut++;
+    try {
+      return await fn();
+    } finally {
+      PgProjectSync._signingOut--;
+    }
+  }
+
+  /**
    * Hold every push until `releasePushes`.
    *
    * Called on load and again whenever a backgrounded tab comes back, before
@@ -578,6 +614,7 @@ export class PgProjectSync {
     PgProjectSync._names.clear();
     PgProjectSync._conflicts.clear();
     PgProjectSync._conflictListeners.clear();
+    PgProjectSync._signingOut = 0;
     PgProjectSync.releasePushes();
   }
 
@@ -591,6 +628,7 @@ export class PgProjectSync {
 
   private static _gate: Promise<void> = Promise.resolve();
   private static _release: (() => void) | null = null;
+  private static _signingOut = 0;
 
   private static readonly _names = new Map<string, string>();
   private static readonly _conflicts = new Map<string, Conflict>();

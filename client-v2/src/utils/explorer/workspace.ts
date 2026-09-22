@@ -193,8 +193,27 @@ export class PgWorkspace {
 
   /* ---------------------------- Static methods ---------------------------- */
 
-  /** Default workspaces */
-  static readonly DEFAULT: Workspaces = { workspaces: [] };
+  /**
+   * Default workspaces.
+   *
+   * A getter, so every caller is handed its own. As a shared constant this was
+   * never a default at all: `new PgWorkspace()` takes it as the *state* rather
+   * than a copy of it, and `_initWorkspaces` constructs exactly that way on
+   * every load -- so `setCurrent` wrote the user's real workspaces straight
+   * into the constant, and from then on "the default" was whatever they had
+   * open.
+   *
+   * It matters in one place, and it is the place least able to afford it:
+   * `_initCurrentWorkspace` recovers a config that names workspaces with no
+   * directories behind them by resetting to `new PgWorkspace()`. That reset
+   * used to return the very state it was meant to clear, so the recovery
+   * re-saved it and re-entered itself -- an endless loop inside `init`, which
+   * no error boundary catches because nothing throws. The store is already
+   * damaged by the time that runs; it must not be the thing that hangs.
+   */
+  static get DEFAULT(): Workspaces {
+    return { workspaces: [] };
+  }
 
   /**
    * Mint the id for a new workspace.

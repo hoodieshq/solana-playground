@@ -127,3 +127,29 @@ describe("PgWorkspace ids", () => {
     expect(one.idOf("my-program")).not.toBe(two.idOf("my-program"));
   });
 });
+
+describe("PgWorkspace.DEFAULT", () => {
+  it("is a fresh state each time, not one everybody shares", () => {
+    // The constructor takes it as the state rather than a copy of it, so a
+    // shared constant becomes whatever the first instance does to it -- and
+    // the next `new PgWorkspace()`, which is how the explorer resets itself,
+    // gets that back instead of an empty one
+    const one = new PgWorkspace();
+    one.create("alpha");
+
+    expect(new PgWorkspace().allNames).toEqual([]);
+    expect(PgWorkspace.DEFAULT.workspaces).toEqual([]);
+  });
+
+  it("is not written through by the state that adopts it", () => {
+    // How it happened in practice: `_initWorkspaces` constructs empty and then
+    // fills the instance in from disk
+    const workspace = new PgWorkspace();
+    workspace.setCurrent({
+      workspaces: [{ id: "w1", name: "alpha" }],
+      currentId: "w1",
+    });
+
+    expect(PgWorkspace.DEFAULT).toEqual({ workspaces: [] });
+  });
+});

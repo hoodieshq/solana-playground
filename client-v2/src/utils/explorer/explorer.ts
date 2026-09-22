@@ -737,8 +737,21 @@ export class PgExplorer {
     const paths = Object.keys(this.files);
     if (!paths.length) return;
 
-    // Check whether the files start with the correct workspace path
-    const workspacePath = this.getRequiredCurrentWorkspacePath();
+    // Nothing is current, so there is nowhere for this to go. `deleteWorkspace`
+    // removes the workspace from state and only then moves to another one, so
+    // `switchWorkspace` -- which saves metadata first -- runs inside a window
+    // where the explorer holds workspaces and none of them is current.
+    //
+    // Upstream passed through that window by accident: the pointer was a name,
+    // so it went on naming the workspace just deleted and the check below
+    // rejected it as an invalid state. The pointer is an id now and resolves
+    // through the list, so the same window answers "no current workspace" and
+    // the required-path getter threw -- leaving the explorer wedged with
+    // workspaces it could not render, which is what `Folders` fell over on.
+    // The file map at that point holds the deleted workspace's paths, so the
+    // check below is what would have rejected them anyway.
+    const workspacePath = this.getCurrentWorkspacePath();
+    if (!workspacePath) return;
     const isInvalidState = paths.some(
       (path) => !path.startsWith(workspacePath)
     );
@@ -1247,7 +1260,19 @@ export class PgExplorer {
    * Only the current workspace at a time will be in the memory.
    */
   private static async _initCurrentWorkspace() {
-    const workspacePath = this.getRequiredCurrentWorkspacePath();
+    // No workspace to open is a state, not a fault: the recovery below resets
+    // to none when the config named workspaces the filesystem does not have,
+    // and then calls back into here. Demanding one turned that rescue into
+    // "Current workspace not found" -- the same failure it was recovering
+    // from, now with nothing left to recover. `init` reaches the identical
+    // end state by its own route when there are no workspaces at all, and
+    // `Flow` answers it by offering to make one.
+    const workspacePath = this.getCurrentWorkspacePath();
+    if (!workspacePath) {
+      this._explorer = this._getDefaultState();
+      return;
+    }
+
     const workspace = this._workspace!;
 
     // Reset files

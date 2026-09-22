@@ -1,7 +1,9 @@
 import { PgProjectSync } from "./project-sync";
 import { PgSyncClient } from "./sync-client";
-import { reconcile } from "./project-restore";
+import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgSession } from "../../auth";
+import { projectSync } from "../../../effects/project-sync/project-sync";
+import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 
@@ -125,7 +127,9 @@ const asDevice = (
     .mockReturnValue(current?.name);
   jest
     .spyOn(PgExplorer, "allWorkspaceNames", "get")
-    .mockReturnValue(workspaces.map((w) => w.name));
+    // Read through to the list rather than snapshotting it, so a test that
+    // removes a workspace mid-way sees the explorer it would really have
+    .mockImplementation(() => workspaces.map((w) => w.name));
   jest
     .spyOn(PgExplorer, "workspaceIdOf")
     .mockImplementation(
@@ -423,5 +427,105 @@ describe("picking up where the account left off", () => {
     expect(result).not.toBe("hung");
     expect(server.get("local-only")).toBeDefined();
     PgProjectSync.releasePushes();
+  });
+});
+
+describe("signing out of a browser", () => {
+  beforeEach(setUp);
+  afterEach(() => jest.restoreAllMocks());
+
+  /**
+   * Take the workspace off this device the way `PgExplorer` does.
+   *
+   * The event at the end is the point: the real `deleteWorkspace` dispatches
+   * it unconditionally, and the `project-sync` effect is subscribed to it.
+   */
+  const explorerForgets = (workspaces: Array<{ id: string; name: string }>) =>
+    jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockImplementation(async (name?: string) => {
+        const index = workspaces.findIndex((w) => w.name === name);
+        if (index >= 0) workspaces.splice(index, 1);
+        PgCommon.createAndDispatchCustomEvent(
+          PgExplorer.events.ON_DID_DELETE_WORKSPACE
+        );
+      });
+
+  it("leaves the account's projects on the server", async () => {
+    // Sign-out removes this browser's copy of projects the account keeps, so
+    // the next person here is not shown them. It is not the user deleting
+    // their work -- but it reaches the `project-sync` effect as the same
+    // event, and that effect answers a workspace that no longer resolves by
+    // tombstoning it. Signing out therefore emptied the account, and signing
+    // back in restored nothing because there was nothing left to restore.
+    const workspaces = [{ id: "p1", name: "Alpha" }];
+    asDevice(workspaces);
+    await signedIn();
+
+    // On the server, and this device's mark says so -- which is what makes it
+    // eligible for release in the first place
+    await reconcile();
+    expect(server.get("p1")!.snapshot).toBeTruthy();
+
+    explorerForgets(workspaces);
+    const effect = projectSync();
+    try {
+      await releaseLocalProjects();
+      // The effect's subscriber awaits the mark listing and then a call per
+      // orphaned project
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      effect.dispose();
+    }
+
+    expect(server.get("p1")!.deleted).toBeFalsy();
+    expect(server.get("p1")!.snapshot).toBeTruthy();
+  });
+
+  it("gives them back on the next sign-in", async () => {
+    // The whole round trip, which is how this was reported: sign out, sign
+    // back in, and the projects list is empty -- and stays empty through a
+    // reload, because the emptiness is on the server by then
+    const workspaces = [{ id: "p1", name: "Alpha" }];
+    asDevice(workspaces);
+    await signedIn();
+    await reconcile();
+
+    explorerForgets(workspaces);
+    const effect = projectSync();
+    try {
+      await releaseLocalProjects();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      effect.dispose();
+    }
+    // Gone from this browser, which is the point of releasing it
+    expect(workspaces).toEqual([]);
+
+    // Signing back in. The marks were left behind on purpose and the
+    // workspace was not, which is exactly the "never had it" case.
+    const result = await reconcile();
+
+    expect(result.imported).toEqual(["Alpha"]);
+  });
+
+  it("still tombstones a project the user deletes by hand", async () => {
+    // The other half of the same event. Without this the fix is just a
+    // disabled delete, and a project removed here comes back on the next load.
+    const workspaces = [{ id: "p1", name: "Alpha" }];
+    asDevice(workspaces);
+    await signedIn();
+    await reconcile();
+
+    explorerForgets(workspaces);
+    const effect = projectSync();
+    try {
+      await PgExplorer.deleteWorkspace("Alpha");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      effect.dispose();
+    }
+
+    expect(server.get("p1")!.deleted).toBe(true);
   });
 });
