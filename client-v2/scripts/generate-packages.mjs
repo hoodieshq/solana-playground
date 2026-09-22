@@ -76,9 +76,7 @@ await fs.writeFile(
     .replace(
       "<IMPORTS>",
       packages.importable.reduce((acc, cur) => {
-        return (
-          acc + `\n        case "${cur}":\n          return import("${cur}");`
-        );
+        return acc + `\n      case "${cur}":\n        return import("${cur}");`;
       }, "")
     )
 );
