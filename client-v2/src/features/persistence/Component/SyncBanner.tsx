@@ -26,27 +26,49 @@ const PROMPTS: Record<
       { label: "Delete anyway", resolution: "delete-local" },
     ],
   },
+  // The two below are refusals rather than questions, so they name the thing
+  // the user has to go and change and then offer the one answer there is. The
+  // retry is not a convenience: a project with a question outstanding is not
+  // pushed again, so without something to press, renaming the project or
+  // deleting the file that made it too big would fix the cause and leave it
+  // stuck anyway.
+  "name-taken": {
+    message:
+      "Another project in your account already uses this name, so this one cannot be uploaded. Rename it, then try again.",
+    actions: [{ label: "Try again", resolution: "retry" }],
+  },
+  "too-large": {
+    message:
+      "This project is too large to sync. Remove or shrink its largest files, then try again.",
+    actions: [{ label: "Try again", resolution: "retry" }],
+  },
 };
 
 /**
- * Ask which copy of a project to keep.
+ * Say why a project has stopped syncing, and offer the way out.
  *
- * Deliberately a prompt rather than a merge or a silent overwrite: the failure
- * this prevents is "I opened the project on my phone and lost an afternoon on
- * my laptop". Two copies of a program are not something an automatic merge can
- * reconcile, and a bad merge is worse than a question.
+ * Mostly that means asking which copy to keep -- deliberately a prompt rather
+ * than a merge or a silent overwrite, because the failure this prevents is "I
+ * opened the project on my phone and lost an afternoon on my laptop". Two
+ * copies of a program are not something an automatic merge can reconcile, and
+ * a bad merge is worse than a question.
  *
- * It is also the *only* place the user is asked anything. Every other outcome
- * -- taking the server's copy, pushing this device's, finishing a delete -- is
+ * It is the *only* place the user is asked anything. Every other outcome --
+ * taking the server's copy, pushing this device's, finishing a delete -- is
  * decided by `reconcile` without involving them, because in those cases only
  * one side has work in it.
+ *
+ * The refusals (`name-taken`, `too-large`) are here for a different reason:
+ * not because there is a choice to make, but because a project that has
+ * stopped uploading is otherwise indistinguishable from one that is up to
+ * date. Silence is the wrong answer to "your work is no longer being saved".
  *
  * Shown for the current workspace only, and re-read on every change to the
  * outstanding set. It used to subscribe to a raise-only event and so stayed on
  * screen for the rest of the session once triggered, including over unrelated
  * projects.
  */
-export const SyncBanner = () => {
+const SyncBanner = () => {
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -129,3 +151,5 @@ const Action = styled.button`
     }
   `}
 `;
+
+export default SyncBanner;

@@ -63,9 +63,9 @@ describe("PgChatSync", () => {
     await signedIn();
     await PgChatStorage.write("t1", [item(1)]);
 
-    const ok = await PgChatSync.pushAll();
+    const handed = await PgChatSync.pushAll();
 
-    expect(ok).toBe(false);
+    expect(handed).toEqual({ pushed: [], complete: false });
     expect(await PgChatStorage.read("t1")).toHaveLength(1);
   });
 
@@ -153,6 +153,37 @@ describe("handing conversations over at sign-out", () => {
     expect(await PgChatStorage.read("t1")).toHaveLength(1);
   });
 
+  it("drops the threads the server took and keeps only the one that failed", async () => {
+    // This used to be all-or-nothing. One thread failing to upload kept every
+    // other thread on the device as well -- including ones the account
+    // demonstrably already held -- so a single flaky request handed the next
+    // user of this browser the whole transcript, and nothing was gained for
+    // it: the failed thread is kept either way.
+    global.fetch = jest.fn().mockImplementation((url: string, init?: any) => {
+      if (url === "/api/sync") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ enabled: true, db: "ok" }),
+        });
+      }
+      const { projectId } = JSON.parse(init.body);
+      return Promise.resolve(
+        projectId === "t2"
+          ? { ok: false, status: 500, json: async () => ({}) }
+          : { ok: true, json: async () => ({ written: 1 }) }
+      );
+    }) as unknown as typeof fetch;
+    await signedIn();
+    await PgChatStorage.write("t1", [item(1)]);
+    await PgChatStorage.write("t2", [item(2)]);
+    await PgChatStorage.write("t3", [item(3)]);
+
+    await PgChatSync.handOver();
+
+    expect((await PgChatStorage.threadIds())?.sort()).toEqual(["t2"]);
+    expect(await PgChatStorage.read("t2")).toHaveLength(1);
+  });
+
   it("keeps them when the threads could not even be listed", async () => {
     // `[].every(Boolean)` is `true`. An enumeration that failed used to answer
     // the same as an account with no conversations, and sign-out deleted every
@@ -162,7 +193,7 @@ describe("handing conversations over at sign-out", () => {
     await PgChatStorage.write("t1", [item(1)]);
     jest.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
 
-    expect(await PgChatSync.pushAll()).toBe(false);
+    expect(await PgChatSync.pushAll()).toBeNull();
 
     jest.restoreAllMocks();
     expect(await PgChatStorage.read("t1")).toHaveLength(1);

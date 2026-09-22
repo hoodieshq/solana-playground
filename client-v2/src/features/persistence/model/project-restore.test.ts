@@ -1,4 +1,4 @@
-import { reconcile } from "./project-restore";
+import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
 import { hashSnapshot, hashUserFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
@@ -469,5 +469,119 @@ describe("reconcile", () => {
       latest: null,
     });
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("releasing local projects at sign-out", () => {
+  beforeEach(async () => {
+    PgSession.reset();
+    PgProjectSync.reset();
+    storedFiles().clear();
+    await signedIn();
+    // Sign-out flushes the open workspace first. Nothing here is testing that
+    // request, and letting it reach the network would make every case below
+    // depend on it.
+    jest.spyOn(PgProjectSync, "pushCurrent").mockResolvedValue("ok");
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  const stubDelete = () =>
+    jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+
+  it("removes a project the account demonstrably already holds", async () => {
+    // The whole point: workspaces are not account-scoped and used to survive
+    // sign-out, so the next person to sign in on a shared browser found the
+    // previous user's projects waiting in the explorer.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "same" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    const remove = stubDelete();
+
+    expect(await releaseLocalProjects()).toEqual(["alpha"]);
+    expect(remove).toHaveBeenCalledWith("alpha");
+  });
+
+  it("keeps a project the server has never seen", async () => {
+    // No mark at all: made locally, never uploaded by anyone. Deleting it
+    // would be destroying the only copy.
+    withLocal({ beta: "p2" });
+    withFiles("beta", { "src/lib.rs": "only here" });
+    const remove = stubDelete();
+
+    expect(await releaseLocalProjects()).toEqual([]);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("keeps a project holding work that never uploaded", async () => {
+    // Sign-out completes with no network -- `PgSession.signOut` swallows the
+    // request's failure on purpose -- so this is reachable by signing out
+    // offline, and it is the case where being wrong costs an afternoon.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "written since the last push" });
+    await agreed(
+      "p1",
+      { files: { "src/lib.rs": "what the server has" } },
+      "t1"
+    );
+    const remove = stubDelete();
+
+    expect(await releaseLocalProjects()).toEqual([]);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("keeps a project renamed since it was pushed", async () => {
+    // A rename changes no bytes, so only the mark's `name` catches it. The
+    // server still holds the files, but under the name the user moved away
+    // from -- the rename itself is work that has not been handed over.
+    withLocal({ renamed: "p1" });
+    withFiles("renamed", { "src/lib.rs": "same" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1", "alpha");
+    const remove = stubDelete();
+
+    expect(await releaseLocalProjects()).toEqual([]);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("decides per project rather than for the set", async () => {
+    // The mistake this mirrors the fix for, one directory over in
+    // `PgChatSync.handOver`: one project that cannot be handed over is no
+    // reason to leave the others on a browser the account is done with.
+    withLocal({ alpha: "p1", beta: "p2" });
+    withFiles("alpha", { "src/lib.rs": "same" });
+    withFiles("beta", { "src/lib.rs": "never uploaded" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    stubDelete();
+
+    expect(await releaseLocalProjects()).toEqual(["alpha"]);
+  });
+
+  it("leaves the mark behind, so signing back in re-imports rather than re-asks", async () => {
+    // Marks are per account, so they are not the next user's to read, and
+    // keeping them is what lets the next reconcile recognise the server's copy
+    // instead of treating it as a project this device has never seen.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "same" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    stubDelete();
+
+    await releaseLocalProjects();
+
+    expect(await PgSyncMark.read("p1")).not.toBeNull();
+  });
+
+  it("flushes the open workspace before deciding anything", async () => {
+    // Up to a debounce window of edits sits unpushed at any moment, and they
+    // are the difference between this project qualifying and being kept
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "same" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    stubDelete();
+
+    await releaseLocalProjects();
+
+    expect(PgProjectSync.pushCurrent).toHaveBeenCalled();
   });
 });

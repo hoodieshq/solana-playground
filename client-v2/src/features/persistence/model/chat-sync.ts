@@ -25,6 +25,18 @@ const merge = (server: ChatItem[], local: ChatItem[]) => {
 };
 
 /**
+ * What a hand-over managed.
+ *
+ * `pushed` is the ids the server is now known to hold, so a caller can drop
+ * exactly those and no more. `complete` says whether that was all of them,
+ * which is the only thing that licenses dropping the directory wholesale.
+ */
+export interface HandOver {
+  pushed: string[];
+  complete: boolean;
+}
+
+/**
  * Mirror local threads to Postgres.
  *
  * Push is append-only and every id is minted on the client, so it is safe to
@@ -112,21 +124,27 @@ export class PgChatSync {
    * Push every local thread -- the sign-in dump, and the last thing that runs
    * before sign-out clears local storage.
    *
-   * @returns whether everything made it. `false` means keep the local copy.
+   * @returns which threads the server now holds, or `null` when this device
+   * could not enumerate its own. `null` rather than an empty result on
+   * purpose: "I could not look" and "there were none" license entirely
+   * different things at the other end.
    */
-  static async pushAll(): Promise<boolean> {
-    if (!(await PgChatSync._ready())) return false;
+  static async pushAll(): Promise<HandOver | null> {
+    if (!(await PgChatSync._ready())) return null;
 
     const threadIds = await PgChatStorage.threadIds();
     // Not `[].every(Boolean)`, which is `true`. Without this, a device that
     // could not list its own threads reported that all of them had been
     // handed over, and sign-out cleared the directory on that answer.
-    if (threadIds === null) return false;
+    if (threadIds === null) return null;
 
-    const results = await Promise.all(
-      threadIds.map((id) => PgChatSync.push(id))
+    const outcomes = await Promise.all(
+      threadIds.map(async (id) => ({ id, ok: await PgChatSync.push(id) }))
     );
-    return results.every(Boolean);
+    return {
+      pushed: outcomes.filter((o) => o.ok).map((o) => o.id),
+      complete: outcomes.every((o) => o.ok),
+    };
   }
 
   /**
@@ -136,14 +154,33 @@ export class PgChatSync {
    * it: `features/auth` must not import `features/persistence`, because this
    * module already imports `features/auth` and the two would be circular.
    *
-   * Local storage is only cleared once everything is safely on the server. A
-   * failed push leaves the thread where it is and the next sign-in tries
-   * again -- losing messages to a flaky network is the worse failure, and the
-   * cost of being wrong the other way is that the next user of this browser
-   * briefly sees threads that are not theirs.
+   * A thread is only dropped once the server holds it. A failed push leaves
+   * that thread where it is and the next sign-in tries again -- losing
+   * messages to a flaky network is the worse failure, and the cost of being
+   * wrong the other way is that the next user of this browser sees a thread
+   * that is not theirs.
+   *
+   * Decided per thread, not for the set. It used to be all-or-nothing, and
+   * that got both halves of the trade wrong at once: one thread failing to
+   * upload kept every *other* thread on the device too -- including ones the
+   * account demonstrably already held, which had nothing left to lose -- so a
+   * single flaky request handed the next user the entire transcript. Nothing
+   * was gained for it: the failed thread is kept either way.
    */
   static async handOver(): Promise<void> {
-    if (await PgChatSync.pushAll()) await PgChatStorage.clear();
+    const handed = await PgChatSync.pushAll();
+    if (!handed) return;
+
+    // Wholesale when everything made it, because that is the one case where
+    // dropping the directory itself is provably safe -- and it takes with it
+    // anything `threadIds` does not enumerate, which a file-by-file delete
+    // would leave behind for the next account to inherit.
+    if (handed.complete) {
+      await PgChatStorage.clear();
+      return;
+    }
+
+    await Promise.all(handed.pushed.map((id) => PgChatStorage.remove(id)));
   }
 
   private static async _ready() {

@@ -28,24 +28,76 @@ export interface ServerProject {
 /**
  * What kind of question the user is being asked.
  *
+ * The first two are about which copy of a project to keep:
+ *
  * - `divergent`: both sides moved. Keep this device's copy, or take the other.
  * - `deleted-elsewhere`: the project was deleted on another device, but this
  *   one holds work that never got uploaded. Finish the delete, or keep the
  *   work as a project of its own.
+ *
+ * The last two are not about versions at all -- the server refused the upload
+ * outright, for a reason only the user can clear:
+ *
+ * - `name-taken`: another live project in this account already holds this
+ *   name, which the unique index on `(user_id, name)` will not have twice.
+ * - `too-large`: the snapshot is over the size this endpoint accepts.
+ *
+ * They share the conflict machinery because they need exactly what it gives:
+ * pushes for the project stop (there is no point re-uploading every three
+ * seconds against a refusal that cannot change on its own), and the banner is
+ * the only thing anywhere that says the project has stopped syncing. Before
+ * this they were `!response.ok` -- a diagnostics line and silence.
  */
-export type ConflictKind = "divergent" | "deleted-elsewhere";
+export type ConflictKind =
+  | "divergent"
+  | "deleted-elsewhere"
+  | "name-taken"
+  | "too-large";
 
 export interface Conflict {
   projectId: string;
   kind: ConflictKind;
 }
 
-/** What the user picked. The first two answer `divergent`, the rest the other */
+/**
+ * What the user picked.
+ *
+ * The first two answer `divergent`, the next two `deleted-elsewhere`, and
+ * `retry` answers both refusals -- the user has gone and changed the thing
+ * that was wrong, and is saying so.
+ */
 export type Resolution =
   | "keep-local"
   | "take-server"
   | "delete-local"
-  | "keep-as-new";
+  | "keep-as-new"
+  | "retry";
+
+/**
+ * Which question a refusal is actually asking.
+ *
+ * The server answers two unrelated problems with a 409: a compare-and-swap
+ * that missed, and a name another live project already holds. Only the first
+ * carries `conflict: true`; the second names itself in `reason`. Branching on
+ * the status alone would put "Keep this version / Take the other version" in
+ * front of a name collision -- a question about versions, asked about
+ * something that is not one, with no answer that does anything.
+ *
+ * An unreadable body falls back to the older meaning, whose prompt is at least
+ * about the right project.
+ */
+const refusalKind = async (response: Response): Promise<ConflictKind> => {
+  let reason: unknown = null;
+  try {
+    reason = (await response.json())?.reason;
+  } catch {
+    // A refusal with no readable body is still a refusal
+  }
+
+  if (reason === "name-taken") return "name-taken";
+  if (reason === "too-large" || response.status === 413) return "too-large";
+  return "divergent";
+};
 
 /**
  * Mirror project snapshots to Postgres.
@@ -175,12 +227,19 @@ export class PgProjectSync {
         }),
       });
 
-      if (response.status === 409) {
+      // A refusal this device can do nothing about on its own. 413 joins 409
+      // here rather than falling through to the silent branch below: a
+      // workspace too big to upload is a project that has stopped syncing, and
+      // reporting it only to the console meant nothing on screen ever said so.
+      if (response.status === 409 || response.status === 413) {
         // Deliberately without recording the hash or clearing `dirty`: the
         // snapshot has not been accepted, and remembering it would make every
         // later attempt look unchanged and strand the project out of sync for
         // good.
-        PgProjectSync._raise({ projectId, kind: "divergent" });
+        PgProjectSync._raise({
+          projectId,
+          kind: await refusalKind(response),
+        });
         return "conflict";
       }
       if (!response.ok) {
@@ -397,6 +456,35 @@ export class PgProjectSync {
           PgProjectSync._clear(projectId);
           await PgExplorer.switchWorkspace(fresh);
           return true;
+        }
+
+        case "retry": {
+          if (!name) return false;
+          // Cleared before pushing, not after: `push` refuses a project that
+          // has a question outstanding, and this *is* the answer to it.
+          //
+          // A push that is refused again raises from inside, so the banner
+          // comes back by itself and says which refusal it hit this time --
+          // renaming into a *second* taken name keeps the same prompt, and a
+          // project that shrank below the size cap only to hit a real
+          // divergence gets the version question it now deserves. The one
+          // outcome that raises nothing is a push that never reached the
+          // server, which is why the original question is put back for it:
+          // being offline does not mean the name is free.
+          const previous = PgProjectSync._conflicts.get(projectId) ?? null;
+          PgProjectSync._clear(projectId);
+
+          const result = await PgProjectSync.push(
+            projectId,
+            await snapshotOf(name),
+            name
+          );
+          if (result === "ok") return true;
+
+          if (previous && !PgProjectSync._conflicts.has(projectId)) {
+            PgProjectSync._raise(previous);
+          }
+          return false;
         }
       }
     } catch (e) {

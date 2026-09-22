@@ -9,7 +9,7 @@ import { stepNumber } from "../lessons/progress";
 import { useOnClickOutside, useRenderOnChange } from "../../../hooks";
 import { PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
-import { SyncBanner } from "../../../features/persistence/Component/SyncBanner";
+import SyncBanner from "../../../features/persistence/Component/SyncBanner";
 
 interface ProjectSwitcherProps {
   onOpenGallery: () => void;

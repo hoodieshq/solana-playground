@@ -167,7 +167,7 @@ ALTER TABLE ONLY public.conversations
 --
 
 ALTER TABLE ONLY public.messages
-    ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT messages_pkey PRIMARY KEY (conversation_id, id);
 
 
 --

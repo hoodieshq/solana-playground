@@ -29,9 +29,15 @@ let instance = null;
  * through to Better Auth's own default instead of being handed a base URL that
  * is not one.
  *
+ * Exported because `api/projects.mjs` and `api/conversations.mjs` compare it
+ * against a write request's `Origin`. Deliberately the same value the session
+ * cookie is issued for, rather than a second copy of "where we are deployed"
+ * that could drift from it: an origin check keyed off a different answer than
+ * the cookie's would be a check of nothing in particular.
+ *
  * @returns {string | undefined} the origin, or `undefined` to let Better Auth decide
  */
-const resolveBaseURL = () =>
+export const resolveBaseURL = () =>
   process.env.AUTH_BASE_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
 

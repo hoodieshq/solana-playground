@@ -616,3 +616,146 @@ describe("holding pushes until the account is reconciled", () => {
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe("ok");
   });
 });
+
+describe("a refusal the user has to clear", () => {
+  const asWorkspace = (id: string, name: string) => {
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
+    jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
+    jest
+      .spyOn(PgExplorer, "getAllFiles")
+      .mockReturnValue([[`/${name}/src/lib.rs`, "mine"]]);
+  };
+
+  /** A `fetch` that answers the sync probe and hands every PUT `refusal` */
+  const refusing = (refusal: StubResponse | (() => StubResponse)) =>
+    (global.fetch = jest
+      .fn()
+      .mockImplementation((url: string) =>
+        url === "/api/sync"
+          ? Promise.resolve(okProbe)
+          : Promise.resolve(typeof refusal === "function" ? refusal() : refusal)
+      ) as unknown as typeof fetch);
+
+  beforeEach(reset);
+  afterEach(() => jest.restoreAllMocks());
+
+  it("tells a name collision from a divergence, though both are 409", async () => {
+    // The whole reason the server puts a `reason` in the body. Branching on
+    // the status alone asked "keep this version or take the other" about a
+    // name -- a question with no answer, which also suspends pushes until it
+    // is answered.
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Name already used", reason: "name-taken" }),
+    });
+    await signedIn();
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "name-taken",
+    });
+  });
+
+  it("falls back to divergent when the body says nothing", async () => {
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => {
+        throw new Error("not json");
+      },
+    });
+    await signedIn();
+
+    await PgProjectSync.push("p1", { files: { a: "1" } });
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("divergent");
+  });
+
+  it("surfaces a workspace too large to upload instead of skipping it", async () => {
+    // Previously a 413 fell through to `!response.ok`: a diagnostics line, a
+    // "skipped", and a project that never synced again with nothing on screen
+    // to say so.
+    refusing({
+      ok: false,
+      status: 413,
+      json: async () => ({ error: "Payload too large", reason: "too-large" }),
+    });
+    await signedIn();
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("too-large");
+  });
+
+  it("stops pushing a refused project, exactly like a divergence", async () => {
+    refusing({
+      ok: false,
+      status: 413,
+      json: async () => ({ reason: "too-large" }),
+    });
+    await signedIn();
+
+    await PgProjectSync.push("p1", { files: { a: "1" } });
+    expect(await PgProjectSync.push("p1", { files: { a: "2" } })).toBe(
+      "skipped"
+    );
+    expect(putCalls()).toHaveLength(1);
+  });
+
+  it("pushes again when the user says they have fixed it", async () => {
+    // The point of the retry: the conflict is what suspends pushes, so a
+    // project renamed out of a collision would stay stuck without it.
+    let taken = true;
+    refusing(() =>
+      taken
+        ? {
+            ok: false,
+            status: 409,
+            json: async () => ({ reason: "name-taken" }),
+          }
+        : { ok: true, status: 200, json: async () => ({ updatedAt: "t2" }) }
+    );
+    await signedIn();
+    asWorkspace("p1", "mine");
+
+    await PgProjectSync.pushCurrent();
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("name-taken");
+
+    taken = false;
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
+    expect(PgProjectSync.conflictFor("p1")).toBeNull();
+    expect(putCalls()).toHaveLength(2);
+  });
+
+  it("leaves the banner up when the retry never reaches the server", async () => {
+    // A failed resolution must not clear the prompt -- being offline does not
+    // mean the name is free. `push` raises nothing for a request that threw,
+    // so `resolve` is what puts the original question back.
+    let offline = false;
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      if (offline) return Promise.reject(new Error("offline"));
+      return Promise.resolve({
+        ok: false,
+        status: 409,
+        json: async () => ({ reason: "name-taken" }),
+      });
+    }) as unknown as typeof fetch;
+    await signedIn();
+    asWorkspace("p1", "mine");
+
+    await PgProjectSync.pushCurrent();
+    offline = true;
+
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(false);
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "name-taken",
+    });
+  });
+});

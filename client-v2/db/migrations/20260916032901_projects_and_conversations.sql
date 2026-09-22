@@ -80,19 +80,43 @@ create index conversations_project_idx
   on conversations (user_id, project_id, updated_at desc)
   where project_id is not null and deleted_at is null;
 
+-- Keyed by (conversation_id, id), not id alone -- the same argument as
+-- (user_id, id) on `projects`, one level further down, where the row actually
+-- hangs. A message's id arrives verbatim in the request body, so it is a claim
+-- the client makes rather than a fact the server established, and is only
+-- unique inside the scope that minted it. Under a global key, with the
+-- insert's `on conflict do nothing`, one account posting an id another
+-- account's client had already used would have its write dropped in silence
+-- while the route reported success -- and the count the route returns would
+-- then answer a question nobody asked it, namely whether that id exists
+-- anywhere at all. `crypto.randomUUID` does not collide by accident, but
+-- nothing forces a client to use it; the id is simply accepted.
+--
+-- (conversation_id, id) rather than (user_id, conversation_id, id) because a
+-- conversation id is server-minted and a conversation belongs to exactly one
+-- user, so scoping by the conversation already scopes by the owner. The
+-- idempotent re-dumps the `on conflict` exists for keep working, because a
+-- repeat carries the same conversation.
 create table messages (
-  id              uuid primary key,
+  id              uuid not null,
   conversation_id uuid not null references conversations (id) on delete cascade,
   kind            text not null,
   payload         jsonb not null,
   created_at      timestamptz(3) not null,
   constraint messages_kind_check
-    check (kind in ('user', 'assistant', 'tool', 'approval', 'error', 'notice'))
+    check (kind in ('user', 'assistant', 'tool', 'approval', 'error', 'notice')),
+  primary key (conversation_id, id)
 );
 
 -- Matches the only read: one thread, in order. `id` breaks ties between two
 -- devices that minted a message in the same millisecond, which is why
 -- ordering needs no server-allocated sequence.
+--
+-- The primary key does not make this redundant. Its index is
+-- (conversation_id, id), which serves the lookup the insert's `on conflict`
+-- does but carries no ordering by `created_at` at all, so it cannot serve
+-- `order by created_at, id` within a thread. The two cover different halves of
+-- the only two statements this table has, and both are kept.
 create index messages_conversation_idx
   on messages (conversation_id, created_at, id);
 

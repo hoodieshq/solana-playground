@@ -2,7 +2,10 @@ import { PgSession } from "../../features/auth";
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
-import { reconcile } from "../../features/persistence/model/project-restore";
+import {
+  reconcile,
+  releaseLocalProjects,
+} from "../../features/persistence/model/project-restore";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
 // a webpack-defined global jest cannot resolve. Same workaround as
@@ -116,14 +119,30 @@ export const session = (): Disposable => {
    * leaving it open afterwards means the panel keeps rendering the previous
    * user's transcript and writes it straight back into storage the next time
    * anything changes -- from where the next account's sign-in dump uploads it.
+   *
+   * `releaseLocalProjects` is the same move for code, and runs here for the
+   * same reason: it needs the session to still be readable, because a mark is
+   * keyed by the user id and `PgSyncMark.read` answers `null` without one --
+   * which would make every project look unsynced and none of them removable.
    */
   const relinquish = async () => {
+    // Independently, not one `try` around both: the two hand-overs answer for
+    // different data, and a conversation that could not be uploaded is no
+    // reason to leave the account's projects on a browser it is done with.
     try {
       await PgChatSync.handOver();
-    } finally {
-      PgAssistant.closeThread();
-      PgProjectSync.forgetAccount();
+    } catch (e) {
+      report("hand over conversations", e);
     }
+
+    try {
+      await releaseLocalProjects();
+    } catch (e) {
+      report("release local projects", e);
+    }
+
+    PgAssistant.closeThread();
+    PgProjectSync.forgetAccount();
   };
 
   // Held from here, before anything can fire, and released the moment the

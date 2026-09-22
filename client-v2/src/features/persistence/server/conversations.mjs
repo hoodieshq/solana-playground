@@ -69,6 +69,9 @@ export const listMessages = async (userId, projectId) => {
  * of the same messages writes nothing. That is what lets sign-in sync run
  * unconditionally instead of exactly once.
  *
+ * Repeatable *within a conversation*, which is as far as a client-minted id
+ * can be trusted -- see the `on conflict` below.
+ *
  * @returns {Promise<number>} how many rows were new
  */
 export const appendMessages = async (userId, projectId, items) => {
@@ -87,13 +90,20 @@ export const appendMessages = async (userId, projectId, items) => {
       params.push(item.id, conversationId, item.kind, JSON.stringify(item));
     });
 
+    // `(conversation_id, id)`, not `id`: the id comes verbatim out of the
+    // request body, so it is only unique within the scope that minted it.
+    // Against a global key, one account posting another's id would have its
+    // write dropped in silence -- and the returned count would answer whether
+    // that id exists anywhere at all. Same reasoning as `(user_id, id)` on
+    // `projects`, one level down. Re-dumping a thread still writes nothing:
+    // a repeat carries the same conversation.
     const { rowCount } = await client.query(
       `insert into messages (id, conversation_id, kind, payload, created_at)
        select v.id::uuid, v.conversation_id::uuid, v.kind, v.payload::jsonb,
               (v.payload::jsonb ->> 'createdAt')::timestamptz
          from (values ${values.join(", ")})
               as v(id, conversation_id, kind, payload)
-       on conflict (id) do nothing`,
+       on conflict (conversation_id, id) do nothing`,
       params
     );
 

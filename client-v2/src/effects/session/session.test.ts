@@ -42,7 +42,7 @@ describe("the session effect", () => {
 
     jest.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
       calls.push("pushChats");
-      return true;
+      return { pushed: [], complete: true };
     });
     sync = jest.spyOn(restore, "reconcile").mockImplementation(async () => {
       calls.push("reconcile");
