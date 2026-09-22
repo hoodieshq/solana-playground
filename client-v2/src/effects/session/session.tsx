@@ -67,11 +67,15 @@ export const session = (): Disposable => {
    * opened.
    */
   const adopt = async ({ openLatest }: { openLatest: boolean }) => {
-    await explorerReady();
-    await PgChatSync.pushAll();
-
     let result;
     try {
+      // Inside the `try`, all of it. Pushes are held from the moment this
+      // effect is created, and this is the only thing that releases them --
+      // so anything that throws on the way to the reconcile, waiting for the
+      // explorer or handing the chat threads over, leaves every project on
+      // this device unable to save for the rest of the session, silently.
+      await explorerReady();
+      await PgChatSync.pushAll();
       result = await reconcile();
     } finally {
       // Whatever happened, pushes stop waiting here. A reconcile that failed

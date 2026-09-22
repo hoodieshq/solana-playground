@@ -169,6 +169,22 @@ describe("the session effect", () => {
     effect.dispose();
   });
 
+  it("releases them when the chat hand-over fails, not just the reconcile", async () => {
+    // Everything on the way to the reconcile is inside the same `try`. This
+    // one sat outside it, so a thrown `pushAll` left every project on the
+    // device unable to save for the rest of the session -- silently, because
+    // the rejection is reported and swallowed.
+    jest
+      .spyOn(PgChatSync, "pushAll")
+      .mockRejectedValue(new Error("indexeddb is having a day"));
+
+    const effect = session();
+    await settle();
+
+    expect(calls).toContain("release");
+    effect.dispose();
+  });
+
   it("releases them even when the reconcile fails", async () => {
     sync.mockRejectedValue(new Error("offline"));
 
