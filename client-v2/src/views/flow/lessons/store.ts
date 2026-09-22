@@ -20,7 +20,7 @@ import type { LessonPath } from "./types";
 import { graderClass, isSatisfied } from "./verify";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { PgExplorer, PgProgramInfo, PgTutorial } from "../../../utils";
+import { PgExplorer, PgProgramInfo, PgTutorial, PgView } from "../../../utils";
 import type { Disposable } from "../../../utils";
 
 export interface LessonState {
@@ -461,12 +461,22 @@ export class PgLesson {
     try {
       const storage = PgTutorial.getStorage(storageDefault());
       await storage.setItem("lesson", record);
-    } catch {
-      // The in-memory record is still correct for this session; a
-      // reload loses its tail. An error toast mid-lesson costs more.
+    } catch (e) {
+      // The in-memory record is still correct for this session; a reload
+      // loses its tail. Every failure goes to the console, and the learner
+      // is told once -- a toast on every step would cost more than the
+      // steps it reports.
+      console.warn("Lesson progress could not be saved:", e);
+      if (!PgLesson._toldSaveFailed) {
+        PgLesson._toldSaveFailed = true;
+        const { default: SaveFailedToast } = await import("./SaveFailedToast");
+        PgView.setToast(SaveFailedToast);
+      }
     }
   }
 
+  /** Whether this session has already shown the save-failure toast */
+  private static _toldSaveFailed = false;
   private static _state: LessonState = INITIAL_LESSON_STATE;
   private static _view: LessonView | null = null;
   private static _viewOf: LessonState | null = null;

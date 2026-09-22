@@ -6,6 +6,7 @@ jest.mock("../../../utils", () => ({
   },
   PgProgramInfo: { idl: null },
   PgTutorial: { getStorage: jest.fn() },
+  PgView: { setToast: jest.fn() },
 }));
 
 import { INITIAL_LESSON_STATE, PgLesson, reduceLesson } from "./store";
@@ -15,7 +16,7 @@ import { registerPaths } from "./registry";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import type { LessonPath } from "./types";
-import { PgExplorer, PgTutorial } from "../../../utils";
+import { PgExplorer, PgTutorial, PgView } from "../../../utils";
 import type { Idl } from "@coral-xyz/anchor";
 
 const hints: [string, string, string] = ["a", "b", "c"];
@@ -312,6 +313,34 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
         },
       })
     );
+  });
+
+  it("says so when progress cannot be saved, and toasts once", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    (PgTutorial.getStorage as jest.Mock).mockImplementation(() => ({
+      getItem: async () => undefined,
+      setItem: async () => {
+        throw new Error("quota exceeded");
+      },
+    }));
+    explorer.currentWorkspaceName = PATH.tutorial;
+    const sub = PgLesson.init();
+    await flush();
+
+    PgLesson.opened("one");
+    await flush();
+    PgLesson.opened("two");
+    await flush();
+
+    // Every failed write is in the console; the learner is told once
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/could not be saved/),
+      expect.objectContaining({ message: "quota exceeded" })
+    );
+    expect(warn.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(PgView.setToast).toHaveBeenCalledTimes(1);
+    sub.dispose();
+    warn.mockRestore();
   });
 
   it("does not leak one lesson's record into the next workspace's load", async () => {
