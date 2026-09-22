@@ -608,6 +608,21 @@ export class PgExplorer {
     files: Record<string, string>
   ) {
     const dir = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, name);
+    const metadataPath = PgCommon.joinPaths(dir, PgWorkspace.METADATA_PATH);
+
+    // Which tabs are open, and where the caret is, is this device's business:
+    // the snapshot deliberately leaves it out so that merely *looking* at a
+    // project is not a change other devices have to reconcile. That makes it
+    // local state, and a sync operation has no business being the thing that
+    // deletes it -- which clearing the directory below otherwise does.
+    //
+    // Losing it is not cosmetic. With no tabs there is no current file, so the
+    // editor has nothing to re-read and goes on rendering the version the user
+    // just chose to replace, until the page is reloaded.
+    const metadata = await this.fs.readToJSONOrDefault<ItemMetaFile>(
+      metadataPath,
+      []
+    );
 
     try {
       await this.fs.removeDir(dir, { recursive: true });
@@ -619,6 +634,16 @@ export class PgExplorer {
 
     for (const [path, content] of Object.entries(files)) {
       await this.fs.writeFile(PgCommon.joinPaths(dir, path), content, {
+        createParents: true,
+      });
+    }
+
+    // Only the entries that still name a file the incoming snapshot has, so
+    // the editor does not come back pointing at something the other device
+    // deleted
+    const kept = metadata.filter((meta) => files[meta.path] !== undefined);
+    if (kept.length) {
+      await this.fs.writeFile(metadataPath, JSON.stringify(kept), {
         createParents: true,
       });
     }
@@ -1385,6 +1410,17 @@ export class PgExplorer {
     this._explorer.currentIndex = current
       ? this.tabs.indexOf(current.path)
       : -1;
+
+    // Nothing to show. The metadata is what remembers which file was open, so
+    // a workspace that has never had one -- or whose metadata did not survive
+    // having its files replaced from another device -- opens with an empty
+    // editor over a full file tree, and stays that way until the user clicks
+    // something. Falling back to the same default a new project gets means
+    // re-reading a workspace always lands somewhere.
+    if (this._explorer.currentIndex === -1) {
+      const defaultOpenFile = this._getDefaultOpenFile(this.files);
+      if (defaultOpenFile) this.openFile(defaultOpenFile);
+    }
 
     // Metadata
     for (const itemMeta of fullPathMetaFile) {

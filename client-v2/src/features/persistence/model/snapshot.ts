@@ -27,6 +27,21 @@ export const SYNCED_WORKSPACE_FILES = [
   ".tutorial.json",
 ];
 
+/**
+ * Whether a full path is one of the workspace files the snapshot carries.
+ *
+ * All three are written straight to the store rather than through the
+ * explorer's state, so no explorer event fires for them and nothing would
+ * otherwise schedule an upload -- the tutorial page you left off on, and the
+ * keypair that decides the program's address, reached the server only if some
+ * unrelated edit happened to trigger a push afterwards.
+ *
+ * Matched on the suffix because the prefix is the workspace name, which is
+ * whatever the user called the project.
+ */
+export const isSyncedWorkspaceFile = (path: string) =>
+  SYNCED_WORKSPACE_FILES.some((synced) => path.endsWith(`/${synced}`));
+
 /** Keep user files and the named workspace files; drop everything else */
 export const filterSnapshotPaths = (paths: readonly string[]) =>
   paths.filter(
@@ -167,4 +182,34 @@ export const hashSnapshot = async (snapshot: Snapshot): Promise<string> => {
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+};
+
+/**
+ * Identify only what the *user* wrote.
+ *
+ * The three workspace files travel with the project but nobody types them:
+ * `PgProgramInfo` rewrites the keypair file every time a workspace opens, and
+ * the tutorial files follow the reader around. They are generated state, and
+ * they are regenerated on a schedule this module does not control.
+ *
+ * That makes them useless for the question `isClean` asks -- "does this device
+ * hold work the server has not seen". Including them meant taking another
+ * device's copy left the project differing from the snapshot it had just
+ * adopted, within a second, through nothing the user did. The next reconcile
+ * read that as local work, and when the other device had also moved on it
+ * asked the user to choose between two copies differing by a file neither of
+ * them wrote.
+ *
+ * They still sync: `hashSnapshot` covers the whole thing, and that is what
+ * decides whether an upload is worth making.
+ */
+export const hashUserFiles = async (snapshot: Snapshot): Promise<string> => {
+  const files = snapshot.files ?? {};
+  return await hashSnapshot({
+    files: Object.fromEntries(
+      Object.keys(files)
+        .filter((path) => !SYNCED_WORKSPACE_FILES.includes(path))
+        .map((path) => [path, files[path]])
+    ),
+  });
 };

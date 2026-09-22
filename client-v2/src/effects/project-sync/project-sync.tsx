@@ -2,7 +2,9 @@ import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import { reconcile } from "../../features/persistence/model/project-restore";
+import { isSyncedWorkspaceFile } from "../../features/persistence/model/snapshot";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
 // a webpack-defined global jest has no answer for. Same workaround as
 // `snapshot.ts`; here it is what makes this effect testable at all, and what
@@ -40,7 +42,13 @@ const isVisible = () =>
 export const projectSync = (): Disposable => {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const push = () => PgProjectSync.pushCurrent();
+  const push = async () => {
+    const result = await PgProjectSync.pushCurrent();
+    // The mark now says what the server took, so the next edit has something
+    // new to record
+    if (result === "ok") flagged = false;
+    return result;
+  };
 
   /**
    * Record the intent to upload before the upload is attempted.
@@ -49,19 +57,35 @@ export const projectSync = (): Disposable => {
    * crashed between the keystroke and the request still reads as having
    * unsaved work on the next load -- which is what stops the reconcile there
    * taking the server's older copy over it.
+   *
+   * At most once per debounce window. The mark is a single boolean as far as
+   * this is concerned, so writing it again on the next keystroke changes
+   * nothing -- and it costs a filesystem read, on the same queue as the writes
+   * that triggered it. Doing that per write made creating a workspace roughly
+   * five times slower, because the files written during setup each queued one
+   * behind the writes still in flight.
    */
+  let flagged = false;
   const flag = () => {
+    if (flagged) return;
     const id = PgExplorer.currentWorkspaceId;
-    if (id) void PgSyncMark.markDirty(id).catch((e) => report("mark dirty", e));
+    if (!id) return;
+
+    flagged = true;
+    void PgSyncMark.markDirty(id).catch((e) => report("mark dirty", e));
   };
 
-  const schedule = () => {
-    flag();
+  const scheduleOnly = () => {
     if (timer) clearTimeout(timer);
     // A hidden tab records the change and leaves it there. Whatever is visible
     // owns the upload, and this tab reconciles before it pushes again.
     if (!isVisible()) return;
     timer = setTimeout(() => void push(), DEBOUNCE_MS);
+  };
+
+  const schedule = () => {
+    flag();
+    scheduleOnly();
   };
 
   const flush = () => {
@@ -91,9 +115,33 @@ export const projectSync = (): Disposable => {
     // switch mid-debounce used to upload the *incoming* project under the
     // outgoing one's pending timer, so the outgoing one's edits were simply
     // dropped.
+    //
+    // Opening a project is also the moment to find out whether another device
+    // has moved it on. The conversation was already pulled here (`chatThread`)
+    // and the code was not, so switching into a project showed its stale local
+    // copy until a reload or a tab refocus.
+    //
+    // No `flag()`: opening a project is not editing it. This event also fires
+    // on every page load, so flagging here marked every project as having
+    // unsaved work before the user had touched anything -- which made
+    // reconcile unable to take the server's copy silently and turned an
+    // ordinary "the other device is ahead" into a question.
     PgExplorer.onDidSwitchWorkspace(() => {
       flush();
-      schedule();
+      // A different project, so whatever was flagged was the last one's
+      flagged = false;
+      refresh("switch");
+    }),
+
+    // Three files in the snapshot -- the tutorial's page, its storage, and the
+    // program keypair -- are written straight to the store by `PgTutorial` and
+    // `PgProgramInfo`, so none of the events above fires for them. They are
+    // also the only files in the snapshot that are not ordinary source, which
+    // made this the one gap where sync silently carried nothing: a tutorial
+    // resumed on another device at page one, and the same project deployed to
+    // a different address on every browser.
+    PgFs.onDidWriteFile((path) => {
+      if (isSyncedWorkspaceFile(path)) schedule();
     }),
     PgExplorer.onDidDeleteWorkspace(() => void settleLocalDeletes()),
   ];
@@ -127,18 +175,39 @@ export const projectSync = (): Disposable => {
   };
 
   /**
-   * Coming back to a tab is the same problem as loading the page.
+   * Find out what the account holds, without letting this tab write meanwhile.
    *
-   * Both start from state that may be arbitrarily out of date, and in both the
-   * safe order is: stop pushing, find out what the account holds, then resume.
+   * Coming back to a backgrounded tab and opening a project are the same
+   * problem as loading the page: all three start from state that may be
+   * arbitrarily out of date, and in all three the safe order is stop pushing,
+   * read, then resume.
    */
-  const onVisibilityChange = () => {
-    if (!isVisible()) return flush();
+  let refreshing = false;
+  const refresh = (what: string) => {
+    // Not re-entrant, and it has to say so out loud: taking another device's
+    // copy re-opens the workspace whose files it just replaced, and re-opening
+    // dispatches a switch. Without this, a reconcile that adopts anything
+    // triggers a reconcile, which adopts, which triggers... and the two bounce
+    // off each other for as long as the tab is open. It showed up as a project
+    // being uploaded dozens of times a second.
+    //
+    // Dropping the second request rather than queueing it is right: a
+    // reconcile already in flight is about to read the same account.
+    if (refreshing) return;
+    refreshing = true;
 
     PgProjectSync.holdPushes();
     void reconcile()
-      .catch((e) => report("reconcile on focus", e))
-      .finally(() => PgProjectSync.releasePushes());
+      .catch((e) => report(`reconcile on ${what}`, e))
+      .finally(() => {
+        PgProjectSync.releasePushes();
+        refreshing = false;
+      });
+  };
+
+  const onVisibilityChange = () => {
+    if (!isVisible()) return flush();
+    refresh("focus");
   };
 
   document.addEventListener("visibilitychange", onVisibilityChange);

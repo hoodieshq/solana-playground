@@ -1,6 +1,6 @@
 import { report } from "./diagnostics";
 import { isUsableSnapshot, PgProjectSync } from "./project-sync";
-import { hashSnapshot, snapshotOf } from "./snapshot";
+import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
@@ -34,12 +34,33 @@ const empty = (): SyncResult => ({
   latest: null,
 });
 
-/** Whether the local copy is exactly what this device last handed the server */
+/**
+ * Whether the local copy is exactly what this device last handed the server.
+ *
+ * Decided on the hash alone. `dirty` is only ever a hint -- it says "do not
+ * trust the cheap path, go and look", and it is set liberally because the cost
+ * of setting it when nothing changed is one hash, while the cost of missing it
+ * is an upload that never happens.
+ *
+ * Treating it as decisive here was wrong in a way that showed up immediately:
+ * a project that had merely been *opened* is flagged, because a workspace
+ * switch fires on every load. So nothing was ever clean, the silent "take the
+ * server's copy" path was unreachable, and a device that had done nothing at
+ * all was asked to choose.
+ *
+ * Compared on `contentHash` -- the user's files -- rather than the whole
+ * snapshot. The generated workspace files are rewritten on every open, so a
+ * device that has just adopted another's copy differs from it within a second
+ * through nothing anyone typed, and on the *next* exchange that read as this
+ * device having work of its own.
+ */
 const isClean = async (projectId: string, localName: string) => {
   const mark = await PgSyncMark.read(projectId);
   if (!mark) return false;
-  if (mark.dirty) return false;
-  return mark.hash === (await hashSnapshot(await snapshotOf(localName)));
+  if (mark.name !== localName) return false;
+  return (
+    mark.contentHash === (await hashUserFiles(await snapshotOf(localName)))
+  );
 };
 
 /**
@@ -73,6 +94,14 @@ const isClean = async (projectId: string, localName: string) => {
  */
 export const reconcile = async (): Promise<SyncResult> => {
   const result = empty();
+
+  // Before anything reads the disk. Signed out, or on a deployment with no
+  // database, every call below is already a no-op -- but `push` takes a
+  // snapshot as an argument, so reaching it means having built one, and that
+  // is a walk of the whole workspace. This runs on every project switch now,
+  // so paying it for a browser that is not syncing at all is not cheap.
+  if (!(await PgProjectSync.isAvailable())) return result;
+
   const server = await PgProjectSync.list();
   const serverIds = new Set(server.map((project) => project.id));
 
@@ -118,10 +147,11 @@ export const reconcile = async (): Promise<SyncResult> => {
         continue;
       }
 
-      if (!clean && !serverMoved) {
+      if (!serverMoved && !clean) {
         // This device is ahead and nothing else has written since. Ordinary
-        // catch-up: an edit that was still debounced when the tab closed, or a
-        // push that failed while offline.
+        // catch-up: an edit that was still debounced when the tab closed, a
+        // push that failed while offline, or a rename -- which `isClean`
+        // catches because the mark records the name as well as the hash.
         if (
           (await PgProjectSync.push(
             project.id,
@@ -137,7 +167,7 @@ export const reconcile = async (): Promise<SyncResult> => {
         continue;
       }
 
-      if (!clean && serverMoved) {
+      if (serverMoved && !clean) {
         const settled = await settleDivergence(project.id, local, result);
         if (settled) result.conflicts.push(settled);
       }
@@ -196,6 +226,8 @@ const settleDivergence = async (
   if (serverHash === (await hashSnapshot(await snapshotOf(local)))) {
     await PgSyncMark.write(projectId, {
       hash: serverHash,
+      contentHash: await hashUserFiles(full.snapshot),
+      name: local,
       updatedAt: full.updatedAt,
       dirty: false,
     });
@@ -238,6 +270,8 @@ const importFresh = async (
 
   await PgSyncMark.write(projectId, {
     hash: await hashSnapshot(full!.snapshot!),
+    contentHash: await hashUserFiles(full!.snapshot!),
+    name,
     updatedAt: full!.updatedAt,
     dirty: false,
   });

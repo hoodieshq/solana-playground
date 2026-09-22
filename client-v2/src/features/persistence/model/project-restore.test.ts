@@ -1,6 +1,6 @@
 import { reconcile } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
-import { hashSnapshot } from "./snapshot";
+import { hashSnapshot, hashUserFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -73,9 +73,16 @@ const serverHas = (
 };
 
 /** Record that this device and the server agreed on `snapshot` at `updatedAt` */
-const agreed = async (id: string, snapshot: Snapshot, updatedAt: string) => {
+const agreed = async (
+  id: string,
+  snapshot: Snapshot,
+  updatedAt: string,
+  name = "alpha"
+) => {
   await PgSyncMark.write(id, {
     hash: await hashSnapshot(snapshot),
+    contentHash: await hashUserFiles(snapshot),
+    name,
     updatedAt,
     dirty: false,
   });
@@ -86,9 +93,16 @@ const agreed = async (id: string, snapshot: Snapshot, updatedAt: string) => {
  * it attempts the upload, so this is the state a failed or interrupted push
  * leaves behind.
  */
-const pending = async (id: string, snapshot: Snapshot, updatedAt: string) => {
+const pending = async (
+  id: string,
+  snapshot: Snapshot,
+  updatedAt: string,
+  name = "alpha"
+) => {
   await PgSyncMark.write(id, {
     hash: await hashSnapshot(snapshot),
+    contentHash: await hashUserFiles(snapshot),
+    name,
     updatedAt,
     dirty: true,
   });
@@ -100,6 +114,9 @@ describe("reconcile", () => {
     PgProjectSync.reset();
     storedFiles().clear();
     await signedIn();
+    // The probe behind this reaches the network; the server's *answers* are
+    // what these tests stub, one layer up
+    jest.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -155,6 +172,67 @@ describe("reconcile", () => {
     expect(replace).toHaveBeenCalledWith("alpha", { "src/lib.rs": "newer" });
     expect(result.replaced).toEqual(["alpha"]);
     expect(result.conflicts).toEqual([]);
+  });
+
+  it("trusts the hash over the dirty flag, and does not ask about an untouched project", async () => {
+    // `dirty` is a hint that saves reconcile from hashing every project; the
+    // hash is the truth. Treating the flag as decisive made a project that had
+    // merely been *opened* -- the switch event flags it on every load -- read
+    // as having unsaved work, so taking the server's copy silently became
+    // unreachable and any difference turned into a question.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "exactly what was uploaded" });
+    await pending(
+      "p1",
+      { files: { "src/lib.rs": "exactly what was uploaded" } },
+      "t1"
+    );
+    const replace = jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined as never);
+    serverHas([project("p1", "alpha", "t2")], {
+      p1: { files: { "src/lib.rs": "the other device" } },
+    });
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(replace).toHaveBeenCalledWith("alpha", {
+      "src/lib.rs": "the other device",
+    });
+  });
+
+  it("does not call a regenerated workspace file this device's work", async () => {
+    // `PgProgramInfo` rewrites the keypair file every time a workspace opens,
+    // so a device that has just taken another's copy differs from the snapshot
+    // it adopted within a second, through nothing anyone typed. Counting that
+    // as local work meant the *second* exchange in an ordinary back-and-forth
+    // -- they edit, I pick it up, they edit again -- was reported as a
+    // divergence and the user was asked to choose.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", {
+      "src/lib.rs": "theirs",
+      ".workspace/program-info.json": '{"kp":"regenerated here"}',
+    });
+    await agreed(
+      "p1",
+      // What the server handed over: the same code, without the keypair file
+      { files: { "src/lib.rs": "theirs" } },
+      "t1"
+    );
+    const replace = jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined as never);
+    serverHas([project("p1", "alpha", "t2")], {
+      p1: { files: { "src/lib.rs": "theirs, and then some" } },
+    });
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(replace).toHaveBeenCalledWith("alpha", {
+      "src/lib.rs": "theirs, and then some",
+    });
   });
 
   it("pushes when this device is ahead and nothing else has written", async () => {
@@ -290,6 +368,8 @@ describe("reconcile", () => {
     withFiles("alpha", { "src/lib.rs": "someone else's work" });
     await PgSyncMark.write("theirs", {
       hash: "whatever",
+      contentHash: "whatever",
+      name: "alpha",
       updatedAt: "t1",
       dirty: false,
     });

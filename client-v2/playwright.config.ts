@@ -8,12 +8,24 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   // The dev server is slow to boot: wasm chunks plus the generate step
-  // Per test. A hang should surface in seconds, not a minute. Override either
-  // way - tighter to catch a stall sooner, looser when slowMo paces the run:
+  //
+  // Per test. 30s was under what the slowest specs actually need: the
+  // migration ones seed a config, reload, and wait for a whole workspace to
+  // come back, and measure 38-47s on their own. They passed only when the
+  // machine was otherwise idle, so the suite failed in a different place on
+  // each sequential run -- which reads as flakiness and trains you to ignore
+  // it. Raised to cover them with room, since a genuine hang still fails,
+  // just a minute later. Override either way - tighter to catch a stall
+  // sooner, looser when slowMo paces the run:
   //   E2E_TIMEOUT=15000 yarn test-e2e
-  //   SLOWMO=800 E2E_TIMEOUT=60000 yarn test-e2e --headed
-  timeout: Number(process.env.E2E_TIMEOUT ?? 30_000),
-  expect: { timeout: 10_000 },
+  //   SLOWMO=800 E2E_TIMEOUT=120000 yarn test-e2e --headed
+  timeout: Number(process.env.E2E_TIMEOUT ?? 60_000),
+  // Deliberately well under the test timeout, so an assertion that will never
+  // pass fails naming its locator rather than as a bare "test timeout". 10s
+  // was not enough for the first assertion in a spec: that one waits on the
+  // explorer's async init, which on a loaded machine running the suite
+  // sequentially takes longer than everything that follows it.
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   reporter: process.env.CI ? "list" : "line",
   use: {

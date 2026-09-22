@@ -110,9 +110,54 @@ describe("PgProjectSync", () => {
 
     expect(await PgSyncMark.read("p1")).toEqual({
       hash: expect.any(String),
+      contentHash: expect.any(String),
+      name: "p1",
       updatedAt: "t1",
       dirty: false,
     });
+  });
+
+  it("skips a rewrite of identical content, however dirty the mark says it is", async () => {
+    // `dirty` is set by any write at all, and `PgProgramInfo` rewrites
+    // `program-info.json` with the content it already had on every load. When
+    // that forced an upload, every reload bumped the row -- and a bumped row
+    // is exactly what the *other* browser reads as "changed elsewhere", so two
+    // idle browsers generated conflicts against each other.
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t1" }),
+          })
+    ) as unknown as typeof fetch;
+    await signedIn();
+
+    await PgProjectSync.push("p1", { files: { a: "1" } }, "one");
+    await PgSyncMark.markDirty("p1");
+    expect((await PgSyncMark.read("p1"))?.dirty).toBe(true);
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } }, "one")).toBe(
+      "skipped"
+    );
+  });
+
+  it("uploads a rename, which changes no bytes at all", async () => {
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t1" }),
+          })
+    ) as unknown as typeof fetch;
+    await signedIn();
+
+    await PgProjectSync.push("p1", { files: { a: "1" } }, "one");
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } }, "two")).toBe(
+      "ok"
+    );
+    expect(lastBody().name).toBe("two");
   });
 
   it("keeps marks apart per account", async () => {
@@ -336,6 +381,77 @@ describe("resolving a conflict", () => {
     expect((await PgSyncMark.read("p1"))?.updatedAt).toBe("t9");
   });
 
+  it("re-reads the workspace it just replaced, so the editor stops showing the old code", async () => {
+    // `replaceWorkspaceFiles` writes to the backing store and leaves the
+    // in-memory copy alone, and only the *current* workspace has one. Without
+    // a forced re-read the user keeps looking at the version they chose to
+    // discard -- and worse, the next debounce uploads it back over the one
+    // they chose to keep.
+    //
+    // `switchWorkspace` is not enough on its own: `_initCurrentWorkspace`
+    // skips when the workspace is already the initialized one.
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          project: {
+            id: "p1",
+            name: "mine",
+            kind: "project",
+            snapshot: { files: { "src/lib.rs": "theirs" } },
+            updatedAt: "t9",
+          },
+        }),
+      });
+    }) as unknown as typeof fetch;
+    await signedIn();
+    asWorkspace("p1", "mine");
+    jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined);
+    const reload = jest
+      .spyOn(PgExplorer, "switchWorkspace")
+      .mockResolvedValue(undefined);
+
+    await PgProjectSync.adopt("p1");
+
+    expect(reload).toHaveBeenCalledWith("mine");
+  });
+
+  it("does not re-read a project the user is not looking at", async () => {
+    // Only the current workspace is held in memory, so re-opening any other
+    // would be a navigation the user did not ask for
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          project: {
+            id: "p2",
+            name: "other",
+            kind: "project",
+            snapshot: { files: { "src/lib.rs": "theirs" } },
+            updatedAt: "t9",
+          },
+        }),
+      });
+    }) as unknown as typeof fetch;
+    await signedIn();
+    asWorkspace("p1", "mine");
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
+    jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined);
+    const reload = jest
+      .spyOn(PgExplorer, "switchWorkspace")
+      .mockResolvedValue(undefined);
+
+    await PgProjectSync.adopt("p2");
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it("refuses to empty a workspace over a malformed snapshot", async () => {
     // `replaceWorkspaceFiles` removes the directory before it discovers there
     // is nothing to write back, so an unusable snapshot is not a no-op -- it
@@ -406,6 +522,20 @@ describe("PgProjectSync.pushCurrent", () => {
 
     await PgProjectSync.pushCurrent();
     expect(lastBody().name).toBe("Hello Anchor");
+  });
+
+  it("refuses to upload an empty snapshot over a project that has one", async () => {
+    // The explorer clears its file map before re-reading a workspace from the
+    // store, so a push landing in that window builds nothing at all. Taking
+    // another device's copy re-opens the workspace, which is precisely when a
+    // push is most likely to be pending -- so the version the user asked to
+    // keep would be replaced by an empty project.
+    asWorkspace("p1", "mine");
+    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([]);
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
   });
 
   it("does nothing when there is no workspace to push", async () => {

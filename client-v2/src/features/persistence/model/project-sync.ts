@@ -1,5 +1,10 @@
 import { report } from "./diagnostics";
-import { buildSnapshot, hashSnapshot, snapshotOf } from "./snapshot";
+import {
+  buildSnapshot,
+  hashSnapshot,
+  hashUserFiles,
+  snapshotOf,
+} from "./snapshot";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
@@ -72,9 +77,25 @@ export class PgProjectSync {
     const id = PgExplorer.currentWorkspaceId;
     if (!id) return "skipped";
 
+    const snapshot = await buildSnapshot();
+
+    // An empty snapshot for a workspace that is open is not an edit -- it is
+    // the explorer mid-re-read. `_initCurrentWorkspace` clears the file map
+    // before repopulating it from the store, so a push that lands inside that
+    // window sees nothing and uploads nothing, over whatever the server holds.
+    //
+    // Taking another device's copy re-opens the workspace, which is exactly
+    // when a push is most likely to be pending, so this window is reached by
+    // the one path where being wrong costs the most: the version the user just
+    // asked to keep, replaced by an empty project.
+    if (!Object.keys(snapshot.files).length) {
+      report(`push project ${id}: refused an empty snapshot`, null);
+      return "skipped";
+    }
+
     return await PgProjectSync.push(
       id,
-      await buildSnapshot(),
+      snapshot,
       PgExplorer.currentWorkspaceName
     );
   }
@@ -121,11 +142,18 @@ export class PgProjectSync {
 
     const mark = await PgSyncMark.read(projectId);
     const hash = await hashSnapshot(snapshot);
+    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
 
-    // Unchanged since the server took it, and nothing pending. `dirty` is
-    // checked as well as the hash because an edit that was undone leaves the
-    // content identical while the upload it scheduled is still owed.
-    if (!opts.force && mark && !mark.dirty && mark.hash === hash) {
+    // Nothing the server does not already have. Both halves matter: the hash
+    // covers the files, and the name covers a rename, which changes what the
+    // row should say without changing a byte of the snapshot.
+    //
+    // Deliberately not conditioned on `dirty`. That flag is set by any write
+    // at all, including rewriting a workspace file with the content it already
+    // had -- which `PgProgramInfo` does on every load -- so letting it force
+    // an upload meant every reload bumped the row, and a bumped row is what
+    // the *other* browser reads as "this project changed elsewhere".
+    if (!opts.force && mark && mark.hash === hash && mark.name === storedName) {
       return "skipped";
     }
 
@@ -136,7 +164,7 @@ export class PgProjectSync {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           id: projectId,
-          name: name ?? PgProjectSync._names.get(projectId) ?? projectId,
+          name: storedName,
           kind: projectId.startsWith("tut:") ? "tutorial" : "project",
           snapshot,
           // Omitted under `force`: the server reads the two as separate doors,
@@ -163,6 +191,8 @@ export class PgProjectSync {
       const body = await response.json();
       await PgSyncMark.write(projectId, {
         hash,
+        contentHash: await hashUserFiles(snapshot),
+        name: storedName,
         updatedAt: body.updatedAt,
         dirty: false,
       });
@@ -278,12 +308,35 @@ export class PgProjectSync {
     const local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
 
+    const serverHash = await hashSnapshot(full!.snapshot!);
+
     await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
     await PgSyncMark.write(projectId, {
-      hash: await hashSnapshot(full!.snapshot!),
+      hash: serverHash,
+      contentHash: await hashUserFiles(full!.snapshot!),
+      name: local,
       updatedAt: full!.updatedAt,
       dirty: false,
     });
+
+    // Only the current workspace is held in memory, and it is now the stale
+    // copy -- `replaceWorkspaceFiles` writes to the store and deliberately
+    // leaves state alone. Re-opening is what makes the editor re-read it.
+    //
+    // Done here rather than in the callers because every path that adopts has
+    // the same problem: the reconcile's own, the user answering the banner,
+    // and a backgrounded tab coming back. The last had no re-read at all, so
+    // a tab that adopted on regaining focus kept showing files that were no
+    // longer on disk -- and pushed them back up on the next edit.
+    // Re-opening is not inert -- `PgProgramInfo` rewrites the keypair file --
+    // so the workspace will differ from the snapshot just adopted within a
+    // moment. That is why the mark records `contentHash` as well: reconcile
+    // decides on the user's files, which this cannot change, and the generated
+    // ones ride along on the next upload.
+    if (local === PgExplorer.currentWorkspaceName) {
+      await PgExplorer.switchWorkspace(local);
+    }
+
     return local;
   }
 
@@ -313,15 +366,10 @@ export class PgProjectSync {
         }
 
         case "take-server": {
+          // `adopt` re-opens the workspace itself when it is the current one
           const local = await PgProjectSync.adopt(projectId);
           if (!local) return false;
           PgProjectSync._clear(projectId);
-          // Only the current workspace is held in memory, so it is the only
-          // one whose files changing underneath leaves the editor showing
-          // something that is no longer on disk.
-          if (local === PgExplorer.currentWorkspaceName) {
-            await PgExplorer.switchWorkspace(local);
-          }
           return true;
         }
 
@@ -382,6 +430,20 @@ export class PgProjectSync {
     return {
       dispose: () => PgProjectSync._conflictListeners.delete(cb),
     };
+  }
+
+  /**
+   * Whether syncing is possible at all: signed in, against a deployment that
+   * has a database.
+   *
+   * Exposed so callers can bail out *before* doing the work that feeds a
+   * request. Every method here already short-circuits, but `push` takes a
+   * snapshot as an argument, so a caller that builds one first pays for
+   * reading the whole workspace off disk to hand it to a function that will
+   * discard it -- once per project, on every reconcile.
+   */
+  static async isAvailable() {
+    return await PgProjectSync._ready();
   }
 
   /** Remember a name for a project whose workspace may not exist locally yet */

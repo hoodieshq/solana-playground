@@ -17,14 +17,26 @@
  * The real filesystem round trip is covered by the browser tests in `e2e/`.
  */
 export const mockFsModule = () => {
+  const { PgCommon } = require("../utils/common");
   const files = new Map<string, string>();
+
+  const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };
 
   const PgFs = {
     /** Test-only handle, for asserting on or corrupting what is stored */
     __files: files,
 
+    events,
+
+    onDidWriteFile(cb: (path: string) => unknown) {
+      return PgCommon.onDidChange(events.ON_DID_WRITE_FILE, cb);
+    },
+
     async writeFile(path: string, data: string) {
       files.set(path, data);
+      // Dispatched here as well, because what listens for it is the only
+      // thing that uploads the three workspace files written this way
+      PgCommon.createAndDispatchCustomEvent(events.ON_DID_WRITE_FILE, path);
     },
 
     async readToString(path: string) {

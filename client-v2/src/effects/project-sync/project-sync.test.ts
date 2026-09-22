@@ -5,6 +5,7 @@ import * as restore from "../../features/persistence/model/project-restore";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
+import { PgFs } from "../../utils/explorer/fs";
 import type { Disposable } from "../../utils/types";
 
 /**
@@ -61,15 +62,6 @@ describe("the project-sync effect", () => {
     jest.restoreAllMocks();
   });
 
-  it("uploads when the user opens a project, not only when they type in one", () => {
-    effect = projectSync();
-
-    dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
-    jest.advanceTimersByTime(3000);
-
-    expect(push).toHaveBeenCalled();
-  });
-
   it("still uploads on an edit", () => {
     effect = projectSync();
 
@@ -90,10 +82,9 @@ describe("the project-sync effect", () => {
     expect(push).toHaveBeenCalledTimes(1);
   });
 
-  it("flushes the project being left before following the user to the next one", () => {
-    // `pushCurrent` reads whichever workspace is current when it runs, so a
-    // switch mid-debounce used to upload the *incoming* project under the
-    // outgoing one's pending timer -- and the outgoing one's edits were lost
+  it("flushes a pending edit when the user leaves the project", () => {
+    // Otherwise the debounce is simply cancelled by the switch and the edit
+    // waits for the next reconcile to notice it
     effect = projectSync();
 
     dispatch(PgExplorer.events.ON_DID_SAVE_FILE);
@@ -101,8 +92,49 @@ describe("the project-sync effect", () => {
 
     expect(push).toHaveBeenCalledTimes(1);
 
+    // ...and does not then blind-push the incoming project on a timer. What
+    // the incoming project needs is a reconcile, which may well mean pulling
+    // rather than pushing -- covered in "opening a project" below.
     jest.advanceTimersByTime(3000);
-    expect(push).toHaveBeenCalledTimes(2);
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it("uploads tutorial progress and the program keypair", () => {
+    // These three files are written straight to `PgFs` by `PgTutorial` and
+    // `PgProgramInfo`, not through `saveFileToState`, so none of the explorer
+    // events fires for them. They are also exactly the files the snapshot
+    // deliberately carries -- so the only files sync exists to move were the
+    // only ones nothing ever scheduled an upload for, and a tutorial's page
+    // number reached the server only if some unrelated edit happened later.
+    effect = projectSync();
+
+    for (const path of [
+      "/Hello Seahorse/.tutorial.json",
+      "/Hello Seahorse/.workspace/tutorial-storage.json",
+      "/Hello Seahorse/.workspace/program-info.json",
+    ]) {
+      PgCommon.createAndDispatchCustomEvent(
+        PgFs.events.ON_DID_WRITE_FILE,
+        path
+      );
+    }
+    jest.advanceTimersByTime(3000);
+
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a direct write of anything that is not synced", () => {
+    // `saveMeta` rewrites the tab state constantly, and the snapshot filters
+    // it out on purpose -- scheduling for it would be pure churn
+    effect = projectSync();
+
+    PgCommon.createAndDispatchCustomEvent(
+      PgFs.events.ON_DID_WRITE_FILE,
+      "/Hello Seahorse/.workspace/metadata.json"
+    );
+    jest.advanceTimersByTime(3000);
+
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("records an edit before attempting to upload it", () => {
@@ -194,6 +226,91 @@ describe("a tab that is not in front", () => {
     await Promise.resolve();
 
     expect(order).toEqual(["hold", "reconcile", "release"]);
+  });
+});
+
+describe("opening a project", () => {
+  let effect: Disposable | null;
+
+  beforeEach(() => {
+    effect = null;
+    jest.spyOn(PgProjectSync, "pushCurrent").mockResolvedValue("ok" as never);
+    jest.spyOn(PgSyncMark, "markDirty").mockResolvedValue(undefined);
+    jest.spyOn(PgSyncMark, "projectIds").mockResolvedValue([]);
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    effect?.dispose();
+    jest.restoreAllMocks();
+  });
+
+  it("reconciles it, so the project is pulled and not just its conversation", async () => {
+    // Opening a project is the moment its files matter, and this effect was
+    // subscribed to file changes alone -- so a project only ever reached the
+    // server by being typed in, and one another device had moved on kept
+    // showing its stale local copy until a reload or a tab refocus. The
+    // conversation was the only half being pulled here.
+    //
+    // A reconcile rather than a push, because which direction the project
+    // needs to move is exactly the question, and only the marks can answer it.
+    const order: string[] = [];
+    jest
+      .spyOn(PgProjectSync, "holdPushes")
+      .mockImplementation(() => order.push("hold"));
+    jest
+      .spyOn(PgProjectSync, "releasePushes")
+      .mockImplementation(() => order.push("release"));
+    jest.spyOn(restore, "reconcile").mockImplementation(async () => {
+      order.push("reconcile");
+      return {
+        imported: [],
+        replaced: [],
+        removed: [],
+        pushed: [],
+        conflicts: [],
+        latest: null,
+      };
+    });
+
+    effect = projectSync();
+    dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(order).toEqual(["hold", "reconcile", "release"]);
+  });
+
+  it("does not re-enter when the reconcile itself re-opens the workspace", async () => {
+    // Taking another device's copy re-opens the workspace whose files it just
+    // replaced, and re-opening dispatches a switch. Unguarded, that switch
+    // starts another reconcile, which adopts, which re-opens -- the two bounce
+    // off each other for as long as the tab is open, and the project is
+    // uploaded dozens of times a second.
+    let reconciles = 0;
+    jest.spyOn(PgProjectSync, "holdPushes").mockImplementation(() => {});
+    jest.spyOn(PgProjectSync, "releasePushes").mockImplementation(() => {});
+    jest.spyOn(restore, "reconcile").mockImplementation(async () => {
+      reconciles++;
+      // What `adopt` does to the current workspace
+      dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+      return {
+        imported: [],
+        replaced: ["alpha"],
+        removed: [],
+        pushed: [],
+        conflicts: [],
+        latest: "alpha",
+      };
+    });
+
+    effect = projectSync();
+    dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(reconciles).toBe(1);
   });
 });
 

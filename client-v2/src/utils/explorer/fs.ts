@@ -1,8 +1,37 @@
 import FS from "@isomorphic-git/lightning-fs";
 
 import { PgExplorer } from "./explorer";
+import { PgCommon } from "../common";
+import type { Disposable } from "../types";
 
 export class PgFs {
+  static readonly events = {
+    ON_DID_WRITE_FILE: "pgfsondidwritefile",
+  };
+
+  /**
+   * Runs after any file is written through this class.
+   *
+   * The explorer's own events cover files that go through its state -- an
+   * edit, a create, a rename. They do not cover anything written here
+   * directly, and three files that matter are: `.tutorial.json`,
+   * `.workspace/tutorial-storage.json` and `.workspace/program-info.json`.
+   * All three are written straight to the store by `PgTutorial` and
+   * `PgProgramInfo`, and all three are in the snapshot -- so without this,
+   * the only files sync exists to carry are the only ones nothing ever
+   * announces.
+   *
+   * Deliberately unfiltered. This fires for every write, including the
+   * explorer's own, and the listener decides what it cares about -- the list
+   * of paths worth syncing belongs to the sync feature, not to the filesystem.
+   *
+   * @param cb callback function to run, with the full path written
+   * @returns a dispose function to clear the event
+   */
+  static onDidWriteFile(cb: (path: string) => unknown): Disposable {
+    return PgCommon.onDidChange(PgFs.events.ON_DID_WRITE_FILE, cb);
+  }
+
   /** Async `indexedDB` based file system instance */
   private static _fs = new FS("solana-playground").promises;
 
@@ -28,6 +57,8 @@ export class PgFs {
     }
 
     await this._fs.writeFile(path, data);
+
+    PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, path);
   }
 
   /**

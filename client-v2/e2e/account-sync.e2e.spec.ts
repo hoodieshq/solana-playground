@@ -136,6 +136,24 @@ const json = (r: Route, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+/**
+ * Wait until the browser has stopped uploading.
+ *
+ * A first sign-in is not one write. `program-info.json` is written after the
+ * workspace opens, asynchronously and by something other than the editor, so
+ * it lands after the first push and schedules its own -- and until that one
+ * has been accepted the sync mark describes a snapshot without it. Reloading
+ * inside that window is a race, and the losing side looks exactly like a real
+ * divergence.
+ */
+const settled = async (page: Page, writes: unknown[]) => {
+  let last = -1;
+  while (last !== writes.length) {
+    last = writes.length;
+    await page.waitForTimeout(4000);
+  }
+};
+
 /** A project of this browser's own, to hand over and then reload against */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
@@ -206,19 +224,196 @@ test("reloading a project the account already has writes nothing", async ({
   });
 
   // First sign-in: the account has nothing, so this browser hands the project
-  // over. That write is the one that is meant to happen.
+  // over. Not pinned to exactly one -- the workspace files that are written
+  // straight to the store, the program keypair among them, legitimately land
+  // after the first push and schedule their own. What must be zero is the
+  // second phase below.
   await page.reload();
-  await expect.poll(() => writes.length, LONG).toBe(1);
-  await page.waitForTimeout(3000);
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
 
   // Second load: both sides now agree, and the mark says so
   writes.length = 0;
   await page.reload();
   await expect.poll(() => threadId(page), LONG).toBe(localId);
+
   await page.waitForTimeout(8000);
 
   expect(writes).toEqual([]);
   await expect(page.getByText("changed on another device")).toHaveCount(0);
+});
+
+/**
+ * The other device is ahead, and this one has done nothing.
+ *
+ * The commonest two-browser sequence there is, and it must not ask: only one
+ * side has work in it. Reaching the silent path needs the marks to say so --
+ * and they nearly did not, because a workspace switch fires on every load and
+ * was flagging every project as having unsaved changes before the user had
+ * touched anything.
+ *
+ * The editor has to end up showing the new code too. `replaceWorkspaceFiles`
+ * writes to IndexedDB and leaves the in-memory copy alone, and re-opening the
+ * workspace you are already in does not re-read it -- so the version the user
+ * was meant to receive landed on disk while the screen kept the old one, and
+ * the next debounce pushed the old one back over it.
+ */
+test("the other device's change arrives without asking", async ({ page }) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Handover");
+
+  const writes: unknown[] = [];
+  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      stored = {
+        snapshot: body.snapshot,
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      };
+      return json(r, { updatedAt: stored.updatedAt });
+    }
+    const shared = {
+      id: localId,
+      name: "Handover",
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (id) {
+      return json(r, { project: { ...shared, snapshot: stored?.snapshot } });
+    }
+    return json(r, { projects: stored ? [shared] : [] });
+  });
+
+  // Sign in and hand the project over, so this browser and the account agree
+  await page.reload();
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
+
+  // The other device edits it, adding a file this browser has never seen
+  stored = {
+    snapshot: {
+      files: {
+        "src/lib.rs": "// edited on the other device",
+        "src/from_other_device.rs": "// new over there",
+      },
+    },
+    updatedAt: "2026-05-01T00:00:00.000Z",
+  };
+
+  writes.length = 0;
+  await page.reload();
+  await expect.poll(() => threadId(page), LONG).toBe(localId);
+
+  // Nothing to decide: this browser has no work of its own to weigh
+  await expect(page.getByText("changed on another device")).toHaveCount(0, LONG);
+
+  // The file tree is rendered from the explorer's *in-memory* state, so the
+  // new file appearing in it is the proof that the workspace was re-read --
+  // writing it to IndexedDB alone would leave the tree exactly as it was
+  await expect(page.locator("#root-dir")).toContainText(
+    "from_other_device.rs",
+    LONG
+  );
+
+  // The stale in-memory copy must not go back up. This is the assertion that
+  // fails when the workspace is not re-read: the push carries the old files,
+  // the server takes them, and the *other* browser is then told its project
+  // changed elsewhere.
+  await page.waitForTimeout(8000);
+  expect(writes).toEqual([]);
+});
+
+/**
+ * The other device keeps going, and this one keeps up.
+ *
+ * One round trip is not enough to trust this: the first adopt is what puts the
+ * workspace into the state the second one has to read correctly. Anything the
+ * app writes to the project *after* a reconcile has taken the server's copy --
+ * and the program keypair is written on every open -- makes this device look
+ * like it has work of its own, and the second round then reads as a genuine
+ * divergence and asks.
+ */
+test("the other device can change it twice without ever asking", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "PingPong");
+
+  const writes: unknown[] = [];
+  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      stored = {
+        snapshot: body.snapshot,
+        updatedAt: `2026-02-0${writes.length}T00:00:00.000Z`,
+      };
+      return json(r, { updatedAt: stored.updatedAt });
+    }
+    const shared = {
+      id: localId,
+      name: "PingPong",
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (id) {
+      return json(r, { project: { ...shared, snapshot: stored?.snapshot } });
+    }
+    return json(r, { projects: stored ? [shared] : [] });
+  });
+
+  // Hand it over, so both sides agree to begin with
+  await page.reload();
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
+
+  const banner = page.getByText("changed on another device");
+
+  /** The other device edits, and this one picks it up on the next load */
+  const roundTrip = async (marker: string) => {
+    stored = {
+      snapshot: {
+        files: {
+          "src/lib.rs": `// ${marker}`,
+          [`src/${marker}.rs`]: "// added over there",
+        },
+      },
+      updatedAt: `2026-06-0${marker.length}T00:00:00.000Z`,
+    };
+
+    writes.length = 0;
+    await page.reload();
+    await expect.poll(() => threadId(page), LONG).toBe(localId);
+
+    await expect(banner).toHaveCount(0, LONG);
+    await expect(page.locator("#root-dir")).toContainText(`${marker}.rs`, LONG);
+  };
+
+  await roundTrip("first");
+  // The one that was failing: by now this browser has adopted once, and
+  // whatever the adopt left behind is what the second round has to survive
+  await roundTrip("second");
+  // A third, because "works once more" and "settles" are different claims
+  await roundTrip("third");
 });
 
 /**
@@ -298,6 +493,80 @@ test("a divergent project asks, and keeping this version force-pushes it", async
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
+});
+
+/** The other answer to the same question, which is the destructive one */
+test("a divergent project can take the other version instead", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Contested");
+
+  const writes: Array<{ force?: boolean }> = [];
+  const theirs = {
+    files: {
+      "src/lib.rs": "// written on the other device",
+      "src/from_other_device.rs": "// new over there",
+    },
+  };
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      writes.push(JSON.parse(r.request().postData() ?? "{}"));
+      return r.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          conflict: true,
+          updatedAt: "2026-03-01T00:00:00.000Z",
+        }),
+      });
+    }
+    const shared = {
+      id: localId,
+      name: "Contested",
+      kind: "project",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    return id
+      ? json(r, { project: { ...shared, snapshot: theirs } })
+      : json(r, { projects: [shared] });
+  });
+
+  await page.reload();
+
+  const banner = page.getByText("changed on another device");
+  await expect(banner).toBeVisible(LONG);
+
+  await page.getByRole("button", { name: "Take the other version" }).click();
+
+  await expect(banner).toHaveCount(0, LONG);
+  // The tree is rendered from in-memory state, so this proves the explorer
+  // caught up rather than the files landing on disk behind a stale screen
+  await expect(page.locator("#root-dir")).toContainText(
+    "from_other_device.rs",
+    LONG
+  );
+  // ...and the editor itself, which is a separate claim and the one the user
+  // actually sees. Clearing the workspace directory took the tab state with
+  // it, so there was no current file to re-read and the pane went on showing
+  // the version that had just been replaced, until the page was reloaded.
+  await expect(
+    page.getByText("// written on the other device")
+  ).toBeVisible(LONG);
+
+  // And nothing goes back up afterwards. A push here would carry the discarded
+  // copy and hand the *other* browser a conflict it did not cause.
+  writes.length = 0;
+  await page.waitForTimeout(8000);
+  expect(writes).toEqual([]);
 });
 
 /**

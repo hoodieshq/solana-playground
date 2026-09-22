@@ -144,9 +144,32 @@ tokens lived in module-level `Map`s that died with the page.
 
 So the device keeps a **sync mark** per project per account, persisted in the
 same IndexedDB volume as the code: the hash of the snapshot the server last
-accepted, the row's `updated_at` at that moment, and a `dirty` flag set when an
-edit lands. Per account because a tutorial's id is derived from its name and so
-is identical across accounts.
+accepted, the name it was stored under, the row's `updated_at` at that moment,
+and a `dirty` hint. Per account because a tutorial's id is derived from its name
+and so is identical across accounts.
+
+The name is in there because not everything worth uploading changes the
+snapshot — a rename sends a new `name` under identical bytes. And `dirty` is
+strictly a hint that says "re-hash this one rather than trusting the cheap
+path": it is set by any write at all, including the several that happen on every
+load, so letting it decide anything meant a device that had done nothing read as
+having unsaved work.
+
+The mark carries **two** hashes, because "does this device hold work" and "is an
+upload worth making" turn out to be different questions. The three workspace
+files travel with the project but nobody types them — the keypair file is
+rewritten every time a workspace opens — so a device that has just taken another
+device's copy differs from it within a second through nothing anyone did.
+Deciding cleanliness on the full snapshot made the *second* exchange of an
+ordinary back-and-forth (they edit, I pick it up, they edit again) read as a
+genuine divergence and ask the user to choose between two copies differing by a
+file neither of them wrote. So cleanliness is decided on the user's files
+(`contentHash`) and the generated ones ride along on the next upload (`hash`).
+
+Reconcile runs on sign-in, on load, when a backgrounded tab returns, and when a
+project is opened — and it is **not re-entrant**, because taking another
+device's copy re-opens the workspace, which is itself an "a project was opened"
+event.
 
 Reconcile then has two independent questions and four answers:
 
@@ -164,8 +187,6 @@ The server's compare-and-swap on `updated_at` stays, demoted from the primary
 mechanism to a backstop for the race between deciding and writing. When it
 refuses, the client **stops pushing that project** and raises the banner, rather
 than retrying a swap that can never match again.
-
-Reconcile runs on sign-in, on load, and when a backgrounded tab returns.
 
 ### Tabs
 

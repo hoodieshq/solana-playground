@@ -50,6 +50,24 @@ const currentUserId = () => PgSession.get()?.id ?? null;
 export interface SyncMark {
   /** `hashSnapshot` of the snapshot the server accepted */
   hash: string;
+  /**
+   * `hashUserFiles` of the same snapshot -- what the user actually wrote.
+   *
+   * This is the one reconcile decides on. `hash` covers the generated
+   * workspace files too, which are rewritten on every open, so it answers
+   * "is an upload worth making" rather than "does this device hold work".
+   */
+  contentHash: string;
+  /**
+   * The name it was stored under.
+   *
+   * Not everything worth uploading changes the snapshot: a rename sends new
+   * `name` under identical bytes. Without this, "has anything changed" had to
+   * fall back on `dirty`, which meant any write at all forced an upload --
+   * including rewriting a workspace file with the content it already had,
+   * which happens on every load.
+   */
+  name: string;
   /** The row's `updated_at` when it accepted it */
   updatedAt: string;
   /**
@@ -102,6 +120,15 @@ export class PgSyncMark {
       }
       return {
         hash: parsed.hash,
+        // Absent in marks written before the field existed. Empty matches no
+        // snapshot, so the project is pushed once and the mark rewritten
+        // complete, which is the same tolerance `name` gets.
+        contentHash:
+          typeof parsed.contentHash === "string" ? parsed.contentHash : "",
+        // Absent in marks written before the field existed. Empty reads as
+        // "not the name it is called now", so the project is pushed once and
+        // the mark is rewritten complete.
+        name: typeof parsed.name === "string" ? parsed.name : "",
         updatedAt: parsed.updatedAt,
         dirty: parsed.dirty === true,
       };
