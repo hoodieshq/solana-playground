@@ -56,7 +56,41 @@ export const getPool = () => {
 };
 
 /**
- * Run one statement.
+ * Run one statement on a caller's client, tagging any failure with its text.
+ *
+ * `pg` raises the server's error verbatim and attaches no SQL to it, so a
+ * driver error reaching a route names neither the statement that produced it
+ * nor the module it came from. For most codes that is survivable -- the
+ * constraint name says enough -- but the schema-shaped ones say nothing at
+ * all: `42P10` reports that an `on conflict` target matches no constraint
+ * without naming either side of the comparison, and the two things that cause
+ * it read identically in a log. Either the schema is behind the code, or the
+ * code is behind the schema.
+ *
+ * The text here comes from the module that is actually loaded, which is the
+ * half nothing else can reconstruct after the fact: compare it against the
+ * source and a process serving a cached copy of an edited file -- which the
+ * dev server does by design, see the note in `craco.config.js` -- stops
+ * looking like a database problem.
+ *
+ * `??=` rather than `=`: an inner statement's text is the specific one, and a
+ * caller that wraps this must not overwrite it with its own.
+ *
+ * @param {import("pg").PoolClient | import("pg").Pool} client
+ * @param {string} text SQL with `$1`-style placeholders
+ * @param {unknown[]} [params] bound values
+ */
+export const run = async (client, text, params) => {
+  try {
+    return await client.query(text, params);
+  } catch (e) {
+    e.statement ??= text;
+    throw e;
+  }
+};
+
+/**
+ * Run one statement on the shared pool.
  *
  * @param {string} text SQL with `$1`-style placeholders
  * @param {unknown[]} [params] bound values
@@ -64,5 +98,5 @@ export const getPool = () => {
 export const query = async (text, params) => {
   const p = getPool();
   if (!p) throw new Error("DATABASE_URL is not configured");
-  return p.query(text, params);
+  return run(p, text, params);
 };

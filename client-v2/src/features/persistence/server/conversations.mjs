@@ -5,7 +5,7 @@
  * in a caller's check: a route that forgets the guard then returns nothing
  * instead of returning someone else's thread.
  */
-import { getPool, query } from "./db.mjs";
+import { getPool, query, run } from "./db.mjs";
 
 /**
  * Ensure a project row and its conversation exist.
@@ -18,7 +18,8 @@ const ensureConversation = async (client, userId, projectId) => {
 
   // `(user_id, id)`, not `id`: a tutorial's id is derived, so every user who
   // starts the same one produces the same string
-  await client.query(
+  await run(
+    client,
     `insert into projects (id, user_id, name, kind)
      values ($1, $2, $1, $3)
      on conflict (user_id, id) do nothing`,
@@ -27,7 +28,8 @@ const ensureConversation = async (client, userId, projectId) => {
 
   // Newest live thread, because a project may hold several. No `on conflict`
   // to lean on -- that index is deliberately not unique any more.
-  const existing = await client.query(
+  const existing = await run(
+    client,
     `select id from conversations
       where user_id = $1 and project_id = $2 and deleted_at is null
       order by updated_at desc
@@ -36,7 +38,8 @@ const ensureConversation = async (client, userId, projectId) => {
   );
   if (existing.rows.length) return existing.rows[0].id;
 
-  const created = await client.query(
+  const created = await run(
+    client,
     `insert into conversations (id, user_id, project_id)
      values (gen_random_uuid(), $1, $2)
      returning id`,
@@ -97,7 +100,8 @@ export const appendMessages = async (userId, projectId, items) => {
     // that id exists anywhere at all. Same reasoning as `(user_id, id)` on
     // `projects`, one level down. Re-dumping a thread still writes nothing:
     // a repeat carries the same conversation.
-    const { rowCount } = await client.query(
+    const { rowCount } = await run(
+      client,
       `insert into messages (id, conversation_id, kind, payload, created_at)
        select v.id::uuid, v.conversation_id::uuid, v.kind, v.payload::jsonb,
               (v.payload::jsonb ->> 'createdAt')::timestamptz
@@ -107,7 +111,8 @@ export const appendMessages = async (userId, projectId, items) => {
       params
     );
 
-    await client.query(
+    await run(
+      client,
       "update conversations set updated_at = now() where id = $1",
       [conversationId]
     );

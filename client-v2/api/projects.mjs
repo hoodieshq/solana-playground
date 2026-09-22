@@ -275,7 +275,29 @@ export default async function handler(req, res) {
     const { status, body } = describeDriverError(e);
     // Only the generic branch is a surprise, and its text is the half that
     // must not travel: driver messages name columns, constraints and values.
-    if (status === 500) console.error("api/projects:", e);
+    //
+    // Field by field, because `console.error` on the platform stringifies an
+    // Error to its `message` and `stack` and drops every property `pg` hangs
+    // off it -- `code` and `constraint` among them, which are the two that say
+    // what to do next. `statement` is added by `db.mjs`: it is the text held by
+    // the module that is actually running, and a schema-shaped failure needs
+    // exactly that to tell code behind the database from a database behind the
+    // code. Same shape as `api/conversations.mjs`, duplicated for the reason
+    // the note at the top of this file gives.
+    if (status === 500) {
+      console.error("api/projects:", {
+        message: e.message,
+        code: e.code,
+        constraint: e.constraint,
+        table: e.table,
+        column: e.column,
+        detail: e.detail,
+        hint: e.hint,
+        routine: e.routine,
+        statement: e.statement,
+        stack: e.stack,
+      });
+    }
     return sendJson(res, status, body);
   }
 

@@ -188,7 +188,26 @@ export default async function handler(req, res) {
   } catch (e) {
     // The driver's own text stays server side: it names columns, constraints
     // and sometimes the values that tripped them.
-    console.error("api/conversations:", e);
+    //
+    // Printed field by field rather than as one object, because `console.error`
+    // on the platform stringifies an Error to its `message` and `stack` and
+    // drops every property `pg` hangs off it -- `code` and `constraint` among
+    // them, which are the two that say what to do next. `statement` is added by
+    // `db.mjs` and is the text held by the module that is actually running:
+    // against a schema-shaped failure it is the only way to tell code that is
+    // behind the database from a database that is behind the code.
+    console.error("api/conversations:", {
+      message: e.message,
+      code: e.code,
+      constraint: e.constraint,
+      table: e.table,
+      column: e.column,
+      detail: e.detail,
+      hint: e.hint,
+      routine: e.routine,
+      statement: e.statement,
+      stack: e.stack,
+    });
     return sendJson(res, 500, { error: "Sync failed" });
   }
 
