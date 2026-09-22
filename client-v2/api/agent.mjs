@@ -106,7 +106,10 @@ const pipeStream = async (res, body) => {
     if (!res.writableEnded && !res.destroyed) {
       // The shape the panel's provider loop already reads (`openai.ts`)
       const message = `Upstream stream failed: ${e.message}`;
-      res.write(`data: ${JSON.stringify({ error: { message } })}\n\n`);
+      // The leading blank line closes whatever frame the upstream left
+      // unfinished; glued onto it, the error would be one malformed line
+      // the panel skips
+      res.write(`\n\ndata: ${JSON.stringify({ error: { message } })}\n\n`);
     }
   } finally {
     await reader.cancel().catch(() => {});
@@ -195,11 +198,20 @@ export default async function handler(req, res) {
     return sendJson(res, 502, { error: `Upstream unreachable: ${e.message}` });
   }
 
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
     const text = await response.text().catch(() => "");
     // The upstream's own status, so a 429 still reads as a 429 in the panel
     return sendJson(res, response.status, {
       error: `Upstream ${response.status}: ${text.slice(0, 300)}`,
+    });
+  }
+
+  // A success with nothing to stream (a 204, say) is the upstream's
+  // fault, not an answer: relaying its status would put a body on one
+  // that cannot carry it
+  if (!response.body) {
+    return sendJson(res, 502, {
+      error: `Upstream ${response.status} with no body to stream.`,
     });
   }
 

@@ -5,15 +5,12 @@ import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
 
 /**
- * Regressions for the default-backend rail, pinned against the real
- * handler.
+ * The default-backend rail, pinned against the real handler.
  *
- * M3 from the #13 review: a JSON body of `null` reached `body.messages`
- * outside the try that wraps parsing and surfaced as a 500. The guard
- * now lives in `readJson` (`src/features/api/server/read-json.mjs`),
- * which is where both rails read a body, so this spec's job is to prove
- * this rail actually answers 400 through it -- on both delivery paths,
- * since the platform the report came from pre-parses the body.
+ * A body that is not a JSON object is refused with a 400 on both
+ * delivery paths -- a raw stream and a body the platform pre-parsed.
+ * The guard is `readJson` (`src/features/api/server/read-json.mjs`),
+ * shared with `/api/mcp`; this spec proves the rail goes through it.
  */
 describe("POST /api/agent body validation", () => {
   const env = { ...process.env };
@@ -38,7 +35,7 @@ describe("POST /api/agent body validation", () => {
   ];
 
   for (const [label, raw] of notObjects) {
-    it(`answers 400, not 500, to a streamed body that is ${label}`, async () => {
+    it(`refuses a streamed body that is ${label}`, async () => {
       const res = await postJson(handler, raw);
       expect(res.statusCode).toBe(400);
       expect(jsonBody(res).error).toMatch(/JSON object/);
@@ -49,7 +46,7 @@ describe("POST /api/agent body validation", () => {
   // platform hands raw text over that way too, so it is parsed rather
   // than refused, and lands on the malformed-JSON 400 below.
   for (const [label, raw] of notObjects.filter(([l]) => l !== "a string")) {
-    it(`answers 400, not 500, to a pre-parsed body that is ${label}`, async () => {
+    it(`refuses a pre-parsed body that is ${label}`, async () => {
       // `preparsed` also drains the stream, the way Vercel does, so a
       // handler that fell through to it would answer about `messages`
       const res = await postJson(handler, raw, { preparsed: true });
@@ -134,6 +131,27 @@ describe("POST /api/agent streaming", () => {
     );
   };
 
+  it("passes an upstream error's own status through", async () => {
+    const res = makeRes();
+    await call(res, {
+      ok: false,
+      status: 429,
+      text: async () => "slow down",
+    } as never);
+
+    expect(res.statusCode).toBe(429);
+    expect(jsonBody(res).error).toMatch(/^Upstream 429: slow down/);
+  });
+
+  it("answers 502 to a success that has nothing to stream", async () => {
+    const res = makeRes();
+    await call(res, { ok: true, status: 204, body: null } as never);
+
+    // Relaying the 204 would send a body on a status that cannot have one
+    expect(res.statusCode).toBe(502);
+    expect(jsonBody(res).error).toMatch(/204.*no body/);
+  });
+
   it("streams the upstream's events through byte for byte", async () => {
     const res = makeRes();
     await call(res, upstream(["data: a\n\n", "data: [DONE]\n\n"]));
@@ -142,6 +160,20 @@ describe("POST /api/agent streaming", () => {
     expect(res.headers["content-type"]).toBe("text/event-stream");
     expect(res.body()).toBe("data: a\n\ndata: [DONE]\n\n");
     expect(res.ended).toBe(true);
+  });
+
+  it("starts the error on a fresh event when the upstream drops mid-frame", async () => {
+    const res = makeRes();
+    await call(res, upstream(['data: {"choices":[{"del'], "fail"));
+
+    // Glued onto the unfinished frame, the error would be one malformed
+    // line the panel skips, and the cut answer would pass for a whole one
+    const events = res
+      .body()
+      .split("\n\n")
+      .filter((e) => e.startsWith("data: "));
+    const last = JSON.parse(events[events.length - 1].slice(6));
+    expect(last.error.message).toMatch(/connection reset/);
   });
 
   it("says so inside the stream when the upstream drops mid-answer", async () => {
@@ -155,18 +187,30 @@ describe("POST /api/agent streaming", () => {
     expect(res.ended).toBe(true);
   });
 
-  it("stops writing once the client is gone", async () => {
-    // A full write buffer, so the loop waits for `drain` -- and a client
+  it("stops waiting for drain once the client is gone", async () => {
+    // A full write buffer, so the loop parks on `drain` -- and a client
     // that leaves instead. Without `close` ending that wait the
     // invocation would park here until the platform's duration cap.
-    const res = makeRes({ write: () => false });
+    let parked!: () => void;
+    const firstWrite = new Promise<void>((resolve) => (parked = resolve));
+    const res = makeRes({
+      write: (c) => {
+        res.chunks.push(Buffer.from(c as Uint8Array));
+        parked();
+        return false;
+      },
+    });
     const pending = call(res, upstream(["data: a\n\n", "data: b\n\n"]));
 
-    await Promise.resolve();
+    // Only now is the handler past `readJson` and inside the drain wait
+    await firstWrite;
     res.destroyed = true;
     res.emit("close");
-
     await pending;
+
+    const init = (globalThis.fetch as jest.Mock).mock.calls[0][1];
+    expect((init.signal as AbortSignal).aborted).toBe(true);
+    expect(res.body()).toBe("data: a\n\n");
     expect(res.ended).toBe(true);
   });
 });
