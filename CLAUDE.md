@@ -268,6 +268,11 @@ doors**: `index.ts` for the browser and `server.mjs` for `api/*.mjs`.
   not a JSON object"), not as history ("answers 400, not 500", "M3 from
   the #13 review"); the history belongs in the commit message. Sergey's
   review of PR #25.
+- **No silent `catch`.** A caught error is at least logged
+  (`console.warn` with the error). If it changes what the user gets --
+  lost progress, say -- they are told, once rather than on every repeat.
+  A comment explaining why the error is swallowed does not replace the
+  log. Sergey's review of PR #26.
 
 ## Pull requests
 
