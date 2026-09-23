@@ -1,5 +1,20 @@
 # Roadmap and status
 
+> **Stale below this line, 2026-09-22.** The board and the prose still
+> read as of 2026-09-08 and have **not** been regenerated for the
+> 11 Sep call with Cat, the Rev 2 requirements, or the two weeks of work
+> since. Until they are, read these first:
+> `docs/internal/2026-09-11-call-notes-cat.md` (what the customer
+> actually settled), `docs/internal/2026-09-11-release-requirements-rev2.md`
+> (the Rev 2 document, with a closing section on what has overtaken it),
+> `docs/internal/2026-09-history-threads-cat.md` (what history means as a
+> product), and **D40 through D45** in `docs/decisions.md` - ConnectorKit
+> and mainnet, Kora out of the September cut, no `/ide` split, the
+> spreadsheet is scope and not a tracker, history kept whole and cleared
+> by hand, a conversation not bound to its agent. Three statements the
+> board makes are now wrong: the wallet adapter's library, Kora's place
+> in the release, and 21 Sep as a ship date.
+
 Updated: 2026-09-08 (evening) -- **first reviews from Sergey: #21
 approved, #22 changes requested (drop the proxy, keep D30)**; PR #27
 (upstream demo-path port, D37) opened and ready for review; the

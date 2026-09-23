@@ -16,6 +16,7 @@ if you learn something that contradicts what is written here, fix it here.
 | `docs/codebase-map.yaml` (+ `.html`) | How the existing client actually works — verified by reading and running, with file paths |
 | `docs/assistant-context.md` | What the in-product assistant knows about itself |
 | `docs/linear-conventions.md` | How to file a ticket for this repo — the team, the project, and the two substitutions the shared Bug template needs |
+| `docs/internal/2026-*-call-notes-*.md`, `*-threads-*.md` | What the customer and the tech lead actually said, quoted, with what each answer changed. Read one before re-deciding anything they touch — a later thread overrules an earlier requirements document |
 | `docs/superpowers/specs/` | Design specs for work in progress |
 
 `codebase-map.yaml` is the reference for anything about the existing client —

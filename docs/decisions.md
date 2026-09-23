@@ -2202,6 +2202,267 @@ relays -- a privacy decision, not a persistence one; confirmed with
 Slava, 2026-09-21).
 
 **Recorded** against B14 in `docs/upstream-divergences.md`.
+
+---
+
+## D40 - The wallet connector is ConnectorKit, and mainnet deploys stay
+
+**Date:** 2026-09-11 (Cat's thread), recorded 2026-09-22 - **Status:**
+decided by the customer - **Amends:** D21 - **Source:**
+`docs/internal/2026-09-11-call-notes-cat.md`
+
+Sergey put the sharpest version of the question to Cat: the current
+mainnet path signs every buffer write with a keypair held in
+`localStorage`, which is a real exposure - should mainnet deploys be
+disabled? The answer was a product one. *"I think mainnet deployments
+are good but should have a wallet connector."*
+
+**So mainnet stays, gated on an external wallet rather than removed.**
+The exposure is closed by replacing the signer, not by taking the
+capability away. Until the connector exists, the mainnet disclaimer on
+the deploy path is what carries the risk to the user, and that item
+keeps its priority for exactly that reason.
+
+**The library is ConnectorKit.** Sergey named `solana-wallet-adapter`
+explicitly, and was corrected in the same exchange: *"(also we should
+use connectorkit)"* - *"noted about connectorkit"*.
+
+*Why this entry exists at all.* HOO-1615, HOO-1616 and HOO-1617 were
+filed on 10 Sep and say "Solana Wallet Adapter"; the roadmap
+spreadsheet says "ConnectorKit integration and funding flow". They are
+one piece of work under two names, and the disagreement is only a
+timestamp: the customer named the library the day after the tickets
+were written. **The three tickets are retitled, not duplicated.**
+
+**What does not change from D21 as amended.** The reason the work is
+hard is unchanged - deploying is a series of transactions, each needing
+a signature, which is why the built-in wallet exists. An external
+connector makes the deploy flow worse before it makes it better, and
+that is still unsolved. What D40 settles is which library and that the
+destination is not "disable mainnet".
+
+**Left open by the same thread.** Cat: *"might get confusing if we have
+github login and wallet connector unless we use privy or something."*
+Sergey: they *"serve different purposes. Having them separate gives
+flexibility at this step."* Nobody argued further, so two identities is
+the working answer, and Privy has not been evaluated. It came from the
+customer, so it is carried rather than dropped.
+
+**Revisit when** the connector is specced - the Privy question has to
+be answered there, not after - or if the deploy flow's signature count
+makes an external wallet unusable in practice.
+
+---
+
+## D41 - Kora leaves the September cut, and mainnet Kora may not be wanted
+
+**Date:** 2026-09-11 (Cat's thread), recorded 2026-09-22 - **Status:**
+decided by the customer - **Overrules:** section C of the Rev 2
+requirements - **Source:**
+`docs/internal/2026-09-11-call-notes-cat.md`
+
+Two sentences, both narrowing scope: *"kora deployments for devnet
+important but dont need to be included in sept release"* and *"kora
+deployments probably not required for mainnet at all"*.
+
+**Devnet through Kora is wanted, and is not September work.** It keeps
+its priority as a thing to build; it loses its place in the release.
+Rev 2 carries six Kora P0s in section C - deploy to devnet, deploy to
+testnet, persist the program id and handle reaping, stable user id and
+controls, confirm rate limits with the Kora team, settle who builds it.
+All six are Phase 2.
+
+**Mainnet through Kora is not blocked on the Jupiter API key - it is
+probably not wanted.** Rev 2 postpones it on the key, which frames a
+purchase as the thing standing in the way and makes chasing the key the
+obvious next move. That reading is wrong: the key is only worth buying
+if someone confirms the feature is wanted. Nobody should escalate it.
+BL-7 in the roadmap spreadsheet stays open, but as a question for Cat,
+not as procurement.
+
+*What this costs.* The deploy story for the release is the local and
+Surfpool path, unchanged, plus mainnet behind the connector of D40. The
+0-SOL devnet deploy - the most demo-friendly thing in the document -
+is not in it.
+
+**Rejected: reading "probably" as provisional and building it
+anyway.** The word is hers and it is doing real work; the honest
+response to an uncertain "probably not" is to ask, not to spend a week
+resolving it in code.
+
+**Revisit when** Cat confirms or withdraws the mainnet half, or when
+Phase 2 is scoped and devnet Kora needs a date. The spike that settles
+where the paymaster lives (client-side or a `--kora` flag on the server
+deploy route, BL-10) is the first task of that round, not this one.
+
+---
+
+## D42 - There is no `/ide` route, and none is being added
+
+**Date:** 2026-09-11 (Cat's thread), recorded 2026-09-22 - **Status:**
+decided by the customer - **Answers:** Decision 4 of the Rev 2
+requirements - **Source:**
+`docs/internal/2026-09-11-call-notes-cat.md`
+
+*"keeping /ide not a req."*
+
+Rev 1 of the requirements used `/ide` throughout as though the route
+existed. It does not: `client-v2/src/routes/` defines `/`, `/programs`,
+`/tutorials`, `/tutorials/{name}/{page}`, `/github/{url}`,
+`/{shareId}` and a catch-all. The IDE **is** `/` - it is the default
+interface - and the learning shell is a view inside the same route,
+switched by view state rather than by URL.
+
+Rev 2 turned that into a question with two readings: loose shorthand
+for the IDE we already have, or a plan to move the IDE onto its own
+path and put the learning shell at `/`. The second is a different job
+and would change what a first-time visitor lands on. The answer is the
+first: shorthand, no split, nothing to build.
+
+**What it unblocks.** The first-run work in the design section, which
+had to know what a new visitor lands on before it could be designed.
+The route table stays as it is, minus `/{shareId}`, which is being
+removed for its own reasons.
+
+**Revisit when** someone proposes a separate entry point for the
+learning shell as a product move. It would then be a new decision with
+its own argument, not the resurrection of this one.
+
+---
+
+## D43 - The roadmap spreadsheet is a scope document, not a tracker
+
+**Date:** 2026-09-22 - **Status:** decided (Slava) - **Applies to:** the
+roadmap spreadsheet and its sync with Linear
+
+The spreadsheet holds sections, items, blockers and risks - what the
+release contains and in which order. **Bugs and follow-up work do not
+earn a row.** Ten live Linear issues had no counterpart in the sheet
+when the two were first mapped on 2026-09-22 - three Flow UI defects,
+the development build-server default, the upstream demo-path port, the
+malformed-body fix and the rest - and they stay out.
+
+*Why.* The sheet is read by people deciding what the release is, and a
+defect found while building one of its items is not a decision about
+scope. Mixing the two makes the P1 count meaningless: a lane would grow
+rows without gaining scope, and the estimate column would stop
+summing to anything. Linear already models defects, with a state
+machine the sheet does not have.
+
+**The consequence, stated plainly: the sheet is not the whole plan.**
+Anyone reading it for "what is left to do" gets scope, not the work
+queue. Linear is the work queue. Neither is complete alone, and no one
+should be told otherwise.
+
+**What this means for the sync.** Rows flow sheet -> Linear, never
+back. A sheet item becomes an issue; an issue born of a bug stays where
+it was born. The sheet gains a `Linear` column so matching is by id
+rather than by item text, which is too fragile to match on.
+
+**Where new scope goes.** Work that is genuinely new scope - the four
+ideas Sergey flagged as unrecorded in
+`docs/internal/2026-09-history-threads-cat.md`, for instance - becomes
+a sheet row first and an issue second. The test is whether it changes
+what the release contains, not whether it is new.
+
+**Marked provisional by the person who made it:** "for now, at least".
+
+**Revisit when** the sheet is asked to answer a question about
+progress, which it structurally cannot - it has no status column by
+design - or when a copy with statuses exists and the two start to
+disagree.
+
+---
+
+## D44 - History is kept whole on the server, capped locally, cleared by hand
+
+**Date:** mid-September (Cat's thread, undated in what we hold),
+recorded 2026-09-22 - **Status:** decided by the customer - **Ticket:**
+HOO-1633 - **Source:**
+`docs/internal/2026-09-history-threads-cat.md`
+
+Three answers from one thread, which together define what "we store the
+history" means.
+
+**Signed in, everything is kept.** Cat opened with "latest 50 messages
+in latest 5 conversations". Sergey refused the conversation half with a
+concrete harm - a user who creates a few projects to try the product
+would have the one they kept deleted out from under them - and she
+withdrew it: *"if theyre logged in and we use DB we can store 1000s."*
+So no retention window, no eviction, no count limit on the server.
+
+*What this costs.* The A1 item "per-user size caps and retention window,
+checked on write" is now about abuse, not housekeeping: a write-time
+guard against one account filling the table, not a policy that ages
+conversations out. Rev 2's "P1 import, retention and caps" reads the
+other way and is superseded here.
+
+**Signed out, the local store holds the latest 200 messages** and
+survives the refresh in `localStorage` rather than dying with the tab.
+Cat's number, and the only cap either side agreed to.
+
+**Clearing is an explicit action and nothing expires implicitly.**
+*"they can clear a specific thread by opening that project and clicking
+Clear Conversation. the code should still exist, just not the
+messages."* Sergey had ruled out the alternative from the
+implementation side: no async cleanup task, no implicit dependencies.
+This makes the clear-thread rows in lane B of the spreadsheet a customer
+request rather than a convenience, whatever priority they carry there.
+
+**On sign-in, every local thread is imported, not just the active
+one.** Sergey proposed staging it - active thread first, the rest
+after - and said why: to fit the deadline. Cat declined: *"i dont think
+it would be complex to sync all threads. it would just be grabbing them
+from localstorage."* The staging is available again only if the full
+import proves harder than she expects, and then as a conversation, not a
+quiet substitution.
+
+**Rejected: "latest 5 conversations".** The customer's own first
+proposal. It makes eviction a per-project decision, which is where the
+bad UX lives, and it buys nothing the local 200-message cap does not.
+
+**Not settled by this thread, and not to be repeated as settled:**
+whether the model's reasoning is stored. Sergey asked; the answer went
+to a different question. It is implemented as "questions and answers,
+no reasoning", which is our assumption rather than her instruction.
+
+---
+
+## D45 - A conversation is not bound to the agent that produced it
+
+**Date:** mid-September (Cat's thread, undated in what we hold),
+recorded 2026-09-22 - **Status:** decided by the customer -
+**Confirms:** D39 - **Source:**
+`docs/internal/2026-09-history-threads-cat.md`
+
+*"I dont think we need to associate the conversation with the agent.
+they should be able to change agent and continue conversation."*
+
+The requirement is continuity across a backend switch: a user who starts
+on the hosted default key and moves to their own, or changes model, keeps
+one conversation rather than starting a second.
+
+**D39 already satisfies it, and this entry says why rather than changing
+anything.** The thread's `provider`, `model`, `base_url` and `effort`
+columns are written once at insert as a record of what created the
+thread; they are not a key, not a filter the reader applies, and nothing
+refuses a message whose origin differs. Each assistant message carries
+its own `payload.origin`, so a switched backend is visible per message
+instead of rewriting the thread's identity. That is the shape this
+requirement needs.
+
+**It also disposes of the proposal one message earlier** in the same
+thread: that the default conversation would be *"a record without a
+thread"*, with threads reserved for tutorials. Everything is a thread,
+including the conversation a user starts in a plain project.
+
+**The trap this closes.** Reading D39's created-parameters as ownership
+- treating a thread as belonging to the provider that started it, and
+opening a new one when the user switches - would be a defensible reading
+of the schema and is now explicitly wrong.
+
+**Revisit when** a thread picker exists: "which threads ran on Opus"
+becomes a question someone asks of the UI, and the answer has to come
 from the per-message origin rather than the thread's columns.
 
 ---
