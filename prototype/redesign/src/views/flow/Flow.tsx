@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import Chevron from "./Chevron";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
-import Header from "./header/Header";
+import StatusChips from "./header/StatusChips";
 import Stepper from "./header/Stepper";
 import NavSidebar from "./nav/NavSidebar";
 import LeftPanel from "./left/LeftPanel";
@@ -141,17 +141,18 @@ const Flow = () => {
 
   return (
     <Wrapper>
-      <Header
-        onOpenGallery={openGallery}
-        onToggleSettings={toggleSettings}
-        settingsOpen={settingsOpen}
-      />
       <Columns $assistant={assistantOpen}>
         <NavSidebar
           onOpenGallery={openGallery}
           onOpenSettings={() => toggleSettings()}
           onToggleAssistant={() => setAssistantOpen((o) => !o)}
           assistantOpen={assistantOpen}
+          status={
+            <StatusChips
+              onToggleSettings={toggleSettings}
+              settingsOpen={settingsOpen}
+            />
+          }
         />
         <Conversation $open={assistantOpen}>
           <Collapse
@@ -282,7 +283,7 @@ const Columns = styled.div<{ $assistant: boolean }>`
     ${({ $assistant }) => ($assistant ? "23rem" : "1.5rem")}
     1fr;
   gap: ${GAP};
-  padding: 0 ${GAP} 0;
+  padding: ${GAP} ${GAP} 0;
   overflow: hidden;
   /* Without this the grid refuses to shrink below its content and pushes the
      stage rail off the bottom of the window. */
