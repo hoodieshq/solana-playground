@@ -27,26 +27,23 @@ export class NotYours extends Error {
 
 /** Columns a thread listing returns. Never the messages. */
 const THREAD_COLUMNS = `id, project_id as "projectId", title,
-  provider, model, base_url as "baseUrl", effort,
   created_at as "createdAt", updated_at as "updatedAt"`;
 
 /**
  * Ensure the project row and the thread row exist, and are this user's.
  *
- * The insert is `on conflict (id) do nothing` rather than an upsert: the
- * parameters describe the backend the thread was *created* with, so a later
- * push from a re-pointed panel must not rewrite them. What each turn actually
- * ran on is on the messages.
+ * The insert is `on conflict (id) do nothing` rather than an upsert: a thread
+ * row is identity, not state, and every push after the first would otherwise
+ * rewrite it for no gain. What each turn ran on is on the messages, in
+ * `payload.origin`.
  *
  * @param {import("pg").PoolClient} client
- * @param {{threadId: string, projectId: string, title?: string|null,
- *   params?: {provider?: string, model?: string, baseUrl?: string,
- *   effort?: string}}} thread
+ * @param {{threadId: string, projectId: string, title?: string|null}} thread
  * @returns {Promise<string>} the thread id
  * @throws {NotYours} when the id is already somebody else's thread
  */
 const ensureThread = async (client, userId, thread) => {
-  const { threadId, projectId, title = null, params = {} } = thread;
+  const { threadId, projectId, title = null } = thread;
   const kind = projectId.startsWith("tut:") ? "tutorial" : "project";
 
   // `(user_id, id)`, not `id`: a tutorial's id is derived, so every user who
@@ -61,20 +58,10 @@ const ensureThread = async (client, userId, thread) => {
 
   await run(
     client,
-    `insert into conversations
-       (id, user_id, project_id, title, provider, model, base_url, effort)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `insert into conversations (id, user_id, project_id, title)
+     values ($1, $2, $3, $4)
      on conflict (id) do nothing`,
-    [
-      threadId,
-      userId,
-      projectId,
-      title,
-      params.provider ?? null,
-      params.model ?? null,
-      params.baseUrl ?? null,
-      params.effort ?? null,
-    ]
+    [threadId, userId, projectId, title]
   );
 
   // The insert above is silent when the id is taken, and a uuid can be
@@ -150,8 +137,7 @@ export const listMessages = async (userId, threadId) => {
  * Repeatable *within a conversation*, which is as far as a client-minted id
  * can be trusted -- see the `on conflict` below.
  *
- * @param {{threadId: string, projectId: string, title?: string|null,
- *   params?: object}} thread
+ * @param {{threadId: string, projectId: string, title?: string|null}} thread
  * @returns {Promise<number>} how many rows were new
  * @throws {NotYours} when the thread id is somebody else's
  */

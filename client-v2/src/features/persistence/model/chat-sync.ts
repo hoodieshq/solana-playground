@@ -4,30 +4,7 @@ import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
-import type {
-  BackendParams,
-  ChatItem,
-} from "../../../views/sidebar/assistant/store";
-
-/**
- * The backend a thread was created with, read off the thread itself.
- *
- * The first reply that recorded an origin is the answer: a thread carries its
- * own provenance, so this needs no live connection and works identically for
- * the open conversation and for one being handed over at sign-out.
- *
- * `undefined` when nothing in the thread was produced by a model -- a
- * conversation of one unsent question, or one restored from before replies
- * recorded what wrote them.
- */
-export const paramsOfThread = (
-  items: readonly ChatItem[]
-): BackendParams | undefined => {
-  for (const item of items) {
-    if (item.kind === "assistant" && item.origin) return item.origin;
-  }
-  return undefined;
-};
+import type { ChatItem } from "../../../views/sidebar/assistant/store";
 
 /** Oldest first, ties broken by id so two devices agree on the order */
 const byTime = (a: ChatItem, b: ChatItem) =>
@@ -146,7 +123,6 @@ export class PgChatSync {
         body: JSON.stringify({
           threadId,
           projectId,
-          params: paramsOfThread(items),
           items: encodeThread(items),
         }),
       });

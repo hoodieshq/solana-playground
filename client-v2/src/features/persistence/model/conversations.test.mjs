@@ -128,70 +128,9 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
     });
   });
 
-  describe("the parameters a thread was created with", () => {
-    const params = {
-      provider: "anthropic",
-      model: "claude-opus-5",
-      effort: "high",
-    };
-
-    it("are stored on the thread", async () => {
-      await appendMessages(userId, on(1, { params }), [item(1)]);
-
-      const stored = await getThread(userId, thread(1));
-      assert.equal(stored.provider, "anthropic");
-      assert.equal(stored.model, "claude-opus-5");
-      assert.equal(stored.effort, "high");
-      assert.equal(stored.baseUrl, null);
-    });
-
-    it("are null when the client had no backend to name", async () => {
-      await appendMessages(userId, on(1), [item(1)]);
-
-      const stored = await getThread(userId, thread(1));
-      assert.equal(stored.provider, null);
-      assert.equal(stored.model, null);
-    });
-
-    it("keep the endpoint for an OpenAI-compatible backend", async () => {
-      await appendMessages(
-        userId,
-        on(1, {
-          params: {
-            provider: "openai",
-            model: "gpt-5.1",
-            baseUrl: "https://api.openai.com/v1",
-          },
-        }),
-        [item(1)]
-      );
-
-      const stored = await getThread(userId, thread(1));
-      assert.equal(stored.baseUrl, "https://api.openai.com/v1");
-    });
-
-    it("describe creation, so a later push does not rewrite them", async () => {
-      await appendMessages(userId, on(1, { params }), [item(1)]);
-      await appendMessages(
-        userId,
-        on(1, { params: { provider: "gemini", model: "gemini-3.6-flash" } }),
-        [item(2)]
-      );
-
-      const stored = await getThread(userId, thread(1));
-      assert.equal(stored.provider, "anthropic");
-      assert.equal(stored.model, "claude-opus-5");
-    });
-
-    it("are refused by the database when the provider is not one we serve", async () => {
-      await assert.rejects(() =>
-        appendMessages(userId, on(1, { params: { provider: "hotmail" } }), [
-          item(1),
-        ])
-      );
-    });
-  });
-
+  // The only record of which backend was involved. The thread row deliberately
+  // holds none: a user switches models inside one conversation, so a single
+  // backend recorded against the thread would be untrue for most of them.
   it("stores the backend each reply came from, inside the message", async () => {
     const reply = {
       id: "00000000-0000-4000-8000-0000000000aa",
@@ -207,6 +146,11 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
       provider: "default",
       model: "some-model",
     });
+
+    const row = await getThread(userId, thread(1));
+    for (const column of ["provider", "model", "baseUrl", "effort"]) {
+      assert.ok(!(column in row), `${column} must not be on the thread`);
+    }
   });
 
   // Ids are minted by the client, so two threads holding the same one is a

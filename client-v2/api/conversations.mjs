@@ -37,18 +37,6 @@ const KINDS = new Set([
   "notice",
 ]);
 
-/** Matches `conversations_provider_check` */
-const PROVIDERS = new Set([
-  "default",
-  "anthropic",
-  "openai",
-  "openrouter",
-  "gemini",
-]);
-
-/** What a thread's parameters may name. Everything else is refused. */
-const PARAM_KEYS = new Set(["provider", "model", "baseUrl", "effort"]);
-
 /**
  * The layout Postgres accepts for a `uuid`, which `appendMessages` casts every
  * item id to.
@@ -144,40 +132,6 @@ const isAllowedOrigin = (req) => {
 };
 
 /**
- * Validate the parameters a thread is created with.
- *
- * An unknown key is an error rather than something to drop quietly, and the
- * key this exists to keep out -- `apiKey` -- is exactly an unknown key. A
- * client that sends one is a bug, and a 400 is how that bug gets found
- * instead of a credential reaching Postgres unnoticed. See `decisions.md`
- * -> D3: the key is held in memory and is not a parameter we store, in any
- * form, including a hash of one.
- *
- * Exported so the rule can be tested without a database or a session: the
- * route reaches it only behind the auth gate, and this is the one check whose
- * failure mode is a credential in Postgres.
- *
- * @returns {string|null} the reason it is invalid, or `null` when it is fine
- */
-export const paramsProblem = (params) => {
-  if (params === undefined) return null;
-  if (!params || typeof params !== "object" || Array.isArray(params)) {
-    return "params must be an object";
-  }
-
-  for (const [key, value] of Object.entries(params)) {
-    if (!PARAM_KEYS.has(key)) return `Unexpected parameter: ${key}`;
-    if (value === null || value === undefined) continue;
-    if (typeof value !== "string") return `${key} must be a string`;
-  }
-
-  if (params.provider != null && !PROVIDERS.has(params.provider)) {
-    return `Unknown provider: ${params.provider}`;
-  }
-  return null;
-};
-
-/**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
@@ -239,7 +193,7 @@ export default async function handler(req, res) {
       }
       if (read.error) return sendJson(res, 400, { error: "Body must be JSON" });
 
-      const { threadId, projectId, title, params, items } = read.body;
+      const { threadId, projectId, title, items } = read.body;
       if (typeof threadId !== "string" || !isUuid(threadId)) {
         return sendJson(res, 400, { error: "threadId must be a uuid" });
       }
@@ -256,9 +210,6 @@ export default async function handler(req, res) {
         return sendJson(res, 400, { error: "Malformed title" });
       }
 
-      const problem = paramsProblem(params);
-      if (problem) return sendJson(res, 400, { error: problem });
-
       if (items.length > MAX_ITEMS) {
         return sendJson(res, 413, {
           error: `At most ${MAX_ITEMS} items`,
@@ -272,7 +223,7 @@ export default async function handler(req, res) {
       return sendJson(res, 200, {
         written: await appendMessages(
           user.id,
-          { threadId, projectId, title: title ?? null, params },
+          { threadId, projectId, title: title ?? null },
           items
         ),
       });

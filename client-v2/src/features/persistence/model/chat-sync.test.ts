@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 
 import { PgChatStorage } from "./chat-storage";
-import { paramsOfThread, PgChatSync } from "./chat-sync";
+import { PgChatSync } from "./chat-sync";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
@@ -130,29 +130,6 @@ describe("PgChatSync", () => {
     expect(postedBody()).toMatchObject({ threadId, projectId: "w1" });
   });
 
-  it("sends the backend the thread was created with", async () => {
-    respondingWith(() =>
-      Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
-    );
-    await signedIn();
-    await PgChatStorage.write(threadId, [
-      item(1),
-      reply(2, {
-        provider: "anthropic",
-        model: "claude-opus-5",
-        effort: "high",
-      }),
-    ]);
-
-    await PgChatSync.push(threadId);
-
-    expect(postedBody().params).toEqual({
-      provider: "anthropic",
-      model: "claude-opus-5",
-      effort: "high",
-    });
-  });
-
   it("never sends the API key, under any name", async () => {
     respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ written: 1 }) })
@@ -166,10 +143,13 @@ describe("PgChatSync", () => {
     await PgChatSync.push(threadId);
 
     const body = postedBody();
-    expect(Object.keys(body.params)).toEqual(
-      expect.not.arrayContaining(["apiKey", "key", "token"])
-    );
-    expect(JSON.stringify(body)).not.toContain("sk-");
+    // The backend a reply came from rides along, inside the message that
+    // produced it -- the thread itself records no backend at all
+    expect(body.items[1].origin).toEqual({
+      provider: "anthropic",
+      model: "claude-opus-5",
+    });
+    expect(JSON.stringify(body)).not.toMatch(/apiKey|"key"|token|sk-/);
   });
 
   it("refuses to push a thread the index cannot place", async () => {
@@ -416,23 +396,5 @@ describe("pulling a thread that cannot be read locally", () => {
     await PgChatSync.pull(threadId);
 
     expect(mockFiles.get(`/.config/chats/${threadId}.json`)).toBe(corrupt);
-  });
-});
-
-describe("paramsOfThread", () => {
-  it("is the first reply's origin, not the last", () => {
-    const first = reply(1, { provider: "default" });
-    const second = reply(2, {
-      provider: "gemini",
-      model: "gemini-3.6-flash",
-    });
-
-    expect(paramsOfThread([item(0), first, second])).toEqual({
-      provider: "default",
-    });
-  });
-
-  it("is undefined for a thread no model has answered in", () => {
-    expect(paramsOfThread([item(1)])).toBeUndefined();
   });
 });
