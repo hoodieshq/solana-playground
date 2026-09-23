@@ -171,9 +171,11 @@ const Flow = () => {
 
   const inProject = view === "project" && !!PgExplorer.currentWorkspaceName;
 
-  /* Cluster, wallet and account. It sits at the right end of the bar in both
-     views — it belongs to the session, not to the navigation, and the sidebar
-     is destinations and lists. */
+  /* Cluster, wallet and account. It lives at the foot of the sidebar, which
+     is the one column that is the same in both views — and the Figma puts
+     identity in this column too. It was in a bar that only existed inside a
+     project, so signing in from the start screen meant a second bar drawn by
+     the start screen itself. */
   const status = (
     <StatusChips
       onToggleSettings={toggleSettings}
@@ -184,62 +186,6 @@ const Flow = () => {
   return (
     <Wrapper>
       <Layout $sidebar={sidebarOpen}>
-        {/* Home draws its own bar (the switches' state lives with the lists
-            they drive). In a project the bar is drawn here. */}
-        {inProject && (
-          <TopBar>
-            <BarLeft>
-              <BarButton
-                type="button"
-                onClick={toggleSidebar}
-                aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-                aria-pressed={sidebarOpen}
-                $on={sidebarOpen}
-              >
-                {ICONS.sidebar}
-              </BarButton>
-              <Wordmark type="button" onClick={goHome}>
-                Playground
-              </Wordmark>
-              <Stepper
-                state={state}
-                onSelect={PgFlow.setStage}
-                target={target}
-              />
-            </BarLeft>
-            <ProjectName title={PgExplorer.currentWorkspaceName}>
-              {PgExplorer.currentWorkspaceName}
-            </ProjectName>
-            <BarRight>
-              <Account>{status}</Account>
-              {/* Always here, pressed when the pane is open — the same shape as
-                  the sidebar toggle on the left. A control that only appears
-                  once you have already lost the pane is a control you have to
-                  discover at the worst moment. */}
-              <BarButton
-                type="button"
-                onClick={toggleAssistant}
-                aria-label={
-                  assistantOpen ? "Hide the assistant" : "Show the assistant"
-                }
-                aria-pressed={assistantOpen}
-                $on={assistantOpen}
-              >
-                {ICONS.chat}
-              </BarButton>
-              <BarButton
-                as="a"
-                href="https://solana.com/docs"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Documentation"
-              >
-                {ICONS.help}
-              </BarButton>
-            </BarRight>
-          </TopBar>
-        )}
-
         <NavSlot $open={sidebarOpen}>
           <NavSidebar
             onHome={goHome}
@@ -247,6 +193,8 @@ const Flow = () => {
             onOpenGallery={openGallery}
             onOpenSettings={() => toggleSettings()}
             onOpenProject={openProject}
+            onToggleSidebar={toggleSidebar}
+            status={status}
           />
         </NavSlot>
 
@@ -271,7 +219,31 @@ const Flow = () => {
             )}
 
             <Work>
+              {/* The loop belongs to the workspace, not to the window. In the
+                  Figma it is a row of equal stages across the top of this
+                  column; it used to sit in a bar two columns away, above a
+                  sidebar it had nothing to do with. */}
+              <StageRail>
+                <Stepper
+                  state={state}
+                  onSelect={PgFlow.setStage}
+                  target={target}
+                />
+              </StageRail>
+
               <WorkHead>
+                {!sidebarOpen && (
+                  <BarButton
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="Show the sidebar"
+                  >
+                    {ICONS.sidebar}
+                  </BarButton>
+                )}
+                <WorkTitle title={PgExplorer.currentWorkspaceName}>
+                  {PgExplorer.currentWorkspaceName}
+                </WorkTitle>
                 <WorkTabs role="tablist" aria-label="Work surface">
                   <WorkTab
                     type="button"
@@ -296,6 +268,33 @@ const Flow = () => {
                     Files
                   </WorkTab>
                 </WorkTabs>
+                <WorkEnd>
+                  {/* Always here, pressed when the pane is open. A control that
+                      only appears once you have already lost the pane is one
+                      you have to discover at the worst moment. */}
+                  <BarButton
+                    type="button"
+                    onClick={toggleAssistant}
+                    aria-label={
+                      assistantOpen
+                        ? "Hide the assistant"
+                        : "Show the assistant"
+                    }
+                    aria-pressed={assistantOpen}
+                    $on={assistantOpen}
+                  >
+                    {ICONS.chat}
+                  </BarButton>
+                  <BarButton
+                    as="a"
+                    href="https://solana.com/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Documentation"
+                  >
+                    {ICONS.help}
+                  </BarButton>
+                </WorkEnd>
               </WorkHead>
 
               <WorkBody
@@ -336,7 +335,8 @@ const Flow = () => {
         ) : (
           <ZeroState
             onAskAssistant={showAssistant}
-            status={<Account>{status}</Account>}
+            sidebarOpen={sidebarOpen}
+            onShowSidebar={toggleSidebar}
           />
         )}
       </Layout>
@@ -411,17 +411,16 @@ const Wrapper = styled.div`
   `}
 `;
 
-/* One grid for both views: the bar across the top, the sidebar down the left,
-   and whatever the view is in the rest. The sidebar's track collapses to
-   nothing when it is hidden, and the bar keeps spanning. */
+/* Two columns and no rows: the sidebar down the left, the view in the rest.
+   Nothing spans the window any more — every panel draws its own head, so
+   there is no bar to appear in one view and vanish in another. The sidebar's
+   track collapses to nothing when it is hidden. */
 const Layout = styled.div<{ $sidebar: boolean }>`
   ${({ $sidebar }) => css`
     height: 100%;
     display: grid;
-    grid-template-areas:
-      "top top"
-      "nav body";
-    grid-template-rows: auto 1fr;
+    grid-template-areas: "nav body";
+    grid-template-rows: 1fr;
     grid-template-columns: ${$sidebar ? "auto" : "0"} 1fr;
     min-height: 0;
     overflow: hidden;
@@ -432,31 +431,8 @@ const Layout = styled.div<{ $sidebar: boolean }>`
   `}
 `;
 
-const TopBar = styled.header`
-  ${({ theme }) => css`
-    grid-area: top;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    height: 3.5rem;
-    padding: 0 0.75rem;
-    border-bottom: 1px solid ${theme.colors.default.border};
-  `}
-`;
 
-const BarLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-`;
 
-const BarRight = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.25rem;
-`;
 
 const BarButton = styled.button<{ $on?: boolean }>`
   ${({ theme, $on }) => css`
@@ -492,73 +468,8 @@ const BarButton = styled.button<{ $on?: boolean }>`
   `}
 `;
 
-/* The brand says its name. A glyph alone asks people to learn a mark before
-   they know the product; the word is the mark until it has earned one. */
-const Wordmark = styled.button`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    height: 1.875rem;
-    margin-right: 0.375rem;
-    padding: 0 0.5rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textPrimary};
-    font-family: inherit;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    white-space: nowrap;
-    cursor: pointer;
 
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
 
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-  `}
-`;
-
-/* StatusChips lays itself out as a row of pills, which is what a bar wants.
-   It only needed the sidebar's column treatment while it lived in the column;
-   here it goes back to its own shape, one step quieter. */
-const Account = styled.div`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    overflow: hidden;
-
-    /* The chips came from a title bar with their own metrics; in this one
-       they take the bar's height like everything else in it. */
-    & button {
-      height: 1.875rem;
-      font-family: inherit;
-      font-size: 0.8125rem;
-    }
-
-    /* The icon-only settings trigger duplicates the sidebar's Settings row. */
-    & [aria-label="Open settings"] {
-      display: none;
-    }
-  `}
-`;
-
-const ProjectName = styled.div`
-  ${({ theme }) => css`
-    justify-self: center;
-    max-width: 20rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
 
 /* Hidden, the sidebar's track is 0 and this clips it, so nothing peeks. */
 const NavSlot = styled.div<{ $open: boolean }>`
@@ -600,15 +511,72 @@ const Work = styled.section`
 
 /* The same 2.75rem row the assistant's header uses, so the two panes share a
    baseline. */
+/* The stages, full width above the workspace. The Figma gives each one an
+   equal share of the row rather than sizing it to its label, so the row reads
+   as a progress bar you can click rather than as four buttons that happen to
+   be in order. */
+const StageRail = styled.div`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    padding: 0.5rem 0.5rem 0;
+    border-bottom: 1px solid ${theme.colors.default.border};
+
+    & > div {
+      gap: 0.375rem;
+      padding-bottom: 0.5rem;
+    }
+
+    & > div > div {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* The connectors were what carried the sequence when the stages were
+       sized to their labels. Equal shares carry it now. */
+    & > div > span {
+      display: none;
+    }
+
+    & [role="tab"] {
+      width: 100%;
+      justify-content: center;
+    }
+  `}
+`;
+
 const WorkHead = styled.div`
   ${({ theme }) => css`
     display: flex;
     align-items: center;
+    gap: 0.5rem;
     height: 2.75rem;
     flex-shrink: 0;
     padding: 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
+`;
+
+/* Which project you are in, said once, at the head of the thing it names. */
+const WorkTitle = styled.div`
+  ${({ theme }) => css`
+    flex: 1;
+    min-width: 0;
+    padding-left: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const WorkEnd = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  gap: 0.25rem;
 `;
 
 const WorkTabs = styled.div`

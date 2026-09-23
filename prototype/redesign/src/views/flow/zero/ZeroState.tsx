@@ -1,4 +1,4 @@
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import ProgramsTab from "../gallery/ProgramsTab";
@@ -29,14 +29,20 @@ interface ZeroStateProps {
   /** Opens the assistant column so a question has somewhere to go */
   onAskAssistant: () => void;
   /** Cluster, wallet and account — the right end of the bar, as in a project */
-  status?: ReactNode;
+  /** Whether the nav column is showing — this bar offers the way back */
+  sidebarOpen: boolean;
+  onShowSidebar: () => void;
 }
 
 type Switch = "start" | "tutorials" | "programs";
 
 const PROGRAMS_URL = "/programs/programs.json";
 
-const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant, status }) => {
+const ZeroState: FC<ZeroStateProps> = ({
+  onAskAssistant,
+  sidebarOpen,
+  onShowSidebar,
+}) => {
   const [active, setActive] = useState<Switch>("start");
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
@@ -66,9 +72,17 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant, status }) => {
     <Shell>
       <TopBar>
         <BarLeft>
-          <Wordmark type="button" onClick={() => pick("start")}>
-            Playground
-          </Wordmark>
+          {/* The wordmark and the account live at the head of the sidebar now.
+              This bar says what the page below it is, and nothing else. */}
+          {!sidebarOpen && (
+            <IconButton
+              type="button"
+              onClick={onShowSidebar}
+              aria-label="Show the sidebar"
+            >
+              {ICONS.sidebar}
+            </IconButton>
+          )}
           <Switches role="tablist" aria-label="Where to start">
             {SWITCHES.map(({ id, label, icon }) => (
               <Tab
@@ -110,7 +124,6 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant, status }) => {
         )}
 
         <BarRight>
-          {status}
           <IconButton
             as="a"
             href="https://solana.com/docs"
@@ -210,6 +223,12 @@ const svg = (d: JSX.Element) => (
 
 const ICONS = {
   asterisk: svg(<path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />),
+  sidebar: svg(
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </>
+  ),
   search: svg(
     <>
       <circle cx="11" cy="11" r="7" />
@@ -284,15 +303,24 @@ const rise = keyframes`
   to   { opacity: 1; transform: none; }
 `;
 
+/* Its own column, not a passenger in the layout's grid. This used to be
+   `display: contents` so that the bar could take the window-wide `top` row
+   Flow drew for it; there is no such row now — every panel heads itself — so
+   the start screen stacks its own bar over its own body. */
 const Shell = styled.div`
-  display: contents;
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 `;
 
-/* 3.5rem, the width of the window, sidebar included. Mark and switches left,
-   search dead centre, the rest on the right. */
+/* 3.5rem. Switches left, search dead centre, the rest on the right — the
+   head of this screen, the width of this screen, no wider. */
 const TopBar = styled.header`
   ${({ theme }) => css`
-    grid-area: top;
+    flex-shrink: 0;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -321,34 +349,6 @@ const BarRight = styled.div`
   overflow: hidden;
 `;
 
-/* The brand says its name here too, and clicking it returns to Start. */
-const Wordmark = styled.button`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    height: 1.875rem;
-    margin-right: 0.375rem;
-    padding: 0 0.5rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textPrimary};
-    font-family: inherit;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-  `}
-`;
 
 const Switches = styled.div`
   display: flex;
@@ -497,7 +497,7 @@ const IconButton = styled.button`
 `;
 
 const Body = styled.div`
-  grid-area: body;
+  flex: 1;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;

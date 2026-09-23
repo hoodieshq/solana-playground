@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react";
+import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
@@ -11,6 +11,13 @@ import { gradientStroke } from "../components/gradient";
  * the account and Settings pinned at the foot. The assistant is not here: it
  * is the main surface, always on, and a row that toggles a pane reads as a
  * place and then makes something disappear.
+ *
+ * It also carries the brand and the account, because the window has no bar
+ * across the top any more. The Figma (node 2:4) puts the wordmark and the
+ * avatar at the head of this column, above a hairline, and gives every other
+ * panel its own head too — nothing spans. That is the fix for a bar that
+ * existed in one view and not the other, and that held a stepper belonging to
+ * the workspace two columns away.
  *
  * The Figma's version of this list is a template's — Dashboard, Inbox,
  * Calendar, Reports — none of which this product has. Every row here goes
@@ -26,6 +33,10 @@ interface NavSidebarProps {
   onOpenSettings: () => void;
   /** Opens a project by name and switches to the project view */
   onOpenProject: (name: string) => void;
+  /** Collapses this column. The way back lives in whatever is beside it. */
+  onToggleSidebar: () => void;
+  /** Cluster, wallet, account — the session, which belongs to this column */
+  status?: ReactNode;
 }
 
 const QUICKSTART_DISMISSED = "quickstart-card-dismissed";
@@ -36,6 +47,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
   onOpenGallery,
   onOpenSettings,
   onOpenProject,
+  onToggleSidebar,
+  status,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -72,6 +85,19 @@ const NavSidebar: FC<NavSidebarProps> = ({
 
   return (
     <Aside aria-label="Main">
+      <Head>
+        <Brand type="button" onClick={onHome}>
+          Playground
+        </Brand>
+        <HeadButton
+          type="button"
+          onClick={onToggleSidebar}
+          aria-label="Hide the sidebar"
+        >
+          {ICONS.sidebar}
+        </HeadButton>
+      </Head>
+
       <Group>
         <Row
           onClick={onHome}
@@ -108,6 +134,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
       </Scroll>
 
       <Foot>
+        {status && <Account>{status}</Account>}
         <Row
           as="a"
           href="https://solana.com/docs"
@@ -212,6 +239,12 @@ const ICONS = {
       <path d="M12 12 20 8M12 12v8.5M12 12 4 8" />
     </>
   ),
+  sidebar: svg(
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </>
+  ),
   close: svg(
     <>
       <path d="M18 6 6 18" />
@@ -231,6 +264,118 @@ const Aside = styled.aside`
        same ground as the content and is separated by a line, not by a box. */
     border-right: 1px solid ${theme.colors.default.border};
     overflow: hidden;
+  `}
+`;
+
+/* Brand left, the collapse control right, a hairline under both — the head of
+   the column, and the only place the product says its name. */
+const Head = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    height: 2.125rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+/* The word is the mark until the product has earned one. */
+const Brand = styled.button`
+  ${({ theme }) => css`
+    height: 1.875rem;
+    padding: 0 0.5rem;
+    margin-left: -0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: ${theme.colors.default.textPrimary};
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+const HeadButton = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+/* The chips arrive as a row of pills, which is what a bar wanted. Here they
+   take the column's shape instead — full width, the same height and the same
+   quiet edge as every other row in it, so the foot of the sidebar is one list
+   and not a list with a strip of pills wedged into it. */
+const Account = styled.div`
+  ${({ theme }) => css`
+    margin-bottom: 1px;
+
+    /* StatusChips' own row */
+    & > div {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1px;
+    }
+
+    & button {
+      justify-content: flex-start;
+      width: 100%;
+      height: 2.125rem;
+      padding: 0 0.625rem;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.8125rem;
+
+      &:hover {
+        background: ${theme.colors.state.hover.bg};
+      }
+    }
+
+    /* Settings is a row of its own, two below this one. */
+    & [aria-label="Open settings"] {
+      display: none;
+    }
   `}
 `;
 

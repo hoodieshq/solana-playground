@@ -273,8 +273,8 @@ const Chip = styled.span`
     padding: 0.25rem 0.625rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 999px;
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
+    font-family: inherit;
+    font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
     white-space: nowrap;
   `}
@@ -293,8 +293,8 @@ const ChipButton = styled.button`
     border-radius: 999px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
+    font-family: inherit;
+    font-size: ${theme.font.other.size.small};
     white-space: nowrap;
     cursor: pointer;
     transition: background 140ms ease, color 140ms ease;
