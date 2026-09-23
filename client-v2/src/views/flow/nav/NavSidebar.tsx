@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react";
+import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
@@ -17,6 +17,8 @@ interface NavSidebarProps {
   onOpenSettings: () => void;
   onToggleAssistant: () => void;
   assistantOpen: boolean;
+  /** Cluster, wallet and account — rendered at the foot of this column. */
+  status?: ReactNode;
 }
 
 const QUICKSTART_DISMISSED = "quickstart-card-dismissed";
@@ -26,6 +28,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
   onOpenSettings,
   onToggleAssistant,
   assistantOpen,
+  status,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -107,6 +110,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
       </Scroll>
 
       <Foot>
+        {status && <Account>{status}</Account>}
+
         <Row
           as="a"
           href="https://solana.com/docs"
@@ -267,6 +272,39 @@ const Foot = styled.div`
   flex-direction: column;
   gap: 1px;
   padding-top: 0.5rem;
+`;
+
+/* The cluster, wallet and account controls were a row of pills in the title
+   bar. In a column they stack and stretch, so they read as part of this list
+   rather than as chips that wandered in. The child selector reaches the
+   wrapper inside StatusChips, which lays itself out as a row by default. */
+const Account = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+
+    & > div {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1px;
+    }
+
+    & button {
+      justify-content: flex-start;
+      width: 100%;
+      padding: 0.5rem 0.625rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9375rem;
+    }
+
+    & button:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+  `}
 `;
 
 const Brand = styled.div`
