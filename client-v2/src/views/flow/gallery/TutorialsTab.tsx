@@ -108,10 +108,11 @@ export const Body = styled.div`
 
 export const Eyebrow = styled.div`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.xsmall};
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.primary};
+    /* Sentence case and grey, like every other label on the page. The
+       uppercase accent-coloured version made sixteen cards each shout their
+       level before saying their name. */
+    font-size: 0.75rem;
+    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
