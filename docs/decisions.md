@@ -2289,8 +2289,16 @@ old settings; a plain string still found (development profiles on
 
 The conversion is `settings/stored-endpoint.ts`, called from the settings
 storage in `utils/settings.ts` -- two lines in a pre-existing upstream
-file (B16). The eight readers of these settings, several in hot upstream
-files, still see URLs and are unchanged.
+file (B16). The code that reads these settings still sees URLs and is
+unchanged.
+
+**`configured` is matched first.** Production sets `REACT_APP_SERVER_URL`
+to the Foundation's server (`client-v2/Dockerfile`), so a URL equal to the
+env is stored as `configured` and follows it when it moves. The cost: a
+hand-picked *Solana Foundation* that equals the env follows it too --
+it was the default anyway. A test fails when an address a picker offers
+has no key, since it would otherwise be stored as custom silently
+(`ccd55fb3`).
 
 **Rejected: stop persisting the endpoint at all.** The picker would
 forget a choice on every reload.
@@ -2303,12 +2311,14 @@ stale; the next rotated key would need another.
 project code can reach.** Shared project code runs same-origin
 (`utils/js-runtime`), so it can rewrite a stored custom endpoint. True
 upstream as well. The larger case is the built-in wallet's secret key in
-`localStorage['wallet']`, reported to Sergey on PR #31 as the one item
-worth its own ticket.
+`localStorage['wallet']`, reported to Sergey on PR #31; his answer
+(2026-09-23): a known issue, to be addressed separately, not in this
+step. Filed as HOO-1717.
 
 **Other settings stay as they are** (Sergey): styles and selected options
--- theme, font, commitment, automatic airdrop -- are options already, and
-keep `localStorage` plus the existing migration layer.
+-- commitment, automatic airdrop -- are options already, and keep
+`localStorage` plus the settings migration layer. Theme and font live
+under their own keys with `PgTheme`'s own migration, also unchanged.
 
 **Revisit when** another setting starts holding an address we provide;
 it joins `ENDPOINT_SETTINGS` and gets keyed options, or it will go stale
