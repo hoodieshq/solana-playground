@@ -1,5 +1,11 @@
-import { FC, useState } from "react";
-import styled, { css } from "styled-components";
+import { FC, useEffect, useState } from "react";
+import styled, { css, keyframes } from "styled-components";
+
+import ProgramsTab from "../gallery/ProgramsTab";
+import type { ProgramListing } from "../gallery/ProgramsTab";
+import StartFromScratch from "../gallery/StartFromScratch";
+import TutorialsTab from "../gallery/TutorialsTab";
+import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
  * What you meet with no project open.
@@ -18,25 +24,34 @@ import styled, { css } from "styled-components";
  */
 
 interface ZeroStateProps {
-  /** Opens the project gallery, optionally on one of its tabs */
-  onOpenGallery: () => void;
   /** Opens the assistant column so a question has somewhere to go */
   onAskAssistant: () => void;
 }
 
 type Switch = "start" | "tutorials" | "programs";
 
-const ZeroState: FC<ZeroStateProps> = ({ onOpenGallery, onAskAssistant }) => {
-  const [active, setActive] = useState<Switch>("start");
+const PROGRAMS_URL = "/programs/programs.json";
 
+const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
+  const [active, setActive] = useState<Switch>("start");
+  const [query, setQuery] = useState("");
+  const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
+
+  // Same fetch the gallery modal did, now that the list lives on the page
+  useEffect(() => {
+    let live = true;
+    PgCommon.fetchJSON(PROGRAMS_URL)
+      .then((data: ProgramListing[]) => live && setPrograms(data))
+      .catch(() => live && setPrograms([]));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // A switch changes what is under the prompt; it never opens a window over it
   const pick = (id: Switch) => {
     setActive(id);
-    // Both of the others live in the gallery, which is a modal; the switch
-    // returns to Start when it closes, which is where the page still is.
-    if (id !== "start") {
-      onOpenGallery();
-      setActive("start");
-    }
+    setQuery("");
   };
 
   return (
@@ -48,20 +63,36 @@ const ZeroState: FC<ZeroStateProps> = ({ onOpenGallery, onAskAssistant }) => {
               key={id}
               type="button"
               role="tab"
+              id={`zero-tab-${id}`}
               aria-selected={active === id}
+              aria-controls="zero-panel"
               $active={active === id}
               onClick={() => pick(id)}
             >
               {label}
+              {id === "tutorials" && <Count>{PgTutorial.all.length}</Count>}
+              {id === "programs" && (
+                <Count>{programs ? programs.length : "…"}</Count>
+              )}
             </Tab>
           ))}
         </Switches>
 
         <TopRight>
-          <SearchBox type="button" onClick={onOpenGallery}>
-            <Glyph aria-hidden="true">{ICONS.search}</Glyph>
-            Search tutorials and programs
-          </SearchBox>
+          {active === "start" ? (
+            <SearchBox type="button" onClick={() => pick("tutorials")}>
+              <Glyph aria-hidden="true">{ICONS.search}</Glyph>
+              Search tutorials and programs
+            </SearchBox>
+          ) : (
+            <SearchField
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${active}`}
+              aria-label={`Search ${active}`}
+            />
+          )}
           <IconButton
             as="a"
             href="https://solana.com/docs"
@@ -74,42 +105,60 @@ const ZeroState: FC<ZeroStateProps> = ({ onOpenGallery, onAskAssistant }) => {
         </TopRight>
       </TopBar>
 
-      <Stage>
-        <Lead>
-          <Title>What are we building today?</Title>
-          <Subtitle>
-            Start from scratch, follow a tutorial, or open a real program.
-            Everything stays in this browser until you deploy.
-          </Subtitle>
-        </Lead>
+      <Scroll>
+        <Stage>
+          {/* The lead and the prompt belong to Start. Moving to a list slides
+              them out rather than cutting, so the two states read as one
+              surface rearranging rather than two pages swapping. */}
+          <Lead $shown={active === "start"}>
+            <Title>What are we building today?</Title>
+            <Subtitle>
+              Start from scratch, follow a tutorial, or open a real program.
+              Everything stays in this browser until you deploy.
+            </Subtitle>
+          </Lead>
 
-        <Prompt type="button" onClick={onAskAssistant}>
-          <PromptPlaceholder>Ask anything about Solana…</PromptPlaceholder>
-          <PromptActions>
-            <PromptLeft>
-              <PromptChip aria-hidden="true">{ICONS.plus}</PromptChip>
-              <PromptChip aria-hidden="true">{ICONS.globe}</PromptChip>
-            </PromptLeft>
-            <ModePill>
-              <Glyph aria-hidden="true">{ICONS.cpu}</Glyph>
-              Assistant
-            </ModePill>
-          </PromptActions>
-        </Prompt>
+          <Prompt type="button" onClick={onAskAssistant} $tight={active !== "start"}>
+            <PromptPlaceholder>Ask anything about Solana…</PromptPlaceholder>
+            <PromptActions>
+              <PromptLeft>
+                <PromptChip aria-hidden="true">{ICONS.plus}</PromptChip>
+                <PromptChip aria-hidden="true">{ICONS.globe}</PromptChip>
+              </PromptLeft>
+              <ModePill>
+                <Glyph aria-hidden="true">{ICONS.cpu}</Glyph>
+                Assistant
+              </ModePill>
+            </PromptActions>
+          </Prompt>
 
-        <Suggested>
-          <SuggestedLabel>Ways to start</SuggestedLabel>
-          <Cards>
-            {CARDS.map(({ id, icon, title, body }) => (
-              <Card key={id} type="button" onClick={onOpenGallery}>
-                <CardIcon aria-hidden="true">{icon}</CardIcon>
-                <CardTitle>{title}</CardTitle>
-                <CardBody>{body}</CardBody>
-              </Card>
-            ))}
-          </Cards>
-        </Suggested>
-      </Stage>
+          <Panel
+            id="zero-panel"
+            role="tabpanel"
+            aria-labelledby={`zero-tab-${active}`}
+            key={active}
+          >
+            {active === "start" && (
+              <>
+                <StartFromScratch />
+                <PanelHead>
+                  <PanelLabel>Or learn from one of these</PanelLabel>
+                  <PanelMore type="button" onClick={() => pick("tutorials")}>
+                    All {PgTutorial.all.length} tutorials
+                  </PanelMore>
+                </PanelHead>
+                <Clip $rows={2}>
+                  <TutorialsTab query="" />
+                </Clip>
+              </>
+            )}
+            {active === "tutorials" && <TutorialsTab query={query} />}
+            {active === "programs" && (
+              <ProgramsTab query={query} programs={programs} />
+            )}
+          </Panel>
+        </Stage>
+      </Scroll>
     </Wrapper>
   );
 };
@@ -186,27 +235,6 @@ const ICONS = {
     </>
   ),
 };
-
-const CARDS = [
-  {
-    id: "blank",
-    icon: ICONS.blank,
-    title: "Blank canvas",
-    body: "A working starter in Anchor, Native or Seahorse.",
-  },
-  {
-    id: "tutorial",
-    icon: ICONS.book,
-    title: "Follow a tutorial",
-    body: "Sixteen of them, from hello world to on-chain automation.",
-  },
-  {
-    id: "program",
-    icon: ICONS.code,
-    title: "Open a program",
-    body: "Thirty-four real programs to read, run and change.",
-  },
-];
 
 const Wrapper = styled.div`
   ${({ theme }) => css`
@@ -325,25 +353,139 @@ const Glyph = styled.span`
   }
 `;
 
-const Stage = styled.div`
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3rem;
-  padding: 3rem 2rem;
-  overflow-y: auto;
+/* Motion: one surface rearranging, not two pages swapping. Everything moves
+   on the same short curve, and anyone who has asked their system not to
+   animate gets none of it. */
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 `;
 
-const Lead = styled.div`
+const Scroll = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+`;
+
+/* Collapses out of the way on a list tab rather than disappearing: the height
+   and the fade run together, so the prompt rises into the space. */
+const Lead = styled.div<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+    overflow: hidden;
+    opacity: ${$shown ? 1 : 0};
+    max-height: ${$shown ? "12rem" : "0"};
+    margin-bottom: ${$shown ? "0" : "-1rem"};
+    transition: opacity 0.18s ease, max-height 0.28s ease, margin-bottom 0.28s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const Panel = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  animation: ${rise} 0.22s ease both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+const PanelHead = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+`;
+
+const PanelLabel = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: ${theme.colors.state.disabled.color};
+  `}
+`;
+
+const PanelMore = styled.button`
+  ${({ theme }) => css`
+    padding: 0;
+    border: none;
+    background: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.other.size.xsmall};
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+  `}
+`;
+
+/* Start shows the first couple of rows of the tutorial grid and hands the rest
+   to its own tab, so the page below the prompt stays short. */
+const Clip = styled.div<{ $rows: number }>`
+  ${({ $rows }) => css`
+    max-height: ${$rows * 8.5}rem;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+  `}
+`;
+
+const Count = styled.span`
+  ${({ theme }) => css`
+    margin-left: 0.4375rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: ${theme.colors.state.disabled.color};
+  `}
+`;
+
+const SearchField = styled.input`
+  ${({ theme }) => css`
+    width: 17rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 8px;
+    background: ${theme.colors.default.bgSecondary};
+    color: ${theme.colors.default.textPrimary};
+    font-family: inherit;
+    font-size: 0.8125rem;
+
+    &::placeholder {
+      color: ${theme.colors.state.disabled.color};
+    }
+
+    &:focus {
+      outline: none;
+      border-color: ${theme.colors.default.border};
+    }
+  `}
+`;
+
+const Stage = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  text-align: center;
+  gap: 1.75rem;
+  width: min(64rem, 100%);
+  margin: 0 auto;
+  padding: 3rem 2rem 4rem;
 `;
+
+
 
 const Title = styled.h1`
   ${({ theme }) => css`
@@ -367,13 +509,18 @@ const Subtitle = styled.p`
 
 /* Shaped like the composer it stands in for. Clicking it opens the assistant
    rather than accepting a sentence with nowhere to send it. */
-const Prompt = styled.button`
-  ${({ theme }) => css`
+const Prompt = styled.button<{ $tight?: boolean }>`
+  ${({ theme, $tight }) => css`
     display: flex;
     flex-direction: column;
     gap: 1rem;
     width: min(42.5rem, 100%);
-    padding: 1.25rem;
+    padding: ${$tight ? "0.875rem 1rem" : "1.25rem"};
+    transition: padding 0.28s ease, border-color 0.15s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
     border: 1px solid ${theme.colors.default.border};
     border-radius: 16px;
     background: ${theme.colors.default.bgSecondary};
@@ -437,86 +584,3 @@ const ModePill = styled.span`
   `}
 `;
 
-const Suggested = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-`;
-
-const SuggestedLabel = styled.span`
-  ${({ theme }) => css`
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: ${theme.colors.state.disabled.color};
-  `}
-`;
-
-const Cards = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-`;
-
-const Card = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 15rem;
-    padding: 1.5rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 16px;
-    background: ${theme.colors.default.bgSecondary};
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.12s ease;
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-  `}
-`;
-
-const CardIcon = styled.span`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
-    color: ${theme.colors.default.textPrimary};
-
-    & > svg {
-      width: 1.25rem;
-      height: 1.25rem;
-    }
-  `}
-`;
-
-const CardTitle = styled.span`
-  ${({ theme }) => css`
-    font-size: 1rem;
-    font-weight: 600;
-    color: ${theme.colors.default.textPrimary};
-  `}
-`;
-
-const CardBody = styled.span`
-  ${({ theme }) => css`
-    font-size: 0.8125rem;
-    line-height: 1.45;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;

@@ -64,6 +64,13 @@ const Flow = () => {
   );
 
   useEffect(() => {
+    // The route initialises the explorer inside the main view's mount, and the
+    // zero state does not mount that view — so on a browser with no project,
+    // nothing had initialised it and creating the first one threw "Workspace
+    // not found". Calling it here covers both layouts; it returns early when
+    // the work has already been done.
+    PgExplorer.init().catch(() => {});
+
     const subs = [
       PgFlow.init(),
       PgLesson.init(),
@@ -77,6 +84,12 @@ const Flow = () => {
         setHasProject(!!PgExplorer.currentWorkspaceName)
       ),
       PgExplorer.onDidSwitchWorkspace(() =>
+        setHasProject(!!PgExplorer.currentWorkspaceName)
+      ),
+      // Creating the first project is the moment the zero state has to stand
+      // down, and creating is not switching — without this the layout stayed
+      // on the zero state with a project sitting behind it.
+      PgExplorer.onDidCreateWorkspace(() =>
         setHasProject(!!PgExplorer.currentWorkspaceName)
       ),
     ];
@@ -95,50 +108,10 @@ const Flow = () => {
     setSettingsOpen((open) => !open);
   };
 
-  // Whether the empty-workspace gallery has already been opened once for
-  // this mount of `Flow`.
-  const openedGalleryOnInit = useRef(false);
-  /** Watches for the account's projects to land under an auto-opened gallery */
-  const imported = useRef<Disposable | null>(null);
-
-  useEffect(() => {
-    // `PgExplorer` initializes asynchronously (`routes/common.tsx`), so
-    // `allWorkspaceNames` may still be `undefined` on the first render --
-    // only decide once it has actually settled, otherwise every cold start
-    // would flash the gallery before we know whether there are projects.
-    //
-    // `PgExplorer.init()` reruns on every route navigation, so `onDidInit`
-    // fires more than once for the lifetime of `Flow`. Open the gallery at
-    // most once: dispose the subscription right after it fires so later
-    // navigations (e.g. into and out of a tutorial) never stack a second
-    // modal on top of one the user already interacted with.
-    const openIfEmpty = () => {
-      if (openedGalleryOnInit.current) return;
-      if (PgExplorer.allWorkspaceNames?.length === 0) {
-        openedGalleryOnInit.current = true;
-        sub.dispose();
-        openGallery();
-        // "You have no projects" is a guess until the account has answered.
-        // A browser signed in to an account with work on it is empty only for
-        // as long as the sync takes, and the gallery was landing on top of
-        // projects that arrived a moment later. Waiting for the sync instead
-        // would delay the gallery for everyone who genuinely is new, so it
-        // opens on time and stands down if it turns out to be wrong.
-        imported.current = PgExplorer.onDidCreateWorkspace(() => {
-          if (PgExplorer.allWorkspaceNames?.length) {
-            imported.current?.dispose();
-            PgView.closeModal();
-          }
-        });
-      }
-    };
-    const sub = PgExplorer.onDidInit(openIfEmpty);
-    if (PgExplorer.allWorkspaceNames) openIfEmpty();
-    return () => {
-      sub.dispose();
-      imported.current?.dispose();
-    };
-  }, []);
+  /* The gallery used to open itself as a modal whenever the browser had no
+     projects. It is the zero state's own page now — the scratch row, the
+     tutorials and the programs all sit under the prompt — so a window opening
+     over it would be the same content twice, one of them covering the other. */
 
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
@@ -241,10 +214,7 @@ const Flow = () => {
           </Work>
           </>
         ) : (
-          <ZeroState
-            onOpenGallery={openGallery}
-            onAskAssistant={() => setAssistantOpen(true)}
-          />
+          <ZeroState onAskAssistant={() => setAssistantOpen(true)} />
         )}
       </Columns>
 
