@@ -191,6 +191,11 @@ const Chip = styled.button`
     border-radius: 8px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
+    /* Without this these inherit the browser's default 13.333px rather than
+       the scale — invisible on an icon button until something puts text in
+       one. */
+    font-family: inherit;
+    font-size: 0.8125rem;
     cursor: pointer;
 
     & > svg {

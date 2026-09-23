@@ -404,7 +404,10 @@ const Wrapper = styled.div`
     height: 100vh;
     position: relative;
     overflow: hidden;
-    background: ${theme.colors.default.bgSecondary};
+    /* The ground. Everything raised — cards, the composer, a menu — sits one
+       step above this on bgSecondary, so depth is one decision rather than a
+       different answer per component. */
+    background: ${theme.colors.default.bgPrimary};
   `}
 `;
 
@@ -461,8 +464,8 @@ const BarButton = styled.button<{ $on?: boolean }>`
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 2rem;
-    height: 2rem;
+    width: 1.875rem;
+    height: 1.875rem;
     padding: 0;
     border: none;
     border-radius: 8px;
@@ -494,7 +497,7 @@ const BarButton = styled.button<{ $on?: boolean }>`
 const Wordmark = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
-    height: 2rem;
+    height: 1.875rem;
     margin-right: 0.375rem;
     padding: 0 0.5rem;
     border: none;
@@ -529,7 +532,10 @@ const Account = styled.div`
     min-width: 0;
     overflow: hidden;
 
+    /* The chips came from a title bar with their own metrics; in this one
+       they take the bar's height like everything else in it. */
     & button {
+      height: 1.875rem;
       font-family: inherit;
       font-size: 0.8125rem;
     }
