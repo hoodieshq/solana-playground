@@ -431,8 +431,11 @@ const SearchButton = styled.button`
   text-align: left;
   cursor: pointer;
 
-  & > span {
+  /* The label, not the glyph — both are spans, and a rule on the tag alone
+     gave the icon half the box and pushed the word to the middle. */
+  & > span:not([aria-hidden]) {
     flex: 1;
+    text-align: left;
   }
 
   &:hover {

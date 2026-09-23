@@ -323,6 +323,12 @@ const Account = styled.div`
       font-family: inherit;
     }
 
+    /* The icon-only settings trigger says the same thing as the Settings row
+       two lines under it, with less. One of them goes. */
+    & [aria-label="Open settings"] {
+      display: none;
+    }
+
     & button:hover {
       background: ${theme.colors.state.hover.bg};
     }
