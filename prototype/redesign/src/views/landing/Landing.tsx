@@ -4,7 +4,7 @@ import styled, { css, keyframes } from "styled-components";
 import HeroCanvas from "./HeroCanvas";
 import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
-import PlaygroundMark from "./PlaygroundMark";
+import PlaygroundMark from "../../components/PlaygroundMark";
 import { useReveal } from "./useReveal";
 
 /**

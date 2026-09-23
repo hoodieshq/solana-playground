@@ -7,6 +7,9 @@ import { FC } from "react";
  * `currentColor` so it takes the colour of whatever it sits in — the original
  * was filled with the page ink, which would have made it invisible on a dark
  * surface and unchangeable on a light one.
+ *
+ * Used by the landing's hero and by the head of the product's sidebar, which
+ * is why it sits here rather than under views/landing.
  */
 const PlaygroundMark: FC<{ className?: string }> = ({ className }) => (
   <svg
