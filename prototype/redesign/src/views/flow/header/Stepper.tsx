@@ -84,14 +84,40 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
 
 export default Stepper;
 
+/* The rail runs the width of the window along the floor, so the stages divide
+   it evenly: each one is a track, not a label sized by its own text. The
+   connectors the title-bar version drew between items are gone — pills with a
+   gap between them already read as a sequence, and a line joining them at this
+   width is just a line. */
 const Wrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.5rem;
+  width: 100%;
+
+  /* Each stage fills its track and sits on its own surface. */
+  & > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  & button[role="tab"] {
+    justify-content: center;
+    width: 100%;
+    height: 2.5rem;
+    border-radius: 12px;
+  }
+
+  /* The connector is a title-bar idea; the rail does not use it. */
+  & > div > span:first-child:not([id]) {
+    display: none;
+  }
 `;
 
 const Item = styled.div`
   display: flex;
+  min-width: 0;
   align-items: center;
 `;
 
