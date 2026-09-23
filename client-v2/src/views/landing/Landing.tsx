@@ -1,7 +1,11 @@
-import { FC } from "react";
-import styled, { css } from "styled-components";
+import { FC, useRef, useState } from "react";
+import styled, { css, keyframes } from "styled-components";
 
+import DitheredSky from "./DitheredSky";
 import PixelField from "./PixelField";
+import PixelReveal from "./PixelReveal";
+import WaveGrid from "./WaveGrid";
+import { useReveal } from "./useReveal";
 
 /**
  * The landing.
@@ -23,16 +27,38 @@ interface LandingProps {
   onEnter: () => void;
 }
 
-const Landing: FC<LandingProps> = ({ onEnter }) => (
+const Landing: FC<LandingProps> = ({ onEnter }) => {
+  const heroRef = useRef<HTMLElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
+  const [hover, setHover] = useState(false);
+  /* Where the ripple starts: the button's centre, in fractions of the hero. */
+  const [origin, setOrigin] = useState({ x: 0.78, y: 0.62 });
+
+  const takeOrigin = () => {
+    const hero = heroRef.current;
+    const cta = ctaRef.current;
+    if (!hero || !cta) return;
+    const h = hero.getBoundingClientRect();
+    const c = cta.getBoundingClientRect();
+    setOrigin({
+      x: (c.left + c.width / 2 - h.left) / h.width,
+      y: (c.top + c.height / 2 - h.top) / h.height,
+    });
+  };
+
+  return (
   <Page>
-    <Hero>
+    <Hero ref={heroRef}>
       <HeroArt aria-hidden="true">
-        <Sky />
+        <DitheredSky />
         <PixelField />
+        <WaveLayer $on={hover}>
+          <WaveGrid active={hover} originX={origin.x} originY={origin.y} />
+        </WaveLayer>
         <Grid />
-        <Grain />
         <Fade />
       </HeroArt>
+      <PixelReveal />
 
       <Nav aria-label="Main">
         <NavMark aria-hidden="true">
@@ -62,7 +88,21 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
         </HeroLead>
 
         <HeroAction>
-          <Cta type="button" onClick={onEnter}>
+          <Cta
+            ref={ctaRef}
+            type="button"
+            onClick={onEnter}
+            onMouseEnter={() => {
+              takeOrigin();
+              setHover(true);
+            }}
+            onMouseLeave={() => setHover(false)}
+            onFocus={() => {
+              takeOrigin();
+              setHover(true);
+            }}
+            onBlur={() => setHover(false)}
+          >
             Open Playground
           </Cta>
         </HeroAction>
@@ -89,49 +129,9 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
     </Hero>
 
     <Sections>
-      <Section id="what">
-        <SectionLabel>What it is</SectionLabel>
-        <SectionBody>
-          <SectionTitle>
-            A complete Solana workbench that happens to be a browser tab.
-          </SectionTitle>
-          <SectionText>
-            An editor, a build server, a wallet, a test validator and a deploy
-            pipeline, already wired to each other. Nothing to install and
-            nothing to configure — the toolchain that usually takes an
-            afternoon is simply already there.
-          </SectionText>
-        </SectionBody>
-      </Section>
-
-      <Section id="how">
-        <SectionLabel>How it works</SectionLabel>
-        <SectionBody>
-          <SectionTitle>Write, build, deploy, interact.</SectionTitle>
-          <SectionText>
-            Four steps, in that order, with the state of each one visible as you
-            go. Start from a blank canvas in Anchor, Native or Seahorse, or open
-            one of thirty-four real programs and change it. The assistant reads
-            the file you are on and the last error you hit, and proposes patches
-            you apply yourself.
-          </SectionText>
-        </SectionBody>
-      </Section>
-
-      <Section id="who">
-        <SectionLabel>Who it's for</SectionLabel>
-        <SectionBody>
-          <SectionTitle>
-            Anyone whose first question is whether the idea works.
-          </SectionTitle>
-          <SectionText>
-            People learning Solana, who need the first program to run before the
-            enthusiasm runs out. Engineers from another chain who want to try
-            the model without adopting the tooling. And anyone who already knows
-            all of this and just wants somewhere to test a thought.
-          </SectionText>
-        </SectionBody>
-      </Section>
+      {SECTIONS.map((section) => (
+        <RevealSection key={section.id} {...section} />
+      ))}
     </Sections>
 
     <Close>
@@ -141,9 +141,62 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
       </Cta>
     </Close>
   </Page>
-);
+  );
+};
 
 export default Landing;
+
+/**
+ * One section, arriving as it is scrolled to: the label, the claim and the
+ * paragraph each a beat behind the one above, so the eye is led down the
+ * column rather than handed the whole block at once.
+ */
+const RevealSection: FC<SectionCopy> = ({ id, label, title, text }) => {
+  const [ref, shown] = useReveal<HTMLElement>();
+  return (
+    <Section id={id} ref={ref}>
+      <SectionLabel $shown={shown} $delay={0}>
+        {label}
+      </SectionLabel>
+      <SectionBody>
+        <SectionTitle $shown={shown} $delay={0.08}>
+          {title}
+        </SectionTitle>
+        <SectionText $shown={shown} $delay={0.16}>
+          {text}
+        </SectionText>
+      </SectionBody>
+    </Section>
+  );
+};
+
+interface SectionCopy {
+  id: string;
+  label: string;
+  title: string;
+  text: string;
+}
+
+const SECTIONS: SectionCopy[] = [
+  {
+    id: "what",
+    label: "What it is",
+    title: "A complete Solana workbench that happens to be a browser tab.",
+    text: "An editor, a build server, a wallet, a test validator and a deploy pipeline, already wired to each other. Nothing to install and nothing to configure — the toolchain that usually takes an afternoon is simply already there.",
+  },
+  {
+    id: "how",
+    label: "How it works",
+    title: "Write, build, deploy, interact.",
+    text: "Four steps, in that order, with the state of each one visible as you go. Start from a blank canvas in Anchor, Native or Seahorse, or open one of thirty-four real programs and change it. The assistant reads the file you are on and the last error you hit, and proposes patches you apply yourself.",
+  },
+  {
+    id: "who",
+    label: "Who it's for",
+    title: "Anyone whose first question is whether the idea works.",
+    text: "People learning Solana, who need the first program to run before the enthusiasm runs out. Engineers from another chain who want to try the model without adopting the tooling. And anyone who already knows all of this and just wants somewhere to test a thought.",
+  },
+];
 
 const FONT = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
   Helvetica, Arial, sans-serif`;
@@ -165,6 +218,23 @@ const Page = styled.main`
 `;
 
 /* One frame that fills the window, with everything else laid over it. */
+/* Everything arrives after the wipe has opened the middle of the frame, in
+   reading order, each a beat behind the last. */
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+`;
+
+const entrance = (delay: number) => css`
+  opacity: 0;
+  animation: ${rise} 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+  }
+`;
+
 const Hero = styled.header`
   position: relative;
   min-height: 100vh;
@@ -182,26 +252,23 @@ const HeroArt = styled.div`
   background: ${INK};
 `;
 
-/* Light at the top, weight at the bottom — the poster's own direction, and it
-   gives the headline dark ground to sit on without a scrim behind it. */
-const Sky = styled.div`
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    ${ICE} 0%,
-    #A8B5F4 14%,
-    #6E77D6 30%,
-    #3A3AA8 46%,
-    ${INDIGO} 62%,
-    #0D0B44 80%,
-    #060618 100%
-  );
-`;
-
 /* A surveyor's grid, not a graph: long faint rules with a tick where they
    cross, which is the thing that makes the poster read as a record of
    something rather than a wallpaper. */
+/* The hover grid sits above the sky and below the type, and fades rather than
+   appears — the canvas eases its own strength too, so this is only here to
+   keep it out of the compositor when idle. */
+const WaveLayer = styled.div<{ $on: boolean }>`
+  position: absolute;
+  inset: 0;
+  opacity: ${({ $on }) => ($on ? 1 : 0)};
+  transition: opacity 0.45s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
 const Grid = styled.div`
   position: absolute;
   inset: 0;
@@ -214,21 +281,6 @@ const Grid = styled.div`
     linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
   background-size: 11.5% 15%;
   mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 85%);
-`;
-
-/* Grain, as an inline SVG turbulence so it costs one paint and no request.
-   Screen blend keeps it in the light rather than dirtying the dark end. */
-const Grain = styled.div`
-  position: absolute;
-  inset: -50%;
-  opacity: 0.62;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,\
-<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'>\
-<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/>\
-<feColorMatrix type='saturate' values='0'/></filter>\
-<rect width='220' height='220' filter='url(%23n)' opacity='0.55'/></svg>");
 `;
 
 /* The bottom of the frame goes to the page colour, so the hero ends rather
@@ -250,6 +302,7 @@ const Fade = styled.div`
 `;
 
 const Nav = styled.nav`
+  ${entrance(0.55)}
   justify-self: center;
   display: flex;
   align-items: center;
@@ -306,6 +359,7 @@ const HeroBody = styled.div`
 `;
 
 const HeroLead = styled.div`
+  ${entrance(0.72)}
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -329,6 +383,7 @@ const HeroLine = styled.p`
 `;
 
 const HeroAction = styled.div`
+  ${entrance(0.86)}
   padding-bottom: 0.5rem;
 `;
 
@@ -369,6 +424,7 @@ const Cta = styled.button`
 `;
 
 const HeroFoot = styled.div`
+  ${entrance(0.98)}
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   align-items: start;
@@ -404,6 +460,21 @@ const FootArgument = styled.div`
   }
 `;
 
+/* Held back until the section arrives, then eased up. Transition rather than
+   animation, so the state can drive it and nothing replays. */
+const arrive = (shown: boolean, delay: number) => css`
+  opacity: ${shown ? 1 : 0};
+  transform: ${shown ? "none" : "translateY(16px)"};
+  transition: opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s,
+    transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s;
+
+  @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+`;
+
 const Sections = styled.div`
   display: flex;
   flex-direction: column;
@@ -432,7 +503,8 @@ const Section = styled.section`
   }
 `;
 
-const SectionLabel = styled.h2`
+const SectionLabel = styled.h2<{ $shown: boolean; $delay: number }>`
+  ${({ $shown, $delay }) => arrive($shown, $delay)}
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 400;
@@ -446,7 +518,8 @@ const SectionBody = styled.div`
   max-width: 40rem;
 `;
 
-const SectionTitle = styled.p`
+const SectionTitle = styled.p<{ $shown: boolean; $delay: number }>`
+  ${({ $shown, $delay }) => arrive($shown, $delay)}
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2.125rem);
   font-weight: 300;
@@ -454,7 +527,8 @@ const SectionTitle = styled.p`
   letter-spacing: -0.02em;
 `;
 
-const SectionText = styled.p`
+const SectionText = styled.p<{ $shown: boolean; $delay: number }>`
+  ${({ $shown, $delay }) => arrive($shown, $delay)}
   margin: 0;
   font-size: 1.0625rem;
   line-height: 1.6;
