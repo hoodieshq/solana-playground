@@ -111,26 +111,43 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
               them out rather than cutting, so the two states read as one
               surface rearranging rather than two pages swapping. */}
           <Lead $shown={active === "start"}>
-            <Title>What are we building today?</Title>
-            <Subtitle>
-              Start from scratch, follow a tutorial, or open a real program.
-              Everything stays in this browser until you deploy.
-            </Subtitle>
+            <Mark aria-hidden="true">{ICONS.asterisk}</Mark>
+            <Title>Where should we begin?</Title>
           </Lead>
 
-          <Prompt type="button" onClick={onAskAssistant} $tight={active !== "start"}>
-            <PromptPlaceholder>Ask anything about Solana…</PromptPlaceholder>
-            <PromptActions>
-              <PromptLeft>
-                <PromptChip aria-hidden="true">{ICONS.plus}</PromptChip>
-                <PromptChip aria-hidden="true">{ICONS.globe}</PromptChip>
-              </PromptLeft>
-              <ModePill>
-                <Glyph aria-hidden="true">{ICONS.cpu}</Glyph>
-                Assistant
-              </ModePill>
-            </PromptActions>
-          </Prompt>
+          <Composer $tight={active !== "start"}>
+            <ComposerInput
+              type="button"
+              onClick={onAskAssistant}
+              aria-label="Ask the assistant"
+            >
+              Ask anything…
+            </ComposerInput>
+            <ComposerBar>
+              <BarLeft>
+                <Chip type="button" onClick={onAskAssistant} aria-label="Attach">
+                  {ICONS.plus}
+                </Chip>
+                <Chip type="button" onClick={onAskAssistant} aria-label="Tools">
+                  {ICONS.grid}
+                </Chip>
+                <ModeButton type="button" onClick={onAskAssistant}>
+                  <Glyph aria-hidden="true">{ICONS.send}</Glyph>
+                  Assistant
+                </ModeButton>
+              </BarLeft>
+              <BarRight>
+                <ModelButton type="button" onClick={onAskAssistant}>
+                  <Glyph aria-hidden="true">{ICONS.asterisk}</Glyph>
+                  Model
+                  <Glyph aria-hidden="true">{ICONS.chevron}</Glyph>
+                </ModelButton>
+                <Send type="button" onClick={onAskAssistant} aria-label="Send">
+                  {ICONS.up}
+                </Send>
+              </BarRight>
+            </ComposerBar>
+          </Composer>
 
           <Panel
             id="zero-panel"
@@ -144,7 +161,7 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
                 <PanelHead>
                   <PanelLabel>Or learn from one of these</PanelLabel>
                   <PanelMore type="button" onClick={() => pick("tutorials")}>
-                    All {PgTutorial.all.length} tutorials
+                    All {PgTutorial.all.length}
                   </PanelMore>
                 </PanelHead>
                 <Clip $rows={2}>
@@ -208,6 +225,27 @@ const ICONS = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
+    </>
+  ),
+  asterisk: svg(
+    <>
+      <path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />
+    </>
+  ),
+  grid: svg(
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  send: svg(<path d="M21 3 10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z" />),
+  chevron: svg(<path d="m6 9 6 6 6-6" />),
+  up: svg(
+    <>
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
     </>
   ),
   cpu: svg(
@@ -375,16 +413,152 @@ const Lead = styled.div<{ $shown: boolean }>`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.875rem;
     text-align: center;
     overflow: hidden;
     opacity: ${$shown ? 1 : 0};
-    max-height: ${$shown ? "12rem" : "0"};
+    max-height: ${$shown ? "8rem" : "0"};
     margin-bottom: ${$shown ? "0" : "-1rem"};
     transition: opacity 0.18s ease, max-height 0.28s ease, margin-bottom 0.28s ease;
 
     @media (prefers-reduced-motion: reduce) {
       transition: none;
+    }
+  `}
+`;
+
+/* The composer. Two rows: where you type, and the controls under it. Sized off
+   the reference — 14px radius, a 3.5rem typing area, 2rem control chips — so
+   it reads as one object rather than a box with buttons parked in it. */
+const Composer = styled.div<{ $tight?: boolean }>`
+  ${({ theme, $tight }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    width: min(44rem, 100%);
+    padding: ${$tight ? "0.75rem" : "0.875rem"};
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 14px;
+    background: ${theme.colors.default.bgSecondary};
+    transition: padding 0.28s ease, border-color 0.15s ease;
+
+    &:hover {
+      border-color: ${theme.colors.state.hover.bg};
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const ComposerInput = styled.button`
+  ${({ theme }) => css`
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.5rem 0.5rem 0;
+    border: none;
+    background: none;
+    color: ${theme.colors.state.disabled.color};
+    font-family: inherit;
+    font-size: 0.9375rem;
+    text-align: left;
+    cursor: text;
+  `}
+`;
+
+const ComposerBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+`;
+
+const BarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`;
+
+const BarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`;
+
+const Chip = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+  `}
+`;
+
+const ModeButton = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding: 0 0.625rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+  `}
+`;
+
+const ModelButton = styled(ModeButton)``;
+
+const Send = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: ${theme.colors.default.primary};
+    color: #fff;
+    cursor: pointer;
+
+    & > svg {
+      width: 0.9375rem;
+      height: 0.9375rem;
+    }
+
+    &:hover {
+      filter: brightness(1.1);
     }
   `}
 `;
@@ -408,12 +582,13 @@ const PanelHead = styled.div`
   gap: 1rem;
 `;
 
+/* Sentence case, same size and colour as the sidebar's section headings. The
+   uppercase tracked version read as a second typeface at a glance, which is
+   most of what "not consistent" meant. */
 const PanelLabel = styled.span`
   ${({ theme }) => css`
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
+    font-size: 0.8125rem;
+    font-weight: 400;
     color: ${theme.colors.state.disabled.color};
   `}
 `;
@@ -487,100 +662,32 @@ const Stage = styled.div`
 
 
 
+/* 1.375rem, regular weight. The reference asks a question at reading size and
+   lets the composer below it carry the page; a 40px bold headline made the
+   same words shout. */
 const Title = styled.h1`
   ${({ theme }) => css`
     margin: 0;
-    font-size: 2.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 1.375rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
     color: ${theme.colors.default.textPrimary};
   `}
 `;
 
-const Subtitle = styled.p`
+const Mark = styled.span`
   ${({ theme }) => css`
-    margin: 0;
-    max-width: 34rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: ${theme.colors.default.textSecondary};
+    display: flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    color: ${theme.colors.default.textPrimary};
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
   `}
 `;
 
 /* Shaped like the composer it stands in for. Clicking it opens the assistant
    rather than accepting a sentence with nowhere to send it. */
-const Prompt = styled.button<{ $tight?: boolean }>`
-  ${({ theme, $tight }) => css`
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    width: min(42.5rem, 100%);
-    padding: ${$tight ? "0.875rem 1rem" : "1.25rem"};
-    transition: padding 0.28s ease, border-color 0.15s ease;
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 16px;
-    background: ${theme.colors.default.bgSecondary};
-    font-family: inherit;
-    text-align: left;
-    cursor: text;
-
-    &:hover {
-      border-color: ${theme.colors.state.hover.bg};
-    }
-  `}
-`;
-
-const PromptPlaceholder = styled.span`
-  ${({ theme }) => css`
-    font-size: 0.9375rem;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
-const PromptActions = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const PromptLeft = styled.span`
-  display: flex;
-  gap: 0.5rem;
-`;
-
-const PromptChip = styled.span`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
-    color: ${theme.colors.default.textSecondary};
-
-    & > svg {
-      width: 1rem;
-      height: 1rem;
-    }
-  `}
-`;
-
-const ModePill = styled.span`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
-    color: ${theme.colors.default.textPrimary};
-    font-size: 0.8125rem;
-    font-weight: 600;
-  `}
-`;
-

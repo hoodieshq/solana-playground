@@ -245,17 +245,16 @@ const Section = styled.nav`
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
 `;
 
 const Heading = styled.h2`
   ${({ theme }) => css`
-    margin: 0 0 0.25rem;
+    margin: 0 0 0.375rem;
     padding: 0 0.625rem;
-    font-size: ${theme.font.other.size.xsmall};
+    font-size: 0.8125rem;
     font-weight: 400;
-    color: ${theme.colors.default.textSecondary};
-    opacity: 0.75;
+    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
@@ -292,13 +291,27 @@ const Account = styled.div`
       gap: 1px;
     }
 
-    & button {
+    & button,
+    & a {
       justify-content: flex-start;
+      gap: 0.625rem;
       width: 100%;
-      padding: 0.5rem 0.625rem;
+      height: 2.125rem;
+      padding: 0 0.625rem;
       border: none;
-      border-radius: 10px;
-      font-size: 0.9375rem;
+      border-radius: 8px;
+      color: ${theme.colors.default.textSecondary};
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    /* The chips carried their own typeface and a pill radius from the title
+       bar they used to live in; in a list of rows that reads as three
+       different components stacked. */
+    & * {
+      font-family: inherit;
     }
 
     & button:hover {
@@ -311,7 +324,9 @@ const Brand = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0.625rem 1rem;
+  height: 2.5rem;
+  padding: 0 0.625rem;
+  margin-bottom: 0.75rem;
 `;
 
 const Mark = styled.div`
@@ -326,7 +341,7 @@ const Mark = styled.div`
 
 const BrandName = styled.span`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.medium};
+    font-size: 0.9375rem;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: ${theme.colors.default.textPrimary};
@@ -345,19 +360,21 @@ const Row = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => css`
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.625rem;
     width: 100%;
-    padding: 0.5625rem 0.625rem;
+    height: 2.125rem;
+    padding: 0 0.625rem;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: ${$current ? theme.colors.state.hover.bg : "transparent"};
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font-family: inherit;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: ${$current ? 500 : 400};
     text-align: left;
+    white-space: nowrap;
     text-decoration: none;
     cursor: pointer;
     transition: background 0.1s, color 0.1s;
@@ -377,8 +394,8 @@ const Row = styled.button<{ $current?: boolean }>`
 const Glyph = styled.span`
   flex-shrink: 0;
   display: flex;
-  width: 19px;
-  height: 19px;
+  width: 16px;
+  height: 16px;
 
   & > svg {
     width: 100%;
