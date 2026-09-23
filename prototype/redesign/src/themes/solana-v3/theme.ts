@@ -1,60 +1,69 @@
 import type { ThemeParam } from "../../utils";
 
-// Built from the Playground Figma (file TsxR005AkQUotiFangKiAj, frame 2:4),
-// with four things deliberately changed rather than copied. The brief asked for
-// a clean Claude/Codex take with a little Apple in it, and the file is a
-// sketch, not a spec.
+// Built from two things in the Playground Figma (TsxR005AkQUotiFangKiAj): the
+// core colours on the brand board, and the products pinned beside them. The
+// layout frame in that file is a sketch — it runs three accents at once, mixes
+// Apple's greys with Tailwind's and VS Code's, and sets 40px panels beside 10px
+// controls — so it is read here as intent rather than copied as spec.
 //
-// 1. One accent, not three. The sketch runs a blue chat (#2563EB), a cyan
-//    editor caret (#38BDF8) and a green progress rail (#10B981) at once, so
-//    nothing reads as *the* accent. Here blue carries every current state and
-//    green is demoted to what it should mean: success, and nothing else.
-// 2. One family of greys. The sketch mixes Apple's (#8E8E93), Tailwind's
-//    (#9CA3AF, #6B7280) and VS Code's (#858585, #CCC). Three greys in one
-//    window is a thing you feel before you can name it. These are one ramp.
-// 3. Calmer corners. 40px panels beside 10px controls is a wide gap to hold in
-//    one glance, and 40 does not sit on the 8px rhythm the rest of the layout
-//    keeps. Panels come down to 20, controls stay at 10, pills stay round.
-// 4. Surfaces lift, they do not recolour. The sketch's editor chrome is
-//    Tailwind slate (#0F172A, #1E293B) — blue-tinted — against a neutral black
-//    page. Every surface here is the same hue, one step lighter each time.
+// What the references have in common, and what this theme is trying to earn:
+// one accent used only for what is current, hairlines instead of borders drawn
+// around floating cards, and an interface set in a UI font with monospace kept
+// for code alone. Sans chrome is the single biggest change; the app used to
+// hand the code font to every label, tab and tree row.
 
-// Surfaces: one neutral ramp, each step a lift rather than a new colour.
-const BG_BASE = "#08080A", // the page, the rail, the status bar
-  BG_SURFACE = "#101013", // editor, panels, the cards that float on the page
-  BG_RAISED = "#17171B", // inputs, menus, cards inside a panel
-  BG_HOVER = "#202026",
-  // The one accent. Apple's dark-mode system blue: it holds up on near-black
-  // where the sketch's #2563EB goes muddy, and it is the only colour allowed
-  // to mean "this is the current thing".
-  ACCENT = "#0A84FF",
-  ACCENT_HOVER = "#3E9CFF",
-  // The rest of Apple's dark-mode system set, used only for what they mean.
-  GREEN = "#30D158",
-  RED = "#FF453A",
-  YELLOW = "#FFD60A",
-  CYAN = "#64D2FF",
-  PINK = "#FF6482",
-  PURPLE = "#BF5AF2",
-  // Text: one ramp, no second grey family.
-  TEXT_PRIMARY = "#F2F2F5",
-  TEXT_SECONDARY = "#96969E",
-  COMMENT = "#6A6A73",
-  // Borders as light at low alpha, so they lift with the surface under them
-  // instead of drawing a hard line across it.
-  BORDER = "#FFFFFF14",
-  BORDER_STRONG = "#FFFFFF26",
-  DISABLED_BG = "#0F0F12";
+// Core colours, read off the board in the Figma (section "Brand Landing
+// Inspo"): an ice blue, black, a periwinkle, and a deep indigo. That is the
+// palette — not the system blue an earlier pass reached for, which was a
+// reasonable colour belonging to somebody else's product.
+//
+// On a black ground the ramp reads in this order: indigo is a fill you can put
+// weight on, periwinkle is the mark that says "this one", ice is what you read.
+const ICE = "#DEEAFB",
+  PERIWINKLE = "#A5B4FC",
+  INDIGO = "#1E1B8C",
+  INDIGO_LIFT = "#2A26B0";
 
-/** Panels: editor, terminal, the side panel, the cards on Home. */
-const PANEL_RADIUS = "20px";
+// Surfaces: black, then three lifts. No hue shift between them — the blue in
+// this interface should come from the accent and the type, never from a
+// tinted panel, which is what makes a dark UI look muddy.
+const BG_BASE = "#000000", // the page and the rail
+  BG_SURFACE = "#0A0A0D", // editor, panels, the main work surface
+  BG_RAISED = "#121217", // inputs, menus, cards sitting on a panel
+  BG_HOVER = "#1A1A21",
+  // The accent, and the one thing it is for: whatever is current.
+  ACCENT = PERIWINKLE,
+  ACCENT_HOVER = "#BCC6FD",
+  ACCENT_FILL = INDIGO, // a weighted fill: the primary button, a selected row
+  ACCENT_FILL_HOVER = INDIGO_LIFT,
+  // Text: ice at the top of the ramp, so body copy carries a trace of the
+  // brand instead of being plain white.
+  TEXT_PRIMARY = ICE,
+  TEXT_SECONDARY = "#8B90A8",
+  COMMENT = "#5D6175",
+  // Hairlines. In the references — v0, Base44, Linear — panels are divided by
+  // a single low-contrast line, not by a border drawn around a floating card.
+  BORDER = "#FFFFFF12",
+  BORDER_STRONG = "#FFFFFF20",
+  DISABLED_BG = "#0E0E12",
+  // Kept for the states that genuinely mean something, and used nowhere else.
+  GREEN = "#4ADE80",
+  RED = "#FF6B6B",
+  YELLOW = "#FFD43B",
+  CYAN = "#8BD5FF",
+  PINK = "#F49AC2",
+  PURPLE = "#C4B5FD";
+
+/** Panels. Closer to the references than the sketch: a card, not a pebble. */
+const PANEL_RADIUS = "12px";
 /** Controls: buttons, inputs, nav rows, anything you click. */
-const CONTROL_RADIUS = "10px";
+const CONTROL_RADIUS = "8px";
 
 /**
- * Chrome font. The sketch asks for Inter and Inter is right for this: it is
- * the quietest of the grotesques and gets out of the way of the code. Loaded
- * in index.css; code keeps the monospace the user picked.
+ * The interface font. Everything you read that is not code is set in this —
+ * the tree, the tabs, the status bar, the terminal's own chrome. The app used
+ * to hand the monospace to all of it, which is the single thing that made it
+ * read as a terminal emulator rather than a product.
  */
 const DISPLAY_FONT = `"Inter", -apple-system, BlinkMacSystemFont,
   "Segoe UI", Helvetica, Arial, sans-serif`;
@@ -109,9 +118,9 @@ const SOLANA_V3: ThemeParam = {
       },
       overrides: {
         primary: {
-          bg: ACCENT,
-          color: "#FFFFFF",
-          hover: { bg: ACCENT_HOVER },
+          bg: ACCENT_FILL,
+          color: ICE,
+          hover: { bg: ACCENT_FILL_HOVER },
         },
         outline: {
           border: `1px solid ${BORDER_STRONG}`,
@@ -125,8 +134,8 @@ const SOLANA_V3: ThemeParam = {
         // The current line is a lift, not a rule drawn under the text
         activeLine: { bg: "#FFFFFF08", borderColor: "transparent" },
         cursorColor: ACCENT,
-        selection: { bg: "#0A84FF33" },
-        searchMatch: { bg: "#0A84FF26" },
+        selection: { bg: "#A5B4FC2E" },
+        searchMatch: { bg: "#A5B4FC24" },
       },
       gutter: {
         bg: "transparent",
