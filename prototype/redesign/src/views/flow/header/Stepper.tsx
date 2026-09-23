@@ -3,7 +3,6 @@ import styled, { css } from "styled-components";
 
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
-import { GRADIENT } from "../tokens";
 
 const LABEL: Record<Stage, string> = {
   write: "Write",
@@ -148,7 +147,7 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
       ? css`
           /* Gradient policy (GradientButton, docs/design/brand-research.md):
              the 135deg brand gradient marks the active stage's dot. */
-          background: ${GRADIENT};
+          background: ${theme.colors.default.primary};
         `
       : $status === "failed"
       ? css`

@@ -10,10 +10,10 @@ export const GAP = "8px";
  */
 export const BOTTOM_BAR_HEIGHT = "1.75rem";
 
-/**
- * The brand gradient, verbatim from
- * `views/sidebar/assistant/Component/GradientButton.tsx` -- that component
- * is the existing precedent for this literal (logomark, stepper active dot,
- * the one decisive CTA per view).
+/*
+ * The brand gradient used to live here as a literal, copied from
+ * GradientButton. Its three users -- that button, the stepper's active dot and
+ * the header logomark -- now read `theme.colors.default.primary`, so a theme
+ * decides what "the accent" means and the canvas stops hardcoding one
+ * product's purple. A theme that wants a gradient can set one there.
  */
-export const GRADIENT = "linear-gradient(135deg, #9945ff 10%, #14f195 90%)";

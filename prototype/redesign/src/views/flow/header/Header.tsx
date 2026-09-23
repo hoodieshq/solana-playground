@@ -11,7 +11,6 @@ import { currentStep } from "../lessons/progress";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { GRADIENT } from "../tokens";
 import { useKeybind } from "../../../hooks";
 
 interface HeaderProps {
@@ -103,5 +102,5 @@ const Logomark = styled.div`
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  background: ${GRADIENT};
+  background: ${({ theme }) => theme.colors.default.primary};
 `;
