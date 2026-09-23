@@ -184,7 +184,6 @@ const NavSidebar: FC<NavSidebarProps> = ({
           </Suggestion>
         )}
         <Foot>
-          {status && <Account>{status}</Account>}
           <Row
             as="a"
             href="https://solana.com/docs"
@@ -198,6 +197,9 @@ const NavSidebar: FC<NavSidebarProps> = ({
             <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
             Settings
           </Row>
+          {/* Last, because signing in turns this row into who you are — and
+              that is where Linear, Claude, Cursor and Vercel all put it. */}
+          {status && <Account>{status}</Account>}
         </Foot>
       </Column>
     </Aside>
@@ -405,7 +407,7 @@ const HeadButton = styled.button`
    and not a list with a strip of pills wedged into it. */
 const Account = styled.div`
   ${({ theme }) => css`
-    margin-bottom: 1px;
+    margin-top: 0.25rem;
 
     /* StatusChips' own row */
     & > div {

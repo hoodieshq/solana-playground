@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 /**
@@ -31,40 +31,65 @@ const Composer: FC<ComposerProps> = ({
   compact = false,
   mode = "Assistant",
   model = "Model",
-}) => (
-  <Box $compact={compact}>
-    <Input type="button" onClick={onActivate} aria-label="Ask the assistant">
-      {placeholder}
-    </Input>
-    <Bar>
-      <Group>
-        <Chip type="button" onClick={onActivate} aria-label="Attach">
-          {ICONS.plus}
-        </Chip>
-        <Chip type="button" onClick={onActivate} aria-label="Tools">
-          {ICONS.grid}
-        </Chip>
-        <Mode type="button" onClick={onActivate}>
-          <Glyph aria-hidden="true">{ICONS.send}</Glyph>
-          {mode}
-        </Mode>
-      </Group>
-      <Group>
-        <Mode type="button" onClick={onActivate}>
-          <Glyph aria-hidden="true">{ICONS.asterisk}</Glyph>
-          {model}
-          <Glyph aria-hidden="true">{ICONS.chevron}</Glyph>
-        </Mode>
-        <Chip type="button" onClick={onActivate} aria-label="Voice">
-          {ICONS.mic}
-        </Chip>
-        <Send type="button" onClick={onActivate} aria-label="Send">
-          {ICONS.up}
-        </Send>
-      </Group>
-    </Bar>
-  </Box>
-);
+}) => {
+  /* The assistant pane is resizable from 288px, and at the narrow end the two
+     groups ran into each other — "Assistant" printing over "Model" — and
+     pushed the send button off the end. Below the threshold the labels go and
+     their glyphs stay.
+
+     Measured rather than asked with a container query: styled-components 5
+     ships a stylis that does not know `@container`, and compiles the rule to
+     `@container ... { display: none }` with no selector at all — valid-looking
+     source, silently dead CSS. */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [dense, setDense] = useState(false);
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) =>
+      setDense(entry.contentRect.width < 384)
+    );
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Box ref={boxRef} $compact={compact}>
+      <Input type="button" onClick={onActivate} aria-label="Ask the assistant">
+        {placeholder}
+      </Input>
+      <Bar>
+        <Group>
+          <Chip type="button" onClick={onActivate} aria-label="Attach">
+            {ICONS.plus}
+          </Chip>
+          <Chip type="button" onClick={onActivate} aria-label="Tools">
+            {ICONS.grid}
+          </Chip>
+          {/* Where the message goes. It carries the same arrow the send button
+            does, so the pair reads as one sentence: this, by that. */}
+          <Mode type="button" onClick={onActivate} title={mode}>
+            <Glyph aria-hidden="true">{ICONS.up}</Glyph>
+            {!dense && <Label>{mode}</Label>}
+          </Mode>
+        </Group>
+        <Group>
+          <Mode type="button" onClick={onActivate} title={model}>
+            <Glyph aria-hidden="true">{ICONS.asterisk}</Glyph>
+            {!dense && <Label>{model}</Label>}
+            <Glyph aria-hidden="true">{ICONS.chevron}</Glyph>
+          </Mode>
+          <Chip type="button" onClick={onActivate} aria-label="Voice">
+            {ICONS.mic}
+          </Chip>
+          <Send type="button" onClick={onActivate} aria-label="Send">
+            {ICONS.up}
+          </Send>
+        </Group>
+      </Bar>
+    </Box>
+  );
+};
 
 export default Composer;
 
@@ -152,15 +177,29 @@ const Input = styled.button`
   `}
 `;
 
+/* Below this the labels go and the glyphs stay. The assistant pane is
+   resizable from 288px, and at the narrow end the two groups used to run into
+   each other — "Assistant" printing over "Model" — and push the send button
+   off the end. A container query, not the `compact` prop, because the width
+   that matters is this box's and the reader can drag it. */
+const Label = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
 const Bar = styled.div`
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  min-width: 0;
 `;
 
 const Group = styled.div`
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
@@ -180,6 +219,7 @@ const Glyph = styled.span`
 
 const Chip = styled.button`
   ${({ theme }) => css`
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -212,6 +252,7 @@ const Chip = styled.button`
 
 const Mode = styled.button`
   ${({ theme }) => css`
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -236,6 +277,7 @@ const Mode = styled.button`
 
 const Send = styled.button`
   ${({ theme }) => css`
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
