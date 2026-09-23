@@ -2,6 +2,7 @@ import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
+import { gradientStroke } from "../components/gradient";
 
 /**
  * The outermost column: where you can go, and the projects you have.
@@ -352,9 +353,10 @@ const Row = styled.button<{ $current?: boolean }>`
     width: 100%;
     height: 2.125rem;
     padding: 0 0.625rem;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 8px;
-    background: ${$current ? theme.colors.state.hover.bg : "transparent"};
+    background: transparent;
+    ${$current && gradientStroke(theme.colors.default.bgPrimary)}
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};

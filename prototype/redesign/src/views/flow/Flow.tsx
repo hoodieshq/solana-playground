@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
+import { gradientStroke } from "./components/gradient";
+
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import StatusChips from "./header/StatusChips";
 import Stepper from "./header/Stepper";
@@ -185,9 +187,9 @@ const Flow = () => {
               >
                 {ICONS.sidebar}
               </BarButton>
-              <MarkButton type="button" onClick={goHome} aria-label="Home">
-                {ICONS.asterisk}
-              </MarkButton>
+              <Wordmark type="button" onClick={goHome}>
+                Playground
+              </Wordmark>
               <Stepper
                 state={state}
                 onSelect={PgFlow.setStage}
@@ -359,7 +361,6 @@ const svg = (d: JSX.Element) => (
 );
 
 const ICONS = {
-  asterisk: svg(<path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />),
   sidebar: svg(
     <>
       <rect x="3" y="4" width="18" height="16" rx="2.5" />
@@ -471,14 +472,32 @@ const BarButton = styled.button`
   `}
 `;
 
-const MarkButton = styled(BarButton)`
+/* The brand says its name. A glyph alone asks people to learn a mark before
+   they know the product; the word is the mark until it has earned one. */
+const Wordmark = styled.button`
   ${({ theme }) => css`
-    margin-right: 0.25rem;
+    flex-shrink: 0;
+    height: 2rem;
+    margin-right: 0.375rem;
+    padding: 0 0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
     color: ${theme.colors.default.textPrimary};
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+    cursor: pointer;
 
-    & > svg {
-      width: 1.125rem;
-      height: 1.125rem;
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
     }
   `}
 `;
@@ -557,9 +576,10 @@ const WorkTab = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => css`
     height: 1.875rem;
     padding: 0 0.75rem;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 999px;
-    background: ${$current ? theme.colors.state.hover.bg : "transparent"};
+    background: transparent;
+    ${$current && gradientStroke(theme.colors.state.hover.bg)}
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};

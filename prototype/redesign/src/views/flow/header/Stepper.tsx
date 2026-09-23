@@ -1,6 +1,9 @@
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
+import { gradientStroke } from "../components/gradient";
+
+
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
 
@@ -229,9 +232,10 @@ const StageButton = styled.button<{
     padding: 0 0.75rem;
     border: 1px solid transparent;
     border-radius: 999px;
-    /* The selected stage is the filled pill, like the home screen's current
-       switch. Status rides on the dot, not on the fill. */
-    background: ${$selected ? theme.colors.state.hover.bg : "transparent"};
+    /* The selected stage carries the gradient stroke, like every other current
+       thing in the product. Status rides on the dot, not on the fill. */
+    background: transparent;
+    ${$selected && gradientStroke(theme.colors.state.hover.bg)}
     /* Selection and status are separate axes: an upcoming stage you have
        selected still reads as the one you are on, or it renders dimmer than
        the stages you are not looking at. The dot still carries the status. */
@@ -253,6 +257,7 @@ const StageButton = styled.button<{
     css`
       border-style: dashed;
       border-color: ${theme.colors.default.primary};
+      background: ${theme.colors.state.hover.bg};
     `}
 
     ${$status === "failed" &&

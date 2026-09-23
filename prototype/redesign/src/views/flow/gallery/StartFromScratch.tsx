@@ -1,6 +1,8 @@
 import { FC, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { gradientStroke } from "../components/gradient";
+
 import Img from "../../../components/Img";
 import Input from "../../../components/Input";
 import GradientButton from "../../sidebar/assistant/Component/GradientButton";
@@ -173,10 +175,10 @@ const FrameworkOption = styled.button<{ $active: boolean }>`
     padding: 0 0.625rem;
     border: 1px solid transparent;
     border-radius: 8px;
-    /* The chosen one is a filled pill, the rest are plain — the same mark the
-       top bar uses for its current switch, so the page has one way of saying
-       "this one". */
-    background: ${$active ? theme.colors.state.hover.bg : "transparent"};
+    /* The chosen one carries the gradient stroke — the same mark the top bar
+       and the sidebar use, so the product has one way of saying "this one". */
+    background: transparent;
+    ${$active && gradientStroke(theme.colors.default.bgSecondary)}
     color: ${$active
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
