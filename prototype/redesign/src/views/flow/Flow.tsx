@@ -171,6 +171,16 @@ const Flow = () => {
 
   const inProject = view === "project" && !!PgExplorer.currentWorkspaceName;
 
+  /* Cluster, wallet and account. It sits at the right end of the bar in both
+     views — it belongs to the session, not to the navigation, and the sidebar
+     is destinations and lists. */
+  const status = (
+    <StatusChips
+      onToggleSettings={toggleSettings}
+      settingsOpen={settingsOpen}
+    />
+  );
+
   return (
     <Wrapper>
       <Layout $sidebar={sidebarOpen}>
@@ -201,6 +211,7 @@ const Flow = () => {
               {PgExplorer.currentWorkspaceName}
             </ProjectName>
             <BarRight>
+              <Account>{status}</Account>
               {/* Always here, pressed when the pane is open — the same shape as
                   the sidebar toggle on the left. A control that only appears
                   once you have already lost the pane is a control you have to
@@ -236,12 +247,6 @@ const Flow = () => {
             onOpenGallery={openGallery}
             onOpenSettings={() => toggleSettings()}
             onOpenProject={openProject}
-            status={
-              <StatusChips
-                onToggleSettings={toggleSettings}
-                settingsOpen={settingsOpen}
-              />
-            }
           />
         </NavSlot>
 
@@ -329,7 +334,10 @@ const Flow = () => {
             </Work>
           </Panes>
         ) : (
-          <ZeroState onAskAssistant={showAssistant} />
+          <ZeroState
+            onAskAssistant={showAssistant}
+            status={<Account>{status}</Account>}
+          />
         )}
       </Layout>
 
@@ -507,6 +515,28 @@ const Wordmark = styled.button`
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;
+    }
+  `}
+`;
+
+/* StatusChips lays itself out as a row of pills, which is what a bar wants.
+   It only needed the sidebar's column treatment while it lived in the column;
+   here it goes back to its own shape, one step quieter. */
+const Account = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+
+    & button {
+      font-family: inherit;
+      font-size: 0.8125rem;
+    }
+
+    /* The icon-only settings trigger duplicates the sidebar's Settings row. */
+    & [aria-label="Open settings"] {
+      display: none;
     }
   `}
 `;
