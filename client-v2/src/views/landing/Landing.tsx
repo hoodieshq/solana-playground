@@ -1,10 +1,10 @@
 import { FC } from "react";
 import styled, { css, keyframes } from "styled-components";
 
-import DitheredSky from "./DitheredSky";
-import PixelField from "./PixelField";
+import HeroCanvas from "./HeroCanvas";
 import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
+import PlaygroundMark from "./PlaygroundMark";
 import { useReveal } from "./useReveal";
 
 /**
@@ -31,9 +31,10 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
   return (
   <Page>
     <Hero>
-      <HeroArt aria-hidden="true">
-        <DitheredSky />
-        <PixelField />
+      {/* Sky and pieces share one canvas so the dither lands on both. It takes
+          the pointer: the pieces are meant to be shoved around. */}
+      <HeroArt>
+        <HeroCanvas />
         <Grid />
         <Fade />
       </HeroArt>
@@ -41,14 +42,7 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
 
       <Nav aria-label="Main">
         <NavMark aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
+          <PlaygroundMark />
         </NavMark>
         <NavLinks>
           <NavLink href="#what">What it is</NavLink>
@@ -212,7 +206,7 @@ const Hero = styled.header`
 const HeroArt = styled.div`
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   background: ${INK};
 `;
@@ -223,6 +217,7 @@ const HeroArt = styled.div`
 const Grid = styled.div`
   position: absolute;
   inset: 0;
+  pointer-events: none;
   opacity: 0.22;
   background-image: linear-gradient(
       to right,
@@ -242,6 +237,7 @@ const Grid = styled.div`
 const Fade = styled.div`
   position: absolute;
   inset: auto 0 0 0;
+  pointer-events: none;
   height: 58%;
   background: linear-gradient(
     to bottom,
@@ -253,6 +249,8 @@ const Fade = styled.div`
 `;
 
 const Nav = styled.nav`
+  position: relative;
+  z-index: 2;
   ${entrance(0.55)}
   justify-self: center;
   display: flex;
@@ -267,8 +265,8 @@ const Nav = styled.nav`
 
 const NavMark = styled.span`
   display: flex;
-  width: 1.25rem;
-  height: 1.25rem;
+  /* The mark is 342×184, so it takes its width and finds its own height */
+  width: 1.75rem;
   color: #0b0b16;
 
   & > svg {
@@ -300,6 +298,17 @@ const NavLink = styled.a`
 `;
 
 const HeroBody = styled.div`
+  position: relative;
+  z-index: 2;
+  /* The pieces live under this and are meant to be picked up; a full-width
+     text container over them would swallow every drag. Only what is actually
+     interactive takes the pointer back. */
+  pointer-events: none;
+
+  & button,
+  & a {
+    pointer-events: auto;
+  }
   align-self: end;
   display: flex;
   align-items: flex-end;
@@ -404,6 +413,17 @@ const CtaOutline = styled.button`
 `;
 
 const HeroFoot = styled.div`
+  position: relative;
+  z-index: 2;
+  /* The pieces live under this and are meant to be picked up; a full-width
+     text container over them would swallow every drag. Only what is actually
+     interactive takes the pointer back. */
+  pointer-events: none;
+
+  & button,
+  & a {
+    pointer-events: auto;
+  }
   ${entrance(0.98)}
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
