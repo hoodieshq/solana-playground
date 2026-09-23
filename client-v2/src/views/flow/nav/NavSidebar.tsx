@@ -1,4 +1,4 @@
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
@@ -26,8 +26,6 @@ interface NavSidebarProps {
   onOpenSettings: () => void;
   /** Opens a project by name and switches to the project view */
   onOpenProject: (name: string) => void;
-  /** Cluster, wallet and account — rendered at the foot of this column. */
-  status?: ReactNode;
 }
 
 const QUICKSTART_DISMISSED = "quickstart-card-dismissed";
@@ -38,7 +36,6 @@ const NavSidebar: FC<NavSidebarProps> = ({
   onOpenGallery,
   onOpenSettings,
   onOpenProject,
-  status,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -111,8 +108,6 @@ const NavSidebar: FC<NavSidebarProps> = ({
       </Scroll>
 
       <Foot>
-        {status && <Account>{status}</Account>}
-
         <Row
           as="a"
           href="https://solana.com/docs"
@@ -128,9 +123,9 @@ const NavSidebar: FC<NavSidebarProps> = ({
         </Row>
 
         {!quickstartGone && (
-          <Card>
-            <CardTop>
-              <Plate aria-hidden="true">{ICONS.cube}</Plate>
+          <Suggestion>
+            <SuggestionHead>
+              <SuggestionTitle>Quickstart Solana</SuggestionTitle>
               <Dismiss
                 type="button"
                 onClick={dismissQuickstart}
@@ -138,15 +133,15 @@ const NavSidebar: FC<NavSidebarProps> = ({
               >
                 {ICONS.close}
               </Dismiss>
-            </CardTop>
-            <CardTitle>Quickstart Solana</CardTitle>
-            <CardBody>
+            </SuggestionHead>
+            <SuggestionBody>
               Create a devnet project and deploy your first program.
-            </CardBody>
-            <CardAction type="button" onClick={onOpenGallery}>
+            </SuggestionBody>
+            <Row onClick={onOpenGallery} type="button">
+              <Glyph aria-hidden="true">{ICONS.cube}</Glyph>
               Open quickstart
-            </CardAction>
-          </Card>
+            </Row>
+          </Suggestion>
         )}
       </Foot>
     </Aside>
@@ -284,59 +279,6 @@ const Foot = styled.div`
   `}
 `;
 
-/* The cluster, wallet and account controls were a row of pills in the title
-   bar. In a column they stack and stretch, so they read as part of this list
-   rather than as chips that wandered in. The child selector reaches the
-   wrapper inside StatusChips, which lays itself out as a row by default. */
-const Account = styled.div`
-  ${({ theme }) => css`
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.25rem;
-    border-bottom: 1px solid ${theme.colors.default.border};
-
-    & > div {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 1px;
-    }
-
-    & button,
-    & a {
-      justify-content: flex-start;
-      gap: 0.625rem;
-      width: 100%;
-      height: 2.125rem;
-      padding: 0 0.625rem;
-      border: none;
-      border-radius: 8px;
-      color: ${theme.colors.default.textSecondary};
-      font-family: inherit;
-      font-size: 0.875rem;
-      font-weight: 400;
-      white-space: nowrap;
-    }
-
-    /* The chips carried their own typeface and a pill radius from the title
-       bar they used to live in; in a list of rows that reads as three
-       different components stacked. */
-    & * {
-      font-family: inherit;
-    }
-
-    /* The icon-only settings trigger says the same thing as the Settings row
-       two lines under it, with less. One of them goes. */
-    & [aria-label="Open settings"] {
-      display: none;
-    }
-
-    & button:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
-  `}
-`;
-
 const Group = styled.nav`
   display: flex;
   flex-direction: column;
@@ -393,42 +335,43 @@ const Glyph = styled.span`
   }
 `;
 
-/* The one suggestion. It dismisses and stays dismissed, because a card that
-   comes back after you close it is an advert. */
-/* The suggestion sits under a hairline as text, the way the reference does
-   its own bottom block — not as a card inside a card. */
-const Card = styled.div`
+/* A suggestion, not a card: the same hairline the foot uses, a title, a line,
+   and the action as an ordinary row — so the bottom of the column is made of
+   the same parts as the rest of it. */
+const Suggestion = styled.div`
   ${({ theme }) => css`
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.25rem;
     margin-top: 0.5rem;
-    padding: 0.75rem 0.625rem 0.25rem;
+    padding-top: 0.625rem;
     border-top: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-const CardTop = styled.div`
+const SuggestionHead = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.625rem;
 `;
 
-const Plate = styled.div`
+const SuggestionTitle = styled.div`
   ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
-    color: ${theme.colors.default.primary};
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
 
-    & > svg {
-      width: 1.0625rem;
-      height: 1.0625rem;
-    }
+const SuggestionBody = styled.p`
+  ${({ theme }) => css`
+    margin: 0 0 0.25rem;
+    padding: 0 0.625rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: ${theme.colors.default.textSecondary};
   `}
 `;
 
@@ -458,40 +401,3 @@ const Dismiss = styled.button`
   `}
 `;
 
-const CardTitle = styled.div`
-  ${({ theme }) => css`
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: ${theme.colors.default.textPrimary};
-  `}
-`;
-
-const CardBody = styled.p`
-  ${({ theme }) => css`
-    margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.45;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
-const CardAction = styled.button`
-  ${({ theme }) => css`
-    align-self: flex-start;
-    margin-top: 0.25rem;
-    height: 1.875rem;
-    padding: 0 0.75rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textPrimary};
-    font-family: inherit;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
-  `}
-`;

@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react";
+import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import ProgramsTab from "../gallery/ProgramsTab";
@@ -28,13 +28,15 @@ import { PgCommon, PgTutorial } from "../../../utils";
 interface ZeroStateProps {
   /** Opens the assistant column so a question has somewhere to go */
   onAskAssistant: () => void;
+  /** Cluster, wallet and account — the right end of the bar, as in a project */
+  status?: ReactNode;
 }
 
 type Switch = "start" | "tutorials" | "programs";
 
 const PROGRAMS_URL = "/programs/programs.json";
 
-const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
+const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant, status }) => {
   const [active, setActive] = useState<Switch>("start");
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
@@ -108,6 +110,7 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
         )}
 
         <BarRight>
+          {status}
           <IconButton
             as="a"
             href="https://solana.com/docs"
@@ -303,7 +306,10 @@ const BarLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  /* The zones either side may shrink; the search field in the middle keeps
+     its width, which is what stopped it being squeezed to 247px. */
   min-width: 0;
+  overflow: hidden;
 `;
 
 const BarRight = styled.div`
@@ -311,6 +317,8 @@ const BarRight = styled.div`
   align-items: center;
   justify-content: flex-end;
   gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 /* The brand says its name here too, and clicking it returns to Start. */
@@ -396,6 +404,7 @@ const Glyph = styled.span`
 const searchShape = css`
   ${({ theme }) => css`
     justify-self: center;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -500,9 +509,13 @@ const Stage = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
-  width: min(60rem, 100%);
+  /* One measure for the whole column — 50rem less its gutters, which is the
+     reference's own. The composer used to be 46rem inside a 60rem stage while
+     the lists ran the full width, so three things on one page had three
+     different left edges. */
+  width: min(50rem, 100%);
   margin: 0 auto;
-  padding: 7rem 2rem 4rem;
+  padding: 5rem 2rem 4rem;
 `;
 
 /* Collapses out of the way on a list tab rather than disappearing: height and
@@ -540,7 +553,7 @@ const Title = styled.h1`
 `;
 
 const ComposerSlot = styled.div`
-  width: min(46rem, 100%);
+  width: 100%;
 `;
 
 /* Three equal cards, the reference's own arrangement: glyph top-left, a title,
@@ -549,7 +562,7 @@ const Cards = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
-  width: min(46rem, 100%);
+  width: 100%;
   margin-top: 0.75rem;
   animation: ${rise} 0.22s ease both;
 
