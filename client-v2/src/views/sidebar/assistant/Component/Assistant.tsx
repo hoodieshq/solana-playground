@@ -14,7 +14,12 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "sources", label: "Sources" },
 ];
 
-const Assistant = () => {
+interface AssistantProps {
+  /** Hides the pane; the host offers a way to bring it back */
+  onCollapse?: () => void;
+}
+
+const Assistant = ({ onCollapse }: AssistantProps) => {
   const [tab, setTab] = useState<Tab>("chat");
 
   // Mirrors the two inputs `Chat.tsx`'s own CONTEXT row reads off
@@ -64,7 +69,7 @@ const Assistant = () => {
   return (
     <Wrapper>
       <Header>
-        <HeaderEyebrow>Assistant</HeaderEyebrow>
+        <HeaderTitle>Assistant</HeaderTitle>
         <HeaderMeta>
           {fileName && <HeaderChip>{fileName}</HeaderChip>}
           {statusLabel && <HeaderChip>{statusLabel}</HeaderChip>}
@@ -91,6 +96,27 @@ const Assistant = () => {
               <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
             </svg>
           </SettingsButton>
+          {onCollapse && (
+            <SettingsButton
+              type="button"
+              aria-label="Hide the assistant"
+              title="Hide the assistant"
+              onClick={onCollapse}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                <path d="M9 4v16" />
+              </svg>
+            </SettingsButton>
+          )}
         </HeaderMeta>
       </Header>
 
@@ -131,17 +157,18 @@ const Header = styled.div`
   gap: 0.75rem;
   /* A host may reserve room on the left for its own control (Flow's
      collapse handle sets --flow-handle-inset); elsewhere it is 0. */
-  padding: 0.625rem 0.75rem 0.5rem calc(0.75rem + var(--flow-handle-inset, 0px));
+  height: 2.75rem;
+  padding: 0 0.5rem 0 0.875rem;
   flex-shrink: 0;
 `;
 
-const HeaderEyebrow = styled.span`
+/* Sentence case, 14px, semibold — the same voice as every other pane title.
+   The tracked small caps made this pane look like a different app. */
+const HeaderTitle = styled.span`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.xsmall};
+    font-size: 0.875rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.textSecondary};
+    color: ${theme.colors.default.textPrimary};
   `}
 `;
 
@@ -158,8 +185,8 @@ const SettingsButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.75rem;
+    height: 1.75rem;
     padding: 0;
     border: none;
     border-radius: 6px;
@@ -192,9 +219,8 @@ const HeaderChip = styled.span`
     white-space: nowrap;
     padding: 0.0625rem 0.4375rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.xsmall};
+    border-radius: 6px;
+    font-size: 0.75rem;
     color: ${theme.colors.default.textSecondary};
   `}
 `;

@@ -5,6 +5,7 @@ import ProgramsTab from "../gallery/ProgramsTab";
 import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
+import Composer from "../components/Composer";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
@@ -123,42 +124,9 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
             <Title>Where should we begin?</Title>
           </Lead>
 
-          <Composer $tight={!onStart}>
-            <ComposerInput
-              type="button"
-              onClick={onAskAssistant}
-              aria-label="Ask the assistant"
-            >
-              Ask anything…
-            </ComposerInput>
-            <ComposerBar>
-              <Group>
-                <Chip type="button" onClick={onAskAssistant} aria-label="Attach">
-                  {ICONS.plus}
-                </Chip>
-                <Chip type="button" onClick={onAskAssistant} aria-label="Tools">
-                  {ICONS.grid}
-                </Chip>
-                <ModeButton type="button" onClick={onAskAssistant}>
-                  <Glyph aria-hidden="true">{ICONS.send}</Glyph>
-                  Assistant
-                </ModeButton>
-              </Group>
-              <Group>
-                <ModeButton type="button" onClick={onAskAssistant}>
-                  <Glyph aria-hidden="true">{ICONS.asterisk}</Glyph>
-                  Model
-                  <Glyph aria-hidden="true">{ICONS.chevron}</Glyph>
-                </ModeButton>
-                <Chip type="button" onClick={onAskAssistant} aria-label="Voice">
-                  {ICONS.mic}
-                </Chip>
-                <Send type="button" onClick={onAskAssistant} aria-label="Send">
-                  {ICONS.up}
-                </Send>
-              </Group>
-            </ComposerBar>
-          </Composer>
+          <ComposerSlot>
+            <Composer compact={!onStart} onActivate={onAskAssistant} />
+          </ComposerSlot>
 
           {onStart && (
             <Cards>
@@ -559,133 +527,8 @@ const Title = styled.h1`
   `}
 `;
 
-/* Two rows: where you type, and the controls under it. 14px radius, a 3.5rem
-   typing area, 2rem controls, so it reads as one object. */
-const Composer = styled.div<{ $tight?: boolean }>`
-  ${({ theme, $tight }) => css`
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    width: min(46rem, 100%);
-    padding: ${$tight ? "0.625rem 0.75rem" : "0.75rem 0.875rem"};
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 14px;
-    background: ${theme.colors.default.bgSecondary};
-    transition: padding 0.28s ease, border-color 0.15s ease;
-
-    &:hover {
-      border-color: ${theme.colors.default.textSecondary}33;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
-`;
-
-const ComposerInput = styled.button`
-  ${({ theme }) => css`
-    display: block;
-    width: 100%;
-    min-height: 3.5rem;
-    padding: 0.5rem 0.375rem 0;
-    border: none;
-    background: none;
-    color: ${theme.colors.state.disabled.color};
-    font-family: inherit;
-    font-size: 0.9375rem;
-    text-align: left;
-    cursor: text;
-  `}
-`;
-
-const ComposerBar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-`;
-
-const Group = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`;
-
-const Chip = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    cursor: pointer;
-
-    & > svg {
-      width: 1rem;
-      height: 1rem;
-    }
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.default.textPrimary};
-    }
-  `}
-`;
-
-const ModeButton = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    height: 2rem;
-    padding: 0 0.625rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    font-family: inherit;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.default.textPrimary};
-    }
-  `}
-`;
-
-const Send = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.875rem;
-    height: 1.875rem;
-    margin-left: 0.25rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: ${theme.colors.default.primary};
-    color: #fff;
-    cursor: pointer;
-
-    & > svg {
-      width: 0.875rem;
-      height: 0.875rem;
-    }
-
-    &:hover {
-      filter: brightness(1.1);
-    }
-  `}
+const ComposerSlot = styled.div`
+  width: min(46rem, 100%);
 `;
 
 /* Three equal cards, the reference's own arrangement: glyph top-left, a title,

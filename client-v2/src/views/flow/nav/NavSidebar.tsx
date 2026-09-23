@@ -4,7 +4,12 @@ import styled, { css } from "styled-components";
 import { PgExplorer } from "../../../utils";
 
 /**
- * The outermost column: who you are, where you can go, and one suggestion.
+ * The outermost column: where you can go, and the projects you have.
+ *
+ * Destinations and lists only — Home, New project, then the projects, with
+ * the account and Settings pinned at the foot. The assistant is not here: it
+ * is the main surface, always on, and a row that toggles a pane reads as a
+ * place and then makes something disappear.
  *
  * The Figma's version of this list is a template's — Dashboard, Inbox,
  * Calendar, Reports — none of which this product has. Every row here goes
@@ -13,25 +18,26 @@ import { PgExplorer } from "../../../utils";
  */
 
 interface NavSidebarProps {
+  /** Back to the start screen, without closing anything */
+  onHome: () => void;
+  homeActive: boolean;
   onOpenGallery: () => void;
   onOpenSettings: () => void;
-  onToggleAssistant: () => void;
-  assistantOpen: boolean;
+  /** Opens a project by name and switches to the project view */
+  onOpenProject: (name: string) => void;
   /** Cluster, wallet and account — rendered at the foot of this column. */
   status?: ReactNode;
-  /** The zero state puts the mark in its own top bar; the column stands down. */
-  showBrand?: boolean;
 }
 
 const QUICKSTART_DISMISSED = "quickstart-card-dismissed";
 
 const NavSidebar: FC<NavSidebarProps> = ({
+  onHome,
+  homeActive,
   onOpenGallery,
   onOpenSettings,
-  onToggleAssistant,
-  assistantOpen,
+  onOpenProject,
   status,
-  showBrand = true,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -68,30 +74,19 @@ const NavSidebar: FC<NavSidebarProps> = ({
 
   return (
     <Aside aria-label="Main">
-      {showBrand && (
-        <Brand>
-          <Mark aria-hidden="true" />
-          <BrandName>Playground</BrandName>
-        </Brand>
-      )}
-
       <Group>
+        <Row
+          onClick={onHome}
+          type="button"
+          $current={homeActive}
+          aria-current={homeActive ? "page" : undefined}
+        >
+          <Glyph aria-hidden="true">{ICONS.home}</Glyph>
+          Home
+        </Row>
         <Row onClick={onOpenGallery} type="button">
           <Glyph aria-hidden="true">{ICONS.plus}</Glyph>
           New project
-        </Row>
-        <Row
-          onClick={onToggleAssistant}
-          type="button"
-          $current={assistantOpen}
-          aria-pressed={assistantOpen}
-        >
-          <Glyph aria-hidden="true">{ICONS.sparkle}</Glyph>
-          Assistant
-        </Row>
-        <Row as="a" href="/tutorials">
-          <Glyph aria-hidden="true">{ICONS.book}</Glyph>
-          Tutorials
         </Row>
       </Group>
 
@@ -103,8 +98,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
               <Row
                 key={name}
                 type="button"
-                $current={name === current}
-                onClick={() => PgExplorer.switchWorkspace(name)}
+                $current={!homeActive && name === current}
+                onClick={() => onOpenProject(name)}
               >
                 <Glyph aria-hidden="true">{ICONS.folder}</Glyph>
                 <Label>{name}</Label>
@@ -175,6 +170,12 @@ const svg = (d: JSX.Element) => (
 );
 
 const ICONS = {
+  home: svg(
+    <>
+      <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z" />
+      <path d="M9.5 20.5v-6h5v6" />
+    </>
+  ),
   plus: svg(
     <>
       <path d="M12 5v14" />
@@ -332,34 +333,6 @@ const Account = styled.div`
     & button:hover {
       background: ${theme.colors.state.hover.bg};
     }
-  `}
-`;
-
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  height: 2.5rem;
-  padding: 0 0.625rem;
-  margin-bottom: 0.75rem;
-`;
-
-const Mark = styled.div`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    background: ${theme.colors.default.primary};
-  `}
-`;
-
-const BrandName = styled.span`
-  ${({ theme }) => css`
-    font-size: 0.9375rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: ${theme.colors.default.textPrimary};
   `}
 `;
 
