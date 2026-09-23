@@ -6,6 +6,7 @@ import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
 import Composer from "../components/Composer";
+import { gradientStroke } from "../components/gradient";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
@@ -63,7 +64,9 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
     <Shell>
       <TopBar>
         <BarLeft>
-          <Mark aria-hidden="true">{ICONS.asterisk}</Mark>
+          <Wordmark type="button" onClick={() => pick("start")}>
+            Playground
+          </Wordmark>
           <Switches role="tablist" aria-label="Where to start">
             {SWITCHES.map(({ id, label, icon }) => (
               <Tab
@@ -120,7 +123,6 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
       <Body>
         <Stage>
           <Lead $shown={onStart}>
-            <LeadMark aria-hidden="true">{ICONS.asterisk}</LeadMark>
             <Title>Where should we begin?</Title>
           </Lead>
 
@@ -311,17 +313,31 @@ const BarRight = styled.div`
   gap: 0.25rem;
 `;
 
-const Mark = styled.span`
+/* The brand says its name here too, and clicking it returns to Start. */
+const Wordmark = styled.button`
   ${({ theme }) => css`
-    display: flex;
     flex-shrink: 0;
-    width: 1.125rem;
-    height: 1.125rem;
+    height: 2rem;
+    margin-right: 0.375rem;
+    padding: 0 0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
     color: ${theme.colors.default.textPrimary};
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+    cursor: pointer;
 
-    & > svg {
-      width: 100%;
-      height: 100%;
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
     }
   `}
 `;
@@ -341,9 +357,10 @@ const Tab = styled.button<{ $active: boolean }>`
     gap: 0.375rem;
     height: 1.875rem;
     padding: 0 0.75rem;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 999px;
-    background: ${$active ? theme.colors.state.hover.bg : "transparent"};
+    background: transparent;
+    ${$active && gradientStroke(theme.colors.state.hover.bg)}
     color: ${$active
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
@@ -508,11 +525,6 @@ const Lead = styled.div<{ $shown: boolean }>`
       transition: none;
     }
   `}
-`;
-
-const LeadMark = styled(Mark)`
-  width: 1.5rem;
-  height: 1.5rem;
 `;
 
 /* 1.375rem, regular. The reference asks its question at reading size and lets
