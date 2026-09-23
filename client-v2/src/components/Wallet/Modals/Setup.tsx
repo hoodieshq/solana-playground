@@ -87,7 +87,7 @@ const Content = styled.div`
 
 const ContentTitle = styled.div`
   margin-bottom: 0.25rem;
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const ContentText = styled.p`

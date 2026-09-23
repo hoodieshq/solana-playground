@@ -46,7 +46,7 @@ const Level = styled.span<{ children: TutorialLevel }>`
       color: ${theme.colors.state[state].color} !important;
       border-radius: ${theme.default.borderRadius};
       font-size: ${theme.font.other.size.xsmall};
-      font-weight: bold;
+      font-weight: 500;
       text-transform: uppercase;
     `;
   }}
@@ -115,7 +115,7 @@ const Boxed = styled.div`
     border-radius: ${theme.default.borderRadius};
     box-shadow: ${theme.default.boxShadow};
     font-size: ${theme.font.other.size.small};
-    font-weight: bold;
+    font-weight: 500;
 
     & *:first-child {
       margin-right: 0.5rem;

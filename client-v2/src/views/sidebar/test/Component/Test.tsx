@@ -163,7 +163,7 @@ const ProgramNameWrapper = styled.div`
 `;
 
 const ProgramName = styled.span`
-  font-weight: bold;
+  font-weight: 500;
   margin-left: 0.25rem;
 `;
 
@@ -174,7 +174,7 @@ const ProgramInteractionHeader = styled.div`
     margin: 0.5rem 1rem;
     color: ${theme.colors.default.primary};
     font-size: ${theme.font.code.size.large};
-    font-weight: bold;
+    font-weight: 500;
   `};
 `;
 

@@ -1164,7 +1164,7 @@ export class PgTheme {
     tooltip.color ??= theme.colors.default.textPrimary;
     tooltip.borderRadius ??= theme.default.borderRadius;
     tooltip.boxShadow ??= theme.default.boxShadow;
-    tooltip.fontFamily ??= theme.font.code.family;
+    tooltip.fontFamily ??= theme.font.other.family;
     tooltip.fontSize ??= theme.font.code.size.small;
     tooltip.textAlign ??= "center";
 
@@ -1248,7 +1248,7 @@ export class PgTheme {
     toast.default.bg ??= theme.colors.default.bgPrimary;
     toast.default.color ??= theme.colors.default.textPrimary;
     toast.default.borderRadius ??= theme.default.borderRadius;
-    toast.default.fontFamily ??= theme.font.code.family;
+    toast.default.fontFamily ??= theme.font.other.family;
     toast.default.fontSize ??= theme.font.code.size.medium;
     toast.default.cursor ??= "default";
 

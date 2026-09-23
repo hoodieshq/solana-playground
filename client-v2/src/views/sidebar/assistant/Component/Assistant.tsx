@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Chat from "./Chat";
 import Grounding from "./Grounding";
 import { PgAssistant } from "../store";
+import { HEAD_HEIGHT, SUBHEAD_HEIGHT } from "../../../flow/tokens";
 import { PgBuildOutput } from "../bridge/build-output";
 import { PgExplorer } from "../../../../utils";
 
@@ -14,7 +15,12 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "sources", label: "Sources" },
 ];
 
-const Assistant = () => {
+interface AssistantProps {
+  /** Hides the pane; the host offers a way to bring it back */
+  onCollapse?: () => void;
+}
+
+const Assistant = ({ onCollapse }: AssistantProps) => {
   const [tab, setTab] = useState<Tab>("chat");
 
   // Mirrors the two inputs `Chat.tsx`'s own CONTEXT row reads off
@@ -64,10 +70,54 @@ const Assistant = () => {
   return (
     <Wrapper>
       <Header>
-        <HeaderEyebrow>Assistant</HeaderEyebrow>
+        <HeaderTitle>Assistant</HeaderTitle>
         <HeaderMeta>
           {fileName && <HeaderChip>{fileName}</HeaderChip>}
           {statusLabel && <HeaderChip>{statusLabel}</HeaderChip>}
+          {/* The backend, model, effort and key live behind this, and it is
+              here whether or not anything is connected yet. Moving that form
+              out of the way of the composer is right; leaving no way back to
+              it is not, and for one build that is what this was. */}
+          <SettingsButton
+            type="button"
+            aria-label="Backend, model and effort"
+            title="Backend, model and effort"
+            onClick={() => PgAssistant.pickBackend()}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
+            </svg>
+          </SettingsButton>
+          {onCollapse && (
+            <SettingsButton
+              type="button"
+              aria-label="Hide the assistant"
+              title="Hide the assistant"
+              onClick={onCollapse}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                <path d="M9 4v16" />
+              </svg>
+            </SettingsButton>
+          )}
         </HeaderMeta>
       </Header>
 
@@ -102,23 +152,28 @@ const Wrapper = styled.div`
 `;
 
 const Header = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  /* A host may reserve room on the left for its own control (Flow's
-     collapse handle sets --flow-handle-inset); elsewhere it is 0. */
-  padding: 0.625rem 0.75rem 0.5rem calc(0.75rem + var(--flow-handle-inset, 0px));
-  flex-shrink: 0;
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    /* A host may reserve room on the left for its own control (Flow's
+       collapse handle sets --flow-handle-inset); elsewhere it is 0. */
+    height: ${HEAD_HEIGHT};
+    padding: 0 0.5rem 0 0.875rem;
+    flex-shrink: 0;
+    /* The same rule the columns either side draw, at the same height */
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
 `;
 
-const HeaderEyebrow = styled.span`
+/* Sentence case, 14px, semibold — the same voice as every other pane title.
+   The tracked small caps made this pane look like a different app. */
+const HeaderTitle = styled.span`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.xsmall};
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.textSecondary};
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textPrimary};
   `}
 `;
 
@@ -130,6 +185,37 @@ const HeaderMeta = styled.div`
   overflow: hidden;
 `;
 
+const SettingsButton = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+  `}
+`;
+
 const HeaderChip = styled.span`
   ${({ theme }) => css`
     overflow: hidden;
@@ -138,9 +224,8 @@ const HeaderChip = styled.span`
     white-space: nowrap;
     padding: 0.0625rem 0.4375rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.xsmall};
+    border-radius: 6px;
+    font-size: 0.75rem;
     color: ${theme.colors.default.textSecondary};
   `}
 `;
@@ -148,7 +233,9 @@ const HeaderChip = styled.span`
 const Tabs = styled.div`
   ${({ theme }) => css`
     display: flex;
+    align-items: stretch;
     gap: 0.25rem;
+    height: ${SUBHEAD_HEIGHT};
     padding: 0 0.75rem;
     flex-shrink: 0;
     /* Labels can still overflow the narrowest sidebar width */
@@ -159,7 +246,9 @@ const Tabs = styled.div`
 
 const TabButton = styled.button<{ $active: boolean }>`
   ${({ theme, $active }) => css`
-    padding: 0.4375rem 0.5625rem 0.375rem;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5625rem;
     background: transparent;
     border: none;
     border-bottom: 1px solid

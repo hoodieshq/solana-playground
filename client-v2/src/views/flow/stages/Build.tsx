@@ -390,7 +390,7 @@ const Headline = styled.h2<{ $ok?: boolean; $error?: boolean }>`
     align-items: baseline;
     gap: 0.5rem;
     font-size: ${theme.font.other.size.xlarge};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.01em;
     color: ${$ok
       ? theme.colors.state.success.color
@@ -430,7 +430,7 @@ const Actions = styled.div`
 const Eyebrow = styled.div`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.xsmall};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: ${theme.colors.default.textSecondary};
@@ -500,7 +500,7 @@ const CardTitle = styled.h3`
     flex-wrap: wrap;
     gap: 0.5rem;
     font-size: ${theme.font.other.size.medium};
-    font-weight: 600;
+    font-weight: 500;
   `}
 `;
 

@@ -87,8 +87,10 @@ export const Card = styled.div`
     align-items: center;
     padding: 0.875rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgPrimary};
+    border-radius: 12px;
+    /* Raised, not sunken: these used to be darker than the page they sat on,
+       which reads as a hole rather than a card. */
+    background: ${theme.colors.default.bgSecondary};
     transition: border-color ${theme.default.transition.duration.short}
       ${theme.default.transition.type};
 
@@ -108,17 +110,18 @@ export const Body = styled.div`
 
 export const Eyebrow = styled.div`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.xsmall};
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.primary};
+    /* Sentence case and grey, like every other label on the page. The
+       uppercase accent-coloured version made sixteen cards each shout their
+       level before saying their name. */
+    font-size: 0.75rem;
+    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
 export const Title = styled.div`
   ${({ theme }) => css`
     margin-top: 0.125rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
     ${PgTheme.getClampLinesCSS(1)};
   `}
@@ -153,10 +156,10 @@ export const Empty = styled.p`
 
 const Thumb = styled(Img)`
   ${({ theme }) => css`
-    width: 4.5rem;
-    height: 3.375rem;
+    width: 3.5rem;
+    height: 2.625rem;
     object-fit: cover;
-    border-radius: calc(${theme.default.borderRadius} - 2px);
-    background: ${theme.colors.default.bgSecondary};
+    border-radius: 8px;
+    background: ${theme.colors.default.bgPrimary};
   `}
 `;

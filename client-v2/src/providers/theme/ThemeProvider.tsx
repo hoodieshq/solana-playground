@@ -38,8 +38,13 @@ const Wrapper = styled.div`
   ${({ theme }) => css`
     background: ${theme.colors.default.bgPrimary};
     color: ${theme.colors.default.textPrimary};
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.medium};
+    /* The interface is set in the UI font, not the code font. This line used
+       to hand the monospace to the whole app, which is why every label, tab,
+       tree row and status chip read like a terminal transcript. Code declares
+       its own face where code actually lives — the editor, the terminal, code
+       blocks and inline code in Markdown all set it themselves. */
+    font-family: ${theme.font.other.family};
+    font-size: ${theme.font.other.size.small};
 
     & ::selection {
       background: ${theme.colors.default.primary +

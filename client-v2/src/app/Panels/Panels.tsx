@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 import Bottom from "./Bottom";
@@ -8,11 +9,46 @@ import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { PgView } from "../../utils";
 import Flow from "../../views/flow";
+import Landing from "../../views/landing";
 
-const useClassic = new URLSearchParams(window.location.search).has("classic");
+const params = new URLSearchParams(window.location.search);
+const useClassic = params.has("classic");
 
-const Panels = () =>
-  useClassic ? (
+/**
+ * Whether to go straight into the product rather than the landing.
+ *
+ * The URL is the only thing that decides. `/` is the landing, `/?app` is the
+ * product, and a deep link like /tutorials goes straight in — someone who
+ * asked for a page by name already knows what this is, and showing them a
+ * pitch instead would be rude.
+ *
+ * An earlier version also remembered the choice for the tab, which meant that
+ * once you had entered, `/` never showed the landing again without clearing
+ * storage. Two sources of truth for one question, and the hidden one won.
+ */
+const showProduct = () =>
+  params.has("app") || window.location.pathname !== "/";
+
+const Panels = () => {
+  const [entered, setEntered] = useState(showProduct);
+
+  const enter = () => {
+    // Push, not replace: Back from the product returns to the landing, which
+    // is what a browser's Back button is for.
+    window.history.pushState(null, "", "/?app");
+    setEntered(true);
+  };
+
+  // ...and Back actually works, rather than leaving the URL behind the view.
+  useEffect(() => {
+    const onPop = () => setEntered(showProduct());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  if (!entered && !useClassic) return <Landing onEnter={enter} />;
+
+  return useClassic ? (
     <Wrapper>
       <TopWrapper>
         <Side />
@@ -36,6 +72,7 @@ const Panels = () =>
   ) : (
     <Flow />
   );
+};
 
 const Wrapper = styled.div`
   width: 100vw;

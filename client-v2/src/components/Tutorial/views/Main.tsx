@@ -187,7 +187,7 @@ const NavigationButtonsInsideWrapper = styled.div`
     padding-top: 1.5rem;
     border-top: 1px solid ${theme.colors.default.border};
     font-size: ${theme.font.other.size.small};
-    font-weight: bold;
+    font-weight: 500;
   `}
 `;
 
@@ -195,7 +195,7 @@ const NavigationButton = styled(Button)`
   ${({ theme }) => css`
     margin-top: 0.5rem;
     font-size: ${theme.font.other.size.medium};
-    font-weight: bold;
+    font-weight: 500;
 
     & svg {
       width: 1.25rem;

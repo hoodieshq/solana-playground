@@ -485,7 +485,7 @@ const SectionTopWrapper = styled.div`
 const SectionHeader = styled.div`
   ${({ theme }) => css`
     font-size: ${theme.font.code.size.xsmall};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   `}

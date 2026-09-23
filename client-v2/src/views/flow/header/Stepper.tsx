@@ -1,9 +1,10 @@
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
+import { gradientStroke } from "../components/gradient";
+
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
-import { GRADIENT } from "../tokens";
 
 const LABEL: Record<Stage, string> = {
   write: "Write",
@@ -85,14 +86,24 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
 
 export default Stepper;
 
+/* The stages take the top bar's switch position — the same pills, in the
+   same place, where Start · Tutorials · Programs sit on the home screen. One
+   control, different words, so the two views read as one product. The
+   connectors the title-bar version drew between items stay hidden: pills with
+   a gap already read as a sequence. */
 const Wrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 0.125rem;
+
+  & > div > span:first-child:not([id]) {
+    display: none;
+  }
 `;
 
 const Item = styled.div`
   display: flex;
+  min-width: 0;
   align-items: center;
 `;
 
@@ -148,7 +159,7 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
       ? css`
           /* Gradient policy (GradientButton, docs/design/brand-research.md):
              the 135deg brand gradient marks the active stage's dot. */
-          background: ${GRADIENT};
+          background: ${theme.colors.default.primary};
         `
       : $status === "failed"
       ? css`
@@ -216,15 +227,14 @@ const StageButton = styled.button<{
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 6px 14px;
+    height: 1.875rem;
+    padding: 0 0.75rem;
     border: 1px solid transparent;
     border-radius: 999px;
-    background: ${$selected ||
-    $status === "active" ||
-    $status === "running" ||
-    $status === "failed"
-      ? theme.components.tooltip.bg
-      : "transparent"};
+    /* The selected stage carries the gradient stroke, like every other current
+       thing in the product. Status rides on the dot, not on the fill. */
+    background: transparent;
+    ${$selected && gradientStroke(theme.colors.state.hover.bg)}
     /* Selection and status are separate axes: an upcoming stage you have
        selected still reads as the one you are on, or it renders dimmer than
        the stages you are not looking at. The dot still carries the status. */
@@ -233,7 +243,9 @@ const StageButton = styled.button<{
       : theme.colors.default.textSecondary};
     font: inherit;
     font-family: ${theme.font.other.family};
-    font-size: ${theme.font.other.size.small};
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;
 
@@ -244,6 +256,7 @@ const StageButton = styled.button<{
     css`
       border-style: dashed;
       border-color: ${theme.colors.default.primary};
+      background: ${theme.colors.state.hover.bg};
     `}
 
     ${$status === "failed" &&
@@ -252,7 +265,7 @@ const StageButton = styled.button<{
     `}
 
     &:hover {
-      background: ${theme.colors.default.bgSecondary};
+      color: ${theme.colors.default.textPrimary};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};

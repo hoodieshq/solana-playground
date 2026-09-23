@@ -167,7 +167,7 @@ const MainText = styled.div`
   ${({ theme }) => `
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   `}
