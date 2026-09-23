@@ -38,9 +38,7 @@
     "scale": 1.32,
     "ms": 420
   },
-  "voice_engine": "say",
-  "local_voice": "Serena",
-  "local_rate": 168,
+  "voice_engine": "elevenlabs",
   "shots": [
     {
       "id": "landing",
@@ -128,5 +126,7 @@
         "foot": "Hoodies \u00d7 Solana"
       }
     }
-  ]
+  ],
+  "voice_id": "hryj0YLzRd2iGghnwoOI",
+  "voice_model": "eleven_multilingual_v2"
 }
