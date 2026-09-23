@@ -12,51 +12,39 @@ import type { ThemeParam } from "../../utils";
 // for code alone. Sans chrome is the single biggest change; the app used to
 // hand the code font to every label, tab and tree row.
 
-// Core colours, read off the board in the Figma (section "Brand Landing
-// Inspo"): an ice blue, black, a periwinkle, and a deep indigo. That is the
-// palette — not the system blue an earlier pass reached for, which was a
-// reasonable colour belonging to somebody else's product.
-//
-// On a black ground the ramp reads in this order: indigo is a fill you can put
-// weight on, periwinkle is the mark that says "this one", ice is what you read.
-const ICE = "#DEEAFB",
-  PERIWINKLE = "#A5B4FC",
-  INDIGO = "#1E1B8C",
-  INDIGO_LIFT = "#2A26B0";
+// The values are read off the zero-state frame in the Figma (node 23:4), not
+// invented: a near-black page, a sidebar one step up from it, a card one step
+// up again, and a single hairline colour between them. The greys carry a trace
+// of blue, which is what stops a dark interface reading as soot.
+const BG_BASE = "#0B0C0E", // the page and the central stage
+  BG_SIDEBAR = "#111215", // the nav column
+  BG_SURFACE = "#181A1F", // cards, the prompt box, inputs, menus
+  BG_RAISED = "#1F2128", // a control on a card, the current nav row
+  BG_HOVER = "#23262E",
+  // Text, three steps: what you read, what supports it, and the labels that
+  // only need to be found once.
+  TEXT_PRIMARY = "#FFFFFF",
+  TEXT_SECONDARY = "#9496A1",
+  COMMENT = "#51535D",
+  // One hairline, everywhere.
+  BORDER = "#1F2128",
+  BORDER_STRONG = "#2A2D35",
+  // The accent, used where the frame uses it: the logo mark and the one badge
+  // that marks something new. Not on text, not on borders, not as a tint.
+  ACCENT = "#2563EB",
+  ACCENT_HOVER = "#3B78F0",
+  ACCENT_FILL = "#2563EB",
+  ACCENT_FILL_HOVER = "#3B78F0",
+  DISABLED_BG = "#15171B",
+  // States, and nothing else uses them.
+  GREEN = "#22C55E",
+  RED = "#EF4444",
+  YELLOW = "#F59E0B",
+  CYAN = "#38BDF8",
+  PINK = "#EC4899",
+  PURPLE = "#8B5CF6";
 
-// Surfaces: black, then three lifts. No hue shift between them — the blue in
-// this interface should come from the accent and the type, never from a
-// tinted panel, which is what makes a dark UI look muddy.
-const BG_BASE = "#000000", // the page and the rail
-  BG_SURFACE = "#0A0A0D", // editor, panels, the main work surface
-  BG_RAISED = "#121217", // inputs, menus, cards sitting on a panel
-  BG_HOVER = "#1A1A21",
-  // The accent, and the one thing it is for: whatever is current.
-  ACCENT = PERIWINKLE,
-  ACCENT_HOVER = "#BCC6FD",
-  ACCENT_FILL = INDIGO, // a weighted fill: the primary button, a selected row
-  ACCENT_FILL_HOVER = INDIGO_LIFT,
-  // Text: neutral. An earlier pass tinted the whole ramp toward the brand's
-  // ice blue, and a tint carried across every label in the product stops being
-  // a brand and becomes a colour cast. The blue earns its place by being rare:
-  // the mark, the current row, the caret. Everything you read is grey.
-  TEXT_PRIMARY = "#ECECEE",
-  TEXT_SECONDARY = "#9494A0",
-  COMMENT = "#6B6B76",
-  // Hairlines. In the references — v0, Base44, Linear — panels are divided by
-  // a single low-contrast line, not by a border drawn around a floating card.
-  BORDER = "#FFFFFF12",
-  BORDER_STRONG = "#FFFFFF20",
-  DISABLED_BG = "#0E0E12",
-  // Kept for the states that genuinely mean something, and used nowhere else.
-  GREEN = "#4ADE80",
-  RED = "#FF6B6B",
-  YELLOW = "#FFD43B",
-  CYAN = "#8BD5FF",
-  PINK = "#F49AC2",
-  PURPLE = "#C4B5FD";
-
-/** Panels. Closer to the references than the sketch: a card, not a pebble. */
+/** Cards and panels, as the frame draws them. */
 const PANEL_RADIUS = "12px";
 /** Controls: buttons, inputs, nav rows, anything you click. */
 const CONTROL_RADIUS = "8px";
@@ -74,7 +62,7 @@ const SOLANA_V3: ThemeParam = {
   colors: {
     default: {
       bgPrimary: BG_BASE,
-      bgSecondary: BG_SURFACE,
+      bgSecondary: BG_SIDEBAR,
       primary: ACCENT,
       secondary: GREEN,
       textPrimary: TEXT_PRIMARY,
@@ -136,8 +124,8 @@ const SOLANA_V3: ThemeParam = {
         // The current line is a lift, not a rule drawn under the text
         activeLine: { bg: "#FFFFFF08", borderColor: "transparent" },
         cursorColor: ACCENT,
-        selection: { bg: "#A5B4FC2E" },
-        searchMatch: { bg: "#A5B4FC24" },
+        selection: { bg: "#2563EB3D" },
+        searchMatch: { bg: "#2563EB2E" },
       },
       gutter: {
         bg: "transparent",

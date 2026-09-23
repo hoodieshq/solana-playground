@@ -7,6 +7,7 @@ import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import StatusChips from "./header/StatusChips";
 import Stepper from "./header/Stepper";
 import NavSidebar from "./nav/NavSidebar";
+import ZeroState from "./zero/ZeroState";
 import LeftPanel from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
@@ -39,6 +40,12 @@ import type { Disposable } from "../../utils/types";
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [surface, setSurface] = useState<"code" | "files">("code");
+  // With no project open there is nothing for the editor, the file tree or the
+  // stage rail to be about, so the window carries the zero state instead of
+  // three empty panels and a disabled rail.
+  const [hasProject, setHasProject] = useState(
+    () => !!PgExplorer.currentWorkspaceName
+  );
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   // Session-only, like `leftOpen` and `assistantOpen` above.
@@ -66,6 +73,12 @@ const Flow = () => {
       // So a "Fix with assistant" click while collapsed reopens the panel
       // and the user sees where the click went.
       PgAssistant.onDidRequestPrompt(() => setAssistantOpen(true)),
+      PgExplorer.onDidInit(() =>
+        setHasProject(!!PgExplorer.currentWorkspaceName)
+      ),
+      PgExplorer.onDidSwitchWorkspace(() =>
+        setHasProject(!!PgExplorer.currentWorkspaceName)
+      ),
     ];
     return () => subs.forEach((s) => s.dispose());
   }, []);
@@ -141,7 +154,7 @@ const Flow = () => {
 
   return (
     <Wrapper>
-      <Columns $assistant={assistantOpen}>
+      <Columns $assistant={assistantOpen} $work={hasProject}>
         <NavSidebar
           onOpenGallery={openGallery}
           onOpenSettings={() => toggleSettings()}
@@ -154,85 +167,96 @@ const Flow = () => {
             />
           }
         />
-        <Conversation $open={assistantOpen}>
-          <Collapse
-            type="button"
-            aria-label={
-              assistantOpen ? "Collapse assistant" : "Expand assistant"
-            }
-            onClick={() => setAssistantOpen((o) => !o)}
-          >
-            <Chevron $flip={!assistantOpen} />
-          </Collapse>
-          {assistantOpen && <Assistant />}
-        </Conversation>
-        <Work>
-          <WorkTabs role="tablist" aria-label="Work surface">
-            <WorkTab
+        {hasProject ? (
+          <>
+          <Conversation $open={assistantOpen}>
+            <Collapse
               type="button"
-              role="tab"
-              id="work-tab-code"
-              aria-selected={surface === "code"}
-              aria-controls="work-panel"
-              $current={surface === "code"}
-              onClick={() => setSurface("code")}
+              aria-label={
+                assistantOpen ? "Collapse assistant" : "Expand assistant"
+              }
+              onClick={() => setAssistantOpen((o) => !o)}
             >
-              Code
-            </WorkTab>
-            <WorkTab
-              type="button"
-              role="tab"
-              id="work-tab-files"
-              aria-selected={surface === "files"}
-              aria-controls="work-panel"
-              $current={surface === "files"}
-              onClick={() => setSurface("files")}
-            >
-              Files
-            </WorkTab>
-          </WorkTabs>
+              <Chevron $flip={!assistantOpen} />
+            </Collapse>
+            {assistantOpen && <Assistant />}
+          </Conversation>
+          <Work>
+            <WorkTabs role="tablist" aria-label="Work surface">
+              <WorkTab
+                type="button"
+                role="tab"
+                id="work-tab-code"
+                aria-selected={surface === "code"}
+                aria-controls="work-panel"
+                $current={surface === "code"}
+                onClick={() => setSurface("code")}
+              >
+                Code
+              </WorkTab>
+              <WorkTab
+                type="button"
+                role="tab"
+                id="work-tab-files"
+                aria-selected={surface === "files"}
+                aria-controls="work-panel"
+                $current={surface === "files"}
+                onClick={() => setSurface("files")}
+              >
+                Files
+              </WorkTab>
+            </WorkTabs>
 
-          <WorkBody
-            id="work-panel"
-            role="tabpanel"
-            aria-labelledby={`work-tab-${surface}`}
-          >
-            {/* Both stay mounted: the editor holds Monaco and the file tree
-                holds scroll and selection, and tearing either down on a tab
-                click loses work the user can see. Hidden, not unmounted. */}
-            <Surface $shown={surface === "files"}>
-              <LeftPanel
-                collapsed={false}
-                onToggle={() => setSurface("code")}
-                pendingCreate={pendingCreate}
-                onPendingCreateChange={setPendingCreate}
-              />
-            </Surface>
-            <Surface $shown={surface === "code"}>
-              <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
-              <Stage>
-                <StageRouter stage={state.stage} />
-                {reading && readingStep && (
-                  <Reader
-                    key={readingStep.id}
-                    step={readingStep}
-                    onClose={() => setReading(false)}
-                  />
-                )}
-              </Stage>
-              <ConsoleDrawer />
-            </Surface>
-          </WorkBody>
-        </Work>
+            <WorkBody
+              id="work-panel"
+              role="tabpanel"
+              aria-labelledby={`work-tab-${surface}`}
+            >
+              {/* Both stay mounted: the editor holds Monaco and the file tree
+                  holds scroll and selection, and tearing either down on a tab
+                  click loses work the user can see. Hidden, not unmounted. */}
+              <Surface $shown={surface === "files"}>
+                <LeftPanel
+                  collapsed={false}
+                  onToggle={() => setSurface("code")}
+                  pendingCreate={pendingCreate}
+                  onPendingCreateChange={setPendingCreate}
+                />
+              </Surface>
+              <Surface $shown={surface === "code"}>
+                <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+                <Stage>
+                  <StageRouter stage={state.stage} />
+                  {reading && readingStep && (
+                    <Reader
+                      key={readingStep.id}
+                      step={readingStep}
+                      onClose={() => setReading(false)}
+                    />
+                  )}
+                </Stage>
+                <ConsoleDrawer />
+              </Surface>
+            </WorkBody>
+          </Work>
+          </>
+        ) : (
+          <ZeroState
+            onOpenGallery={openGallery}
+            onAskAssistant={() => setAssistantOpen(true)}
+          />
+        )}
       </Columns>
 
       {/* The stages read as the floor of the work surface rather than a
           control in the title bar: they are where you are in the job, not a
           place to navigate from, and at the bottom they sit under the thing
           they describe. */}
-      <StageRail>
-        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
-      </StageRail>
+      {hasProject && (
+        <StageRail>
+          <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
+        </StageRail>
+      )}
 
       <GearSidebar
         open={settingsOpen}
@@ -275,15 +299,16 @@ const Wrapper = styled.div`
 // beside the editor; it is a tab on the work surface now, because two narrow
 // columns for one job left the editor — the reason the product exists — as the
 // thinnest thing on screen.
-const Columns = styled.div<{ $assistant: boolean }>`
+const Columns = styled.div<{ $assistant: boolean; $work: boolean }>`
   flex: 1;
   display: grid;
   grid-template-columns:
-    auto
-    ${({ $assistant }) => ($assistant ? "23rem" : "1.5rem")}
-    1fr;
+    ${({ $work, $assistant }) =>
+      $work
+        ? `auto ${$assistant ? "23rem" : "1.5rem"} 1fr`
+        : "auto 1fr"};
   gap: ${GAP};
-  padding: ${GAP} ${GAP} 0;
+  padding: ${({ $work }) => ($work ? `${GAP} ${GAP} 0` : "0")};
   overflow: hidden;
   /* Without these the grid refuses to shrink below its content and pushes the
      stage rail off the bottom of the window. The row needs it, and so does
