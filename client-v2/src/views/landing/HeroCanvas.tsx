@@ -10,34 +10,77 @@ import { FC, useEffect, useRef } from "react";
  * full colour, and the Bayer pass quantises everything at once: sky, faces,
  * edges and shadows all land on the same eleven-step ramp.
  *
- * The mark itself is three bars (SDP's geometry, `lp-demo/v2/js/solana-mark.js`
- * — K = 2/67, bars 15 high with an 8 gap, leaning alternately). Each is cut
- * into a dozen slices, so there are three dozen pieces to push around rather
- * than three: "parts of parts", which is what makes a table of them worth
- * dragging.
+ * The pieces are the mark's own three bars, several of each, lying at every
+ * angle. They were fragments of bars before — a grid cut through each one —
+ * which produced a field of small rhombi that read as confetti rather than as
+ * a logo taken apart.
  *
- * Physics is deliberately shallow: velocity, friction, and circle-against-
- * circle separation with a little restitution. Slabs are convex and nearly the
- * same size, so a bounding circle is close enough that the collisions feel
- * right, and it costs one pass over n² pairs — at n = 36 that is 630 distance
- * checks a frame, which is nothing. A real solver would be more correct and
- * would not feel any different.
+ * They are solid, not stickers: each slab's top face is projected away from a
+ * camera standing above and beyond the near edge, so the flanks you see depend
+ * on where the piece lies, and the shadow falls along the light instead.
+ *
+ * Physics is shallow but shaped. Three collision circles spaced along each bar
+ * so a long piece behaves like a long piece — one made them dinner plates that
+ * stopped a body width apart — and every force applies its torque through the
+ * lever it actually acts on, which is what makes them limp. The hand grabs a
+ * point rather than the slab: it pulls on that point with a spring, so a bar
+ * taken by its end swings round to hang from your cursor and keeps swinging
+ * after you stop.
  */
 
-/* ── the badge's own numbers ─────────────────────────────────────────────── */
+/* ── the mark ─────────────────────────────────────────────────────────────
+   Three bars. Each has a flat top and bottom and both ends cut at the same
+   angle, so it is a parallelogram lying on its side; the middle one leans
+   against the other two. Those are the shapes — not fragments of them. Cutting
+   them into a grid gave a field of little rhombi that had nothing to do with
+   the logo.
+
+   Units follow SDP's `lp-demo/v2/js/solana-mark.js`: K = 2/67, bars 15 high
+   with an 8 gap, the ends shifted by 13. */
 const K = 2 / 67;
-const BAR_H = 15;
-const GAP = 8;
-const LEAN = [1, -1, 1];
+const BAR_H = 15 * K;
 const SHEAR = 13 * K;
 const X_LEFT = -33.5 * K;
 const X_RIGHT = 20.5 * K;
-/* Each bar is cut into a grid rather than a row of ribbons. Four across by
-   two down leaves each piece roughly square — a slab you can see the shape of
-   — and still gives two dozen of them. Twelve slices across made splinters. */
-const COLS = 6;
-const ROWS = 3;
-const DEPTH = 0.055;
+const LEAN = [1, -1, 1];
+
+/** Slab thickness, in the same units as the bar. A third of the bar's height:
+    thin enough to still read as the logo, thick enough to be an object. */
+const DEPTH = 0.34;
+
+/**
+ * The camera. It stands above the table and a little beyond its near edge, so
+ * a slab's top face sits displaced *away* from that point — up-screen for
+ * everything, and sideways by however far off the centre line the piece lies.
+ *
+ * This is the whole difference between a solid and a sticker. A fixed diagonal
+ * offset gives every piece the same edge in the same place, which the eye reads
+ * as a drop shadow on something flat. Here a piece on the left shows its right
+ * flank, one on the right shows its left, and the far ones show more thickness
+ * than the near ones — the frame has a place to stand in.
+ */
+const CAM_Y = 1.7;
+/** Where the light comes from, as the direction it travels */
+const LIGHT: [number, number] = [0.52, 0.85];
+
+/** One bar, centred on itself, as four corners. */
+const bar = (lean: number): Array<[number, number]> => {
+  const h = BAR_H / 2;
+  const shift = lean * SHEAR;
+  // The top edge is displaced against the bottom; the ends take the angle
+  const pts: Array<[number, number]> = [
+    [X_LEFT, -h],
+    [X_RIGHT, -h],
+    [X_RIGHT + shift, h],
+    [X_LEFT + shift, h],
+  ];
+  const cx = pts.reduce((a, [x]) => a + x, 0) / 4;
+  return pts.map(([x, y]) => [x - cx, y] as [number, number]);
+};
+const SHAPES = LEAN.map(bar);
+
+/** How many of each bar are on the table */
+const PER_SHAPE = 16;
 
 /** The landing's ramp, top to bottom. Everything is quantised onto this. */
 const RAMP_HEX = [
@@ -62,8 +105,10 @@ const LUM = RAMP.map(([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b);
 const LUM_HI = LUM[0];
 const LUM_LO = LUM[LUM.length - 1];
 
-/** Faces, so a slab is lighter than the sky it lies on */
+/** Top faces, so a slab is lighter than the sky it lies on */
 const FACES = ["#D9E2FF", "#C9D4FB", "#B4C1F7", "#9AA6EF"];
+/** Flanks, lit to unlit. Which one an edge takes depends on where it faces. */
+const SIDES = ["#8F9AEA", "#7C85E0", "#5E63C9", "#4340AE", "#2A2596", "#1E1B8C"];
 
 const BAYER = [
   [0, 32, 8, 40, 2, 34, 10, 42],
@@ -79,7 +124,14 @@ const BAYER = [
 interface Piece {
   /** Top-face corners in units, centred on the piece's own middle */
   shape: Array<[number, number]>;
-  /** Bounding radius in units, for collisions */
+  /**
+   * Collision shape: three circles spaced along the bar's length. One circle
+   * round a bar this long behaves like a dinner plate — pieces stop a body
+   * width apart and never overlap the way slabs should. Three is enough for
+   * them to lie across each other and still be pushed end-on.
+   */
+  lobes: Array<{ ox: number; r: number }>;
+  /** Bounding radius in units, for picking */
   radius: number;
   /** Screen position and motion */
   x: number;
@@ -106,7 +158,7 @@ interface HeroCanvasProps {
   pixel?: number;
 }
 
-const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
+const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.068, pixel = 2 }) => {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -127,57 +179,41 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
     let unit = 1;
     let pieces: Piece[] = [];
     let held: Piece | null = null;
-    let grabX = 0;
-    let grabY = 0;
+    /** Where the hand took hold, in the slab's own frame */
+    let grabLX = 0;
+    let grabLY = 0;
     let pointer = { x: 0, y: 0, px: 0, py: 0 };
-    let hovering = false;
     let frame = 0;
     let started = 0;
 
     const build = () => {
       const out: Piece[] = [];
-      const span = X_RIGHT - X_LEFT;
-      for (let b = 0; b < 3; b++) {
-        const halfH = (BAR_H / 2) * K;
-        const shift = LEAN[b] === 1 ? SHEAR : -SHEAR;
-        for (let c = 0; c < COLS; c++) {
-          for (let r = 0; r < ROWS; r++) {
-          const x0 = X_LEFT + (span / COLS) * c;
-          const x1 = X_LEFT + (span / COLS) * (c + 1);
-          const y0 = -halfH + ((2 * halfH) / ROWS) * r;
-          const y1 = -halfH + ((2 * halfH) / ROWS) * (r + 1);
-          // The shear is proportional to height, so a sub-row keeps the lean
-          const sh0 = shift * ((y0 + halfH) / (2 * halfH));
-          const sh1 = shift * ((y1 + halfH) / (2 * halfH));
-          const mx = (x0 + x1 + sh0 + sh1) / 2;
-          const my = (y0 + y1) / 2;
-          const shape: Array<[number, number]> = [
-            [x0 + sh0 - mx, y0 - my],
-            [x1 + sh0 - mx, y0 - my],
-            [x1 + sh1 - mx, y1 - my],
-            [x0 + sh1 - mx, y1 - my],
-          ];
-          const radius = Math.max(
-            ...shape.map(([px, py]) => Math.hypot(px, py))
-          );
-          out.push({
-            shape,
-            radius,
-            x: 0,
-            y: 0,
-            vx: 0,
-            vy: 0,
-            angle: 0,
-            spin: 0,
-            land: 0,
-            delay: 0,
-            grow: 0,
-            squash: 0,
-            squashAngle: 0,
-            face: FACES[(b + c + r) % FACES.length],
-          });
-          }
-        }
+      for (let i = 0; i < SHAPES.length * PER_SHAPE; i++) {
+        const shape = SHAPES[i % SHAPES.length];
+        const halfLen = Math.max(...shape.map(([x]) => Math.abs(x)));
+        const halfH = BAR_H / 2;
+        // Three lobes along the length, each as fat as the bar is tall
+        const lobes = [-1, 0, 1].map((k) => ({
+          ox: k * halfLen * 0.58,
+          r: halfH * 1.1,
+        }));
+        out.push({
+          shape,
+          lobes,
+          radius: Math.max(...shape.map(([x, y]) => Math.hypot(x, y))),
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          angle: 0,
+          spin: 0,
+          land: 0,
+          delay: 0,
+          grow: 0,
+          squash: 0,
+          squashAngle: 0,
+          face: FACES[i % FACES.length],
+        });
       }
       return out;
     };
@@ -197,7 +233,7 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
         p.spin = (Math.random() - 0.5) * 0.06;
         p.land = 0;
         p.grow = reduced ? 1 : 0;
-        p.delay = reduced ? 0 : i * 34 + Math.random() * 120;
+        p.delay = reduced ? 0 : i * 16 + Math.random() * 140;
       });
       if (reduced) for (const p of pieces) p.land = 1;
     };
@@ -256,7 +292,7 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
        next few frames. It is one scale applied in the collision's own frame —
        not a mass-spring mesh — but it is the part of a soft body you actually
        see, and it costs two trig calls. */
-    const corners = (p: Piece, dx: number, dy: number) => {
+    const corners = (p: Piece, dx = 0, dy = 0) => {
       const cos = Math.cos(p.angle);
       const sin = Math.sin(p.angle);
       const sq = p.squash;
@@ -292,21 +328,73 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
     };
 
     const paintPieces = () => {
-      const d = DEPTH * unit;
-      // Lower ones in front
+      const rise = DEPTH * unit;
+      /* Camera ground position, and how far a unit of height throws a point
+         away from it. Both in low-res canvas pixels. */
+      const camX = w * 0.5;
+      const camY = h * CAM_Y;
+      const throwK = rise / (h * 0.8);
+      const [lx, ly] = LIGHT;
+
+      // Further up the table is further away, so it goes down first
       const order = [...pieces].sort((a, b) => a.y - b.y);
+
       for (const p of order) {
         if (p.grow <= 0.001) continue;
-        const top = corners(p, 0, 0);
-        const edge = corners(p, d * 0.5, d * 0.5);
-        const cast = corners(p, d, d);
 
-        ctx.globalAlpha = 0.22 * p.land;
-        poly(cast, "#0A0836");
+        /* The footprint, where the slab meets the table, and the same polygon
+           lifted to the top of the slab. */
+        const base = corners(p);
+        const dx = (p.x - camX) * throwK;
+        const dy = (p.y - camY) * throwK;
+        const top = base.map((c) => ({ x: c.x + dx, y: c.y + dy }));
+
+        // What it casts, along the light rather than along the camera
+        ctx.globalAlpha = 0.24 * p.land;
+        poly(
+          base.map((c) => ({ x: c.x + lx * rise * 1.1, y: c.y + ly * rise * 1.1 })),
+          "#0A0836"
+        );
         ctx.globalAlpha = 1;
 
-        poly([top[1], top[2], edge[2], edge[1]], "#5E63C9");
-        poly([top[2], top[3], edge[3], edge[2]], "#4340AE");
+        /* Which way round the footprint runs, so the normals point outward and
+           not into the slab. Screen y is down, so a positive shoelace is the
+           clockwise one. */
+        let area = 0;
+        for (let i = 0; i < base.length; i++) {
+          const a = base[i];
+          const b = base[(i + 1) % base.length];
+          area += a.x * b.y - b.x * a.y;
+        }
+        const wind = area >= 0 ? 1 : -1;
+
+        /* One flank per edge that turns toward the camera — that is, whose
+           outward normal opposes the lift. Their shade comes from how squarely
+           each one faces the light, which is what separates the two visible
+           sides of a slab from each other. */
+        for (let i = 0; i < base.length; i++) {
+          const a = base[i];
+          const b = base[(i + 1) % base.length];
+          const ex = b.x - a.x;
+          const ey = b.y - a.y;
+          const len = Math.hypot(ex, ey) || 1;
+          const nx = (ey / len) * wind;
+          const ny = (-ex / len) * wind;
+          if (nx * dx + ny * dy >= 0) continue;
+
+          const lit = Math.max(0, -(nx * lx + ny * ly));
+          const shade = SIDES[
+            Math.min(
+              SIDES.length - 1,
+              Math.round((1 - lit) * (SIDES.length - 1))
+            )
+          ];
+          poly(
+            [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }],
+            shade
+          );
+        }
+
         poly(top, p.face);
       }
     };
@@ -345,9 +433,8 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
     const settle = (now: number) => {
       /* Loose enough to keep sliding after a shove, tight enough to stop.
          At 0.9 everything stopped almost at once and the table felt like mud. */
-      const FRICTION = 0.955;
-      const SPIN_FRICTION = 0.95;
-      const NUDGE = unit * 1.5;
+      const FRICTION = 0.962;
+      const SPIN_FRICTION = 0.978;
 
       for (const p of pieces) {
         if (now < p.delay) continue;
@@ -363,8 +450,35 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
             p.squashAngle = Math.random() * Math.PI;
           }
         }
+        /* Held: the hand pulls on the one point it grabbed, and the rest of
+           the slab follows. A spring there gives both a force on the middle
+           and a torque about it, so a bar picked up by its end swings round
+           and hangs, lags behind a fast hand, and overshoots when it stops.
+           Pinning the centre to the cursor instead made it a cursor with a
+           picture attached. */
         if (p === held) {
-          p.squash *= 0.86;
+          const cos = Math.cos(p.angle);
+          const sin = Math.sin(p.angle);
+          const rx = (grabLX * cos - grabLY * sin) * unit;
+          const ry = (grabLX * sin + grabLY * cos) * unit * 0.92;
+          const ex = pointer.x - (p.x + rx);
+          const ey = pointer.y - (p.y + ry);
+
+          const STIFF = 0.34;
+          p.vx += ex * STIFF;
+          p.vy += ey * STIFF;
+          // Moment of inertia, near enough: a slab of this reach
+          const inertia = Math.max(1, Math.pow(p.radius * unit, 2)) * 1.4;
+          p.spin += ((rx * ey - ry * ex) * STIFF) / inertia;
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.angle += p.spin;
+          // Damped hard, or the spring rings forever
+          p.vx *= 0.58;
+          p.vy *= 0.58;
+          p.spin *= 0.88;
+          p.squash *= 0.9;
           continue;
         }
 
@@ -377,90 +491,111 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
         // Springs back
         p.squash *= 0.86;
 
-        /* The cursor pushes what it passes over, whether or not anything is
-           being dragged. It is the difference between a pile you can move and
-           a pile that reacts to you. */
-        if (!held && hovering) {
-          const dx = p.x - pointer.x;
-          const dy = p.y - pointer.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist < NUDGE && dist > 0.01) {
-            const force = (1 - dist / NUDGE) * 0.9;
-            p.vx += (dx / dist) * force;
-            p.vy += (dy / dist) * force;
-            p.spin += (dx / dist) * force * 0.004;
-            p.squash = Math.max(p.squash, force * 0.3);
-            p.squashAngle = Math.atan2(dy, dx);
-          }
-        }
-
-        // The table has edges
+        /* The table has edges. A bar that meets one at an angle is turned by
+           it — the component of its travel along the wall becomes spin, which
+           is what keeps the pile from settling into a neat row. */
         const r = p.radius * unit;
         if (p.x < r) {
           p.x = r;
           p.vx = Math.abs(p.vx) * 0.62;
-        }
-        if (p.x > w - r) {
+          p.spin += p.vy * 0.012;
+        } else if (p.x > w - r) {
           p.x = w - r;
           p.vx = -Math.abs(p.vx) * 0.62;
+          p.spin -= p.vy * 0.012;
         }
         if (p.y < r) {
           p.y = r;
           p.vy = Math.abs(p.vy) * 0.62;
-        }
-        if (p.y > h - r) {
+          p.spin -= p.vx * 0.012;
+        } else if (p.y > h - r) {
           p.y = h - r;
           p.vy = -Math.abs(p.vy) * 0.62;
+          p.spin += p.vx * 0.012;
         }
       }
 
-      /* Separation: any two overlapping slabs are pushed apart along the line
-         between them, and a held piece does not move — it shoves. */
+      /* Separation, lobe against lobe. A held piece does not move — it
+         shoves — which is what makes dragging one through the pile feel like
+         pushing something rather than passing through it. */
+      const world = (p: Piece, l: { ox: number; r: number }) => {
+        const cos = Math.cos(p.angle);
+        const sin = Math.sin(p.angle);
+        return {
+          x: p.x + l.ox * cos * unit,
+          y: p.y + l.ox * sin * unit * 0.92,
+          r: l.r * unit,
+        };
+      };
+
       for (let i = 0; i < pieces.length; i++) {
         const a = pieces[i];
         if (now < a.delay) continue;
         for (let j = i + 1; j < pieces.length; j++) {
           const b = pieces[j];
           if (now < b.delay) continue;
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const min = (a.radius + b.radius) * unit * 0.78;
-          const dist = Math.hypot(dx, dy) || 0.0001;
-          if (dist >= min) continue;
+          // Cheap reject before the nine lobe pairs
+          const far = (a.radius + b.radius) * unit;
+          if (Math.abs(a.x - b.x) > far || Math.abs(a.y - b.y) > far) continue;
 
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const overlap = min - dist;
-          const aHeld = a === held;
-          const bHeld = b === held;
-          const aShare = aHeld ? 0 : bHeld ? 1 : 0.5;
-          const bShare = bHeld ? 0 : aHeld ? 1 : 0.5;
+          for (const la of a.lobes) {
+            const ca = world(a, la);
+            for (const lb of b.lobes) {
+              const cb = world(b, lb);
+              const dx = cb.x - ca.x;
+              const dy = cb.y - ca.y;
+              const min = ca.r + cb.r;
+              const dist = Math.hypot(dx, dy) || 0.0001;
+              if (dist >= min) continue;
 
-          a.x -= nx * overlap * aShare;
-          a.y -= ny * overlap * aShare;
-          b.x += nx * overlap * bShare;
-          b.y += ny * overlap * bShare;
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const overlap = min - dist;
+              const aHeld = a === held;
+              const bHeld = b === held;
+              const aShare = aHeld ? 0 : bHeld ? 1 : 0.5;
+              const bShare = bHeld ? 0 : aHeld ? 1 : 0.5;
 
-          /* Both ends deform, along the line of the hit. A held piece is
-             pressed by whatever it is pushing into, which is what makes
-             shoving a pile feel soft rather than like sweeping tiles. */
-          const bite = Math.min(0.42, overlap / (min || 1) + 0.06);
-          const hitAngle = Math.atan2(ny, nx);
-          a.squash = Math.max(a.squash, bite);
-          a.squashAngle = hitAngle;
-          b.squash = Math.max(b.squash, bite);
-          b.squashAngle = hitAngle;
+              a.x -= nx * overlap * aShare;
+              a.y -= ny * overlap * aShare;
+              b.x += nx * overlap * bShare;
+              b.y += ny * overlap * bShare;
 
-          const push = overlap * 0.14;
-          if (!aHeld) {
-            a.vx -= nx * push;
-            a.vy -= ny * push;
-            a.spin -= (nx * dy - ny * dx) * 0.0006;
-          }
-          if (!bHeld) {
-            b.vx += nx * push;
-            b.vy += ny * push;
-            b.spin += (nx * dy - ny * dx) * 0.0006;
+              /* Off-centre hits turn the bar. The lever is how far along the
+                 bar the contact landed, which is what stops a long piece from
+                 sliding sideways like a puck. */
+              const bite = Math.min(0.4, overlap / (min || 1) + 0.05);
+              const hitAngle = Math.atan2(ny, nx);
+              a.squash = Math.max(a.squash, bite);
+              a.squashAngle = hitAngle;
+              b.squash = Math.max(b.squash, bite);
+              b.squashAngle = hitAngle;
+
+              /* Torque by the actual lever: the contact's offset from the
+                 middle crossed into the push. An end-on knock spins a bar
+                 hard, one through the middle barely at all — the difference is
+                 most of what makes a pile of them look jointed rather than
+                 like a raft of tiles sliding about. */
+              const push = overlap * 0.12;
+              const torque = (p: Piece, l: { ox: number }, sign: number) => {
+                const rx = l.ox * Math.cos(p.angle) * unit;
+                const ry = l.ox * Math.sin(p.angle) * unit * 0.92;
+                const fx = sign * nx * push;
+                const fy = sign * ny * push;
+                const inertia = Math.max(1, Math.pow(p.radius * unit, 2)) * 0.5;
+                p.spin += (rx * fy - ry * fx) / inertia;
+              };
+              if (!aHeld) {
+                a.vx -= nx * push;
+                a.vy -= ny * push;
+                torque(a, la, -1);
+              }
+              if (!bHeld) {
+                b.vx += nx * push;
+                b.vy += ny * push;
+                torque(b, lb, 1);
+              }
+            }
           }
         }
       }
@@ -486,17 +621,25 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
       };
     };
 
+    /* Anywhere along the bar, not just its middle: distance to the nearest
+       lobe, so a long piece is grabbable end to end. */
     const pick = (x: number, y: number) => {
       let best: Piece | null = null;
       let bestD = Infinity;
       for (const p of pieces) {
-        const d = Math.hypot(p.x - x, p.y - y);
-        if (d < bestD) {
-          bestD = d;
-          best = p;
+        const cos = Math.cos(p.angle);
+        const sin = Math.sin(p.angle);
+        for (const l of p.lobes) {
+          const lx = p.x + l.ox * cos * unit;
+          const ly = p.y + l.ox * sin * unit * 0.92;
+          const d = Math.hypot(lx - x, ly - y) - l.r * unit;
+          if (d < bestD) {
+            bestD = d;
+            best = p;
+          }
         }
       }
-      return best && bestD < best.radius * unit * 1.25 ? best : null;
+      return bestD < unit * 0.2 ? best : null;
     };
 
     const onDown = (e: PointerEvent) => {
@@ -504,36 +647,32 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
       const p = pick(m.x, m.y);
       if (!p) return;
       held = p;
-      grabX = p.x - m.x;
-      grabY = p.y - m.y;
+      // The clicked point, un-rotated into the slab's frame
+      const cos = Math.cos(p.angle);
+      const sin = Math.sin(p.angle);
+      const wx = (m.x - p.x) / unit;
+      const wy = (m.y - p.y) / (unit * 0.92);
+      grabLX = wx * cos + wy * sin;
+      grabLY = -wx * sin + wy * cos;
       pointer = { x: m.x, y: m.y, px: m.x, py: m.y };
-      p.vx = 0;
-      p.vy = 0;
       canvas.setPointerCapture(e.pointerId);
       canvas.style.cursor = "grabbing";
     };
 
     const onMove = (e: PointerEvent) => {
       const m = toCanvas(e);
-      hovering = true;
       pointer.px = pointer.x;
       pointer.py = pointer.y;
       pointer.x = m.x;
       pointer.y = m.y;
-      if (!held) {
-        canvas.style.cursor = pick(m.x, m.y) ? "grab" : "default";
-        return;
-      }
-      held.x = m.x + grabX;
-      held.y = m.y + grabY;
+      if (!held) canvas.style.cursor = pick(m.x, m.y) ? "grab" : "default";
     };
 
     const onUp = (e: PointerEvent) => {
       if (!held) return;
       // Let go with whatever speed the hand had
-      held.vx = (pointer.x - pointer.px) * 1.5;
-      held.vy = (pointer.y - pointer.py) * 1.5;
-      held.spin += (pointer.x - pointer.px) * 0.002;
+      held.vx = (pointer.x - pointer.px) * 1.2 + held.vx * 0.5;
+      held.vy = (pointer.y - pointer.py) * 1.2 + held.vy * 0.5;
       held = null;
       canvas.style.cursor = "grab";
       try {
@@ -544,10 +683,6 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
     resize();
     frame = requestAnimationFrame(step);
 
-    const onLeave = () => {
-      hovering = false;
-    };
-    canvas.addEventListener("pointerleave", onLeave);
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
@@ -558,7 +693,6 @@ const HeroCanvas: FC<HeroCanvasProps> = ({ scale = 0.2, pixel = 2 }) => {
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      canvas.removeEventListener("pointerleave", onLeave);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
