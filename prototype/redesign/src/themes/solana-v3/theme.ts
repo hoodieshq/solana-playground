@@ -12,30 +12,31 @@ import type { ThemeParam } from "../../utils";
 // for code alone. Sans chrome is the single biggest change; the app used to
 // hand the code font to every label, tab and tree row.
 
-// The values are read off the zero-state frame in the Figma (node 23:4), not
-// invented: a near-black page, a sidebar one step up from it, a card one step
-// up again, and a single hairline colour between them. The greys carry a trace
-// of blue, which is what stops a dark interface reading as soot.
-const BG_BASE = "#0B0C0E", // the page and the central stage
-  BG_SIDEBAR = "#111215", // the nav column
-  BG_SURFACE = "#181A1F", // cards, the prompt box, inputs, menus
-  BG_RAISED = "#1F2128", // a control on a card, the current nav row
-  BG_HOVER = "#23262E",
-  // Text, three steps: what you read, what supports it, and the labels that
-  // only need to be found once.
-  TEXT_PRIMARY = "#FFFFFF",
-  TEXT_SECONDARY = "#9496A1",
-  COMMENT = "#51535D",
+// A neutral ramp, matched to the reference screenshots rather than to the
+// Figma frame's tokens. The frame's greys carry blue in them (#9496A1), and
+// against a near-black page that reads as a cast over the whole interface —
+// which is the thing that kept being wrong. These are equal-channel greys: no
+// hue at all, so the only colour in the window is the one we put there.
+const BG_BASE = "#101011", // the page and the central stage
+  BG_SIDEBAR = "#161617", // the nav column
+  BG_SURFACE = "#1C1C1E", // cards, the prompt box, inputs, menus
+  BG_RAISED = "#242426", // a control on a card, the current nav row
+  BG_HOVER = "#2A2A2C",
+  // Text, three steps: what you read, what supports it, and labels you only
+  // need to find once.
+  TEXT_PRIMARY = "#F2F2F3",
+  TEXT_SECONDARY = "#A0A0A6",
+  COMMENT = "#6B6B72",
   // One hairline, everywhere.
-  BORDER = "#1F2128",
-  BORDER_STRONG = "#2A2D35",
-  // The accent, used where the frame uses it: the logo mark and the one badge
-  // that marks something new. Not on text, not on borders, not as a tint.
+  BORDER = "#26262A",
+  BORDER_STRONG = "#33333A",
+  // The accent, kept for the mark and the one badge that means new. Not on
+  // text, not on borders, not as a tint over anything.
   ACCENT = "#2563EB",
   ACCENT_HOVER = "#3B78F0",
   ACCENT_FILL = "#2563EB",
   ACCENT_FILL_HOVER = "#3B78F0",
-  DISABLED_BG = "#15171B",
+  DISABLED_BG = "#191919",
   // States, and nothing else uses them.
   GREEN = "#22C55E",
   RED = "#EF4444",
