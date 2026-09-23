@@ -20,6 +20,7 @@ import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
+import { HEAD_HEIGHT, HEAD_INSET, SUBHEAD_HEIGHT } from "./tokens";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
@@ -219,18 +220,6 @@ const Flow = () => {
             )}
 
             <Work>
-              {/* The loop belongs to the workspace, not to the window. In the
-                  Figma it is a row of equal stages across the top of this
-                  column; it used to sit in a bar two columns away, above a
-                  sidebar it had nothing to do with. */}
-              <StageRail>
-                <Stepper
-                  state={state}
-                  onSelect={PgFlow.setStage}
-                  target={target}
-                />
-              </StageRail>
-
               <WorkHead>
                 {!sidebarOpen && (
                   <BarButton
@@ -296,6 +285,19 @@ const Flow = () => {
                   </BarButton>
                 </WorkEnd>
               </WorkHead>
+
+              {/* The loop belongs to the workspace, not to the window — in the
+                  Figma it runs across the top of this column. It sits under the
+                  head rather than above it so that the first row of every
+                  column is the same row: name on top, the panel's own switch
+                  beneath, the same two rules straight across. */}
+              <StageRail>
+                <Stepper
+                  state={state}
+                  onSelect={PgFlow.setStage}
+                  target={target}
+                />
+              </StageRail>
 
               <WorkBody
                 id="work-panel"
@@ -431,9 +433,6 @@ const Layout = styled.div<{ $sidebar: boolean }>`
   `}
 `;
 
-
-
-
 const BarButton = styled.button<{ $on?: boolean }>`
   ${({ theme, $on }) => css`
     display: flex;
@@ -467,9 +466,6 @@ const BarButton = styled.button<{ $on?: boolean }>`
     }
   `}
 `;
-
-
-
 
 /* Hidden, the sidebar's track is 0 and this clips it, so nothing peeks. */
 const NavSlot = styled.div<{ $open: boolean }>`
@@ -517,13 +513,16 @@ const Work = styled.section`
    be in order. */
 const StageRail = styled.div`
   ${({ theme }) => css`
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
-    padding: 0.5rem 0.5rem 0;
+    height: ${SUBHEAD_HEIGHT};
+    padding: 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
 
     & > div {
+      flex: 1;
       gap: 0.375rem;
-      padding-bottom: 0.5rem;
     }
 
     & > div > div {
@@ -539,6 +538,7 @@ const StageRail = styled.div`
 
     & [role="tab"] {
       width: 100%;
+      height: 1.625rem;
       justify-content: center;
     }
   `}
@@ -549,7 +549,7 @@ const WorkHead = styled.div`
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    height: 2.75rem;
+    height: ${HEAD_HEIGHT};
     flex-shrink: 0;
     padding: 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
@@ -561,7 +561,7 @@ const WorkTitle = styled.div`
   ${({ theme }) => css`
     flex: 1;
     min-width: 0;
-    padding-left: 0.25rem;
+    padding-left: calc(${HEAD_INSET} - 0.5rem);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

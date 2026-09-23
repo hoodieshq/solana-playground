@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Chat from "./Chat";
 import Grounding from "./Grounding";
 import { PgAssistant } from "../store";
+import { HEAD_HEIGHT, SUBHEAD_HEIGHT } from "../../../flow/tokens";
 import { PgBuildOutput } from "../bridge/build-output";
 import { PgExplorer } from "../../../../utils";
 
@@ -151,15 +152,19 @@ const Wrapper = styled.div`
 `;
 
 const Header = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  /* A host may reserve room on the left for its own control (Flow's
-     collapse handle sets --flow-handle-inset); elsewhere it is 0. */
-  height: 2.75rem;
-  padding: 0 0.5rem 0 0.875rem;
-  flex-shrink: 0;
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    /* A host may reserve room on the left for its own control (Flow's
+       collapse handle sets --flow-handle-inset); elsewhere it is 0. */
+    height: ${HEAD_HEIGHT};
+    padding: 0 0.5rem 0 0.875rem;
+    flex-shrink: 0;
+    /* The same rule the columns either side draw, at the same height */
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
 `;
 
 /* Sentence case, 14px, semibold — the same voice as every other pane title.
@@ -228,7 +233,9 @@ const HeaderChip = styled.span`
 const Tabs = styled.div`
   ${({ theme }) => css`
     display: flex;
+    align-items: stretch;
     gap: 0.25rem;
+    height: ${SUBHEAD_HEIGHT};
     padding: 0 0.75rem;
     flex-shrink: 0;
     /* Labels can still overflow the narrowest sidebar width */
@@ -239,7 +246,9 @@ const Tabs = styled.div`
 
 const TabButton = styled.button<{ $active: boolean }>`
   ${({ theme, $active }) => css`
-    padding: 0.4375rem 0.5625rem 0.375rem;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5625rem;
     background: transparent;
     border: none;
     border-bottom: 1px solid

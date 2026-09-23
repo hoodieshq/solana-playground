@@ -3,6 +3,7 @@ import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
 import { gradientStroke } from "../components/gradient";
+import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
 /**
  * The outermost column: where you can go, and the projects you have.
@@ -98,79 +99,81 @@ const NavSidebar: FC<NavSidebarProps> = ({
         </HeadButton>
       </Head>
 
-      <Group>
-        <Row
-          onClick={onHome}
-          type="button"
-          $current={homeActive}
-          aria-current={homeActive ? "page" : undefined}
-        >
-          <Glyph aria-hidden="true">{ICONS.home}</Glyph>
-          Home
-        </Row>
-        <Row onClick={onOpenGallery} type="button">
-          <Glyph aria-hidden="true">{ICONS.plus}</Glyph>
-          New project
-        </Row>
-      </Group>
+      <Column>
+        <Group>
+          <Row
+            onClick={onHome}
+            type="button"
+            $current={homeActive}
+            aria-current={homeActive ? "page" : undefined}
+          >
+            <Glyph aria-hidden="true">{ICONS.home}</Glyph>
+            Home
+          </Row>
+          <Row onClick={onOpenGallery} type="button">
+            <Glyph aria-hidden="true">{ICONS.plus}</Glyph>
+            New project
+          </Row>
+        </Group>
 
-      <Scroll>
-        {projects.length > 0 && (
-          <Section>
-            <Heading>Projects</Heading>
-            {projects.map((name) => (
-              <Row
-                key={name}
-                type="button"
-                $current={!homeActive && name === current}
-                onClick={() => onOpenProject(name)}
-              >
-                <Glyph aria-hidden="true">{ICONS.folder}</Glyph>
-                <Label>{name}</Label>
+        <Scroll>
+          {projects.length > 0 && (
+            <Section>
+              <Heading>Projects</Heading>
+              {projects.map((name) => (
+                <Row
+                  key={name}
+                  type="button"
+                  $current={!homeActive && name === current}
+                  onClick={() => onOpenProject(name)}
+                >
+                  <Glyph aria-hidden="true">{ICONS.folder}</Glyph>
+                  <Label>{name}</Label>
+                </Row>
+              ))}
+            </Section>
+          )}
+        </Scroll>
+
+        <Foot>
+          {status && <Account>{status}</Account>}
+          <Row
+            as="a"
+            href="https://solana.com/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Glyph aria-hidden="true">{ICONS.help}</Glyph>
+            Docs
+          </Row>
+          <Row onClick={onOpenSettings} type="button">
+            <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
+            Settings
+          </Row>
+
+          {!quickstartGone && (
+            <Suggestion>
+              <SuggestionHead>
+                <SuggestionTitle>Quickstart Solana</SuggestionTitle>
+                <Dismiss
+                  type="button"
+                  onClick={dismissQuickstart}
+                  aria-label="Dismiss the quickstart suggestion"
+                >
+                  {ICONS.close}
+                </Dismiss>
+              </SuggestionHead>
+              <SuggestionBody>
+                Create a devnet project and deploy your first program.
+              </SuggestionBody>
+              <Row onClick={onOpenGallery} type="button">
+                <Glyph aria-hidden="true">{ICONS.cube}</Glyph>
+                Open quickstart
               </Row>
-            ))}
-          </Section>
-        )}
-      </Scroll>
-
-      <Foot>
-        {status && <Account>{status}</Account>}
-        <Row
-          as="a"
-          href="https://solana.com/docs"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Glyph aria-hidden="true">{ICONS.help}</Glyph>
-          Docs
-        </Row>
-        <Row onClick={onOpenSettings} type="button">
-          <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
-          Settings
-        </Row>
-
-        {!quickstartGone && (
-          <Suggestion>
-            <SuggestionHead>
-              <SuggestionTitle>Quickstart Solana</SuggestionTitle>
-              <Dismiss
-                type="button"
-                onClick={dismissQuickstart}
-                aria-label="Dismiss the quickstart suggestion"
-              >
-                {ICONS.close}
-              </Dismiss>
-            </SuggestionHead>
-            <SuggestionBody>
-              Create a devnet project and deploy your first program.
-            </SuggestionBody>
-            <Row onClick={onOpenGallery} type="button">
-              <Glyph aria-hidden="true">{ICONS.cube}</Glyph>
-              Open quickstart
-            </Row>
-          </Suggestion>
-        )}
-      </Foot>
+            </Suggestion>
+          )}
+        </Foot>
+      </Column>
     </Aside>
   );
 };
@@ -258,7 +261,9 @@ const Aside = styled.aside`
     width: 15.5rem;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.5rem 0.625rem;
+    /* No padding of its own: the head has to reach the column's top edge for
+       its rule to meet the others. The rest of the column is inset below. */
+    padding: 0;
     background: ${theme.colors.default.bgPrimary};
     /* One hairline, no panel fill: in the reference the sidebar is part of the
        same ground as the content and is separated by a line, not by a box. */
@@ -268,18 +273,29 @@ const Aside = styled.aside`
 `;
 
 /* Brand left, the collapse control right, a hairline under both — the head of
-   the column, and the only place the product says its name. */
+   the column, and the only place the product says its name. Its height is the
+   window's, not its own. */
 const Head = styled.div`
   ${({ theme }) => css`
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    height: 2.125rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.75rem;
+    flex-shrink: 0;
+    height: ${HEAD_HEIGHT};
+    padding: 0 0.5rem 0 ${HEAD_INSET};
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
+`;
+
+/* Everything under the head, inset. */
+const Column = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem 0.5rem 0.625rem;
+  overflow: hidden;
 `;
 
 /* The word is the mark until the product has earned one. */
@@ -287,7 +303,6 @@ const Brand = styled.button`
   ${({ theme }) => css`
     height: 1.875rem;
     padding: 0 0.5rem;
-    margin-left: -0.5rem;
     border: none;
     border-radius: 8px;
     background: transparent;
@@ -545,4 +560,3 @@ const Dismiss = styled.button`
     }
   `}
 `;
-

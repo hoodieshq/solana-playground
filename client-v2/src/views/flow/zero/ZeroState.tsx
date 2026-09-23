@@ -7,6 +7,7 @@ import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
 import Composer from "../components/Composer";
 import { gradientStroke } from "../components/gradient";
+import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
@@ -316,16 +317,17 @@ const Shell = styled.div`
   overflow: hidden;
 `;
 
-/* 3.5rem. Switches left, search dead centre, the rest on the right — the
-   head of this screen, the width of this screen, no wider. */
+/* Switches left, search dead centre, the rest on the right — the head of this
+   screen, the width of this screen, and the same height as the sidebar's head
+   beside it, so the one rule runs straight across. */
 const TopBar = styled.header`
   ${({ theme }) => css`
     flex-shrink: 0;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    height: 3.5rem;
-    padding: 0 0.75rem 0 1rem;
+    height: ${HEAD_HEIGHT};
+    padding: 0 0.5rem 0 calc(${HEAD_INSET} - 0.125rem);
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
@@ -348,7 +350,6 @@ const BarRight = styled.div`
   min-width: 0;
   overflow: hidden;
 `;
-
 
 const Switches = styled.div`
   display: flex;
