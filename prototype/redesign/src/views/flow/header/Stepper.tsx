@@ -3,7 +3,6 @@ import styled, { css } from "styled-components";
 
 import { gradientStroke } from "../components/gradient";
 
-
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
 
