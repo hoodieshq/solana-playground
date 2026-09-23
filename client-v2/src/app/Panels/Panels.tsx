@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 import Bottom from "./Bottom";
@@ -17,35 +17,34 @@ const useClassic = params.has("classic");
 /**
  * Whether to go straight into the product rather than the landing.
  *
- * The landing is what a first visit gets, and only at the root: a link to
- * /tutorials or /programs is someone who already knows what this is, and
- * showing them a pitch instead of the thing they asked for would be rude.
- * `?app` is the way in, so the product stays linkable, and the choice sticks
- * for the tab so a reload does not send a working session back to the pitch.
+ * The URL is the only thing that decides. `/` is the landing, `/?app` is the
+ * product, and a deep link like /tutorials goes straight in — someone who
+ * asked for a page by name already knows what this is, and showing them a
+ * pitch instead would be rude.
+ *
+ * An earlier version also remembered the choice for the tab, which meant that
+ * once you had entered, `/` never showed the landing again without clearing
+ * storage. Two sources of truth for one question, and the hidden one won.
  */
-const ENTERED = "pg-entered";
-const enteredAlready = () => {
-  if (params.has("app")) return true;
-  if (window.location.pathname !== "/") return true;
-  try {
-    return sessionStorage.getItem(ENTERED) === "1";
-  } catch {
-    return false;
-  }
-};
+const showProduct = () =>
+  params.has("app") || window.location.pathname !== "/";
 
 const Panels = () => {
-  const [entered, setEntered] = useState(enteredAlready);
+  const [entered, setEntered] = useState(showProduct);
 
   const enter = () => {
-    try {
-      sessionStorage.setItem(ENTERED, "1");
-    } catch {}
-    // Replace rather than push: Back should leave the site, not bounce
-    // between the pitch and the product.
-    window.history.replaceState(null, "", "/?app");
+    // Push, not replace: Back from the product returns to the landing, which
+    // is what a browser's Back button is for.
+    window.history.pushState(null, "", "/?app");
     setEntered(true);
   };
+
+  // ...and Back actually works, rather than leaving the URL behind the view.
+  useEffect(() => {
+    const onPop = () => setEntered(showProduct());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   if (!entered && !useClassic) return <Landing onEnter={enter} />;
 
