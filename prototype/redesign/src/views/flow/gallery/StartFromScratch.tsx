@@ -105,10 +105,11 @@ const Row = styled.div`
     flex-wrap: wrap;
     align-items: center;
     gap: 1rem;
-    padding: 1rem;
-    border: 1px solid
-      ${theme.colors.default.primary + theme.default.transparency.medium};
-    border-radius: ${theme.default.borderRadius};
+    padding: 1rem 1.125rem;
+    /* Same hairline and surface as every other card on the page. The accent
+       border it had made one option shout over the rest of the list. */
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 14px;
     background: ${theme.colors.default.bgSecondary};
   `}
 `;
@@ -120,9 +121,9 @@ const Plus = styled.span`
     height: 2.5rem;
     display: grid;
     place-items: center;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 50%;
-    color: ${theme.colors.default.primary};
+    border-radius: 10px;
+    background: ${theme.colors.default.bgPrimary};
+    color: ${theme.colors.default.textPrimary};
     font-size: 1.25rem;
     line-height: 1;
   `}
@@ -133,18 +134,18 @@ const Text = styled.div`
   min-width: 0;
 `;
 
+/* Sentence case, quiet, the same voice as the section headings around it */
 const Eyebrow = styled.div`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.xsmall};
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.primary};
+    font-size: 0.8125rem;
+    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
 const Title = styled.div`
   ${({ theme }) => css`
     margin-top: 0.125rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     color: ${theme.colors.default.textPrimary};
   `}
@@ -154,7 +155,7 @@ const Sub = styled.div`
   ${({ theme }) => css`
     margin-top: 0.125rem;
     color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.other.size.small};
+    font-size: 0.8125rem;
   `}
 `;
 
@@ -168,23 +169,27 @@ const FrameworkOption = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.375rem 0.625rem;
-    border: 1px solid
-      ${$active ? theme.colors.default.primary : theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${$active
-      ? theme.colors.default.primary + theme.default.transparency.high
-      : "transparent"};
-    color: ${theme.colors.default.textPrimary};
+    height: 2rem;
+    padding: 0 0.625rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    /* The chosen one is a filled pill, the rest are plain — the same mark the
+       top bar uses for its current switch, so the page has one way of saying
+       "this one". */
+    background: ${$active ? theme.colors.state.hover.bg : "transparent"};
+    color: ${$active
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
     font: inherit;
-    font-size: ${theme.font.other.size.small};
+    font-size: 0.8125rem;
+    font-weight: ${$active ? 600 : 500};
     white-space: nowrap;
     cursor: pointer;
     transition: border-color ${theme.default.transition.duration.short}
       ${theme.default.transition.type};
 
     &:hover {
-      border-color: ${theme.colors.default.primary};
+      color: ${theme.colors.default.textPrimary};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
@@ -212,7 +217,9 @@ const Controls = styled.div`
 const NameInput = styled(Input)`
   ${({ theme }) => css`
     width: 12rem;
-    padding: 0.5rem 0.75rem;
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 8px;
 
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};

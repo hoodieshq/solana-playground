@@ -8,19 +8,19 @@ import TutorialsTab from "../gallery/TutorialsTab";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
- * What you meet with no project open.
+ * What you meet with no project open: a bar across the top of the window, and
+ * one column in the middle — a mark, a question, the composer, three ways in,
+ * and the gallery under them.
  *
- * Built from the zero-state frame in the Figma (node 23:4): a top bar of
- * switches, one question in the middle, a prompt box under it, and a row of
- * suggestions below that. Two things are ours rather than the frame's.
+ * Positions follow the reference product screen by screen: the mark and the
+ * switches on the left of the bar, search in its centre with the shortcut
+ * shown, the composer at 46rem with its controls along the bottom edge, three
+ * equal cards beneath it. What each thing *is* stays ours — Start, Tutorials,
+ * Programs; New project, Follow a tutorial, Open a program — because those are
+ * the things this product actually has.
  *
- * The switches are Start, Tutorials and Programs, not Chat/Agent/Code/Design —
- * those are another product's modes, and the ones here match content this app
- * actually has (the gallery's own two tabs, plus the page you are on).
- *
- * The suggestions are the three ways a Playground project actually begins,
- * and each opens the thing it names. The frame's Create/Develop/Collaborate
- * describe a product that does not exist here.
+ * Rendered as `display: contents`, so the bar and the body take their places
+ * in the layout grid Flow draws around the sidebar.
  */
 
 interface ZeroStateProps {
@@ -36,6 +36,8 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
   const [active, setActive] = useState<Switch>("start");
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
+  /** Whether the scratch row is open under the cards */
+  const [scratchOpen, setScratchOpen] = useState(false);
 
   // Same fetch the gallery modal did, now that the list lives on the page
   useEffect(() => {
@@ -48,51 +50,60 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
     };
   }, []);
 
-  // A switch changes what is under the prompt; it never opens a window over it
+  // A switch changes what is under the composer; it never opens a window
   const pick = (id: Switch) => {
     setActive(id);
     setQuery("");
   };
 
-  return (
-    <Wrapper>
-      <TopBar>
-        <Switches role="tablist" aria-label="Where to start">
-          {SWITCHES.map(({ id, label }) => (
-            <Tab
-              key={id}
-              type="button"
-              role="tab"
-              id={`zero-tab-${id}`}
-              aria-selected={active === id}
-              aria-controls="zero-panel"
-              $active={active === id}
-              onClick={() => pick(id)}
-            >
-              {label}
-              {id === "tutorials" && <Count>{PgTutorial.all.length}</Count>}
-              {id === "programs" && (
-                <Count>{programs ? programs.length : "…"}</Count>
-              )}
-            </Tab>
-          ))}
-        </Switches>
+  const onStart = active === "start";
 
-        <TopRight>
-          {active === "start" ? (
-            <SearchBox type="button" onClick={() => pick("tutorials")}>
-              <Glyph aria-hidden="true">{ICONS.search}</Glyph>
-              Search tutorials and programs
-            </SearchBox>
-          ) : (
-            <SearchField
+  return (
+    <Shell>
+      <TopBar>
+        <BarLeft>
+          <Mark aria-hidden="true">{ICONS.asterisk}</Mark>
+          <Switches role="tablist" aria-label="Where to start">
+            {SWITCHES.map(({ id, label, icon }) => (
+              <Tab
+                key={id}
+                type="button"
+                role="tab"
+                id={`zero-tab-${id}`}
+                aria-selected={active === id}
+                aria-controls="zero-panel"
+                $active={active === id}
+                onClick={() => pick(id)}
+              >
+                <Glyph aria-hidden="true">{icon}</Glyph>
+                {label}
+              </Tab>
+            ))}
+          </Switches>
+        </BarLeft>
+
+        {onStart ? (
+          <SearchButton type="button" onClick={() => pick("tutorials")}>
+            <Glyph aria-hidden="true">{ICONS.search}</Glyph>
+            <span>Search</span>
+            <Kbd>⌘K</Kbd>
+          </SearchButton>
+        ) : (
+          <SearchWrap>
+            <Glyph aria-hidden="true">{ICONS.search}</Glyph>
+            <SearchInput
               type="search"
               value={query}
+              autoFocus
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${active}`}
               aria-label={`Search ${active}`}
             />
-          )}
+            <Kbd>⌘K</Kbd>
+          </SearchWrap>
+        )}
+
+        <BarRight>
           <IconButton
             as="a"
             href="https://solana.com/docs"
@@ -100,22 +111,19 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
             rel="noreferrer"
             aria-label="Documentation"
           >
-            <Glyph aria-hidden="true">{ICONS.help}</Glyph>
+            {ICONS.help}
           </IconButton>
-        </TopRight>
+        </BarRight>
       </TopBar>
 
-      <Scroll>
+      <Body>
         <Stage>
-          {/* The lead and the prompt belong to Start. Moving to a list slides
-              them out rather than cutting, so the two states read as one
-              surface rearranging rather than two pages swapping. */}
-          <Lead $shown={active === "start"}>
-            <Mark aria-hidden="true">{ICONS.asterisk}</Mark>
+          <Lead $shown={onStart}>
+            <LeadMark aria-hidden="true">{ICONS.asterisk}</LeadMark>
             <Title>Where should we begin?</Title>
           </Lead>
 
-          <Composer $tight={active !== "start"}>
+          <Composer $tight={!onStart}>
             <ComposerInput
               type="button"
               onClick={onAskAssistant}
@@ -124,7 +132,7 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
               Ask anything…
             </ComposerInput>
             <ComposerBar>
-              <BarLeft>
+              <Group>
                 <Chip type="button" onClick={onAskAssistant} aria-label="Attach">
                   {ICONS.plus}
                 </Chip>
@@ -135,29 +143,59 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
                   <Glyph aria-hidden="true">{ICONS.send}</Glyph>
                   Assistant
                 </ModeButton>
-              </BarLeft>
-              <BarRight>
-                <ModelButton type="button" onClick={onAskAssistant}>
+              </Group>
+              <Group>
+                <ModeButton type="button" onClick={onAskAssistant}>
                   <Glyph aria-hidden="true">{ICONS.asterisk}</Glyph>
                   Model
                   <Glyph aria-hidden="true">{ICONS.chevron}</Glyph>
-                </ModelButton>
+                </ModeButton>
+                <Chip type="button" onClick={onAskAssistant} aria-label="Voice">
+                  {ICONS.mic}
+                </Chip>
                 <Send type="button" onClick={onAskAssistant} aria-label="Send">
                   {ICONS.up}
                 </Send>
-              </BarRight>
+              </Group>
             </ComposerBar>
           </Composer>
+
+          {onStart && (
+            <Cards>
+              <Card
+                type="button"
+                aria-expanded={scratchOpen}
+                $on={scratchOpen}
+                onClick={() => setScratchOpen((o) => !o)}
+              >
+                <CardIcon aria-hidden="true">{ICONS.plus}</CardIcon>
+                <CardTitle>New project</CardTitle>
+                <CardSub>Anchor, Native or Seahorse</CardSub>
+              </Card>
+              <Card type="button" onClick={() => pick("tutorials")}>
+                <CardIcon aria-hidden="true">{ICONS.book}</CardIcon>
+                <CardTitle>Follow a tutorial</CardTitle>
+                <CardSub>{PgTutorial.all.length} guided paths</CardSub>
+              </Card>
+              <Card type="button" onClick={() => pick("programs")}>
+                <CardIcon aria-hidden="true">{ICONS.code}</CardIcon>
+                <CardTitle>Open a program</CardTitle>
+                <CardSub>
+                  {programs ? programs.length : "…"} real programs
+                </CardSub>
+              </Card>
+            </Cards>
+          )}
 
           <Panel
             id="zero-panel"
             role="tabpanel"
             aria-labelledby={`zero-tab-${active}`}
-            key={active}
+            key={active + (scratchOpen ? "-scratch" : "")}
           >
-            {active === "start" && (
+            {onStart && scratchOpen && <StartFromScratch />}
+            {onStart && (
               <>
-                <StartFromScratch />
                 <PanelHead>
                   <PanelLabel>Or learn from one of these</PanelLabel>
                   <PanelMore type="button" onClick={() => pick("tutorials")}>
@@ -175,25 +213,21 @@ const ZeroState: FC<ZeroStateProps> = ({ onAskAssistant }) => {
             )}
           </Panel>
         </Stage>
-      </Scroll>
-    </Wrapper>
+      </Body>
+    </Shell>
   );
 };
 
 export default ZeroState;
 
-const SWITCHES: Array<{ id: Switch; label: string }> = [
-  { id: "start", label: "Start" },
-  { id: "tutorials", label: "Tutorials" },
-  { id: "programs", label: "Programs" },
-];
+/* ── icons: one stroke set, one weight ─────────────────────────────────── */
 
 const svg = (d: JSX.Element) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.5"
+    strokeWidth="1.6"
     strokeLinecap="round"
     strokeLinejoin="round"
   >
@@ -202,6 +236,7 @@ const svg = (d: JSX.Element) => (
 );
 
 const ICONS = {
+  asterisk: svg(<path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />),
   search: svg(
     <>
       <circle cx="11" cy="11" r="7" />
@@ -221,17 +256,6 @@ const ICONS = {
       <path d="M5 12h14" />
     </>
   ),
-  globe: svg(
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
-    </>
-  ),
-  asterisk: svg(
-    <>
-      <path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />
-    </>
-  ),
   grid: svg(
     <>
       <rect x="4" y="4" width="7" height="7" rx="1.5" />
@@ -242,22 +266,22 @@ const ICONS = {
   ),
   send: svg(<path d="M21 3 10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z" />),
   chevron: svg(<path d="m6 9 6 6 6-6" />),
+  mic: svg(
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </>
+  ),
   up: svg(
     <>
       <path d="M12 19V5" />
       <path d="m6 11 6-6 6 6" />
     </>
   ),
-  cpu: svg(
+  spark: svg(
     <>
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-      <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" />
-    </>
-  ),
-  blank: svg(
-    <>
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="M12 8.5 13.6 11 16 12l-2.4 1-1.6 2.5L10.4 13 8 12l2.4-1z" />
     </>
   ),
   book: svg(
@@ -274,50 +298,91 @@ const ICONS = {
   ),
 };
 
-const Wrapper = styled.div`
+const SWITCHES: Array<{ id: Switch; label: string; icon: JSX.Element }> = [
+  { id: "start", label: "Start", icon: ICONS.spark },
+  { id: "tutorials", label: "Tutorials", icon: ICONS.book },
+  { id: "programs", label: "Programs", icon: ICONS.code },
+];
+
+/* ── layout ────────────────────────────────────────────────────────────── */
+
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+`;
+
+const Shell = styled.div`
+  display: contents;
+`;
+
+/* 3.5rem, the width of the window, sidebar included. Mark and switches left,
+   search dead centre, the rest on the right. */
+const TopBar = styled.header`
   ${({ theme }) => css`
-    display: flex;
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    flex-direction: column;
-    background: ${theme.colors.default.bgPrimary};
+    grid-area: top;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: 3.5rem;
+    padding: 0 0.75rem 0 1rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-const TopBar = styled.div`
+const BarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+`;
+
+const BarRight = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+`;
+
+const Mark = styled.span`
   ${({ theme }) => css`
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    height: 4rem;
     flex-shrink: 0;
-    padding: 0 2rem;
-    border-bottom: 1px solid ${theme.colors.default.border};
+    width: 1.125rem;
+    height: 1.125rem;
+    color: ${theme.colors.default.textPrimary};
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
   `}
 `;
 
 const Switches = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
 `;
 
-/* Pills, not underlines: the frame marks the current one with a filled shape,
-   which survives on a dark ground where a 2px rule under text does not. */
+/* The current one is a filled pill; the others are plain text with their
+   glyph. One way of saying "this one", used again by the framework picker. */
 const Tab = styled.button<{ $active: boolean }>`
   ${({ theme, $active }) => css`
-    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 1.875rem;
+    padding: 0 0.75rem;
     border: none;
     border-radius: 999px;
-    background: ${$active ? theme.colors.default.bgSecondary : "transparent"};
+    background: ${$active ? theme.colors.state.hover.bg : "transparent"};
     color: ${$active
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font-family: inherit;
-    font-size: ${theme.font.other.size.small};
+    font-size: 0.875rem;
     font-weight: ${$active ? 600 : 500};
+    white-space: nowrap;
     cursor: pointer;
 
     &:hover {
@@ -331,32 +396,81 @@ const Tab = styled.button<{ $active: boolean }>`
   `}
 `;
 
-const TopRight = styled.div`
+const Glyph = styled.span`
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-shrink: 0;
+  width: 0.9375rem;
+  height: 0.9375rem;
+
+  & > svg {
+    width: 100%;
+    height: 100%;
+  }
 `;
 
-const SearchBox = styled.button`
+const searchShape = css`
   ${({ theme }) => css`
+    justify-self: center;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    width: 17rem;
-    padding: 0.5rem 0.75rem;
+    width: 20rem;
+    height: 2.125rem;
+    padding: 0 0.625rem 0 0.75rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 8px;
-    background: ${theme.colors.default.bgSecondary};
+    background: ${theme.colors.default.bgPrimary};
     color: ${theme.colors.state.disabled.color};
     font-family: inherit;
-    font-size: 0.8125rem;
-    text-align: left;
-    cursor: pointer;
+    font-size: 0.875rem;
+  `}
+`;
 
-    &:hover {
-      border-color: ${theme.colors.default.border};
-      color: ${theme.colors.default.textSecondary};
+const SearchButton = styled.button`
+  ${searchShape}
+  text-align: left;
+  cursor: pointer;
+
+  & > span {
+    flex: 1;
+  }
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.default.textSecondary};
+  }
+`;
+
+const SearchWrap = styled.div`
+  ${searchShape}
+  ${({ theme }) => css`
+    border-color: ${theme.colors.default.textSecondary}44;
+  `}
+`;
+
+const SearchInput = styled.input`
+  ${({ theme }) => css`
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+
+    &::placeholder {
+      color: ${theme.colors.state.disabled.color};
     }
+
+    &:focus {
+      outline: none;
+    }
+  `}
+`;
+
+const Kbd = styled.kbd`
+  ${({ theme }) => css`
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
@@ -365,61 +479,59 @@ const IconButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2rem;
+    height: 2rem;
     border: none;
-    border-radius: 999px;
-    background: ${theme.colors.default.bgSecondary};
+    border-radius: 8px;
+    background: transparent;
     color: ${theme.colors.default.textSecondary};
     cursor: pointer;
 
+    & > svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
     &:hover {
+      background: ${theme.colors.state.hover.bg};
       color: ${theme.colors.default.textPrimary};
     }
   `}
 `;
 
-const Glyph = styled.span`
-  display: flex;
-  flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
-
-  & > svg {
-    width: 100%;
-    height: 100%;
-  }
-`;
-
-/* Motion: one surface rearranging, not two pages swapping. Everything moves
-   on the same short curve, and anyone who has asked their system not to
-   animate gets none of it. */
-const rise = keyframes`
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
-`;
-
-const Scroll = styled.div`
-  flex: 1;
+const Body = styled.div`
+  grid-area: body;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 `;
 
-/* Collapses out of the way on a list tab rather than disappearing: the height
-   and the fade run together, so the prompt rises into the space. */
+const Stage = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  width: min(60rem, 100%);
+  margin: 0 auto;
+  padding: 7rem 2rem 4rem;
+`;
+
+/* Collapses out of the way on a list tab rather than disappearing: height and
+   opacity run together, so the composer rises into the space. */
 const Lead = styled.div<{ $shown: boolean }>`
   ${({ $shown }) => css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.875rem;
+    gap: 1rem;
     text-align: center;
     overflow: hidden;
     opacity: ${$shown ? 1 : 0};
-    max-height: ${$shown ? "8rem" : "0"};
-    margin-bottom: ${$shown ? "0" : "-1rem"};
-    transition: opacity 0.18s ease, max-height 0.28s ease, margin-bottom 0.28s ease;
+    max-height: ${$shown ? "6rem" : "0"};
+    margin-bottom: ${$shown ? "0.5rem" : "-1.25rem"};
+    transition: opacity 0.18s ease, max-height 0.28s ease,
+      margin-bottom 0.28s ease;
 
     @media (prefers-reduced-motion: reduce) {
       transition: none;
@@ -427,23 +539,39 @@ const Lead = styled.div<{ $shown: boolean }>`
   `}
 `;
 
-/* The composer. Two rows: where you type, and the controls under it. Sized off
-   the reference — 14px radius, a 3.5rem typing area, 2rem control chips — so
-   it reads as one object rather than a box with buttons parked in it. */
+const LeadMark = styled(Mark)`
+  width: 1.5rem;
+  height: 1.5rem;
+`;
+
+/* 1.375rem, regular. The reference asks its question at reading size and lets
+   the composer carry the page. */
+const Title = styled.h1`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+/* Two rows: where you type, and the controls under it. 14px radius, a 3.5rem
+   typing area, 2rem controls, so it reads as one object. */
 const Composer = styled.div<{ $tight?: boolean }>`
   ${({ theme, $tight }) => css`
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
-    width: min(44rem, 100%);
-    padding: ${$tight ? "0.75rem" : "0.875rem"};
+    gap: 0.5rem;
+    width: min(46rem, 100%);
+    padding: ${$tight ? "0.625rem 0.75rem" : "0.75rem 0.875rem"};
     border: 1px solid ${theme.colors.default.border};
     border-radius: 14px;
     background: ${theme.colors.default.bgSecondary};
     transition: padding 0.28s ease, border-color 0.15s ease;
 
     &:hover {
-      border-color: ${theme.colors.state.hover.bg};
+      border-color: ${theme.colors.default.textSecondary}33;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -456,8 +584,8 @@ const ComposerInput = styled.button`
   ${({ theme }) => css`
     display: block;
     width: 100%;
-    min-height: 3.25rem;
-    padding: 0.5rem 0.5rem 0;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.375rem 0;
     border: none;
     background: none;
     color: ${theme.colors.state.disabled.color};
@@ -475,16 +603,10 @@ const ComposerBar = styled.div`
   gap: 0.5rem;
 `;
 
-const BarLeft = styled.div`
+const Group = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-`;
-
-const BarRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
 `;
 
 const Chip = styled.button`
@@ -527,6 +649,7 @@ const ModeButton = styled.button`
     font-family: inherit;
     font-size: 0.8125rem;
     font-weight: 500;
+    white-space: nowrap;
     cursor: pointer;
 
     &:hover {
@@ -536,15 +659,14 @@ const ModeButton = styled.button`
   `}
 `;
 
-const ModelButton = styled(ModeButton)``;
-
 const Send = styled.button`
   ${({ theme }) => css`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 1.875rem;
+    height: 1.875rem;
+    margin-left: 0.25rem;
     padding: 0;
     border: none;
     border-radius: 999px;
@@ -553,8 +675,8 @@ const Send = styled.button`
     cursor: pointer;
 
     & > svg {
-      width: 0.9375rem;
-      height: 0.9375rem;
+      width: 0.875rem;
+      height: 0.875rem;
     }
 
     &:hover {
@@ -563,11 +685,87 @@ const Send = styled.button`
   `}
 `;
 
+/* Three equal cards, the reference's own arrangement: glyph top-left, a title,
+   one line under it. Hairline, no fill until you point at one. */
+const Cards = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(46rem, 100%);
+  margin-top: 0.75rem;
+  animation: ${rise} 0.22s ease both;
+
+  @media (max-width: 40rem) {
+    grid-template-columns: 1fr;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+const Card = styled.button<{ $on?: boolean }>`
+  ${({ theme, $on }) => css`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+    padding: 1.125rem 1.125rem 1rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 12px;
+    background: ${$on ? theme.colors.state.hover.bg : "transparent"};
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+const CardIcon = styled.span`
+  ${({ theme }) => css`
+    display: flex;
+    width: 1.125rem;
+    height: 1.125rem;
+    margin-bottom: 0.625rem;
+    color: ${theme.colors.default.textSecondary};
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
+  `}
+`;
+
+const CardTitle = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+const CardSub = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.8125rem;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
 const Panel = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
   width: 100%;
+  margin-top: 1.5rem;
   animation: ${rise} 0.22s ease both;
 
   @media (prefers-reduced-motion: reduce) {
@@ -582,13 +780,10 @@ const PanelHead = styled.div`
   gap: 1rem;
 `;
 
-/* Sentence case, same size and colour as the sidebar's section headings. The
-   uppercase tracked version read as a second typeface at a glance, which is
-   most of what "not consistent" meant. */
+/* Sentence case, the same size and colour as the sidebar's section headings */
 const PanelLabel = styled.span`
   ${({ theme }) => css`
     font-size: 0.8125rem;
-    font-weight: 400;
     color: ${theme.colors.state.disabled.color};
   `}
 `;
@@ -600,7 +795,7 @@ const PanelMore = styled.button`
     background: none;
     color: ${theme.colors.default.textSecondary};
     font: inherit;
-    font-size: ${theme.font.other.size.xsmall};
+    font-size: 0.8125rem;
     cursor: pointer;
 
     &:hover {
@@ -610,7 +805,7 @@ const PanelMore = styled.button`
 `;
 
 /* Start shows the first couple of rows of the tutorial grid and hands the rest
-   to its own tab, so the page below the prompt stays short. */
+   to its own tab, so the page under the composer stays short. */
 const Clip = styled.div<{ $rows: number }>`
   ${({ $rows }) => css`
     max-height: ${$rows * 8.5}rem;
@@ -618,76 +813,3 @@ const Clip = styled.div<{ $rows: number }>`
     mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
   `}
 `;
-
-const Count = styled.span`
-  ${({ theme }) => css`
-    margin-left: 0.4375rem;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    color: ${theme.colors.state.disabled.color};
-  `}
-`;
-
-const SearchField = styled.input`
-  ${({ theme }) => css`
-    width: 17rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 8px;
-    background: ${theme.colors.default.bgSecondary};
-    color: ${theme.colors.default.textPrimary};
-    font-family: inherit;
-    font-size: 0.8125rem;
-
-    &::placeholder {
-      color: ${theme.colors.state.disabled.color};
-    }
-
-    &:focus {
-      outline: none;
-      border-color: ${theme.colors.default.border};
-    }
-  `}
-`;
-
-const Stage = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.75rem;
-  width: min(64rem, 100%);
-  margin: 0 auto;
-  padding: 3rem 2rem 4rem;
-`;
-
-
-
-/* 1.375rem, regular weight. The reference asks a question at reading size and
-   lets the composer below it carry the page; a 40px bold headline made the
-   same words shout. */
-const Title = styled.h1`
-  ${({ theme }) => css`
-    margin: 0;
-    font-size: 1.375rem;
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    color: ${theme.colors.default.textPrimary};
-  `}
-`;
-
-const Mark = styled.span`
-  ${({ theme }) => css`
-    display: flex;
-    width: 1.5rem;
-    height: 1.5rem;
-    color: ${theme.colors.default.textPrimary};
-
-    & > svg {
-      width: 100%;
-      height: 100%;
-    }
-  `}
-`;
-
-/* Shaped like the composer it stands in for. Clicking it opens the assistant
-   rather than accepting a sentence with nowhere to send it. */

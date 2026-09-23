@@ -127,19 +127,23 @@ const Flow = () => {
 
   return (
     <Wrapper>
+      <Window>
       <Columns $assistant={assistantOpen} $work={hasProject}>
-        <NavSidebar
-          onOpenGallery={openGallery}
-          onOpenSettings={() => toggleSettings()}
-          onToggleAssistant={() => setAssistantOpen((o) => !o)}
-          assistantOpen={assistantOpen}
-          status={
-            <StatusChips
-              onToggleSettings={toggleSettings}
-              settingsOpen={settingsOpen}
-            />
-          }
-        />
+        <NavSlot>
+          <NavSidebar
+            onOpenGallery={openGallery}
+            onOpenSettings={() => toggleSettings()}
+            onToggleAssistant={() => setAssistantOpen((o) => !o)}
+            assistantOpen={assistantOpen}
+            showBrand={hasProject}
+            status={
+              <StatusChips
+                onToggleSettings={toggleSettings}
+                settingsOpen={settingsOpen}
+              />
+            }
+          />
+        </NavSlot>
         {hasProject ? (
           <>
           <Conversation $open={assistantOpen}>
@@ -227,6 +231,7 @@ const Flow = () => {
           <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
         </StageRail>
       )}
+      </Window>
 
       <GearSidebar
         open={settingsOpen}
@@ -254,8 +259,31 @@ const Wrapper = styled.div`
     flex-direction: column;
     position: relative;
     overflow: hidden;
+    padding: 0.75rem;
     background: ${theme.colors.default.bgPrimary};
   `}
+`;
+
+/* The product sits in a rounded window inset from the page, the way the
+   reference does: a darker ground around it, one hairline, 16px corners. It is
+   the single strongest signature of that screen and it costs a margin. */
+const Window = styled.div`
+  ${({ theme }) => css`
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 16px;
+    background: ${theme.colors.default.bgSecondary};
+    overflow: hidden;
+  `}
+`;
+
+const NavSlot = styled.div`
+  grid-area: nav;
+  display: flex;
+  min-height: 0;
 `;
 
 // Open, the left track is `auto` so the `Resizable` around `LeftPanel` sets
@@ -272,13 +300,21 @@ const Wrapper = styled.div`
 const Columns = styled.div<{ $assistant: boolean; $work: boolean }>`
   flex: 1;
   display: grid;
-  grid-template-columns:
-    ${({ $work, $assistant }) =>
-      $work
-        ? `auto ${$assistant ? "23rem" : "1.5rem"} 1fr`
-        : "auto 1fr"};
-  gap: ${GAP};
-  padding: ${({ $work }) => ($work ? `${GAP} ${GAP} 0` : "0")};
+  ${({ $work, $assistant }) =>
+    $work
+      ? css`
+          grid-template-areas: "nav conversation work";
+          grid-template-columns: auto ${$assistant ? "23rem" : "1.5rem"} 1fr;
+          gap: ${GAP};
+          padding: ${GAP} ${GAP} 0;
+        `
+      : css`
+          grid-template-areas:
+            "top top"
+            "nav body";
+          grid-template-rows: auto 1fr;
+          grid-template-columns: auto 1fr;
+        `}
   overflow: hidden;
   /* Without these the grid refuses to shrink below its content and pushes the
      stage rail off the bottom of the window. The row needs it, and so does
@@ -293,6 +329,7 @@ const Columns = styled.div<{ $assistant: boolean; $work: boolean }>`
 
 const Work = styled.section`
   ${({ theme }) => css`
+    grid-area: work;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -371,6 +408,7 @@ const Stage = styled.div`
 
 const Conversation = styled.aside<{ $open: boolean }>`
   ${({ theme, $open }) => css`
+    grid-area: conversation;
     position: relative;
     --flow-handle-inset: ${$open ? "1rem" : "0px"};
     width: 100%;
