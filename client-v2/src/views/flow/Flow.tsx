@@ -506,7 +506,7 @@ const Wordmark = styled.button`
     color: ${theme.colors.default.textPrimary};
     font-family: inherit;
     font-size: 0.9375rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: -0.015em;
     white-space: nowrap;
     cursor: pointer;
@@ -630,7 +630,7 @@ const WorkTab = styled.button<{ $current?: boolean }>`
       : theme.colors.default.textSecondary};
     font-family: inherit;
     font-size: 0.875rem;
-    font-weight: ${$current ? 600 : 500};
+    font-weight: 500;
     cursor: pointer;
 
     &:hover {

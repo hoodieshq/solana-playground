@@ -127,7 +127,7 @@ const TextGroup = styled.span`
 const Label = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.default.textPrimary};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.06em;
   `}
 `;

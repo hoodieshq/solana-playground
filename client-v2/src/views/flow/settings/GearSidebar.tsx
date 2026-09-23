@@ -327,7 +327,7 @@ const Title = styled.h2`
   ${({ theme }) => css`
     margin: 0;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

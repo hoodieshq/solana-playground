@@ -53,7 +53,7 @@ const ClickElWrapper = styled.div<{ show: boolean }>`
     justify-content: flex-start;
     width: fit-content;
     user-select: none;
-    font-weight: bold;
+    font-weight: 500;
     color: ${show
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};

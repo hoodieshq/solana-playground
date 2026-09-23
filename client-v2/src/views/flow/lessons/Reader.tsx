@@ -118,7 +118,7 @@ const Bar = styled.div`
 const Title = styled.span`
   ${({ theme }) => css`
     font-family: ${theme.font.other.family};
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

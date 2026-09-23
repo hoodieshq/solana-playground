@@ -51,7 +51,7 @@ const Content = styled.div`
 `;
 
 const ContentTitle = styled.div`
-  font-weight: bold;
+  font-weight: 500;
   font-size: ${({ theme }) => theme.font.code.size.large};
 `;
 

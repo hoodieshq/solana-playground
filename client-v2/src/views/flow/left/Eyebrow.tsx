@@ -12,7 +12,7 @@ const Eyebrow = styled.div`
     padding: 0.75rem 0.75rem 0.375rem;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.other.size.small};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   `}

@@ -148,7 +148,7 @@ const Title = styled.div`
   ${({ theme }) => css`
     margin-top: 0.125rem;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;
@@ -184,7 +184,7 @@ const FrameworkOption = styled.button<{ $active: boolean }>`
       : theme.colors.default.textSecondary};
     font: inherit;
     font-size: 0.8125rem;
-    font-weight: ${$active ? 600 : 500};
+    font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
     transition: border-color ${theme.default.transition.duration.short}

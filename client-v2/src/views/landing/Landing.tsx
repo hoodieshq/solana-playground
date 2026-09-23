@@ -1,5 +1,7 @@
 import { FC } from "react";
-import styled, { css, keyframes } from "styled-components";
+import styled, { css } from "styled-components";
+
+import PixelField from "./PixelField";
 
 /**
  * The landing.
@@ -26,48 +28,10 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
     <Hero>
       <HeroArt aria-hidden="true">
         <Sky />
-        <Arcs viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <linearGradient id="pg-arc" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#9945FF" stopOpacity="0" />
-              <stop offset="35%" stopColor="#9945FF" stopOpacity="0.9" />
-              <stop offset="70%" stopColor="#14F195" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#14F195" stopOpacity="0" />
-            </linearGradient>
-            <filter id="pg-soft">
-              <feGaussianBlur stdDeviation="1.2" />
-            </filter>
-            <filter id="pg-grain">
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.9"
-                numOctaves="3"
-              />
-              <feColorMatrix type="saturate" values="0" />
-            </filter>
-          </defs>
-
-          {/* Eleven ellipses sharing a centre below the horizon: read together
-              they are one long sweep of light coming over the edge. */}
-          <g filter="url(#pg-soft)">
-            {ARCS.map(({ rx, ry, o, w }, i) => (
-              <ellipse
-                key={i}
-                cx="800"
-                cy="540"
-                rx={rx}
-                ry={ry}
-                fill="none"
-                stroke="url(#pg-arc)"
-                strokeWidth={w}
-                opacity={o}
-              />
-            ))}
-          </g>
-          <Grain width="1600" height="900" filter="url(#pg-grain)" />
-        </Arcs>
-        <Horizon />
-        <Vignette />
+        <PixelField />
+        <Grid />
+        <Grain />
+        <Fade />
       </HeroArt>
 
       <Nav aria-label="Main">
@@ -181,28 +145,16 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
 
 export default Landing;
 
-/* Radii chosen so the gaps between arcs widen toward the outside — the way
-   light spreads as it comes over a horizon rather than banding evenly. */
-const ARCS = [
-  { rx: 260, ry: 74, o: 0.95, w: 1 },
-  { rx: 340, ry: 96, o: 0.9, w: 1 },
-  { rx: 430, ry: 122, o: 0.82, w: 1.1 },
-  { rx: 530, ry: 152, o: 0.74, w: 1.1 },
-  { rx: 640, ry: 186, o: 0.66, w: 1.2 },
-  { rx: 760, ry: 224, o: 0.56, w: 1.2 },
-  { rx: 890, ry: 266, o: 0.46, w: 1.3 },
-  { rx: 1030, ry: 312, o: 0.36, w: 1.3 },
-  { rx: 1180, ry: 362, o: 0.27, w: 1.4 },
-  { rx: 1340, ry: 416, o: 0.19, w: 1.4 },
-  { rx: 1510, ry: 474, o: 0.12, w: 1.5 },
-];
-
 const FONT = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
   Helvetica, Arial, sans-serif`;
 
-const INK = "#07070A";
-const TEXT = "#F2F2F3";
-const MUTED = "#A0A0A6";
+/* Read off the poster: an ice periwinkle at the top falling to a deep indigo,
+   on a black page. The same four the brand board carries. */
+const INK = "#050507";
+const ICE = "#C9D4FB";
+const INDIGO = "#1E1B8C";
+const TEXT = "#EDF1FF";
+const MUTED = "rgba(237, 241, 255, 0.66)";
 
 const Page = styled.main`
   min-height: 100vh;
@@ -227,58 +179,73 @@ const HeroArt = styled.div`
   inset: 0;
   z-index: -1;
   overflow: hidden;
+  background: ${INK};
 `;
 
+/* Light at the top, weight at the bottom — the poster's own direction, and it
+   gives the headline dark ground to sit on without a scrim behind it. */
 const Sky = styled.div`
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-      120% 80% at 50% 62%,
-      #2a1a52 0%,
-      #140f2c 42%,
-      ${INK} 78%
-    ),
-    ${INK};
+  background: linear-gradient(
+    180deg,
+    ${ICE} 0%,
+    #A8B5F4 14%,
+    #6E77D6 30%,
+    #3A3AA8 46%,
+    ${INDIGO} 62%,
+    #0D0B44 80%,
+    #060618 100%
+  );
 `;
 
-const drift = keyframes`
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(0, -1.2%, 0) scale(1.03); }
-`;
-
-const Arcs = styled.svg`
+/* A surveyor's grid, not a graph: long faint rules with a tick where they
+   cross, which is the thing that makes the poster read as a record of
+   something rather than a wallpaper. */
+const Grid = styled.div`
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  animation: ${drift} 24s ease-in-out infinite alternate;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
+  opacity: 0.22;
+  background-image: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.5) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+  background-size: 11.5% 15%;
+  mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 85%);
 `;
 
-const Grain = styled.rect`
-  opacity: 0.045;
+/* Grain, as an inline SVG turbulence so it costs one paint and no request.
+   Screen blend keeps it in the light rather than dirtying the dark end. */
+const Grain = styled.div`
+  position: absolute;
+  inset: -50%;
+  opacity: 0.62;
   mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'>\
+<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/>\
+<feColorMatrix type='saturate' values='0'/></filter>\
+<rect width='220' height='220' filter='url(%23n)' opacity='0.55'/></svg>");
 `;
 
-/* The ground: the lower third goes solid so the type has something to sit on
-   without a scrim drawn behind each line. */
-const Horizon = styled.div`
+/* The bottom of the frame goes to the page colour, so the hero ends rather
+   than being cut off by the fold — and on the way it gives the headline and
+   the argument ground to sit on. Without it the glyphs drift straight through
+   the body copy, which looks like a poster and reads like nothing. It falls to
+   indigo before black, so the colour survives the protection. */
+const Fade = styled.div`
   position: absolute;
   inset: auto 0 0 0;
-  height: 46%;
-  background: linear-gradient(to bottom, transparent, ${INK} 62%);
-`;
-
-const Vignette = styled.div`
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    120% 90% at 50% 40%,
-    transparent 40%,
-    rgba(7, 7, 10, 0.55) 100%
+  height: 58%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(12, 10, 58, 0.55) 34%,
+    rgba(7, 6, 32, 0.88) 62%,
+    ${INK} 100%
   );
 `;
 
@@ -346,8 +313,8 @@ const HeroLead = styled.div`
 
 const HeroTitle = styled.h1`
   margin: 0;
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
-  font-weight: 500;
+  font-size: clamp(2.5rem, 6vw, 4.75rem);
+  font-weight: 300;
   line-height: 1.02;
   letter-spacing: -0.03em;
 `;
@@ -355,7 +322,7 @@ const HeroTitle = styled.h1`
 const HeroLine = styled.p`
   margin: 0;
   font-size: clamp(1.25rem, 2.4vw, 1.875rem);
-  font-weight: 400;
+  font-weight: 300;
   line-height: 1.2;
   letter-spacing: -0.015em;
   color: ${MUTED};
@@ -379,7 +346,7 @@ const Cta = styled.button`
   color: ${TEXT};
   font-family: inherit;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition: transform 0.18s ease, background 0.18s ease;
@@ -468,7 +435,7 @@ const Section = styled.section`
 const SectionLabel = styled.h2`
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: 400;
   color: ${MUTED};
 `;
 
@@ -482,7 +449,7 @@ const SectionBody = styled.div`
 const SectionTitle = styled.p`
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2.125rem);
-  font-weight: 500;
+  font-weight: 300;
   line-height: 1.22;
   letter-spacing: -0.02em;
 `;
@@ -508,7 +475,7 @@ const CloseTitle = styled.p`
   margin: 0;
   max-width: 24ch;
   font-size: clamp(1.75rem, 4vw, 3rem);
-  font-weight: 500;
+  font-weight: 300;
   line-height: 1.12;
   letter-spacing: -0.025em;
 `;

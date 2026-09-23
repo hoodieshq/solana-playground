@@ -69,7 +69,7 @@ const MainContent = styled.div`
   }
 `;
 const MainText = styled.span`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const Desc = styled.span`
@@ -98,5 +98,5 @@ const InputWrapper = styled.div`
 
 const InputLabel = styled.div`
   margin-bottom: 0.25rem;
-  font-weight: bold;
+  font-weight: 500;
 `;

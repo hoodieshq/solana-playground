@@ -121,7 +121,7 @@ export const Eyebrow = styled.div`
 export const Title = styled.div`
   ${({ theme }) => css`
     margin-top: 0.125rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
     ${PgTheme.getClampLinesCSS(1)};
   `}

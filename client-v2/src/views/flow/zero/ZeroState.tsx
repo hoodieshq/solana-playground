@@ -334,7 +334,7 @@ const Wordmark = styled.button`
     color: ${theme.colors.default.textPrimary};
     font-family: inherit;
     font-size: 0.9375rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: -0.015em;
     white-space: nowrap;
     cursor: pointer;
@@ -374,7 +374,7 @@ const Tab = styled.button<{ $active: boolean }>`
       : theme.colors.default.textSecondary};
     font-family: inherit;
     font-size: 0.875rem;
-    font-weight: ${$active ? 600 : 500};
+    font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
 
@@ -621,7 +621,7 @@ const CardIcon = styled.span`
 const CardTitle = styled.span`
   ${({ theme }) => css`
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

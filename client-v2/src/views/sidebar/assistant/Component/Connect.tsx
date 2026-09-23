@@ -448,7 +448,7 @@ const Title = styled.h2`
     margin: 0;
     color: ${theme.colors.default.textPrimary};
     font-size: ${theme.font.code.size.medium};
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.5;
   `}
 `;

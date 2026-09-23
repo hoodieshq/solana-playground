@@ -150,7 +150,7 @@ const Headline = styled.h2`
   ${({ theme }) => css`
     margin: 0;
     font-size: ${theme.font.other.size.xlarge};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.01em;
   `}
 `;

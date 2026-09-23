@@ -167,7 +167,7 @@ const Header = styled.div`
 const HeaderTitle = styled.span`
   ${({ theme }) => css`
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;
