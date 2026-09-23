@@ -9,6 +9,7 @@ import StatusChips from "./header/StatusChips";
 import Stepper from "./header/Stepper";
 import NavSidebar from "./nav/NavSidebar";
 import ZeroState from "./zero/ZeroState";
+import type { ZeroSection } from "./zero/ZeroState";
 import LeftPanel from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
@@ -95,6 +96,9 @@ const Flow = () => {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
+  /* Which list the start screen is showing. It lives here because the sidebar
+     drives it and the start screen draws it, and they are siblings. */
+  const [section, setSection] = useState<ZeroSection>("home");
   // Lives here, not in `LeftPanel`: toggling the surface would otherwise
   // remount the panel and lose whatever it held.
   const [pendingCreate, setPendingCreate] = useState(false);
@@ -153,7 +157,14 @@ const Flow = () => {
     setSettingsFocus(focus);
     setSettingsOpen((open) => !open);
   };
-  const goHome = () => setView("home");
+  const goHome = () => {
+    setView("home");
+    setSection("home");
+  };
+  const goSection = (next: ZeroSection) => {
+    setView("home");
+    setSection(next);
+  };
   const openProject = (name: string) => {
     if (name === PgExplorer.currentWorkspaceName) setView("project");
     else PgExplorer.switchWorkspace(name);
@@ -196,6 +207,8 @@ const Flow = () => {
             onOpenProject={openProject}
             onToggleSidebar={toggleSidebar}
             status={status}
+            section={inProject ? null : section}
+            onSection={goSection}
           />
         </NavSlot>
 
@@ -339,6 +352,8 @@ const Flow = () => {
             onAskAssistant={showAssistant}
             sidebarOpen={sidebarOpen}
             onShowSidebar={toggleSidebar}
+            section={section}
+            onSection={setSection}
           />
         )}
       </Layout>

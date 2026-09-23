@@ -11,31 +11,39 @@ import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
- * What you meet with no project open: a bar across the top of the window, and
- * one column in the middle — a mark, a question, the composer, three ways in,
- * and the gallery under them.
+ * What you meet with no project open: a head that names the list you are on,
+ * and one column under it — a question, the composer, three ways in, and the
+ * list itself.
  *
- * Positions follow the reference product screen by screen: the mark and the
- * switches on the left of the bar, search in its centre with the shortcut
- * shown, the composer at 46rem with its controls along the bottom edge, three
- * equal cards beneath it. What each thing *is* stays ours — Start, Tutorials,
- * Programs; New project, Follow a tutorial, Open a program — because those are
- * the things this product actually has.
+ * The head used to carry the whole navigation: Start / Tutorials / Programs as
+ * switches, and a search field in the middle. Both moved. The switches were
+ * destinations, so they are rows in the sidebar with the other destinations,
+ * and "Start" turned out to be a second name for Home. Search filters one
+ * list, so it sits on that list rather than in a bar above everything — it was
+ * offering to search a page that had no list on it at all.
  *
- * Rendered as `display: contents`, so the bar and the body take their places
- * in the layout grid Flow draws around the sidebar.
+ * What is left in the head is the name of what you are looking at, in the same
+ * place a project's name sits in the same row of the same column.
  */
 
 interface ZeroStateProps {
   /** Opens the assistant column so a question has somewhere to go */
   onAskAssistant: () => void;
-  /** Cluster, wallet and account — the right end of the bar, as in a project */
-  /** Whether the nav column is showing — this bar offers the way back */
+  /** Whether the nav column is showing — this head offers the way back */
   sidebarOpen: boolean;
   onShowSidebar: () => void;
+  /** Which list is showing. The sidebar drives it; this draws it. */
+  section: ZeroSection;
+  onSection: (section: ZeroSection) => void;
 }
 
-type Switch = "start" | "tutorials" | "programs";
+export type ZeroSection = "home" | "tutorials" | "programs";
+
+const SECTION_TITLE: Record<ZeroSection, string> = {
+  home: "Home",
+  tutorials: "Tutorials",
+  programs: "Programs",
+};
 
 const PROGRAMS_URL = "/programs/programs.json";
 
@@ -43,8 +51,9 @@ const ZeroState: FC<ZeroStateProps> = ({
   onAskAssistant,
   sidebarOpen,
   onShowSidebar,
+  section,
+  onSection,
 }) => {
-  const [active, setActive] = useState<Switch>("start");
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
   /** Whether the scratch row is open under the cards */
@@ -61,80 +70,24 @@ const ZeroState: FC<ZeroStateProps> = ({
     };
   }, []);
 
-  // A switch changes what is under the composer; it never opens a window
-  const pick = (id: Switch) => {
-    setActive(id);
-    setQuery("");
-  };
+  // Each list keeps its own empty search rather than the last one's text
+  useEffect(() => setQuery(""), [section]);
 
-  const onStart = active === "start";
+  const onStart = section === "home";
 
   return (
     <Shell>
       <TopBar>
-        <BarLeft>
-          {/* The wordmark and the account live at the head of the sidebar now.
-              This bar says what the page below it is, and nothing else. */}
-          {!sidebarOpen && (
-            <IconButton
-              type="button"
-              onClick={onShowSidebar}
-              aria-label="Show the sidebar"
-            >
-              {ICONS.sidebar}
-            </IconButton>
-          )}
-          <Switches role="tablist" aria-label="Where to start">
-            {SWITCHES.map(({ id, label, icon }) => (
-              <Tab
-                key={id}
-                type="button"
-                role="tab"
-                id={`zero-tab-${id}`}
-                aria-selected={active === id}
-                aria-controls="zero-panel"
-                $active={active === id}
-                onClick={() => pick(id)}
-              >
-                <Glyph aria-hidden="true">{icon}</Glyph>
-                {label}
-              </Tab>
-            ))}
-          </Switches>
-        </BarLeft>
-
-        {onStart ? (
-          <SearchButton type="button" onClick={() => pick("tutorials")}>
-            <Glyph aria-hidden="true">{ICONS.search}</Glyph>
-            <span>Search</span>
-            <Kbd>⌘K</Kbd>
-          </SearchButton>
-        ) : (
-          <SearchWrap>
-            <Glyph aria-hidden="true">{ICONS.search}</Glyph>
-            <SearchInput
-              type="search"
-              value={query}
-              autoFocus
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${active}`}
-              aria-label={`Search ${active}`}
-            />
-            <Kbd>⌘K</Kbd>
-          </SearchWrap>
-        )}
-
-        <BarRight>
+        {!sidebarOpen && (
           <IconButton
-            as="a"
-            href="https://solana.com/docs"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Documentation"
+            type="button"
+            onClick={onShowSidebar}
+            aria-label="Show the sidebar"
           >
-            {ICONS.help}
+            {ICONS.sidebar}
           </IconButton>
-        </BarRight>
+        )}
+        <BarTitle>{SECTION_TITLE[section]}</BarTitle>
       </TopBar>
 
       <Body>
@@ -159,12 +112,12 @@ const ZeroState: FC<ZeroStateProps> = ({
                 <CardTitle>New project</CardTitle>
                 <CardSub>Anchor, Native or Seahorse</CardSub>
               </Card>
-              <Card type="button" onClick={() => pick("tutorials")}>
+              <Card type="button" onClick={() => onSection("tutorials")}>
                 <CardIcon aria-hidden="true">{ICONS.book}</CardIcon>
                 <CardTitle>Follow a tutorial</CardTitle>
                 <CardSub>{PgTutorial.all.length} guided paths</CardSub>
               </Card>
-              <Card type="button" onClick={() => pick("programs")}>
+              <Card type="button" onClick={() => onSection("programs")}>
                 <CardIcon aria-hidden="true">{ICONS.code}</CardIcon>
                 <CardTitle>Open a program</CardTitle>
                 <CardSub>
@@ -176,16 +129,18 @@ const ZeroState: FC<ZeroStateProps> = ({
 
           <Panel
             id="zero-panel"
-            role="tabpanel"
-            aria-labelledby={`zero-tab-${active}`}
-            key={active + (scratchOpen ? "-scratch" : "")}
+            aria-label={SECTION_TITLE[section]}
+            key={section + (scratchOpen ? "-scratch" : "")}
           >
             {onStart && scratchOpen && <StartFromScratch />}
             {onStart && (
               <>
                 <PanelHead>
                   <PanelLabel>Or learn from one of these</PanelLabel>
-                  <PanelMore type="button" onClick={() => pick("tutorials")}>
+                  <PanelMore
+                    type="button"
+                    onClick={() => onSection("tutorials")}
+                  >
                     All {PgTutorial.all.length}
                   </PanelMore>
                 </PanelHead>
@@ -194,8 +149,27 @@ const ZeroState: FC<ZeroStateProps> = ({
                 </Clip>
               </>
             )}
-            {active === "tutorials" && <TutorialsTab query={query} />}
-            {active === "programs" && (
+            {!onStart && (
+              <ListHead>
+                <SearchWrap>
+                  <Glyph aria-hidden="true">{ICONS.search}</Glyph>
+                  <SearchInput
+                    type="search"
+                    value={query}
+                    autoFocus
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={`Search ${SECTION_TITLE[
+                      section
+                    ].toLowerCase()}`}
+                    aria-label={`Search ${SECTION_TITLE[
+                      section
+                    ].toLowerCase()}`}
+                  />
+                </SearchWrap>
+              </ListHead>
+            )}
+            {section === "tutorials" && <TutorialsTab query={query} />}
+            {section === "programs" && (
               <ProgramsTab query={query} programs={programs} />
             )}
           </Panel>
@@ -291,12 +265,6 @@ const ICONS = {
   ),
 };
 
-const SWITCHES: Array<{ id: Switch; label: string; icon: JSX.Element }> = [
-  { id: "start", label: "Start", icon: ICONS.spark },
-  { id: "tutorials", label: "Tutorials", icon: ICONS.book },
-  { id: "programs", label: "Programs", icon: ICONS.code },
-];
-
 /* ── layout ────────────────────────────────────────────────────────────── */
 
 const rise = keyframes`
@@ -317,76 +285,17 @@ const Shell = styled.div`
   overflow: hidden;
 `;
 
-/* Switches left, search dead centre, the rest on the right — the head of this
-   screen, the width of this screen, and the same height as the sidebar's head
-   beside it, so the one rule runs straight across. */
+/* The name of what you are looking at, in the row and the column a project's
+   name uses, at the height the sidebar's head uses beside it. */
 const TopBar = styled.header`
   ${({ theme }) => css`
     flex-shrink: 0;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
     align-items: center;
+    gap: 0.5rem;
     height: ${HEAD_HEIGHT};
     padding: 0 0.5rem 0 calc(${HEAD_INSET} - 0.125rem);
     border-bottom: 1px solid ${theme.colors.default.border};
-  `}
-`;
-
-const BarLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  /* The zones either side may shrink; the search field in the middle keeps
-     its width, which is what stopped it being squeezed to 247px. */
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const BarRight = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const Switches = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-`;
-
-/* The current one is a filled pill; the others are plain text with their
-   glyph. One way of saying "this one", used again by the framework picker. */
-const Tab = styled.button<{ $active: boolean }>`
-  ${({ theme, $active }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    height: 1.875rem;
-    padding: 0 0.75rem;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: transparent;
-    ${$active && gradientStroke(theme.colors.state.hover.bg)}
-    color: ${$active
-      ? theme.colors.default.textPrimary
-      : theme.colors.default.textSecondary};
-    font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
   `}
 `;
 
@@ -421,21 +330,21 @@ const searchShape = css`
   `}
 `;
 
-const SearchButton = styled.button`
-  ${searchShape}
-  text-align: left;
-  cursor: pointer;
+/* Search sits on the list it filters. In the bar it offered to search a page
+   that had no list on it. */
+const ListHead = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
 
-  /* The label, not the glyph — both are spans, and a rule on the tag alone
-     gave the icon half the box and pushed the word to the middle. */
-  & > span:not([aria-hidden]) {
-    flex: 1;
-    text-align: left;
-  }
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.default.textSecondary};
-  }
+const BarTitle = styled.h1`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textSecondary};
+  `}
 `;
 
 const SearchWrap = styled.div`
@@ -461,14 +370,6 @@ const SearchInput = styled.input`
     &:focus {
       outline: none;
     }
-  `}
-`;
-
-const Kbd = styled.kbd`
-  ${({ theme }) => css`
-    font-family: inherit;
-    font-size: 0.75rem;
-    color: ${theme.colors.state.disabled.color};
   `}
 `;
 
