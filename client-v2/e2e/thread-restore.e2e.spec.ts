@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { validate as isUuid } from "uuid";
 import type { Page } from "@playwright/test";
 
 /**
@@ -42,10 +43,17 @@ const threadId = (page: Page) =>
     () => (window as AssistantWindow).__pgAssistant?.threadId ?? null
   );
 
+/** `expect.poll` needs a value to compare, and `validate` is the check */
+const threadIdIsUuid = async (page: Page) =>
+  isUuid((await threadId(page)) ?? "");
+
 /** Waits for the panel to mount, then writes one message through the store */
 const remember = async (page: Page) => {
   await expect
-    .poll(() => page.evaluate(() => !!(window as AssistantWindow).__pgAssistant), LONG)
+    .poll(
+      () => page.evaluate(() => !!(window as AssistantWindow).__pgAssistant),
+      LONG
+    )
     .toBe(true);
   await expect.poll(() => threadId(page), LONG).toBeTruthy();
 
@@ -60,7 +68,10 @@ const remember = async (page: Page) => {
 const stillRemembers = async (page: Page) => {
   await page.reload();
   await expect
-    .poll(() => page.evaluate(() => !!(window as AssistantWindow).__pgAssistant), LONG)
+    .poll(
+      () => page.evaluate(() => !!(window as AssistantWindow).__pgAssistant),
+      LONG
+    )
     .toBe(true);
   await expect.poll(() => items(page), LONG).toContain("remember me");
 
@@ -108,7 +119,10 @@ test("a tutorial conversation is restored after a reload", async ({ page }) => {
   // Opening only routes there -- START is what creates the workspace, and
   // without one there is no id to key a conversation on
   await page.getByRole("button", { name: "START", exact: true }).click();
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   await remember(page);
   await stillRemembers(page);

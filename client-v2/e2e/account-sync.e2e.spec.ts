@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { validate as isUuid } from "uuid";
 import type { Page, Route } from "@playwright/test";
 
 /**
@@ -12,7 +13,7 @@ import type { Page, Route } from "@playwright/test";
  * modules underneath were individually passing their own tests.
  *
  * The server's side of the same contract is covered against a real database in
- * `src/features/persistence/server/projects.test.mjs`.
+ * `src/features/persistence/model/projects.test.mjs`.
  */
 
 const LONG = { timeout: 60_000 };
@@ -87,6 +88,10 @@ const threadId = (page: Page) =>
         .__pgAssistant?.threadId ?? null
   );
 
+/** `expect.poll` needs a value to compare, and `validate` is the check */
+const threadIdIsUuid = async (page: Page) =>
+  isUuid((await threadId(page)) ?? "");
+
 test("a signed-in browser takes on the whole account", async ({ page }) => {
   test.setTimeout(240_000);
   await stubAccount(page);
@@ -98,7 +103,10 @@ test("a signed-in browser takes on the whole account", async ({ page }) => {
     "Hello Anchor",
     LONG
   );
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   // The gallery greets an empty browser, and this one only looked empty while
   // the account was still answering
@@ -590,7 +598,10 @@ test("a started tutorial hands over its keypair and progress", async ({
     .getByRole("button", { name: "Open" })
     .click();
   await page.getByRole("button", { name: "START", exact: true }).click();
-  await expect.poll(() => threadId(page), LONG).toBe("tut:hello-anchor");
+  // The thread id is the conversation's own, not the workspace's: a project
+  // may hold several. What matters here is that opening the lesson opened a
+  // conversation at all.
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
   // The keypair is written after the workspace is up, not with it
   await page.waitForTimeout(5000);
 

@@ -112,6 +112,64 @@ describe("PgAssistant item identity", () => {
   });
 });
 
+describe("PgAssistant reply provenance", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    PgAssistant.disconnect();
+    PgAssistant.clear();
+  });
+
+  it("records the backend that wrote a reply", () => {
+    PgAssistant.connect({
+      id: "openai",
+      apiKey: "sk-test",
+      endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+    });
+
+    PgAssistant.startAssistantMessage();
+
+    expect(PgAssistant.items[0]).toMatchObject({
+      origin: {
+        provider: "openai",
+        model: "gpt-5.1",
+        baseUrl: "https://api.openai.com/v1",
+      },
+    });
+  });
+
+  it("never records the key", () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-secret" });
+
+    PgAssistant.startAssistantMessage();
+
+    expect(JSON.stringify(PgAssistant.items)).not.toContain("sk-ant-secret");
+  });
+
+  it("records nothing when nothing is connected", () => {
+    PgAssistant.startAssistantMessage();
+
+    expect(PgAssistant.items[0]).not.toHaveProperty("origin");
+  });
+
+  it("follows the user switching backends mid-thread", () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    PgAssistant.startAssistantMessage();
+
+    PgAssistant.connect({
+      id: "gemini",
+      apiKey: "k",
+      endpoint: { baseUrl: "https://g", model: "gemini-3.6-flash" },
+    });
+    PgAssistant.startAssistantMessage();
+
+    // Switching backends clears the conversation, so the second reply stands
+    // alone -- but it stands alone carrying the backend that produced it
+    expect(PgAssistant.items[0]).toMatchObject({
+      origin: { provider: "gemini", model: "gemini-3.6-flash" },
+    });
+  });
+});
+
 describe("PgAssistant backend memory", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -149,6 +207,10 @@ describe("PgAssistant threads", () => {
     // `clear` keeps the open thread on purpose, so close it explicitly or a
     // previous test's thread keeps receiving writes
     PgAssistant.closeThread();
+    // And `closeThread` leaves items alone when no thread is open, so that a
+    // message typed before one resolves is adopted rather than dropped --
+    // which means a previous case's orphan would follow us in here
+    PgAssistant.clear();
   });
 
   it("writes the open thread through to storage on every change", async () => {
@@ -217,6 +279,30 @@ describe("PgAssistant threads", () => {
     await settled();
 
     expect(await PgChatStorage.threadIds()).toEqual([]);
+  });
+
+  it("gives the thread that opens the messages typed before it did", async () => {
+    // The panel is mounted before the workspace announces itself, so a
+    // message can be sent with nowhere yet to put it. Losing it would be the
+    // user watching what they typed disappear.
+    PgAssistant.addUserMessage("typed while it was still opening");
+    await PgAssistant.loadThread("t1");
+    await settled();
+
+    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+  });
+
+  it("leaves the previous conversation behind when switching thread", async () => {
+    await PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("in one");
+    await settled();
+
+    await PgAssistant.loadThread("t2");
+    await settled();
+
+    // Adoption is for messages with no thread, never for another thread's
+    expect(PgAssistant.items).toHaveLength(0);
+    expect(await PgChatStorage.read("t2")).toHaveLength(0);
   });
 
   it("does not overwrite a thread when the panel resets on backend switch", async () => {

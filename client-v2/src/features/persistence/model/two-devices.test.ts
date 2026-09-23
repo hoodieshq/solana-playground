@@ -19,7 +19,7 @@ import { PgFs } from "../../../utils/explorer/fs";
  * The server here is a stand-in that keeps the `/api/projects` contract --
  * including its three write modes, because which one a client takes is most of
  * what this file is about. The real one is covered against a real database in
- * `src/features/persistence/server/projects.test.mjs`.
+ * `src/features/persistence/model/projects.test.mjs`.
  */
 
 interface StoredProject {

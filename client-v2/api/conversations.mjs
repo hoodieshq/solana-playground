@@ -4,19 +4,24 @@
  * Deliberately plain ESM using raw Node request/response APIs, like the rest
  * of `api/` -- see `api/health.mjs` for why.
  */
-import {
-  requireUser,
-  resolveBaseURL,
-} from "../src/features/auth/server/auth.mjs";
+import { validate as isUuid } from "uuid";
+
+import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   appendMessages,
+  getThread,
+  isEnabled,
   listMessages,
-} from "../src/features/persistence/server/conversations.mjs";
-import { isEnabled } from "../src/features/persistence/server/db.mjs";
+  listThreads,
+  NotYours,
+} from "../src/features/persistence/server.mjs";
 
 /** Anything larger is not a conversation batch, it is an attack or a bug */
 const MAX_BODY_BYTES = 2_000_000;
 const MAX_ITEMS = 500;
+
+/** Long enough for a sentence lifted off the first message, no longer */
+const MAX_TITLE = 200;
 
 /**
  * The kinds `messages_kind_check` accepts. Checked here so that a malformed
@@ -37,14 +42,17 @@ const KINDS = new Set([
  * item id to.
  *
  * Hex groups only, with no attempt to pin the version or variant nibbles --
- * deliberately looser than `crypto.randomUUID`'s output. The job here is to
- * keep a cast from throwing, not to police how an id was minted: a v7 id, or
- * one carried over from an older client, casts perfectly well, and rejecting
- * it would drop a message the database would have taken. Postgres also accepts
- * a braced or unhyphenated form; we mint our own ids and never write those, so
- * nothing is lost by not matching them.
+ * deliberately looser than `uuid`'s own `validate`, which is why this is not
+ * that. The job here is to keep a cast from throwing, not to police how an id
+ * was minted: a v7 id, or one carried over from an older client, casts
+ * perfectly well, and rejecting it would drop a message the database would
+ * have taken. Postgres also accepts a braced or unhyphenated form; we mint our
+ * own ids and never write those, so nothing is lost by not matching them.
+ *
+ * A `threadId` is the other question and gets the other check: that one is
+ * always ours, always a v4, and `isUuid` is right for it.
  */
-const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const CASTABLE_UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 /**
  * Whether one item is something the insert can be handed.
@@ -61,7 +69,7 @@ const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 export const isValidItem = (i) =>
   !!i &&
   typeof i.id === "string" &&
-  UUID.test(i.id) &&
+  CASTABLE_UUID.test(i.id) &&
   typeof i.createdAt === "string" &&
   !Number.isNaN(Date.parse(i.createdAt)) &&
   KINDS.has(i.kind);
@@ -143,18 +151,36 @@ export default async function handler(req, res) {
 
   // One `try` around both branches that reach the database: without it a
   // driver error is an unhandled rejection on the platform rather than a
-  // response. Nothing here maps to a status of its own the way a name
-  // collision does in `api/projects.mjs` -- the append either conflicts
-  // harmlessly, which `on conflict do nothing` already absorbs, or fails for a
-  // reason no client can act on, so a generic 500 is the honest answer.
+  // response. `NotYours` is the one failure that maps to a status of its own;
+  // anything else either conflicts harmlessly, which `on conflict do nothing`
+  // already absorbs, or fails for a reason no client can act on, so a generic
+  // 500 is the honest answer.
   try {
     if (req.method === "GET") {
+      const threadId = url.searchParams.get("threadId");
       const projectId = url.searchParams.get("projectId");
-      if (!projectId)
-        return sendJson(res, 400, { error: "projectId required" });
-      return sendJson(res, 200, {
-        items: await listMessages(user.id, projectId),
-      });
+
+      // One thread with its messages
+      if (threadId) {
+        if (!isUuid(threadId)) {
+          return sendJson(res, 400, { error: "threadId must be a uuid" });
+        }
+        const thread = await getThread(user.id, threadId);
+        if (!thread) return sendJson(res, 404, { error: "No such thread" });
+        return sendJson(res, 200, {
+          thread,
+          items: await listMessages(user.id, threadId),
+        });
+      }
+
+      // Every thread on a project, without their messages
+      if (projectId) {
+        return sendJson(res, 200, {
+          threads: await listThreads(user.id, projectId),
+        });
+      }
+
+      return sendJson(res, 400, { error: "threadId or projectId required" });
     }
 
     if (req.method === "POST") {
@@ -167,10 +193,23 @@ export default async function handler(req, res) {
       }
       if (read.error) return sendJson(res, 400, { error: "Body must be JSON" });
 
-      const { projectId, items } = read.body;
-      if (typeof projectId !== "string" || !Array.isArray(items)) {
-        return sendJson(res, 400, { error: "projectId and items required" });
+      const { threadId, projectId, title, items } = read.body;
+      if (typeof threadId !== "string" || !isUuid(threadId)) {
+        return sendJson(res, 400, { error: "threadId must be a uuid" });
       }
+      if (typeof projectId !== "string" || !projectId) {
+        return sendJson(res, 400, { error: "projectId required" });
+      }
+      if (!Array.isArray(items)) {
+        return sendJson(res, 400, { error: "items required" });
+      }
+      if (
+        title != null &&
+        (typeof title !== "string" || title.length > MAX_TITLE)
+      ) {
+        return sendJson(res, 400, { error: "Malformed title" });
+      }
+
       if (items.length > MAX_ITEMS) {
         return sendJson(res, 413, {
           error: `At most ${MAX_ITEMS} items`,
@@ -182,10 +221,21 @@ export default async function handler(req, res) {
       }
 
       return sendJson(res, 200, {
-        written: await appendMessages(user.id, projectId, items),
+        written: await appendMessages(
+          user.id,
+          { threadId, projectId, title: title ?? null },
+          items
+        ),
       });
     }
   } catch (e) {
+    // An id that is somebody else's reads the same as one that does not
+    // exist: confirming which would turn this route into an oracle for
+    // guessed uuids
+    if (e instanceof NotYours) {
+      return sendJson(res, 404, { error: "No such thread" });
+    }
+
     // The driver's own text stays server side: it names columns, constraints
     // and sometimes the values that tripped them.
     //

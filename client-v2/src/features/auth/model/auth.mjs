@@ -12,7 +12,7 @@
  */
 import { betterAuth } from "better-auth";
 
-import { getPool, isConfigured } from "../../persistence/server/db.mjs";
+import { getPool, isConfigured } from "../../persistence/server.mjs";
 
 let instance = null;
 

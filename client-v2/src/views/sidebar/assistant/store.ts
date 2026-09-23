@@ -43,9 +43,48 @@ interface ChatItemBase {
   createdAt: string;
 }
 
+/**
+ * Which backend a thread was created with, or a reply produced by.
+ *
+ * Never the API key, in any form -- not the value, not a hash, not the last
+ * four characters. See `docs/decisions.md` -> D3 and D39: the key is held in
+ * memory for a reason that persisting a conversation does not change.
+ */
+export interface BackendParams {
+  provider: ProviderId;
+  /** Absent only on a backend that picks its own model server-side */
+  model?: string;
+  /** Only the OpenAI-compatible providers have one */
+  baseUrl?: string;
+  effort?: Effort;
+}
+
+/** The parameters a connection is identified by, with the key left behind */
+export const paramsOf = (
+  connection: Connection | null
+): BackendParams | undefined => {
+  if (!connection) return undefined;
+
+  const params: BackendParams = { provider: connection.id };
+  const model = connection.endpoint?.model ?? connection.settings?.model;
+  if (model) params.model = model;
+  if (connection.endpoint?.baseUrl)
+    params.baseUrl = connection.endpoint.baseUrl;
+  if (connection.settings?.effort) params.effort = connection.settings.effort;
+  return params;
+};
+
 export type ChatItem =
   | (ChatItemBase & { kind: "user"; text: string })
-  | (ChatItemBase & { kind: "assistant"; text: string })
+  | (ChatItemBase & {
+      kind: "assistant";
+      text: string;
+      /**
+       * What produced this reply. Absent on a thread restored from before
+       * replies recorded it, and on one written while nothing was connected.
+       */
+      origin?: BackendParams;
+    })
   | (ChatItemBase & { kind: "tool"; label: string })
   | (ChatItemBase & {
       kind: "approval";
@@ -404,11 +443,18 @@ export class PgAssistant {
   /** Start an assistant message and return its id so text can stream into it */
   static startAssistantMessage() {
     const id = makeId();
+    // Stamped here because this is the only moment the panel knows what is
+    // answering. A thread records the backend it was created with; a reply
+    // records the one that wrote it, and the two differ as soon as the user
+    // switches backends. Spread rather than assigned, so a reply written with
+    // nothing connected has no `origin` key at all rather than an empty one.
+    const origin = paramsOf(PgAssistant._connection);
     PgAssistant._items.push({
       kind: "assistant",
       id,
       createdAt: now(),
       text: "",
+      ...(origin ? { origin } : {}),
     });
     PgAssistant._emit();
     return id;
@@ -571,6 +617,12 @@ export class PgAssistant {
    * keep writing into whichever thread happened to be open last.
    */
   static closeThread() {
+    // Nothing open is nothing to close. Clearing anyway would throw away
+    // messages typed before the first thread finished resolving -- the ones
+    // `loadThread` is about to adopt -- and the explorer announces a switch
+    // late enough for that to be an ordinary sequence, not a rare one.
+    if (PgAssistant._threadId === null) return;
+
     PgAssistant._denyPending();
     PgAssistant._threadId = null;
     PgAssistant._readOnly = false;
@@ -597,6 +649,14 @@ export class PgAssistant {
   static async loadThread(threadId: string, force = false) {
     if (!force && PgAssistant._threadId === threadId) return;
 
+    // Messages sitting in a panel with no thread open belong to nothing yet:
+    // the thread that opens adopts them, rather than what the user typed
+    // vanishing because a read was still in flight. On a switch there *is* a
+    // previous thread and its messages stay with it, which is why this is
+    // conditional -- see `effects/chat-thread`, which closes the old thread
+    // before resolving the new one so the gap has no owner.
+    const orphans = PgAssistant._threadId === null ? PgAssistant._items : [];
+
     PgAssistant._denyPending();
     PgAssistant._threadId = threadId;
     PgAssistant._items = [];
@@ -610,10 +670,19 @@ export class PgAssistant {
     // else the panel can show -- but it must not be *persisted* as empty. The
     // next `_persist()` would write this back over a file that may still be
     // recoverable, so the thread stays closed to writes until it reads
-    // cleanly. `__pgChatStorage.lastFailure` says why.
-    PgAssistant._items = items ?? [];
+    // cleanly. `__pgChatStorage.lastFailure` says why. Set before the emit
+    // below, which is where `_persist` reads it.
     PgAssistant._readOnly = items === null;
-    PgAssistant._emitOnly();
+
+    // Whatever is in `_items` now arrived during the read, for this thread
+    const adopted = [...orphans, ...PgAssistant._items];
+    PgAssistant._items = [...(items ?? []), ...adopted];
+    // `_emit` rather than `_emitOnly` when something was adopted: those
+    // messages have never been written down under this thread. On a read-only
+    // thread `_persist` declines regardless, so they stay on screen without
+    // overwriting a file that may still be recoverable.
+    if (adopted.length) PgAssistant._emit();
+    else PgAssistant._emitOnly();
   }
 
   /**
