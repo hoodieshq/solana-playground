@@ -285,9 +285,15 @@ const Columns = styled.div<{ $assistant: boolean }>`
   gap: ${GAP};
   padding: ${GAP} ${GAP} 0;
   overflow: hidden;
-  /* Without this the grid refuses to shrink below its content and pushes the
-     stage rail off the bottom of the window. */
+  /* Without these the grid refuses to shrink below its content and pushes the
+     stage rail off the bottom of the window. The row needs it, and so does
+     every track in it: a grid item's default min-height is its content, so the
+     sidebar's own list was setting the floor for the whole layout. */
   min-height: 0;
+
+  & > * {
+    min-height: 0;
+  }
 `;
 
 const Work = styled.section`

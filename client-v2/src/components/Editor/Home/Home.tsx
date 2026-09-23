@@ -146,6 +146,10 @@ const ResourceCard = styled.a<{ $wide?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    /* The theme pins these to a 15rem square, which is why they would not fill
+       a grid column or honour a span. The grid sizes them now. */
+    width: auto;
+    height: auto;
     min-height: 9.5rem;
     padding: 1.125rem;
     text-decoration: none;
