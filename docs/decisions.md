@@ -2584,3 +2584,71 @@ under their own keys with `PgTheme`'s own migration, also unchanged.
 **Revisit when** another setting starts holding an address we provide;
 it joins `ENDPOINT_SETTINGS` and gets keyed options, or it will go stale
 the same way.
+
+---
+
+## D48 - A thread records no backend; only a reply does
+
+**Date:** 2026-09-23 - **Status:** decided (Cat via Sergey, Alexander, Slava),
+implemented in PR #30 (`11d2aeaf`)
+
+D39 gave a conversation four columns naming the backend it was created with:
+`provider`, `model`, `base_url`, `effort` on `conversations`, with a check
+constraint listing the providers we serve. They are gone. What each reply ran
+on stays on the reply, in `messages.payload.origin`.
+
+Sergey, relaying Cat on PR #30: *"she thought that the conversation should be
+model-agnostic."* Alexander had reached the same place in Slack from the other
+direction: *"по сути оно и так агностик, ты можешь переключить модель и ничего
+не произойдёт с тредом."*
+
+**They were right, and the code already agreed without saying so.**
+`toReplayMessages` (`features/persistence/model/replay.ts`) reduces a thread to
+`{role, content}` pairs, documented as "as every backend understands it", and
+that is what `Chat.tsx` hands a newly created provider. It is how a reload
+works: the key is in memory only (D3), so after a reload nothing is connected,
+and whichever backend the user picks next is handed the existing transcript --
+including one written by a different provider. The columns were never what made
+a model switchable.
+
+**They were also not a record worth keeping.** `ensureThread` inserts
+`on conflict (id) do nothing`, so they were written by whichever push created
+the row and never updated:
+
+- a thread whose first push preceded its first reply -- the sign-in dump, or a
+  question sent with nothing connected -- kept `provider = null` for good;
+- a second device's parameters were silently discarded;
+- `conversations_provider_check` put the client's provider enum in the schema,
+  making every new provider a migration.
+
+A column nobody can filter on and nobody can render is worse than no column.
+
+**Nikita's redesign points the same way.** A model pill in the composer is a
+control the user is meant to flip mid-conversation, the way Cursor and Claude
+do it, so one thread will routinely be answered by more than one model. A
+single backend recorded against the thread would be untrue for most of them.
+
+**What stays:** `messages.payload.origin` -- provider, model, base URL, effort,
+never the key in any form (D3, D39). A fact about one reply, written when it is
+true, already inside the jsonb, so it costs no schema. It is provenance, not a
+lookup key; nothing reads it yet.
+
+**Rejected: keep the columns and maintain them on every append.** That is the
+shape they would need to be trustworthy, and it is the right shape if a thread
+list ever has to answer "which of my threads ran on Opus". It is not worth
+building before a UI asks for it, and reintroducing it then is a migration
+either way.
+
+**Rejected: a drop migration on top.** The schema has not shipped, which is the
+case `db/README.md` reserves for editing history in place, so
+`20260923001947_conversation_backend_params` is deleted outright. Anyone
+holding a preview database needs a rollback and re-apply.
+
+**The parameter allowlist went with them.** The route had one so a client
+sending an API key got a 400 rather than a credential in Postgres. With no
+`params` field there is nothing for a key to arrive in; the test that guarded
+it now asserts the whole request body carries nothing key-shaped.
+
+**Revisit when** a thread picker needs to answer "which of my threads ran on
+this model" without reading their messages. That is the column's real use, and
+it comes back maintained on append, not written once at insert.
