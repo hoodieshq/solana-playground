@@ -2,7 +2,6 @@ import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { PgExplorer } from "../../../utils";
-import { gradientStroke } from "../components/gradient";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
 /**
@@ -34,6 +33,9 @@ interface NavSidebarProps {
   onOpenSettings: () => void;
   /** Opens a project by name and switches to the project view */
   onOpenProject: (name: string) => void;
+  /** Which start-screen list is showing, or null inside a project */
+  section: "home" | "tutorials" | "programs" | null;
+  onSection: (section: "home" | "tutorials" | "programs") => void;
   /** Collapses this column. The way back lives in whatever is beside it. */
   onToggleSidebar: () => void;
   /** Cluster, wallet, account — the session, which belongs to this column */
@@ -50,6 +52,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
   onOpenProject,
   onToggleSidebar,
   status,
+  section,
+  onSection,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -104,8 +108,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
           <Row
             onClick={onHome}
             type="button"
-            $current={homeActive}
-            aria-current={homeActive ? "page" : undefined}
+            $current={homeActive && section === "home"}
+            aria-current={homeActive && section === "home" ? "page" : undefined}
           >
             <Glyph aria-hidden="true">{ICONS.home}</Glyph>
             Home
@@ -113,6 +117,27 @@ const NavSidebar: FC<NavSidebarProps> = ({
           <Row onClick={onOpenGallery} type="button">
             <Glyph aria-hidden="true">{ICONS.plus}</Glyph>
             New project
+          </Row>
+          {/* These were switches in the start screen's own bar, where "Start"
+              was a second name for Home. They are destinations, so they live
+              with the destinations, and Home is the one that was Start. */}
+          <Row
+            onClick={() => onSection("tutorials")}
+            type="button"
+            $current={section === "tutorials"}
+            aria-current={section === "tutorials" ? "page" : undefined}
+          >
+            <Glyph aria-hidden="true">{ICONS.book}</Glyph>
+            Tutorials
+          </Row>
+          <Row
+            onClick={() => onSection("programs")}
+            type="button"
+            $current={section === "programs"}
+            aria-current={section === "programs" ? "page" : undefined}
+          >
+            <Glyph aria-hidden="true">{ICONS.code}</Glyph>
+            Programs
           </Row>
         </Group>
 
@@ -135,6 +160,27 @@ const NavSidebar: FC<NavSidebarProps> = ({
           )}
         </Scroll>
 
+        {!quickstartGone && (
+          <Suggestion>
+            <SuggestionHead>
+              <SuggestionTitle>Quickstart Solana</SuggestionTitle>
+              <Dismiss
+                type="button"
+                onClick={dismissQuickstart}
+                aria-label="Dismiss the quickstart suggestion"
+              >
+                {ICONS.close}
+              </Dismiss>
+            </SuggestionHead>
+            <SuggestionBody>
+              Create a devnet project and deploy your first program.
+            </SuggestionBody>
+            <Row onClick={onOpenGallery} type="button">
+              <Glyph aria-hidden="true">{ICONS.cube}</Glyph>
+              Open quickstart
+            </Row>
+          </Suggestion>
+        )}
         <Foot>
           {status && <Account>{status}</Account>}
           <Row
@@ -150,28 +196,6 @@ const NavSidebar: FC<NavSidebarProps> = ({
             <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
             Settings
           </Row>
-
-          {!quickstartGone && (
-            <Suggestion>
-              <SuggestionHead>
-                <SuggestionTitle>Quickstart Solana</SuggestionTitle>
-                <Dismiss
-                  type="button"
-                  onClick={dismissQuickstart}
-                  aria-label="Dismiss the quickstart suggestion"
-                >
-                  {ICONS.close}
-                </Dismiss>
-              </SuggestionHead>
-              <SuggestionBody>
-                Create a devnet project and deploy your first program.
-              </SuggestionBody>
-              <Row onClick={onOpenGallery} type="button">
-                <Glyph aria-hidden="true">{ICONS.cube}</Glyph>
-                Open quickstart
-              </Row>
-            </Suggestion>
-          )}
         </Foot>
       </Column>
     </Aside>
@@ -236,6 +260,12 @@ const ICONS = {
       <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
     </>
   ),
+  code: svg(
+    <>
+      <path d="m9 8-4 4 4 4" />
+      <path d="m15 8 4 4-4 4" />
+    </>
+  ),
   cube: svg(
     <>
       <path d="M12 3.5 20 8v8l-8 4.5L4 16V8z" />
@@ -258,7 +288,7 @@ const ICONS = {
 
 const Aside = styled.aside`
   ${({ theme }) => css`
-    width: 15.5rem;
+    width: 14.5rem;
     display: flex;
     flex-direction: column;
     /* No padding of its own: the head has to reach the column's top edge for
@@ -375,10 +405,10 @@ const Account = styled.div`
     & button {
       justify-content: flex-start;
       width: 100%;
-      height: 2.125rem;
-      padding: 0 0.625rem;
+      height: 1.75rem;
+      padding: 0 0.5rem;
       border: 1px solid transparent;
-      border-radius: 8px;
+      border-radius: 6px;
       font-family: inherit;
       font-size: 0.8125rem;
 
@@ -407,14 +437,14 @@ const Section = styled.nav`
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
 `;
 
 const Heading = styled.h2`
   ${({ theme }) => css`
-    margin: 0 0 0.375rem;
-    padding: 0 0.625rem;
-    font-size: 0.8125rem;
+    margin: 0 0 0.25rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
     font-weight: 400;
     color: ${theme.colors.state.disabled.color};
   `}
@@ -433,9 +463,7 @@ const Foot = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1px;
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid ${theme.colors.default.border};
+    margin-top: auto;
   `}
 `;
 
@@ -451,20 +479,22 @@ const Row = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => css`
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.5rem;
     width: 100%;
-    height: 2.125rem;
-    padding: 0 0.625rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    ${$current && gradientStroke(theme.colors.default.bgPrimary)}
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    border: none;
+    border-radius: 6px;
+    /* A fill, not an outline. Linear, Claude, Cursor and Vercel all mark the
+       current row with a flat tint; the gradient stroke shouted, and on a list
+       of projects it made every selection look like an alert. */
+    background: ${$current ? theme.colors.state.hover.bg : "transparent"};
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.8125rem;
+    font-weight: ${$current ? 500 : 400};
     text-align: left;
     white-space: nowrap;
     text-decoration: none;
@@ -498,14 +528,25 @@ const Glyph = styled.span`
 /* A suggestion, not a card: the same hairline the foot uses, a title, a line,
    and the action as an ordinary row — so the bottom of the column is made of
    the same parts as the rest of it. */
+/* A card, not a paragraph under a line. It sits above the account rows rather
+   than at the very bottom, so the foot of the column is the session and the
+   two places you leave it for. */
 const Suggestion = styled.div`
   ${({ theme }) => css`
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    margin-top: 0.5rem;
-    padding-top: 0.625rem;
-    border-top: 1px solid ${theme.colors.default.border};
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 10px;
+    background: ${theme.colors.default.bgSecondary};
+
+    /* Its own action is a row like any other, one step in from the card edge */
+    & > button:last-child {
+      margin: 0.25rem -0.25rem -0.25rem;
+      width: calc(100% + 0.5rem);
+    }
   `}
 `;
 
