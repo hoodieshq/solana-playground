@@ -1,10 +1,10 @@
-import { FC, useRef, useState } from "react";
+import { FC } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import DitheredSky from "./DitheredSky";
 import PixelField from "./PixelField";
+import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
-import WaveGrid from "./WaveGrid";
 import { useReveal } from "./useReveal";
 
 /**
@@ -28,33 +28,12 @@ interface LandingProps {
 }
 
 const Landing: FC<LandingProps> = ({ onEnter }) => {
-  const heroRef = useRef<HTMLElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
-  const [hover, setHover] = useState(false);
-  /* Where the ripple starts: the button's centre, in fractions of the hero. */
-  const [origin, setOrigin] = useState({ x: 0.78, y: 0.62 });
-
-  const takeOrigin = () => {
-    const hero = heroRef.current;
-    const cta = ctaRef.current;
-    if (!hero || !cta) return;
-    const h = hero.getBoundingClientRect();
-    const c = cta.getBoundingClientRect();
-    setOrigin({
-      x: (c.left + c.width / 2 - h.left) / h.width,
-      y: (c.top + c.height / 2 - h.top) / h.height,
-    });
-  };
-
   return (
   <Page>
-    <Hero ref={heroRef}>
+    <Hero>
       <HeroArt aria-hidden="true">
         <DitheredSky />
         <PixelField />
-        <WaveLayer $on={hover}>
-          <WaveGrid active={hover} originX={origin.x} originY={origin.y} />
-        </WaveLayer>
         <Grid />
         <Fade />
       </HeroArt>
@@ -88,21 +67,7 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
         </HeroLead>
 
         <HeroAction>
-          <Cta
-            ref={ctaRef}
-            type="button"
-            onClick={onEnter}
-            onMouseEnter={() => {
-              takeOrigin();
-              setHover(true);
-            }}
-            onMouseLeave={() => setHover(false)}
-            onFocus={() => {
-              takeOrigin();
-              setHover(true);
-            }}
-            onBlur={() => setHover(false)}
-          >
+          <Cta type="button" onClick={onEnter}>
             Open Playground
           </Cta>
         </HeroAction>
@@ -136,9 +101,9 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
 
     <Close>
       <CloseTitle>Start with the program, not the setup.</CloseTitle>
-      <Cta type="button" onClick={onEnter}>
+      <CtaOutline type="button" onClick={onEnter}>
         Open Playground
-      </Cta>
+      </CtaOutline>
     </Close>
   </Page>
   );
@@ -155,16 +120,16 @@ const RevealSection: FC<SectionCopy> = ({ id, label, title, text }) => {
   const [ref, shown] = useReveal<HTMLElement>();
   return (
     <Section id={id} ref={ref}>
-      <SectionLabel $shown={shown} $delay={0}>
-        {label}
-      </SectionLabel>
+      <PixelIn active={shown} block={10}>
+        <SectionLabel>{label}</SectionLabel>
+      </PixelIn>
       <SectionBody>
-        <SectionTitle $shown={shown} $delay={0.08}>
-          {title}
-        </SectionTitle>
-        <SectionText $shown={shown} $delay={0.16}>
-          {text}
-        </SectionText>
+        <PixelIn active={shown} delay={0.08} block={16}>
+          <SectionTitle>{title}</SectionTitle>
+        </PixelIn>
+        <PixelIn active={shown} delay={0.2} block={11}>
+          <SectionText>{text}</SectionText>
+        </PixelIn>
       </SectionBody>
     </Section>
   );
@@ -255,20 +220,6 @@ const HeroArt = styled.div`
 /* A surveyor's grid, not a graph: long faint rules with a tick where they
    cross, which is the thing that makes the poster read as a record of
    something rather than a wallpaper. */
-/* The hover grid sits above the sky and below the type, and fades rather than
-   appears — the canvas eases its own strength too, so this is only here to
-   keep it out of the compositor when idle. */
-const WaveLayer = styled.div<{ $on: boolean }>`
-  position: absolute;
-  inset: 0;
-  opacity: ${({ $on }) => ($on ? 1 : 0)};
-  transition: opacity 0.45s ease;
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
-`;
-
 const Grid = styled.div`
   position: absolute;
   inset: 0;
@@ -308,17 +259,17 @@ const Nav = styled.nav`
   align-items: center;
   gap: clamp(1rem, 2.5vw, 2rem);
   padding: 0.625rem 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: none;
   border-radius: 999px;
-  background: rgba(12, 12, 18, 0.45);
-  backdrop-filter: blur(14px);
+  background: #ffffff;
+  color: #0b0b16;
 `;
 
 const NavMark = styled.span`
   display: flex;
   width: 1.25rem;
   height: 1.25rem;
-  color: ${TEXT};
+  color: #0b0b16;
 
   & > svg {
     width: 100%;
@@ -337,14 +288,14 @@ const NavLinks = styled.div`
 `;
 
 const NavLink = styled.a`
-  color: ${MUTED};
+  color: rgba(11, 11, 22, 0.66);
   font-size: 0.9375rem;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.15s ease;
 
   &:hover {
-    color: ${TEXT};
+    color: #0b0b16;
   }
 `;
 
@@ -387,17 +338,47 @@ const HeroAction = styled.div`
   padding-bottom: 0.5rem;
 `;
 
-/* The gradient lives on the stroke here too, the same rule the product keeps:
-   the brand marks the thing you are meant to act on, and nothing else. */
+/* White. It is the one thing on the page to press, and on a blue field the
+   brightest thing is the one you press. */
 const Cta = styled.button`
+  height: 3rem;
+  padding: 0 1.75rem;
+  border: none;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b0b16;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    background: #eef1ff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+/* The closing one is the same shape drawn in outline — the gradient on the
+   stroke, the way the product marks what is current. A second solid white
+   button at the end of the page would read as a second first choice. */
+const CtaOutline = styled.button`
   height: 3rem;
   padding: 0 1.75rem;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: linear-gradient(rgba(12, 12, 18, 0.5), rgba(12, 12, 18, 0.5))
-      padding-box,
+  background: linear-gradient(${INK}, ${INK}) padding-box,
     linear-gradient(120deg, #9945ff, #14f195) border-box;
-  backdrop-filter: blur(14px);
   color: ${TEXT};
   font-family: inherit;
   font-size: 1rem;
@@ -408,8 +389,7 @@ const Cta = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    background: linear-gradient(rgba(28, 28, 40, 0.6), rgba(28, 28, 40, 0.6))
-        padding-box,
+    background: linear-gradient(#14131f, #14131f) padding-box,
       linear-gradient(120deg, #9945ff, #14f195) border-box;
   }
 
@@ -460,21 +440,6 @@ const FootArgument = styled.div`
   }
 `;
 
-/* Held back until the section arrives, then eased up. Transition rather than
-   animation, so the state can drive it and nothing replays. */
-const arrive = (shown: boolean, delay: number) => css`
-  opacity: ${shown ? 1 : 0};
-  transform: ${shown ? "none" : "translateY(16px)"};
-  transition: opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s,
-    transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s;
-
-  @media (prefers-reduced-motion: reduce) {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-`;
-
 const Sections = styled.div`
   display: flex;
   flex-direction: column;
@@ -503,8 +468,7 @@ const Section = styled.section`
   }
 `;
 
-const SectionLabel = styled.h2<{ $shown: boolean; $delay: number }>`
-  ${({ $shown, $delay }) => arrive($shown, $delay)}
+const SectionLabel = styled.h2`
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 400;
@@ -518,8 +482,7 @@ const SectionBody = styled.div`
   max-width: 40rem;
 `;
 
-const SectionTitle = styled.p<{ $shown: boolean; $delay: number }>`
-  ${({ $shown, $delay }) => arrive($shown, $delay)}
+const SectionTitle = styled.p`
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2.125rem);
   font-weight: 300;
@@ -527,8 +490,7 @@ const SectionTitle = styled.p<{ $shown: boolean; $delay: number }>`
   letter-spacing: -0.02em;
 `;
 
-const SectionText = styled.p<{ $shown: boolean; $delay: number }>`
-  ${({ $shown, $delay }) => arrive($shown, $delay)}
+const SectionText = styled.p`
   margin: 0;
   font-size: 1.0625rem;
   line-height: 1.6;

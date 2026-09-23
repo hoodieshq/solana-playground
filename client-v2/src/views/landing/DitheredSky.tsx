@@ -6,9 +6,9 @@ import { FC, useEffect, useRef } from "react";
  *
  * After damarberlari/visualizing-dithering-codrops, which does this in a
  * Three.js shader. The maths is the same either way — an 8×8 Bayer matrix
- * thresholding each pixel against the ramp — and because the sky does not
- * move, it is computed once per resize into an ImageData rather than every
- * frame on the GPU. A static picture does not need a render loop.
+ * thresholding each pixel against the ramp — done here as one ImageData pass
+ * on a 2D context, at twelve frames a second because the movement is slower
+ * than that and sixty would be four times the work for nothing.
  *
  * Ordered dithering is what gives the reference poster its texture: instead of
  * blending two colours, it alternates them in a fixed pattern, and the eye
@@ -66,7 +66,13 @@ const DitheredSky: FC<DitheredSkyProps> = ({ scale = 2 }) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const render = () => {
+    let frame = 0;
+    let started = 0;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    const render = (time: number) => {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
 
@@ -88,7 +94,14 @@ const DitheredSky: FC<DitheredSkyProps> = ({ scale = 2 }) => {
         for (let x = 0; x < w; x++) {
           const nx = x / (w - 1 || 1);
           const bow = Math.pow(Math.abs(nx - 0.46), 2) * 0.16;
-          const t = Math.min(1, Math.max(0, ny * 1.02 + bow));
+          /* The ramp breathes: two slow waves crossing the frame, moving the
+             position by about one step. Because the steps are quantised, what
+             you see is not a colour shift but the dither pattern itself
+             crawling — which is the only kind of motion this texture has. */
+          const drift =
+            Math.sin(nx * 2.3 + time * 0.00021) * 0.014 +
+            Math.sin((nx + ny) * 3.1 - time * 0.00013) * 0.010;
+          const t = Math.min(1, Math.max(0, ny * 1.02 + bow + drift));
 
           // Where this pixel falls on the ramp, and how far between steps
           const pos = t * last;
@@ -111,10 +124,29 @@ const DitheredSky: FC<DitheredSkyProps> = ({ scale = 2 }) => {
       ctx.putImageData(img, 0, 0);
     };
 
-    render();
-    const observer = new ResizeObserver(render);
+    /* Redrawn on a timer rather than every frame: the whole picture is one
+       ImageData pass, and at this speed twelve a second is already smoother
+       than the movement is. Sixty would be four times the work for nothing. */
+    const FPS = 12;
+    let last = 0;
+    const loop = (now: number) => {
+      if (!started) started = now;
+      if (now - last > 1000 / FPS) {
+        last = now;
+        render(now - started);
+      }
+      frame = requestAnimationFrame(loop);
+    };
+
+    if (reduced) render(0);
+    else frame = requestAnimationFrame(loop);
+
+    const observer = new ResizeObserver(() => render(performance.now()));
     observer.observe(canvas);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [scale]);
 
   return (
