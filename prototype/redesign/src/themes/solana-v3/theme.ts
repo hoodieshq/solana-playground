@@ -36,11 +36,13 @@ const BG_BASE = "#000000", // the page and the rail
   ACCENT_HOVER = "#BCC6FD",
   ACCENT_FILL = INDIGO, // a weighted fill: the primary button, a selected row
   ACCENT_FILL_HOVER = INDIGO_LIFT,
-  // Text: ice at the top of the ramp, so body copy carries a trace of the
-  // brand instead of being plain white.
-  TEXT_PRIMARY = ICE,
-  TEXT_SECONDARY = "#8B90A8",
-  COMMENT = "#5D6175",
+  // Text: neutral. An earlier pass tinted the whole ramp toward the brand's
+  // ice blue, and a tint carried across every label in the product stops being
+  // a brand and becomes a colour cast. The blue earns its place by being rare:
+  // the mark, the current row, the caret. Everything you read is grey.
+  TEXT_PRIMARY = "#ECECEE",
+  TEXT_SECONDARY = "#9494A0",
+  COMMENT = "#6B6B76",
   // Hairlines. In the references — v0, Base44, Linear — panels are divided by
   // a single low-contrast line, not by a border drawn around a floating card.
   BORDER = "#FFFFFF12",
@@ -119,7 +121,7 @@ const SOLANA_V3: ThemeParam = {
       overrides: {
         primary: {
           bg: ACCENT_FILL,
-          color: ICE,
+          color: "#FFFFFF",
           hover: { bg: ACCENT_FILL_HOVER },
         },
         outline: {
