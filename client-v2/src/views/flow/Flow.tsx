@@ -32,7 +32,7 @@ import Resizable from "../../components/Resizable";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { useKeybind } from "../../hooks";
-import { PgExplorer, PgView } from "../../utils";
+import { PgExplorer, PgRouter, PgTutorial, PgView } from "../../utils";
 
 /**
  * The Flow layout.
@@ -99,6 +99,19 @@ const Flow = () => {
   /* Which list the start screen is showing. It lives here because the sidebar
      drives it and the start screen draws it, and they are siblings. */
   const [section, setSection] = useState<ZeroSection>("home");
+  /* A tutorial's own pages are drawn by upstream's `Primary`, which only this
+     layout's Write stage mounts. Opening one from the start screen navigated
+     the router and then nothing happened at all: `PgView.setMainPrimary`
+     retries every 100ms until something answers, and on the start screen
+     nothing ever does. So the route has to bring the view with it. */
+  const [path, setPath] = useState(() => PgRouter.location.pathname);
+  const onTutorialRoute = path.startsWith("/tutorials/");
+  /* On a tutorial route the workspace name is whatever was open last, which is
+     not what you are looking at. */
+  const workTitle =
+    (onTutorialRoute ? PgTutorial.current?.name : undefined) ??
+    PgExplorer.currentWorkspaceName ??
+    "Project";
   // Lives here, not in `LeftPanel`: toggling the surface would otherwise
   // remount the panel and lose whatever it held.
   const [pendingCreate, setPendingCreate] = useState(false);
@@ -148,6 +161,10 @@ const Flow = () => {
       PgAssistant.onDidRequestPrompt(showAssistant),
       PgExplorer.onDidSwitchWorkspace(toProject),
       PgExplorer.onDidCreateWorkspace(toProject),
+      PgRouter.onDidChangePath((next) => {
+        setPath(next);
+        if (next.startsWith("/tutorials/")) setView("project");
+      }),
     ];
     return () => subs.forEach((s) => s.dispose());
   }, [showAssistant]);
@@ -181,7 +198,11 @@ const Flow = () => {
     setReading(false);
   }, [readingStep?.id]);
 
-  const inProject = view === "project" && !!PgExplorer.currentWorkspaceName;
+  /* A tutorial you have not started yet has no workspace, and its about page
+     still has to render somewhere. */
+  const inProject =
+    view === "project" &&
+    (!!PgExplorer.currentWorkspaceName || onTutorialRoute);
 
   /* Cluster, wallet and account. It lives at the foot of the sidebar, which
      is the one column that is the same in both views — and the Figma puts
@@ -243,9 +264,7 @@ const Flow = () => {
                     {ICONS.sidebar}
                   </BarButton>
                 )}
-                <WorkTitle title={PgExplorer.currentWorkspaceName}>
-                  {PgExplorer.currentWorkspaceName}
-                </WorkTitle>
+                <WorkTitle title={workTitle}>{workTitle}</WorkTitle>
                 <WorkTabs role="tablist" aria-label="Work surface">
                   <WorkTab
                     type="button"

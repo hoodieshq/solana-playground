@@ -1,6 +1,7 @@
 import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import PlaygroundMark from "../../../components/PlaygroundMark";
 import { PgExplorer } from "../../../utils";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
@@ -92,6 +93,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
     <Aside aria-label="Main">
       <Head>
         <Brand type="button" onClick={onHome}>
+          <Mark />
           Playground
         </Brand>
         <HeadButton
@@ -329,8 +331,18 @@ const Column = styled.div`
 `;
 
 /* The word is the mark until the product has earned one. */
+const Mark = styled(PlaygroundMark)`
+  /* The artwork is 342 x 184; at cap height it comes out a shade under 2:1 */
+  height: 0.6875rem;
+  width: auto;
+  flex-shrink: 0;
+`;
+
 const Brand = styled.button`
   ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     height: 1.875rem;
     padding: 0 0.5rem;
     border: none;
