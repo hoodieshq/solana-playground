@@ -2,6 +2,7 @@ import { Endpoint } from "../constants/connection";
 import {
   FOUNDATION_ENDPOINT,
   LOCAL_ENDPOINT,
+  SERVER_ENDPOINT_OPTIONS,
   SOLPG_ENDPOINT,
 } from "./server/default-endpoint";
 import {
@@ -102,6 +103,72 @@ describe("stored endpoints", () => {
     expect(fromStoredEndpoints(stored, defaults, moved).server.endpoint).toBe(
       "https://build.test/b"
     );
+  });
+
+  it("keys every address the pickers offer, so none is stored as custom", () => {
+    const keyed = (id: keyof typeof options, url: string) =>
+      options[id].some((o) => o.url === url);
+
+    for (const url of Object.values(Endpoint)) {
+      expect(keyed("connection.endpoint", url)).toBe(true);
+    }
+    expect(keyed("connection.endpoint", PLATFORM_DEVNET)).toBe(true);
+    for (const { value } of SERVER_ENDPOINT_OPTIONS) {
+      expect(keyed("server.endpoint", value)).toBe(true);
+    }
+  });
+
+  it("stores the configured build server as `configured` even when it is a listed one", () => {
+    // Production sets REACT_APP_SERVER_URL to the Foundation's server
+    // (`Dockerfile`); a profile on it must follow the env when it moves
+    const configured = buildEndpointOptions([], FOUNDATION_ENDPOINT);
+    const stored = JSON.parse(
+      JSON.stringify(
+        toStoredEndpoints(
+          state(Endpoint.DEVNET, FOUNDATION_ENDPOINT),
+          configured
+        )
+      )
+    );
+
+    expect(at(stored, "server.endpoint")).toEqual({ option: "configured" });
+    const moved = buildEndpointOptions([], "https://build.test/new");
+    expect(fromStoredEndpoints(stored, defaults, moved).server.endpoint).toBe(
+      "https://build.test/new"
+    );
+  });
+
+  it("falls back to the default build server when its stored option is gone", () => {
+    const configured = buildEndpointOptions([], "https://build.test/a");
+    const stored = JSON.parse(
+      JSON.stringify(
+        toStoredEndpoints(
+          state(Endpoint.DEVNET, "https://build.test/a"),
+          configured
+        )
+      )
+    );
+
+    const unconfigured = buildEndpointOptions([]);
+    expect(
+      fromStoredEndpoints(stored, defaults, unconfigured).server.endpoint
+    ).toBe(defaults.server.endpoint);
+  });
+
+  it("re-keys a legacy string that is one of our addresses, keeps an unknown one custom", () => {
+    const legacy = state(PLATFORM_DEVNET, "https://unknown.test/");
+    const stored = toStoredEndpoints(
+      fromStoredEndpoints(legacy, defaults, options),
+      options
+    );
+
+    expect(at(stored, "connection.endpoint")).toEqual({
+      option: "devnet-platform",
+    });
+    expect(at(stored, "server.endpoint")).toEqual({
+      option: "custom",
+      url: "https://unknown.test/",
+    });
   });
 
   it("falls back to the default when a stored option is gone", () => {

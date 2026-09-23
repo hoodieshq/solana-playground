@@ -50,11 +50,14 @@ export const buildEndpointOptions = (
     ...platform.map((p) => ({ key: `${p.cluster}-platform`, url: p.value })),
   ],
   "server.endpoint": [
+    // First, so a profile on the configured server follows the env even
+    // when the env names a listed one -- production sets it to the
+    // Foundation's (`Dockerfile`). A listed option picked by hand that
+    // equals it follows the env too; it was the default anyway.
+    ...(configuredServer ? [{ key: "configured", url: configuredServer }] : []),
     { key: "foundation", url: FOUNDATION_ENDPOINT },
     { key: "local", url: LOCAL_ENDPOINT },
     { key: "solpg", url: SOLPG_ENDPOINT },
-    // Last, so a configured URL that is one of the above keeps that key
-    ...(configuredServer ? [{ key: "configured", url: configuredServer }] : []),
   ],
 });
 
