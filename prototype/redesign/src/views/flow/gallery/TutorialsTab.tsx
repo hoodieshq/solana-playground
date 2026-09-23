@@ -87,8 +87,10 @@ export const Card = styled.div`
     align-items: center;
     padding: 0.875rem;
     border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgPrimary};
+    border-radius: 12px;
+    /* Raised, not sunken: these used to be darker than the page they sat on,
+       which reads as a hole rather than a card. */
+    background: ${theme.colors.default.bgSecondary};
     transition: border-color ${theme.default.transition.duration.short}
       ${theme.default.transition.type};
 
@@ -154,10 +156,10 @@ export const Empty = styled.p`
 
 const Thumb = styled(Img)`
   ${({ theme }) => css`
-    width: 4.5rem;
-    height: 3.375rem;
+    width: 3.5rem;
+    height: 2.625rem;
     object-fit: cover;
-    border-radius: calc(${theme.default.borderRadius} - 2px);
-    background: ${theme.colors.default.bgSecondary};
+    border-radius: 8px;
+    background: ${theme.colors.default.bgPrimary};
   `}
 `;

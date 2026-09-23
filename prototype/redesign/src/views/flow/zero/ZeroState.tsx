@@ -325,7 +325,7 @@ const BarRight = styled.div`
 const Wordmark = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
-    height: 2rem;
+    height: 1.875rem;
     margin-right: 0.375rem;
     padding: 0 0.5rem;
     border: none;
@@ -409,11 +409,11 @@ const searchShape = css`
     align-items: center;
     gap: 0.5rem;
     width: 20rem;
-    height: 2.125rem;
+    height: 1.875rem;
     padding: 0 0.625rem 0 0.75rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
+    background: ${theme.colors.default.bgSecondary};
     color: ${theme.colors.state.disabled.color};
     font-family: inherit;
     font-size: 0.875rem;
@@ -476,8 +476,8 @@ const IconButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 1.875rem;
+    height: 1.875rem;
     border: none;
     border-radius: 8px;
     background: transparent;
@@ -584,7 +584,9 @@ const Card = styled.button<{ $on?: boolean }>`
     padding: 1.125rem 1.125rem 1rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 12px;
-    background: ${$on ? theme.colors.state.hover.bg : "transparent"};
+    background: ${$on
+      ? theme.colors.state.hover.bg
+      : theme.colors.default.bgSecondary};
     font-family: inherit;
     text-align: left;
     cursor: pointer;
