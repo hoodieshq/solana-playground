@@ -3,6 +3,9 @@ import styled, { css } from "styled-components";
 
 import ChatItem from "./ChatItem";
 import Connect from "./Connect";
+// Aliased: this file's own `Composer` is the live one, used once a backend is
+// connected; the shared one stands in until then.
+import IdleComposer from "../../../flow/components/Composer";
 import Button from "../../../../components/Button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import {
@@ -159,9 +162,7 @@ const Chat = () => {
                 </IdleBody>
               </IdleLead>
             )}
-            <IdleComposer type="button" onClick={() => setSetupOpen(true)}>
-              Ask anything…
-            </IdleComposer>
+            <IdleComposer compact onActivate={() => setSetupOpen(true)} />
             <IdleNote>
               No backend connected —{" "}
               <IdleLink type="button" onClick={() => setSetupOpen(true)}>
@@ -501,31 +502,6 @@ const IdleBody = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.5;
     color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
-/* Shaped like the real composer, because that is what it stands in for. It
-   says what is missing when you click it rather than pretending to send. */
-const IdleComposer = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 3.25rem;
-    padding: 0.875rem 1rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 14px;
-    background: ${theme.components?.input?.bg ??
-    theme.colors.default.bgSecondary};
-    color: ${theme.colors.default.textSecondary};
-    font-family: inherit;
-    font-size: ${theme.font.other.size.small};
-    text-align: left;
-    cursor: text;
-
-    &:hover {
-      border-color: ${theme.colors.default.primary};
-    }
   `}
 `;
 
