@@ -108,6 +108,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
       <Column>
         <Group>
           <Row
+            data-shot="nav-home"
             onClick={onHome}
             type="button"
             $current={homeActive && section === "home"}
@@ -124,6 +125,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
               was a second name for Home. They are destinations, so they live
               with the destinations, and Home is the one that was Start. */}
           <Row
+            data-shot="nav-tutorials"
             onClick={() => onSection("tutorials")}
             type="button"
             $current={section === "tutorials"}
@@ -133,6 +135,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
             Tutorials
           </Row>
           <Row
+            data-shot="nav-programs"
             onClick={() => onSection("programs")}
             type="button"
             $current={section === "programs"}
@@ -193,7 +196,11 @@ const NavSidebar: FC<NavSidebarProps> = ({
             <Glyph aria-hidden="true">{ICONS.help}</Glyph>
             Docs
           </Row>
-          <Row onClick={onOpenSettings} type="button">
+          <Row
+            data-shot="nav-settings"
+            onClick={onOpenSettings}
+            type="button"
+          >
             <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
             Settings
           </Row>
