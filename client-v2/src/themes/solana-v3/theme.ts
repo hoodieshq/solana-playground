@@ -56,7 +56,7 @@ const CONTROL_RADIUS = "8px";
  * to hand the monospace to all of it, which is the single thing that made it
  * read as a terminal emulator rather than a product.
  */
-const DISPLAY_FONT = `"Inter", -apple-system, BlinkMacSystemFont,
+const DISPLAY_FONT = `"Manrope", -apple-system, BlinkMacSystemFont,
   "Segoe UI", Helvetica, Arial, sans-serif`;
 
 const SOLANA_V3: ThemeParam = {

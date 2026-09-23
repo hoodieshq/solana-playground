@@ -19,6 +19,8 @@ interface NavSidebarProps {
   assistantOpen: boolean;
   /** Cluster, wallet and account — rendered at the foot of this column. */
   status?: ReactNode;
+  /** The zero state puts the mark in its own top bar; the column stands down. */
+  showBrand?: boolean;
 }
 
 const QUICKSTART_DISMISSED = "quickstart-card-dismissed";
@@ -29,6 +31,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
   onToggleAssistant,
   assistantOpen,
   status,
+  showBrand = true,
 }) => {
   const [quickstartGone, setQuickstartGone] = useState(() => {
     try {
@@ -65,10 +68,12 @@ const NavSidebar: FC<NavSidebarProps> = ({
 
   return (
     <Aside aria-label="Main">
-      <Brand>
-        <Mark aria-hidden="true" />
-        <BrandName>Playground</BrandName>
-      </Brand>
+      {showBrand && (
+        <Brand>
+          <Mark aria-hidden="true" />
+          <BrandName>Playground</BrandName>
+        </Brand>
+      )}
 
       <Group>
         <Row onClick={onOpenGallery} type="button">
@@ -223,7 +228,7 @@ const Aside = styled.aside`
     width: 15.5rem;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.5rem 0.5rem;
+    padding: 0.75rem 0.5rem 0.625rem;
     background: ${theme.colors.default.bgPrimary};
     /* One hairline, no panel fill: in the reference the sidebar is part of the
        same ground as the content and is separated by a line, not by a box. */
@@ -267,10 +272,14 @@ const Label = styled.span`
 `;
 
 const Foot = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-top: 0.5rem;
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid ${theme.colors.default.border};
+  `}
 `;
 
 /* The cluster, wallet and account controls were a row of pills in the title
@@ -405,15 +414,16 @@ const Glyph = styled.span`
 
 /* The one suggestion. It dismisses and stays dismissed, because a card that
    comes back after you close it is an advert. */
+/* The suggestion sits under a hairline as text, the way the reference does
+   its own bottom block — not as a card inside a card. */
 const Card = styled.div`
   ${({ theme }) => css`
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.875rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 12px;
-    background: ${theme.colors.default.bgSecondary};
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+    padding: 0.75rem 0.625rem 0.25rem;
+    border-top: 1px solid ${theme.colors.default.border};
   `}
 `;
 
@@ -469,7 +479,7 @@ const Dismiss = styled.button`
 
 const CardTitle = styled.div`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.small};
+    font-size: 0.9375rem;
     font-weight: 600;
     color: ${theme.colors.default.textPrimary};
   `}
@@ -478,7 +488,7 @@ const CardTitle = styled.div`
 const CardBody = styled.p`
   ${({ theme }) => css`
     margin: 0;
-    font-size: ${theme.font.other.size.xsmall};
+    font-size: 0.8125rem;
     line-height: 1.45;
     color: ${theme.colors.default.textSecondary};
   `}
@@ -486,14 +496,16 @@ const CardBody = styled.p`
 
 const CardAction = styled.button`
   ${({ theme }) => css`
-    margin-top: 0.125rem;
-    padding: 0.5rem;
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    height: 1.875rem;
+    padding: 0 0.75rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 8px;
     background: transparent;
     color: ${theme.colors.default.textPrimary};
     font-family: inherit;
-    font-size: ${theme.font.other.size.xsmall};
+    font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
 
