@@ -137,14 +137,22 @@ const Chat = () => {
 
         {setupOpen || PgAssistant.isPickingBackend ? (
           <ConnectSlot>
-            {!PgAssistant.isPickingBackend && (
-              <SetupHead>
-                <SetupTitle>Connect a backend</SetupTitle>
-                <SetupBack type="button" onClick={() => setSetupOpen(false)}>
-                  Back
-                </SetupBack>
-              </SetupHead>
-            )}
+            {/* The way out is always here. It used to be hidden exactly when
+                `isPickingBackend` was set — which is what the settings control
+                in the header sets — so opening settings put the pane into a
+                form with no way back to the composer. */}
+            <SetupHead>
+              <SetupTitle>Connect a backend</SetupTitle>
+              <SetupBack
+                type="button"
+                onClick={() => {
+                  setSetupOpen(false);
+                  PgAssistant.keepBackend();
+                }}
+              >
+                Back
+              </SetupBack>
+            </SetupHead>
             <Connect />
           </ConnectSlot>
         ) : (

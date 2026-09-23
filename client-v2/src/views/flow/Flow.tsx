@@ -184,6 +184,7 @@ const Flow = () => {
                 onClick={toggleSidebar}
                 aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
                 aria-pressed={sidebarOpen}
+                $on={sidebarOpen}
               >
                 {ICONS.sidebar}
               </BarButton>
@@ -200,15 +201,21 @@ const Flow = () => {
               {PgExplorer.currentWorkspaceName}
             </ProjectName>
             <BarRight>
-              {!assistantOpen && (
-                <BarButton
-                  type="button"
-                  onClick={showAssistant}
-                  aria-label="Show the assistant"
-                >
-                  {ICONS.chat}
-                </BarButton>
-              )}
+              {/* Always here, pressed when the pane is open — the same shape as
+                  the sidebar toggle on the left. A control that only appears
+                  once you have already lost the pane is a control you have to
+                  discover at the worst moment. */}
+              <BarButton
+                type="button"
+                onClick={toggleAssistant}
+                aria-label={
+                  assistantOpen ? "Hide the assistant" : "Show the assistant"
+                }
+                aria-pressed={assistantOpen}
+                $on={assistantOpen}
+              >
+                {ICONS.chat}
+              </BarButton>
               <BarButton
                 as="a"
                 href="https://solana.com/docs"
@@ -440,8 +447,8 @@ const BarRight = styled.div`
   gap: 0.25rem;
 `;
 
-const BarButton = styled.button`
-  ${({ theme }) => css`
+const BarButton = styled.button<{ $on?: boolean }>`
+  ${({ theme, $on }) => css`
     display: flex;
     align-items: center;
     justify-content: center;
@@ -452,7 +459,9 @@ const BarButton = styled.button`
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: ${theme.colors.default.textSecondary};
+    color: ${$on
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
     cursor: pointer;
 
     & > svg {
