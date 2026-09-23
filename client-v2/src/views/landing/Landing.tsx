@@ -61,7 +61,7 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
         </HeroLead>
 
         <HeroAction>
-          <Cta type="button" onClick={onEnter}>
+          <Cta type="button" onClick={onEnter} data-shot="landing-cta">
             Open Playground
           </Cta>
         </HeroAction>

@@ -48,6 +48,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
             {error?.name === t.name && <ErrorText>{error.message}</ErrorText>}
           </Body>
           <Button
+            data-shot="tutorial-open"
             onClick={async () => {
               setError(null);
               try {
