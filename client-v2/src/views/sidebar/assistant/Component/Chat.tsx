@@ -111,6 +111,9 @@ const Chat = () => {
     useState<LessonState>(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
 
+  /** Whether the backend form is showing, rather than the composer */
+  const [setupOpen, setSetupOpen] = useState(false);
+
   const connection = PgAssistant.connection;
   if (!connection || PgAssistant.isPickingBackend) {
     // The conversation is restored long before a backend is picked -- on
@@ -129,9 +132,44 @@ const Chat = () => {
           </Messages>
         )}
 
-        <ConnectSlot>
-          <Connect />
-        </ConnectSlot>
+        {setupOpen || PgAssistant.isPickingBackend ? (
+          <ConnectSlot>
+            {!PgAssistant.isPickingBackend && (
+              <SetupHead>
+                <SetupTitle>Connect a backend</SetupTitle>
+                <SetupBack type="button" onClick={() => setSetupOpen(false)}>
+                  Back
+                </SetupBack>
+              </SetupHead>
+            )}
+            <Connect />
+          </ConnectSlot>
+        ) : (
+          /* What you meet first is the place you would type, not a form. The
+             backend picker, model, effort and key used to be the whole panel
+             before a single word had been said; they are one click away now,
+             behind the line under the composer. */
+          <Idle>
+            {items.length === 0 && (
+              <IdleLead>
+                <IdleTitle>Ask about this project</IdleTitle>
+                <IdleBody>
+                  The assistant reads the file you are looking at and the last
+                  build error, and proposes patches you apply yourself.
+                </IdleBody>
+              </IdleLead>
+            )}
+            <IdleComposer type="button" onClick={() => setSetupOpen(true)}>
+              Ask anything…
+            </IdleComposer>
+            <IdleNote>
+              No backend connected —{" "}
+              <IdleLink type="button" onClick={() => setSetupOpen(true)}>
+                set one up
+              </IdleLink>
+            </IdleNote>
+          </Idle>
+        )}
       </Wrapper>
     );
   }
@@ -430,6 +468,124 @@ const Wrapper = styled.div`
  * Without it the two share the column and the picker is squeezed to whatever
  * the transcript leaves -- the transcript is the part that should scroll.
  */
+const Idle = styled.div`
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+`;
+
+const IdleLead = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: auto;
+  padding-top: 1.5rem;
+`;
+
+const IdleTitle = styled.h2`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.medium};
+    font-weight: 600;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+const IdleBody = styled.p`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.small};
+    line-height: 1.5;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+/* Shaped like the real composer, because that is what it stands in for. It
+   says what is missing when you click it rather than pretending to send. */
+const IdleComposer = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 14px;
+    background: ${theme.components?.input?.bg ??
+    theme.colors.default.bgSecondary};
+    color: ${theme.colors.default.textSecondary};
+    font-family: inherit;
+    font-size: ${theme.font.other.size.small};
+    text-align: left;
+    cursor: text;
+
+    &:hover {
+      border-color: ${theme.colors.default.primary};
+    }
+  `}
+`;
+
+const IdleNote = styled.p`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.xsmall};
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const IdleLink = styled.button`
+  ${({ theme }) => css`
+    padding: 0;
+    border: none;
+    background: none;
+    color: ${theme.colors.default.primary};
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  `}
+`;
+
+const SetupHead = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 0.5rem;
+`;
+
+const SetupTitle = styled.h2`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: ${theme.font.other.size.small};
+    font-weight: 600;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+const SetupBack = styled.button`
+  ${({ theme }) => css`
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: ${theme.font.other.size.xsmall};
+    cursor: pointer;
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+  `}
+`;
+
 const ConnectSlot = styled.div`
   display: flex;
   flex-direction: column;
