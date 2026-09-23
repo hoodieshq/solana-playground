@@ -213,7 +213,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
 
     b,
     strong {
-      font-weight: 600;
+      font-weight: 500;
     }
 
     dfn {
@@ -222,7 +222,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
 
     h1 {
       margin: 0.67em 0;
-      font-weight: 600;
+      font-weight: 500;
       padding-bottom: 0.3em;
       font-size: 2em;
       border-bottom: 1px solid var(--color-border-muted);
@@ -402,34 +402,34 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     h6 {
       margin-top: 24px;
       margin-bottom: 16px;
-      font-weight: 600;
+      font-weight: 500;
       line-height: 1.25;
     }
 
     h2 {
-      font-weight: 600;
+      font-weight: 500;
       padding-bottom: 0.3em;
       font-size: 1.5em;
       border-bottom: 1px solid var(--color-border-muted);
     }
 
     h3 {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 1.25em;
     }
 
     h4 {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 1em;
     }
 
     h5 {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 0.875em;
     }
 
     h6 {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 0.85em;
       color: var(--color-fg-muted);
     }
@@ -559,7 +559,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     }
 
     .pl-sr .pl-cce {
-      font-weight: bold;
+      font-weight: 500;
       color: var(--color-prettylights-syntax-string-regexp);
     }
 
@@ -570,7 +570,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     .pl-mh,
     .pl-mh .pl-en,
     .pl-ms {
-      font-weight: bold;
+      font-weight: 500;
       color: var(--color-prettylights-syntax-markup-heading);
     }
 
@@ -580,7 +580,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     }
 
     .pl-mb {
-      font-weight: bold;
+      font-weight: 500;
       color: var(--color-prettylights-syntax-markup-bold);
     }
 
@@ -605,7 +605,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     }
 
     .pl-mdr {
-      font-weight: bold;
+      font-weight: 500;
       color: var(--color-prettylights-syntax-meta-diff-range);
     }
 
@@ -799,7 +799,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
       margin-top: 16px;
       font-size: 1em;
       font-style: italic;
-      font-weight: 600;
+      font-weight: 500;
     }
 
     dl dd {
@@ -808,7 +808,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     }
 
     table th {
-      font-weight: 600;
+      font-weight: 500;
     }
 
     table th,
@@ -1015,7 +1015,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     }
 
     .csv-data th {
-      font-weight: 600;
+      font-weight: 500;
       background: var(--color-canvas-subtle);
       border-top: 0;
     }

@@ -214,7 +214,7 @@ const Trigger = styled.button`
     color: ${theme.colors.default.textPrimary};
     font: inherit;
     font-family: ${theme.font.other.family};
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     transition: background 140ms ease;
 

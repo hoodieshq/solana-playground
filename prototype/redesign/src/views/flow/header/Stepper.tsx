@@ -245,7 +245,7 @@ const StageButton = styled.button<{
     font: inherit;
     font-family: ${theme.font.other.family};
     font-size: 0.875rem;
-    font-weight: ${$selected ? 600 : 500};
+    font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;

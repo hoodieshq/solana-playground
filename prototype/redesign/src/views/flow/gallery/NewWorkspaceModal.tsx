@@ -169,7 +169,7 @@ const TabButton = styled.button<{ $active: boolean }>`
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font: inherit;
-    font-weight: ${$active ? 600 : 400};
+    font-weight: 500;
     cursor: pointer;
     transition: background ${theme.default.transition.duration.short}
       ${theme.default.transition.type};

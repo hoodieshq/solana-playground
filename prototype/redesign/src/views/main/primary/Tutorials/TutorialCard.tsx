@@ -100,7 +100,7 @@ const NameRow = styled.div`
 `;
 
 const Name = styled.span`
-  font-weight: bold;
+  font-weight: 500;
   ${PgTheme.getClampLinesCSS(1)};
 `;
 

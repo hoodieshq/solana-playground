@@ -499,7 +499,7 @@ const IdleTitle = styled.h2`
   ${({ theme }) => css`
     margin: 0;
     font-size: ${theme.font.other.size.medium};
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;
@@ -547,7 +547,7 @@ const SetupTitle = styled.h2`
   ${({ theme }) => css`
     margin: 0;
     font-size: ${theme.font.other.size.small};
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

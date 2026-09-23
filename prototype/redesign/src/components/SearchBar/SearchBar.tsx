@@ -534,7 +534,7 @@ const DropdownItem = styled.div<{
   ${({ isSelected, isKeyboardSelected, theme }) => css`
     padding: 0.5rem 1rem;
     color: ${theme.colors.default.textSecondary};
-    font-weight: bold;
+    font-weight: 500;
     transition: all ${theme.default.transition.type}
       ${theme.default.transition.duration.short};
 

@@ -97,7 +97,7 @@ const FilterGroupWrapper = styled.div`
 
 const FilterGroupTitle = styled.div`
   ${({ theme }) => css`
-    font-weight: bold;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-size: ${theme.font.other.size.small};
@@ -135,7 +135,7 @@ const StyledTag = styled(Tag)`
 `;
 
 const FilterCount = styled.span`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 export default FilterGroups;

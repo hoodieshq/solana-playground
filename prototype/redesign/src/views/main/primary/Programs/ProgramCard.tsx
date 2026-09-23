@@ -110,7 +110,7 @@ const Title = styled(Link)`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.medium};
     margin-left: 0.75rem;
-    font-weight: bold;
+    font-weight: 500;
     color: inherit;
   `}
 `;

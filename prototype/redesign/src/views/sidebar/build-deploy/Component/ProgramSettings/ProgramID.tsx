@@ -207,7 +207,7 @@ const MainContent = styled.div`
   }
 `;
 const MainText = styled.span`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const Desc = styled.span`

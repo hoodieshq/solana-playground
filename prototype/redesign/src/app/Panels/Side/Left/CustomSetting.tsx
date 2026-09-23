@@ -78,7 +78,7 @@ const Content = styled.div`
 
 const InputLabel = styled.div`
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const Tip = styled(Text)`

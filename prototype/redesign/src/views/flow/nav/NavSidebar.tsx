@@ -304,7 +304,7 @@ const Row = styled.button<{ $current?: boolean }>`
       : theme.colors.default.textSecondary};
     font-family: inherit;
     font-size: 0.875rem;
-    font-weight: ${$current ? 500 : 400};
+    font-weight: 500;
     text-align: left;
     white-space: nowrap;
     text-decoration: none;
@@ -360,7 +360,7 @@ const SuggestionHead = styled.div`
 const SuggestionTitle = styled.div`
   ${({ theme }) => css`
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

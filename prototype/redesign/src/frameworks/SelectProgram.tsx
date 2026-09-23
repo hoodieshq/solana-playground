@@ -58,7 +58,7 @@ const Program = styled.div<{ isSelected: boolean }>`
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
     color: ${theme.colors.default.textSecondary};
-    font-weight: bold;
+    font-weight: 500;
     transition: all ${theme.default.transition.duration.medium}
       ${theme.default.transition.type};
 

@@ -67,7 +67,7 @@ const ContentText = styled.div`
 `;
 
 const Main = styled.span`
-  font-weight: bold;
+  font-weight: 500;
   word-break: break-all;
 `;
 

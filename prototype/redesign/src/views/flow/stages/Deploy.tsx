@@ -263,7 +263,7 @@ const Meta = styled.span`
 const Eyebrow = styled.div`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.xsmall};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: ${theme.colors.default.textSecondary};
@@ -304,7 +304,7 @@ const Headline = styled.h2`
     align-items: center;
     gap: 0.625rem;
     font-size: ${theme.font.other.size.xlarge};
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.01em;
   `}
 `;

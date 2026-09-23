@@ -38,5 +38,5 @@ export const ImportTemporary = () => {
 
 const MainText = styled.div`
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 500;
 `;

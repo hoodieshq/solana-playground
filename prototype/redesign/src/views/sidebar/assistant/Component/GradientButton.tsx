@@ -20,7 +20,7 @@ const GradientButton = styled(Button)`
     && {
       background: ${theme.colors.default.primary};
       color: #FFFFFF;
-      font-weight: 600;
+      font-weight: 500;
 
       &:hover:not(:disabled) {
         filter: brightness(1.12);

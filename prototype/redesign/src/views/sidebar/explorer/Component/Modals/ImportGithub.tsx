@@ -94,7 +94,7 @@ const GithubUrlWrapper = styled.div``;
 
 const GithubUrlInputLabel = styled.div`
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const Description = styled.div`
@@ -111,7 +111,7 @@ const ExamplesSectionWrapper = styled.div`
 `;
 
 const ExamplesTitle = styled.div`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const ExamplesWrapper = styled.div`
@@ -195,6 +195,6 @@ const FrameworkImage = styled(Img)<{ $circle?: boolean }>`
 
 const FrameworkName = styled.span`
   margin-left: 0.5rem;
-  font-weight: bold;
+  font-weight: 500;
   color: ${({ theme }) => theme.colors.default.textSecondary};
 `;

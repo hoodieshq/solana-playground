@@ -187,7 +187,7 @@ const Eyebrow = styled.span`
 
 const Objective = styled.span`
   color: ${({ theme }) => theme.colors.default.textPrimary};
-  font-weight: 600;
+  font-weight: 500;
 `;
 
 const VerifiedBy = styled.span`

@@ -170,7 +170,7 @@ const Wrapper = styled.div`
 `;
 
 const Bold = styled.span`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 export default Deploy;

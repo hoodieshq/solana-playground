@@ -72,7 +72,7 @@ const Content = styled.div`
 `;
 
 const Question = styled.p`
-  font-weight: bold;
+  font-weight: 500;
 `;
 
 const Description = styled.p`

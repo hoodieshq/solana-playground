@@ -74,7 +74,7 @@ const WorkspaceNameWrapper = styled.div``;
 
 const MainText = styled.div`
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 500;
   font-size: ${({ theme }) => theme.font.code.size.large};
 `;
 
@@ -151,6 +151,6 @@ const FrameworkImageWrapper = styled.div<{ circle?: boolean }>`
 const FrameworkName = styled.div`
   margin-top: 0.75rem;
   text-align: center;
-  font-weight: bold;
+  font-weight: 500;
   color: ${({ theme }) => theme.colors.default.textSecondary};
 `;

@@ -64,7 +64,7 @@ const StyledItem = styled(MenuItem)`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: bold;
+    font-weight: 500;
     font-size: ${theme.font.code.size.small};
     color: ${PgTheme.getColor(color)};
     border-left: 2px solid transparent;

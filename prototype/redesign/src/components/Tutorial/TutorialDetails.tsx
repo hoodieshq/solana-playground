@@ -62,7 +62,7 @@ const TutorialDetailSection = styled.div`
 
 const TutorialDetailName = styled.span`
   ${({ theme }) => css`
-    font-weight: bold;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-size: ${theme.font.other.size.small};
