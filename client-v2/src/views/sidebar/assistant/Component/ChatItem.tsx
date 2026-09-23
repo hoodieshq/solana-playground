@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../../components/Button";
-import GradientButton from "./GradientButton";
+import GradientButton from "../../../../shared/ui/gradient-button";
 import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
 import { PgAssistant, type ChatItem as Item } from "../store";

@@ -19,6 +19,8 @@
  * Plain ESM on raw Node request/response APIs — see `api/health.mjs` for why.
  */
 
+import { readJson } from "../src/features/api/server/read-json.mjs";
+
 const PROTOCOL_VERSION = "2025-06-18";
 
 /** Separates upstream id from tool name when several are selected */
@@ -75,17 +77,6 @@ const rpcError = (res, id, code, message) =>
     id: id ?? null,
     error: { code, message },
   });
-
-/** Read the request body, whether the platform pre-parsed it or not */
-const readJson = async (req) => {
-  if (req.body) {
-    return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-  }
-
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-};
 
 /** Which upstreams this request is for, defaulting to all of them */
 const selected = (url, configured) => {

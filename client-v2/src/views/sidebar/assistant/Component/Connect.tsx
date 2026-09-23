@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import GradientButton from "./GradientButton";
+import GradientButton from "../../../../shared/ui/gradient-button";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";

@@ -4,8 +4,7 @@ import styled, { css } from "styled-components";
 
 import { groupWorkspaces } from "./workspaces";
 import type { WorkspaceEntry } from "./workspaces";
-import { getLessonPath, PgLesson } from "../lessons";
-import { stepNumber } from "../lessons/progress";
+import { foldRecord, getLessonPath, PgLesson, positionLabel } from "../lessons";
 import { useOnClickOutside, useRenderOnChange } from "../../../hooks";
 import { PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
@@ -182,7 +181,7 @@ const describeProgress = (name: string) => {
 
   const lesson = PgLesson.state;
   if (lesson.path?.tutorial === name) {
-    return `${stepNumber(path, lesson.progress)} of ${path.steps.length}`;
+    return positionLabel(path, foldRecord(path, lesson.record));
   }
 
   return `${path.steps.length} steps`;

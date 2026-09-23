@@ -14,6 +14,8 @@ import {
 } from "../../utils";
 import { checkWallet } from "../checks";
 import { createCmd } from "../create";
+import { additionalProgramLen } from "./additional-len";
+import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 
 export const deploy = createCmd({
@@ -131,10 +133,10 @@ Your address: ${PgWallet.current!.publicKey}`);
 
 /** Deploy the current program. */
 const processDeploy = async () => {
-  const programData =
+  const programBytes =
     PgProgramInfo.importedProgram?.bytes ??
     (await PgServer.deploy(PgProgramInfo.uuid!));
-  const programLen = programData.length;
+  const programLen = programBytes.length;
 
   const wallet = PgWallet.current!;
   const [pgWallet, standardWallet] = wallet.isPg
@@ -153,10 +155,7 @@ const processDeploy = async () => {
 
   // Get the balance required to deploy/upgrade (without fees)
   const programExists = PgProgramInfo.onChain!.deployed;
-  const getAdditionalLen = programExists
-    ? () => getProgramDataAccountSize(programLen) - getOnChainProgramDataSize()
-    : () => 0;
-  const additionalLen = getAdditionalLen();
+  const additionalLen = getAdditionalLen(programLen);
   const requiredBalanceWithoutFees =
     additionalLen > 0
       ? bufferBalance +
@@ -187,7 +186,13 @@ const processDeploy = async () => {
     );
     if (!confirmed) throw new Error("Insufficient balance");
 
-    await PgCommand.airdrop.execute();
+    // Request only what the deployment is missing, not the cluster's
+    // full faucet default (100 SOL on localnet)
+    const amount = airdropTopUp(
+      PgWeb3.lamportsToSol(requiredBalanceWithoutFees - userBalance),
+      airdropAmount
+    );
+    await PgCommand.airdrop.execute(amount.toString());
   }
 
   // If deploying from a standard wallet, transfer the required lamports for
@@ -204,13 +209,14 @@ const processDeploy = async () => {
     });
     await sendAndConfirmTxWithRetries(
       () => PgTx.send(transferIx),
-      async () => {
-        const currentBalance = PgWallet.balance;
-        if (typeof currentBalance !== "number") {
+      () => {
+        if (typeof PgWallet.balance !== "number") {
           throw new Error("Could not get wallet balance");
         }
 
-        return currentBalance < userBalance - requiredBalance;
+        return (
+          PgWeb3.solToLamports(PgWallet.balance) < userBalance - requiredBalance
+        );
       }
     );
   }
@@ -228,7 +234,7 @@ const processDeploy = async () => {
           { wallet: pgWallet }
         );
       },
-      () => getAdditionalLen() <= 0
+      () => getAdditionalLen(programLen) <= 0
     );
   }
 
@@ -252,7 +258,7 @@ const processDeploy = async () => {
   // Load buffer
   const loadBufferResult = await loadBufferWithControl(
     bufferKp.publicKey,
-    programData,
+    programBytes,
     {
       wallet: pgWallet,
       onWrite: (current, total) => {
@@ -270,7 +276,7 @@ const processDeploy = async () => {
       },
       onRateLimit: (retryAfter) => {
         PgTerminal.println(
-          `Warning: Reached rate-limits, waiting ({${PgCommon.formatSeconds(
+          `Warning: Reached rate-limits, waiting (${PgCommon.formatSeconds(
             retryAfter
           )})...`
         );
@@ -363,21 +369,15 @@ const processDeploy = async () => {
   );
 };
 
-/** {@link PgWeb3.BpfLoaderUpgradeableProgram.getProgramDataAccountSize} */
-const getProgramDataAccountSize = (
-  ...args: Parameters<
-    typeof PgWeb3.BpfLoaderUpgradeableProgram.getProgramDataAccountSize
-  >
-) => PgWeb3.BpfLoaderUpgradeableProgram.getProgramDataAccountSize(...args);
-
-/** Get the current program's on-chain program data account length */
-const getOnChainProgramDataSize = () => {
-  const programDataLen = PgProgramInfo.onChain?.programDataLen;
-  if (typeof programDataLen !== "number") {
-    throw new Error("Failed to get program data length");
-  }
-
-  return programDataLen;
+/** {@link additionalProgramLen} for the current program */
+const getAdditionalLen = (programLen: number) => {
+  const onChain = PgProgramInfo.onChain;
+  if (!onChain) throw new Error("Failed to get on-chain program info");
+  return additionalProgramLen({
+    programLen,
+    deployed: onChain.deployed,
+    onChainLen: onChain.programDataLen,
+  });
 };
 
 /** Load buffer with the ability to pause, resume and cancel on demand. */

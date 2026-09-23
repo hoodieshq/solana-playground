@@ -4,11 +4,12 @@ import styled, { css, keyframes } from "styled-components";
 import IdlActions from "./IdlActions";
 import { parseBuildReport } from "./build-report";
 import type { BuildDiagnostic, BuildReport } from "./build-report";
+import { isRestoredBuild, ownOutput } from "./build-surface";
 import { humanize } from "./humanize";
 import Button from "../../../components/Button";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import GradientButton from "../../sidebar/assistant/Component/GradientButton";
+import GradientButton from "../../../shared/ui/gradient-button";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
@@ -17,6 +18,21 @@ import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 /** `flow.buildMs` as a ` - 3.2s` suffix, or nothing while it is unknown */
 const msSuffix = (ms: number | null) =>
   ms === null ? "" : ` - ${(ms / 1000).toFixed(1)}s`;
+
+/**
+ * The build server's host, for naming it in the UI. Falls back to the raw
+ * setting: the value is parsed as a URL when it is set, but this also runs
+ * on the surface that reports an unreachable server, where throwing would
+ * replace the diagnosis with a blank stage.
+ */
+const serverHost = () => {
+  const endpoint = PgSettings.server.endpoint;
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return endpoint;
+  }
+};
 
 /** `flow.buildMs` as a plain `2.9s`, or `null` while it is unknown */
 const msLabel = (ms: number | null) =>
@@ -73,16 +89,67 @@ const Build = () => {
   }, []);
 
   const ms = msSuffix(flow.buildMs);
+  const building = flow.build === "running";
+  // The surface is chosen by the last *settled* status, never by
+  // "running": an unreachable build server fails in milliseconds, and
+  // swapping surfaces for that round trip reads as a blink (failed ->
+  // building -> failed). While a run is in flight the previous surface
+  // stays put and only its action shows "Building...".
+  const settled = building ? flow.buildSettled : flow.build;
+
+  // `PgBuildOutput` keeps one value for the whole session, so a report from
+  // the project opened before this one is still sitting in `out`. Anything
+  // another workspace recorded is not this surface's to show.
+  const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
   // still flips `flow.build` to "failed", but `out` stays `null` or, if a
   // previous run left one behind, goes stale.
   const outIsStale =
-    out !== null &&
+    own !== null &&
     flow.buildStartedAt !== null &&
-    out.at < flow.buildStartedAt;
-  if (flow.build === "failed" && (!out || outIsStale)) {
+    own.at < flow.buildStartedAt;
+
+  // The workspace's own record outlived the page; the compiler's words did
+  // not. Say what is known and no more -- the branches below would either
+  // offer a first build over a finished one, or blame a build server for a
+  // failure whose cause this page never saw.
+  if (isRestoredBuild(settled, own, flow.buildStartedAt)) {
+    const failed = settled === "failed";
+    return (
+      <Surface>
+        <Card>
+          <Eyebrow>Build</Eyebrow>
+          <StatusRow>
+            <Headline $ok={!failed} $error={failed}>
+              {failed ? "Last build failed" : "Built earlier"}
+            </Headline>
+          </StatusRow>
+          <Muted>
+            This project was built before the page was reloaded, so the
+            compiler's report is no longer here. Build again to see it.
+          </Muted>
+          <Actions>
+            <Button
+              kind="primary"
+              disabled={building}
+              onClick={() => PgCommand.build.execute()}
+            >
+              {building ? "Building..." : "Build"}
+            </Button>
+            {!failed && (
+              <GradientButton onClick={() => PgFlow.setStage("deploy")}>
+                Continue to Deploy
+              </GradientButton>
+            )}
+          </Actions>
+        </Card>
+      </Surface>
+    );
+  }
+
+  if (settled === "failed" && (!own || outIsStale)) {
     return (
       <Surface>
         <StatusRow>
@@ -103,19 +170,26 @@ const Build = () => {
         </StatusRow>
         <Muted>
           Build failed before the compiler ran - see the console. This usually
-          means the build server could not be reached; check the build server
-          URL in settings.
+          means the build server could not be reached: {serverHost()}. Change it
+          under Settings -&gt; Build server URL.
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Retry build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Retry build"}
           </Button>
         </Actions>
       </Surface>
     );
   }
 
-  if (!out) {
+  // Also reached while the very first build is in flight: there is no
+  // previous surface to hold onto, so the empty state itself says
+  // "Building..." instead of offering a live Build button mid-run.
+  if (!own) {
     return (
       <Surface>
         <EmptyMark viewBox="0 0 40 40" width="40" height="40" aria-hidden>
@@ -123,21 +197,38 @@ const Build = () => {
           <rect x="17" y="12" width="6" height="22" />
           <rect x="28" y="6" width="6" height="28" />
         </EmptyMark>
-        <Headline>Nothing built yet</Headline>
+        <Headline>{building ? "Building..." : "Nothing built yet"}</Headline>
         <Muted>
-          Build compiles your program on the server. Nothing leaves your browser
-          except the source.
+          {/* A run in flight names the server and warns about the wait. The
+              Foundation's server took 381s on a cold first build and 2.9s on
+              the next one (measured 2026-09-21); six unexplained minutes read
+              as a hang, so say the first build is the slow one. */}
+          {building ? (
+            <>
+              Compiling on {serverHost()}. A first build there can take several
+              minutes.
+            </>
+          ) : (
+            <>
+              Build compiles your program on the server. Nothing leaves your
+              browser except the source.
+            </>
+          )}
         </Muted>
         <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
-            Build
+          <Button
+            kind="primary"
+            disabled={building}
+            onClick={() => PgCommand.build.execute()}
+          >
+            {building ? "Building..." : "Build"}
           </Button>
         </Actions>
       </Surface>
     );
   }
 
-  if (!out.failed) {
+  if (!own.failed) {
     return (
       <Surface>
         <Card>
@@ -180,7 +271,7 @@ const Build = () => {
     );
   }
 
-  const report: BuildReport = parseBuildReport(out.stderr);
+  const report: BuildReport = parseBuildReport(own.stderr);
   // `countErrors` (the header badge's own count) and `parseBuildReport`
   // share one parsing convention, but rustc output that convention can't
   // split into diagnostics still leaves the badge with a count and this
@@ -192,7 +283,7 @@ const Build = () => {
   // line under an error does not start at the beginning of the line, so
   // `^warning:` does not match it.
   const warningCount = (report.raw.match(/^warning:/gm) ?? []).length;
-  const host = new URL(PgSettings.server.endpoint).host;
+  const host = serverHost();
   const meta = [`${n} error${n === 1 ? "" : "s"}`, msLabel(flow.buildMs), host]
     .filter(Boolean)
     .join(" \u00b7 ");
@@ -217,8 +308,12 @@ const Build = () => {
           <Headline>Build failed</Headline>
           <Meta>{meta}</Meta>
         </HeaderText>
-        <Button kind="outline" onClick={() => PgCommand.build.execute()}>
-          Rebuild
+        <Button
+          kind="outline"
+          disabled={building}
+          onClick={() => PgCommand.build.execute()}
+        >
+          {building ? "Building..." : "Rebuild"}
         </Button>
       </HeaderRow>
 
@@ -236,7 +331,7 @@ const Build = () => {
                   onClick={() =>
                     PgAssistant.requestPrompt(
                       "Explain this build failure and propose a fix:\n" +
-                        out.stderr
+                        own.stderr
                     )
                   }
                 >

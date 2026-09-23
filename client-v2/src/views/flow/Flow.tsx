@@ -14,10 +14,15 @@ import {
 import Resizable from "../../components/Resizable";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
-import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
-import { INITIAL_LESSON_STATE, PgLesson } from "./lessons";
+import {
+  describeStep,
+  entryReading,
+  graderClass,
+  INITIAL_LESSON_STATE,
+  PgLesson,
+} from "./lessons";
 import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
@@ -130,15 +135,29 @@ const Flow = () => {
     };
   }, []);
 
-  const readingStep = lesson.path
-    ? currentStep(lesson.path, lesson.progress)
-    : null;
+  const described = describeStep(lesson);
+
+  const read = () => setReading(true);
 
   // A learner who fixes the code while the page is open should come back
   // to the editor, not to the next step's prose.
   useEffect(() => {
     setReading(false);
-  }, [readingStep?.id]);
+  }, [described?.step.id]);
+
+  // Entering the lesson lands on the page -- once (D34). Declared after
+  // the effect above so that, on the commit where both fire (a load
+  // moves the cursor too), open wins. The record learns `opened` from
+  // the Reader once the page content actually loads, which moves the
+  // record's tail off `enter` -- so the next state returns null here and
+  // the effect is inert; closing the sheet by hand does not reopen it,
+  // while a page that failed to load gets another chance on re-entry.
+  const entryStep = entryReading(lesson);
+  useEffect(() => {
+    if (entryStep) read();
+    // `read` is recreated every render; the step id is the real trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryStep?.id]);
 
   return (
     <Wrapper>
@@ -179,14 +198,30 @@ const Flow = () => {
           />
         )}
         <Center>
-          <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+          <ObjectiveBand
+            state={lesson}
+            flow={state}
+            onRead={read}
+            onOpenGallery={openGallery}
+          />
           <Stage>
             <StageRouter stage={state.stage} />
-            {reading && readingStep && (
+            {reading && described && (
               <Reader
-                key={readingStep.id}
-                step={readingStep}
+                key={described.step.id}
+                step={described.step}
+                position={described.number}
+                criterion={described.verifiedBy}
+                offersAttest={
+                  described.offersPrimary &&
+                  graderClass(described.step.verify) === "attestation"
+                }
+                onLoaded={() => PgLesson.opened(described.step.id)}
                 onClose={() => setReading(false)}
+                onAttest={() => {
+                  PgLesson.attest();
+                  setReading(false);
+                }}
               />
             )}
           </Stage>

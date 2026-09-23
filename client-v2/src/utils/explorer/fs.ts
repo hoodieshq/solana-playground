@@ -172,7 +172,6 @@ export class PgFs {
    */
   static async readDir(path: string) {
     path = PgExplorer.convertToFullPath(path);
-
     return await this._fs.readdir(path);
   }
 
@@ -211,7 +210,7 @@ export class PgFs {
           if (metadata.isDirectory()) {
             const childDir = await this.readDir(childPath);
             if (childDir.length) {
-              await recursivelyRmdir(childDir, childPath + "/");
+              await recursivelyRmdir(childDir, childPath);
             } else await this._fs.rmdir(childPath);
           } else {
             await this.removeFile(childPath);
@@ -255,10 +254,9 @@ export class PgFs {
       return true;
     } catch (e: any) {
       if (e.code === "ENOENT" || e.code === "ENOTDIR") return false;
-      else {
-        console.log("Unknown error in exists: ", e);
-        throw e;
-      }
+
+      console.log("Unknown error in `fs.exists`: ", e);
+      throw e;
     }
   }
 }

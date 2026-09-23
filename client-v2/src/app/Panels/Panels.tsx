@@ -30,7 +30,7 @@ const Panels = () =>
 
       {/* A portal that is *below* the modal backdrop stacking context */}
       <PortalBelow id={PgView.ids.PORTAL_BELOW}>
-        <Toast />
+        <Toast sidebarOffset />
       </PortalBelow>
     </Wrapper>
   ) : (

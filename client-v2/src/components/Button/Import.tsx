@@ -10,6 +10,7 @@ interface ImportButtonProps {
   buttonKind?: ButtonKind;
   noButton?: boolean;
   dir?: boolean;
+  title?: string;
 }
 
 const ImportButton: FC<ImportButtonProps> = ({
@@ -19,6 +20,7 @@ const ImportButton: FC<ImportButtonProps> = ({
   showImportText,
   noButton,
   dir,
+  title,
   children,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +54,7 @@ const ImportButton: FC<ImportButtonProps> = ({
       {noButton ? (
         <div onClick={handleClick}>{children}</div>
       ) : (
-        <Button kind={buttonKind} onClick={handleClick}>
+        <Button kind={buttonKind} title={title} onClick={handleClick}>
           {children}
         </Button>
       )}

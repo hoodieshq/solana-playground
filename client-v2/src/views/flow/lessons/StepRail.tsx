@@ -1,7 +1,9 @@
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
-import { currentStep } from "./progress";
+import { primaryLabel } from "./band-copy";
+import { foldRecord, legal } from "./ledger";
+import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 
 interface StepRailProps {
@@ -11,53 +13,65 @@ interface StepRailProps {
 /**
  * The lesson's steps, marked with what actually confirmed them.
  *
- * Rows are deliberately not clickable. The ratchet is the navigation: a
- * click that skipped a verified step would hand back exactly what this
- * design exists to take away.
+ * An honest map: rows at legal positions navigate (clicking one is
+ * pure navigation, and the model proves it), rows beyond the frontier
+ * do not and say why. Nothing is "locked" -- some things are unproved.
  */
 const StepRail: FC<StepRailProps> = ({ state }) => {
-  const { path, progress } = state;
+  const { path } = state;
   if (!path) return null;
 
-  const active = currentStep(path, progress);
+  const view = foldRecord(path, state.record);
 
   return (
     <List>
-      {path.steps.map((step) => {
-        const done = progress.completedStepIds.includes(step.id);
-        const skipped = !!progress.skippedStepIds?.includes(step.id);
-        const isCurrent = step.id === active?.id;
-        const status = done
-          ? "done"
-          : skipped
-          ? "skipped"
-          : isCurrent
-          ? "current"
-          : "locked";
+      {path.steps.map((step, i) => {
+        const mark = view.marks.get(step.id) ?? "open";
+        const isCurrent = view.cursor === i;
+        const atFrontier = view.frontier === i;
+        const status: Status = mark !== "open" ? mark : "open";
+        const canGo = !isCurrent && legal(path, view, i);
 
         return (
-          <Row key={step.id} $status={status}>
-            <Mark $status={status} aria-hidden>
-              {done ? (
+          <Row
+            key={step.id}
+            type="button"
+            disabled={!canGo}
+            $status={status}
+            $current={isCurrent}
+            $ahead={mark === "open" && !atFrontier}
+            title={
+              canGo
+                ? "Go to this step. Nothing is recorded either way."
+                : isCurrent
+                ? "You are here"
+                : "Not reached -- the steps before it are still open"
+            }
+            onClick={() => PgLesson.move(step.id)}
+          >
+            <Glyph $status={status} $current={isCurrent} aria-hidden>
+              {mark === "proved" || mark === "attested" ? (
                 <>&#10003;</>
-              ) : skipped ? (
+              ) : mark === "passed" ? (
                 <>&#8594;</>
               ) : isCurrent ? (
                 <>&#9679;</>
               ) : (
                 <>&#9675;</>
               )}
-            </Mark>
+            </Glyph>
             <Text>
               <Objective>{step.objective}</Objective>
               <Meta>
-                {done
+                {mark === "proved"
                   ? step.verifiedBy
-                  : skipped
+                  : mark === "attested"
+                  ? "you marked this read — not machine-checked"
+                  : mark === "passed"
                   ? "skipped — not verified"
-                  : isCurrent
-                  ? `aiming at ${step.target}`
-                  : "locked"}
+                  : atFrontier
+                  ? primaryLabel(step.verify).toLowerCase()
+                  : "not reached"}
               </Meta>
             </Text>
           </Row>
@@ -69,7 +83,7 @@ const StepRail: FC<StepRailProps> = ({ state }) => {
 
 export default StepRail;
 
-type Status = "done" | "skipped" | "current" | "locked";
+type Status = "proved" | "attested" | "passed" | "open";
 
 const List = styled.div`
   flex: 1;
@@ -80,36 +94,51 @@ const List = styled.div`
   gap: 0.25rem;
 `;
 
-const Row = styled.div<{ $status: Status }>`
-  ${({ theme, $status }) => css`
+const Row = styled.button<{
+  $status: Status;
+  $current: boolean;
+  $ahead: boolean;
+}>`
+  ${({ theme, $current, $ahead, $status }) => css`
     display: grid;
     grid-template-columns: 1rem 1fr;
     gap: 0.5rem;
     align-items: start;
     padding: 0.5rem;
-    border: 1px solid
-      ${$status === "current" ? theme.colors.default.primary : "transparent"};
+    border: 1px solid ${$current ? theme.colors.default.primary : "transparent"};
     border-radius: ${theme.default.borderRadius};
-    background: ${$status === "current"
-      ? theme.colors.default.bgSecondary
-      : "transparent"};
-    opacity: ${rowOpacity($status)};
+    background: ${$current ? theme.colors.default.bgSecondary : "transparent"};
+    /* A passed row reads as passed-over, never as finished; a row not
+       yet reached recedes without claiming to be shut */
+    opacity: ${$ahead ? 0.5 : $status === "passed" ? 0.7 : 1};
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: default;
+    }
+
+    &:not(:disabled):hover {
+      border-color: ${theme.colors.default.primary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
   `}
 `;
 
-const Mark = styled.span<{ $status: Status }>`
-  ${({ theme, $status }) => css`
-    color: ${$status === "done"
+const Glyph = styled.span<{ $status: Status; $current: boolean }>`
+  ${({ theme, $status, $current }) => css`
+    color: ${$status === "proved"
       ? theme.colors.default.secondary
-      : $status === "current"
+      : $current
       ? theme.colors.default.primary
       : theme.colors.default.textSecondary};
   `}
 `;
-
-// A skipped row reads as passed-over, never as finished
-const rowOpacity = (status: Status) =>
-  status === "locked" ? 0.5 : status === "skipped" ? 0.7 : 1;
 
 const Text = styled.span`
   min-width: 0;

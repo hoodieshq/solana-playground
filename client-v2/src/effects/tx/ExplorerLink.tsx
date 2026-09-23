@@ -21,8 +21,4 @@ export const ExplorerLink: FC<ExplorerLinkProps> = ({ txHash }) => {
 const Wrapper = styled.div`
   display: flex;
   justify-content: space-around;
-
-  & > a:hover {
-    text-decoration: underline;
-  }
 `;

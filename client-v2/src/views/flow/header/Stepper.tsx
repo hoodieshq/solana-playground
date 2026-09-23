@@ -17,10 +17,15 @@ const LABEL: Record<Stage, string> = {
  * build is what puts it behind you. Going back to the Write tab to look at
  * your code does not un-write it — deriving `done` from the selected tab alone
  * greyed the connector every time the learner glanced at their own source.
+ *
+ * A build restored from the workspace's own record counts too: it happened,
+ * even though `buildStartedAt` names a run this page never watched.
  */
 export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
   if (stage === "write") {
-    if (state.buildStartedAt !== null) return "done";
+    if (state.buildStartedAt !== null || state.build !== "upcoming") {
+      return "done";
+    }
     return state.stage === "write" ? "active" : "done";
   }
   return state[stage];
@@ -48,9 +53,13 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
       const selected = state.stage === stage;
+      // Spoken only, never rendered: a visible count would widen the pill
+      // on failure, and the loop's density must not change with status --
+      // the red border and dot already carry "failed". A pre-compiler
+      // failure has no count, so saying "0 errors" would mislead.
       const suffix =
-        stage === "build" && status === "failed"
-          ? ` ${state.buildErrorCount} error${
+        stage === "build" && status === "failed" && state.buildErrorCount > 0
+          ? `, ${state.buildErrorCount} error${
               state.buildErrorCount === 1 ? "" : "s"
             }`
           : "";
@@ -75,7 +84,6 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             <Dot $status={status} aria-hidden />
             <Full>{LABEL[stage]}</Full>
             <Initial>{LABEL[stage][0]}</Initial>
-            {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
       );
@@ -139,29 +147,42 @@ const CheckGlyph = styled.svg`
 const DotCircle = styled.span<{ $status: StageStatus }>`
   ${({ theme, $status }) => css`
     flex-shrink: 0;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    box-sizing: border-box;
+    /* Same 14px box as CheckGlyph, so flipping done <-> other never
+       shifts the label */
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 
-    ${$status === "active" || $status === "running"
-      ? css`
-          /* Gradient policy (GradientButton, docs/design/brand-research.md):
+    &::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-sizing: border-box;
+
+      ${$status === "active" || $status === "running"
+        ? css`
+            /* Gradient policy (GradientButton, docs/design/brand-research.md):
              the 135deg brand gradient marks the active stage's dot. */
-          background: ${GRADIENT};
-        `
-      : $status === "failed"
-      ? css`
-          background: ${theme.colors.state.error.color};
-        `
-      : css`
-          background: transparent;
-          border: 1px solid ${theme.colors.default.textSecondary};
-        `}
+            background: ${GRADIENT};
+          `
+        : $status === "failed"
+        ? css`
+            background: ${theme.colors.state.error.color};
+          `
+        : css`
+            background: transparent;
+            border: 1px solid ${theme.colors.default.textSecondary};
+          `}
+    }
 
     ${$status === "running" &&
     css`
-      animation: stepper-pulse 1.2s ease-in-out infinite;
+      &::before {
+        animation: stepper-pulse 1.2s ease-in-out infinite;
+      }
 
       @keyframes stepper-pulse {
         0%,
@@ -175,7 +196,9 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        animation: none;
+        &::before {
+          animation: none;
+        }
       }
     `}
   `}
@@ -201,10 +224,6 @@ const Initial = styled.span`
   @media (max-width: ${STEPPER_COMPACT_AT}) {
     display: inline;
   }
-`;
-
-const ErrorSuffix = styled.span`
-  color: ${({ theme }) => theme.colors.state.error.color};
 `;
 
 const StageButton = styled.button<{

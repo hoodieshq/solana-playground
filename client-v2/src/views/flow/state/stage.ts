@@ -2,7 +2,7 @@ import {
   PgBuildOutput,
   stripKnownNoise,
 } from "../../sidebar/assistant/bridge/build-output";
-import { PgCommand, PgExplorer, PgGlobal } from "../../../utils";
+import { PgCommand, PgExplorer, PgGlobal, PgProgramInfo } from "../../../utils";
 import type { Disposable } from "../../../utils";
 
 export type Stage = "write" | "build" | "deploy" | "interact";
@@ -11,6 +11,11 @@ export type StageStatus = "upcoming" | "active" | "done" | "failed" | "running";
 export interface FlowState {
   stage: Stage;
   build: StageStatus;
+  /** The last build status that was not "running". The Build surface is
+   * chosen by this, never by the run in flight, so an instant failure
+   * cannot blink the surface -- and unlike component state it survives a
+   * remount mid-run. */
+  buildSettled: StageStatus;
   deploy: StageStatus;
   interact: StageStatus;
   buildErrorCount: number;
@@ -27,11 +32,18 @@ export type FlowEvent =
   | { type: "deploy-start" }
   | { type: "deploy-finish"; ok: boolean }
   | { type: "set-stage"; stage: Stage }
-  | { type: "workspace-change" };
+  | { type: "workspace-change" }
+  /**
+   * What the workspace already knows about itself, read back after a
+   * reload. `built` is `PgProgramInfo.lastBuildFailed`: `null` when this
+   * workspace has never been built.
+   */
+  | { type: "restore"; built: boolean | null; deployed: boolean };
 
 export const INITIAL_FLOW_STATE: FlowState = {
   stage: "write",
   build: "upcoming",
+  buildSettled: "upcoming",
   deploy: "upcoming",
   interact: "upcoming",
   buildErrorCount: 0,
@@ -95,6 +107,7 @@ export class PgFlow {
               ...state,
               stage: "build",
               build: "failed",
+              buildSettled: "failed",
               buildErrorCount: ev.errorCount,
               buildMs: ev.ms,
             }
@@ -104,6 +117,7 @@ export class PgFlow {
               // back to Write hid it (reported during the first demo run).
               ...state,
               build: "done",
+              buildSettled: "done",
               deploy: state.deploy === "upcoming" ? "active" : state.deploy,
               buildErrorCount: 0,
               buildMs: ev.ms,
@@ -118,6 +132,38 @@ export class PgFlow {
         return { ...state, stage: ev.stage };
       case "workspace-change":
         return INITIAL_FLOW_STATE;
+      case "restore": {
+        // Seeds only forward: a stage the live session has already moved
+        // off `upcoming` knows more about this run than the workspace's
+        // record does, so the record never overwrites it. That is also
+        // what makes a repeated restore idempotent.
+        const recorded: StageStatus =
+          ev.built === null ? "upcoming" : ev.built ? "failed" : "done";
+        // A build in flight leaves `build` at "running" and `buildSettled`
+        // on the previous verdict, so the same guard covers both: neither
+        // is touched unless the stage is untouched.
+        const fresh = state.build === "upcoming";
+        return {
+          ...state,
+          build: fresh ? recorded : state.build,
+          buildSettled: fresh ? recorded : state.buildSettled,
+          // A recorded success points at Deploy the way `build-finish` does,
+          // so a reload does not leave a finished Build with nothing saying
+          // where to go next.
+          deploy:
+            state.deploy !== "upcoming"
+              ? state.deploy
+              : ev.deployed
+              ? "done"
+              : recorded === "done"
+              ? "active"
+              : state.deploy,
+          interact:
+            ev.deployed && state.interact === "upcoming"
+              ? "active"
+              : state.interact,
+        };
+      }
     }
   }
 
@@ -172,6 +218,18 @@ export class PgFlow {
       }),
       PgExplorer.onDidSwitchWorkspace(() =>
         PgFlow._dispatch({ type: "workspace-change" })
+      ),
+      // A reload drops this state but not the workspace's own: the build
+      // verdict is in `program-info.json` and the deployment is on the
+      // cluster. `onChain` is fetched asynchronously and re-derives on a
+      // cluster or program id change, so this fires more than once --
+      // `restore` seeds only forward, which is what makes that safe.
+      PgProgramInfo.onDidChangeOnChain(() =>
+        PgFlow._dispatch({
+          type: "restore",
+          built: PgProgramInfo.lastBuildFailed,
+          deployed: !!PgProgramInfo.onChain?.deployed,
+        })
       ),
     ];
     return { dispose: () => subs.forEach((s) => s.dispose()) };

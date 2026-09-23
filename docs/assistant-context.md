@@ -203,9 +203,10 @@ Honesty rule for the demo — never present a mocked step as working.
   not seeded or scripted, and records every real deploy — but not the
   transaction signature yet, because the deploy command it hooks into
   returns no signature to record.
-- **Honest wording, not new work:** "Generate IDL" on the Build surface
-  reveals and downloads the IDL a successful build already produced; it
-  does not generate anything the build did not already output.
+- **Honest wording, not new work:** "Download IDL" on the Build surface
+  saves the IDL a successful build already produced; "Load IDL file" on
+  Deploy and Interact replaces the IDL this browser uses -- neither
+  generates anything or writes anything on-chain.
 - **Not view-only:** the New Workspace gallery's ecosystem program cards
   import from GitHub through upstream's own mechanism (`PgGithub.import`)
   into a normal, editable project -- they open as a normal project; those

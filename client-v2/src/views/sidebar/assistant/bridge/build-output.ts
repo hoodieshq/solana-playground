@@ -8,6 +8,13 @@ export interface BuildOutput {
   failed: boolean;
   /** When the build finished */
   at: number;
+  /**
+   * The workspace that produced it, or `null` when there was none.
+   *
+   * One value is kept for the whole session, so without this a reader cannot
+   * tell the current project's report from the one before it.
+   */
+  workspace: string | null;
 }
 
 /**
@@ -31,13 +38,17 @@ export class PgBuildOutput {
    * Record the result of a build.
    *
    * @param stderr raw output from the build server
+   * @param workspace the workspace that produced it. Passed in rather than
+   * read here: reaching for `PgExplorer` would pull `indexedDB` into a module
+   * several unit tests import.
    */
-  static set(stderr: string) {
+  static set(stderr: string, workspace: string | null) {
     PgBuildOutput._latest = {
       stderr,
       // Mirror the build command's own check rather than inventing a second one
       failed: stderr.includes("error: could not compile"),
       at: Date.now(),
+      workspace,
     };
     for (const cb of PgBuildOutput._listeners) cb(PgBuildOutput._latest);
   }

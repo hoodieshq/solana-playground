@@ -15,8 +15,13 @@ export type VerifyCondition =
    * artifact of the learner's own code, and free to check.
    */
   | { kind: "idl"; instruction: string; arg?: string; account?: string }
-  /** Nothing free proves this one; the learner continues by hand */
-  | { kind: "read" };
+  /**
+   * Nothing machine-checked proves this one; the learner attests it by
+   * hand. `at` names the stage the stepper rings while the step is
+   * current -- the one case where prose has to supply that pointer,
+   * and it lives inside the condition so it cannot drift from it.
+   */
+  | { kind: "read"; at: Stage };
 
 /** The three rungs of the hint ladder, coarse to specific */
 export type Hints = [question: string, locate: string, propose: string];
@@ -28,10 +33,12 @@ export interface LessonStep {
   objective: string;
   /** What proves it, in the learner's own words */
   verifiedBy: string;
-  /** The machine-checkable form of `verifiedBy` */
+  /**
+   * What proves this step -- also where the stepper's ring comes from,
+   * derived by `targetStage` in `verify.ts` rather than authored
+   * beside the condition, so the two cannot disagree
+   */
   verify: VerifyCondition;
-  /** Which stage the stepper rings while this step is current */
-  target: Stage;
   /**
    * Full prose for the reader overlay. A loader rather than a path
    * because a custom tutorial's pages are `require`d at build time from
