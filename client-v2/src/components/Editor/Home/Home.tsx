@@ -72,15 +72,22 @@ const ProjectTitle = styled.div`
   `}
 `;
 
+// Stacked, not side by side. The two sections used to share a row, which left
+// the bento about a third of the panel — too narrow ever to be more than one
+// column, which is the whole point of a bento.
 const ContentWrapper = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 2.5rem;
   width: 100%;
 `;
 
 const ResourcesWrapper = styled.div`
   ${({ theme }) => css`
     ${PgTheme.convertToCSS(theme.views.main.primary.home.resources.default)};
+    /* Overrides the theme's fixed width: the grid decides its own columns. */
+    width: 100%;
+    max-width: none;
   `}
 `;
 
@@ -90,38 +97,96 @@ const ResourcesTitle = styled.div`
   `}
 `;
 
+// A bento: even columns, tiles that take one or two of them. The columns are
+// sized by the grid rather than the tiles, so nothing has to be measured by
+// hand and the arrangement reflows without leaving holes.
 const ResourceCardsWrapper = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
 `;
 
-const Resource: FC<ResourceProps> = ({
+/**
+ * One tile in the bento.
+ *
+ * The whole tile is the link, so there is no "Learn more" button repeated
+ * eight times down the page — a widget you tap is a widget, a widget with a
+ * button inside it is a form. `$wide` tiles take two columns; the first two
+ * resources get it, which is what gives the grid its rhythm instead of the
+ * eight identical boxes this used to be.
+ */
+const Resource: FC<ResourceProps & { $wide?: boolean }> = ({
   name,
   description,
   url,
   icon,
   circleImage,
+  $wide,
 }) => (
-  <ResourceCard>
+  <ResourceCard href={url} $wide={$wide}>
     <ResourceTitle>
       <ResourceImg src={icon} $circleImage={circleImage} />
       {name}
     </ResourceTitle>
     <ResourceDescription>{description}</ResourceDescription>
-    <ResourceButtonWrapper>
-      <Link href={url}>
-        <ResourceButton rightIcon={<External />}>Learn more</ResourceButton>
-      </Link>
-    </ResourceButtonWrapper>
+    <ResourceGo aria-hidden="true">
+      <External />
+    </ResourceGo>
   </ResourceCard>
 );
 
-const ResourceCard = styled(Card)`
-  ${({ theme }) => css`
+const ResourceCard = styled.a<{ $wide?: boolean }>`
+  ${({ theme, $wide }) => css`
     ${PgTheme.convertToCSS(
       theme.views.main.primary.home.resources.card.default
     )};
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 9.5rem;
+    padding: 1.125rem;
+    text-decoration: none;
+    overflow: hidden;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    ${$wide && "grid-column: span 2;"}
+
+    /* Wide tiles give their description room; narrow ones stay terse. */
+    @media (max-width: 40rem) {
+      grid-column: span 1;
+    }
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      border-color: ${theme.colors.default.border};
+    }
+
+    &:hover > span:last-child {
+      opacity: 1;
+      transform: translate(0, 0);
+    }
+  `}
+`;
+
+/* The arrow is the only thing that moves: it appears on hover in the corner,
+   which is how a widget says it is a link without carrying a button. */
+const ResourceGo = styled.span`
+  ${({ theme }) => css`
+    position: absolute;
+    top: 1.125rem;
+    right: 1.125rem;
+    display: flex;
+    color: ${theme.colors.default.textSecondary};
+    opacity: 0;
+    transform: translate(-2px, 2px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+
+    & svg {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
   `}
 `;
 
@@ -147,22 +212,11 @@ const ResourceDescription = styled.div`
   `}
 `;
 
-const ResourceButtonWrapper = styled.div`
-  width: 100%;
-  height: 20%;
-`;
-
-const ResourceButton = styled(Button)`
-  ${({ theme }) => css`
-    ${PgTheme.convertToCSS(
-      theme.views.main.primary.home.resources.card.button
-    )};
-  `}
-`;
-
 const TutorialsWrapper = styled.div`
   ${({ theme }) => css`
     ${PgTheme.convertToCSS(theme.views.main.primary.home.tutorials.default)};
+    width: 100%;
+    max-width: none;
   `}
 `;
 

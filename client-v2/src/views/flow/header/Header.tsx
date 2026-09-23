@@ -1,16 +1,11 @@
 import type { FC } from "react";
-import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
+
+import { PgFlow, STAGES } from "../state/stage";
 
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
-import Stepper from "./Stepper";
-import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
-import type { LessonState } from "../lessons";
-import { currentStep } from "../lessons/progress";
 import type { SettingsFocus } from "../settings/GearSidebar";
-import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
-import type { FlowState } from "../state/stage";
 import { useKeybind } from "../../../hooks";
 
 interface HeaderProps {
@@ -28,16 +23,6 @@ const Header: FC<HeaderProps> = ({
   onToggleSettings,
   settingsOpen,
 }) => {
-  const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
-  useEffect(() => PgFlow.onDidChange(setState).dispose, []);
-
-  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
-  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
-
-  const target = lesson.path
-    ? currentStep(lesson.path, lesson.progress)?.target ?? null
-    : null;
-
   // Cmd/Ctrl+1..4 jump to a stage. `PgKeybind` folds `metaKey` into CTRL, so
   // one binding covers both platforms.
   useKeybind(
@@ -56,11 +41,7 @@ const Header: FC<HeaderProps> = ({
   return (
     <Bar>
       <Zone>
-        <Logomark aria-hidden="true" />
         <ProjectSwitcher onOpenGallery={onOpenGallery} />
-      </Zone>
-      <Zone $center>
-        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
       </Zone>
       <Zone $end>
         <StatusChips
@@ -80,7 +61,9 @@ const Bar = styled.header`
   ${({ theme }) => css`
     height: 3.5rem;
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    /* Two zones now the stepper has moved to the rail at the bottom:
+       where you are on the left, what the session is on the right. */
+    grid-template-columns: 1fr auto;
     align-items: center;
     padding: 0 0.75rem;
     background: transparent;
@@ -97,10 +80,3 @@ const Zone = styled.div<{ $center?: boolean; $end?: boolean }>`
     $center ? "center" : $end ? "flex-end" : "flex-start"};
 `;
 
-const Logomark = styled.div`
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: ${({ theme }) => theme.colors.default.primary};
-`;

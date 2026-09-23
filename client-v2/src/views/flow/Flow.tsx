@@ -5,13 +5,9 @@ import Chevron from "./Chevron";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Header from "./header/Header";
+import Stepper from "./header/Stepper";
+import NavSidebar from "./nav/NavSidebar";
 import LeftPanel from "./left/LeftPanel";
-import {
-  clampLeftWidth,
-  DEFAULT_LEFT_WIDTH,
-  MIN_LEFT_WIDTH,
-} from "./left/width";
-import Resizable from "../../components/Resizable";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 import { currentStep } from "./lessons/progress";
@@ -42,13 +38,12 @@ import type { Disposable } from "../../utils/types";
  */
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
-  const [leftOpen, setLeftOpen] = useState(true);
+  const [surface, setSurface] = useState<"code" | "files">("code");
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   // Session-only, like `leftOpen` and `assistantOpen` above.
   // TODO: persist to `localStorage` so a width dragged to read a long path
   // survives a reload.
-  const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT_WIDTH);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Lives here, not in `LeftPanel`: the open and collapsed panels are separate
@@ -57,7 +52,9 @@ const Flow = () => {
   const [pendingCreate, setPendingCreate] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
-  useKeybind("Ctrl+B", () => setLeftOpen((o) => !o));
+  useKeybind("Ctrl+B", () =>
+    setSurface((s) => (s === "files" ? "code" : "files"))
+  );
 
   useEffect(() => {
     const subs = [
@@ -133,6 +130,8 @@ const Flow = () => {
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
     : null;
+  // What the current lesson step is pointing at, if any — the stepper marks it
+  const target = readingStep?.target ?? null;
 
   // A learner who fixes the code while the page is open should come back
   // to the editor, not to the next step's prose.
@@ -147,52 +146,14 @@ const Flow = () => {
         onToggleSettings={toggleSettings}
         settingsOpen={settingsOpen}
       />
-      <Columns $assistant={assistantOpen} $left={leftOpen}>
-        {leftOpen ? (
-          <Resizable
-            enable="right"
-            size={{ width: leftWidth, height: "100%" }}
-            minWidth={MIN_LEFT_WIDTH}
-            maxWidth={clampLeftWidth(Infinity, window.innerWidth)}
-            onResizeStop={(_ev, _dir, ref) => {
-              setLeftWidth(
-                clampLeftWidth(
-                  ref.getBoundingClientRect().width,
-                  window.innerWidth
-                )
-              );
-            }}
-          >
-            <LeftPanel
-              collapsed={false}
-              onToggle={() => setLeftOpen((o) => !o)}
-              pendingCreate={pendingCreate}
-              onPendingCreateChange={setPendingCreate}
-            />
-          </Resizable>
-        ) : (
-          <LeftPanel
-            collapsed
-            onToggle={() => setLeftOpen((o) => !o)}
-            pendingCreate={pendingCreate}
-            onPendingCreateChange={setPendingCreate}
-          />
-        )}
-        <Center>
-          <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
-          <Stage>
-            <StageRouter stage={state.stage} />
-            {reading && readingStep && (
-              <Reader
-                key={readingStep.id}
-                step={readingStep}
-                onClose={() => setReading(false)}
-              />
-            )}
-          </Stage>
-          <ConsoleDrawer />
-        </Center>
-        <Right $open={assistantOpen}>
+      <Columns $assistant={assistantOpen}>
+        <NavSidebar
+          onOpenGallery={openGallery}
+          onOpenSettings={() => toggleSettings()}
+          onToggleAssistant={() => setAssistantOpen((o) => !o)}
+          assistantOpen={assistantOpen}
+        />
+        <Conversation $open={assistantOpen}>
           <Collapse
             type="button"
             aria-label={
@@ -203,8 +164,74 @@ const Flow = () => {
             <Chevron $flip={!assistantOpen} />
           </Collapse>
           {assistantOpen && <Assistant />}
-        </Right>
+        </Conversation>
+        <Work>
+          <WorkTabs role="tablist" aria-label="Work surface">
+            <WorkTab
+              type="button"
+              role="tab"
+              id="work-tab-code"
+              aria-selected={surface === "code"}
+              aria-controls="work-panel"
+              $current={surface === "code"}
+              onClick={() => setSurface("code")}
+            >
+              Code
+            </WorkTab>
+            <WorkTab
+              type="button"
+              role="tab"
+              id="work-tab-files"
+              aria-selected={surface === "files"}
+              aria-controls="work-panel"
+              $current={surface === "files"}
+              onClick={() => setSurface("files")}
+            >
+              Files
+            </WorkTab>
+          </WorkTabs>
+
+          <WorkBody
+            id="work-panel"
+            role="tabpanel"
+            aria-labelledby={`work-tab-${surface}`}
+          >
+            {/* Both stay mounted: the editor holds Monaco and the file tree
+                holds scroll and selection, and tearing either down on a tab
+                click loses work the user can see. Hidden, not unmounted. */}
+            <Surface $shown={surface === "files"}>
+              <LeftPanel
+                collapsed={false}
+                onToggle={() => setSurface("code")}
+                pendingCreate={pendingCreate}
+                onPendingCreateChange={setPendingCreate}
+              />
+            </Surface>
+            <Surface $shown={surface === "code"}>
+              <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+              <Stage>
+                <StageRouter stage={state.stage} />
+                {reading && readingStep && (
+                  <Reader
+                    key={readingStep.id}
+                    step={readingStep}
+                    onClose={() => setReading(false)}
+                  />
+                )}
+              </Stage>
+              <ConsoleDrawer />
+            </Surface>
+          </WorkBody>
+        </Work>
       </Columns>
+
+      {/* The stages read as the floor of the work surface rather than a
+          control in the title bar: they are where you are in the job, not a
+          place to navigate from, and at the bottom they sit under the thing
+          they describe. */}
+      <StageRail>
+        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
+      </StageRail>
 
       <GearSidebar
         open={settingsOpen}
@@ -238,21 +265,31 @@ const Wrapper = styled.div`
 
 // Open, the left track is `auto` so the `Resizable` around `LeftPanel` sets
 // its own width; collapsed, the track is fixed and there is no `Resizable`
-const Columns = styled.div<{ $assistant: boolean; $left: boolean }>`
+// Four tracks, left to right: where you can go, what you are saying, what is
+// in the project, and the thing you are working on. The conversation sits
+// beside the work rather than across the room from it — which is what v0,
+// Base44 and Claude all do, and what the layout frame in the Figma asks for.
+// Three tracks, left to right: where you can go, what you are saying, and the
+// thing you are working on. The file tree used to hold a column of its own
+// beside the editor; it is a tab on the work surface now, because two narrow
+// columns for one job left the editor — the reason the product exists — as the
+// thinnest thing on screen.
+const Columns = styled.div<{ $assistant: boolean }>`
   flex: 1;
   display: grid;
   grid-template-columns:
-    ${({ $left }) => ($left ? "auto" : "1.5rem")} 1fr
-    ${({ $assistant }) => ($assistant ? "21.75rem" : "1.5rem")};
+    auto
+    ${({ $assistant }) => ($assistant ? "23rem" : "1.5rem")}
+    1fr;
   gap: ${GAP};
-  padding: 0 ${GAP} ${GAP};
+  padding: 0 ${GAP} 0;
   overflow: hidden;
+  /* Without this the grid refuses to shrink below its content and pushes the
+     stage rail off the bottom of the window. */
+  min-height: 0;
 `;
 
-// The floating center panel: a single bordered/rounded surface holding both
-// the stage and the console drawer, so the drawer's status line reads as
-// the bottom edge of one panel rather than a separate box (see the board).
-const Center = styled.div`
+const Work = styled.section`
   ${({ theme }) => css`
     display: flex;
     flex-direction: column;
@@ -264,11 +301,62 @@ const Center = styled.div`
   `}
 `;
 
-// display: flex here matters: Primary's own wrapper sizes itself with
-// flex: 1; min-height: 0 (from theme.views.main.primary.default), which
-// only takes effect inside a flex container. Without this, the editor's
-// height collapses to its content size and Monaco never gets a real box
-// to paint into.
+const WorkTabs = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.5rem 0.5rem 0.375rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const WorkTab = styled.button<{ $current?: boolean }>`
+  ${({ theme, $current }) => css`
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 8px;
+    background: ${$current ? theme.colors.state.hover.bg : "transparent"};
+    color: ${$current
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
+    font-family: inherit;
+    font-size: ${theme.font.other.size.small};
+    font-weight: ${$current ? 500 : 400};
+    cursor: pointer;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+  `}
+`;
+
+const WorkBody = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const Surface = styled.div<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    display: ${$shown ? "flex" : "none"};
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  `}
+`;
+
+// display: flex matters here: Primary sizes itself with flex: 1; min-height: 0
+// from the theme, which only takes effect inside a flex container. Without it
+// the editor collapses to its content and Monaco never gets a box to paint in.
 const Stage = styled.div`
   flex: 1;
   min-height: 0;
@@ -279,7 +367,7 @@ const Stage = styled.div`
   position: relative;
 `;
 
-const Right = styled.aside<{ $open: boolean }>`
+const Conversation = styled.aside<{ $open: boolean }>`
   ${({ theme, $open }) => css`
     position: relative;
     --flow-handle-inset: ${$open ? "1rem" : "0px"};
@@ -318,6 +406,13 @@ const Collapse = styled.button`
       outline-offset: 2px;
     }
   `}
+`;
+
+// Full width under the columns, so it reads as the floor of the window rather
+// than a strip belonging to one panel.
+const StageRail = styled.div`
+  flex-shrink: 0;
+  padding: ${GAP};
 `;
 
 const PortalAbove = styled.div`
