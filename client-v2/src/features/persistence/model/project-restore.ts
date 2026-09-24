@@ -103,6 +103,10 @@ export const reconcile = async (): Promise<SyncResult> => {
   if (!(await PgProjectSync.isAvailable())) return result;
 
   const server = await PgProjectSync.list();
+  // Not knowing what the account holds is not the same as it holding nothing.
+  // Everything below decides on absence, so without the list there is nothing
+  // it can safely decide; the next reconcile will have one.
+  if (!server) return result;
   const serverIds = new Set(server.map((project) => project.id));
 
   // Newest first. The server orders its answer this way already; sorting here

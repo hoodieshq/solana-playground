@@ -266,11 +266,14 @@ export class PgProjectSync {
   /**
    * What the server holds for this user.
    *
-   * @returns the project list, or empty when sync is unavailable -- which is
-   * indistinguishable from "no projects" on purpose, so callers have one path
+   * @returns the project list, or `null` when it could not be read -- sync
+   * unavailable, offline, a refused session, a failing server. Never empty for
+   * those: reconcile reads a project missing from the list as deleted on
+   * another device, so an unreadable list passed off as an empty one deleted
+   * every clean synced project on this browser, and tombstoned their rows.
    */
-  static async list(): Promise<ServerProject[]> {
-    if (!(await PgProjectSync._ready())) return [];
+  static async list(): Promise<ServerProject[] | null> {
+    if (!(await PgProjectSync._ready())) return null;
 
     try {
       const response = await fetch("/api/projects", {
@@ -279,13 +282,17 @@ export class PgProjectSync {
       });
       if (!response.ok) {
         report(`list projects: HTTP ${response.status}`, null);
-        return [];
+        return null;
       }
       const body = await response.json();
-      return Array.isArray(body?.projects) ? body.projects : [];
+      if (!Array.isArray(body?.projects)) {
+        report("list projects: malformed", null);
+        return null;
+      }
+      return body.projects;
     } catch (e) {
       report("list projects", e);
-      return [];
+      return null;
     }
   }
 
