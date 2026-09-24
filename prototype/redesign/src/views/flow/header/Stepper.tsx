@@ -37,6 +37,8 @@ interface StepperProps {
    * pointing.
    */
   target?: Stage | null;
+  /** Labels collapse to their initials. Decided by the rail, not the window. */
+  compact?: boolean;
 }
 
 /**
@@ -44,7 +46,7 @@ interface StepperProps {
  * pill stepper. Each stage's status is carried by dot/glyph shape as well
  * as color, so the sequence reads correctly without color vision.
  */
-const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
+const Stepper: FC<StepperProps> = ({ state, onSelect, target, compact }) => (
   <Wrapper role="tablist" aria-label="Development loop">
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
@@ -74,8 +76,8 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
             onClick={() => onSelect(stage)}
           >
             <Dot $status={status} aria-hidden />
-            <Full>{LABEL[stage]}</Full>
-            <Initial>{LABEL[stage][0]}</Initial>
+            <Full $compact={compact}>{LABEL[stage]}</Full>
+            <Initial $compact={compact}>{LABEL[stage][0]}</Initial>
             {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
           </StageButton>
         </Item>
@@ -197,21 +199,20 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
  * is what stops the status chips overlapping the stepper on a narrow window.
  * The full name stays in each button's `aria-label` either way, so nothing is
  * lost to a screen reader.
+ *
+ * This used to be a viewport media query at 80rem, from when the stepper was
+ * crammed into the window's top bar and competed there with a project name and
+ * the account chips. It now has a rail of its own across the workspace, so the
+ * window's width says nothing useful about how much room these four have — at
+ * 1279px wide they were abbreviating to single letters inside 147px each. The
+ * rail measures itself and says.
  */
-const STEPPER_COMPACT_AT = "80rem";
-
-const Full = styled.span`
-  @media (max-width: ${STEPPER_COMPACT_AT}) {
-    display: none;
-  }
+const Full = styled.span<{ $compact?: boolean }>`
+  ${({ $compact }) => $compact && "display: none;"}
 `;
 
-const Initial = styled.span`
-  display: none;
-
-  @media (max-width: ${STEPPER_COMPACT_AT}) {
-    display: inline;
-  }
+const Initial = styled.span<{ $compact?: boolean }>`
+  display: ${({ $compact }) => ($compact ? "inline" : "none")};
 `;
 
 const ErrorSuffix = styled.span`
