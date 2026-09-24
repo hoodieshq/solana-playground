@@ -35,6 +35,11 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
           the pointer: the pieces are meant to be shoved around. */}
       <HeroArt>
         <HeroCanvas />
+        {/* The deck's lattice, carried onto the landing so the two read as one
+            piece of work. Over the canvas rather than in it: the dither pass
+            quantises whatever it is given, and a hairline put through that
+            comes out as broken dots. */}
+        <Lattice aria-hidden="true" />
         <Grid />
         <Fade />
       </HeroArt>
@@ -205,6 +210,44 @@ const Hero = styled.header`
   grid-template-rows: auto 1fr auto;
   padding: 1.5rem clamp(1.5rem, 5vw, 5rem) clamp(1.5rem, 3vw, 2.5rem);
   isolation: isolate;
+`;
+
+/* Rounded tiles seen as the light between them, same construction as the
+   deck's: mortar lines plus a radial at each cell corner for the star the
+   corners make. Masked so it arrives across the frame. */
+const Lattice = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: radial-gradient(
+      circle at 0 0,
+      rgba(255, 255, 255, 0.13) 0,
+      rgba(255, 255, 255, 0) 11px
+    ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.07) 0 1.5px,
+      rgba(255, 255, 255, 0) 1.5px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.07) 0 1.5px,
+      rgba(255, 255, 255, 0) 1.5px
+    );
+  background-size: 68px 68px;
+  -webkit-mask-image: linear-gradient(
+    105deg,
+    transparent 6%,
+    rgba(0, 0, 0, 0.5) 46%,
+    #000 92%
+  );
+  mask-image: linear-gradient(
+    105deg,
+    transparent 6%,
+    rgba(0, 0, 0, 0.5) 46%,
+    #000 92%
+  );
 `;
 
 const HeroArt = styled.div`

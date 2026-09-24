@@ -4,6 +4,13 @@ import styled, { css, keyframes } from "styled-components";
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import Backdrop from "./Backdrop";
 import MarkMorph from "./MarkMorph";
+/* Imported rather than referenced by path: `public/` in this repo is mirrored
+   from the static-assets submodule by `make update-static`, so anything put
+   there is wiped on the next build and never committed. Through the bundler
+   they are content-hashed and actually ship. */
+import groundShot from "./art/ground.png";
+import playShot from "./art/play.png";
+import solanaShot from "./art/solana.png";
 import type { Exit, SlideSpec } from "./slides";
 import {
   HEADLINE,
@@ -85,7 +92,7 @@ const Slide: FC<SlideProps> = ({
           {slide.items.map((item, i) => (
             <Card key={item.name} style={{ animationDelay: `${140 + i * 110}ms` }}>
               <Plate>
-                <Glyph aria-hidden="true">{GLYPHS[item.glyph]}</Glyph>
+                <Shot src={ART[item.glyph]} alt="" />
               </Plate>
               <CardName>{item.name}</CardName>
               <CardNote>{item.note}</CardNote>
@@ -396,15 +403,21 @@ const Plate = styled.div`
   border-radius: 4px;
 `;
 
-const Glyph = styled.div`
-  display: flex;
-  width: 46%;
-  color: ${INK};
+const ART: Record<"solana" | "play" | "ground", string> = {
+  solana: solanaShot,
+  play: playShot,
+  ground: groundShot,
+};
 
-  & > svg {
-    width: 100%;
-    height: auto;
-  }
+/* The Figma's own artwork, exported from the deck rather than redrawn. The
+   stroke glyphs that stood here were a stand-in and read as a different deck:
+   a product shot of a controller and a photograph of the earth are the point
+   of that slide, not three icons at one weight. */
+const Shot = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 `;
 
 const CardName = styled.div`
@@ -421,29 +434,3 @@ const CardNote = styled.div`
   color: rgba(0, 0, 0, 0.5);
 `;
 
-/* Solana's three bars, a controller, and a globe — drawn rather than
-   photographed, so the row reads as one set. The Figma uses a product shot of
-   a gamepad and a NASA earth; three stroke glyphs at one weight say the same
-   thing and do not drag two licensed images into the build. */
-const GLYPHS: Record<"solana" | "play" | "ground", JSX.Element> = {
-  solana: (
-    <svg viewBox="0 0 100 78" fill="currentColor">
-      <path d="M17.2 58.6a3.4 3.4 0 0 1 2.4-1H98c1.5 0 2.3 1.8 1.2 2.9L82.8 77a3.4 3.4 0 0 1-2.4 1H2c-1.5 0-2.3-1.9-1.2-3z" />
-      <path d="M17.2 1a3.4 3.4 0 0 1 2.4-1H98c1.5 0 2.3 1.8 1.2 2.9L82.8 19.4a3.4 3.4 0 0 1-2.4 1H2C.5 20.4-.3 18.5.8 17.4z" />
-      <path d="M82.8 29.6a3.4 3.4 0 0 0-2.4-1H2c-1.5 0-2.3 1.9-1.2 3l16.4 16.5a3.4 3.4 0 0 0 2.4 1H98c1.5 0 2.3-1.9 1.2-3z" />
-    </svg>
-  ),
-  play: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6.6 7h10.8a4 4 0 0 1 3.9 3.1l1.2 5.4a2.6 2.6 0 0 1-4.7 2l-1.6-2.2a2 2 0 0 0-1.6-.8H9.4a2 2 0 0 0-1.6.8l-1.6 2.2a2.6 2.6 0 0 1-4.7-2l1.2-5.4A4 4 0 0 1 6.6 7Z" />
-      <path d="M7 11.4v1.8M6.1 12.3h1.8M16.4 11.6h.01M18.2 13.2h.01" />
-    </svg>
-  ),
-  ground: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9.2" />
-      <path d="M2.8 12h18.4" />
-      <path d="M12 2.8c2.6 2.7 4 5.8 4 9.2s-1.4 6.5-4 9.2c-2.6-2.7-4-5.8-4-9.2s1.4-6.5 4-9.2Z" />
-    </svg>
-  ),
-};
