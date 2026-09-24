@@ -323,6 +323,39 @@ describe("reconcile", () => {
     expect(await PgSyncMark.read("p1")).toBeNull();
   });
 
+  it("touches nothing when the account could not be read", async () => {
+    // Offline, an expired cookie, a 500. Reading that as "the account holds
+    // nothing" deleted every clean synced project here -- and each delete
+    // then tombstoned its row.
+    withLocal({ alpha: "p1", beta: "p2", gamma: "local-only" });
+    withFiles("alpha", { "src/lib.rs": "same" });
+    withFiles("beta", { "src/lib.rs": "edited" });
+    withFiles("gamma", { "src/lib.rs": "never synced" });
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    await pending("p2", { files: { "src/lib.rs": "old" } }, "t1", "beta");
+    const remove = jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const tombstone = jest.spyOn(PgProjectSync, "remove");
+    jest.spyOn(PgProjectSync, "list").mockResolvedValue(null);
+
+    const result = await reconcile();
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(tombstone).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      imported: [],
+      replaced: [],
+      pushed: [],
+      removed: [],
+      conflicts: [],
+      latest: null,
+    });
+    expect(await PgSyncMark.read("p1")).not.toBeNull();
+  });
+
   it("asks before finishing a delete over unsaved work", async () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "work that never uploaded" });

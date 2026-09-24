@@ -188,8 +188,47 @@ describe("PgProjectSync", () => {
 
   it("lists nothing when signed out, rather than calling the server", async () => {
     global.fetch = jest.fn() as unknown as typeof fetch;
-    expect(await PgProjectSync.list()).toEqual([]);
+    expect(await PgProjectSync.list()).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  /** Sync is up; the list request itself answers with `list` */
+  const listAnswers = (list: () => Promise<unknown>) => {
+    global.fetch = jest
+      .fn()
+      .mockImplementation((url: string) =>
+        url === "/api/sync" ? Promise.resolve(okProbe) : list()
+      ) as unknown as typeof fetch;
+  };
+
+  const unreadable: [string, () => Promise<unknown>][] = [
+    ["the network is down", () => Promise.reject(new TypeError("offline"))],
+    [
+      "the session has expired",
+      () => Promise.resolve({ ok: false, status: 401 }),
+    ],
+    ["the server fails", () => Promise.resolve({ ok: false, status: 500 })],
+    [
+      "the answer is not a list",
+      () => Promise.resolve({ ok: true, json: async () => ({}) }),
+    ],
+  ];
+  for (const [when, list] of unreadable) {
+    it(`tells an unreadable list from an empty one when ${when}`, async () => {
+      listAnswers(list);
+      await signedIn();
+
+      expect(await PgProjectSync.list()).toBeNull();
+    });
+  }
+
+  it("lists an account that holds nothing as empty", async () => {
+    listAnswers(() =>
+      Promise.resolve({ ok: true, json: async () => ({ projects: [] }) })
+    );
+    await signedIn();
+
+    expect(await PgProjectSync.list()).toEqual([]);
   });
 
   it("lists the server's projects", async () => {
