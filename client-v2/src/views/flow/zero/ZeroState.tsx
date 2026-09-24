@@ -6,8 +6,8 @@ import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
 import Composer from "../components/Composer";
-import { gradientStroke } from "../components/gradient";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
+import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgCommon, PgTutorial } from "../../../utils";
 
 /**
@@ -447,9 +447,10 @@ const Lead = styled.div<{ $shown: boolean }>`
 const Title = styled.h1`
   ${({ theme }) => css`
     margin: 0;
-    font-size: 1.375rem;
+    font-family: ${HEADLINE_FONT};
+    font-size: 1.75rem;
     font-weight: 400;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     color: ${theme.colors.default.textPrimary};
   `}
 `;

@@ -1,7 +1,7 @@
 import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import PlaygroundMark from "../../../components/PlaygroundMark";
+import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgExplorer } from "../../../utils";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
@@ -364,9 +364,10 @@ const Column = styled.div`
 `;
 
 /* The word is the mark until the product has earned one. */
-const Mark = styled(PlaygroundMark)`
-  /* The artwork is 342 x 184; at cap height it comes out a shade under 2:1 */
-  height: 0.6875rem;
+const Mark = styled(PlaygroundMarkNext)`
+  /* The new artwork is 970 x 574 — squarer than the old mark, so it sits a
+     touch taller for the same optical weight beside the wordmark. */
+  height: 0.8125rem;
   width: auto;
   flex-shrink: 0;
 `;
