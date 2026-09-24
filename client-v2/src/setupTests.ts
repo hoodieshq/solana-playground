@@ -15,3 +15,31 @@ if (!globalThis.crypto?.subtle) {
 if (!globalThis.TextEncoder) {
   Object.assign(globalThis, { TextEncoder, TextDecoder });
 }
+
+// jsdom has no IndexedDB, and `PgFs` constructs a lightning-fs store the
+// moment it is imported -- so any module that transitively reaches it fails to
+// load here, not just the ones that use it. Since chat threads now live in
+// `PgFs`, that is most of the assistant.
+//
+// `fake-indexeddb` does not help: lightning-fs throws bare `DOMException`s
+// against it and takes the worker down. So the module is replaced with an
+// in-memory one for every test, globally. Nothing under jsdom could use the
+// real filesystem anyway; the browser round trip is covered in `e2e/`.
+jest.mock("./utils/explorer/fs", () =>
+  require("./test-utils/mock-fs").mockFsModule()
+);
+
+// jsdom ships no `fetch` either. Tests install their own with `jest.spyOn`,
+// which needs something already on the global to replace, so the stand-in is
+// a function that throws: a test that reaches the network without saying what
+// it expects back is a bug, and this is how it says so rather than hanging.
+// `writable` keeps the older tests that assign `global.fetch` working.
+if (!globalThis.fetch) {
+  Object.defineProperty(globalThis, "fetch", {
+    value: () => {
+      throw new Error("fetch is not stubbed in this test");
+    },
+    configurable: true,
+    writable: true,
+  });
+}

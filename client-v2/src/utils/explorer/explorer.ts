@@ -43,6 +43,7 @@ export class PgExplorer {
     ON_DID_CREATE_ITEM: "explorerondidcreateitem",
     ON_DID_RENAME_ITEM: "explorerondidrenameitem",
     ON_DID_DELETE_ITEM: "explorerondiddeleteitem",
+    ON_DID_SAVE_FILE: "explorerondidsavefile",
     ON_DID_OPEN_FILE: "explorerondidopenfile",
     ON_DID_CLOSE_FILE: "explorerondidclosefile",
     ON_DID_SET_TABS: "explorerondidsettabs",
@@ -91,6 +92,26 @@ export class PgExplorer {
   /** Get current workspace name */
   static get currentWorkspaceName() {
     return this._workspace?.currentName;
+  }
+
+  /**
+   * Stable id of the current workspace.
+   *
+   * What sync keys on. Unlike the name, it survives a rename -- which is why
+   * a renamed project keeps its conversation.
+   */
+  static get currentWorkspaceId() {
+    return this._workspace?.currentId;
+  }
+
+  /** Stable id of a workspace by name, or `undefined` if there is none */
+  static workspaceIdOf(name: string) {
+    return this._workspace?.idOf(name);
+  }
+
+  /** Local name of a workspace by id, or `undefined` if there is none */
+  static workspaceNameOf(id: string) {
+    return this._workspace?.nameOf(id);
   }
 
   /** Get names of all workspaces */
@@ -413,6 +434,7 @@ export class PgExplorer {
    * - `defaultOpenFile`: default file to open in the editor
    * - `fromTemporary`: whether to create new workspace from a temporary project
    * - `skipNameValidation`: whether to skip workspace name validation
+   * - `id`: an existing id to adopt, for a workspace restored from the server
    */
   static async createWorkspace(
     name: string,
@@ -421,6 +443,7 @@ export class PgExplorer {
       defaultOpenFile?: string;
       fromTemporary?: boolean;
       skipNameValidation?: boolean;
+      id?: string;
     }
   ) {
     name = name.trim();
@@ -466,7 +489,7 @@ export class PgExplorer {
     if (!this._workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
 
     // Create a new workspace in state
-    this._workspace.create(name);
+    this._workspace.create(name, opts?.id);
 
     // Create files
     if (opts?.files) {
@@ -524,6 +547,108 @@ export class PgExplorer {
 
     // Dispatch change event
     PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_SWITCH_WORKSPACE);
+  }
+
+  /**
+   * Add a workspace from outside this browser, without opening it.
+   *
+   * Everything else that creates a workspace switches to it, because the user
+   * just asked for it. An imported one arrives while the user is in the middle
+   * of something else, and a switch is not private: `routes/tutorials` listens
+   * for it and navigates away when the new workspace is not the tutorial,
+   * which also closes the open conversation. So this writes the files and
+   * registers the workspace, and leaves `currentId` exactly where it was.
+   *
+   * Only the current workspace is ever held in memory, so the imported files
+   * go straight to the backing store -- there is no in-memory state for them
+   * to be missing from.
+   *
+   * @param name workspace name, which must not already be in use
+   * @param opts -
+   * - `id`: the id to adopt, so the source device and this one agree
+   * - `files`: project-relative paths to contents
+   */
+  static async importWorkspace(
+    name: string,
+    opts: { id: string; files: Record<string, string> }
+  ) {
+    if (!this._workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
+
+    for (const [path, content] of Object.entries(opts.files)) {
+      await this.fs.writeFile(
+        PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, name, path),
+        content,
+        { createParents: true }
+      );
+    }
+
+    this._workspace.add(name, opts.id);
+    await this._saveWorkspaces();
+
+    PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_CREATE_WORKSPACE);
+  }
+
+  /**
+   * Overwrite a workspace's files with the given ones.
+   *
+   * A replace, not a merge: the snapshot is the whole project, so a file
+   * deleted on the other device has to disappear here too rather than linger
+   * as a file nobody wrote. That is what makes the server's copy authoritative
+   * instead of merely newer.
+   *
+   * Writes to the backing store and leaves the in-memory state alone, because
+   * only the current workspace has any -- a caller replacing the *current*
+   * workspace has to re-open it afterwards for the editor to catch up.
+   *
+   * @param name local workspace name, which must already exist
+   * @param files project-relative paths to contents
+   */
+  static async replaceWorkspaceFiles(
+    name: string,
+    files: Record<string, string>
+  ) {
+    const dir = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, name);
+    const metadataPath = PgCommon.joinPaths(dir, PgWorkspace.METADATA_PATH);
+
+    // Which tabs are open, and where the caret is, is this device's business:
+    // the snapshot deliberately leaves it out so that merely *looking* at a
+    // project is not a change other devices have to reconcile. That makes it
+    // local state, and a sync operation has no business being the thing that
+    // deletes it -- which clearing the directory below otherwise does.
+    //
+    // Losing it is not cosmetic. With no tabs there is no current file, so the
+    // editor has nothing to re-read and goes on rendering the version the user
+    // just chose to replace, until the page is reloaded.
+    const metadata = await this.fs.readToJSONOrDefault<ItemMetaFile>(
+      metadataPath,
+      []
+    );
+
+    try {
+      await this.fs.removeDir(dir, { recursive: true });
+    } catch {
+      // Nothing there to clear is the ordinary case for a workspace that is
+      // registered but whose directory never landed; the writes below are
+      // what matter
+    }
+
+    for (const [path, content] of Object.entries(files)) {
+      await this.fs.writeFile(PgCommon.joinPaths(dir, path), content, {
+        createParents: true,
+      });
+    }
+
+    // Only the entries that still name a file the incoming snapshot has, so
+    // the editor does not come back pointing at something the other device
+    // deleted
+    const kept = metadata.filter((meta) => files[meta.path] !== undefined);
+    if (kept.length) {
+      await this.fs.writeFile(metadataPath, JSON.stringify(kept), {
+        createParents: true,
+      });
+    }
+
+    await this.fs.flush();
   }
 
   /**
@@ -591,7 +716,7 @@ export class PgExplorer {
       const lastWorkspace = workspace.allNames.at(-1)!;
       await this.switchWorkspace(lastWorkspace);
     } else {
-      workspace.setCurrent({ allNames: [] });
+      workspace.setCurrent({ workspaces: [] });
       await this._saveWorkspaces();
       PgCommon.createAndDispatchCustomEvent(
         this.events.ON_DID_SWITCH_WORKSPACE
@@ -612,8 +737,21 @@ export class PgExplorer {
     const paths = Object.keys(this.files);
     if (!paths.length) return;
 
-    // Check whether the files start with the correct workspace path
-    const workspacePath = this.getRequiredCurrentWorkspacePath();
+    // Nothing is current, so there is nowhere for this to go. `deleteWorkspace`
+    // removes the workspace from state and only then moves to another one, so
+    // `switchWorkspace` -- which saves metadata first -- runs inside a window
+    // where the explorer holds workspaces and none of them is current.
+    //
+    // Upstream passed through that window by accident: the pointer was a name,
+    // so it went on naming the workspace just deleted and the check below
+    // rejected it as an invalid state. The pointer is an id now and resolves
+    // through the list, so the same window answers "no current workspace" and
+    // the required-path getter threw -- leaving the explorer wedged with
+    // workspaces it could not render, which is what `Folders` fell over on.
+    // The file map at that point holds the deleted workspace's paths, so the
+    // check below is what would have rejected them anyway.
+    const workspacePath = this.getCurrentWorkspacePath();
+    if (!workspacePath) return;
     const isInvalidState = paths.some(
       (path) => !path.startsWith(workspacePath)
     );
@@ -668,7 +806,15 @@ export class PgExplorer {
    */
   static saveFileToState(path: string, content: string) {
     path = this.convertToFullPath(path);
-    if (this.files[path]) this.files[path].content = content;
+    if (!this.files[path]) return;
+
+    this.files[path].content = content;
+    // The only signal that a file's *contents* changed. `onDidCreateItem` and
+    // friends cover the tree's shape, and nothing covered an edit -- so
+    // anything mirroring the workspace had no way to know it had gone stale.
+    // Dispatched from here rather than from the editor because this is what
+    // `getAllFiles` reads, so a listener is guaranteed to see the new content.
+    PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_SAVE_FILE);
   }
 
   /**
@@ -1020,6 +1166,16 @@ export class PgExplorer {
    * @param cb callback function to run
    * @returns a dispose function to clear the event
    */
+  /**
+   * Runs after a file's contents change.
+   *
+   * @param cb callback function to run
+   * @returns a dispose function to clear the event
+   */
+  static onDidSaveFile(cb: () => unknown) {
+    return PgCommon.onDidChange(PgExplorer.events.ON_DID_SAVE_FILE, cb);
+  }
+
   static onDidDeleteItem(cb: (path: string) => unknown) {
     return PgCommon.onDidChange(PgExplorer.events.ON_DID_DELETE_ITEM, cb);
   }
@@ -1104,7 +1260,19 @@ export class PgExplorer {
    * Only the current workspace at a time will be in the memory.
    */
   private static async _initCurrentWorkspace() {
-    const workspacePath = this.getRequiredCurrentWorkspacePath();
+    // No workspace to open is a state, not a fault: the recovery below resets
+    // to none when the config named workspaces the filesystem does not have,
+    // and then calls back into here. Demanding one turned that rescue into
+    // "Current workspace not found" -- the same failure it was recovering
+    // from, now with nothing left to recover. `init` reaches the identical
+    // end state by its own route when there are no workspaces at all, and
+    // `Flow` answers it by offering to make one.
+    const workspacePath = this.getCurrentWorkspacePath();
+    if (!workspacePath) {
+      this._explorer = this._getDefaultState();
+      return;
+    }
+
     const workspace = this._workspace!;
 
     // Reset files
@@ -1268,6 +1436,17 @@ export class PgExplorer {
       ? this.tabs.indexOf(current.path)
       : -1;
 
+    // Nothing to show. The metadata is what remembers which file was open, so
+    // a workspace that has never had one -- or whose metadata did not survive
+    // having its files replaced from another device -- opens with an empty
+    // editor over a full file tree, and stays that way until the user clicks
+    // something. Falling back to the same default a new project gets means
+    // re-reading a workspace always lands somewhere.
+    if (this._explorer.currentIndex === -1) {
+      const defaultOpenFile = this._getDefaultOpenFile(this.files);
+      if (defaultOpenFile) this.openFile(defaultOpenFile);
+    }
+
     // Metadata
     for (const itemMeta of fullPathMetaFile) {
       const file = this.files[itemMeta.path];
@@ -1297,9 +1476,15 @@ export class PgExplorer {
    * @returns the workspaces state
    */
   private static async _getWorkspaces() {
-    return await this.fs.readToJSONOrDefault(
-      PgWorkspace.WORKSPACES_CONFIG_PATH,
-      PgWorkspace.DEFAULT
+    // Migrated here rather than at each call site: this is the only door the
+    // on-disk shape comes through, and every existing user still has the
+    // pre-id one. `migrate` is idempotent, so a migrated config passes
+    // straight through.
+    return PgWorkspace.migrate(
+      await this.fs.readToJSONOrDefault(
+        PgWorkspace.WORKSPACES_CONFIG_PATH,
+        PgWorkspace.DEFAULT
+      )
     );
   }
 
@@ -1319,6 +1504,13 @@ export class PgExplorer {
         JSON.stringify(this._workspace.get()),
         { createParents: true }
       );
+
+      // Every structural workspace change funnels through here, and the
+      // backing store defers its directory-tree write by 500ms. Without this,
+      // a reload in that window finds the config listing a workspace whose
+      // directory was never persisted -- "No project", with the files still
+      // on disk but unreachable.
+      await this.fs.flush();
     }
   }
 

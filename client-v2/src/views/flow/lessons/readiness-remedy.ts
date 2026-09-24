@@ -1,6 +1,6 @@
 import type { Blocker } from "./readiness";
 import { DEFAULT_ENDPOINT } from "../../../constants";
-import { GithubAuth } from "../../../features/github-oauth";
+import { PgSession } from "../../../features/auth";
 import { PgCommand, PgSettings, PgTerminal } from "../../../utils";
 
 /**
@@ -38,7 +38,7 @@ export const remedy = (b: Blocker): (() => void) => {
       return b.signedIn
         ? () => PgCommand.airdrop.execute()
         : () => {
-            GithubAuth.signIn().catch((e: unknown) => {
+            PgSession.signIn().catch((e: unknown) => {
               const message = e instanceof Error ? e.message : String(e);
               PgTerminal.println(
                 PgTerminal.error(`Sign-in failed: ${message}`)

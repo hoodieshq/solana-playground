@@ -13,7 +13,11 @@
   },
   "rewrites": [
     {
-      "source": "/((?!static/|.*\\..*).*)",
+      "source": "/api/auth/:authPath+",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/((?!api/|static/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

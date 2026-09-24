@@ -4,6 +4,9 @@ import {
   listTools,
   LOCAL_MCP_SERVERS,
 } from "./grounding";
+import { forgetBackend, rememberBackend } from "./model/remembered-backend";
+import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
+import { uuid } from "../../../features/persistence/model/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";
@@ -29,21 +32,70 @@ export type ApprovalRequest = PatchApproval | CommandApproval;
 
 export type ApprovalStatus = "pending" | "allowed" | "denied";
 
+/** What every rendered item carries, whatever its kind */
+interface ChatItemBase {
+  /**
+   * Minted on the client, so appending the same item twice -- a re-sync, or a
+   * second device -- collapses on the primary key instead of duplicating.
+   */
+  id: string;
+  /** ISO 8601. Orders a restored thread; `id` breaks ties. */
+  createdAt: string;
+}
+
+/**
+ * Which backend a thread was created with, or a reply produced by.
+ *
+ * Never the API key, in any form -- not the value, not a hash, not the last
+ * four characters. See `docs/decisions.md` -> D3 and D39: the key is held in
+ * memory for a reason that persisting a conversation does not change.
+ */
+export interface BackendParams {
+  provider: ProviderId;
+  /** Absent only on a backend that picks its own model server-side */
+  model?: string;
+  /** Only the OpenAI-compatible providers have one */
+  baseUrl?: string;
+  effort?: Effort;
+}
+
+/** The parameters a connection is identified by, with the key left behind */
+export const paramsOf = (
+  connection: Connection | null
+): BackendParams | undefined => {
+  if (!connection) return undefined;
+
+  const params: BackendParams = { provider: connection.id };
+  const model = connection.endpoint?.model ?? connection.settings?.model;
+  if (model) params.model = model;
+  if (connection.endpoint?.baseUrl)
+    params.baseUrl = connection.endpoint.baseUrl;
+  if (connection.settings?.effort) params.effort = connection.settings.effort;
+  return params;
+};
+
 export type ChatItem =
-  | { kind: "user"; id: string; text: string }
-  | { kind: "assistant"; id: string; text: string }
-  | { kind: "tool"; id: string; label: string }
-  | {
+  | (ChatItemBase & { kind: "user"; text: string })
+  | (ChatItemBase & {
+      kind: "assistant";
+      text: string;
+      /**
+       * What produced this reply. Absent on a thread restored from before
+       * replies recorded it, and on one written while nothing was connected.
+       */
+      origin?: BackendParams;
+    })
+  | (ChatItemBase & { kind: "tool"; label: string })
+  | (ChatItemBase & {
       kind: "approval";
-      id: string;
       request: ApprovalRequest;
       status: ApprovalStatus;
       /** Set once the tool has actually run */
       outcome?: string;
-    }
-  | { kind: "error"; id: string; text: string }
+    })
+  | (ChatItemBase & { kind: "error"; text: string })
   /** Something the panel did, not the model — e.g. the user stopped the turn */
-  | { kind: "notice"; id: string; text: string };
+  | (ChatItemBase & { kind: "notice"; text: string });
 
 /**
  * Whether the turn ending at the last item already produced an approval card.
@@ -100,8 +152,8 @@ export type AssistantStatus =
   /** A turn is in flight but blocked on an approval */
   | "awaiting";
 
-let nextId = 0;
-const makeId = () => `i${++nextId}`;
+const makeId = uuid;
+const now = () => new Date().toISOString();
 
 const isSame = (a: Connection | null, b: Connection) =>
   !!a &&
@@ -115,9 +167,11 @@ const isSame = (a: Connection | null, b: Connection) =>
 /**
  * Everything the panel renders.
  *
- * Deliberately in memory only, including the API key — see
- * `docs/decisions.md` -> D3 for why the key is not in `localStorage` yet.
- * Conversation history is not persisted either; a reload starts fresh.
+ * The API key is deliberately in memory only — see `docs/decisions.md` -> D3
+ * for why it is not in storage. Conversation items are not: the open thread is
+ * mirrored to IndexedDB on every change, keyed by workspace, so a reload and a
+ * project switch both come back to the right conversation. See
+ * `docs/persistent-conversations-spec.md`.
  */
 export class PgAssistant {
   static get items(): readonly ChatItem[] {
@@ -145,9 +199,15 @@ export class PgAssistant {
   /**
    * Choose a backend for this tab.
    *
-   * Re-picking the current one is a no-op beyond closing the picker; anything
-   * else starts a new conversation, because the history lives inside the
-   * provider and the new one cannot see the old transcript.
+   * Re-picking the current one is a no-op beyond closing the picker; switching
+   * to a different one starts a new conversation, because the history lives
+   * inside the provider and the new one cannot see the old transcript.
+   *
+   * Connecting when nothing is connected is *not* a switch, and must not reset
+   * anything. The connection is in memory only, so it is null after every
+   * reload -- and by the time the user picks a backend, `chat-thread` has
+   * already restored this workspace's conversation from storage. Treating that
+   * as a switch cleared the restored thread on every single reload.
    *
    * @param connection which provider, its key, and whatever it needs to be
    * reached — a base URL and model, or a model and effort
@@ -157,12 +217,20 @@ export class PgAssistant {
       ...connection,
       apiKey: connection.apiKey.trim(),
     };
-    if (!PgAssistant.isCurrent(next)) {
+    if (PgAssistant._connection && !PgAssistant.isCurrent(next)) {
       PgAssistant.clear();
-      PgAssistant._connection = next;
     }
+    PgAssistant._connection = next;
     PgAssistant._pickingBackend = false;
-    PgAssistant._emit();
+    // So the next load can reconnect without asking again. Only the keyless
+    // default is actually written down; see `remembered-backend`.
+    rememberBackend(next.id);
+
+    // `_emitOnly`, because nothing here is the user writing to the
+    // conversation. `clear` above goes out of its way to leave the stored
+    // thread alone, and `_emit` would write the emptied list straight back
+    // over it -- undoing that, one line later.
+    PgAssistant._emitOnly();
   }
 
   /** Whether connecting with these settings would keep the conversation */
@@ -186,6 +254,9 @@ export class PgAssistant {
   static disconnect() {
     PgAssistant._connection = null;
     PgAssistant._pickingBackend = false;
+    // Disconnecting is the user saying *not* to reconnect; without this the
+    // next load would quietly undo it
+    forgetBackend();
     PgAssistant.clear();
   }
 
@@ -303,7 +374,12 @@ export class PgAssistant {
   }
 
   static addUserMessage(text: string) {
-    PgAssistant._items.push({ kind: "user", id: makeId(), text });
+    PgAssistant._items.push({
+      kind: "user",
+      id: makeId(),
+      createdAt: now(),
+      text,
+    });
     PgAssistant._emit();
   }
 
@@ -367,7 +443,19 @@ export class PgAssistant {
   /** Start an assistant message and return its id so text can stream into it */
   static startAssistantMessage() {
     const id = makeId();
-    PgAssistant._items.push({ kind: "assistant", id, text: "" });
+    // Stamped here because this is the only moment the panel knows what is
+    // answering. A thread records the backend it was created with; a reply
+    // records the one that wrote it, and the two differ as soon as the user
+    // switches backends. Spread rather than assigned, so a reply written with
+    // nothing connected has no `origin` key at all rather than an empty one.
+    const origin = paramsOf(PgAssistant._connection);
+    PgAssistant._items.push({
+      kind: "assistant",
+      id,
+      createdAt: now(),
+      text: "",
+      ...(origin ? { origin } : {}),
+    });
     PgAssistant._emit();
     return id;
   }
@@ -391,17 +479,32 @@ export class PgAssistant {
   }
 
   static addToolCall(label: string) {
-    PgAssistant._items.push({ kind: "tool", id: makeId(), label });
+    PgAssistant._items.push({
+      kind: "tool",
+      id: makeId(),
+      createdAt: now(),
+      label,
+    });
     PgAssistant._emit();
   }
 
   static addNotice(text: string) {
-    PgAssistant._items.push({ kind: "notice", id: makeId(), text });
+    PgAssistant._items.push({
+      kind: "notice",
+      id: makeId(),
+      createdAt: now(),
+      text,
+    });
     PgAssistant._emit();
   }
 
   static addError(text: string) {
-    PgAssistant._items.push({ kind: "error", id: makeId(), text });
+    PgAssistant._items.push({
+      kind: "error",
+      id: makeId(),
+      createdAt: now(),
+      text,
+    });
     PgAssistant._emit();
   }
 
@@ -419,6 +522,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "approval",
       id,
+      createdAt: now(),
       request,
       status: "pending",
     });
@@ -463,6 +567,20 @@ export class PgAssistant {
 
   /** Deny everything still waiting — used when a turn is abandoned */
   static cancelPending() {
+    PgAssistant._denyPending();
+    PgAssistant._emit();
+  }
+
+  /**
+   * Deny what is waiting, without notifying or writing back.
+   *
+   * Leaving a thread has to resolve its blocked promises, but must not persist
+   * on the way out: at that moment the items still belong to the thread being
+   * left while the caller is already pointing elsewhere. The stored copy needs
+   * no fixing either — the codec writes a pending approval as denied, because
+   * nothing could ever resolve it after a reload.
+   */
+  private static _denyPending() {
     for (const [id, resolve] of PgAssistant._pending) {
       const item = PgAssistant._items.find((i) => i.id === id);
       if (item?.kind === "approval") item.status = "denied";
@@ -470,14 +588,101 @@ export class PgAssistant {
     }
     PgAssistant._pending.clear();
     PgAssistant._status = "idle";
-    PgAssistant._emit();
   }
 
+  /**
+   * Drop what is rendered, keeping the stored thread.
+   *
+   * Called when the backend changes, which starts a new conversation with the
+   * provider but is not the user deleting anything — so it deliberately does
+   * not write back. `_emitOnly` rather than `_emit` is what makes that true.
+   */
   static clear() {
-    PgAssistant.cancelPending();
+    PgAssistant._denyPending();
     PgAssistant._items = [];
     PgAssistant._status = "idle";
-    PgAssistant._emit();
+    PgAssistant._emitOnly();
+  }
+
+  /** Which thread is open, or `null` before one has been chosen */
+  static get threadId() {
+    return PgAssistant._threadId;
+  }
+
+  /**
+   * Close the open thread without touching what is stored.
+   *
+   * For when there is no workspace to key a conversation on -- the panel still
+   * renders and still works, it just has nowhere to persist to, so it must not
+   * keep writing into whichever thread happened to be open last.
+   */
+  static closeThread() {
+    // Nothing open is nothing to close. Clearing anyway would throw away
+    // messages typed before the first thread finished resolving -- the ones
+    // `loadThread` is about to adopt -- and the explorer announces a switch
+    // late enough for that to be an ordinary sequence, not a rare one.
+    if (PgAssistant._threadId === null) return;
+
+    PgAssistant._denyPending();
+    PgAssistant._threadId = null;
+    PgAssistant._readOnly = false;
+    PgAssistant._items = [];
+    PgAssistant._status = "idle";
+    PgAssistant._emitOnly();
+  }
+
+  /**
+   * Open a thread, replacing whatever is rendered.
+   *
+   * Called when the workspace changes. Anything still awaiting approval
+   * belongs to the thread being left, so it is denied rather than carried
+   * across.
+   *
+   * The id is claimed before the read so a second switch landing mid-read can
+   * be detected and its result discarded — otherwise a slow read for project A
+   * would repaint the panel after the user has already moved to B.
+   *
+   * @param threadId the workspace whose conversation to open
+   * @param force re-read even if this thread is already open, for when sync
+   * has just rewritten it underneath
+   */
+  static async loadThread(threadId: string, force = false) {
+    if (!force && PgAssistant._threadId === threadId) return;
+
+    // Messages sitting in a panel with no thread open belong to nothing yet:
+    // the thread that opens adopts them, rather than what the user typed
+    // vanishing because a read was still in flight. On a switch there *is* a
+    // previous thread and its messages stay with it, which is why this is
+    // conditional -- see `effects/chat-thread`, which closes the old thread
+    // before resolving the new one so the gap has no owner.
+    const orphans = PgAssistant._threadId === null ? PgAssistant._items : [];
+
+    PgAssistant._denyPending();
+    PgAssistant._threadId = threadId;
+    PgAssistant._items = [];
+    PgAssistant._status = "idle";
+    PgAssistant._emitOnly();
+
+    const items = await PgChatStorage.read(threadId);
+    if (PgAssistant._threadId !== threadId) return;
+
+    // A thread that could not be read renders as empty -- there is nothing
+    // else the panel can show -- but it must not be *persisted* as empty. The
+    // next `_persist()` would write this back over a file that may still be
+    // recoverable, so the thread stays closed to writes until it reads
+    // cleanly. `__pgChatStorage.lastFailure` says why. Set before the emit
+    // below, which is where `_persist` reads it.
+    PgAssistant._readOnly = items === null;
+
+    // Whatever is in `_items` now arrived during the read, for this thread
+    const adopted = [...orphans, ...PgAssistant._items];
+    PgAssistant._items = [...(items ?? []), ...adopted];
+    // `_emit` rather than `_emitOnly` when something was adopted: those
+    // messages have never been written down under this thread. On a read-only
+    // thread `_persist` declines regardless, so they stay on screen without
+    // overwriting a file that may still be recoverable.
+    if (adopted.length) PgAssistant._emit();
+    else PgAssistant._emitOnly();
   }
 
   /**
@@ -517,7 +722,66 @@ export class PgAssistant {
   // claimed and cleared by the next `onDidRequestPrompt` subscriber.
   private static _pendingPrompt: PromptRequest | null = null;
 
+  private static _threadId: string | null = null;
+  /** Set when the open thread failed to read, cleared when one reads cleanly */
+  private static _readOnly = false;
+  private static _lastWrite: Promise<void> = Promise.resolve();
+
+  /**
+   * Resolves once every pending write has landed.
+   *
+   * Persistence is deliberately fire-and-forget -- no mutator can usefully
+   * wait on a disk write -- so this is how a caller that *does* care (a test,
+   * or sync before sign-out) finds out.
+   */
+  static whenPersisted() {
+    return PgAssistant._lastWrite;
+  }
+
+  /**
+   * Mirror the open thread to storage.
+   *
+   * Fired and not awaited: every mutator calls `_emit` synchronously and none
+   * can usefully wait on a disk write. Failures are swallowed inside
+   * `PgChatStorage` — a lost write must not take the panel down.
+   */
+  private static _persist() {
+    if (!PgAssistant._threadId) return;
+    // The open thread could not be read, so what is in memory is not the
+    // thread -- it is the empty list the panel fell back to. Writing it back
+    // would replace a file that may still be recoverable by hand with
+    // nothing, which is the same mistake as reporting it uploaded.
+    if (PgAssistant._readOnly) return;
+
+    // Chained rather than fired independently, so writes cannot land out of
+    // order -- two quick messages must not race into the second overwriting
+    // the first with a shorter list
+    const threadId = PgAssistant._threadId;
+    const items = [...PgAssistant._items];
+    PgAssistant._lastWrite = PgAssistant._lastWrite
+      .catch(() => {})
+      .then(() => PgChatStorage.write(threadId, items));
+  }
+
+  /** Notify and write back. Every mutator goes through here. */
   private static _emit() {
+    PgAssistant._persist();
+    PgAssistant._emitOnly();
+  }
+
+  /** Notify without writing back — for changes that came *from* storage */
+  private static _emitOnly() {
     for (const cb of PgAssistant._listeners) cb();
   }
+}
+
+// A handle on the panel's state for the browser console, and for the e2e tests
+// that cover thread persistence -- sending a message for real would need a
+// configured backend and a live model call, which is not what those assert.
+//
+// Development only: `craco build` sets NODE_ENV to production, so this is
+// dropped from the shipped bundle rather than merely unused in it.
+if (process.env.NODE_ENV !== "production") {
+  (window as unknown as { __pgAssistant?: typeof PgAssistant }).__pgAssistant =
+    PgAssistant;
 }

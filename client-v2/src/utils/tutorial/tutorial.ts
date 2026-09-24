@@ -1,5 +1,6 @@
 import { PgCommon } from "../common";
 import { PgExplorer, TupleFiles } from "../explorer";
+import { PgWorkspace } from "../explorer/workspace";
 import { PgRouter } from "../router";
 import {
   createDerivable,
@@ -230,9 +231,24 @@ class _PgTutorial {
       pageToOpen = PgTutorial.page ?? 1;
       PgTutorial.update({ completed: false, pageNumber: pageToOpen });
     } else {
-      // Get the saved page
-      const { pageNumber } = await this.getMetadata(name);
-      pageToOpen = pageNumber;
+      // Get the saved page.
+      //
+      // Guarded the way `open` guards the same call, and for a reason that is
+      // now routine rather than exotic: the workspace can exist without its
+      // `.tutorial.json`. A tutorial synced from another device arrives as
+      // whatever snapshot that device uploaded, and this file is written
+      // straight to the store rather than through the explorer -- so a device
+      // that had not yet pushed it hands over a started tutorial with no
+      // progress in it.
+      //
+      // Unguarded, the read rejected and the START button did nothing at all,
+      // with the workspace sitting right there in the project list.
+      try {
+        pageToOpen = (await this.getMetadata(name)).pageNumber;
+      } catch {
+        pageToOpen = PgTutorial.page ?? 1;
+        PgTutorial.update({ completed: false, pageNumber: pageToOpen });
+      }
     }
 
     await this.openPage(pageToOpen);
@@ -355,3 +371,9 @@ export const PgTutorial = declareDecorator(_PgTutorial, {
   derivable: derive,
   updatable: { defaultState },
 });
+
+// A tutorial workspace's id is derived from its name, so the same tutorial is
+// one thread on every device rather than forking per machine. `PgWorkspace`
+// cannot import this module to ask -- `_PgTutorial` already imports the
+// explorer, and the build fails on the cycle -- so the answer is injected.
+PgWorkspace.setIsTutorialName((name) => _PgTutorial.isWorkspaceTutorial(name));

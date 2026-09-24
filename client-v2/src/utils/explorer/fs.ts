@@ -2,8 +2,36 @@ import FS from "@isomorphic-git/lightning-fs";
 
 import { PgExplorer } from "./explorer";
 import { PgCommon } from "../common";
+import type { Disposable } from "../types";
 
 export class PgFs {
+  static readonly events = {
+    ON_DID_WRITE_FILE: "pgfsondidwritefile",
+  };
+
+  /**
+   * Runs after any file is written through this class.
+   *
+   * The explorer's own events cover files that go through its state -- an
+   * edit, a create, a rename. They do not cover anything written here
+   * directly, and three files that matter are: `.tutorial.json`,
+   * `.workspace/tutorial-storage.json` and `.workspace/program-info.json`.
+   * All three are written straight to the store by `PgTutorial` and
+   * `PgProgramInfo`, and all three are in the snapshot -- so without this,
+   * the only files sync exists to carry are the only ones nothing ever
+   * announces.
+   *
+   * Deliberately unfiltered. This fires for every write, including the
+   * explorer's own, and the listener decides what it cares about -- the list
+   * of paths worth syncing belongs to the sync feature, not to the filesystem.
+   *
+   * @param cb callback function to run, with the full path written
+   * @returns a dispose function to clear the event
+   */
+  static onDidWriteFile(cb: (path: string) => unknown): Disposable {
+    return PgCommon.onDidChange(PgFs.events.ON_DID_WRITE_FILE, cb);
+  }
+
   /** Async `indexedDB` based file system instance */
   private static _fs = new FS("solana-playground").promises;
 
@@ -29,6 +57,8 @@ export class PgFs {
     }
 
     await this._fs.writeFile(path, data);
+
+    PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, path);
   }
 
   /**
@@ -119,6 +149,22 @@ export class PgFs {
   }
 
   /**
+   * Persist the directory structure immediately.
+   *
+   * The backing store debounces its superblock write by 500ms, so file
+   * contents land right away while the tree they live in does not. A reload
+   * inside that window comes back to a filesystem where the directory was
+   * never created -- the project's files exist but nothing can find them, and
+   * the explorer reports the workspace as missing.
+   *
+   * Content writes do not need this. Structural changes -- creating,
+   * renaming or deleting a workspace -- do.
+   */
+  static async flush() {
+    await this._fs.flush();
+  }
+
+  /**
    * Read a directory.
    *
    * @param path directory path
@@ -141,14 +187,25 @@ export class PgFs {
 
     if (opts?.recursive) {
       const recursivelyRmdir = async (dir: string[], currentPath: string) => {
+        // Normalised here rather than trusted from the caller. Every recursive
+        // call below passes a trailing slash and the first one did not, so the
+        // top level built `/projectsrc` out of `/project` + `src`, every
+        // removal under it failed with ENOENT, and the directory was left
+        // exactly as it was -- silently, since callers treat "nothing to
+        // delete" as success.
+        const base = currentPath.endsWith("/")
+          ? currentPath
+          : currentPath + "/";
+        const self = base.length > 1 ? base.slice(0, -1) : base;
+
         if (!dir.length) {
           // Delete if it's an empty directory
-          await this._fs.rmdir(currentPath);
+          await this._fs.rmdir(self);
           return;
         }
 
         for (const childName of dir) {
-          const childPath = PgCommon.joinPaths(currentPath, childName);
+          const childPath = base + childName;
           const metadata = await this.getMetadata(childPath);
           if (metadata.isDirectory()) {
             const childDir = await this.readDir(childPath);
@@ -161,8 +218,8 @@ export class PgFs {
         }
 
         // Read the directory again and delete if it's empty
-        const _dir = await this.readDir(currentPath);
-        if (!_dir.length) await this._fs.rmdir(currentPath);
+        const _dir = await this.readDir(self);
+        if (!_dir.length) await this._fs.rmdir(self);
       };
 
       const dir = await this.readDir(path);

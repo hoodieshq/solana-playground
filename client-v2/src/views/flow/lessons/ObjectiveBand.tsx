@@ -16,7 +16,7 @@ import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import type { FlowState } from "../state/stage";
-import { GithubAuth } from "../../../features/github-oauth";
+import { PgSession } from "../../../features/auth";
 import {
   useBalance,
   useProgramInfo,
@@ -58,7 +58,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
   // explainer has to watch it or it will ask for a build that already
   // happened -- and contradict the rail above it
   useProgramInfo();
-  useRenderOnChange(GithubAuth.onDidChange);
+  useRenderOnChange(PgSession.onDidChange);
 
   if (!state.path) return null;
   const view = foldRecord(state.path, state.record);
@@ -140,7 +140,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({
           wallet: !!wallet,
           balance: typeof balance === "number" ? balance : null,
           cluster: cluster ?? null,
-          signedIn: !!GithubAuth.user,
+          signedIn: !!PgSession.get(),
         })
       )
     : null;

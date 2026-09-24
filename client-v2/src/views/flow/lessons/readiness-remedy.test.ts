@@ -19,15 +19,15 @@ jest.mock("../../../constants", () => ({
   DEFAULT_ENDPOINT: "https://devnet.example/rpc",
 }));
 
-jest.mock("../../../features/github-oauth", () => ({
-  GithubAuth: { signIn: jest.fn() },
+jest.mock("../../../features/auth", () => ({
+  PgSession: { signIn: jest.fn() },
 }));
 
 import { remedy } from "./readiness-remedy";
-import { GithubAuth } from "../../../features/github-oauth";
+import { PgSession } from "../../../features/auth";
 import { PgCommand, PgSettings, PgTerminal } from "../../../utils";
 
-const signIn = GithubAuth.signIn as jest.Mock;
+const signIn = PgSession.signIn as jest.Mock;
 const println = PgTerminal.println as jest.Mock;
 
 /** Let the rejection handler attached inside the remedy run */
