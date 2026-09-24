@@ -2,126 +2,68 @@ import { FC, useEffect, useRef } from "react";
 import styled from "styled-components";
 
 /**
- * How the mark is made: Solana's three bars become the three edges of the play
- * triangle, and the O opens beside them.
+ * How the mark is made: Solana's three bars rotate into the three edges of the
+ * play triangle, settle, and the O opens beside them.
  *
- * The Figma's own "Logo Creation" sequence (node 51:3065) — stacked, rotated
- * apart, closed into the triangle, then the ellipse.
+ * The Figma's own "Logo Creation" sequence (node 51:3065).
  *
- * Every vertex moves, not the shape. The first version transformed three whole
- * paths, which is a rigid body sliding: the right positions with nothing alive
- * in between. Each bar is resampled to 64 points around its perimeter, and
- * every point travels its own line from stack to edge on its own slightly
- * delayed clock. That delay is the whole thing — the leading end arrives first
- * and the rest follows it round, so a bar *flows* into place instead of being
- * carried there.
+ * The bars are the real Solana mark, not a parallelogram that looks like one.
+ * Its path is split into its three subpaths and each is sampled along its own
+ * length with `getPointAtLength`, so the starting shape is exactly the logo —
+ * angled ends, true proportions and all — instead of my approximation of it.
  *
- * On rAF rather than CSS, because `d` is not an animatable property anywhere
- * that matters; the path is rewritten every frame.
+ * And the move is a rotation, not a tween. Every point is held in polar
+ * coordinates about its own bar's centre, and what is interpolated is the
+ * centre, the angle and the radius — so a bar turns through the arc a real
+ * rotation would take. Lerping the points in x and y instead pulls each one
+ * along its chord, which makes the shape shrink through the middle of the
+ * move and puff back out at the end. That is the tell, and it is why the
+ * previous pass never looked like anything was turning.
  *
- * The bars end thick enough that their union is the triangle, which is what the
- * Figma's last slide resolves its booleans to. Nothing cross-fades: the drawing
- * does not turn into the logo, it *is* the logo by the time it stops.
+ * Three beats: rotate into place, adjust to close the corners, then the O.
  */
 
-/** Points per bar. Enough that the outline stays smooth while it bends. */
-const N = 64;
+/** Points sampled per bar */
+const N = 96;
 /** The whole sequence */
-const RUN = 3600;
-/** How far apart the first and last point start moving, as a fraction of RUN */
-const STAGGER = 0.3;
+const RUN = 3800;
 
-type Pt = [number, number];
+type Pt = { x: number; y: number };
+/** A point as the rotation sees it: distance and angle from the bar's centre */
+type Polar = { r: number; a: number };
 
-/**
- * A bar as a closed polygon: a parallelogram resampled to `N` points spaced
- * evenly by arc length, so point *i* of the start and point *i* of the end are
- * the same place on the shape. Without that the morph shears as it goes.
- */
-const bar = (
-  cx: number,
-  cy: number,
-  len: number,
-  thick: number,
-  deg: number,
-  skew: number
-): Pt[] => {
-  const h = thick / 2;
-  const l = len / 2;
-  // Corners before rotation, sheared along x like Solana's own bars
-  const corners: Pt[] = [
-    [-l + skew, -h],
-    [l + skew, -h],
-    [l - skew, h],
-    [-l - skew, h],
-  ];
-  const a = (deg * Math.PI) / 180;
-  const cos = Math.cos(a);
-  const sin = Math.sin(a);
-  const placed: Pt[] = corners.map(([x, y]) => [
-    cx + x * cos - y * sin,
-    cy + x * sin + y * cos,
-  ]);
+/** The Solana mark, 448 x 400 — three bars in one path */
+const SOLANA =
+  "M444.899 315.321L371.082 394.476C369.455 396.168 367.567 397.535 365.419 398.511C363.271 399.423 360.928 399.943 358.584 399.943H8.57381C6.88137 399.943 5.25401 399.423 3.88704 398.511C2.52007 397.6 1.41347 396.298 0.762532 394.801C0.111592 393.304 -0.083691 391.611 0.176685 389.919C0.437061 388.292 1.21819 386.729 2.32479 385.493L76.0763 306.338C77.7036 304.646 79.5913 303.279 81.7394 302.303C83.8875 301.391 86.2309 300.87 88.5743 300.87H438.585C440.277 300.87 441.904 301.326 443.336 302.237C444.769 303.149 445.875 304.451 446.591 306.013C447.242 307.575 447.503 309.268 447.177 310.895C446.852 312.522 446.136 314.085 444.964 315.321H444.899ZM371.082 155.841C369.455 154.149 367.567 152.782 365.419 151.805C363.271 150.894 360.928 150.373 358.584 150.373H8.57381C6.88137 150.373 5.25401 150.894 3.88704 151.74C2.52007 152.651 1.41347 153.953 0.697436 155.516C0.0464964 157.078 -0.148786 158.77 0.11159 160.398C0.371965 162.025 1.15309 163.587 2.25969 164.759L76.0112 243.978C77.6385 245.671 79.5262 247.038 81.6743 248.014C83.8224 248.925 86.1658 249.446 88.5092 249.446H438.52C440.212 249.446 441.839 248.925 443.206 248.014C444.573 247.103 445.68 245.801 446.331 244.239C446.982 242.742 447.177 241.049 446.917 239.422C446.656 237.794 445.875 236.232 444.769 235.06L371.082 155.841ZM8.57381 99.0141H358.584C360.928 99.0141 363.271 98.4933 365.419 97.582C367.567 96.6707 369.52 95.3037 371.082 93.5462L444.899 14.3919C445.745 13.4806 446.396 12.374 446.786 11.2023C447.177 10.0306 447.307 8.72871 447.112 7.49192C446.982 6.25514 446.526 5.01835 445.875 3.97684C445.224 2.93534 444.313 2.02402 443.271 1.30799C441.839 0.396675 440.212 -0.0589753 438.52 0.00611863H88.5092C86.1658 0.00611863 83.8224 0.526866 81.6743 1.43818C79.5262 2.3495 77.5734 3.71648 76.0112 5.47401L2.25969 84.6283C1.15309 85.8651 0.371965 87.3622 0.11159 89.0547C-0.148786 90.7471 0.0464964 92.3745 0.697436 93.9367C1.34838 95.4339 2.45497 96.7358 3.88704 97.7122C5.25401 98.6235 6.94647 99.1442 8.57381 99.1442V99.0141Z";
 
-  const seg = placed.map((p, i) => {
-    const q = placed[(i + 1) % placed.length];
-    return Math.hypot(q[0] - p[0], q[1] - p[1]);
-  });
-  const total = seg.reduce((t, s) => t + s, 0);
-  const step = total / N;
-
-  const out: Pt[] = [];
-  for (let i = 0; i < N; i++) {
-    const want = i * step;
-    let side = 0;
-    let acc = 0;
-    for (; side < seg.length; side++) {
-      if (acc + seg[side] > want) break;
-      acc += seg[side];
-    }
-    side = Math.min(side, seg.length - 1);
-    const along = (want - acc) / (seg[side] || 1);
-    const p = placed[side];
-    const q = placed[(side + 1) % placed.length];
-    out.push([p[0] + (q[0] - p[0]) * along, p[1] + (q[1] - p[1]) * along]);
-  }
-  return out;
-};
+/* Placing the 448 x 400 mark inside the finished logo's 970 x 574 box */
+const S = 0.94;
+const OX = 485 - (448 * S) / 2;
+const OY = 287 - (400 * S) / 2;
 
 /**
- * Start and end for each bar, in the finished mark's own 970 x 574 space — so
- * an end position *is* an edge of the real logo rather than a guess at one.
+ * Where each bar goes, top of the stack first.
  *
- * The middle bar becomes the vertical on the left and the outer two swing to
- * the diagonals: the only assignment in which none of the three has to cross
- * another on the way.
+ * Turn is the rotation in degrees; `to` is where its centre lands; `grow`
+ * stretches it along its own length so the corners overlap and close, which is
+ * the "slight adjustment" after the turn. Measured off the finished mark: its
+ * left edge runs x 0-110 between y 43 and 549, and the diagonals meet it near
+ * (400, 292).
  */
-const MOVES: Array<{ from: Pt[]; to: Pt[] }> = [
-  /* Measured off the mark's own path: the left edge runs x 0-110 between
-     y 43 and y 549, and the diagonals meet it at the apex near (400, 292). The
-     bars are a little long on purpose so the corners overlap and close. */
-  { from: bar(430, 168, 360, 62, 0, 26), to: bar(228, 150, 470, 104, 37.2, 6) },
-  { from: bar(430, 287, 360, 62, 0, 26), to: bar(55, 296, 524, 112, 90, 0) },
-  { from: bar(430, 406, 360, 62, 0, 26), to: bar(226, 430, 462, 104, -34.8, -6) },
+const TARGETS = [
+  { turn: 37.5, to: { x: 238, y: 142 }, grow: 1.22 },
+  { turn: 90, to: { x: 58, y: 292 }, grow: 1.34 },
+  { turn: -35, to: { x: 234, y: 436 }, grow: 1.2 },
 ];
 
-/** Leaves slowly, travels, settles — without the overshoot a spring would add */
 const ease = (t: number) =>
-  t <= 0
-    ? 0
-    : t >= 1
-    ? 1
-    : t < 0.5
-    ? 4 * t * t * t
-    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 
-const toPath = (pts: Pt[]) =>
-  pts.reduce(
-    (d, [x, y], i) => d + (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1),
-    ""
-  ) + "Z";
+/** Split a path on its subpaths — the three bars are three `M` commands */
+const subpaths = (d: string) =>
+  d.split(/(?=M)/g).filter((p) => p.trim().length > 1);
 
 interface MarkMorphProps {
   /** Held on the teaser slide: the Solana mark, still */
@@ -131,20 +73,77 @@ interface MarkMorphProps {
 const MarkMorph: FC<MarkMorphProps> = ({ hold }) => {
   const bars = useRef<Array<SVGPathElement | null>>([null, null, null]);
   const ring = useRef<SVGCircleElement>(null);
+  const svg = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
+    const root = svg.current;
+    if (!root) return;
+
+    /* Sample the real path. A detached <path> has no length in any engine, so
+       the ruler is parked inside this SVG and hidden rather than built off-
+       document. */
+    const ruler = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    ruler.setAttribute("visibility", "hidden");
+    root.appendChild(ruler);
+
+    const sampled = subpaths(SOLANA).map((d) => {
+      ruler.setAttribute("d", d);
+      const len = ruler.getTotalLength();
+      const pts: Pt[] = [];
+      for (let i = 0; i < N; i++) {
+        const p = ruler.getPointAtLength((i / N) * len);
+        pts.push({ x: OX + p.x * S, y: OY + p.y * S });
+      }
+      return pts;
+    });
+    ruler.remove();
+
+    // Top bar first, whichever order the path happened to list them in
+    sampled.sort(
+      (a, b) =>
+        a.reduce((t, p) => t + p.y, 0) / a.length -
+        b.reduce((t, p) => t + p.y, 0) / b.length
+    );
+
+    const rigs = sampled.map((pts) => {
+      const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
+      const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
+      const polar: Polar[] = pts.map((p) => ({
+        r: Math.hypot(p.x - cx, p.y - cy),
+        a: Math.atan2(p.y - cy, p.x - cx),
+      }));
+      return { from: { x: cx, y: cy }, polar };
+    });
+
+    const draw = (k: number, adjust: number) => {
+      rigs.forEach((rig, i) => {
+        const t = TARGETS[i];
+        const cx = rig.from.x + (t.to.x - rig.from.x) * k;
+        const cy = rig.from.y + (t.to.y - rig.from.y) * k;
+        const turn = (t.turn * Math.PI) / 180 * k;
+        const grow = 1 + (t.grow - 1) * adjust;
+        let d = "";
+        for (let j = 0; j < N; j++) {
+          const p = rig.polar[j];
+          const a = p.a + turn;
+          d +=
+            (j ? "L" : "M") +
+            (cx + Math.cos(a) * p.r * grow).toFixed(1) +
+            " " +
+            (cy + Math.sin(a) * p.r * grow).toFixed(1);
+        }
+        bars.current[i]?.setAttribute("d", d + "Z");
+      });
+    };
+
     if (hold) {
-      MOVES.forEach((m, i) =>
-        bars.current[i]?.setAttribute("d", toPath(m.from))
-      );
+      draw(0, 0);
       return;
     }
 
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      MOVES.forEach((m, i) => bars.current[i]?.setAttribute("d", toPath(m.to)));
+      draw(1, 1);
       ring.current?.setAttribute("r", "144");
       if (ring.current) ring.current.style.opacity = "1";
       return;
@@ -155,30 +154,15 @@ const MarkMorph: FC<MarkMorphProps> = ({ hold }) => {
     const tick = (now: number) => {
       if (!started) started = now;
       const t = clamp01((now - started) / RUN);
-      // The bars have the first three quarters; the O opens over the rest
-      const move = clamp01(t / 0.74);
+      /* Turn first, settle second, and they overlap a little so the adjustment
+         starts while the last of the rotation is still running. */
+      draw(ease(clamp01(t / 0.62)), ease(clamp01((t - 0.48) / 0.34)));
 
-      MOVES.forEach((m, bi) => {
-        const pts: Pt[] = [];
-        for (let i = 0; i < N; i++) {
-          /* Each point starts a little after the one before it, so the head of
-             the bar leads while the tail is still catching up. That is what
-             reads as the shape bending rather than sliding. */
-          const lead = (i / N) * STAGGER;
-          const k = ease(clamp01((move - lead) / (1 - STAGGER)));
-          const a = m.from[i];
-          const b = m.to[i];
-          pts.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
-        }
-        bars.current[bi]?.setAttribute("d", toPath(pts));
-      });
-
-      const o = ease(clamp01((t - 0.62) / 0.38));
+      const o = ease(clamp01((t - 0.66) / 0.34));
       if (ring.current) {
-        ring.current.setAttribute("r", (34 + 110 * o).toFixed(1));
+        ring.current.setAttribute("r", (38 + 106 * o).toFixed(1));
         ring.current.style.opacity = String(o);
       }
-
       if (t < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -186,7 +170,7 @@ const MarkMorph: FC<MarkMorphProps> = ({ hold }) => {
   }, [hold]);
 
   return (
-    <Frame viewBox="0 0 970 574" aria-hidden="true">
+    <Frame ref={svg} viewBox="0 0 970 574" aria-hidden="true">
       <defs>
         <linearGradient id="morph-bar" x1="0" y1="0" x2="1" y2="0.3">
           <stop offset="0%" stopColor="#14F195" />
@@ -194,7 +178,7 @@ const MarkMorph: FC<MarkMorphProps> = ({ hold }) => {
         </linearGradient>
       </defs>
 
-      {MOVES.map((_, i) => (
+      {[0, 1, 2].map((i) => (
         <path
           key={i}
           ref={(el) => {
@@ -212,7 +196,7 @@ const MarkMorph: FC<MarkMorphProps> = ({ hold }) => {
           ref={ring}
           cx="687.6"
           cy="292"
-          r="34"
+          r="38"
           fill="none"
           stroke="#FFFFFF"
           strokeWidth="112"
