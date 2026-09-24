@@ -8,6 +8,8 @@ import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { PgView } from "../../utils";
+import Deck from "../../views/deck";
+import Evaluation from "../../views/evaluation";
 import Flow from "../../views/flow";
 import Landing from "../../views/landing";
 
@@ -15,38 +17,80 @@ const params = new URLSearchParams(window.location.search);
 const useClassic = params.has("classic");
 
 /**
- * Whether to go straight into the product rather than the landing.
+ * Which of the four things the URL is asking for.
  *
- * The URL is the only thing that decides. `/` is the landing, `/?app` is the
- * product, and a deep link like /tutorials goes straight in — someone who
+ * The URL is the only thing that decides, and it decides on every pop — an
+ * earlier version also remembered the choice for the tab, which meant `/`
+ * never showed the landing again without clearing storage. Two sources of
+ * truth for one question, and the hidden one won.
+ *
+ * A deep link like /tutorials goes straight into the product: someone who
  * asked for a page by name already knows what this is, and showing them a
  * pitch instead would be rude.
- *
- * An earlier version also remembered the choice for the tab, which meant that
- * once you had entered, `/` never showed the landing again without clearing
- * storage. Two sources of truth for one question, and the hidden one won.
  */
-const showProduct = () =>
-  params.has("app") || window.location.pathname !== "/";
+type Stage = "deck" | "landing" | "evaluation" | "product";
+
+const stageFromUrl = (): Stage => {
+  if (window.location.pathname !== "/") return "product";
+
+  /* Hash first, query second. `?app` is this codebase's existing convention
+     and still works, but a full page load does not always keep a query string
+     — behind a rewriting proxy it arrives stripped, which turned every plain
+     link into a trip back to the first slide. A hash survives that, so it is
+     what gets written. */
+  const search = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.replace(/^#/, "");
+  const asked = (key: string) => hash === key || search.has(key);
+
+  if (asked("app")) return "product";
+  if (asked("evaluation")) return "evaluation";
+  if (asked("landing")) return "landing";
+  return "deck";
+};
 
 const Panels = () => {
-  const [entered, setEntered] = useState(showProduct);
+  const [stage, setStage] = useState<Stage>(stageFromUrl);
 
-  const enter = () => {
-    // Push, not replace: Back from the product returns to the landing, which
-    // is what a browser's Back button is for.
-    window.history.pushState(null, "", "/?app");
-    setEntered(true);
+  /* Push, not replace, at every step: Back walks the presentation in reverse,
+     which is what a browser's Back button is for and what someone presenting
+     will reach for when they overshoot. */
+  const goTo = (next: Stage, url: string) => {
+    window.history.pushState(null, "", url);
+    setStage(next);
   };
 
-  // ...and Back actually works, rather than leaving the URL behind the view.
   useEffect(() => {
-    const onPop = () => setEntered(showProduct());
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    const sync = () => setStage(stageFromUrl());
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+    };
   }, []);
 
-  if (!entered && !useClassic) return <Landing onEnter={enter} />;
+  if (!useClassic) {
+    if (stage === "deck") {
+      return (
+        <Deck
+          onLanding={() => goTo("landing", "/#landing")}
+          onProduct={() => goTo("product", "/#app")}
+          onEvaluation={() => goTo("evaluation", "/#evaluation")}
+        />
+      );
+    }
+    if (stage === "landing") {
+      return <Landing onEnter={() => goTo("product", "/#app")} />;
+    }
+    if (stage === "evaluation") {
+      return (
+        <Evaluation
+          onBack={() => window.history.back()}
+          onProduct={() => goTo("product", "/#app")}
+        />
+      );
+    }
+  }
 
   return useClassic ? (
     <Wrapper>
