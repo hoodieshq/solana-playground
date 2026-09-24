@@ -43,7 +43,7 @@
     {
       "id": "landing",
       "say": "A first Solana program starts with an afternoon of toolchains.",
-      "url": "/",
+      "url": "/#landing",
       "settle": 900
     },
     {
@@ -61,7 +61,7 @@
           "wait": 800
         }
       ],
-      "url": "/"
+      "url": "/#landing"
     },
     {
       "id": "tutorials",

@@ -196,17 +196,29 @@ const NavSidebar: FC<NavSidebarProps> = ({
             <Glyph aria-hidden="true">{ICONS.help}</Glyph>
             Docs
           </Row>
-          <Row
-            data-shot="nav-settings"
-            onClick={onOpenSettings}
-            type="button"
-          >
+          <Row data-shot="nav-settings" onClick={onOpenSettings} type="button">
             <Glyph aria-hidden="true">{ICONS.gear}</Glyph>
             Settings
           </Row>
           {/* Last, because signing in turns this row into who you are — and
               that is where Linear, Claude, Cursor and Vercel all put it. */}
           {status && <Account>{status}</Account>}
+
+          {/* The presentation's own two doors, marked as such so nobody reads
+              them as product features. Plain links rather than router calls:
+              a full load re-enters at the right stage and cannot get the view
+              and the URL out of step. */}
+          <Aside2>
+            <Heading>Proposal</Heading>
+            <Row as="a" href="/#evaluation">
+              <Glyph aria-hidden="true">{ICONS.review}</Glyph>
+              UX evaluation
+            </Row>
+            <Row as="a" href="/">
+              <Glyph aria-hidden="true">{ICONS.deck}</Glyph>
+              Back to deck
+            </Row>
+          </Aside2>
         </Foot>
       </Column>
     </Aside>
@@ -281,6 +293,18 @@ const ICONS = {
     <>
       <path d="M12 3.5 20 8v8l-8 4.5L4 16V8z" />
       <path d="M12 12 20 8M12 12v8.5M12 12 4 8" />
+    </>
+  ),
+  review: svg(
+    <>
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z" />
+      <path d="M8 9.5h8M8 14h5" />
+    </>
+  ),
+  deck: svg(
+    <>
+      <rect x="3" y="5" width="18" height="12" rx="2" />
+      <path d="M9 20h6" />
     </>
   ),
   sidebar: svg(
@@ -477,6 +501,19 @@ const Label = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+/* A group that is not the product: the presentation's doors, set apart by a
+   rule and a heading so the sidebar does not imply they ship. */
+const Aside2 = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid ${theme.colors.default.border};
+  `}
 `;
 
 const Foot = styled.div`
