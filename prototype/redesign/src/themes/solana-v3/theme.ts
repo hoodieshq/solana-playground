@@ -56,6 +56,11 @@ const CONTROL_RADIUS = "8px";
  * to hand the monospace to all of it, which is the single thing that made it
  * read as a terminal emulator rather than a product.
  */
+/* Headlines only: the page's question, a section's name, a figure. Everything
+   a person reads at length stays on Manrope, which is built for it. */
+export const HEADLINE_FONT = `"Stack Sans Headline", "Manrope", -apple-system,
+  BlinkMacSystemFont, sans-serif`;
+
 const DISPLAY_FONT = `"Manrope", -apple-system, BlinkMacSystemFont,
   "Segoe UI", Helvetica, Arial, sans-serif`;
 

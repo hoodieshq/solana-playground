@@ -3,18 +3,14 @@ import styled, { css, keyframes } from "styled-components";
 
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import Backdrop from "./Backdrop";
-import type { Exit, Ground, SlideSpec } from "./slides";
+import type { Exit, SlideSpec } from "./slides";
 import {
-  GRID_PITCH,
   HEADLINE,
   HEADLINE_LEADING,
   HEADLINE_SIZE,
   HEADLINE_TRACKING,
   INK,
-  MESH,
-  MESH_DEEP,
   PAPER,
-  grid,
 } from "./tokens";
 
 /**

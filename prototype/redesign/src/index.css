@@ -1,4 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500&display=swap");
+/* The proposal's headline face. Variable 400-700, which is the range Google
+   serves for it. Manrope still carries everything that is not a headline. */
+@import url("https://fonts.googleapis.com/css2?family=Stack+Sans+Headline:wght@400..700&display=swap");
 
 /* Remove default margin and padding */
 *,

@@ -4,7 +4,7 @@ import styled, { css, keyframes } from "styled-components";
 import HeroCanvas from "./HeroCanvas";
 import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
-import PlaygroundMark from "../../components/PlaygroundMark";
+import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import { useReveal } from "./useReveal";
 
 /**
@@ -42,7 +42,7 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
 
       <Nav aria-label="Main">
         <NavMark aria-hidden="true">
-          <PlaygroundMark />
+          <PlaygroundMarkNext />
         </NavMark>
         <NavLinks>
           <NavLink href="#what">What it is</NavLink>
@@ -156,6 +156,10 @@ const SECTIONS: SectionCopy[] = [
     text: "People learning Solana, who need the first program to run before the enthusiasm runs out. Engineers from another chain who want to try the model without adopting the tooling. And anyone who already knows all of this and just wants somewhere to test a thought.",
   },
 ];
+
+/* Headlines take the proposal's face; running text stays on Manrope. */
+const HEADLINE = `"Stack Sans Headline", "Manrope", -apple-system,
+  BlinkMacSystemFont, sans-serif`;
 
 const FONT = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
   Helvetica, Arial, sans-serif`;
@@ -326,6 +330,7 @@ const HeroLead = styled.div`
 `;
 
 const HeroTitle = styled.h1`
+  font-family: ${HEADLINE};
   margin: 0;
   font-size: clamp(2.5rem, 6vw, 4.75rem);
   font-weight: 300;

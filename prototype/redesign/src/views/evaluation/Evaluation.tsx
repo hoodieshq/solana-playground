@@ -1,7 +1,7 @@
 import { FC } from "react";
 import styled, { createGlobalStyle, css } from "styled-components";
 
-import { FINDINGS } from "./findings";
+import { CONTRAST, CONTRAST_NOTE, FINDINGS, PRINCIPLES } from "./findings";
 import {
   BODY,
   GRID_PITCH,
@@ -55,9 +55,9 @@ const Evaluation: FC<EvaluationProps> = ({ onBack, onProduct }) => (
         UX evaluation
       </Title>
       <Lede>
-        Every change below shipped in this build. Each one names what the
-        interface did before, what it does now, and the mechanism that made the
-        old behaviour wrong — not an adjective.
+        How the styling was approached, what the numbers say, and then the
+        changes as evidence. Every figure below is computed from the shipped
+        theme, and the two that fall short of AA are listed as falling short.
       </Lede>
       <Stats>
         <Stat>
@@ -69,11 +69,45 @@ const Evaluation: FC<EvaluationProps> = ({ onBack, onProduct }) => (
           <StatLabel>bugs the design pass found</StatLabel>
         </Stat>
         <Stat>
-          <StatFigure>70</StatFigure>
-          <StatLabel>files touched in one pass</StatLabel>
+          <StatFigure>{PRINCIPLES.length}</StatFigure>
+          <StatLabel>principles it was held to</StatLabel>
         </Stat>
       </Stats>
     </Head>
+
+    <Band>
+      <BandTitle>The approach</BandTitle>
+      <Principles>
+        {PRINCIPLES.map((p) => (
+          <Principle key={p.id}>
+            <PrincipleTitle>{p.title}</PrincipleTitle>
+            <PrincipleBody>{p.body}</PrincipleBody>
+            <Source>{p.source}</Source>
+          </Principle>
+        ))}
+      </Principles>
+    </Band>
+
+    <Band>
+      <BandTitle>Contrast, measured</BandTitle>
+      <Rows>
+        {CONTRAST.map((c) => (
+          <ContrastRow key={c.pair}>
+            <ContrastPair>
+              <ContrastName>{c.pair}</ContrastName>
+              <ContrastUse>{c.use}</ContrastUse>
+            </ContrastPair>
+            <ContrastFigure>{c.ratio.toFixed(2)}:1</ContrastFigure>
+            <Verdict $short={c.verdict === "AA large only"}>{c.verdict}</Verdict>
+          </ContrastRow>
+        ))}
+      </Rows>
+      <Note>{CONTRAST_NOTE}</Note>
+    </Band>
+
+    <Band>
+      <BandTitle>What changed</BandTitle>
+    </Band>
 
     <List>
       {FINDINGS.map((f, i) => (
@@ -258,6 +292,109 @@ const StatFigure = styled.div`
 const StatLabel = styled.div`
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.5);
+`;
+
+const Band = styled.section`
+  ${Measure}
+  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  padding-bottom: clamp(0.5rem, 1.5vw, 1rem);
+`;
+
+const BandTitle = styled.h2`
+  margin: 0 0 clamp(1rem, 2.5vw, 1.75rem);
+  font-family: ${HEADLINE};
+  font-weight: 400;
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  letter-spacing: -0.012em;
+`;
+
+const Principles = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: clamp(1rem, 2.5vw, 1.75rem);
+`;
+
+const Principle = styled.div`
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+`;
+
+const PrincipleTitle = styled.h3`
+  margin: 0 0 0.5rem;
+  font-family: ${HEADLINE};
+  font-weight: 400;
+  font-size: 1.0625rem;
+  line-height: 1.25;
+`;
+
+const PrincipleBody = styled.p`
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
+/* The standard or the product it is held to, said plainly rather than as a
+   badge — a citation is only worth printing if it can be checked. */
+const Source = styled.div`
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: ${GREEN};
+`;
+
+const Rows = styled.div`
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const ContrastRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 2rem);
+  padding: 0.875rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const ContrastPair = styled.div`
+  min-width: 0;
+`;
+
+const ContrastName = styled.div`
+  font-size: 0.9375rem;
+`;
+
+const ContrastUse = styled.div`
+  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.5);
+`;
+
+const ContrastFigure = styled.div`
+  font-family: ${HEADLINE};
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+`;
+
+const Verdict = styled.div<{ $short: boolean }>`
+  ${({ $short }) => css`
+    min-width: 7.5rem;
+    text-align: right;
+    font-size: 0.8125rem;
+    color: ${$short ? "#F5B544" : GREEN};
+  `}
+`;
+
+const Note = styled.p`
+  margin: clamp(1rem, 2vw, 1.5rem) 0 0;
+  max-width: 44rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
 `;
 
 const List = styled.ol`
