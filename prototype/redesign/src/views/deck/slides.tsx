@@ -32,6 +32,10 @@ export type SlideSpec =
       items: Array<{ glyph: "solana" | "play" | "ground"; name: string; note: string }>;
     }
   | { id: string; kind: "mark"; ground: Ground; grid?: boolean }
+  /** Solana's three bars, held still — where the mark comes from */
+  | { id: string; kind: "seed"; ground: Ground; grid?: boolean }
+  /** The bars folding into the triangle, and the mark resolving over them */
+  | { id: string; kind: "morph"; ground: Ground; grid?: boolean }
   | { id: string; kind: "lockup"; ground: Ground; grid?: boolean }
   | {
       id: string;
@@ -62,7 +66,8 @@ export const SLIDES: SlideSpec[] = [
       { glyph: "ground", name: "Ground", note: "Safe, Big, On-chain" },
     ],
   },
-  { id: "mark", kind: "mark", ground: "mesh" },
+  { id: "seed", kind: "seed", ground: "paper" },
+  { id: "morph", kind: "morph", ground: "mesh" },
   { id: "lockup", kind: "lockup", ground: "meshDeep" },
   {
     id: "say-mesh",
