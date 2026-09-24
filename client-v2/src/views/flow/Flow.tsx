@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
@@ -105,6 +105,20 @@ const Flow = () => {
      retries every 100ms until something answers, and on the start screen
      nothing ever does. So the route has to bring the view with it. */
   const [path, setPath] = useState(() => PgRouter.location.pathname);
+  /* The stage rail abbreviates its labels when it is genuinely short of room.
+     Measured, because styled-components 5 cannot compile a container query. */
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railTight, setRailTight] = useState(false);
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail || typeof ResizeObserver === "undefined") return;
+    // Four stages, and "Interact" with its dot wants about 85px
+    const observer = new ResizeObserver(([entry]) =>
+      setRailTight(entry.contentRect.width < 380)
+    );
+    observer.observe(rail);
+    return () => observer.disconnect();
+  }, [view]);
   const onTutorialRoute = path.startsWith("/tutorials/");
   /* On a tutorial route the workspace name is whatever was open last, which is
      not what you are looking at. */
@@ -323,11 +337,12 @@ const Flow = () => {
                   head rather than above it so that the first row of every
                   column is the same row: name on top, the panel's own switch
                   beneath, the same two rules straight across. */}
-              <StageRail>
+              <StageRail ref={railRef}>
                 <Stepper
                   state={state}
                   onSelect={PgFlow.setStage}
                   target={target}
+                  compact={railTight}
                 />
               </StageRail>
 
