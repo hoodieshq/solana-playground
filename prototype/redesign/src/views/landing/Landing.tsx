@@ -6,6 +6,7 @@ import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import { useReveal } from "./useReveal";
+import { LATTICE_FADE, LATTICE_PITCH, latticeTiles } from "../deck/tokens";
 
 /**
  * The landing.
@@ -212,42 +213,18 @@ const Hero = styled.header`
   isolation: isolate;
 `;
 
-/* Rounded tiles seen as the light between them, same construction as the
-   deck's: mortar lines plus a radial at each cell corner for the star the
-   corners make. Masked so it arrives across the frame. */
+/* The one pattern, defined with the deck's. This used to be a second copy of
+   it, which is how the landing and the deck ended up drawing the same thing at
+   two different weights. It is quieter here than on a slide because the hero
+   art is underneath it rather than a flat ground. */
 const Lattice = styled.div`
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background-image: radial-gradient(
-      circle at 0 0,
-      rgba(255, 255, 255, 0.13) 0,
-      rgba(255, 255, 255, 0) 11px
-    ),
-    linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0.07) 0 1.5px,
-      rgba(255, 255, 255, 0) 1.5px
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.07) 0 1.5px,
-      rgba(255, 255, 255, 0) 1.5px
-    );
-  background-size: 68px 68px;
-  -webkit-mask-image: linear-gradient(
-    105deg,
-    transparent 6%,
-    rgba(0, 0, 0, 0.5) 46%,
-    #000 92%
-  );
-  mask-image: linear-gradient(
-    105deg,
-    transparent 6%,
-    rgba(0, 0, 0, 0.5) 46%,
-    #000 92%
-  );
+  background-image: ${latticeTiles(0.14)};
+  background-size: ${LATTICE_PITCH} ${LATTICE_PITCH};
+  ${LATTICE_FADE}
 `;
 
 const HeroArt = styled.div`

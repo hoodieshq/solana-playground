@@ -4,13 +4,13 @@ import styled, { createGlobalStyle, css } from "styled-components";
 import { CONTRAST, CONTRAST_NOTE, FINDINGS, PRINCIPLES } from "./findings";
 import {
   BODY,
-  GRID_PITCH,
   GREEN,
   HEADLINE,
   INK,
+  LATTICE_PITCH,
   PAPER,
   PURPLE,
-  grid,
+  latticeTiles,
 } from "../deck/tokens";
 
 /**
@@ -163,8 +163,13 @@ const Page = styled.div`
   inset: 0;
   overflow-y: auto;
   background: ${INK};
-  background-image: ${grid(0.045)};
-  background-size: ${GRID_PITCH} ${GRID_PITCH};
+  /* The same pattern the deck and the landing carry — it was a hairline grid
+     at a different pitch, which made this the third answer to one question.
+     No fade: a mask here would apply to the page's own text, and this one
+     scrolls, so there is no edge for a horizontal ramp to arrive at. Quiet,
+     because it sits under a document rather than under a headline. */
+  background-image: ${latticeTiles(0.035)};
+  background-size: ${LATTICE_PITCH} ${LATTICE_PITCH};
   color: ${PAPER};
   font-family: ${BODY};
   font-weight: 300;

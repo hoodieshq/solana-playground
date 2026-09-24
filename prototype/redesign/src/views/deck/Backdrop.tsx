@@ -2,21 +2,35 @@ import { FC } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import type { Ground } from "./slides";
-import { DEEP, GREEN, INK, PAPER, PURPLE, STEEL, TEAL, VIOLET } from "./tokens";
+import {
+  DEEP,
+  GREEN,
+  INK,
+  LATTICE_FADE,
+  LATTICE_PITCH,
+  PAPER,
+  PURPLE,
+  STEEL,
+  TEAL,
+  VIOLET,
+  latticeTiles,
+} from "./tokens";
 
 /**
  * The deck's ground: a mesh that drifts, and a lattice over it.
  *
- * The first pass had both wrong. The gradient was one linear ramp corner to
- * corner, which is a ramp and not a mesh — the Figma's colour moves in several
- * directions at once and cannot be reduced to a single angle. And the lattice
- * was hairlines on a 44px grid, when the slides actually show *rounded tiles*:
- * the light is in the gaps between them, so every intersection opens into a
- * four-point star. That star is the whole character of the pattern and a
- * crosshatch has none of it.
+ * The gradient's first pass was one linear ramp corner to corner, which is a
+ * ramp and not a mesh — the Figma's colour moves in several directions at once
+ * and cannot be reduced to a single angle. It is six drifting blobs now.
  *
- * Both are built from layered gradients rather than an image, so they scale to
- * any frame and cost nothing to ship.
+ * The lattice is the supplied asset rather than my reading of it, and the two
+ * disagreed on the most basic point: I had drawn the light in the *gaps*, as a
+ * crosshatch with a star at each intersection. In the asset the light is the
+ * tiles and the gaps are the ground showing through. Everything else followed
+ * from that mistake, so none of the old numbers survive.
+ *
+ * Both are built from gradients and one repeated tile rather than a 180 KB
+ * path, so they scale to any frame and cost nothing to ship.
  */
 
 interface BackdropProps {
@@ -36,7 +50,7 @@ const Backdrop: FC<BackdropProps> = ({ ground, lattice }) => (
         <Blob $c={DEEP} $i={5} />
       </>
     )}
-    {lattice && <Lattice $dark={ground === "ink"} />}
+    {lattice && <Lattice />}
   </Fill>
 );
 
@@ -110,52 +124,12 @@ const Blob = styled.div<{ $c: string; $i: number }>`
   }}
 `;
 
-/**
- * The lattice: rounded tiles, seen as the light between them.
- *
- * Two mortar lines give the grid, and a radial at the cell's corner opens each
- * intersection into the star the rounded corners make. The whole thing is
- * masked so it arrives across the frame rather than sitting evenly on it,
- * which is what the slides do.
- */
-const TILE = "68px";
-
-const Lattice = styled.div<{ $dark: boolean }>`
-  ${({ $dark }) => {
-    const mortar = $dark ? 0.05 : 0.085;
-    const star = $dark ? 0.1 : 0.16;
-    return css`
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: radial-gradient(
-          circle at 0 0,
-          rgba(255, 255, 255, ${star}) 0,
-          rgba(255, 255, 255, 0) 11px
-        ),
-        linear-gradient(
-          to right,
-          rgba(255, 255, 255, ${mortar}) 0 1.5px,
-          rgba(255, 255, 255, 0) 1.5px
-        ),
-        linear-gradient(
-          to bottom,
-          rgba(255, 255, 255, ${mortar}) 0 1.5px,
-          rgba(255, 255, 255, 0) 1.5px
-        );
-      background-size: ${TILE} ${TILE};
-      -webkit-mask-image: linear-gradient(
-        105deg,
-        transparent 4%,
-        rgba(0, 0, 0, 0.55) 44%,
-        #000 88%
-      );
-      mask-image: linear-gradient(
-        105deg,
-        transparent 4%,
-        rgba(0, 0, 0, 0.55) 44%,
-        #000 88%
-      );
-    `;
-  }}
+/** The supplied pattern at its own weight, faded the way the asset fades it */
+const Lattice = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: ${latticeTiles()};
+  background-size: ${LATTICE_PITCH} ${LATTICE_PITCH};
+  ${LATTICE_FADE}
 `;
