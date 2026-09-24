@@ -2,6 +2,7 @@ import { FC } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
+import Backdrop from "./Backdrop";
 import type { Exit, Ground, SlideSpec } from "./slides";
 import {
   GRID_PITCH,
@@ -15,6 +16,35 @@ import {
   PAPER,
   grid,
 } from "./tokens";
+
+/**
+ * A line, one letter at a time.
+ *
+ * Words are kept whole so the line still wraps on word boundaries, and the
+ * spaces between them carry the same beat as a letter — which is what stops
+ * the second word starting before the first has landed. 22ms a letter is
+ * quick: the whole of "Play, Build, Create" is under half a second, and the
+ * point is that it reads as arriving rather than as a queue.
+ */
+const STEP = 22;
+
+const Letters: FC<{ text: string; from: number }> = ({ text, from }) => {
+  let n = from;
+  return (
+    <>
+      {text.split(" ").map((word, w, all) => (
+        <Word key={`${word}-${w}`}>
+          {[...word].map((ch, i) => (
+            <Ch key={i} style={{ animationDelay: `${(n++ * STEP) + 90}ms` }}>
+              {ch}
+            </Ch>
+          ))}
+          {w < all.length - 1 && <Ch key="sp">&nbsp;</Ch>}
+        </Word>
+      ))}
+    </>
+  );
+};
 
 /** One slide. Which one is decided by the spec; how it looks is decided here. */
 
@@ -39,13 +69,14 @@ const Slide: FC<SlideProps> = ({
   const dark = slide.ground !== "paper";
 
   return (
-    <Surface $ground={slide.ground} $grid={!!slide.grid}>
+    <Surface $paper={slide.ground === "paper"}>
+      <Backdrop ground={slide.ground} lattice={!!slide.grid} />
       {slide.kind === "title" && (
         <Measure>
           <Headline $dark={dark} $scale={slide.scale}>
             {slide.lines.map((line, i) => (
-              <Line key={line} style={{ animationDelay: `${120 + i * 90}ms` }}>
-                {line}
+              <Line key={line}>
+                <Letters text={line} from={i * 9} />
               </Line>
             ))}
           </Headline>
@@ -89,8 +120,8 @@ const Slide: FC<SlideProps> = ({
         <Measure>
           <Headline $dark={dark} $scale={slide.scale}>
             {slide.lines.map((line, i) => (
-              <Line key={line} style={{ animationDelay: `${120 + i * 90}ms` }}>
-                {line}
+              <Line key={line}>
+                <Letters text={line} from={i * 9} />
               </Line>
             ))}
           </Headline>
@@ -113,36 +144,15 @@ export default Slide;
 
 /* ── the grounds ──────────────────────────────────────────────────────── */
 
-const GROUNDS: Record<Ground, string> = {
-  paper: PAPER,
-  ink: INK,
-  mesh: MESH,
-  meshDeep: MESH_DEEP,
-};
-
-const Surface = styled.div<{ $ground: Ground; $grid: boolean }>`
-  ${({ $ground, $grid }) => css`
+const Surface = styled.div<{ $paper: boolean }>`
+  ${({ $paper }) => css`
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: clamp(1.5rem, 5vw, 5.5rem);
-    background: ${GROUNDS[$ground]};
-
-    /* The lattice, over whatever the ground is. Lighter on the gradient than
-       on the black, because the gradient is already carrying a lot. */
-    ${$grid &&
-    css`
-      &::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background-image: ${grid($ground === "ink" ? 0.055 : 0.1)};
-        background-size: ${GRID_PITCH} ${GRID_PITCH};
-      }
-    `}
+    background: ${$paper ? PAPER : INK};
   `}
 `;
 
@@ -175,11 +185,28 @@ const Headline = styled.h1<{ $dark: boolean; $scale?: number }>`
   `}
 `;
 
-/* Each line arrives on its own beat, which is what makes a headline land
-   rather than simply appear. */
 const Line = styled.span`
   display: block;
-  animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
+`;
+
+/* Kept whole so the line breaks between words and never inside one */
+const Word = styled.span`
+  display: inline-block;
+  white-space: pre;
+`;
+
+/* The playful part: each letter drops in with a little overshoot rather than
+   fading, so the line has a bounce to it at speed. */
+const pop = keyframes`
+  0%   { opacity: 0; transform: translate3d(0, 0.5em, 0) scale(0.86); }
+  62%  { opacity: 1; transform: translate3d(0, -0.045em, 0) scale(1.015); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+`;
+
+const Ch = styled.span`
+  display: inline-block;
+  animation: ${pop} 440ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  will-change: transform, opacity;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
