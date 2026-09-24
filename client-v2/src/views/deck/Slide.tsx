@@ -3,6 +3,7 @@ import styled, { css, keyframes } from "styled-components";
 
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import Backdrop from "./Backdrop";
+import MarkMorph from "./MarkMorph";
 import type { Exit, SlideSpec } from "./slides";
 import {
   HEADLINE,
@@ -99,15 +100,17 @@ const Slide: FC<SlideProps> = ({
         </BigMark>
       )}
 
+      {slide.kind === "seed" && <MarkMorph hold />}
+      {slide.kind === "morph" && <MarkMorph />}
+
       {slide.kind === "lockup" && (
         <Lockup>
           <LockMark>
             <PlaygroundMarkNext />
           </LockMark>
           <Wordmark>
-            Solana
-            <br />
-            Playground
+            <WordLine $order={0}>Solana</WordLine>
+            <WordLine $order={1}>Playground</WordLine>
           </Wordmark>
         </Lockup>
       )}
@@ -304,22 +307,43 @@ const Lockup = styled.div`
   align-items: center;
   gap: clamp(1rem, 2.6vw, 2.5rem);
   color: ${PAPER};
-  animation: ${draw} 760ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
+`;
 
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
+/* The mark carries over from the slide before, where it filled the frame, and
+   settles to its size in the lockup. Starting at the size it just was is what
+   makes the two slides read as one move rather than as a cut. */
+const shrink = keyframes`
+  from { transform: scale(2.05) translateX(12%); }
+  to   { transform: scale(1) translateX(0); }
 `;
 
 const LockMark = styled.div`
   width: min(22vw, 15rem);
   flex-shrink: 0;
+  animation: ${shrink} 760ms cubic-bezier(0.3, 0.75, 0.25, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 
   & > svg {
     width: 100%;
     height: auto;
     display: block;
   }
+`;
+
+/* One word, then the other — after the mark has finished settling */
+const WordLine = styled.span<{ $order: number }>`
+  ${({ $order }) => css`
+    display: block;
+    animation: ${rise} 480ms ${560 + $order * 190}ms
+      cubic-bezier(0.2, 0.8, 0.3, 1) both;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  `}
 `;
 
 const Wordmark = styled.div`
