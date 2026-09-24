@@ -77,10 +77,52 @@ const bar = (lean: number): Array<[number, number]> => {
   const cx = pts.reduce((a, [x]) => a + x, 0) / 4;
   return pts.map(([x, y]) => [x - cx, y] as [number, number]);
 };
-const SHAPES = LEAN.map(bar);
+/**
+ * A wedge off the play triangle, and a segment off its O.
+ *
+ * The table was three bars and nothing else, which reads as one shape in three
+ * rotations. The proposed mark is a triangle and a ring as well, so its parts
+ * are the parts that belong here — a wedge and an arc give the pile two more
+ * silhouettes to catch the eye, and both still behave as slabs.
+ */
+const wedge = (): Array<[number, number]> => {
+  const r = BAR_H * 1.55;
+  const pts: Array<[number, number]> = [
+    [-r * 0.62, -r * 0.78],
+    [r * 0.86, 0],
+    [-r * 0.62, r * 0.78],
+    [-r * 0.28, 0],
+  ];
+  return pts;
+};
 
-/** How many of each bar are on the table */
-const PER_SHAPE = 16;
+/** A slice of the ring, as a polygon — the physics only deals in corners. */
+const arc = (from: number, to: number, steps = 5): Array<[number, number]> => {
+  const outer = BAR_H * 1.5;
+  const inner = BAR_H * 0.82;
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = from + ((to - from) * i) / steps;
+    pts.push([Math.cos(a) * outer, Math.sin(a) * outer]);
+  }
+  for (let i = steps; i >= 0; i--) {
+    const a = from + ((to - from) * i) / steps;
+    pts.push([Math.cos(a) * inner, Math.sin(a) * inner]);
+  }
+  const cx = pts.reduce((t, [x]) => t + x, 0) / pts.length;
+  const cy = pts.reduce((t, [, y]) => t + y, 0) / pts.length;
+  return pts.map(([x, y]) => [x - cx, y - cy] as [number, number]);
+};
+
+const SHAPES = [
+  ...LEAN.map(bar),
+  wedge(),
+  arc(-0.85, 0.85),
+  arc(Math.PI - 0.7, Math.PI + 0.7),
+];
+
+/** How many of each shape are on the table */
+const PER_SHAPE = 9;
 
 /** The landing's ramp, top to bottom. Everything is quantised onto this. */
 const RAMP_HEX = [
