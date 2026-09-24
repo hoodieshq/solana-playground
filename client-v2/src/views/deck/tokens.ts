@@ -32,21 +32,56 @@ export const MESH = `linear-gradient(115deg, ${GREEN} 0%, ${TEAL} 22%, ${STEEL} 
 export const MESH_DEEP = `linear-gradient(120deg, ${GREEN} -10%, ${STEEL} 28%, ${VIOLET} 58%, ${DEEP} 82%, ${PURPLE} 100%)`;
 
 /**
- * The grid. A hairline lattice over the gradient and over the black, at low
- * enough contrast that it reads as texture rather than as a table.
+ * The background pattern, from the supplied asset rather than from my reading
+ * of it — and the two disagreed on the only thing that matters. I had drawn
+ * the light in the *gaps*, as a crosshatch with a star at each intersection.
+ * In the asset the light is the tiles and the gaps are the ground showing
+ * through, so none of the old numbers survive.
+ *
+ * Every number below is read off the asset: tiles of 58 on a pitch of 60, so
+ * the gap is 2, and white at 0.2.
+ *
+ * The corner is not an arc. It is Figma's smoothed corner — two beziers easing
+ * into the straight run over 20 units, rather than one quarter circle over the
+ * radius — which is why `border-radius` cannot draw this tile and the path is
+ * carried verbatim.
+ *
+ * It lives here because three screens draw it. It was three *different*
+ * patterns before, which is the drift this file exists to stop.
  */
-export const GRID_PITCH = "44px";
-export const grid = (alpha = 0.12) => `
-  linear-gradient(
-    to right,
-    rgba(255, 255, 255, ${alpha}) 0 1px,
-    transparent 1px ${GRID_PITCH}
-  ),
-  linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, ${alpha}) 0 1px,
-    transparent 1px ${GRID_PITCH}
-  )
+
+/* One cell, lifted from the asset's tile at (44, 1802) and moved to the
+   origin. Repeating it is identical to the 1946×1862 path and ~1/1000th of
+   it — the supplied file is ~180 KB of the same shape a thousand times. */
+const CELL =
+  "M0 38C0 47.4281 0 52.1421 2.9289 55.0711C5.8579 58 10.5719 58 20 58H38" +
+  "C47.4281 58 52.1421 58 55.0711 55.0711C58 52.1421 58 47.4281 58 38V20" +
+  "C58 10.5719 58 5.8579 55.0711 2.9289C52.1421 0 47.4281 0 38 0H20" +
+  "C10.5719 0 5.8579 0 2.9289 2.9289C0 5.8579 0 10.5719 0 20V38Z";
+
+export const LATTICE_PITCH = "60px";
+
+/**
+ * The tiles, as a background image.
+ *
+ * The alpha is baked into the fill rather than set as an element `opacity`, so
+ * this can be a plain background on an element that also has content — which
+ * is what the evaluation needs, since fading that element would fade the page.
+ */
+export const latticeTiles = (alpha = 0.2) =>
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' ` +
+  `width='60' height='60'%3E%3Cpath d='${CELL}' fill='%23fff' ` +
+  `fill-opacity='${alpha}'/%3E%3C/svg%3E")`;
+
+/**
+ * The asset's own gradient — full at the right edge, gone at the left.
+ *
+ * Separate from the tiles because a mask applies to everything its element
+ * paints, so it is only safe on a layer that paints nothing else.
+ */
+export const LATTICE_FADE = `
+  -webkit-mask-image: linear-gradient(to left, #000, transparent);
+  mask-image: linear-gradient(to left, #000, transparent);
 `;
 
 /**
