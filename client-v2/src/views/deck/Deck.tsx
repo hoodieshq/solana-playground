@@ -28,6 +28,34 @@ interface DeckProps {
   onEvaluation: () => void;
 }
 
+/**
+ * Chrome that belongs to a tool laid over the page rather than to the deck.
+ *
+ * Studio injects its toolkit into whatever it is proxying — the ribbon, the
+ * annotation host, the component picker. Those want the clicks and the
+ * keystrokes that land on them, and a deck that advances on every click takes
+ * the note-taking click away before the note exists.
+ */
+const TOOL_CHROME =
+  "#agentation-host,.ribbon,.ribshow,.studiobld,.cmp,.cmp-pin," +
+  ".reelbar,.reelpanel,.reeltip,.reelhit,#anntoast";
+
+/** Something is being typed into, so the deck has no business with the keys */
+const typing = (el: Element | null) =>
+  !!el &&
+  (el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT" ||
+    (el as HTMLElement).isContentEditable);
+
+/**
+ * An overlay tool has the page. Studio's annotation puts `ann-on` on the root
+ * element for exactly this — it says "something is laid over me" without the
+ * deck needing to know what.
+ */
+const overlayHasThePage = () =>
+  document.documentElement.classList.contains("ann-on");
+
 const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   const [index, setIndex] = useState(0);
   /* Which way the last move went, so a slide arrives from the side it should */
@@ -48,9 +76,17 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
+      const target = ev.target as HTMLElement | null;
+
+      /* Anything being typed into keeps its keys. Space is a space in a note,
+         not the next slide, and the deck listens on the window so it would
+         otherwise take it from a field it has never heard of. */
+      if (typing(target) || target?.closest(TOOL_CHROME)) return;
+      if (overlayHasThePage()) return;
+
       // A slide's own button has the keyboard when it is focused
-      if (ev.target instanceof HTMLElement && ev.target.tagName === "BUTTON") {
-        if (ev.key === " " || ev.key === "Enter") return;
+      if (target?.tagName === "BUTTON" && (ev.key === " " || ev.key === "Enter")) {
+        return;
       }
       switch (ev.key) {
         case "ArrowRight":
@@ -82,6 +118,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   /* A trackpad sends a burst of events per gesture, so one gesture would
      otherwise run the whole deck. Lock out the rest of the burst. */
   const onWheel = (ev: React.WheelEvent) => {
+    if (overlayHasThePage()) return;
     const now = Date.now();
     if (now - wheelLock.current < 600) return;
     if (Math.abs(ev.deltaY) < 12 && Math.abs(ev.deltaX) < 12) return;
@@ -97,6 +134,11 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   const onClick = (ev: React.MouseEvent) => {
     const el = ev.target as HTMLElement | null;
     if (el?.closest("button, a, [role='button']")) return;
+    if (el?.closest(TOOL_CHROME)) return;
+    /* While a tool is laid over the page, a click on a slide is that tool's —
+       it is how you pin a note to the thing you are pointing at. Advancing
+       would move the slide out from under the note. */
+    if (overlayHasThePage()) return;
     next();
   };
 
@@ -105,6 +147,10 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   };
   const onTouchEnd = (ev: React.TouchEvent) => {
     if (touchFrom.current === null) return;
+    if (overlayHasThePage()) {
+      touchFrom.current = null;
+      return;
+    }
     const dx = ev.changedTouches[0].clientX - touchFrom.current;
     touchFrom.current = null;
     if (Math.abs(dx) > 48) (dx < 0 ? next : prev)();
@@ -172,6 +218,14 @@ const Stage = styled.div`
   touch-action: none;
   user-select: none;
   cursor: e-resize;
+
+  /* ...unless a tool is laid over it, in which case the deck is the subject
+     and not the interface: the cursor stops promising to advance, and text
+     becomes selectable so a note can quote it. */
+  html.ann-on & {
+    cursor: default;
+    user-select: text;
+  }
 `;
 
 const arrive = (from: string) => keyframes`
