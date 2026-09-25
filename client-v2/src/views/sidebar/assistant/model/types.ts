@@ -121,9 +121,9 @@ export const PROVIDERS: ProviderInfo[] = [
     modelSettings: {
       // Both take adaptive thinking and the full effort ladder. Haiku 4.5
       // takes neither, so offering it would need a different request shape.
-      models: ["claude-opus-5", "claude-sonnet-5"],
+      models: ["claude-opus-5-5", "claude-sonnet-5"],
       efforts: ["low", "medium", "high", "xhigh", "max"],
-      defaults: { model: "claude-opus-5", effort: "high" },
+      defaults: { model: "claude-opus-5-5", effort: "high" },
     },
   },
   {

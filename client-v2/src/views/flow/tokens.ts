@@ -29,6 +29,27 @@ export const HEAD_INSET = "0.875rem";
  */
 export const BOTTOM_BAR_HEIGHT = "1.75rem";
 
+/**
+ * The presentation's colours, for the places the product carries the brand
+ * rather than the neutral ramp: what is current, what is done, what acts.
+ * Values are the deck's (`views/deck/tokens.ts`, `Atmosphere`).
+ */
+export const BRAND = {
+  /** Solana's green: done, verified, success */
+  green: "#14F195",
+  /** Solana's purple: current, and the accent */
+  purple: "#9945FF",
+  /** The deck's mid violet and the periwinkle it lightens to */
+  violet: "#7A56DA",
+  periwinkle: "#9496F9",
+  /** The ink the black slides sit on */
+  ink: "#151515",
+  /** The landing's button: green into purple, sampled off the brand render */
+  fill:
+    "linear-gradient(90deg, #19C98C 0%, #339794 13%, #5673B0 25%, " +
+    "#794FCD 37.8%, #8845DA 56%, #8E4BE0 100%)",
+} as const;
+
 /*
  * The brand gradient used to live here as a literal, copied from
  * GradientButton. Its three users -- that button, the stepper's active dot and
