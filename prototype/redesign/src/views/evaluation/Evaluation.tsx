@@ -6,14 +6,21 @@ import BuildHero from "../deck/BuildHero";
 import type { BuildStep } from "../deck/BuildHero";
 import Pattern from "../deck/Pattern";
 import { HEADLINE, INK } from "../deck/tokens";
-import { LogoPill, NavButton, NavPill, TopBar, frameUnit, u } from "../landing/chrome";
+import {
+  LogoPill,
+  NavButton,
+  NavPill,
+  TopBar,
+  frameUnit,
+  u,
+} from "../landing/chrome";
 import Statements from "../landing/Statements";
 import { useReveal } from "../landing/useReveal";
 import agent from "./art/agent.svg";
 import magnifier from "./art/magnifier.svg";
 import medal from "./art/medal.svg";
 import screen from "./art/screen.png";
-import { FINDINGS, SYSTEM_LINE } from "./findings";
+import { DESIGN_SUMMARY, FINDINGS, SYSTEM_LINE } from "./findings";
 
 /**
  * The UX evaluation and what comes next, as the presentation would say it
@@ -42,7 +49,14 @@ const Evaluation: FC<EvaluationProps> = ({ onBack, onProduct }) => (
     <EvalFonts />
 
     {/* The Figma's title: Stack Sans SemiBold at 188 on the 1920 frame, -2% */}
-    <Hero steps={STEPS} hold={1700} scale={188.115 / 216} weight={600} leading={0.9} tracking="-0.02em">
+    <Hero
+      steps={STEPS}
+      hold={1700}
+      scale={188.115 / 216}
+      weight={600}
+      leading={0.9}
+      tracking="-0.02em"
+    >
       <Top>
         <LogoPill as="div" role="img" aria-label="Solana Playground">
           <PlaygroundLogoNext />
@@ -59,6 +73,8 @@ const Evaluation: FC<EvaluationProps> = ({ onBack, onProduct }) => (
     </Hero>
 
     <Inspect />
+
+    <Summary />
 
     <Statements items={FINDINGS} />
 
@@ -83,6 +99,26 @@ const Inspect: FC = () => {
       <Lens $shown={shown} />
       <Glass $shown={shown} src={magnifier} alt="" draggable={false} />
     </InspectFrame>
+  );
+};
+
+/**
+ * What was done, in two plain paragraphs — the page's one stretch of reading,
+ * set like a letter rather than a slide, rising in once it is reached.
+ */
+const Summary: FC = () => {
+  const [ref, shown] = useReveal<HTMLElement>();
+  return (
+    <SummaryFrame ref={ref} aria-labelledby="design-summary">
+      <SummaryTitle id="design-summary" $shown={shown}>
+        What we have done
+      </SummaryTitle>
+      {DESIGN_SUMMARY.map((paragraph, i) => (
+        <SummaryText key={i} $shown={shown} $delay={160 + i * 140}>
+          {paragraph}
+        </SummaryText>
+      ))}
+    </SummaryFrame>
   );
 };
 
@@ -129,7 +165,8 @@ const Page = styled.div`
   overflow-x: hidden;
   background: ${INK};
   color: ${TEXT};
-  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 `;
 
 const rise = keyframes`
@@ -248,6 +285,41 @@ const Glass = styled.img<{ $shown: boolean }>`
       animation: none;
       opacity: 1;
     }
+  `}
+`;
+
+/* ── what was done ────────────────────────────────────────────────────── */
+
+const SummaryFrame = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  width: min(44rem, calc(100% - 3rem));
+  margin: 0 auto;
+  padding: clamp(5rem, 12vh, 9rem) 0 clamp(3rem, 8vh, 6rem);
+`;
+
+const SummaryTitle = styled.h2<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    margin: 0 0 0.5rem;
+    font-family: ${HEADLINE};
+    font-size: clamp(1.75rem, 3vw, 2.75rem);
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    ${reveal($shown, 0)}
+  `}
+`;
+
+const SummaryText = styled.p<{ $shown: boolean; $delay: number }>`
+  ${({ $shown, $delay }) => css`
+    margin: 0;
+    font-size: clamp(1rem, 1.2vw, 1.1875rem);
+    font-weight: 300;
+    line-height: 1.7;
+    color: rgba(237, 241, 255, 0.78);
+    ${reveal($shown, $delay)}
   `}
 `;
 
