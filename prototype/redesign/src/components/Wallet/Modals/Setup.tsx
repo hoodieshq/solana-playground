@@ -78,41 +78,45 @@ export const Setup = () => {
 };
 
 const Content = styled.div`
-  padding: 0 1rem;
-
   &:not(:first-child) {
-    margin-top: 1rem;
+    margin-top: 1.125rem;
   }
 `;
 
 const ContentTitle = styled.div`
   margin-bottom: 0.25rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.default.textPrimary};
 `;
 
 const ContentText = styled.p`
+  margin: 0;
+  line-height: 1.55;
   color: ${({ theme }) => theme.colors.default.textSecondary};
 `;
 
 const WarningTextWrapper = styled.div`
-  margin-top: 1rem;
+  margin-top: 1.25rem;
   display: flex;
   align-items: center;
 
+  & div {
+    justify-content: flex-start;
+    padding: 0.75rem 0.875rem;
+  }
+
   & div > svg {
-    height: 2rem;
-    width: 2rem;
-    margin-right: 1rem;
+    flex-shrink: 0;
+    height: 1.25rem;
+    width: 1.25rem;
+    margin-right: 0.75rem;
   }
 `;
 
 const WalletButtonsWrapper = styled.div`
   margin-top: 1rem;
   display: flex;
-
-  & button {
-    margin-right: 1rem;
-  }
+  gap: 0.5rem;
 `;
 
 const KeypairText = styled.div`

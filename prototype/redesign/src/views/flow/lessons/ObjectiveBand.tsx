@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FC } from "react";
+import { frosted } from "../components/frosted";
 import styled, { css } from "styled-components";
 
 import { assistantLabel, describeStep } from "./band-copy";
@@ -165,6 +166,7 @@ const Wrapper = styled.div`
   ${({ theme }) => css`
     flex-shrink: 0;
     border-bottom: 1px solid ${theme.colors.default.border};
+    ${frosted}
   `}
 `;
 

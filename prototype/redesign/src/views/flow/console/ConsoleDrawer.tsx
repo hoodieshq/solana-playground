@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { useEffect, useRef, useState } from "react";
+import { frosted } from "../components/frosted";
 import styled, { css, keyframes, ThemeProvider } from "styled-components";
 import type { DefaultTheme } from "styled-components";
 
@@ -190,7 +191,7 @@ export default ConsoleDrawer;
 const Wrapper = styled.div`
   ${({ theme }) => css`
     border-top: 1px solid ${theme.colors.default.border};
-    background: transparent;
+    ${frosted}
     display: flex;
     flex-direction: column;
     flex-shrink: 0;

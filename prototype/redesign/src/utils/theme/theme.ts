@@ -1300,6 +1300,13 @@ export class PgTheme {
     modal.top.padding ??= "0 1.5rem";
     modal.top.fontWeight ??= "bold";
 
+    // Title: centred over a rule, as every theme drew it before it was a part
+    modal.title ??= {};
+    modal.title.width ??= "100%";
+    modal.title.textAlign ??= "center";
+    modal.title.padding ??= "0.75rem 0";
+    modal.title.borderBottom ??= `1px solid ${theme.colors.default.border}`;
+
     // Content
     modal.content ??= {};
     modal.content.padding ??= "1rem 1.5rem";

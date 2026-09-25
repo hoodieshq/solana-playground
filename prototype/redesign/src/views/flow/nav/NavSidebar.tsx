@@ -347,12 +347,12 @@ const Head = styled.div<{ $animate: boolean }>`
 `;
 
 /* The supplied lockup, drawn — the mark with "Solana Playground" beside it.
-   At 2rem the wordmark's two lines read at a glance, and it still leaves the
-   shared 2.75rem head a margin above and below. */
+   At 1.75rem the wordmark's two lines still read at a glance without the
+   lockup crowding the shared 2.75rem head. */
 const Logo = styled(PlaygroundLogoNext)`
   display: block;
   flex-shrink: 0;
-  height: 2rem;
+  height: 1.75rem;
   width: auto;
   transition: opacity 0.12s;
 

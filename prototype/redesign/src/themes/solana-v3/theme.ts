@@ -125,6 +125,18 @@ const SOLANA_V3: ThemeParam = {
           border: `1px solid ${BORDER_STRONG}`,
           hover: { bg: BG_HOVER, borderColor: BORDER_STRONG },
         },
+        // A dialog's confirm: the accent, solid — the washed-out purple read
+        // as disabled even when it was not
+        "primary-transparent": {
+          bg: ACCENT_FILL,
+          color: "#FFFFFF",
+          hover: { bg: ACCENT_FILL_HOVER },
+        },
+        "primary-outline": {
+          border: `1px solid ${ACCENT}80`,
+          color: TEXT_PRIMARY,
+          hover: { bg: `${ACCENT}1A`, borderColor: ACCENT },
+        },
       },
     },
     editor: {
@@ -162,17 +174,66 @@ const SOLANA_V3: ThemeParam = {
         borderRadius: "14px",
       },
     },
+    // Dialogs in the presentation's voice: a quiet card, the title set in the
+    // headline face at the left, room to breathe, actions at the foot
     modal: {
       default: {
-        bg: BG_SURFACE,
-        border: `1px solid ${BORDER}`,
-        borderRadius: PANEL_RADIUS,
-        boxShadow: "rgba(0, 0, 0, 0.55) 0px 16px 48px",
+        bg: BG_SIDEBAR,
+        border: `1px solid ${BORDER_STRONG}`,
+        borderRadius: "16px",
+        boxShadow: "rgba(0, 0, 0, 0.6) 0px 24px 64px",
+        maxWidth: "min(36rem, calc(100vw - 2rem))",
       },
-      backdrop: { bg: "rgba(0, 0, 0, 0.5)" },
+      backdrop: {
+        bg: "rgba(8, 8, 9, 0.62)",
+        backdropFilter: "blur(6px)",
+      },
+      top: {
+        justifyContent: "flex-start",
+        padding: "0 1.5rem",
+        fontWeight: 500,
+      },
+      title: {
+        textAlign: "left",
+        padding: "1.25rem 2.5rem 0.25rem 0",
+        fontFamily: HEADLINE_FONT,
+        fontSize: "1.1875rem",
+        fontWeight: 500,
+        letterSpacing: "-0.01em",
+      },
+      content: {
+        padding: "0.75rem 1.5rem 1rem",
+        fontSize: "0.875rem",
+        lineHeight: 1.55,
+      },
+      bottom: {
+        gap: "0.5rem",
+        padding: "0.5rem 1.5rem 1.25rem",
+      },
     },
     progressbar: {
       indicator: { bg: ACCENT },
+    },
+    // Notes inside forms: a tinted, hairlined box in the state's colour,
+    // calm enough to read — a warning, not an alarm
+    text: {
+      overrides: {
+        warning: {
+          bg: "rgba(245, 158, 11, 0.07)",
+          border: "1px solid rgba(245, 158, 11, 0.22)",
+          borderRadius: "12px",
+          color: "#F2C36B",
+          fontFamily: DISPLAY_FONT,
+          fontSize: "0.8125rem",
+        },
+        info: {
+          bg: "rgba(153, 69, 255, 0.07)",
+          border: "1px solid rgba(153, 69, 255, 0.24)",
+          borderRadius: "12px",
+          fontFamily: DISPLAY_FONT,
+          fontSize: "0.8125rem",
+        },
+      },
     },
     skeleton: {
       bg: BG_RAISED,

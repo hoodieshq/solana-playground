@@ -176,7 +176,9 @@ export interface ThemeParam {
     menu?: OverridableComponent<MenuKind>;
 
     /** Modal component */
-    modal?: ExtendibleComponent<"backdrop" | "top" | "content" | "bottom">;
+    modal?: ExtendibleComponent<
+      "backdrop" | "top" | "title" | "content" | "bottom"
+    >;
 
     /** Progress bar component */
     progressbar?: ExtendibleComponent<"indicator">;
