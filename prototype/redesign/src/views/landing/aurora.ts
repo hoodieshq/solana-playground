@@ -1,8 +1,8 @@
 import { clamp01, seeded, smoothstep } from "./trail";
 
 /**
- * The northern lights, in Solana's colours — the flow under the trail
- * version's button, with the warp's lines (`warp.ts`) drawn over it.
+ * The northern lights, in Solana's colours — the glow under the trail
+ * version's button, with its ribbons (`ribbons.ts`) drawn over it.
  *
  * Four curtains of light run across the button: a solid main one behind the
  * words, a thinner veil above it throwing rays upward, a flare that curls up
@@ -52,12 +52,13 @@ export const hueAt = (p: number): RGB => {
   ];
 };
 
-/* Towards white, for the brightest parts — rays and the lower border */
-export const toward = (c: RGB, white: number): RGB => [
-  c[0] + (255 - c[0]) * white,
-  c[1] + (255 - c[1]) * white,
-  c[2] + (255 - c[2]) * white,
-];
+/* Brighter in its own hue, for the brightest parts — rays, borders, glints:
+   the colour turned up until its strongest channel is full, never mixed
+   towards white */
+export const vivid = (c: RGB): RGB => {
+  const k = 255 / Math.max(1, c[0], c[1], c[2]);
+  return [c[0] * k, c[1] * k, c[2] * k];
+};
 
 export const colour = (c: RGB, alpha: number) =>
   `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${
@@ -253,7 +254,7 @@ const drawCurtain = (
       const along = smoothstep(0.04, 0.24, s) * (1 - smoothstep(0.76, 0.96, s));
       glow.addColorStop(
         s,
-        colour(toward(hueAt(x + c.shift), 0.35), c.rim * breath * along)
+        colour(vivid(hueAt(x + c.shift)), c.rim * breath * along)
       );
     }
     ctx.strokeStyle = glow;
@@ -277,7 +278,7 @@ const drawCurtain = (
     const head = Math.max(0.05 * h, tops[i] - c.reach * (bottoms[i] - tops[i]));
     if (strength < 0.01 || foot - head < 1) return;
 
-    const tint = toward(hueAt(c.from + (c.to - c.from) * s + c.shift), 0.3);
+    const tint = vivid(hueAt(c.from + (c.to - c.from) * s + c.shift));
     const shaft = ctx.createLinearGradient(0, head, 0, foot);
     shaft.addColorStop(0, colour(tint, 0));
     shaft.addColorStop(0.6, colour(tint, strength * 0.6));
