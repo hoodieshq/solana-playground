@@ -41,7 +41,14 @@ const One: FC<Statement> = ({ id, title, line }) => {
     <Item id={id} ref={ref}>
       <Claim>
         {shown && (
-          <Headline as="h2" lines={[title]} light={false} scale={0.36} weight={500} leading={1.04} />
+          <Headline
+            as="h2"
+            lines={[title]}
+            light={false}
+            scale={0.36}
+            weight={500}
+            leading={1.04}
+          />
         )}
       </Claim>
       <Line $shown={shown} $delay={Math.min(1400, 240 + title.length * 18)}>
@@ -100,7 +107,8 @@ const Line = styled.p<{ $shown: boolean; $delay: number }>`
     opacity: 0;
     ${$shown &&
     css`
-      animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) ${$delay}ms both;
+      animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) ${$delay}ms
+        both;
     `}
 
     @media (prefers-reduced-motion: reduce) {

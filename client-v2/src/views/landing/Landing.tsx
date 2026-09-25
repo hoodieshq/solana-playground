@@ -10,9 +10,14 @@ import type { BuildStep } from "../deck/BuildHero";
 import Pattern from "../deck/Pattern";
 import { Headline } from "../deck/Slide";
 import { HEADLINE, HEADLINE_SIZE, INK } from "../deck/tokens";
+import Flight from "./Flight";
+import Light, { LIGHT_BELOW } from "./Light";
 import Statements from "./Statements";
 import type { Statement } from "./Statements";
+import VersionSwitch from "./VersionSwitch";
+import type { Variant } from "./VersionSwitch";
 import { LogoPill, NavLink, NavPill, TopBar, frameUnit, u } from "./chrome";
+import { trailLetters } from "./trail";
 import { useReveal } from "./useReveal";
 
 /**
@@ -29,11 +34,23 @@ import { useReveal } from "./useReveal";
  *
  * Built from the deck's own parts rather than made to resemble them, and kept
  * short: a claim and one quiet line wherever there used to be a paragraph.
+ *
+ * Two versions, one page. The classic is the above. The trail version keeps
+ * every part of it and changes three things: the headline's letters arrive
+ * trailing copies of themselves in Solana's ramp; the button is light — the
+ * northern lights in the brand's colours — rather than a slab; and the
+ * claims, instead of waiting in tall sections, fly at the reader out of depth
+ * as they scroll. Everything else — the hero's steps, the product, the close —
+ * is literally the same code, so the two cannot drift apart.
  */
 
 interface LandingProps {
   /** Into the product */
   onEnter: () => void;
+  /** Which version: the deck's own, or the one whose headlines trail light */
+  variant?: Variant;
+  /** Switch versions — the switch is shown when this is given */
+  onVariant?: (next: Variant) => void;
 }
 
 /* The deck's three steps, with its three grounds */
@@ -65,7 +82,9 @@ const STATEMENTS: Statement[] = [
    to show, and "#what" would take the reader off the landing entirely. */
 const scrollTo = (id: string) => (ev: MouseEvent) => {
   ev.preventDefault();
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
 /* The first screen, as the hero measures it */
@@ -86,10 +105,17 @@ const CLEAR = `max(${u(151)}, calc(${u(94)} + 2.5rem))`;
    the window starts 64 into the render), and never so far that it runs into
    the top bar */
 const LIFT =
-  `max(0px, min(calc(0.93 * ${LINE} - 0.02 * ${SCREEN} + max(${u(70)}, 1.5rem) - ${u(64)}),` +
+  `max(0px, min(calc(0.93 * ${LINE} - 0.02 * ${SCREEN} + max(${u(
+    70
+  )}, 1.5rem) - ${u(64)}),` +
   ` calc((${SCREEN} - 1.86 * ${LINE}) / 2 - ${CLEAR})))`;
 
-const Landing: FC<LandingProps> = ({ onEnter }) => {
+const Landing: FC<LandingProps> = ({
+  onEnter,
+  variant = "classic",
+  onVariant,
+}) => {
+  const trail = variant === "trail";
   const [up, setUp] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
@@ -102,7 +128,8 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
     const opts = { capture: true, passive: true } as const;
     const events = ["scroll", "wheel", "touchmove"] as const;
     events.forEach((e) => window.addEventListener(e, rise, opts));
-    return () => events.forEach((e) => window.removeEventListener(e, rise, opts));
+    return () =>
+      events.forEach((e) => window.removeEventListener(e, rise, opts));
   }, [up, rise]);
 
   return (
@@ -118,9 +145,14 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
         onSettled={rise}
         lift={LIFT}
         lifted={up}
+        $trail={trail}
       >
         <Top>
-          <LogoPill href="#landing-top" onClick={scrollTo("landing-top")} aria-label="Solana Playground">
+          <LogoPill
+            href="#landing-top"
+            onClick={scrollTo("landing-top")}
+            aria-label="Solana Playground"
+          >
             <PlaygroundLogoNext />
           </LogoPill>
           <NavPill aria-label="Main">
@@ -133,18 +165,28 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
             <NavLink href="#who" onClick={scrollTo("who")}>
               Who it's for
             </NavLink>
-            <NavLink href="https://solana.com/docs" target="_blank" rel="noreferrer">
+            <NavLink
+              href="https://solana.com/docs"
+              target="_blank"
+              rel="noreferrer"
+            >
               Docs
             </NavLink>
           </NavPill>
         </Top>
       </Hero>
 
-      <Product onEnter={onEnter} up={up} />
+      <Product onEnter={onEnter} up={up} trail={trail} />
 
-      <Statements items={STATEMENTS} />
+      {trail ? (
+        <Flight items={STATEMENTS} />
+      ) : (
+        <Statements items={STATEMENTS} />
+      )}
 
       <Close onEnter={onEnter} />
+
+      {onVariant && <VersionSwitch value={variant} onChange={onVariant} />}
     </Page>
   );
 };
@@ -154,19 +196,51 @@ export default Landing;
 /**
  * The product, and the button across it. It waits below the first screen
  * until the line has landed, then comes up into the room the line leaves; the
- * button follows it, held against the bottom edge — part of it showing — until
- * scrolling brings it to its place across the render.
+ * button follows it, held against the bottom edge until scrolling brings it
+ * to its place across the render.
+ *
+ * On the classic, the button is the brand slides' gradient slab, part of it
+ * showing — cut by the edge, so the page plainly goes on. On the trail
+ * version it is the same words on the northern lights, held whole just above
+ * the edge, their light fading out before it.
  */
-const Product: FC<{ onEnter: () => void; up: boolean }> = ({ onEnter, up }) => (
+const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
+  onEnter,
+  up,
+  trail,
+}) => (
   <ProductFrame>
     <Stage $up={up}>
-      <Shot src={appShot} alt="Playground's sidebar and assistant" draggable={false} />
+      <Shot
+        src={appShot}
+        alt="Playground's sidebar and assistant"
+        draggable={false}
+      />
       <Shade />
       <Place />
-      <Cta type="button" $tone="gradient" $up={up} onClick={onEnter} data-shot="landing-cta">
-        <Label>Open Playground</Label>
-        <Icon />
-      </Cta>
+      {trail ? (
+        <LightCta
+          type="button"
+          $up={up}
+          onClick={onEnter}
+          data-shot="landing-cta"
+        >
+          <Light on={up} />
+          <Label>Open Playground</Label>
+          <Icon />
+        </LightCta>
+      ) : (
+        <Cta
+          type="button"
+          $tone="gradient"
+          $up={up}
+          onClick={onEnter}
+          data-shot="landing-cta"
+        >
+          <Label>Open Playground</Label>
+          <Icon />
+        </Cta>
+      )}
     </Stage>
   </ProductFrame>
 );
@@ -222,7 +296,8 @@ const Page = styled.main`
   min-height: 100vh;
   background: ${INK};
   color: ${TEXT};
-  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   /* Clip, not hidden: hidden would make the page its own scroller, and the
      button's hold on the bottom edge would be against the page, not the
      window */
@@ -236,8 +311,10 @@ const rise = keyframes`
 
 /* ── the hero ─────────────────────────────────────────────────────────── */
 
-const Hero = styled(BuildHero)`
+/* The trail version re-times the headline's letters and nothing else */
+const Hero = styled(BuildHero)<{ $trail?: boolean }>`
   padding-top: ${u(54)};
+  ${({ $trail }) => $trail && trailLetters("h1")}
 `;
 
 const Top = styled(TopBar)`
@@ -300,7 +377,9 @@ const Shot = styled.img`
   height: 100%;
   display: block;
   user-select: none;
-  clip-path: inset(${(138 / 2160) * 100}% 0 0 ${(150 / 3840) * 100}% round ${u(18)} 0 0 0);
+  clip-path: inset(
+    ${(138 / 2160) * 100}% 0 0 ${(150 / 3840) * 100}% round ${u(18)} 0 0 0
+  );
 
   @media (max-width: 56rem) {
     position: relative;
@@ -313,7 +392,11 @@ const Shade = styled.div`
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(21, 21, 21, 0) 60%, rgba(21, 21, 21, 0.7) 100%),
+  background: linear-gradient(
+      90deg,
+      rgba(21, 21, 21, 0) 60%,
+      rgba(21, 21, 21, 0.7) 100%
+    ),
     linear-gradient(to bottom, rgba(21, 21, 21, 0) 72%, ${INK} 99%);
 
   @media (max-width: 56rem) {
@@ -452,6 +535,99 @@ const Icon = styled(PlayRing)`
     width: clamp(2.5rem, 11vw, 3.25rem);
     height: clamp(2.5rem, 11vw, 3.25rem);
   }
+`;
+
+/* ── the trail version's button ───────────────────────────────────────── */
+
+/* How far above the fold the trail version's button rests while it is held
+   there: exactly as far as its light runs on below it, so the light's own
+   fade — never the edge of the screen — is where it ends */
+const FLOAT = 298 * LIGHT_BELOW;
+
+const lightPeek = keyframes`
+  from { opacity: 0; transform: translate3d(0, ${u(48)}, 0); }
+`;
+
+/* The same words and icon, in white, on the northern lights instead of on a
+   slab — the light is `Light`, drawn under them. The button itself is
+   transparent, but it is still the whole row you press, focus and hover, on
+   the Figma's 1779 × 298 and 603 into the render.
+
+   It holds at the bottom of the screen until scrolling brings it to its
+   place, whole: nothing about light needs cutting to say the page goes on.
+   The light comes on first and the words rise into it; both entrances fill
+   backwards only, so the hover lift still works after. */
+const LightCta = styled.button<{ $up: boolean }>`
+  ${({ $up }) => css`
+    position: sticky;
+    bottom: ${u(FLOAT)};
+    isolation: isolate;
+    width: 100%;
+    height: ${u(298)};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 ${u(75)} 0 ${u(80)};
+    border: none;
+    border-radius: ${u(70)};
+    background: none;
+    color: #ffffff;
+    font-family: ${HEADLINE};
+    cursor: pointer;
+    opacity: ${$up ? 1 : 0};
+    -webkit-tap-highlight-color: transparent;
+
+    & > ${Label}, & > ${Icon} {
+      position: relative;
+      transition: transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
+      ${$up &&
+      css`
+        animation: ${lightPeek} 900ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms
+          backwards;
+      `}
+    }
+
+    /* Legible on the brightest of the light: a soft shade close under the
+       letters, never an outline */
+    & > ${Label} {
+      text-shadow: 0 0 ${u(34)} rgba(14, 10, 40, 0.42),
+        0 ${u(2)} ${u(5)} rgba(14, 10, 40, 0.3);
+    }
+
+    & > ${Icon} {
+      filter: drop-shadow(0 0 ${u(26)} rgba(14, 10, 40, 0.4));
+    }
+
+    &:hover > ${Label}, &:hover > ${Icon} {
+      transform: translate3d(0, ${u(-4)}, 0);
+    }
+
+    &:active > ${Label}, &:active > ${Icon} {
+      transform: translate3d(0, 0, 0);
+      transition-duration: 160ms;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.92);
+      outline-offset: ${u(10)};
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      & > ${Label}, & > ${Icon} {
+        animation: none;
+        transition: none;
+      }
+    }
+
+    @media (max-width: 56rem) {
+      position: relative;
+      bottom: auto;
+      height: 5.5rem;
+      margin-top: 1.25rem;
+      padding: 0 1.25rem 0 1.5rem;
+      border-radius: 1.5rem;
+    }
+  `}
 `;
 
 /* ── the close ────────────────────────────────────────────────────────── */
