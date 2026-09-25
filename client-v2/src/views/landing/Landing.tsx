@@ -102,38 +102,62 @@ const scrollTo = (id: string) => (ev: MouseEvent) => {
 
 /* Once the product has come up, the page glides down until the top bar is
    out of view, so the product and its light have the whole screen. A scroll
-   down from there does not move the page at first: it pulls on the light,
-   stretching it and speeding it up, and past a point the page lets go and
-   glides on to the claims. Lower down, the top bar floats back in. */
+   down from there does not move the page at first: it pulls on the whole
+   first screen — the headline, the product, the button's words and the light
+   between them stretch up like a slinky held at the button — and past a
+   point the page lets go and glides on to the claims. Lower down, the top
+   bar floats back in. */
 
 /* How long after the product rises the page glides down, how long that
    takes, and how far past the top bar it stops */
-const SETTLE_AFTER = 1500;
-const SETTLE_FOR = 1100;
+const SETTLE_AFTER = 1250;
+const SETTLE_FOR = 1400;
 const SETTLE_GAP = 16;
 
-/* How much scrolling, in px, pulls the light all the way; how far past the
-   resting place a pull still counts; the spring the pull is shown on — a
-   little bouncy, like a slinky — and how quickly an unfinished pull lets go */
-const PULL_PX = 260;
+/* How much scrolling, in px, pulls all the way; how far past the resting
+   place a pull still counts; how rubbery it is — quick to give at first,
+   stiffer the further it goes — and how quickly an unfinished pull lets go */
+const PULL_PX = 340;
 const PULL_ZONE = 40;
-const PULL_SPRING = 170;
-const PULL_DAMPING = 17;
+const PULL_GIVE = 2.2;
 const PULL_RELEASE = 3;
+
+/* The layers the pull moves, each on a spring of its own — stiffest at the
+   top, so the headline goes first, the product after it and the button's
+   words last, with more bounce the lower they are — and how far each goes at
+   a full pull, on the 1920 frame */
+const PULL_LAYERS = [
+  { name: "--pull-head", stiffness: 230, damping: 19 },
+  { name: "--pull-product", stiffness: 160, damping: 14.5 },
+  { name: "--pull-words", stiffness: 110, damping: 11 },
+];
+const PULL_HEAD = 120;
+const PULL_PRODUCT = 84;
+const PULL_WORDS = 56;
 
 /* Where a full pull lets go to, and how long the glide there takes */
 const PULL_TO = "what";
 const PULL_FOR = 850;
 
-/* A scroll of the window to `to`, eased in and out over `ms`; the returned
-   function stops it where it is */
-const glide = (to: number, ms: number, done?: () => void) => {
+/* Eased in and out: a cubic, and a softer one for gliding from rest */
+const inOut = (k: number) =>
+  k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const smoother = (k: number) => k * k * k * (k * (k * 6 - 15) + 10);
+
+/* A scroll of the window to `to` over `ms`; the returned function stops it
+   where it is */
+const glide = (
+  to: number,
+  ms: number,
+  done?: () => void,
+  ease: (k: number) => number = inOut
+) => {
   const from = window.scrollY;
   const start = performance.now();
   let frame = 0;
   const step = (now: number) => {
     const k = Math.min(1, (now - start) / ms);
-    const eased = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    const eased = ease(k);
     window.scrollTo(0, from + (to - from) * eased);
     if (k < 1) frame = requestAnimationFrame(step);
     else done?.();
@@ -179,6 +203,7 @@ const Landing: FC<LandingProps> = ({
   const rise = useCallback(() => setUp(true), []);
 
   /* The trail version's first screen in motion: see the constants above */
+  const pageRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const productRef = useRef<HTMLElement>(null);
   const pull = useRef<Pull>({ value: 0 });
@@ -215,7 +240,7 @@ const Landing: FC<LandingProps> = ({
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setTimeout(() => {
       if (touched.current || window.scrollY > 4) return;
-      stopSettle.current = glide(restAt(), SETTLE_FOR);
+      stopSettle.current = glide(restAt(), SETTLE_FOR, undefined, smoother);
     }, SETTLE_AFTER);
     return () => {
       window.clearTimeout(timer);
@@ -228,17 +253,20 @@ const Landing: FC<LandingProps> = ({
     if (!trail) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let wanted = 0;
-    let shown = 0;
-    let speed = 0;
     let pulledAt = 0;
     let last = 0;
     let frame = 0;
     let letting = false;
     let stopGlide = () => undefined as void;
+    const layers = PULL_LAYERS.map((layer) => ({ ...layer, at: 0, speed: 0 }));
 
     const show = () => {
-      pull.current.value = shown;
-      productRef.current?.style.setProperty("--pull", shown.toFixed(4));
+      const page = pageRef.current;
+      layers.forEach((layer) =>
+        page?.style.setProperty(layer.name, layer.at.toFixed(4))
+      );
+      /* The light stretches with the product it reaches into */
+      pull.current.value = layers[1].at;
     };
     const tick = (now: number) => {
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
@@ -246,16 +274,29 @@ const Landing: FC<LandingProps> = ({
       if (now - pulledAt > 140) {
         wanted += (0 - wanted) * Math.min(1, dt * PULL_RELEASE);
       }
-      speed += (PULL_SPRING * (wanted - shown) - PULL_DAMPING * speed) * dt;
-      shown += speed * dt;
+      /* Rubbery: quick to give at first, stiffer the further it goes */
+      const goal =
+        (1 - Math.exp(-PULL_GIVE * wanted)) / (1 - Math.exp(-PULL_GIVE));
+      let moving = Math.abs(wanted) > 0.0005;
+      layers.forEach((layer) => {
+        layer.speed +=
+          (layer.stiffness * (goal - layer.at) - layer.damping * layer.speed) *
+          dt;
+        layer.at += layer.speed * dt;
+        if (Math.abs(goal - layer.at) + Math.abs(layer.speed) > 0.0005) {
+          moving = true;
+        }
+      });
       show();
-      if (Math.abs(wanted) + Math.abs(shown) + Math.abs(speed) > 0.0005) {
+      if (moving) {
         frame = requestAnimationFrame(tick);
       } else {
         frame = 0;
         last = 0;
-        shown = 0;
-        speed = 0;
+        layers.forEach((layer) => {
+          layer.at = 0;
+          layer.speed = 0;
+        });
         show();
       }
     };
@@ -351,7 +392,7 @@ const Landing: FC<LandingProps> = ({
   }, [up, rise]);
 
   return (
-    <Page id="landing-top">
+    <Page id="landing-top" ref={pageRef}>
       <LandingFonts />
 
       {/* The deck's line at the Figma's 185.6: 0.86 of the deck's size */}
@@ -485,7 +526,7 @@ const Product: FC<{
   return (
     <ProductFrame $trail={trail} ref={frameRef}>
       <Stage $up={up} $trail={trail}>
-        <Window ref={windowRef}>
+        <Window ref={windowRef} $up={up}>
           <View>
             <Shot
               src={productShot}
@@ -594,6 +635,11 @@ const rise = keyframes`
 const Hero = styled(BuildHero)<{ $trail?: boolean }>`
   padding-top: ${u(54)};
   ${({ $trail }) => $trail && trailLetters("h1")}
+
+  /* Pulled on, the headline goes first and furthest */
+  & h1 {
+    translate: 0 calc(var(--pull-head, 0) * -1 * ${u(PULL_HEAD)});
+  }
 `;
 
 const Top = styled(TopBar)`
@@ -703,7 +749,7 @@ const OUTLINE = `radial-gradient(
    code, near enough to read. In a window where the slides' render has its
    corner, rounded as that is; the window is its edge's colour, and one pixel
    of it shows round the view */
-const Window = styled.div`
+const Window = styled.div<{ $up: boolean }>`
   position: absolute;
   top: ${(138 / 2160) * 100}%;
   left: ${(150 / 3840) * 100}%;
@@ -712,6 +758,17 @@ const Window = styled.div`
   padding: 1px;
   border-radius: ${u(18)} 0 0 0;
   background: ${OUTLINE};
+  /* Pulled on, the product follows the headline */
+  translate: 0 calc(var(--pull-product, 0) * -1 * ${u(PULL_PRODUCT)});
+  /* It comes up out of focus and sharpens as it lands, as the claims
+     further down do */
+  filter: ${({ $up }) => ($up ? "none" : `blur(${u(16)})`)};
+  transition: filter 1200ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+
+  @media (prefers-reduced-motion: reduce) {
+    filter: none;
+    transition: none;
+  }
 
   @media (max-width: 56rem) {
     position: relative;
@@ -747,6 +804,7 @@ const Shade = styled.div`
   position: absolute;
   inset: 0;
   pointer-events: none;
+  translate: 0 calc(var(--pull-product, 0) * -1 * ${u(PULL_PRODUCT)});
   background: linear-gradient(
       90deg,
       rgba(21, 21, 21, 0) 60%,
@@ -899,8 +957,22 @@ const Icon = styled(PlayRing)`
    on the edge of the screen */
 const FLOAT = 298 * LIGHT_BELOW;
 
-const lightPeek = keyframes`
-  from { opacity: 0; transform: translate3d(0, ${u(48)}, 0); }
+/* The words and the icon rise into the light out of focus, the icon a beat
+   after the words */
+const wordsIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translate3d(0, ${u(56)}, 0);
+    filter: blur(${u(14)});
+  }
+`;
+
+const iconIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translate3d(0, ${u(56)}, 0) scale(0.92);
+    filter: blur(${u(14)}) drop-shadow(0 0 ${u(26)} rgba(14, 10, 40, 0.4));
+  }
 `;
 
 /* The same words and icon, in white, on the northern lights instead of on a
@@ -934,14 +1006,9 @@ const LightCta = styled.button<{ $up: boolean }>`
 
     & > ${Label}, & > ${Icon} {
       position: relative;
-      /* Pulled on, the words rise with the light's stretch */
-      translate: 0 calc(var(--pull, 0) * -1 * ${u(46)});
+      /* Pulled on, the words go last and least, bouncing most */
+      translate: 0 calc(var(--pull-words, 0) * -1 * ${u(PULL_WORDS)});
       transition: transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
-      ${$up &&
-      css`
-        animation: ${lightPeek} 900ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms
-          backwards;
-      `}
     }
 
     /* Legible on the brightest of the light: a soft shade close under the
@@ -949,10 +1016,20 @@ const LightCta = styled.button<{ $up: boolean }>`
     & > ${Label} {
       text-shadow: 0 0 ${u(34)} rgba(14, 10, 40, 0.42),
         0 ${u(2)} ${u(5)} rgba(14, 10, 40, 0.3);
+      ${$up &&
+      css`
+        animation: ${wordsIn} 1000ms cubic-bezier(0.22, 1, 0.36, 1) 1050ms
+          backwards;
+      `}
     }
 
     & > ${Icon} {
-      filter: drop-shadow(0 0 ${u(26)} rgba(14, 10, 40, 0.4));
+      filter: blur(0px) drop-shadow(0 0 ${u(26)} rgba(14, 10, 40, 0.4));
+      ${$up &&
+      css`
+        animation: ${iconIn} 1000ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms
+          backwards;
+      `}
     }
 
     &:hover > ${Label}, &:hover > ${Icon} {
