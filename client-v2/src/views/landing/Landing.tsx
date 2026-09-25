@@ -389,7 +389,7 @@ const Label = styled.span`
   white-space: nowrap;
 
   @media (max-width: 56rem) {
-    font-size: 2rem;
+    font-size: clamp(1.375rem, 6.4vw, 2rem);
   }
 `;
 
@@ -399,8 +399,8 @@ const Icon = styled(PlayRing)`
   flex-shrink: 0;
 
   @media (max-width: 56rem) {
-    width: 3.25rem;
-    height: 3.25rem;
+    width: clamp(2.5rem, 11vw, 3.25rem);
+    height: clamp(2.5rem, 11vw, 3.25rem);
   }
 `;
 

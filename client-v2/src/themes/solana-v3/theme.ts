@@ -33,7 +33,6 @@ const BG_BASE = "#101011", // the page and the central stage
   // The accent, kept for the mark and the one badge that means new. Not on
   // text, not on borders, not as a tint over anything.
   ACCENT = "#2563EB",
-  ACCENT_HOVER = "#3B78F0",
   ACCENT_FILL = "#2563EB",
   ACCENT_FILL_HOVER = "#3B78F0",
   DISABLED_BG = "#191919",
