@@ -1,6 +1,7 @@
 import {
   FC,
   MouseEvent,
+  RefObject,
   useCallback,
   useEffect,
   useRef,
@@ -21,6 +22,7 @@ import { Headline } from "../deck/Slide";
 import { HEADLINE, HEADLINE_SIZE, INK } from "../deck/tokens";
 import Flight from "./Flight";
 import Light, { LIGHT_BELOW } from "./Light";
+import type { Pull } from "./Light";
 import Statements from "./Statements";
 import type { Statement } from "./Statements";
 import VersionSwitch from "./VersionSwitch";
@@ -96,12 +98,58 @@ const scrollTo = (id: string) => (ev: MouseEvent) => {
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
+/* ── the trail version's first screen, in motion ─────────────────────── */
+
+/* Once the product has come up, the page glides down until the top bar is
+   out of view, so the product and its light have the whole screen. A scroll
+   down from there does not move the page at first: it pulls on the light,
+   stretching it and speeding it up, and past a point the page lets go and
+   glides on to the claims. Lower down, the top bar floats back in. */
+
+/* How long after the product rises the page glides down, how long that
+   takes, and how far past the top bar it stops */
+const SETTLE_AFTER = 1500;
+const SETTLE_FOR = 1100;
+const SETTLE_GAP = 16;
+
+/* How much scrolling, in px, pulls the light all the way; how far past the
+   resting place a pull still counts; the spring the pull is shown on — a
+   little bouncy, like a slinky — and how quickly an unfinished pull lets go */
+const PULL_PX = 260;
+const PULL_ZONE = 40;
+const PULL_SPRING = 170;
+const PULL_DAMPING = 17;
+const PULL_RELEASE = 3;
+
+/* Where a full pull lets go to, and how long the glide there takes */
+const PULL_TO = "what";
+const PULL_FOR = 850;
+
+/* A scroll of the window to `to`, eased in and out over `ms`; the returned
+   function stops it where it is */
+const glide = (to: number, ms: number, done?: () => void) => {
+  const from = window.scrollY;
+  const start = performance.now();
+  let frame = 0;
+  const step = (now: number) => {
+    const k = Math.min(1, (now - start) / ms);
+    const eased = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    window.scrollTo(0, from + (to - from) * eased);
+    if (k < 1) frame = requestAnimationFrame(step);
+    else done?.();
+  };
+  frame = requestAnimationFrame(step);
+  return () => cancelAnimationFrame(frame);
+};
+
 /* The first screen, as the hero measures it */
 const SCREEN = "max(100vh, 34rem)";
 
 /* How much of the product the first screen shows once it is up: the lower 48%,
-   so the render's top sits just past halfway down */
-const PEEK = `calc(${SCREEN} * 0.48)`;
+   so the render's top sits just past halfway down — on the trail version 55%,
+   so its light has room to rise into the interface */
+const peekShare = (trail: boolean) => (trail ? 0.55 : 0.48);
+const productPeek = (trail: boolean) => `calc(${SCREEN} * ${peekShare(trail)})`;
 
 /* The line: the deck's, at the Figma's 185.6, two rows of 0.93 */
 const LINE = `calc(${HEADLINE_SIZE} * 0.86)`;
@@ -113,10 +161,10 @@ const CLEAR = `max(${u(151)}, calc(${u(94)} + 2.5rem))`;
    clears the product's window by 70 on the 1920 frame (never less than 1.5rem;
    the window starts 64 into the render), and never so far that it runs into
    the top bar */
-const LIFT =
-  `max(0px, min(calc(0.93 * ${LINE} - 0.02 * ${SCREEN} + max(${u(
-    70
-  )}, 1.5rem) - ${u(64)}),` +
+const lift = (trail: boolean) =>
+  `max(0px, min(calc(0.93 * ${LINE} + ${(peekShare(trail) - 0.5).toFixed(
+    2
+  )} * ${SCREEN} + max(${u(70)}, 1.5rem) - ${u(64)}),` +
   ` calc((${SCREEN} - 1.86 * ${LINE}) / 2 - ${CLEAR})))`;
 
 const Landing: FC<LandingProps> = ({
@@ -129,6 +177,167 @@ const Landing: FC<LandingProps> = ({
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
   const rise = useCallback(() => setUp(true), []);
+
+  /* The trail version's first screen in motion: see the constants above */
+  const topRef = useRef<HTMLDivElement>(null);
+  const productRef = useRef<HTMLElement>(null);
+  const pull = useRef<Pull>({ value: 0 });
+  const touched = useRef(false);
+  const stopSettle = useRef<() => void>(() => undefined);
+  const [floating, setFloating] = useState(false);
+
+  /* A reader who scrolls, presses a key or touches the page is in charge:
+     no glide starts after that, and one under way stops */
+  useEffect(() => {
+    const take = () => {
+      touched.current = true;
+      stopSettle.current();
+    };
+    const opts = { capture: true, passive: true } as const;
+    const events = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    events.forEach((e) => window.addEventListener(e, take, opts));
+    return () =>
+      events.forEach((e) => window.removeEventListener(e, take, opts));
+  }, []);
+
+  /* Where the page rests once the top bar is out of view */
+  const restAt = useCallback(() => {
+    const top = topRef.current;
+    return top
+      ? Math.round(
+          top.getBoundingClientRect().bottom + window.scrollY + SETTLE_GAP
+        )
+      : 0;
+  }, []);
+
+  useEffect(() => {
+    if (!trail || !up) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => {
+      if (touched.current || window.scrollY > 4) return;
+      stopSettle.current = glide(restAt(), SETTLE_FOR);
+    }, SETTLE_AFTER);
+    return () => {
+      window.clearTimeout(timer);
+      stopSettle.current();
+    };
+  }, [trail, up, restAt]);
+
+  /* The pull, and the glide on to the claims once it lets go */
+  useEffect(() => {
+    if (!trail) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let wanted = 0;
+    let shown = 0;
+    let speed = 0;
+    let pulledAt = 0;
+    let last = 0;
+    let frame = 0;
+    let letting = false;
+    let stopGlide = () => undefined as void;
+
+    const show = () => {
+      pull.current.value = shown;
+      productRef.current?.style.setProperty("--pull", shown.toFixed(4));
+    };
+    const tick = (now: number) => {
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
+      last = now;
+      if (now - pulledAt > 140) {
+        wanted += (0 - wanted) * Math.min(1, dt * PULL_RELEASE);
+      }
+      speed += (PULL_SPRING * (wanted - shown) - PULL_DAMPING * speed) * dt;
+      shown += speed * dt;
+      show();
+      if (Math.abs(wanted) + Math.abs(shown) + Math.abs(speed) > 0.0005) {
+        frame = requestAnimationFrame(tick);
+      } else {
+        frame = 0;
+        last = 0;
+        shown = 0;
+        speed = 0;
+        show();
+      }
+    };
+    const wake = () => {
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+    const inReach = () => window.scrollY <= restAt() + PULL_ZONE;
+    const letGo = () => {
+      const target = document.getElementById(PULL_TO);
+      if (!target) return;
+      letting = true;
+      wanted = 0;
+      wake();
+      stopGlide = glide(
+        target.getBoundingClientRect().top + window.scrollY,
+        PULL_FOR,
+        () => {
+          letting = false;
+        }
+      );
+    };
+
+    const onWheel = (ev: WheelEvent) => {
+      if (letting) {
+        ev.preventDefault();
+        return;
+      }
+      const unit =
+        ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? window.innerHeight : 1;
+      const dy = ev.deltaY * unit;
+      if (dy <= 0 || !inReach()) return;
+      ev.preventDefault();
+      wanted = Math.min(1.15, wanted + dy / PULL_PX);
+      pulledAt = performance.now();
+      wake();
+      if (wanted >= 1) letGo();
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      const onPage =
+        !document.activeElement || document.activeElement === document.body;
+      if (letting || !onPage || !inReach()) return;
+      if (["ArrowDown", "PageDown", " "].includes(ev.key)) {
+        ev.preventDefault();
+        letGo();
+      }
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+      stopGlide();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [trail, restAt]);
+
+  /* Past the product, the top bar floats back in */
+  useEffect(() => {
+    if (!trail) {
+      setFloating(false);
+      return;
+    }
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const product = productRef.current;
+      if (product) {
+        setFloating(
+          product.getBoundingClientRect().bottom < window.innerHeight * 0.35
+        );
+      }
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    check();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [trail]);
 
   /* A reader who scrolls before the line has finished should find the product
      there, not an empty stage still waiting on the animation */
@@ -152,11 +361,11 @@ const Landing: FC<LandingProps> = ({
         weight={500}
         leading={0.93}
         onSettled={rise}
-        lift={LIFT}
+        lift={lift(trail)}
         lifted={up}
         $trail={trail}
       >
-        <Top>
+        <Top ref={topRef}>
           <LogoPill
             href="#landing-top"
             onClick={scrollTo("landing-top")}
@@ -185,7 +394,57 @@ const Landing: FC<LandingProps> = ({
         </Top>
       </Hero>
 
-      <Product onEnter={onEnter} up={up} trail={trail} />
+      {trail && (
+        <FloatingTop $shown={floating} aria-hidden={!floating}>
+          <LogoPill
+            href="#landing-top"
+            onClick={scrollTo("landing-top")}
+            aria-label="Solana Playground"
+            tabIndex={floating ? 0 : -1}
+          >
+            <PlaygroundLogoNext />
+          </LogoPill>
+          <NavPill aria-label="Main">
+            <NavLink
+              href="#what"
+              onClick={scrollTo("what")}
+              tabIndex={floating ? 0 : -1}
+            >
+              What it is
+            </NavLink>
+            <NavLink
+              href="#how"
+              onClick={scrollTo("how")}
+              tabIndex={floating ? 0 : -1}
+            >
+              How it works
+            </NavLink>
+            <NavLink
+              href="#who"
+              onClick={scrollTo("who")}
+              tabIndex={floating ? 0 : -1}
+            >
+              Who it's for
+            </NavLink>
+            <NavLink
+              href="https://solana.com/docs"
+              target="_blank"
+              rel="noreferrer"
+              tabIndex={floating ? 0 : -1}
+            >
+              Docs
+            </NavLink>
+          </NavPill>
+        </FloatingTop>
+      )}
+
+      <Product
+        onEnter={onEnter}
+        up={up}
+        trail={trail}
+        pull={pull}
+        frameRef={productRef}
+      />
 
       {trail ? (
         <Flight items={STATEMENTS} />
@@ -213,16 +472,19 @@ export default Landing;
  * version it is the same words on a cone of light, held whole just above the
  * edge, the light standing on it.
  */
-const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
-  onEnter,
-  up,
-  trail,
-}) => {
+const Product: FC<{
+  onEnter: () => void;
+  up: boolean;
+  trail: boolean;
+  /** The reader's pull on the trail version's light */
+  pull?: RefObject<Pull>;
+  frameRef?: RefObject<HTMLElement>;
+}> = ({ onEnter, up, trail, pull, frameRef }) => {
   /* The trail version's light bends round the window and lights its edge */
   const windowRef = useRef<HTMLDivElement>(null);
   return (
-    <ProductFrame>
-      <Stage $up={up}>
+    <ProductFrame $trail={trail} ref={frameRef}>
+      <Stage $up={up} $trail={trail}>
         <Window ref={windowRef}>
           <View>
             <Shot
@@ -241,7 +503,7 @@ const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
             onClick={onEnter}
             data-shot="landing-cta"
           >
-            <Light on={up} frame={windowRef} />
+            <Light on={up} frame={windowRef} pull={pull} />
             <Label>Open Playground</Label>
             <Icon />
           </LightCta>
@@ -342,15 +604,38 @@ const Top = styled(TopBar)`
   }
 `;
 
+/* The top bar again, floating over the page once the product has gone by:
+   the same pills, sliding in from above */
+const FloatingTop = styled(TopBar)<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    position: fixed;
+    top: max(${u(30)}, 0.75rem);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    max-width: 1920px;
+    margin: 0 auto;
+    opacity: ${$shown ? 1 : 0};
+    transform: translate3d(0, ${$shown ? "0" : "-180%"}, 0);
+    pointer-events: ${$shown ? "auto" : "none"};
+    transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 320ms ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: opacity 200ms ease;
+    }
+  `}
+`;
+
 /* ── the product ──────────────────────────────────────────────────────── */
 
 /* Pulled up into the first screen by as much of it as the product takes, and
    laid over the hero's ground rather than on a band of its own */
-const ProductFrame = styled.section`
+const ProductFrame = styled.section<{ $trail: boolean }>`
   position: relative;
   z-index: 3;
   max-width: 1920px;
-  margin: calc(-1 * ${PEEK}) auto 0;
+  margin: calc(-1 * ${({ $trail }) => productPeek($trail)}) auto 0;
   padding: 0 0 ${u(120)};
 
   @media (max-width: 56rem) {
@@ -363,14 +648,16 @@ const COME_UP = "1300ms cubic-bezier(0.22, 1, 0.36, 1)";
 
 /* The render and the button across it, on the render's own proportions —
    below the first screen until the line has landed */
-const Stage = styled.div<{ $up: boolean }>`
-  ${({ $up }) => css`
+const Stage = styled.div<{ $up: boolean; $trail: boolean }>`
+  ${({ $up, $trail }) => css`
     position: relative;
     width: ${u(1779)};
     margin: 0 auto;
     aspect-ratio: 3840 / 2160;
     opacity: ${$up ? 1 : 0};
-    transform: ${$up ? "none" : `translate3d(0, calc(${PEEK} + 12vh), 0)`};
+    transform: ${$up
+      ? "none"
+      : `translate3d(0, calc(${productPeek($trail)} + 12vh), 0)`};
     transition: transform ${COME_UP} 60ms, opacity 600ms ease 60ms;
 
     @media (prefers-reduced-motion: reduce) {
@@ -647,6 +934,8 @@ const LightCta = styled.button<{ $up: boolean }>`
 
     & > ${Label}, & > ${Icon} {
       position: relative;
+      /* Pulled on, the words rise with the light's stretch */
+      translate: 0 calc(var(--pull, 0) * -1 * ${u(46)});
       transition: transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
       ${$up &&
       css`
