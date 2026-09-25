@@ -1,0 +1,54 @@
+// No imports needed: web3, anchor, pg and more are globally available
+
+describe("Voting", () => {
+  // A new poll for every run, so the tests can run again and again
+  const poll = new web3.Keypair();
+  const [receipt] = web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("receipt"),
+      poll.publicKey.toBuffer(),
+      pg.wallet.publicKey.toBuffer(),
+    ],
+    pg.PROGRAM_ID
+  );
+
+  it("createPoll", async () => {
+    const txHash = await pg.program.methods
+      .createPoll("Tabs or spaces?", ["Tabs", "Spaces"])
+      .accounts({ poll: poll.publicKey })
+      .signers([poll])
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const account = await pg.program.account.poll.fetch(poll.publicKey);
+    assert.deepEqual(account.options, ["Tabs", "Spaces"]);
+    assert(account.votes.every((tally) => tally.eqn(0)));
+  });
+
+  it("castVote", async () => {
+    const txHash = await pg.program.methods
+      .castVote(1)
+      .accounts({ poll: poll.publicKey, receipt })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const account = await pg.program.account.poll.fetch(poll.publicKey);
+    assert(account.votes[1].eqn(1));
+  });
+
+  it("allows one vote per wallet", async () => {
+    let refused = false;
+    try {
+      // The receipt already exists, and creating it again fails
+      await pg.program.methods
+        .castVote(0)
+        .accounts({ poll: poll.publicKey, receipt })
+        .rpc();
+    } catch {
+      refused = true;
+    }
+    assert(refused, "the same wallet voted twice");
+  });
+});

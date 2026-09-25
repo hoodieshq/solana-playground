@@ -16,7 +16,10 @@ const Explorer = () => {
   return (
     <Wrapper>
       <Workspaces />
-      <Folders />
+      {/* The tree is the open project's, and there can be projects with none
+          of them open (the sample projects arrive that way). Then there is no
+          tree to draw, and asking for its root would throw mid-render. */}
+      {(explorer?.isTemporary || explorer?.currentWorkspaceName) && <Folders />}
     </Wrapper>
   );
 };

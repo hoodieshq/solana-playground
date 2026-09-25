@@ -1,0 +1,28 @@
+// Client
+// Increments your counter, creating it the first time.
+
+// Your counter's address is derived from your wallet, so it is the same
+// every time this runs
+const [counter] = web3.PublicKey.findProgramAddressSync(
+  [Buffer.from("counter"), pg.wallet.publicKey.toBuffer()],
+  pg.PROGRAM_ID
+);
+
+if (!(await pg.program.account.counter.fetchNullable(counter))) {
+  const initTx = await pg.program.methods
+    .initialize()
+    .accounts({ counter })
+    .rpc();
+  await pg.connection.confirmTransaction(initTx);
+  console.log("Created your counter at", counter.toString());
+}
+
+const txHash = await pg.program.methods
+  .increment()
+  .accounts({ counter })
+  .rpc();
+await pg.connection.confirmTransaction(txHash);
+
+const { count } = await pg.program.account.counter.fetch(counter);
+console.log("Count:", count.toString());
+console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);

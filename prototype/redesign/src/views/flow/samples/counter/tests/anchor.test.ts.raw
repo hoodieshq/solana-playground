@@ -1,0 +1,42 @@
+// No imports needed: web3, anchor, pg and more are globally available
+
+describe("Counter", () => {
+  // One counter per wallet, at an address derived from the wallet
+  const [counter] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("counter"), pg.wallet.publicKey.toBuffer()],
+    pg.PROGRAM_ID
+  );
+
+  it("initialize", async () => {
+    // The counter outlives a test run, so only the first run creates it
+    if (await pg.program.account.counter.fetchNullable(counter)) {
+      console.log("Counter already exists, skipping");
+      return;
+    }
+
+    const txHash = await pg.program.methods
+      .initialize()
+      .accounts({ counter })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const account = await pg.program.account.counter.fetch(counter);
+    assert(account.count.eqn(0));
+  });
+
+  it("increment", async () => {
+    const before = await pg.program.account.counter.fetch(counter);
+
+    const txHash = await pg.program.methods
+      .increment()
+      .accounts({ counter })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const after = await pg.program.account.counter.fetch(counter);
+    console.log("Count is now", after.count.toString());
+    assert(after.count.eq(before.count.addn(1)));
+  });
+});

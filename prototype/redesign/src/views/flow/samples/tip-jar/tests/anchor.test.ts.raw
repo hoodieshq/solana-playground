@@ -1,0 +1,55 @@
+// No imports needed: web3, anchor, pg and more are globally available
+
+describe("Tip Jar", () => {
+  // One jar per creator, at an address derived from the creator's wallet
+  const [jar] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("jar"), pg.wallet.publicKey.toBuffer()],
+    pg.PROGRAM_ID
+  );
+  const tip = new BN(web3.LAMPORTS_PER_SOL / 100); // 0.01 SOL
+
+  it("createJar", async () => {
+    // The jar outlives a test run, so only the first run opens it
+    if (await pg.program.account.tipJar.fetchNullable(jar)) {
+      console.log("Jar already exists, skipping");
+      return;
+    }
+
+    const txHash = await pg.program.methods
+      .createJar()
+      .accounts({ jar })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const account = await pg.program.account.tipJar.fetch(jar);
+    assert(account.creator.equals(pg.wallet.publicKey));
+  });
+
+  it("tip", async () => {
+    const before = await pg.connection.getBalance(jar);
+
+    const txHash = await pg.program.methods.tip(tip).accounts({ jar }).rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    const after = await pg.connection.getBalance(jar);
+    assert.equal(after - before, tip.toNumber());
+  });
+
+  it("withdraw", async () => {
+    const txHash = await pg.program.methods
+      .withdraw()
+      .accounts({ jar })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    // All that is left is the minimum the jar needs to stay open
+    const { data, lamports } = (await pg.connection.getAccountInfo(jar))!;
+    const reserve = await pg.connection.getMinimumBalanceForRentExemption(
+      data.length
+    );
+    assert.equal(lamports, reserve);
+  });
+});
