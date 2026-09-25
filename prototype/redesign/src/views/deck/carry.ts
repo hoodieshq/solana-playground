@@ -61,14 +61,17 @@ const carryIn = (el: HTMLElement): boolean => {
 
   /* One of it on screen: the outgoing twin steps out of the way at once */
   document
-    .querySelectorAll<HTMLElement>(`[data-leaving] [data-carry="${CSS.escape(key)}"]`)
+    .querySelectorAll<HTMLElement>(
+      `[data-leaving] [data-carry="${CSS.escape(key)}"]`
+    )
     .forEach((twin) => (twin.style.visibility = "hidden"));
 
   const to = el.getBoundingClientRect();
   if (!to.width || !to.height) return false;
 
   el.getAnimations({ subtree: true }).forEach((a) => a.cancel());
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return true;
 
   /* Uniform scale, from the heights. A word that gains a comma is wider on the
      new slide than the old, and scaling each axis separately would squash it
@@ -78,7 +81,9 @@ const carryIn = (el: HTMLElement): boolean => {
     [
       {
         transformOrigin: "0 0",
-        transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})`,
+        transform: `translate(${from.left - to.left}px, ${
+          from.top - to.top
+        }px) scale(${k})`,
       },
       { transformOrigin: "0 0", transform: "none" },
     ],

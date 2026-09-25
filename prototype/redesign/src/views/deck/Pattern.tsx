@@ -132,14 +132,22 @@ const Pattern: FC<PatternProps> = ({
         <Rest
           $alpha={rest}
           $rise={false}
-          style={{ opacity: strength, WebkitMaskImage: restMask, maskImage: restMask }}
+          style={{
+            opacity: strength,
+            WebkitMaskImage: restMask,
+            maskImage: restMask,
+          }}
         />
       ) : (
         /* A mask cannot be half applied, so the rise is two resting layers —
            one masked, one even — and the balance between them */
         <>
           <Rest $alpha={rest} $rise style={{ opacity: fade * strength }} />
-          <Rest $alpha={rest} $rise={false} style={{ opacity: (1 - fade) * strength }} />
+          <Rest
+            $alpha={rest}
+            $rise={false}
+            style={{ opacity: (1 - fade) * strength }}
+          />
         </>
       )}
       <Halo />

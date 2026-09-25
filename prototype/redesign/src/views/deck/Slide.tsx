@@ -100,7 +100,9 @@ export const Headline: FC<{
   );
   /* Decided once, on arrival. The map changes as the next slide is noted, and
      a slide that is already on its way out must not re-time its own letters */
-  const [carrying] = useState(() => words.flat().some((w) => willCarry(w.name)));
+  const [carrying] = useState(() =>
+    words.flat().some((w) => willCarry(w.name))
+  );
 
   /* New letters wait for carried words to clear the space they land in */
   let n = 0;
@@ -126,7 +128,9 @@ export const Headline: FC<{
           {line.map(({ word, core, tail, name }, w) => (
             <Word key={`${word}-${w}`}>
               <Carried name={name}>{letters(core)}</Carried>
-              {tail && <Carried name={`${name}${tail}`}>{letters(tail)}</Carried>}
+              {tail && (
+                <Carried name={`${name}${tail}`}>{letters(tail)}</Carried>
+              )}
               {w < line.length - 1 && <Ch>{" "}</Ch>}
             </Word>
           ))}
@@ -191,7 +195,9 @@ const Slide: FC<SlideProps> = ({
   const light = isLight(slide);
 
   if (slide.kind === "image") {
-    return <Picture src={SHOTS[slide.shot]} alt={slide.alt} draggable={false} />;
+    return (
+      <Picture src={SHOTS[slide.shot]} alt={slide.alt} draggable={false} />
+    );
   }
 
   return (
@@ -212,7 +218,10 @@ const Slide: FC<SlideProps> = ({
       {slide.kind === "cards" && (
         <Cards>
           {slide.items.map((item, i) => (
-            <Card key={item.name} style={{ animationDelay: `${140 + i * 110}ms` }}>
+            <Card
+              key={item.name}
+              style={{ animationDelay: `${140 + i * 110}ms` }}
+            >
               <Figure>
                 {item.glyph === "solana" && (
                   <SolanaArt>
@@ -220,7 +229,9 @@ const Slide: FC<SlideProps> = ({
                   </SolanaArt>
                 )}
                 {item.glyph === "play" && <PlayArt src={playShot} alt="" />}
-                {item.glyph === "ground" && <GroundArt src={groundShot} alt="" />}
+                {item.glyph === "ground" && (
+                  <GroundArt src={groundShot} alt="" />
+                )}
               </Figure>
               <CardText>
                 <CardName>{item.name}</CardName>
@@ -247,7 +258,14 @@ const Slide: FC<SlideProps> = ({
           <Cta type="button" onClick={exits[slide.exit]} $light={light}>
             {slide.cta}
             <CtaArrow aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M5 12h13M12.5 5.5 19 12l-6.5 6.5" />
               </svg>
             </CtaArrow>

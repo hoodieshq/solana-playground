@@ -154,7 +154,10 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
       if (overlayHasThePage()) return;
 
       // A slide's own button has the keyboard when it is focused
-      if (target?.tagName === "BUTTON" && (ev.key === " " || ev.key === "Enter")) {
+      if (
+        target?.tagName === "BUTTON" &&
+        (ev.key === " " || ev.key === "Enter")
+      ) {
         return;
       }
       switch (ev.key) {
@@ -228,7 +231,8 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   /* Between two pictures the outgoing one holds until the next has covered
      it; fading both at once would show the ground through the middle of the
      change. Anywhere else it fades. */
-  const hold = out !== null && SLIDES[out].kind === "image" && slide.kind === "image";
+  const hold =
+    out !== null && SLIDES[out].kind === "image" && slide.kind === "image";
 
   return (
     <Stage

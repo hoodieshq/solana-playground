@@ -91,7 +91,10 @@ const BuildHero: FC<BuildHeroProps> = ({
 
   const step = steps[at];
   const lastColour =
-    [...steps.slice(0, at + 1)].reverse().map((s) => s.ground).find(isColour) ??
+    [...steps.slice(0, at + 1)]
+      .reverse()
+      .map((s) => s.ground)
+      .find(isColour) ??
     steps.map((s) => s.ground).find(isColour) ??
     "haze";
   const reserve = Math.max(...steps.map((s) => s.lines.length));
@@ -103,7 +106,9 @@ const BuildHero: FC<BuildHeroProps> = ({
       <Centre
         ref={text}
         style={
-          lift && lifted ? { transform: `translate3d(0, calc(-1 * ${lift}), 0)` } : undefined
+          lift && lifted
+            ? { transform: `translate3d(0, calc(-1 * ${lift}), 0)` }
+            : undefined
         }
       >
         <Headline

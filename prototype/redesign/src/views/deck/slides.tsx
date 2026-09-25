@@ -49,7 +49,11 @@ export type SlideSpec =
     })
   | (Base & {
       kind: "cards";
-      items: Array<{ glyph: "solana" | "play" | "ground"; name: string; note: string }>;
+      items: Array<{
+        glyph: "solana" | "play" | "ground";
+        name: string;
+        note: string;
+      }>;
     })
   /** Solana's three bars, alone — where the mark comes from */
   | (Base & { kind: "solana" })

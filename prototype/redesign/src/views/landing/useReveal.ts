@@ -11,10 +11,7 @@ import { RefObject, useEffect, useRef, useState } from "react";
  * It latches. A section that has arrived stays arrived, because replaying the
  * entrance every time someone scrolls back up is a fidget, not an effect.
  */
-export const useReveal = <T extends HTMLElement>(): [
-  RefObject<T>,
-  boolean
-] => {
+export const useReveal = <T extends HTMLElement>(): [RefObject<T>, boolean] => {
   const ref = useRef<T>(null);
   const [shown, setShown] = useState(false);
 
