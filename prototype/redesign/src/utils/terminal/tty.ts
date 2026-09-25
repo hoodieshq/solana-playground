@@ -155,12 +155,14 @@ export class PgTty {
    * single line.
    */
   read(promptPrefix: string, continuationPromptPrefix: string): ActivePrompt {
+    // Set before the first print, so that print is recognised as a prompt and
+    // gets the prompt's colour like every reprint after it
+    this._promptPrefix = promptPrefix;
     if (promptPrefix.length > 0) {
       this.print(promptPrefix);
     }
 
     this._firstInit = true;
-    this._promptPrefix = promptPrefix;
     this._continuationPromptPrefix = continuationPromptPrefix;
     this._input = "";
     this._cursor = 0;
@@ -436,57 +438,64 @@ export class PgTty {
 
     const hl = (s: string, colorCb: (s: string) => string) => colorCb(s);
 
-    return (
-      text
-        // Match for error
-        .replace(/\w*\s?(\w*)error(:|\[.*?:)/gim, (match) =>
-          hl(match, PgTerminal.error)
-        )
+    const highlighted = text
+      // Match for error
+      .replace(/\w*\s?(\w*)error(:|\[.*?:)/gim, (match) =>
+        hl(match, PgTerminal.error)
+      )
 
-        // Match for warning
-        .replace(/(\d+\s)?warning(s|:)?/gim, (match) =>
-          hl(match, PgTerminal.warning)
-        )
+      // Match for warning
+      .replace(/(\d+\s)?warning(s|:)?/gim, (match) =>
+        hl(match, PgTerminal.warning)
+      )
 
-        // Match until ':' from the start of the line: e.g "Commands:"
-        .replace(/^(.*?:)/gm, (match) => {
-          if (
-            /(http|{|})/.test(match) ||
-            /"\w+":/.test(match) ||
-            /\(\w+:/.test(match) ||
-            /^\s*\|/.test(match) ||
-            /^\s?\d+/.test(match) ||
-            /\(/.test(match)
-          ) {
-            return match;
-          }
-
-          if (!match.includes("   ")) {
-            if (match.startsWith(" ")) {
-              // Indented
-              return hl(match, PgTerminal.bold);
-            }
-            if (!match.toLowerCase().includes("error")) {
-              return hl(match, PgTerminal.primary);
-            }
-          }
-
+      // Match until ':' from the start of the line: e.g "Commands:"
+      .replace(/^(.*?:)/gm, (match) => {
+        if (
+          /(http|{|})/.test(match) ||
+          /"\w+":/.test(match) ||
+          /\(\w+:/.test(match) ||
+          /^\s*\|/.test(match) ||
+          /^\s?\d+/.test(match) ||
+          /\(/.test(match)
+        ) {
           return match;
-        })
+        }
 
-        // Secondary text color for (...)
-        .replace(/\(.+\)/gm, (match) =>
-          match === "(s)" ? match : PgTerminal.secondaryText(match)
-        )
+        if (!match.includes("   ")) {
+          if (match.startsWith(" ")) {
+            // Indented
+            return hl(match, PgTerminal.bold);
+          }
+          if (!match.toLowerCase().includes("error")) {
+            return hl(match, PgTerminal.primary);
+          }
+        }
 
-        // Numbers
-        .replace(/^\s*\d+$/, PgTerminal.secondary)
+        return match;
+      })
 
-        // Progression [1/5]
-        .replace(/\[\d+\/\d+\]/, (match) =>
-          PgTerminal.bold(PgTerminal.secondaryText(match))
-        )
-    );
+      // Secondary text color for (...)
+      .replace(/\(.+\)/gm, (match) =>
+        match === "(s)" ? match : PgTerminal.secondaryText(match)
+      )
+
+      // Numbers
+      .replace(/^\s*\d+$/, PgTerminal.secondary)
+
+      // Progression [1/5]
+      .replace(/\[\d+\/\d+\]/, (match) =>
+        PgTerminal.bold(PgTerminal.secondaryText(match))
+      );
+
+    // The prompt glyph in the success colour, coloured as it is printed: the
+    // shell reprints the line on every keystroke, and the cursor maths works
+    // on the input, so colouring here leaves positioning alone
+    const glyph = this._promptPrefix.trimEnd();
+    if (glyph && highlighted.startsWith(this._promptPrefix)) {
+      return PgTerminal.success(glyph) + highlighted.slice(glyph.length);
+    }
+    return highlighted;
   }
 
   /**

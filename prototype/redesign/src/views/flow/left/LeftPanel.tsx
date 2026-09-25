@@ -2,44 +2,29 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
 import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
-import Chevron from "../Chevron";
-import { BOTTOM_BAR_HEIGHT } from "../tokens";
+import { BOTTOM_BAR_HEIGHT, HEAD_INSET } from "../tokens";
 
 type Tab = "steps" | "files";
 
 interface LeftPanelProps {
-  collapsed: boolean;
-  onToggle: () => void;
-  /**
-   * Whether the rail's "+" is waiting for the tree to appear.
-   *
-   * Owned by `Flow` rather than held here, because this component does not
-   * survive the toggle: the open and collapsed panels sit in different
-   * branches of `Flow`'s tree -- one inside `Resizable`, one not -- so React
-   * unmounts one and mounts the other. A flag kept here went with it, and the
-   * rail's "+" expanded the panel and then did nothing at all.
-   */
-  pendingCreate?: boolean;
-  /** Raise or clear `pendingCreate`. */
-  onPendingCreateChange?: (pending: boolean) => void;
+  /** Hides the column. The work head's Files toggle brings it back. */
+  onClose: () => void;
 }
 
 /**
- * Where you are inside the current project. Which project you are in is
- * the header switcher's job -- the rail used to answer that too, and two
- * controls for one question is what this change removed.
+ * The Files column: where you are inside the current project, beside the
+ * code. Which project you are in is the sidebar's job, and the column's head
+ * only names itself.
+ *
+ * It is always mounted. `Flow` hides the column rather than unmounting it, so
+ * the tree keeps its scroll, its open folders and its selection, and nothing
+ * here has to wait for the tree to exist before acting on it.
  */
-const LeftPanel: FC<LeftPanelProps> = ({
-  collapsed,
-  onToggle,
-  pendingCreate = false,
-  onPendingCreateChange,
-}) => {
+const LeftPanel: FC<LeftPanelProps> = ({ onClose }) => {
   const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
@@ -49,36 +34,6 @@ const LeftPanel: FC<LeftPanelProps> = ({
   // upstream edit, no programmatic `.click()` of a hidden button.
   const { createItem } = useCreateItem();
 
-  // `createItem` portals its input into the explorer tree, so it cannot run
-  // in the rail button's own handler -- the tree is still unmounted at that
-  // point. Expanding raises the flag instead and the create happens here, on
-  // the commit that mounts the tree.
-  useEffect(() => {
-    if (collapsed || !pendingCreate) return;
-
-    onPendingCreateChange?.(false);
-    createItem();
-  }, [collapsed, pendingCreate, createItem, onPendingCreateChange]);
-
-  // Sits in the tab row when open and at the top of the rail when collapsed,
-  // so it lines up with the tab labels instead of floating above them.
-  const toggle = (
-    <Collapse
-      type="button"
-      $collapsed={collapsed}
-      aria-expanded={!collapsed}
-      aria-label={collapsed ? "Expand project panel" : "Collapse project panel"}
-      onClick={onToggle}
-    >
-      {/* Collapsed, this hint is the only thing telling you how to get the
-          panel back, so the rail stacks it under the chevron rather than
-          dropping it. */}
-      {collapsed && <Chevron $flip={false} />}
-      <Hint>&#8984;B</Hint>
-      {!collapsed && <Chevron $flip />}
-    </Collapse>
-  );
-
   const inLesson = !!lesson.path;
   const showSteps = inLesson && tab === "steps";
   const activeStep = lesson.path
@@ -86,75 +41,66 @@ const LeftPanel: FC<LeftPanelProps> = ({
     : null;
 
   return (
-    <Wrapper>
-      {collapsed && toggle}
-      {collapsed && !showSteps && (
-        <RailAction
+    <Wrapper id="flow-files" aria-label="Files">
+      <Head>
+        {inLesson ? (
+          <Switch role="tablist" aria-label="Project panel">
+            <Thumb aria-hidden="true" $index={tab === "steps" ? 0 : 1} />
+            {(["steps", "files"] as const).map((t) => (
+              <Segment
+                key={t}
+                type="button"
+                id={`flow-left-tab-${t}`}
+                role="tab"
+                aria-selected={tab === t}
+                aria-controls="flow-left-tabpanel"
+                $active={tab === t}
+                onClick={() => setTab(t)}
+              >
+                {t === "steps" ? "Steps" : "Files"}
+              </Segment>
+            ))}
+          </Switch>
+        ) : (
+          <Title>Files</Title>
+        )}
+        <Close
           type="button"
-          onClick={() => {
-            onPendingCreateChange?.(true);
-            onToggle();
-          }}
-          aria-label="New file"
-          title="New file"
+          onClick={onClose}
+          aria-label="Hide files"
+          title="Hide files (⌘E)"
         >
-          +
-        </RailAction>
+          {PANEL_ICON}
+        </Close>
+      </Head>
+      <Body
+        id="flow-left-tabpanel"
+        role={inLesson ? "tabpanel" : undefined}
+        aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
+      >
+        {showSteps ? (
+          <StepRail state={lesson} />
+        ) : (
+          <ExplorerContainer>
+            <Explorer />
+          </ExplorerContainer>
+        )}
+      </Body>
+      {/* Pinned below the rail for the same reason as the files footer:
+          a way out that scrolls away is not a way out. */}
+      {showSteps && activeStep && (
+        <SkipFooter
+          type="button"
+          title={`Nothing has proved this step yet — ${activeStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
+          onClick={() => PgLesson.skipStep()}
+        >
+          Skip this step
+        </SkipFooter>
       )}
-      {!collapsed && (
-        <>
-          {/* Rendered outside a lesson too, where it carries no tabs: the row
-              is the toggle's only home when the panel is open. */}
-          <Tabs role={inLesson ? "tablist" : undefined}>
-            {inLesson &&
-              (["steps", "files"] as const).map((t) => (
-                <TabButton
-                  key={t}
-                  id={`flow-left-tab-${t}`}
-                  role="tab"
-                  aria-selected={tab === t}
-                  aria-controls="flow-left-tabpanel"
-                  $active={tab === t}
-                  onClick={() => setTab(t)}
-                >
-                  {t === "steps" ? "Steps" : "Files"}
-                </TabButton>
-              ))}
-            {toggle}
-          </Tabs>
-          <Body
-            id="flow-left-tabpanel"
-            role={inLesson ? "tabpanel" : undefined}
-            aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
-          >
-            {showSteps ? (
-              <StepRail state={lesson} />
-            ) : (
-              <>
-                {!inLesson && <Eyebrow>Files</Eyebrow>}
-                <ExplorerContainer>
-                  <Explorer />
-                </ExplorerContainer>
-              </>
-            )}
-          </Body>
-          {/* Pinned below the rail for the same reason as the files footer:
-              a way out that scrolls away is not a way out. */}
-          {showSteps && activeStep && (
-            <SkipFooter
-              type="button"
-              title={`Nothing has proved this step yet — ${activeStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
-              onClick={() => PgLesson.skipStep()}
-            >
-              Skip this step
-            </SkipFooter>
-          )}
-          {!showSteps && (
-            <Footer type="button" onClick={createItem}>
-              + New file
-            </Footer>
-          )}
-        </>
+      {!showSteps && (
+        <Footer type="button" onClick={createItem}>
+          + New file
+        </Footer>
       )}
     </Wrapper>
   );
@@ -162,124 +108,178 @@ const LeftPanel: FC<LeftPanelProps> = ({
 
 export default LeftPanel;
 
-// A floating panel like Center and Right: full 1px border, rounded corners,
-// the raised surface background instead of the black page ground.
-// Width comes from `Columns` in `Flow.tsx` (14.5rem open, 1.5rem collapsed)
-// so the grid and the panel can never disagree about the column size.
+/* The glyph every column's own hide control uses -- the assistant's head
+   draws the same one -- so "put this pane away" reads the same everywhere. */
+const PANEL_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <path d="M9 4v16" />
+  </svg>
+);
+
+// A column, not a card: the ground's colour and one hairline on the editor's
+// side, the way every other column is divided. Opaque, as the sidebar is: the
+// pattern under the window is for open ground, a list reads cleaner off it,
+// and the light following the pointer should not light every row it passes.
+// Its width is the resizable column's in `Flow.tsx`, so the two cannot
+// disagree.
 const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 100%;
-    // Explicit rather than inherited: as a grid item this stretched on its
-    // own, but the resize wrapper it now sits inside is a plain block, so
-    // without this the panel ends at its content and stops short of the
-    // editor beside it
+    // Explicit rather than inherited: the resize wrapper this sits inside is
+    // a plain block, so without it the column would end at its content
     height: 100%;
     display: flex;
     flex-direction: column;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    border-right: 1px solid ${theme.colors.default.border};
+    background: ${theme.colors.default.bgPrimary};
     overflow: hidden;
   `}
 `;
 
-// A flex child either way -- last in the tab row when open, top of the rail
-// when collapsed -- so `align-items: center` lines it up with the tab labels
-// rather than the panel's top edge.
-const Collapse = styled.button<{ $collapsed: boolean }>`
-  ${({ theme, $collapsed }) => css`
-    flex-shrink: 0;
-    width: ${$collapsed ? "100%" : "auto"};
-    padding: ${$collapsed ? "0.375rem 0" : "0 0.5rem"};
-    display: flex;
-    flex-direction: ${$collapsed ? "column" : "row"};
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    /* The rail has 1.5rem of width to spend, so "⌘B" only fits below the
-       chevron and only at a smaller size than the expanded panel uses. */
-    font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};
-    border: none;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    cursor: pointer;
-    z-index: 1;
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-  `}
-`;
-
-// The console handle's `⌘J` hint (`console/ConsoleDrawer.tsx`), same
-// treatment so both shortcuts read as one family.
-const Hint = styled.span`
+// The editor's tab strip runs along the top of the column beside this one,
+// so the head takes the strip's height -- the tab's own, plus the rule under
+// it -- and the two rules meet in one line across.
+const Head = styled.div`
   ${({ theme }) => css`
-    font-family: ${theme.font.code.family};
-    font-size: inherit;
-    line-height: 1;
-    opacity: 0.6;
-  `}
-`;
-
-// The collapsed stand-in for `Footer`: same bottom edge, same divider, so
-// the action does not move when the panel opens.
-const RailAction = styled.button`
-  ${({ theme }) => css`
-    margin-top: auto;
-    flex-shrink: 0;
-    width: 100%;
-    height: ${BOTTOM_BAR_HEIGHT};
     display: flex;
     align-items: center;
-    justify-content: center;
-    border: none;
-    border-top: 1px solid ${theme.colors.default.border};
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: 1.125rem;
-    line-height: 1;
-    cursor: pointer;
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-      background: ${theme.colors.default.bgPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: -2px;
-    }
-  `}
-`;
-
-const Tabs = styled.div`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: stretch;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    height: calc(${theme.components.tabs.tab.default.height} + 1px);
+    padding: 0 0.375rem 0 ${HEAD_INSET};
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
+// Sentence case at the sidebar rows' size: a column's name, not a label
+// shouting over its contents
+const Title = styled.span`
+  ${({ theme }) => css`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+// In a lesson the head switches between the steps and the files: one track
+// and one thumb that slides to whichever is showing, so the switch is seen to
+// move rather than two pills taking turns to light up. The stage rail's
+// track, a size down: the same surface, stroke, inset and slide. Its thumb
+// stays neutral -- the gradient marks the loop's stage, and one current thing
+// carrying the brand is what lets it mean "current".
+const Switch = styled.div`
+  ${({ theme }) => css`
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 1.75rem;
+    padding: 2px;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 999px;
+    background: ${theme.colors.default.bgSecondary};
+  `}
+`;
+
+// Exactly one column wide -- half the padding box, less the padding it starts
+// after -- so a translate of its own width lands it on the other column
+const Thumb = styled.span<{ $index: number }>`
+  ${({ theme, $index }) => css`
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    border-radius: 999px;
+    background: ${theme.colors.state.hover.bg};
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transform: translateX(${$index * 100}%);
+    transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+// Positioned, so it paints above the thumb that comes before it
+const Segment = styled.button<{ $active: boolean }>`
   ${({ theme, $active }) => css`
-    flex: 1;
-    padding: 0.625rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.625rem;
     border: none;
-    border-bottom: 2px solid
-      ${$active ? theme.colors.default.primary : "transparent"};
+    border-radius: 999px;
     background: transparent;
     color: ${$active
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font: inherit;
-    font-size: ${theme.font.other.size.small};
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
     cursor: pointer;
+    transition: color 0.15s;
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: -2px;
+      outline-offset: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+// The assistant head's hide control, a size down: this head is a row below
+// the window's first, where the full-size controls live
+const Close = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
+
+    &:hover {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
     }
   `}
 `;
@@ -288,7 +288,7 @@ const Body = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  // File names are never shortened, so a name wider than the panel scrolls
+  // File names are never shortened, so a name wider than the column scrolls
   // here rather than being clipped
   overflow-x: auto;
 `;
@@ -296,13 +296,14 @@ const Body = styled.div`
 // Quiet, full-width footer button pinned below the scrollable tree (a
 // sibling of `Body`, not inside it, so it never scrolls away). Reuses
 // `createItem` from `useCreateItem` -- the exact upstream create-item flow,
-// not a re-implementation.
+// not a re-implementation. With the console closed, its top rule meets the
+// console handle's beside it.
 const Footer = styled.button`
   ${({ theme }) => css`
     flex-shrink: 0;
     width: 100%;
     height: ${BOTTOM_BAR_HEIGHT};
-    padding: 0 0.75rem;
+    padding: 0 ${HEAD_INSET};
     display: flex;
     align-items: center;
     border: none;
@@ -310,11 +311,12 @@ const Footer = styled.button`
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     font: inherit;
+    font-size: 0.8125rem;
     text-align: left;
     cursor: pointer;
     &:hover {
       color: ${theme.colors.default.textPrimary};
-      background: ${theme.colors.default.bgPrimary};
+      background: ${theme.colors.state.hover.bg};
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
@@ -326,11 +328,8 @@ const Footer = styled.button`
 // The files footer's shape, dimmed further: skipping is the way out of a
 // step, never the way through it
 const SkipFooter = styled(Footer)`
-  ${({ theme }) => css`
-    justify-content: center;
-    font-size: ${theme.font.other.size.small};
-    text-decoration: underline;
-  `}
+  justify-content: center;
+  text-decoration: underline;
 `;
 
 /**

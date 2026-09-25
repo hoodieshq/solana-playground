@@ -4,10 +4,13 @@ import styled, { css } from "styled-components";
 import Button from "../../Button";
 import Link from "../../Link";
 import Markdown from "../../Markdown";
+import PlayRing from "../../PlayRing";
 import TutorialDetails from "../TutorialDetails";
-import { PointedArrow, Triangle } from "../../Icons";
+import { PointedArrow } from "../../Icons";
 import { Emoji } from "../../../constants";
+import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgTheme, PgTutorial } from "../../../utils";
+import { BRAND } from "../../../views/flow/tokens";
 import type { TutorialAboutComponentProps } from "../types";
 
 export const About: FC<TutorialAboutComponentProps> = ({
@@ -56,21 +59,25 @@ export const About: FC<TutorialAboutComponentProps> = ({
             </GeneratedTopLeftWrapper>
 
             <GeneratedTopRightWrapper>
-              <Button
-                onClick={start}
-                kind={isFinished ? "no-border" : "secondary"}
-                color={isFinished ? "success" : undefined}
-                fontWeight="bold"
-                leftIcon={
-                  isFinished ? (
-                    <span>{Emoji.CHECKMARK}</span>
-                  ) : (
-                    <Triangle rotate="90deg" />
-                  )
-                }
-              >
-                {isFinished ? "COMPLETED" : isStarted ? "CONTINUE" : "START"}
-              </Button>
+              {isFinished ? (
+                <Button
+                  onClick={start}
+                  kind="no-border"
+                  color="success"
+                  fontWeight="bold"
+                  leftIcon={<span>{Emoji.CHECKMARK}</span>}
+                >
+                  Completed
+                </Button>
+              ) : (
+                <StartButton
+                  onClick={start}
+                  kind="primary"
+                  rightIcon={<PlayIcon />}
+                >
+                  {isStarted ? "Continue" : "Start"}
+                </StartButton>
+              )}
             </GeneratedTopRightWrapper>
           </GeneratedTopWrapper>
 
@@ -156,6 +163,66 @@ const TutorialAuthorLink = styled(Link)``;
 const TutorialAuthorWithoutLink = styled.span``;
 
 const GeneratedTopRightWrapper = styled.div``;
+
+/* The brand slides' "Start Tutorial", at the page's size: Solana's green into
+   its purple, a white label in the headline face and the play ring after it.
+   The fill holds through the base button's hover and disabled repaints (it
+   disables itself while `start` resolves). */
+const StartButton = styled(Button)`
+  ${({ theme }) => css`
+    &&,
+    &&:hover,
+    &&:disabled,
+    &&:disabled:hover {
+      background: ${BRAND.fill};
+      color: #ffffff;
+    }
+
+    && {
+      height: 2.5rem;
+      padding: 0 1rem 0 1.25rem;
+      border: none;
+      border-radius: 999px;
+      font-family: ${HEADLINE_FONT};
+      font-size: 0.9375rem;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+      white-space: nowrap;
+      transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+        filter 200ms ease;
+    }
+
+    && > span.right-icon > * {
+      margin-left: 0.5rem;
+    }
+
+    &&:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    &&:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      && {
+        transition: none;
+      }
+      &&:hover:not(:disabled) {
+        transform: none;
+      }
+    }
+  `}
+`;
+
+/* Our play icon, sized to the label beside it */
+const PlayIcon = styled(PlayRing)`
+  flex-shrink: 0;
+  width: 1.15em;
+  height: 1.15em;
+`;
 
 const GeneratedBottomWrapper = styled.div`
   margin-top: 1.5rem;

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
+import EmptyStage, { BrandPill, PlayIcon } from "./EmptyStage";
 import IdlActions from "./IdlActions";
 import Test from "../../sidebar/test/Component/Test";
+import { useProgramInfo } from "../../../hooks";
 import { PgExplorer, PgProgramInfo, PgWeb3 } from "../../../utils";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
+import { PgFlow } from "../state/stage";
 
 /** Point `PgProgramInfo`'s target at the given deployment. Selecting the
  * record that matches the project's own keypair clears the override so the
@@ -32,6 +35,7 @@ const target = (record: DeployRecord) => {
 const Interact = () => {
   const [history, setHistory] = useState<DeployRecord[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const programInfo = useProgramInfo();
   // Whether this component (not the project's own key) is the reason
   // `PgProgramInfo.customPk` is set, so unmounting can hand control back.
   const targetedRef = useRef(false);
@@ -83,6 +87,12 @@ const Interact = () => {
         .join(" \u00b7 ")
     : "no deployments yet";
 
+  // Nothing to call: no deploy on record here, and nothing on chain at the
+  // program's id either. A program deployed some other way (from the
+  // terminal, or imported by id) still gets the real panel.
+  const nothingDeployed =
+    history.length === 0 && !programInfo.onChain?.deployed;
+
   return (
     <Surface>
       <Toolbar>
@@ -112,7 +122,26 @@ const Interact = () => {
         </ToolbarActions>
       </Toolbar>
       <Panel>
-        <Test />
+        {nothingDeployed ? (
+          <EmptyStage
+            title="Nothing to call yet"
+            line={
+              "Deploy the program first. Once it is on devnet, its " +
+              "instructions show up here, ready to call."
+            }
+            actions={
+              <BrandPill
+                kind="primary"
+                rightIcon={<PlayIcon />}
+                onClick={() => PgFlow.setStage("deploy")}
+              >
+                Go to Deploy
+              </BrandPill>
+            }
+          />
+        ) : (
+          <Test />
+        )}
       </Panel>
     </Surface>
   );

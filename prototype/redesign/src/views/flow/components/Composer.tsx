@@ -65,8 +65,8 @@ const Composer: FC<ComposerProps> = ({
 }) => {
   const live = !!onSubmit;
 
-  /* The assistant pane is resizable from 288px; below the threshold the effort
-     label goes and its dial stays. Measured rather than asked with a container
+  /* The assistant pane is resizable from 288px; only at the very narrow end
+     does the effort label go — alone, the dial reads as a spinner. Measured rather than asked with a container
      query: styled-components 5 compiles `@container` to a rule with no
      selector — valid-looking source, silently dead CSS. */
   const boxRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ const Composer: FC<ComposerProps> = ({
     const box = boxRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) =>
-      setDense(entry.contentRect.width < 384)
+      setDense(entry.contentRect.width < 300)
     );
     observer.observe(box);
     return () => observer.disconnect();

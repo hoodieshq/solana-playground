@@ -31,9 +31,6 @@ import { PgCommon, PgTutorial } from "../../../utils";
 interface ZeroStateProps {
   /** Opens the assistant column so a question has somewhere to go */
   onAskAssistant: () => void;
-  /** Whether the nav column is showing — this head offers the way back */
-  sidebarOpen: boolean;
-  onShowSidebar: () => void;
   /** Which list is showing. The sidebar drives it; this draws it. */
   section: ZeroSection;
   onSection: (section: ZeroSection) => void;
@@ -51,8 +48,6 @@ const PROGRAMS_URL = "/programs/programs.json";
 
 const ZeroState: FC<ZeroStateProps> = ({
   onAskAssistant,
-  sidebarOpen,
-  onShowSidebar,
   section,
   onSection,
 }) => {
@@ -80,15 +75,6 @@ const ZeroState: FC<ZeroStateProps> = ({
   return (
     <Shell>
       <TopBar>
-        {!sidebarOpen && (
-          <IconButton
-            type="button"
-            onClick={onShowSidebar}
-            aria-label="Show the sidebar"
-          >
-            {ICONS.sidebar}
-          </IconButton>
-        )}
         <BarTitle>{SECTION_TITLE[section]}</BarTitle>
       </TopBar>
 
@@ -110,17 +96,23 @@ const ZeroState: FC<ZeroStateProps> = ({
                 $on={scratchOpen}
                 onClick={() => setScratchOpen((o) => !o)}
               >
-                <CardIcon aria-hidden="true"><BrandIcon name="new" /></CardIcon>
+                <CardIcon aria-hidden="true">
+                  <BrandIcon name="new" />
+                </CardIcon>
                 <CardTitle>New project</CardTitle>
                 <CardSub>Anchor, Native or Seahorse</CardSub>
               </Card>
               <Card type="button" onClick={() => onSection("tutorials")}>
-                <CardIcon aria-hidden="true"><BrandIcon name="tutorial" /></CardIcon>
+                <CardIcon aria-hidden="true">
+                  <BrandIcon name="tutorial" />
+                </CardIcon>
                 <CardTitle>Follow a tutorial</CardTitle>
                 <CardSub>{PgTutorial.all.length} guided paths</CardSub>
               </Card>
               <Card type="button" onClick={() => onSection("programs")}>
-                <CardIcon aria-hidden="true"><BrandIcon name="programs" /></CardIcon>
+                <CardIcon aria-hidden="true">
+                  <BrandIcon name="programs" />
+                </CardIcon>
                 <CardTitle>Open a program</CardTitle>
                 <CardSub>
                   {programs ? programs.length : "…"} real programs
@@ -154,7 +146,9 @@ const ZeroState: FC<ZeroStateProps> = ({
             {!onStart && (
               <ListHead>
                 <SearchWrap>
-                  <Glyph aria-hidden="true"><BrandIcon name="search" /></Glyph>
+                  <Glyph aria-hidden="true">
+                    <BrandIcon name="search" />
+                  </Glyph>
                   <SearchInput
                     type="search"
                     value={query}
@@ -182,66 +176,6 @@ const ZeroState: FC<ZeroStateProps> = ({
 };
 
 export default ZeroState;
-
-/* ── icons: one stroke set, one weight ─────────────────────────────────── */
-
-const svg = (d: JSX.Element) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    {d}
-  </svg>
-);
-
-const ICONS = {
-  asterisk: svg(<path d="M12 4v16M4.9 7.5l14.2 9M19.1 7.5l-14.2 9" />),
-  sidebar: svg(
-    <>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
-      <path d="M9.5 4.5v15" />
-    </>
-  ),
-  help: svg(
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2-2.4 3.6" />
-      <path d="M12 17.2h.01" />
-    </>
-  ),
-  grid: svg(
-    <>
-      <rect x="4" y="4" width="7" height="7" rx="1.5" />
-      <rect x="13" y="4" width="7" height="7" rx="1.5" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" />
-      <rect x="13" y="13" width="7" height="7" rx="1.5" />
-    </>
-  ),
-  send: svg(<path d="M21 3 10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z" />),
-  chevron: svg(<path d="m6 9 6 6 6-6" />),
-  mic: svg(
-    <>
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-    </>
-  ),
-  up: svg(
-    <>
-      <path d="M12 19V5" />
-      <path d="m6 11 6-6 6 6" />
-    </>
-  ),
-  spark: svg(
-    <>
-      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-      <path d="M12 8.5 13.6 11 16 12l-2.4 1-1.6 2.5L10.4 13 8 12l2.4-1z" />
-    </>
-  ),
-};
 
 /* ── layout ────────────────────────────────────────────────────────────── */
 
@@ -347,31 +281,6 @@ const SearchInput = styled.input`
 
     &:focus {
       outline: none;
-    }
-  `}
-`;
-
-const IconButton = styled.button`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.875rem;
-    height: 1.875rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    cursor: pointer;
-
-    & > svg {
-      width: 1rem;
-      height: 1rem;
-    }
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.default.textPrimary};
     }
   `}
 `;

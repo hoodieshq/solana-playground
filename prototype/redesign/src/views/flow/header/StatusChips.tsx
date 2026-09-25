@@ -1,33 +1,76 @@
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import BrandIcon from "../../../components/BrandIcon";
-
 import {
   useBalance,
   useConnection,
-  useOnClickOutside,
+  useKeybind,
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
 import { PgSession } from "../../../features/auth";
-import { PgCommand, PgConnection } from "../../../utils";
+import { PgConnection, PgView, PgWallet } from "../../../utils";
+import NavMenu, { anchorTo } from "../nav/NavMenu";
+import type { NavMenuAnchor, NavMenuGroup } from "../nav/NavMenu";
+import SetupChecklist from "../nav/SetupChecklist";
+import type { SetupStep } from "../nav/SetupChecklist";
+import { ICONS } from "../nav/icons";
+import {
+  fadeIn,
+  Glyph,
+  Label,
+  NavContext,
+  RailButton,
+  Row,
+  shortcut,
+} from "../nav/parts";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
+import { openConnectDialog } from "../../sidebar/assistant/Component/ConnectDialog";
+import { PgAssistant } from "../../sidebar/assistant/store";
 
 interface StatusChipsProps {
   onToggleSettings: (focus?: SettingsFocus) => void;
   settingsOpen: boolean;
 }
 
-const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
+const DOCS_URL = "https://solana.com/docs";
+const BUG_URL =
+  "https://github.com/solana-playground/solana-playground/issues/new/choose";
 
-/** Cluster, wallet + balance and a settings entry point. */
+const shortenPk = (s: string) => `${s.slice(0, 4)}…${s.slice(-4)}`;
+
+/** "devnet" reads "Devnet", "mainnet-beta" reads "Mainnet Beta" */
+const clusterLabel = (cluster: string) =>
+  cluster
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+/**
+ * The session, at the foot of the sidebar: the cluster, and one row for who
+ * you are that opens everything else.
+ *
+ * It was a strip of pills — cluster, wallet, sign-in, a settings gear — which
+ * the sidebar then restyled into rows. Claude's answer is a single account row
+ * whose menu holds the rest, and that is what this is now: the account and
+ * sign-in, Settings, Docs and Report a bug, the wallet, the proposal's two
+ * doors, and Sign out. The cluster stays outside it, because which network
+ * you are on is something you should never have to open a menu to see.
+ *
+ * Above the rule sits "Get set up", while there is anything left to set up —
+ * its steps are this session's flows, so they are built here.
+ *
+ * On the rail the same controls fold to two squares: the cluster's dot and the
+ * avatar, whose menu opens beside the rail.
+ */
 const StatusChips: FC<StatusChipsProps> = ({
   onToggleSettings,
   settingsOpen,
 }) => {
+  const { collapsed, animate } = useContext(NavContext);
   const connection = useConnection();
   const wallet = useWallet();
   const balance = useBalance();
@@ -36,41 +79,50 @@ const StatusChips: FC<StatusChipsProps> = ({
     PgConnection.onDidChangeIsClusterDown
   );
   useRenderOnChange(PgSession.onDidChange);
+  const github = PgSession.get();
+  // The store announces every streamed token; this only needs the one flag,
+  // and setting an unchanged boolean renders nothing
+  const [assistantReady, setAssistantReady] = useState(
+    () => PgAssistant.isConnected
+  );
+  useEffect(() => {
+    const sync = () => setAssistantReady(PgAssistant.isConnected);
+    sync();
+    return PgAssistant.onDidChange(sync).dispose;
+  }, []);
+
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  const github = PgSession.get();
-
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [menu, setMenu] = useState<{
+    anchor: NavMenuAnchor;
+    from: HTMLElement;
+  } | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
-  const profileWrapperRef = useRef<HTMLDivElement>(null);
-  const profileChipRef = useRef<HTMLButtonElement>(null);
-  const firstMenuRowRef = useRef<HTMLAnchorElement>(null);
-  const wasProfileOpenRef = useRef(false);
+  const accountRef = useRef<HTMLButtonElement>(null);
 
-  const closeProfile = useCallback(() => setProfileOpen(false), []);
+  // What the menu's Settings row says it is
+  useKeybind("Ctrl+,", () => onToggleSettings());
 
-  useOnClickOutside(profileWrapperRef, closeProfile, profileOpen);
-
+  // The menu hangs off a row that moves when the column folds, and settings
+  // covers the column entirely
   useEffect(() => {
-    if (!profileOpen) return;
+    setMenu(null);
+    setConfirmingSignOut(false);
+  }, [collapsed, settingsOpen]);
 
-    const handleKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") closeProfile();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [profileOpen, closeProfile]);
+  const closeMenu = () => {
+    setMenu(null);
+    setConfirmingSignOut(false);
+  };
 
-  useEffect(() => {
-    if (profileOpen) {
-      wasProfileOpenRef.current = true;
-      firstMenuRowRef.current?.focus();
-    } else {
-      setConfirmingSignOut(false);
-      if (wasProfileOpenRef.current) profileChipRef.current?.focus();
-      wasProfileOpenRef.current = false;
+  const toggleMenu = () => {
+    const el = accountRef.current;
+    if (menu || !el) {
+      closeMenu();
+      return;
     }
-  }, [profileOpen]);
+    setMenu({ anchor: anchorTo(el, collapsed ? "right" : "above"), from: el });
+  };
 
   const signIn = async () => {
     setAuthError(null);
@@ -84,173 +136,364 @@ const StatusChips: FC<StatusChipsProps> = ({
     }
   };
 
-  return (
-    <Wrapper>
-      <ChipButton
-        type="button"
-        title={connection?.rpcEndpoint}
-        aria-label={`Change cluster, currently ${cluster ?? "unknown"}`}
-        aria-expanded={settingsOpen}
-        {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
-        onClick={() => onToggleSettings("network")}
-      >
-        <ClusterDot $down={isClusterDown === true} />
-        {cluster ?? "unknown"}
-      </ChipButton>
-      <ChipButton
-        type="button"
-        onClick={() => PgCommand.connect.execute()}
-        aria-label={wallet ? "Toggle wallet" : "Connect wallet"}
-      >
-        {wallet ? (
-          <>
-            <span>{shortenPk(wallet.publicKey.toBase58())}</span>
-            <Balance>
-              {typeof balance === "number"
-                ? `${balance.toFixed(2)} SOL`
-                : "..."}
-            </Balance>
-          </>
-        ) : (
-          "Connect wallet"
-        )}
-      </ChipButton>
-      {github ? (
-        <ProfileWrapper ref={profileWrapperRef}>
-          <GithubChip
-            ref={profileChipRef}
-            type="button"
-            onClick={() => setProfileOpen((open) => !open)}
-            title="GitHub profile"
-            aria-expanded={profileOpen}
-            aria-label={`GitHub profile: ${
-              github.login ?? github.name ?? "account"
-            }`}
-          >
-            {github.image ? (
-              <Avatar src={github.image} alt="" aria-hidden />
-            ) : (
-              <AvatarGlyph aria-hidden>
-                <BrandIcon name="profile" />
-              </AvatarGlyph>
-            )}
-            <span>{github.login ?? github.name ?? "Account"}</span>
-          </GithubChip>
-          {profileOpen && (
-            <Popover aria-label="GitHub profile">
-              {confirmingSignOut ? (
-                <ConfirmBody>
-                  <ConfirmText>Sign out of GitHub?</ConfirmText>
-                  <ConfirmActions>
-                    <ConfirmSignOutButton
-                      type="button"
-                      onClick={() => {
-                        void PgSession.signOut();
-                        closeProfile();
-                      }}
-                    >
-                      Sign out
-                    </ConfirmSignOutButton>
-                    <CancelButton
-                      type="button"
-                      onClick={() => setConfirmingSignOut(false)}
-                    >
-                      Cancel
-                    </CancelButton>
-                  </ConfirmActions>
-                </ConfirmBody>
-              ) : (
-                <>
-                  <ProfileHeader>
-                    <ProfileAvatar src={github.image ?? undefined} alt="" />
-                    <ProfileNames>
-                      <DisplayName>{github.name ?? github.login}</DisplayName>
-                      {github.login && <Login>@{github.login}</Login>}
-                    </ProfileNames>
-                  </ProfileHeader>
-                  {github.login && (
-                    <>
-                      <MenuLink
-                        ref={firstMenuRowRef}
-                        href={`https://github.com/${github.login}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={closeProfile}
-                      >
-                        Open GitHub profile
-                      </MenuLink>
-                      <Separator />
-                    </>
-                  )}
-                  <MenuButtonRow
-                    type="button"
-                    onClick={() => setConfirmingSignOut(true)}
-                  >
-                    Sign out
-                  </MenuButtonRow>
-                </>
-              )}
-            </Popover>
-          )}
-        </ProfileWrapper>
-      ) : signingIn ? (
-        // The popup cannot be asked whether it is still open once GitHub has
-        // taken it over, so this is the only way out of the wait short of the
-        // ten-minute timeout -- see `popup-channel.ts`.
-        <Chip role="status">
-          <GithubMark />
-          <span>Signing in...</span>
-          <CancelSignIn type="button" onClick={PgSession.cancelSignIn}>
-            Cancel
-          </CancelSignIn>
-        </Chip>
-      ) : (
-        <GithubChip
-          ref={profileChipRef}
-          type="button"
-          onClick={signIn}
-          aria-label="Sign in with GitHub"
+  const openNetwork = () => onToggleSettings("network");
+  const clusterName = cluster ? clusterLabel(cluster) : "Unknown";
+  const clusterDown = isClusterDown === true;
+  const address = wallet ? shortenPk(wallet.publicKey.toBase58()) : null;
+  const sol =
+    typeof balance === "number" ? `${balance.toFixed(2)} SOL` : "… SOL";
+
+  const name = github
+    ? github.name ?? github.login ?? "Account"
+    : signingIn
+    ? "Signing in…"
+    : "Sign in";
+  // The quieter line: what went wrong, what is pending, or the wallet — the
+  // balance used to sit in its own pill, and is worth a glance without a menu
+  const detail = authError
+    ? "Couldn't sign in"
+    : signingIn
+    ? "Waiting for GitHub"
+    : address
+    ? `${address} · ${sol}`
+    : github?.login
+    ? `@${github.login}`
+    : null;
+
+  const accountGroup: NavMenuGroup = github
+    ? {
+        id: "account",
+        items: github.login
+          ? [
+              {
+                id: "profile",
+                label: name,
+                description: `@${github.login}`,
+                icon: <MenuAvatar image={github.image} />,
+                hint: ICONS.external,
+                href: `https://github.com/${github.login}`,
+                external: true,
+              },
+            ]
+          : [],
+      }
+    : {
+        id: "account",
+        items: [
+          signingIn
+            ? {
+                id: "cancel-sign-in",
+                label: "Cancel sign-in",
+                icon: <GithubMark />,
+                onSelect: PgSession.cancelSignIn,
+              }
+            : {
+                id: "sign-in",
+                label: "Sign in with GitHub",
+                icon: <GithubMark />,
+                onSelect: () => void signIn(),
+              },
+        ],
+      };
+
+  const groups: NavMenuGroup[] = [
+    accountGroup,
+    {
+      id: "app",
+      items: [
+        {
+          id: "settings",
+          label: "Settings",
+          icon: ICONS.gear,
+          hint: shortcut(","),
+          onSelect: () => {
+            if (!settingsOpen) onToggleSettings();
+          },
+        },
+        {
+          id: "docs",
+          label: "Docs",
+          icon: ICONS.help,
+          hint: ICONS.external,
+          href: DOCS_URL,
+          external: true,
+        },
+        {
+          id: "bug",
+          label: "Report a bug",
+          icon: ICONS.bug,
+          hint: ICONS.external,
+          href: BUG_URL,
+          external: true,
+        },
+      ],
+    },
+    {
+      id: "wallet",
+      items:
+        wallet && address
+          ? [
+              {
+                id: "wallet",
+                label: address,
+                icon: ICONS.wallet,
+                hint: sol,
+                onSelect: () => {
+                  PgWallet.show = true;
+                },
+              },
+              {
+                id: "disconnect",
+                label: wallet.isPg
+                  ? "Disconnect wallet"
+                  : `Disconnect ${wallet.name}`,
+                icon: ICONS.unlink,
+                onSelect: () => void toggleWallet(),
+              },
+            ]
+          : [
+              {
+                id: "connect",
+                label: "Connect wallet",
+                icon: ICONS.wallet,
+                onSelect: () => void toggleWallet(),
+              },
+            ],
+    },
+    /* The presentation's own two doors, marked as such so nobody reads them
+       as product features. Plain links rather than router calls: a full load
+       re-enters at the right stage and cannot get the view and the URL out
+       of step. */
+    {
+      id: "proposal",
+      label: "Proposal",
+      items: [
+        {
+          id: "evaluation",
+          label: "UX evaluation",
+          icon: ICONS.review,
+          href: "/#evaluation",
+        },
+        { id: "deck", label: "Back to deck", icon: ICONS.deck, href: "/" },
+      ],
+    },
+    ...(github
+      ? [
+          {
+            id: "session",
+            items: [
+              {
+                id: "sign-out",
+                label: "Sign out",
+                icon: ICONS.signOut,
+                keepOpen: true,
+                onSelect: () => setConfirmingSignOut(true),
+              },
+            ],
+          },
+        ]
+      : []),
+  ].filter((group) => group.items.length > 0);
+
+  // Signing out drops this browser's copy of every synced project, so it asks
+  // first — in the menu, rather than in a dialog over it
+  const confirmGroups: NavMenuGroup[] = [
+    {
+      id: "confirm",
+      items: [
+        {
+          id: "confirm-sign-out",
+          label: "Sign out",
+          icon: ICONS.signOut,
+          danger: true,
+          onSelect: () => void PgSession.signOut(),
+        },
+        {
+          id: "cancel",
+          label: "Cancel",
+          keepOpen: true,
+          onSelect: () => setConfirmingSignOut(false),
+        },
+      ],
+    },
+  ];
+
+  const steps: SetupStep[] = [
+    {
+      id: "assistant",
+      label: "Connect the assistant",
+      done: assistantReady,
+      onSelect: () => void openConnectDialog(),
+    },
+    {
+      // There is always a cluster — devnet, until you pick another — so this
+      // starts done and says which. One that is not answering is not a
+      // network you can work on, and it says that too.
+      id: "network",
+      label: "Choose a network",
+      done: !!cluster && !clusterDown,
+      value: clusterName,
+      warn: clusterDown,
+      title: clusterDown ? `${clusterName} is not responding` : undefined,
+      onSelect: openNetwork,
+    },
+    {
+      id: "github",
+      label: "Sign in with GitHub",
+      done: !!github,
+      value: github ? (github.login ? `@${github.login}` : name) : undefined,
+      action: github
+        ? undefined
+        : signingIn
+        ? "Cancel"
+        : authError
+        ? "Retry"
+        : undefined,
+      warn: !github && !!authError,
+      title: authError ?? undefined,
+      onSelect: github
+        ? toggleMenu
+        : signingIn
+        ? PgSession.cancelSignIn
+        : () => void signIn(),
+    },
+    {
+      id: "wallet",
+      label: "Connect a wallet",
+      done: !!wallet,
+      value: address ?? undefined,
+      onSelect: wallet
+        ? () => {
+            PgWallet.show = true;
+          }
+        : () => void toggleWallet(),
+    },
+  ];
+
+  const accountMenu = menu && (
+    <NavMenu
+      label="Account"
+      anchor={menu.anchor}
+      groups={confirmingSignOut ? confirmGroups : groups}
+      note={confirmingSignOut ? "Sign out of GitHub?" : undefined}
+      initialFocus={confirmingSignOut ? "cancel" : undefined}
+      matchWidth={!collapsed}
+      minWidth={collapsed ? "15rem" : "13.5rem"}
+      returnFocus={menu.from}
+      toggle={menu.from}
+      onClose={closeMenu}
+    />
+  );
+
+  const clusterProps = {
+    type: "button" as const,
+    // The walkthrough's "settings" shot presses this: it is the one control
+    // that opens settings without a menu in the way
+    "data-shot": "nav-settings",
+    "aria-label": `Change network, currently ${clusterName}`,
+    "aria-expanded": settingsOpen,
+    [SETTINGS_TRIGGER_ATTR]: "",
+    onClick: openNetwork,
+  };
+
+  if (collapsed) {
+    return (
+      <RailSession $animate={animate}>
+        <RailButton
+          {...clusterProps}
+          title={`${clusterName}${clusterDown ? " is not responding" : ""}`}
         >
-          <GithubMark />
-          <CompactHidden>Sign in</CompactHidden>
-        </GithubChip>
-      )}
-      {authError && (
-        <AuthError role="alert" title={authError}>
-          {authError}
-        </AuthError>
-      )}
-      <IconButton
-        aria-label={settingsOpen ? "Close settings" : "Open settings"}
-        aria-expanded={settingsOpen}
-        {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
-        onClick={() => onToggleSettings()}
-      >
-        <GearIcon />
-      </IconButton>
-    </Wrapper>
+          <ClusterDot $down={clusterDown} />
+        </RailButton>
+        <RailButton
+          ref={accountRef}
+          type="button"
+          title={github ? name : "Account"}
+          aria-label={github ? `Account, ${name}` : "Account, signed out"}
+          aria-haspopup="menu"
+          aria-expanded={!!menu}
+          onClick={toggleMenu}
+        >
+          <Avatar image={github?.image} />
+        </RailButton>
+        {accountMenu}
+      </RailSession>
+    );
+  }
+
+  return (
+    <>
+      <SetupChecklist steps={steps} />
+      <Session $animate={animate}>
+        <Row {...clusterProps} title={connection?.rpcEndpoint}>
+          <Glyph aria-hidden="true">
+            <ClusterDot $down={clusterDown} />
+          </Glyph>
+          <Label>{clusterName}</Label>
+          {clusterDown && <Quiet>Not responding</Quiet>}
+        </Row>
+        <Account
+          ref={accountRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={!!menu}
+          $open={!!menu}
+          onClick={toggleMenu}
+        >
+          <Avatar image={github?.image} />
+          <Who>
+            <WhoName>{name}</WhoName>
+            {detail && (
+              <WhoDetail $error={!!authError} title={authError ?? undefined}>
+                {detail}
+              </WhoDetail>
+            )}
+          </Who>
+          <Chevrons aria-hidden="true">{ICONS.chevrons}</Chevrons>
+        </Account>
+        {authError && <Announce role="alert">{authError}</Announce>}
+        {accountMenu}
+      </Session>
+    </>
   );
 };
 
 export default StatusChips;
 
-// Three slider tracks with knobs -- avoids a hand-authored gear path (a
-// version of that broke mid-render because of manual line wrapping).
-const GearIcon: FC = () => (
-  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
-    <g stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-      <line x1="2" y1="3.5" x2="14" y2="3.5" />
-      <line x1="2" y1="8" x2="14" y2="8" />
-      <line x1="2" y1="12.5" x2="14" y2="12.5" />
-    </g>
-    <circle cx="10" cy="3.5" r="1.6" fill="currentColor" />
-    <circle cx="5" cy="8" r="1.6" fill="currentColor" />
-    <circle cx="11" cy="12.5" r="1.6" fill="currentColor" />
-  </svg>
-);
+/**
+ * The `connect` command's no-argument branches, run here directly.
+ *
+ * `PgCommand.connect` executes inside the terminal, and the terminal only
+ * exists inside a project: on the start screen `PgTerminal.get()` waits for an
+ * answer that never comes, so the wallet control did nothing there at all.
+ * These four lines are the whole of what the command does without arguments.
+ */
+const toggleWallet = async () => {
+  switch (PgWallet.state) {
+    case "setup": {
+      const { Setup } = await import("../../../components/Wallet/Modals/Setup");
+      if (await PgView.setModal<boolean>(Setup)) PgWallet.state = "pg";
+      break;
+    }
+    case "disconnected":
+      PgWallet.state = "pg";
+      break;
+    case "pg":
+      PgWallet.state = "disconnected";
+      break;
+    case "sol":
+      if (PgWallet.current && !PgWallet.current.isPg) {
+        await PgWallet.current.disconnect();
+      }
+      PgWallet.state = "pg";
+      break;
+    default:
+      break;
+  }
+};
 
-// Kept as one unbroken path string -- see the note above `GearIcon`
-// about manual line wrapping breaking SVG path data mid-render.
+// Kept as one unbroken path string -- manual line wrapping inside SVG path
+// data broke a glyph mid-render once already.
 const GITHUB_MARK_PATH =
   "M8 .2a8 8 0 0 0-2.5 15.6c.4 0 .5-.2.5-.4v-1.4c-2 .4-2.5-.9-2.5-.9" +
   "-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.9 1.2.9.7 1.2 1.9.9" +
@@ -260,175 +503,138 @@ const GITHUB_MARK_PATH =
   " .3.3.6.8.6 1.5v2.1c0 .2.1.4.5.4A8 8 0 0 0 8 .2Z";
 
 const GithubMark: FC = () => (
-  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden>
+  <svg viewBox="0 0 16 16" aria-hidden>
     <path fill="currentColor" d={GITHUB_MARK_PATH} />
   </svg>
 );
 
-const Wrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
+/* The picture, or with none the brand's own profile glyph in a disc — never
+   the broken-image box an empty src draws */
+const Avatar: FC<{ image?: string | null }> = ({ image }) => (
+  <AvatarDisc>
+    {image ? <img src={image} alt="" /> : <BrandIcon name="profile" />}
+  </AvatarDisc>
+);
 
-// Non-interactive: the "Signing in..." status wraps a live message and its
-// own `Cancel` button, so the wrapper itself must not also read as a control.
-const Chip = styled.span`
-  ${({ theme }) => css`
+/* In the menu it sits in the 16px icon column but draws at 24px, so the
+   account's name starts where every other label in the menu starts */
+const MenuAvatar: FC<{ image?: string | null }> = ({ image }) => (
+  <AvatarDisc $inMenu>
+    {image ? <img src={image} alt="" /> : <BrandIcon name="profile" />}
+  </AvatarDisc>
+);
+
+const AvatarDisc = styled.span<{ $inMenu?: boolean }>`
+  ${({ theme, $inMenu }) => css`
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 999px;
-    font-family: inherit;
-    font-size: ${theme.font.other.size.small};
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    ${$inMenu && "margin: -0.25rem;"}
+    border-radius: 50%;
+    background: ${theme.colors.state.hover.bg};
     color: ${theme.colors.default.textSecondary};
-    white-space: nowrap;
+    overflow: hidden;
+
+    & > img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    & > svg {
+      width: 0.75rem;
+      height: 0.75rem;
+    }
   `}
 `;
 
-// A chip-shaped `<button>`, used for both the cluster and the wallet. Declared
-// as `styled.button` rather than a polymorphic `as="button"` so the native
-// button props (`type`, `onClick`) type-check without a fight.
-const ChipButton = styled.button`
+const ClusterDot = styled.span<{ $down: boolean }>`
+  ${({ theme, $down }) => css`
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+    background: ${$down
+      ? theme.colors.state.error.color
+      : theme.colors.state.success.color};
+  `}
+`;
+
+/* The rule the foot sits under is drawn here, so the setup list can sit
+   above it; what sits on it fades in when the column opens. */
+const Session = styled.div<{ $animate: boolean }>`
+  ${({ theme, $animate }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 0.375rem 0.5rem 0.5rem;
+    border-top: 1px solid ${theme.colors.default.border};
+
+    ${$animate &&
+    css`
+      & > * {
+        ${fadeIn}
+      }
+    `}
+  `}
+`;
+
+const RailSession = styled.div<{ $animate: boolean }>`
+  ${({ theme, $animate }) => css`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid ${theme.colors.default.border};
+
+    ${$animate &&
+    css`
+      & > * {
+        ${fadeIn}
+      }
+    `}
+  `}
+`;
+
+const Quiet = styled.span`
   ${({ theme }) => css`
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: ${theme.colors.state.error.color};
+  `}
+`;
+
+/* Two lines, like the reference's: the name, and a quieter line under it. The
+   avatar is centred on the rows' 16px icon column, so the name starts on the
+   same line as the cluster's label above it. */
+const Account = styled.button<{ $open: boolean }>`
+  ${({ theme, $open }) => css`
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 999px;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    font-family: inherit;
-    font-size: ${theme.font.other.size.small};
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 140ms ease, color 140ms ease;
-
-    &:hover {
-      background: ${theme.colors.default.bgSecondary};
-      color: ${theme.colors.default.textPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
-`;
-
-const GithubChip = styled(ChipButton)``;
-
-const Avatar = styled.img`
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-`;
-
-/* No picture on the account: the brand's own profile glyph, rather than the
-   broken-image box an empty src draws */
-const AvatarGlyph = styled.span`
-  display: flex;
-  width: 1rem;
-  height: 1rem;
-
-  & > svg {
+    gap: 0.25rem;
     width: 100%;
-    height: 100%;
-  }
-`;
-
-// Anchors the popover under the chip; `position: relative` is the only
-// layout role this plays, so it doesn't disturb the flex row it sits in.
-const ProfileWrapper = styled.div`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-`;
-
-const Popover = styled.div`
-  ${({ theme }) => css`
-    position: absolute;
-    top: calc(100% + 0.375rem);
-    right: 0;
-    z-index: 5;
-    width: 14rem;
-    padding: 0.375rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
-    box-shadow: ${theme.default.boxShadow};
-    font-family: ${theme.font.code.family};
-  `}
-`;
-
-const ProfileHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-`;
-
-const ProfileAvatar = styled.img`
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-`;
-
-const ProfileNames = styled.div`
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-`;
-
-const DisplayName = styled.span`
-  ${({ theme }) => css`
-    color: ${theme.colors.default.textPrimary};
-    font-size: ${theme.font.code.size.small};
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  `}
-`;
-
-const Login = styled.span`
-  ${({ theme }) => css`
-    color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  `}
-`;
-
-// Shared look for the popover's interactive rows, applied to both the
-// anchor (profile link) and the button (sign out) so neither needs a
-// polymorphic `as` prop to type-check.
-const menuRowCss = css`
-  ${({ theme }) => css`
-    display: block;
-    width: 100%;
-    padding: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.25rem 0.5rem;
     border: none;
-    border-radius: calc(${theme.default.borderRadius} - 2px);
-    background: transparent;
+    border-radius: 8px;
+    background: ${$open ? theme.colors.state.hover.bg : "transparent"};
     color: ${theme.colors.default.textPrimary};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
+    font-family: inherit;
     text-align: left;
-    text-decoration: none;
     cursor: pointer;
-    transition: background 140ms ease;
+    transition: background 0.1s;
+
+    & > ${AvatarDisc} {
+      margin-left: -0.25rem;
+    }
 
     &:hover {
-      background: ${theme.colors.default.bgPrimary};
+      background: ${theme.colors.state.hover.bg};
     }
+
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -2px;
@@ -440,179 +646,55 @@ const menuRowCss = css`
   `}
 `;
 
-const MenuLink = styled.a`
-  ${menuRowCss}
-`;
-
-const MenuButtonRow = styled.button`
-  ${menuRowCss}
-`;
-
-const Separator = styled.div`
-  height: 1px;
-  margin: 0.25rem 0.125rem;
-  background: ${({ theme }) => theme.colors.default.border};
-`;
-
-const ConfirmBody = styled.div`
-  padding: 0.5rem;
+const Who = styled.span`
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
 `;
 
-const ConfirmText = styled.span`
-  ${({ theme }) => css`
-    color: ${theme.colors.default.textPrimary};
-    font-size: ${theme.font.code.size.small};
-  `}
+const WhoName = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
 `;
 
-const ConfirmActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-`;
-
-const CancelButton = styled.button`
-  ${({ theme }) => css`
-    flex: 1;
-    padding: 0.375rem 0.625rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: calc(${theme.default.borderRadius} - 2px);
-    background: transparent;
-    color: ${theme.colors.default.textPrimary};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
-    cursor: pointer;
-    transition: background 140ms ease;
-
-    &:hover {
-      background: ${theme.colors.default.bgPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
-`;
-
-const ConfirmSignOutButton = styled.button`
-  ${({ theme }) => css`
-    flex: 1;
-    padding: 0.375rem 0.625rem;
-    border: 1px solid ${theme.colors.state.error.color};
-    border-radius: calc(${theme.default.borderRadius} - 2px);
-    background: transparent;
-    color: ${theme.colors.state.error.color};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
-    cursor: pointer;
-    transition: background 140ms ease;
-
-    &:hover {
-      background: ${theme.colors.state.error.bg};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.state.error.color};
-      outline-offset: 2px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
-`;
-
-const AuthError = styled.span`
-  ${({ theme }) => css`
-    color: ${theme.colors.state.error.color};
-    font-size: ${theme.font.code.size.xsmall};
-    white-space: nowrap;
-    max-width: 16rem;
+const WhoDetail = styled.span<{ $error: boolean }>`
+  ${({ theme, $error }) => css`
     overflow: hidden;
     text-overflow: ellipsis;
-  `}
-`;
-
-/**
- * Where the chips give way.
- *
- * The header centres the stepper by giving both side zones an equal `1fr`
- * track, so the narrow left zone reserves as much width as this one needs.
- * Rather than move the stepper off centre, the two least load-bearing pieces
- * here — the balance and the "Sign in" wording — drop out on a narrow window.
- * Both remain reachable: the balance in the wallet panel, the wording in the
- * button's `aria-label`.
- */
-const CHIPS_COMPACT_AT = "72rem";
-
-const CompactHidden = styled.span`
-  @media (max-width: ${CHIPS_COMPACT_AT}) {
-    display: none;
-  }
-`;
-
-const Balance = styled(CompactHidden)`
-  color: ${({ theme }) => theme.colors.state.success.color};
-`;
-
-const ClusterDot = styled.span<{ $down: boolean }>`
-  ${({ theme, $down }) => css`
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 50%;
-    background: ${$down
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: ${$error
       ? theme.colors.state.error.color
-      : theme.colors.state.success.color};
+      : theme.colors.state.disabled.color};
   `}
 `;
 
-const IconButton = styled.button`
+const Chevrons = styled.span`
   ${({ theme }) => css`
+    flex-shrink: 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 50%;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    cursor: pointer;
-    transition: background 140ms ease, color 140ms ease;
+    width: 0.875rem;
+    height: 0.875rem;
+    color: ${theme.colors.state.disabled.color};
 
-    &:hover {
-      background: ${theme.colors.default.bgSecondary};
-      color: ${theme.colors.default.textPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
+    & > svg {
+      width: 100%;
+      height: 100%;
     }
   `}
 `;
 
-const CancelSignIn = styled.button`
-  ${({ theme }) => css`
-    border: none;
-    background: transparent;
-    padding: 0;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
-    text-decoration: underline;
-    cursor: pointer;
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-  `}
+const Announce = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 `;
