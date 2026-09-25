@@ -336,6 +336,8 @@ const UserBubble = styled.div<{ $fresh: boolean }>`
 const UserText = styled.div`
   ${({ theme }) => css`
     color: ${theme.colors.default.textPrimary};
+    font-size: 0.875rem;
+    font-weight: 350;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
@@ -365,6 +367,9 @@ const Prose = styled.div`
   ${({ theme }) => css`
     color: ${theme.colors.default.textPrimary};
     font-size: 0.875rem;
+    /* Stack Sans Text is variable; at 400 it sets heavy for running prose,
+       so replies read a step lighter */
+    font-weight: 350;
     line-height: 1.62;
 
     & p {

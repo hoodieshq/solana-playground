@@ -2,7 +2,6 @@ import { FC, useEffect, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import { CodePreviewHost } from "./ChatCode";
-import ChatGround from "./ChatGround";
 import ChatItem from "./ChatItem";
 import Chapters from "./Chapters";
 import type { Chapter } from "./Chapters";
@@ -158,7 +157,12 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
 
   const lesson = describeLesson(lessonState);
 
-  const send = async (text: string) => {
+  /**
+   * @param shown what the transcript shows for it, when that differs from
+   * what the model is sent — "Make this change" rather than the paragraph of
+   * instructions behind it
+   */
+  const send = async (text: string, shown?: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
@@ -184,7 +188,7 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
 
     setInput("");
     PgAssistant.addUserMessage(
-      trimmed,
+      shown ?? trimmed,
       lesson ? `Step ${lesson.stepIndex} · ${lesson.objective}` : undefined
     );
     PgAssistant.setStatus("running");
@@ -374,7 +378,6 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
 
   return (
     <Wrapper>
-      <ChatGround />
       <CodePreviewHost />
 
       {chapters.length > 1 && (
@@ -422,7 +425,13 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
                 item={item}
                 fresh={item.createdAt > openedAt}
                 onMakeChange={
-                  item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
+                  item.id === changeableId
+                    ? () =>
+                        send(
+                          MAKE_CHANGE,
+                          lesson ? "Write it for me" : "Make this change"
+                        )
+                    : undefined
                 }
                 // Inside a lesson the same click skips the hint ladder, so it
                 // is offered as a way out rather than as the obvious next step
