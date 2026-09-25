@@ -1,40 +1,65 @@
-import { FC, MouseEvent } from "react";
+import { FC, MouseEvent, useCallback, useEffect, useState } from "react";
 import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import PlaygroundLogoNext from "../../components/PlaygroundLogoNext";
 import PlayRing from "../../components/PlayRing";
 import { StillMesh } from "../deck/Atmosphere";
 import appShot from "../deck/art/brand-app.png";
+import BuildHero from "../deck/BuildHero";
+import type { BuildStep } from "../deck/BuildHero";
 import Pattern from "../deck/Pattern";
 import { Headline } from "../deck/Slide";
-import { HEADLINE, INK } from "../deck/tokens";
-import Rows from "./Rows";
-import type { Row } from "./Rows";
+import { HEADLINE, HEADLINE_SIZE, INK } from "../deck/tokens";
+import Statements from "./Statements";
+import type { Statement } from "./Statements";
 import { LogoPill, NavLink, NavPill, TopBar, frameUnit, u } from "./chrome";
 import { useReveal } from "./useReveal";
 
 /**
- * The landing, built from the presentation (Figma 53:7077).
+ * The landing, as the presentation would say it (Figma 53:7077).
  *
- * Not a page that resembles the deck — a page made of its parts. The line is
- * the deck's own headline component, arriving letter by letter the way it
- * does on the slides. The ground is the deck's ink with the deck's pattern,
- * lit by the pointer. The close is the deck's "Explore" gradient, breathing.
- * The button is the one the brand slides show, doing the job it was drawn for.
- * The sections keep the Figma's Manrope rows.
+ * It opens the way the deck's slides 7 to 9 do — "Explore", then "Learn,",
+ * then "Build Onchain" arriving, words already on screen travelling to make
+ * room, the gradient sliding from green to violet and settling into ink — but
+ * played through on its own, a screen tall. Once the line has landed it rises
+ * a little, the product comes up from the bottom of the screen into the room
+ * it leaves, and the button arrives last, cut by the bottom edge so the page
+ * plainly goes on. Then three claims, each given most of a screen, and the
+ * close on the deck's gradient.
  *
- * Everything the old landing had of its own — the slabs, the pixel wipe, the
- * sections pixelating in — is gone. It was a different piece of work, and on
- * the presentation's ink it read as clutter.
- *
- * Sizes in the hero and the close are the Figma's, on its 1920 frame, in one
- * unit (`--u`) that scales with the window up to that width.
+ * Built from the deck's own parts rather than made to resemble them, and kept
+ * short: a claim and one quiet line wherever there used to be a paragraph.
  */
 
 interface LandingProps {
   /** Into the product */
   onEnter: () => void;
 }
+
+/* The deck's three steps, with its three grounds */
+const STEPS: BuildStep[] = [
+  { lines: ["Explore"], ground: "explore" },
+  { lines: ["Explore, Learn,"], ground: "violet" },
+  { lines: ["Explore, Learn,", "Build Onchain"], ground: "ink" },
+];
+
+const STATEMENTS: Statement[] = [
+  {
+    id: "what",
+    title: "A complete Solana workbench that happens to be a browser tab.",
+    line: "Editor, build server, wallet and test validator — already wired together.",
+  },
+  {
+    id: "how",
+    title: "Write, build, deploy, interact.",
+    line: "Four steps, in that order, with each one visible as you go.",
+  },
+  {
+    id: "who",
+    title: "Anyone whose first question is whether the idea works.",
+    line: "People learning Solana, engineers from other chains, anyone testing a thought.",
+  },
+];
 
 /* In-page links must not touch the URL: the app reads its hash to decide what
    to show, and "#what" would take the reader off the landing entirely. */
@@ -43,74 +68,113 @@ const scrollTo = (id: string) => (ev: MouseEvent) => {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
-const Landing: FC<LandingProps> = ({ onEnter }) => (
-  <Page id="landing-top">
-    <LandingFonts />
+/* The first screen, as the hero measures it */
+const SCREEN = "max(100vh, 34rem)";
 
-    <Hero>
-      <Ground aria-hidden="true">
-        <Pattern rest={0.2} restMask={HERO_PATTERN_MASK} />
-      </Ground>
+/* How much of the product the first screen shows once it is up: the lower 48%,
+   so the render's top sits just past halfway down */
+const PEEK = `calc(${SCREEN} * 0.48)`;
 
-      <Top>
-        <LogoPill href="#landing-top" onClick={scrollTo("landing-top")} aria-label="Solana Playground">
-          <PlaygroundLogoNext />
-        </LogoPill>
-        <NavPill aria-label="Main">
-          <NavLink href="#what" onClick={scrollTo("what")}>
-            What it is
-          </NavLink>
-          <NavLink href="#how" onClick={scrollTo("how")}>
-            How it works
-          </NavLink>
-          <NavLink href="#who" onClick={scrollTo("who")}>
-            Who it's for
-          </NavLink>
-          <NavLink href="https://solana.com/docs" target="_blank" rel="noreferrer">
-            Docs
-          </NavLink>
-        </NavPill>
-      </Top>
+/* The line: the deck's, at the Figma's 185.6, two rows of 0.93 */
+const LINE = `calc(${HEADLINE_SIZE} * 0.86)`;
 
-      <Line>
-        {/* The deck's line at the Figma's 185.6: 0.86 of the deck's size */}
-        <Headline
-          lines={["Explore, Learn,", "Build Onchain"]}
-          light={false}
-          scale={0.86}
-          weight={500}
-          leading={0.93}
-        />
-      </Line>
+/* Clear of the top bar: 54 down, a pill of 57 (never under 2.5rem), and 40 */
+const CLEAR = `max(${u(151)}, calc(${u(94)} + 2.5rem))`;
 
-      <Stage>
-        <Shot src={appShot} alt="Playground's sidebar and assistant" draggable={false} />
-        <Shade />
-        <Argument>
-          Writing your first onchain program usually starts with an afternoon
-          of toolchains — Rust, the CLI, a local validator, a wallet, a faucet.
-          Most people stop there and never find out whether the idea was any
-          good.
-        </Argument>
-        <Button type="button" $tone="gradient" onClick={onEnter} data-shot="landing-cta">
-          <Label>Open Playground</Label>
-          <Icon />
-        </Button>
-      </Stage>
-    </Hero>
+/* How far the line rises once it has landed — enough that its lower row
+   clears the product's window by 70 on the 1920 frame (never less than 1.5rem;
+   the window starts 64 into the render), and never so far that it runs into
+   the top bar */
+const LIFT =
+  `max(0px, min(calc(0.93 * ${LINE} - 0.02 * ${SCREEN} + max(${u(70)}, 1.5rem) - ${u(64)}),` +
+  ` calc((${SCREEN} - 1.86 * ${LINE}) / 2 - ${CLEAR})))`;
 
-    <LandingRows rows={SECTIONS} />
+const Landing: FC<LandingProps> = ({ onEnter }) => {
+  const [up, setUp] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  const rise = useCallback(() => setUp(true), []);
 
-    <Close onEnter={onEnter} />
-  </Page>
-);
+  /* A reader who scrolls before the line has finished should find the product
+     there, not an empty stage still waiting on the animation */
+  useEffect(() => {
+    if (up) return;
+    const opts = { capture: true, passive: true } as const;
+    const events = ["scroll", "wheel", "touchmove"] as const;
+    events.forEach((e) => window.addEventListener(e, rise, opts));
+    return () => events.forEach((e) => window.removeEventListener(e, rise, opts));
+  }, [up, rise]);
+
+  return (
+    <Page id="landing-top">
+      <LandingFonts />
+
+      {/* The deck's line at the Figma's 185.6: 0.86 of the deck's size */}
+      <Hero
+        steps={STEPS}
+        scale={0.86}
+        weight={500}
+        leading={0.93}
+        onSettled={rise}
+        lift={LIFT}
+        lifted={up}
+      >
+        <Top>
+          <LogoPill href="#landing-top" onClick={scrollTo("landing-top")} aria-label="Solana Playground">
+            <PlaygroundLogoNext />
+          </LogoPill>
+          <NavPill aria-label="Main">
+            <NavLink href="#what" onClick={scrollTo("what")}>
+              What it is
+            </NavLink>
+            <NavLink href="#how" onClick={scrollTo("how")}>
+              How it works
+            </NavLink>
+            <NavLink href="#who" onClick={scrollTo("who")}>
+              Who it's for
+            </NavLink>
+            <NavLink href="https://solana.com/docs" target="_blank" rel="noreferrer">
+              Docs
+            </NavLink>
+          </NavPill>
+        </Top>
+      </Hero>
+
+      <Product onEnter={onEnter} up={up} />
+
+      <Statements items={STATEMENTS} />
+
+      <Close onEnter={onEnter} />
+    </Page>
+  );
+};
 
 export default Landing;
 
 /**
+ * The product, and the button across it. It waits below the first screen
+ * until the line has landed, then comes up into the room the line leaves; the
+ * button follows it, held against the bottom edge — part of it showing — until
+ * scrolling brings it to its place across the render.
+ */
+const Product: FC<{ onEnter: () => void; up: boolean }> = ({ onEnter, up }) => (
+  <ProductFrame>
+    <Stage $up={up}>
+      <Shot src={appShot} alt="Playground's sidebar and assistant" draggable={false} />
+      <Shade />
+      <Place />
+      <Cta type="button" $tone="gradient" $up={up} onClick={onEnter} data-shot="landing-cta">
+        <Label>Open Playground</Label>
+        <Icon />
+      </Cta>
+    </Stage>
+  </ProductFrame>
+);
+
+/**
  * The close: the deck's "Explore" gradient, pattern and all. Its line is the
- * deck's headline too, and is only put on the page once it is scrolled to, so
- * it arrives letter by letter in front of the reader rather than out of sight.
+ * deck's headline too, put on the page once it is scrolled to, so it arrives
+ * letter by letter in front of the reader.
  */
 const Close: FC<{ onEnter: () => void }> = ({ onEnter }) => {
   const [ref, shown] = useReveal<HTMLElement>();
@@ -142,46 +206,15 @@ const Close: FC<{ onEnter: () => void }> = ({ onEnter }) => {
   );
 };
 
-const SECTIONS: Row[] = [
-  {
-    id: "what",
-    label: "What it is",
-    title: "A complete Solana workbench that happens to be a browser tab.",
-    text: "An editor, a build server, a wallet, a test validator and a deploy pipeline, already wired to each other. Nothing to install and nothing to configure — the toolchain that usually takes an afternoon is simply already there.",
-  },
-  {
-    id: "how",
-    label: "How it works",
-    title: "Write, build, deploy, interact.",
-    text: "Four steps, in that order, with the state of each one visible as you go. Start from a blank canvas in Anchor, Native or Seahorse, or open one of thirty-four real programs and change it. The assistant reads the file you are on and the last error you hit, and proposes patches you apply yourself.",
-  },
-  {
-    id: "who",
-    label: "Who it's for",
-    title: "Anyone whose first question is whether the idea works.",
-    text: "People learning Solana, who need the first program to run before the enthusiasm runs out. Engineers from another chain who want to try the model without adopting the tooling. And anyone who already knows all of this and just wants somewhere to test a thought.",
-  },
-];
-
 /* ── the page ─────────────────────────────────────────────────────────── */
 
-/* Running text in Manrope, as the Figma sets the page's rows */
-const TEXT_FACE = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-const ARGUMENT_FACE = `"Stack Sans Text", ${HEADLINE}`;
-
 const TEXT = "#EDF1FF";
-
-/* Where the hero's own pattern is: brightest in the top-left corner, still
-   there across the top, gone by the foot of the headline. Read off the render
-   — the grid round the window's corner lower down is the product shot's own. */
-const HERO_PATTERN_MASK =
-  "radial-gradient(ellipse 170% 42% at 0% 0%, #000 0%, transparent 100%)";
 
 /* The page's faces, loaded by the page itself — it can be opened straight
    from a link, without the deck having loaded them first. A global rule,
    because an @import nested inside a component's styles is dropped. */
 const LandingFonts = createGlobalStyle`
-  @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400&family=Stack+Sans+Headline:wght@400..700&family=Stack+Sans+Text:wght@400..700&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400&family=Stack+Sans+Headline:wght@400..700&display=swap");
 `;
 
 const Page = styled.main`
@@ -189,79 +222,77 @@ const Page = styled.main`
   min-height: 100vh;
   background: ${INK};
   color: ${TEXT};
-  font-family: ${TEXT_FACE};
-  overflow-x: hidden;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Clip, not hidden: hidden would make the page its own scroller, and the
+     button's hold on the bottom edge would be against the page, not the
+     window */
+  overflow-x: clip;
 `;
 
-/* The deck's entrance: a short rise on its curve, each thing a beat behind */
 const rise = keyframes`
-  from { opacity: 0; transform: translate3d(0, 0.9rem, 0); }
+  from { opacity: 0; transform: translate3d(0, 1.5rem, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 `;
 
-const entrance = (delay: number) => css`
-  animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) ${delay}ms both;
+/* ── the hero ─────────────────────────────────────────────────────────── */
+
+const Hero = styled(BuildHero)`
+  padding-top: ${u(54)};
+`;
+
+const Top = styled(TopBar)`
+  animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) 120ms both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
 `;
 
-/* ── the hero ─────────────────────────────────────────────────────────── */
+/* ── the product ──────────────────────────────────────────────────────── */
 
-const Hero = styled.header`
+/* Pulled up into the first screen by as much of it as the product takes, and
+   laid over the hero's ground rather than on a band of its own */
+const ProductFrame = styled.section`
   position: relative;
-  isolation: isolate;
+  z-index: 3;
   max-width: 1920px;
-  margin: 0 auto;
-  padding-top: ${u(54)};
-`;
-
-const Ground = styled.div`
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-`;
-
-/* The two pills, pinned to the corners — shared with the UX page */
-const Top = styled(TopBar)`
-  ${entrance(120)}
-`;
-
-/* Where the line sits: its block starts 240 down the frame, so its first
-   baseline lands where the Figma's does */
-const Line = styled.div`
-  position: relative;
-  z-index: 1;
-  margin-top: ${u(129)};
-  text-align: center;
-`;
-
-/* The product, the argument over it, and the button across it — one piece,
-   laid out on the render's own proportions. */
-const Stage = styled.div`
-  position: relative;
-  z-index: 1;
-  width: ${u(1779)};
-  margin: 0 auto;
-  aspect-ratio: 3840 / 2160;
-  ${entrance(520)}
+  margin: calc(-1 * ${PEEK}) auto 0;
+  padding: 0 0 ${u(120)};
 
   @media (max-width: 56rem) {
-    width: calc(100% - 2rem);
-    aspect-ratio: auto;
+    padding: 0 0 4rem;
   }
 `;
 
-/* The render from the brand slides, as the Figma places it: 1779 wide, so the
-   window's own border lands where the design has it.
+/* The same curve the line rises on, so the two read as one movement */
+const COME_UP = "1300ms cubic-bezier(0.22, 1, 0.36, 1)";
 
-   Cropped to the window. The render carries its own copy of the pattern
-   around the window's corner, at the render's scale — laid over the page's
-   live pattern that made two grids at two sizes, one of them dead to the
-   pointer. Only the page's pattern exists now; the window's corner keeps its
-   own rounding. */
+/* The render and the button across it, on the render's own proportions —
+   below the first screen until the line has landed */
+const Stage = styled.div<{ $up: boolean }>`
+  ${({ $up }) => css`
+    position: relative;
+    width: ${u(1779)};
+    margin: 0 auto;
+    aspect-ratio: 3840 / 2160;
+    opacity: ${$up ? 1 : 0};
+    transform: ${$up ? "none" : `translate3d(0, calc(${PEEK} + 12vh), 0)`};
+    transition: transform ${COME_UP} 60ms, opacity 600ms ease 60ms;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @media (max-width: 56rem) {
+      width: calc(100% - 2rem);
+      aspect-ratio: auto;
+    }
+  `}
+`;
+
+/* The render from the brand slides, cropped to its window: the render carries
+   its own copy of the pattern round the window's corner, and laid over the
+   page's pattern that made two grids at two sizes */
 const Shot = styled.img`
   position: absolute;
   inset: 0;
@@ -277,43 +308,16 @@ const Shot = styled.img`
   }
 `;
 
-/* The render goes to ink on the right, where the argument sits over it, and
-   into the page at the bottom, below the button. */
+/* The render eases into the page on the right and at the bottom */
 const Shade = styled.div`
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-      90deg,
-      rgba(21, 21, 21, 0) 50%,
-      rgba(21, 21, 21, 0.88) 72%,
-      rgba(21, 21, 21, 0.94) 100%
-    ),
-    linear-gradient(to bottom, rgba(21, 21, 21, 0) 76%, ${INK} 99%);
+  background: linear-gradient(90deg, rgba(21, 21, 21, 0) 60%, rgba(21, 21, 21, 0.7) 100%),
+    linear-gradient(to bottom, rgba(21, 21, 21, 0) 72%, ${INK} 99%);
 
   @media (max-width: 56rem) {
     display: none;
-  }
-`;
-
-const Argument = styled.p`
-  position: absolute;
-  left: ${(930 / 1779) * 100}%;
-  top: ${u(234)};
-  width: ${u(800)};
-  margin: 0;
-  font-family: ${ARGUMENT_FACE};
-  font-size: ${u(35.8)};
-  font-weight: 500;
-  line-height: ${u(38)};
-  color: rgba(237, 241, 255, 0.72);
-
-  @media (max-width: 56rem) {
-    position: static;
-    width: auto;
-    margin: 1.25rem 0;
-    font-size: 1.0625rem;
-    line-height: 1.5;
   }
 `;
 
@@ -375,8 +379,54 @@ const Button = styled.button<{ $tone: "gradient" | "white" }>`
       position: relative;
       top: auto;
       height: 5.5rem;
+      margin-top: 1.25rem;
       padding: 0 1.25rem 0 1.5rem;
       border-radius: 1.5rem;
+    }
+  `}
+`;
+
+const peek = keyframes`
+  from { opacity: 0; transform: translate3d(0, ${u(64)}, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+`;
+
+/* The button's place, the Figma's: 603 into the render. A block of its own
+   rather than a margin on the button — a margin would fold through the render
+   into the page's pull-up, and would fence the button out of the room it
+   needs to hold against the bottom edge. */
+const Place = styled.div`
+  height: ${u(603)};
+
+  @media (max-width: 56rem) {
+    display: none;
+  }
+`;
+
+/* The product's button. It holds against the bottom edge with 240 of its 298
+   showing until the page is scrolled far enough to bring it to its place — so
+   the first screen ends on it, cut, and the page plainly goes on. It arrives
+   after the render has come up; the entrance fills backwards only, so the
+   hover lift still works after. */
+const Cta = styled(Button)<{ $up: boolean }>`
+  ${({ $up }) => css`
+    position: sticky;
+    left: auto;
+    top: auto;
+    bottom: ${u(240 - 298)};
+    opacity: ${$up ? 1 : 0};
+    ${$up &&
+    css`
+      animation: ${peek} 800ms cubic-bezier(0.22, 1, 0.36, 1) 1000ms backwards;
+    `}
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+
+    @media (max-width: 56rem) {
+      position: relative;
+      bottom: auto;
     }
   `}
 `;
@@ -394,8 +444,8 @@ const Label = styled.span`
 `;
 
 const Icon = styled(PlayRing)`
-  width: ${u(210)};
-  height: ${u(210)};
+  width: ${u(212)};
+  height: ${u(212)};
   flex-shrink: 0;
 
   @media (max-width: 56rem) {
@@ -404,19 +454,10 @@ const Icon = styled(PlayRing)`
   }
 `;
 
-/* ── the sections ─────────────────────────────────────────────────────── */
-
-/* The shared rows, with the landing's own spacing above and below — measured
-   against the Figma, whose rhythm they now match within a few pixels */
-const LandingRows = styled(Rows)`
-  padding-top: ${u(121)};
-  padding-bottom: ${u(144)};
-`;
-
 /* ── the close ────────────────────────────────────────────────────────── */
 
 /* A full 1920 × 1080 frame on the deck's gradient, with the white button — the
-   last thing on the page is the first thing the deck said. */
+   last thing on the page is the first thing the deck said */
 const CloseFrame = styled.footer`
   position: relative;
   isolation: isolate;

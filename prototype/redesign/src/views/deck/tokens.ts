@@ -21,7 +21,8 @@ export const PAPER = "#FFFFFF";
    and a single ramp per slide could not travel from one to the next. */
 
 /**
- * The background pattern, read off the supplied asset.
+ * The background pattern, read off the supplied asset and the slides that use
+ * it (Figma 44:343).
  *
  * The light is in the gaps. The asset is one compound path: a frame the size
  * of the artboard, and a thousand rounded tiles inside it wound the opposite
@@ -30,7 +31,9 @@ export const PAPER = "#FFFFFF";
  * into a four-point star. Every render in the deck shows it that way, and an
  * earlier pass here that lit the tiles instead was simply inverted.
  *
- * Numbers from the asset: tiles of 58 on a pitch of 60, white at 0.2.
+ * Numbers from the slides: tiles of 58 on a pitch of 60, white at 0.1. The
+ * pitch belongs to the 1920 frame, not to the screen — on a smaller screen the
+ * slide is smaller and so are its lines, which is what keeps them hairlines.
  *
  * The corner is not an arc. It is Figma's smoothed corner — two beziers easing
  * into the straight run over 20 units rather than a quarter circle over the
@@ -53,7 +56,19 @@ const TILE =
   "C10.5719 0 5.8579 0 2.9289 2.9289C0 5.8579 0 10.5719 0 20V38Z";
 const CELL = `M0 0H60V60H0Z${TILE}`;
 
-export const PATTERN_PITCH = "60px";
+/**
+ * The pitch: 60 on the 1920 frame and scaled with it, in whole pixels so the
+ * lines stay even from tile to tile, and never finer than 24 — below that a
+ * phone would show a blur rather than a grid. A custom property, so the two
+ * layers that draw the pattern cannot disagree about it.
+ */
+export const PATTERN_PITCH = `
+  --pp: max(24px, calc(min(100vw, 1920px) / 32));
+
+  @supports (width: round(1.5px, 1px)) {
+    --pp: max(24px, round(calc(min(100vw, 1920px) / 32), 1px));
+  }
+`;
 
 /**
  * The pattern, as a background image, at a given strength.
@@ -62,20 +77,24 @@ export const PATTERN_PITCH = "60px";
  * it can be layered — the cursor light is the same image at a higher alpha,
  * revealed through a mask, and the two have to agree to the pixel.
  */
-export const patternImage = (alpha = 0.2) =>
+export const patternImage = (alpha = 0.1) =>
   `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' ` +
   `width='60' height='60'%3E%3Cpath fill-rule='evenodd' d='${CELL}' ` +
   `fill='%23fff' fill-opacity='${alpha}'/%3E%3C/svg%3E")`;
 
 /**
- * The asset's own gradient — full at the right edge, gone at the left.
+ * How the pattern falls away on the black slide: brightest just below the
+ * bottom edge, a little left of centre, and gone by the top. The Figma's
+ * radial on 44:343 is centred at (931, 1470) on the 1920 × 1080 frame and
+ * reaches about 1610 — near enough a circle that an ellipse in the frame's own
+ * proportions draws it, and holds on a screen of any shape.
  *
  * Separate from the image because a mask applies to everything its element
  * paints, so it only goes on a layer that paints nothing else.
  */
-export const PATTERN_FADE = `
-  -webkit-mask-image: linear-gradient(to left, #000, transparent);
-  mask-image: linear-gradient(to left, #000, transparent);
+export const PATTERN_RISE = `
+  -webkit-mask-image: radial-gradient(ellipse 84.7% 148% at 48.5% 136%, #000, transparent);
+  mask-image: radial-gradient(ellipse 84.7% 148% at 48.5% 136%, #000, transparent);
 `;
 
 /**

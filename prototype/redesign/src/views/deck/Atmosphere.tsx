@@ -94,17 +94,16 @@ const BEDS: Record<Ground, string> = {
   ink: INK,
 };
 
-/* How strong the pattern is on each ground, and how much of the asset's fade
-   it takes — measured off the renders rather than assumed. On the two colour
-   slides it is the asset exactly: 0.2 at the right edge, gone at the left. On
-   black it is about a third of that and nearly even across the frame; at full
-   strength white on near-black is a table, not a texture. */
+/* How the pattern lies on each ground, off the Figma rather than assumed. On
+   the colour slides it is even across the frame at the slides' 0.1; on black
+   (44:343) the same 0.1 rises from just below the bottom edge and is gone by
+   the top — even white on near-black would be a table, not a texture. */
 const PATTERNS: Partial<Record<Ground, { strength: number; fade: number }>> = {
-  explore: { strength: 1, fade: 1 },
-  violet: { strength: 1, fade: 1 },
-  ink: { strength: 0.36, fade: 0.4 },
+  explore: { strength: 1, fade: 0 },
+  violet: { strength: 1, fade: 0 },
+  ink: { strength: 1, fade: 1 },
 };
-const PATTERN_DEFAULT = { strength: 1, fade: 1 };
+const PATTERN_DEFAULT = { strength: 1, fade: 0 };
 
 /* On white and on black the fields keep their last place and colour and only
    fade, so they leave from where they were rather than drifting to nowhere */

@@ -96,15 +96,29 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   const wheelLock = useRef(0);
   const touchFrom = useRef<number | null>(null);
 
+  /* Whether the last move went forward — a timed slide only plays on when
+     it was arrived at that way */
+  const forward = useRef(true);
+
   const go = useCallback((next: number) => {
     const to = Math.max(0, Math.min(SLIDES.length - 1, next));
     if (to === at.current) return;
     /* Measured now, while the old slide is still the one on screen */
     noteCarried(current.current);
+    forward.current = to > at.current;
     setLeaving(at.current);
     at.current = to;
     setIndex(to);
   }, []);
+
+  /* Timed slides move on by themselves. Any other move in the meantime — a
+     click, a key — replaces the timer rather than racing it. */
+  useEffect(() => {
+    const wait = SLIDES[index].auto;
+    if (!wait || !forward.current) return;
+    const t = window.setTimeout(() => go(index + 1), wait);
+    return () => window.clearTimeout(t);
+  }, [index, go]);
 
   useEffect(() => {
     if (leaving === null) return;
