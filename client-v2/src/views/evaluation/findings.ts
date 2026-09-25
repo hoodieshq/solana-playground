@@ -36,3 +36,27 @@ export const FINDINGS: Statement[] = [
 /** The one line the close needs, under its two marks */
 export const SYSTEM_LINE =
   "All of it on an agent-first design system, built hand in hand with the devs.";
+
+/**
+ * What the design work amounted to, said plainly — two paragraphs, the way
+ * you would tell someone who missed the meetings.
+ */
+export const DESIGN_SUMMARY = [
+  "We started with the brand, because the product did not have one of its own. " +
+    "The new mark folds a play shape out of the Solana symbol and sets it beside " +
+    "a circle — Playground as the place where things run. Around it we built a " +
+    "lockup, a tile pattern, a palette taken from Solana's own green and purple, " +
+    "and one type family, Stack Sans, for headlines and interface alike. The " +
+    "presentation, the landing and a short narrated walkthrough all speak that " +
+    "language, so the story someone hears is the product they then open.",
+  "Inside the product we kept the structure people already understand and " +
+    "changed how it feels to work in. The assistant now behaves like the tools " +
+    "developers use every day: model and effort sit on the composer, there is no " +
+    "separate setup screen, replies read as prose with code you can copy or open " +
+    "beside the editor, and a tutorial conversation is split into chapters by " +
+    "step. The sidebar folds to a rail and has real menus for projects and the " +
+    "account, a short checklist gets a newcomer set up, files sit next to the " +
+    "code, the stages became one switch, and empty screens, dialogs and the " +
+    "terminal share the same calm surface — with four sample projects waiting, " +
+    "so there is something real to open on the first visit.",
+];
