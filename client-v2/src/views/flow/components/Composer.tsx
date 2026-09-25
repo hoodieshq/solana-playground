@@ -278,6 +278,7 @@ const TextArea = styled.textarea`
     color: ${theme.colors.default.textPrimary};
     font-family: inherit;
     font-size: 0.9375rem;
+    font-weight: 350;
     line-height: 1.5;
 
     &::placeholder {
