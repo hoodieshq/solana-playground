@@ -123,13 +123,16 @@ interface LightProps {
   pull?: RefObject<Pull>;
 }
 
-/* How far a full pull stretches the ribbons, and how much of the full
-   speed-up it gives; how far a glide at full drive stretches them, and how
-   hard it shakes them against the pointer's shake */
-const PULL_STRETCH = 0.4;
+/* How far a full pull lengthens the ribbons upward, and how much of the full
+   speed-up it gives their glints and streaks; how far a glide at full drive
+   lengthens them, and how hard it shakes them against the pointer's shake.
+   Neither touches how fast they slide sideways: that clock only the pointer
+   quickens, a little */
+const PULL_RISE = 1;
 const PULL_SPEED = 0.9;
-const DRIVE_STRETCH = 0.3;
+const DRIVE_RISE = 0.8;
 const DRIVE_SHAKE = 0.5;
+const HOVER_SLIDE = 0.6;
 
 const Light: FC<LightProps> = ({ on, frame, pull }) => {
   const flowRef = useRef<HTMLCanvasElement>(null);
@@ -171,6 +174,8 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
     /* Its own clock, running at a speed of its own, so the pointer and the
        scroll speed the light up without jumping it to another moment */
     let clock = 12;
+    /* And a calm one for sliding along the bottom */
+    let slideClock = 12;
     let last = 0;
     /* The pointer: whether it is on the button, and how far that has eased
        in */
@@ -249,7 +254,14 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       edge.style.setProperty("--edge", (0.6 + 0.4 * pace).toFixed(3));
     };
 
-    const paint = (seconds: number, speed: number, drive = 0) => {
+    const paint = (
+      seconds: number,
+      speed: number,
+      drive = 0,
+      slideT = seconds
+    ) => {
+      /* The pull and the page's glides lengthen the ribbons upward */
+      const rise = PULL_RISE * (pull?.current?.value ?? 0) + DRIVE_RISE * drive;
       const pace = Math.max(0, Math.min(1, (speed - 1) / (HOT - 1)));
       /* A shake on the light's clock under the pointer, or while the page
          glides, harder the faster it runs */
@@ -274,12 +286,11 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         BUTTON_TOP,
         shape,
         pace,
-        stretch +
-          PULL_STRETCH * (pull?.current?.value ?? 0) +
-          DRIVE_STRETCH * drive,
+        stretch,
         { x: shake.x * 0.5, y: shake.y * 0.5 },
         ground,
-        drive
+        rise,
+        slideT
       );
       /* The same frame, smaller, for CSS to blur */
       softCtx.clearRect(0, 0, sizes.sw, sizes.sh);
@@ -297,7 +308,8 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         sizes.px,
         shake,
         ground,
-        drive
+        rise,
+        slideT
       );
       light(seconds, pace);
     };
@@ -344,8 +356,9 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
             Math.max(hover, SCROLL_SHARE * boost, PULL_SPEED * drag, drive)
           );
       clock += dt * speed;
+      slideClock += dt * (1 + (HOT - 1) * HOVER_SLIDE * hover);
       measure();
-      paint(clock, speed, drive);
+      paint(clock, speed, drive, slideClock);
     };
     const start = () => {
       if (!running && !still) running = requestAnimationFrame(tick);
@@ -382,7 +395,7 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
 
     size();
     measure();
-    paint(still ? STILL_AT : clock, 1);
+    paint(still ? STILL_AT : clock, 1, 0, slideClock);
 
     const resize =
       typeof ResizeObserver === "undefined"
@@ -390,7 +403,7 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         : new ResizeObserver(() => {
             size();
             measure();
-            paint(still ? STILL_AT : clock, 1);
+            paint(still ? STILL_AT : clock, 1, 0, slideClock);
           });
     resize?.observe(sharp);
 

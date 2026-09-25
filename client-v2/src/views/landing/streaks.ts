@@ -67,7 +67,8 @@ const STREAKS: Streak[] = (() => {
  * `frame` and the bottom of the screen at `ground`. `pace`, 0 to 1, is how far
  * the light has sped up: none, and there are no streaks. `px` is the canvas's
  * pixels to the screen's, for the line widths; `shake` moves the whole field;
- * `warp` bends the courses in with the ribbons'.
+ * `lift` lengthens the courses with the ribbons', and `slideT` is the clock
+ * the ribbons slide on.
  */
 export const drawStreaks = (
   ctx: CanvasRenderingContext2D,
@@ -80,14 +81,15 @@ export const drawStreaks = (
   px = 1,
   shake: Shake = { x: 0, y: 0 },
   ground = 1,
-  warp = 0
+  lift = 0,
+  slideT = t
 ) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, w, h);
   if (pace < 0.01) return;
 
-  const c = courseFor(frame, buttonTop, ground, warp);
+  const c = courseFor(frame, buttonTop, ground, lift);
   if (c.stand - c.top < 0.01) return;
   const shown = smoothstep(0, 0.3, pace);
 
@@ -101,7 +103,7 @@ export const drawStreaks = (
     const u = run - trip;
     /* The ribbon this trip runs up */
     const j = Math.floor(hash(trip * 7.13 + i * 1.37) * RIBBON_COUNT);
-    const { at, u: place } = footOf(j, t);
+    const { at, u: place } = footOf(j, slideT);
     if (place < 0.12 || place > 0.88) return;
 
     const gone = rise(u);
