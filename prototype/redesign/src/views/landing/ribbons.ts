@@ -26,13 +26,13 @@ import { seeded, smoothstep } from "./trail";
  * purple and back along the row, shading along each ribbon, over the
  * alternating dark bands, with a glint of its own colour turned up sliding up
  * every ribbon — fading in at its foot and out at its top, so it never jumps,
- * and never white. The ribbons slide along the bottom from left to
- * right and round again, carrying their colours across. Under the pointer,
- * and while the page is scrolled, the light's clock runs faster
- * (`Light.tsx`), so they slide faster and reach further, and a scroll
- * stretches them, springing back after. When the page glides on its own, they
- * warp with it: they bend in harder towards the middle, whip from side to
- * side, and run faster still.
+ * and never white. The ribbons slide along the bottom from left to right and
+ * round again, carrying their colours across, on a calm clock of their own.
+ * The light's other clock runs faster under the pointer and on a scroll
+ * (`Light.tsx`), and a scroll stretches them, springing back after. When the
+ * reader pulls on the first screen, or the page glides on its own, they rise:
+ * the top of their course lifts, so they lengthen upward like a slinky
+ * stretched from the button — never wider — while their glints race up them.
  */
 
 type RGB = [number, number, number];
@@ -81,8 +81,9 @@ const EASE = 1.7;
 /* How high up the interface they reach at most, as a share of the way from
    where they stand to its top edge */
 const FURTHEST = 0.9;
-/* How much of their spread a full warp takes in, once they are upright */
-const WARP_IN = 0.35;
+/* How far a full rise lifts the top of their course, as a share of the
+   canvas's height: they lengthen upward, never widen */
+const RISE = 0.2;
 
 /* The ramp runs green to purple and back along the row, so it goes round
    without a seam */
@@ -106,21 +107,19 @@ export interface Course {
     `buttonTop` and the bottom of the screen at `ground` — shares of the
     canvas. The ribbons stand on the bottom of the screen: below the canvas
     once the button is in place, higher up it while the product is still
-    rising with the button. `warp`, 0 to 1, bends them in harder. */
+    rising with the button. `rise`, 0 to 1, lifts the top of their course. */
 export const courseFor = (
   frame: Frame,
   buttonTop: number,
   ground = 1,
-  warp = 0
+  rise = 0
 ): Course => {
-  const top = Math.min(buttonTop - 0.08, frame.top);
+  const top = Math.min(buttonTop - 0.08, frame.top) - RISE * Math.max(0, rise);
   const stand = Math.min(BASE, ground + 0.02);
   return {
     cx: (frame.left + frame.right) / 2,
-    /* The outermost feet end up climbing the interface's edges — nearer the
-       middle, warped */
-    narrow:
-      Math.min(1, (frame.right - frame.left) / RANGE) * (1 - WARP_IN * warp),
+    /* The outermost feet end up climbing the interface's edges */
+    narrow: Math.min(1, (frame.right - frame.left) / RANGE),
     stand,
     upright: top + (Math.max(top, Math.min(stand, buttonTop)) - top) * 0.3,
     top,
@@ -203,8 +202,8 @@ const SAMPLES = 26;
  * to 1, is how far the light has sped up: the ribbons reach further with it.
  * `stretch` is the scroll's spring, a share of their height either way;
  * `shake` moves the whole of it. `ground` is the bottom of the screen, a share
- * of the canvas's height: the ribbons stand on it. `warp`, 0 to 1, is how far
- * a glide of the page has them bending in and whipping.
+ * of the canvas's height: the ribbons stand on it. `rise`, 0 to 1, lengthens
+ * them upward; `slideT` is the calm clock they slide along the bottom on.
  */
 export const drawRibbons = (
   ctx: CanvasRenderingContext2D,
@@ -217,13 +216,14 @@ export const drawRibbons = (
   stretch = 0,
   shake: Shake = { x: 0, y: 0 },
   ground = 1,
-  warp = 0
+  rise = 0,
+  slideT = t
 ) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, w, h);
 
-  const c = courseFor(frame, buttonTop, ground, warp);
+  const c = courseFor(frame, buttonTop, ground, rise);
   const span = c.stand - c.top;
   /* Until the window has come up past the bottom of the screen, there is
      nothing to reach up to */
@@ -234,7 +234,7 @@ export const drawRibbons = (
   /* Under the pointer they reach further, as if the light were turned up;
      the scroll stretches them */
   const surge = (1 + 0.12 * pace) * (1 + stretch);
-  const slide = (t * SLIDE) / RANGE;
+  const slide = (slideT * SLIDE) / RANGE;
   const inside = Math.max(0.01, (frame.right - frame.left) / 2);
 
   ctx.translate(shake.x, shake.y);
@@ -265,10 +265,8 @@ export const drawRibbons = (
       solid + 0.05 + Math.max(0, FURTHEST - solid - 0.05) * up
     );
     const top = courseY(c, reach);
-    /* A slow sway of its own, and a whip while the page glides */
-    const sway =
-      0.004 * Math.sin(t / 4.1 + i * 0.7) +
-      0.016 * warp * Math.sin(t * 2.3 + i * 0.9);
+    /* A slow sway of its own */
+    const sway = 0.004 * Math.sin(slideT / 4.1 + i * 0.7);
 
     /* Up its course from below the fold, as wide as its share of the spread
        at each height, so neighbours stay edge to edge all the way */
