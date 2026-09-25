@@ -32,7 +32,11 @@ VERCEL_TOKEN_ARG = $${VERCEL_TOKEN:+--token=$$VERCEL_TOKEN}
 
 .PHONY: vercel-bootstrap vercel-link-preview vercel-link-production \
 	deploy-client-to-vercel-preview deploy-client-to-vercel-production \
+	vercel-wasm-cache-store \
 	neon-preview-base preview-db-branch migrate-preview-db migrate-parent-db
+
+# The public Blob store that scripts/vercel-install.sh caches built wasm packages in.
+WASM_CACHE_STORE := solana-playground-wasm
 
 # Both IDs come from the link file because an exported VERCEL_PROJECT_ID outranks
 # it in the CLI's project resolution, leaving orgId unresolved.
@@ -95,6 +99,19 @@ deploy-client-to-vercel-production: vercel-link-production ## Build locally + de
 		set -a && . ./.vercel/.env.production.local && set +a && \
 		npx vercel@latest build --prod $(VERCEL_TOKEN_ARG) && \
 		npx vercel@latest deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
+
+# `--yes` connects the store to the linked project for every environment, which is
+# what puts BLOB_STORE_ID into builds. The robots.txt keeps the store's public URLs
+# out of search indexes; the store is public so that builds can download without a token.
+vercel-wasm-cache-store: ## Create the public Blob store for built wasm packages (run once)
+	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
+	$(VERCEL_IDS) && npx vercel@latest blob create-store $(WASM_CACHE_STORE) \
+		--access public --yes $(VERCEL_TOKEN_ARG)
+	$(MAKE) -f $(CLIENT_DIR)/Makefile.vercel vercel-link-production
+	@printf 'User-agent: *\nDisallow: /\n' > .vercel/robots.txt
+	$(VERCEL_IDS) && set -a && . ./.vercel/.env.production.local && set +a && \
+		npx vercel@latest blob put .vercel/robots.txt --pathname robots.txt \
+		--access public --allow-overwrite $(VERCEL_TOKEN_ARG)
 
 # The project-level DATABASE_URL is unscoped (no gitBranch) and targets preview
 # and production alike, so this migrates production. Previews no longer use it --

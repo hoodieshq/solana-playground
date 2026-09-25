@@ -37,6 +37,9 @@ server/programs/*
 # WASM build output (real packages from wasm/build.sh, or stubs from wasm/stub-packages.sh)
 wasm/*/pkg/
 
+# Rust toolchains and target dir for client-v2/scripts/vercel-install.sh
+client-v2/.cache/
+
 # macOS
 .DS_Store
 
