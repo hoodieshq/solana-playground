@@ -24,10 +24,20 @@ import { drawAurora } from "./aurora";
     height. The page holds the button this far above the fold. */
 export const LIGHT_BELOW = 0.148;
 
-/* Above it, for the rays to rise into, and past its ends, for the curtains'
-   tips to fade out in */
-const LIGHT_ABOVE = 0.18;
-const LIGHT_SIDE = 0.06;
+/* Above it, for the skyline's spire and flames to rise into — about one
+   button's height, held clear of the headline — and a little past its ends,
+   for the sides to curve down in */
+const LIGHT_ABOVE = 1.75;
+const LIGHT_SIDE = 0.03;
+
+/* Where in the canvas the button's middle falls, for the light to open out
+   from when it comes on */
+const ORIGIN_Y = ((LIGHT_ABOVE + 0.5) / (LIGHT_ABOVE + 1 + LIGHT_BELOW)) * 100;
+
+/* How much faster it all moves under the pointer, and how quickly it gets
+   there — eased, so the light surges rather than jumps */
+const HOT = 2.6;
+const EASING = 3;
 
 /* The canvas is drawn at most this many pixels wide and blurred on the way
    up, so every frame is cheap */
@@ -54,6 +64,12 @@ const Light: FC<LightProps> = ({ on }) => {
     let height = 1;
     let frame = 0;
     let drawn = 0;
+    /* Its own clock, running at `speed`: the hover speeds the light up
+       without it jumping to another moment */
+    let clock = 12;
+    let speed = 1;
+    let target = 1;
+    let last = 0;
 
     /* Layout size, not the on-screen one — the hover lift and the entrance
        scale it, and the drawing should not change with them */
@@ -70,8 +86,12 @@ const Light: FC<LightProps> = ({ on }) => {
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
       if (now - drawn < 15) return;
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+      last = now;
       drawn = now;
-      paint(now / 1000);
+      speed += (target - speed) * Math.min(1, dt * EASING);
+      clock += dt * speed;
+      paint(clock);
     };
     const start = () => {
       if (!frame && !still) frame = requestAnimationFrame(tick);
@@ -79,17 +99,31 @@ const Light: FC<LightProps> = ({ on }) => {
     const stop = () => {
       if (frame) cancelAnimationFrame(frame);
       frame = 0;
+      last = 0;
     };
 
+    /* Under the pointer, or focused, it all runs faster */
+    const button = canvas.closest("button");
+    const hot = () => {
+      target = HOT;
+    };
+    const cool = () => {
+      target = 1;
+    };
+    button?.addEventListener("pointerenter", hot);
+    button?.addEventListener("pointerleave", cool);
+    button?.addEventListener("focus", hot);
+    button?.addEventListener("blur", cool);
+
     size();
-    paint(still ? STILL_AT : performance.now() / 1000);
+    paint(still ? STILL_AT : clock);
 
     const resize =
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(() => {
             size();
-            paint(still ? STILL_AT : performance.now() / 1000);
+            paint(still ? STILL_AT : clock);
           });
     resize?.observe(canvas);
 
@@ -107,6 +141,10 @@ const Light: FC<LightProps> = ({ on }) => {
       stop();
       watch?.disconnect();
       resize?.disconnect();
+      button?.removeEventListener("pointerenter", hot);
+      button?.removeEventListener("pointerleave", cool);
+      button?.removeEventListener("focus", hot);
+      button?.removeEventListener("blur", cool);
     };
   }, []);
 
@@ -138,6 +176,7 @@ const Wrap = styled.span<{ $on: boolean }>`
     display: block;
     pointer-events: none;
     opacity: 0.94;
+    transform-origin: 50% ${ORIGIN_Y}%;
     transition: opacity 480ms ease, transform 620ms ${EASE};
     ${$on &&
     css`
