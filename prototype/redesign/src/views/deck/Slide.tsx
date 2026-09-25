@@ -81,7 +81,9 @@ export const Headline: FC<{
   reserve?: number;
   /** The element it is set in, when it is not the page's heading */
   as?: "h1" | "h2" | "p";
-}> = ({ lines, light, scale, weight, leading, reserve = 0, as }) => {
+  /** Letter-spacing, where a design sets it tighter than the deck's -1% */
+  tracking?: string;
+}> = ({ lines, light, scale, weight, leading, reserve = 0, as, tracking }) => {
   /* Name every piece first, so we know before drawing a letter whether any of
      them is arriving from the last slide */
   const taken = new Map<string, number>();
@@ -111,7 +113,14 @@ export const Headline: FC<{
     ));
 
   return (
-    <Title as={as} $light={light} $scale={scale} $weight={weight} $leading={leading}>
+    <Title
+      as={as}
+      $light={light}
+      $scale={scale}
+      $weight={weight}
+      $leading={leading}
+      $tracking={tracking}
+    >
       {words.map((line, l) => (
         <Line key={`${lines[l]}-${l}`}>
           {line.map(({ word, core, tail, name }, w) => (
@@ -286,14 +295,21 @@ const Title = styled.h1<{
   $scale?: number;
   $weight?: number;
   $leading?: number;
+  $tracking?: string;
 }>`
-  ${({ $light, $scale = 1, $weight = 400, $leading = HEADLINE_LEADING }) => css`
+  ${({
+    $light,
+    $scale = 1,
+    $weight = 400,
+    $leading = HEADLINE_LEADING,
+    $tracking = HEADLINE_TRACKING,
+  }) => css`
     margin: 0;
     font-family: ${HEADLINE};
     font-weight: ${$weight};
     font-size: calc(${HEADLINE_SIZE} * ${$scale});
     line-height: ${$leading};
-    letter-spacing: ${HEADLINE_TRACKING};
+    letter-spacing: ${$tracking};
     color: ${$light ? INK : PAPER};
   `}
 `;

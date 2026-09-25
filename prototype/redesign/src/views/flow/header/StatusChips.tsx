@@ -2,6 +2,8 @@ import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
+import BrandIcon from "../../../components/BrandIcon";
+
 import {
   useBalance,
   useConnection,
@@ -125,7 +127,13 @@ const StatusChips: FC<StatusChipsProps> = ({
               github.login ?? github.name ?? "account"
             }`}
           >
-            <Avatar src={github.image ?? undefined} alt="" aria-hidden />
+            {github.image ? (
+              <Avatar src={github.image} alt="" aria-hidden />
+            ) : (
+              <AvatarGlyph aria-hidden>
+                <BrandIcon name="profile" />
+              </AvatarGlyph>
+            )}
             <span>{github.login ?? github.name ?? "Account"}</span>
           </GithubChip>
           {profileOpen && (
@@ -320,6 +328,19 @@ const Avatar = styled.img`
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
+`;
+
+/* No picture on the account: the brand's own profile glyph, rather than the
+   broken-image box an empty src draws */
+const AvatarGlyph = styled.span`
+  display: flex;
+  width: 1rem;
+  height: 1rem;
+
+  & > svg {
+    width: 100%;
+    height: 100%;
+  }
 `;
 
 // Anchors the popover under the chip; `position: relative` is the only
