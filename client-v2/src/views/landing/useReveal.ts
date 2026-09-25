@@ -3,10 +3,10 @@ import { RefObject, useEffect, useRef, useState } from "react";
 /**
  * Whether an element has been scrolled into view, once.
  *
- * The scroll half of the same idea as the load wipe: content arrives rather
- * than being there already. `IntersectionObserver` does what a ScrollTrigger
- * would here — fire once when a threshold is crossed — without a scroll
- * listener per element or a library to schedule them.
+ * Content arrives rather than being there already — the way a slide's does.
+ * `IntersectionObserver` does what a ScrollTrigger would here — fire once when
+ * a threshold is crossed — without a scroll listener per element or a library
+ * to schedule them.
  *
  * It latches. A section that has arrived stays arrived, because replaying the
  * entrance every time someone scrolls back up is a fidget, not an effect.

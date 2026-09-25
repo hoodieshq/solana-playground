@@ -28,6 +28,11 @@ interface Base {
   ground: Ground;
   /** The brand pattern over the ground, lit by the pointer */
   grid?: boolean;
+  /**
+   * Move on by itself after this many milliseconds — only when the slide was
+   * reached going forward, so stepping back to it never throws you onward.
+   */
+  auto?: number;
 }
 
 export type SlideSpec =
@@ -96,8 +101,10 @@ export const SLIDES: SlideSpec[] = [
       { glyph: "ground", name: "Ground", note: "Safe, Big, Onchain" },
     ],
   },
-  { id: "solana", kind: "solana", ground: "paper" },
-  { id: "colour", kind: "blank", ground: "haze" },
+  /* Solana's mark, the colour arriving, the new mark: one move, played
+     through without a click, as the prototype's timed transitions do */
+  { id: "solana", kind: "solana", ground: "paper", auto: 1700 },
+  { id: "colour", kind: "blank", ground: "haze", auto: 1500 },
   { id: "mark", kind: "mark", ground: "deep" },
   { id: "lockup", kind: "lockup", ground: "deep" },
   {

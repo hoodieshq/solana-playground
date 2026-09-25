@@ -1,17 +1,17 @@
 import { FC, useEffect, useRef } from "react";
 import styled from "styled-components";
 
-import { PATTERN_FADE, PATTERN_PITCH, patternImage } from "./tokens";
+import { PATTERN_PITCH, PATTERN_RISE, patternImage } from "./tokens";
 
 /**
  * The brand pattern, lit by the pointer.
  *
- * Two copies of one image. The first sits at rest — the asset's own strength,
- * fading out towards the left the way the asset fades. The second is the same
- * pattern much brighter, seen only through a soft circle that follows the
- * cursor, so moving the mouse reads as a light passing over the grid rather
- * than as a spotlight laid on top of it. A faint halo goes with it, so the
- * light has a body and not only an edge.
+ * Two copies of one image. The first sits at rest — the slides' own strength,
+ * a texture you notice rather than see. The second is the same pattern a
+ * little brighter, seen only through a soft circle that follows the cursor, so
+ * moving the mouse reads as a light passing over the grid rather than as a
+ * spotlight laid on top of it. A faint halo goes with it, so the light has a
+ * body and not only an edge.
  *
  * The light trails the pointer instead of sitting on it: each frame closes a
  * fraction of the distance, which is what makes it glide. It fades out when
@@ -23,14 +23,15 @@ import { PATTERN_FADE, PATTERN_PITCH, patternImage } from "./tokens";
  */
 
 interface PatternProps {
-  /** Strength at rest. The asset's own is 0.2. */
+  /** Strength at rest. The slides' own is 0.1. */
   rest?: number;
   /** Strength under the light */
   lit?: number;
   /**
-   * How much of the asset's right-to-left fade the resting layer takes, from
-   * none to all of it. A number rather than a switch so the deck can move
-   * between slides that fade it and slides that do not.
+   * How much of the black slide's rise the resting layer takes — none of it
+   * (even across the frame, as on the colour slides) to all of it (gone by
+   * the top). A number rather than a switch so the deck can move between the
+   * two.
    */
   fade?: number;
   /**
@@ -40,9 +41,9 @@ interface PatternProps {
    */
   strength?: number;
   /**
-   * A mask of the page's own for the resting pattern, in place of the asset's
-   * fade — for a layout whose pattern falls away somewhere other than to the
-   * left. The light is never masked by it.
+   * A mask of the page's own for the resting pattern, in place of the rise —
+   * for a layout whose pattern falls away somewhere else. The light is never
+   * masked by it.
    */
   restMask?: string;
   className?: string;
@@ -52,9 +53,9 @@ interface PatternProps {
 const FOLLOW = 0.14;
 
 const Pattern: FC<PatternProps> = ({
-  rest = 0.2,
-  lit = 0.62,
-  fade = 1,
+  rest = 0.1,
+  lit = 0.24,
+  fade = 0,
   strength = 1,
   restMask,
   className,
@@ -130,15 +131,15 @@ const Pattern: FC<PatternProps> = ({
       {restMask ? (
         <Rest
           $alpha={rest}
-          $fade={false}
+          $rise={false}
           style={{ opacity: strength, WebkitMaskImage: restMask, maskImage: restMask }}
         />
       ) : (
-        /* A mask cannot be half applied, so the fade is two resting layers —
-           one faded, one even — and the balance between them */
+        /* A mask cannot be half applied, so the rise is two resting layers —
+           one masked, one even — and the balance between them */
         <>
-          <Rest $alpha={rest} $fade style={{ opacity: fade * strength }} />
-          <Rest $alpha={rest} $fade={false} style={{ opacity: (1 - fade) * strength }} />
+          <Rest $alpha={rest} $rise style={{ opacity: fade * strength }} />
+          <Rest $alpha={rest} $rise={false} style={{ opacity: (1 - fade) * strength }} />
         </>
       )}
       <Halo />
@@ -150,6 +151,7 @@ const Pattern: FC<PatternProps> = ({
 export default Pattern;
 
 const Wrap = styled.div`
+  ${PATTERN_PITCH}
   --lx: -999px;
   --ly: -999px;
   --lon: 0;
@@ -160,15 +162,18 @@ const Wrap = styled.div`
   pointer-events: none;
 `;
 
+/* Placed as the slides place it: a line down the middle of a 1920 frame, and
+   a row of tiles across the middle of its height */
 const Layer = styled.div`
   position: absolute;
   inset: 0;
-  background-size: ${PATTERN_PITCH} ${PATTERN_PITCH};
+  background-size: var(--pp) var(--pp);
+  background-position: calc(var(--pp) / 30) calc(var(--pp) * 31 / 60);
 `;
 
-const Rest = styled(Layer)<{ $alpha: number; $fade: boolean }>`
+const Rest = styled(Layer)<{ $alpha: number; $rise: boolean }>`
   background-image: ${({ $alpha }) => patternImage($alpha)};
-  ${({ $fade }) => ($fade ? PATTERN_FADE : "")}
+  ${({ $rise }) => ($rise ? PATTERN_RISE : "")}
   transition: opacity 1400ms cubic-bezier(0.45, 0, 0.2, 1);
 
   @media (prefers-reduced-motion: reduce) {
@@ -176,22 +181,22 @@ const Rest = styled(Layer)<{ $alpha: number; $fade: boolean }>`
   }
 `;
 
-/* The pattern, brighter, through a circle that follows the pointer. Unfaded:
-   the light is what reveals the grid, including on the side where the resting
-   layer has faded to nothing. */
+/* The pattern, brighter, through a circle that follows the pointer. Unmasked:
+   the light is what reveals the grid, including where the resting layer has
+   fallen away to nothing. */
 const Lit = styled(Layer)<{ $alpha: number }>`
   background-image: ${({ $alpha }) => patternImage($alpha)};
   opacity: var(--lon);
   -webkit-mask-image: radial-gradient(
     circle var(--lr) at var(--lx) var(--ly),
     #000 0%,
-    rgba(0, 0, 0, 0.55) 38%,
+    rgba(0, 0, 0, 0.5) 38%,
     transparent 100%
   );
   mask-image: radial-gradient(
     circle var(--lr) at var(--lx) var(--ly),
     #000 0%,
-    rgba(0, 0, 0, 0.55) 38%,
+    rgba(0, 0, 0, 0.5) 38%,
     transparent 100%
   );
 `;
@@ -200,8 +205,8 @@ const Halo = styled(Layer)`
   opacity: var(--lon);
   background: radial-gradient(
     circle calc(var(--lr) * 1.4) at var(--lx) var(--ly),
-    rgba(255, 255, 255, 0.075) 0%,
-    rgba(255, 255, 255, 0.025) 45%,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.012) 45%,
     rgba(255, 255, 255, 0) 100%
   );
 `;
