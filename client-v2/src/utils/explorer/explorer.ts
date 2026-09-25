@@ -383,8 +383,13 @@ export class PgExplorer {
   static async deleteItem(path: string) {
     const fullPath = this.convertToFullPath(path);
 
-    // Can't delete src folder
-    if (PgCommon.isPathsEqual(fullPath, this.getCurrentSrcPath())) {
+    // Can't delete src folder. With no project open there is none to protect,
+    // and asking for its path throws -- which made deleting a project from its
+    // row fail whenever nothing was open (the sample projects arrive that way).
+    if (
+      (this.isTemporary || this.currentWorkspaceName) &&
+      PgCommon.isPathsEqual(fullPath, this.getCurrentSrcPath())
+    ) {
       throw new Error(PgExplorer.errors.SRC_DELETE);
     }
 

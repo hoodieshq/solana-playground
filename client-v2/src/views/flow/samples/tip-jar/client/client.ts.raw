@@ -1,0 +1,39 @@
+// Client
+// Opens your tip jar the first time, tips it, then withdraws the tips.
+
+// Your jar's address is derived from your wallet
+const [jar] = web3.PublicKey.findProgramAddressSync(
+  [Buffer.from("jar"), pg.wallet.publicKey.toBuffer()],
+  pg.PROGRAM_ID
+);
+
+if (!(await pg.program.account.tipJar.fetchNullable(jar))) {
+  const createTx = await pg.program.methods
+    .createJar()
+    .accounts({ jar })
+    .rpc();
+  await pg.connection.confirmTransaction(createTx);
+  console.log("Opened your tip jar at", jar.toString());
+}
+
+// Anyone can tip a jar; here you tip your own 0.01 SOL
+const tipTx = await pg.program.methods
+  .tip(new BN(web3.LAMPORTS_PER_SOL / 100))
+  .accounts({ jar })
+  .rpc();
+await pg.connection.confirmTransaction(tipTx);
+
+const { totalTips } = await pg.program.account.tipJar.fetch(jar);
+console.log(
+  "Tips received so far:",
+  totalTips.toNumber() / web3.LAMPORTS_PER_SOL,
+  "SOL"
+);
+
+// Only the creator can withdraw
+const txHash = await pg.program.methods
+  .withdraw()
+  .accounts({ jar })
+  .rpc();
+await pg.connection.confirmTransaction(txHash);
+console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);

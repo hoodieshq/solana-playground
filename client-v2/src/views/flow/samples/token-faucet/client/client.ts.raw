@@ -1,0 +1,33 @@
+// Client
+// Requests 25 tokens from the faucet, creating its mint the first time.
+
+// One mint per program, at an address derived from a fixed seed
+const [mint] = web3.PublicKey.findProgramAddressSync(
+  [Buffer.from("mint")],
+  pg.PROGRAM_ID
+);
+
+if (!(await pg.connection.getAccountInfo(mint))) {
+  const initTx = await pg.program.methods
+    .initialize()
+    .accounts({ mint })
+    .rpc();
+  await pg.connection.confirmTransaction(initTx);
+  console.log("Created the faucet mint at", mint.toString());
+}
+
+// Your associated token account for the faucet's token
+const tokenAccount = anchor.utils.token.associatedAddress({
+  mint,
+  owner: pg.wallet.publicKey,
+});
+
+const txHash = await pg.program.methods
+  .requestTokens(new BN(25_000_000)) // 25 tokens, at 6 decimals
+  .accounts({ mint, tokenAccount })
+  .rpc();
+await pg.connection.confirmTransaction(txHash);
+
+const { value } = await pg.connection.getTokenAccountBalance(tokenAccount);
+console.log("Your balance:", value.uiAmountString, "tokens");
+console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);

@@ -1,0 +1,64 @@
+// No imports needed: web3, anchor, pg and more are globally available
+
+describe("Token Faucet", () => {
+  // One mint per program, at an address derived from a fixed seed
+  const [mint] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("mint")],
+    pg.PROGRAM_ID
+  );
+  const tokenAccount = anchor.utils.token.associatedAddress({
+    mint,
+    owner: pg.wallet.publicKey,
+  });
+
+  // Balance in base units, which is zero before the token account exists
+  const balance = () =>
+    pg.connection
+      .getTokenAccountBalance(tokenAccount)
+      .then(({ value }) => new BN(value.amount))
+      .catch(() => new BN(0));
+
+  it("initialize", async () => {
+    // The mint outlives a test run, so only the first run creates it
+    if (await pg.connection.getAccountInfo(mint)) {
+      console.log("Mint already exists, skipping");
+      return;
+    }
+
+    const txHash = await pg.program.methods
+      .initialize()
+      .accounts({ mint })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    assert(await pg.connection.getAccountInfo(mint));
+  });
+
+  it("requestTokens", async () => {
+    const before = await balance();
+
+    const amount = new BN(10_000_000); // 10 tokens
+    const txHash = await pg.program.methods
+      .requestTokens(amount)
+      .accounts({ mint, tokenAccount })
+      .rpc();
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await pg.connection.confirmTransaction(txHash);
+
+    assert((await balance()).eq(before.add(amount)));
+  });
+
+  it("refuses more than the cap", async () => {
+    let refused = false;
+    try {
+      await pg.program.methods
+        .requestTokens(new BN(101_000_000)) // 101 tokens, over the cap of 100
+        .accounts({ mint, tokenAccount })
+        .rpc();
+    } catch {
+      refused = true;
+    }
+    assert(refused, "minted more than the cap");
+  });
+});

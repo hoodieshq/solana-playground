@@ -1,0 +1,36 @@
+// Client
+// Opens a poll, votes in it, and prints the tally.
+
+// A poll is an ordinary account, so it gets a fresh keypair
+const poll = new web3.Keypair();
+const createTx = await pg.program.methods
+  .createPoll("Where should the offsite be?", ["Lisbon", "Kyoto", "Denver"])
+  .accounts({ poll: poll.publicKey })
+  .signers([poll])
+  .rpc();
+await pg.connection.confirmTransaction(createTx);
+
+// Your receipt for this poll, at an address derived from the poll and you
+const [receipt] = web3.PublicKey.findProgramAddressSync(
+  [
+    Buffer.from("receipt"),
+    poll.publicKey.toBuffer(),
+    pg.wallet.publicKey.toBuffer(),
+  ],
+  pg.PROGRAM_ID
+);
+
+const txHash = await pg.program.methods
+  .castVote(1)
+  .accounts({ poll: poll.publicKey, receipt })
+  .rpc();
+await pg.connection.confirmTransaction(txHash);
+
+const { question, options, votes } = await pg.program.account.poll.fetch(
+  poll.publicKey
+);
+console.log(question);
+options.forEach((option, i) => {
+  console.log(`  ${option}: ${votes[i].toString()}`);
+});
+console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
