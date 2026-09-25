@@ -1,5 +1,6 @@
 import type { FC } from "react";
-import styled, { css } from "styled-components";
+import { useLayoutEffect, useRef, useState } from "react";
+import styled, { css, keyframes } from "styled-components";
 
 import { gradientStroke } from "../components/gradient";
 
@@ -17,7 +18,7 @@ const LABEL: Record<Stage, string> = {
  * Writing has no completion signal of its own, so it is inferred: reaching a
  * build is what puts it behind you. Going back to the Write tab to look at
  * your code does not un-write it — deriving `done` from the selected tab alone
- * greyed the connector every time the learner glanced at their own source.
+ * unchecked it every time the learner glanced at their own source.
  */
 export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
   if (stage === "write") {
@@ -31,7 +32,7 @@ interface StepperProps {
   state: FlowState;
   onSelect: (stage: Stage) => void;
   /**
-   * The stage the current lesson step is aiming at, drawn as a ring.
+   * The stage the current lesson step is aiming at, marked with a brand dot.
    * `null` outside a lesson. Nothing else about the stepper changes:
    * the loop stays a loop, and this only says where the lesson is
    * pointing.
@@ -41,157 +42,267 @@ interface StepperProps {
   compact?: boolean;
 }
 
+/** The selected tab's box, in the track's own frame */
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const sameBox = (a: Box | null, b: Box) =>
+  !!a && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+
+/** How far the thumb sits inside the tab it marks */
+const INSET = 2;
+
 /**
- * The write -> build -> deploy -> interact loop, rendered as a horizontal
- * pill stepper. Each stage's status is carried by dot/glyph shape as well
- * as color, so the sequence reads correctly without color vision.
+ * The write -> build -> deploy -> interact loop, as one segmented control: a
+ * quiet track holding the four stages, and a single thumb that slides to the
+ * one on screen. It switches the view, so it is drawn as a switch — the four
+ * separate pills it replaces read as four unrelated buttons.
+ *
+ * Status rides on small marks beside the labels, never on the thumb: a green
+ * check once a stage is done, a red dot on a failed build, a pulsing dot
+ * while one runs. The lesson's target gets a brand dot after its label. Each
+ * is a different shape as well as a different colour, so the loop still
+ * reads without colour vision.
  */
-const Stepper: FC<StepperProps> = ({ state, onSelect, target, compact }) => (
-  <Wrapper role="tablist" aria-label="Development loop">
-    {STAGES.map((stage, i) => {
-      const status = statusOf(state, stage);
-      const selected = state.stage === stage;
-      const suffix =
-        stage === "build" && status === "failed"
-          ? ` ${state.buildErrorCount} error${
-              state.buildErrorCount === 1 ? "" : "s"
-            }`
-          : "";
-      return (
-        <Item key={stage}>
-          {i > 0 && (
-            <Connector $done={statusOf(state, STAGES[i - 1]) === "done"} />
-          )}
-          <StageButton
-            id={`flow-stage-tab-${stage}`}
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`flow-stage-panel-${stage}`}
-            aria-label={`${LABEL[stage]}: ${status}${suffix}${
-              stage === target ? ", current lesson target" : ""
-            }`}
-            $status={status}
-            $selected={selected}
-            $target={stage === target}
-            onClick={() => onSelect(stage)}
-          >
-            <Dot $status={status} aria-hidden />
-            <Full $compact={compact}>{LABEL[stage]}</Full>
-            <Initial $compact={compact}>{LABEL[stage][0]}</Initial>
-            {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
-          </StageButton>
-        </Item>
+const Stepper: FC<StepperProps> = ({ state, onSelect, target, compact }) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<Box | null>(null);
+
+  // Measured rather than assumed: Flow's rail decides how wide the segments
+  // are and how far apart, and the thumb follows whatever it decides. Layout
+  // effect, so the first paint already has the thumb in place instead of
+  // sliding in from the corner.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const measure = () => {
+      const tab = track.querySelector<HTMLElement>(
+        `#flow-stage-tab-${state.stage}`
       );
-    })}
-  </Wrapper>
-);
+      if (!tab) return;
+      const next = {
+        x: tab.offsetLeft,
+        y: tab.offsetTop,
+        w: tab.offsetWidth,
+        h: tab.offsetHeight,
+      };
+      setThumb((prev) => (sameBox(prev, next) ? prev : next));
+    };
+
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    track
+      .querySelectorAll('[role="tab"]')
+      .forEach((tab) => observer.observe(tab));
+    return () => observer.disconnect();
+  }, [state.stage]);
+
+  return (
+    <Track ref={trackRef} role="tablist" aria-label="Development loop">
+      {/* A div, not a span: Flow's rail hides the track's direct spans (they
+          were the old connectors). Out of flow, so the rail's flex rules for
+          the segments do nothing to it. */}
+      {thumb && (
+        <Thumb
+          aria-hidden
+          style={{
+            transform: `translate(${thumb.x + INSET}px, ${thumb.y + INSET}px)`,
+            width: Math.max(0, thumb.w - 2 * INSET),
+            height: Math.max(0, thumb.h - 2 * INSET),
+          }}
+        />
+      )}
+      {STAGES.map((stage) => {
+        const status = statusOf(state, stage);
+        const selected = state.stage === stage;
+        const suffix =
+          stage === "build" && status === "failed"
+            ? ` ${state.buildErrorCount} error${
+                state.buildErrorCount === 1 ? "" : "s"
+              }`
+            : "";
+        return (
+          <Segment key={stage}>
+            <Tab
+              id={`flow-stage-tab-${stage}`}
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`flow-stage-panel-${stage}`}
+              aria-label={`${LABEL[stage]}: ${status}${suffix}${
+                stage === target ? ", current lesson target" : ""
+              }`}
+              $selected={selected}
+              onClick={() => onSelect(stage)}
+            >
+              <Mark status={status} />
+              <Full $compact={compact}>{LABEL[stage]}</Full>
+              <Initial $compact={compact}>{LABEL[stage][0]}</Initial>
+              {suffix && <ErrorSuffix>{suffix}</ErrorSuffix>}
+              {stage === target && <TargetDot aria-hidden />}
+            </Tab>
+          </Segment>
+        );
+      })}
+    </Track>
+  );
+};
 
 export default Stepper;
 
-/* The stages take the top bar's switch position — the same pills, in the
-   same place, where Start · Tutorials · Programs sit on the home screen. One
-   control, different words, so the two views read as one product. The
-   connectors the title-bar version drew between items stay hidden: pills with
-   a gap already read as a sequence. */
-const Wrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-
-  & > div > span:first-child:not([id]) {
-    display: none;
-  }
+/* One quiet track, fully rounded, a step up from the rail it sits in. Flow's
+   rail stretches it across the workspace and gives the segments equal
+   shares, so the row still reads as the loop from end to end. */
+const Track = styled.div`
+  ${({ theme }) => css`
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 999px;
+    background: ${theme.colors.default.bgSecondary};
+  `}
 `;
 
-const Item = styled.div`
+/* The one raised thing in the track: a lighter surface with the brand
+   gradient as its stroke, like every other current thing in the product.
+   Placed by transform from the measured tab, so moving it is a slide. */
+const Thumb = styled.div`
+  ${({ theme }) => css`
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    border-radius: 999px;
+    ${gradientStroke(theme.colors.state.hover.bg)}
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1),
+      width 220ms cubic-bezier(0.2, 0, 0, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const Segment = styled.div`
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-content: center;
 `;
 
-const Connector = styled.span<{ $done: boolean }>`
-  ${({ theme, $done }) => css`
-    width: 24px;
-    height: 1px;
-    margin: 0 0.25rem;
-    background: ${$done
-      ? theme.colors.state.success.color
-      : theme.colors.default.border};
+const Tab = styled.button<{ $selected: boolean }>`
+  ${({ theme, $selected }) => css`
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-width: 0;
+    height: 1.625rem;
+    padding: 0 0.75rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: ${$selected
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
+    font: inherit;
+    font-family: ${theme.font.other.family};
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 140ms ease;
+
+    /* Hover only brightens: the thumb is the one thing that means "here" */
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 
 /**
- * `done` renders as a plain checkmark glyph (no fill), everything else as a
- * small circular dot -- the shape difference (check vs. hollow ring vs.
- * filled circle) is what carries the status when color is unavailable.
+ * The stage's status, before its label: a check once done, a dot while it is
+ * failing or running, nothing while it is still ahead of you.
  */
-const Dot: FC<{ $status: StageStatus; "aria-hidden"?: boolean }> = ({
-  $status,
-  ...rest
-}) =>
-  $status === "done" ? (
-    <CheckGlyph viewBox="0 0 14 14" width="14" height="14" {...rest}>
-      <path
-        d="M3 7.3l2.6 2.6L11 4.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </CheckGlyph>
-  ) : (
-    <DotCircle $status={$status} {...rest} />
-  );
+const Mark: FC<{ status: StageStatus }> = ({ status }) => {
+  if (status === "done") {
+    return (
+      <Check viewBox="0 0 12 12" width="12" height="12" aria-hidden>
+        <path
+          d="M2.6 6.3l2.2 2.2 4.6-4.9"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Check>
+    );
+  }
+  if (status === "failed" || status === "running") {
+    return <StatusDot $status={status} aria-hidden />;
+  }
+  return null;
+};
 
-const CheckGlyph = styled.svg`
+const Check = styled.svg`
   flex-shrink: 0;
   color: ${({ theme }) => theme.colors.state.success.color};
 `;
 
-const DotCircle = styled.span<{ $status: StageStatus }>`
+const pulse = keyframes`
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+`;
+
+const StatusDot = styled.span<{ $status: "failed" | "running" }>`
   ${({ theme, $status }) => css`
     flex-shrink: 0;
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    box-sizing: border-box;
-
-    ${$status === "active" || $status === "running"
-      ? css`
-          /* Gradient policy (GradientButton, docs/design/brand-research.md):
-             the 135deg brand gradient marks the active stage's dot. */
-          background: ${theme.colors.default.primary};
-        `
-      : $status === "failed"
-      ? css`
-          background: ${theme.colors.state.error.color};
-        `
-      : css`
-          background: transparent;
-          border: 1px solid ${theme.colors.default.textSecondary};
-        `}
+    background: ${$status === "failed"
+      ? theme.colors.state.error.color
+      : theme.colors.default.primary};
 
     ${$status === "running" &&
     css`
-      animation: stepper-pulse 1.2s ease-in-out infinite;
+      animation: ${pulse} 1.2s ease-in-out infinite;
 
-      @keyframes stepper-pulse {
-        0%,
-        100% {
-          opacity: 1;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.45;
-          transform: scale(1.15);
-        }
-      }
       @media (prefers-reduced-motion: reduce) {
         animation: none;
       }
     `}
   `}
+`;
+
+/* Where the lesson points, after the label so it never reads as status */
+const TargetDot = styled.span`
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.colors.default.primary};
 `;
 
 /**
@@ -217,64 +328,4 @@ const Initial = styled.span<{ $compact?: boolean }>`
 
 const ErrorSuffix = styled.span`
   color: ${({ theme }) => theme.colors.state.error.color};
-`;
-
-const StageButton = styled.button<{
-  $status: StageStatus;
-  $selected: boolean;
-  $target: boolean;
-}>`
-  ${({ theme, $status, $selected, $target }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    height: 1.875rem;
-    padding: 0 0.75rem;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    /* The selected stage carries the gradient stroke, like every other current
-       thing in the product. Status rides on the dot, not on the fill. */
-    background: transparent;
-    ${$selected && gradientStroke(theme.colors.state.hover.bg)}
-    /* Selection and status are separate axes: an upcoming stage you have
-       selected still reads as the one you are on, or it renders dimmer than
-       the stages you are not looking at. The dot still carries the status. */
-    color: ${$selected || $status !== "upcoming"
-      ? theme.colors.default.textPrimary
-      : theme.colors.default.textSecondary};
-    font: inherit;
-    font-family: ${theme.font.other.family};
-    font-size: 0.875rem;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 140ms ease, border-color 140ms ease;
-
-    /* Dashed, and no glow: the focus ring is a solid outline in the same
-       colour, so shape is what tells "the lesson points here" apart from
-       "your keyboard is here". */
-    ${$target &&
-    css`
-      border-style: dashed;
-      border-color: ${theme.colors.default.primary};
-      background: ${theme.colors.state.hover.bg};
-    `}
-
-    ${$status === "failed" &&
-    css`
-      border-color: ${theme.colors.state.error.color};
-    `}
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
 `;

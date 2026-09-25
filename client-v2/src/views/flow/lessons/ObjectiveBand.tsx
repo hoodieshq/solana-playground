@@ -8,6 +8,9 @@ import { canStepBack, canStepForward, currentStep } from "./progress";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { PgAssistant } from "../../sidebar/assistant/store";
+import { GRADIENT_FLAT } from "../components/gradient";
+import { BRAND, HEAD_INSET } from "../tokens";
+import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 
 interface ObjectiveBandProps {
   state: LessonState;
@@ -18,9 +21,11 @@ interface ObjectiveBandProps {
  * One ask, above the editor, always visible.
  *
  * The whole band is the granularity finding made concrete: a single
- * action per step reads faster than a chapter, and the verification
- * condition sits under it in plain words so the learner knows what they
- * are aiming at.
+ * action per step reads faster than a chapter. It is one slim row — where
+ * you are, the ask, and the one thing to press — ruled off from the editor
+ * by a hairline rather than boxed. The verification condition is one click
+ * (or a hover) away under the check mark, so the learner can always see
+ * what they are aiming at without it standing in the row.
  */
 const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   // The rung count lives outside React's data flow (a module-static map
@@ -37,6 +42,11 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
     return dispose;
   }, []);
 
+  // Whether the condition is open under the row. It stays as the learner
+  // left it from step to step: someone who wants to see what is checked
+  // wants to see it every time.
+  const [showCheck, setShowCheck] = useState(false);
+
   const described = describeStep(state);
   if (!described || !state.path) return null;
 
@@ -51,6 +61,13 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   const canGoBack = canStepBack(state.path, state.progress);
   const canGoForward = canStepForward(state.path, state.progress);
 
+  // Proved steps only: a skip moves the learner on but never fills the line,
+  // for the same reason the record keeps skips apart from completions.
+  const { steps } = state.path;
+  const verified = steps.filter((s) =>
+    state.progress.completedStepIds.includes(s.id)
+  ).length;
+
   const askForHelp = () => {
     const prompt = PgLessonHints.nextPrompt(step, state.attempted);
     if (prompt) PgAssistant.requestPrompt(prompt);
@@ -58,98 +75,240 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
 
   return (
     <Wrapper>
-      <Text>
-        <Eyebrow>{described.number}</Eyebrow>
-        <Objective>{described.objective}</Objective>
-        <VerifiedBy>{described.verifiedBy}</VerifiedBy>
-      </Text>
-      <Actions>
-        <Nav
-          type="button"
-          disabled={!canGoBack}
-          aria-label="Previous step"
-          title={
-            canGoBack
-              ? "Go back a step. Nothing already proved is undone."
-              : "You are on the first step"
-          }
-          onClick={() => PgLesson.stepBack()}
-        >
-          &#8592;
-        </Nav>
-        <Nav
-          type="button"
-          disabled={!canGoForward}
-          aria-label="Next step"
-          title={
-            canGoForward
-              ? "Return to where you were. Nothing is recorded either way."
-              : "This is as far as you have got — build to go on, or skip the step"
-          }
-          onClick={() => PgLesson.stepForward()}
-        >
-          &#8594;
-        </Nav>
-        {step.readPage && (
-          <Secondary type="button" onClick={onRead}>
-            Read the page
-          </Secondary>
-        )}
-        {isRead ? (
-          <Primary type="button" onClick={() => PgLesson.continueRead()}>
-            Continue
-          </Primary>
-        ) : (
-          <Primary type="button" onClick={askForHelp}>
-            {assistantLabel(rung, state.attempted)}
-          </Primary>
-        )}
-      </Actions>
+      <Row>
+        <Main>
+          <Count>{described.number}</Count>
+          <Meter aria-hidden>
+            <MeterFill
+              style={{ transform: `scaleX(${verified / steps.length})` }}
+            />
+          </Meter>
+          <Objective title={described.objective}>
+            {described.objective}
+          </Objective>
+          <CheckToggle
+            type="button"
+            aria-expanded={showCheck}
+            aria-controls="flow-lesson-check"
+            aria-label="How this step is checked"
+            title={showCheck ? undefined : described.verifiedBy}
+            $on={showCheck}
+            onClick={() => setShowCheck((s) => !s)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.25" />
+              <path d="M5.4 8.2l1.8 1.8 3.4-3.7" />
+            </svg>
+          </CheckToggle>
+        </Main>
+
+        <Actions>
+          <Nav
+            type="button"
+            disabled={!canGoBack}
+            aria-label="Previous step"
+            title={
+              canGoBack
+                ? "Go back a step. Nothing already proved is undone."
+                : "You are on the first step"
+            }
+            onClick={() => PgLesson.stepBack()}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M9.75 3.5L5.25 8l4.5 4.5" />
+            </svg>
+          </Nav>
+          <Nav
+            type="button"
+            disabled={!canGoForward}
+            aria-label="Next step"
+            title={
+              canGoForward
+                ? "Return to where you were. Nothing is recorded either way."
+                : "This is as far as you have got — build to go on, or skip the step"
+            }
+            onClick={() => PgLesson.stepForward()}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M6.25 3.5L10.75 8l-4.5 4.5" />
+            </svg>
+          </Nav>
+          {step.readPage && (
+            <Quiet type="button" onClick={onRead}>
+              Read the page
+            </Quiet>
+          )}
+          {isRead ? (
+            <Primary type="button" onClick={() => PgLesson.continueRead()}>
+              Continue
+            </Primary>
+          ) : (
+            <Primary type="button" onClick={askForHelp}>
+              {assistantLabel(rung, state.attempted)}
+            </Primary>
+          )}
+        </Actions>
+      </Row>
+
+      <Condition id="flow-lesson-check" hidden={!showCheck}>
+        {described.verifiedBy}
+      </Condition>
     </Wrapper>
   );
 };
 
 export default ObjectiveBand;
 
+/* Ruled off, not boxed: the same hairline the rails above it use, so the band
+   reads as one more row of the workspace rather than a card laid over it. */
 const Wrapper = styled.div`
   ${({ theme }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin: 0.5rem;
-    padding: 0.75rem 0.875rem;
-    border: 1px solid ${theme.colors.default.primary};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    flex-shrink: 0;
+    border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-// One wrapping unit: narrow enough and the whole group drops under the text
-// together, rather than the band shedding one button at a time
-const Actions = styled.div`
+// Wraps only when it has to, and then the actions drop under the ask as one
+// group rather than the row shedding one button at a time
+const Row = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
+  flex-wrap: wrap;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  min-height: 2.5rem;
+  padding: 0.3125rem ${HEAD_INSET};
 `;
 
-// Joins the actions on the right so the objective text stays flush left, but
-// stays a bare circle: it moves you between steps rather than acting on one
-const Nav = styled.button`
+const Main = styled.div`
+  flex: 1 1 18rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+`;
+
+const Count = styled.span`
   ${({ theme }) => css`
     flex-shrink: 0;
-    width: 1.75rem;
-    height: 1.75rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+/* How many steps are proved, as a slim line in the brand gradient. The track
+   is the hairline colour, so an untouched lesson shows a quiet dash. */
+const Meter = styled.span`
+  ${({ theme }) => css`
+    position: relative;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2px;
+    border-radius: 1px;
+    overflow: hidden;
+    background: ${theme.colors.default.border};
+  `}
+`;
+
+const MeterFill = styled.span`
+  position: absolute;
+  inset: 0;
+  background: ${GRADIENT_FLAT};
+  transform-origin: left center;
+  transition: transform 400ms cubic-bezier(0.2, 0, 0, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+const Objective = styled.span`
+  ${({ theme }) => css`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ${HEADLINE_FONT};
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+const CheckToggle = styled.button<{ $on: boolean }>`
+  ${({ theme, $on }) => css`
+    flex-shrink: 0;
+    width: 1.375rem;
+    height: 1.375rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 9999px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: ${$on
+      ? theme.colors.state.success.color
+      : theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 0.875rem;
+      height: 0.875rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    &:hover {
+      color: ${$on
+        ? theme.colors.state.success.color
+        : theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+  `}
+`;
+
+const Actions = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+`;
+
+// Bare chevrons: they move you between steps rather than acting on one
+const Nav = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
-    font: inherit;
     cursor: pointer;
+
+    & > svg {
+      width: 0.875rem;
+      height: 0.875rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
 
     &:disabled {
       opacity: 0.35;
@@ -157,70 +316,83 @@ const Nav = styled.button`
     }
 
     &:not(:disabled):hover {
-      border-color: ${theme.colors.default.primary};
+      background: ${theme.colors.state.hover.bg};
       color: ${theme.colors.default.textPrimary};
     }
 
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
+      outline-offset: 1px;
     }
   `}
 `;
 
-const Text = styled.div`
-  flex: 1;
-  min-width: 14rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-`;
-
-const Eyebrow = styled.span`
+const Quiet = styled.button`
   ${({ theme }) => css`
-    font-size: ${theme.font.other.size.small};
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
-const Objective = styled.span`
-  color: ${({ theme }) => theme.colors.default.textPrimary};
-  font-weight: 500;
-`;
-
-const VerifiedBy = styled.span`
-  ${({ theme }) => css`
-    font-size: ${theme.font.other.size.small};
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
-
-const Secondary = styled.button`
-  ${({ theme }) => css`
-    padding: 0.375rem 0.75rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 9999px;
+    height: 1.625rem;
+    margin-left: 0.25rem;
+    padding: 0 0.625rem;
+    border: none;
+    border-radius: 999px;
     background: transparent;
-    color: ${theme.colors.default.textPrimary};
+    color: ${theme.colors.default.textSecondary};
     font: inherit;
+    font-size: 0.8125rem;
+    white-space: nowrap;
     cursor: pointer;
 
     &:hover {
-      border-color: ${theme.colors.default.primary};
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+  `}
+`;
+
+/* The one clear action in the row: the landing's green-into-purple, small */
+const Primary = styled.button`
+  ${({ theme }) => css`
+    height: 1.625rem;
+    margin-left: 0.25rem;
+    padding: 0 0.75rem;
+    border: none;
+    border-radius: 999px;
+    background: ${BRAND.fill};
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 140ms ease;
+
+    &:hover {
+      filter: brightness(1.08);
     }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   `}
 `;
 
-const Primary = styled(Secondary)`
+const Condition = styled.p`
   ${({ theme }) => css`
-    border-color: transparent;
-    background: ${theme.colors.default.primary};
-    color: ${theme.colors.default.textPrimary};
+    margin: -0.125rem 0 0;
+    padding: 0 ${HEAD_INSET} 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: ${theme.colors.default.textSecondary};
+
+    &[hidden] {
+      display: none;
+    }
   `}
 `;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
+import EmptyStage, { BrandPill, PlayIcon } from "./EmptyStage";
 import IdlActions from "./IdlActions";
 import { parseBuildReport } from "./build-report";
 import type { BuildDiagnostic, BuildReport } from "./build-report";
@@ -73,6 +74,9 @@ const Build = () => {
   }, []);
 
   const ms = msSuffix(flow.buildMs);
+  // The pill's own spinner stands in for the ring while a build runs, so the
+  // two circles never sit side by side
+  const runIcon = flow.build === "running" ? undefined : <PlayIcon />;
 
   // `out` only fills in once a build reaches the compiler and returns; a
   // build that fails before that (e.g. the build server is unreachable)
@@ -84,9 +88,9 @@ const Build = () => {
     out.at < flow.buildStartedAt;
   if (flow.build === "failed" && (!out || outIsStale)) {
     return (
-      <Surface>
-        <StatusRow>
-          <StatusGlyph viewBox="0 0 14 14" width="18" height="18" aria-hidden>
+      <EmptyStage
+        mark={
+          <FailedMark viewBox="0 0 14 14" width="22" height="22" aria-hidden>
             <circle cx="7" cy="7" r="6" className="fill" />
             <path
               d="M4.6 4.6l4.8 4.8M9.4 4.6l-4.8 4.8"
@@ -95,45 +99,46 @@ const Build = () => {
               strokeWidth="1.6"
               strokeLinecap="round"
             />
-          </StatusGlyph>
-          <Headline $error>
-            Build failed
-            <Ms>{ms}</Ms>
-          </Headline>
-        </StatusRow>
-        <Muted>
-          Build failed before the compiler ran - see the console. This usually
-          means the build server could not be reached; check the build server
-          URL in settings.
-        </Muted>
-        <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
+          </FailedMark>
+        }
+        title="Build failed"
+        meta={msLabel(flow.buildMs)}
+        line={
+          "It stopped before the compiler ran — see the terminal. This " +
+          "usually means the build server could not be reached; check the " +
+          "build server URL in settings."
+        }
+        actions={
+          <BrandPill
+            kind="primary"
+            rightIcon={runIcon}
+            onClick={() => PgCommand.build.execute()}
+          >
             Retry build
-          </Button>
-        </Actions>
-      </Surface>
+          </BrandPill>
+        }
+      />
     );
   }
 
   if (!out) {
     return (
-      <Surface>
-        <EmptyMark viewBox="0 0 40 40" width="40" height="40" aria-hidden>
-          <rect x="6" y="20" width="6" height="14" />
-          <rect x="17" y="12" width="6" height="22" />
-          <rect x="28" y="6" width="6" height="28" />
-        </EmptyMark>
-        <Headline>Nothing built yet</Headline>
-        <Muted>
-          Build compiles your program on the server. Nothing leaves your browser
-          except the source.
-        </Muted>
-        <Actions>
-          <Button kind="primary" onClick={() => PgCommand.build.execute()}>
+      <EmptyStage
+        title={flow.build === "running" ? "Building..." : "Nothing built yet"}
+        line={
+          "Build compiles your program on the server. Nothing leaves your " +
+          "browser except the source."
+        }
+        actions={
+          <BrandPill
+            kind="primary"
+            rightIcon={runIcon}
+            onClick={() => PgCommand.build.execute()}
+          >
             Build
-          </Button>
-        </Actions>
-      </Surface>
+          </BrandPill>
+        }
+      />
     );
   }
 
@@ -356,14 +361,6 @@ const Surface = styled.div`
   `}
 `;
 
-const EmptyMark = styled.svg`
-  ${({ theme }) => css`
-    margin-bottom: 0.25rem;
-    fill: ${theme.colors.default.textSecondary};
-    opacity: 0.55;
-  `}
-`;
-
 const StatusRow = styled.div`
   display: flex;
   align-items: center;
@@ -383,8 +380,13 @@ const StatusGlyph = styled.svg<{ $ok?: boolean }>`
   `}
 `;
 
-const Headline = styled.h2<{ $ok?: boolean; $error?: boolean }>`
-  ${({ theme, $ok, $error }) => css`
+/* The failed state's one mark, above its title */
+const FailedMark = styled(StatusGlyph)`
+  margin-bottom: 1rem;
+`;
+
+const Headline = styled.h2<{ $ok?: boolean }>`
+  ${({ theme, $ok }) => css`
     margin: 0;
     display: flex;
     align-items: baseline;
@@ -394,8 +396,6 @@ const Headline = styled.h2<{ $ok?: boolean; $error?: boolean }>`
     letter-spacing: -0.01em;
     color: ${$ok
       ? theme.colors.state.success.color
-      : $error
-      ? theme.colors.state.error.color
       : theme.colors.default.textPrimary};
   `}
 `;
@@ -427,12 +427,11 @@ const Actions = styled.div`
   margin-top: 0.25rem;
 `;
 
+/* A card's name, said quietly: sentence case, no tracking */
 const Eyebrow = styled.div`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.xsmall};
     font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: ${theme.colors.default.textSecondary};
   `}
 `;

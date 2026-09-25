@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import EmptyStage, { BrandPill, PlayIcon } from "./EmptyStage";
 import IdlActions from "./IdlActions";
 import Button from "../../../components/Button";
 import Link from "../../../components/Link";
-import GradientButton from "../../sidebar/assistant/Component/GradientButton";
 import {
   useBlockExplorer,
   useProgramInfo,
@@ -59,14 +59,73 @@ const Deploy = () => {
     .filter(Boolean)
     .join(" \u00b7 ");
 
+  const failed = flow.deploy === "failed" && (
+    <ErrorNotice role="alert">Deploy failed — see the terminal.</ErrorNotice>
+  );
+
+  // One pill for both states, so the first deploy and every redeploy after it
+  // are the same button in the same colours
+  const deployPill = (
+    <BrandPill
+      kind="primary"
+      disabled={!built || deploying}
+      $off={!built}
+      title={
+        !built
+          ? "Build successfully first"
+          : deploying
+          ? "A deploy is already running"
+          : undefined
+      }
+      rightIcon={deploying ? undefined : <PlayIcon />}
+      onClick={() => {
+        // Interact's deployment switcher may have pointed the project
+        // at an imported id; redeploying always targets the project's
+        // own key, never whatever Interact last selected.
+        PgProgramInfo.update({ customPk: null });
+        PgCommand.deploy.execute();
+      }}
+    >
+      {deploying
+        ? latest
+          ? "Upgrading..."
+          : "Deploying..."
+        : latest
+        ? "Redeploy to devnet"
+        : "Deploy to devnet"}
+    </BrandPill>
+  );
+
+  if (!latest) {
+    return (
+      <EmptyStage
+        title="Nothing deployed yet"
+        meta={cluster || undefined}
+        line={
+          !built
+            ? "Build the program first — the stepper unlocks Deploy once it " +
+              "compiles cleanly."
+            : "Deploying sends the compiled program to devnet using the " +
+              "connected wallet."
+        }
+        notice={failed}
+        actions={deployPill}
+      >
+        <IdlActions showUpload />
+        {built && programInfo.pk && (
+          <Muted>
+            Program id <Mono>{programInfo.pk.toBase58()}</Mono>
+          </Muted>
+        )}
+      </EmptyStage>
+    );
+  }
+
   const description = !built
-    ? "Build the program first -- the stepper unlocks Deploy once it " +
+    ? "Build the program first — the stepper unlocks Deploy once it " +
       "compiles cleanly."
-    : latest
-    ? "The program id stays constant across deploys; redeploying upgrades " +
-      "it in place."
-    : "Nothing deployed yet. Deploying sends the compiled program to " +
-      "devnet using the connected wallet.";
+    : "The program id stays constant across deploys; redeploying upgrades " +
+      "it in place.";
 
   return (
     <Surface>
@@ -88,133 +147,96 @@ const Deploy = () => {
         </HeaderText>
       </HeaderRow>
       <Muted>{description}</Muted>
-      {flow.deploy === "failed" && (
-        <ErrorNotice role="alert">Deploy failed - see the console.</ErrorNotice>
-      )}
+      {failed}
 
       <Actions>
-        <GradientButton
-          disabled={!built || deploying}
-          title={
-            !built
-              ? "Build successfully first"
-              : deploying
-              ? "A deploy is already running"
-              : undefined
-          }
-          onClick={() => {
-            // Interact's deployment switcher may have pointed the project
-            // at an imported id; redeploying always targets the project's
-            // own key, never whatever Interact last selected.
-            PgProgramInfo.update({ customPk: null });
-            PgCommand.deploy.execute();
-          }}
-        >
-          {deploying
-            ? latest
-              ? "Upgrading..."
-              : "Deploying..."
-            : latest
-            ? "Redeploy to devnet"
-            : "Deploy to devnet"}
-        </GradientButton>
+        {deployPill}
         <IdlActions showUpload />
       </Actions>
-      {built && !latest && programInfo.pk && (
-        <Muted>Program id: {programInfo.pk.toBase58()}</Muted>
-      )}
 
-      {latest && (
-        <Card>
-          <Eyebrow>Latest deployment</Eyebrow>
+      <Card>
+        <Eyebrow>Latest deployment</Eyebrow>
+        <Row>
+          <Key>Program id</Key>
+          <Mono title={latest.programId}>{latest.programId}</Mono>
+          <Button.Copy copyText={latest.programId} />
+          <Link
+            href={explorer.getAddressUrl(latest.programId)}
+            aria-label={`View latest deployment (${latest.programId}) on Explorer`}
+          >
+            Explorer
+          </Link>
+        </Row>
+        <Row>
+          <Key>Cluster</Key>
+          <Chip>{latest.cluster}</Chip>
+        </Row>
+        {latest.signature && (
           <Row>
-            <Key>Program id</Key>
-            <Mono title={latest.programId}>{latest.programId}</Mono>
-            <Button.Copy copyText={latest.programId} />
+            <Key>Transaction</Key>
+            <Mono>{latest.signature.slice(0, 20)}&hellip;</Mono>
             <Link
-              href={explorer.getAddressUrl(latest.programId)}
-              aria-label={`View latest deployment (${latest.programId}) on Explorer`}
+              href={explorer.getTxUrl(latest.signature)}
+              aria-label={
+                `View latest deployment transaction ` +
+                `(${latest.signature}) on Explorer`
+              }
             >
               Explorer
             </Link>
           </Row>
+        )}
+        {onChain?.deployed && (
           <Row>
-            <Key>Cluster</Key>
-            <Chip>{latest.cluster}</Chip>
+            <Key>Upgradable</Key>
+            <Mono>{onChain.upgradable ? "Yes" : "No"}</Mono>
           </Row>
-          {latest.signature && (
+        )}
+        {onChain?.deployed && onChain.upgradable && onChain.authority && (
+          <Row>
+            <Key>Authority</Key>
+            <Mono title={onChain.authority.toBase58()}>
+              {onChain.authority.toBase58()}
+            </Mono>
+          </Row>
+        )}
+        {onChain?.deployed &&
+          onChain.upgradable &&
+          onChain.programDataLen !== undefined && (
             <Row>
-              <Key>Transaction</Key>
-              <Mono>{latest.signature.slice(0, 20)}&hellip;</Mono>
+              <Key>Program size</Key>
+              <Mono>{onChain.programDataLen.toLocaleString()} bytes</Mono>
+            </Row>
+          )}
+        <Row>
+          <Key>When</Key>
+          <Time>{new Date(latest.at).toLocaleString()}</Time>
+        </Row>
+        <Actions>
+          <Button onClick={() => PgFlow.setStage("interact")}>Interact</Button>
+        </Actions>
+      </Card>
+
+      {/* Never empty here: with no deployments the stage is the empty state */}
+      <Card as="section">
+        <Eyebrow>History</Eyebrow>
+        <List>
+          {history.map((r) => (
+            <HistoryRow key={r.id}>
+              <Chip>{r.cluster}</Chip>
+              <Mono title={r.programId}>
+                {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
+              </Mono>
+              <Time>{new Date(r.at).toLocaleString()}</Time>
               <Link
-                href={explorer.getTxUrl(latest.signature)}
-                aria-label={
-                  `View latest deployment transaction ` +
-                  `(${latest.signature}) on Explorer`
-                }
+                href={explorer.getAddressUrl(r.programId)}
+                aria-label={`View deployment (${r.programId}) on Explorer`}
               >
                 Explorer
               </Link>
-            </Row>
-          )}
-          {onChain?.deployed && (
-            <Row>
-              <Key>Upgradable</Key>
-              <Mono>{onChain.upgradable ? "Yes" : "No"}</Mono>
-            </Row>
-          )}
-          {onChain?.deployed && onChain.upgradable && onChain.authority && (
-            <Row>
-              <Key>Authority</Key>
-              <Mono title={onChain.authority.toBase58()}>
-                {onChain.authority.toBase58()}
-              </Mono>
-            </Row>
-          )}
-          {onChain?.deployed &&
-            onChain.upgradable &&
-            onChain.programDataLen !== undefined && (
-              <Row>
-                <Key>Program size</Key>
-                <Mono>{onChain.programDataLen.toLocaleString()} bytes</Mono>
-              </Row>
-            )}
-          <Row>
-            <Key>When</Key>
-            <Time>{new Date(latest.at).toLocaleString()}</Time>
-          </Row>
-          <Actions>
-            <Button onClick={() => PgFlow.setStage("interact")}>
-              Interact
-            </Button>
-          </Actions>
-        </Card>
-      )}
-
-      <Card as="section">
-        <Eyebrow>History</Eyebrow>
-        {history.length === 0 && (
-          <Muted>No deployments yet for this project.</Muted>
-        )}
-        {history.length > 0 && (
-          <List>
-            {history.map((r) => (
-              <HistoryRow key={r.id}>
-                <Chip>{r.cluster}</Chip>
-                <Mono title={r.programId}>
-                  {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
-                </Mono>
-                <Time>{new Date(r.at).toLocaleString()}</Time>
-                <Link
-                  href={explorer.getAddressUrl(r.programId)}
-                  aria-label={`View deployment (${r.programId}) on Explorer`}
-                >
-                  Explorer
-                </Link>
-              </HistoryRow>
-            ))}
-          </List>
-        )}
+            </HistoryRow>
+          ))}
+        </List>
       </Card>
     </Surface>
   );
@@ -260,12 +282,11 @@ const Meta = styled.span`
   `}
 `;
 
+/* A card's name, said quietly: sentence case, no tracking */
 const Eyebrow = styled.div`
   ${({ theme }) => css`
     font-size: ${theme.font.other.size.xsmall};
     font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: ${theme.colors.default.textSecondary};
   `}
 `;
