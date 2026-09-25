@@ -4,7 +4,9 @@ import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 import PlaygroundLogoNext from "../../components/PlaygroundLogoNext";
 import PlayRing from "../../components/PlayRing";
 import { StillMesh } from "../deck/Atmosphere";
-import appShot from "../deck/art/brand-app.png";
+/* The product as it is now, shot from the build itself and framed on the
+   brand render's geometry, so the crop below still lands on its window */
+import productShot from "./art/product-closeup.jpg";
 import BuildHero from "../deck/BuildHero";
 import type { BuildStep } from "../deck/BuildHero";
 import Pattern from "../deck/Pattern";
@@ -201,8 +203,8 @@ export default Landing;
  *
  * On the classic, the button is the brand slides' gradient slab, part of it
  * showing — cut by the edge, so the page plainly goes on. On the trail
- * version it is the same words on the northern lights, held whole just above
- * the edge, their light fading out before it.
+ * version it is the same words on a cone of light, held whole just above the
+ * edge, the light standing on it.
  */
 const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
   onEnter,
@@ -211,11 +213,15 @@ const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
 }) => (
   <ProductFrame>
     <Stage $up={up}>
-      <Shot
-        src={appShot}
-        alt="Playground's sidebar and assistant"
-        draggable={false}
-      />
+      <Window>
+        <View>
+          <Shot
+            src={productShot}
+            alt="Playground up close, with the Counter sample open: the sidebar, the assistant and the code"
+            draggable={false}
+          />
+        </View>
+      </Window>
       <Shade />
       <Place />
       {trail ? (
@@ -367,24 +373,60 @@ const Stage = styled.div<{ $up: boolean }>`
   `}
 `;
 
-/* The render from the brand slides, cropped to its window: the render carries
-   its own copy of the pattern round the window's corner, and laid over the
-   page's pattern that made two grids at two sizes */
-const Shot = styled.img`
+/* The window's edge: one line of the ramp, radiating from the middle of its
+   top edge — where the headline stands over it — and gone before the far
+   sides, where the page's shade takes over */
+const OUTLINE = `radial-gradient(
+  ellipse 64% 130% at 46% 0%,
+  rgba(20, 241, 149, 0.95) 0%,
+  rgba(45, 206, 169, 0.8) 18%,
+  rgba(98, 104, 240, 0.62) 40%,
+  rgba(153, 69, 255, 0.45) 62%,
+  rgba(153, 69, 255, 0) 88%
+)`;
+
+/* The product up close: the top left of Playground at half as large again as
+   the brand slides show it — the sidebar, the assistant and the start of the
+   code, near enough to read. In a window where the slides' render has its
+   corner, rounded as that is; the window is its edge's colour, and one pixel
+   of it shows round the view */
+const Window = styled.div`
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  user-select: none;
-  clip-path: inset(
-    ${(138 / 2160) * 100}% 0 0 ${(150 / 3840) * 100}% round ${u(18)} 0 0 0
-  );
+  top: ${(138 / 2160) * 100}%;
+  left: ${(150 / 3840) * 100}%;
+  right: 0;
+  bottom: 0;
+  padding: 1px;
+  border-radius: ${u(18)} 0 0 0;
+  background: ${OUTLINE};
 
   @media (max-width: 56rem) {
     position: relative;
-    height: auto;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    border-radius: 1rem;
   }
+`;
+
+const View = styled.div`
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(${u(18)} - 1px) 0 0 0;
+  background: #101011;
+
+  @media (max-width: 56rem) {
+    border-radius: calc(1rem - 1px);
+  }
+`;
+
+const Shot = styled.img`
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
 `;
 
 /* The render eases into the page on the right and at the bottom */
@@ -540,8 +582,8 @@ const Icon = styled(PlayRing)`
 /* ── the trail version's button ───────────────────────────────────────── */
 
 /* How far above the fold the trail version's button rests while it is held
-   there: exactly as far as its light runs on below it, so the light's own
-   fade — never the edge of the screen — is where it ends */
+   there: exactly as far as its light runs on below it, so the light stands
+   on the edge of the screen */
 const FLOAT = 298 * LIGHT_BELOW;
 
 const lightPeek = keyframes`
@@ -553,10 +595,10 @@ const lightPeek = keyframes`
    transparent, but it is still the whole row you press, focus and hover, on
    the Figma's 1779 × 298 and 603 into the render.
 
-   It holds at the bottom of the screen until scrolling brings it to its
-   place, whole: nothing about light needs cutting to say the page goes on.
-   The light comes on first and the words rise into it; both entrances fill
-   backwards only, so the hover lift still works after. */
+   It holds at the bottom of the screen, whole, its light rising out of the
+   edge, until scrolling brings it to its place. The light comes up first and
+   the words rise into it; both entrances fill backwards only, so the hover
+   lift still works after. */
 const LightCta = styled.button<{ $up: boolean }>`
   ${({ $up }) => css`
     position: sticky;
