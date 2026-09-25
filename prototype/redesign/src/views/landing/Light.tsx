@@ -1,29 +1,33 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, RefObject, useEffect, useRef } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import { drawAurora } from "./aurora";
 import { drawRibbons } from "./ribbons";
+import type { Frame, Shake } from "./ribbons";
 import { drawStreaks } from "./streaks";
 import { smoothstep } from "./trail";
 
 /**
- * The trail version's button, as light rather than as a slab: a cone of
- * ribbons in Solana's colours, rising out of the bottom of the screen, over a
- * glow of northern lights.
+ * The trail version's button, as light rather than as a slab: ribbons in
+ * Solana's colours, rising out of the bottom of the screen and bending in
+ * towards the product, over a glow of northern lights.
  *
  * Underneath, the northern lights (`aurora.ts`) — curtains drawn small and
  * blurred by CSS so they arrive as glow. Over them, the ribbons
- * (`ribbons.ts`), drawn at the screen's resolution and blurred progressively
- * on their way up: sharp across the words, softer as they rise and fade — as
- * the claims further down are sharp where they are read and soft further off.
- * That is one drawing shown three times, sharp, soft and softer, each through
- * a band of the height, the bands crossfading.
+ * (`ribbons.ts`), measured against the product's window so they bend in
+ * towards its top, drawn at the screen's resolution and blurred progressively on
+ * their way up — sharp across the words, softer as they rise, as the claims
+ * further down are sharp where they are read and soft further off. That is
+ * one drawing shown three times, sharp, soft and softer, each through a band
+ * of the height, the bands crossfading.
  *
  * Under the pointer, or focused, the light's clock runs faster — eased, so it
- * surges rather than jumps: the cone turns faster and reaches higher, and
- * streaks (`streaks.ts`) rush down it — the claims' lines of light.
- * It only runs while it can be seen; asked for less motion, it draws one
- * frame and leaves it.
+ * surges rather than jumps: the ribbons slide faster, everything shakes,
+ * and streaks (`streaks.ts`) shoot up from the bottom of the screen to the
+ * top — the claims' lines of light. The window's own edge joins in: two
+ * lights run up its sides and over its top on the same clock, brighter the
+ * faster it runs. It only runs while it can be seen; asked for less motion,
+ * it draws one frame and leaves it.
  *
  * While the page holds the button against the bottom of the screen, the light
  * stands on the edge: its canvases end at the fold and the ribbons run solid
@@ -35,25 +39,24 @@ import { smoothstep } from "./trail";
     the light's bottom is the fold. */
 export const LIGHT_BELOW = 0.148;
 
-/* Above it and past its ends: the glow keeps to a band around the words, the
-   ribbons have room to rise into */
+/* Above it and past its ends: the glow keeps to a band around the words; the
+   ribbons and the streaks have the screen above to rise into */
 const FLOW_ABOVE = 0.18;
-const LINES_ABOVE = 0.9;
+const LINES_ABOVE = 2.4;
 const LIGHT_SIDE = 0.06;
 
 const TOTAL = LINES_ABOVE + 1 + LIGHT_BELOW;
-/* Where the button's top and bottom fall in the ribbons' canvas: the ribbons
-   stand on its foot and are solid across it */
+/* Where the button's top and bottom fall in the canvas */
 const BUTTON_TOP = LINES_ABOVE / TOTAL;
 const BUTTON_FOOT = (LINES_ABOVE + 1) / TOTAL;
-/* Where the glow's band starts, from the top of the ribbons' canvas */
+/* Where the glow's band starts, from the top of the canvas */
 const FLOW_TOP = ((LINES_ABOVE - FLOW_ABOVE) / TOTAL) * 100;
 
 /* The progressive blur, in percent of the canvas's height from its top: all
    sharp below the first, all soft at the second, all softer above the third */
-const SHARP_BELOW = (BUTTON_TOP - 0.03) * 100;
-const SOFT_AT = BUTTON_TOP * 0.55 * 100;
-const SOFTER_ABOVE = BUTTON_TOP * 0.2 * 100;
+const SHARP_BELOW = (BUTTON_TOP - 0.02) * 100;
+const SOFT_AT = (BUTTON_TOP - 0.2) * 100;
+const SOFTER_ABOVE = (BUTTON_TOP - 0.4) * 100;
 
 /* The glow is drawn small and blurred; the ribbons at the screen's
    resolution, up to a point; their soft copies at half that, since the blur
@@ -69,6 +72,13 @@ const STILL_AT = 4.2;
 const HOT = 2.6;
 const EASING = 3;
 
+/* How hard it shakes at full speed, in the screen's pixels */
+const SHAKE = 2.4;
+
+/* Trips of the window's edge lights, from its sides to the middle of its
+   top, per second of the light's clock */
+const EDGE_RATE = 0.11;
+
 /* Held against the fold while the light's bottom is within the first of
    these, in px, of it; let go of entirely by the second */
 const HELD_WITHIN = 2;
@@ -77,9 +87,12 @@ const LET_GO_BY = 64;
 interface LightProps {
   /** Whether it has come on. It rises the first time this is true. */
   on: boolean;
+  /** The product's window, for the ribbons to bend towards and its edge to
+      light up */
+  frame?: RefObject<HTMLElement>;
 }
 
-const Light: FC<LightProps> = ({ on }) => {
+const Light: FC<LightProps> = ({ on, frame }) => {
   const flowRef = useRef<HTMLCanvasElement>(null);
   const sharpRef = useRef<HTMLCanvasElement>(null);
   const softRef = useRef<HTMLCanvasElement>(null);
@@ -114,7 +127,7 @@ const Light: FC<LightProps> = ({ on }) => {
 
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const sizes = { fw: 1, fh: 1, lw: 1, lh: 1, sw: 1, sh: 1, px: 1 };
-    let frame = 0;
+    let frame_ = 0;
     let drawn = 0;
     /* Its own clock, running at `speed`, so the hover speeds the light up
        without jumping it to another moment */
@@ -123,9 +136,11 @@ const Light: FC<LightProps> = ({ on }) => {
     let target = 1;
     let last = 0;
     let hold = 1;
+    /* The product's window in the canvas, until it has been measured */
+    const shape: Frame = { left: 0.09, right: 0.95, top: BUTTON_TOP - 0.3 };
 
-    /* Layout sizes, not on-screen ones — the hover and the entrance scale
-       the canvases, and the drawing should not change with them */
+    /* Layout sizes, not on-screen ones — the entrance scales the canvases,
+       and the drawing should not change with it */
     const size = () => {
       const fScale = Math.min(1, FLOW_BACKING / Math.max(1, flow.offsetWidth));
       sizes.fw = Math.max(1, Math.round(flow.offsetWidth * fScale));
@@ -148,15 +163,62 @@ const Light: FC<LightProps> = ({ on }) => {
       softer.width = sizes.sw;
       softer.height = sizes.sh;
     };
-    /* How far the button is held against the bottom of the screen: while it
-       is, the light's box ends at the fold. Every transform on it grows from
-       its bottom edge, so they leave this alone. */
+
+    /* Where the canvas is laid out, worked out from the button — whose box
+       no transform of the light's touches — and from it, how far the button
+       is held against the bottom of the screen and where the product's
+       window falls in the canvas */
+    const button = sharp.closest("button");
     const measure = () => {
-      const gap = window.innerHeight - sharp.getBoundingClientRect().bottom;
-      hold = 1 - smoothstep(HELD_WITHIN, LET_GO_BY, gap);
+      if (!button) return;
+      const b = button.getBoundingClientRect();
+      const top = b.top - LINES_ABOVE * b.height;
+      const height = TOTAL * b.height;
+      const left = b.left - LIGHT_SIDE * b.width;
+      const width = (1 + 2 * LIGHT_SIDE) * b.width;
+      hold =
+        1 -
+        smoothstep(HELD_WITHIN, LET_GO_BY, window.innerHeight - (top + height));
+      const win = frame?.current?.getBoundingClientRect();
+      if (win && width > 0 && height > 0) {
+        shape.left = (win.left - left) / width;
+        shape.right = (win.right - left) / width;
+        shape.top = (win.top - top) / height;
+      }
     };
+
+    /* The window's edge lights: up its sides from low down, then over its
+       top to the middle, where they meet — on the light's clock */
+    const edge = frame?.current;
+    const light = (seconds: number, pace: number) => {
+      if (!edge) return;
+      const q = (seconds * EDGE_RATE) % 1;
+      const up = Math.min(1, q / 0.5);
+      const over = Math.max(0, (q - 0.5) / 0.5);
+      const y = 70 * (1 - up);
+      const x = 50 * over;
+      const fade = smoothstep(0, 0.08, q) * (1 - smoothstep(0.88, 1, q));
+      edge.style.setProperty("--ax", `${x.toFixed(2)}%`);
+      edge.style.setProperty("--bx", `${(100 - x).toFixed(2)}%`);
+      edge.style.setProperty("--ay", `${y.toFixed(2)}%`);
+      edge.style.setProperty("--lit", (fade * (0.55 + 0.45 * pace)).toFixed(3));
+      edge.style.setProperty("--edge", (0.6 + 0.4 * pace).toFixed(3));
+    };
+
     const paint = (seconds: number) => {
       const pace = Math.max(0, Math.min(1, (speed - 1) / (HOT - 1)));
+      /* A shake on the light's clock, harder the faster it runs */
+      const hard = SHAKE * pace * sizes.px;
+      const shake: Shake = {
+        x:
+          hard *
+          (0.6 * Math.sin(seconds * 47.3) +
+            0.4 * Math.sin(seconds * 83.9 + 1.7)),
+        y:
+          hard *
+          (0.6 * Math.sin(seconds * 53.1 + 0.4) +
+            0.4 * Math.sin(seconds * 71.3 + 2.1)),
+      };
       drawAurora(flowCtx, sizes.fw, sizes.fh, seconds);
       drawRibbons(
         sharpCtx,
@@ -165,8 +227,10 @@ const Light: FC<LightProps> = ({ on }) => {
         seconds,
         BUTTON_FOOT,
         BUTTON_TOP,
+        shape,
         pace,
-        hold
+        hold,
+        { x: shake.x * 0.5, y: shake.y * 0.5 }
       );
       /* The same frame, smaller, for CSS to blur */
       softCtx.clearRect(0, 0, sizes.sw, sizes.sh);
@@ -178,15 +242,17 @@ const Light: FC<LightProps> = ({ on }) => {
         sizes.lw,
         sizes.lh,
         seconds,
-        BUTTON_TOP,
+        shape,
         pace,
-        sizes.px
+        sizes.px,
+        shake
       );
+      light(seconds, pace);
     };
 
     /* About sixty frames a second, on a display that offers more too */
     const tick = (now: number) => {
-      frame = requestAnimationFrame(tick);
+      frame_ = requestAnimationFrame(tick);
       if (now - drawn < 15) return;
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
       last = now;
@@ -197,16 +263,15 @@ const Light: FC<LightProps> = ({ on }) => {
       paint(clock);
     };
     const start = () => {
-      if (!frame && !still) frame = requestAnimationFrame(tick);
+      if (!frame_ && !still) frame_ = requestAnimationFrame(tick);
     };
     const stop = () => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
+      if (frame_) cancelAnimationFrame(frame_);
+      frame_ = 0;
       last = 0;
     };
 
     /* Under the pointer, or focused, it all runs faster */
-    const button = sharp.closest("button");
     const hot = () => {
       target = HOT;
     };
@@ -265,7 +330,7 @@ const Light: FC<LightProps> = ({ on }) => {
       button?.removeEventListener("focus", hot);
       button?.removeEventListener("blur", cool);
     };
-  }, []);
+  }, [frame]);
 
   return (
     <Wrap $on={on} aria-hidden="true">
@@ -299,29 +364,19 @@ const Wrap = styled.span<{ $on: boolean }>`
     display: block;
     pointer-events: none;
     opacity: 0.94;
-    /* Every change of size grows from the bottom edge, which stays put: held
-       against the fold, the light never lifts off it */
+    /* The entrance grows from the bottom edge, which stays put: held against
+       the fold, the light never lifts off it */
     transform-origin: 50% 100%;
-    transition: opacity 480ms ease, transform 620ms ${EASE};
+    transition: opacity 480ms ease;
     ${$on &&
     css`
       animation: ${ignite} 1500ms cubic-bezier(0.16, 1, 0.3, 1) 850ms backwards;
     `}
 
-    /* Under the pointer the light rises a little and brightens, the way the
-       slab used to lift */
-    button:hover > & {
-      opacity: 1;
-      transform: scale(1.01, 1.03);
-    }
-
+    /* Under the pointer it brightens; the rest of the change is drawn */
+    button:hover > &,
     button:focus-visible > & {
       opacity: 1;
-    }
-
-    button:active > & {
-      transform: scale(1.004, 1.01);
-      transition-duration: 160ms;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -381,14 +436,14 @@ const Sharp = styled(Layer)`
 `;
 
 const Soft = styled(Layer)`
-  filter: blur(max(2px, calc(4 * var(--u)))) saturate(1.05);
+  filter: blur(max(1.5px, calc(3 * var(--u)))) saturate(1.05);
   ${band(
     `linear-gradient(to bottom, transparent ${SOFTER_ABOVE}%, #000 ${SOFT_AT}%, transparent ${SHARP_BELOW}%)`
   )}
 `;
 
 const Softer = styled(Layer)`
-  filter: blur(max(5px, calc(12 * var(--u)))) saturate(1.05);
+  filter: blur(max(4px, calc(8 * var(--u)))) saturate(1.05);
   ${band(
     `linear-gradient(to bottom, #000 ${SOFTER_ABOVE}%, transparent ${SOFT_AT}%)`
   )}

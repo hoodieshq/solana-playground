@@ -1,4 +1,11 @@
-import { FC, MouseEvent, useCallback, useEffect, useState } from "react";
+import {
+  FC,
+  MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import PlaygroundLogoNext from "../../components/PlaygroundLogoNext";
@@ -210,46 +217,50 @@ const Product: FC<{ onEnter: () => void; up: boolean; trail: boolean }> = ({
   onEnter,
   up,
   trail,
-}) => (
-  <ProductFrame>
-    <Stage $up={up}>
-      <Window>
-        <View>
-          <Shot
-            src={productShot}
-            alt="Playground up close, with the Counter sample open: the sidebar, the assistant and the code"
-            draggable={false}
-          />
-        </View>
-      </Window>
-      <Shade />
-      <Place />
-      {trail ? (
-        <LightCta
-          type="button"
-          $up={up}
-          onClick={onEnter}
-          data-shot="landing-cta"
-        >
-          <Light on={up} />
-          <Label>Open Playground</Label>
-          <Icon />
-        </LightCta>
-      ) : (
-        <Cta
-          type="button"
-          $tone="gradient"
-          $up={up}
-          onClick={onEnter}
-          data-shot="landing-cta"
-        >
-          <Label>Open Playground</Label>
-          <Icon />
-        </Cta>
-      )}
-    </Stage>
-  </ProductFrame>
-);
+}) => {
+  /* The trail version's light bends round the window and lights its edge */
+  const windowRef = useRef<HTMLDivElement>(null);
+  return (
+    <ProductFrame>
+      <Stage $up={up}>
+        <Window ref={windowRef}>
+          <View>
+            <Shot
+              src={productShot}
+              alt="Playground up close, with the Counter sample open: the sidebar, the assistant and the code"
+              draggable={false}
+            />
+          </View>
+        </Window>
+        <Shade />
+        <Place />
+        {trail ? (
+          <LightCta
+            type="button"
+            $up={up}
+            onClick={onEnter}
+            data-shot="landing-cta"
+          >
+            <Light on={up} frame={windowRef} />
+            <Label>Open Playground</Label>
+            <Icon />
+          </LightCta>
+        ) : (
+          <Cta
+            type="button"
+            $tone="gradient"
+            $up={up}
+            onClick={onEnter}
+            data-shot="landing-cta"
+          >
+            <Label>Open Playground</Label>
+            <Icon />
+          </Cta>
+        )}
+      </Stage>
+    </ProductFrame>
+  );
+};
 
 /**
  * The close: the deck's "Explore" gradient, pattern and all. Its line is the
@@ -375,15 +386,30 @@ const Stage = styled.div<{ $up: boolean }>`
 
 /* The window's edge: one line of the ramp, radiating from the middle of its
    top edge — where the headline stands over it — and gone before the far
-   sides, where the page's shade takes over */
+   sides, where the page's shade takes over. Over it, two lights, green and
+   purple, that the trail version's light runs up the window's sides and over
+   its top on its own clock (`Light.tsx`); standing, they rest on the top
+   edge. The custom properties are theirs: where they are, how bright, and how
+   bright the edge is. */
 const OUTLINE = `radial-gradient(
-  ellipse 64% 130% at 46% 0%,
-  rgba(20, 241, 149, 0.95) 0%,
-  rgba(45, 206, 169, 0.8) 18%,
-  rgba(98, 104, 240, 0.62) 40%,
-  rgba(153, 69, 255, 0.45) 62%,
-  rgba(153, 69, 255, 0) 88%
-)`;
+    12% 18% at var(--ax, 22%) var(--ay, 0%),
+    rgba(20, 241, 149, var(--lit, 0.5)),
+    rgba(20, 241, 149, 0) 100%
+  ),
+  radial-gradient(
+    12% 18% at var(--bx, 78%) var(--ay, 0%),
+    rgba(153, 69, 255, var(--lit, 0.5)),
+    rgba(153, 69, 255, 0) 100%
+  ),
+  radial-gradient(
+    ellipse 64% 130% at 46% 0%,
+    rgba(20, 241, 149, calc(0.95 * var(--edge, 0.8))) 0%,
+    rgba(45, 206, 169, calc(0.8 * var(--edge, 0.8))) 18%,
+    rgba(98, 104, 240, calc(0.62 * var(--edge, 0.8))) 40%,
+    rgba(153, 69, 255, calc(0.45 * var(--edge, 0.8))) 62%,
+    rgba(153, 69, 255, 0) 88%
+  ),
+  rgba(98, 104, 240, 0.14)`;
 
 /* The product up close: the top left of Playground at half as large again as
    the brand slides show it — the sidebar, the assistant and the start of the
