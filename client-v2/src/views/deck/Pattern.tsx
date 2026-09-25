@@ -39,6 +39,12 @@ interface PatternProps {
    * passing over it is the whole point.
    */
   strength?: number;
+  /**
+   * A mask of the page's own for the resting pattern, in place of the asset's
+   * fade — for a layout whose pattern falls away somewhere other than to the
+   * left. The light is never masked by it.
+   */
+  restMask?: string;
   className?: string;
 }
 
@@ -50,6 +56,7 @@ const Pattern: FC<PatternProps> = ({
   lit = 0.62,
   fade = 1,
   strength = 1,
+  restMask,
   className,
 }) => {
   const wrap = useRef<HTMLDivElement>(null);
@@ -120,10 +127,20 @@ const Pattern: FC<PatternProps> = ({
 
   return (
     <Wrap ref={wrap} className={className} aria-hidden="true">
-      {/* A mask cannot be half applied, so the fade is two resting layers —
-          one faded, one even — and the balance between them */}
-      <Rest $alpha={rest} $fade style={{ opacity: fade * strength }} />
-      <Rest $alpha={rest} $fade={false} style={{ opacity: (1 - fade) * strength }} />
+      {restMask ? (
+        <Rest
+          $alpha={rest}
+          $fade={false}
+          style={{ opacity: strength, WebkitMaskImage: restMask, maskImage: restMask }}
+        />
+      ) : (
+        /* A mask cannot be half applied, so the fade is two resting layers —
+           one faded, one even — and the balance between them */
+        <>
+          <Rest $alpha={rest} $fade style={{ opacity: fade * strength }} />
+          <Rest $alpha={rest} $fade={false} style={{ opacity: (1 - fade) * strength }} />
+        </>
+      )}
       <Halo />
       <Lit $alpha={lit} />
     </Wrap>

@@ -145,6 +145,46 @@ const Atmosphere: FC<AtmosphereProps> = ({ ground, lastColour, pattern }) => {
 
 export default Atmosphere;
 
+/**
+ * One arrangement, held, inside whatever box it is put in — for a band on a
+ * page rather than a whole screen. Same fields, same breathing; placed and
+ * sized against the box instead of the viewport, so it can scroll.
+ */
+export const StillMesh: FC<{ ground: Exclude<Ground, "paper" | "ink"> }> = ({
+  ground,
+}) => (
+  <Box style={{ backgroundColor: BEDS[ground] }} aria-hidden="true">
+    {FIELDS[ground].map((f, i) => (
+      <BoxSpot
+        key={i}
+        style={{
+          color: f.c,
+          opacity: f.o ?? 0.94,
+          left: `${f.x}%`,
+          top: `${f.y}%`,
+          transform: `translate(-50%, -50%) scale(${f.s})`,
+        }}
+      >
+        <Drift $i={i} />
+      </BoxSpot>
+    ))}
+  </Box>
+);
+
+const Box = styled.div`
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+`;
+
+/* As wide as the box, and square — the viewport version is 100vmax, which on
+   a landscape screen is the same thing */
+const BoxSpot = styled.div`
+  position: absolute;
+  width: 100%;
+  aspect-ratio: 1;
+`;
+
 /* Long enough to watch the colour travel, short enough that a presenter who
    clicks twice is not left waiting on the first */
 const MOVE = "1400ms cubic-bezier(0.45, 0, 0.2, 1)";

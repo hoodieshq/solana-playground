@@ -17,7 +17,6 @@ import teeShot from "./art/brand-tee.png";
 import tutorialShot from "./art/brand-tutorial.png";
 import groundShot from "./art/ground.png";
 import playShot from "./art/play.png";
-import solanaShot from "./art/solana.png";
 import { MAKE_ROOM_MS, useCarry, willCarry } from "./carry";
 import SolanaMark from "./SolanaMark";
 import { isLight } from "./slides";
@@ -71,14 +70,18 @@ const Carried: FC<{ name: string; children: React.ReactNode }> = ({
   );
 };
 
-const Headline: FC<{
+/* Exported: the landing sets its line with this same component, so the page
+   and the presentation arrive the same way. */
+export const Headline: FC<{
   lines: string[];
   light: boolean;
   scale?: number;
   weight?: number;
   leading?: number;
   reserve?: number;
-}> = ({ lines, light, scale, weight, leading, reserve = 0 }) => {
+  /** The element it is set in, when it is not the page's heading */
+  as?: "h1" | "h2" | "p";
+}> = ({ lines, light, scale, weight, leading, reserve = 0, as }) => {
   /* Name every piece first, so we know before drawing a letter whether any of
      them is arriving from the last slide */
   const taken = new Map<string, number>();
@@ -108,7 +111,7 @@ const Headline: FC<{
     ));
 
   return (
-    <Title $light={light} $scale={scale} $weight={weight} $leading={leading}>
+    <Title as={as} $light={light} $scale={scale} $weight={weight} $leading={leading}>
       {words.map((line, l) => (
         <Line key={`${lines[l]}-${l}`}>
           {line.map(({ word, core, tail, name }, w) => (
@@ -201,11 +204,19 @@ const Slide: FC<SlideProps> = ({
         <Cards>
           {slide.items.map((item, i) => (
             <Card key={item.name} style={{ animationDelay: `${140 + i * 110}ms` }}>
-              <Plate>
-                <Art src={ART[item.glyph]} alt="" />
-              </Plate>
-              <CardName>{item.name}</CardName>
-              <CardNote>{item.note}</CardNote>
+              <Figure>
+                {item.glyph === "solana" && (
+                  <SolanaArt>
+                    <SolanaMark />
+                  </SolanaArt>
+                )}
+                {item.glyph === "play" && <PlayArt src={playShot} alt="" />}
+                {item.glyph === "ground" && <GroundArt src={groundShot} alt="" />}
+              </Figure>
+              <CardText>
+                <CardName>{item.name}</CardName>
+                <CardNote>{item.note}</CardNote>
+              </CardText>
             </Card>
           ))}
         </Cards>
@@ -491,25 +502,27 @@ const Picture = styled.img`
 
 /* ── the three parts ──────────────────────────────────────────────────── */
 
+/* Laid out on the Figma's own numbers (44:552), in one unit of its 1920 ×
+   1080 frame, held by whichever of width or height runs out first: three
+   pillars 508 wide, 36 apart, the group sitting 72 below the frame's centre.
+   There are no strokes — the pictures stand on the white. The hairline boxes
+   that were here were ours, not the slide's. */
 const Cards = styled.div`
+  --u: min(calc(100vw / 1920), calc(100vh / 1080));
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(1rem, 3vw, 3rem);
-  width: min(72rem, 100%);
-
-  @media (max-width: 40rem) {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
+  display: flex;
+  align-items: flex-start;
+  gap: calc(36 * var(--u));
+  margin-top: calc(144 * var(--u));
 `;
 
 const Card = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
+  gap: calc(89 * var(--u));
+  width: calc(508 * var(--u));
   animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
@@ -517,44 +530,68 @@ const Card = styled.div`
   }
 `;
 
-/* A plain square with a hairline, as on the slide — the glyph is the thing,
-   not the container. */
-const Plate = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
+/* Each picture's box, 508 × 510. What is in it is placed the way the Figma
+   places it rather than fitted to it. */
+const Figure = styled.div`
+  position: relative;
   width: 100%;
-  margin-bottom: clamp(0.75rem, 1.6vw, 1.5rem);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+  height: calc(510 * var(--u));
 `;
 
-/* The supplied artwork for each part — Solana's mark, the controller, the
-   earth — exactly as exported. */
-const ART: Record<"solana" | "play" | "ground", string> = {
-  solana: solanaShot,
-  play: playShot,
-  ground: groundShot,
-};
+/* Solana's mark as the vector the slide uses, 273 × 244, centred */
+const SolanaArt = styled.div`
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(273.318 * var(--u));
+  transform: translate(-50%, -50%);
 
-const Art = styled.img`
+  & > svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+`;
+
+/* The controller sits 84 above the centre, so its cable runs out of the top
+   of the box. The supplied file is that box exported with the overflow — 593
+   tall, 83 of them above — so it is placed with its top 83 above the box
+   rather than squeezed into it, which is what had shrunk it before. Multiply,
+   as on the slide, so its white is the page's white. */
+const PlayArt = styled.img`
+  position: absolute;
+  left: 0;
+  top: calc(-83 * var(--u));
+  width: 100%;
+  height: calc(593 * var(--u));
+  display: block;
+  mix-blend-mode: multiply;
+`;
+
+/* The earth: the supplied box, 508 × 510, with the 337 globe centred in it */
+const GroundArt = styled.img`
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
   display: block;
 `;
 
-const CardName = styled.div`
-  font-family: ${HEADLINE};
-  font-size: clamp(1.125rem, 2.1vw, 2rem);
+const CardText = styled.div`
+  width: 100%;
+  font-family: "Inter", ${HEADLINE};
   font-weight: 400;
-  color: ${INK};
+  line-height: 1;
+  letter-spacing: -0.06em;
+  text-align: center;
+`;
+
+const CardName = styled.div`
+  font-size: calc(72 * var(--u));
+  color: #000000;
 `;
 
 const CardNote = styled.div`
-  margin-top: 0.3rem;
-  font-size: clamp(0.6875rem, 0.95vw, 0.875rem);
-  font-weight: 300;
-  color: rgba(0, 0, 0, 0.5);
+  font-size: calc(22 * var(--u));
+  color: rgba(0, 0, 0, 0.4);
 `;

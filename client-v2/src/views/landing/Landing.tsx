@@ -1,26 +1,31 @@
-import { FC } from "react";
-import styled, { css, keyframes } from "styled-components";
+import { FC, MouseEvent } from "react";
+import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
-import HeroCanvas from "./HeroCanvas";
-import PixelIn from "./PixelIn";
-import PixelReveal from "./PixelReveal";
-import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
-import { useReveal } from "./useReveal";
+import PlaygroundLogoNext from "../../components/PlaygroundLogoNext";
+import PlayRing from "../../components/PlayRing";
+import { StillMesh } from "../deck/Atmosphere";
+import appShot from "../deck/art/brand-app.png";
 import Pattern from "../deck/Pattern";
+import { Headline } from "../deck/Slide";
+import { HEADLINE, INK } from "../deck/tokens";
+import { useReveal } from "./useReveal";
 
 /**
- * The landing.
+ * The landing, built from the presentation (Figma 53:7077).
  *
- * Composed like the reference: one cinematic frame that fills the window, the
- * navigation floating in a pill at the top, the name and the line at the
- * bottom left, the call to action beside it, and the argument in a quiet
- * column on the right. Below the fold, three short sections and a close.
+ * Not a page that resembles the deck — a page made of its parts. The line is
+ * the deck's own headline component, arriving letter by letter the way it
+ * does on the slides. The ground is the deck's ink with the deck's pattern,
+ * lit by the pointer. The close is the deck's "Explore" gradient, breathing.
+ * The button is the one the brand slides show, doing the job it was drawn for.
+ * Text is set in Inter, as the presentation sets its text.
  *
- * The hero image is drawn, not photographed — a horizon with a long arc of
- * light sweeping over it, in Solana's purple and green. A stock photograph
- * would be somebody else's picture, and a screenshot of the product would
- * break the one rule this page has: say what it is for, not what it looks
- * like. Nothing here shows the interface.
+ * Everything the old landing had of its own — the slabs, the pixel wipe, the
+ * sections pixelating in — is gone. It was a different piece of work, and on
+ * the presentation's ink it read as clutter.
+ *
+ * Sizes in the hero and the close are the Figma's, on its 1920 frame, in one
+ * unit (`--u`) that scales with the window up to that width.
  */
 
 interface LandingProps {
@@ -28,71 +33,67 @@ interface LandingProps {
   onEnter: () => void;
 }
 
-const Landing: FC<LandingProps> = ({ onEnter }) => {
-  return (
-  <Page>
-    <Hero>
-      {/* Sky and pieces share one canvas so the dither lands on both. It takes
-          the pointer: the pieces are meant to be shoved around. */}
-      <HeroArt>
-        <HeroCanvas />
-        {/* The deck's lattice, carried onto the landing so the two read as one
-            piece of work. Over the canvas rather than in it: the dither pass
-            quantises whatever it is given, and a hairline put through that
-            comes out as broken dots. */}
-        <Lattice aria-hidden="true">
-          <Pattern rest={0.14} />
-        </Lattice>
-        <Grid />
-        <Fade />
-      </HeroArt>
-      <PixelReveal />
+/* In-page links must not touch the URL: the app reads its hash to decide what
+   to show, and "#what" would take the reader off the landing entirely. */
+const scrollTo = (id: string) => (ev: MouseEvent) => {
+  ev.preventDefault();
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
-      <Nav aria-label="Main">
-        <NavMark aria-hidden="true">
-          <PlaygroundMarkNext />
-        </NavMark>
-        <NavLinks>
-          <NavLink href="#what">What it is</NavLink>
-          <NavLink href="#how">How it works</NavLink>
-          <NavLink href="#who">Who it's for</NavLink>
+const Landing: FC<LandingProps> = ({ onEnter }) => (
+  <Page id="landing-top">
+    <LandingFonts />
+
+    <Hero>
+      <Ground aria-hidden="true">
+        <Pattern rest={0.2} restMask={HERO_PATTERN_MASK} />
+      </Ground>
+
+      <Top>
+        <LogoPill href="#landing-top" onClick={scrollTo("landing-top")} aria-label="Solana Playground">
+          <PlaygroundLogoNext />
+        </LogoPill>
+        <NavPill aria-label="Main">
+          <NavLink href="#what" onClick={scrollTo("what")}>
+            What it is
+          </NavLink>
+          <NavLink href="#how" onClick={scrollTo("how")}>
+            How it works
+          </NavLink>
+          <NavLink href="#who" onClick={scrollTo("who")}>
+            Who it's for
+          </NavLink>
           <NavLink href="https://solana.com/docs" target="_blank" rel="noreferrer">
             Docs
           </NavLink>
-        </NavLinks>
-      </Nav>
+        </NavPill>
+      </Top>
 
-      <HeroBody>
-        <HeroLead>
-          <HeroTitle>Solana Playground</HeroTitle>
-          <HeroLine>Where a Solana program begins.</HeroLine>
-        </HeroLead>
+      <Line>
+        {/* The deck's line at the Figma's 185.6: 0.86 of the deck's size */}
+        <Headline
+          lines={["Explore, Learn,", "Build Onchain"]}
+          light={false}
+          scale={0.86}
+          weight={500}
+          leading={0.93}
+        />
+      </Line>
 
-        <HeroAction>
-          <Cta type="button" onClick={onEnter} data-shot="landing-cta">
-            Open Playground
-          </Cta>
-        </HeroAction>
-      </HeroBody>
-
-      <HeroFoot>
-        <FootNote>No install. Nothing leaves your browser until you deploy.</FootNote>
-        <FootCopy>Solana Playground</FootCopy>
-        <FootArgument>
-          <p>
-            Writing your first onchain program usually starts with an
-            afternoon of toolchains — Rust, the CLI, a local validator, a
-            wallet, a faucet. Most people stop there and never find out
-            whether the idea was any good.
-          </p>
-          <p>
-            Playground is the other order. Open a tab, write the program, build
-            it, deploy it to devnet, and call it — with an assistant that can
-            read what you are looking at. The setup can wait until you have
-            something worth setting up for.
-          </p>
-        </FootArgument>
-      </HeroFoot>
+      <Stage>
+        <Shot src={appShot} alt="Playground's sidebar and assistant" draggable={false} />
+        <Shade />
+        <Argument>
+          Writing your first onchain program usually starts with an afternoon
+          of toolchains — Rust, the CLI, a local validator, a wallet, a faucet.
+          Most people stop there and never find out whether the idea was any
+          good.
+        </Argument>
+        <Button type="button" $tone="gradient" onClick={onEnter} data-shot="landing-cta">
+          <Label>Open Playground</Label>
+          <Icon />
+        </Button>
+      </Stage>
     </Hero>
 
     <Sections>
@@ -101,39 +102,61 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
       ))}
     </Sections>
 
-    <Close>
-      <CloseTitle>Start with the program, not the setup.</CloseTitle>
-      <CtaOutline type="button" onClick={onEnter}>
-        Open Playground
-      </CtaOutline>
-    </Close>
+    <Close onEnter={onEnter} />
   </Page>
-  );
-};
+);
 
 export default Landing;
 
 /**
- * One section, arriving as it is scrolled to: the label, the claim and the
- * paragraph each a beat behind the one above, so the eye is led down the
- * column rather than handed the whole block at once.
+ * One section, rising in as it is reached: the label, the claim and the
+ * paragraph each a beat behind the one above — the deck's own entrance.
  */
 const RevealSection: FC<SectionCopy> = ({ id, label, title, text }) => {
   const [ref, shown] = useReveal<HTMLElement>();
   return (
-    <Section id={id} ref={ref}>
-      <PixelIn active={shown} block={10}>
-        <SectionLabel>{label}</SectionLabel>
-      </PixelIn>
+    <Section id={id} ref={ref} $shown={shown}>
+      <SectionLabel>{label}</SectionLabel>
       <SectionBody>
-        <PixelIn active={shown} delay={0.08} block={16}>
-          <SectionTitle>{title}</SectionTitle>
-        </PixelIn>
-        <PixelIn active={shown} delay={0.2} block={11}>
-          <SectionText>{text}</SectionText>
-        </PixelIn>
+        <SectionTitle>{title}</SectionTitle>
+        <SectionText>{text}</SectionText>
       </SectionBody>
     </Section>
+  );
+};
+
+/**
+ * The close: the deck's "Explore" gradient, pattern and all. Its line is the
+ * deck's headline too, and is only put on the page once it is scrolled to, so
+ * it arrives letter by letter in front of the reader rather than out of sight.
+ */
+const Close: FC<{ onEnter: () => void }> = ({ onEnter }) => {
+  const [ref, shown] = useReveal<HTMLElement>();
+  return (
+    <CloseFrame ref={ref}>
+      <StillMesh ground="explore" />
+      <CloseGrid aria-hidden="true">
+        <Pattern />
+      </CloseGrid>
+      <CloseLine>
+        {shown && (
+          <Headline
+            as="p"
+            lines={["Start with the program,", "not the setup."]}
+            light={false}
+            scale={44.75 / 216}
+            weight={400}
+            leading={1.2}
+          />
+        )}
+      </CloseLine>
+      <CloseAction>
+        <Button type="button" $tone="white" onClick={onEnter}>
+          <Label>Open Playground</Label>
+          <Icon />
+        </Button>
+      </CloseAction>
+    </CloseFrame>
   );
 };
 
@@ -165,143 +188,113 @@ const SECTIONS: SectionCopy[] = [
   },
 ];
 
-/* Headlines take the proposal's face; running text stays on Manrope. */
-const HEADLINE = `"Stack Sans Headline", "Manrope", -apple-system,
-  BlinkMacSystemFont, sans-serif`;
+/* ── the page ─────────────────────────────────────────────────────────── */
 
-const FONT = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
-  Helvetica, Arial, sans-serif`;
+/* Text in Inter, as the presentation sets it — measured off the Figma, where
+   it lands within a pixel on every line and Manrope runs four percent wide */
+const TEXT_FACE = `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+const ARGUMENT_FACE = `"Stack Sans Text", ${HEADLINE}`;
 
-/* Read off the poster: an ice periwinkle at the top falling to a deep indigo,
-   on a black page. The same four the brand board carries. */
-const INK = "#050507";
-const ICE = "#C9D4FB";
-const INDIGO = "#1E1B8C";
 const TEXT = "#EDF1FF";
 const MUTED = "rgba(237, 241, 255, 0.66)";
 
+/* Where the hero's own pattern is: brightest in the top-left corner, still
+   there across the top, gone by the foot of the headline. Read off the render
+   — the grid round the window's corner lower down is the product shot's own. */
+const HERO_PATTERN_MASK =
+  "radial-gradient(ellipse 170% 42% at 0% 0%, #000 0%, transparent 100%)";
+
+/** A length on the Figma's 1920 frame, in the window's pixels */
+const u = (n: number) => `calc(${n} * var(--u))`;
+
+/* The page's faces, loaded by the page itself — it can be opened straight
+   from a link, without the deck having loaded them first. A global rule,
+   because an @import nested inside a component's styles is dropped. */
+const LandingFonts = createGlobalStyle`
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Stack+Sans+Headline:wght@400..700&family=Stack+Sans+Text:wght@400..700&display=swap");
+`;
+
 const Page = styled.main`
+  --u: calc(min(100vw, 1920px) / 1920);
   min-height: 100vh;
   background: ${INK};
   color: ${TEXT};
-  font-family: ${FONT};
+  font-family: ${TEXT_FACE};
   overflow-x: hidden;
 `;
 
-/* One frame that fills the window, with everything else laid over it. */
-/* Everything arrives after the wipe has opened the middle of the frame, in
-   reading order, each a beat behind the last. */
+/* The deck's entrance: a short rise on its curve, each thing a beat behind */
 const rise = keyframes`
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translate3d(0, 0.9rem, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 `;
 
 const entrance = (delay: number) => css`
-  opacity: 0;
-  animation: ${rise} 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}s both;
+  animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) ${delay}ms both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    opacity: 1;
   }
 `;
+
+/* ── the hero ─────────────────────────────────────────────────────────── */
 
 const Hero = styled.header`
   position: relative;
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: 1.5rem clamp(1.5rem, 5vw, 5rem) clamp(1.5rem, 3vw, 2.5rem);
   isolation: isolate;
+  max-width: 1920px;
+  margin: 0 auto;
+  padding-top: ${u(54)};
 `;
 
-/* The one pattern, the deck's own, lit by the pointer the same way. This used
-   to be a second copy of it, which is how the landing and the deck ended up
-   drawing the same thing at two different weights. Quieter at rest than on a
-   slide, because the hero art is underneath it rather than a flat ground. */
-const Lattice = styled.div`
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-`;
-
-const HeroArt = styled.div`
+const Ground = styled.div`
   position: absolute;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
-  background: ${INK};
-`;
-
-/* A surveyor's grid, not a graph: long faint rules with a tick where they
-   cross, which is the thing that makes the poster read as a record of
-   something rather than a wallpaper. */
-const Grid = styled.div`
-  position: absolute;
-  inset: 0;
   pointer-events: none;
-  opacity: 0.22;
-  background-image: linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0.5) 1px,
-      transparent 1px
-    ),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
-  background-size: 11.5% 15%;
-  mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 85%);
 `;
 
-/* The bottom of the frame goes to the page colour, so the hero ends rather
-   than being cut off by the fold — and on the way it gives the headline and
-   the argument ground to sit on. Without it the glyphs drift straight through
-   the body copy, which looks like a poster and reads like nothing. It falls to
-   indigo before black, so the colour survives the protection. */
-const Fade = styled.div`
-  position: absolute;
-  inset: auto 0 0 0;
-  pointer-events: none;
-  height: 58%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(12, 10, 58, 0.55) 34%,
-    rgba(7, 6, 32, 0.88) 62%,
-    ${INK} 100%
-  );
-`;
-
-const Nav = styled.nav`
+/* The two pills, pinned to the corners: the lockup on the left, the
+   navigation on the right. */
+const Top = styled.div`
   position: relative;
-  z-index: 2;
-  ${entrance(0.55)}
-  justify-self: center;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 2.5vw, 2rem);
-  padding: 0.625rem 1.5rem;
-  border: none;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #0b0b16;
+  justify-content: space-between;
+  padding: 0 ${u(58)} 0 ${u(80)};
+  ${entrance(120)}
 `;
 
-const NavMark = styled.span`
+const pill = css`
   display: flex;
-  /* The mark is 342×184, so it takes its width and finds its own height */
-  width: 1.75rem;
-  color: #0b0b16;
+  align-items: center;
+  height: max(${u(57)}, 2.5rem);
+  border-radius: max(${u(20)}, 0.875rem);
+  background: #ffffff;
+`;
+
+const LogoPill = styled.a`
+  ${pill}
+  padding: 0 max(${u(24)}, 0.875rem);
+  color: ${INK};
 
   & > svg {
-    width: 100%;
-    height: 100%;
+    width: max(${u(189)}, 7.5rem);
+    height: auto;
+    display: block;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
   }
 `;
 
-const NavLinks = styled.div`
-  display: flex;
-  align-items: center;
-  gap: clamp(1rem, 2.2vw, 1.75rem);
+const NavPill = styled.nav`
+  ${pill}
+  gap: max(${u(31)}, 1rem);
+  padding: 0 max(${u(25)}, 1rem);
 
   @media (max-width: 40rem) {
     display: none;
@@ -310,7 +303,10 @@ const NavLinks = styled.div`
 
 const NavLink = styled.a`
   color: rgba(11, 11, 22, 0.66);
-  font-size: 0.9375rem;
+  font-family: ${HEADLINE};
+  font-size: max(${u(22.7)}, 0.9375rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.15s ease;
@@ -318,244 +314,338 @@ const NavLink = styled.a`
   &:hover {
     color: #0b0b16;
   }
-`;
 
-const HeroBody = styled.div`
-  position: relative;
-  z-index: 2;
-  /* The pieces live under this and are meant to be picked up; a full-width
-     text container over them would swallow every drag. Only what is actually
-     interactive takes the pointer back. */
-  pointer-events: none;
-
-  & button,
-  & a {
-    pointer-events: auto;
+  &:focus-visible {
+    outline: 2px solid ${INK};
+    outline-offset: 4px;
+    border-radius: 4px;
   }
-  align-self: end;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 2rem;
-  flex-wrap: wrap;
-  padding-bottom: clamp(1.5rem, 4vw, 3rem);
 `;
 
-const HeroLead = styled.div`
-  ${entrance(0.72)}
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+/* Where the line sits: its block starts 240 down the frame, so its first
+   baseline lands where the Figma's does */
+const Line = styled.div`
+  position: relative;
+  z-index: 1;
+  margin-top: ${u(129)};
+  text-align: center;
 `;
 
-const HeroTitle = styled.h1`
-  font-family: ${HEADLINE};
+/* The product, the argument over it, and the button across it — one piece,
+   laid out on the render's own proportions. */
+const Stage = styled.div`
+  position: relative;
+  z-index: 1;
+  width: ${u(1779)};
+  margin: 0 auto;
+  aspect-ratio: 3840 / 2160;
+  ${entrance(520)}
+
+  @media (max-width: 56rem) {
+    width: calc(100% - 2rem);
+    aspect-ratio: auto;
+  }
+`;
+
+/* The render from the brand slides, as the Figma places it: 1779 wide, so the
+   window's own border lands where the design has it. */
+const Shot = styled.img`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+
+  @media (max-width: 56rem) {
+    position: relative;
+    height: auto;
+  }
+`;
+
+/* The render goes to ink on the right, where the argument sits over it, and
+   into the page at the bottom, below the button. */
+const Shade = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+      90deg,
+      rgba(21, 21, 21, 0) 50%,
+      rgba(21, 21, 21, 0.88) 72%,
+      rgba(21, 21, 21, 0.94) 100%
+    ),
+    linear-gradient(to bottom, rgba(21, 21, 21, 0) 76%, ${INK} 99%);
+
+  @media (max-width: 56rem) {
+    display: none;
+  }
+`;
+
+const Argument = styled.p`
+  position: absolute;
+  left: ${(930 / 1779) * 100}%;
+  top: ${u(234)};
+  width: ${u(800)};
   margin: 0;
-  font-size: clamp(2.5rem, 6vw, 4.75rem);
-  font-weight: 300;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-family: ${ARGUMENT_FACE};
+  font-size: ${u(35.8)};
+  font-weight: 500;
+  line-height: ${u(38)};
+  color: rgba(237, 241, 255, 0.72);
+
+  @media (max-width: 56rem) {
+    position: static;
+    width: auto;
+    margin: 1.25rem 0;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
 `;
 
-const HeroLine = styled.p`
-  margin: 0;
-  font-size: clamp(1.25rem, 2.4vw, 1.875rem);
-  font-weight: 300;
-  line-height: 1.2;
+/* ── the button ───────────────────────────────────────────────────────── */
+
+/* The one the brand slides show as "Start Tutorial": Solana's green into its
+   purple, sampled off the render, the words in the headline face at 171.6 and
+   the mark's own triangle in a ring. The white one closes the page. */
+const Button = styled.button<{ $tone: "gradient" | "white" }>`
+  ${({ $tone }) => css`
+    position: absolute;
+    left: 0;
+    top: ${u(603)};
+    width: 100%;
+    height: ${u(298)};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 ${u(75)} 0 ${u(80)};
+    border: none;
+    border-radius: ${u(70)};
+    background: ${$tone === "gradient"
+      ? `linear-gradient(0deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 55%),
+         linear-gradient(90deg, #19C98C 0%, #22AA86 6.8%, #339794 13%, #4685A2 19%,
+           #5673B0 25%, #6762BF 31.5%, #794FCD 37.8%, #8542D7 44%, #8845DA 56%,
+           #8E4BE0 100%)`
+      : "#ffffff"};
+    color: ${$tone === "gradient" ? "#ffffff" : INK};
+    font-family: ${HEADLINE};
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 0.2s ease;
+
+    /* Figma's smoothed corner where the browser can draw one */
+    @supports (corner-shape: squircle) {
+      border-radius: ${u(96)};
+      corner-shape: squircle;
+    }
+
+    &:hover {
+      transform: translateY(${u(-3)});
+      filter: brightness(1.05);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &:focus-visible {
+      outline: 3px solid ${$tone === "gradient" ? "#ffffff" : INK};
+      outline-offset: ${u(8)};
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @media (max-width: 56rem) {
+      position: relative;
+      top: auto;
+      height: 5.5rem;
+      padding: 0 1.25rem 0 1.5rem;
+      border-radius: 1.5rem;
+    }
+  `}
+`;
+
+const Label = styled.span`
+  font-size: ${u(171.6)};
+  font-weight: 500;
+  line-height: 1;
   letter-spacing: -0.015em;
-  color: ${MUTED};
-`;
-
-const HeroAction = styled.div`
-  ${entrance(0.86)}
-  padding-bottom: 0.5rem;
-`;
-
-/* White. It is the one thing on the page to press, and on a blue field the
-   brightest thing is the one you press. */
-const Cta = styled.button`
-  height: 3rem;
-  padding: 0 1.75rem;
-  border: none;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #0b0b16;
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 500;
   white-space: nowrap;
-  cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease;
 
-  &:hover {
-    transform: translateY(-1px);
-    background: #eef1ff;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 3px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
+  @media (max-width: 56rem) {
+    font-size: 2rem;
   }
 `;
 
-/* The closing one is the same shape drawn in outline — the gradient on the
-   stroke, the way the product marks what is current. A second solid white
-   button at the end of the page would read as a second first choice. */
-const CtaOutline = styled.button`
-  height: 3rem;
-  padding: 0 1.75rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: linear-gradient(${INK}, ${INK}) padding-box,
-    linear-gradient(120deg, #9945ff, #14f195) border-box;
-  color: ${TEXT};
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease;
+const Icon = styled(PlayRing)`
+  width: ${u(210)};
+  height: ${u(210)};
+  flex-shrink: 0;
 
-  &:hover {
-    transform: translateY(-1px);
-    background: linear-gradient(#14131f, #14131f) padding-box,
-      linear-gradient(120deg, #9945ff, #14f195) border-box;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #14f195;
-    outline-offset: 3px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
+  @media (max-width: 56rem) {
+    width: 3.25rem;
+    height: 3.25rem;
   }
 `;
 
-const HeroFoot = styled.div`
-  position: relative;
-  z-index: 2;
-  /* The pieces live under this and are meant to be picked up; a full-width
-     text container over them would swallow every drag. Only what is actually
-     interactive takes the pointer back. */
-  pointer-events: none;
-
-  & button,
-  & a {
-    pointer-events: auto;
-  }
-  ${entrance(0.98)}
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  align-items: start;
-  gap: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.9375rem;
-  color: ${MUTED};
-
-  @media (max-width: 60rem) {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-`;
-
-const FootNote = styled.p`
-  margin: 0;
-`;
-
-const FootCopy = styled.p`
-  margin: 0;
-`;
-
-const FootArgument = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-width: 34rem;
-
-  & p {
-    margin: 0;
-    line-height: 1.55;
-  }
-`;
+/* ── the sections ─────────────────────────────────────────────────────── */
 
 const Sections = styled.div`
   display: flex;
   flex-direction: column;
   max-width: 76rem;
   margin: 0 auto;
-  padding: clamp(4rem, 12vh, 9rem) clamp(1.5rem, 5vw, 5rem);
+  padding: ${u(121)} clamp(1.5rem, 5vw, 5rem) ${u(144)};
 `;
 
 /* A label in the left column and the argument in the right, with a hairline
-   over each — the spacing does the separating, not boxes. */
-const Section = styled.section`
-  display: grid;
-  grid-template-columns: 14rem 1fr;
-  gap: clamp(1.5rem, 5vw, 4rem);
-  padding: clamp(2.5rem, 6vh, 4.5rem) 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+   between each — the spacing does the separating, not boxes. The copy column
+   starts at 720 on the 1920 frame. */
+const Section = styled.section<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    display: grid;
+    grid-template-columns: 14rem 1fr;
+    gap: 4rem;
+    padding: 4.75rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 
-  &:first-child {
-    border-top: none;
-    padding-top: 0;
-  }
+    &:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
 
-  @media (max-width: 52rem) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
+    & > *,
+    & > * > * {
+      opacity: ${$shown ? 1 : 0};
+    }
+
+    ${$shown &&
+    css`
+      & > h2 {
+        ${entrance(0)}
+      }
+      & > div > :nth-child(1) {
+        ${entrance(90)}
+      }
+      & > div > :nth-child(2) {
+        ${entrance(200)}
+      }
+    `}
+
+    @media (prefers-reduced-motion: reduce) {
+      & > *,
+      & > * > * {
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 52rem) {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 3rem 0;
+    }
+  `}
 `;
 
 const SectionLabel = styled.h2`
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 400;
+  line-height: 1.4;
   color: ${MUTED};
 `;
 
 const SectionBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
   max-width: 40rem;
 `;
 
 const SectionTitle = styled.p`
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.125rem);
+  font-size: clamp(1.625rem, 3vw, 2.28rem);
   font-weight: 300;
-  line-height: 1.22;
-  letter-spacing: -0.02em;
+  line-height: 1.12;
 `;
 
 const SectionText = styled.p`
   margin: 0;
-  font-size: 1.0625rem;
-  line-height: 1.6;
+  font-size: 1.175rem;
+  line-height: 1.46;
   color: ${MUTED};
 `;
 
-const Close = styled.footer`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-  padding: clamp(4rem, 14vh, 10rem) 1.5rem clamp(5rem, 16vh, 11rem);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
+/* ── the close ────────────────────────────────────────────────────────── */
+
+/* A full 1920 × 1080 frame on the deck's gradient, with the white button — the
+   last thing on the page is the first thing the deck said. */
+const CloseFrame = styled.footer`
+  position: relative;
+  isolation: isolate;
+  max-width: 1920px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+
+  @media (max-width: 56rem) {
+    aspect-ratio: auto;
+    padding: 4rem 1rem 5rem;
+  }
 `;
 
-const CloseTitle = styled.p`
-  margin: 0;
-  max-width: 24ch;
-  font-size: clamp(1.75rem, 4vw, 3rem);
-  font-weight: 300;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
+const CloseGrid = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+`;
+
+/* The block starts 161 down the frame so its first line's ink lands at 170;
+   held open before the line arrives, so nothing below moves when it does */
+const CloseLine = styled.div`
+  position: relative;
+  padding-top: ${u(161)};
+  min-height: calc(${u(161)} + ${u(44.75 * 1.2 * 2)});
+  text-align: center;
+  color: ${TEXT};
+
+  & > p {
+    color: ${TEXT};
+    letter-spacing: -0.01em;
+  }
+
+  @media (max-width: 56rem) {
+    padding-top: 0;
+    min-height: 0;
+
+    & > p {
+      font-size: 1.75rem;
+    }
+  }
+`;
+
+const CloseAction = styled.div`
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: ${u(1779)};
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+
+  & > button {
+    top: ${u(391)};
+    pointer-events: auto;
+  }
+
+  @media (max-width: 56rem) {
+    position: relative;
+    left: auto;
+    width: 100%;
+    height: auto;
+    margin-top: 2rem;
+    transform: none;
+  }
 `;
