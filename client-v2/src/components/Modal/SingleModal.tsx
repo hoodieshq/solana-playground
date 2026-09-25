@@ -126,13 +126,20 @@ const TopWrapper = styled.div`
   `}
 `;
 
+/* A theme's own title styles, or the centred-over-a-rule title every theme
+   drew before the title was a part of its own */
 const Title = styled.div`
-  ${({ theme }) => css`
-    width: 100%;
-    text-align: center;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid ${theme.colors.default.border};
-  `}
+  ${({ theme }) =>
+    theme.components.modal.title
+      ? css`
+          ${PgTheme.convertToCSS(theme.components.modal.title)};
+        `
+      : css`
+          width: 100%;
+          text-align: center;
+          padding: 0.75rem 0;
+          border-bottom: 1px solid ${theme.colors.default.border};
+        `}
 `;
 
 const CloseButtonWrapper = styled.div<{ hasTitle: boolean }>`

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
+import { frosted } from "./components/frosted";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import StatusChips from "./header/StatusChips";
 import Stepper from "./header/Stepper";
@@ -711,6 +712,7 @@ const WorkHead = styled.div`
     flex-shrink: 0;
     padding: 0 0.375rem 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
+    ${frosted}
   `}
 `;
 
@@ -814,6 +816,7 @@ const StageRail = styled.div`
     height: ${SUBHEAD_HEIGHT};
     padding: 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
+    ${frosted}
 
     & > div {
       flex: 1;

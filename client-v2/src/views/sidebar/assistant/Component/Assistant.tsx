@@ -6,6 +6,7 @@ import { openConnectDialog } from "./ConnectDialog";
 import Grounding from "./Grounding";
 import Menu, { useMenu } from "../../../flow/components/Menu";
 import type { MenuRow } from "../../../flow/components/Menu";
+import { frosted } from "../../../flow/components/frosted";
 import { HEAD_HEIGHT } from "../../../flow/tokens";
 import PlayRing from "../../../../components/PlayRing";
 import { PgAssistant } from "../store";
@@ -241,6 +242,7 @@ const Header = styled.div`
     flex-shrink: 0;
     /* The same rule the columns either side draw, at the same height */
     border-bottom: 1px solid ${theme.colors.default.border};
+    ${frosted}
   `}
 `;
 
