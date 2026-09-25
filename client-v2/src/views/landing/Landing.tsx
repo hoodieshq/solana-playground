@@ -8,6 +8,9 @@ import appShot from "../deck/art/brand-app.png";
 import Pattern from "../deck/Pattern";
 import { Headline } from "../deck/Slide";
 import { HEADLINE, INK } from "../deck/tokens";
+import Rows from "./Rows";
+import type { Row } from "./Rows";
+import { LogoPill, NavLink, NavPill, TopBar, frameUnit, u } from "./chrome";
 import { useReveal } from "./useReveal";
 
 /**
@@ -18,7 +21,7 @@ import { useReveal } from "./useReveal";
  * does on the slides. The ground is the deck's ink with the deck's pattern,
  * lit by the pointer. The close is the deck's "Explore" gradient, breathing.
  * The button is the one the brand slides show, doing the job it was drawn for.
- * Text is set in Inter, as the presentation sets its text.
+ * The sections keep the Figma's Manrope rows.
  *
  * Everything the old landing had of its own — the slabs, the pixel wipe, the
  * sections pixelating in — is gone. It was a different piece of work, and on
@@ -96,34 +99,13 @@ const Landing: FC<LandingProps> = ({ onEnter }) => (
       </Stage>
     </Hero>
 
-    <Sections>
-      {SECTIONS.map((section) => (
-        <RevealSection key={section.id} {...section} />
-      ))}
-    </Sections>
+    <LandingRows rows={SECTIONS} />
 
     <Close onEnter={onEnter} />
   </Page>
 );
 
 export default Landing;
-
-/**
- * One section, rising in as it is reached: the label, the claim and the
- * paragraph each a beat behind the one above — the deck's own entrance.
- */
-const RevealSection: FC<SectionCopy> = ({ id, label, title, text }) => {
-  const [ref, shown] = useReveal<HTMLElement>();
-  return (
-    <Section id={id} ref={ref} $shown={shown}>
-      <SectionLabel>{label}</SectionLabel>
-      <SectionBody>
-        <SectionTitle>{title}</SectionTitle>
-        <SectionText>{text}</SectionText>
-      </SectionBody>
-    </Section>
-  );
-};
 
 /**
  * The close: the deck's "Explore" gradient, pattern and all. Its line is the
@@ -160,14 +142,7 @@ const Close: FC<{ onEnter: () => void }> = ({ onEnter }) => {
   );
 };
 
-interface SectionCopy {
-  id: string;
-  label: string;
-  title: string;
-  text: string;
-}
-
-const SECTIONS: SectionCopy[] = [
+const SECTIONS: Row[] = [
   {
     id: "what",
     label: "What it is",
@@ -190,13 +165,11 @@ const SECTIONS: SectionCopy[] = [
 
 /* ── the page ─────────────────────────────────────────────────────────── */
 
-/* Text in Inter, as the presentation sets it — measured off the Figma, where
-   it lands within a pixel on every line and Manrope runs four percent wide */
-const TEXT_FACE = `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+/* Running text in Manrope, as the Figma sets the page's rows */
+const TEXT_FACE = `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 const ARGUMENT_FACE = `"Stack Sans Text", ${HEADLINE}`;
 
 const TEXT = "#EDF1FF";
-const MUTED = "rgba(237, 241, 255, 0.66)";
 
 /* Where the hero's own pattern is: brightest in the top-left corner, still
    there across the top, gone by the foot of the headline. Read off the render
@@ -204,18 +177,15 @@ const MUTED = "rgba(237, 241, 255, 0.66)";
 const HERO_PATTERN_MASK =
   "radial-gradient(ellipse 170% 42% at 0% 0%, #000 0%, transparent 100%)";
 
-/** A length on the Figma's 1920 frame, in the window's pixels */
-const u = (n: number) => `calc(${n} * var(--u))`;
-
 /* The page's faces, loaded by the page itself — it can be opened straight
    from a link, without the deck having loaded them first. A global rule,
    because an @import nested inside a component's styles is dropped. */
 const LandingFonts = createGlobalStyle`
-  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Stack+Sans+Headline:wght@400..700&family=Stack+Sans+Text:wght@400..700&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400&family=Stack+Sans+Headline:wght@400..700&family=Stack+Sans+Text:wght@400..700&display=swap");
 `;
 
 const Page = styled.main`
-  --u: calc(min(100vw, 1920px) / 1920);
+  ${frameUnit}
   min-height: 100vh;
   background: ${INK};
   color: ${TEXT};
@@ -254,72 +224,9 @@ const Ground = styled.div`
   pointer-events: none;
 `;
 
-/* The two pills, pinned to the corners: the lockup on the left, the
-   navigation on the right. */
-const Top = styled.div`
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 ${u(58)} 0 ${u(80)};
+/* The two pills, pinned to the corners — shared with the UX page */
+const Top = styled(TopBar)`
   ${entrance(120)}
-`;
-
-const pill = css`
-  display: flex;
-  align-items: center;
-  height: max(${u(57)}, 2.5rem);
-  border-radius: max(${u(20)}, 0.875rem);
-  background: #ffffff;
-`;
-
-const LogoPill = styled.a`
-  ${pill}
-  padding: 0 max(${u(24)}, 0.875rem);
-  color: ${INK};
-
-  & > svg {
-    width: max(${u(189)}, 7.5rem);
-    height: auto;
-    display: block;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 3px;
-  }
-`;
-
-const NavPill = styled.nav`
-  ${pill}
-  gap: max(${u(31)}, 1rem);
-  padding: 0 max(${u(25)}, 1rem);
-
-  @media (max-width: 40rem) {
-    display: none;
-  }
-`;
-
-const NavLink = styled.a`
-  color: rgba(11, 11, 22, 0.66);
-  font-family: ${HEADLINE};
-  font-size: max(${u(22.7)}, 0.9375rem);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: #0b0b16;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${INK};
-    outline-offset: 4px;
-    border-radius: 4px;
-  }
 `;
 
 /* Where the line sits: its block starts 240 down the frame, so its first
@@ -348,7 +255,13 @@ const Stage = styled.div`
 `;
 
 /* The render from the brand slides, as the Figma places it: 1779 wide, so the
-   window's own border lands where the design has it. */
+   window's own border lands where the design has it.
+
+   Cropped to the window. The render carries its own copy of the pattern
+   around the window's corner, at the render's scale — laid over the page's
+   live pattern that made two grids at two sizes, one of them dead to the
+   pointer. Only the page's pattern exists now; the window's corner keeps its
+   own rounding. */
 const Shot = styled.img`
   position: absolute;
   inset: 0;
@@ -356,6 +269,7 @@ const Shot = styled.img`
   height: 100%;
   display: block;
   user-select: none;
+  clip-path: inset(${(138 / 2160) * 100}% 0 0 ${(150 / 3840) * 100}% round ${u(18)} 0 0 0);
 
   @media (max-width: 56rem) {
     position: relative;
@@ -492,90 +406,11 @@ const Icon = styled(PlayRing)`
 
 /* ── the sections ─────────────────────────────────────────────────────── */
 
-const Sections = styled.div`
-  display: flex;
-  flex-direction: column;
-  max-width: 76rem;
-  margin: 0 auto;
-  padding: ${u(121)} clamp(1.5rem, 5vw, 5rem) ${u(144)};
-`;
-
-/* A label in the left column and the argument in the right, with a hairline
-   between each — the spacing does the separating, not boxes. The copy column
-   starts at 720 on the 1920 frame. */
-const Section = styled.section<{ $shown: boolean }>`
-  ${({ $shown }) => css`
-    display: grid;
-    grid-template-columns: 14rem 1fr;
-    gap: 4rem;
-    padding: 4.75rem 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-
-    &:first-child {
-      border-top: none;
-      padding-top: 0;
-    }
-
-    & > *,
-    & > * > * {
-      opacity: ${$shown ? 1 : 0};
-    }
-
-    ${$shown &&
-    css`
-      & > h2 {
-        ${entrance(0)}
-      }
-      & > div > :nth-child(1) {
-        ${entrance(90)}
-      }
-      & > div > :nth-child(2) {
-        ${entrance(200)}
-      }
-    `}
-
-    @media (prefers-reduced-motion: reduce) {
-      & > *,
-      & > * > * {
-        opacity: 1;
-      }
-    }
-
-    @media (max-width: 52rem) {
-      grid-template-columns: 1fr;
-      gap: 1rem;
-      padding: 3rem 0;
-    }
-  `}
-`;
-
-const SectionLabel = styled.h2`
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.4;
-  color: ${MUTED};
-`;
-
-const SectionBody = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-width: 40rem;
-`;
-
-const SectionTitle = styled.p`
-  margin: 0;
-  font-size: clamp(1.625rem, 3vw, 2.28rem);
-  font-weight: 300;
-  line-height: 1.12;
-`;
-
-const SectionText = styled.p`
-  margin: 0;
-  font-size: 1.175rem;
-  line-height: 1.46;
-  color: ${MUTED};
+/* The shared rows, with the landing's own spacing above and below — measured
+   against the Figma, whose rhythm they now match within a few pixels */
+const LandingRows = styled(Rows)`
+  padding-top: ${u(121)};
+  padding-bottom: ${u(144)};
 `;
 
 /* ── the close ────────────────────────────────────────────────────────── */

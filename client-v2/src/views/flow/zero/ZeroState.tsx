@@ -1,6 +1,8 @@
 import { FC, useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
+import BrandIcon from "../../../components/BrandIcon";
+
 import ProgramsTab from "../gallery/ProgramsTab";
 import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
@@ -108,17 +110,17 @@ const ZeroState: FC<ZeroStateProps> = ({
                 $on={scratchOpen}
                 onClick={() => setScratchOpen((o) => !o)}
               >
-                <CardIcon aria-hidden="true">{ICONS.plus}</CardIcon>
+                <CardIcon aria-hidden="true"><BrandIcon name="new" /></CardIcon>
                 <CardTitle>New project</CardTitle>
                 <CardSub>Anchor, Native or Seahorse</CardSub>
               </Card>
               <Card type="button" onClick={() => onSection("tutorials")}>
-                <CardIcon aria-hidden="true">{ICONS.book}</CardIcon>
+                <CardIcon aria-hidden="true"><BrandIcon name="tutorial" /></CardIcon>
                 <CardTitle>Follow a tutorial</CardTitle>
                 <CardSub>{PgTutorial.all.length} guided paths</CardSub>
               </Card>
               <Card type="button" onClick={() => onSection("programs")}>
-                <CardIcon aria-hidden="true">{ICONS.code}</CardIcon>
+                <CardIcon aria-hidden="true"><BrandIcon name="programs" /></CardIcon>
                 <CardTitle>Open a program</CardTitle>
                 <CardSub>
                   {programs ? programs.length : "…"} real programs
@@ -152,7 +154,7 @@ const ZeroState: FC<ZeroStateProps> = ({
             {!onStart && (
               <ListHead>
                 <SearchWrap>
-                  <Glyph aria-hidden="true">{ICONS.search}</Glyph>
+                  <Glyph aria-hidden="true"><BrandIcon name="search" /></Glyph>
                   <SearchInput
                     type="search"
                     value={query}
@@ -204,23 +206,11 @@ const ICONS = {
       <path d="M9.5 4.5v15" />
     </>
   ),
-  search: svg(
-    <>
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </>
-  ),
   help: svg(
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2-2.4 3.6" />
       <path d="M12 17.2h.01" />
-    </>
-  ),
-  plus: svg(
-    <>
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
     </>
   ),
   grid: svg(
@@ -249,18 +239,6 @@ const ICONS = {
     <>
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
       <path d="M12 8.5 13.6 11 16 12l-2.4 1-1.6 2.5L10.4 13 8 12l2.4-1z" />
-    </>
-  ),
-  book: svg(
-    <>
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H19v14H5.5A1.5 1.5 0 0 0 4 19.5z" />
-      <path d="M19 18v2H5.5A1.5 1.5 0 0 1 4 18.5" />
-    </>
-  ),
-  code: svg(
-    <>
-      <path d="m9 17-5-5 5-5" />
-      <path d="m15 7 5 5-5 5" />
     </>
   ),
 };

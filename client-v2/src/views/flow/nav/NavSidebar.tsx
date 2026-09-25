@@ -1,6 +1,7 @@
 import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import BrandIcon from "../../../components/BrandIcon";
 import PlaygroundLogoNext from "../../../components/PlaygroundLogoNext";
 import { PgExplorer } from "../../../utils";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
@@ -113,11 +114,11 @@ const NavSidebar: FC<NavSidebarProps> = ({
             $current={homeActive && section === "home"}
             aria-current={homeActive && section === "home" ? "page" : undefined}
           >
-            <Glyph aria-hidden="true">{ICONS.home}</Glyph>
+            <Glyph aria-hidden="true"><BrandIcon name="home" /></Glyph>
             Home
           </Row>
           <Row onClick={onOpenGallery} type="button">
-            <Glyph aria-hidden="true">{ICONS.plus}</Glyph>
+            <Glyph aria-hidden="true"><BrandIcon name="new" /></Glyph>
             New project
           </Row>
           {/* These were switches in the start screen's own bar, where "Start"
@@ -130,7 +131,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
             $current={section === "tutorials"}
             aria-current={section === "tutorials" ? "page" : undefined}
           >
-            <Glyph aria-hidden="true">{ICONS.book}</Glyph>
+            <Glyph aria-hidden="true"><BrandIcon name="tutorial" /></Glyph>
             Tutorials
           </Row>
           <Row
@@ -140,7 +141,7 @@ const NavSidebar: FC<NavSidebarProps> = ({
             $current={section === "programs"}
             aria-current={section === "programs" ? "page" : undefined}
           >
-            <Glyph aria-hidden="true">{ICONS.code}</Glyph>
+            <Glyph aria-hidden="true"><BrandIcon name="programs" /></Glyph>
             Programs
           </Row>
         </Group>
@@ -242,18 +243,6 @@ const svg = (d: JSX.Element) => (
 );
 
 const ICONS = {
-  home: svg(
-    <>
-      <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z" />
-      <path d="M9.5 20.5v-6h5v6" />
-    </>
-  ),
-  plus: svg(
-    <>
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
-    </>
-  ),
   folder: svg(
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
   ),
@@ -261,12 +250,6 @@ const ICONS = {
     <>
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
       <path d="M12 8.5 13.6 11 16 12l-2.4 1-1.6 2.5L10.4 13 8 12l2.4-1z" />
-    </>
-  ),
-  book: svg(
-    <>
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H19v14H5.5A1.5 1.5 0 0 0 4 19.5z" />
-      <path d="M19 18v2H5.5A1.5 1.5 0 0 1 4 18.5" />
     </>
   ),
   help: svg(
@@ -280,12 +263,6 @@ const ICONS = {
     <>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
-    </>
-  ),
-  code: svg(
-    <>
-      <path d="m9 8-4 4 4 4" />
-      <path d="m15 8 4 4-4 4" />
     </>
   ),
   cube: svg(
