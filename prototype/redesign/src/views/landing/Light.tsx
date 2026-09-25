@@ -27,7 +27,9 @@ import { smoothstep } from "./trail";
  * further, and streaks (`streaks.ts`) race up them into the product — the
  * claims' lines of light. A scroll also pulls on a spring that stretches the
  * ribbons, which springs back once the page is still, and the reader's pull
- * against the first screen stretches them further; under the pointer
+ * against the first screen stretches them further. When the page glides on
+ * its own, the glide drives the light: it runs at full speed, the ribbons
+ * stretch, bend in and whip, and it shakes a little; under the pointer
  * everything shakes a little too. The window's own edge joins in: two lights
  * run up its sides and over its top on the same clock, brighter the faster it
  * runs. It only runs while it can be seen; asked for less motion, it draws one
@@ -103,10 +105,12 @@ const SHAKE = 2.4;
    top, per second of the light's clock */
 const EDGE_RATE = 0.11;
 
-/** How hard the reader is pulling on the light, 0 to 1 — scrolling down
-    against it before the page lets go (`Landing.tsx`) */
+/** What the page asks of the light (`Landing.tsx`): how hard the reader is
+    pulling on it, 0 to 1 — scrolling down against it before the page lets go
+    — and how hard a glide of the page's own is driving it */
 export interface Pull {
   value: number;
+  drive: number;
 }
 
 interface LightProps {
@@ -120,9 +124,12 @@ interface LightProps {
 }
 
 /* How far a full pull stretches the ribbons, and how much of the full
-   speed-up it gives */
+   speed-up it gives; how far a glide at full drive stretches them, and how
+   hard it shakes them against the pointer's shake */
 const PULL_STRETCH = 0.4;
 const PULL_SPEED = 0.9;
+const DRIVE_STRETCH = 0.3;
+const DRIVE_SHAKE = 0.5;
 
 const Light: FC<LightProps> = ({ on, frame, pull }) => {
   const flowRef = useRef<HTMLCanvasElement>(null);
@@ -242,11 +249,12 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       edge.style.setProperty("--edge", (0.6 + 0.4 * pace).toFixed(3));
     };
 
-    const paint = (seconds: number, speed: number) => {
+    const paint = (seconds: number, speed: number, drive = 0) => {
       const pace = Math.max(0, Math.min(1, (speed - 1) / (HOT - 1)));
-      /* A shake on the light's clock under the pointer, harder the faster it
-         runs */
-      const hard = SHAKE * hover * pace * sizes.px;
+      /* A shake on the light's clock under the pointer, or while the page
+         glides, harder the faster it runs */
+      const hard =
+        SHAKE * Math.max(hover, DRIVE_SHAKE * drive) * pace * sizes.px;
       const shake: Shake = {
         x:
           hard *
@@ -266,9 +274,12 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         BUTTON_TOP,
         shape,
         pace,
-        stretch + PULL_STRETCH * (pull?.current?.value ?? 0),
+        stretch +
+          PULL_STRETCH * (pull?.current?.value ?? 0) +
+          DRIVE_STRETCH * drive,
         { x: shake.x * 0.5, y: shake.y * 0.5 },
-        ground
+        ground,
+        drive
       );
       /* The same frame, smaller, for CSS to blur */
       softCtx.clearRect(0, 0, sizes.sw, sizes.sh);
@@ -285,7 +296,8 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         pace,
         sizes.px,
         shake,
-        ground
+        ground,
+        drive
       );
       light(seconds, pace);
     };
@@ -320,13 +332,20 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
 
       hover += ((hovered ? 1 : 0) - hover) * Math.min(1, dt * EASING);
       const drag = Math.max(0, pull?.current?.value ?? 0);
+      const asked = pull?.current?.drive ?? 0;
+      const drive = Number.isFinite(asked)
+        ? Math.max(0, Math.min(1, asked))
+        : 0;
       const speed =
         1 +
         (HOT - 1) *
-          Math.min(1, Math.max(hover, SCROLL_SHARE * boost, PULL_SPEED * drag));
+          Math.min(
+            1,
+            Math.max(hover, SCROLL_SHARE * boost, PULL_SPEED * drag, drive)
+          );
       clock += dt * speed;
       measure();
-      paint(clock, speed);
+      paint(clock, speed, drive);
     };
     const start = () => {
       if (!running && !still) running = requestAnimationFrame(tick);
