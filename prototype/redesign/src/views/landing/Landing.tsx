@@ -6,7 +6,7 @@ import PixelIn from "./PixelIn";
 import PixelReveal from "./PixelReveal";
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
 import { useReveal } from "./useReveal";
-import { LATTICE_FADE, LATTICE_PITCH, latticeTiles } from "../deck/tokens";
+import Pattern from "../deck/Pattern";
 
 /**
  * The landing.
@@ -40,7 +40,9 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
             piece of work. Over the canvas rather than in it: the dither pass
             quantises whatever it is given, and a hairline put through that
             comes out as broken dots. */}
-        <Lattice aria-hidden="true" />
+        <Lattice aria-hidden="true">
+          <Pattern rest={0.14} />
+        </Lattice>
         <Grid />
         <Fade />
       </HeroArt>
@@ -78,9 +80,9 @@ const Landing: FC<LandingProps> = ({ onEnter }) => {
         <FootCopy>Solana Playground</FootCopy>
         <FootArgument>
           <p>
-            Writing your first on-chain program usually starts with an
+            Writing your first onchain program usually starts with an
             afternoon of toolchains — Rust, the CLI, a local validator, a
-            wallet, a faucet. Most people stop there, and never find out
+            wallet, a faucet. Most people stop there and never find out
             whether the idea was any good.
           </p>
           <p>
@@ -213,18 +215,15 @@ const Hero = styled.header`
   isolation: isolate;
 `;
 
-/* The one pattern, defined with the deck's. This used to be a second copy of
-   it, which is how the landing and the deck ended up drawing the same thing at
-   two different weights. It is quieter here than on a slide because the hero
-   art is underneath it rather than a flat ground. */
+/* The one pattern, the deck's own, lit by the pointer the same way. This used
+   to be a second copy of it, which is how the landing and the deck ended up
+   drawing the same thing at two different weights. Quieter at rest than on a
+   slide, because the hero art is underneath it rather than a flat ground. */
 const Lattice = styled.div`
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background-image: ${latticeTiles(0.14)};
-  background-size: ${LATTICE_PITCH} ${LATTICE_PITCH};
-  ${LATTICE_FADE}
 `;
 
 const HeroArt = styled.div`

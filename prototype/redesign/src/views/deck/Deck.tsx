@@ -1,22 +1,35 @@
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FC,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
-import Slide from "./Slide";
-import { SLIDES } from "./slides";
-import { BODY, HEADLINE, INK } from "./tokens";
+import Atmosphere from "./Atmosphere";
+import type { Ground } from "./Atmosphere";
+import { CARRY_MS, noteCarried } from "./carry";
+import Slide, { SHOTS } from "./Slide";
+import { SLIDES, isLight } from "./slides";
+import { BODY, HEADLINE } from "./tokens";
 
 /**
  * The design proposal, as a thing you present rather than a thing you scroll.
  *
  * One slide at a time, advanced by the keyboard, a click, the wheel or a
  * swipe — every way a person in front of a room actually advances a slide.
- * The deck is a linear argument (what this is, what the mark became, what it
- * says) and ends on three signposts that hand off to the live product: the
+ * The deck ends on three signposts that hand off to the live product: the
  * landing, the product itself, and the evaluation of what it used to be.
  *
- * Those last three are not links buried in a slide. They are the point of the
- * whole build — the deck exists so that the thing it is arguing about is one
- * key away, rather than a screenshot of itself.
+ * It is built in two layers, which is what lets it move the way the Figma
+ * prototype does. Underneath, one ground that never unmounts — the gradient,
+ * the pattern — and each slide only tells it where to go, so a change of slide
+ * is the colour travelling rather than a cut. On top, the slide's content: the
+ * outgoing slide stays for a moment and fades while the next one arrives, and
+ * anything the two have in common is carried from one to the other.
  */
 
 interface DeckProps {
@@ -56,23 +69,65 @@ const typing = (el: Element | null) =>
 const overlayHasThePage = () =>
   document.documentElement.classList.contains("ann-on");
 
+/** How long the outgoing slide stays, which is as long as anything is moving */
+const LEAVE_MS = Math.max(CARRY_MS, 900);
+
+type Colour = Exclude<Ground, "paper" | "ink">;
+
+/* The last colour the ground had, so that on white and on black the fields
+   fade out from where they were. Before any colour at all — the white opening
+   slides — it is the first colour to come, so the gradient blooms in place. */
+const colourAt = (index: number): Colour => {
+  const isColour = (g: Ground): g is Colour => g !== "paper" && g !== "ink";
+  for (let i = index; i >= 0; i--) {
+    const g = SLIDES[i].ground;
+    if (isColour(g)) return g;
+  }
+  const next = SLIDES.find((s) => isColour(s.ground));
+  return next && isColour(next.ground) ? next.ground : "haze";
+};
+
 const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   const [index, setIndex] = useState(0);
-  /* Which way the last move went, so a slide arrives from the side it should */
-  const [back, setBack] = useState(false);
+  const [leaving, setLeaving] = useState<number | null>(null);
+  /* Read by handlers that fire faster than React re-renders */
+  const at = useRef(0);
+  const current = useRef<HTMLDivElement>(null);
   const wheelLock = useRef(0);
   const touchFrom = useRef<number | null>(null);
 
   const go = useCallback((next: number) => {
-    setIndex((current) => {
-      const clamped = Math.max(0, Math.min(SLIDES.length - 1, next));
-      setBack(clamped < current);
-      return clamped;
-    });
+    const to = Math.max(0, Math.min(SLIDES.length - 1, next));
+    if (to === at.current) return;
+    /* Measured now, while the old slide is still the one on screen */
+    noteCarried(current.current);
+    setLeaving(at.current);
+    at.current = to;
+    setIndex(to);
   }, []);
 
-  const next = useCallback(() => go(index + 1), [go, index]);
-  const prev = useCallback(() => go(index - 1), [go, index]);
+  useEffect(() => {
+    if (leaving === null) return;
+    const t = window.setTimeout(() => setLeaving(null), LEAVE_MS);
+    return () => window.clearTimeout(t);
+  }, [leaving, index]);
+
+  /* The renders are the heaviest thing in the deck — one is almost 5 MB — and
+     they sit near the end. Fetch them once the first slide is up, so none of
+     them arrives in front of the room half loaded. */
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      Object.values(SHOTS).forEach((src) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+      });
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const next = useCallback(() => go(at.current + 1), [go]);
+  const prev = useCallback(() => go(at.current - 1), [go]);
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -127,10 +182,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   };
 
   /* Click anywhere to advance — except on something that is itself a control.
-     This was an invisible full-bleed button, which sat *over* the slide's own
-     CTA: it is a later sibling with z-index 0 against a frame at auto, so it
-     painted on top and swallowed the one click that mattered. Asking the
-     event where it landed has no stacking order to get wrong. */
+     Asking the event where it landed has no stacking order to get wrong. */
   const onClick = (ev: React.MouseEvent) => {
     const el = ev.target as HTMLElement | null;
     if (el?.closest("button, a, [role='button']")) return;
@@ -157,6 +209,12 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   };
 
   const slide = SLIDES[index];
+  const light = isLight(slide);
+  const out = leaving !== null && leaving !== index ? leaving : null;
+  /* Between two pictures the outgoing one holds until the next has covered
+     it; fading both at once would show the ground through the middle of the
+     change. Anywhere else it fades. */
+  const hold = out !== null && SLIDES[out].kind === "image" && slide.kind === "image";
 
   return (
     <Stage
@@ -170,15 +228,31 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
     >
       <DeckFont />
 
-      {/* Keyed, so React tears the old slide down and the animation runs */}
-      <Frame key={index} $back={back}>
-        <Slide
-          slide={slide}
-          onLanding={onLanding}
-          onProduct={onProduct}
-          onEvaluation={onEvaluation}
-        />
-      </Frame>
+      <Atmosphere
+        ground={slide.ground}
+        lastColour={colourAt(index)}
+        pattern={!!slide.grid}
+      />
+
+      {/* Keyed by slide, and the outgoing one rendered first, so React keeps
+          the very element that was on screen and only changes its role. */}
+      {[out, index]
+        .filter((i): i is number => i !== null)
+        .map((i) => (
+          <Layer
+            key={SLIDES[i].id}
+            ref={i === index ? current : undefined}
+            leaving={i !== index}
+            hold={hold}
+          >
+            <Slide
+              slide={SLIDES[i]}
+              onLanding={onLanding}
+              onProduct={onProduct}
+              onEvaluation={onEvaluation}
+            />
+          </Layer>
+        ))}
 
       <Rail aria-hidden="true">
         {SLIDES.map((s, i) => (
@@ -187,13 +261,13 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
             type="button"
             aria-label={`Slide ${i + 1}`}
             $on={i === index}
-            $dark={slide.ground === "paper"}
+            $dark={light}
             onClick={() => go(i)}
           />
         ))}
       </Rail>
 
-      <Count $dark={slide.ground === "paper"}>
+      <Count $dark={light}>
         {index + 1} / {SLIDES.length}
       </Count>
     </Stage>
@@ -201,6 +275,67 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
 };
 
 export default Deck;
+
+/**
+ * One slide's content. When it becomes the outgoing slide it fades — or holds,
+ * between two pictures — and if it comes back before it is gone, anything the
+ * next slide carried away from it is put back.
+ */
+const Layer = forwardRef<
+  HTMLDivElement,
+  { leaving: boolean; hold: boolean; children: React.ReactNode }
+>(({ leaving, hold, children }, ref) => {
+  const own = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (leaving || !own.current) return;
+    own.current
+      .querySelectorAll<HTMLElement>("[data-carry]")
+      .forEach((el) => (el.style.visibility = ""));
+  }, [leaving]);
+
+  const attach = (el: HTMLDivElement | null) => {
+    own.current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) ref.current = el;
+  };
+
+  return (
+    <LayerBox
+      ref={attach}
+      $leaving={leaving}
+      $hold={hold}
+      data-leaving={leaving ? "" : undefined}
+      data-current={leaving ? undefined : ""}
+      aria-hidden={leaving || undefined}
+    >
+      {children}
+    </LayerBox>
+  );
+});
+
+const LayerBox = styled.div<{ $leaving: boolean; $hold: boolean }>`
+  ${({ $leaving, $hold }) => css`
+    position: absolute;
+    inset: 0;
+    pointer-events: ${$leaving ? "none" : "auto"};
+    ${$leaving &&
+    !$hold &&
+    css`
+      animation: ${fadeOut} 520ms cubic-bezier(0.4, 0, 0.6, 1) both;
+    `}
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      ${$leaving && "opacity: 0;"}
+    }
+  `}
+`;
+
+const fadeOut = keyframes`
+  from { opacity: 1; }
+  to   { opacity: 0; }
+`;
 
 /* The headline face, loaded once for the whole deck. Variable on weight
    between 400 and 700, which is the range Google serves for it. */
@@ -212,7 +347,7 @@ const Stage = styled.div`
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: ${INK};
+  background: #151515;
   font-family: ${BODY};
   /* The deck owns the window; nothing behind it should scroll */
   touch-action: none;
@@ -227,25 +362,6 @@ const Stage = styled.div`
     user-select: text;
   }
 `;
-
-const arrive = (from: string) => keyframes`
-  from { opacity: 0; transform: translate3d(${from}, 0, 0) scale(0.985); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-`;
-
-const Frame = styled.div<{ $back: boolean }>`
-  ${({ $back }) => css`
-    position: absolute;
-    inset: 0;
-    animation: ${arrive($back ? "-3%" : "3%")} 520ms
-      cubic-bezier(0.22, 0.61, 0.24, 1) both;
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-  `}
-`;
-
 
 const Rail = styled.div`
   position: absolute;
@@ -287,5 +403,6 @@ const Count = styled.div<{ $dark: boolean }>`
     font-size: 0.8125rem;
     letter-spacing: 0.02em;
     color: ${$dark ? "rgba(0, 0, 0, 0.42)" : "rgba(255, 255, 255, 0.55)"};
+    transition: color 300ms ease;
   `}
 `;

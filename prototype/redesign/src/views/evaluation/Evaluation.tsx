@@ -7,11 +7,10 @@ import {
   GREEN,
   HEADLINE,
   INK,
-  LATTICE_PITCH,
   PAPER,
   PURPLE,
-  latticeTiles,
 } from "../deck/tokens";
+import Pattern from "../deck/Pattern";
 
 /**
  * The evaluation: what the product's interface was, what it is now, and the
@@ -35,6 +34,9 @@ interface EvaluationProps {
 const Evaluation: FC<EvaluationProps> = ({ onBack, onProduct }) => (
   <Page>
     <EvalFont />
+    <Ground aria-hidden="true">
+      <Pattern rest={0.06} lit={0.3} fade={0} />
+    </Ground>
 
     <Bar>
       <Back type="button" onClick={onBack}>
@@ -163,16 +165,21 @@ const Page = styled.div`
   inset: 0;
   overflow-y: auto;
   background: ${INK};
-  /* The same pattern the deck and the landing carry — it was a hairline grid
-     at a different pitch, which made this the third answer to one question.
-     No fade: a mask here would apply to the page's own text, and this one
-     scrolls, so there is no edge for a horizontal ramp to arrive at. Quiet,
-     because it sits under a document rather than under a headline. */
-  background-image: ${latticeTiles(0.035)};
-  background-size: ${LATTICE_PITCH} ${LATTICE_PITCH};
   color: ${PAPER};
   font-family: ${BODY};
   font-weight: 300;
+`;
+
+/* The deck's pattern, lit by the pointer. Fixed, so it stays put while the
+   document scrolls over it, and at -1 inside the page's own stacking context
+   so it paints above the page's colour and below everything on it. No fade: a
+   page that scrolls has no edge for the asset's ramp to arrive at. Quiet,
+   because it sits under a document rather than under a headline. */
+const Ground = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 `;
 
 const Bar = styled.div`

@@ -1,17 +1,27 @@
-import { FC } from "react";
+import { FC, memo, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
+import PlaygroundLogoNext, {
+  LOCKUP_BOX,
+  LOCKUP_MARK,
+} from "../../components/PlaygroundLogoNext";
 import PlaygroundMarkNext from "../../components/PlaygroundMarkNext";
-import Backdrop from "./Backdrop";
-import MarkMorph from "./MarkMorph";
 /* Imported rather than referenced by path: `public/` in this repo is mirrored
    from the static-assets submodule by `make update-static`, so anything put
    there is wiped on the next build and never committed. Through the bundler
    they are content-hashed and actually ship. */
+import appShot from "./art/brand-app.png";
+import homeShot from "./art/brand-home.png";
+import keyboardShot from "./art/brand-keyboard.png";
+import teeShot from "./art/brand-tee.png";
+import tutorialShot from "./art/brand-tutorial.png";
 import groundShot from "./art/ground.png";
 import playShot from "./art/play.png";
 import solanaShot from "./art/solana.png";
-import type { Exit, SlideSpec } from "./slides";
+import { MAKE_ROOM_MS, useCarry, willCarry } from "./carry";
+import SolanaMark from "./SolanaMark";
+import { isLight } from "./slides";
+import type { Exit, Shot, SlideSpec } from "./slides";
 import {
   HEADLINE,
   HEADLINE_LEADING,
@@ -21,36 +31,132 @@ import {
   PAPER,
 } from "./tokens";
 
+/** The five brand renders, so the deck can fetch them before they are needed */
+export const SHOTS: Record<Shot, string> = {
+  keyboard: keyboardShot,
+  app: appShot,
+  tutorial: tutorialShot,
+  tee: teeShot,
+  home: homeShot,
+};
+
 /**
- * A line, one letter at a time.
+ * A line, one letter at a time — and, word by word, carried.
  *
  * Words are kept whole so the line still wraps on word boundaries, and the
- * spaces between them carry the same beat as a letter — which is what stops
- * the second word starting before the first has landed. 22ms a letter is
- * quick: the whole of "Play, Build, Create" is under half a second, and the
- * point is that it reads as arriving rather than as a queue.
+ * spaces carry the same beat as a letter, which stops the second word starting
+ * before the first has landed. 22ms a letter is quick: the point is that the
+ * line reads as arriving rather than as a queue.
+ *
+ * Every word is also a carry target, named for what it says. A word the last
+ * slide already had does not drop in again — it travels from where it was.
+ * That is the whole of how "Explore" becomes "Explore, Learn," becomes the
+ * full line: nothing is re-typed, only the new words arrive. Trailing
+ * punctuation is its own target, so the comma that joins "Explore" on the
+ * second slide arrives as a new thing while the word it follows moves.
  */
 const STEP = 22;
 
-const Letters: FC<{ text: string; from: number }> = ({ text, from }) => {
-  let n = from;
+const keyOf = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+const Carried: FC<{ name: string; children: React.ReactNode }> = ({
+  name,
+  children,
+}) => {
+  const ref = useCarry<HTMLSpanElement>();
   return (
-    <>
-      {text.split(" ").map((word, w, all) => (
-        <Word key={`${word}-${w}`}>
-          {[...word].map((ch, i) => (
-            <Ch key={i} style={{ animationDelay: `${(n++ * STEP) + 90}ms` }}>
-              {ch}
-            </Ch>
-          ))}
-          {w < all.length - 1 && <Ch key="sp">&nbsp;</Ch>}
-        </Word>
-      ))}
-    </>
+    <Piece ref={ref} data-carry={name}>
+      {children}
+    </Piece>
   );
 };
 
-/** One slide. Which one is decided by the spec; how it looks is decided here. */
+const Headline: FC<{
+  lines: string[];
+  light: boolean;
+  scale?: number;
+  weight?: number;
+  leading?: number;
+  reserve?: number;
+}> = ({ lines, light, scale, weight, leading, reserve = 0 }) => {
+  /* Name every piece first, so we know before drawing a letter whether any of
+     them is arriving from the last slide */
+  const taken = new Map<string, number>();
+  const words = lines.map((line) =>
+    line.split(" ").map((word, w) => {
+      const core = word.replace(/[^\p{L}\p{N}]+$/u, "");
+      const tail = word.slice(core.length);
+      const base = keyOf(core) || `w${w}`;
+      const seen = taken.get(base) ?? 0;
+      taken.set(base, seen + 1);
+      const name = seen ? `${base}-${seen}` : base;
+      return { word, core, tail, name };
+    })
+  );
+  /* Decided once, on arrival. The map changes as the next slide is noted, and
+     a slide that is already on its way out must not re-time its own letters */
+  const [carrying] = useState(() => words.flat().some((w) => willCarry(w.name)));
+
+  /* New letters wait for carried words to clear the space they land in */
+  let n = 0;
+  const start = carrying ? MAKE_ROOM_MS : 90;
+  const letters = (text: string) =>
+    [...text].map((ch, i) => (
+      <Ch key={i} style={{ animationDelay: `${n++ * STEP + start}ms` }}>
+        {ch}
+      </Ch>
+    ));
+
+  return (
+    <Title $light={light} $scale={scale} $weight={weight} $leading={leading}>
+      {words.map((line, l) => (
+        <Line key={`${lines[l]}-${l}`}>
+          {line.map(({ word, core, tail, name }, w) => (
+            <Word key={`${word}-${w}`}>
+              <Carried name={name}>{letters(core)}</Carried>
+              {tail && <Carried name={`${name}${tail}`}>{letters(tail)}</Carried>}
+              {w < line.length - 1 && <Ch>{" "}</Ch>}
+            </Word>
+          ))}
+        </Line>
+      ))}
+      {Array.from({ length: Math.max(0, reserve - lines.length) }, (_, i) => (
+        <Line key={`held-${i}`} aria-hidden="true">
+          {" "}
+        </Line>
+      ))}
+    </Title>
+  );
+};
+
+/** The mark alone, carried into the lockup on the next slide */
+const Mark: FC = () => {
+  const ref = useCarry<HTMLDivElement>();
+  return (
+    <BigMark ref={ref} data-carry="symbol">
+      <PlaygroundMarkNext />
+    </BigMark>
+  );
+};
+
+/**
+ * The lockup: the supplied Logo, with its mark lifted out as its own element
+ * so the mark from the slide before can travel into the exact place it
+ * occupies in the logo. The words are the logo's own, drawn around it.
+ */
+const Lockup: FC = () => {
+  const ref = useCarry<HTMLDivElement>();
+  return (
+    <LockupBox>
+      <LockupWords part="words" />
+      <LockupMark ref={ref} data-carry="symbol">
+        <PlaygroundMarkNext />
+      </LockupMark>
+    </LockupBox>
+  );
+};
+
+/** One slide's content. The ground under it belongs to the deck. */
 
 interface SlideProps {
   slide: SlideSpec;
@@ -70,20 +176,24 @@ const Slide: FC<SlideProps> = ({
     product: onProduct,
     evaluation: onEvaluation,
   };
-  const dark = slide.ground !== "paper";
+  const light = isLight(slide);
+
+  if (slide.kind === "image") {
+    return <Picture src={SHOTS[slide.shot]} alt={slide.alt} draggable={false} />;
+  }
 
   return (
-    <Surface $paper={slide.ground === "paper"}>
-      <Backdrop ground={slide.ground} lattice={!!slide.grid} />
+    <Content>
       {slide.kind === "title" && (
         <Measure>
-          <Headline $dark={dark} $scale={slide.scale}>
-            {slide.lines.map((line, i) => (
-              <Line key={line}>
-                <Letters text={line} from={i * 9} />
-              </Line>
-            ))}
-          </Headline>
+          <Headline
+            lines={slide.lines}
+            light={light}
+            scale={slide.scale}
+            weight={slide.weight}
+            leading={slide.leading}
+            reserve={slide.reserve}
+          />
         </Measure>
       )}
 
@@ -92,7 +202,7 @@ const Slide: FC<SlideProps> = ({
           {slide.items.map((item, i) => (
             <Card key={item.name} style={{ animationDelay: `${140 + i * 110}ms` }}>
               <Plate>
-                <Shot src={ART[item.glyph]} alt="" />
+                <Art src={ART[item.glyph]} alt="" />
               </Plate>
               <CardName>{item.name}</CardName>
               <CardNote>{item.note}</CardNote>
@@ -101,38 +211,20 @@ const Slide: FC<SlideProps> = ({
         </Cards>
       )}
 
-      {slide.kind === "mark" && (
-        <BigMark>
-          <PlaygroundMarkNext />
-        </BigMark>
+      {slide.kind === "solana" && (
+        <SolanaBox>
+          <SolanaMark />
+        </SolanaBox>
       )}
 
-      {slide.kind === "seed" && <MarkMorph hold />}
-      {slide.kind === "morph" && <MarkMorph />}
-
-      {slide.kind === "lockup" && (
-        <Lockup>
-          <LockMark>
-            <PlaygroundMarkNext />
-          </LockMark>
-          <Wordmark>
-            <WordLine $order={0}>Solana</WordLine>
-            <WordLine $order={1}>Playground</WordLine>
-          </Wordmark>
-        </Lockup>
-      )}
+      {slide.kind === "mark" && <Mark />}
+      {slide.kind === "lockup" && <Lockup />}
 
       {slide.kind === "signpost" && (
         <Measure>
-          <Headline $dark={dark} $scale={slide.scale}>
-            {slide.lines.map((line, i) => (
-              <Line key={line}>
-                <Letters text={line} from={i * 9} />
-              </Line>
-            ))}
-          </Headline>
-          {slide.note && <Note $dark={dark}>{slide.note}</Note>}
-          <Cta type="button" onClick={exits[slide.exit]} $dark={dark}>
+          <Headline lines={slide.lines} light={light} scale={slide.scale} />
+          {slide.note && <Note $light={light}>{slide.note}</Note>}
+          <Cta type="button" onClick={exits[slide.exit]} $light={light}>
             {slide.cta}
             <CtaArrow aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -142,24 +234,23 @@ const Slide: FC<SlideProps> = ({
           </Cta>
         </Measure>
       )}
-    </Surface>
+    </Content>
   );
 };
 
-export default Slide;
+/* Memoised: an outgoing slide is re-rendered by the deck when its role
+   changes, and there is nothing in it that should change with it */
+export default memo(Slide);
 
-/* ── the grounds ──────────────────────────────────────────────────────── */
+/* ── the frame ────────────────────────────────────────────────────────── */
 
-const Surface = styled.div<{ $paper: boolean }>`
-  ${({ $paper }) => css`
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(1.5rem, 5vw, 5.5rem);
-    background: ${$paper ? PAPER : INK};
-  `}
+const Content = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 5vw, 5.5rem);
 `;
 
 /* ── type ─────────────────────────────────────────────────────────────── */
@@ -179,15 +270,20 @@ const Measure = styled.div`
   text-align: center;
 `;
 
-const Headline = styled.h1<{ $dark: boolean; $scale?: number }>`
-  ${({ $dark, $scale = 1 }) => css`
+const Title = styled.h1<{
+  $light: boolean;
+  $scale?: number;
+  $weight?: number;
+  $leading?: number;
+}>`
+  ${({ $light, $scale = 1, $weight = 400, $leading = HEADLINE_LEADING }) => css`
     margin: 0;
     font-family: ${HEADLINE};
-    font-weight: 400;
+    font-weight: ${$weight};
     font-size: calc(${HEADLINE_SIZE} * ${$scale});
-    line-height: ${HEADLINE_LEADING};
+    line-height: ${$leading};
     letter-spacing: ${HEADLINE_TRACKING};
-    color: ${$dark ? PAPER : INK};
+    color: ${$light ? INK : PAPER};
   `}
 `;
 
@@ -201,6 +297,12 @@ const Word = styled.span`
   white-space: pre;
 `;
 
+/* What travels: inline-block, because a transform does nothing to an inline
+   box, and a carried word is moved by one */
+const Piece = styled.span`
+  display: inline-block;
+`;
+
 /* The playful part: each letter drops in with a little overshoot rather than
    fading, so the line has a bounce to it at speed. */
 const pop = keyframes`
@@ -212,21 +314,20 @@ const pop = keyframes`
 const Ch = styled.span`
   display: inline-block;
   animation: ${pop} 440ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-  will-change: transform, opacity;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
 `;
 
-const Note = styled.p<{ $dark: boolean }>`
-  ${({ $dark }) => css`
+const Note = styled.p<{ $light: boolean }>`
+  ${({ $light }) => css`
     margin: clamp(1.25rem, 2.5vw, 2rem) 0 0;
     max-width: 34rem;
     font-size: clamp(0.875rem, 1.15vw, 1.0625rem);
     font-weight: 300;
     line-height: 1.5;
-    color: ${$dark ? "rgba(255, 255, 255, 0.66)" : "rgba(0, 0, 0, 0.55)"};
+    color: ${$light ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.66)"};
     animation: ${rise} 620ms 320ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
 
     @media (prefers-reduced-motion: reduce) {
@@ -235,8 +336,8 @@ const Note = styled.p<{ $dark: boolean }>`
   `}
 `;
 
-const Cta = styled.button<{ $dark: boolean }>`
-  ${({ $dark }) => css`
+const Cta = styled.button<{ $light: boolean }>`
+  ${({ $light }) => css`
     position: relative;
     z-index: 2;
     display: inline-flex;
@@ -246,8 +347,8 @@ const Cta = styled.button<{ $dark: boolean }>`
     padding: 0.8125rem 1.375rem;
     border: none;
     border-radius: 999px;
-    background: ${$dark ? PAPER : INK};
-    color: ${$dark ? INK : PAPER};
+    background: ${$light ? INK : PAPER};
+    color: ${$light ? PAPER : INK};
     font-family: inherit;
     font-size: 0.9375rem;
     font-weight: 500;
@@ -260,7 +361,7 @@ const Cta = styled.button<{ $dark: boolean }>`
     }
 
     &:focus-visible {
-      outline: 2px solid ${$dark ? PAPER : INK};
+      outline: 2px solid ${$light ? INK : PAPER};
       outline-offset: 3px;
     }
 
@@ -282,56 +383,78 @@ const CtaArrow = styled.span`
   }
 `;
 
-/* ── the mark ─────────────────────────────────────────────────────────── */
+/* ── the marks ────────────────────────────────────────────────────────── */
 
 const draw = keyframes`
   from { opacity: 0; transform: scale(0.92); }
   to   { opacity: 1; transform: scale(1); }
 `;
 
-const BigMark = styled.div`
-  position: relative;
-  z-index: 1;
-  width: min(46vw, 34rem);
-  color: ${PAPER};
+const arriving = css`
   animation: ${draw} 760ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
 
-  & > svg {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
 `;
 
-const Lockup = styled.div`
+/* Sizes are the Figma's, as a share of the 1920 × 1080 frame, and held by
+   whichever of width or height runs out first so a narrow window never crops
+   them. Solana's mark is 470 wide there. */
+const SolanaBox = styled.div`
+  width: min(24.48vw, 43.55vh);
+  ${arriving}
+
+  & > svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+`;
+
+/* The mark at the size the Figma sets it — its own 970, on a 1920 frame */
+const BigMark = styled.div`
+  width: min(50.52vw, 89.8vh);
+  color: ${PAPER};
+  ${arriving}
+
+  & > svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+`;
+
+/* 901 wide on the 1920 frame. Its proportions are the logo's own box, and the
+   mark inside it is placed by the logo's own numbers, so the two parts sit
+   exactly as the supplied file draws them. */
+const LockupBox = styled.div`
   position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: clamp(1rem, 2.6vw, 2.5rem);
+  width: min(46.93vw, 82.3vh);
+  aspect-ratio: ${LOCKUP_BOX.width} / ${LOCKUP_BOX.height};
   color: ${PAPER};
 `;
 
-/* The mark carries over from the slide before, where it filled the frame, and
-   settles to its size in the lockup. Starting at the size it just was is what
-   makes the two slides read as one move rather than as a cut. */
-const shrink = keyframes`
-  from { transform: scale(2.05) translateX(12%); }
-  to   { transform: scale(1) translateX(0); }
-`;
-
-const LockMark = styled.div`
-  width: min(22vw, 15rem);
-  flex-shrink: 0;
-  animation: ${shrink} 760ms cubic-bezier(0.3, 0.75, 0.25, 1) both;
+/* The words follow the mark — they rise once it has nearly arrived */
+const LockupWords = styled(PlaygroundLogoNext)`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  animation: ${rise} 620ms 480ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
+`;
+
+const LockupMark = styled.div`
+  position: absolute;
+  left: ${(LOCKUP_MARK.x / LOCKUP_BOX.width) * 100}%;
+  top: ${(LOCKUP_MARK.y / LOCKUP_BOX.height) * 100}%;
+  width: ${(LOCKUP_MARK.width / LOCKUP_BOX.width) * 100}%;
+  ${arriving}
 
   & > svg {
     width: 100%;
@@ -340,26 +463,30 @@ const LockMark = styled.div`
   }
 `;
 
-/* One word, then the other — after the mark has finished settling */
-const WordLine = styled.span<{ $order: number }>`
-  ${({ $order }) => css`
-    display: block;
-    animation: ${rise} 480ms ${560 + $order * 190}ms
-      cubic-bezier(0.2, 0.8, 0.3, 1) both;
+/* ── the brand, applied ───────────────────────────────────────────────── */
 
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-  `}
+const settle = keyframes`
+  from { opacity: 0; transform: scale(1.018); }
+  to   { opacity: 1; transform: scale(1); }
 `;
 
-const Wordmark = styled.div`
-  font-family: ${HEADLINE};
-  font-weight: 600;
-  font-size: clamp(1.75rem, 7vw, 6.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.015em;
-  text-align: left;
+/* The supplied renders, full bleed. Each one is a finished slide, so it is
+   shown whole rather than rebuilt: the photographs and the mock-ups are the
+   point, and a reconstruction of them would be a worse copy of a file we
+   have. */
+const Picture = styled.img`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  animation: ${settle} 760ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 /* ── the three parts ──────────────────────────────────────────────────── */
@@ -403,17 +530,15 @@ const Plate = styled.div`
   border-radius: 4px;
 `;
 
+/* The supplied artwork for each part — Solana's mark, the controller, the
+   earth — exactly as exported. */
 const ART: Record<"solana" | "play" | "ground", string> = {
   solana: solanaShot,
   play: playShot,
   ground: groundShot,
 };
 
-/* The Figma's own artwork, exported from the deck rather than redrawn. The
-   stroke glyphs that stood here were a stand-in and read as a different deck:
-   a product shot of a controller and a photograph of the earth are the point
-   of that slide, not three icons at one weight. */
-const Shot = styled.img`
+const Art = styled.img`
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -433,4 +558,3 @@ const CardNote = styled.div`
   font-weight: 300;
   color: rgba(0, 0, 0, 0.5);
 `;
-
