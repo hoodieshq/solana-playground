@@ -134,6 +134,12 @@ const DRIVE_RISE = 0.8;
 const DRIVE_SHAKE = 0.5;
 const HOVER_SLIDE = 0.6;
 
+/* One time for every light on the page: the trail version shows its hero
+   again at the bottom of its loop and jumps from that copy back to the top,
+   which only goes unseen if both are drawn at the same moment. Whichever light
+   ticks first in a frame moves it on. */
+const shared = { clock: 12, slideClock: 12, stamp: -1 };
+
 const Light: FC<LightProps> = ({ on, frame, pull }) => {
   const flowRef = useRef<HTMLCanvasElement>(null);
   const sharpRef = useRef<HTMLCanvasElement>(null);
@@ -171,11 +177,9 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
     const sizes = { fw: 1, fh: 1, lw: 1, lh: 1, sw: 1, sh: 1, px: 1 };
     let running = 0;
     let drawn = 0;
-    /* Its own clock, running at a speed of its own, so the pointer and the
-       scroll speed the light up without jumping it to another moment */
-    let clock = 12;
-    /* And a calm one for sliding along the bottom */
-    let slideClock = 12;
+    /* The shared clocks (above) run at a speed of their own, so the pointer
+       and the scroll speed the light up without jumping it to another
+       moment; the calm one is for sliding along the bottom */
     let last = 0;
     /* The pointer: whether it is on the button, and how far that has eased
        in */
@@ -355,10 +359,13 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
             1,
             Math.max(hover, SCROLL_SHARE * boost, PULL_SPEED * drag, drive)
           );
-      clock += dt * speed;
-      slideClock += dt * (1 + (HOT - 1) * HOVER_SLIDE * hover);
+      if (shared.stamp !== now) {
+        shared.clock += dt * speed;
+        shared.slideClock += dt * (1 + (HOT - 1) * HOVER_SLIDE * hover);
+        shared.stamp = now;
+      }
       measure();
-      paint(clock, speed, drive, slideClock);
+      paint(shared.clock, speed, drive, shared.slideClock);
     };
     const start = () => {
       if (!running && !still) running = requestAnimationFrame(tick);
@@ -395,7 +402,7 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
 
     size();
     measure();
-    paint(still ? STILL_AT : clock, 1, 0, slideClock);
+    paint(still ? STILL_AT : shared.clock, 1, 0, shared.slideClock);
 
     const resize =
       typeof ResizeObserver === "undefined"
@@ -403,7 +410,7 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         : new ResizeObserver(() => {
             size();
             measure();
-            paint(still ? STILL_AT : clock, 1, 0, slideClock);
+            paint(still ? STILL_AT : shared.clock, 1, 0, shared.slideClock);
           });
     resize?.observe(sharp);
 
