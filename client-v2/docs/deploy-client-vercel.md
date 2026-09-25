@@ -86,8 +86,11 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 - **Automatic:** push the branch — but this builds `client`, not `client-v2`, until the dashboard Root Directory is changed.
 - **Local preview:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-preview`. Promote later with `vercel promote <url> --prod`.
+- **Local production:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-production`. The target prints the branch and commit, asks for a typed `yes`, and then runs `vercel build --prod` and `vercel deploy --prebuilt --prod`. Run `migrate-parent-db` first when migrations are pending.
 
-`vercel-link-preview` runs automatically as a prerequisite. Local production deploys are intentionally not supported — production goes out only via the `master` Git integration.
+`vercel-link-preview` or `vercel-link-production` runs automatically as a prerequisite.
+
+A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state that earlier local builds left in `client-v2/node_modules/.cache`.
 
 The deploy resolves this git branch's Neon branch first, before building, and passes it as `-e DATABASE_URL=<pooled url>` so the deployment overrides the project-level variable. Resolving first is deliberate: a Neon failure should not cost a full wasm build.
 

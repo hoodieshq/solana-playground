@@ -30,8 +30,25 @@ export NEON_API_KEY
 # the value.
 VERCEL_TOKEN_ARG = $${VERCEL_TOKEN:+--token=$$VERCEL_TOKEN}
 
-.PHONY: vercel-bootstrap vercel-link-preview deploy-client-to-vercel-preview \
+.PHONY: vercel-bootstrap vercel-link-preview vercel-link-production \
+	deploy-client-to-vercel-preview deploy-client-to-vercel-production \
 	neon-preview-base preview-db-branch migrate-preview-db migrate-parent-db
+
+# Both IDs come from the link file because an exported VERCEL_PROJECT_ID outranks
+# it in the CLI's project resolution, leaving orgId unresolved.
+VERCEL_IDS = export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
+	export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json)
+
+# $(1): Vercel environment to pull (preview | production).
+define vercel_link
+	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
+	$(VERCEL_IDS) && npx vercel@latest pull --yes --environment=$(1) $(VERCEL_TOKEN_ARG)
+	@# pull overwrites the cached settings with the dashboard's Root Directory; force ours back.
+	@jq --arg dir '$(CLIENT_DIR)' '.settings.rootDirectory = $$dir' \
+		.vercel/project.json > .vercel/project.json.next
+	@mv .vercel/project.json.next .vercel/project.json
+	@echo "Root Directory pinned to $(CLIENT_DIR)"
+endef
 
 # Resolve orgId from Vercel API + write .vercel/project.json. Requires jq.
 # The one target that still requires VERCEL_TOKEN: this calls the REST API
@@ -52,27 +69,32 @@ vercel-bootstrap: ## Link the local checkout to the dashboard project (run once;
 		jq -n --arg org "$$org_id" --arg proj "$${VERCEL_PROJECT_ID}" '{orgId: $$org, projectId: $$proj}' > .vercel/project.json; \
 		echo "Wrote .vercel/project.json"
 
-# Both IDs come from the link file because an exported VERCEL_PROJECT_ID outranks
-# it in the CLI's project resolution, leaving orgId unresolved.
 vercel-link-preview: ## Pull preview env vars from Vercel
-	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
-	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
-		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
-		npx vercel@latest pull --yes --environment=preview $(VERCEL_TOKEN_ARG)
-	@# pull overwrites the cached settings with the dashboard's Root Directory; force ours back.
-	@jq --arg dir '$(CLIENT_DIR)' '.settings.rootDirectory = $$dir' \
-		.vercel/project.json > .vercel/project.json.next
-	@mv .vercel/project.json.next .vercel/project.json
-	@echo "Root Directory pinned to $(CLIENT_DIR)"
+	$(call vercel_link,preview)
+
+vercel-link-production: ## Pull production env vars from Vercel
+	$(call vercel_link,production)
 
 deploy-client-to-vercel-preview: vercel-link-preview ## Build + deploy a unique preview URL
-	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
-		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
+	$(VERCEL_IDS) && \
 		set -a && . ./.vercel/.env.preview.local && set +a && \
 		db=$$($(NEON_BRANCH_URL) --pooled) && \
 		npx vercel@latest build $(VERCEL_TOKEN_ARG) && \
 		npx vercel@latest deploy --prebuilt --archive=tgz \
 		-e DATABASE_URL="$$db" $(VERCEL_TOKEN_ARG)
+
+# Builds locally because a Vercel build with no cache exceeds the build time limit.
+deploy-client-to-vercel-production: vercel-link-production ## Build locally + deploy to PRODUCTION
+	@printf 'Deploy %s @ %s%s to PRODUCTION.\n' \
+		"$$(git rev-parse --abbrev-ref HEAD)" "$$(git rev-parse --short HEAD)" \
+		"$$(git status --porcelain | grep -q . && echo ' (uncommitted changes included)')"; \
+		printf 'Type yes to continue: '; \
+		read -r reply || { echo "aborted: no answer on stdin" >&2; exit 1; }; \
+		[ "$$reply" = yes ] || { echo "aborted" >&2; exit 1; }
+	$(VERCEL_IDS) && \
+		set -a && . ./.vercel/.env.production.local && set +a && \
+		npx vercel@latest build --prod $(VERCEL_TOKEN_ARG) && \
+		npx vercel@latest deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
 
 # The project-level DATABASE_URL is unscoped (no gitBranch) and targets preview
 # and production alike, so this migrates production. Previews no longer use it --
