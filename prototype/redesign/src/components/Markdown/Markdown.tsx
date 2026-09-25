@@ -1,4 +1,4 @@
-import { FC, useEffect } from "react";
+import { FC, ReactNode, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import styled, { css } from "styled-components";
 import remarkGfm from "remark-gfm";
@@ -18,9 +18,16 @@ interface MarkdownProps {
   rootSrc?: string;
   /** Whether to support URL hashes `<URL>#<HASH>` */
   linkable?: boolean;
+  /** Draws code blocks instead of the default block, e.g. with actions */
+  renderCode?: (code: string, lang?: string) => ReactNode;
 }
 
-const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
+const Markdown: FC<MarkdownProps> = ({
+  rootSrc,
+  linkable,
+  renderCode,
+  ...props
+}) => {
   // Scroll to section if it's linkable
   useEffect(() => {
     if (!linkable) return;
@@ -85,6 +92,7 @@ const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
           const lang = codeProps.className?.split("-")?.at(1);
           const code = codeProps.children[0];
 
+          if (renderCode) return <>{renderCode(code, lang)}</>;
           return <CodeBlock lang={lang}>{code}</CodeBlock>;
         },
 

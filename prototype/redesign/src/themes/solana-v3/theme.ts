@@ -30,14 +30,16 @@ const BG_BASE = "#101011", // the page and the central stage
   // One hairline, everywhere.
   BORDER = "#26262A",
   BORDER_STRONG = "#33333A",
-  // The accent, kept for the mark and the one badge that means new. Not on
-  // text, not on borders, not as a tint over anything.
-  ACCENT = "#2563EB",
-  ACCENT_FILL = "#2563EB",
-  ACCENT_FILL_HOVER = "#3B78F0",
+  // The accent is the presentation's: Solana's purple, so the product carries
+  // the colour the brand is introduced in. Kept for what is current and what
+  // acts — not on body text, not as a tint over anything. The fill is a step
+  // deeper so white on it still reads.
+  ACCENT = "#9945FF",
+  ACCENT_FILL = "#8A3FF5",
+  ACCENT_FILL_HOVER = "#9B5BFF",
   DISABLED_BG = "#191919",
-  // States, and nothing else uses them.
-  GREEN = "#22C55E",
+  // States, and nothing else uses them. Success is Solana's own green.
+  GREEN = "#14F195",
   RED = "#EF4444",
   YELLOW = "#F59E0B",
   CYAN = "#38BDF8",
@@ -55,13 +57,15 @@ const CONTROL_RADIUS = "8px";
  * to hand the monospace to all of it, which is the single thing that made it
  * read as a terminal emulator rather than a product.
  */
-/* Headlines only: the page's question, a section's name, a figure. Everything
-   a person reads at length stays on Manrope, which is built for it. */
+/* Headlines only: the page's question, a section's name, a figure. */
 export const HEADLINE_FONT = `"Stack Sans Headline", "Manrope", -apple-system,
   BlinkMacSystemFont, sans-serif`;
 
-const DISPLAY_FONT = `"Manrope", -apple-system, BlinkMacSystemFont,
-  "Segoe UI", Helvetica, Arial, sans-serif`;
+/* Everything else is Stack Sans Text — the same family's cut for small sizes,
+   so the product speaks in the presentation's voice rather than a stand-in's.
+   Manrope stays behind it while the face loads. */
+const DISPLAY_FONT = `"Stack Sans Text", "Manrope", -apple-system,
+  BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
 
 const SOLANA_V3: ThemeParam = {
   colors: {

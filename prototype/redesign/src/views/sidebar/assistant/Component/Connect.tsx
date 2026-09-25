@@ -6,9 +6,10 @@ import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
+import { effortLabel, modelLabel } from "../model/choice";
+import { useDefaultBackend } from "../model/default-backend";
 import { isDefaultBackendRemembered } from "../model/remembered-backend";
 import {
-  DEFAULT_BACKEND_URL,
   PROVIDERS,
   type Effort,
   type ProviderId,
@@ -21,76 +22,70 @@ const defaultSettings = (provider: ProviderInfo) =>
 
 const CAPABILITIES = [
   {
-    tag: "READS",
+    tag: "Reads",
     text:
       "the tab you are looking at, every file in the project, your cluster, " +
       "wallet status and program id, the last failed build's compiler output",
   },
   {
-    tag: "WRITES",
+    tag: "Writes",
     text: "proposes patches as a diff — applied only when you click Apply",
   },
-  { tag: "RUNS", text: "build and deploy, each behind an explicit approval" },
+  { tag: "Runs", text: "build and deploy, each behind an explicit approval" },
   {
-    tag: "KNOWS",
+    tag: "Knows",
     text: "this project's roadmap, decisions and current status",
   },
   {
-    tag: "KNOWS",
+    tag: "Knows",
     text:
       "where you are in a lesson — the step, its objective and whether it " +
       "is proven yet",
   },
 ];
 
-/**
- * Whether this deployment configured a default backend.
- *
- * `undefined` while the answer is outstanding: the option is neither offered
- * nor ruled out until the server has said, so a fork with no key of its own
- * never preselects a backend that cannot answer.
- */
-const useDefaultBackend = () => {
-  const [configured, setConfigured] = useState<boolean>();
-
-  useEffect(() => {
-    let live = true;
-    fetch(DEFAULT_BACKEND_URL)
-      .then((r) => (r.ok ? r.json() : { configured: false }))
-      .catch(() => ({ configured: false }))
-      .then((body) => live && setConfigured(!!body.configured));
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  return configured;
-};
-
 const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
 /** Everything behind the accordion: each of these needs a key of your own */
 const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
 
-const Connect = () => {
+/** What the composer's model menu was asking for when it opened this */
+export interface ConnectPreset {
+  provider: ProviderId;
+  model?: string;
+  effort?: Effort;
+}
+
+const Connect = ({ preset }: { preset?: ConnectPreset }) => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
   const defaultBackend = useDefaultBackend();
 
-  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
+  const startId = preset?.provider ?? current?.id ?? "default";
+  const initial = PROVIDERS.find((p) => p.id === startId)!;
+  /* The connection's own values where it is the backend being edited; the
+     preset's model and effort on top, since they are what was just picked */
+  const own = current?.id === startId ? current : null;
 
-  const [providerId, setProviderId] = useState<ProviderId>(
-    current?.id ?? "default"
-  );
-  const [expanded, setExpanded] = useState(false);
-  const [key, setKey] = useState(current?.apiKey ?? "");
+  const [providerId, setProviderId] = useState<ProviderId>(startId);
+  const [expanded, setExpanded] = useState(startId !== "default");
+  const [key, setKey] = useState(own?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
     model: string;
-  } | null>(() => (current?.endpoint ? { ...current.endpoint } : null));
-  const [settings, setSettings] = useState(() =>
-    current?.settings ? { ...current.settings } : defaultSettings(initial)
-  );
+  } | null>(() => {
+    const base = own?.endpoint ?? initial.endpoint;
+    if (!base) return null;
+    return { baseUrl: base.baseUrl, model: preset?.model ?? base.model };
+  });
+  const [settings, setSettings] = useState(() => {
+    const base = own?.settings ?? defaultSettings(initial);
+    if (!base) return undefined;
+    return {
+      model: preset?.model ?? base.model,
+      effort: preset?.effort ?? base.effort,
+    };
+  });
 
   /** The probe is still out: the default is neither offered nor ruled out yet */
   const pending = defaultBackend === undefined;
@@ -212,10 +207,6 @@ const Connect = () => {
 
   return (
     <Wrapper>
-      {current && (
-        <Back onClick={() => PgAssistant.keepBackend()}>Back to chat</Back>
-      )}
-
       <Intro>
         <Title>
           {current
@@ -238,7 +229,7 @@ const Connect = () => {
         )}
       </Intro>
 
-      <Label as="div">BACKEND</Label>
+      <Label as="div">Backend</Label>
       <Providers>
         {providerBar(DEFAULT_PROVIDER)}
         {showAlternatives
@@ -258,7 +249,7 @@ const Connect = () => {
 
       {provider.endpoint && endpoint && (
         <>
-          <Label htmlFor="assistant-base-url">BASE URL</Label>
+          <Label htmlFor="assistant-base-url">Base URL</Label>
           <Field
             id="assistant-base-url"
             value={endpoint.baseUrl}
@@ -268,7 +259,7 @@ const Connect = () => {
             placeholder={provider.endpoint.baseUrl}
             autoComplete="off"
           />
-          <Label htmlFor="assistant-model">MODEL</Label>
+          <Label htmlFor="assistant-model">Model</Label>
           {provider.endpoint.models && (
             <Presets>
               {provider.endpoint.models.map((m) => (
@@ -298,15 +289,15 @@ const Connect = () => {
 
       {provider.modelSettings && activeSettings && (
         <>
-          <Label as="div">MODEL</Label>
+          <Label as="div">Model</Label>
           <Picker>
             <Select
               options={provider.modelSettings.models.map((m) => ({
-                label: m,
+                label: modelLabel(m),
                 value: m,
               }))}
               value={{
-                label: activeSettings.model,
+                label: modelLabel(activeSettings.model),
                 value: activeSettings.model,
               }}
               onChange={(option) =>
@@ -317,15 +308,15 @@ const Connect = () => {
             />
           </Picker>
 
-          <Label as="div">EFFORT</Label>
+          <Label as="div">Effort</Label>
           <Picker>
             <Select
               options={provider.modelSettings.efforts.map((e) => ({
-                label: e,
+                label: effortLabel(e),
                 value: e,
               }))}
               value={{
-                label: activeSettings.effort,
+                label: effortLabel(activeSettings.effort),
                 value: activeSettings.effort,
               }}
               onChange={(option) =>
@@ -344,7 +335,7 @@ const Connect = () => {
       {provider.needsKey && (
         <>
           <Label htmlFor="assistant-api-key">
-            API KEY{provider.keyOptional ? " (OPTIONAL)" : ""}
+            API key{provider.keyOptional ? " (optional)" : ""}
           </Label>
           <Input
             id="assistant-api-key"
@@ -415,27 +406,6 @@ const Wrapper = styled.div`
   padding: 1.25rem 1rem;
 `;
 
-const Back = styled.button`
-  ${({ theme }) => css`
-    align-self: flex-start;
-    padding: 0 0 0.75rem;
-    background: transparent;
-    border: none;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
-    cursor: pointer;
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-
-    &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-    }
-  `}
-`;
-
 const Intro = styled.div`
   display: flex;
   flex-direction: column;
@@ -466,7 +436,6 @@ const Label = styled.label`
     display: block;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
-    letter-spacing: 0.1em;
     padding-bottom: 0.4375rem;
   `}
 `;
@@ -648,7 +617,6 @@ const Tag = styled.span`
     width: 3.25rem;
     flex-shrink: 0;
     color: ${theme.colors.default.primary};
-    letter-spacing: 0.06em;
   `}
 `;
 

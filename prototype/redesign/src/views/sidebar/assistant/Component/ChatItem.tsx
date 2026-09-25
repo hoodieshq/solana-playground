@@ -1,7 +1,9 @@
 import { FC, useMemo } from "react";
-import styled, { css } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 
 import Button from "../../../../components/Button";
+import PlayRing from "../../../../components/PlayRing";
+import ChatCode from "./ChatCode";
 import GradientButton from "./GradientButton";
 import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
@@ -9,6 +11,12 @@ import { PgAssistant, type ChatItem as Item } from "../store";
 
 const ChatItem: FC<{
   item: Item;
+  /**
+   * Whether it arrived while the panel was open. New turns rise into place; a
+   * thread restored from storage is already there, and animating forty
+   * messages in at once on load would be noise, not arrival.
+   */
+  fresh?: boolean;
   /**
    * Offered on the newest reply only: asks the assistant to turn what it just
    * described into a patch. The patch still arrives as an approval card, so
@@ -33,6 +41,7 @@ const ChatItem: FC<{
   skipStepTitle?: string | false | null;
 }> = ({
   item,
+  fresh = false,
   onMakeChange,
   makeChangeIsLastResort,
   onVerifyStep,
@@ -44,53 +53,74 @@ const ChatItem: FC<{
   switch (item.kind) {
     case "user":
       return (
-        <Turn>
-          <Role>YOU</Role>
+        <UserBubble $fresh={fresh}>
           <UserText>{item.text}</UserText>
-        </Turn>
+        </UserBubble>
       );
 
     case "assistant":
       // Nothing streamed yet -- the chat's thinking indicator stands in, so
-      // don't render a role header with nothing under it
+      // don't render an empty reply under the mark
       if (!item.text) return null;
       return (
-        <Turn>
-          <Role $accent>ASSISTANT</Role>
-          <Markdown codeFontOnly>{item.text}</Markdown>
-          {onMakeChange && (
-            <MakeChange
-              $quiet={makeChangeIsLastResort}
-              title={
-                makeChangeIsLastResort
-                  ? "Skip the rest of the hints and have the assistant write it, for you to review"
-                  : "Ask the assistant to write this change, for you to review"
-              }
-              onClick={onMakeChange}
-            >
-              {makeChangeIsLastResort ? "Write it for me" : "Make this change"}
-            </MakeChange>
-          )}
-          {onVerifyStep && (
-            <VerifyStep
-              kind="primary"
-              size="small"
-              title={verifyStepTitle || undefined}
-              onClick={onVerifyStep}
-            >
-              {verifyStepLabel}
-            </VerifyStep>
-          )}
-          {onSkipStep && (
-            <MakeChange
-              $quiet
-              title={skipStepTitle || undefined}
-              onClick={onSkipStep}
-            >
-              Skip this step
-            </MakeChange>
-          )}
-        </Turn>
+        <Reply $fresh={fresh}>
+          <Avatar aria-hidden="true" />
+          <Turn>
+            <Prose>
+              <Markdown
+                renderCode={(code, lang) => (
+                  <ChatCode code={code.replace(/\n+$/, "")} lang={lang} />
+                )}
+              >
+                {item.text}
+              </Markdown>
+            </Prose>
+            {(onMakeChange || onVerifyStep || onSkipStep) && (
+              /* The reply's next moves, as buttons you can see from across
+                 the room — one filled, the rest outlined, never a bare link */
+              <NextMoves>
+                {onVerifyStep && (
+                  <Move
+                    type="button"
+                    $primary
+                    title={verifyStepTitle || undefined}
+                    onClick={onVerifyStep}
+                  >
+                    <MoveMark aria-hidden="true" />
+                    {verifyStepLabel}
+                  </Move>
+                )}
+                {onMakeChange && (
+                  <Move
+                    type="button"
+                    $primary={!onVerifyStep && !makeChangeIsLastResort}
+                    title={
+                      makeChangeIsLastResort
+                        ? "Skip the rest of the hints and have the assistant write it, for you to review"
+                        : "Ask the assistant to write this change, for you to review"
+                    }
+                    onClick={onMakeChange}
+                  >
+                    {ICONS.write}
+                    {makeChangeIsLastResort
+                      ? "Write it for me"
+                      : "Make this change"}
+                  </Move>
+                )}
+                {onSkipStep && (
+                  <Move
+                    type="button"
+                    title={skipStepTitle || undefined}
+                    onClick={onSkipStep}
+                  >
+                    {ICONS.skip}
+                    Skip this step
+                  </Move>
+                )}
+              </NextMoves>
+            )}
+          </Turn>
+        </Reply>
       );
 
     case "tool":
@@ -120,6 +150,35 @@ const ChatItem: FC<{
   }
 };
 
+const moveIcon = (d: JSX.Element) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {d}
+  </svg>
+);
+
+const ICONS = {
+  write: moveIcon(
+    <>
+      <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z" />
+      <path d="m14.5 7.5 3 3" />
+    </>
+  ),
+  skip: moveIcon(
+    <>
+      <path d="m5 5 7 7-7 7" />
+      <path d="M13 5v14" />
+    </>
+  ),
+};
+
 const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
   item,
 }) => {
@@ -134,7 +193,7 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
     setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
 
   const label =
-    status === "allowed" ? "APPLIED" : status === "denied" ? "DECLINED" : null;
+    status === "allowed" ? "Applied" : status === "denied" ? "Declined" : null;
 
   return (
     <Card $pending={pending}>
@@ -144,7 +203,7 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
         ) : (
           <CardTitle>wants to run {request.name}</CardTitle>
         )}
-        <StatusLabel $status={status}>{label ?? "PROPOSED"}</StatusLabel>
+        <StatusLabel $status={status}>{label ?? "Proposed"}</StatusLabel>
       </CardHead>
 
       {request.type === "patch" ? (
@@ -214,19 +273,63 @@ const Diff: FC<{ before: string | null; after: string }> = ({
   );
 };
 
-const Turn = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
+/* New turns rise a few pixels into place — enough to see a reply arrive, not
+   enough to make reading wait for it */
+const rise = keyframes`
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
 `;
 
-const Role = styled.div<{ $accent?: boolean }>`
-  ${({ theme, $accent }) => css`
-    color: ${$accent
-      ? theme.colors.default.primary
-      : theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
-    letter-spacing: 0.1em;
+const arrive = (fresh: boolean, ms: number) =>
+  fresh &&
+  css`
+    animation: ${rise} ${ms}ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  `;
+
+/* The assistant's replies sit against the mark, the way Claude's sit against
+   its own; the text runs full width beside it */
+const Reply = styled.div<{ $fresh: boolean }>`
+  ${({ $fresh }) => css`
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    min-width: 0;
+    ${arrive($fresh, 380)}
+  `}
+`;
+
+const Avatar = styled(PlayRing)`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.125rem;
+    color: ${theme.colors.default.primary};
+  `}
+`;
+
+const Turn = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+`;
+
+/* What you said, in a bubble at the right — the reply is the long part and
+   gets the width */
+const UserBubble = styled.div<{ $fresh: boolean }>`
+  ${({ theme, $fresh }) => css`
+    align-self: flex-end;
+    max-width: 88%;
+    padding: 0.5rem 0.8125rem;
+    border-radius: 16px 16px 6px 16px;
+    background: ${theme.colors.state.hover.bg};
+    ${arrive($fresh, 240)}
   `}
 `;
 
@@ -256,47 +359,102 @@ const Tick = styled.svg`
   `}
 `;
 
-// Left-aligned with the reply's own text rather than stretched, so it reads as
-// this message's next move and not as the panel's
-const VerifyStep = styled(Button)`
-  align-self: flex-start;
-  margin-top: 0.5rem;
+/* Replies are read, not skimmed: the product's face at a comfortable size,
+   with room between paragraphs and code that looks like code */
+const Prose = styled.div`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textPrimary};
+    font-size: 0.875rem;
+    line-height: 1.62;
+
+    & p {
+      margin: 0 0 0.625rem;
+    }
+
+    & p:last-child {
+      margin-bottom: 0;
+    }
+
+    & ul,
+    & ol {
+      margin: 0 0 0.625rem;
+      padding-left: 1.25rem;
+    }
+
+    & li + li {
+      margin-top: 0.25rem;
+    }
+
+    & :not(pre) > code {
+      padding: 0.0625rem 0.3125rem;
+      border-radius: 5px;
+      background: ${theme.colors.state.hover.bg};
+      font-family: ${theme.font.code.family};
+      font-size: 0.8125em;
+    }
+
+    & strong {
+      font-weight: 600;
+    }
+  `}
 `;
 
-const MakeChange = styled.button<{ $quiet?: boolean }>`
-  ${({ theme, $quiet }) => css`
-    align-self: flex-start;
-    margin-top: 0.5rem;
-    padding: 0.1875rem 0.5rem;
-    background: transparent;
-    border: 1px solid ${$quiet ? "transparent" : theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    color: ${$quiet
-      ? theme.colors.default.textSecondary
-      : theme.colors.default.textPrimary};
-    font: inherit;
-    font-size: ${theme.font.code.size.xsmall};
-    text-decoration: ${$quiet ? "underline" : "none"};
+const NextMoves = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+`;
+
+const Move = styled.button<{ $primary?: boolean }>`
+  ${({ theme, $primary }) => css`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    height: 2rem;
+    padding: 0 0.875rem 0 0.75rem;
+    border: 1px solid ${$primary ? "transparent" : theme.colors.default.border};
+    border-radius: 999px;
+    background: ${$primary ? theme.colors.default.primary : "transparent"};
+    color: ${$primary ? "#fff" : theme.colors.default.textPrimary};
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: background ${theme.default.transition.duration.medium}
-        ${theme.default.transition.type},
-      border-color ${theme.default.transition.duration.medium}
-        ${theme.default.transition.type};
+    transition: filter 0.15s ease, background 0.15s ease,
+      border-color 0.15s ease;
+
+    & > svg {
+      width: 0.9375rem;
+      height: 0.9375rem;
+      flex-shrink: 0;
+    }
 
     &:hover {
-      background: ${theme.colors.state.hover.bg};
-      border-color: ${theme.colors.default.primary};
+      ${$primary
+        ? "filter: brightness(1.1);"
+        : css`
+            background: ${theme.colors.state.hover.bg};
+            border-color: ${theme.colors.default.textSecondary}55;
+          `}
     }
 
     &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-      outline-offset: -1px;
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
     }
 
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
   `}
+`;
+
+/* Our play mark on the move that runs something */
+const MoveMark = styled(PlayRing)`
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 `;
 
 const Notice = styled.div`
@@ -390,7 +548,6 @@ const StatusLabel = styled.span<{ $status: string }>`
   ${({ theme, $status }) => css`
     flex-shrink: 0;
     font-size: ${theme.font.code.size.xsmall};
-    letter-spacing: 0.08em;
     color: ${$status === "allowed"
       ? theme.colors.state.success.color
       : $status === "denied"

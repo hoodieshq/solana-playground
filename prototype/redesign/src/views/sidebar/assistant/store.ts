@@ -44,7 +44,15 @@ interface ChatItemBase {
 }
 
 export type ChatItem =
-  | (ChatItemBase & { kind: "user"; text: string })
+  | (ChatItemBase & {
+      kind: "user";
+      text: string;
+      /**
+       * The lesson step this was asked in, e.g. "Step 2 · Build the program".
+       * Where it changes from the message before, the chat starts a chapter.
+       */
+      chapter?: string;
+    })
   | (ChatItemBase & { kind: "assistant"; text: string })
   | (ChatItemBase & { kind: "tool"; label: string })
   | (ChatItemBase & {
@@ -194,6 +202,25 @@ export class PgAssistant {
     PgAssistant._emitOnly();
   }
 
+  /**
+   * Change the model or effort without starting over.
+   *
+   * `connect` treats any difference as a new backend and clears what is on
+   * screen — right for a new provider, wrong for a new model on the same one.
+   * The chat seeds each provider from the rendered transcript, so a new model
+   * picks the conversation up where the last one left it, the way switching
+   * models mid-thread works in Claude. The key stays the one already held.
+   */
+  static tune(next: Connection) {
+    const current = PgAssistant._connection;
+    if (!current || current.id !== next.id) {
+      PgAssistant.connect(next);
+      return;
+    }
+    PgAssistant._connection = { ...next, apiKey: current.apiKey };
+    PgAssistant._emitOnly();
+  }
+
   /** Whether connecting with these settings would keep the conversation */
   static isCurrent(next: Connection) {
     return isSame(PgAssistant._connection, next);
@@ -334,12 +361,13 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  static addUserMessage(text: string) {
+  static addUserMessage(text: string, chapter?: string) {
     PgAssistant._items.push({
       kind: "user",
       id: makeId(),
       createdAt: now(),
       text,
+      ...(chapter ? { chapter } : {}),
     });
     PgAssistant._emit();
   }
@@ -556,6 +584,17 @@ export class PgAssistant {
     PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
+  }
+
+  /**
+   * The user clearing the conversation: unlike `clear`, the stored thread is
+   * emptied too, so it does not come back on the next load.
+   */
+  static clearConversation() {
+    PgAssistant._denyPending();
+    PgAssistant._items = [];
+    PgAssistant._status = "idle";
+    PgAssistant._emit();
   }
 
   /** Which thread is open, or `null` before one has been chosen */

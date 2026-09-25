@@ -1,144 +1,223 @@
 import { useEffect, useState } from "react";
-import styled, { css } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 
 import Chat from "./Chat";
+import { openConnectDialog } from "./ConnectDialog";
 import Grounding from "./Grounding";
+import Menu, { useMenu } from "../../../flow/components/Menu";
+import type { MenuRow } from "../../../flow/components/Menu";
+import { HEAD_HEIGHT } from "../../../flow/tokens";
+import PlayRing from "../../../../components/PlayRing";
 import { PgAssistant } from "../store";
-import { HEAD_HEIGHT, SUBHEAD_HEIGHT } from "../../../flow/tokens";
-import { PgBuildOutput } from "../bridge/build-output";
-import { PgExplorer } from "../../../../utils";
-
-type Tab = "chat" | "sources";
-
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "chat", label: "Chat" },
-  { id: "sources", label: "Sources" },
-];
+import { PgModelChoice } from "../model/choice";
 
 interface AssistantProps {
+  /** The session's name — the project or tutorial it belongs to */
+  title?: string;
   /** Hides the pane; the host offers a way to bring it back */
   onCollapse?: () => void;
+  /** Widens the pane, when the host can */
+  onExpand?: () => void;
+  /** Whether it is widened, for the expand control's state */
+  expanded?: boolean;
 }
 
-const Assistant = ({ onCollapse }: AssistantProps) => {
-  const [tab, setTab] = useState<Tab>("chat");
+/**
+ * The assistant pane: the session's name at the head, the conversation below.
+ *
+ * It is one surface now. Chat and Sources used to be two tabs, so the pane
+ * switched between being a conversation and being a settings list; sources
+ * and tools open as a sheet over the chat instead, and the backend, model and
+ * effort live on the composer. The head carries what Claude's does — the name,
+ * a menu, expand, and hide.
+ */
+const Assistant = ({
+  title,
+  onCollapse,
+  onExpand,
+  expanded,
+}: AssistantProps) => {
+  const [sources, setSources] = useState(false);
+  const menu = useMenu();
 
-  // Mirrors the two inputs `Chat.tsx`'s own CONTEXT row reads off
-  // (`PgExplorer.currentFilePath`, `PgBuildOutput.latest?.failed`) so the
-  // header chip can never claim something the chat context does not also
-  // see -- kept live here rather than imported, since the header renders
-  // above `Chat` and outlives a backend not being connected yet.
-  const [currentFilePath, setCurrentFilePath] = useState(
-    PgExplorer.currentFilePath
-  );
-  const [buildFailed, setBuildFailed] = useState(
-    !!PgBuildOutput.latest?.failed
-  );
-
-  // Ask the gateway what it serves and what those servers offer. Has to happen
-  // here rather than only in the Sources tab: `createTools` reads the result,
-  // so a model connected before this ran would be offered no MCP tool at all,
-  // with nothing on screen to say why.
+  // Ask the gateway what it serves and what those servers offer. Up front:
+  // `createTools` reads the result, so a model connected before this ran
+  // would be offered no MCP tool at all, with nothing on screen to say why.
   useEffect(() => {
     PgAssistant.initMcp();
   }, []);
 
-  // A prompt raised from another tab (a Sources tool call, say) lands in the
-  // composer, which is no use while that other tab is still on screen
+  // A prompt raised from elsewhere lands in the composer, which is no use
+  // while the sources sheet is covering it
   useEffect(() => {
-    return PgAssistant.onDidRequestPrompt(() => setTab("chat")).dispose;
+    return PgAssistant.onDidRequestPrompt(() => setSources(false)).dispose;
   }, []);
 
-  useEffect(() => {
-    const a = PgExplorer.onDidOpenFile(() =>
-      setCurrentFilePath(PgExplorer.currentFilePath)
-    );
-    const b = PgBuildOutput.onDidChange((out) => setBuildFailed(!!out?.failed));
-    return () => {
-      a.dispose();
-      b.dispose();
-    };
-  }, []);
-
-  const fileName = currentFilePath
-    ? PgExplorer.getItemNameFromPath(currentFilePath)
-    : null;
-  // The cluster lives in the app header; only the build state is worth
-  // repeating here.
-  const statusLabel = buildFailed ? "build error" : null;
+  const rows: MenuRow[] = [
+    {
+      id: "sources",
+      label: "Sources and tools",
+      hint: "S",
+      onSelect: () => setSources(true),
+    },
+    {
+      id: "connection",
+      label: PgAssistant.connection
+        ? "Connection and key…"
+        : "Connect a model…",
+      hint: "K",
+      onSelect: () => {
+        const { option, effort } = PgModelChoice.get();
+        openConnectDialog({
+          provider: PgAssistant.connection?.id ?? option.provider,
+          model: option.id,
+          effort,
+        });
+      },
+    },
+    {
+      id: "clear",
+      label: "Clear conversation",
+      hint: "D",
+      danger: true,
+      divider: true,
+      disabled: PgAssistant.items.length === 0,
+      onSelect: () => {
+        if (window.confirm("Clear this conversation? It cannot be undone.")) {
+          PgAssistant.clearConversation();
+        }
+      },
+    },
+  ];
 
   return (
     <Wrapper>
       <Header>
-        <HeaderTitle>Assistant</HeaderTitle>
-        <HeaderMeta>
-          {fileName && <HeaderChip>{fileName}</HeaderChip>}
-          {statusLabel && <HeaderChip>{statusLabel}</HeaderChip>}
-          {/* The backend, model, effort and key live behind this, and it is
-              here whether or not anything is connected yet. Moving that form
-              out of the way of the composer is right; leaving no way back to
-              it is not, and for one build that is what this was. */}
-          <SettingsButton
-            type="button"
-            aria-label="Backend, model and effort"
-            title="Backend, model and effort"
-            onClick={() => PgAssistant.pickBackend()}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+        <Heading title={title}>
+          <Mark aria-hidden="true" />
+          <HeaderTitle>{title ?? "Assistant"}</HeaderTitle>
+        </Heading>
+        <HeaderEnd>
+          <MenuAnchor>
+            <IconButton
+              ref={menu.anchorRef}
+              type="button"
+              aria-label="More"
+              title="More"
+              aria-haspopup="menu"
+              aria-expanded={menu.open}
+              onClick={menu.toggle}
             >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
-            </svg>
-          </SettingsButton>
+              {ICONS.more}
+            </IconButton>
+            {menu.open && (
+              <Menu
+                rows={rows}
+                anchorRef={menu.anchorRef}
+                onClose={menu.close}
+                placement="bottom-end"
+              />
+            )}
+          </MenuAnchor>
+          {onExpand && (
+            <IconButton
+              type="button"
+              aria-label={
+                expanded ? "Narrow the assistant" : "Widen the assistant"
+              }
+              title={expanded ? "Narrow" : "Widen"}
+              aria-pressed={expanded}
+              onClick={onExpand}
+            >
+              {expanded ? ICONS.shrink : ICONS.expand}
+            </IconButton>
+          )}
           {onCollapse && (
-            <SettingsButton
+            <IconButton
               type="button"
               aria-label="Hide the assistant"
               title="Hide the assistant"
               onClick={onCollapse}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="4" width="18" height="16" rx="2.5" />
-                <path d="M9 4v16" />
-              </svg>
-            </SettingsButton>
+              {ICONS.panel}
+            </IconButton>
           )}
-        </HeaderMeta>
+        </HeaderEnd>
       </Header>
 
-      <Tabs role="tablist" aria-label="Assistant sections">
-        {TABS.map(({ id, label }) => (
-          <TabButton
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            $active={tab === id}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </TabButton>
-        ))}
-      </Tabs>
+      <Body>
+        <Chat title={title} onOpenSources={() => setSources(true)} />
 
-      {tab === "chat" && <Chat />}
-      {tab === "sources" && <Grounding />}
+        {sources && (
+          <Sheet role="dialog" aria-label="Sources and tools">
+            <SheetHead>
+              <SheetTitle>Sources and tools</SheetTitle>
+              <IconButton
+                type="button"
+                aria-label="Close"
+                title="Close"
+                onClick={() => setSources(false)}
+              >
+                {ICONS.close}
+              </IconButton>
+            </SheetHead>
+            <SheetBody>
+              <Grounding />
+            </SheetBody>
+          </Sheet>
+        )}
+      </Body>
     </Wrapper>
   );
+};
+
+export default Assistant;
+
+const svg = (d: JSX.Element) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {d}
+  </svg>
+);
+
+const ICONS = {
+  more: (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="12" cy="5.5" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="18.5" r="1.6" />
+    </svg>
+  ),
+  expand: svg(
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-7 7" />
+      <path d="M10 20H4v-6" />
+      <path d="M4 20l7-7" />
+    </>
+  ),
+  shrink: svg(
+    <>
+      <path d="M20 10h-6V4" />
+      <path d="M14 10l7-7" />
+      <path d="M4 14h6v6" />
+      <path d="M10 14l-7 7" />
+    </>
+  ),
+  panel: svg(
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+    </>
+  ),
+  close: svg(<path d="M6 6l12 12M18 6 6 18" />),
 };
 
 const Wrapper = styled.div`
@@ -157,54 +236,75 @@ const Header = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    /* A host may reserve room on the left for its own control (Flow's
-       collapse handle sets --flow-handle-inset); elsewhere it is 0. */
     height: ${HEAD_HEIGHT};
-    padding: 0 0.5rem 0 0.875rem;
+    padding: 0 0.375rem 0 0.875rem;
     flex-shrink: 0;
     /* The same rule the columns either side draw, at the same height */
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-/* Sentence case, 14px, semibold — the same voice as every other pane title.
-   The tracked small caps made this pane look like a different app. */
+const Heading = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+`;
+
+const Mark = styled(PlayRing)`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    color: ${theme.colors.default.primary};
+  `}
+`;
+
+/* The session's name, in the same voice as every other pane title */
 const HeaderTitle = styled.span`
   ${({ theme }) => css`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.875rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
   `}
 `;
 
-const HeaderMeta = styled.div`
+const HeaderEnd = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  min-width: 0;
-  overflow: hidden;
+  gap: 0.125rem;
+  flex-shrink: 0;
 `;
 
-const SettingsButton = styled.button`
+const MenuAnchor = styled.div`
+  position: relative;
+`;
+
+const IconButton = styled.button`
   ${({ theme }) => css`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.875rem;
+    height: 1.875rem;
     padding: 0;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     cursor: pointer;
 
     & > svg {
-      width: 0.875rem;
-      height: 0.875rem;
+      width: 1rem;
+      height: 1rem;
     }
 
-    &:hover {
+    &:hover,
+    &[aria-expanded="true"],
+    &[aria-pressed="true"] {
       background: ${theme.colors.state.hover.bg};
       color: ${theme.colors.default.textPrimary};
     }
@@ -216,68 +316,60 @@ const SettingsButton = styled.button`
   `}
 `;
 
-const HeaderChip = styled.span`
+const Body = styled.div`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+`;
+
+const slideIn = keyframes`
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+`;
+
+/* Over the chat, not instead of it: closing it puts you back mid-sentence */
+const Sheet = styled.div`
   ${({ theme }) => css`
-    overflow: hidden;
-    max-width: 8rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 0.0625rem 0.4375rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: 6px;
-    font-size: 0.75rem;
-    color: ${theme.colors.default.textSecondary};
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: ${theme.colors.default.bgPrimary};
+    animation: ${slideIn} 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
   `}
 `;
 
-const Tabs = styled.div`
+const SheetHead = styled.div`
   ${({ theme }) => css`
     display: flex;
-    align-items: stretch;
-    gap: 0.25rem;
-    height: ${SUBHEAD_HEIGHT};
-    padding: 0 0.75rem;
+    align-items: center;
+    justify-content: space-between;
     flex-shrink: 0;
-    /* Labels can still overflow the narrowest sidebar width */
-    overflow-x: auto;
+    height: 2.5rem;
+    padding: 0 0.375rem 0 0.875rem;
     border-bottom: 1px solid ${theme.colors.default.border};
   `}
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
-  ${({ theme, $active }) => css`
-    display: flex;
-    align-items: center;
-    padding: 0 0.5625rem;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid
-      ${$active ? theme.colors.default.primary : "transparent"};
-    color: ${$active
-      ? theme.colors.default.textPrimary
-      : theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.code.size.xsmall};
-    white-space: nowrap;
-    cursor: pointer;
-    transition: color ${theme.default.transition.duration.medium}
-        ${theme.default.transition.type},
-      border-color ${theme.default.transition.duration.medium}
-        ${theme.default.transition.type};
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-
-    &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-      outline-offset: -1px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
+const SheetTitle = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textPrimary};
   `}
 `;
 
-export default Assistant;
+const SheetBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+`;
