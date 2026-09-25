@@ -1,7 +1,7 @@
 import { FC, ReactNode, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
+import PlaygroundLogoNext from "../../../components/PlaygroundLogoNext";
 import { PgExplorer } from "../../../utils";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
@@ -92,9 +92,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
   return (
     <Aside aria-label="Main">
       <Head>
-        <Brand type="button" onClick={onHome}>
-          <Mark />
-          Playground
+        <Brand type="button" onClick={onHome} aria-label="Solana Playground">
+          <Logo />
         </Brand>
         <HeadButton
           type="button"
@@ -363,13 +362,15 @@ const Column = styled.div`
   overflow: hidden;
 `;
 
-/* The word is the mark until the product has earned one. */
-const Mark = styled(PlaygroundMarkNext)`
-  /* The new artwork is 970 x 574 — squarer than the old mark, so it sits a
-     touch taller for the same optical weight beside the wordmark. */
-  height: 0.8125rem;
+/* The supplied lockup, drawn — the mark with "Solana Playground" beside it,
+   as the product appears in the proposal's own render of this sidebar. It was
+   the mark and the word "Playground" set in the interface face, which is a
+   lockup nobody drew. */
+const Logo = styled(PlaygroundLogoNext)`
+  height: 1.3rem;
   width: auto;
   flex-shrink: 0;
+  display: block;
 `;
 
 const Brand = styled.button`
