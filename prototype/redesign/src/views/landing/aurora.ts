@@ -1,31 +1,29 @@
 import { clamp01, seeded, smoothstep } from "./trail";
 
 /**
- * The northern lights, in Solana's colours — what the trail version's button
- * is made of.
+ * The northern lights, in Solana's colours — the flow under the trail
+ * version's button, with the warp's lines (`warp.ts`) drawn over it.
  *
- * One silhouette, not bands: a skyline of light rising behind the product and
- * the words. Low along the left, a tall spire just right of centre that
- * reaches up under the headline, smaller ragged flames to the right, and both
- * sides curving back down to the foot, so it reads as a shape the light makes
- * rather than a strip it was put in.
+ * Four curtains of light run across the button: a solid main one behind the
+ * words, a thinner veil above it throwing rays upward, a flare that curls up
+ * past the play icon, and a bright lower border just under the words. Each is
+ * a band with wavy, uneven edges, filled with the brand's ramp along its
+ * length — green, teal, blue-violet, purple, left to right as on the slab it
+ * replaces — pinched to nothing at its tips. Inside, soft vertical rays
+ * brighten and fade, which is what makes a band read as a curtain.
  *
- * Everything moves out from the middle. New flames are born at the centre and
- * travel to either side, swelling and dying on the way, so the skyline is
- * always changing and always changing *outwards*; and inside it, streaks of
- * light shoot from behind the button towards the edges, lengthening as they
- * go — a warp, the way stars stretch past a ship. Periods never divide one
- * another, so no frame repeats.
+ * Nothing loops. Every wave is a sum of sines on periods that do not divide
+ * one another (7, 9.5, 11, 13, 17, 19 s…), travelling in different
+ * directions, so the silhouette is never the same twice; the edges ripple on
+ * shorter periods still, and each ray has its own shimmer and its own drift.
  *
- * Filled with the brand's ramp across its width — green, teal, blue-violet,
- * purple — solid at its foot and fading towards its peaks, and drawn
- * additively where streaks and rays cross it. The canvas is small and
- * blurred by CSS on the way to the screen, which turns the silhouette into
- * glow and the streaks into soft rays.
+ * Drawn additively, so where curtains cross they get brighter, the way light
+ * does. The canvas is small and blurred by CSS on the way to the screen,
+ * which turns bands into glow and rays into streaks; there is no ellipse, no
+ * radial mask — the shape is the curtains'.
  *
- * Coordinates are shares of the canvas: x across, y down. The button's box
- * sits at the bottom (see `Light`), the words around y 0.80, the spire's top
- * held clear of the headline above.
+ * Coordinates are shares of the canvas: x across, y down. The words sit
+ * between y 0.30 and 0.73 and x 0.09 and 0.77, the play icon at x 0.80–0.91.
  */
 
 type RGB = [number, number, number];
@@ -40,7 +38,7 @@ const STOPS: [number, RGB][] = [
   [1, [153, 69, 255]],
 ];
 
-const hueAt = (p: number): RGB => {
+export const hueAt = (p: number): RGB => {
   const q = clamp01(p);
   let i = 1;
   while (i < STOPS.length - 1 && q > STOPS[i][0]) i += 1;
@@ -54,132 +52,242 @@ const hueAt = (p: number): RGB => {
   ];
 };
 
-/* Towards white, for the brightest parts */
-const toward = (c: RGB, white: number): RGB => [
+/* Towards white, for the brightest parts — rays and the lower border */
+export const toward = (c: RGB, white: number): RGB => [
   c[0] + (255 - c[0]) * white,
   c[1] + (255 - c[1]) * white,
   c[2] + (255 - c[2]) * white,
 ];
 
-const colour = (c: RGB, alpha: number) =>
+export const colour = (c: RGB, alpha: number) =>
   `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${
     Math.round(clamp01(alpha) * 1000) / 1000
   })`;
 
+/** A wave travelling along a curtain: k crests across the width, one full
+    cycle every `period` seconds — negative periods travel the other way */
+const wave = (x: number, t: number, k: number, period: number, phase: number) =>
+  Math.sin(TAU * (k * x - t / period) + phase);
+
 const fract = (n: number) => n - Math.floor(n);
 
-/** A soft hump at `c`, `s` wide */
-const bump = (x: number, c: number, s: number) =>
-  Math.exp(-((x - c) * (x - c)) / (2 * s * s));
-
-/* Where the light stands, and how high it may reach */
-const FOOT = 0.97;
-const CEILING = 0.31;
-/* The point everything moves out from: behind the button's middle */
-const CENTRE = { x: 0.5, y: 0.8 };
-
-interface Flame {
-  /** Which way it travels from the centre */
-  side: 1 | -1;
-  /** One trip, centre to edge, in seconds */
-  period: number;
-  phase: number;
-  height: number;
+interface Ray {
+  /** Where along the curtain it starts, and how fast it drifts along it */
+  at: number;
+  drift: number;
+  /** Its width, as a share of the canvas */
   width: number;
+  /** Its shimmer */
+  rate: number;
+  phase: number;
+  strength: number;
 }
 
-/* Taller and quicker on the right, lower and slower on the left: the light
-   leans towards the play icon, and is never symmetric */
-const FLAMES: Flame[] = (() => {
-  const random = seeded(71);
-  return Array.from({ length: 9 }, (_, i) => {
-    const side: 1 | -1 = i % 3 === 2 ? -1 : 1;
-    return {
-      side,
-      period: (side > 0 ? 5.2 : 7.4) + random() * 3.1,
-      phase: random(),
-      height: (side > 0 ? 0.12 : 0.07) + random() * (side > 0 ? 0.14 : 0.07),
-      width: 0.022 + random() * 0.03,
-    };
-  });
-})();
-
-/** How high the light stands at `x`, as a share of the canvas */
-const heightAt = (x: number, t: number) => {
-  /* The body: a low swell right across, breathing */
-  let h =
-    0.34 +
-    0.035 * Math.sin(TAU * 1.3 * x - t / 3.1) +
-    0.02 * Math.sin(TAU * 2.7 * x + t / 2.3);
-
-  /* The spire, just right of centre, never quite still */
-  const spire = 0.565 + 0.03 * Math.sin(t / 4.7) + 0.012 * Math.sin(t / 1.9);
-  h +=
-    (0.26 + 0.07 * Math.sin(t / 2.9) + 0.03 * Math.sin(t / 1.3)) *
-    bump(x, spire, 0.055 + 0.015 * Math.sin(t / 3.7));
-
-  /* Flames born at the centre, carried out to either side */
-  FLAMES.forEach((f) => {
-    const u = fract(f.phase + t / f.period);
-    const at = 0.5 + f.side * u * 0.47;
-    const life = Math.pow(Math.sin(Math.PI * u), 0.85);
-    h += f.height * life * bump(x, at, f.width * (0.7 + 0.8 * u));
-  });
-
-  /* The ragged edge: flicker, finer on the right where the flames are */
-  h +=
-    (0.012 + 0.012 * x) * Math.sin(TAU * 11 * x - t * 3.3) +
-    (0.008 + 0.01 * x) * Math.sin(TAU * 23 * x + t * 4.1);
-
-  /* Down to the foot at both sides */
-  const sides = smoothstep(0, 0.14, x) * (1 - smoothstep(0.86, 1, x));
-  return Math.max(0, h) * sides;
+const raysFor = (count: number, seed: number): Ray[] => {
+  const random = seeded(seed);
+  return Array.from({ length: count }, () => ({
+    at: random(),
+    drift: (random() - 0.5) * 0.012,
+    width: 0.0025 + random() * 0.0055,
+    rate: 0.35 + random() * 0.95,
+    phase: random() * TAU,
+    strength: 0.12 + random() * 0.22,
+  }));
 };
 
-interface Streak {
-  /** Direction out of the centre, radians; 0 is right, -π/2 straight up */
-  angle: number;
+interface Curtain {
+  /** How far across it runs */
+  from: number;
+  to: number;
+  /** The line it hangs along, and how thick it is there, before its tips pinch */
+  mid: (x: number, t: number) => number;
+  thickness: (x: number, t: number) => number;
+  /** How uneven its top and bottom edges are */
+  ragTop: number;
+  ragBottom: number;
+  /** How solid it is at its brightest */
+  alpha: number;
+  /** A nudge along the ramp, so crossing curtains are not quite one colour */
+  shift: number;
+  /** How far its rays rise past its top edge, as a share of its thickness —
+      none keeps them inside it */
+  reach: number;
+  /** The brightness of its lower border; none for no border */
+  rim: number;
+  rays: Ray[];
   phase: number;
-  /** Trips per second, before the hover speed-up */
-  rate: number;
-  strength: number;
-  width: number;
 }
 
-/* Mostly up and out: the light is above the fold, so little goes down */
-const STREAKS: Streak[] = (() => {
-  const random = seeded(19);
-  return Array.from({ length: 64 }, () => ({
-    angle: -Math.PI - 0.12 + random() * (Math.PI + 0.24),
-    phase: random(),
-    rate: 0.16 + random() * 0.22,
-    strength: 0.32 + random() * 0.38,
-    width: 1.2 + random() * 2.2,
-  }));
-})();
+const CURTAINS: Curtain[] = [
+  /* The main curtain, behind the words: the solid part of the light */
+  {
+    from: 0.03,
+    to: 0.97,
+    mid: (x, t) =>
+      0.55 +
+      0.045 * wave(x, t, 1.1, 11, 0.4) +
+      0.025 * wave(x, t, 2.3, -7, 1.3),
+    thickness: (x, t) => 0.44 * (0.85 + 0.15 * wave(x, t, 1.7, 17, 2.1)),
+    ragTop: 0.22,
+    ragBottom: 0.1,
+    alpha: 0.94,
+    shift: 0,
+    reach: 0,
+    rim: 0.4,
+    rays: raysFor(26, 23),
+    phase: 0.9,
+  },
+  /* The veil above, throwing its rays up past the words */
+  {
+    from: 0.1,
+    to: 0.86,
+    mid: (x, t) =>
+      0.25 + 0.05 * wave(x, t, 0.9, -13, 2.2) + 0.03 * wave(x, t, 2.1, 9, 0.3),
+    thickness: (x, t) => 0.18 * (0.8 + 0.2 * wave(x, t, 1.3, -19, 0)),
+    ragTop: 0.4,
+    ragBottom: 0.14,
+    alpha: 0.5,
+    shift: 0.1,
+    reach: 0.75,
+    rim: 0,
+    rays: raysFor(18, 11),
+    phase: 2.6,
+  },
+  /* The flare, curling up past the play icon: the light leans towards the
+     thing to press, and the shape is not symmetric */
+  {
+    from: 0.55,
+    to: 0.99,
+    mid: (x, t) =>
+      0.6 - 0.34 * smoothstep(0.55, 0.99, x) + 0.04 * wave(x, t, 1.6, 8.3, 0.8),
+    thickness: (x, t) => 0.16 * (0.85 + 0.15 * wave(x, t, 2.4, -12, 1.7)),
+    ragTop: 0.3,
+    ragBottom: 0.12,
+    alpha: 0.5,
+    shift: 0.04,
+    reach: 0.6,
+    rim: 0,
+    rays: raysFor(10, 37),
+    phase: 4.1,
+  },
+  /* The lower border: thin and bright under the words, and well clear of the
+     bottom of the canvas, which is the fold */
+  {
+    from: 0.08,
+    to: 0.94,
+    mid: (x, t) =>
+      0.8 + 0.03 * wave(x, t, 1.4, 9.5, 1.1) + 0.015 * wave(x, t, 3.2, -6.1, 0),
+    thickness: (x, t) => 0.1 * (0.8 + 0.2 * wave(x, t, 2, 14, 0.5)),
+    ragTop: 0.2,
+    ragBottom: 0.15,
+    alpha: 0.8,
+    shift: -0.08,
+    reach: 0,
+    rim: 0.5,
+    rays: raysFor(10, 53),
+    phase: 5.3,
+  },
+];
 
-interface Ray {
-  at: number;
-  rate: number;
-  phase: number;
-  width: number;
-  strength: number;
-}
+/* Points along each edge — plenty, at this canvas's size */
+const SAMPLES = 40;
 
-/* Vertical shimmer inside the silhouette: what makes glow read as curtain */
-const RAYS: Ray[] = (() => {
-  const random = seeded(43);
-  return Array.from({ length: 34 }, () => ({
-    at: random(),
-    rate: 0.4 + random() * 1.1,
-    phase: random() * TAU,
-    width: 0.002 + random() * 0.005,
-    strength: 0.1 + random() * 0.2,
-  }));
-})();
+const drawCurtain = (
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  c: Curtain,
+  breath: number
+) => {
+  const xs: number[] = [];
+  const tops: number[] = [];
+  const bottoms: number[] = [];
+  for (let i = 0; i <= SAMPLES; i += 1) {
+    const s = i / SAMPLES;
+    const x = c.from + (c.to - c.from) * s;
+    /* Pinched to nothing at the tips, full through the middle */
+    const half = (c.thickness(x, t) * Math.pow(Math.sin(Math.PI * s), 0.6)) / 2;
+    const mid = c.mid(x, t);
+    const rag =
+      0.6 * wave(x, t, 5.3, 3.7, c.phase) +
+      0.4 * wave(x, t, 9.1, -5.3, c.phase * 1.7);
+    xs.push(x * w);
+    tops.push((mid - half * (1 + c.ragTop * rag)) * h);
+    bottoms.push(
+      (mid + half * (1 + c.ragBottom * wave(x, t, 4.1, -4.9, c.phase * 0.6))) *
+        h
+    );
+  }
 
-/* Points along the skyline */
-const SAMPLES = 96;
+  const band = new Path2D();
+  band.moveTo(xs[0], tops[0]);
+  for (let i = 1; i <= SAMPLES; i += 1) band.lineTo(xs[i], tops[i]);
+  for (let i = SAMPLES; i >= 0; i -= 1) band.lineTo(xs[i], bottoms[i]);
+  band.closePath();
+
+  /* The ramp along its length, fading at the tips; a little softer on the
+     left, where the green is brightest and the words begin */
+  const fill = ctx.createLinearGradient(c.from * w, 0, c.to * w, 0);
+  for (let k = 0; k <= 8; k += 1) {
+    const s = k / 8;
+    const x = c.from + (c.to - c.from) * s;
+    const along = smoothstep(0, 0.16, s) * (1 - smoothstep(0.84, 1, s));
+    fill.addColorStop(
+      s,
+      colour(hueAt(x + c.shift), c.alpha * breath * along * (0.84 + 0.16 * x))
+    );
+  }
+  ctx.fillStyle = fill;
+  ctx.fill(band);
+
+  /* The lower border an aurora has: a brighter line along the bottom edge */
+  if (c.rim > 0) {
+    const edge = new Path2D();
+    edge.moveTo(xs[0], bottoms[0]);
+    for (let i = 1; i <= SAMPLES; i += 1) edge.lineTo(xs[i], bottoms[i]);
+    const glow = ctx.createLinearGradient(c.from * w, 0, c.to * w, 0);
+    for (let k = 0; k <= 6; k += 1) {
+      const s = k / 6;
+      const x = c.from + (c.to - c.from) * s;
+      const along = smoothstep(0.04, 0.24, s) * (1 - smoothstep(0.76, 0.96, s));
+      glow.addColorStop(
+        s,
+        colour(toward(hueAt(x + c.shift), 0.35), c.rim * breath * along)
+      );
+    }
+    ctx.strokeStyle = glow;
+    ctx.lineWidth = Math.max(1, 0.035 * h);
+    ctx.lineJoin = "round";
+    ctx.stroke(edge);
+  }
+
+  /* The rays: brightest at the curtain's foot, gone at its top; kept inside
+     the curtain, or let rise past it */
+  ctx.save();
+  if (c.reach === 0) ctx.clip(band);
+  c.rays.forEach((ray) => {
+    const s = 0.04 + 0.92 * fract(ray.at + ray.drift * t);
+    const i = Math.round(s * SAMPLES);
+    const along = smoothstep(0.02, 0.2, s) * (1 - smoothstep(0.8, 0.98, s));
+    const shimmer = 0.55 + 0.45 * Math.sin(ray.rate * t + ray.phase);
+    const strength = ray.strength * shimmer * along * breath * (c.alpha + 0.2);
+    const foot = bottoms[i];
+    /* Never up to the canvas's own edge, where the blur would show the cut */
+    const head = Math.max(0.05 * h, tops[i] - c.reach * (bottoms[i] - tops[i]));
+    if (strength < 0.01 || foot - head < 1) return;
+
+    const tint = toward(hueAt(c.from + (c.to - c.from) * s + c.shift), 0.3);
+    const shaft = ctx.createLinearGradient(0, head, 0, foot);
+    shaft.addColorStop(0, colour(tint, 0));
+    shaft.addColorStop(0.6, colour(tint, strength * 0.6));
+    shaft.addColorStop(1, colour(tint, strength));
+    ctx.fillStyle = shaft;
+    const half = Math.max(0.5, (ray.width * w) / 2);
+    ctx.fillRect(xs[i] - half, head, half * 2, foot - head);
+  });
+  ctx.restore();
+};
 
 /** One frame of the lights at time `t`, in seconds, on a canvas `w` × `h` */
 export const drawAurora = (
@@ -190,90 +298,9 @@ export const drawAurora = (
 ) => {
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, w, h);
-
-  /* The silhouette */
-  const sky = new Path2D();
-  sky.moveTo(0, FOOT * h);
-  for (let i = 0; i <= SAMPLES; i += 1) {
-    const x = i / SAMPLES;
-    const top = Math.max(CEILING, FOOT - heightAt(x, t));
-    sky.lineTo(x * w, top * h);
-  }
-  sky.lineTo(w, FOOT * h);
-  sky.closePath();
-
-  /* Filled with the ramp across, a little softer at the left end, where the
-     green is brightest and the words begin */
-  const fill = ctx.createLinearGradient(0, 0, w, 0);
-  for (let k = 0; k <= 10; k += 1) {
-    const x = k / 10;
-    fill.addColorStop(x, colour(hueAt(x), 0.92 * (0.8 + 0.2 * x)));
-  }
-  ctx.fillStyle = fill;
-  ctx.fill(sky);
-
-  ctx.save();
-  ctx.clip(sky);
   ctx.globalCompositeOperation = "lighter";
-
-  /* Curtain rays, rising from the foot and shimmering */
-  RAYS.forEach((ray) => {
-    const x = fract(ray.at + 0.004 * Math.sin(t / 5 + ray.phase));
-    const shimmer = 0.5 + 0.5 * Math.sin(ray.rate * t + ray.phase);
-    const strength = ray.strength * shimmer;
-    if (strength < 0.02) return;
-    const top = Math.max(CEILING, FOOT - heightAt(x, t)) * h;
-    const shaft = ctx.createLinearGradient(0, top, 0, FOOT * h);
-    const tint = toward(hueAt(x), 0.3);
-    shaft.addColorStop(0, colour(tint, 0));
-    shaft.addColorStop(0.5, colour(tint, strength * 0.7));
-    shaft.addColorStop(1, colour(tint, strength));
-    ctx.fillStyle = shaft;
-    const half = Math.max(0.5, (ray.width * w) / 2);
-    ctx.fillRect(x * w - half, top, half * 2, FOOT * h - top);
-  });
-
-  /* The warp: streaks out of the centre, accelerating and lengthening */
-  const cx = CENTRE.x * w;
-  const cy = CENTRE.y * h;
-  const reach = Math.hypot(w * 0.52, h * 0.85);
-  ctx.lineCap = "round";
-  STREAKS.forEach((s) => {
-    const u = fract(s.phase + t * s.rate);
-    const d = Math.pow(u, 1.7) * reach;
-    const length = (0.04 + 0.34 * u) * reach * 0.5;
-    const dx = Math.cos(s.angle);
-    const dy = Math.sin(s.angle);
-    const hx = cx + dx * d;
-    const hy = cy + dy * d;
-    const tx = cx + dx * Math.max(0, d - length);
-    const ty = cy + dy * Math.max(0, d - length);
-    const alpha = s.strength * Math.pow(Math.sin(Math.PI * u), 0.7);
-    if (alpha < 0.02) return;
-    const tint = toward(hueAt(hx / w), 0.45);
-    const line = ctx.createLinearGradient(tx, ty, hx, hy);
-    line.addColorStop(0, colour(tint, 0));
-    line.addColorStop(1, colour(tint, alpha));
-    ctx.strokeStyle = line;
-    ctx.lineWidth = s.width * (1 + 2.2 * u) * (w / 640);
-    ctx.beginPath();
-    ctx.moveTo(tx, ty);
-    ctx.lineTo(hx, hy);
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  /* Solid at the foot, thinning towards the peaks, and eased out at the very
-     bottom so the light never ends on a line */
-  ctx.globalCompositeOperation = "destination-in";
-  const fade = ctx.createLinearGradient(0, 0, 0, h);
-  fade.addColorStop(0, "rgba(0, 0, 0, 0.18)");
-  fade.addColorStop(0.35, "rgba(0, 0, 0, 0.5)");
-  fade.addColorStop(0.62, "rgba(0, 0, 0, 0.92)");
-  fade.addColorStop(FOOT - 0.1, "rgba(0, 0, 0, 1)");
-  fade.addColorStop(FOOT, "rgba(0, 0, 0, 0)");
-  fade.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = fade;
-  ctx.fillRect(0, 0, w, h);
+  /* The whole of it breathes, slowly and only a little */
+  const breath = 0.95 + 0.05 * Math.sin((TAU * t) / 13);
+  CURTAINS.forEach((c) => drawCurtain(ctx, w, h, t, c, breath));
   ctx.globalCompositeOperation = "source-over";
 };
