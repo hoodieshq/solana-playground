@@ -90,7 +90,30 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 `vercel-link-preview` or `vercel-link-production` runs automatically as a prerequisite.
 
-A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state that earlier local builds left in `client-v2/node_modules/.cache`.
+A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state that earlier local builds left in `client-v2/.cache/rust`.
+
+## Build cache
+
+`scripts/vercel-install.sh` stores the built `wasm/*/pkg` directories as one tar named by a hash of every file under `wasm/` except build output. Any change under `wasm/` produces a new hash and rebuilds every wasm package. The tar is looked up in two places, in this order:
+
+| Place | Lives across | Needs |
+| --- | --- | --- |
+| `node_modules/.cache/wasm-pkg/<hash>.tar` | local runs; on Vercel, successful builds only, through the [build cache](https://vercel.com/docs/builds#limits-and-resources) | nothing |
+| `wasm-pkg/<hash>.tar` in the public Blob store `solana-playground-wasm` | every build, every machine | `BLOB_STORE_ID` in the environment |
+
+On a miss the script builds, writes both places, and only then runs `yarn install` and the client build. A build that later exceeds Vercel's time limit still leaves the tar in the store, so the next build with the same `wasm/` files skips rustup, `wasm-pack`, and `cargo`. A laptop that already holds the local tar uploads it when the store does not have it, which is how the store gets seeded.
+
+The store is public so that downloads need no credential. Its content is the compiled output of the crates under `wasm/`, the same files the deployed client serves to every visitor. Uploads authenticate with the read-write token or OIDC token that Vercel adds to the project when the store is connected; the script passes neither to the log. A `robots.txt` in the store keeps its URLs out of search indexes. An upload failure prints a warning and the build continues; the next build rebuilds.
+
+Rust state (toolchains, cargo registry, and target dir) lives in `client-v2/.cache/rust`, outside `node_modules`. Vercel's build cache keeps `node_modules`, and the Rust state alone is larger than the cache size limit. On Vercel the Rust state is empty at the start of every build. Locally it persists.
+
+Create the store once, from the repo root:
+
+```sh
+make -f client-v2/Makefile.vercel vercel-wasm-cache-store
+```
+
+The target creates the store, connects it to the project for every environment, pulls the resulting variables, and uploads the `robots.txt`.
 
 The deploy resolves this git branch's Neon branch first, before building, and passes it as `-e DATABASE_URL=<pooled url>` so the deployment overrides the project-level variable. Resolving first is deliberate: a Neon failure should not cost a full wasm build.
 
