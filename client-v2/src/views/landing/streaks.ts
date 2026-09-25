@@ -66,7 +66,8 @@ const STREAKS: Streak[] = (() => {
  * `w` × `h`, with the button's top at `buttonTop`, the product's window
  * `frame` and the bottom of the screen at `ground`. `pace`, 0 to 1, is how far
  * the light has sped up: none, and there are no streaks. `px` is the canvas's
- * pixels to the screen's, for the line widths; `shake` moves the whole field.
+ * pixels to the screen's, for the line widths; `shake` moves the whole field;
+ * `warp` bends the courses in with the ribbons'.
  */
 export const drawStreaks = (
   ctx: CanvasRenderingContext2D,
@@ -78,14 +79,15 @@ export const drawStreaks = (
   pace: number,
   px = 1,
   shake: Shake = { x: 0, y: 0 },
-  ground = 1
+  ground = 1,
+  warp = 0
 ) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, w, h);
   if (pace < 0.01) return;
 
-  const c = courseFor(frame, buttonTop, ground);
+  const c = courseFor(frame, buttonTop, ground, warp);
   if (c.stand - c.top < 0.01) return;
   const shown = smoothstep(0, 0.3, pace);
 

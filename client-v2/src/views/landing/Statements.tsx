@@ -46,8 +46,8 @@ const One: FC<Statement> = ({ id, title, line }) => {
             lines={[title]}
             light={false}
             scale={0.36}
-            weight={500}
-            leading={1.04}
+            weight={560}
+            leading={1.02}
           />
         )}
       </Claim>
@@ -84,15 +84,17 @@ const Item = styled.section`
    Sized against the window rather than the deck's scale, so it stays a
    headline on a phone. */
 const Claim = styled.div`
-  width: min(100%, 20em);
+  width: min(100%, 12em);
   min-height: 2.1em;
-  font-size: clamp(2rem, 4.1vw, 5rem);
+  font-size: clamp(2.5rem, 5.4vw, 6.75rem);
   display: flex;
   align-items: center;
   justify-content: center;
 
   & > h2 {
     font-size: 1em;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
   }
 `;
 

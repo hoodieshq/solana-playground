@@ -484,22 +484,24 @@ const Warp = styled.canvas`
 const Claim = styled.div`
   grid-area: 1 / 1;
   position: relative;
-  width: min(calc(100vw - 3rem), 20em);
-  font-size: clamp(2rem, 4.1vw, 5rem);
+  width: min(calc(100vw - 3rem), 12em);
+  font-size: clamp(2.5rem, 5.4vw, 6.75rem);
   text-align: center;
   opacity: 0;
   transform-origin: 50% 50%;
   pointer-events: none;
 `;
 
-/* The classic claims' type, so the two versions say it at the same size */
+/* The classic claims' type, so the two versions say it at the same size:
+   short lines, set large and a little heavy, broken into even rows */
 const type = css`
   margin: 0;
   font-family: ${HEADLINE};
   font-size: 1em;
-  font-weight: 500;
-  line-height: 1.04;
-  letter-spacing: -0.01em;
+  font-weight: 560;
+  line-height: 1.02;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
 `;
 
 const Stack = styled.div`

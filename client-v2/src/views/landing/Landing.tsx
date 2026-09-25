@@ -74,18 +74,18 @@ const STEPS: BuildStep[] = [
 const STATEMENTS: Statement[] = [
   {
     id: "what",
-    title: "A complete Solana workbench that happens to be a browser tab.",
-    line: "Editor, build server, wallet and test validator — already wired together.",
+    title: "A Solana workbench in a browser tab.",
+    line: "Editor, build server, wallet and test validator, all wired together.",
   },
   {
     id: "how",
     title: "Write, build, deploy, interact.",
-    line: "Four steps, in that order, with each one visible as you go.",
+    line: "Four steps in order, each one in view as you go.",
   },
   {
     id: "who",
-    title: "Anyone whose first question is whether the idea works.",
-    line: "People learning Solana, engineers from other chains, anyone testing a thought.",
+    title: "A place to test ideas and learn.",
+    line: "For people new to Solana, engineers from other chains and anyone with an idea to try.",
   },
 ];
 
@@ -139,26 +139,37 @@ const PULL_WORDS = 56;
 const PULL_TO = "what";
 const PULL_FOR = 850;
 
+/* How hard each glide drives the light (`Light.tsx`): through the middle of
+   it, easing in and out at its ends — the short settle gently, the glide on
+   to the claims at full */
+const SETTLE_DRIVE = 0.75;
+const arch = (k: number) => Math.max(0, Math.sin(Math.PI * k));
+const settleDrive = (k: number) => SETTLE_DRIVE * Math.pow(arch(k), 0.9);
+const letGoDrive = (k: number) => Math.pow(arch(k), 0.6);
+
 /* Eased in and out: a cubic, and a softer one for gliding from rest */
 const inOut = (k: number) =>
   k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
 const smoother = (k: number) => k * k * k * (k * (k * 6 - 15) + 10);
 
-/* A scroll of the window to `to` over `ms`; the returned function stops it
-   where it is */
+/* A scroll of the window to `to` over `ms`, telling `step` how far through
+   it is; the returned function stops it where it is */
 const glide = (
   to: number,
   ms: number,
   done?: () => void,
-  ease: (k: number) => number = inOut
+  ease: (k: number) => number = inOut,
+  onStep?: (k: number) => void
 ) => {
   const from = window.scrollY;
   const start = performance.now();
   let frame = 0;
   const step = (now: number) => {
-    const k = Math.min(1, (now - start) / ms);
+    /* A frame's time can fall a moment before the glide was asked for */
+    const k = Math.min(1, Math.max(0, (now - start) / ms));
     const eased = ease(k);
     window.scrollTo(0, from + (to - from) * eased);
+    onStep?.(k);
     if (k < 1) frame = requestAnimationFrame(step);
     else done?.();
   };
@@ -206,7 +217,7 @@ const Landing: FC<LandingProps> = ({
   const pageRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const productRef = useRef<HTMLElement>(null);
-  const pull = useRef<Pull>({ value: 0 });
+  const pull = useRef<Pull>({ value: 0, drive: 0 });
   const touched = useRef(false);
   const stopSettle = useRef<() => void>(() => undefined);
   const [floating, setFloating] = useState(false);
@@ -240,7 +251,16 @@ const Landing: FC<LandingProps> = ({
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setTimeout(() => {
       if (touched.current || window.scrollY > 4) return;
-      stopSettle.current = glide(restAt(), SETTLE_FOR, undefined, smoother);
+      const still = () => {
+        pull.current.drive = 0;
+      };
+      const stop = glide(restAt(), SETTLE_FOR, still, smoother, (k) => {
+        pull.current.drive = settleDrive(k);
+      });
+      stopSettle.current = () => {
+        stop();
+        still();
+      };
     }, SETTLE_AFTER);
     return () => {
       window.clearTimeout(timer);
@@ -315,6 +335,11 @@ const Landing: FC<LandingProps> = ({
         PULL_FOR,
         () => {
           letting = false;
+          pull.current.drive = 0;
+        },
+        inOut,
+        (k) => {
+          pull.current.drive = letGoDrive(k);
         }
       );
     };
