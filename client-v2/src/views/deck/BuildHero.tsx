@@ -45,6 +45,9 @@ interface BuildHeroProps {
   lifted?: boolean;
   /** What sits on top of the ground — the page's top bar */
   children?: ReactNode;
+  /** Start on the last step, already built — for a page that shows the same
+      line again further down */
+  settled?: boolean;
   className?: string;
 }
 
@@ -62,12 +65,13 @@ const BuildHero: FC<BuildHeroProps> = ({
   lift,
   lifted = false,
   children,
+  settled: built = false,
   className,
 }) => {
   const still =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const [at, setAt] = useState(still ? steps.length - 1 : 0);
+  const [at, setAt] = useState(still || built ? steps.length - 1 : 0);
   const text = useRef<HTMLDivElement>(null);
 
   /* Held in a ref, so a page that passes a fresh function on every render

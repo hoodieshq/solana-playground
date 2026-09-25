@@ -2,6 +2,7 @@ import {
   FC,
   MouseEvent,
   RefObject,
+  forwardRef,
   useCallback,
   useEffect,
   useRef,
@@ -71,6 +72,12 @@ const STEPS: BuildStep[] = [
   { lines: ["Explore, Learn,", "Build Onchain"], ground: "ink" },
 ];
 
+/* The footer's line, built as the hero's is, over the same grounds */
+const FOOTER_STEPS: BuildStep[] = [
+  { lines: ["Start with the idea,"], ground: "violet" },
+  { lines: ["Start with the idea,", "not the setup."], ground: "ink" },
+];
+
 const STATEMENTS: Statement[] = [
   {
     id: "what",
@@ -88,6 +95,14 @@ const STATEMENTS: Statement[] = [
     line: "For people new to Solana, engineers from other chains and anyone with an idea to try.",
   },
 ];
+
+/* The claims again, further round the trail version's loop */
+const STATEMENTS_AGAIN = STATEMENTS.map((item) => ({
+  ...item,
+  id: `${item.id}-again`,
+}));
+const CLAIM_IDS = STATEMENTS.map((item) => item.id);
+const CLAIM_IDS_AGAIN = STATEMENTS_AGAIN.map((item) => item.id);
 
 /* In-page links must not touch the URL: the app reads its hash to decide what
    to show, and "#what" would take the reader off the landing entirely. */
@@ -114,11 +129,10 @@ const SETTLE_AFTER = 1250;
 const SETTLE_FOR = 1400;
 const SETTLE_GAP = 16;
 
-/* How much scrolling, in px, pulls all the way; how far past the resting
-   place a pull still counts; how rubbery it is — quick to give at first,
-   stiffer the further it goes — and how quickly an unfinished pull lets go */
+/* How much scrolling, in px, pulls all the way; how rubbery it is — quick to
+   give at first, stiffer the further it goes — and how quickly an unfinished
+   pull lets go */
 const PULL_PX = 340;
-const PULL_ZONE = 40;
 const PULL_GIVE = 2.2;
 const PULL_RELEASE = 3;
 
@@ -135,9 +149,21 @@ const PULL_HEAD = 120;
 const PULL_PRODUCT = 84;
 const PULL_WORDS = 56;
 
-/* Where a full pull lets go to, and how long the glide there takes */
-const PULL_TO = "what";
-const PULL_FOR = 850;
+/* The stops the trail version's page glides between, going round: the hero
+   at rest, the claims, the footer — the first screen again, with its own
+   line — the claims again under names of their own, and a copy of the hero,
+   from which the page goes round to the top */
+type StopKind = "hero" | "claim" | "footer" | "loop";
+interface Stop {
+  y: number;
+  kind: StopKind;
+}
+
+/* A glide between stops takes longer the further it goes, within these; and
+   a trackpad's flick must go quiet this long before the next gesture counts */
+const GLIDE_MIN = 700;
+const GLIDE_MAX = 1300;
+const QUIET = 220;
 
 /* How hard each glide drives the light (`Light.tsx`): through the middle of
    it, easing in and out at its ends — the short settle gently, the glide on
@@ -216,7 +242,9 @@ const Landing: FC<LandingProps> = ({
   /* The trail version's first screen in motion: see the constants above */
   const pageRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
-  const productRef = useRef<HTMLElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const loopRef = useRef<HTMLDivElement>(null);
+  const [footerVisit, setFooterVisit] = useState(0);
   const pull = useRef<Pull>({ value: 0, drive: 0 });
   const touched = useRef(false);
   const stopSettle = useRef<() => void>(() => undefined);
@@ -268,7 +296,29 @@ const Landing: FC<LandingProps> = ({
     };
   }, [trail, up, restAt]);
 
-  /* The pull, and the glide on to the claims once it lets go */
+  /* The trail version's page, as a loop of stops (see the constants above):
+     the hero at rest, each claim, the footer at rest, each claim again, and a
+     copy of the hero — which is the hero, so the page goes round from it */
+  const stopsNow = useCallback((): Stop[] => {
+    const rest = restAt();
+    const at = (el: HTMLElement | null) =>
+      el ? el.getBoundingClientRect().top + window.scrollY : NaN;
+    const claims = (ids: string[]) =>
+      ids.map((id) => ({
+        y: at(document.getElementById(id)),
+        kind: "claim" as StopKind,
+      }));
+    return [
+      { y: rest, kind: "hero" as StopKind },
+      ...claims(CLAIM_IDS),
+      { y: at(footerRef.current) + rest, kind: "footer" as StopKind },
+      ...claims(CLAIM_IDS_AGAIN),
+      { y: at(loopRef.current) + rest, kind: "loop" as StopKind },
+    ].filter((stop) => Number.isFinite(stop.y));
+  }, [restAt]);
+
+  /* A gesture glides to the next stop; at the hero and the footer it pulls on
+     the first screen first, and lets go past a point */
   useEffect(() => {
     if (!trail) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -276,7 +326,9 @@ const Landing: FC<LandingProps> = ({
     let pulledAt = 0;
     let last = 0;
     let frame = 0;
-    let letting = false;
+    let gliding = false;
+    let settledAt = 0;
+    let wheeledAt = 0;
     let stopGlide = () => undefined as void;
     const layers = PULL_LAYERS.map((layer) => ({ ...layer, at: 0, speed: 0 }));
 
@@ -323,49 +375,101 @@ const Landing: FC<LandingProps> = ({
     const wake = () => {
       if (!frame) frame = requestAnimationFrame(tick);
     };
-    const inReach = () => window.scrollY <= restAt() + PULL_ZONE;
-    const letGo = () => {
-      const target = document.getElementById(PULL_TO);
-      if (!target) return;
-      letting = true;
+
+    /* The stop the page rests at, or is nearest */
+    const nearest = (stops: Stop[]) => {
+      const y = window.scrollY;
+      let best = 0;
+      stops.forEach((stop, i) => {
+        if (Math.abs(stop.y - y) < Math.abs(stops[best].y - y)) best = i;
+      });
+      return best;
+    };
+
+    const go = (stops: Stop[], to: number) => {
+      const stop = stops[to];
+      const from = stops[nearest(stops)];
+      /* A first screen is in view at one end: its light glides with it */
+      const lit = stop.kind !== "claim" || from.kind !== "claim";
+      gliding = true;
       wanted = 0;
       wake();
+      if (stop.kind === "footer") setFooterVisit((n) => n + 1);
+      const distance = Math.abs(stop.y - window.scrollY);
       stopGlide = glide(
-        target.getBoundingClientRect().top + window.scrollY,
-        PULL_FOR,
+        stop.y,
+        Math.max(GLIDE_MIN, Math.min(GLIDE_MAX, 520 + distance * 0.38)),
         () => {
-          letting = false;
+          gliding = false;
+          settledAt = performance.now();
           pull.current.drive = 0;
+          /* Round the loop: the copy of the hero is the hero */
+          if (stop.kind === "loop") window.scrollTo(0, stops[0].y);
         },
         inOut,
-        (k) => {
-          pull.current.drive = letGoDrive(k);
-        }
+        lit
+          ? (k) => {
+              pull.current.drive = letGoDrive(k);
+            }
+          : undefined
       );
+    };
+    const next = () => {
+      const stops = stopsNow();
+      const i = nearest(stops);
+      if (i < stops.length - 1) go(stops, i + 1);
+    };
+    const previous = () => {
+      let stops = stopsNow();
+      let i = nearest(stops);
+      if (i === 0) {
+        /* Round the loop the other way: from the top to its copy below */
+        window.scrollTo(0, stops[stops.length - 1].y);
+        stops = stopsNow();
+        i = stops.length - 1;
+      }
+      go(stops, i - 1);
     };
 
     const onWheel = (ev: WheelEvent) => {
-      if (letting) {
-        ev.preventDefault();
-        return;
-      }
+      ev.preventDefault();
+      const now = performance.now();
+      const gap = now - wheeledAt;
+      wheeledAt = now;
+      if (gliding) return;
+      /* A trackpad's flick keeps sending after the glide it started: the
+         next gesture counts once it has gone quiet */
+      if (settledAt && gap < QUIET) return;
+      settledAt = 0;
       const unit =
         ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? window.innerHeight : 1;
       const dy = ev.deltaY * unit;
-      if (dy <= 0 || !inReach()) return;
-      ev.preventDefault();
+      if (Math.abs(dy) < 1) return;
+      if (dy < 0) {
+        previous();
+        return;
+      }
+      const stops = stopsNow();
+      if (stops[nearest(stops)].kind === "claim") {
+        next();
+        return;
+      }
+      /* At a first screen, a pull first */
       wanted = Math.min(1.15, wanted + dy / PULL_PX);
-      pulledAt = performance.now();
+      pulledAt = now;
       wake();
-      if (wanted >= 1) letGo();
+      if (wanted >= 1) next();
     };
     const onKey = (ev: KeyboardEvent) => {
       const onPage =
         !document.activeElement || document.activeElement === document.body;
-      if (letting || !onPage || !inReach()) return;
+      if (gliding || !onPage) return;
       if (["ArrowDown", "PageDown", " "].includes(ev.key)) {
         ev.preventDefault();
-        letGo();
+        next();
+      } else if (["ArrowUp", "PageUp"].includes(ev.key)) {
+        ev.preventDefault();
+        previous();
       }
     };
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -376,9 +480,10 @@ const Landing: FC<LandingProps> = ({
       stopGlide();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [trail, restAt]);
+  }, [trail, stopsNow]);
 
-  /* Past the product, the top bar floats back in */
+  /* Over the claims the top bar floats in; over a first screen, which has
+     its own, it keeps out of the way */
   useEffect(() => {
     if (!trail) {
       setFloating(false);
@@ -387,12 +492,14 @@ const Landing: FC<LandingProps> = ({
     let frame = 0;
     const check = () => {
       frame = 0;
-      const product = productRef.current;
-      if (product) {
-        setFloating(
-          product.getBoundingClientRect().bottom < window.innerHeight * 0.35
-        );
-      }
+      const stops = stopsNow();
+      if (!stops.length) return;
+      const y = window.scrollY;
+      const near = window.innerHeight * 0.45;
+      const overFirst = stops.some(
+        (stop) => stop.kind !== "claim" && Math.abs(stop.y - y) < near
+      );
+      setFloating(!overFirst && y > stops[0].y + near);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(check);
@@ -403,7 +510,7 @@ const Landing: FC<LandingProps> = ({
       window.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [trail]);
+  }, [trail, stopsNow]);
 
   /* A reader who scrolls before the line has finished should find the product
      there, not an empty stage still waiting on the animation */
@@ -504,21 +611,33 @@ const Landing: FC<LandingProps> = ({
         </FloatingTop>
       )}
 
-      <Product
-        onEnter={onEnter}
-        up={up}
-        trail={trail}
-        pull={pull}
-        frameRef={productRef}
-      />
+      <Product onEnter={onEnter} up={up} trail={trail} pull={pull} />
 
       {trail ? (
-        <Flight items={STATEMENTS} />
+        <>
+          <Flight items={STATEMENTS} />
+          <FirstScreen
+            ref={footerRef}
+            steps={FOOTER_STEPS}
+            replay={footerVisit}
+            onEnter={onEnter}
+            pull={pull}
+          />
+          <Flight items={STATEMENTS_AGAIN} />
+          <FirstScreen
+            ref={loopRef}
+            steps={STEPS}
+            onEnter={onEnter}
+            pull={pull}
+            copy
+          />
+        </>
       ) : (
-        <Statements items={STATEMENTS} />
+        <>
+          <Statements items={STATEMENTS} />
+          <Close onEnter={onEnter} />
+        </>
       )}
-
-      <Close onEnter={onEnter} />
 
       {onVariant && <VersionSwitch value={variant} onChange={onVariant} />}
     </Page>
@@ -589,6 +708,45 @@ const Product: FC<{
     </ProductFrame>
   );
 };
+
+/**
+ * The first screen again, further round the trail version's loop: the same
+ * headline, product and light, already built. The footer is one, with its own
+ * line, which builds again each time the page arrives at it; the copy of the
+ * hero at the bottom is the other, which the page goes round from.
+ */
+interface FirstScreenProps {
+  steps: BuildStep[];
+  onEnter: () => void;
+  pull: RefObject<Pull>;
+  /** Changed, the line builds again */
+  replay?: number;
+  /** The copy of the hero: seen only on the way round, so not read out */
+  copy?: boolean;
+}
+
+const FirstScreen = forwardRef<HTMLDivElement, FirstScreenProps>(
+  ({ steps, onEnter, pull, replay = 0, copy = false }, ref) => (
+    <Screen ref={ref} aria-hidden={copy || undefined}>
+      <Hero
+        key={replay}
+        steps={steps}
+        settled
+        scale={0.86}
+        weight={500}
+        leading={0.93}
+        lift={lift(true)}
+        lifted
+        $trail
+      />
+      <Product onEnter={onEnter} up trail pull={pull} />
+    </Screen>
+  )
+);
+
+const Screen = styled.div`
+  position: relative;
+`;
 
 /**
  * The close: the deck's "Explore" gradient, pattern and all. Its line is the
