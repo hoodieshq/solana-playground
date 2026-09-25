@@ -337,10 +337,11 @@ const fadeOut = keyframes`
   to   { opacity: 0; }
 `;
 
-/* The headline face, loaded once for the whole deck. Variable on weight
-   between 400 and 700, which is the range Google serves for it. */
+/* The headline face, loaded once for the whole deck — variable on weight
+   between 400 and 700, the range Google serves for it — and Inter, which the
+   cards slide is set in. */
 const DeckFont = createGlobalStyle`
-  @import url("https://fonts.googleapis.com/css2?family=Stack+Sans+Headline:wght@400..700&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400&family=Stack+Sans+Headline:wght@400..700&display=swap");
 `;
 
 const Stage = styled.div`

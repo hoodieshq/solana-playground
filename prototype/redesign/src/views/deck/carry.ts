@@ -16,10 +16,18 @@ import { useLayoutEffect, useRef } from "react";
  */
 
 const origins = new Map<string, DOMRect>();
+let notedAt = 0;
+
+/* A position is only good for the change it was noted for. Anything nothing
+   claimed is forgotten, so a word on some later page — the landing sets the
+   same line — never flies in from a slide that was left long ago. */
+const FRESH_MS = 400;
+const fresh = () => performance.now() - notedAt < FRESH_MS;
 
 /** Record where every carryable element on the outgoing slide is */
 export const noteCarried = (root: ParentNode | null | undefined) => {
   origins.clear();
+  notedAt = performance.now();
   root?.querySelectorAll<HTMLElement>("[data-carry]").forEach((el) => {
     const key = el.dataset.carry;
     if (key) origins.set(key, el.getBoundingClientRect());
@@ -35,7 +43,7 @@ const EASE = "cubic-bezier(0.45, 0, 0.2, 1)";
  * slide hold its new arrivals back until the carried ones have moved out of
  * their way, instead of landing a new word on top of an old one in transit.
  */
-export const willCarry = (name: string) => origins.has(name);
+export const willCarry = (name: string) => fresh() && origins.has(name);
 
 /** How long new arrivals wait when something is being carried past them */
 export const MAKE_ROOM_MS = Math.round(CARRY_MS * 0.5);
@@ -46,7 +54,7 @@ export const MAKE_ROOM_MS = Math.round(CARRY_MS * 0.5);
  */
 const carryIn = (el: HTMLElement): boolean => {
   const key = el.dataset.carry;
-  if (!key) return false;
+  if (!key || !fresh()) return false;
   const from = origins.get(key);
   if (!from) return false;
   origins.delete(key);
