@@ -9,6 +9,7 @@ import { PgExplorer, PgProgramInfo, PgWeb3 } from "../../../utils";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 /** Point `PgProgramInfo`'s target at the given deployment. Selecting the
  * record that matches the project's own keypair clears the override so the
@@ -102,7 +103,7 @@ const Interact = () => {
         </HeaderText>
         <ToolbarActions>
           <Label>
-            Deployment
+            <LabelText>Deployment</LabelText>
             <Select
               value={selected ?? ""}
               onChange={(ev) => pick(ev.target.value)}
@@ -165,6 +166,15 @@ const Toolbar = styled.div`
     padding: 0.75rem 1.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
     font-family: ${theme.font.other.family};
+
+    /* A pane's head on a phone: the tab above already says Interact, and the
+       deployment picked says what the line beside it did */
+    ${PHONE} {
+      flex-wrap: nowrap;
+      gap: 0.5rem;
+      min-height: ${PHONE_SIZE.head};
+      padding: 0 0.5rem 0 1.25rem;
+    }
   `}
 `;
 
@@ -173,6 +183,10 @@ const HeaderText = styled.div`
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.625rem;
+
+  ${PHONE} {
+    display: none;
+  }
 `;
 
 const Headline = styled.h2`
@@ -197,6 +211,19 @@ const ToolbarActions = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
+
+  ${PHONE} {
+    flex: 1;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+
+    & button {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+  }
 `;
 
 const Label = styled.label`
@@ -206,7 +233,25 @@ const Label = styled.label`
     gap: 0.5rem;
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      min-width: 0;
+      ${PHONE_TYPE.secondary}
+    }
   `}
+`;
+
+/* On the narrowest phones the picker needs the room, and its options say
+   what they are; the word stays for anyone listening */
+const LabelText = styled.span`
+  @media (max-width: 359px) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 `;
 
 const Select = styled.select`
@@ -219,6 +264,14 @@ const Select = styled.select`
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.code.size.small};
     font-variant-numeric: tabular-nums;
+
+    ${PHONE} {
+      min-width: 0;
+      max-width: 9.5rem;
+      padding: 0 0.625rem;
+      border-radius: 12px;
+      font-family: ${theme.font.other.family};
+    }
 
     &:disabled {
       opacity: 0.6;

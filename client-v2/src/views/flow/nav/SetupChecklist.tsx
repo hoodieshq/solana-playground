@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import { ICONS } from "./icons";
 import { fadeIn, Glyph, NavContext, rowBase } from "./parts";
 import { BRAND } from "../tokens";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 export interface SetupStep {
   id: string;
@@ -149,9 +149,14 @@ const Dismiss = styled.button`
     cursor: pointer;
 
     ${PHONE} {
-      width: 2.75rem;
-      height: 2.75rem;
-      border-radius: 10px;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+
+      & > svg {
+        width: 16px;
+        height: 16px;
+      }
     }
     opacity: 0;
     transition: opacity 0.1s, color 0.1s;
@@ -192,6 +197,10 @@ const Setup = styled.section<{ $animate: boolean }>`
     padding: 0.625rem 0.5rem 0.5rem;
     ${$animate && fadeIn}
 
+    ${PHONE} {
+      padding: 0.5rem 0.5rem 0.75rem;
+    }
+
     &:hover ${Dismiss}, &:focus-within ${Dismiss} {
       opacity: 1;
     }
@@ -225,8 +234,9 @@ const Toggle = styled.button`
     font-size: 0.75rem;
 
     ${PHONE} {
-      height: 2.75rem;
-      font-size: 0.8125rem;
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.75rem;
+      ${PHONE_TYPE.label}
     }
     cursor: pointer;
     transition: color 0.1s;
@@ -343,7 +353,8 @@ const End = styled.span<{ $warn?: boolean }>`
     font-size: 0.75rem;
 
     ${PHONE} {
-      font-size: 0.8125rem;
+      max-width: 8rem;
+      ${PHONE_TYPE.secondary}
     }
     font-variant-numeric: tabular-nums;
     color: ${$warn

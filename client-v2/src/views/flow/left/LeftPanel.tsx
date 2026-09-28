@@ -6,6 +6,7 @@ import StepRail from "../lessons/StepRail";
 import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 import { BOTTOM_BAR_HEIGHT, HEAD_INSET } from "../tokens";
 
 type Tab = "steps" | "files";
@@ -158,6 +159,12 @@ const Head = styled.div`
     height: calc(${theme.components.tabs.tab.default.height} + 1px);
     padding: 0 0.375rem 0 ${HEAD_INSET};
     border-bottom: 1px solid ${theme.colors.default.border};
+
+    /* A pane's head on a phone, where this is the files' sheet */
+    ${PHONE} {
+      height: ${PHONE_SIZE.head};
+      padding: 0 0.25rem 0 1.25rem;
+    }
   `}
 `;
 
@@ -171,6 +178,11 @@ const Title = styled.span`
     font-size: 0.8125rem;
     font-weight: 500;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
+      color: ${theme.colors.default.textPrimary};
+    }
   `}
 `;
 
@@ -190,6 +202,10 @@ const Switch = styled.div`
     border: 1px solid ${theme.colors.default.border};
     border-radius: 999px;
     background: ${theme.colors.default.bgSecondary};
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.target};
+    }
   `}
 `;
 
@@ -235,6 +251,12 @@ const Segment = styled.button<{ $active: boolean }>`
     cursor: pointer;
     transition: color 0.15s;
 
+    ${PHONE} {
+      min-height: 0;
+      padding: 0 1rem;
+      ${PHONE_TYPE.control}
+    }
+
     &:hover {
       color: ${theme.colors.default.textPrimary};
     }
@@ -270,6 +292,17 @@ const Close = styled.button`
     & > svg {
       width: 0.875rem;
       height: 0.875rem;
+    }
+
+    ${PHONE} {
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+
+      & > svg {
+        width: 20px;
+        height: 20px;
+      }
     }
 
     &:hover {
@@ -314,6 +347,14 @@ const Footer = styled.button`
     font-size: 0.8125rem;
     text-align: left;
     cursor: pointer;
+
+    /* A row, and clear of the screen's own bottom edge */
+    ${PHONE} {
+      height: auto;
+      min-height: calc(${PHONE_SIZE.row} + env(safe-area-inset-bottom, 0px));
+      padding: 0 1.25rem env(safe-area-inset-bottom, 0px);
+      ${PHONE_TYPE.body}
+    }
     &:hover {
       color: ${theme.colors.default.textPrimary};
       background: ${theme.colors.state.hover.bg};

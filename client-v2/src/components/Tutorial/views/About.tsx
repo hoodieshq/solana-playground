@@ -11,6 +11,7 @@ import { Emoji } from "../../../constants";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgTheme, PgTutorial } from "../../../utils";
 import { BRAND } from "../../../views/flow/tokens";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../views/flow/phone";
 import type { TutorialAboutComponentProps } from "../types";
 
 export const About: FC<TutorialAboutComponentProps> = ({
@@ -144,13 +145,22 @@ const GeneratedTopWrapper = styled.div`
 
 const GeneratedTopLeftWrapper = styled.div``;
 
-const TutorialName = styled.h1``;
+const TutorialName = styled.h1`
+  ${PHONE} {
+    margin: 0;
+    ${PHONE_TYPE.display}
+  }
+`;
 
 const TutorialAuthorsWrapper = styled.div`
   ${({ theme }) => css`
     margin-top: 0.5rem;
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -196,6 +206,15 @@ const StartButton = styled(Button)`
       margin-left: 0.5rem;
     }
 
+    ${PHONE} {
+      && {
+        height: ${PHONE_SIZE.target};
+        padding: 0 1.125rem 0 1.375rem;
+        font-size: 16px;
+        font-weight: 440;
+      }
+    }
+
     &&:hover:not(:disabled) {
       transform: translateY(-1px);
       filter: brightness(1.05);
@@ -234,6 +253,10 @@ const GeneratedBottomWrapper = styled.div`
 const TutorialDescription = styled.p`
   color: ${({ theme }) => theme.colors.default.textSecondary};
   line-height: 1.5;
+
+  ${PHONE} {
+    ${PHONE_TYPE.body}
+  }
 `;
 
 const CustomWrapper = styled.div``;

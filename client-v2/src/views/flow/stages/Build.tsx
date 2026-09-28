@@ -12,6 +12,7 @@ import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import GradientButton from "../../sidebar/assistant/Component/GradientButton";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
+import { PHONE, PHONE_TYPE } from "../phone";
 import type { FlowState } from "../state/stage";
 import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 
@@ -358,6 +359,10 @@ const Surface = styled.div`
     gap: 0.75rem;
     font-family: ${theme.font.other.family};
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      padding: 1.5rem 1.25rem 2rem;
+    }
   `}
 `;
 
@@ -394,6 +399,10 @@ const Headline = styled.h2<{ $ok?: boolean }>`
     font-size: ${theme.font.other.size.xlarge};
     font-weight: 500;
     letter-spacing: -0.01em;
+
+    ${PHONE} {
+      ${PHONE_TYPE.display}
+    }
     color: ${$ok
       ? theme.colors.state.success.color
       : theme.colors.default.textPrimary};
@@ -406,6 +415,12 @@ const Ms = styled.span`
     font-size: ${theme.font.other.size.small};
     font-weight: 400;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      font-family: ${theme.font.other.family};
+      font-variant-numeric: tabular-nums;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -416,6 +431,10 @@ const Muted = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.55;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -433,6 +452,10 @@ const Eyebrow = styled.div`
     font-size: ${theme.font.other.size.xsmall};
     font-weight: 500;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -457,6 +480,12 @@ const Meta = styled.span`
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      font-family: ${theme.font.other.family};
+      font-variant-numeric: tabular-nums;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -500,6 +529,11 @@ const CardTitle = styled.h3`
     gap: 0.5rem;
     font-size: ${theme.font.other.size.medium};
     font-weight: 500;
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -520,6 +554,10 @@ const Explanation = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.55;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -623,6 +661,10 @@ const Toggle = styled.button`
     cursor: pointer;
     font: inherit;
     font-size: ${theme.font.other.size.small};
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
+    }
 
     &:hover {
       color: ${theme.colors.default.textPrimary};

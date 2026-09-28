@@ -2,10 +2,17 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import styled, { createGlobalStyle, css, keyframes } from "styled-components";
+import styled, {
+  createGlobalStyle,
+  css,
+  keyframes,
+  ThemeProvider,
+  useTheme,
+} from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import { frosted } from "./components/frosted";
@@ -35,7 +42,7 @@ import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
 import StagePreview from "./stages/StagePreview";
 import type { PreviewStage } from "./stages/StagePreview";
-import { PHONE, usePhone } from "./phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, phoneTheme, usePhone } from "./phone";
 import { HEAD_HEIGHT, HEAD_INSET, SUBHEAD_HEIGHT } from "./tokens";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
@@ -47,7 +54,7 @@ import ModalBackdrop from "../../components/ModalBackdrop";
 import Resizable from "../../components/Resizable";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
-import { useKeybind } from "../../hooks";
+import { useKeybind, useRenderOnChange } from "../../hooks";
 import {
   PgCommon,
   PgExplorer,
@@ -167,6 +174,25 @@ const Flow = () => {
   const [filesSheet, setFilesSheet] = useState(false);
   const pagerRef = useRef<HTMLDivElement>(null);
   const lastPreview = useRef<PreviewStage>("build");
+  /* The theme's size steps, a phone's own on a phone: everything that reads
+     them instead of setting a size takes the phone's type with it */
+  const outerTheme = useTheme();
+  const theme = useMemo(
+    () => (phone ? phoneTheme(outerTheme) : outerTheme),
+    [phone, outerTheme]
+  );
+  /* The file in the editor, which a phone's code head names in place of the
+     tab strip it has no room for */
+  const [openPath, setOpenPath] = useState(() => PgExplorer.currentFilePath);
+  useEffect(() => {
+    const sync = () => setOpenPath(PgExplorer.currentFilePath);
+    const subs = [
+      PgExplorer.onDidOpenFile(sync),
+      PgExplorer.onDidCloseFile(sync),
+      PgExplorer.onDidSwitchWorkspace(sync),
+    ];
+    return () => subs.forEach((sub) => sub.dispose());
+  }, []);
 
   /* To a page, as a swipe would take you: the buttons' way there */
   const goTo = useCallback((next: PhonePage, smooth = true) => {
@@ -195,6 +221,9 @@ const Flow = () => {
      nothing ever does. So the route has to bring the view with it. */
   const [path, setPath] = useState(() => PgRouter.location.pathname);
   const onTutorialRoute = path.startsWith("/tutorials/");
+  /* The tutorial is worked out from the route after the route has changed,
+     so its name arrives a moment after the path does */
+  useRenderOnChange(PgTutorial.onDidChangeCurrent);
   /* A tutorial you have not started yet has no workspace, and its about page
      still has to render somewhere. */
   const inProject =
@@ -220,9 +249,8 @@ const Flow = () => {
     observer.observe(rail);
     return () => observer.disconnect();
   }, [inProject, phone]);
-  // Four stages, and "Interact" with its dot wants about 85px; a phone's
-  // bigger type still fits whole words down to a narrow one
-  const railTight = railWidth < (phone ? 300 : 380);
+  // Four stages, and "Interact" with its dot wants about 85px
+  const railTight = railWidth < 380;
   /* The row the project's panes share, measured for the same reason: which of
      them gives way depends on how much room there is. */
   const panesRef = useRef<HTMLDivElement>(null);
@@ -420,6 +448,18 @@ const Flow = () => {
     };
   }, [phone, goTo]);
 
+  /* Where it is inside the project: "src/lib.rs", not "/Counter/src/lib.rs" */
+  const openRelative = (() => {
+    if (!openPath) return "";
+    try {
+      return PgExplorer.getRelativePath(openPath);
+    } catch {
+      return openPath.replace(/^\//, "");
+    }
+  })();
+  const openDir = openRelative.slice(0, openRelative.lastIndexOf("/") + 1);
+  const openName = openRelative.slice(openDir.length);
+
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
     : null;
@@ -527,301 +567,313 @@ const Flow = () => {
   );
 
   return (
-    <Wrapper>
-      <PhoneTouch />
-      {/* One ground for the whole window, so the grid is continuous wherever
+    <ThemeProvider theme={theme}>
+      <Wrapper>
+        <PhoneTouch />
+        {/* One ground for the whole window, so the grid is continuous wherever
           a pane lets it through, instead of each pane drawing its own and two
           grids meeting out of step at a border. It rises from the bottom edge
           and the light follows the pointer across every pane — both kept
           faint, a quarter of the landing's strength, because here it sits
           under text people read all day. */}
-      <Ground fade={1} rest={0.025} lit={0.07} />
-      <Layout $phone={phone}>
-        {phone ? (
-          <Pager ref={pagerRef}>
-            <PagerPage data-page="menu" aria-label="Navigation">
-              {nav(false)}
-            </PagerPage>
+        <Ground fade={1} rest={0.025} lit={0.07} />
+        <Layout $phone={phone}>
+          {phone ? (
+            <Pager ref={pagerRef}>
+              <PagerPage data-page="menu" aria-label="Navigation">
+                {nav(false)}
+              </PagerPage>
 
-            <PagerPage data-page="work">
-              <PhoneBar>
-                <BarButton
-                  type="button"
-                  aria-label="Menu"
-                  aria-expanded={page === "menu"}
-                  onClick={() => goTo("menu")}
-                >
-                  {ICONS.menu}
-                </BarButton>
-                <BarTitle>
-                  {inProject ? workTitle : SECTION_TITLES[section]}
-                </BarTitle>
-                {inProject && (
-                  <>
-                    <PaneSwitch role="group" aria-label="Show">
-                      <PaneOption
-                        type="button"
-                        aria-pressed={pane === "chat"}
-                        onClick={() => setPane("chat")}
-                      >
-                        Chat
-                      </PaneOption>
-                      <PaneOption
-                        type="button"
-                        aria-pressed={pane === "code"}
-                        onClick={() => setPane("code")}
-                      >
-                        Code
-                      </PaneOption>
-                    </PaneSwitch>
-                    <BarButton
-                      type="button"
-                      aria-label="Preview the build"
-                      onClick={() => goTo("preview")}
-                    >
-                      {ICONS.preview}
-                    </BarButton>
-                  </>
-                )}
-              </PhoneBar>
-
-              {inProject ? (
-                <PhonePanes>
-                  <PhonePane $shown={pane === "chat"}>
-                    <Conversation $phone>
-                      <Assistant title={workTitle} />
-                    </Conversation>
-                  </PhonePane>
-                  <PhonePane $shown={pane === "code"}>
-                    <Work>
-                      <WorkHead>
-                        <HeadButton
-                          type="button"
-                          onClick={() => setFilesSheet(true)}
-                          aria-expanded={filesSheet}
-                          aria-controls="flow-files"
-                          $label
-                        >
-                          {ICONS.files}
-                          Files
-                        </HeadButton>
-                        <WorkTitle />
-                        <HeadButton
-                          as="a"
-                          href="https://solana.com/docs"
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="Documentation"
-                        >
-                          {ICONS.help}
-                        </HeadButton>
-                      </WorkHead>
-                      <WorkBody>
-                        {phoneCode}
-                        <SheetScrim
-                          $open={filesSheet}
-                          onClick={() => setFilesSheet(false)}
-                          aria-hidden="true"
-                        />
-                        <FilesSheet
-                          id="flow-files"
-                          $open={filesSheet}
-                          onClickCapture={(ev) => {
-                            /* A file tapped is a file opened, even the one
-                               that already was: the sheet has done its job */
-                            const row = (ev.target as Element).closest(
-                              `.${PgView.classNames.FILE}`
-                            );
-                            if (row) {
-                              window.setTimeout(
-                                () => setFilesSheet(false),
-                                120
-                              );
-                            }
-                          }}
-                        >
-                          <LeftPanel onClose={() => setFilesSheet(false)} />
-                        </FilesSheet>
-                      </WorkBody>
-                    </Work>
-                  </PhonePane>
-                </PhonePanes>
-              ) : (
-                <PageBody>
-                  <ZeroState
-                    onAskAssistant={showAssistant}
-                    section={section}
-                    onSection={setSection}
-                  />
-                </PageBody>
-              )}
-            </PagerPage>
-
-            {inProject && (
-              <PagerPage data-page="preview" aria-label="Preview">
+              <PagerPage data-page="work">
                 <PhoneBar>
                   <BarButton
                     type="button"
-                    aria-label="Back to the code"
-                    onClick={() => goTo("work")}
+                    aria-label="Menu"
+                    aria-expanded={page === "menu"}
+                    onClick={() => goTo("menu")}
                   >
-                    {ICONS.back}
+                    {ICONS.menu}
                   </BarButton>
-                  <PreviewRail>
-                    <Stepper
-                      state={state}
-                      onSelect={PgFlow.setStage}
-                      target={target}
-                      compact={false}
-                    />
-                  </PreviewRail>
+                  <BarTitle>
+                    {inProject ? workTitle : SECTION_TITLES[section]}
+                  </BarTitle>
+                  {inProject && (
+                    <>
+                      <PaneSwitch role="group" aria-label="Show">
+                        <PaneOption
+                          type="button"
+                          aria-pressed={pane === "chat"}
+                          onClick={() => setPane("chat")}
+                        >
+                          Chat
+                        </PaneOption>
+                        <PaneOption
+                          type="button"
+                          aria-pressed={pane === "code"}
+                          onClick={() => setPane("code")}
+                        >
+                          Code
+                        </PaneOption>
+                      </PaneSwitch>
+                      <BarButton
+                        type="button"
+                        aria-label="Preview the build"
+                        onClick={() => goTo("preview")}
+                      >
+                        {ICONS.preview}
+                      </BarButton>
+                    </>
+                  )}
                 </PhoneBar>
-                <PreviewBody>
-                  <StagePreview stage={previewStage} />
-                </PreviewBody>
-                <ConsoleDrawer />
+
+                {inProject ? (
+                  <PhonePanes>
+                    <PhonePane $shown={pane === "chat"}>
+                      <Conversation $phone>
+                        <Assistant title={workTitle} heading="Assistant" />
+                      </Conversation>
+                    </PhonePane>
+                    <PhonePane $shown={pane === "code"}>
+                      <Work>
+                        <WorkHead>
+                          <FilePicker
+                            type="button"
+                            onClick={() => setFilesSheet(true)}
+                            aria-expanded={filesSheet}
+                            aria-controls="flow-files"
+                            aria-label={
+                              openName ? `Files, ${openName} open` : "Files"
+                            }
+                            title={openRelative || undefined}
+                          >
+                            {ICONS.files}
+                            {openName ? (
+                              <>
+                                {openDir && <FileDir>{openDir}</FileDir>}
+                                <FileName>{openName}</FileName>
+                              </>
+                            ) : (
+                              <FileName>Files</FileName>
+                            )}
+                            {ICONS.down}
+                          </FilePicker>
+                          <HeadButton
+                            as="a"
+                            href="https://solana.com/docs"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Documentation"
+                          >
+                            {ICONS.help}
+                          </HeadButton>
+                        </WorkHead>
+                        <WorkBody $phone>
+                          {phoneCode}
+                          <SheetScrim
+                            $open={filesSheet}
+                            onClick={() => setFilesSheet(false)}
+                            aria-hidden="true"
+                          />
+                          <FilesSheet
+                            id="flow-files"
+                            $open={filesSheet}
+                            onClickCapture={(ev) => {
+                              /* A file tapped is a file opened, even the one
+                               that already was: the sheet has done its job */
+                              const row = (ev.target as Element).closest(
+                                `.${PgView.classNames.FILE}`
+                              );
+                              if (row) {
+                                window.setTimeout(
+                                  () => setFilesSheet(false),
+                                  120
+                                );
+                              }
+                            }}
+                          >
+                            <LeftPanel onClose={() => setFilesSheet(false)} />
+                          </FilesSheet>
+                        </WorkBody>
+                      </Work>
+                    </PhonePane>
+                  </PhonePanes>
+                ) : (
+                  <PageBody>
+                    <ZeroState
+                      onAskAssistant={showAssistant}
+                      section={section}
+                      onSection={setSection}
+                    />
+                  </PageBody>
+                )}
               </PagerPage>
-            )}
-          </Pager>
-        ) : (
-          <NavSlot>{nav(!sidebarOpen)}</NavSlot>
-        )}
 
-        {phone ? null : inProject ? (
-          <Panes ref={panesRef}>
-            {assistantOpen && (
-              <AssistantPane
-                enable="right"
-                size={{ width: assistantShown, height: "100%" }}
-                minWidth={ASSISTANT_MIN}
-                maxWidth={assistantMax}
-                handleComponent={{ right: <Sash /> }}
-                onResizeStop={(_ev, _dir, ref, delta) => {
-                  // A click on the edge is not a new width
-                  if (!delta.width) return;
-                  const w = Math.round(ref.getBoundingClientRect().width);
-                  setAssistantWidth(w);
-                  write(KEYS.assistantWidth, String(w));
-                  // Set by hand, this is the width that counts now; narrowing
-                  // later must not throw it away for the old one
-                  setAssistantWide(false);
-                }}
-              >
-                <Conversation>
-                  <Assistant
-                    title={workTitle}
-                    onCollapse={toggleAssistant}
-                    onExpand={toggleAssistantWide}
-                    expanded={assistantWide}
-                  />
-                </Conversation>
-              </AssistantPane>
-            )}
+              {inProject && (
+                <PagerPage data-page="preview" aria-label="Preview">
+                  <PhoneBar>
+                    <BarButton
+                      type="button"
+                      aria-label="Back to the code"
+                      onClick={() => goTo("work")}
+                    >
+                      {ICONS.back}
+                    </BarButton>
+                    <PreviewRail>
+                      <Stepper
+                        state={state}
+                        onSelect={PgFlow.setStage}
+                        target={target}
+                        compact={false}
+                      />
+                    </PreviewRail>
+                  </PhoneBar>
+                  <PreviewBody>
+                    <StagePreview stage={previewStage} />
+                  </PreviewBody>
+                  <ConsoleDrawer />
+                </PagerPage>
+              )}
+            </Pager>
+          ) : (
+            <NavSlot>{nav(!sidebarOpen)}</NavSlot>
+          )}
 
-            <Work>
-              <WorkHead>
-                {/* The session is named once: by the assistant's head while it
+          {phone ? null : inProject ? (
+            <Panes ref={panesRef}>
+              {assistantOpen && (
+                <AssistantPane
+                  enable="right"
+                  size={{ width: assistantShown, height: "100%" }}
+                  minWidth={ASSISTANT_MIN}
+                  maxWidth={assistantMax}
+                  handleComponent={{ right: <Sash /> }}
+                  onResizeStop={(_ev, _dir, ref, delta) => {
+                    // A click on the edge is not a new width
+                    if (!delta.width) return;
+                    const w = Math.round(ref.getBoundingClientRect().width);
+                    setAssistantWidth(w);
+                    write(KEYS.assistantWidth, String(w));
+                    // Set by hand, this is the width that counts now; narrowing
+                    // later must not throw it away for the old one
+                    setAssistantWide(false);
+                  }}
+                >
+                  <Conversation>
+                    <Assistant
+                      title={workTitle}
+                      onCollapse={toggleAssistant}
+                      onExpand={toggleAssistantWide}
+                      expanded={assistantWide}
+                    />
+                  </Conversation>
+                </AssistantPane>
+              )}
+
+              <Work>
+                <WorkHead>
+                  {/* The session is named once: by the assistant's head while it
                     is open, here while it is hidden */}
-                <WorkTitle title={workTitle}>
-                  {assistantOpen ? null : workTitle}
-                </WorkTitle>
-                {/* Always here, pressed while their pane is showing. A control
+                  <WorkTitle title={workTitle}>
+                    {assistantOpen ? null : workTitle}
+                  </WorkTitle>
+                  {/* Always here, pressed while their pane is showing. A control
                     that only appears once you have already lost the pane is
                     one you have to discover at the worst moment. */}
-                <WorkEnd>
-                  <HeadButton
-                    ref={filesToggleRef}
-                    type="button"
-                    onClick={toggleFiles}
-                    aria-pressed={filesOpen}
-                    aria-controls="flow-files"
-                    title={filesOpen ? "Hide files (⌘E)" : "Show files (⌘E)"}
-                    $label
-                  >
-                    {ICONS.files}
-                    Files
-                  </HeadButton>
-                  <HeadButton
-                    type="button"
-                    onClick={toggleAssistant}
-                    aria-label="Assistant"
-                    aria-pressed={assistantOpen}
-                    title={
-                      assistantOpen
-                        ? "Hide the assistant (⌘R)"
-                        : "Show the assistant (⌘R)"
-                    }
-                  >
-                    {ICONS.chat}
-                  </HeadButton>
-                  <Divider aria-hidden="true" />
-                  <HeadButton
-                    as="a"
-                    href="https://solana.com/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Documentation"
-                    title="Solana documentation"
-                  >
-                    {ICONS.help}
-                  </HeadButton>
-                </WorkEnd>
-              </WorkHead>
+                  <WorkEnd>
+                    <HeadButton
+                      ref={filesToggleRef}
+                      type="button"
+                      onClick={toggleFiles}
+                      aria-pressed={filesOpen}
+                      aria-controls="flow-files"
+                      title={filesOpen ? "Hide files (⌘E)" : "Show files (⌘E)"}
+                      $label
+                    >
+                      {ICONS.files}
+                      Files
+                    </HeadButton>
+                    <HeadButton
+                      type="button"
+                      onClick={toggleAssistant}
+                      aria-label="Assistant"
+                      aria-pressed={assistantOpen}
+                      title={
+                        assistantOpen
+                          ? "Hide the assistant (⌘R)"
+                          : "Show the assistant (⌘R)"
+                      }
+                    >
+                      {ICONS.chat}
+                    </HeadButton>
+                    <Divider aria-hidden="true" />
+                    <HeadButton
+                      as="a"
+                      href="https://solana.com/docs"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Documentation"
+                      title="Solana documentation"
+                    >
+                      {ICONS.help}
+                    </HeadButton>
+                  </WorkEnd>
+                </WorkHead>
 
-              {/* The loop belongs to the workspace, not to the window — in the
+                {/* The loop belongs to the workspace, not to the window — in the
                   Figma it runs across the top of this column. It sits under the
                   head rather than above it so that the first row of every
                   column is the same row: name on top, the panel's own switch
                   beneath, the same two rules straight across. */}
-              {stageRail}
+                {stageRail}
 
-              {/* Files and code side by side, and both always mounted: the
+                {/* Files and code side by side, and both always mounted: the
                   editor holds Monaco and the tree holds scroll and selection.
                   The files column is hidden, never unmounted, and the code
                   takes its room. */}
-              <WorkBody>
-                <FilesPane
-                  $shown={filesOpen}
-                  enable="right"
-                  size={{ width: filesShown, height: "100%" }}
-                  minWidth={MIN_LEFT_WIDTH}
-                  maxWidth={filesMax}
-                  handleComponent={{ right: <Sash /> }}
-                  onResizeStop={(_ev, _dir, ref, delta) => {
-                    if (!delta.width) return;
-                    const w = Math.round(ref.getBoundingClientRect().width);
-                    setFilesWidth(w);
-                    write(KEYS.filesWidth, String(w));
-                  }}
-                >
-                  <LeftPanel onClose={hideFiles} />
-                </FilesPane>
-                {code}
-              </WorkBody>
-            </Work>
-          </Panes>
-        ) : (
-          <ZeroState
-            onAskAssistant={showAssistant}
-            section={section}
-            onSection={setSection}
-          />
-        )}
-      </Layout>
+                <WorkBody>
+                  <FilesPane
+                    $shown={filesOpen}
+                    enable="right"
+                    size={{ width: filesShown, height: "100%" }}
+                    minWidth={MIN_LEFT_WIDTH}
+                    maxWidth={filesMax}
+                    handleComponent={{ right: <Sash /> }}
+                    onResizeStop={(_ev, _dir, ref, delta) => {
+                      if (!delta.width) return;
+                      const w = Math.round(ref.getBoundingClientRect().width);
+                      setFilesWidth(w);
+                      write(KEYS.filesWidth, String(w));
+                    }}
+                  >
+                    <LeftPanel onClose={hideFiles} />
+                  </FilesPane>
+                  {code}
+                </WorkBody>
+              </Work>
+            </Panes>
+          ) : (
+            <ZeroState
+              onAskAssistant={showAssistant}
+              section={section}
+              onSection={setSection}
+            />
+          )}
+        </Layout>
 
-      <GearSidebar
-        open={settingsOpen}
-        focus={settingsFocus}
-        onClose={() => setSettingsOpen(false)}
-      />
+        <GearSidebar
+          open={settingsOpen}
+          focus={settingsFocus}
+          onClose={() => setSettingsOpen(false)}
+        />
 
-      <Wallet />
-      <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
-      <StyledModalBackdrop />
-      <PortalBelow id={PgView.ids.PORTAL_BELOW}>
-        <Toast />
-      </PortalBelow>
-    </Wrapper>
+        <Wallet />
+        <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
+        <StyledModalBackdrop />
+        <PortalBelow id={PgView.ids.PORTAL_BELOW}>
+          <Toast />
+        </PortalBelow>
+      </Wrapper>
+    </ThemeProvider>
   );
 };
 
@@ -859,6 +911,7 @@ const ICONS = {
     />
   ),
   back: svg(<path d="m15 5-7 7 7 7" />),
+  down: svg(<path d="m7 10 5 5 5-5" />),
   files: svg(
     <path
       data-fill
@@ -896,6 +949,11 @@ const Wrapper = styled.div`
        step above this on bgSecondary, so depth is one decision rather than a
        different answer per component. */
     background: ${theme.colors.default.bgPrimary};
+
+    /* A phone reads in the body type, whatever does not say otherwise */
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+    }
   `}
 `;
 
@@ -947,20 +1005,16 @@ const Layout = styled.div<{ $phone?: boolean }>`
 
 /* On a phone, for the whole product: fields at 16px, under which the page
    zooms in to type and stays zoomed; and everything you can press at a
-   fingertip's reach, 44px at the least, whatever size it is drawn at on a
-   desktop. The editor and the terminal keep their own. */
+   fingertip's reach, 48px at the least, whatever size it is drawn at on a
+   desktop. The editor and the terminal keep their own. The type itself is
+   set where it is used, from `PHONE_TYPE`, rather than by scaling the
+   desktop's many sizes up together. */
 const PhoneTouch = createGlobalStyle`
   ${PHONE} {
-    /* The product's type, and every length set in it, a step up: a phone is
-       read at arm's length, not at a desk */
-    html {
-      font-size: 112.5%;
-    }
-
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
     textarea,
     select {
-      font-size: max(1rem, 16px) !important;
+      font-size: 16px !important;
     }
 
     :is(button, [role="button"], [role="tab"], [role="menuitem"], select, a[href]):not(.monaco-editor *):not(.xterm *) {
@@ -987,7 +1041,7 @@ const PhoneBar = styled.header`
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    min-height: 64px;
+    min-height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-top, 0px));
     padding: env(safe-area-inset-top, 0px) 0.5rem 0 0.375rem;
     border-bottom: 1px solid ${theme.colors.default.border};
     ${frosted}
@@ -1040,8 +1094,7 @@ const BarTitle = styled.div`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 1rem;
-    font-weight: 500;
+    ${PHONE_TYPE.title}
     color: ${theme.colors.default.textPrimary};
   `}
 `;
@@ -1063,11 +1116,10 @@ const PaneOption = styled.button`
   ${touch}
   ${({ theme }) => css`
     gap: 0.375rem;
-    height: 48px;
+    height: ${PHONE_SIZE.target};
     min-width: 0;
     padding: 0 0.75rem;
-    font-size: 0.9375rem;
-    font-weight: 500;
+    ${PHONE_TYPE.control}
 
     & > svg {
       width: 20px;
@@ -1151,9 +1203,9 @@ const PreviewRail = styled.div`
 
   & [role="tab"] {
     width: 100%;
-    height: 48px;
+    height: ${PHONE_SIZE.target};
     justify-content: center;
-    font-size: 0.9375rem;
+    ${PHONE_TYPE.control}
   }
 `;
 
@@ -1215,6 +1267,21 @@ const FilesSheet = styled.div<{ $open: boolean }>`
     & > * {
       flex: 1;
       min-height: 0;
+    }
+
+    /* The tree's rows, which the explorer sizes for a desk */
+    && .${PgView.classNames.FOLDER}, && .${PgView.classNames.FILE} {
+      min-height: ${PHONE_SIZE.target};
+      margin: 0 0.5rem;
+      padding: 0 0.75rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.body}
+
+      & svg,
+      & img {
+        width: 16px;
+        height: 16px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1363,11 +1430,13 @@ const WorkHead = styled.div`
     align-items: center;
     gap: 0.5rem;
     height: ${HEAD_HEIGHT};
-    ${PHONE} {
-      height: 3.25rem;
-    }
     flex-shrink: 0;
     padding: 0 0.375rem 0 0.5rem;
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.head};
+      padding: 0 0.25rem 0 0.375rem;
+    }
     border-bottom: 1px solid ${theme.colors.default.border};
     ${frosted}
   `}
@@ -1445,13 +1514,14 @@ const HeadButton = styled.button<{ $label?: boolean }>`
     }
 
     ${PHONE} {
-      min-width: 2.75rem;
-      height: 2.75rem;
-      font-size: 0.9375rem;
+      min-width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+      ${PHONE_TYPE.control}
 
       & > svg {
-        width: 1.125rem;
-        height: 1.125rem;
+        width: 20px;
+        height: 20px;
       }
     }
 
@@ -1459,6 +1529,46 @@ const HeadButton = styled.button<{ $label?: boolean }>`
       transition: none;
     }
   `}
+`;
+
+/* A phone's code head, which has no tab strip under it: which file is open,
+   its folder quiet and its name whole, and a press away from the rest */
+const FilePicker = styled(HeadButton)`
+  ${({ theme }) => css`
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    padding: 0 0.625rem 0 0.75rem;
+    color: ${theme.colors.default.textPrimary};
+
+    & > svg:first-child {
+      margin-right: 0.125rem;
+      color: ${theme.colors.default.textSecondary};
+    }
+
+    & > svg:last-child {
+      width: 18px;
+      height: 18px;
+      margin-left: 0.125rem;
+      color: ${theme.colors.default.textSecondary};
+    }
+  `}
+`;
+
+const FileDir = styled.span`
+  ${({ theme }) => css`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 320;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const FileName = styled.span`
+  flex-shrink: 0;
+  white-space: nowrap;
 `;
 
 /* Between the panes you can open and the one link that leaves the product */
@@ -1507,24 +1617,22 @@ const StageRail = styled.div`
       height: 1.625rem;
       justify-content: center;
     }
-
-    /* A fingertip's height on a phone */
-    ${PHONE} {
-      height: 3.5rem;
-
-      & [role="tab"] {
-        height: 2.75rem;
-        font-size: 0.9375rem;
-      }
-    }
   `}
 `;
 
-const WorkBody = styled.div`
+const WorkBody = styled.div<{ $phone?: boolean }>`
   flex: 1;
   min-height: 0;
   display: flex;
   overflow: hidden;
+
+  ${({ $phone }) =>
+    $phone &&
+    css`
+      & #${PgView.ids.TABS} {
+        display: none;
+      }
+    `}
 `;
 
 /* Whatever the row has left after the files column. Its floor is kept by the

@@ -36,6 +36,8 @@ const Wrapper = styled.div`
     position: absolute;
     width: 100vw;
     height: 100vh;
+    /* What a phone's browser leaves once its own bars are drawn */
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;

@@ -6,6 +6,7 @@ import type { ConnectPreset } from "./Connect";
 import Modal from "../../../../components/Modal";
 import { PgView } from "../../../../utils";
 import { PgAssistant } from "../store";
+import { PHONE } from "../../../flow/phone";
 
 /**
  * The connect form, as a dialog over whatever you were doing.
@@ -48,6 +49,14 @@ const Body = styled.div`
   flex-direction: column;
   overflow: hidden;
   margin: -0.5rem -1rem;
+
+  /* A phone's dialog is its own page, and the page scrolls */
+  ${PHONE} {
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    margin: -1.25rem -1.25rem -1.5rem;
+  }
 `;
 
 export default ConnectDialog;

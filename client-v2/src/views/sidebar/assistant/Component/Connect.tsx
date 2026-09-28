@@ -15,6 +15,7 @@ import {
   type ProviderId,
   type ProviderInfo,
 } from "../model/types";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>
@@ -404,6 +405,11 @@ const Wrapper = styled.div`
   min-height: 0;
   overflow-y: auto;
   padding: 1.25rem 1rem;
+
+  ${PHONE} {
+    padding: 1.25rem 1.25rem 1.5rem;
+    gap: 0.25rem;
+  }
 `;
 
 const Intro = styled.div`
@@ -420,6 +426,11 @@ const Title = styled.h2`
     font-size: ${theme.font.code.size.medium};
     font-weight: 500;
     line-height: 1.5;
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -428,6 +439,10 @@ const Lead = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.small};
     line-height: 1.65;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -437,6 +452,10 @@ const Label = styled.label`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     padding-bottom: 0.4375rem;
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -473,6 +492,12 @@ const ProviderOption = styled.button<{ $selected: boolean }>`
       outline: 1px solid ${theme.colors.default.primary};
       outline-offset: -1px;
     }
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.row};
+      padding: 0.625rem 0.875rem;
+      border-radius: 12px;
+    }
   `}
 `;
 
@@ -485,6 +510,11 @@ const ProviderName = styled.div<{ $selected: boolean }>`
       ? theme.colors.default.primary
       : theme.colors.default.textPrimary};
     font-size: ${theme.font.code.size.small};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -492,6 +522,10 @@ const NoKey = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.state.success.color};
     font-size: ${theme.font.code.size.xsmall};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -501,6 +535,10 @@ const ProviderDescription = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.5;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -525,6 +563,11 @@ const Toggle = styled.button`
     &:focus-visible {
       outline: 1px solid ${theme.colors.default.primary};
       outline-offset: 2px;
+    }
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+      ${PHONE_TYPE.control}
     }
   `}
 `;
@@ -575,6 +618,13 @@ const Preset = styled.button<{ $selected: boolean }>`
       outline: 1px solid ${theme.colors.default.primary};
       outline-offset: -1px;
     }
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+      padding: 0 0.875rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.control}
+    }
   `}
 `;
 
@@ -592,6 +642,10 @@ const Note = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.6;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -609,6 +663,10 @@ const Capability = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
     line-height: 1.55;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -627,6 +685,10 @@ const Footer = styled.div`
     text-align: center;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 

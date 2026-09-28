@@ -1,6 +1,7 @@
 import styled from "styled-components";
 
 import Button from "../../../../components/Button";
+import { PHONE } from "../../../flow/phone";
 
 /**
  * The one decisive action of a view.
@@ -24,6 +25,13 @@ const GradientButton = styled(Button)`
 
       &:hover:not(:disabled) {
         filter: brightness(1.12);
+      }
+    }
+
+    /* The control type on a phone, like every other button there */
+    ${PHONE} {
+      && {
+        font-weight: 440;
       }
     }
   `}

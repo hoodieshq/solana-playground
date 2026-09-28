@@ -11,7 +11,7 @@ import Composer from "../components/Composer";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgCommon, PgTutorial } from "../../../utils";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 /**
  * What you meet with no project open: a head that names the list you are on,
@@ -246,8 +246,10 @@ const searchShape = css`
     ${PHONE} {
       justify-self: stretch;
       width: 100%;
-      height: 2.75rem;
-      border-radius: 10px;
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.875rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.body}
     }
     color: ${theme.colors.state.disabled.color};
     font-family: inherit;
@@ -318,6 +320,11 @@ const Stage = styled.div`
   width: min(50rem, 100%);
   margin: 0 auto;
   padding: 5rem 2rem 4rem;
+
+  ${PHONE} {
+    gap: 1rem;
+    padding: 2.5rem 1.25rem calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 /* Collapses out of the way on a list tab rather than disappearing: height and
@@ -352,6 +359,10 @@ const Title = styled.h1`
     font-weight: 400;
     letter-spacing: -0.015em;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.display}
+    }
   `}
 `;
 
@@ -387,6 +398,13 @@ const Card = styled.button<{ $on?: boolean }>`
     padding: 1.125rem 1.125rem 1rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 12px;
+
+    ${PHONE} {
+      gap: 0.25rem;
+      padding: 1rem 1.125rem;
+      border-radius: 16px;
+      -webkit-tap-highlight-color: transparent;
+    }
     background: ${$on
       ? theme.colors.state.hover.bg
       : theme.colors.default.bgSecondary};
@@ -414,6 +432,12 @@ const CardIcon = styled.span`
     margin-bottom: 0.625rem;
     color: ${theme.colors.default.textSecondary};
 
+    ${PHONE} {
+      width: 22px;
+      height: 22px;
+      margin-bottom: 0.5rem;
+    }
+
     & > svg {
       width: 100%;
       height: 100%;
@@ -426,6 +450,11 @@ const CardTitle = styled.span`
     font-size: 0.9375rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -435,7 +464,7 @@ const CardSub = styled.span`
     color: ${theme.colors.default.textSecondary};
 
     ${PHONE} {
-      font-size: 0.875rem;
+      ${PHONE_TYPE.secondary}
     }
   `}
 `;
@@ -447,6 +476,11 @@ const Panel = styled.div`
   width: 100%;
   margin-top: 1.5rem;
   animation: ${rise} 0.22s ease both;
+
+  ${PHONE} {
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -465,6 +499,10 @@ const PanelLabel = styled.span`
   ${({ theme }) => css`
     font-size: 0.8125rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -483,10 +521,10 @@ const PanelMore = styled.button`
     }
 
     ${PHONE} {
-      min-height: 2.75rem;
-      margin-right: -0.5rem;
-      padding: 0 0.5rem;
-      font-size: 0.875rem;
+      min-height: ${PHONE_SIZE.target};
+      margin-right: -0.625rem;
+      padding: 0 0.625rem;
+      ${PHONE_TYPE.control}
     }
   `}
 `;

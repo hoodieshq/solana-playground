@@ -15,7 +15,7 @@ import { Glyph, Label, rowBase } from "./parts";
 import { snapshotOf } from "../../../features/persistence/model/snapshot";
 import { PgCommon, PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 interface ProjectListProps {
   projects: string[];
@@ -335,6 +335,7 @@ const ProjectList: FC<ProjectListProps> = ({
       {menu && (
         <NavMenu
           label={`Actions for ${menu.name}`}
+          phoneTitle={menu.name}
           anchor={menu.anchor}
           groups={actionsFor(menu.name)}
           returnFocus={menu.from}
@@ -470,14 +471,14 @@ const More = styled.button`
     border-radius: 5px;
 
     ${PHONE} {
-      right: 0;
-      width: 2.75rem;
-      height: 2.75rem;
-      border-radius: 10px;
+      right: 0.125rem;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
 
       & > svg {
-        width: 1.25rem;
-        height: 1.25rem;
+        width: 20px;
+        height: 20px;
       }
     }
     background: transparent;
@@ -562,6 +563,10 @@ const Item = styled.div<{
       : "transparent"};
     transition: background 0.1s;
 
+    ${PHONE} {
+      border-radius: 12px;
+    }
+
     /* Room at the end for the pin, and for the ⋮ once it shows */
     & > ${ItemButton} {
       padding-right: ${$pinned || $open ? "1.875rem" : "0.5rem"};
@@ -599,7 +604,7 @@ const Item = styled.div<{
       }
       ${PHONE} {
         & > ${ItemButton} {
-          padding-right: 2.75rem;
+          padding-right: 3.25rem;
         }
       }
       & > ${More} {
@@ -629,8 +634,10 @@ const Editing = styled.div<{ $invalid: boolean }>`
     background: ${theme.colors.state.hover.bg};
 
     ${PHONE} {
-      height: 2.75rem;
-      border-radius: 10px;
+      gap: 0.75rem;
+      height: ${PHONE_SIZE.row};
+      padding: 0 0.75rem;
+      border-radius: 12px;
     }
     box-shadow: inset 0 0 0 1px
       ${$invalid
@@ -654,7 +661,7 @@ const NameField = styled.input`
 
     /* Under 16px, a phone zooms the page to type into it */
     ${PHONE} {
-      font-size: 1rem;
+      ${PHONE_TYPE.body}
     }
   `}
 `;
@@ -667,7 +674,8 @@ const FieldError = styled.p`
     line-height: 1.35;
 
     ${PHONE} {
-      font-size: 0.8125rem;
+      padding: 0.375rem 0.75rem 0.25rem 2.75rem;
+      ${PHONE_TYPE.label}
     }
     color: ${theme.colors.state.error.color};
   `}

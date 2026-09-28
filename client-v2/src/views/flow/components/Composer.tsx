@@ -12,7 +12,7 @@ import styled, { css } from "styled-components";
 import Menu, { useMenu } from "./Menu";
 import type { MenuRow } from "./Menu";
 import ModelControls from "../../sidebar/assistant/Component/ModelControls";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 /**
  * The composer, as one object: where you type, and a row of controls along its
@@ -282,6 +282,11 @@ const TextArea = styled.textarea`
     font-weight: 350;
     line-height: 1.5;
 
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+      ${PHONE_TYPE.body}
+    }
+
     &::placeholder {
       color: ${theme.colors.state.disabled.color};
     }
@@ -301,6 +306,10 @@ const Launcher = styled.button`
     font-size: 0.9375rem;
     text-align: left;
     cursor: text;
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+    }
   `}
 `;
 
@@ -338,8 +347,13 @@ const Chip = styled.button`
     border-radius: 999px;
 
     ${PHONE} {
-      width: 2.75rem;
-      height: 2.75rem;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+
+      & > svg {
+        width: 20px;
+        height: 20px;
+      }
     }
     background: transparent;
     color: ${theme.colors.default.textSecondary};
@@ -380,8 +394,13 @@ const Send = styled.button<{ $stop?: boolean }>`
     border-radius: 999px;
 
     ${PHONE} {
-      width: 2.75rem;
-      height: 2.75rem;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+
+      & > svg {
+        width: 18px;
+        height: 18px;
+      }
     }
     background: ${$stop
       ? theme.colors.default.textPrimary

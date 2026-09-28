@@ -11,6 +11,15 @@ import {
 import { createPortal } from "react-dom";
 import styled, { css, keyframes } from "styled-components";
 
+import {
+  PHONE,
+  PHONE_SIZE,
+  PHONE_TYPE,
+  phoneScrim,
+  phoneSheet,
+  usePhone,
+} from "../phone";
+
 /**
  * A small menu that opens from a control, the way Claude's do: a raised card of
  * rows, a check beside what is picked, a key hint at the right edge — and the
@@ -25,6 +34,9 @@ import styled, { css, keyframes } from "styled-components";
  * in the control's own column: the panes clip their overflow, and a menu that
  * opens leftward from a control near a pane's edge was being cut in half.
  * Placed that way it is also kept inside the window.
+ *
+ * On a phone it is a sheet up from the foot of the screen instead, over the
+ * dimmed page, with rows a finger tall and no key hints: there are no keys.
  */
 
 export interface MenuRow {
@@ -65,6 +77,7 @@ const Menu: FC<MenuProps> = ({
   minWidth = "13.5rem",
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const phone = usePhone();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(
     null
@@ -93,6 +106,11 @@ const Menu: FC<MenuProps> = ({
       const target = ev.target as Node;
       if (ref.current?.contains(target)) return;
       if (anchorRef.current?.contains(target)) return;
+      // The sheet's scrim closes it on its own click, which the tap is then
+      // spent on, rather than on whatever lies under the scrim
+      if (target instanceof Element && target.closest("[data-menu-scrim]")) {
+        return;
+      }
       onClose();
     };
     const onKey = (ev: KeyboardEvent) => {
@@ -165,54 +183,67 @@ const Menu: FC<MenuProps> = ({
   }, []);
 
   return createPortal(
-    <Card
-      ref={ref}
-      role="menu"
-      $placement={placement}
-      style={{
-        minWidth,
-        top: place?.top ?? 0,
-        left: place?.left ?? 0,
-        visibility: place ? "visible" : "hidden",
-      }}
-      aria-label={title}
-    >
-      {title && <Title>{title}</Title>}
-      {visible.map((row) => {
-        const nested = rows.every((r) => r.id !== row.id);
-        const radio = row.checked !== undefined;
-        return (
-          <div key={row.id}>
-            {row.divider && <Divider />}
-            <Row
-              type="button"
-              role={radio ? "menuitemradio" : "menuitem"}
-              aria-checked={radio ? row.checked : undefined}
-              aria-expanded={row.more ? openGroup === row.id : undefined}
-              disabled={row.disabled}
-              $danger={row.danger}
-              $nested={nested}
-              onClick={() => pick(row)}
-            >
-              <RowText>
-                <span>{row.label}</span>
-                {row.note && <Note>{row.note}</Note>}
-              </RowText>
-              <RowEnd>
-                {row.checked && <Check aria-hidden="true">{ICONS.check}</Check>}
-                {row.more ? (
-                  <Fold $open={openGroup === row.id} aria-hidden="true">
-                    {ICONS.chevron}
-                  </Fold>
-                ) : (
-                  row.hint && <Hint aria-hidden="true">{row.hint}</Hint>
-                )}
-              </RowEnd>
-            </Row>
-          </div>
-        );
-      })}
-    </Card>,
+    <>
+      {phone && (
+        <Scrim data-menu-scrim="" aria-hidden="true" onClick={onClose} />
+      )}
+      <Card
+        ref={ref}
+        role="menu"
+        $placement={placement}
+        $sheet={phone}
+        style={
+          phone
+            ? undefined
+            : {
+                minWidth,
+                top: place?.top ?? 0,
+                left: place?.left ?? 0,
+                visibility: place ? "visible" : "hidden",
+              }
+        }
+        aria-label={title}
+      >
+        {title && <Title>{title}</Title>}
+        {visible.map((row) => {
+          const nested = rows.every((r) => r.id !== row.id);
+          const radio = row.checked !== undefined;
+          return (
+            <div key={row.id}>
+              {row.divider && <Divider />}
+              <Row
+                type="button"
+                role={radio ? "menuitemradio" : "menuitem"}
+                aria-checked={radio ? row.checked : undefined}
+                aria-expanded={row.more ? openGroup === row.id : undefined}
+                disabled={row.disabled}
+                $danger={row.danger}
+                $nested={nested}
+                onClick={() => pick(row)}
+              >
+                <RowText>
+                  <span>{row.label}</span>
+                  {row.note && <Note>{row.note}</Note>}
+                </RowText>
+                <RowEnd>
+                  {row.checked && (
+                    <Check aria-hidden="true">{ICONS.check}</Check>
+                  )}
+                  {row.more ? (
+                    <Fold $open={openGroup === row.id} aria-hidden="true">
+                      {ICONS.chevron}
+                    </Fold>
+                  ) : (
+                    row.hint &&
+                    !phone && <Hint aria-hidden="true">{row.hint}</Hint>
+                  )}
+                </RowEnd>
+              </Row>
+            </div>
+          );
+        })}
+      </Card>
+    </>,
     document.body
   );
 };
@@ -254,8 +285,11 @@ const appear = keyframes`
 
 /* Raised one step above whatever it opens over, with the one soft shadow the
    theme allows */
-const Card = styled.div<{ $placement: NonNullable<MenuProps["placement"]> }>`
-  ${({ theme, $placement }) => {
+const Card = styled.div<{
+  $placement: NonNullable<MenuProps["placement"]>;
+  $sheet?: boolean;
+}>`
+  ${({ theme, $placement, $sheet }) => {
     const [side, align] = $placement.split("-");
     return css`
       position: fixed;
@@ -276,8 +310,15 @@ const Card = styled.div<{ $placement: NonNullable<MenuProps["placement"]> }>`
       @media (prefers-reduced-motion: reduce) {
         animation: none;
       }
+
+      ${$sheet && phoneSheet}
+      ${$sheet && PHONE_TYPE.body}
     `;
   }}
+`;
+
+const Scrim = styled.div`
+  ${phoneScrim}
 `;
 
 const Title = styled.div`
@@ -285,6 +326,13 @@ const Title = styled.div`
     padding: 0.375rem 0.625rem 0.25rem;
     color: ${theme.colors.default.textSecondary};
     font-size: 0.75rem;
+
+    /* A sheet's head: what it chooses */
+    ${PHONE} {
+      padding: 0.625rem 0.75rem 0.5rem;
+      ${PHONE_TYPE.title}
+      color: ${theme.colors.default.textPrimary};
+    }
   `}
 `;
 
@@ -293,6 +341,10 @@ const Divider = styled.div`
     height: 1px;
     margin: 0.25rem 0.375rem;
     background: ${theme.colors.default.border};
+
+    ${PHONE} {
+      margin: 0.375rem -0.5rem;
+    }
   `}
 `;
 
@@ -326,6 +378,24 @@ const Row = styled.button<{ $danger?: boolean; $nested?: boolean }>`
       color: ${theme.colors.state.disabled.color};
       cursor: default;
     }
+
+    /* A row of any list on a phone */
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.row};
+      padding: 0.375rem 0.75rem 0.375rem ${$nested ? "2rem" : "0.75rem"};
+      border-radius: 12px;
+      ${PHONE_TYPE.body}
+      -webkit-tap-highlight-color: transparent;
+
+      &:hover:not(:disabled) {
+        background: transparent;
+      }
+
+      &:active:not(:disabled),
+      &:focus-visible {
+        background: ${theme.colors.state.hover.bg};
+      }
+    }
   `}
 `;
 
@@ -345,6 +415,10 @@ const Note = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.default.textSecondary};
     font-size: 0.75rem;
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -359,6 +433,11 @@ const Check = styled.span`
   display: flex;
   width: 0.875rem;
   height: 0.875rem;
+
+  ${PHONE} {
+    width: 20px;
+    height: 20px;
+  }
 
   & > svg {
     width: 100%;
@@ -383,6 +462,11 @@ const Fold = styled.span<{ $open: boolean }>`
     color: ${theme.colors.default.textSecondary};
     transform: rotate(${$open ? 90 : 0}deg);
     transition: transform 140ms ease;
+
+    ${PHONE} {
+      width: 18px;
+      height: 18px;
+    }
 
     & > svg {
       width: 100%;

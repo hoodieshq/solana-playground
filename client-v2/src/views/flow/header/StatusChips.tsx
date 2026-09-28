@@ -30,7 +30,7 @@ import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { openConnectDialog } from "../../sidebar/assistant/Component/ConnectDialog";
 import { PgAssistant } from "../../sidebar/assistant/store";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
 interface StatusChipsProps {
   onToggleSettings: (focus?: SettingsFocus) => void;
@@ -100,6 +100,8 @@ const StatusChips: FC<StatusChipsProps> = ({
   } | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const accountRef = useRef<HTMLButtonElement>(null);
+  /* On a phone the account is a page, and signing in leads it */
+  const phone = usePhone();
 
   // What the menu's Settings row says it is
   useKeybind("Ctrl+,", () => onToggleSettings());
@@ -178,6 +180,8 @@ const StatusChips: FC<StatusChipsProps> = ({
             ]
           : [],
       }
+    : phone
+    ? { id: "account", items: [] }
     : {
         id: "account",
         items: [
@@ -371,9 +375,36 @@ const StatusChips: FC<StatusChipsProps> = ({
     },
   ];
 
+  /* What the account page leads with while you are signed out: what signing
+     in is for, and the one button that does it */
+  const signInHeader = !github && (
+    <SignIn>
+      <SignInLine>
+        Keep your projects and conversations on every device, and request devnet
+        SOL.
+      </SignInLine>
+      <SignInButton
+        type="button"
+        data-page-stop=""
+        onClick={signingIn ? PgSession.cancelSignIn : () => void signIn()}
+      >
+        <GithubMark />
+        {signingIn ? "Cancel sign-in" : "Sign in with GitHub"}
+      </SignInButton>
+      {(signingIn || authError) && (
+        <SignInState $error={!!authError} role="status">
+          {authError ?? "Waiting for GitHub…"}
+        </SignInState>
+      )}
+    </SignIn>
+  );
+
   const accountMenu = menu && (
     <NavMenu
       label="Account"
+      phoneAs="page"
+      phoneTitle={confirmingSignOut ? "Sign out" : "Account"}
+      phoneHeader={confirmingSignOut ? undefined : signInHeader}
       anchor={menu.anchor}
       groups={confirmingSignOut ? confirmGroups : groups}
       note={confirmingSignOut ? "Sign out of GitHub?" : undefined}
@@ -573,6 +604,10 @@ const Session = styled.div<{ $animate: boolean }>`
     padding: 0.375rem 0.5rem 0.5rem;
     border-top: 1px solid ${theme.colors.default.border};
 
+    ${PHONE} {
+      padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
     ${$animate &&
     css`
       & > * {
@@ -605,6 +640,10 @@ const Quiet = styled.span`
     margin-left: auto;
     font-size: 0.75rem;
     color: ${theme.colors.state.error.color};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -621,7 +660,21 @@ const Account = styled.button<{ $open: boolean }>`
     padding: 0.25rem 0.5rem;
 
     ${PHONE} {
-      min-height: 3rem;
+      gap: 0.75rem;
+      min-height: 60px;
+      padding: 0.375rem 0.75rem;
+      border-radius: 12px;
+
+      && > ${AvatarDisc} {
+        width: 32px;
+        height: 32px;
+        margin-left: -0.375rem;
+
+        & > svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
     }
     border: none;
     border-radius: 8px;
@@ -667,7 +720,8 @@ const WhoName = styled.span`
   font-weight: 500;
 
   ${PHONE} {
-    font-size: 0.9375rem;
+    ${PHONE_TYPE.body}
+    font-weight: 440;
   }
 `;
 
@@ -681,6 +735,10 @@ const WhoDetail = styled.span<{ $error: boolean }>`
     color: ${$error
       ? theme.colors.state.error.color
       : theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -691,6 +749,11 @@ const Chevrons = styled.span`
     width: 0.875rem;
     height: 0.875rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      width: 18px;
+      height: 18px;
+    }
 
     & > svg {
       width: 100%;
@@ -706,4 +769,70 @@ const Announce = styled.span`
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+`;
+
+/* The account page's lead, on a phone, while signed out: a line and the
+   button, full width, where the thumb is on its way down the page */
+const SignIn = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0 -0.5rem 0.5rem;
+    padding: 1.25rem 1.25rem 1.5rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const SignInLine = styled.p`
+  ${({ theme }) => css`
+    margin: 0;
+    ${PHONE_TYPE.secondary}
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const SignInButton = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    height: ${PHONE_SIZE.target};
+    border: none;
+    border-radius: 12px;
+    background: ${theme.colors.default.textPrimary};
+    color: ${theme.colors.default.bgPrimary};
+    font-family: inherit;
+    ${PHONE_TYPE.control}
+    font-size: 16px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    & > svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:active {
+      opacity: 0.85;
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
+`;
+
+const SignInState = styled.p<{ $error: boolean }>`
+  ${({ theme, $error }) => css`
+    margin: -0.25rem 0 0;
+    text-align: center;
+    ${PHONE_TYPE.label}
+    color: ${$error
+      ? theme.colors.state.error.color
+      : theme.colors.state.disabled.color};
+  `}
 `;

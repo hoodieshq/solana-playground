@@ -10,6 +10,7 @@ import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgCommand, PgTerminal } from "../../../utils";
 import { PgFlow } from "../state/stage";
 import type { StageStatus } from "../state/stage";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 import { BOTTOM_BAR_HEIGHT, BRAND, HEAD_INSET } from "../tokens";
 import { describeConsoleStatus } from "./status";
 import type { ConsoleStatus } from "./status";
@@ -195,6 +196,11 @@ const Wrapper = styled.div`
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+
+    /* Clear of the screen's own bottom edge */
+    ${PHONE} {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
   `}
 `;
 
@@ -208,6 +214,10 @@ const Title = styled.span<{ $open: boolean }>`
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     transition: color 140ms ease;
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
+    }
 
     @media (prefers-reduced-motion: reduce) {
       transition: none;
@@ -229,6 +239,15 @@ const Strip = styled.div<{ $open: boolean }>`
     font-size: ${theme.font.other.size.xsmall};
     cursor: pointer;
     user-select: none;
+
+    /* A pane's head on a phone, at the foot of its page */
+    ${PHONE} {
+      gap: 0.625rem;
+      height: ${PHONE_SIZE.head};
+      padding: 0 0.25rem 0 1.25rem;
+      ${PHONE_TYPE.label}
+      -webkit-tap-highlight-color: transparent;
+    }
 
     &:hover ${Title} {
       color: ${theme.colors.default.textPrimary};
@@ -275,6 +294,11 @@ const Hint = styled.span`
   font-size: 0.75rem;
   opacity: 0.6;
   white-space: nowrap;
+
+  /* A key a phone has none of: only the room it kept stays */
+  ${PHONE} {
+    visibility: hidden;
+  }
 `;
 
 const IconButton = styled.button<{ $hidden?: boolean }>`
@@ -317,6 +341,17 @@ const IconButton = styled.button<{ $hidden?: boolean }>`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -1px;
     }
+
+    ${PHONE} {
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+
+      & > svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
   `}
 `;
 
@@ -344,6 +379,10 @@ const Body = styled.div<{ $open: boolean }>`
   height: ${({ $open }) => ($open ? "16rem" : "0")};
   overflow: hidden;
   background: ${WELL};
+
+  ${PHONE} {
+    height: ${({ $open }) => ($open ? "45dvh" : "0")};
+  }
   transition: height 320ms cubic-bezier(0.2, 0, 0, 1);
 
   /* Terminal's own root has no explicit height; stretch it to fill the
