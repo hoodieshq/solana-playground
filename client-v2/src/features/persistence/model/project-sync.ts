@@ -7,6 +7,7 @@ import {
 } from "./snapshot";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
+import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
 // reaches `settings.ts`, which reads a webpack-defined global jest has no
@@ -399,8 +400,14 @@ export class PgProjectSync {
     // moment. That is why the mark records `contentHash` as well: reconcile
     // decides on the user's files, which this cannot change, and the generated
     // ones ride along on the next upload.
+    //
+    // Through the reload rather than a bare switch: the editor reuses any
+    // model it already has for a path, so a switch alone left a file that
+    // was open showing the version the user had just chosen to discard, and
+    // the next autosave wrote it back. Forced, because the adopted snapshot
+    // also carries the program keypair, and only a switch re-reads it.
     if (local === PgExplorer.currentWorkspaceName) {
-      await PgExplorer.switchWorkspace(local);
+      await reloadCurrentFromDisk({ reopen: true });
     }
 
     return local;

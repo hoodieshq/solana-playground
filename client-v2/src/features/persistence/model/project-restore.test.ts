@@ -8,6 +8,17 @@ import { PgFs } from "../../../utils/explorer/fs";
 import type { ServerProject } from "./project-sync";
 import type { Snapshot } from "./snapshot";
 
+// `adopt` re-opens through `reloadCurrentFromDisk`, which drops Monaco's
+// cached models before it does -- and `monaco-editor` cannot load under
+// jsdom, so every test in this file goes through this stand-in instead.
+jest.mock("./editor-models", () => ({
+  PgEditorModels: {
+    valueOf: jest.fn(async () => null),
+    drop: jest.fn(async () => {}),
+    dropUnder: jest.fn(async () => {}),
+  },
+}));
+
 const project = (
   id: string,
   name: string,

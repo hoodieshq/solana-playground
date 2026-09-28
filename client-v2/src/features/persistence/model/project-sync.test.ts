@@ -1,9 +1,21 @@
 import { PgProjectSync } from "./project-sync";
+import { PgEditorModels } from "./editor-models";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+
+// `adopt` re-opens through `reloadCurrentFromDisk`, which drops Monaco's
+// cached models before it does -- and `monaco-editor` cannot load under
+// jsdom, so every test in this file goes through this stand-in instead.
+jest.mock("./editor-models", () => ({
+  PgEditorModels: {
+    valueOf: jest.fn(async () => null),
+    drop: jest.fn(async () => {}),
+    dropUnder: jest.fn(async () => {}),
+  },
+}));
 
 /**
  * A stubbed `fetch` response.
@@ -35,6 +47,13 @@ const reset = () => {
   PgSyncClient.reset();
   PgProjectSync.reset();
   storedFiles().clear();
+  // CRA's jest preset sets `resetMocks: true`, which wipes the
+  // implementations the `jest.mock` factory above baked in before every
+  // test, not just once. Without this, `valueOf` answers `undefined` by
+  // default rather than `null`, which reads as "someone is typing in it".
+  (PgEditorModels.valueOf as jest.Mock).mockResolvedValue(null);
+  (PgEditorModels.drop as jest.Mock).mockResolvedValue(undefined);
+  (PgEditorModels.dropUnder as jest.Mock).mockResolvedValue(undefined);
 };
 
 /** The body of the most recent request */
@@ -452,10 +471,45 @@ describe("resolving a conflict", () => {
     const reload = jest
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
+    // `replaceWorkspaceFiles` is mocked above, so it never actually writes to
+    // disk -- the reload this test is asserting on reads disk itself, so
+    // something has to be there for it to find.
+    storedFiles().set("/mine/src/lib.rs", "theirs");
 
     await PgProjectSync.adopt("p1");
 
     expect(reload).toHaveBeenCalledWith("mine");
+  });
+
+  it("drops the editor's models when it adopts the open workspace", async () => {
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({
+              project: {
+                id: "p1",
+                name: "alpha",
+                kind: "project",
+                updatedAt: "t2",
+                snapshot: { files: { "src/lib.rs": "theirs" } },
+              },
+            }),
+          })
+    ) as unknown as typeof fetch;
+    await signedIn();
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("alpha");
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("alpha");
+    jest.spyOn(PgExplorer, "replaceWorkspaceFiles").mockResolvedValue();
+    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue();
+    storedFiles().set("/alpha/src/lib.rs", "theirs");
+
+    expect(await PgProjectSync.adopt("p1")).toBe("alpha");
+    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/alpha/");
+    expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha");
   });
 
   it("does not re-read a project the user is not looking at", async () => {
