@@ -7,12 +7,15 @@ import { FC } from "react";
  * the mark's two pieces sit inside the hole, so the whole icon takes the
  * button's colour through `currentColor` and cannot come apart at any size.
  */
-const PLAY_RING =
-  /* The ring: a 211 disc, less an 163 one */
+/* The ring: a 211 disc, less an 163 one */
+const RING =
   "M105.586 0C163.899 0 211.172 47.2724 211.172 105.586C211.172 163.899 163.899 211.172 105.586 211.172" +
   "C47.2724 211.172 0 163.899 0 105.586C0 47.2724 47.2724 0 105.586 0Z" +
   "M105.586 24C60.5273 24 24 60.5273 24 105.586C24 150.645 60.5273 187.172 105.586 187.172" +
-  "C150.645 187.172 187.172 150.645 187.172 105.586C187.172 60.5273 150.645 24 105.586 24Z" +
+  "C150.645 187.172 187.172 150.645 187.172 105.586C187.172 60.5273 150.645 24 105.586 24Z";
+
+/* The mark's play shape: Solana's bars folded into a triangle */
+const PLAY =
   /* The stem and the lower arm */
   "M75.4014 57.0391C75.4098 55.21 77.6217 54.2994 78.915 55.5928L96.9424 73.6201" +
   "C97.331 74.0089 97.548 74.5372 97.5449 75.0869L97.2096 132.81C97.1954 135.248 96.2208 137.582 94.4972 139.306" +
@@ -28,6 +31,8 @@ const PLAY_RING =
   "C162.688 100.971 161.767 103.174 159.94 103.175H134.433C133.882 103.175 133.354 102.954 132.968 102.562" +
   "L82.7441 51.666C81.461 50.3655 82.383 48.1621 84.21 48.1621H109.717Z";
 
+const PLAY_RING = RING + PLAY;
+
 const PlayRing: FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
@@ -41,3 +46,19 @@ const PlayRing: FC<{ className?: string }> = ({ className }) => (
 );
 
 export default PlayRing;
+
+/**
+ * The play shape alone, without its ring, in a square around it: for a
+ * button that is already round, such as the composer's send.
+ */
+export const PlayMark: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="61 48 116 116"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path d={PLAY} fill="currentColor" />
+  </svg>
+);

@@ -4,7 +4,8 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { PgTheme, PgTutorial, PgView } from "../../../utils";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { ICONS } from "../nav/icons";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -20,6 +21,8 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
   const [error, setError] = useState<{ name: string; message: string } | null>(
     null
   );
+  /* On a phone the whole card opens it, and a quiet chevron says so */
+  const phone = usePhone();
 
   const q = query.trim().toLowerCase();
   const items = q
@@ -50,6 +53,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
           </Body>
           <Button
             data-shot="tutorial-open"
+            aria-label={`Open ${t.name}`}
             onClick={async () => {
               setError(null);
               try {
@@ -64,7 +68,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
               }
             }}
           >
-            Open
+            {phone ? <Go>{ICONS.forward}</Go> : "Open"}
           </Button>
         </Card>
       ))}
@@ -101,14 +105,52 @@ export const Card = styled.div`
       border-color: ${theme.colors.default.textSecondary};
     }
 
+    /* The whole card is the button on a phone: its own button reaches over
+       all of it, drawn only as the chevron at the end */
     ${PHONE} {
+      position: relative;
       gap: 0.875rem;
-      padding: 0.875rem 1rem;
+      padding: 0.875rem 0.75rem 0.875rem 1rem;
       border-radius: 16px;
+      -webkit-tap-highlight-color: transparent;
 
       & > button {
+        position: static;
+        min-width: 0;
+        width: 1.5rem;
         min-height: ${PHONE_SIZE.target};
-        ${PHONE_TYPE.control}
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: ${theme.colors.state.disabled.color};
+
+        &::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 16px;
+        }
+
+        &:hover {
+          background: transparent;
+        }
+
+        &:focus-visible {
+          outline: none;
+        }
+      }
+
+      &:hover {
+        border-color: ${theme.colors.default.border};
+      }
+
+      &:has(> button:active) {
+        background: ${theme.colors.state.hover.bg};
+      }
+
+      &:has(> button:focus-visible) {
+        outline: 2px solid ${theme.colors.default.primary};
+        outline-offset: 2px;
       }
     }
 
@@ -120,6 +162,18 @@ export const Card = styled.div`
 
 export const Body = styled.div`
   min-width: 0;
+`;
+
+/* The chevron a phone's card ends in, where the Open button was */
+export const Go = styled.span`
+  display: flex;
+  width: 18px;
+  height: 18px;
+
+  & > svg {
+    width: 100%;
+    height: 100%;
+  }
 `;
 
 export const Eyebrow = styled.div`

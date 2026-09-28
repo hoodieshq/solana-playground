@@ -7,6 +7,7 @@ import {
   Empty,
   Eyebrow,
   ErrorText,
+  Go,
   Grid,
   Sub,
   Title,
@@ -15,6 +16,8 @@ import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { ImportCancelledError, PgGithub, PgView } from "../../../utils";
 import type { ImportProgress } from "../../../utils";
+import { ICONS } from "../nav/icons";
+import { usePhone } from "../phone";
 
 /** One entry of `public/programs/programs.json`. */
 export interface ProgramListing {
@@ -47,6 +50,8 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
   const [progress, setProgress] = useState<
     ({ repo: string } & ImportProgress) | null
   >(null);
+  /* On a phone the whole card opens it, and a quiet chevron says so */
+  const phone = usePhone();
 
   if (programs === null) {
     return <Empty>Loading programs...</Empty>;
@@ -84,6 +89,7 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
             )}
           </Body>
           <Button
+            aria-label={`Open ${p.name}`}
             onClick={async () => {
               setError(null);
               setProgress({ repo: p.repo, loaded: 0, total: null });
@@ -106,7 +112,7 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
               }
             }}
           >
-            Open
+            {phone ? <Go>{ICONS.forward}</Go> : "Open"}
           </Button>
         </Card>
       ))}
