@@ -203,8 +203,10 @@ const CloseButtonWrapper = styled.div<{ hasTitle: boolean }>`
           margin-top: 0.5rem;
         `}
 
-  /* The bar's way back, where every page keeps it */
+  /* The bar's way back, where every page keeps it: in the bar, clear of the
+     status bar the bar reaches under */
   ${PHONE} {
+    top: env(safe-area-inset-top, 0px);
     right: 0.5rem;
     margin-top: 0;
 

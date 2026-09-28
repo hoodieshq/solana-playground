@@ -14,8 +14,8 @@ import {
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { PgAssistant } from "../../sidebar/assistant/store";
-import { GRADIENT_FLAT } from "../components/gradient";
-import { BRAND, HEAD_INSET } from "../tokens";
+import { brandAction, GRADIENT_FLAT } from "../components/gradient";
+import { HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
@@ -452,23 +452,17 @@ const Quiet = styled.button`
 /* The one clear action in the row: the landing's green-into-purple, small */
 const Primary = styled.button`
   ${({ theme }) => css`
+    ${brandAction(theme.colors.state.hover.bg)}
     height: 1.625rem;
     margin-left: 0.25rem;
     padding: 0 0.75rem;
-    border: none;
     border-radius: 999px;
-    background: ${BRAND.fill};
-    color: #ffffff;
     font: inherit;
     font-size: 0.8125rem;
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
-    transition: filter 140ms ease;
 
-    &:hover {
-      filter: brightness(1.08);
-    }
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;

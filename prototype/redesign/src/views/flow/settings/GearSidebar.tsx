@@ -79,6 +79,10 @@ const GearSidebar: FC<GearSidebarProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
+  /* Closed, nothing in it can be reached from the keyboard either */
+  useEffect(() => {
+    panelRef.current?.toggleAttribute("inert", !open);
+  }, [open]);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
   /* Escape belongs to whichever modal is on top, not to this page. Tracks the
@@ -470,6 +474,10 @@ const Overlay = styled.div<{ $open: boolean }>`
     font-family: ${theme.font.other.family};
     opacity: ${$open ? 1 : 0};
     visibility: ${$open ? "visible" : "hidden"};
+    /* Closed, it takes nothing: the network select inside marks its own
+       input visible, which escaped the hidden page and caught taps meant for
+       whatever lay under it */
+    pointer-events: ${$open ? "auto" : "none"};
     transition: opacity 160ms ease,
       visibility 0s linear ${$open ? "0s" : "160ms"};
     z-index: 3;

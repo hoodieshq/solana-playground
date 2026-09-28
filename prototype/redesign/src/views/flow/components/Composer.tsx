@@ -13,7 +13,7 @@ import Menu, { useMenu } from "./Menu";
 import type { MenuRow } from "./Menu";
 import ModelControls from "../../sidebar/assistant/Component/ModelControls";
 import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
-import { BRAND } from "../tokens";
+import { brandAction } from "./gradient";
 import { PlayMark } from "../../../components/PlayRing";
 
 /**
@@ -396,9 +396,10 @@ const Chip = styled.button`
   `}
 `;
 
-/* The send is the brand's play: the mark's folded bars in white on the
-   green-into-purple the Build and Start pills carry. With nothing to send it
-   fades rather than turning grey, so it still reads as where the words go. */
+/* The send is the brand's play: the mark's folded bars in white, in a disc
+   ringed in the brand as the Build and Start pills are, filled with it under
+   the pointer. With nothing to send it fades rather than turning grey, so it
+   still reads as where the words go. */
 const Send = styled.button<{ $stop?: boolean }>`
   ${({ theme, $stop }) => css`
     flex-shrink: 0;
@@ -409,12 +410,16 @@ const Send = styled.button<{ $stop?: boolean }>`
     height: 2rem;
     margin-left: 0.125rem;
     padding: 0;
-    border: none;
     border-radius: 999px;
-    background: ${$stop ? theme.colors.default.textPrimary : BRAND.fill};
-    color: ${$stop ? theme.colors.default.bgPrimary : "#fff"};
+    ${$stop
+      ? css`
+          border: none;
+          background: ${theme.colors.default.textPrimary};
+          color: ${theme.colors.default.bgPrimary};
+        `
+      : brandAction(theme.colors.state.hover.bg)}
     cursor: pointer;
-    transition: opacity 0.15s ease, filter 0.15s ease;
+    transition: opacity 0.15s ease;
 
     & > svg {
       width: 1rem;
@@ -429,10 +434,6 @@ const Send = styled.button<{ $stop?: boolean }>`
         width: 20px;
         height: 20px;
       }
-    }
-
-    &:hover:not(:disabled) {
-      filter: brightness(1.08);
     }
 
     &:disabled {
