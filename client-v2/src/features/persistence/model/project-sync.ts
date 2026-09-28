@@ -6,6 +6,7 @@ import {
   snapshotOf,
 } from "./snapshot";
 import { PgSyncClient } from "./sync-client";
+import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgSession } from "../../auth";
@@ -129,28 +130,38 @@ export class PgProjectSync {
   static async pushCurrent(): Promise<PushResult> {
     const id = PgExplorer.currentWorkspaceId;
     if (!id) return "skipped";
+    if (!(await PgProjectSync._ready())) return "skipped";
+    await PgProjectSync._gate;
 
-    const snapshot = await buildSnapshot();
+    return await withSyncLock(async () => {
+      const snapshot = await buildSnapshot();
 
-    // An empty snapshot for a workspace that is open is not an edit -- it is
-    // the explorer mid-re-read. `_initCurrentWorkspace` clears the file map
-    // before repopulating it from the store, so a push that lands inside that
-    // window sees nothing and uploads nothing, over whatever the server holds.
-    //
-    // Taking another device's copy re-opens the workspace, which is exactly
-    // when a push is most likely to be pending, so this window is reached by
-    // the one path where being wrong costs the most: the version the user just
-    // asked to keep, replaced by an empty project.
-    if (!Object.keys(snapshot.files).length) {
-      report(`push project ${id}: refused an empty snapshot`, null);
-      return "skipped";
-    }
+      // An empty snapshot for a workspace that is open is not an edit -- it
+      // is the explorer mid-re-read. `_initCurrentWorkspace` clears the file
+      // map before repopulating it from the store, so a push that lands
+      // inside that window sees nothing and uploads nothing, over whatever
+      // the server holds.
+      //
+      // Taking another device's copy re-opens the workspace, which is
+      // exactly when a push is most likely to be pending, so this window is
+      // reached by the one path where being wrong costs the most: the
+      // version the user just asked to keep, replaced by an empty project.
+      if (!Object.keys(snapshot.files).length) {
+        report(`push project ${id}: refused an empty snapshot`, null);
+        return "skipped";
+      }
 
-    return await PgProjectSync.push(
-      id,
-      snapshot,
-      PgExplorer.currentWorkspaceName
-    );
+      // Immediate: the lock is already held, and building the snapshot
+      // inside it (rather than around a plain `push`) is what stops the disk
+      // read in `adopt`/`reloadCurrentFromDisk` from landing between this
+      // read and the write it feeds.
+      return await PgProjectSync.push(
+        id,
+        snapshot,
+        PgExplorer.currentWorkspaceName,
+        { immediate: true }
+      );
+    });
   }
 
   /**
@@ -193,75 +204,90 @@ export class PgProjectSync {
       return "skipped";
     }
 
-    const mark = await PgSyncMark.read(projectId);
-    const hash = await hashSnapshot(snapshot);
-    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    const send = async (): Promise<PushResult> => {
+      const mark = await PgSyncMark.read(projectId);
+      const hash = await hashSnapshot(snapshot);
+      const storedName =
+        name ?? PgProjectSync._names.get(projectId) ?? projectId;
 
-    // Nothing the server does not already have. Both halves matter: the hash
-    // covers the files, and the name covers a rename, which changes what the
-    // row should say without changing a byte of the snapshot.
-    //
-    // Deliberately not conditioned on `dirty`. That flag is set by any write
-    // at all, including rewriting a workspace file with the content it already
-    // had -- which `PgProgramInfo` does on every load -- so letting it force
-    // an upload meant every reload bumped the row, and a bumped row is what
-    // the *other* browser reads as "this project changed elsewhere".
-    if (!opts.force && mark && mark.hash === hash && mark.name === storedName) {
-      return "skipped";
-    }
-
-    try {
-      const response = await fetch("/api/projects", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: projectId,
-          name: storedName,
-          kind: projectId.startsWith("tut:") ? "tutorial" : "project",
-          snapshot,
-          // Omitted under `force`: the server reads the two as separate doors,
-          // and sending a token alongside would be asking it to check
-          // something the user has already overruled.
-          baseUpdatedAt: opts.force ? undefined : mark?.updatedAt,
-          force: opts.force === true,
-        }),
-      });
-
-      // A refusal this device can do nothing about on its own. 413 joins 409
-      // here rather than falling through to the silent branch below: a
-      // workspace too big to upload is a project that has stopped syncing, and
-      // reporting it only to the console meant nothing on screen ever said so.
-      if (response.status === 409 || response.status === 413) {
-        // Deliberately without recording the hash or clearing `dirty`: the
-        // snapshot has not been accepted, and remembering it would make every
-        // later attempt look unchanged and strand the project out of sync for
-        // good.
-        PgProjectSync._raise({
-          projectId,
-          kind: await refusalKind(response),
-        });
-        return "conflict";
-      }
-      if (!response.ok) {
-        report(`push project ${projectId}: HTTP ${response.status}`, null);
+      // Nothing the server does not already have. Both halves matter: the
+      // hash covers the files, and the name covers a rename, which changes
+      // what the row should say without changing a byte of the snapshot.
+      //
+      // Deliberately not conditioned on `dirty`. That flag is set by any
+      // write at all, including rewriting a workspace file with the content
+      // it already had -- which `PgProgramInfo` does on every load -- so
+      // letting it force an upload meant every reload bumped the row, and a
+      // bumped row is what the *other* browser reads as "this project
+      // changed elsewhere".
+      if (
+        !opts.force &&
+        mark &&
+        mark.hash === hash &&
+        mark.name === storedName
+      ) {
         return "skipped";
       }
 
-      const body = await response.json();
-      await PgSyncMark.write(projectId, {
-        hash,
-        contentHash: await hashUserFiles(snapshot),
-        name: storedName,
-        updatedAt: body.updatedAt,
-        dirty: false,
-      });
-      PgProjectSync._clear(projectId);
-      return "ok";
-    } catch (e) {
-      report(`push project ${projectId}`, e);
-      return "skipped";
-    }
+      try {
+        const response = await fetch("/api/projects", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            id: projectId,
+            name: storedName,
+            kind: projectId.startsWith("tut:") ? "tutorial" : "project",
+            snapshot,
+            // Omitted under `force`: the server reads the two as separate
+            // doors, and sending a token alongside would be asking it to
+            // check something the user has already overruled.
+            baseUpdatedAt: opts.force ? undefined : mark?.updatedAt,
+            force: opts.force === true,
+          }),
+        });
+
+        // A refusal this device can do nothing about on its own. 413 joins
+        // 409 here rather than falling through to the silent branch below: a
+        // workspace too big to upload is a project that has stopped syncing,
+        // and reporting it only to the console meant nothing on screen ever
+        // said so.
+        if (response.status === 409 || response.status === 413) {
+          // Deliberately without recording the hash or clearing `dirty`: the
+          // snapshot has not been accepted, and remembering it would make
+          // every later attempt look unchanged and strand the project out of
+          // sync for good.
+          PgProjectSync._raise({
+            projectId,
+            kind: await refusalKind(response),
+          });
+          return "conflict";
+        }
+        if (!response.ok) {
+          report(`push project ${projectId}: HTTP ${response.status}`, null);
+          return "skipped";
+        }
+
+        const body = await response.json();
+        await PgSyncMark.write(projectId, {
+          hash,
+          contentHash: await hashUserFiles(snapshot),
+          name: storedName,
+          updatedAt: body.updatedAt,
+          dirty: false,
+        });
+        PgProjectSync._clear(projectId);
+        return "ok";
+      } catch (e) {
+        report(`push project ${projectId}`, e);
+        return "skipped";
+      }
+    };
+
+    // Held from reading the mark to writing the new one, so no other tab
+    // can decide against a mark that is about to change. A caller already
+    // inside the lock says so with `immediate`.
+    return opts.immediate ? await send() : await withSyncLock(send);
   }
 
   /**
@@ -426,81 +452,90 @@ export class PgProjectSync {
     const name = PgExplorer.workspaceNameOf(projectId);
 
     try {
-      switch (resolution) {
-        case "keep-local": {
-          if (!name) return false;
-          const result = await PgProjectSync.push(
-            projectId,
-            await snapshotOf(name),
-            name,
-            { force: true }
-          );
-          return result === "ok";
-        }
-
-        case "take-server": {
-          // `adopt` re-opens the workspace itself when it is the current one
-          const local = await PgProjectSync.adopt(projectId);
-          if (!local) return false;
-          PgProjectSync._clear(projectId);
-          return true;
-        }
-
-        case "delete-local": {
-          if (name) await PgExplorer.deleteWorkspace(name);
-          await PgSyncMark.remove(projectId);
-          PgProjectSync._clear(projectId);
-          return true;
-        }
-
-        case "keep-as-new": {
-          if (!name) return false;
-          // A new id, because the old one is tombstoned on the server and
-          // every push under it would be refused for the life of the account.
-          // Imported alongside, then the original is removed -- there is no
-          // API for re-keying a workspace in place.
-          const snapshot = await snapshotOf(name);
-          const fresh = `${name} (kept)`;
-          await PgExplorer.importWorkspace(fresh, {
-            id: crypto.randomUUID(),
-            files: snapshot.files,
-          });
-          await PgExplorer.deleteWorkspace(name);
-          await PgSyncMark.remove(projectId);
-          PgProjectSync._clear(projectId);
-          await PgExplorer.switchWorkspace(fresh);
-          return true;
-        }
-
-        case "retry": {
-          if (!name) return false;
-          // Cleared before pushing, not after: `push` refuses a project that
-          // has a question outstanding, and this *is* the answer to it.
-          //
-          // A push that is refused again raises from inside, so the banner
-          // comes back by itself and says which refusal it hit this time --
-          // renaming into a *second* taken name keeps the same prompt, and a
-          // project that shrank below the size cap only to hit a real
-          // divergence gets the version question it now deserves. The one
-          // outcome that raises nothing is a push that never reached the
-          // server, which is why the original question is put back for it:
-          // being offline does not mean the name is free.
-          const previous = PgProjectSync._conflicts.get(projectId) ?? null;
-          PgProjectSync._clear(projectId);
-
-          const result = await PgProjectSync.push(
-            projectId,
-            await snapshotOf(name),
-            name
-          );
-          if (result === "ok") return true;
-
-          if (previous && !PgProjectSync._conflicts.has(projectId)) {
-            PgProjectSync._raise(previous);
+      // Held for the whole answer: every branch below reads or writes the
+      // sync marks (directly, or through `push`/`adopt`), and the user's
+      // answer must not land between another tab's read and its write any
+      // more than the automatic paths may.
+      return await withSyncLock(async (): Promise<boolean> => {
+        switch (resolution) {
+          case "keep-local": {
+            if (!name) return false;
+            const result = await PgProjectSync.push(
+              projectId,
+              await snapshotOf(name),
+              name,
+              { force: true, immediate: true }
+            );
+            return result === "ok";
           }
-          return false;
+
+          case "take-server": {
+            // `adopt` re-opens the workspace itself when it is the current one
+            const local = await PgProjectSync.adopt(projectId);
+            if (!local) return false;
+            PgProjectSync._clear(projectId);
+            return true;
+          }
+
+          case "delete-local": {
+            if (name) await PgExplorer.deleteWorkspace(name);
+            await PgSyncMark.remove(projectId);
+            PgProjectSync._clear(projectId);
+            return true;
+          }
+
+          case "keep-as-new": {
+            if (!name) return false;
+            // A new id, because the old one is tombstoned on the server and
+            // every push under it would be refused for the life of the
+            // account. Imported alongside, then the original is removed --
+            // there is no API for re-keying a workspace in place.
+            const snapshot = await snapshotOf(name);
+            const fresh = `${name} (kept)`;
+            await PgExplorer.importWorkspace(fresh, {
+              id: crypto.randomUUID(),
+              files: snapshot.files,
+            });
+            await PgExplorer.deleteWorkspace(name);
+            await PgSyncMark.remove(projectId);
+            PgProjectSync._clear(projectId);
+            await PgExplorer.switchWorkspace(fresh);
+            return true;
+          }
+
+          case "retry": {
+            if (!name) return false;
+            // Cleared before pushing, not after: `push` refuses a project
+            // that has a question outstanding, and this *is* the answer to
+            // it.
+            //
+            // A push that is refused again raises from inside, so the
+            // banner comes back by itself and says which refusal it hit
+            // this time -- renaming into a *second* taken name keeps the
+            // same prompt, and a project that shrank below the size cap only
+            // to hit a real divergence gets the version question it now
+            // deserves. The one outcome that raises nothing is a push that
+            // never reached the server, which is why the original question
+            // is put back for it: being offline does not mean the name is
+            // free.
+            const previous = PgProjectSync._conflicts.get(projectId) ?? null;
+            PgProjectSync._clear(projectId);
+
+            const result = await PgProjectSync.push(
+              projectId,
+              await snapshotOf(name),
+              name,
+              { immediate: true }
+            );
+            if (result === "ok") return true;
+
+            if (previous && !PgProjectSync._conflicts.has(projectId)) {
+              PgProjectSync._raise(previous);
+            }
+            return false;
+          }
         }
-      }
+      });
     } catch (e) {
       report(`resolve ${projectId} as ${resolution}`, e);
       return false;

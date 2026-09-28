@@ -1,7 +1,9 @@
 import { report } from "./diagnostics";
 import { isUsableSnapshot, PgProjectSync } from "./project-sync";
 import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
+import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
+import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
 
@@ -63,37 +65,15 @@ const isClean = async (projectId: string, localName: string) => {
   );
 };
 
-/**
- * Make this browser and the account agree, without merging and without
- * guessing.
- *
- * Runs on sign-in, on load, and whenever a backgrounded tab comes back. Each
- * project lands in one of four cells, decided by two independent questions --
- * has this device changed it since the server last took a copy, and has the
- * server moved since then:
- *
- * |          | server unchanged | server moved |
- * | -------- | ---------------- | ------------ |
- * | clean    | nothing          | take server  |
- * | dirty    | push             | **ask**      |
- *
- * Both questions are answerable only because `PgSyncMark` persists what the
- * server last accepted from *this* device. Without it "local differs from the
- * server" is one undifferentiated state, and the previous version of this
- * function resolved it by always taking the server's copy -- which quietly
- * destroyed anything that had not finished uploading.
- *
- * The bottom-right cell is the only one that asks the user anything, and it is
- * the only one that cannot be decided without them: both copies contain work,
- * and nothing here is entitled to pick.
- *
- * Deletes are the same shape. A project the server no longer lists, for which
- * this device holds a mark, was deleted on another device: if the local copy is
- * clean the delete finishes here, and if it is not the user is asked rather
- * than having unsaved work removed on another device's say-so.
- */
-export const reconcile = async (): Promise<SyncResult> => {
+const reconcileUnlocked = async (): Promise<SyncResult> => {
   const result = empty();
+
+  // Before anything reads the current workspace. This is the backstop for
+  // a neighbour's write this tab never heard about -- a message lost, or a
+  // tab opened before tabs announced writes at all -- and it is what makes
+  // the fast path below safe: that path trusts memory, which is only true
+  // once memory matches disk.
+  await reloadCurrentFromDisk();
 
   // Before anything reads the disk. Signed out, or on a deployment with no
   // database, every call below is already a no-op -- but `push` takes a
@@ -188,6 +168,43 @@ export const reconcile = async (): Promise<SyncResult> => {
 
   return result;
 };
+
+/**
+ * Make this browser and the account agree, without merging and without
+ * guessing.
+ *
+ * Runs on sign-in, on load, and whenever a backgrounded tab comes back. Each
+ * project lands in one of four cells, decided by two independent questions --
+ * has this device changed it since the server last took a copy, and has the
+ * server moved since then:
+ *
+ * |          | server unchanged | server moved |
+ * | -------- | ---------------- | ------------ |
+ * | clean    | nothing          | take server  |
+ * | dirty    | push             | **ask**      |
+ *
+ * Both questions are answerable only because `PgSyncMark` persists what the
+ * server last accepted from *this* device. Without it "local differs from the
+ * server" is one undifferentiated state, and the previous version of this
+ * function resolved it by always taking the server's copy -- which quietly
+ * destroyed anything that had not finished uploading.
+ *
+ * The bottom-right cell is the only one that asks the user anything, and it is
+ * the only one that cannot be decided without them: both copies contain work,
+ * and nothing here is entitled to pick.
+ *
+ * Deletes are the same shape. A project the server no longer lists, for which
+ * this device holds a mark, was deleted on another device: if the local copy is
+ * clean the delete finishes here, and if it is not the user is asked rather
+ * than having unsaved work removed on another device's say-so.
+ *
+ * Held under `withSyncLock`: it decides against the sync marks and, along the
+ * way, writes them (`adopt`, the catch-up push below, `settleDivergence`,
+ * `settleDeletes`, `pushNeverSynced`) -- exactly the section no other tab may
+ * run concurrently.
+ */
+export const reconcile = (): Promise<SyncResult> =>
+  withSyncLock(reconcileUnlocked);
 
 /**
  * Decide whether "both sides differ" is really a question for the user.
