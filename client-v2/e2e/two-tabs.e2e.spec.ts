@@ -231,6 +231,13 @@ test("taking the other version replaces a file that is already open", async ({
 
   await page.getByRole("button", { name: "Take the other version" }).click();
   await expect(banner).toHaveCount(0, LONG);
+  // Re-opening restores the scroll position saved for the longer file this
+  // replaced. When that was line 2, the adopted two-line file opens with its
+  // first line above the viewport, and `.view-lines` -- which renders only
+  // the visible lines -- reads as empty. To the top first, so this checks
+  // the text rather than where the view happens to be scrolled.
+  await editor(page).click();
+  await page.keyboard.press("ControlOrMeta+Home");
   // `lib.rs` had a model before the adopt, so this is the case where
   // Monaco's per-path model cache kept the replaced text on screen
   await expect(editor(page)).toContainText("// theirs", LONG);
