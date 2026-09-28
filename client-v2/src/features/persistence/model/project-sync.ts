@@ -128,13 +128,24 @@ export class PgProjectSync {
    * down, and without this there was nothing to bring.
    */
   static async pushCurrent(): Promise<PushResult> {
-    const id = PgExplorer.currentWorkspaceId;
-    if (!id) return "skipped";
+    // Cheap early exit, before paying for `_ready` and the gate -- but not
+    // trusted past this point. Both of those can wait long enough for the
+    // user to switch projects, so this is not the `id` the push below uses.
+    if (!PgExplorer.currentWorkspaceId) return "skipped";
     if (!(await PgProjectSync._ready())) return "skipped";
     await PgProjectSync._gate;
 
     return await withSyncLock(async () => {
+      // Re-read now that the gate and the lock have both had their say: `id`,
+      // the snapshot and `name` below must all describe the same workspace,
+      // or a switch that lands between reading one and the next uploads one
+      // project's files under another's id -- and writes that other
+      // project's mark with them, which a fast-reconcile then trusts.
+      const id = PgExplorer.currentWorkspaceId;
+      if (!id) return "skipped";
+
       const snapshot = await buildSnapshot();
+      const name = PgExplorer.currentWorkspaceName;
 
       // An empty snapshot for a workspace that is open is not an edit -- it
       // is the explorer mid-re-read. `_initCurrentWorkspace` clears the file
@@ -155,12 +166,9 @@ export class PgProjectSync {
       // inside it (rather than around a plain `push`) is what stops the disk
       // read in `adopt`/`reloadCurrentFromDisk` from landing between this
       // read and the write it feeds.
-      return await PgProjectSync.push(
-        id,
-        snapshot,
-        PgExplorer.currentWorkspaceName,
-        { immediate: true }
-      );
+      return await PgProjectSync.push(id, snapshot, name, {
+        immediate: true,
+      });
     });
   }
 
@@ -174,8 +182,12 @@ export class PgProjectSync {
    * @param opts -
    * - `force`: overwrite whatever the server holds, without comparing. Only
    *   ever set by `resolve`, after the user has chosen.
-   * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
-   *   runs *inside* the gate it is the point of -- see below.
+   * - `immediate`: do not wait on the push gate, and do not take
+   *   `withSyncLock` below -- the caller already holds it. Set by
+   *   `reconcile`, `pushCurrent` and `resolve`, all of which run *inside* the
+   *   lock (`reconcile` inside the gate it is the point of, too). Web Locks
+   *   are not re-entrant, so a caller that holds the lock and asked for it
+   *   again here would wait for itself forever.
    */
   static async push(
     projectId: string,

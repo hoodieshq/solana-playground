@@ -638,6 +638,41 @@ describe("PgProjectSync.pushCurrent", () => {
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
     expect(putCalls()).toHaveLength(0);
   });
+
+  it("does not upload one project's files under another's id", async () => {
+    // `pushCurrent` reads `currentWorkspaceId` the moment it is called --
+    // synchronously, before its first `await` -- and used to read the
+    // snapshot and `currentWorkspaceName` much later, once `_ready`, the
+    // push gate and the sync lock had all had their say. A switch in
+    // between tore the three apart: this device's id, paired with whatever
+    // project the user had switched to by the time execution resumed.
+    const idSpy = jest.spyOn(PgExplorer, "currentWorkspaceId", "get");
+    const nameSpy = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    const filesSpy = jest.spyOn(PgExplorer, "getAllFiles");
+    const setWorkspace = (id: string, name: string) => {
+      idSpy.mockReturnValue(id);
+      nameSpy.mockReturnValue(name);
+      filesSpy.mockReturnValue([[`/${name}/src/lib.rs`, `// ${name}`]]);
+    };
+
+    setWorkspace("a", "A");
+    await signedIn();
+    PgProjectSync.holdPushes();
+
+    const push = PgProjectSync.pushCurrent();
+
+    // The user switches projects while this push is still waiting on the
+    // gate -- the same window a focus reconcile or another tab's reconcile
+    // holds it open for.
+    setWorkspace("b", "B");
+    PgProjectSync.releasePushes();
+    await push;
+
+    const body = lastBody();
+    expect(body.id).toBe("b");
+    expect(body.name).toBe("B");
+    expect(body.snapshot.files["src/lib.rs"]).toBe("// B");
+  });
 });
 
 describe("deleting a project", () => {
