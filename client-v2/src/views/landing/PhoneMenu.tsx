@@ -3,14 +3,11 @@ import styled, { css } from "styled-components";
 
 import { HEADLINE, INK } from "../deck/tokens";
 import { u } from "./chrome";
-import type { Variant } from "./VersionSwitch";
 
 /**
  * The landing's links on a phone, where the pill that holds them has no room.
  * A white pill beside the lockup opens them, the same shape as the lockup; a
- * sheet comes down from the top with each link a full row, and the switch
- * between the two versions at its foot — on a phone the presenter's switch
- * lives here rather than floating over the lockup.
+ * sheet comes down from the top with each link a full row.
  *
  * Closed, the sheet is out of reach as well as out of sight; open, it takes
  * focus, gives it back to the pill when it closes, and closes on Escape, on
@@ -30,16 +27,9 @@ export interface MenuLink {
 
 interface PhoneMenuProps {
   links: MenuLink[];
-  variant?: Variant;
-  onVariant?: (next: Variant) => void;
 }
 
-const VERSIONS: { value: Variant; label: string }[] = [
-  { value: "classic", label: "Classic" },
-  { value: "trail", label: "Trail" },
-];
-
-const PhoneMenu: FC<PhoneMenuProps> = ({ links, variant, onVariant }) => {
+const PhoneMenu: FC<PhoneMenuProps> = ({ links }) => {
   const [open, setOpen] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
@@ -106,23 +96,6 @@ const PhoneMenu: FC<PhoneMenuProps> = ({ links, variant, onVariant }) => {
             </Row>
           ))}
         </Links>
-        {variant && onVariant && (
-          <Versions role="group" aria-label="Landing version">
-            {VERSIONS.map((option) => (
-              <Version
-                key={option.value}
-                type="button"
-                aria-pressed={option.value === variant}
-                onClick={() => {
-                  setOpen(false);
-                  if (option.value !== variant) onVariant(option.value);
-                }}
-              >
-                {option.label}
-              </Version>
-            ))}
-          </Versions>
-        )}
       </Sheet>
     </>
   );
@@ -257,38 +230,5 @@ const Row = styled.a`
     outline: 2px solid #ffffff;
     outline-offset: -2px;
     border-radius: 8px;
-  }
-`;
-
-const Versions = styled.div`
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-`;
-
-const Version = styled.button`
-  flex: 1;
-  height: 3rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(237, 241, 255, 0.62);
-  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-
-  &[aria-pressed="true"] {
-    background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
-    cursor: default;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 1px;
   }
 `;
