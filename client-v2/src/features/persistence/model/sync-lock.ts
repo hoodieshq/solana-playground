@@ -22,3 +22,24 @@ export const withSyncLock = async <T>(fn: () => Promise<T>): Promise<T> => {
   if (!locks?.request) return await fn();
   return (await locks.request(SYNC_LOCK, fn)) as T;
 };
+
+/** How long a request made while holding the lock may take */
+export const LOCKED_REQUEST_MS = 15_000;
+
+/**
+ * A signal that aborts a request after `ms`, for anything sent while the
+ * lock is held.
+ *
+ * Every other tab's sync waits behind the holder, and `fetch` itself never
+ * gives up: a request stuck on a dead connection kept the lock, and with it
+ * every tab's reconcile and upload, for as long as the browser let it hang.
+ * An aborted request rejects, which lands in the caller's existing catch.
+ *
+ * @returns the signal, or `undefined` where the browser cannot make one --
+ * the request then behaves as it did before
+ */
+export const timeoutSignal = (ms: number): AbortSignal | undefined =>
+  typeof AbortSignal !== "undefined" &&
+  typeof AbortSignal.timeout === "function"
+    ? AbortSignal.timeout(ms)
+    : undefined;

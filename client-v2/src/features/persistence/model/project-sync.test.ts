@@ -267,6 +267,68 @@ describe("PgProjectSync", () => {
 
     expect(await PgProjectSync.list()).toEqual(projects);
   });
+
+  describe("requests made while holding the lock", () => {
+    // Every other tab's sync waits behind the lock, and `fetch` never gives
+    // up by itself -- so each request made inside it carries a timeout
+    const signal = new AbortController().signal;
+    const original = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+
+    beforeEach(() => {
+      Object.defineProperty(AbortSignal, "timeout", {
+        value: jest.fn(() => signal),
+        configurable: true,
+        writable: true,
+      });
+      global.fetch = jest.fn().mockImplementation((url: string) =>
+        Promise.resolve(
+          url === "/api/sync"
+            ? okProbe
+            : {
+                ok: true,
+                json: async () => ({
+                  projects: [],
+                  project: { id: "p1", name: "one", snapshot: null },
+                  updatedAt: "t1",
+                }),
+              }
+        )
+      ) as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      if (original) Object.defineProperty(AbortSignal, "timeout", original);
+      else delete (AbortSignal as { timeout?: unknown }).timeout;
+    });
+
+    const initOf = (match: (url: string, init?: RequestInit) => boolean) =>
+      (global.fetch as jest.Mock).mock.calls.find(([url, init]) =>
+        match(url, init)
+      )?.[1] as RequestInit | undefined;
+
+    it("times out the upload", async () => {
+      await signedIn();
+      await PgProjectSync.push("p1", { files: { "src/lib.rs": "x" } }, "one");
+
+      expect(initOf((_, init) => init?.method === "PUT")?.signal).toBe(signal);
+    });
+
+    it("times out the list", async () => {
+      await signedIn();
+      await PgProjectSync.list();
+
+      expect(initOf((url) => url === "/api/projects")?.signal).toBe(signal);
+    });
+
+    it("times out reading one project", async () => {
+      await signedIn();
+      await PgProjectSync.fetch("p1");
+
+      expect(initOf((url) => url.startsWith("/api/projects?id="))?.signal).toBe(
+        signal
+      );
+    });
+  });
 });
 
 describe("a conflict is asked once, not retried forever", () => {

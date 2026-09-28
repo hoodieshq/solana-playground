@@ -1,7 +1,7 @@
 import { report } from "./diagnostics";
 import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncClient } from "./sync-client";
-import { withSyncLock } from "./sync-lock";
+import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgWorkspaceRegistry } from "./workspace-registry";
@@ -268,6 +268,7 @@ export class PgProjectSync {
             baseUpdatedAt: opts.force ? undefined : mark?.updatedAt,
             force: opts.force === true,
           }),
+          signal: timeoutSignal(LOCKED_REQUEST_MS),
         });
 
         // A refusal this device can do nothing about on its own. 413 joins
@@ -326,9 +327,11 @@ export class PgProjectSync {
     if (!(await PgProjectSync._ready())) return null;
 
     try {
+      // Reconcile asks for this inside the lock
       const response = await fetch("/api/projects", {
         credentials: "include",
         cache: "no-store",
+        signal: timeoutSignal(LOCKED_REQUEST_MS),
       });
       if (!response.ok) {
         report(`list projects: HTTP ${response.status}`, null);
@@ -355,7 +358,12 @@ export class PgProjectSync {
     try {
       const response = await fetch(
         `/api/projects?id=${encodeURIComponent(projectId)}`,
-        { credentials: "include", cache: "no-store" }
+        {
+          credentials: "include",
+          cache: "no-store",
+          // Reconcile and `adopt` ask for this inside the lock
+          signal: timeoutSignal(LOCKED_REQUEST_MS),
+        }
       );
       if (!response.ok) {
         report(`fetch project ${projectId}: HTTP ${response.status}`, null);
