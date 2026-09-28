@@ -1,5 +1,6 @@
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgEditorModels } from "./editor-models";
+import { clearFailures, getFailures } from "./diagnostics";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -22,6 +23,7 @@ let memory: Record<string, { content?: string }>;
 
 beforeEach(() => {
   store().clear();
+  clearFailures();
   memory = { "/alpha/src/lib.rs": { content: "old" } };
   store().set("/alpha/src/lib.rs", "old");
   jest
@@ -227,5 +229,18 @@ describe("reloadCurrentFromDisk", () => {
 
     expect(await reloadCurrentFromDisk()).toBe("skipped");
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+    // The expected case, so not a failure
+    expect(getFailures()).toEqual([]);
+  });
+
+  it("reports a store that fails to read, and skips", async () => {
+    jest
+      .spyOn(PgFs, "readDir")
+      .mockRejectedValueOnce(new Error("QuotaExceededError"));
+
+    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(getFailures()).toEqual([
+      expect.objectContaining({ what: "reload /alpha: read" }),
+    ]);
   });
 });

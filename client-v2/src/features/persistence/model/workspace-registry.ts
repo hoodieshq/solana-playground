@@ -1,14 +1,8 @@
-import { report } from "./diagnostics";
+import { isMissing, report } from "./diagnostics";
 // Deep imports, not the `utils` barrel, for the reason `snapshot.ts` gives
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
-
-/** Same matching as `sync-mark`: ENOENT comes as a code or in the message */
-const isMissing = (error: unknown) => {
-  const e = error as { code?: string; message?: string };
-  return e?.code === "ENOENT" || !!e?.message?.includes("ENOENT");
-};
 
 /**
  * The workspaces the store records, name to id.

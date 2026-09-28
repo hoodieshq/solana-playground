@@ -32,6 +32,16 @@ export const report = (what: string, error: unknown) => {
   console.error(`persistence: ${what} failed`, error);
 };
 
+/**
+ * Whether an error just means "no such file" -- usually the expected case,
+ * and not worth a report. Same matching as `sync-mark` and `chat-storage`:
+ * the browser filesystem says it as a code and in the message.
+ */
+export const isMissing = (error: unknown) => {
+  const e = error as { code?: string; message?: string };
+  return e?.code === "ENOENT" || !!e?.message?.includes("ENOENT");
+};
+
 export const getFailures = (): readonly Failure[] => [...failures];
 
 export const getLastFailure = (): Failure | null =>

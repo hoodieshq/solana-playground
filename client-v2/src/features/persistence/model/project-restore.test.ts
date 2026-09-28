@@ -2,6 +2,8 @@ import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
 import { hashSnapshot, hashUserFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
+import * as tabReload from "./tab-reload";
+import { clearFailures, getFailures } from "./diagnostics";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -483,6 +485,26 @@ describe("reconcile", () => {
 
     expect(result.imported).toEqual(["beta"]);
     expect(created).toHaveLength(1);
+  });
+
+  it("reports a reload that fails, and reconciles anyway", async () => {
+    // The pass decides from disk and the server, which a failed reload has
+    // not touched -- so it is no reason to leave every project unsynced
+    withLocal({});
+    const created = stubCreation();
+    serverHas([project("a", "alpha")]);
+    clearFailures();
+    jest
+      .spyOn(tabReload, "reloadCurrentFromDisk")
+      .mockRejectedValue(new Error("store unreadable"));
+
+    const result = await reconcile();
+
+    expect(result.imported).toEqual(["alpha"]);
+    expect(created).toHaveLength(1);
+    expect(getFailures()).toEqual([
+      expect.objectContaining({ what: "reload before reconcile" }),
+    ]);
   });
 
   it("reports the newest project, whatever order the server listed them in", async () => {

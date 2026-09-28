@@ -70,10 +70,18 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
 
   // Before anything reads the current workspace. This is the backstop for
   // a neighbour's write this tab never heard about -- a message lost, or a
-  // tab opened before tabs announced writes at all -- and it is what makes
-  // the fast path below safe: that path trusts memory, which is only true
-  // once memory matches disk.
-  await reloadCurrentFromDisk();
+  // tab opened before tabs announced writes at all. Without it this tab goes
+  // on showing, and autosaving back, a copy disk has moved past. The fast
+  // path below does not depend on it: that path trusts the mark, which is on
+  // disk and shared by every tab, not this tab's memory.
+  //
+  // A failure here is reported and the pass goes on. The reconcile decides
+  // from disk and the server, neither of which a failed reload has touched.
+  try {
+    await reloadCurrentFromDisk();
+  } catch (e) {
+    report("reload before reconcile", e);
+  }
 
   // Before anything reads the disk. Signed out, or on a deployment with no
   // database, every call below is already a no-op -- but `push` takes a

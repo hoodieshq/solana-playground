@@ -1,4 +1,4 @@
-import { report } from "./diagnostics";
+import { isMissing, report } from "./diagnostics";
 import { PgEditorModels } from "./editor-models";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 // Deep imports, not the `utils` barrel, for the reason `snapshot.ts` gives
@@ -41,7 +41,12 @@ const readTree = async (root: string) => {
 
   try {
     await walk(root);
-  } catch {
+  } catch (e) {
+    // A directory that is gone is the expected case -- renamed or deleted in
+    // another tab. Anything else is a store that failed to read, and a
+    // reload that silently does nothing looks exactly like one that found
+    // nothing to do.
+    if (!isMissing(e)) report(`reload ${root}: read`, e);
     return null;
   }
   return files;
