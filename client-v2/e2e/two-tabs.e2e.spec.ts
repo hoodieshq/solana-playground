@@ -116,7 +116,10 @@ const typeAtEnd = async (page: Page, text: string) => {
   await page.keyboard.type(`\n${text}`);
 };
 
-/** Playwright never changes visibility; fake it the way the browser reports it */
+/**
+ * Playwright never changes visibility; fake it the way the browser reports
+ * it
+ */
 const setVisible = (page: Page, visible: boolean) =>
   page.evaluate((v) => {
     Object.defineProperty(document, "visibilityState", {
@@ -128,8 +131,13 @@ const setVisible = (page: Page, visible: boolean) =>
 
 const serverLib = (row: Row) => () => row.snapshot.files[LIB] ?? "";
 
-test("a tab brought back shows the other tab's edit before it can type", async ({
+// A named function rather than an inline arrow: the test name alone is
+// close to the line limit, and prettier hugs an inline arrow's params
+// against the call instead of breaking before it.
+const tabBroughtBackShowsEdit = async ({
   context,
+}: {
+  context: BrowserContext;
 }) => {
   test.setTimeout(180_000);
   const { row } = await fakeAccount(context);
@@ -149,7 +157,12 @@ test("a tab brought back shows the other tab's edit before it can type", async (
   await typeAtEnd(b, "// from B");
   await expect.poll(serverLib(row), LONG).toContain("// from B");
   expect(serverLib(row)()).toContain("// from A");
-});
+};
+
+test(
+  "a tab brought back shows the other tab's edit before it can type",
+  tabBroughtBackShowsEdit
+);
 
 test("two visible tabs follow each other", async ({ context }) => {
   test.setTimeout(180_000);
@@ -180,8 +193,13 @@ test("switching tabs mid-debounce raises no conflict", async ({ context }) => {
 
   await typeAtEnd(a, "// from A");
   // The editor's own 500 ms autosave has to land first, or there is no
-  // pending network debounce yet for hiding the tab to flush
-  await a.waitForTimeout(800);
+  // pending network debounce yet for hiding the tab to flush. Nothing the
+  // page exposes says "the autosave has run" without adding a product-code
+  // hook, so this is a fixed wait rather than a poll -- widened to 1500 ms
+  // (not 800: that left only a 300 ms margin, which a slow run could miss
+  // and regress to the harness hang this replaced) while staying well
+  // inside the 3 s push debounce, so the scenario is still "mid-debounce"
+  await a.waitForTimeout(1500);
   // Inside the 3 s debounce: A flushes on hide, B reconciles on show
   await setVisible(a, false);
   await setVisible(b, true);
