@@ -63,12 +63,16 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   const name = PgExplorer.currentWorkspaceName;
   if (!name || PgExplorer.isTemporary) return "skipped";
 
+  // Before the read, not after it. An autosave puts the text into state and
+  // only then writes it, so one that runs while the store is being read can
+  // leave state newer than what the read found. Taken afterwards, that newer
+  // state would be compared with the older disk -- and replaced by it.
+  const memory = inMemory();
+
   const disk = await readTree(`/${name}`);
   if (!disk) return "skipped";
   // The user may have switched projects while the store was being read
   if (PgExplorer.currentWorkspaceName !== name) return "skipped";
-
-  const memory = inMemory();
 
   if (reopen || !sameKeys(disk, memory)) {
     // A re-open rebuilds every model from state, so keystrokes autosave has
@@ -104,6 +108,9 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   const changed: string[] = [];
   for (const [path, content] of Object.entries(disk)) {
     if (memory[path] === content) continue;
+    // Changed in state while the store was being read: an autosave whose
+    // write had not landed when this file was read. Its text is newer.
+    if (PgExplorer.files[path]?.content !== memory[path]) continue;
     // A model that differs from state holds keystrokes autosave has not
     // written yet. They are this tab's, and newer than anything on disk.
     const typed = await PgEditorModels.valueOf(path);

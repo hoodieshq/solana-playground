@@ -87,6 +87,22 @@ describe("reloadCurrentFromDisk", () => {
     expect(PgEditorModels.drop).not.toHaveBeenCalled();
   });
 
+  it("keeps an autosave that lands while the store is being read", async () => {
+    // The autosave puts its text into state first and writes it second. A
+    // reload reading the store in between found the older text on disk and
+    // put it back over the newer text in state.
+    store().set("/alpha/src/lib.rs", "old on disk");
+    const read = PgFs.readToString.bind(PgFs);
+    jest.spyOn(PgFs, "readToString").mockImplementationOnce(async (path) => {
+      memory["/alpha/src/lib.rs"].content = "typed, write in flight";
+      return await read(path);
+    });
+
+    expect(await reloadCurrentFromDisk()).toBe("unchanged");
+    expect(memory["/alpha/src/lib.rs"].content).toBe("typed, write in flight");
+    expect(PgEditorModels.drop).not.toHaveBeenCalled();
+  });
+
   it("re-opens when the other tab changed which files exist", async () => {
     store().set("/alpha/src/new.rs", "created elsewhere");
 
