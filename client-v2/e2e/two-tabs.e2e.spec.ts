@@ -243,3 +243,30 @@ test("taking the other version replaces a file that is already open", async ({
   await expect(editor(page)).toContainText("// theirs", LONG);
   await expect(editor(page)).not.toContainText("// mine");
 });
+
+test("a file created in one tab appears in the other", async ({ context }) => {
+  test.setTimeout(180_000);
+  const { row } = await fakeAccount(context);
+  const a = await context.newPage();
+  await openShared(a);
+  const b = await context.newPage();
+  await openShared(b);
+
+  // Through the explorer, the way a person would. A new file changes which
+  // files exist, so the other tab has to re-open the workspace rather than
+  // take contents -- the path that used to leave the editor empty
+  await a.getByRole("button", { name: "New file" }).click();
+  const input = a.locator("#root-dir input");
+  await expect(input).toBeFocused();
+  await input.fill("notes.rs");
+  await input.press("Enter");
+
+  await expect(b.locator("#root-dir")).toContainText("notes.rs", LONG);
+  await expect(editor(b)).toContainText("// v0", LONG);
+
+  await typeAtEnd(b, "// from B");
+  await expect.poll(serverLib(row), LONG).toContain("// from B");
+  expect(
+    Object.keys(row.snapshot.files).some((path) => path.endsWith("notes.rs"))
+  ).toBe(true);
+});
