@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import { ICONS } from "./icons";
 import { fadeIn, Glyph, NavContext, rowBase } from "./parts";
 import { BRAND } from "../tokens";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
 export interface SetupStep {
   id: string;
@@ -23,6 +23,9 @@ export interface SetupStep {
 
 const DISMISSED = "flow-setup-dismissed";
 const FOLDED = "flow-setup-folded";
+/* A phone starts with it folded to its one line, the menu being the whole
+   screen there; opening it there is remembered apart from the desktop's */
+const OPEN_ON_PHONE = "flow-setup-open-phone";
 
 const read = (key: string) => {
   try {
@@ -57,14 +60,22 @@ const write = (key: string, on: boolean) => {
 const SetupChecklist: FC<{ steps: SetupStep[] }> = ({ steps }) => {
   const { animate } = useContext(NavContext);
   const [dismissed, setDismissed] = useState(() => read(DISMISSED));
-  const [folded, setFolded] = useState(() => read(FOLDED));
+  const [foldedOnDesk, setFoldedOnDesk] = useState(() => read(FOLDED));
+  const [openOnPhone, setOpenOnPhone] = useState(() => read(OPEN_ON_PHONE));
+  const phone = usePhone();
+  const folded = phone ? !openOnPhone : foldedOnDesk;
 
   const done = steps.filter((step) => step.done).length;
   if (dismissed || done === steps.length) return null;
 
   const fold = () => {
-    setFolded(!folded);
-    write(FOLDED, !folded);
+    if (phone) {
+      setOpenOnPhone(folded);
+      write(OPEN_ON_PHONE, folded);
+    } else {
+      setFoldedOnDesk(!folded);
+      write(FOLDED, !folded);
+    }
   };
   const dismiss = () => {
     setDismissed(true);

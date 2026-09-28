@@ -11,7 +11,7 @@ import Composer from "../components/Composer";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgCommon, PgTutorial } from "../../../utils";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
 /**
  * What you meet with no project open: a head that names the list you are on,
@@ -72,6 +72,10 @@ const ZeroState: FC<ZeroStateProps> = ({
   useEffect(() => setQuery(""), [section]);
 
   const onStart = section === "home";
+  /* On a phone the composer is the page's foot, under the thumb, as in the
+     phone's own chat apps; the question and the ways in scroll above it */
+  const phone = usePhone();
+  const composer = <Composer compact={!onStart} onActivate={onAskAssistant} />;
 
   return (
     <Shell>
@@ -85,9 +89,7 @@ const ZeroState: FC<ZeroStateProps> = ({
             <Title>Where should we begin?</Title>
           </Lead>
 
-          <ComposerSlot>
-            <Composer compact={!onStart} onActivate={onAskAssistant} />
-          </ComposerSlot>
+          {!phone && <ComposerSlot>{composer}</ComposerSlot>}
 
           {onStart && (
             <Cards>
@@ -172,6 +174,7 @@ const ZeroState: FC<ZeroStateProps> = ({
           </Panel>
         </Stage>
       </Body>
+      {phone && <PhoneComposer>{composer}</PhoneComposer>}
     </Shell>
   );
 };
@@ -368,6 +371,32 @@ const Title = styled.h1`
 
 const ComposerSlot = styled.div`
   width: 100%;
+`;
+
+/* A phone's composer, pinned under the page and clear of the screen's edge.
+   What scrolls under it fades out rather than ending on a cut. */
+const PhoneComposer = styled.div`
+  ${({ theme }) => css`
+    position: relative;
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    background: ${theme.colors.default.bgPrimary};
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 100%;
+      height: 1.5rem;
+      background: linear-gradient(
+        to bottom,
+        transparent,
+        ${theme.colors.default.bgPrimary}
+      );
+      pointer-events: none;
+    }
+  `}
 `;
 
 /* Three equal cards, the reference's own arrangement: glyph top-left, a title,

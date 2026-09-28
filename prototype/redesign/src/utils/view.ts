@@ -70,6 +70,24 @@ const derive = () => ({
   }),
 });
 
+/** The latest `PgView.setMainPrimary` request, the only one delivered */
+let mainPrimaryRequest = 0;
+
+/** Whether anything answers a static state's "get" within `ms` */
+const answers = (eventName: string, ms: number) =>
+  new Promise<boolean>((resolve) => {
+    const { send, receive } = PgCommon.getSendAndReceiveEventNames(eventName);
+    const done = (answered: boolean) => {
+      document.removeEventListener(receive, onReceive);
+      window.clearTimeout(timer);
+      resolve(answered);
+    };
+    const onReceive = () => done(true);
+    document.addEventListener(receive, onReceive);
+    const timer = window.setTimeout(() => done(false), ms);
+    PgCommon.createAndDispatchCustomEvent(send);
+  });
+
 @derivable(derive)
 @updatable({ defaultState, recursive })
 class _PgView {
@@ -140,15 +158,25 @@ class _PgView {
    * @param setEl element to set the main view to
    */
   static async setMainPrimary(setEl: SetState<SyncOrAsync<Elementable>>) {
-    await PgCommon.tryUntilSuccess(async () => {
-      const eventNames = PgCommon.getStaticStateEventNames(
-        PgView.events.MAIN_PRIMARY_STATIC
-      );
-      const result = await PgCommon.sendAndReceiveCustomEvent(eventNames.get);
-      if (result === undefined) throw new Error();
-
-      PgCommon.createAndDispatchCustomEvent(eventNames.set, setEl);
-    }, 100);
+    // It waits for a primary view to exist, and there may be none for a
+    // while: Flow's start screen draws none. Only the latest request is ever
+    // delivered, and only once. A retry used to leave its predecessor waiting
+    // for an answer, so every attempt made while no view existed answered at
+    // once when one appeared, older routes' among them, and whichever
+    // finished last won. Each wait now gives up its listener when it times
+    // out, so nothing piles up while no view answers.
+    const request = ++mainPrimaryRequest;
+    const eventNames = PgCommon.getStaticStateEventNames(
+      PgView.events.MAIN_PRIMARY_STATIC
+    );
+    while (request === mainPrimaryRequest) {
+      if (await answers(eventNames.get, 100)) {
+        if (request === mainPrimaryRequest) {
+          PgCommon.createAndDispatchCustomEvent(eventNames.set, setEl);
+        }
+        return;
+      }
+    }
   }
 
   /** Get the default height of the main secondary view. */

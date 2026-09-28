@@ -375,8 +375,8 @@ const StatusChips: FC<StatusChipsProps> = ({
     },
   ];
 
-  /* What the account page leads with while you are signed out: what signing
-     in is for, and the one button that does it */
+  /* The account page's main action while you are signed out, at its foot:
+     what signing in is for, and the one button that does it */
   const signInHeader = !github && (
     <SignIn>
       <SignInLine>
@@ -404,7 +404,7 @@ const StatusChips: FC<StatusChipsProps> = ({
       label="Account"
       phoneAs="page"
       phoneTitle={confirmingSignOut ? "Sign out" : "Account"}
-      phoneHeader={confirmingSignOut ? undefined : signInHeader}
+      phoneFooter={confirmingSignOut ? undefined : signInHeader}
       anchor={menu.anchor}
       groups={confirmingSignOut ? confirmGroups : groups}
       note={confirmingSignOut ? "Sign out of GitHub?" : undefined}
@@ -771,16 +771,17 @@ const Announce = styled.span`
   white-space: nowrap;
 `;
 
-/* The account page's lead, on a phone, while signed out: a line and the
-   button, full width, where the thumb is on its way down the page */
+/* The account page's foot, on a phone, while signed out: a line and the
+   button, full width, under the thumb */
 const SignIn = styled.div`
   ${({ theme }) => css`
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin: 0 -0.5rem 0.5rem;
-    padding: 1.25rem 1.25rem 1.5rem;
-    border-bottom: 1px solid ${theme.colors.default.border};
+    gap: 0.875rem;
+    padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid ${theme.colors.default.border};
+    background: ${theme.colors.default.bgPrimary};
   `}
 `;
 

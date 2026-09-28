@@ -6,7 +6,7 @@ import StepRail from "../lessons/StepRail";
 import { currentStep, INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 import { BOTTOM_BAR_HEIGHT, HEAD_INSET } from "../tokens";
 
 type Tab = "steps" | "files";
@@ -29,7 +29,10 @@ const LeftPanel: FC<LeftPanelProps> = ({ onClose }) => {
   const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
-  const [tab, setTab] = useState<Tab>("steps");
+  /* On a phone this is a page reached from the file picker, so it opens on
+     the files; the steps are a tap away */
+  const phone = usePhone();
+  const [tab, setTab] = useState<Tab>(() => (phone ? "files" : "steps"));
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
@@ -68,10 +71,10 @@ const LeftPanel: FC<LeftPanelProps> = ({ onClose }) => {
         <Close
           type="button"
           onClick={onClose}
-          aria-label="Hide files"
-          title="Hide files (⌘E)"
+          aria-label={phone ? "Close the files" : "Hide files"}
+          title={phone ? undefined : "Hide files (⌘E)"}
         >
-          {PANEL_ICON}
+          {phone ? CLOSE_ICON : PANEL_ICON}
         </Close>
       </Head>
       <Body
@@ -160,10 +163,10 @@ const Head = styled.div`
     padding: 0 0.375rem 0 ${HEAD_INSET};
     border-bottom: 1px solid ${theme.colors.default.border};
 
-    /* A pane's head on a phone, where this is the files' sheet */
+    /* Every page's bar, on a phone, where the files are a page */
     ${PHONE} {
-      height: ${PHONE_SIZE.head};
-      padding: 0 0.25rem 0 1.25rem;
+      height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-top, 0px));
+      padding: env(safe-area-inset-top, 0px) 0.5rem 0 1.25rem;
     }
   `}
 `;
@@ -180,7 +183,7 @@ const Title = styled.span`
     color: ${theme.colors.default.textSecondary};
 
     ${PHONE} {
-      ${PHONE_TYPE.control}
+      ${PHONE_TYPE.title}
       color: ${theme.colors.default.textPrimary};
     }
   `}
@@ -272,6 +275,20 @@ const Segment = styled.button<{ $active: boolean }>`
   `}
 `;
 
+/* A page's way back, on a phone: the same cross every page's bar carries */
+const CLOSE_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    aria-hidden="true"
+  >
+    <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);
+
 // The assistant head's hide control, a size down: this head is a row below
 // the window's first, where the full-size controls live
 const Close = styled.button`
@@ -300,8 +317,8 @@ const Close = styled.button`
       border-radius: 12px;
 
       & > svg {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
       }
     }
 
@@ -371,6 +388,11 @@ const Footer = styled.button`
 const SkipFooter = styled(Footer)`
   justify-content: center;
   text-decoration: underline;
+
+  ${PHONE} {
+    text-decoration: none;
+    ${PHONE_TYPE.control}
+  }
 `;
 
 /**

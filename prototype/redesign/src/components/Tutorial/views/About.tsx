@@ -11,7 +11,13 @@ import { Emoji } from "../../../constants";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgTheme, PgTutorial } from "../../../utils";
 import { BRAND } from "../../../views/flow/tokens";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../views/flow/phone";
+import {
+  PHONE,
+  PHONE_SIZE,
+  PHONE_TYPE,
+  phoneActions,
+  usePhone,
+} from "../../../views/flow/phone";
 import type { TutorialAboutComponentProps } from "../types";
 
 export const About: FC<TutorialAboutComponentProps> = ({
@@ -21,6 +27,24 @@ export const About: FC<TutorialAboutComponentProps> = ({
 }) => {
   const tutorial = PgTutorial.current!;
   const isFinished = PgTutorial.completed;
+  /* On a phone the way in is at the foot of the page, under the thumb */
+  const phone = usePhone();
+
+  const begin = isFinished ? (
+    <Button
+      onClick={start}
+      kind="no-border"
+      color="success"
+      fontWeight="bold"
+      leftIcon={<span>{Emoji.CHECKMARK}</span>}
+    >
+      Completed
+    </Button>
+  ) : (
+    <StartButton onClick={start} kind="primary" rightIcon={<PlayIcon />}>
+      {isStarted ? "Continue" : "Start"}
+    </StartButton>
+  );
 
   return (
     <Wrapper>
@@ -59,27 +83,9 @@ export const About: FC<TutorialAboutComponentProps> = ({
               </TutorialAuthorsWrapper>
             </GeneratedTopLeftWrapper>
 
-            <GeneratedTopRightWrapper>
-              {isFinished ? (
-                <Button
-                  onClick={start}
-                  kind="no-border"
-                  color="success"
-                  fontWeight="bold"
-                  leftIcon={<span>{Emoji.CHECKMARK}</span>}
-                >
-                  Completed
-                </Button>
-              ) : (
-                <StartButton
-                  onClick={start}
-                  kind="primary"
-                  rightIcon={<PlayIcon />}
-                >
-                  {isStarted ? "Continue" : "Start"}
-                </StartButton>
-              )}
-            </GeneratedTopRightWrapper>
+            {!phone && (
+              <GeneratedTopRightWrapper>{begin}</GeneratedTopRightWrapper>
+            )}
           </GeneratedTopWrapper>
 
           <GeneratedBottomWrapper>
@@ -105,6 +111,8 @@ export const About: FC<TutorialAboutComponentProps> = ({
           )}
         </CustomWrapper>
       </TutorialAboutPage>
+
+      {phone && <PhoneBegin>{begin}</PhoneBegin>}
     </Wrapper>
   );
 };
@@ -113,6 +121,27 @@ const Wrapper = styled.div`
   height: 100%;
   width: 100%;
   overflow: auto;
+
+  ${PHONE} {
+    display: flex;
+    flex-direction: column;
+  }
+`;
+
+/* The way in, at the foot of the page on a phone: pinned there while the
+   page scrolls, over a fade of the panel it sits on */
+const PhoneBegin = styled.div`
+  ${({ theme }) => css`
+    ${phoneActions}
+    flex-shrink: 0;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      ${theme.views.main.primary.default.bg} 1.25rem
+    );
+  `}
 `;
 
 const GoBackButtonWrapper = styled.div`

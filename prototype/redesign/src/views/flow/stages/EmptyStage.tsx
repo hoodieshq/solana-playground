@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import PlayRing from "../../../components/PlayRing";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE, phoneActions } from "../phone";
 import { BRAND } from "../tokens";
 
 interface EmptyStageProps {
@@ -34,6 +34,10 @@ interface EmptyStageProps {
  * this stays transparent and lets that one show through. The stage router
  * already plays the one entrance a stage gets, so nothing here moves on its
  * own either.
+ *
+ * On a phone the words sit in the middle of what is left and the pill goes
+ * to the foot of the page, under the thumb, with what stays reachable (an
+ * IDL upload, an id) just above it.
  */
 const EmptyStage: FC<EmptyStageProps> = ({
   title,
@@ -51,8 +55,12 @@ const EmptyStage: FC<EmptyStageProps> = ({
       {meta && <Meta>{meta}</Meta>}
       {line && <Line>{line}</Line>}
       {notice && <Notice>{notice}</Notice>}
-      {actions && <Actions>{actions}</Actions>}
-      {children && <Foot>{children}</Foot>}
+      {(actions || children) && (
+        <End>
+          {actions && <Actions>{actions}</Actions>}
+          {children && <Foot>{children}</Foot>}
+        </End>
+      )}
     </Content>
   </Frame>
 );
@@ -162,7 +170,7 @@ const Frame = styled.div`
     color: ${theme.colors.default.textPrimary};
 
     ${PHONE} {
-      padding: 2rem 1.25rem;
+      padding: 2rem 1.25rem 0;
     }
   `}
 `;
@@ -174,6 +182,17 @@ const Content = styled.div`
   align-items: center;
   max-width: 36rem;
   text-align: center;
+
+  ${PHONE} {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+
+    & > :first-child {
+      margin-top: auto;
+    }
+  }
 `;
 
 const Title = styled.h2`
@@ -225,6 +244,28 @@ const Line = styled.p`
 
 const Notice = styled.div`
   margin-top: 1.25rem;
+`;
+
+/* The pill and what goes with it: part of the column on a desk, the foot of
+   the page on a phone, the pill last */
+const End = styled.div`
+  display: contents;
+
+  ${PHONE} {
+    ${phoneActions}
+    flex-direction: column-reverse;
+    align-items: stretch;
+    margin-top: auto;
+    padding-top: 2rem;
+
+    & > * {
+      margin-top: 0;
+    }
+
+    & > div > button {
+      width: 100%;
+    }
+  }
 `;
 
 const Actions = styled.div`
