@@ -9,6 +9,7 @@ jest.mock("./editor-models", () => ({
     valueOf: jest.fn(async () => null),
     drop: jest.fn(async () => {}),
     dropUnder: jest.fn(async () => {}),
+    anyEditedUnder: jest.fn(async () => false),
   },
 }));
 
@@ -43,6 +44,11 @@ beforeEach(() => {
   // once. Without this, `valueOf` answers `undefined` by default rather than
   // `null`, and every path reads as "someone is typing in it".
   (PgEditorModels.valueOf as jest.Mock).mockResolvedValue(null);
+  (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(false);
+  // The real one runs `then` once the models are gone; so does this
+  (PgEditorModels.dropUnder as jest.Mock).mockImplementation(
+    async (_prefix: string, then?: () => void) => then?.()
+  );
 });
 
 afterEach(() => jest.restoreAllMocks());
@@ -85,7 +91,56 @@ describe("reloadCurrentFromDisk", () => {
     store().set("/alpha/src/new.rs", "created elsewhere");
 
     expect(await reloadCurrentFromDisk()).toBe("reopened");
-    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/alpha/");
+    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith(
+      "/alpha/",
+      expect.any(Function)
+    );
+    expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha");
+  });
+
+  it("switches before dropping the models, then opens the file again", async () => {
+    // Dropping first left the editor with no model for as long as the
+    // switch's saves took, and a pending autosave then saved the empty
+    // editor over the open file
+    const order: string[] = [];
+    (PgExplorer.switchWorkspace as jest.Mock).mockImplementation(async () => {
+      order.push("switch");
+    });
+    (PgEditorModels.dropUnder as jest.Mock).mockImplementation(
+      async (_prefix: string, then?: () => void) => {
+        order.push("drop");
+        then?.();
+      }
+    );
+    (PgCommon.createAndDispatchCustomEvent as jest.Mock).mockImplementation(
+      (name: string) => {
+        if (name === PgExplorer.events.ON_DID_OPEN_FILE) order.push("open");
+      }
+    );
+    store().set("/alpha/src/new.rs", "created elsewhere");
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(order).toEqual(["switch", "drop", "open"]);
+  });
+
+  it("waits to re-open while a model holds unsaved keystrokes", async () => {
+    store().set("/alpha/src/new.rs", "created elsewhere");
+    (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(true);
+
+    expect(await reloadCurrentFromDisk()).toBe("deferred");
+    expect(PgEditorModels.anyEditedUnder).toHaveBeenCalledWith(
+      "/alpha/",
+      expect.any(Function)
+    );
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+    expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
+  });
+
+  it("re-opens on request over unsaved keystrokes", async () => {
+    // `adopt`: the user has chosen to discard this tab's copy
+    (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(true);
+
+    expect(await reloadCurrentFromDisk({ reopen: true })).toBe("reopened");
     expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha");
   });
 

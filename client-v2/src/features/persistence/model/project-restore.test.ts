@@ -16,6 +16,7 @@ jest.mock("./editor-models", () => ({
     valueOf: jest.fn(async () => null),
     drop: jest.fn(async () => {}),
     dropUnder: jest.fn(async () => {}),
+    anyEditedUnder: jest.fn(async () => false),
   },
 }));
 

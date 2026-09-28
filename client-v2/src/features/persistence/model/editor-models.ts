@@ -31,10 +31,37 @@ export const PgEditorModels = {
     }
   },
 
-  /** `drop` for every model under a directory, trailing slash included */
-  async dropUnder(prefix: string) {
+  /**
+   * Whether any model under a directory holds text its file's state does not.
+   *
+   * That text is keystrokes autosave has not written yet. A path `saved` has
+   * no answer for is not counted: nothing in state means nothing that
+   * rebuilding the models from state could lose.
+   */
+  async anyEditedUnder(
+    prefix: string,
+    saved: (path: string) => string | undefined
+  ): Promise<boolean> {
+    return (await models()).some((model) => {
+      if (!model.uri.path.startsWith(prefix)) return false;
+      const content = saved(model.uri.path);
+      return content !== undefined && content !== model.getValue();
+    });
+  },
+
+  /**
+   * `drop` for every model under a directory, trailing slash included.
+   *
+   * @param then runs straight after the models are gone, in the same task.
+   * An editor whose model was disposed shows nothing, and `Monaco.tsx`'s
+   * autosave timer saves whatever the editor shows -- so a caller that means
+   * to open a file again has to do it before any timer can run, and an
+   * `await` between the two would give one the chance.
+   */
+  async dropUnder(prefix: string, then?: () => void) {
     for (const model of await models()) {
       if (model.uri.path.startsWith(prefix)) model.dispose();
     }
+    then?.();
   },
 };

@@ -4,7 +4,16 @@ import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 
-export type ReloadResult = "skipped" | "unchanged" | "contents" | "reopened";
+/**
+ * - `deferred`: the workspace needs re-opening, but not now -- a re-open would
+ *   throw away something of this tab's. The next reload tries again.
+ */
+export type ReloadResult =
+  | "skipped"
+  | "unchanged"
+  | "contents"
+  | "reopened"
+  | "deferred";
 
 /**
  * Every file the explorer's in-memory tree could hold, read off the store.
@@ -62,11 +71,33 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   const memory = inMemory();
 
   if (reopen || !sameKeys(disk, memory)) {
-    // The models first: `switchWorkspace` re-reads state from disk, but the
-    // editor reuses any model it already has for a path, so without this a
-    // file that was open keeps showing the text that was just replaced
-    await PgEditorModels.dropUnder(`/${name}/`);
+    // A re-open rebuilds every model from state, so keystrokes autosave has
+    // not written yet -- in any file, not only the open one -- would go.
+    // Nothing forces this one, so it waits for them to land instead. A forced
+    // re-open is `adopt`, where the user has already chosen to discard.
+    if (!reopen) {
+      const edited = await PgEditorModels.anyEditedUnder(
+        `/${name}/`,
+        (path) => PgExplorer.files[path]?.content
+      );
+      if (edited) return "deferred";
+      if (PgExplorer.currentWorkspaceName !== name) return "skipped";
+    }
+
+    // The switch first, then the models. `switchWorkspace` re-reads state
+    // from disk, but the editor reuses any model it already has for a path,
+    // so the stale ones have to go -- and they have to go *after* it. Its
+    // saves are real waits, `Monaco.tsx`'s autosave timer can fire during
+    // any of them, and with the models already gone that timer saves the
+    // empty editor over the open file. Opening the current file straight after the drop, in
+    // the same task, is what leaves no such window at this end either.
     await PgExplorer.switchWorkspace(name);
+    await PgEditorModels.dropUnder(`/${name}/`, () =>
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_OPEN_FILE,
+        PgExplorer.getCurrentFile()
+      )
+    );
     return "reopened";
   }
 

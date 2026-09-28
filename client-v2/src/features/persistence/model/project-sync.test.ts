@@ -14,6 +14,7 @@ jest.mock("./editor-models", () => ({
     valueOf: jest.fn(async () => null),
     drop: jest.fn(async () => {}),
     dropUnder: jest.fn(async () => {}),
+    anyEditedUnder: jest.fn(async () => false),
   },
 }));
 
@@ -506,7 +507,10 @@ describe("resolving a conflict", () => {
     storedFiles().set("/alpha/src/lib.rs", "theirs");
 
     expect(await PgProjectSync.adopt("p1")).toBe("alpha");
-    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/alpha/");
+    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith(
+      "/alpha/",
+      expect.any(Function)
+    );
     expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha");
   });
 
