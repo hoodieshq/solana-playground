@@ -30,8 +30,10 @@ const PhoneHome: FC<PhoneHomeProps> = ({ onOpenProject }) => {
 
   const last = PgExplorer.currentWorkspaceName;
   const lastIsLesson = !!last && PgTutorial.isWorkspaceTutorial(last);
+  // The first beginner tutorial, or the next when that is the one to continue
   const lesson =
-    PgTutorial.all.find((t) => t.level === "Beginner") ?? PgTutorial.all[0];
+    PgTutorial.all.find((t) => t.level === "Beginner" && t.name !== last) ??
+    PgTutorial.all.find((t) => t.name !== last);
   const framework = PgFramework.all[0];
 
   const quickstarts: Quickstart[] = [];
@@ -58,7 +60,7 @@ const PhoneHome: FC<PhoneHomeProps> = ({ onOpenProject }) => {
       onPress: () => createProject(framework.name),
     });
   }
-  if (lesson && lesson.name !== last) {
+  if (lesson) {
     quickstarts.push({
       id: "lesson",
       icon: <BrandIcon name="tutorial" />,
