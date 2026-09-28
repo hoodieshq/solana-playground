@@ -13,6 +13,8 @@ import Menu, { useMenu } from "./Menu";
 import type { MenuRow } from "./Menu";
 import ModelControls from "../../sidebar/assistant/Component/ModelControls";
 import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { BRAND } from "../tokens";
+import { PlayMark } from "../../../components/PlayRing";
 
 /**
  * The composer, as one object: where you type, and a row of controls along its
@@ -182,7 +184,7 @@ const Composer: FC<ComposerProps> = ({
               aria-label="Send"
               disabled={live && empty}
             >
-              {ICONS.up}
+              <PlayMark />
             </Send>
           )}
         </Group>
@@ -211,12 +213,6 @@ const ICONS = {
     <>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
-    </>
-  ),
-  up: svg(
-    <>
-      <path d="M12 19V5" />
-      <path d="m6 11 6-6 6 6" />
     </>
   ),
   stop: (
@@ -400,8 +396,9 @@ const Chip = styled.button`
   `}
 `;
 
-/* The one filled control: Solana's purple, and a quiet grey until there is
-   something to send */
+/* The send is the brand's play: the mark's folded bars in white on the
+   green-into-purple the Build and Start pills carry. With nothing to send it
+   fades rather than turning grey, so it still reads as where the words go. */
 const Send = styled.button<{ $stop?: boolean }>`
   ${({ theme, $stop }) => css`
     flex-shrink: 0;
@@ -414,35 +411,32 @@ const Send = styled.button<{ $stop?: boolean }>`
     padding: 0;
     border: none;
     border-radius: 999px;
+    background: ${$stop ? theme.colors.default.textPrimary : BRAND.fill};
+    color: ${$stop ? theme.colors.default.bgPrimary : "#fff"};
+    cursor: pointer;
+    transition: opacity 0.15s ease, filter 0.15s ease;
+
+    & > svg {
+      width: 1rem;
+      height: 1rem;
+    }
 
     ${PHONE} {
       width: ${PHONE_SIZE.target};
       height: ${PHONE_SIZE.target};
 
       & > svg {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
       }
-    }
-    background: ${$stop
-      ? theme.colors.default.textPrimary
-      : theme.colors.default.primary};
-    color: ${$stop ? theme.colors.default.bgPrimary : "#fff"};
-    cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
-
-    & > svg {
-      width: 0.9375rem;
-      height: 0.9375rem;
     }
 
     &:hover:not(:disabled) {
-      filter: brightness(1.12);
+      filter: brightness(1.08);
     }
 
     &:disabled {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.state.disabled.color};
+      opacity: 0.35;
       cursor: default;
     }
 
