@@ -2802,3 +2802,91 @@ that was untrue.
 **Revisit when** the panel starts rendering reasoning, which would make storing
 it a question again, or when a thread list wants a per-thread record of how much
 history a device is holding.
+
+## D50 - Disk is the cross-tab truth; a tab reloads from it, not from memory
+
+**Date:** 2026-09-28 - **Status:** decided (Slava), implemented, PR pending
+(branch `slavakoreshkov/hoo-1723-stop-a-stale-tab-from-overwriting-another-tabs-work`,
+`34a3e2b8..39f3e904`)
+
+HOO-1723: two tabs of one browser on the same project let a stale tab
+overwrite the other's work, on the server and on disk, and a fast tab switch
+could raise a false "changed on another device" banner. Design in
+`docs/superpowers/specs/2026-09-28-stale-tab-writer-design.md`.
+
+**Chosen: disk is the shared truth between tabs for one file, not memory.**
+An edit reaches disk right after it reaches state, so memory is stale by at
+most one write. A `BroadcastChannel` tells other tabs when a project's files
+change, so each reloads its current workspace from disk if that is the one
+it has open; a `navigator.locks` lock makes reconcile and push atomic across
+tabs, closing the tab-switch race; and the upload itself is built from disk
+(`buildSnapshotOf`), not from `PgExplorer.getAllFiles()`, so a stale
+in-memory copy can never reach the server.
+
+**Rejected: reload only on focus.** Fails the side-by-side case, where both
+windows stay visible and no `visibilitychange` fires.
+
+**Rejected: only building the snapshot from disk.** Monaco's own autosave
+still writes the stale buffer back to disk on its own; the server upload is
+not the only path that overwrites.
+
+**Rejected: a single writer per project with a "Work here" banner.** The
+strongest guarantee, but a UX change nobody asked for.
+
+**Rejected: `model.setValue` for the reload.** It fires
+`onDidChangeModelContent`, so autosave echoes the reload straight back as a
+write, which is how two tabs would start bouncing edits.
+
+**Four deviations from the design, decided while planning the
+implementation:**
+
+- `session.tsx` is not touched. Once `adopt` reloads properly, the
+  session's own `switchWorkspace(target)` re-opens a workspace whose models
+  are already fresh, so the existing stale branch there is harmless as
+  written. This also removes the textual conflict with PR #36 that the
+  spec's "Interaction with PR #36" section had planned to merge around.
+- `adopt` always takes the full reopen path (`{ reopen: true }`), never the
+  quiet path. The quiet path would leave `PgProgramInfo` holding the old
+  keypair, because the adopted snapshot carries
+  `.workspace/program-info.json` and only a switch makes `PgProgramInfo`
+  re-read it.
+- `pushCurrent` does not schedule a reload when disk and memory disagree at
+  push time. It uploads what is on disk, which is enough for correctness,
+  and the channel plus reconcile-time reloads already cover the editor.
+- The model swap does not use `createModel`/`setModel`. It disposes the
+  model and re-dispatches `ON_DID_OPEN_FILE`, which is exactly what
+  `Monaco.tsx` does after a rename or delete. Swapping behind its back
+  would leave its per-second position timer calling `getOffsetAt` on a
+  disposed model.
+
+**Root cause 4 was real, confirmed by a test that failed before the fix.**
+The e2e case for "take the other version" against a file that was already
+open showed `// v0// mine` instead of `// theirs`: Monaco reuses its cached
+model per path, so `switchWorkspace` alone never refreshed an already-open
+file. The reload fixes it as the spec predicted.
+
+**The race case's actual failure mode was B staying stale, not a spurious
+conflict.** No divergent banner was observed in the test before the fix;
+the lock is kept anyway, because the interleaving the spec describes is
+still possible.
+
+**Ruling: `pushCurrent` reads the workspace id and name together, inside the
+lock.** It reads both synchronously in one step, then builds the snapshot
+from disk for that name. The first version read the id before waiting on
+the push gate and the lock, so a project switch during that wait could
+upload B's files under A's id and mark A clean. Found in review, fixed, and
+pinned by a unit test.
+
+**Known limitation, not fixed: the reload can steal focus.** Re-dispatching
+`ON_DID_OPEN_FILE` makes `Monaco.tsx` call `editor.focus()`. If the user is
+in another panel of tab B when tab A writes the file that is open in B,
+focus jumps to the editor.
+
+**Known residuals, left for later:** the lock is held across network calls
+with no timeout; `settleLocalDeletes` runs outside the lock; typing in a
+tab and then hiding it inside the 500 ms autosave window leaves an edit on
+disk and dirty but unpushed until that tab, or a reconcile, pushes it.
+
+**Revisit when** same-file concurrent editing becomes a requirement (the
+spec's own revisit condition), or when the thread-index variant of this
+same bug, HOO-1814, is taken up.

@@ -158,14 +158,44 @@ ahead with the disk copy, and `reloadCurrentFromDisk()` is scheduled.
 `snapshotOf(name)` does the same: disk always. `buildSnapshot()` stays only
 if something else needs the in-memory view. If nothing does, it is removed.
 
+If disk and memory disagree on user files at push time, the push still goes
+ahead with the disk copy. `pushCurrent` does not schedule a reload for this
+(see "Amended while planning" below) -- the channel from part 2 and the
+reload at the start of `reconcile()` already cover the editor.
+
+## Amended while planning
+
+Four points below turned out differently once planning got specific. D50
+(`docs/decisions.md`) records why; this section is the pointer from the
+design to that reasoning.
+
+- `session.tsx` is not touched. Once `adopt` reloads properly, the
+  session's own `switchWorkspace(target)` re-opens a workspace whose models
+  are already fresh, so the stale branch there needs no change. See
+  "Interaction with PR #36" below.
+- `adopt` always takes the full reopen path (`{ reopen: true }`), never a
+  quiet path, because the quiet path would leave `PgProgramInfo` holding the
+  old keypair.
+- `pushCurrent` does not schedule a reload when disk and memory disagree at
+  push time (part 4, above). The channel plus reconcile-time reloads
+  already cover the editor.
+- The model swap in part 1, step 4 does not use `createModel`/`setModel`.
+  It disposes the model and re-dispatches `ON_DID_OPEN_FILE`, which is
+  exactly what `Monaco.tsx` does after a rename or delete; swapping behind
+  its back would leave its per-second position timer calling `getOffsetAt`
+  on a disposed model.
+
 ## Interaction with PR #36
 
 PR #36 adds `adoptAccountThreads()` and a panel reopen to `session.tsx`,
 directly around the reconcile block that part 3 wraps and the stale branch
-that part 1 replaces. The two changes do not conflict in meaning, and
-resolving the textual conflict is a small manual merge. Base on `master-2.0`
-after #36 lands. COOP/COEP from #36 do not affect `BroadcastChannel` or Web
-Locks: both work within one origin and do not depend on `window.opener`.
+that part 1 was originally going to replace. `session.tsx` is untouched
+instead (see "Amended while planning" above): once `adopt` takes the full
+reload path, the existing stale branch's `switchWorkspace(target)` reopens a
+workspace whose models are already fresh, so there is no textual conflict
+with PR #36 to resolve. COOP/COEP from #36 do not affect `BroadcastChannel`
+or Web Locks: both work within one origin and do not depend on
+`window.opener`.
 
 ## Testing
 
