@@ -5,7 +5,7 @@ import Button from "../../../components/Button";
 import PlayRing from "../../../components/PlayRing";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PHONE, PHONE_SIZE, PHONE_TYPE, phoneActions } from "../phone";
-import { BRAND } from "../tokens";
+import { brandAction } from "../components/gradient";
 
 interface EmptyStageProps {
   /** The state, said large: "Nothing built yet" */
@@ -79,20 +79,16 @@ export default EmptyStage;
  */
 export const BrandPill = styled(Button)<{ $off?: boolean }>`
   ${({ theme, $off }) => css`
-    /* The base button repaints its background for hover and disabled; the
-       fill holds through all of them */
-    &&,
-    &&:hover,
-    &&:disabled,
-    &&:disabled:hover {
-      background: ${BRAND.fill};
-      color: #ffffff;
+    /* Ringed in the brand at rest, filled with it under the pointer; the base
+       button repaints its background for hover and disabled, and the ring
+       holds through all of them */
+    && {
+      ${brandAction(theme.colors.state.hover.bg)}
     }
 
     && {
       height: 2.5rem;
       padding: 0 1rem 0 1.25rem;
-      border: none;
       border-radius: 999px;
       font-family: ${HEADLINE_FONT};
       font-size: 0.9375rem;
@@ -100,7 +96,7 @@ export const BrandPill = styled(Button)<{ $off?: boolean }>`
       letter-spacing: -0.005em;
       white-space: nowrap;
       transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
-        filter 200ms ease, opacity 200ms ease;
+        opacity 200ms ease;
     }
 
     && > span.right-icon > * {
@@ -118,7 +114,6 @@ export const BrandPill = styled(Button)<{ $off?: boolean }>`
 
     &&:hover:not(:disabled) {
       transform: translateY(-1px);
-      filter: brightness(1.05);
     }
 
     &&:active:not(:disabled) {

@@ -39,3 +39,61 @@ export const gradientStroke = (
       padding-box,
     ${GRADIENT} border-box;
 `;
+
+/**
+ * The one action a view leads with — Build, Deploy, Start, send — drawn as
+ * the gradient stroke too: a dark fill ringed in the brand, the same ring
+ * the current tab wears. Pointed at or pressed, the gradient fills it, faded
+ * in from under the label. A full fill at rest pulled the eye off everything
+ * else on the screen, and a phone, with nothing to point, keeps the ring.
+ *
+ * The fill is a layer of its own under the label (`isolation` keeps it above
+ * the element's own background), since a gradient cannot be faded as a
+ * background.
+ */
+export const brandAction = (
+  /* As with `gradientStroke`: the surface inside the ring, optional because
+     the theme types its surfaces that way */
+  bg: string | undefined
+) => {
+  const fill = bg ?? "transparent";
+  const ring = css`
+    border: 1px solid transparent;
+    background: linear-gradient(${fill}, ${fill}) padding-box,
+      ${GRADIENT} border-box;
+    color: #ffffff;
+  `;
+  return css`
+    position: relative;
+    isolation: isolate;
+    ${ring}
+
+    &:hover,
+    &:disabled,
+    &:disabled:hover {
+      ${ring}
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      z-index: -1;
+      border-radius: inherit;
+      background: ${GRADIENT};
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover:not(:disabled)::before,
+    &:active:not(:disabled)::before {
+      opacity: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &::before {
+        transition: none;
+      }
+    }
+  `;
+};

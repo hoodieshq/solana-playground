@@ -221,6 +221,7 @@ const Flow = () => {
      retries every 100ms until something answers, and on the start screen
      nothing ever does. So the route has to bring the view with it. */
   const [path, setPath] = useState(() => PgRouter.location.pathname);
+  const lastPath = useRef(path);
   const onTutorialRoute = path.startsWith("/tutorials/");
   /* The tutorial is worked out from the route after the route has changed,
      so its name arrives a moment after the path does */
@@ -313,9 +314,13 @@ const Flow = () => {
     // initialised it and creating the first one threw. Idempotent.
     PgExplorer.init().catch(() => {});
 
-    // Opening or creating a project is the moment to show the project view
+    // Opening or creating a project is the moment to show the project view,
+    // and on a phone its code, which is what was opened
     const toProject = () => {
-      if (PgExplorer.currentWorkspaceName) setView("project");
+      if (PgExplorer.currentWorkspaceName) {
+        setView("project");
+        setPane("code");
+      }
     };
     const subs = [
       PgFlow.init(),
@@ -329,6 +334,16 @@ const Flow = () => {
       PgExplorer.onDidSwitchWorkspace(toProject),
       PgExplorer.onDidCreateWorkspace(toProject),
       PgRouter.onDidChangePath((next) => {
+        // Arriving in a tutorial shows its page, which is in the code; a
+        // tutorial turning its own pages leaves the pane where it is
+        const tutorial = (p: string) => p.split("/")[2];
+        if (
+          next.startsWith("/tutorials/") &&
+          tutorial(next) !== tutorial(lastPath.current)
+        ) {
+          setPane("code");
+        }
+        lastPath.current = next;
         setPath(next);
         if (next.startsWith("/tutorials/")) setView("project");
       }),
@@ -360,6 +375,7 @@ const Flow = () => {
   };
   const openProject = (name: string) => {
     leaveMenu();
+    setPane("code");
     if (name === PgExplorer.currentWorkspaceName) setView("project");
     else PgExplorer.switchWorkspace(name);
   };
@@ -1064,6 +1080,20 @@ const PhoneTouch = createGlobalStyle`
     input:is([type="text"], [type="search"], [type="password"], [type="url"], [type="number"], :not([type])):not(.monaco-editor *):not(.xterm *) {
       min-height: 48px;
     }
+
+    /* The editor's own way to bring up the keyboard on an iPhone, where a
+       tap on the code does not always do it: kept, and drawn as one of the
+       product's buttons rather than the editor's grey box */
+    .monaco-editor .iPadShowKeyboard {
+      width: 48px !important;
+      height: 48px !important;
+      border: 1px solid ${({ theme }) =>
+        theme.colors.default.border} !important;
+      border-radius: 14px !important;
+      background-color: ${({ theme }) =>
+        theme.colors.default.bgSecondary} !important;
+      background-size: 22px !important;
+    }
   }
 `;
 
@@ -1323,6 +1353,23 @@ const FilesSheet = styled.div<{ $open: boolean }>`
       & img {
         width: 16px;
         height: 16px;
+      }
+    }
+
+    /* The tree marks a row it opened a context menu on with an outline, and
+       on a touch screen a plain tap does that too */
+    && .${PgView.classNames.CTX_SELECTED} {
+      border-color: transparent;
+    }
+
+    /* A tap leaves a touch screen's hover on the row it landed on; only the
+       open file stays marked */
+    @media (hover: none) {
+      &&
+        :is(.${PgView.classNames.FOLDER},
+          .${PgView.classNames.FILE}):not(.${PgView.classNames
+            .SELECTED}):hover {
+        background: transparent;
       }
     }
 

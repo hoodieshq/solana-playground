@@ -10,7 +10,7 @@ import { PointedArrow } from "../../Icons";
 import { Emoji } from "../../../constants";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgTheme, PgTutorial } from "../../../utils";
-import { BRAND } from "../../../views/flow/tokens";
+import { brandAction } from "../../../views/flow/components/gradient";
 import {
   PHONE,
   PHONE_SIZE,
@@ -209,26 +209,21 @@ const GeneratedTopRightWrapper = styled.div``;
    disables itself while `start` resolves). */
 const StartButton = styled(Button)`
   ${({ theme }) => css`
-    &&,
-    &&:hover,
-    &&:disabled,
-    &&:disabled:hover {
-      background: ${BRAND.fill};
-      color: #ffffff;
+    /* Ringed in the brand at rest, filled with it under the pointer */
+    && {
+      ${brandAction(theme.colors.state.hover.bg)}
     }
 
     && {
       height: 2.5rem;
       padding: 0 1rem 0 1.25rem;
-      border: none;
       border-radius: 999px;
       font-family: ${HEADLINE_FONT};
       font-size: 0.9375rem;
       font-weight: 500;
       letter-spacing: -0.005em;
       white-space: nowrap;
-      transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
-        filter 200ms ease;
+      transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
     }
 
     && > span.right-icon > * {
@@ -246,7 +241,6 @@ const StartButton = styled(Button)`
 
     &&:hover:not(:disabled) {
       transform: translateY(-1px);
-      filter: brightness(1.05);
     }
 
     &&:focus-visible {
