@@ -41,7 +41,7 @@ export const initRustAnalyzer = async (): Promise<Disposable> => {
   // allows on a cross-origin isolated page (COOP + COEP, see `vercel.json`).
   // Without it the worker fails every attempt, never reports ready, and the
   // retry below spawns another 9MB worker every interval, forever.
-  if (!self.crossOriginIsolated) {
+  if (!window.crossOriginIsolated) {
     console.warn("Rust Analyzer disabled: the page is not crossOriginIsolated");
     return { dispose: () => {} };
   }
