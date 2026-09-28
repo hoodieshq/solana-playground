@@ -30,7 +30,7 @@ import {
   MIN_EDITOR_WIDTH,
   MIN_LEFT_WIDTH,
 } from "./left/width";
-import ObjectiveBand from "./lessons/ObjectiveBand";
+import ObjectiveBand, { LessonBar } from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
@@ -172,6 +172,7 @@ const Flow = () => {
   const [page, setPage] = useState<PhonePage>("work");
   const [pane, setPane] = useState<"chat" | "code">("code");
   const [filesSheet, setFilesSheet] = useState(false);
+  const filePickerRef = useRef<HTMLButtonElement>(null);
   const pagerRef = useRef<HTMLDivElement>(null);
   const lastPreview = useRef<PreviewStage>("build");
   /* The theme's size steps, a phone's own on a phone: everything that reads
@@ -476,6 +477,25 @@ const Flow = () => {
   const openDir = openRelative.slice(0, openRelative.lastIndexOf("/") + 1);
   const openName = openRelative.slice(openDir.length);
 
+  /* The files' page takes focus while it is open, closes on Escape, and
+     gives focus back to the picker that opened it */
+  useEffect(() => {
+    if (!phone || !filesSheet) return;
+    const page = document.getElementById("flow-files");
+    page?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setFilesSheet(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const picker = filePickerRef.current;
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (page?.contains(document.activeElement)) {
+        picker?.focus({ preventScroll: true });
+      }
+    };
+  }, [phone, filesSheet]);
+
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
     : null;
@@ -565,7 +585,8 @@ const Flow = () => {
     </Code>
   );
 
-  /* The code on a phone: Write only — the other stages have their page */
+  /* The code on a phone: Write only — the other stages have their page —
+     with a lesson's step above it and what to press about it at its foot */
   const phoneCode = (
     <Code>
       <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
@@ -579,6 +600,7 @@ const Flow = () => {
           />
         )}
       </Stage>
+      <LessonBar state={lesson} onRead={() => setReading(true)} />
     </Code>
   );
 
@@ -653,6 +675,7 @@ const Flow = () => {
                       <Work>
                         <WorkHead>
                           <FilePicker
+                            ref={filePickerRef}
                             type="button"
                             onClick={() => setFilesSheet(true)}
                             aria-expanded={filesSheet}
@@ -683,33 +706,7 @@ const Flow = () => {
                             {ICONS.help}
                           </HeadButton>
                         </WorkHead>
-                        <WorkBody $phone>
-                          {phoneCode}
-                          <SheetScrim
-                            $open={filesSheet}
-                            onClick={() => setFilesSheet(false)}
-                            aria-hidden="true"
-                          />
-                          <FilesSheet
-                            id="flow-files"
-                            $open={filesSheet}
-                            onClickCapture={(ev) => {
-                              /* A file tapped is a file opened, even the one
-                               that already was: the sheet has done its job */
-                              const row = (ev.target as Element).closest(
-                                `.${PgView.classNames.FILE}`
-                              );
-                              if (row) {
-                                window.setTimeout(
-                                  () => setFilesSheet(false),
-                                  120
-                                );
-                              }
-                            }}
-                          >
-                            <LeftPanel onClose={() => setFilesSheet(false)} />
-                          </FilesSheet>
-                        </WorkBody>
+                        <WorkBody $phone>{phoneCode}</WorkBody>
                       </Work>
                     </PhonePane>
                   </PhonePanes>
@@ -721,6 +718,28 @@ const Flow = () => {
                       onSection={setSection}
                     />
                   </PageBody>
+                )}
+
+                {inProject && (
+                  <FilesSheet
+                    id="flow-files"
+                    $open={filesSheet}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Files"
+                    onClickCapture={(ev) => {
+                      /* A file tapped is a file opened, even the one that
+                         already was: the page has done its job */
+                      const row = (ev.target as Element).closest(
+                        `.${PgView.classNames.FILE}`
+                      );
+                      if (row) {
+                        window.setTimeout(() => setFilesSheet(false), 120);
+                      }
+                    }}
+                  >
+                    <LeftPanel onClose={() => setFilesSheet(false)} />
+                  </FilesSheet>
                 )}
               </PagerPage>
 
@@ -1261,28 +1280,34 @@ const PhonePane = styled.div<{ $shown: boolean }>`
   `}
 `;
 
-/* The files, as a sheet over the code from the left */
+/* The files, as a page of their own over the work: every page's bar across
+   the top, the tree at a fingertip's size, and the way back to the code.
+   Always mounted, so the tree keeps its folders and its selection. A swipe
+   across it scrolls nothing sideways, so it cannot page the pager from
+   under itself. */
 const FilesSheet = styled.div<{ $open: boolean }>`
   ${({ theme, $open }) => css`
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     z-index: 3;
     display: flex;
     flex-direction: column;
-    width: min(88%, 22rem);
-    border-right: 1px solid ${theme.colors.default.border};
     background: ${theme.colors.default.bgPrimary};
-    box-shadow: ${$open ? "0 0 2.5rem rgba(0, 0, 0, 0.45)" : "none"};
-    transform: translate3d(${$open ? "0" : "-104%"}, 0, 0);
+    touch-action: pan-y;
+    opacity: ${$open ? 1 : 0};
+    transform: translate3d(0, ${$open ? "0" : "12px"}, 0);
     visibility: ${$open ? "visible" : "hidden"};
-    transition: transform 0.26s ${EASE},
-      visibility 0s linear ${$open ? "0s" : "0.26s"};
+    transition: opacity 0.2s ${EASE}, transform 0.22s ${EASE},
+      visibility 0s linear ${$open ? "0s" : "0.22s"};
 
     & > * {
       flex: 1;
       min-height: 0;
+    }
+
+    /* A page, so no column's edge */
+    & > aside {
+      border-right: none;
     }
 
     /* The tree's rows, which the explorer sizes for a desk */
@@ -1299,22 +1324,6 @@ const FilesSheet = styled.div<{ $open: boolean }>`
         height: 16px;
       }
     }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
-`;
-
-const SheetScrim = styled.div<{ $open: boolean }>`
-  ${({ $open }) => css`
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background: rgba(0, 0, 0, 0.45);
-    opacity: ${$open ? 1 : 0};
-    pointer-events: ${$open ? "auto" : "none"};
-    transition: opacity 0.26s ${EASE};
 
     @media (prefers-reduced-motion: reduce) {
       transition: none;

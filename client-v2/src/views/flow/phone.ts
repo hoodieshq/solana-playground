@@ -149,6 +149,37 @@ const dim = keyframes`
   to   { opacity: 1; }
 `;
 
+/**
+ * A page's main action on a phone, at its foot, under the thumb: the last
+ * thing in the page, pinned to the bottom while the page scrolls, full width,
+ * over a fade of the ground so what scrolls under it does not show through.
+ * Anything secondary goes above the main action, never below it.
+ */
+export const phoneActions = css`
+  ${({ theme }) => css`
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: auto;
+    padding: 1.25rem 0 1rem;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      ${theme.colors.default.bgPrimary} 1.25rem
+    );
+
+    & > button,
+    & > a {
+      width: 100%;
+      justify-content: center;
+    }
+  `}
+`;
+
 /** Behind a sheet: the page, dimmed, and a tap on it closes the sheet */
 export const phoneScrim = css`
   position: fixed;

@@ -12,7 +12,7 @@ import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import GradientButton from "../../sidebar/assistant/Component/GradientButton";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
-import { PHONE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_TYPE, phoneActions, usePhone } from "../phone";
 import type { FlowState } from "../state/stage";
 import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 
@@ -64,6 +64,8 @@ const Build = () => {
   const [out, setOut] = useState<BuildOutput | null>(null);
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
   const [showRaw, setShowRaw] = useState(false);
+  /* On a phone the page's main action goes to its foot, under the thumb */
+  const phone = usePhone();
 
   useEffect(() => {
     const a = PgBuildOutput.onDidChange(setOut);
@@ -143,6 +145,12 @@ const Build = () => {
     );
   }
 
+  const toDeploy = (
+    <GradientButton onClick={() => PgFlow.setStage("deploy")}>
+      Continue to Deploy
+    </GradientButton>
+  );
+
   if (!out.failed) {
     return (
       <Surface>
@@ -173,15 +181,14 @@ const Build = () => {
           </StatusRow>
           <Muted>The IDL below reflects this build. Deploy when ready.</Muted>
           <Actions>
-            <GradientButton onClick={() => PgFlow.setStage("deploy")}>
-              Continue to Deploy
-            </GradientButton>
+            {!phone && toDeploy}
             <IdlActions showGenerate />
             <Button onClick={() => PgFramework.exportWorkspace()}>
               Export project
             </Button>
           </Actions>
         </Card>
+        {phone && <PhoneActions>{toDeploy}</PhoneActions>}
       </Surface>
     );
   }
@@ -203,6 +210,12 @@ const Build = () => {
     .filter(Boolean)
     .join(" \u00b7 ");
 
+  const rebuild = (
+    <Button kind="outline" onClick={() => PgCommand.build.execute()}>
+      Rebuild
+    </Button>
+  );
+
   const compilerToggle = (
     <Toggle
       type="button"
@@ -223,9 +236,7 @@ const Build = () => {
           <Headline>Build failed</Headline>
           <Meta>{meta}</Meta>
         </HeaderText>
-        <Button kind="outline" onClick={() => PgCommand.build.execute()}>
-          Rebuild
-        </Button>
+        {!phone && rebuild}
       </HeaderRow>
 
       <CardList>
@@ -337,6 +348,7 @@ const Build = () => {
           {showRaw && <Raw>{report.raw}</Raw>}
         </RawSection>
       )}
+      {phone && <PhoneActions>{rebuild}</PhoneActions>}
     </Surface>
   );
 };
@@ -361,7 +373,7 @@ const Surface = styled.div`
     color: ${theme.colors.default.textPrimary};
 
     ${PHONE} {
-      padding: 1.5rem 1.25rem 2rem;
+      padding: 1.5rem 1.25rem 0;
     }
   `}
 `;
@@ -444,6 +456,16 @@ const Actions = styled.div`
   gap: 0.625rem;
   align-items: center;
   margin-top: 0.25rem;
+`;
+
+/* The page's main action at its foot, on a phone */
+const PhoneActions = styled.div`
+  ${phoneActions}
+
+  & > button {
+    height: 48px;
+    border-radius: 999px;
+  }
 `;
 
 /* A card's name, said quietly: sentence case, no tracking */

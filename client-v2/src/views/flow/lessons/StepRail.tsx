@@ -3,6 +3,7 @@ import styled, { css } from "styled-components";
 
 import { currentStep } from "./progress";
 import type { LessonState } from "./store";
+import { PHONE, PHONE_TYPE } from "../phone";
 
 interface StepRailProps {
   state: LessonState;
@@ -80,6 +81,9 @@ const MARK = 12;
 const PAD = 6;
 /** Air between a mark and the connector either side of it */
 const AIR = 3;
+/** The same three on a phone, where a title is read at 16px */
+const PHONE_LINE = 24;
+const PHONE_PAD = 10;
 
 const Mark: FC<{ status: Status }> = ({ status }) => {
   switch (status) {
@@ -110,6 +114,10 @@ const List = styled.ol`
   list-style: none;
   display: flex;
   flex-direction: column;
+
+  ${PHONE} {
+    padding: 0.75rem 0.5rem;
+  }
 `;
 
 const Row = styled.li<{ $status: Status }>`
@@ -119,6 +127,11 @@ const Row = styled.li<{ $status: Status }>`
     column-gap: 0.625rem;
     padding: ${PAD}px 0.5rem;
     opacity: ${rowOpacity($status)};
+
+    ${PHONE} {
+      column-gap: 0.875rem;
+      padding: ${PHONE_PAD}px 0.75rem;
+    }
   `}
 `;
 
@@ -136,8 +149,19 @@ const Rail = styled.span<{ $status: Status; $last: boolean }>`
     align-items: flex-start;
     padding-top: ${(LINE - MARK) / 2}px;
 
+    ${PHONE} {
+      padding-top: ${(PHONE_LINE - MARK) / 2}px;
+    }
+
     ${!$last &&
     css`
+      ${PHONE} {
+        &::after {
+          top: ${(PHONE_LINE + MARK) / 2 + AIR}px;
+          bottom: -${2 * PHONE_PAD + (PHONE_LINE - MARK) / 2 - AIR}px;
+        }
+      }
+
       &::after {
         content: "";
         position: absolute;
@@ -216,6 +240,12 @@ const Objective = styled.span<{ $status: Status }>`
     color: ${$status === "current" || $status === "done"
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      line-height: ${PHONE_LINE}px;
+      font-weight: ${$status === "current" ? 440 : 320};
+    }
   `}
 `;
 
@@ -224,5 +254,10 @@ const Meta = styled.span`
     font-size: 0.75rem;
     line-height: 1rem;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      margin-top: 0.125rem;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;

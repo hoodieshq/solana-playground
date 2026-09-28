@@ -20,10 +20,12 @@ import {
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
-import { PHONE, PHONE_TYPE } from "../phone";
+import { PHONE, PHONE_TYPE, phoneActions, usePhone } from "../phone";
 import type { FlowState } from "../state/stage";
 
 const Deploy = () => {
+  /* On a phone the page's main action goes to its foot, under the thumb */
+  const phone = usePhone();
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
   const [history, setHistory] = useState<DeployRecord[]>([]);
   const explorer = useBlockExplorer();
@@ -151,7 +153,7 @@ const Deploy = () => {
       {failed}
 
       <Actions>
-        {deployPill}
+        {!phone && deployPill}
         <IdlActions showUpload />
       </Actions>
 
@@ -239,6 +241,8 @@ const Deploy = () => {
           ))}
         </List>
       </Card>
+
+      {phone && <PhoneActions>{deployPill}</PhoneActions>}
     </Surface>
   );
 };
@@ -258,7 +262,7 @@ const Surface = styled.div`
     color: ${theme.colors.default.textPrimary};
 
     ${PHONE} {
-      padding: 1.5rem 1.25rem 2rem;
+      padding: 1.5rem 1.25rem 0;
     }
   `}
 `;
@@ -384,6 +388,11 @@ const Actions = styled.div`
   gap: 0.625rem;
   align-items: center;
   margin-top: 0.25rem;
+`;
+
+/* The page's main action at its foot, on a phone */
+const PhoneActions = styled.div`
+  ${phoneActions}
 `;
 
 const Card = styled.section`

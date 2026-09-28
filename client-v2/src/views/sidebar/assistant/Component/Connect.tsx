@@ -15,7 +15,12 @@ import {
   type ProviderId,
   type ProviderInfo,
 } from "../model/types";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
+import {
+  PHONE,
+  PHONE_SIZE,
+  PHONE_TYPE,
+  phoneActions,
+} from "../../../flow/phone";
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>
@@ -352,14 +357,16 @@ const Connect = ({ preset }: { preset?: ConnectPreset }) => {
         </>
       )}
 
-      <ConnectButton
-        kind="primary"
-        fullWidth
-        disabled={!ready}
-        onClick={connect}
-      >
-        {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
-      </ConnectButton>
+      <ConnectFoot>
+        <ConnectButton
+          kind="primary"
+          fullWidth
+          disabled={!ready}
+          onClick={connect}
+        >
+          {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
+        </ConnectButton>
+      </ConnectFoot>
 
       {switching && (
         <Note>
@@ -406,8 +413,10 @@ const Wrapper = styled.div`
   overflow-y: auto;
   padding: 1.25rem 1rem;
 
+  /* The dialog's page scrolls on a phone, so the button can hold the foot */
   ${PHONE} {
-    padding: 1.25rem 1.25rem 1.5rem;
+    overflow: visible;
+    padding: 1.25rem 1.25rem 0;
     gap: 0.25rem;
   }
 `;
@@ -634,6 +643,23 @@ const Picker = styled.div`
 
 const ConnectButton = styled(GradientButton)`
   margin-top: 0.75rem;
+`;
+
+/* Where the button sits: in the form on a desk, and on a phone at the foot
+   of the page, under the thumb, after the notes that explain it */
+const ConnectFoot = styled.div`
+  display: contents;
+
+  ${PHONE} {
+    ${phoneActions}
+    order: 1;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+
+    & > button {
+      height: ${PHONE_SIZE.target};
+      margin-top: 0;
+    }
+  }
 `;
 
 const Note = styled.div`

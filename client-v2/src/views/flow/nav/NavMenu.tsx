@@ -111,8 +111,8 @@ interface NavMenuProps {
   phoneAs?: "sheet" | "page";
   /** On a phone, what the sheet or the page says at its head */
   phoneTitle?: string;
-  /** On a phone's page, above the items: what the page is mostly for */
-  phoneHeader?: ReactNode;
+  /** On a phone's page, pinned at its foot under the thumb: its main action */
+  phoneFooter?: ReactNode;
 }
 
 /** Nearest the menu comes to the window's edge */
@@ -133,7 +133,7 @@ const NavMenu: FC<NavMenuProps> = ({
   initialFocus,
   phoneAs = "sheet",
   phoneTitle,
-  phoneHeader,
+  phoneFooter,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   // Drawn once where it lands, then moved before the browser paints
@@ -424,11 +424,11 @@ const NavMenu: FC<NavMenuProps> = ({
           </PageClose>
         </PageBar>
         <PageBody>
-          {phoneHeader}
           <div role="menu" aria-label={label}>
             {items}
           </div>
         </PageBody>
+        {phoneFooter}
       </Surface>,
       document.body
     );
@@ -619,13 +619,13 @@ const PageClose = styled.button`
   `}
 `;
 
-/* The page's items, scrolling under its bar and clear of the screen's foot */
+/* The page's items, scrolling under its bar */
 const PageBody = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0.5rem 0.5rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.5rem 0.5rem 1rem;
 `;
 
 /* What a sheet is for, above its items: the project it acts on */
