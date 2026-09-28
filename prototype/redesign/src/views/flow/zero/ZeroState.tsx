@@ -167,9 +167,9 @@ const ZeroState: FC<ZeroStateProps> = ({
                       All {PgTutorial.all.length}
                     </PanelMore>
                   </PanelHead>
-                  <Clip $rows={2}>
-                    <TutorialsTab query="" />
-                  </Clip>
+                  {/* Four whole cards, two rows of the column's two, never a
+                      third cut off and faded: "All 16" has the rest */}
+                  <TutorialsTab query="" limit={4} />
                 </>
               )}
               {!onStart && (
@@ -596,15 +596,5 @@ const PanelMore = styled.button`
       padding: 0 0.625rem;
       ${PHONE_TYPE.control}
     }
-  `}
-`;
-
-/* Start shows the first couple of rows of the tutorial grid and hands the rest
-   to its own tab, so the page under the composer stays short. */
-const Clip = styled.div<{ $rows: number }>`
-  ${({ $rows }) => css`
-    max-height: ${$rows * 8.5}rem;
-    overflow: hidden;
-    mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
   `}
 `;

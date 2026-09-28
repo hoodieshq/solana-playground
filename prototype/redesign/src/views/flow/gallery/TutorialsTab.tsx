@@ -10,6 +10,8 @@ import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
   query: string;
+  /** Show only the first few, whole: a sample of the list, not the list */
+  limit?: number;
 }
 
 /**
@@ -17,7 +19,7 @@ interface TutorialsTabProps {
  * Opening one hands off to the existing tutorial route/flow, then closes
  * the gallery so the reader lands straight on the tutorial page.
  */
-const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
+const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
   const [error, setError] = useState<{ name: string; message: string } | null>(
     null
   );
@@ -25,13 +27,14 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
   const phone = usePhone();
 
   const q = query.trim().toLowerCase();
-  const items = q
+  const matching = q
     ? PgTutorial.all.filter(
         (t) =>
           t.name.toLowerCase().includes(q) ||
           t.description.toLowerCase().includes(q)
       )
     : PgTutorial.all;
+  const items = limit ? matching.slice(0, limit) : matching;
 
   if (!items.length) {
     return <Empty>No tutorials match &ldquo;{query}&rdquo;.</Empty>;
