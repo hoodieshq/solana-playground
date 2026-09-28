@@ -16,6 +16,7 @@ import { StillMesh } from "../deck/Atmosphere";
 /* The product as it is now, shot from the build itself and framed on the
    brand render's geometry, so the crop below still lands on its window */
 import productShot from "./art/product-closeup.jpg";
+import phoneShot from "./art/phone-code.jpg";
 import BuildHero from "../deck/BuildHero";
 import type { BuildStep } from "../deck/BuildHero";
 import Pattern from "../deck/Pattern";
@@ -214,7 +215,8 @@ const MENU_LINKS: MenuLink[] = [
 ];
 
 /* Under the landing's links fold: a phone */
-const phoneNow = () => window.matchMedia("(max-width: 40rem)").matches;
+const PHONE_FOLD = "(max-width: 40rem)";
+const phoneNow = () => window.matchMedia(PHONE_FOLD).matches;
 
 /* The first screen, as the hero measures it */
 const SCREEN = "max(100vh, 34rem)";
@@ -723,11 +725,14 @@ const Product: FC<{
       <Stage $up={up} $trail={trail}>
         <Window ref={windowRef} $up={up}>
           <View>
-            <Shot
-              src={productShot}
-              alt="Playground up close, with the Counter sample open: the sidebar, the assistant and the code"
-              draggable={false}
-            />
+            <picture>
+              <source media={PHONE_FOLD} srcSet={phoneShot} />
+              <Shot
+                src={productShot}
+                alt="Playground up close, with the Counter sample open and its code in view"
+                draggable={false}
+              />
+            </picture>
           </View>
         </Window>
         <Shade />
@@ -1013,10 +1018,11 @@ const Window = styled.div<{ $up: boolean }>`
     border-radius: 1rem;
   }
 
-  /* On a phone, closer still: a square of the top left — the sidebar and the
-     assistant — at a size the interface can be read at */
+  /* On a phone, Playground as a phone has it: a square off the top of its
+     code screen, under the screen's own corners — 55 points of 402 */
   @media (max-width: 40rem) {
     aspect-ratio: 1 / 1;
+    border-radius: 13.6% 13.6% 1rem 1rem;
   }
 `;
 
@@ -1029,6 +1035,14 @@ const View = styled.div`
 
   @media (max-width: 56rem) {
     border-radius: calc(1rem - 1px);
+  }
+
+  @media (max-width: 40rem) {
+    border-radius: 13.6% 13.6% calc(1rem - 1px) calc(1rem - 1px);
+  }
+
+  & > picture {
+    display: contents;
   }
 `;
 
