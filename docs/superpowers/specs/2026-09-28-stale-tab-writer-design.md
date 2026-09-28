@@ -69,12 +69,13 @@ tabs, and only memory goes stale.**
 ## Design
 
 Four parts. All new code lives in `client-v2/src/features/persistence/model/`,
-and no upstream-owned file is edited. The effect, the session effect and the
-persistence model are all fork files.
+and no upstream-owned file is edited. The effect and the persistence model are
+fork files; `session.tsx` is untouched (see "Amended while planning" below).
 
 ### 1. `tab-reload.ts`: bring the current workspace in line with disk
 
-`reloadCurrentFromDisk(): Promise<"unchanged" | "contents" | "reopened">`
+`reloadCurrentFromDisk(opts?: { reopen?: boolean }): Promise<"unchanged" |
+"contents" | "reopened">`
 
 1. Skip if there is no current workspace or it is temporary, since a temporary
    workspace has nothing on disk.
@@ -105,8 +106,11 @@ persistence model are all fork files.
    so a tab that rewrites the keypair does not make its neighbour reload.
    That is what stops two tabs from bouncing.
 
-`adopt` (`project-sync.ts`) and the "stale" branch of `session.tsx` call this
-instead of a bare `switchWorkspace`. That fixes root cause 4.
+`adopt` (`project-sync.ts`) calls `reloadCurrentFromDisk({ reopen: true })`
+instead of a bare `switchWorkspace`. That fixes root cause 4. The "stale"
+branch of `session.tsx` keeps its own bare `switchWorkspace(target)` and
+needs no change: by the time it runs, `adopt`'s reload has already made the
+workspace's models fresh, so re-opening it is harmless.
 
 ### 2. `tab-sync.ts`: tabs tell each other they wrote
 
@@ -153,15 +157,12 @@ not from `PgExplorer.getAllFiles()`. Memory is ahead of disk by at most one
 write, and the push is debounced by 3 s, so an edit never reaches the server
 later than it would today. A stale in-memory copy can then never be uploaded.
 If disk and memory disagree on user files at push time, the push still goes
-ahead with the disk copy, and `reloadCurrentFromDisk()` is scheduled.
+ahead with the disk copy; `pushCurrent` does not schedule a reload for this
+-- the channel from part 2 and the reload at the start of `reconcile()`
+already cover the editor.
 
 `snapshotOf(name)` does the same: disk always. `buildSnapshot()` stays only
 if something else needs the in-memory view. If nothing does, it is removed.
-
-If disk and memory disagree on user files at push time, the push still goes
-ahead with the disk copy. `pushCurrent` does not schedule a reload for this
-(see "Amended while planning" below) -- the channel from part 2 and the
-reload at the start of `reconcile()` already cover the editor.
 
 ## Amended while planning
 
