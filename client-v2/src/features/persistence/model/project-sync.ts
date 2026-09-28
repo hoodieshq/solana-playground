@@ -1,10 +1,5 @@
 import { report } from "./diagnostics";
-import {
-  buildSnapshot,
-  hashSnapshot,
-  hashUserFiles,
-  snapshotOf,
-} from "./snapshot";
+import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncClient } from "./sync-client";
 import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
@@ -136,22 +131,24 @@ export class PgProjectSync {
     await PgProjectSync._gate;
 
     return await withSyncLock(async () => {
-      // Re-read now that the gate and the lock have both had their say: `id`,
-      // the snapshot and `name` below must all describe the same workspace,
-      // or a switch that lands between reading one and the next uploads one
-      // project's files under another's id -- and writes that other
-      // project's mark with them, which a fast-reconcile then trusts.
+      // Re-read now that the gate and the lock have both had their say: `id`
+      // and `name` have to describe the same workspace, or a switch that
+      // lands between reading one and the next uploads one project's files
+      // under another's id -- and writes that other project's mark with
+      // them, which a fast-reconcile then trusts. Read together, with no
+      // `await` between them, so nothing can switch workspaces in the gap.
       const id = PgExplorer.currentWorkspaceId;
-      if (!id) return "skipped";
-
-      const snapshot = await buildSnapshot();
       const name = PgExplorer.currentWorkspaceName;
+      if (!id || !name) return "skipped";
+
+      const snapshot = await snapshotOf(name);
 
       // An empty snapshot for a workspace that is open is not an edit -- it
-      // is the explorer mid-re-read. `_initCurrentWorkspace` clears the file
-      // map before repopulating it from the store, so a push that lands
-      // inside that window sees nothing and uploads nothing, over whatever
-      // the server holds.
+      // is `replaceWorkspaceFiles` mid-write: it clears the workspace
+      // directory before writing the taken snapshot back, so a push landing
+      // inside that window reads nothing off disk and uploads nothing, over
+      // whatever the server holds. The lock serializes that within this
+      // browser, which is what keeps the window this narrow.
       //
       // Taking another device's copy re-opens the workspace, which is
       // exactly when a push is most likely to be pending, so this window is

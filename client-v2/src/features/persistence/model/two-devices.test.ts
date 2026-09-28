@@ -151,9 +151,19 @@ const asDevice = (
     .mockImplementation(
       (id) => workspaces.find((w) => w.id === id)?.name as string
     );
-  jest
-    .spyOn(PgExplorer, "getAllFiles")
-    .mockReturnValue(current ? [[`/${current.name}/src/lib.rs`, content]] : []);
+  if (current) storedFiles().set(`/${current.name}/src/lib.rs`, content);
+  // `reconcile` reloads the open workspace from disk before anything else,
+  // to catch a neighbour tab's write this one never heard about. Read
+  // through to the store rather than snapshotted once, so a test that
+  // writes to it later (simulating this tab's own unsaved edit) is read as
+  // the same edit in memory -- matching what autosave really does, and
+  // keeping the reload a no-op rather than an unmocked `switchWorkspace`.
+  jest.spyOn(PgExplorer, "files", "get").mockImplementation(() => {
+    if (!current) return {};
+    const path = `/${current.name}/src/lib.rs`;
+    const stored = storedFiles().get(path);
+    return stored === undefined ? {} : { [path]: { content: stored } };
+  });
   return jest
     .spyOn(PgExplorer, "importWorkspace")
     .mockResolvedValue(undefined as never);
@@ -278,9 +288,7 @@ describe("work that never reached the server", () => {
     otherDeviceWrote(HELLO.id, "the other device");
 
     // ...and this device has local work it never managed to upload
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${HELLO.name}/src/lib.rs`, "an afternoon of work"]]);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "an afternoon of work");
   };
 
   it("is not overwritten by a reload", async () => {
@@ -373,9 +381,7 @@ describe("deleting on one device", () => {
 
     otherDeviceDeleted(HELLO.id);
     // ...and only then does this device get work that never uploaded
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${HELLO.name}/src/lib.rs`, "unsaved"]]);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
     const deleteWorkspace = jest
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);

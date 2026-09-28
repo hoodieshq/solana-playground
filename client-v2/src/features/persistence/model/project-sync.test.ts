@@ -360,9 +360,7 @@ describe("resolving a conflict", () => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "mine"]]);
+    storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
   beforeEach(reset);
@@ -581,9 +579,7 @@ describe("PgProjectSync.pushCurrent", () => {
   const asWorkspace = (id: string | undefined, name: string | undefined) => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "fn main() {}"]]);
+    if (name) storedFiles().set(`/${name}/src/lib.rs`, "fn main() {}");
   };
 
   beforeEach(() => {
@@ -618,13 +614,16 @@ describe("PgProjectSync.pushCurrent", () => {
   });
 
   it("refuses to upload an empty snapshot over a project that has one", async () => {
-    // The explorer clears its file map before re-reading a workspace from the
-    // store, so a push landing in that window builds nothing at all. Taking
-    // another device's copy re-opens the workspace, which is precisely when a
-    // push is most likely to be pending -- so the version the user asked to
-    // keep would be replaced by an empty project.
-    asWorkspace("p1", "mine");
-    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([]);
+    // `replaceWorkspaceFiles` clears the workspace directory before writing
+    // the taken snapshot back, so a push landing in that window reads
+    // nothing off disk. Taking another device's copy re-opens the
+    // workspace, which is precisely when a push is most likely to be
+    // pending -- so the version the user asked to keep would be replaced by
+    // an empty project.
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("mine");
     await signedIn();
 
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
@@ -648,11 +647,10 @@ describe("PgProjectSync.pushCurrent", () => {
     // project the user had switched to by the time execution resumed.
     const idSpy = jest.spyOn(PgExplorer, "currentWorkspaceId", "get");
     const nameSpy = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
-    const filesSpy = jest.spyOn(PgExplorer, "getAllFiles");
     const setWorkspace = (id: string, name: string) => {
       idSpy.mockReturnValue(id);
       nameSpy.mockReturnValue(name);
-      filesSpy.mockReturnValue([[`/${name}/src/lib.rs`, `// ${name}`]]);
+      storedFiles().set(`/${name}/src/lib.rs`, `// ${name}`);
     };
 
     setWorkspace("a", "A");
@@ -750,9 +748,7 @@ describe("a refusal the user has to clear", () => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "mine"]]);
+    storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
   /** A `fetch` that answers the sync probe and hands every PUT `refusal` */

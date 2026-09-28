@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   buildSnapshotOf,
   filterSnapshotPaths,
   hashSnapshot,
@@ -34,80 +33,12 @@ describe("filterSnapshotPaths", () => {
   });
 });
 
-describe("buildSnapshot", () => {
-  const store = (PgFs as unknown as { __files: Map<string, string> }).__files;
-
-  beforeEach(() => {
-    store.clear();
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("alpha");
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([["/alpha/src/lib.rs", "declare_id!();"]]);
-  });
-
-  afterEach(() => jest.restoreAllMocks());
-
-  it("stores paths relative to the project root", async () => {
-    expect((await buildSnapshot()).files).toEqual({
-      "src/lib.rs": "declare_id!();",
-    });
-  });
-
-  it("carries the program keypair, so the project keeps its address", async () => {
-    // The explorer's in-memory tree leaves dotfiles out entirely
-    // (`isItemNameValid`), which is why this has to come off the store
-    store.set("/alpha/.workspace/program-info.json", '{"kp":[1,2,3]}');
-
-    expect((await buildSnapshot()).files).toEqual({
-      "src/lib.rs": "declare_id!();",
-      ".workspace/program-info.json": '{"kp":[1,2,3]}',
-    });
-  });
-
-  it("carries tutorial progress, so a lesson resumes where it was left", async () => {
-    store.set("/alpha/.tutorial.json", '{"pageNumber":3,"completed":false}');
-    store.set("/alpha/.workspace/tutorial-storage.json", '{"answered":true}');
-
-    const { files } = await buildSnapshot();
-
-    expect(files[".tutorial.json"]).toBe('{"pageNumber":3,"completed":false}');
-    expect(files[".workspace/tutorial-storage.json"]).toBe('{"answered":true}');
-  });
-
-  it("leaves out a workspace file that is not there", async () => {
-    expect(Object.keys((await buildSnapshot()).files)).toEqual(["src/lib.rs"]);
-  });
-
-  it("does not carry the editor's tabs and cursors", async () => {
-    store.set(
-      "/alpha/.workspace/metadata.json",
-      '{"tabs":["/alpha/src/lib.rs"]}'
-    );
-
-    expect((await buildSnapshot()).files[".workspace/metadata.json"]).toBe(
-      undefined
-    );
-  });
-});
-
 describe("buildSnapshotOf", () => {
   const store = (PgFs as unknown as { __files: Map<string, string> }).__files;
 
-  beforeEach(() => {
-    store.clear();
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("alpha");
-  });
-
-  afterEach(() => jest.restoreAllMocks());
+  beforeEach(() => store.clear());
 
   it("reads a project the user is not looking at", async () => {
-    // `buildSnapshot` can only see the current workspace, so reconciling the
-    // others -- deciding whether each still matches the server -- has no way
-    // to ask without this
     store.set("/beta/src/lib.rs", "other project");
     store.set("/beta/client/client.ts", "console.log()");
 
@@ -131,6 +62,16 @@ describe("buildSnapshotOf", () => {
       "src/lib.rs",
     ]);
   });
+
+  it("carries tutorial progress, so a lesson resumes where it was left", async () => {
+    store.set("/beta/.tutorial.json", '{"pageNumber":3,"completed":false}');
+    store.set("/beta/.workspace/tutorial-storage.json", '{"answered":true}');
+
+    const { files } = await buildSnapshotOf("beta");
+
+    expect(files[".tutorial.json"]).toBe('{"pageNumber":3,"completed":false}');
+    expect(files[".workspace/tutorial-storage.json"]).toBe('{"answered":true}');
+  });
 });
 
 describe("snapshotOf", () => {
@@ -138,6 +79,11 @@ describe("snapshotOf", () => {
 
   beforeEach(() => {
     store.clear();
+    // The pre-fix implementation branched on this to decide whether to read
+    // memory or disk for the current workspace. Left in place, mocked to
+    // still say "alpha" and to still hold a different value than the store,
+    // so a regression back to reading memory for the current workspace fails
+    // this test rather than passing it by accident.
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("alpha");
@@ -148,11 +94,14 @@ describe("snapshotOf", () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it("reads the current workspace from memory, where the edit is", async () => {
+  it("reads the current workspace off the store too", async () => {
+    // Memory is per tab and disk is shared, so memory is the copy that can
+    // be stale. An edit reaches disk straight after state, so nothing the
+    // user typed is missing from here by the time a push runs.
     store.set("/alpha/src/lib.rs", "what is on disk");
 
     expect((await snapshotOf("alpha")).files["src/lib.rs"]).toBe(
-      "unsaved edit"
+      "what is on disk"
     );
   });
 
