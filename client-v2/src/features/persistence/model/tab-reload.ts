@@ -1,4 +1,6 @@
+import { report } from "./diagnostics";
 import { PgEditorModels } from "./editor-models";
+import { PgWorkspaceRegistry } from "./workspace-registry";
 // Deep imports, not the `utils` barrel, for the reason `snapshot.ts` gives
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -85,6 +87,16 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
         (path) => PgExplorer.files[path]?.content
       );
       if (edited) return "deferred";
+
+      // `switchWorkspace` saves this tab's list of workspaces over the
+      // store's, and that list is the one this tab loaded with. A neighbour
+      // that created, deleted or renamed a project since would have it
+      // undone by a re-open nobody asked for. The tree stays as it is until
+      // this tab is loaded again.
+      if (!(await PgWorkspaceRegistry.matchesMemory())) {
+        report(`reload ${name}: project list changed in another tab`, null);
+        return "deferred";
+      }
       if (PgExplorer.currentWorkspaceName !== name) return "skipped";
     }
 
@@ -93,8 +105,8 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
     // so the stale ones have to go -- and they have to go *after* it. Its
     // saves are real waits, `Monaco.tsx`'s autosave timer can fire during
     // any of them, and with the models already gone that timer saves the
-    // empty editor over the open file. Opening the current file straight after the drop, in
-    // the same task, is what leaves no such window at this end either.
+    // empty editor over the open file. Opening the current file straight
+    // after the drop, in the same task, leaves no such window at this end.
     await PgExplorer.switchWorkspace(name);
     await PgEditorModels.dropUnder(`/${name}/`, () =>
       PgCommon.createAndDispatchCustomEvent(

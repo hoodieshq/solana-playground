@@ -3,6 +3,7 @@ import { PgEditorModels } from "./editor-models";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgWorkspace } from "../../../utils/explorer/workspace";
 
 jest.mock("./editor-models", () => ({
   PgEditorModels: {
@@ -150,6 +151,48 @@ describe("reloadCurrentFromDisk", () => {
     );
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
     expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
+  });
+
+  it("leaves the tree alone when another tab changed the project list", async () => {
+    // A re-open saves this tab's list of workspaces over the store's, which
+    // would delete the project the other tab just created
+    store().set("/alpha/src/new.rs", "created elsewhere");
+    store().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({
+        workspaces: [
+          { id: "a1", name: "alpha" },
+          { id: "b1", name: "beta" },
+        ],
+        currentId: "b1",
+      })
+    );
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["alpha"]);
+    jest.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("a1");
+
+    expect(await reloadCurrentFromDisk()).toBe("deferred");
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+    expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
+  });
+
+  it("re-opens when the project list on disk is the one it holds", async () => {
+    // Which one is current is every tab's own, so it is not a difference
+    store().set("/alpha/src/new.rs", "created elsewhere");
+    store().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({
+        workspaces: [{ id: "a1", name: "alpha" }],
+        currentId: "someone-else",
+      })
+    );
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["alpha"]);
+    jest.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("a1");
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
   });
 
   it("re-opens on request over unsaved keystrokes", async () => {
