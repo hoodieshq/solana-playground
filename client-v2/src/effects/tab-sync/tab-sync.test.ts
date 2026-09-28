@@ -1,5 +1,6 @@
 import { tabSync } from "./tab-sync";
 import { reloadCurrentFromDisk } from "../../features/persistence/model/tab-reload";
+import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
 
@@ -64,6 +65,32 @@ describe("tabSync", () => {
     jest.advanceTimersByTime(300);
 
     expect(opened[0].posted).toEqual([]);
+    effect.dispose();
+  });
+
+  it("announces a delete or rename under the project it happened in", () => {
+    // Not the current one: by the time the event is heard, the user may be
+    // looking at another project
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["alpha", "beta"]);
+    jest
+      .spyOn(PgExplorer, "workspaceIdOf")
+      .mockImplementation((name: string) => (name === "beta" ? "p2" : "p1"));
+    const effect = tabSync();
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_DELETE_ITEM,
+      "/beta/src/old.rs"
+    );
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_RENAME_ITEM,
+      "/beta/src/other.rs"
+    );
+    jest.advanceTimersByTime(300);
+
+    expect(opened[0].posted).toEqual([
+      expect.objectContaining({ type: "files-written", projectId: "p2" }),
+    ]);
     effect.dispose();
   });
 

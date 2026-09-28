@@ -104,12 +104,16 @@ export const tabSync = (): Disposable => {
   };
 
   // Writes cover edits and the three dotfiles. Deletes and renames reach the
-  // store without a write, so the tree's own events cover those.
-  const current = () => announce(PgExplorer.currentWorkspaceId);
+  // store without a write, so the tree's own events cover those. Both carry
+  // a full path -- the deleted one, and the *old* one for a rename -- and an
+  // item is only ever renamed within its workspace, so either names the
+  // project that changed, which is not always the one open by the time the
+  // event is heard.
+  const onPath = (path: string) => announce(projectOfPath(path));
   const subscriptions = [
-    PgFs.onDidWriteFile((path) => announce(projectOfPath(path))),
-    PgExplorer.onDidDeleteItem(current),
-    PgExplorer.onDidRenameItem(current),
+    PgFs.onDidWriteFile(onPath),
+    PgExplorer.onDidDeleteItem(onPath),
+    PgExplorer.onDidRenameItem(onPath),
   ];
 
   return {
