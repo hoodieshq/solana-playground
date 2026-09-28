@@ -34,7 +34,7 @@ const pill = css`
 
   /* A fingertip's height on a phone */
   @media (max-width: 40rem) {
-    height: 2.75rem;
+    height: 3rem;
   }
 `;
 

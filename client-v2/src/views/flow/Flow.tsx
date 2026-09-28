@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
@@ -27,6 +33,8 @@ import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
+import StagePreview from "./stages/StagePreview";
+import type { PreviewStage } from "./stages/StagePreview";
 import { PHONE, usePhone } from "./phone";
 import { HEAD_HEIGHT, HEAD_INSET, SUBHEAD_HEIGHT } from "./tokens";
 import { PgDeployHistory } from "./state/deploy-history";
@@ -64,13 +72,18 @@ import {
  * hidden and resized; the code can do neither, and it is the one that keeps
  * its room when the window runs short.
  *
- * On a phone the same product is one column. A bar across the top holds the
- * menu, the name of where you are and, in a project, a switch between the
- * chat and the code; the sidebar becomes a drawer over the page, closed as
- * soon as it has taken you somewhere; the files open as a sheet over the code
- * and close once a file is open. Both panes stay mounted, so the editor and
- * the conversation keep their place while the other is showing.
+ * On a phone the same product is three pages side by side, swiped between
+ * as the phone's own apps are: the menu on the left, the work in the middle,
+ * and on the right the preview — what the code has become: Build, Deploy and
+ * Interact, with the terminal under them. Each page is the whole screen. The
+ * work page's bar holds the menu, the name of where you are, a switch between
+ * the chat and the code, and the way to the preview; every swipe has a button
+ * too. The files open as a sheet over the code. Both panes stay mounted, so
+ * the editor and the conversation keep their place while the other shows.
  */
+
+/* A phone's pages, left to right */
+type PhonePage = "menu" | "work" | "preview";
 
 /* Where the start screen is, for the phone's bar */
 const SECTION_TITLES = {
@@ -146,14 +159,29 @@ const Flow = () => {
     return n >= MIN_LEFT_WIDTH && n <= MAX_LEFT_WIDTH ? n : DEFAULT_LEFT_WIDTH;
   });
 
-  /* On a phone: the drawer, which pane shows, and the files' sheet */
+  /* On a phone: which page is in view, which pane the work page shows, the
+     files' sheet, and the preview stage last looked at */
   const phone = usePhone();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [page, setPage] = useState<PhonePage>("work");
   const [pane, setPane] = useState<"chat" | "code">("code");
   const [filesSheet, setFilesSheet] = useState(false);
-  const menuRef = useRef<HTMLButtonElement>(null);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const pagerRef = useRef<HTMLDivElement>(null);
+  const lastPreview = useRef<PreviewStage>("build");
+
+  /* To a page, as a swipe would take you: the buttons' way there */
+  const goTo = useCallback((next: PhonePage, smooth = true) => {
+    const pager = pagerRef.current;
+    if (!pager) return;
+    const pages = Array.from(pager.children) as HTMLElement[];
+    const index = pages.findIndex((el) => el.dataset.page === next);
+    if (index < 0) return;
+    pages[index].removeAttribute("inert");
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    pager.scrollTo({
+      left: index * pager.clientWidth,
+      behavior: smooth && !still ? "smooth" : "auto",
+    });
+  }, []);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
@@ -279,67 +307,110 @@ const Flow = () => {
     return () => subs.forEach((s) => s.dispose());
   }, [showAssistant]);
 
-  /* Everything the sidebar does also closes it, when it is a drawer */
+  /* Everything the menu does also takes you on to the work, on a phone */
+  const leaveMenu = () => {
+    if (phone) goTo("work");
+  };
   const openGallery = () => {
-    closeDrawer();
+    leaveMenu();
     PgView.setModal(NewWorkspaceModal);
   };
   const toggleSettings = (focus: SettingsFocus = "panel") => {
-    closeDrawer();
     setSettingsFocus(focus);
     setSettingsOpen((open) => !open);
   };
   const goHome = () => {
-    closeDrawer();
+    leaveMenu();
     setView("home");
     setSection("home");
   };
   const goSection = (next: ZeroSection) => {
-    closeDrawer();
+    leaveMenu();
     setView("home");
     setSection(next);
   };
   const openProject = (name: string) => {
-    closeDrawer();
+    leaveMenu();
     if (name === PgExplorer.currentWorkspaceName) setView("project");
     else PgExplorer.switchWorkspace(name);
   };
 
-  /* The drawer: out of reach while closed, focus taken in when it opens and
-     given back to the menu when it closes, and Escape closes it */
+  /* The pages: which one is in view once a swipe settles, the others out of
+     reach until they are, and the work page in view to begin with and after
+     the window changes size */
+  useLayoutEffect(() => {
+    const pager = pagerRef.current;
+    if (!phone || !pager) return;
+    const pages = () => Array.from(pager.children) as HTMLElement[];
+    const settle = () => {
+      const index = Math.round(
+        pager.scrollLeft / Math.max(1, pager.clientWidth)
+      );
+      const current = pages()[index];
+      pages().forEach((el) => el.toggleAttribute("inert", el !== current));
+      setPage((current?.dataset.page as PhonePage) || "work");
+    };
+    const work = pages().findIndex((el) => el.dataset.page === "work");
+    pager.scrollLeft = Math.max(0, work) * pager.clientWidth;
+    settle();
+    let timer = 0;
+    const onScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 90);
+    };
+    const onResize = () => {
+      const index = pages().findIndex((el) => !el.hasAttribute("inert"));
+      pager.scrollLeft = Math.max(0, index) * pager.clientWidth;
+    };
+    pager.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      pager.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(timer);
+    };
+  }, [phone, inProject]);
+
+  /* The stage and the pages keep step: Write is the work page's, the other
+     three the preview's. Going to the preview shows the stage last looked at
+     there; a stage started from anywhere else — a build asked for in the chat
+     — brings its page into view. */
+  const stageSeen = useRef(state.stage);
   useEffect(() => {
-    const drawer = drawerRef.current;
-    if (!drawer) return;
-    if (drawerOpen) {
-      drawer.removeAttribute("inert");
-      drawer.querySelector<HTMLElement>("button, a[href]")?.focus();
-      const onKey = (ev: KeyboardEvent) => {
-        if (ev.key === "Escape") setDrawerOpen(false);
-      };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
+    const was = stageSeen.current;
+    stageSeen.current = state.stage;
+    if (!phone || was === state.stage) return;
+    if (state.stage === "write") {
+      setPane("code");
+      goTo("work");
+    } else {
+      lastPreview.current = state.stage;
+      goTo("preview");
     }
-    drawer.setAttribute("inert", "");
-    if (drawer.contains(document.activeElement)) menuRef.current?.focus();
-  }, [drawerOpen, phone]);
+  }, [phone, state.stage, goTo]);
+  useEffect(() => {
+    if (phone && page === "preview" && state.stage === "write") {
+      PgFlow.setStage(lastPreview.current);
+    }
+  }, [phone, page, state.stage]);
+  const previewStage: PreviewStage =
+    state.stage === "write" ? lastPreview.current : state.stage;
 
   /* The files' sheet closes once a file is open: the code is what you asked
-     for. Off a phone, a phone's drawer and sheet are simply closed. */
+     for. A dialog opened from the menu — connecting the assistant, a wallet —
+     brings the work back behind it. Off a phone, the sheet is simply shut. */
   useEffect(() => {
     if (!phone) {
-      setDrawerOpen(false);
       setFilesSheet(false);
       return;
     }
     const sub = PgExplorer.onDidOpenFile(() => setFilesSheet(false));
-    /* A dialog opened from the drawer — connecting the assistant, signing in,
-       a wallet — belongs over the page, not under the drawer */
     const modalSet = PgCommon.getSendAndReceiveEventNames(
       PgView.events.MODAL_SET
     ).send;
     const onModal = (ev: Event) => {
       if ((ev as CustomEvent<{ elementable?: unknown }>).detail?.elementable) {
-        setDrawerOpen(false);
+        goTo("work", false);
       }
     };
     document.addEventListener(modalSet, onModal);
@@ -347,7 +418,7 @@ const Flow = () => {
       sub.dispose();
       document.removeEventListener(modalSet, onModal);
     };
-  }, [phone]);
+  }, [phone, goTo]);
 
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
@@ -403,7 +474,7 @@ const Flow = () => {
       onOpenGallery={openGallery}
       onOpenSettings={() => toggleSettings()}
       onOpenProject={openProject}
-      onToggleSidebar={phone ? closeDrawer : toggleSidebar}
+      onToggleSidebar={phone ? () => goTo("work") : toggleSidebar}
       status={status}
       section={inProject ? null : section}
       onSection={goSection}
@@ -438,6 +509,23 @@ const Flow = () => {
     </Code>
   );
 
+  /* The code on a phone: Write only — the other stages have their page */
+  const phoneCode = (
+    <Code>
+      <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+      <Stage>
+        <StageRouter stage="write" />
+        {reading && readingStep && (
+          <Reader
+            key={readingStep.id}
+            step={readingStep}
+            onClose={() => setReading(false)}
+          />
+        )}
+      </Stage>
+    </Code>
+  );
+
   return (
     <Wrapper>
       <PhoneTouch />
@@ -450,120 +538,156 @@ const Flow = () => {
       <Ground fade={1} rest={0.025} lit={0.07} />
       <Layout $phone={phone}>
         {phone ? (
-          <>
-            <PhoneBar>
-              <BarButton
-                ref={menuRef}
-                type="button"
-                aria-label="Menu"
-                aria-expanded={drawerOpen}
-                aria-controls="flow-drawer"
-                onClick={() => setDrawerOpen(true)}
-              >
-                {ICONS.menu}
-              </BarButton>
-              <BarTitle>
-                {inProject ? workTitle : SECTION_TITLES[section]}
-              </BarTitle>
-              {inProject && (
-                <PaneSwitch role="group" aria-label="Show">
-                  <PaneOption
-                    type="button"
-                    aria-pressed={pane === "chat"}
-                    onClick={() => setPane("chat")}
-                  >
-                    {ICONS.chat}
-                    Chat
-                  </PaneOption>
-                  <PaneOption
-                    type="button"
-                    aria-pressed={pane === "code"}
-                    onClick={() => setPane("code")}
-                  >
-                    {ICONS.code}
-                    Code
-                  </PaneOption>
-                </PaneSwitch>
-              )}
-            </PhoneBar>
-            <Scrim
-              $open={drawerOpen}
-              onClick={closeDrawer}
-              aria-hidden="true"
-            />
-            <Drawer
-              id="flow-drawer"
-              ref={drawerRef}
-              $open={drawerOpen}
-              aria-label="Navigation"
-              aria-hidden={!drawerOpen}
-            >
+          <Pager ref={pagerRef}>
+            <PagerPage data-page="menu" aria-label="Navigation">
               {nav(false)}
-            </Drawer>
-          </>
+            </PagerPage>
+
+            <PagerPage data-page="work">
+              <PhoneBar>
+                <BarButton
+                  type="button"
+                  aria-label="Menu"
+                  aria-expanded={page === "menu"}
+                  onClick={() => goTo("menu")}
+                >
+                  {ICONS.menu}
+                </BarButton>
+                <BarTitle>
+                  {inProject ? workTitle : SECTION_TITLES[section]}
+                </BarTitle>
+                {inProject && (
+                  <>
+                    <PaneSwitch role="group" aria-label="Show">
+                      <PaneOption
+                        type="button"
+                        aria-pressed={pane === "chat"}
+                        onClick={() => setPane("chat")}
+                      >
+                        Chat
+                      </PaneOption>
+                      <PaneOption
+                        type="button"
+                        aria-pressed={pane === "code"}
+                        onClick={() => setPane("code")}
+                      >
+                        Code
+                      </PaneOption>
+                    </PaneSwitch>
+                    <BarButton
+                      type="button"
+                      aria-label="Preview the build"
+                      onClick={() => goTo("preview")}
+                    >
+                      {ICONS.preview}
+                    </BarButton>
+                  </>
+                )}
+              </PhoneBar>
+
+              {inProject ? (
+                <PhonePanes>
+                  <PhonePane $shown={pane === "chat"}>
+                    <Conversation $phone>
+                      <Assistant title={workTitle} />
+                    </Conversation>
+                  </PhonePane>
+                  <PhonePane $shown={pane === "code"}>
+                    <Work>
+                      <WorkHead>
+                        <HeadButton
+                          type="button"
+                          onClick={() => setFilesSheet(true)}
+                          aria-expanded={filesSheet}
+                          aria-controls="flow-files"
+                          $label
+                        >
+                          {ICONS.files}
+                          Files
+                        </HeadButton>
+                        <WorkTitle />
+                        <HeadButton
+                          as="a"
+                          href="https://solana.com/docs"
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="Documentation"
+                        >
+                          {ICONS.help}
+                        </HeadButton>
+                      </WorkHead>
+                      <WorkBody>
+                        {phoneCode}
+                        <SheetScrim
+                          $open={filesSheet}
+                          onClick={() => setFilesSheet(false)}
+                          aria-hidden="true"
+                        />
+                        <FilesSheet
+                          id="flow-files"
+                          $open={filesSheet}
+                          onClickCapture={(ev) => {
+                            /* A file tapped is a file opened, even the one
+                               that already was: the sheet has done its job */
+                            const row = (ev.target as Element).closest(
+                              `.${PgView.classNames.FILE}`
+                            );
+                            if (row) {
+                              window.setTimeout(
+                                () => setFilesSheet(false),
+                                120
+                              );
+                            }
+                          }}
+                        >
+                          <LeftPanel onClose={() => setFilesSheet(false)} />
+                        </FilesSheet>
+                      </WorkBody>
+                    </Work>
+                  </PhonePane>
+                </PhonePanes>
+              ) : (
+                <PageBody>
+                  <ZeroState
+                    onAskAssistant={showAssistant}
+                    section={section}
+                    onSection={setSection}
+                  />
+                </PageBody>
+              )}
+            </PagerPage>
+
+            {inProject && (
+              <PagerPage data-page="preview" aria-label="Preview">
+                <PhoneBar>
+                  <BarButton
+                    type="button"
+                    aria-label="Back to the code"
+                    onClick={() => goTo("work")}
+                  >
+                    {ICONS.back}
+                  </BarButton>
+                  <PreviewRail>
+                    <Stepper
+                      state={state}
+                      onSelect={PgFlow.setStage}
+                      target={target}
+                      compact={false}
+                    />
+                  </PreviewRail>
+                </PhoneBar>
+                <PreviewBody>
+                  <StagePreview stage={previewStage} />
+                </PreviewBody>
+                <ConsoleDrawer />
+              </PagerPage>
+            )}
+          </Pager>
         ) : (
           <NavSlot>{nav(!sidebarOpen)}</NavSlot>
         )}
 
-        {inProject && phone ? (
-          <PhonePanes>
-            <PhonePane $shown={pane === "chat"}>
-              <Conversation $phone>
-                <Assistant title={workTitle} />
-              </Conversation>
-            </PhonePane>
-            <PhonePane $shown={pane === "code"}>
-              <Work>
-                <WorkHead>
-                  <HeadButton
-                    type="button"
-                    onClick={() => setFilesSheet(true)}
-                    aria-expanded={filesSheet}
-                    aria-controls="flow-files"
-                    $label
-                  >
-                    {ICONS.files}
-                    Files
-                  </HeadButton>
-                  <WorkTitle />
-                  <HeadButton
-                    as="a"
-                    href="https://solana.com/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Documentation"
-                  >
-                    {ICONS.help}
-                  </HeadButton>
-                </WorkHead>
-                {stageRail}
-                <WorkBody>
-                  {code}
-                  <SheetScrim
-                    $open={filesSheet}
-                    onClick={() => setFilesSheet(false)}
-                    aria-hidden="true"
-                  />
-                  <FilesSheet
-                    id="flow-files"
-                    $open={filesSheet}
-                    onClickCapture={(ev) => {
-                      /* A file tapped is a file opened, even the one that
-                         already was: the sheet has done its job */
-                      const row = (ev.target as Element).closest(
-                        `.${PgView.classNames.FILE}`
-                      );
-                      if (row)
-                        window.setTimeout(() => setFilesSheet(false), 120);
-                    }}
-                  >
-                    <LeftPanel onClose={() => setFilesSheet(false)} />
-                  </FilesSheet>
-                </WorkBody>
-              </Work>
-            </PhonePane>
-          </PhonePanes>
-        ) : inProject ? (
+        {phone ? null : inProject ? (
           <Panes ref={panesRef}>
             {assistantOpen && (
               <AssistantPane
@@ -728,12 +852,13 @@ const ICONS = {
       <path d="M4 17h16" />
     </>
   ),
-  code: svg(
-    <>
-      <path d="m9 8-4 4 4 4" />
-      <path d="m15 8 4 4-4 4" />
-    </>
+  preview: svg(
+    <path
+      data-fill
+      d="M8 5.5v13a.5.5 0 0 0 .76.43l10.4-6.5a.5.5 0 0 0 0-.86L8.76 5.07A.5.5 0 0 0 8 5.5z"
+    />
   ),
+  back: svg(<path d="m15 5-7 7 7 7" />),
   files: svg(
     <path
       data-fill
@@ -808,12 +933,12 @@ const Layout = styled.div<{ $phone?: boolean }>`
     min-height: 0;
   }
 
-  /* A phone: the bar, then the view, one column */
+  /* A phone: the pages, filling it */
   ${({ $phone }) =>
     $phone &&
     css`
-      grid-template-areas: "bar" "body";
-      grid-template-rows: auto 1fr;
+      grid-template-areas: "body";
+      grid-template-rows: minmax(0, 1fr);
       grid-template-columns: minmax(0, 1fr);
     `}
 `;
@@ -826,6 +951,12 @@ const Layout = styled.div<{ $phone?: boolean }>`
    desktop. The editor and the terminal keep their own. */
 const PhoneTouch = createGlobalStyle`
   ${PHONE} {
+    /* The product's type, and every length set in it, a step up: a phone is
+       read at arm's length, not at a desk */
+    html {
+      font-size: 112.5%;
+    }
+
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
     textarea,
     select {
@@ -833,15 +964,15 @@ const PhoneTouch = createGlobalStyle`
     }
 
     :is(button, [role="button"], [role="tab"], [role="menuitem"], select, a[href]):not(.monaco-editor *):not(.xterm *) {
-      min-height: 44px;
+      min-height: 48px;
     }
 
     :is(button, [role="button"], [role="menuitem"]):not(.monaco-editor *):not(.xterm *) {
-      min-width: 44px;
+      min-width: 48px;
     }
 
     input:is([type="text"], [type="search"], [type="password"], [type="url"], [type="number"], :not([type])):not(.monaco-editor *):not(.xterm *) {
-      min-height: 44px;
+      min-height: 48px;
     }
   }
 `;
@@ -850,14 +981,14 @@ const PhoneTouch = createGlobalStyle`
    project the switch between the chat and the code */
 const PhoneBar = styled.header`
   ${({ theme }) => css`
-    grid-area: bar;
     position: relative;
     z-index: 2;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    min-height: 3.5rem;
-    padding: env(safe-area-inset-top, 0px) 0.375rem 0 0.25rem;
+    min-height: 64px;
+    padding: env(safe-area-inset-top, 0px) 0.5rem 0 0.375rem;
     border-bottom: 1px solid ${theme.colors.default.border};
     ${frosted}
   `}
@@ -870,10 +1001,10 @@ const touch = css`
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    min-width: 2.75rem;
-    height: 2.75rem;
+    min-width: 48px;
+    height: 48px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     font-family: inherit;
@@ -882,8 +1013,8 @@ const touch = css`
 
     & > svg {
       flex-shrink: 0;
-      width: 1.25rem;
-      height: 1.25rem;
+      width: 24px;
+      height: 24px;
     }
 
     &:active {
@@ -932,15 +1063,15 @@ const PaneOption = styled.button`
   ${touch}
   ${({ theme }) => css`
     gap: 0.375rem;
-    height: 2.75rem;
+    height: 48px;
     min-width: 0;
     padding: 0 0.75rem;
     font-size: 0.9375rem;
     font-weight: 500;
 
     & > svg {
-      width: 1.0625rem;
-      height: 1.0625rem;
+      width: 20px;
+      height: 20px;
     }
 
     &[aria-pressed="true"] {
@@ -957,59 +1088,99 @@ const PaneOption = styled.button`
 
 const EASE = "cubic-bezier(0.2, 0, 0, 1)";
 
-/* The sidebar, over the page from the left, with the page dimmed behind it */
-const Drawer = styled.div<{ $open: boolean }>`
-  ${({ theme, $open }) => css`
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 40;
+/* The pages, side by side: swiped with the phone's own scrolling, each one
+   snapping to the whole screen */
+const Pager = styled.div`
+  grid-area: body;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const PagerPage = styled.section`
+  ${({ theme }) => css`
+    position: relative;
+    flex: 0 0 100%;
+    width: 100%;
+    min-height: 0;
     display: flex;
-    width: min(86vw, 21rem);
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    flex-direction: column;
+    overflow: hidden;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
     background: ${theme.colors.default.bgPrimary};
-    box-shadow: ${$open ? "0 0 3rem rgba(0, 0, 0, 0.5)" : "none"};
-    transform: translate3d(${$open ? "0" : "-102%"}, 0, 0);
-    transition: transform 0.28s ${EASE}, box-shadow 0.28s ${EASE};
 
-    & > * {
+    /* The menu is the sidebar, as wide as the screen */
+    & > aside {
       flex: 1;
-      min-width: 0;
       width: 100%;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
     }
   `}
 `;
 
-const Scrim = styled.div<{ $open: boolean }>`
-  ${({ $open }) => css`
-    position: fixed;
-    inset: 0;
-    z-index: 39;
-    background: rgba(0, 0, 0, 0.55);
-    opacity: ${$open ? 1 : 0};
-    pointer-events: ${$open ? "auto" : "none"};
-    transition: opacity 0.28s ${EASE};
+/* The preview's stages, the three of them: Write is the code's page */
+const PreviewRail = styled.div`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
 
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  `}
+  & > div {
+    flex: 1;
+    gap: 0.25rem;
+  }
+
+  & > div > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  & > div > div:has(> #flow-stage-tab-write),
+  & > div > span {
+    display: none;
+  }
+
+  & [role="tab"] {
+    width: 100%;
+    height: 48px;
+    justify-content: center;
+    font-size: 0.9375rem;
+  }
+`;
+
+const PreviewBody = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
 /* The chat and the code in the same place, one showing */
 const PhonePanes = styled.div`
-  grid-area: body;
   position: relative;
+  flex: 1;
   display: flex;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+`;
+
+/* The start screen, under the bar, taking the rest of the page */
+const PageBody = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 const PhonePane = styled.div<{ $shown: boolean }>`

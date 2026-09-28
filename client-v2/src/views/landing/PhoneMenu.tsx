@@ -136,14 +136,14 @@ const EASE = "cubic-bezier(0.2, 0, 0, 1)";
 const Opener = styled.button`
   display: none;
   align-items: center;
-  height: 2.75rem;
-  padding: 0 1.125rem;
+  height: 3rem;
+  padding: 0 1.25rem;
   border: none;
   border-radius: max(${u(20)}, 0.875rem);
   background: #ffffff;
   color: ${INK};
   font-family: ${HEADLINE};
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -207,8 +207,8 @@ const Close = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3rem;
+  height: 3rem;
   border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -216,8 +216,8 @@ const Close = styled.button`
   cursor: pointer;
 
   & > svg {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -239,7 +239,7 @@ const Links = styled.nav`
 const Row = styled.a`
   display: flex;
   align-items: center;
-  min-height: 3.5rem;
+  min-height: 3.75rem;
   padding: 0 0.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   color: #ffffff;
@@ -270,14 +270,14 @@ const Versions = styled.div`
 
 const Version = styled.button`
   flex: 1;
-  height: 2.75rem;
+  height: 3rem;
   border: none;
   border-radius: 999px;
   background: transparent;
   color: rgba(237, 241, 255, 0.62);
   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
 

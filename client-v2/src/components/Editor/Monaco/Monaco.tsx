@@ -208,13 +208,22 @@ const Monaco = () => {
     if (editor) return () => editor.dispose();
   }, [editor]);
 
-  // Set font
+  // Set font: a step up on a phone, where the code is read at arm's length.
+  // The query is the flow's phone breakpoint (`views/flow/phone.ts`); 0 hands
+  // the size back to Monaco's own default off a phone.
   useEffect(() => {
     if (!editor) return;
 
-    editor.updateOptions({
-      fontFamily: theme.components.editor.default.fontFamily,
-    });
+    const phone = window.matchMedia("(max-width: 720px)");
+    const apply = () =>
+      editor.updateOptions({
+        fontFamily: theme.components.editor.default.fontFamily,
+        fontSize: phone.matches ? 15 : 0,
+        lineHeight: phone.matches ? 23 : 0,
+      });
+    apply();
+    phone.addEventListener("change", apply);
+    return () => phone.removeEventListener("change", apply);
   }, [editor, theme]);
 
   // Set tab size
