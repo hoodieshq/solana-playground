@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import styled, { css, keyframes } from "styled-components";
+import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import { frosted } from "./components/frosted";
@@ -27,6 +27,7 @@ import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
 import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
+import { PHONE, usePhone } from "./phone";
 import { HEAD_HEIGHT, HEAD_INSET, SUBHEAD_HEIGHT } from "./tokens";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
@@ -39,7 +40,13 @@ import Resizable from "../../components/Resizable";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { useKeybind } from "../../hooks";
-import { PgExplorer, PgRouter, PgTutorial, PgView } from "../../utils";
+import {
+  PgCommon,
+  PgExplorer,
+  PgRouter,
+  PgTutorial,
+  PgView,
+} from "../../utils";
 
 /**
  * The Flow layout.
@@ -56,7 +63,21 @@ import { PgExplorer, PgRouter, PgTutorial, PgView } from "../../utils";
  * instead of a bar across the window. The assistant and the files can each be
  * hidden and resized; the code can do neither, and it is the one that keeps
  * its room when the window runs short.
+ *
+ * On a phone the same product is one column. A bar across the top holds the
+ * menu, the name of where you are and, in a project, a switch between the
+ * chat and the code; the sidebar becomes a drawer over the page, closed as
+ * soon as it has taken you somewhere; the files open as a sheet over the code
+ * and close once a file is open. Both panes stay mounted, so the editor and
+ * the conversation keep their place while the other is showing.
  */
+
+/* Where the start screen is, for the phone's bar */
+const SECTION_TITLES = {
+  home: "Home",
+  tutorials: "Tutorials",
+  programs: "Programs",
+} as const;
 
 type View = "home" | "project";
 
@@ -125,6 +146,15 @@ const Flow = () => {
     return n >= MIN_LEFT_WIDTH && n <= MAX_LEFT_WIDTH ? n : DEFAULT_LEFT_WIDTH;
   });
 
+  /* On a phone: the drawer, which pane shows, and the files' sheet */
+  const phone = usePhone();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pane, setPane] = useState<"chat" | "code">("code");
+  const [filesSheet, setFilesSheet] = useState(false);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
   /* Which list the start screen is showing. It lives here because the sidebar
@@ -152,17 +182,19 @@ const Flow = () => {
   /* The stage rail abbreviates its labels when it is genuinely short of room.
      Measured, because styled-components 5 cannot compile a container query. */
   const railRef = useRef<HTMLDivElement>(null);
-  const [railTight, setRailTight] = useState(false);
+  const [railWidth, setRailWidth] = useState(Infinity);
   useEffect(() => {
     const rail = railRef.current;
     if (!rail || typeof ResizeObserver === "undefined") return;
-    // Four stages, and "Interact" with its dot wants about 85px
     const observer = new ResizeObserver(([entry]) =>
-      setRailTight(entry.contentRect.width < 380)
+      setRailWidth(Math.round(entry.contentRect.width))
     );
     observer.observe(rail);
     return () => observer.disconnect();
-  }, [inProject]);
+  }, [inProject, phone]);
+  // Four stages, and "Interact" with its dot wants about 85px; a phone's
+  // bigger type still fits whole words down to a narrow one
+  const railTight = railWidth < (phone ? 300 : 380);
   /* The row the project's panes share, measured for the same reason: which of
      them gives way depends on how much room there is. */
   const panesRef = useRef<HTMLDivElement>(null);
@@ -193,6 +225,8 @@ const Flow = () => {
   const showAssistant = useCallback(() => {
     write(KEYS.assistant, "1");
     setAssistantOpen(true);
+    /* On a phone, the chat is the pane that shows */
+    setPane("chat");
   }, []);
   const toggleAssistantWide = useCallback(
     () => setAssistantWide((wide) => !wide),
@@ -245,23 +279,75 @@ const Flow = () => {
     return () => subs.forEach((s) => s.dispose());
   }, [showAssistant]);
 
-  const openGallery = () => PgView.setModal(NewWorkspaceModal);
+  /* Everything the sidebar does also closes it, when it is a drawer */
+  const openGallery = () => {
+    closeDrawer();
+    PgView.setModal(NewWorkspaceModal);
+  };
   const toggleSettings = (focus: SettingsFocus = "panel") => {
+    closeDrawer();
     setSettingsFocus(focus);
     setSettingsOpen((open) => !open);
   };
   const goHome = () => {
+    closeDrawer();
     setView("home");
     setSection("home");
   };
   const goSection = (next: ZeroSection) => {
+    closeDrawer();
     setView("home");
     setSection(next);
   };
   const openProject = (name: string) => {
+    closeDrawer();
     if (name === PgExplorer.currentWorkspaceName) setView("project");
     else PgExplorer.switchWorkspace(name);
   };
+
+  /* The drawer: out of reach while closed, focus taken in when it opens and
+     given back to the menu when it closes, and Escape closes it */
+  useEffect(() => {
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+    if (drawerOpen) {
+      drawer.removeAttribute("inert");
+      drawer.querySelector<HTMLElement>("button, a[href]")?.focus();
+      const onKey = (ev: KeyboardEvent) => {
+        if (ev.key === "Escape") setDrawerOpen(false);
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }
+    drawer.setAttribute("inert", "");
+    if (drawer.contains(document.activeElement)) menuRef.current?.focus();
+  }, [drawerOpen, phone]);
+
+  /* The files' sheet closes once a file is open: the code is what you asked
+     for. Off a phone, a phone's drawer and sheet are simply closed. */
+  useEffect(() => {
+    if (!phone) {
+      setDrawerOpen(false);
+      setFilesSheet(false);
+      return;
+    }
+    const sub = PgExplorer.onDidOpenFile(() => setFilesSheet(false));
+    /* A dialog opened from the drawer — connecting the assistant, signing in,
+       a wallet — belongs over the page, not under the drawer */
+    const modalSet = PgCommon.getSendAndReceiveEventNames(
+      PgView.events.MODAL_SET
+    ).send;
+    const onModal = (ev: Event) => {
+      if ((ev as CustomEvent<{ elementable?: unknown }>).detail?.elementable) {
+        setDrawerOpen(false);
+      }
+    };
+    document.addEventListener(modalSet, onModal);
+    return () => {
+      sub.dispose();
+      document.removeEventListener(modalSet, onModal);
+    };
+  }, [phone]);
 
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
@@ -309,8 +395,52 @@ const Flow = () => {
     />
   );
 
+  const nav = (collapsed: boolean) => (
+    <NavSidebar
+      collapsed={collapsed}
+      onHome={goHome}
+      homeActive={!inProject}
+      onOpenGallery={openGallery}
+      onOpenSettings={() => toggleSettings()}
+      onOpenProject={openProject}
+      onToggleSidebar={phone ? closeDrawer : toggleSidebar}
+      status={status}
+      section={inProject ? null : section}
+      onSection={goSection}
+    />
+  );
+
+  const stageRail = (
+    <StageRail ref={railRef}>
+      <Stepper
+        state={state}
+        onSelect={PgFlow.setStage}
+        target={target}
+        compact={railTight}
+      />
+    </StageRail>
+  );
+
+  const code = (
+    <Code>
+      <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
+      <Stage>
+        <StageRouter stage={state.stage} />
+        {reading && readingStep && (
+          <Reader
+            key={readingStep.id}
+            step={readingStep}
+            onClose={() => setReading(false)}
+          />
+        )}
+      </Stage>
+      <ConsoleDrawer />
+    </Code>
+  );
+
   return (
     <Wrapper>
+      <PhoneTouch />
       {/* One ground for the whole window, so the grid is continuous wherever
           a pane lets it through, instead of each pane drawing its own and two
           grids meeting out of step at a border. It rises from the bottom edge
@@ -318,23 +448,122 @@ const Flow = () => {
           faint, a quarter of the landing's strength, because here it sits
           under text people read all day. */}
       <Ground fade={1} rest={0.025} lit={0.07} />
-      <Layout>
-        <NavSlot>
-          <NavSidebar
-            collapsed={!sidebarOpen}
-            onHome={goHome}
-            homeActive={!inProject}
-            onOpenGallery={openGallery}
-            onOpenSettings={() => toggleSettings()}
-            onOpenProject={openProject}
-            onToggleSidebar={toggleSidebar}
-            status={status}
-            section={inProject ? null : section}
-            onSection={goSection}
-          />
-        </NavSlot>
+      <Layout $phone={phone}>
+        {phone ? (
+          <>
+            <PhoneBar>
+              <BarButton
+                ref={menuRef}
+                type="button"
+                aria-label="Menu"
+                aria-expanded={drawerOpen}
+                aria-controls="flow-drawer"
+                onClick={() => setDrawerOpen(true)}
+              >
+                {ICONS.menu}
+              </BarButton>
+              <BarTitle>
+                {inProject ? workTitle : SECTION_TITLES[section]}
+              </BarTitle>
+              {inProject && (
+                <PaneSwitch role="group" aria-label="Show">
+                  <PaneOption
+                    type="button"
+                    aria-pressed={pane === "chat"}
+                    onClick={() => setPane("chat")}
+                  >
+                    {ICONS.chat}
+                    Chat
+                  </PaneOption>
+                  <PaneOption
+                    type="button"
+                    aria-pressed={pane === "code"}
+                    onClick={() => setPane("code")}
+                  >
+                    {ICONS.code}
+                    Code
+                  </PaneOption>
+                </PaneSwitch>
+              )}
+            </PhoneBar>
+            <Scrim
+              $open={drawerOpen}
+              onClick={closeDrawer}
+              aria-hidden="true"
+            />
+            <Drawer
+              id="flow-drawer"
+              ref={drawerRef}
+              $open={drawerOpen}
+              aria-label="Navigation"
+              aria-hidden={!drawerOpen}
+            >
+              {nav(false)}
+            </Drawer>
+          </>
+        ) : (
+          <NavSlot>{nav(!sidebarOpen)}</NavSlot>
+        )}
 
-        {inProject ? (
+        {inProject && phone ? (
+          <PhonePanes>
+            <PhonePane $shown={pane === "chat"}>
+              <Conversation $phone>
+                <Assistant title={workTitle} />
+              </Conversation>
+            </PhonePane>
+            <PhonePane $shown={pane === "code"}>
+              <Work>
+                <WorkHead>
+                  <HeadButton
+                    type="button"
+                    onClick={() => setFilesSheet(true)}
+                    aria-expanded={filesSheet}
+                    aria-controls="flow-files"
+                    $label
+                  >
+                    {ICONS.files}
+                    Files
+                  </HeadButton>
+                  <WorkTitle />
+                  <HeadButton
+                    as="a"
+                    href="https://solana.com/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Documentation"
+                  >
+                    {ICONS.help}
+                  </HeadButton>
+                </WorkHead>
+                {stageRail}
+                <WorkBody>
+                  {code}
+                  <SheetScrim
+                    $open={filesSheet}
+                    onClick={() => setFilesSheet(false)}
+                    aria-hidden="true"
+                  />
+                  <FilesSheet
+                    id="flow-files"
+                    $open={filesSheet}
+                    onClickCapture={(ev) => {
+                      /* A file tapped is a file opened, even the one that
+                         already was: the sheet has done its job */
+                      const row = (ev.target as Element).closest(
+                        `.${PgView.classNames.FILE}`
+                      );
+                      if (row)
+                        window.setTimeout(() => setFilesSheet(false), 120);
+                    }}
+                  >
+                    <LeftPanel onClose={() => setFilesSheet(false)} />
+                  </FilesSheet>
+                </WorkBody>
+              </Work>
+            </PhonePane>
+          </PhonePanes>
+        ) : inProject ? (
           <Panes ref={panesRef}>
             {assistantOpen && (
               <AssistantPane
@@ -420,14 +649,7 @@ const Flow = () => {
                   head rather than above it so that the first row of every
                   column is the same row: name on top, the panel's own switch
                   beneath, the same two rules straight across. */}
-              <StageRail ref={railRef}>
-                <Stepper
-                  state={state}
-                  onSelect={PgFlow.setStage}
-                  target={target}
-                  compact={railTight}
-                />
-              </StageRail>
+              {stageRail}
 
               {/* Files and code side by side, and both always mounted: the
                   editor holds Monaco and the tree holds scroll and selection.
@@ -450,23 +672,7 @@ const Flow = () => {
                 >
                   <LeftPanel onClose={hideFiles} />
                 </FilesPane>
-                <Code>
-                  <ObjectiveBand
-                    state={lesson}
-                    onRead={() => setReading(true)}
-                  />
-                  <Stage>
-                    <StageRouter stage={state.stage} />
-                    {reading && readingStep && (
-                      <Reader
-                        key={readingStep.id}
-                        step={readingStep}
-                        onClose={() => setReading(false)}
-                      />
-                    )}
-                  </Stage>
-                  <ConsoleDrawer />
-                </Code>
+                {code}
               </WorkBody>
             </Work>
           </Panes>
@@ -515,6 +721,19 @@ const svg = (d: JSX.Element) => (
 
 /* `data-fill` marks the shape a toggle fills in while it is pressed */
 const ICONS = {
+  menu: svg(
+    <>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </>
+  ),
+  code: svg(
+    <>
+      <path d="m9 8-4 4 4 4" />
+      <path d="m15 8 4 4-4 4" />
+    </>
+  ),
   files: svg(
     <path
       data-fill
@@ -544,6 +763,8 @@ const Wrapper = styled.div`
   ${({ theme }) => css`
     width: 100vw;
     height: 100vh;
+    /* On a phone, the height the browser's own bars leave */
+    height: 100dvh;
     position: relative;
     overflow: hidden;
     /* The ground. Everything raised — cards, the composer, a menu — sits one
@@ -573,7 +794,7 @@ const Ground = styled(Pattern)`
    z-index of its own: one would make it a stacking context, and every menu,
    tooltip and sheet inside it would be capped at the layout's level, under
    the wallet and anything else that follows it with a z-index. */
-const Layout = styled.div`
+const Layout = styled.div<{ $phone?: boolean }>`
   position: relative;
   height: 100%;
   display: grid;
@@ -586,6 +807,265 @@ const Layout = styled.div`
   & > * {
     min-height: 0;
   }
+
+  /* A phone: the bar, then the view, one column */
+  ${({ $phone }) =>
+    $phone &&
+    css`
+      grid-template-areas: "bar" "body";
+      grid-template-rows: auto 1fr;
+      grid-template-columns: minmax(0, 1fr);
+    `}
+`;
+
+/* ── the phone's chrome ────────────────────────────────────────────────── */
+
+/* On a phone, for the whole product: fields at 16px, under which the page
+   zooms in to type and stays zoomed; and everything you can press at a
+   fingertip's reach, 44px at the least, whatever size it is drawn at on a
+   desktop. The editor and the terminal keep their own. */
+const PhoneTouch = createGlobalStyle`
+  ${PHONE} {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: max(1rem, 16px) !important;
+    }
+
+    :is(button, [role="button"], [role="tab"], [role="menuitem"], select, a[href]):not(.monaco-editor *):not(.xterm *) {
+      min-height: 44px;
+    }
+
+    :is(button, [role="button"], [role="menuitem"]):not(.monaco-editor *):not(.xterm *) {
+      min-width: 44px;
+    }
+
+    input:is([type="text"], [type="search"], [type="password"], [type="url"], [type="number"], :not([type])):not(.monaco-editor *):not(.xterm *) {
+      min-height: 44px;
+    }
+  }
+`;
+
+/* The bar across the top of a phone: the menu, where you are, and in a
+   project the switch between the chat and the code */
+const PhoneBar = styled.header`
+  ${({ theme }) => css`
+    grid-area: bar;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 3.5rem;
+    padding: env(safe-area-inset-top, 0px) 0.375rem 0 0.25rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+    ${frosted}
+  `}
+`;
+
+/* A square the size of a fingertip */
+const touch = css`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    & > svg {
+      flex-shrink: 0;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    &:active {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+  `}
+`;
+
+const BarButton = styled.button`
+  ${touch}
+`;
+
+const BarTitle = styled.div`
+  ${({ theme }) => css`
+    flex: 1;
+    min-width: 0;
+    padding-left: 0.125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+    font-weight: 500;
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+/* Chat or code: two options, one filled — a switch between two views of
+   the same session, not two tabs of different things */
+const PaneSwitch = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 12px;
+    background: ${theme.colors.default.bgSecondary};
+  `}
+`;
+
+const PaneOption = styled.button`
+  ${touch}
+  ${({ theme }) => css`
+    gap: 0.375rem;
+    height: 2.75rem;
+    min-width: 0;
+    padding: 0 0.75rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+
+    & > svg {
+      width: 1.0625rem;
+      height: 1.0625rem;
+    }
+
+    &[aria-pressed="true"] {
+      background: ${theme.colors.state.hover.bg};
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &[aria-pressed="true"] [data-fill] {
+      fill: currentColor;
+      fill-opacity: 0.22;
+    }
+  `}
+`;
+
+const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+
+/* The sidebar, over the page from the left, with the page dimmed behind it */
+const Drawer = styled.div<{ $open: boolean }>`
+  ${({ theme, $open }) => css`
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: flex;
+    width: min(86vw, 21rem);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: ${theme.colors.default.bgPrimary};
+    box-shadow: ${$open ? "0 0 3rem rgba(0, 0, 0, 0.5)" : "none"};
+    transform: translate3d(${$open ? "0" : "-102%"}, 0, 0);
+    transition: transform 0.28s ${EASE}, box-shadow 0.28s ${EASE};
+
+    & > * {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const Scrim = styled.div<{ $open: boolean }>`
+  ${({ $open }) => css`
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: ${$open ? 1 : 0};
+    pointer-events: ${$open ? "auto" : "none"};
+    transition: opacity 0.28s ${EASE};
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+/* The chat and the code in the same place, one showing */
+const PhonePanes = styled.div`
+  grid-area: body;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+`;
+
+const PhonePane = styled.div<{ $shown: boolean }>`
+  ${({ $shown }) => css`
+    flex: 1;
+    display: ${$shown ? "flex" : "none"};
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  `}
+`;
+
+/* The files, as a sheet over the code from the left */
+const FilesSheet = styled.div<{ $open: boolean }>`
+  ${({ theme, $open }) => css`
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    width: min(88%, 22rem);
+    border-right: 1px solid ${theme.colors.default.border};
+    background: ${theme.colors.default.bgPrimary};
+    box-shadow: ${$open ? "0 0 2.5rem rgba(0, 0, 0, 0.45)" : "none"};
+    transform: translate3d(${$open ? "0" : "-104%"}, 0, 0);
+    visibility: ${$open ? "visible" : "hidden"};
+    transition: transform 0.26s ${EASE},
+      visibility 0s linear ${$open ? "0s" : "0.26s"};
+
+    & > * {
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const SheetScrim = styled.div<{ $open: boolean }>`
+  ${({ $open }) => css`
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: ${$open ? 1 : 0};
+    pointer-events: ${$open ? "auto" : "none"};
+    transition: opacity 0.26s ${EASE};
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
 `;
 
 const NavSlot = styled.div`
@@ -681,13 +1161,16 @@ const Sash = styled.div`
   `}
 `;
 
-const Conversation = styled.aside`
-  ${({ theme }) => css`
+const Conversation = styled.aside<{ $phone?: boolean }>`
+  ${({ theme, $phone }) => css`
     height: 100%;
     display: flex;
     flex-direction: column;
+    flex: ${$phone ? 1 : "initial"};
     min-width: 0;
-    border-right: 1px solid ${theme.colors.default.border};
+    border-right: ${$phone
+      ? "none"
+      : `1px solid ${theme.colors.default.border}`};
     overflow: hidden;
   `}
 `;
@@ -709,6 +1192,9 @@ const WorkHead = styled.div`
     align-items: center;
     gap: 0.5rem;
     height: ${HEAD_HEIGHT};
+    ${PHONE} {
+      height: 3.25rem;
+    }
     flex-shrink: 0;
     padding: 0 0.375rem 0 0.5rem;
     border-bottom: 1px solid ${theme.colors.default.border};
@@ -787,6 +1273,17 @@ const HeadButton = styled.button<{ $label?: boolean }>`
       outline-offset: 2px;
     }
 
+    ${PHONE} {
+      min-width: 2.75rem;
+      height: 2.75rem;
+      font-size: 0.9375rem;
+
+      & > svg {
+        width: 1.125rem;
+        height: 1.125rem;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
@@ -838,6 +1335,16 @@ const StageRail = styled.div`
       width: 100%;
       height: 1.625rem;
       justify-content: center;
+    }
+
+    /* A fingertip's height on a phone */
+    ${PHONE} {
+      height: 3.5rem;
+
+      & [role="tab"] {
+        height: 2.75rem;
+        font-size: 0.9375rem;
+      }
     }
   `}
 `;

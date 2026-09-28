@@ -20,6 +20,7 @@ import type { BrandIconName } from "../../../components/BrandIcon";
 import PlaygroundLogoNext from "../../../components/PlaygroundLogoNext";
 import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgExplorer, PgTutorial } from "../../../utils";
+import { PHONE } from "../phone";
 
 /**
  * The outermost column: where you can go, and the projects you have.
@@ -310,6 +311,12 @@ const Aside = styled.aside<{ $collapsed: boolean }>`
     overflow: hidden;
     transition: width 200ms cubic-bezier(0.2, 0, 0, 1);
 
+    /* In a phone's drawer, as wide as the drawer */
+    ${PHONE} {
+      width: 100%;
+      border-right: none;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
@@ -321,6 +328,10 @@ const Aside = styled.aside<{ $collapsed: boolean }>`
 const fixed = (width: string) => css`
   flex-shrink: 0;
   width: calc(${width} - 1px);
+
+  ${PHONE} {
+    width: 100%;
+  }
 `;
 
 /* Brand left, the fold right, a hairline under both — the head of the column
@@ -377,6 +388,10 @@ const Brand = styled.button`
     color: ${theme.colors.default.textPrimary};
     cursor: pointer;
 
+    ${PHONE} {
+      height: 2.75rem;
+    }
+
     &:hover > svg {
       opacity: 0.82;
     }
@@ -406,6 +421,17 @@ const HeadButton = styled.button`
     & > svg {
       width: 1rem;
       height: 1rem;
+    }
+
+    ${PHONE} {
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 10px;
+
+      & > svg {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
     }
 
     &:hover {

@@ -389,7 +389,8 @@ const enter = keyframes`
 const Surface = styled.div<{ $rise: boolean }>`
   ${({ theme, $rise }) => css`
     position: fixed;
-    z-index: 20;
+    /* Over a phone's drawer, which is where the menu opens from there */
+    z-index: 60;
     max-height: calc(100vh - ${EDGE * 2}px);
     overflow-y: auto;
     padding: 0.25rem;

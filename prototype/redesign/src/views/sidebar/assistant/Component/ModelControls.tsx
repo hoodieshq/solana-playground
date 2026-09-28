@@ -21,6 +21,7 @@ import type { ModelOption } from "../model/choice";
 import { useDefaultBackend } from "../model/default-backend";
 import { PgAssistant } from "../store";
 import type { Effort } from "../model/types";
+import { PHONE } from "../../../flow/phone";
 
 /**
  * Model and effort, on the composer — the two choices Claude keeps there.
@@ -220,6 +221,11 @@ const Control = styled.button`
     padding: 0 0.5rem;
     border: none;
     border-radius: 8px;
+
+    ${PHONE} {
+      height: 2.75rem;
+      font-size: 0.875rem;
+    }
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     font-family: inherit;

@@ -78,6 +78,11 @@ const Pill = styled.div`
   &:focus-within {
     opacity: 1;
   }
+
+  /* On a phone it would sit on the lockup: it lives in the menu there */
+  @media (max-width: 40rem) {
+    display: none;
+  }
 `;
 
 const Option = styled.button<{ $on: boolean }>`

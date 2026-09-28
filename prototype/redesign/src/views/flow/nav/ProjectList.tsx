@@ -15,6 +15,7 @@ import { Glyph, Label, rowBase } from "./parts";
 import { snapshotOf } from "../../../features/persistence/model/snapshot";
 import { PgCommon, PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
+import { PHONE } from "../phone";
 
 interface ProjectListProps {
   projects: string[];
@@ -467,6 +468,18 @@ const More = styled.button`
     padding: 0;
     border: none;
     border-radius: 5px;
+
+    ${PHONE} {
+      right: 0;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 10px;
+
+      & > svg {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+    }
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     cursor: pointer;
@@ -584,6 +597,11 @@ const Item = styled.div<{
       & > ${ItemButton} {
         padding-right: 1.875rem;
       }
+      ${PHONE} {
+        & > ${ItemButton} {
+          padding-right: 2.75rem;
+        }
+      }
       & > ${More} {
         opacity: 1;
       }
@@ -609,6 +627,11 @@ const Editing = styled.div<{ $invalid: boolean }>`
     padding: 0 0.5rem;
     border-radius: 6px;
     background: ${theme.colors.state.hover.bg};
+
+    ${PHONE} {
+      height: 2.75rem;
+      border-radius: 10px;
+    }
     box-shadow: inset 0 0 0 1px
       ${$invalid
         ? theme.colors.state.error.color
@@ -628,6 +651,11 @@ const NameField = styled.input`
     font-family: inherit;
     font-size: 0.8125rem;
     outline: none;
+
+    /* Under 16px, a phone zooms the page to type into it */
+    ${PHONE} {
+      font-size: 1rem;
+    }
   `}
 `;
 
@@ -637,6 +665,10 @@ const FieldError = styled.p`
     padding: 0.25rem 0.5rem 0.25rem 2rem;
     font-size: 0.75rem;
     line-height: 1.35;
+
+    ${PHONE} {
+      font-size: 0.8125rem;
+    }
     color: ${theme.colors.state.error.color};
   `}
 `;

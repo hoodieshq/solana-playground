@@ -12,6 +12,7 @@ import styled, { css } from "styled-components";
 import Menu, { useMenu } from "./Menu";
 import type { MenuRow } from "./Menu";
 import ModelControls from "../../sidebar/assistant/Component/ModelControls";
+import { PHONE } from "../phone";
 
 /**
  * The composer, as one object: where you type, and a row of controls along its
@@ -335,6 +336,11 @@ const Chip = styled.button`
     padding: 0;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 999px;
+
+    ${PHONE} {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
     background: transparent;
     color: ${theme.colors.default.textSecondary};
     font-family: inherit;
@@ -372,6 +378,11 @@ const Send = styled.button<{ $stop?: boolean }>`
     padding: 0;
     border: none;
     border-radius: 999px;
+
+    ${PHONE} {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
     background: ${$stop
       ? theme.colors.default.textPrimary
       : theme.colors.default.primary};
