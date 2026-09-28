@@ -23,6 +23,8 @@ import { Headline } from "../deck/Slide";
 import { HEADLINE, HEADLINE_SIZE, INK } from "../deck/tokens";
 import Flight from "./Flight";
 import Light, { LIGHT_BELOW } from "./Light";
+import PhoneMenu from "./PhoneMenu";
+import type { MenuLink } from "./PhoneMenu";
 import type { Pull } from "./Light";
 import Statements from "./Statements";
 import type { Statement } from "./Statements";
@@ -203,6 +205,17 @@ const glide = (
   return () => cancelAnimationFrame(frame);
 };
 
+/* The same links as the top bar's pill, for the menu a phone gets instead */
+const MENU_LINKS: MenuLink[] = [
+  { label: "What it is", href: "#what", onClick: scrollTo("what") },
+  { label: "How it works", href: "#how", onClick: scrollTo("how") },
+  { label: "Who it's for", href: "#who", onClick: scrollTo("who") },
+  { label: "Docs", href: "https://solana.com/docs", external: true },
+];
+
+/* Under the landing's links fold: a phone */
+const phoneNow = () => window.matchMedia("(max-width: 40rem)").matches;
+
 /* The first screen, as the hero measures it */
 const SCREEN = "max(100vh, 34rem)";
 
@@ -277,6 +290,8 @@ const Landing: FC<LandingProps> = ({
   useEffect(() => {
     if (!trail || !up) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    /* A phone keeps its top bar in view: the menu is in it */
+    if (phoneNow()) return;
     const timer = window.setTimeout(() => {
       if (touched.current || window.scrollY > 4) return;
       const still = () => {
@@ -482,6 +497,30 @@ const Landing: FC<LandingProps> = ({
     };
   }, [trail, stopsNow]);
 
+  /* A page scrolled by hand — a touch screen, the scroll bar — has no glide
+     to go round on: coming to rest on the copy of the hero at the bottom, it
+     goes round to the top, to the same place in the hero */
+  useEffect(() => {
+    if (!trail) return;
+    let timer = 0;
+    const settle = () => {
+      const copy = loopRef.current;
+      if (!copy) return;
+      const copyTop = copy.getBoundingClientRect().top + window.scrollY;
+      const y = window.scrollY;
+      if (y >= copyTop - 2) window.scrollTo(0, Math.max(0, y - copyTop));
+    };
+    const onScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 160);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(timer);
+    };
+  }, [trail]);
+
   /* Over the claims the top bar floats in; over a first screen, which has
      its own, it keeps out of the way */
   useEffect(() => {
@@ -564,6 +603,11 @@ const Landing: FC<LandingProps> = ({
               Docs
             </NavLink>
           </NavPill>
+          <PhoneMenu
+            links={MENU_LINKS}
+            variant={onVariant ? variant : undefined}
+            onVariant={onVariant}
+          />
         </Top>
       </Hero>
 
@@ -608,6 +652,13 @@ const Landing: FC<LandingProps> = ({
               Docs
             </NavLink>
           </NavPill>
+          {floating && (
+            <PhoneMenu
+              links={MENU_LINKS}
+              variant={onVariant ? variant : undefined}
+              onVariant={onVariant}
+            />
+          )}
         </FloatingTop>
       )}
 
@@ -961,6 +1012,12 @@ const Window = styled.div<{ $up: boolean }>`
     bottom: auto;
     border-radius: 1rem;
   }
+
+  /* On a phone, closer still: a square of the top left — the sidebar and the
+     assistant — at a size the interface can be read at */
+  @media (max-width: 40rem) {
+    aspect-ratio: 1 / 1;
+  }
 `;
 
 const View = styled.div`
@@ -980,6 +1037,12 @@ const Shot = styled.img`
   width: 100%;
   height: auto;
   user-select: none;
+
+  @media (max-width: 40rem) {
+    height: 100%;
+    object-fit: cover;
+    object-position: left top;
+  }
 `;
 
 /* The render eases into the page on the right and at the bottom */

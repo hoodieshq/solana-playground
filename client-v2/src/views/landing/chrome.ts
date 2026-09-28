@@ -31,6 +31,11 @@ const pill = css`
   height: max(${u(57)}, 2.5rem);
   border-radius: max(${u(20)}, 0.875rem);
   background: #ffffff;
+
+  /* A fingertip's height on a phone */
+  @media (max-width: 40rem) {
+    height: 2.75rem;
+  }
 `;
 
 export const LogoPill = styled.a`

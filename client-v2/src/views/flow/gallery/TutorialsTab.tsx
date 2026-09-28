@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { PgTheme, PgTutorial, PgView } from "../../../utils";
+import { PHONE } from "../phone";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -76,7 +77,8 @@ export default TutorialsTab;
 /* Shared with ProgramsTab so both lists read as one family. */
 export const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  /* Never a column wider than the list: one, full width, on a phone */
+  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
   gap: 0.75rem;
 `;
 
@@ -99,6 +101,12 @@ export const Card = styled.div`
       border-color: ${theme.colors.default.textSecondary};
     }
 
+    ${PHONE} {
+      & > button {
+        min-height: 2.75rem;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
@@ -116,6 +124,10 @@ export const Eyebrow = styled.div`
        level before saying their name. */
     font-size: 0.75rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      font-size: 0.8125rem;
+    }
   `}
 `;
 
@@ -134,6 +146,10 @@ export const Sub = styled.div`
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.other.size.small};
     ${PgTheme.getClampLinesCSS(2)};
+
+    ${PHONE} {
+      font-size: 0.875rem;
+    }
   `}
 `;
 

@@ -30,6 +30,7 @@ import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { openConnectDialog } from "../../sidebar/assistant/Component/ConnectDialog";
 import { PgAssistant } from "../../sidebar/assistant/store";
+import { PHONE } from "../phone";
 
 interface StatusChipsProps {
   onToggleSettings: (focus?: SettingsFocus) => void;
@@ -618,6 +619,10 @@ const Account = styled.button<{ $open: boolean }>`
     width: 100%;
     min-height: 2.5rem;
     padding: 0.25rem 0.5rem;
+
+    ${PHONE} {
+      min-height: 3rem;
+    }
     border: none;
     border-radius: 8px;
     background: ${$open ? theme.colors.state.hover.bg : "transparent"};
@@ -660,6 +665,10 @@ const WhoName = styled.span`
   white-space: nowrap;
   font-size: 0.8125rem;
   font-weight: 500;
+
+  ${PHONE} {
+    font-size: 0.9375rem;
+  }
 `;
 
 const WhoDetail = styled.span<{ $error: boolean }>`

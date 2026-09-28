@@ -306,6 +306,10 @@ export class PgTerm {
 
   /** Fit terminal. */
   fit() {
+    /* A hidden terminal measures nothing — a phone shows one pane at a time
+       — and fitting it to nothing asks xterm for a fraction of a row */
+    const dims = this._fitAddon.proposeDimensions();
+    if (!dims || !(dims.cols > 0) || !(dims.rows > 0)) return;
     this._fitAddon.fit();
   }
 

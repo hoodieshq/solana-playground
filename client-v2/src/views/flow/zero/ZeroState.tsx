@@ -11,6 +11,7 @@ import Composer from "../components/Composer";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PgCommon, PgTutorial } from "../../../utils";
+import { PHONE } from "../phone";
 
 /**
  * What you meet with no project open: a head that names the list you are on,
@@ -208,6 +209,11 @@ const TopBar = styled.header`
     height: ${HEAD_HEIGHT};
     padding: 0 0.5rem 0 calc(${HEAD_INSET} - 0.125rem);
     border-bottom: 1px solid ${theme.colors.default.border};
+
+    /* A phone's bar already names where you are */
+    ${PHONE} {
+      display: none;
+    }
   `}
 `;
 
@@ -236,6 +242,13 @@ const searchShape = css`
     border: 1px solid ${theme.colors.default.border};
     border-radius: 8px;
     background: ${theme.colors.default.bgSecondary};
+
+    ${PHONE} {
+      justify-self: stretch;
+      width: 100%;
+      height: 2.75rem;
+      border-radius: 10px;
+    }
     color: ${theme.colors.state.disabled.color};
     font-family: inherit;
     font-size: 0.875rem;
@@ -420,6 +433,10 @@ const CardSub = styled.span`
   ${({ theme }) => css`
     font-size: 0.8125rem;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      font-size: 0.875rem;
+    }
   `}
 `;
 
@@ -463,6 +480,13 @@ const PanelMore = styled.button`
 
     &:hover {
       color: ${theme.colors.default.textPrimary};
+    }
+
+    ${PHONE} {
+      min-height: 2.75rem;
+      margin-right: -0.5rem;
+      padding: 0 0.5rem;
+      font-size: 0.875rem;
     }
   `}
 `;

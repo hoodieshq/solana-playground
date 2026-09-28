@@ -2,6 +2,7 @@ import { createContext } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import { PgCommon } from "../../../utils";
+import { PHONE } from "../phone";
 
 /** The column open, and folded to its rail */
 export const SIDEBAR_WIDTH = "14.5rem";
@@ -66,6 +67,10 @@ export const Heading = styled.h2`
     font-size: 0.75rem;
     font-weight: 400;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      font-size: 0.8125rem;
+    }
   `}
 `;
 
@@ -82,6 +87,14 @@ export const rowBase = css<{ $current?: boolean }>`
     padding: 0 0.5rem;
     border: none;
     border-radius: 6px;
+
+    /* A fingertip's height, and a size read without leaning in */
+    ${PHONE} {
+      height: 2.75rem;
+      padding: 0 0.625rem;
+      border-radius: 10px;
+      font-size: 0.9375rem;
+    }
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};

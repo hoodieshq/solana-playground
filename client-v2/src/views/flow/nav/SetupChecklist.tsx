@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import { ICONS } from "./icons";
 import { fadeIn, Glyph, NavContext, rowBase } from "./parts";
 import { BRAND } from "../tokens";
+import { PHONE } from "../phone";
 
 export interface SetupStep {
   id: string;
@@ -146,6 +147,12 @@ const Dismiss = styled.button`
     background: transparent;
     color: ${theme.colors.state.disabled.color};
     cursor: pointer;
+
+    ${PHONE} {
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 10px;
+    }
     opacity: 0;
     transition: opacity 0.1s, color 0.1s;
 
@@ -216,6 +223,11 @@ const Toggle = styled.button`
     color: ${theme.colors.state.disabled.color};
     font-family: inherit;
     font-size: 0.75rem;
+
+    ${PHONE} {
+      height: 2.75rem;
+      font-size: 0.8125rem;
+    }
     cursor: pointer;
     transition: color 0.1s;
 
@@ -329,6 +341,10 @@ const End = styled.span<{ $warn?: boolean }>`
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.75rem;
+
+    ${PHONE} {
+      font-size: 0.8125rem;
+    }
     font-variant-numeric: tabular-nums;
     color: ${$warn
       ? theme.colors.state.error.color
