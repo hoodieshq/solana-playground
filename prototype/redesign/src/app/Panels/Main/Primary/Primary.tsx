@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import ErrorBoundary from "../../../../components/ErrorBoundary";
@@ -6,8 +6,19 @@ import { SpinnerWithBg } from "../../../../components/Loading";
 import { PgCommon, PgTheme, PgView } from "../../../../utils";
 import { useGetAndSetStatic } from "../../../../hooks";
 
+/**
+ * What the route last put here. The router sets it once per route, so a
+ * `Primary` that mounts later (Flow moves the panel between its desktop and
+ * phone layouts when the window crosses the phone breakpoint) would otherwise
+ * start empty and stay on its spinner until the next navigation.
+ */
+let lastEl: ReactNode = null;
+
 const Primary = () => {
-  const [el, setEl] = useState<ReactNode>(null);
+  const [el, setEl] = useState<ReactNode>(() => lastEl);
+  useEffect(() => {
+    lastEl = el;
+  }, [el]);
   const setElWithTransition = useCallback(async (el) => {
     if (PgCommon.isAsyncFunction(el)) {
       setEl(null);

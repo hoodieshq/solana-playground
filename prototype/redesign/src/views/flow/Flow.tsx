@@ -364,35 +364,51 @@ const Flow = () => {
   };
 
   /* The pages: which one is in view once a swipe settles, the others out of
-     reach until they are, and the work page in view to begin with and after
-     the window changes size */
+     reach until they are, and the work page in view to begin with. The page
+     in view is kept by name, so a pager with no width yet (a hidden tab, a
+     page loaded before its frame has a size) does not settle on the first
+     page, and a change of width brings the same page back into line. */
   useLayoutEffect(() => {
     const pager = pagerRef.current;
     if (!phone || !pager) return;
     const pages = () => Array.from(pager.children) as HTMLElement[];
+    let inView: PhonePage = "work";
     const settle = () => {
-      const index = Math.round(
-        pager.scrollLeft / Math.max(1, pager.clientWidth)
-      );
-      const current = pages()[index];
+      const width = pager.clientWidth;
+      if (!width) return;
+      const current = pages()[Math.round(pager.scrollLeft / width)];
       pages().forEach((el) => el.toggleAttribute("inert", el !== current));
-      setPage((current?.dataset.page as PhonePage) || "work");
+      inView = (current?.dataset.page as PhonePage) || "work";
+      setPage(inView);
     };
-    const work = pages().findIndex((el) => el.dataset.page === "work");
-    pager.scrollLeft = Math.max(0, work) * pager.clientWidth;
-    settle();
+    const align = () => {
+      const index = pages().findIndex((el) => el.dataset.page === inView);
+      pager.scrollLeft = Math.max(0, index) * pager.clientWidth;
+      settle();
+    };
+    align();
     let timer = 0;
     const onScroll = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(settle, 90);
     };
+    // Only a change of width moves the pages: a phone's bars coming and
+    // going change the height, and must not pull a swipe back mid-way
+    let width = pager.clientWidth;
     const onResize = () => {
-      const index = pages().findIndex((el) => !el.hasAttribute("inert"));
-      pager.scrollLeft = Math.max(0, index) * pager.clientWidth;
+      if (pager.clientWidth === width) return;
+      width = pager.clientWidth;
+      align();
     };
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(onResize);
+    observer?.observe(pager);
     pager.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     return () => {
+      observer?.disconnect();
       pager.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       window.clearTimeout(timer);
