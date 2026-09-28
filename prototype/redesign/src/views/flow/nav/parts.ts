@@ -2,7 +2,7 @@ import { createContext } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 import { PgCommon } from "../../../utils";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 /** The column open, and folded to its rail */
 export const SIDEBAR_WIDTH = "14.5rem";
@@ -69,7 +69,9 @@ export const Heading = styled.h2`
     color: ${theme.colors.state.disabled.color};
 
     ${PHONE} {
-      font-size: 0.8125rem;
+      margin-bottom: 0.375rem;
+      padding: 0 0.75rem;
+      ${PHONE_TYPE.label}
     }
   `}
 `;
@@ -88,19 +90,28 @@ export const rowBase = css<{ $current?: boolean }>`
     border: none;
     border-radius: 6px;
 
-    /* A fingertip's height, and a size read without leaning in */
-    ${PHONE} {
-      height: 2.75rem;
-      padding: 0 0.625rem;
-      border-radius: 10px;
-      font-size: 0.9375rem;
-    }
     color: ${$current
       ? theme.colors.default.textPrimary
       : theme.colors.default.textSecondary};
     font-family: inherit;
     font-size: 0.8125rem;
     font-weight: ${$current ? 500 : 400};
+
+    /* A row of any list on a phone, in the body type; where you are is the
+       strong weight */
+    ${PHONE} {
+      gap: 0.75rem;
+      height: ${PHONE_SIZE.row};
+      padding: 0 0.75rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.body}
+      font-weight: ${$current ? 440 : 320};
+
+      & > ${Glyph} {
+        width: 20px;
+        height: 20px;
+      }
+    }
     text-align: left;
     white-space: nowrap;
     text-decoration: none;

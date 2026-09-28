@@ -7,6 +7,7 @@ import Img from "../../../components/Img";
 import Input from "../../../components/Input";
 import GradientButton from "../../sidebar/assistant/Component/GradientButton";
 import { PgExplorer, PgFramework, PgView } from "../../../utils";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 /**
  * The gallery's one decisive action: pick a framework, name the project,
@@ -113,6 +114,12 @@ const Row = styled.div`
     border: 1px solid ${theme.colors.default.border};
     border-radius: 14px;
     background: ${theme.colors.default.bgSecondary};
+
+    ${PHONE} {
+      gap: 0.875rem;
+      padding: 1rem;
+      border-radius: 16px;
+    }
   `}
 `;
 
@@ -141,6 +148,10 @@ const Eyebrow = styled.div`
   ${({ theme }) => css`
     font-size: 0.8125rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -150,6 +161,11 @@ const Title = styled.div`
     font-size: 0.9375rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -158,12 +174,26 @@ const Sub = styled.div`
     margin-top: 0.125rem;
     color: ${theme.colors.default.textSecondary};
     font-size: 0.8125rem;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
 const Frameworks = styled.div`
   display: flex;
   gap: 0.375rem;
+
+  ${PHONE} {
+    flex: 1 1 100%;
+    gap: 0.25rem;
+
+    & > button {
+      flex: 1;
+      justify-content: center;
+    }
+  }
 `;
 
 const FrameworkOption = styled.button<{ $active: boolean }>`
@@ -201,6 +231,13 @@ const FrameworkOption = styled.button<{ $active: boolean }>`
     @media (prefers-reduced-motion: reduce) {
       transition: none;
     }
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.5rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.control}
+    }
   `}
 `;
 
@@ -214,6 +251,21 @@ const Controls = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+
+  ${PHONE} {
+    flex: 1 1 100%;
+
+    & > :first-child {
+      flex: 1;
+      min-width: 0;
+    }
+
+    & > button {
+      height: ${PHONE_SIZE.target};
+      padding: 0 1.125rem;
+      border-radius: 12px;
+    }
+  }
 `;
 
 const NameInput = styled(Input)`
@@ -226,6 +278,13 @@ const NameInput = styled(Input)`
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 1px;
+    }
+
+    ${PHONE} {
+      width: 100%;
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.875rem;
+      border-radius: 12px;
     }
   `}
 `;

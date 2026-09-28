@@ -20,6 +20,7 @@ import {
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
+import { PHONE, PHONE_TYPE } from "../phone";
 import type { FlowState } from "../state/stage";
 
 const Deploy = () => {
@@ -255,6 +256,10 @@ const Surface = styled.div`
     gap: 0.75rem;
     font-family: ${theme.font.other.family};
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      padding: 1.5rem 1.25rem 2rem;
+    }
   `}
 `;
 
@@ -279,6 +284,12 @@ const Meta = styled.span`
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      font-family: ${theme.font.other.family};
+      font-variant-numeric: tabular-nums;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -288,6 +299,10 @@ const Eyebrow = styled.div`
     font-size: ${theme.font.other.size.xsmall};
     font-weight: 500;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -327,6 +342,10 @@ const Headline = styled.h2`
     font-size: ${theme.font.other.size.xlarge};
     font-weight: 500;
     letter-spacing: -0.01em;
+
+    ${PHONE} {
+      ${PHONE_TYPE.display}
+    }
   `}
 `;
 
@@ -352,6 +371,10 @@ const Muted = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.55;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -390,6 +413,11 @@ const Key = styled.span`
     width: 7rem;
     font-size: ${theme.font.other.size.small};
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      width: 6rem;
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 

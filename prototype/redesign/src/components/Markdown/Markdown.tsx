@@ -8,6 +8,7 @@ import Img from "../Img";
 import Link, { LinkProps } from "../Link";
 import { HyperLink } from "../Icons";
 import { PgCommon, PgRouter, PgTheme } from "../../utils";
+import { PHONE, PHONE_TYPE } from "../../views/flow/phone";
 
 interface MarkdownProps {
   /** Markdown string */
@@ -1097,6 +1098,29 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
 
     /* Custom */
     height: fit-content;
+
+    /* A phone's scale: the page's one headline, then the title and the body
+       sizes, with a weight and a rule to tell a heading from its text */
+    ${PHONE} {
+      line-height: 1.6;
+
+      h1 {
+        ${PHONE_TYPE.display}
+      }
+
+      h2 {
+        ${PHONE_TYPE.title}
+        margin-top: 2rem;
+      }
+
+      h3,
+      h4,
+      h5,
+      h6 {
+        ${PHONE_TYPE.body}
+        font-weight: 440;
+      }
+    }
   `}
 `;
 

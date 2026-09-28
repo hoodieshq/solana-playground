@@ -7,6 +7,7 @@ import StartFromScratch from "./StartFromScratch";
 import TutorialsTab from "./TutorialsTab";
 import Modal from "../../../components/Modal";
 import { PgCommon, PgTutorial } from "../../../utils";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 type Tab = "programs" | "tutorials";
 
@@ -126,18 +127,34 @@ const ModalWidthOverride = createGlobalStyle`
     width: min(64rem, 90vw) !important;
     max-width: min(64rem, 90vw) !important;
   }
+
+  /* A phone's dialog is the whole screen already */
+  ${PHONE} {
+    :has(> * > * > [data-gallery-modal]) {
+      width: 100% !important;
+      max-width: none !important;
+    }
+  }
 `;
 
 const Wrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1.125rem;
+
+  ${PHONE} {
+    gap: 1rem;
+  }
 `;
 
 const Lead = styled.p`
   ${({ theme }) => css`
     margin: 0;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -146,6 +163,10 @@ const Bar = styled.div`
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
+
+  ${PHONE} {
+    gap: 0.5rem;
+  }
 `;
 
 const Tabs = styled.div`
@@ -154,6 +175,17 @@ const Tabs = styled.div`
     padding: 0.25rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};
+
+    ${PHONE} {
+      flex: 1 1 100%;
+      padding: 2px;
+      border-radius: 14px;
+
+      & > button {
+        flex: 1;
+        justify-content: center;
+      }
+    }
   `}
 `;
 
@@ -173,6 +205,13 @@ const TabButton = styled.button<{ $active: boolean }>`
     cursor: pointer;
     transition: background ${theme.default.transition.duration.short}
       ${theme.default.transition.type};
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.875rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.control}
+    }
 
     &:hover {
       color: ${theme.colors.default.textPrimary};
@@ -197,6 +236,12 @@ const Count = styled.span`
     font-size: ${theme.font.other.size.xsmall};
     font-weight: 400;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      margin-left: 0.5rem;
+      padding: 0.0625rem 0.5rem;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -211,6 +256,15 @@ const Search = styled.input`
     color: ${theme.colors.default.textPrimary};
     font: inherit;
     font-family: ${theme.font.other.family};
+
+    ${PHONE} {
+      flex-basis: 100%;
+      min-width: 0;
+      height: ${PHONE_SIZE.target};
+      padding: 0 0.875rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.body}
+    }
 
     &::placeholder {
       color: ${theme.colors.default.textSecondary};

@@ -5,6 +5,7 @@ import Link from "../Link";
 import Tag from "../Tag";
 import { Arrayable, TutorialDetailKey } from "../../utils";
 import { useDifferentBackground } from "../../hooks";
+import { PHONE, PHONE_TYPE } from "../../views/flow/phone";
 
 interface TutorialDetailsProps {
   details: ClickableTutorialDetailProps[];
@@ -66,6 +67,19 @@ const TutorialDetailName = styled.span`
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-size: ${theme.font.other.size.small};
+
+    ${PHONE} {
+      display: inline-block;
+      text-transform: none;
+      letter-spacing: 0;
+      ${PHONE_TYPE.label}
+      color: ${theme.colors.state.disabled.color};
+
+      /* The keys are lower case; a label starts with a capital */
+      &::first-letter {
+        text-transform: uppercase;
+      }
+    }
   `}
 `;
 

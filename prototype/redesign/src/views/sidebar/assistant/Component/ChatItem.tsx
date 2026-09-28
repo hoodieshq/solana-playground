@@ -3,6 +3,7 @@ import styled, { css, keyframes } from "styled-components";
 
 import Button from "../../../../components/Button";
 import PlayRing from "../../../../components/PlayRing";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
 import ChatCode from "./ChatCode";
 import GradientButton from "./GradientButton";
 import Markdown from "../../../../components/Markdown";
@@ -341,6 +342,10 @@ const UserText = styled.div`
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+    }
   `}
 `;
 
@@ -372,6 +377,11 @@ const Prose = styled.div`
     font-weight: 350;
     line-height: 1.62;
 
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      line-height: 1.6;
+    }
+
     & p {
       margin: 0 0 0.625rem;
     }
@@ -400,6 +410,10 @@ const Prose = styled.div`
 
     & strong {
       font-weight: 600;
+
+      ${PHONE} {
+        font-weight: 480;
+      }
     }
   `}
 `;
@@ -428,6 +442,12 @@ const Move = styled.button<{ $primary?: boolean }>`
     cursor: pointer;
     transition: filter 0.15s ease, background 0.15s ease,
       border-color 0.15s ease;
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.target};
+      padding: 0 1.125rem 0 1rem;
+      ${PHONE_TYPE.control}
+    }
 
     & > svg {
       width: 0.9375rem;

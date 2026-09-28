@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import Img from "../../../components/Img";
 import { PgTheme, PgTutorial, PgView } from "../../../utils";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -102,8 +102,13 @@ export const Card = styled.div`
     }
 
     ${PHONE} {
+      gap: 0.875rem;
+      padding: 0.875rem 1rem;
+      border-radius: 16px;
+
       & > button {
-        min-height: 2.75rem;
+        min-height: ${PHONE_SIZE.target};
+        ${PHONE_TYPE.control}
       }
     }
 
@@ -126,7 +131,7 @@ export const Eyebrow = styled.div`
     color: ${theme.colors.state.disabled.color};
 
     ${PHONE} {
-      font-size: 0.8125rem;
+      ${PHONE_TYPE.label}
     }
   `}
 `;
@@ -137,6 +142,11 @@ export const Title = styled.div`
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
     ${PgTheme.getClampLinesCSS(1)};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      font-weight: 440;
+    }
   `}
 `;
 
@@ -148,7 +158,7 @@ export const Sub = styled.div`
     ${PgTheme.getClampLinesCSS(2)};
 
     ${PHONE} {
-      font-size: 0.875rem;
+      ${PHONE_TYPE.secondary}
     }
   `}
 `;

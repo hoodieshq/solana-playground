@@ -9,6 +9,7 @@ import { openConnectDialog } from "./ConnectDialog";
 import Composer from "../../../flow/components/Composer";
 import type { MenuRow } from "../../../flow/components/Menu";
 import PlayRing from "../../../../components/PlayRing";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
 import {
   PgAssistant,
   turnAppliedApproval,
@@ -543,6 +544,11 @@ const Messages = styled.div`
   overflow-y: auto;
   padding: 1rem 1.25rem 1rem 0.875rem;
   min-height: 0;
+
+  ${PHONE} {
+    gap: 1.25rem;
+    padding: 1.25rem 1.25rem 1rem;
+  }
 `;
 
 const Row = styled.div`
@@ -560,6 +566,10 @@ const ChapterRule = styled.div`
     gap: 0.625rem;
     color: ${theme.colors.default.textSecondary};
     font-size: 0.75rem;
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
 
     &::before,
     &::after {
@@ -588,6 +598,11 @@ const Empty = styled.div`
   margin: auto 0;
   padding: 2rem 0.5rem 1rem;
   text-align: center;
+
+  ${PHONE} {
+    gap: 0.75rem;
+    padding: 2rem 0 1rem;
+  }
 `;
 
 const EmptyMark = styled(PlayRing)`
@@ -610,6 +625,10 @@ const EmptyTitle = styled.h2`
     line-height: 1.12;
     letter-spacing: -0.015em;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.display}
+    }
   `}
 `;
 
@@ -620,6 +639,10 @@ const EmptyBody = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.5;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -629,6 +652,11 @@ const Suggestions = styled.div`
   justify-content: center;
   gap: 0.375rem;
   padding-top: 0.875rem;
+
+  ${PHONE} {
+    gap: 0.5rem;
+    padding-top: 1rem;
+  }
 `;
 
 const Suggestion = styled.button`
@@ -642,6 +670,13 @@ const Suggestion = styled.button`
     font-size: 0.8125rem;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease;
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+      padding: 0 1.125rem;
+      ${PHONE_TYPE.secondary}
+      -webkit-tap-highlight-color: transparent;
+    }
 
     &:hover {
       border-color: ${theme.colors.default.primary}80;
@@ -694,6 +729,10 @@ const Breathing = styled(PlayRing)`
 const Shimmer = styled.span`
   ${({ theme }) => css`
     font-size: 0.875rem;
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
     color: ${theme.colors.default.textSecondary};
     background: linear-gradient(
         90deg,
@@ -721,6 +760,10 @@ const Elapsed = styled.span`
     font-size: 0.8125rem;
     color: ${theme.colors.state.disabled.color};
     font-variant-numeric: tabular-nums;
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -732,6 +775,11 @@ const Foot = styled.div`
   flex-direction: column;
   gap: 0.375rem;
   padding: 0.5rem 0.75rem 0.625rem;
+
+  ${PHONE} {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const ContextChip = styled.span`
@@ -746,6 +794,11 @@ const ContextChip = styled.span`
     line-height: 1.5;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    ${PHONE} {
+      padding: 0.1875rem 0.625rem;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -756,5 +809,9 @@ const FootNote = styled.p`
     color: ${theme.colors.state.disabled.color};
     font-size: 0.75rem;
     text-align: center;
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;

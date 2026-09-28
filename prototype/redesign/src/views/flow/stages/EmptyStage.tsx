@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import PlayRing from "../../../components/PlayRing";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 import { BRAND } from "../tokens";
 
 interface EmptyStageProps {
@@ -98,6 +99,15 @@ export const BrandPill = styled(Button)<{ $off?: boolean }>`
       margin-left: 0.5rem;
     }
 
+    ${PHONE} {
+      && {
+        height: ${PHONE_SIZE.target};
+        padding: 0 1.125rem 0 1.375rem;
+        font-size: 16px;
+        font-weight: 440;
+      }
+    }
+
     &&:hover:not(:disabled) {
       transform: translateY(-1px);
       filter: brightness(1.05);
@@ -150,6 +160,10 @@ const Frame = styled.div`
     background: transparent;
     font-family: ${theme.font.other.family};
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      padding: 2rem 1.25rem;
+    }
   `}
 `;
 
@@ -171,6 +185,10 @@ const Title = styled.h2`
     line-height: 1.1;
     letter-spacing: -0.01em;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.display}
+    }
   `}
 `;
 
@@ -180,6 +198,13 @@ const Meta = styled.span`
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.other.size.xsmall};
     color: ${theme.colors.default.textSecondary};
+
+    /* On a phone in the interface face, like every other small line */
+    ${PHONE} {
+      font-family: ${theme.font.other.family};
+      font-variant-numeric: tabular-nums;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -190,6 +215,11 @@ const Line = styled.p`
     font-size: ${theme.font.other.size.small};
     line-height: 1.55;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      margin-top: 0.75rem;
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 

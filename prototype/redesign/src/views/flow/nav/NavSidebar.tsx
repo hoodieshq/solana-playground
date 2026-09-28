@@ -20,7 +20,7 @@ import type { BrandIconName } from "../../../components/BrandIcon";
 import PlaygroundLogoNext from "../../../components/PlaygroundLogoNext";
 import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgExplorer, PgTutorial } from "../../../utils";
-import { PHONE } from "../phone";
+import { PHONE, PHONE_SIZE, usePhone } from "../phone";
 
 /**
  * The outermost column: where you can go, and the projects you have.
@@ -119,6 +119,8 @@ const NavSidebar: FC<NavSidebarProps> = ({
   }
   const animate = shape.current.changed;
   const nav = useMemo(() => ({ collapsed, animate }), [collapsed, animate]);
+  /* On a phone the column is a page, and its button closes it */
+  const phone = usePhone();
 
   /* A started lesson is a workspace too, but opening one has to go through
      `PgTutorial.open`, which restores its route and page — a bare switch lands
@@ -204,10 +206,10 @@ const NavSidebar: FC<NavSidebarProps> = ({
             <HeadButton
               type="button"
               onClick={onToggleSidebar}
-              aria-label="Collapse the sidebar"
-              title={toggleHint}
+              aria-label={phone ? "Close the menu" : "Collapse the sidebar"}
+              title={phone ? undefined : toggleHint}
             >
-              {ICONS.sidebar}
+              {phone ? ICONS.close : ICONS.sidebar}
             </HeadButton>
           </Head>
         )}
@@ -348,6 +350,11 @@ const Head = styled.div<{ $animate: boolean }>`
     padding: 0 0.5rem 0 0.75rem;
     border-bottom: 1px solid ${theme.colors.default.border};
 
+    ${PHONE} {
+      height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-top, 0px));
+      padding: env(safe-area-inset-top, 0px) 0.5rem 0 1rem;
+    }
+
     ${$animate &&
     css`
       & > * {
@@ -389,7 +396,7 @@ const Brand = styled.button`
     cursor: pointer;
 
     ${PHONE} {
-      height: 2.75rem;
+      height: ${PHONE_SIZE.target};
     }
 
     &:hover > svg {
@@ -424,13 +431,13 @@ const HeadButton = styled.button`
     }
 
     ${PHONE} {
-      width: 2.75rem;
-      height: 2.75rem;
-      border-radius: 10px;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
 
       & > svg {
-        width: 1.25rem;
-        height: 1.25rem;
+        width: 24px;
+        height: 24px;
       }
     }
 

@@ -12,6 +12,16 @@ import {
 import { createPortal } from "react-dom";
 import styled, { css, keyframes } from "styled-components";
 
+import {
+  PHONE,
+  PHONE_SIZE,
+  PHONE_TYPE,
+  phonePage,
+  phoneScrim,
+  phoneSheet,
+  usePhone,
+} from "../phone";
+
 /**
  * The sidebar's one menu, for a project's row and for the account.
  *
@@ -27,6 +37,13 @@ import styled, { css, keyframes } from "styled-components";
  * a rail — so a menu drawn inside it would be cut off at its edge; portalled,
  * it opens over the content beside the column. The cost is that nothing is
  * inherited there, so the face, size and colour are set here.
+ *
+ * On a phone there is no room to hang a menu off anything, and a fingertip
+ * needs rows a finger tall. A row's menu comes up as a sheet from the foot of
+ * the screen, over the dimmed page; the account's is a page of its own, with
+ * a bar and a way back, since signing in and everything else about you is a
+ * place rather than a handful of actions. Neither shows the keys: a phone has
+ * none to press.
  */
 
 export interface NavMenuItem {
@@ -90,6 +107,12 @@ interface NavMenuProps {
   minWidth?: string;
   /** The item that takes focus; changing it refocuses, for swapped contents */
   initialFocus?: string;
+  /** On a phone: a sheet from the foot of the screen, or a page of its own */
+  phoneAs?: "sheet" | "page";
+  /** On a phone, what the sheet or the page says at its head */
+  phoneTitle?: string;
+  /** On a phone's page, above the items: what the page is mostly for */
+  phoneHeader?: ReactNode;
 }
 
 /** Nearest the menu comes to the window's edge */
@@ -108,14 +131,19 @@ const NavMenu: FC<NavMenuProps> = ({
   matchWidth,
   minWidth = "12.5rem",
   initialFocus,
+  phoneAs = "sheet",
+  phoneTitle,
+  phoneHeader,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   // Drawn once where it lands, then moved before the browser paints
   const [position, setPosition] = useState({ top: 0, left: 0, rise: false });
+  const phone = usePhone();
+  const mode = phone ? phoneAs : null;
 
   // The listeners are registered once, so they read the latest props here
-  const latest = useRef({ onClose, returnFocus, toggle });
-  latest.current = { onClose, returnFocus, toggle };
+  const latest = useRef({ onClose, returnFocus, toggle, mode });
+  latest.current = { onClose, returnFocus, toggle, mode };
 
   // Measured again whenever the contents change, not just the anchor: the
   // sign-out question is shorter than the menu it replaces, and a menu opening
@@ -164,7 +192,17 @@ const NavMenu: FC<NavMenuProps> = ({
       if (!(target instanceof Node)) return;
       if (ref.current?.contains(target)) return;
       if (latest.current.toggle?.contains(target)) return;
+      // A sheet's scrim closes it on its own click, so the tap that closes
+      // it is spent there and does not land on whatever is under it
+      if (target instanceof Element && target.closest("[data-menu-scrim]")) {
+        return;
+      }
       close();
+    };
+    // A phone's bars coming and going, or its keyboard, are not a reason to
+    // shut a sheet or a page
+    const onResize = () => {
+      if (!latest.current.mode) close();
     };
     // Only a scroll that moves what it hangs off: the console streaming output
     // somewhere else in the window is not a reason to shut it
@@ -178,13 +216,13 @@ const NavMenu: FC<NavMenuProps> = ({
     document.addEventListener("mousedown", onPress, true);
     document.addEventListener("touchstart", onPress, true);
     document.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("resize", onResize);
     window.addEventListener("blur", close);
     return () => {
       document.removeEventListener("mousedown", onPress, true);
       document.removeEventListener("touchstart", onPress, true);
       document.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("resize", onResize);
       window.removeEventListener("blur", close);
     };
   }, []);
@@ -230,10 +268,39 @@ const NavMenu: FC<NavMenuProps> = ({
         ev.stopPropagation();
         onClose();
         return;
-      // Closes, and lets the key carry on from the trigger
-      case "Tab":
-        onClose();
+      // Closes, and lets the key carry on from the trigger. A page holds it
+      // instead, as a dialog does: round its way back, whatever its header
+      // offers, and its items, which the arrows move between.
+      case "Tab": {
+        if (mode !== "page") {
+          onClose();
+          return;
+        }
+        ev.preventDefault();
+        const el = ref.current;
+        if (!el) return;
+        const active = document.activeElement as HTMLElement | null;
+        const items = Array.from(
+          el.querySelectorAll<HTMLElement>('[role="menuitem"]')
+        );
+        const item = active && items.includes(active) ? active : items[0];
+        const stops = [
+          ...Array.from(
+            el.querySelectorAll<HTMLElement>(
+              "[data-page-close], [data-page-stop]"
+            )
+          ),
+          ...(item ? [item] : []),
+        ];
+        const at = active ? stops.indexOf(active) : -1;
+        const next = ev.shiftKey
+          ? at <= 0
+            ? stops.length - 1
+            : at - 1
+          : (at + 1) % stops.length;
+        stops[next]?.focus({ preventScroll: true });
         return;
+      }
       default:
         break;
     }
@@ -288,7 +355,9 @@ const NavMenu: FC<NavMenuProps> = ({
             <ItemDescription>{item.description}</ItemDescription>
           )}
         </ItemText>
-        {item.hint && <ItemHint>{item.hint}</ItemHint>}
+        {item.hint && !(mode && isKeyHint(item)) && (
+          <ItemHint>{item.hint}</ItemHint>
+        )}
       </>
     );
 
@@ -309,23 +378,8 @@ const NavMenu: FC<NavMenuProps> = ({
     );
   };
 
-  return createPortal(
-    <Surface
-      ref={ref}
-      role="menu"
-      aria-label={label}
-      tabIndex={-1}
-      $rise={position.rise}
-      style={{
-        top: position.top,
-        left: position.left,
-        minWidth,
-        width:
-          matchWidth && anchor.kind === "rect" ? anchor.rect.width : undefined,
-      }}
-      onKeyDown={onKeyDown}
-      onContextMenu={(ev) => ev.preventDefault()}
-    >
+  const items = (
+    <>
       {note && <Note>{note}</Note>}
       {groups.map((group, index) => (
         <Fragment key={group.id}>
@@ -338,10 +392,91 @@ const NavMenu: FC<NavMenuProps> = ({
           </div>
         </Fragment>
       ))}
-    </Surface>,
+    </>
+  );
+
+  /* A page: a bar with its name and the way back, and the items under it.
+     A dialog holding a menu, since the bar's button is not one of them. */
+  if (mode === "page") {
+    return createPortal(
+      <Surface
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={phoneTitle ?? label}
+        tabIndex={-1}
+        $rise={false}
+        $mode="page"
+        onKeyDown={onKeyDown}
+        onContextMenu={(ev) => ev.preventDefault()}
+      >
+        <PageBar>
+          <PageTitle>{phoneTitle ?? label}</PageTitle>
+          <PageClose
+            type="button"
+            data-page-close=""
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </PageClose>
+        </PageBar>
+        <PageBody>
+          {phoneHeader}
+          <div role="menu" aria-label={label}>
+            {items}
+          </div>
+        </PageBody>
+      </Surface>,
+      document.body
+    );
+  }
+
+  return createPortal(
+    <>
+      {mode === "sheet" && (
+        <Scrim data-menu-scrim="" aria-hidden="true" onClick={onClose} />
+      )}
+      <Surface
+        ref={ref}
+        role="menu"
+        aria-label={label}
+        tabIndex={-1}
+        $rise={position.rise}
+        $mode={mode}
+        style={
+          mode
+            ? undefined
+            : {
+                top: position.top,
+                left: position.left,
+                minWidth,
+                width:
+                  matchWidth && anchor.kind === "rect"
+                    ? anchor.rect.width
+                    : undefined,
+              }
+        }
+        onKeyDown={onKeyDown}
+        onContextMenu={(ev) => ev.preventDefault()}
+      >
+        {mode === "sheet" && phoneTitle && (
+          <SheetTitle aria-hidden="true">{phoneTitle}</SheetTitle>
+        )}
+        {items}
+      </Surface>
+    </>,
     document.body
   );
 };
+
+/* A key to press, which a phone has none of: the letters that choose an
+   item, and the shortcuts written the way `shortcut` writes them */
+const isKeyHint = (item: NavMenuItem) =>
+  !!item.keys?.length ||
+  (typeof item.hint === "string" && /^(⌘|Ctrl\+)/.test(item.hint));
 
 export default NavMenu;
 
@@ -386,8 +521,8 @@ const enter = keyframes`
   to   { opacity: 1; transform: none; }
 `;
 
-const Surface = styled.div<{ $rise: boolean }>`
-  ${({ theme, $rise }) => css`
+const Surface = styled.div<{ $rise: boolean; $mode?: "sheet" | "page" | null }>`
+  ${({ theme, $rise, $mode }) => css`
     position: fixed;
     /* Over a phone's drawer, which is where the menu opens from there */
     z-index: 60;
@@ -411,12 +546,108 @@ const Surface = styled.div<{ $rise: boolean }>`
     @media (prefers-reduced-motion: reduce) {
       animation: none;
     }
+
+    ${$mode === "sheet" && phoneSheet}
+    ${$mode === "page" && phonePage}
+    ${$mode && PHONE_TYPE.body}
+  `}
+`;
+
+const Scrim = styled.div`
+  ${phoneScrim}
+`;
+
+/* The page's bar: every page's height, its name, and the way back */
+const PageBar = styled.div`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 0.5rem 0 1.25rem;
+    border-bottom: 1px solid ${theme.colors.default.border};
+  `}
+`;
+
+const PageTitle = styled.h2`
+  ${({ theme }) => css`
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    ${PHONE_TYPE.title}
+    color: ${theme.colors.default.textPrimary};
+  `}
+`;
+
+const PageClose = styled.button`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: ${PHONE_SIZE.target};
+    height: ${PHONE_SIZE.target};
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    & > svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+    }
+
+    &:active {
+      background: ${theme.colors.state.hover.bg};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: -2px;
+    }
+  `}
+`;
+
+/* The page's items, scrolling under its bar and clear of the screen's foot */
+const PageBody = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem 0.5rem calc(1rem + env(safe-area-inset-bottom, 0px));
+`;
+
+/* What a sheet is for, above its items: the project it acts on */
+const SheetTitle = styled.div`
+  ${({ theme }) => css`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0.625rem 0.75rem 0.5rem;
+    ${PHONE_TYPE.title}
+    color: ${theme.colors.default.textPrimary};
   `}
 `;
 
 const Note = styled.p`
   padding: 0.5rem 0.5rem 0.375rem;
   font-weight: 500;
+
+  ${PHONE} {
+    padding: 0.75rem 0.75rem 0.5rem;
+    font-weight: 440;
+  }
 `;
 
 /* Full-bleed, like every other rule in the product */
@@ -424,6 +655,10 @@ const Separator = styled.div`
   height: 1px;
   margin: 0.25rem -0.25rem;
   background: ${({ theme }) => theme.colors.default.border};
+
+  ${PHONE} {
+    margin: 0.375rem -0.5rem;
+  }
 `;
 
 const GroupLabel = styled.div`
@@ -431,6 +666,11 @@ const GroupLabel = styled.div`
     padding: 0.375rem 0.5rem 0.25rem;
     font-size: 0.75rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      padding: 0.75rem 0.75rem 0.375rem;
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -447,6 +687,11 @@ const ItemIcon = styled.span`
   & > svg {
     width: 100%;
     height: 100%;
+  }
+
+  ${PHONE} {
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -468,6 +713,10 @@ const ItemDescription = styled.span`
     text-overflow: ellipsis;
     font-size: 0.75rem;
     color: ${theme.colors.state.disabled.color};
+
+    ${PHONE} {
+      ${PHONE_TYPE.label}
+    }
   `}
 `;
 
@@ -484,6 +733,15 @@ const ItemHint = styled.span`
     & > svg {
       width: 0.875rem;
       height: 0.875rem;
+    }
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+
+      & > svg {
+        width: 18px;
+        height: 18px;
+      }
     }
   `}
 `;
@@ -529,6 +787,23 @@ const itemCss = css<{ $danger?: boolean; $tall?: boolean }>`
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -2px;
+    }
+
+    /* A row of any list on a phone */
+    ${PHONE} {
+      gap: 0.75rem;
+      min-height: ${PHONE_SIZE.row};
+      padding: ${$tall ? "0.375rem 0.75rem" : "0 0.75rem"};
+      border-radius: 12px;
+      -webkit-tap-highlight-color: transparent;
+
+      &:hover {
+        background: transparent;
+      }
+
+      &:active {
+        background: ${theme.colors.state.hover.bg};
+      }
     }
   `}
 `;

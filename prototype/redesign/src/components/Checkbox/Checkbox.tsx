@@ -1,6 +1,8 @@
 import { ComponentPropsWithoutRef, FC, forwardRef, ReactNode } from "react";
 import styled, { css } from "styled-components";
 
+import { PHONE, PHONE_SIZE } from "../../views/flow/phone";
+
 interface CheckboxProps extends ComponentPropsWithoutRef<"input"> {
   /** Checkbox `label` to show */
   label?: ReactNode;
@@ -41,6 +43,14 @@ const Label = styled.label`
         color: inherit;
       }
     }
+
+    /* The box stays a box; what you press is a fingertip around it */
+    ${PHONE} {
+      min-width: ${PHONE_SIZE.target};
+      min-height: ${PHONE_SIZE.target};
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
   `}
 `;
 
@@ -49,6 +59,12 @@ const StyledCheckbox = styled.input`
 
   &:hover {
     cursor: pointer;
+  }
+
+  ${PHONE} {
+    width: 22px;
+    height: 22px;
+    margin: 0;
   }
 `;
 

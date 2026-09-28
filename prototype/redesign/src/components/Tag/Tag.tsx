@@ -11,6 +11,7 @@ import {
   TutorialLevel,
 } from "../../utils";
 import { useDifferentBackground } from "../../hooks";
+import { PHONE, PHONE_TYPE } from "../../views/flow/phone";
 
 interface TagProps {
   kind: OrString<TutorialDetailKey>;
@@ -48,6 +49,12 @@ const Level = styled.span<{ children: TutorialLevel }>`
       font-size: ${theme.font.other.size.xsmall};
       font-weight: 500;
       text-transform: uppercase;
+
+      ${PHONE} {
+        text-transform: none;
+        ${PHONE_TYPE.label}
+        font-weight: 440;
+      }
     `;
   }}
 `;
@@ -119,6 +126,10 @@ const Boxed = styled.div`
 
     & *:first-child {
       margin-right: 0.5rem;
+    }
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
     }
   `}
 `;

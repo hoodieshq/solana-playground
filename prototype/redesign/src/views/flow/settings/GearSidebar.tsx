@@ -27,6 +27,7 @@ import {
   ImportFs,
   ImportGithub,
 } from "../../sidebar/explorer/Component/Modals";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 
 /** Which control the panel puts focus on when it opens */
@@ -261,8 +262,9 @@ const GearSidebar: FC<GearSidebarProps> = ({
                 <path d="M14.5 6 9 12l5.5 6" />
               </svg>
             </BackGlyph>
-            Back to app
+            <BackLabel>Back to app</BackLabel>
           </Back>
+          <BarTitle aria-hidden="true">Settings</BarTitle>
         </NavHead>
         <NavList>
           {sections.map((section) => (
@@ -472,6 +474,11 @@ const Overlay = styled.div<{ $open: boolean }>`
       visibility 0s linear ${$open ? "0s" : "160ms"};
     z-index: 3;
 
+    /* A phone's page: its bar, then the sections one under another */
+    ${PHONE} {
+      flex-direction: column;
+    }
+
     &:focus-visible {
       outline: none;
     }
@@ -491,6 +498,12 @@ const Nav = styled.nav`
     flex-direction: column;
     border-right: 1px solid ${theme.colors.default.border};
     overflow-y: auto;
+
+    ${PHONE} {
+      width: 100%;
+      border-right: none;
+      overflow: visible;
+    }
   `}
 `;
 
@@ -502,6 +515,13 @@ const NavHead = styled.div`
     height: ${HEAD_HEIGHT};
     padding: 0 0.5rem 0 calc(${HEAD_INSET} - 0.5rem);
     border-bottom: 1px solid ${theme.colors.default.border};
+
+    /* Every page's bar: the way back, and where you are */
+    ${PHONE} {
+      gap: 0.25rem;
+      height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-top, 0px));
+      padding: env(safe-area-inset-top, 0px) 0.5rem 0 0.375rem;
+    }
   `}
 `;
 
@@ -531,6 +551,14 @@ const Back = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -2px;
     }
+
+    ${PHONE} {
+      justify-content: center;
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      padding: 0;
+      border-radius: 12px;
+    }
   `}
 `;
 
@@ -543,6 +571,38 @@ const BackGlyph = styled.span`
     width: 100%;
     height: 100%;
   }
+
+  ${PHONE} {
+    width: 24px;
+    height: 24px;
+  }
+`;
+
+/* A phone's back button is the glyph alone, as the preview's is; the words
+   stay for anyone listening */
+const BackLabel = styled.span`
+  ${PHONE} {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+`;
+
+/* The page's name in its bar, on a phone; the page's own title stands in
+   for it elsewhere */
+const BarTitle = styled.span`
+  ${({ theme }) => css`
+    display: none;
+
+    ${PHONE} {
+      display: block;
+      ${PHONE_TYPE.title}
+      color: ${theme.colors.default.textPrimary};
+    }
+  `}
 `;
 
 const NavList = styled.div`
@@ -550,6 +610,11 @@ const NavList = styled.div`
   flex-direction: column;
   gap: 1px;
   padding: 0.5rem;
+
+  /* One page that scrolls, on a phone, rather than a page and its index */
+  ${PHONE} {
+    display: none;
+  }
 `;
 
 /* The same row the sidebar uses, because it is the same kind of thing. */
@@ -589,6 +654,11 @@ const Body = styled.div`
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+
+  ${PHONE} {
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
 `;
 
 /* One measure for the whole page, as on the start screen. */
@@ -596,6 +666,10 @@ const Measure = styled.div`
   width: min(40rem, 100%);
   margin: 0 auto;
   padding: 3.5rem 2rem 6rem;
+
+  ${PHONE} {
+    padding: 1.5rem 1.25rem calc(3rem + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const PageTitle = styled.h1`
@@ -605,6 +679,16 @@ const PageTitle = styled.h1`
     font-weight: 500;
     letter-spacing: -0.02em;
     color: ${theme.colors.default.textPrimary};
+
+    /* Said in the bar on a phone */
+    ${PHONE} {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
   `}
 `;
 
@@ -615,6 +699,12 @@ const Block = styled.section`
   & + & {
     margin-top: 2.5rem;
   }
+
+  ${PHONE} {
+    & + & {
+      margin-top: 2rem;
+    }
+  }
 `;
 
 const BlockTitle = styled.h2`
@@ -623,6 +713,10 @@ const BlockTitle = styled.h2`
     font-size: 0.9375rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.title}
+    }
   `}
 `;
 
@@ -649,6 +743,13 @@ const Chip = styled.button<{ $active: boolean }>`
     font-size: 0.8125rem;
     cursor: pointer;
 
+    ${PHONE} {
+      height: ${PHONE_SIZE.target};
+      padding: 0 1rem;
+      border-radius: 12px;
+      ${PHONE_TYPE.control}
+    }
+
     &:hover {
       color: ${theme.colors.default.textPrimary};
     }
@@ -663,11 +764,34 @@ const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+
+  /* One under another, each the width of the page */
+  ${PHONE} {
+    flex-direction: column;
+
+    & > button {
+      width: 100%;
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+    }
+  }
 `;
 
 const Links = styled.div`
   display: flex;
   gap: 1rem;
+
+  ${PHONE} {
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+
+    & > a {
+      display: inline-flex;
+      align-items: center;
+      min-height: ${PHONE_SIZE.target};
+      ${PHONE_TYPE.control}
+    }
+  }
 `;
 
 const Rows = styled.div`
@@ -689,6 +813,15 @@ const SettingWrapper = styled.div`
   justify-content: space-between;
   gap: 1.5rem;
   padding: 0.75rem 0;
+
+  /* A row a finger tall; a control too wide to sit beside its words goes
+     under them */
+  ${PHONE} {
+    flex-wrap: wrap;
+    gap: 0.625rem 1rem;
+    min-height: ${PHONE_SIZE.row};
+    padding: 0.875rem 0;
+  }
 `;
 
 const SettingText = styled.div`
@@ -696,6 +829,11 @@ const SettingText = styled.div`
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+
+  ${PHONE} {
+    flex: 1 1 12rem;
+    gap: 0.25rem;
+  }
 `;
 
 const SettingName = styled.span`
@@ -703,6 +841,11 @@ const SettingName = styled.span`
     font-size: 0.8125rem;
     font-weight: 400;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.body}
+      line-height: 1.35;
+    }
   `}
 `;
 
@@ -711,6 +854,10 @@ const SettingDescription = styled.span`
     font-size: 0.75rem;
     line-height: 1.45;
     color: ${theme.colors.default.textSecondary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.secondary}
+    }
   `}
 `;
 
@@ -718,5 +865,9 @@ const SettingControl = styled.div<{ $wide: boolean }>`
   ${({ $wide }) => css`
     flex-shrink: 0;
     ${$wide && "width: 11.5rem;"}
+
+    ${PHONE} {
+      ${$wide && "width: 100%;"}
+    }
   `}
 `;

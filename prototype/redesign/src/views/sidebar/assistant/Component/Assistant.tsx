@@ -8,6 +8,7 @@ import Menu, { useMenu } from "../../../flow/components/Menu";
 import type { MenuRow } from "../../../flow/components/Menu";
 import { frosted } from "../../../flow/components/frosted";
 import { HEAD_HEIGHT } from "../../../flow/tokens";
+import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
 import PlayRing from "../../../../components/PlayRing";
 import { PgAssistant } from "../store";
 import { PgModelChoice } from "../model/choice";
@@ -15,6 +16,8 @@ import { PgModelChoice } from "../model/choice";
 interface AssistantProps {
   /** The session's name — the project or tutorial it belongs to */
   title?: string;
+  /** What the head says, where the host names the session already */
+  heading?: string;
   /** Hides the pane; the host offers a way to bring it back */
   onCollapse?: () => void;
   /** Widens the pane, when the host can */
@@ -34,6 +37,7 @@ interface AssistantProps {
  */
 const Assistant = ({
   title,
+  heading,
   onCollapse,
   onExpand,
   expanded,
@@ -96,7 +100,7 @@ const Assistant = ({
       <Header>
         <Heading title={title}>
           <Mark aria-hidden="true" />
-          <HeaderTitle>{title ?? "Assistant"}</HeaderTitle>
+          <HeaderTitle>{heading ?? title ?? "Assistant"}</HeaderTitle>
         </Heading>
         <HeaderEnd>
           <MenuAnchor>
@@ -243,6 +247,12 @@ const Header = styled.div`
     /* The same rule the columns either side draw, at the same height */
     border-bottom: 1px solid ${theme.colors.default.border};
     ${frosted}
+
+    /* A pane's head on a phone, the code's beside it */
+    ${PHONE} {
+      height: ${PHONE_SIZE.head};
+      padding: 0 0.25rem 0 1.25rem;
+    }
   `}
 `;
 
@@ -259,6 +269,11 @@ const Mark = styled(PlayRing)`
     width: 1rem;
     height: 1rem;
     color: ${theme.colors.default.primary};
+
+    ${PHONE} {
+      width: 20px;
+      height: 20px;
+    }
   `}
 `;
 
@@ -271,6 +286,10 @@ const HeaderTitle = styled.span`
     font-size: 0.875rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
+    }
   `}
 `;
 
@@ -315,6 +334,17 @@ const IconButton = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 1px;
     }
+
+    ${PHONE} {
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+
+      & > svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
   `}
 `;
 
@@ -357,6 +387,11 @@ const SheetHead = styled.div`
     height: 2.5rem;
     padding: 0 0.375rem 0 0.875rem;
     border-bottom: 1px solid ${theme.colors.default.border};
+
+    ${PHONE} {
+      height: ${PHONE_SIZE.head};
+      padding: 0 0.25rem 0 1.25rem;
+    }
   `}
 `;
 
@@ -365,6 +400,10 @@ const SheetTitle = styled.span`
     font-size: 0.8125rem;
     font-weight: 500;
     color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      ${PHONE_TYPE.control}
+    }
   `}
 `;
 
