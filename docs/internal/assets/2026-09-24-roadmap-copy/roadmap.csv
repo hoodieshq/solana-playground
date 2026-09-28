@@ -1,0 +1,120 @@
+ID,Type,Section,Priority,User story,Item,Scope,Estimated size,Adjusted size,Notes
+A1,section,A1 History backend,P1,,,,,,BE dev committed to deliver the whole lane by Mon 21 Sep. Presumes: Cloud SQL already reachable from Vercel; identity is a GitHub token check plus signed cookie; transcript stored as one JSON document; caps are write-time checks; no import job or multi-thread. Item estimates below are the independent proposal; the gap to the committed scope is the conversation.
+,item,,P1,,"Design and migrate the users, threads, messages schema in Cloud SQL",BE,S,,
+,item,,P1,"As a logged user, my transcript is read on load and appended each turn","History API: read on load, append per turn, delete by project",BE,M,,
+,item,,P1,"As a logged user, my GitHub sign-in identifies me across devices",Verify the GitHub token server-side and issue a signed session cookie,BE,S,,"token check plus signed cookie, not a new auth system"
+,item,,P1,"As any user, I have one thread per project or tutorial",Enforce one thread per project/tutorial in the schema,BE,XS,,"give threads their own id from day one; enforce singularity by unique constraint, not by identity - keeps the step-2 multi-thread lift to a constraint drop plus UI"
+,item,,P1,,"Per-user size caps and retention window, checked on write",BE,S,,"row-count and size check on write, not metering"
+,item,,P1,,Provision Cloud SQL Postgres; open the Vercel egress path,Ops,M,,outside the BE commitment; gates the whole lane
+A2,section,A2 History frontend,P1,,,,,,"Cannot integrate before the API shape is fixed: backend landing Monday morning means frontend integration starts Monday, not that history ships Monday."
+,item,,P1,"As an unauthed user, I can save progress into localStorage",Persist the current project's chat thread across reloads,FE,S,,
+,item,,P1,"As an unauthed user, I can save progress for all active programs, projects and tutorials","Keyed local threads, one per program/project/tutorial",FE,S,,
+,item,,P1,"As an unauthed user, I can log in with my GitHub profile via OAuth to access chat history",Keep the signed-in identity beyond the tab lifetime,FE,S,,popup flow exists; today the token dies with the tab
+,item,,P1,"As a logged user, I can see I have saved history, download it into the app and discard current progress","Saved-history prompt: pull server thread, discard local",FE,M,,
+,item,,P1,"As a logged user, I can create threads by tutorials/projects and keep saving history",Opening a project or tutorial resumes its server thread,FE,S,,
+,item,,P1,"As a logged user, I see a warning that history will not be saved after logging out",Logout warning in the panel,FE,XS,,
+,item,,P1,"As a user, saved history holds my requests and the model's answers",Render the stored shape; define tool and approval cards in or out,FE,XS,,
+,item,,P1,"As a logged user, I can clear chat history on the server by deleting the project",Wire project deletion to the history delete endpoint,FE,XS,,server side covered by the history API item in A1
+,item,,P1,"As a logged user, my browser-held conversations are imported on first sign-in",First sign-in import of local threads,FE,S,,
+,item,,P1,"As a logged user, I can continue a desktop conversation on my phone",Cross-device resume path verified end to end,FE,S,,"the release acceptance test; phone layout is step 2, so verify on a phone browser with the desktop layout"
+B,section,B History step 2,P2,,,,,,
+,item,,P2,"As an unauthed user, I can clear the thread",Clear-thread action on local threads,FE,XS,,
+,item,,P2,"As any user, a draft message for each thread is saved locally before sending",Per-thread draft persistence,FE,S,,
+,item,,P2,"As a logged user, I can clear chat history on the server by clearing the thread",Clear-thread UI action,FE,XS,,
+,item,,P2,,Clear-thread endpoint,BE,XS,,
+,item,,P2,"As a logged user, I can have multiple threads per project or tutorial","Multi-thread schema, API and panel switcher",FE+BE,L,,"schema, URL shape and panel all assume singular today"
+C,section,C AI rail,P1,,,,,,"P2 holds the browser-storage key, the four starred UX entry points (triage 15 Sep), and the SDK migration if the spike says yes. The Monday backend commitment covers A1 only; the backend rows here are separate work and separately unowned."
+,item,,P1,,Rename agent env vars to PG_AI_* across Vercel config and docs,BE,XS,,
+,item,,P1,"As a user, AI works with no setup because the server holds the default key",Default-key configuration on the hosted rail,BE,S,,
+,item,,P1,"As a user, AI surfaces mount only when a key is available, otherwise point me at settings",GET /api/ai/status endpoint,BE,XS,,
+,item,,P1,,Gate AI surfaces on the status response,FE,XS,,
+,item,,P2,"As a user, my own OpenAI key is kept in browser storage, sent per request, never stored server-side",Key persistence in browser storage plus per-request header,FE,S,,step 2; step 1 keeps the in-memory key. OPEN: validate sessionStorage vs localStorage (convenience vs exposure to project code) - ask for clarification before implementing
+,item,,P1,"As a user on my own key, I get the same tools, skills and MCP servers as the default agent","Shared tool-registry module: tool, skill and MCP defaults defined once, imported by both the panel and the server rail",FE+BE,M,,defaults ship in the box; the server uses them as-is. Tools are assembled ad hoc client-side today - extracting the module is the change
+,item,,P1,,Panel imports the module; user config edits layer over the defaults,FE,S,,future: the server side of the same module becomes configurable too - out of scope now
+,item,,P1,,Cost gate on agent.mjs: per-session and daily caps,BE,M,,no cost gate exists today; agent.mjs says so itself
+,item,,P1,,Single transcript source feeding both backends,FE,S,,
+,item,,P1,,SDK spike with a written verdict,FE,S,,
+,item,,P2,,Transport migration to the ai SDK preserving tools and approvals,FE,L,,only if the spike says yes
+,item,,P2,"As a user, build errors in the IDE build-deploy view offer Explain",Explain entry point on IDE build errors,FE,S,,panel is already the default sidebar page; only the entry point is missing
+,item,,P2,"As a user, the editor context menu offers Explain selection and Fix with AI",Context-menu actions producing a reviewable patch,FE,M,,
+,item,,P2,"As a user, ai <prompt> in the terminal reaches the same agent",ai command in the terminal registry,FE,S,,terminal command registry exists; one more command
+,item,,P2,"As a user, the test UI fills all sample arguments in one click and explains a failed transaction",One-click fill across all instruction inputs,FE,XS,,"per-field generators (Random, From seed) already exist in v2"
+,item,,P2,,Explain a failed transaction from its logs,FE,S,,
+D,section,D GitHub sharing,P1,,,,,,P2 holds repo export plus the two starred rows (triage 15 Sep). Server-side share links are dead and not being restored.
+,item,,P1,"As a logged user, I can export the current project to a public gist and get its URL","Gist export: scope request, file-map flattening, create call",FE,M,,needs the gist OAuth scope; sign-in requests none today
+,item,,P1,"As any user, I can open a project from a gist URL",Gist URL parsing and import,FE,S,,repo-URL import already works; gist parsing is new
+,item,,P2,"As a logged user, re-exporting updates the same gist instead of creating another",Track gist id per project; PATCH on re-export,FE,S,,
+,item,,P2,"As a user with an old /{shareId} link, I get an explanation instead of a blank project",Dead share URL message,FE,S,,
+,item,,P1,,Delete server share routes and the Mongo client,BE,S,,
+,item,,P2,"As a logged user, I can save a project into a repo and import it back","Repo export/import: tree, blob, commit handling, naming",FE,L,,
+E,section,E IDL 1.x and seeds,P1,,,,,,The client generator row is blocked P3. Seeds machinery is already fully in client-v2; nothing needs porting from v1.
+,item,,P1,"As a user on a 1.2 project, the client reads its IDL while 0.29 projects keep working",Dual IDL reader: @anchor-lang/core 1.2 alongside 0.29,FE,L,,
+,item,,P1,"As a learner, every example and tutorial compiles and runs on 1.2","Sweep examples/tutorials: dup on duplicate mutable accounts, AccountInfo in account structs",FE,M,,
+,item,,P1,"As a user on a 1.2 project, the seeds generator is hidden rather than failing",Hide the generator on IDLs it cannot read,FE,XS,,
+,item,,P2,"As a user, the flow Interact stage surfaces the seeds generator",Mount the test-view seeds UI in the Interact stage,FE,S,,"reuse, not a port; FromSeed.tsx and the generator are already in v2"
+,item,,P2,"As a user, the seeds generator derives PDAs from a 1.x IDL",1.x IDL support in generator.ts and the seeds UI,FE,M,,
+,item,,P3,"As a user, the new client generates a TypeScript client from the program IDL",Port or build the client generator once located,FE,M,,BLOCKED: no such generator found in v1 or upstream; needs a pointer first
+F,section,F Anchor 1.2 and LSP,P1,,,,,,Everything sits behind PR #23 landing and Cloud Run access.
+,item,,P1,,"Rebase, review and merge PR #23",FE+BE,M,,"feature done; rebase is the unknown, 14 ahead and 27 behind"
+,item,,P1,"As a user, I can pick anchor-1.2.0 alongside legacy and anchor-1.1.2","1.2 template: avm install, anchor build --no-idl, anchor idl build",BE,M,,
+,item,,P1,,Cloud Run service with per-project toolchain resolution,BE+Ops,L,,blocked on Cloud Run access
+,item,,P1,"As a user, code intelligence stays connected through long sessions",Server: session resume and idle-timeout policy,BE,M,,
+,item,,P1,,Client: reconnect handling in the WebSocket LSP client,FE,S,,
+,item,,P1,"As a user, Monaco stops underlining valid code at the LSP boundary",Fix Monaco/LSP diagnostics mismatches,FE,M,,
+,item,,P1,"As a user on a 1.2 project, intelligence comes from the server LSP",Default 1.2 projects to the LSP backend; WASM serves legacy only,FE,S,,fallback (regenerate public/crates for 1.2) is an L on its own if 1.2 does not default to LSP
+,item,,P1,"As a user, the crates I ask for are pre-cached in the 1.2 image",Pre-cache crates compiling on 1.2 and Solana 3.x,BE,S,,
+,item,,P1,,"Cutover: carry PG_CLIENT_URLS and build-concurrency sizing to Cloud Run, retire App Engine",Ops,S,,
+,item,,P2,"As a user writing TypeScript, I get code intelligence alongside the Rust LSP",Keep Monaco TS worker or add a TS language server,FE,L,,
+G,section,G Deploys,P1,,,,,,"DECIDED 15 Sep: we build the Kora integration ourselves, all of it in step 2. OPEN DECISION: whether the paymaster layer lives client-side or behind a --kora flag on the server deploy route (BL-10); the spike item informs it. Buffer, chunked-write and deploy machinery already exists in client-v2 (BpfLoaderUpgradeable)."
+,item,,P2,,"Confirm rate limits and captcha enforcement with the Kora team (x-recaptcha-token, beta build)",Ops,XS,,ask early in step 2; the answer shapes the captcha item and the lead time is theirs
+,item,,P2,,Spike: settle where Kora lives - client-side paymaster flow vs a --kora flag on the server deploy route - and write the integration design,FE+BE,XS,,first step-2 task; settles BL-10 and how much of the devnet story is wiring vs new code
+,item,,P1,"As a user deploying to mainnet with the local wallet, I see a disclaimer recommending my own machine",Mainnet disclaimer on the deploy path,FE,XS,,
+,item,,P1,"As a user, I can connect an external wallet through ConnectorKit to fund a deploy",ConnectorKit integration and funding flow,FE,L,,needed early: funds the play wallet before Kora exists; the play wallet stays the deploy signer for compatibility with the current deploy backend. No ConnectorKit anywhere in the tree today
+,item,,P1,"As a user, the local and Surfpool deploy path is unchanged",Regression pass on the local deploy path,FE,XS,,regression guard
+,item,,P2,"As a user, I deploy to devnet through Kora with 0 SOL and get a program id and Explorer link",Paymaster client: getPayerSigner and fee-payer signing relay,FE,M,,"paymaster at deployer.devnet.solana.com is live, CORS open since 10 Sep; assumes the client path, re-shapes if BL-10 picks the server flag"
+,item,,P2,,Wire the paymaster payer into the existing createBuffer/loadBuffer/deployProgram flow,FE,M,,"chunk machinery exists; payer substitution, not a port; same caveat as the paymaster client item"
+,item,,P2,,deploy --devnet terminal command and program-strip action; print program id and Explorer link,FE,S,,
+,item,,P2,,Captcha handling in the deploy flow if enforced,FE,S,,pending the Kora-team answer; drops to zero if captcha is off for our origin
+,item,,P2,,Register the play wallet as owner so redeploys upgrade in place,FE,XS,,
+,item,,P2,"As a user, I deploy to testnet the same way",Testnet paymaster wiring,FE,S,,
+,item,,P2,"As a user, my devnet program id persists and a reaped program is redeployed with an explanation",Persist program id and deploy time per project,FE,S,,paymaster closes programs idle 7 days
+,item,,P2,,Detect a reaped program-data account; deploy fresh and tell the user; state the 7-day limit post-deploy,FE,S,,
+,item,,P2,"As a user, rate limits bucket by a stable id and paymaster-managed programs hide unsafe controls",Derive user_id from the session token; hide set-authority and close,FE,S,,
+,item,,P2,,Session-token issuance for rate limiting,BE,XS,,
+,item,,P2,"As a user, paymaster rejections read as plain sentences and the tutor knows the deploy result",Error mapping plus deploy_program tool reporting,FE,S,,
+,item,,P2,"As a user, I deploy to mainnet through Kora",Mainnet paymaster integration,FE+Ops,L,,"blocked on a Jupiter API key, which is a purchase"
+H,section,H Lesson validation,P1,,,,,,Only the agent-validation story is planned; the P3 rows are future ideas.
+,item,,P1,"As a learner, the agent validates my step result instead of a backend service",Agent-side step validation prompt and flow,FE,M,,
+,item,,P3,,Step-validation endpoint taking that judgement server-side,BE,L,,future idea
+,item,,P3,,Tutorial management system replacing hand-written lesson files,FE+BE,XL,,future idea
+I,section,I Mobile,P2,,,,,,Moved to step 2 in triage 15 Sep (was P0 in Rev 2 for cross-device history). The A2 cross-device story is verified on a phone browser with the desktop layout until this lands.
+,item,,P2,"As a phone or portrait-iPad user, I can read code but not edit it; landscape iPad and wider can edit",Responsive layout; editor view-only below 1024px (smallest iPad landscape width),FE,L,,"portrait iPad (768px) reads, landscape (1024px) edits; chat works everywhere"
+,item,,P2,"As a phone user, chat is fully usable","Composer, streaming and approval cards on small screens",FE,M,,
+J,section,J Infra,P1,,,,,,Mostly gated on access nobody holds yet.
+,item,,P1,,Move secrets to Secret Manager; audit REACT_APP_* for anything sensitive,Ops,S,,
+,item,,P1,"As a user, RPC reads go through keyed devnet, testnet and mainnet endpoints",Receive Triton keys and set the REACT_APP_*_RPC_URL vars,Ops+BE,M,,"DECIDED 15 Sep: Triton provides the RPC, keys supplied to us - no purchase. One check left: REACT_APP_* URLs are public in the bundle, so confirm the Triton tokens are referrer-restricted, else proxy them"
+,item,,P1,,"Ownership audit and transfers: Foundation-owned accounts, two admins, Maintain on the repo",Ops,M,,mostly not engineering time
+,item,,P1,,Create the GA4 property and grant access,Ops,XS,,property does not exist yet
+,item,,P1,,"Instrument page views, deploy attempts, AI usage",FE,S,,
+,item,,P1,,Client Sentry,FE,S,,
+,item,,P1,,Server Sentry,BE,S,,
+,item,,P1,,Identify critical config and move it server-side out of localStorage,FE,M,,
+,item,,P1,,"CI gate: format, clippy, type-check on every PR, blocking both deploys",Ops,S,,no CI runs recorded on the fork today
+K,section,K Design pass,P1,,,,,,Only the phone layout (section I) blocks the 21st; the rest dropped to P1-optional in Rev 2.
+,item,,P1,,Token extension in themes/create.ts; migrate ~60 literal colours into the theme,FE,M,,over half of the colours are in Markdown.tsx
+,item,,P1,"As a user, the shell and IDE chrome look intentional and consistent","Restyle header, New menu, tutor panel, action strip, wallet, sidebar, tabs, bottom bar, terminal against a reviewed mockup",FE,L,,
+,item,,P1,"As a new visitor, one click lands me in a running example with readiness indicators","First-run flow plus AI, network and analyzer indicators",FE,M,,
+,,,,,,,,,
+BL-1,blocker,,,,Cloud Run access on solana-learning-playground,,,,Blocks all of F. Not held.
+BL-2,blocker,,,,Cloud SQL instance and Vercel egress path,,,,"Blocks A1, therefore A2 and B. Decided, not provisioned; gates the Monday backend lane."
+BL-3,blocker,,,,Maintain on the GitHub fork,,,,Blocks F and every merge. Not held.
+BL-4,blocker,,,,GCP Secret Manager,,,,Blocks C and J. Not held.
+BL-5,blocker,,,,RPC provider keys,,,,"RESOLVED 15 Sep: Triton provides the keys. Remaining: receive them, and confirm referrer restriction (a key in a REACT_APP_* URL is public)."
+BL-6,blocker,,,,GA4 property,,,,Blocks the GA4 items in J. Does not exist yet.
+BL-7,blocker,,,,Jupiter API key,,,,"Blocks Kora mainnet only. Not held, and a purchase."
+BL-8,blocker,,,,Who builds the Kora integration,,,,ANSWERED 15 Sep: we build it ourselves. Remaining ask: Kora team owes rate-limit and captcha answers (the Kora-team ask in G).
+BL-9,blocker,,,,Pointer to the v1 client generator feature,,,,Blocks the client generator item in E. No such code found in v1 or upstream.
+BL-10,blocker,,,,Kora implementation approach: client-side vs a --kora flag on the server deploy route,,,,"DECISION NEEDED. Blocks the devnet story onward; the spike item informs it, the call is ours."
+R-1,risk,,,,Vercel functions to Cloud SQL connectivity,,,,Serverless needs a pooled connection and a reachable instance; unverified. The fallback (proxy via the Rust server) reopens a taken decision.
+R-2,risk,,,,ai SDK migration replaces working code,,,,"Current loop streams, calls tools, gates approvals. The spike must show what the SDK buys, or the SDK migration is time spent standing still."
+R-3,risk,,,,Tool parity for BYO keys means one shared tool registry,,,,Decided shape: one shared module. Residual risk is version skew between the deployed client bundle and the rail deploy - pin and release them together.

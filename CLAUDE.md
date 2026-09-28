@@ -6,6 +6,25 @@ Two people and two Claude Code sessions work on one branch
 (`feat/client-v2`). This file and `docs/` are how we stay in sync —
 if you learn something that contradicts what is written here, fix it here.
 
+## Working language
+
+**The chat with Slava is Russian. Everything committed or published is
+English.**
+
+Reply in Russian whatever language the incoming message is in. He dictates
+in Russian and sometimes types English; the reply language does not follow
+the message.
+
+English, no exceptions: anything committed to any branch, `context-archive`
+included (docs, specs, decisions, code, comments, commit messages); PR
+titles and descriptions; anything posted to GitHub; Linear tickets;
+published artifacts. The one exception is the Russian decision decoder he
+keeps on his iPad, which is his personal instrument.
+
+This rule flipped twice on 2026-09-25 because it lived only in auto-memory,
+which competes with post-compaction summaries and loses. It lives here now,
+and this file outranks both.
+
 ## Where the knowledge lives
 
 | Document | What it answers |
@@ -316,6 +335,14 @@ they render inline.
 - Record every edit to a pre-existing upstream file, and every behaviour
   that differs from upstream, in `docs/upstream-divergences.md` in the
   same round -- with the decision that justifies it (Slava, 2026-09-08).
+- **Move the Linear ticket yourself, in the same turn, without being asked**
+  (Slava, 2026-09-28). A ticket found linked to an open pull request -- ours
+  or a teammate's -- is assigned to Slava and moved to **In Review**. A ticket
+  we take into work is assigned to Slava and moved to **In Progress** as the
+  brainstorm ends, and to **In Review** when the PR is ready to hand over.
+  Team statuses: Backlog, Todo, In Progress, In Review, QA Review, Done,
+  Canceled. Two people and two sessions share one branch; a ticket sitting in
+  Todo while its PR is open is how the same work gets picked up twice.
 - Update `docs/decisions.md` when you make a call worth remembering — especially
   when you reject something. The rejected options are why the next person does
   not re-litigate.

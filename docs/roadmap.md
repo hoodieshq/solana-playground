@@ -14,6 +14,21 @@
 > by hand, a conversation not bound to its agent. Three statements the
 > board makes are now wrong: the wallet adapter's library, Kora's place
 > in the release, and 21 Sep as a ship date.
+>
+> **2026-09-24: a generated working copy now carries the true status.**
+> Every scope row from the customer spreadsheet, every one of the 47
+> Linear issues in the project, a status with its evidence beside it, and
+> an execution order in four waves:
+> `Playground-roadmap-working-copy.xlsx`, built by
+> `docs/internal/2026-09-24-roadmap-working-copy.md`. It is regenerated,
+> never hand-edited. D43 as amended on the same day says what belongs in
+> it and what stays in the customer sheet.
+>
+> **2026-09-25: the statuses now go into the customer sheet itself.** We
+> were given write access, so the deliverable is two columns - `Status`
+> and `Linear` - pasted at `K1` and nothing else:
+> `docs/internal/2026-09-25-sheet-status-columns.md`. The working copy
+> stays as the internal view. 64 of 93 scope rows read `Not started`.
 
 Updated: 2026-09-08 (evening) -- **first reviews from Sergey: #21
 approved, #22 changes requested (drop the proxy, keep D30)**; PR #27

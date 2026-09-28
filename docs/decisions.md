@@ -2372,6 +2372,107 @@ progress, which it structurally cannot - it has no status column by
 design - or when a copy with statuses exists and the two start to
 disagree.
 
+**Amended 2026-09-24: the working copy is the tracker, and it carries
+everything.** The copy now exists, so the split D43 left implicit has to
+be named. The customer sheet stays exactly as described above: scope,
+read-only to us, no bugs. The copy is ours, and **every Linear issue in
+the project appears in it** - the 35 live ones against the sections they
+serve, and the 12 closed before the scope document existed on a separate
+tab. Two sections exist only in the copy: `L`, the PR #29 follow-ups and
+the Flow defects, and `M`, engineering tooling, which by standing rule
+never appears in a product roadmap at all.
+
+Nothing about the sync direction changes. Rows still flow sheet ->
+Linear; the copy adds `Linear`, `Status`, `Assignee`, `Wave`, `Evidence`,
+`Blocked by` and `Comment` beside the ten original columns, and is
+regenerated from the two sources rather than edited in place. The
+`Evidence` column is the load-bearing one: a status is either a Linear
+issue and its state, a decision, or a dated status message, and a row
+whose status rests on Sergey's status update rather than on a ticket says
+so. Eleven rows are Done, one reads `Needs confirmation`, and 65 of 93
+scope items are not filed in Linear at all - which is the number the copy
+exists to make visible.
+
+**The waves are an order, not dates.** Wave 1 is what is in flight or
+gates the committed history lane, Wave 2 the rest of P1, Wave 3 the P2
+work, Wave 4 the P3 rows plus what D41 moved out of September. The week
+columns on the Gantt tab render that order against a calendar starting
+2026-09-22; no date in the file has been agreed with anybody, and the
+file says so in three places. 21 Sep, the Phase 1 date in Rev 2, passed
+without being restated.
+
+**Amended 2026-09-25: we can edit the original, so two columns go into it
+and the working copy stops being the deliverable.** Slava was given write
+access to the customer sheet. The instruction is exact: add `Status` and
+`Linear` beside the ten existing columns, change nothing else - no new
+rows, no reordering, no scope. `Status` carries the state of the *scope
+row*, not of the ticket, which is why five rows read `In Progress` while
+the issue they link is `Done` or `Todo`: the ticket covers half of what
+the row promises. A row with no ticket reads `Not started`, which holds
+because every Hoodies issue created since 1 Sep was swept and no
+Playground work is filed outside the project. Two cells read `Needs
+confirmation` rather than asserting anything: the Postgres instance, and
+the ai SDK migration the customer was told is in progress while our own
+gate has no verdict.
+
+The `2026-09-24` working copy keeps its value as the internal view - the
+waves, the evidence, the L and M sections, the bugs - and is not the
+thing the customer reads. The customer sheet still carries no bugs and no
+engineering tooling. The columns are generated, not hand-kept:
+`docs/internal/assets/2026-09-25-two-columns/`.
+
+**The write path is the browser, and that is a decision, not a
+limitation.** No Google credential exists on this machine and none was
+created: a service-account key on disk is standing access to the
+customer's document that would then need fencing, and Slava chose not to
+open that door for a job done a few times a month. Playwright writes the
+columns the way a person would - an HTML table on the clipboard, pasted at
+`K1` - and the conditional-format rules are added through the sidebar.
+`sheet_sync.py` implements the same thing against the Sheets API and has
+never been run; it is kept for the day a credential exists for other
+reasons. **Revisit when** the sync needs to run unattended, or often
+enough that driving a browser stops being reasonable.
+
+**Found while doing it: the sheet accepts anonymous edits.** The browser
+was signed in to nothing and wrote to the document, so link sharing grants
+editing, not viewing, to everyone holding the URL that went to the
+customer. Nothing in this decision depends on that, and it should be
+raised with whoever owns the file.
+
+**Amended 2026-09-25, same day, second pass: the sheet's sections are
+Linear milestones, and every scope row is an issue.** The columns told the
+customer what Linear knew; sixty-eight rows still had nothing for Linear
+to know. Each unfiled row is now an issue carrying the row's user story,
+its size as an estimate, and - where the row rests on an unanswered
+question - the question itself, so the uncertainty sits with the work
+rather than in a status nobody can act on. The twelve sections exist as
+project milestones, named exactly as the sheet names them.
+
+Milestones, not a parent issue per section. A parent issue matches the
+phrase - attach the tasks to a task - but it adds twelve umbrellas nobody
+will ever work, and Linear's project view already groups and measures by
+milestone. A milestone is for a phase of one project; a parent issue is
+for work that genuinely decomposes, which is why `HOO-1720` stays a parent
+and stays outside the milestones - it is the cost of a merge, not scope.
+
+**A parent issue does not list its own children.** `HOO-1720` and
+`HOO-1615` both carried a hand-written list of their sub-issues in the
+description. Linear already renders that list, with live status and
+priority, so the copy in the description is a second source of truth that
+goes stale the first time a child is renamed or closed. Both were removed.
+Where the description needs to point at a child, it names what the child
+does, never its identifier.
+
+The mainnet paymaster row was deliberately not filed: it is `Descoped`,
+and a ticket for work we decided against is noise. It is the one item row
+with no Linear link, and that is the correct reading, not a gap.
+
+One filed issue contradicts our own constraints and says so rather than
+hiding it: `HOO-1764` asks us to delete the server share routes and the
+Mongo client, which the working agreement puts out of bounds. Filing a
+ticket does not grant permission. Full record:
+`docs/internal/2026-09-25-linear-scope-structure.md`.
+
 ---
 
 ## D44 - History is kept whole on the server, capped locally, cleared by hand
@@ -2652,3 +2753,52 @@ it now asserts the whole request body carries nothing key-shaped.
 **Revisit when** a thread picker needs to answer "which of my threads ran on
 this model" without reading their messages. That is the column's real use, and
 it comes back maintained on append, not written once at insert.
+
+## D49 - A restored conversation holds what the panel showed, and says what it lost
+
+**Date:** 2026-09-28 - **Status:** decided (Slava), implemented in PR #37
+(`slavakoreshkov/hoo-1737-render-the-stored-transcript-shape`)
+
+HOO-1737 asked for the shape of a stored transcript before writing any of it.
+Most of the answer was already in the code and had never been written down:
+`chat-codec.ts` stores all six `ChatItem` kinds, so tool lines and approval
+cards are **in**; a patch is trimmed to the region the card renders; and
+`replay.ts` deliberately feeds the model text only, because a half-reconstructed
+tool exchange is worse than none.
+
+**Reasoning is not stored, because it is never rendered.** The open question
+assumed the panel showed the model's reasoning and the store dropped it. It does
+not. The Anthropic backend runs with `thinking: { type: "adaptive" }`
+(`model/anthropic.ts:122`), but the panel turns that into a three-dot working
+indicator (`Component/Chat.tsx:285`) and `ChatItem` has no reasoning kind at
+all. So a restored thread loses nothing a live one showed, and the question is
+closed rather than carried as an assumption. Storing reasoning would mean first
+deciding to render it, which is a different decision with a different cost.
+
+**An approval the session cut short is `unanswered`, not `denied`.** A `pending`
+approval cannot survive the session -- the promise that blocked the agent loop
+is gone -- so it was stored as `denied`, which fixed the spinning card by
+recording a refusal the user never made. It is now a status of its own, reading
+`NOT ANSWERED` and "not applied". A restored card that puts words in the user's
+mouth is worse than one that admits the turn was cut short.
+
+**A device that truncates a thread says so.** `MAX_MESSAGES_PER_THREAD` applies
+to the local file only; the server keeps every message. A long thread therefore
+came back shortened on the device that wrote it, with nothing to say so -- the
+one way a restored conversation can mislead, because it looks complete. The
+first stored item is now a `notice` with the stable id `truncated:<threadId>`,
+which renders through the existing kind, survives a rewrite, and is filtered out
+of the upload: the loss belongs to the device, not to the conversation.
+
+**Rejected: carrying the dropped count in the notice.** The number is unknowable
+on any write after the first, because by then the messages are gone. A notice
+whose text never changes is one a rewrite can reproduce exactly, which is what
+makes the stable id idempotent.
+
+**Rejected: leaving `denied` and adding an `outcome` string instead.** It avoids
+widening the union, and it leaves the label reading DECLINED, which is the part
+that was untrue.
+
+**Revisit when** the panel starts rendering reasoning, which would make storing
+it a question again, or when a thread list wants a per-thread record of how much
+history a device is holding.
