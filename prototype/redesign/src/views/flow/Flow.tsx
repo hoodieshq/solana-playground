@@ -716,6 +716,7 @@ const Flow = () => {
                       onAskAssistant={showAssistant}
                       section={section}
                       onSection={setSection}
+                      onOpenProject={openProject}
                     />
                   </PageBody>
                 )}

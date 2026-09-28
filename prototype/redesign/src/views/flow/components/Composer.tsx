@@ -46,6 +46,8 @@ interface ComposerProps {
   context?: ReactNode;
   /** What the + opens. Without rows it activates, like the rest. */
   addRows?: MenuRow[];
+  /** A row across the top of the box, over its own tint: somewhere to go */
+  banner?: ReactNode;
 }
 
 /* The textarea grows to this many pixels, then scrolls */
@@ -63,6 +65,7 @@ const Composer: FC<ComposerProps> = ({
   inputRef,
   context,
   addRows,
+  banner,
 }) => {
   const live = !!onSubmit;
 
@@ -103,6 +106,7 @@ const Composer: FC<ComposerProps> = ({
 
   return (
     <Box ref={boxRef} $compact={compact}>
+      {banner && <Banner $compact={compact}>{banner}</Banner>}
       {context && <Context>{context}</Context>}
 
       {live ? (
@@ -221,6 +225,24 @@ const ICONS = {
     </svg>
   ),
 };
+
+/* Across the top of the box, edge to edge, on a tint of its own and ruled
+   off from the typing below: Claude's row for somewhere else to go */
+const Banner = styled.div<{ $compact: boolean }>`
+  ${({ theme, $compact }) => {
+    const pad = $compact ? "0.625rem" : "0.75rem";
+    return css`
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: -${pad} -${pad} 0.25rem;
+      padding: 0.25rem 0.25rem 0.25rem 1rem;
+      border-bottom: 1px solid ${theme.colors.default.border};
+      border-radius: 15px 15px 0 0;
+      background: rgba(255, 255, 255, 0.03);
+    `;
+  }}
+`;
 
 /* 16px radius, a typing area that starts at one comfortable line, 2rem
    controls. Focus lights the edge in the accent, so the box you are typing in

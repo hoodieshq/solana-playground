@@ -8,9 +8,10 @@ import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
 import Composer from "../components/Composer";
+import PhoneHome, { GalleryRow } from "./PhoneHome";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
-import { PgCommon, PgTutorial } from "../../../utils";
+import { PgCommon, PgExplorer, PgTutorial } from "../../../utils";
 import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 
 /**
@@ -35,6 +36,8 @@ interface ZeroStateProps {
   /** Which list is showing. The sidebar drives it; this draws it. */
   section: ZeroSection;
   onSection: (section: ZeroSection) => void;
+  /** Opens a project, for the phone's quickstart that continues the last */
+  onOpenProject?: (name: string) => void;
 }
 
 export type ZeroSection = "home" | "tutorials" | "programs";
@@ -51,6 +54,7 @@ const ZeroState: FC<ZeroStateProps> = ({
   onAskAssistant,
   section,
   onSection,
+  onOpenProject,
 }) => {
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
@@ -73,9 +77,22 @@ const ZeroState: FC<ZeroStateProps> = ({
 
   const onStart = section === "home";
   /* On a phone the composer is the page's foot, under the thumb, as in the
-     phone's own chat apps; the question and the ways in scroll above it */
+     phone's own chat apps. The start screen is Claude's there: the question
+     in the middle, quickstarts over the composer, and the composer's own top
+     row to the gallery; the lists keep their page. */
   const phone = usePhone();
-  const composer = <Composer compact={!onStart} onActivate={onAskAssistant} />;
+  const phoneStart = phone && onStart;
+  const composer = (
+    <Composer
+      compact={!onStart}
+      onActivate={onAskAssistant}
+      banner={
+        phoneStart ? (
+          <GalleryRow programs={programs ? programs.length : null} />
+        ) : undefined
+      }
+    />
+  );
 
   return (
     <Shell>
@@ -84,95 +101,105 @@ const ZeroState: FC<ZeroStateProps> = ({
       </TopBar>
 
       <Body>
-        <Stage>
-          <Lead $shown={onStart}>
-            <Title>Where should we begin?</Title>
-          </Lead>
+        {phoneStart ? (
+          <PhoneStage>
+            <PhoneHome
+              onOpenProject={
+                onOpenProject ?? ((name) => PgExplorer.switchWorkspace(name))
+              }
+            />
+          </PhoneStage>
+        ) : (
+          <Stage>
+            <Lead $shown={onStart}>
+              <Title>Where should we begin?</Title>
+            </Lead>
 
-          {!phone && <ComposerSlot>{composer}</ComposerSlot>}
+            {!phone && <ComposerSlot>{composer}</ComposerSlot>}
 
-          {onStart && (
-            <Cards>
-              <Card
-                type="button"
-                aria-expanded={scratchOpen}
-                $on={scratchOpen}
-                onClick={() => setScratchOpen((o) => !o)}
-              >
-                <CardIcon aria-hidden="true">
-                  <BrandIcon name="new" />
-                </CardIcon>
-                <CardTitle>New project</CardTitle>
-                <CardSub>Anchor, Native or Seahorse</CardSub>
-              </Card>
-              <Card type="button" onClick={() => onSection("tutorials")}>
-                <CardIcon aria-hidden="true">
-                  <BrandIcon name="tutorial" />
-                </CardIcon>
-                <CardTitle>Follow a tutorial</CardTitle>
-                <CardSub>{PgTutorial.all.length} guided paths</CardSub>
-              </Card>
-              <Card type="button" onClick={() => onSection("programs")}>
-                <CardIcon aria-hidden="true">
-                  <BrandIcon name="programs" />
-                </CardIcon>
-                <CardTitle>Open a program</CardTitle>
-                <CardSub>
-                  {programs ? programs.length : "…"} real programs
-                </CardSub>
-              </Card>
-            </Cards>
-          )}
-
-          <Panel
-            id="zero-panel"
-            aria-label={SECTION_TITLE[section]}
-            key={section + (scratchOpen ? "-scratch" : "")}
-          >
-            {onStart && scratchOpen && <StartFromScratch />}
             {onStart && (
-              <>
-                <PanelHead>
-                  <PanelLabel>Or learn from one of these</PanelLabel>
-                  <PanelMore
-                    type="button"
-                    onClick={() => onSection("tutorials")}
-                  >
-                    All {PgTutorial.all.length}
-                  </PanelMore>
-                </PanelHead>
-                <Clip $rows={2}>
-                  <TutorialsTab query="" />
-                </Clip>
-              </>
+              <Cards>
+                <Card
+                  type="button"
+                  aria-expanded={scratchOpen}
+                  $on={scratchOpen}
+                  onClick={() => setScratchOpen((o) => !o)}
+                >
+                  <CardIcon aria-hidden="true">
+                    <BrandIcon name="new" />
+                  </CardIcon>
+                  <CardTitle>New project</CardTitle>
+                  <CardSub>Anchor, Native or Seahorse</CardSub>
+                </Card>
+                <Card type="button" onClick={() => onSection("tutorials")}>
+                  <CardIcon aria-hidden="true">
+                    <BrandIcon name="tutorial" />
+                  </CardIcon>
+                  <CardTitle>Follow a tutorial</CardTitle>
+                  <CardSub>{PgTutorial.all.length} guided paths</CardSub>
+                </Card>
+                <Card type="button" onClick={() => onSection("programs")}>
+                  <CardIcon aria-hidden="true">
+                    <BrandIcon name="programs" />
+                  </CardIcon>
+                  <CardTitle>Open a program</CardTitle>
+                  <CardSub>
+                    {programs ? programs.length : "…"} real programs
+                  </CardSub>
+                </Card>
+              </Cards>
             )}
-            {!onStart && (
-              <ListHead>
-                <SearchWrap>
-                  <Glyph aria-hidden="true">
-                    <BrandIcon name="search" />
-                  </Glyph>
-                  <SearchInput
-                    type="search"
-                    value={query}
-                    autoFocus
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={`Search ${SECTION_TITLE[
-                      section
-                    ].toLowerCase()}`}
-                    aria-label={`Search ${SECTION_TITLE[
-                      section
-                    ].toLowerCase()}`}
-                  />
-                </SearchWrap>
-              </ListHead>
-            )}
-            {section === "tutorials" && <TutorialsTab query={query} />}
-            {section === "programs" && (
-              <ProgramsTab query={query} programs={programs} />
-            )}
-          </Panel>
-        </Stage>
+
+            <Panel
+              id="zero-panel"
+              aria-label={SECTION_TITLE[section]}
+              key={section + (scratchOpen ? "-scratch" : "")}
+            >
+              {onStart && scratchOpen && <StartFromScratch />}
+              {onStart && (
+                <>
+                  <PanelHead>
+                    <PanelLabel>Or learn from one of these</PanelLabel>
+                    <PanelMore
+                      type="button"
+                      onClick={() => onSection("tutorials")}
+                    >
+                      All {PgTutorial.all.length}
+                    </PanelMore>
+                  </PanelHead>
+                  <Clip $rows={2}>
+                    <TutorialsTab query="" />
+                  </Clip>
+                </>
+              )}
+              {!onStart && (
+                <ListHead>
+                  <SearchWrap>
+                    <Glyph aria-hidden="true">
+                      <BrandIcon name="search" />
+                    </Glyph>
+                    <SearchInput
+                      type="search"
+                      value={query}
+                      autoFocus
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder={`Search ${SECTION_TITLE[
+                        section
+                      ].toLowerCase()}`}
+                      aria-label={`Search ${SECTION_TITLE[
+                        section
+                      ].toLowerCase()}`}
+                    />
+                  </SearchWrap>
+                </ListHead>
+              )}
+              {section === "tutorials" && <TutorialsTab query={query} />}
+              {section === "programs" && (
+                <ProgramsTab query={query} programs={programs} />
+              )}
+            </Panel>
+          </Stage>
+        )}
       </Body>
       {phone && <PhoneComposer>{composer}</PhoneComposer>}
     </Shell>
@@ -199,6 +226,11 @@ const Shell = styled.div`
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+
+  /* A phone's page is a column, not a grid: the whole of it */
+  ${PHONE} {
+    flex: 1;
+  }
 `;
 
 /* The name of what you are looking at, in the row and the column a project's
@@ -328,6 +360,15 @@ const Stage = styled.div`
     gap: 1rem;
     padding: 2.5rem 1.25rem calc(2rem + env(safe-area-inset-bottom, 0px));
   }
+`;
+
+/* The phone's start screen: the whole height, the question in the middle of
+   what the quickstarts leave above the composer */
+const PhoneStage = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 0 1rem;
 `;
 
 /* Collapses out of the way on a list tab rather than disappearing: height and
