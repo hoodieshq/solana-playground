@@ -5,6 +5,7 @@ import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgWorkspace } from "../../../utils/explorer/workspace";
 
 // `adopt` re-opens through `reloadCurrentFromDisk`, which drops Monaco's
 // cached models before it does -- and `monaco-editor` cannot load under
@@ -674,6 +675,35 @@ describe("PgProjectSync.pushCurrent", () => {
     expect(body.id).toBe("b");
     expect(body.name).toBe("B");
     expect(body.snapshot.files["src/lib.rs"]).toBe("// B");
+  });
+
+  it("refuses to upload a workspace another tab renamed or deleted", async () => {
+    // This tab's memory still has it, and its autosave recreated the
+    // directory around the one file it wrote -- a fragment that would
+    // replace the whole project on the server
+    asWorkspace("p1", "mine");
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({
+        workspaces: [{ id: "p1", name: "renamed" }],
+        currentId: "p1",
+      })
+    );
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
+  });
+
+  it("uploads a workspace the registry on disk still has", async () => {
+    asWorkspace("p1", "mine");
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p1", name: "mine" }] })
+    );
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
   });
 });
 
