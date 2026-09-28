@@ -28,7 +28,7 @@ const useClassic = params.has("classic");
  * asked for a page by name already knows what this is, and showing them a
  * pitch instead would be rude.
  */
-type Stage = "deck" | "landing" | "landing-trail" | "evaluation" | "product";
+type Stage = "deck" | "landing" | "evaluation" | "product";
 
 const stageFromUrl = (): Stage => {
   if (window.location.pathname !== "/") return "product";
@@ -44,10 +44,9 @@ const stageFromUrl = (): Stage => {
 
   if (asked("app")) return "product";
   if (asked("evaluation")) return "evaluation";
-  /* The landing's second version, to compare with the first. Asked before
-     the classic, so a leftover ?landing does not outrank #landing-trail. */
-  if (asked("landing-trail")) return "landing-trail";
-  if (asked("landing")) return "landing";
+  /* #landing-trail named the landing while it had a second version; the
+     links shared then still arrive */
+  if (asked("landing") || asked("landing-trail")) return "landing";
   return "deck";
 };
 
@@ -82,22 +81,8 @@ const Panels = () => {
         />
       );
     }
-    if (stage === "landing" || stage === "landing-trail") {
-      const variant = stage === "landing" ? "classic" : "trail";
-      /* Keyed by version, so switching is a fresh page from the top — the
-         hero plays again — and nothing of the other version is carried */
-      return (
-        <Landing
-          key={variant}
-          variant={variant}
-          onEnter={() => goTo("product", "/#app")}
-          onVariant={(next) => {
-            window.scrollTo(0, 0);
-            if (next === "trail") goTo("landing-trail", "/#landing-trail");
-            else goTo("landing", "/#landing");
-          }}
-        />
-      );
+    if (stage === "landing") {
+      return <Landing onEnter={() => goTo("product", "/#app")} />;
     }
     if (stage === "evaluation") {
       return (

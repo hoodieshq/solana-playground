@@ -3,43 +3,35 @@ import styled, { css } from "styled-components";
 
 import { drawAurora } from "./aurora";
 import { drawRibbons } from "./ribbons";
-import type { Frame, Shake } from "./ribbons";
-import { drawStreaks } from "./streaks";
+import type { Frame } from "./ribbons";
 import { smoothstep } from "./trail";
 
 /**
- * The trail version's button, as light rather than as a slab: ribbons in
- * Solana's colours, rising out of the bottom of the screen and bending up into
- * the product's interface, over a glow of northern lights.
+ * The landing's button, as light rather than as a slab: ribbons in Solana's
+ * colours, rising out of the bottom of the screen and bending up into the
+ * product's interface, over a glow of northern lights.
  *
  * Underneath, the northern lights (`aurora.ts`) — curtains drawn small and
  * blurred by CSS so they arrive as glow. Over them, the ribbons
- * (`ribbons.ts`), measured against the product's window so they rise into it,
- * drawn at the screen's resolution and blurred progressively on their way up —
- * sharp across the words, softer as they rise, as the claims further down are
- * sharp where they are read and soft further off. That is one drawing shown
- * three times, sharp, soft and softer, each through a band of the height, the
- * bands crossfading. The whole of it is solid and ends clean at its box.
+ * (`ribbons.ts`), drawn at the screen's resolution and blurred progressively
+ * on their way up — sharp across the words, softer as they rise, as the
+ * claims further down are sharp where they are read and soft further off.
+ * That is one drawing shown three times, sharp, soft and softer, each through
+ * a band of the height, the bands crossfading. The whole of it is solid and
+ * ends clean at its box.
  *
- * The light's clock runs faster under the pointer, or focused, and while the
- * page is scrolled — eased in quickly and out slowly, so a flick carries on a
- * moment after the hand has stopped: the ribbons slide faster and reach
- * further, and streaks (`streaks.ts`) race up them into the product — the
- * claims' lines of light. A scroll also pulls on a spring that stretches the
- * ribbons, which springs back once the page is still, and the reader's pull
- * against the first screen stretches them further. When the page glides on
- * its own, the glide drives the light: it runs at full speed, the ribbons
- * stretch, bend in and whip, and it shakes a little; under the pointer
- * everything shakes a little too. The window's own edge joins in: two lights
- * run up its sides and over its top on the same clock, brighter the faster it
- * runs. It only runs while it can be seen; asked for less motion, it draws one
+ * The ribbons hold still: one shape, for the product's window as it stands
+ * when the page has come to rest on this first screen, worked out from the
+ * layout — which neither a scroll, the page's pull nor the product's rise
+ * touches — so they move with the page and never on their own. Only colour
+ * moves: along the row, and in glints up every ribbon. The light's clock runs
+ * faster under the pointer, or focused, while the page is scrolled or pulled,
+ * and while it glides on its own — eased in quickly and out slowly, so a
+ * flick carries on a moment after the hand has stopped — and the colour
+ * flows on quicker with it. The window's own edge joins in: two lights run up
+ * its sides and over its top on the same clock, brighter the faster it runs.
+ * It only runs while it can be seen; asked for less motion, it draws one
  * frame and leaves it.
- *
- * The ribbons always stand on the bottom of the screen. While the page holds
- * the button against it, the light's canvases end at the fold and the ribbons
- * come up out of it; before that, while the product is still rising with the
- * button, the fold is higher up the canvas and they stand there, reaching up
- * to the window as it comes — the interface pulls them up.
  */
 
 /** How far the light runs on below the button's own box, as a share of its
@@ -48,7 +40,7 @@ import { smoothstep } from "./trail";
 export const LIGHT_BELOW = 0.148;
 
 /* Above it and past its ends: the glow keeps to a band around the words; the
-   ribbons and the streaks have the screen above to rise into */
+   ribbons have the screen above to rise into */
 const FLOW_ABOVE = 0.18;
 const LINES_ABOVE = 2.4;
 const LIGHT_SIDE = 0.06;
@@ -88,26 +80,14 @@ const SCROLL_SHARE = 0.8;
 const SCROLL_IN = 8;
 const SCROLL_OUT = 2.2;
 
-/* The spring a scroll pulls on: its stiffness, its damping — a touch under
-   critical, so it settles with a small overshoot — how hard a full-speed
-   scroll pulls, and how far it may stretch or squeeze the ribbons */
-const SPRING = 48;
-const DAMPING = 7.5;
-const PULL = 6;
-const STRETCH_MAX = 0.18;
-const SQUEEZE_MAX = 0.1;
-
-/* How hard it shakes under the pointer at full speed, in the screen's
-   pixels */
-const SHAKE = 2.4;
-
 /* Trips of the window's edge lights, from its sides to the middle of its
    top, per second of the light's clock */
 const EDGE_RATE = 0.11;
 
 /** What the page asks of the light (`Landing.tsx`): how hard the reader is
     pulling on it, 0 to 1 — scrolling down against it before the page lets go
-    — and how hard a glide of the page's own is driving it */
+    — and how hard a glide of the page's own is driving it. Either only
+    quickens its clock. */
 export interface Pull {
   value: number;
   drive: number;
@@ -119,56 +99,53 @@ interface LightProps {
   /** The product's window, for the ribbons to rise into and its edge to
       light up */
   frame?: RefObject<HTMLElement>;
-  /** The reader's pull: it stretches the ribbons and speeds them up */
+  /** The reader's pull: it speeds the light up */
   pull?: RefObject<Pull>;
+  /** Where the top of the product's frame — the section the button is in —
+      stands in the window once the page rests on this first screen. Without
+      it, wherever the frame is when the light is drawn. */
+  restTop?: () => number | null;
 }
 
-/* How far a full pull lengthens the ribbons upward, and how much of the full
-   speed-up it gives their glints and streaks; how far a glide at full drive
-   lengthens them, and how hard it shakes them against the pointer's shake.
-   Neither touches how fast they slide sideways: that clock only the pointer
-   quickens, a little */
-const PULL_RISE = 1;
+/* How much of the full speed-up a full pull gives. Neither the pull nor a
+   glide touches how fast the colour flows along the row: that clock only the
+   pointer quickens, a little */
 const PULL_SPEED = 0.9;
-const DRIVE_RISE = 0.8;
-const DRIVE_SHAKE = 0.5;
-const HOVER_SLIDE = 0.6;
+const HOVER_FLOW = 0.6;
 
 /* One time for every light on the page: the trail version shows its hero
    again at the bottom of its loop and jumps from that copy back to the top,
    which only goes unseen if both are drawn at the same moment. Whichever light
    ticks first in a frame moves it on. */
-const shared = { clock: 12, slideClock: 12, stamp: -1 };
+const shared = { clock: 12, flowClock: 12, stamp: -1 };
 
-const Light: FC<LightProps> = ({ on, frame, pull }) => {
+const Light: FC<LightProps> = ({ on, frame, pull, restTop }) => {
   const flowRef = useRef<HTMLCanvasElement>(null);
   const sharpRef = useRef<HTMLCanvasElement>(null);
   const softRef = useRef<HTMLCanvasElement>(null);
   const softerRef = useRef<HTMLCanvasElement>(null);
-  const streaksRef = useRef<HTMLCanvasElement>(null);
+  /* Works the ribbons' shape out again: the layout it is measured on can
+     settle after the light is first drawn */
+  const reshapeRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     const flow = flowRef.current;
     const sharp = sharpRef.current;
     const soft = softRef.current;
     const softer = softerRef.current;
-    const streaks = streaksRef.current;
     const flowCtx = flow?.getContext("2d");
     const sharpCtx = sharp?.getContext("2d");
     const softCtx = soft?.getContext("2d");
     const softerCtx = softer?.getContext("2d");
-    const streaksCtx = streaks?.getContext("2d");
     if (
       !flow ||
       !sharp ||
       !soft ||
       !softer ||
-      !streaks ||
       !flowCtx ||
       !sharpCtx ||
       !softCtx ||
-      !softerCtx ||
-      !streaksCtx
+      !softerCtx
     ) {
       return;
     }
@@ -179,23 +156,19 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
     let drawn = 0;
     /* The shared clocks (above) run at a speed of their own, so the pointer
        and the scroll speed the light up without jumping it to another
-       moment; the calm one is for sliding along the bottom */
+       moment; the calm one is for the colour's flow along the row */
     let last = 0;
     /* The pointer: whether it is on the button, and how far that has eased
        in */
     let hovered = false;
     let hover = 0;
-    /* The scroll: where the page was, how fast it moves, how much speed that
-       gives, and the spring it pulls on */
+    /* The scroll: where the page was, how fast it moves, and how much speed
+       that gives */
     let scrolled = window.scrollY;
     let velocity = 0;
     let boost = 0;
-    let stretch = 0;
-    let stretchSpeed = 0;
-    /* The product's window in the canvas, until it has been measured, and
-       where the bottom of the screen falls in it */
+    /* The product's window in the canvas, until it has been measured */
     const shape: Frame = { left: 0.09, right: 0.95, top: BUTTON_TOP - 0.3 };
-    let ground = 1;
 
     /* Layout sizes, not on-screen ones — the entrance scales the canvases,
        and the drawing should not change with it */
@@ -212,8 +185,6 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       sizes.lh = Math.max(1, Math.round(sharp.offsetHeight * sizes.px));
       sharp.width = sizes.lw;
       sharp.height = sizes.lh;
-      streaks.width = sizes.lw;
-      streaks.height = sizes.lh;
       sizes.sw = Math.max(1, Math.round(sizes.lw * SOFT_SCALE));
       sizes.sh = Math.max(1, Math.round(sizes.lh * SOFT_SCALE));
       soft.width = sizes.sw;
@@ -222,23 +193,50 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       softer.height = sizes.sh;
     };
 
-    /* Where the product's window and the bottom of the screen fall in the
-       canvas, worked out from the button — whose box no transform of the
-       light's touches, while the product's rise moves both alike */
+    /* Where the product's window falls in the canvas, once and for all: its
+       sides as they are, since nothing moves them sideways, and its top as
+       it will be when the page rests. The top is worked out from the layout
+       — offsets, which no transform touches — and from the button's own
+       place in it: the page holds the button on the fold while it is short
+       of that place, so where it stands at rest is whichever is higher. */
     const button = sharp.closest("button");
-    const measure = () => {
-      if (!button) return;
+    const section = button?.closest("section") ?? null;
+    const offsetIn = (el: HTMLElement) => {
+      let y = 0;
+      let at: HTMLElement | null = el;
+      while (at && at !== section) {
+        y += at.offsetTop;
+        at = at.offsetParent as HTMLElement | null;
+      }
+      return y;
+    };
+    const reshape = () => {
+      const win = frame?.current;
+      if (!button || !win || !section) return;
+      const style = window.getComputedStyle(button);
+      const held = style.position === "sticky";
+      const was = button.style.position;
+      if (held) button.style.position = "static";
+      const own = offsetIn(button);
+      if (held) button.style.position = was;
+      const winAt = offsetIn(win);
+      const top = restTop?.() ?? section.getBoundingClientRect().top;
+      const hold =
+        window.innerHeight -
+        (parseFloat(style.bottom) || 0) -
+        button.offsetHeight;
+      const buttonAt = held ? Math.min(top + own, hold) : top + own;
+      const height = TOTAL * button.offsetHeight;
+      if (height > 0) {
+        shape.top = BUTTON_TOP - (buttonAt - (top + winAt)) / height;
+      }
       const b = button.getBoundingClientRect();
-      const top = b.top - LINES_ABOVE * b.height;
-      const height = TOTAL * b.height;
+      const w = win.getBoundingClientRect();
       const left = b.left - LIGHT_SIDE * b.width;
       const width = (1 + 2 * LIGHT_SIDE) * b.width;
-      if (height > 0) ground = (window.innerHeight - top) / height;
-      const win = frame?.current?.getBoundingClientRect();
-      if (win && width > 0 && height > 0) {
-        shape.left = (win.left - left) / width;
-        shape.right = (win.right - left) / width;
-        shape.top = (win.top - top) / height;
+      if (width > 0) {
+        shape.left = (w.left - left) / width;
+        shape.right = (w.right - left) / width;
       }
     };
 
@@ -258,63 +256,23 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       edge.style.setProperty("--edge", (0.6 + 0.4 * pace).toFixed(3));
     };
 
-    const paint = (
-      seconds: number,
-      speed: number,
-      drive = 0,
-      slideT = seconds
-    ) => {
-      /* The pull and the page's glides lengthen the ribbons upward */
-      const rise = PULL_RISE * (pull?.current?.value ?? 0) + DRIVE_RISE * drive;
+    const paint = (seconds: number, speed: number, flowT = seconds) => {
       const pace = Math.max(0, Math.min(1, (speed - 1) / (HOT - 1)));
-      /* A shake on the light's clock under the pointer, or while the page
-         glides, harder the faster it runs */
-      const hard =
-        SHAKE * Math.max(hover, DRIVE_SHAKE * drive) * pace * sizes.px;
-      const shake: Shake = {
-        x:
-          hard *
-          (0.6 * Math.sin(seconds * 47.3) +
-            0.4 * Math.sin(seconds * 83.9 + 1.7)),
-        y:
-          hard *
-          (0.6 * Math.sin(seconds * 53.1 + 0.4) +
-            0.4 * Math.sin(seconds * 71.3 + 2.1)),
-      };
       drawAurora(flowCtx, sizes.fw, sizes.fh, seconds);
       drawRibbons(
         sharpCtx,
         sizes.lw,
         sizes.lh,
         seconds,
+        flowT,
         BUTTON_TOP,
-        shape,
-        pace,
-        stretch,
-        { x: shake.x * 0.5, y: shake.y * 0.5 },
-        ground,
-        rise,
-        slideT
+        shape
       );
       /* The same frame, smaller, for CSS to blur */
       softCtx.clearRect(0, 0, sizes.sw, sizes.sh);
       softCtx.drawImage(sharp, 0, 0, sizes.sw, sizes.sh);
       softerCtx.clearRect(0, 0, sizes.sw, sizes.sh);
       softerCtx.drawImage(soft, 0, 0);
-      drawStreaks(
-        streaksCtx,
-        sizes.lw,
-        sizes.lh,
-        seconds,
-        BUTTON_TOP,
-        shape,
-        pace,
-        sizes.px,
-        shake,
-        ground,
-        rise,
-        slideT
-      );
       light(seconds, pace);
     };
 
@@ -337,15 +295,6 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
         (wanted - boost) *
         Math.min(1, dt * (wanted > boost ? SCROLL_IN : SCROLL_OUT));
 
-      /* The spring: pulled up by a scroll down the page, down by one back up */
-      const tug = Math.max(-1, Math.min(1, velocity / SCROLL_FULL));
-      stretchSpeed +=
-        (PULL * tug - SPRING * stretch - DAMPING * stretchSpeed) * dt;
-      stretch = Math.max(
-        -SQUEEZE_MAX,
-        Math.min(STRETCH_MAX, stretch + stretchSpeed * dt)
-      );
-
       hover += ((hovered ? 1 : 0) - hover) * Math.min(1, dt * EASING);
       const drag = Math.max(0, pull?.current?.value ?? 0);
       const asked = pull?.current?.drive ?? 0;
@@ -361,11 +310,10 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
           );
       if (shared.stamp !== now) {
         shared.clock += dt * speed;
-        shared.slideClock += dt * (1 + (HOT - 1) * HOVER_SLIDE * hover);
+        shared.flowClock += dt * (1 + (HOT - 1) * HOVER_FLOW * hover);
         shared.stamp = now;
       }
-      measure();
-      paint(shared.clock, speed, drive, shared.slideClock);
+      paint(shared.clock, speed, shared.flowClock);
     };
     const start = () => {
       if (!running && !still) running = requestAnimationFrame(tick);
@@ -388,29 +336,29 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
     button?.addEventListener("focus", hot);
     button?.addEventListener("blur", cool);
 
-    /* Standing still, the one frame still follows the window as it scrolls */
-    let settle = 0;
-    const onScroll = () => {
-      if (settle) return;
-      settle = requestAnimationFrame(() => {
-        settle = 0;
-        measure();
-        paint(STILL_AT, 1);
-      });
+    /* Drawn again at once whenever the shape is worked out again; running,
+       the next frame would draw it anyway */
+    const redraw = () => {
+      reshape();
+      if (still) paint(STILL_AT, 1);
+      else paint(shared.clock, 1, shared.flowClock);
     };
-    if (still) window.addEventListener("scroll", onScroll, { passive: true });
+    reshapeRef.current = redraw;
 
     size();
-    measure();
-    paint(still ? STILL_AT : shared.clock, 1, 0, shared.slideClock);
+    redraw();
+    /* The page's faces move its layout once they arrive */
+    let live = true;
+    document.fonts?.ready.then(() => {
+      if (live) redraw();
+    });
 
     const resize =
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(() => {
             size();
-            measure();
-            paint(still ? STILL_AT : shared.clock, 1, 0, shared.slideClock);
+            redraw();
           });
     resize?.observe(sharp);
 
@@ -425,9 +373,9 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
     else start();
 
     return () => {
+      live = false;
+      reshapeRef.current = () => undefined;
       stop();
-      if (settle) cancelAnimationFrame(settle);
-      window.removeEventListener("scroll", onScroll);
       watch?.disconnect();
       resize?.disconnect();
       button?.removeEventListener("pointerenter", hot);
@@ -435,7 +383,12 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       button?.removeEventListener("focus", hot);
       button?.removeEventListener("blur", cool);
     };
-  }, [frame, pull]);
+  }, [frame, pull, restTop]);
+
+  /* Coming on, the product has risen into its place: its layout is final */
+  useEffect(() => {
+    if (on) reshapeRef.current();
+  }, [on]);
 
   return (
     <Wrap $on={on} aria-hidden="true">
@@ -443,7 +396,6 @@ const Light: FC<LightProps> = ({ on, frame, pull }) => {
       <Sharp ref={sharpRef} />
       <Soft ref={softRef} />
       <Softer ref={softerRef} />
-      <Streaks ref={streaksRef} />
     </Wrap>
   );
 };
@@ -532,9 +484,4 @@ const Softer = styled(Layer)`
   ${band(
     `linear-gradient(to bottom, #000 ${SOFTER_ABOVE}%, transparent ${SOFT_AT}%)`
   )}
-`;
-
-/* Added to the light beneath rather than laid over it, as light is */
-const Streaks = styled(Layer)`
-  mix-blend-mode: screen;
 `;

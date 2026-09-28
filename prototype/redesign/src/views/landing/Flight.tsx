@@ -7,7 +7,7 @@ import type { Statement } from "./Statements";
 import { RAMP, rgba, seeded, smoothstep } from "./trail";
 
 /**
- * The claims, flown at the reader — the trail version's answer to three tall,
+ * The claims, flown at the reader — the landing's answer to three tall,
  * mostly empty sections.
  *
  * The page pins a screen and the scroll becomes a camera moving forward.
@@ -23,7 +23,7 @@ import { RAMP, rgba, seeded, smoothstep } from "./trail";
  * listener wakes one animation-frame loop, which reads the track's position
  * once and writes only transforms, opacity and filter — and draws the lines
  * on a canvas. The loop sleeps as soon as nothing is moving. Asked for less
- * motion, the claims are simply the classic stack.
+ * motion, the claims are simply stacked, one to a screen (`Statements.tsx`).
  */
 
 /* Scroll per claim, in screens */
@@ -492,7 +492,7 @@ const Claim = styled.div`
   pointer-events: none;
 `;
 
-/* The classic claims' type, so the two versions say it at the same size:
+/* The stacked claims' type, so still and in flight they are the same size:
    short lines, set large and a little heavy, broken into even rows */
 const type = css`
   margin: 0;

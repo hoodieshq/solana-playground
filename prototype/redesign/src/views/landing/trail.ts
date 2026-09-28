@@ -1,7 +1,7 @@
 import { css, keyframes } from "styled-components";
 
 /**
- * The trail: what the second version of the landing adds to the first.
+ * The trail: the light the landing's moving parts leave behind them.
  *
  * Solana's colours, as a light cools behind something moving fast — green
  * nearest the head, then teal, then purple, then violet, and then nothing.

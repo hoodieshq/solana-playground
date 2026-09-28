@@ -12,28 +12,21 @@ import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import PlaygroundLogoNext from "../../components/PlaygroundLogoNext";
 import PlayRing from "../../components/PlayRing";
-import { StillMesh } from "../deck/Atmosphere";
 /* The product as it is now, shot from the build itself and framed on the
    brand render's geometry, so the crop below still lands on its window */
 import productShot from "./art/product-closeup.jpg";
 import phoneShot from "./art/phone-code.jpg";
 import BuildHero from "../deck/BuildHero";
 import type { BuildStep } from "../deck/BuildHero";
-import Pattern from "../deck/Pattern";
-import { Headline } from "../deck/Slide";
 import { HEADLINE, HEADLINE_SIZE, INK } from "../deck/tokens";
 import Flight from "./Flight";
 import Light, { LIGHT_BELOW } from "./Light";
 import PhoneMenu from "./PhoneMenu";
 import type { MenuLink } from "./PhoneMenu";
 import type { Pull } from "./Light";
-import Statements from "./Statements";
 import type { Statement } from "./Statements";
-import VersionSwitch from "./VersionSwitch";
-import type { Variant } from "./VersionSwitch";
 import { LogoPill, NavLink, NavPill, TopBar, frameUnit, u } from "./chrome";
 import { trailLetters } from "./trail";
-import { useReveal } from "./useReveal";
 
 /**
  * The landing, as the presentation would say it (Figma 53:7077).
@@ -41,31 +34,22 @@ import { useReveal } from "./useReveal";
  * It opens the way the deck's slides 7 to 9 do — "Explore", then "Learn,",
  * then "Build Onchain" arriving, words already on screen travelling to make
  * room, the gradient sliding from green to violet and settling into ink — but
- * played through on its own, a screen tall. Once the line has landed it rises
- * a little, the product comes up from the bottom of the screen into the room
- * it leaves, and the button arrives last, cut by the bottom edge so the page
- * plainly goes on. Then three claims, each given most of a screen, and the
- * close on the deck's gradient.
+ * played through on its own, a screen tall, every letter arriving trailing
+ * copies of itself in Solana's ramp. Once the line has landed it rises a
+ * little, the product comes up from the bottom of the screen into the room it
+ * leaves, and the button arrives last: its words on light, ribbons in the
+ * brand's colours standing still while the colour flows through them. Then
+ * the claims fly at the reader out of depth as they scroll, and the page goes
+ * round — the first screen again with a line of its own, the claims again,
+ * and back to the top.
  *
  * Built from the deck's own parts rather than made to resemble them, and kept
  * short: a claim and one quiet line wherever there used to be a paragraph.
- *
- * Two versions, one page. The classic is the above. The trail version keeps
- * every part of it and changes three things: the headline's letters arrive
- * trailing copies of themselves in Solana's ramp; the button is light — the
- * northern lights in the brand's colours — rather than a slab; and the
- * claims, instead of waiting in tall sections, fly at the reader out of depth
- * as they scroll. Everything else — the hero's steps, the product, the close —
- * is literally the same code, so the two cannot drift apart.
  */
 
 interface LandingProps {
   /** Into the product */
   onEnter: () => void;
-  /** Which version: the deck's own, or the one whose headlines trail light */
-  variant?: Variant;
-  /** Switch versions — the switch is shown when this is given */
-  onVariant?: (next: Variant) => void;
 }
 
 /* The deck's three steps, with its three grounds */
@@ -99,7 +83,7 @@ const STATEMENTS: Statement[] = [
   },
 ];
 
-/* The claims again, further round the trail version's loop */
+/* The claims again, further round the loop */
 const STATEMENTS_AGAIN = STATEMENTS.map((item) => ({
   ...item,
   id: `${item.id}-again`,
@@ -116,7 +100,7 @@ const scrollTo = (id: string) => (ev: MouseEvent) => {
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
-/* ── the trail version's first screen, in motion ─────────────────────── */
+/* ── the first screen, in motion ─────────────────────────────────────── */
 
 /* Once the product has come up, the page glides down until the top bar is
    out of view, so the product and its light have the whole screen. A scroll
@@ -152,7 +136,7 @@ const PULL_HEAD = 120;
 const PULL_PRODUCT = 84;
 const PULL_WORDS = 56;
 
-/* The stops the trail version's page glides between, going round: the hero
+/* The stops the page glides between, going round: the hero
    at rest, the claims, the footer — the first screen again, with its own
    line — the claims again under names of their own, and a copy of the hero,
    from which the page goes round to the top */
@@ -214,6 +198,16 @@ const MENU_LINKS: MenuLink[] = [
   { label: "Docs", href: "https://solana.com/docs", external: true },
 ];
 
+/* Where an element is on the page, by the layout: no transform moves it */
+const pageTop = (el: HTMLElement) => {
+  let y = 0;
+  for (let at: HTMLElement | null = el; at; ) {
+    y += at.offsetTop;
+    at = at.offsetParent as HTMLElement | null;
+  }
+  return y;
+};
+
 /* Under the landing's links fold: a phone */
 const PHONE_FOLD = "(max-width: 40rem)";
 const phoneNow = () => window.matchMedia(PHONE_FOLD).matches;
@@ -221,11 +215,10 @@ const phoneNow = () => window.matchMedia(PHONE_FOLD).matches;
 /* The first screen, as the hero measures it */
 const SCREEN = "max(100vh, 34rem)";
 
-/* How much of the product the first screen shows once it is up: the lower 48%,
-   so the render's top sits just past halfway down — on the trail version 55%,
-   so its light has room to rise into the interface */
-const peekShare = (trail: boolean) => (trail ? 0.55 : 0.48);
-const productPeek = (trail: boolean) => `calc(${SCREEN} * ${peekShare(trail)})`;
+/* How much of the product the first screen shows once it is up: the lower
+   55%, so its light has room to rise into the interface */
+const PEEK = 0.55;
+const PRODUCT_PEEK = `calc(${SCREEN} * ${PEEK})`;
 
 /* The line: the deck's, at the Figma's 185.6, two rows of 0.93 */
 const LINE = `calc(${HEADLINE_SIZE} * 0.86)`;
@@ -237,24 +230,18 @@ const CLEAR = `max(${u(151)}, calc(${u(94)} + 2.5rem))`;
    clears the product's window by 70 on the 1920 frame (never less than 1.5rem;
    the window starts 64 into the render), and never so far that it runs into
    the top bar */
-const lift = (trail: boolean) =>
-  `max(0px, min(calc(0.93 * ${LINE} + ${(peekShare(trail) - 0.5).toFixed(
-    2
-  )} * ${SCREEN} + max(${u(70)}, 1.5rem) - ${u(64)}),` +
+const LIFT =
+  `max(0px, min(calc(0.93 * ${LINE} + ${(PEEK - 0.5).toFixed(2)} * ${SCREEN}` +
+  ` + max(${u(70)}, 1.5rem) - ${u(64)}),` +
   ` calc((${SCREEN} - 1.86 * ${LINE}) / 2 - ${CLEAR})))`;
 
-const Landing: FC<LandingProps> = ({
-  onEnter,
-  variant = "classic",
-  onVariant,
-}) => {
-  const trail = variant === "trail";
+const Landing: FC<LandingProps> = ({ onEnter }) => {
   const [up, setUp] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
   const rise = useCallback(() => setUp(true), []);
 
-  /* The trail version's first screen in motion: see the constants above */
+  /* The first screen in motion: see the constants above */
   const pageRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -279,18 +266,30 @@ const Landing: FC<LandingProps> = ({
       events.forEach((e) => window.removeEventListener(e, take, opts));
   }, []);
 
-  /* Where the page rests once the top bar is out of view */
+  /* Where the page rests once the top bar is out of view — measured on the
+     layout, so the bar's own entrance, still sliding it in, does not count */
   const restAt = useCallback(() => {
     const top = topRef.current;
-    return top
-      ? Math.round(
-          top.getBoundingClientRect().bottom + window.scrollY + SETTLE_GAP
-        )
-      : 0;
+    return top ? Math.round(pageTop(top) + top.offsetHeight + SETTLE_GAP) : 0;
   }, []);
 
+  /* Where the product's frame stands in the window once the page has come to
+     rest on a first screen: the one moment its light is drawn for, so the
+     ribbons keep that shape however the page moves (`Light.tsx`). Every first
+     screen rests the same way, so the hero's answers for all three. A phone,
+     or a reader who asked for less motion, rests where the page opened. */
+  const heroFrameRef = useRef<HTMLElement>(null);
+  const restTop = useCallback(() => {
+    const frame = heroFrameRef.current;
+    if (!frame) return null;
+    const settles =
+      !phoneNow() &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return pageTop(frame) - (settles ? restAt() : 0);
+  }, [restAt]);
+
   useEffect(() => {
-    if (!trail || !up) return;
+    if (!up) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     /* A phone keeps its top bar in view: the menu is in it */
     if (phoneNow()) return;
@@ -311,9 +310,9 @@ const Landing: FC<LandingProps> = ({
       window.clearTimeout(timer);
       stopSettle.current();
     };
-  }, [trail, up, restAt]);
+  }, [up, restAt]);
 
-  /* The trail version's page, as a loop of stops (see the constants above):
+  /* The page, as a loop of stops (see the constants above):
      the hero at rest, each claim, the footer at rest, each claim again, and a
      copy of the hero — which is the hero, so the page goes round from it */
   const stopsNow = useCallback((): Stop[] => {
@@ -337,7 +336,6 @@ const Landing: FC<LandingProps> = ({
   /* A gesture glides to the next stop; at the hero and the footer it pulls on
      the first screen first, and lets go past a point */
   useEffect(() => {
-    if (!trail) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let wanted = 0;
     let pulledAt = 0;
@@ -497,13 +495,12 @@ const Landing: FC<LandingProps> = ({
       stopGlide();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [trail, stopsNow]);
+  }, [stopsNow]);
 
   /* A page scrolled by hand — a touch screen, the scroll bar — has no glide
      to go round on: coming to rest on the copy of the hero at the bottom, it
      goes round to the top, to the same place in the hero */
   useEffect(() => {
-    if (!trail) return;
     let timer = 0;
     const settle = () => {
       const copy = loopRef.current;
@@ -521,15 +518,11 @@ const Landing: FC<LandingProps> = ({
       window.removeEventListener("scroll", onScroll);
       window.clearTimeout(timer);
     };
-  }, [trail]);
+  }, []);
 
   /* Over the claims the top bar floats in; over a first screen, which has
      its own, it keeps out of the way */
   useEffect(() => {
-    if (!trail) {
-      setFloating(false);
-      return;
-    }
     let frame = 0;
     const check = () => {
       frame = 0;
@@ -551,7 +544,7 @@ const Landing: FC<LandingProps> = ({
       window.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [trail, stopsNow]);
+  }, [stopsNow]);
 
   /* A reader who scrolls before the line has finished should find the product
      there, not an empty stage still waiting on the animation */
@@ -575,9 +568,8 @@ const Landing: FC<LandingProps> = ({
         weight={500}
         leading={0.93}
         onSettled={rise}
-        lift={lift(trail)}
+        lift={LIFT}
         lifted={up}
-        $trail={trail}
       >
         <Top ref={topRef}>
           <LogoPill
@@ -605,94 +597,79 @@ const Landing: FC<LandingProps> = ({
               Docs
             </NavLink>
           </NavPill>
-          <PhoneMenu
-            links={MENU_LINKS}
-            variant={onVariant ? variant : undefined}
-            onVariant={onVariant}
-          />
+          <PhoneMenu links={MENU_LINKS} />
         </Top>
       </Hero>
 
-      {trail && (
-        <FloatingTop $shown={floating} aria-hidden={!floating}>
-          <LogoPill
-            href="#landing-top"
-            onClick={scrollTo("landing-top")}
-            aria-label="Solana Playground"
+      <FloatingTop $shown={floating} aria-hidden={!floating}>
+        <LogoPill
+          href="#landing-top"
+          onClick={scrollTo("landing-top")}
+          aria-label="Solana Playground"
+          tabIndex={floating ? 0 : -1}
+        >
+          <PlaygroundLogoNext />
+        </LogoPill>
+        <NavPill aria-label="Main">
+          <NavLink
+            href="#what"
+            onClick={scrollTo("what")}
             tabIndex={floating ? 0 : -1}
           >
-            <PlaygroundLogoNext />
-          </LogoPill>
-          <NavPill aria-label="Main">
-            <NavLink
-              href="#what"
-              onClick={scrollTo("what")}
-              tabIndex={floating ? 0 : -1}
-            >
-              What it is
-            </NavLink>
-            <NavLink
-              href="#how"
-              onClick={scrollTo("how")}
-              tabIndex={floating ? 0 : -1}
-            >
-              How it works
-            </NavLink>
-            <NavLink
-              href="#who"
-              onClick={scrollTo("who")}
-              tabIndex={floating ? 0 : -1}
-            >
-              Who it's for
-            </NavLink>
-            <NavLink
-              href="https://solana.com/docs"
-              target="_blank"
-              rel="noreferrer"
-              tabIndex={floating ? 0 : -1}
-            >
-              Docs
-            </NavLink>
-          </NavPill>
-          {floating && (
-            <PhoneMenu
-              links={MENU_LINKS}
-              variant={onVariant ? variant : undefined}
-              onVariant={onVariant}
-            />
-          )}
-        </FloatingTop>
-      )}
+            What it is
+          </NavLink>
+          <NavLink
+            href="#how"
+            onClick={scrollTo("how")}
+            tabIndex={floating ? 0 : -1}
+          >
+            How it works
+          </NavLink>
+          <NavLink
+            href="#who"
+            onClick={scrollTo("who")}
+            tabIndex={floating ? 0 : -1}
+          >
+            Who it's for
+          </NavLink>
+          <NavLink
+            href="https://solana.com/docs"
+            target="_blank"
+            rel="noreferrer"
+            tabIndex={floating ? 0 : -1}
+          >
+            Docs
+          </NavLink>
+        </NavPill>
+        {floating && <PhoneMenu links={MENU_LINKS} />}
+      </FloatingTop>
 
-      <Product onEnter={onEnter} up={up} trail={trail} pull={pull} />
+      <Product
+        onEnter={onEnter}
+        up={up}
+        pull={pull}
+        restTop={restTop}
+        frameRef={heroFrameRef}
+      />
 
-      {trail ? (
-        <>
-          <Flight items={STATEMENTS} />
-          <FirstScreen
-            ref={footerRef}
-            steps={FOOTER_STEPS}
-            replay={footerVisit}
-            onEnter={onEnter}
-            pull={pull}
-          />
-          <Flight items={STATEMENTS_AGAIN} />
-          <FirstScreen
-            ref={loopRef}
-            steps={STEPS}
-            onEnter={onEnter}
-            pull={pull}
-            copy
-          />
-        </>
-      ) : (
-        <>
-          <Statements items={STATEMENTS} />
-          <Close onEnter={onEnter} />
-        </>
-      )}
-
-      {onVariant && <VersionSwitch value={variant} onChange={onVariant} />}
+      <Flight items={STATEMENTS} />
+      <FirstScreen
+        ref={footerRef}
+        steps={FOOTER_STEPS}
+        replay={footerVisit}
+        onEnter={onEnter}
+        pull={pull}
+        restTop={restTop}
+      />
+      <Flight items={STATEMENTS_AGAIN} />
+      <FirstScreen
+        ref={loopRef}
+        steps={STEPS}
+        onEnter={onEnter}
+        pull={pull}
+        restTop={restTop}
+        copy
+      />
     </Page>
   );
 };
@@ -702,27 +679,23 @@ export default Landing;
 /**
  * The product, and the button across it. It waits below the first screen
  * until the line has landed, then comes up into the room the line leaves; the
- * button follows it, held against the bottom edge until scrolling brings it
- * to its place across the render.
- *
- * On the classic, the button is the brand slides' gradient slab, part of it
- * showing — cut by the edge, so the page plainly goes on. On the trail
- * version it is the same words on a cone of light, held whole just above the
- * edge, the light standing on it.
+ * button follows it, its words on a cone of light, held whole just above the
+ * bottom edge until scrolling brings it to its place across the render.
  */
 const Product: FC<{
   onEnter: () => void;
   up: boolean;
-  trail: boolean;
-  /** The reader's pull on the trail version's light */
+  /** The reader's pull on the light */
   pull?: RefObject<Pull>;
+  /** Where this frame's top stands in the window at rest (`Light.tsx`) */
+  restTop?: () => number | null;
   frameRef?: RefObject<HTMLElement>;
-}> = ({ onEnter, up, trail, pull, frameRef }) => {
-  /* The trail version's light bends round the window and lights its edge */
+}> = ({ onEnter, up, pull, restTop, frameRef }) => {
+  /* The light rises into the window and lights its edge */
   const windowRef = useRef<HTMLDivElement>(null);
   return (
-    <ProductFrame $trail={trail} ref={frameRef}>
-      <Stage $up={up} $trail={trail}>
+    <ProductFrame ref={frameRef}>
+      <Stage $up={up}>
         <Window ref={windowRef} $up={up}>
           <View>
             <picture>
@@ -737,44 +710,32 @@ const Product: FC<{
         </Window>
         <Shade />
         <Place />
-        {trail ? (
-          <LightCta
-            type="button"
-            $up={up}
-            onClick={onEnter}
-            data-shot="landing-cta"
-          >
-            <Light on={up} frame={windowRef} pull={pull} />
-            <Label>Open Playground</Label>
-            <Icon />
-          </LightCta>
-        ) : (
-          <Cta
-            type="button"
-            $tone="gradient"
-            $up={up}
-            onClick={onEnter}
-            data-shot="landing-cta"
-          >
-            <Label>Open Playground</Label>
-            <Icon />
-          </Cta>
-        )}
+        <LightCta
+          type="button"
+          $up={up}
+          onClick={onEnter}
+          data-shot="landing-cta"
+        >
+          <Light on={up} frame={windowRef} pull={pull} restTop={restTop} />
+          <Label>Open Playground</Label>
+          <Icon />
+        </LightCta>
       </Stage>
     </ProductFrame>
   );
 };
 
 /**
- * The first screen again, further round the trail version's loop: the same
- * headline, product and light, already built. The footer is one, with its own
- * line, which builds again each time the page arrives at it; the copy of the
- * hero at the bottom is the other, which the page goes round from.
+ * The first screen again, further round the loop: the same headline, product
+ * and light, already built. The footer is one, with its own line, which
+ * builds again each time the page arrives at it; the copy of the hero at the
+ * bottom is the other, which the page goes round from.
  */
 interface FirstScreenProps {
   steps: BuildStep[];
   onEnter: () => void;
   pull: RefObject<Pull>;
+  restTop: () => number | null;
   /** Changed, the line builds again */
   replay?: number;
   /** The copy of the hero: seen only on the way round, so not read out */
@@ -782,7 +743,7 @@ interface FirstScreenProps {
 }
 
 const FirstScreen = forwardRef<HTMLDivElement, FirstScreenProps>(
-  ({ steps, onEnter, pull, replay = 0, copy = false }, ref) => (
+  ({ steps, onEnter, pull, restTop, replay = 0, copy = false }, ref) => (
     <Screen ref={ref} aria-hidden={copy || undefined}>
       <Hero
         key={replay}
@@ -791,11 +752,10 @@ const FirstScreen = forwardRef<HTMLDivElement, FirstScreenProps>(
         scale={0.86}
         weight={500}
         leading={0.93}
-        lift={lift(true)}
+        lift={LIFT}
         lifted
-        $trail
       />
-      <Product onEnter={onEnter} up trail pull={pull} />
+      <Product onEnter={onEnter} up pull={pull} restTop={restTop} />
     </Screen>
   )
 );
@@ -803,41 +763,6 @@ const FirstScreen = forwardRef<HTMLDivElement, FirstScreenProps>(
 const Screen = styled.div`
   position: relative;
 `;
-
-/**
- * The close: the deck's "Explore" gradient, pattern and all. Its line is the
- * deck's headline too, put on the page once it is scrolled to, so it arrives
- * letter by letter in front of the reader.
- */
-const Close: FC<{ onEnter: () => void }> = ({ onEnter }) => {
-  const [ref, shown] = useReveal<HTMLElement>();
-  return (
-    <CloseFrame ref={ref}>
-      <StillMesh ground="explore" />
-      <CloseGrid aria-hidden="true">
-        <Pattern />
-      </CloseGrid>
-      <CloseLine>
-        {shown && (
-          <Headline
-            as="p"
-            lines={["Start with the program,", "not the setup."]}
-            light={false}
-            scale={44.75 / 216}
-            weight={400}
-            leading={1.2}
-          />
-        )}
-      </CloseLine>
-      <CloseAction>
-        <Button type="button" $tone="white" onClick={onEnter}>
-          <Label>Open Playground</Label>
-          <Icon />
-        </Button>
-      </CloseAction>
-    </CloseFrame>
-  );
-};
 
 /* ── the page ─────────────────────────────────────────────────────────── */
 
@@ -870,10 +795,10 @@ const rise = keyframes`
 
 /* ── the hero ─────────────────────────────────────────────────────────── */
 
-/* The trail version re-times the headline's letters and nothing else */
-const Hero = styled(BuildHero)<{ $trail?: boolean }>`
+/* The deck's hero, its letters re-timed to arrive trailing light */
+const Hero = styled(BuildHero)`
   padding-top: ${u(54)};
-  ${({ $trail }) => $trail && trailLetters("h1")}
+  ${trailLetters("h1")}
 
   /* Pulled on, the headline goes first and furthest */
   & h1 {
@@ -916,11 +841,11 @@ const FloatingTop = styled(TopBar)<{ $shown: boolean }>`
 
 /* Pulled up into the first screen by as much of it as the product takes, and
    laid over the hero's ground rather than on a band of its own */
-const ProductFrame = styled.section<{ $trail: boolean }>`
+const ProductFrame = styled.section`
   position: relative;
   z-index: 3;
   max-width: 1920px;
-  margin: calc(-1 * ${({ $trail }) => productPeek($trail)}) auto 0;
+  margin: calc(-1 * ${PRODUCT_PEEK}) auto 0;
   padding: 0 0 ${u(120)};
 
   @media (max-width: 56rem) {
@@ -933,8 +858,8 @@ const COME_UP = "1300ms cubic-bezier(0.22, 1, 0.36, 1)";
 
 /* The render and the button across it, on the render's own proportions —
    below the first screen until the line has landed */
-const Stage = styled.div<{ $up: boolean; $trail: boolean }>`
-  ${({ $up, $trail }) => css`
+const Stage = styled.div<{ $up: boolean }>`
+  ${({ $up }) => css`
     position: relative;
     width: ${u(1779)};
     margin: 0 auto;
@@ -942,7 +867,7 @@ const Stage = styled.div<{ $up: boolean; $trail: boolean }>`
     opacity: ${$up ? 1 : 0};
     transform: ${$up
       ? "none"
-      : `translate3d(0, calc(${productPeek($trail)} + 12vh), 0)`};
+      : `translate3d(0, calc(${PRODUCT_PEEK} + 12vh), 0)`};
     transition: transform ${COME_UP} 60ms, opacity 600ms ease 60ms;
 
     @media (prefers-reduced-motion: reduce) {
@@ -959,7 +884,7 @@ const Stage = styled.div<{ $up: boolean; $trail: boolean }>`
 /* The window's edge: one line of the ramp, radiating from the middle of its
    top edge — where the headline stands over it — and gone before the far
    sides, where the page's shade takes over. Over it, two lights, green and
-   purple, that the trail version's light runs up the window's sides and over
+   purple, that the button's light runs up the window's sides and over
    its top on its own clock (`Light.tsx`); standing, they rest on the top
    edge. The custom properties are theirs: where they are, how bright, and how
    bright the edge is. */
@@ -1079,74 +1004,6 @@ const Shade = styled.div`
 
 /* ── the button ───────────────────────────────────────────────────────── */
 
-/* The one the brand slides show as "Start Tutorial": Solana's green into its
-   purple, sampled off the render, the words in the headline face at 171.6 and
-   the mark's own triangle in a ring. The white one closes the page. */
-const Button = styled.button<{ $tone: "gradient" | "white" }>`
-  ${({ $tone }) => css`
-    position: absolute;
-    left: 0;
-    top: ${u(603)};
-    width: 100%;
-    height: ${u(298)};
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 ${u(75)} 0 ${u(80)};
-    border: none;
-    border-radius: ${u(70)};
-    background: ${$tone === "gradient"
-      ? `linear-gradient(0deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 55%),
-         linear-gradient(90deg, #19C98C 0%, #22AA86 6.8%, #339794 13%, #4685A2 19%,
-           #5673B0 25%, #6762BF 31.5%, #794FCD 37.8%, #8542D7 44%, #8845DA 56%,
-           #8E4BE0 100%)`
-      : "#ffffff"};
-    color: ${$tone === "gradient" ? "#ffffff" : INK};
-    font-family: ${HEADLINE};
-    cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.22, 0.61, 0.36, 1),
-      filter 0.2s ease;
-
-    /* Figma's smoothed corner where the browser can draw one */
-    @supports (corner-shape: squircle) {
-      border-radius: ${u(96)};
-      corner-shape: squircle;
-    }
-
-    &:hover {
-      transform: translateY(${u(-3)});
-      filter: brightness(1.05);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-
-    &:focus-visible {
-      outline: 3px solid ${$tone === "gradient" ? "#ffffff" : INK};
-      outline-offset: ${u(8)};
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-
-    @media (max-width: 56rem) {
-      position: relative;
-      top: auto;
-      height: 5.5rem;
-      margin-top: 1.25rem;
-      padding: 0 1.25rem 0 1.5rem;
-      border-radius: 1.5rem;
-    }
-  `}
-`;
-
-const peek = keyframes`
-  from { opacity: 0; transform: translate3d(0, ${u(64)}, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
-`;
-
 /* The button's place, the Figma's: 603 into the render. A block of its own
    rather than a margin on the button — a margin would fold through the render
    into the page's pull-up, and would fence the button out of the room it
@@ -1157,34 +1014,6 @@ const Place = styled.div`
   @media (max-width: 56rem) {
     display: none;
   }
-`;
-
-/* The product's button. It holds against the bottom edge with 240 of its 298
-   showing until the page is scrolled far enough to bring it to its place — so
-   the first screen ends on it, cut, and the page plainly goes on. It arrives
-   after the render has come up; the entrance fills backwards only, so the
-   hover lift still works after. */
-const Cta = styled(Button)<{ $up: boolean }>`
-  ${({ $up }) => css`
-    position: sticky;
-    left: auto;
-    top: auto;
-    bottom: ${u(240 - 298)};
-    opacity: ${$up ? 1 : 0};
-    ${$up &&
-    css`
-      animation: ${peek} 800ms cubic-bezier(0.22, 1, 0.36, 1) 1000ms backwards;
-    `}
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-
-    @media (max-width: 56rem) {
-      position: relative;
-      bottom: auto;
-    }
-  `}
 `;
 
 const Label = styled.span`
@@ -1210,9 +1039,7 @@ const Icon = styled(PlayRing)`
   }
 `;
 
-/* ── the trail version's button ───────────────────────────────────────── */
-
-/* How far above the fold the trail version's button rests while it is held
+/* How far above the fold the button rests while it is held
    there: exactly as far as its light runs on below it, so the light stands
    on the edge of the screen */
 const FLOAT = 298 * LIGHT_BELOW;
@@ -1235,8 +1062,8 @@ const iconIn = keyframes`
   }
 `;
 
-/* The same words and icon, in white, on the northern lights instead of on a
-   slab — the light is `Light`, drawn under them. The button itself is
+/* The words and the icon, in white, on the northern lights — the light is
+   `Light`, drawn under them. The button itself is
    transparent, but it is still the whole row you press, focus and hover, on
    the Figma's 1779 × 298 and 603 into the render.
 
@@ -1322,76 +1149,4 @@ const LightCta = styled.button<{ $up: boolean }>`
       border-radius: 1.5rem;
     }
   `}
-`;
-
-/* ── the close ────────────────────────────────────────────────────────── */
-
-/* A full 1920 × 1080 frame on the deck's gradient, with the white button — the
-   last thing on the page is the first thing the deck said */
-const CloseFrame = styled.footer`
-  position: relative;
-  isolation: isolate;
-  max-width: 1920px;
-  margin: 0 auto;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-
-  @media (max-width: 56rem) {
-    aspect-ratio: auto;
-    padding: 4rem 1rem 5rem;
-  }
-`;
-
-const CloseGrid = styled.div`
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-`;
-
-/* The block starts 161 down the frame so its first line's ink lands at 170;
-   held open before the line arrives, so nothing below moves when it does */
-const CloseLine = styled.div`
-  position: relative;
-  padding-top: ${u(161)};
-  min-height: calc(${u(161)} + ${u(44.75 * 1.2 * 2)});
-  text-align: center;
-  color: ${TEXT};
-
-  & > p {
-    color: ${TEXT};
-    letter-spacing: -0.01em;
-  }
-
-  @media (max-width: 56rem) {
-    padding-top: 0;
-    min-height: 0;
-
-    & > p {
-      font-size: 1.75rem;
-    }
-  }
-`;
-
-const CloseAction = styled.div`
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: ${u(1779)};
-  height: 100%;
-  transform: translateX(-50%);
-  pointer-events: none;
-
-  & > button {
-    top: ${u(391)};
-    pointer-events: auto;
-  }
-
-  @media (max-width: 56rem) {
-    position: relative;
-    left: auto;
-    width: 100%;
-    height: auto;
-    margin-top: 2rem;
-    transform: none;
-  }
 `;
