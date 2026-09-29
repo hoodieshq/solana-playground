@@ -131,10 +131,13 @@ export class PgExplorer {
    * tab's own, and the store holds whichever tab saved last, so that part is
    * never taken from it. A config that cannot be read tells nothing, so the
    * list in memory stays as it is rather than becoming empty.
+   *
+   * @returns `false` when a change of this tab's own to the list is not saved
+   * yet, and the store's list was left alone for it; `true` otherwise
    */
   static async refreshWorkspaces() {
     const workspace = this._workspace;
-    if (!workspace) return;
+    if (!workspace) return true;
     const saved = this._savedWorkspaces;
     let stored;
     try {
@@ -142,14 +145,14 @@ export class PgExplorer {
         await this.fs.readToJSON(PgWorkspace.WORKSPACES_CONFIG_PATH)
       );
     } catch {
-      return;
+      return true;
     }
     // A create, rename or delete of this tab's own changes memory first and
     // saves later, after awaits. Taking the store's list inside that window
     // would undo it -- and so would taking it after a save that landed while
     // it was being read. Its own save follows, and other tabs hear of that.
     const inMemory = JSON.stringify(workspace.get().workspaces);
-    if (inMemory !== saved || this._savedWorkspaces !== saved) return;
+    if (inMemory !== saved || this._savedWorkspaces !== saved) return false;
 
     // Read after the wait: the user may have switched while it ran
     workspace.setCurrent({
@@ -157,6 +160,7 @@ export class PgExplorer {
       currentId: workspace.currentId,
     });
     this._savedWorkspaces = JSON.stringify(stored.workspaces);
+    return true;
   }
 
   /** The list as this tab last saved or read it, for `refreshWorkspaces` */

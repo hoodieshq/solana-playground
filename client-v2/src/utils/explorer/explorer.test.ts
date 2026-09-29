@@ -240,7 +240,8 @@ describe("PgExplorer.refreshWorkspaces", () => {
     const creating = PgExplorer.createWorkspace("gamma", {
       files: files("gamma"),
     });
-    await PgExplorer.refreshWorkspaces();
+    // Said so, too: nothing was taken, and the caller has to know
+    expect(await PgExplorer.refreshWorkspaces()).toBe(false);
     await creating;
 
     expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
