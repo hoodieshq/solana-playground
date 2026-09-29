@@ -14,6 +14,7 @@ import type { Ground } from "./Atmosphere";
 import { CARRY_MS, noteCarried } from "./carry";
 import Slide, { SHOTS } from "./Slide";
 import { SLIDES, isLight } from "./slides";
+import type { SlideSpec } from "./slides";
 import { BODY, HEADLINE } from "./tokens";
 
 /**
@@ -39,6 +40,10 @@ interface DeckProps {
   onProduct: () => void;
   /** Leave the deck for the UX evaluation */
   onEvaluation: () => void;
+  /** The slides to present — the proposal's, unless another deck is given */
+  slides?: SlideSpec[];
+  /** What the presentation is called, for anyone not seeing it */
+  label?: string;
 }
 
 /**
@@ -77,17 +82,23 @@ type Colour = Exclude<Ground, "paper" | "ink">;
 /* The last colour the ground had, so that on white and on black the fields
    fade out from where they were. Before any colour at all — the white opening
    slides — it is the first colour to come, so the gradient blooms in place. */
-const colourAt = (index: number): Colour => {
+const colourAt = (slides: SlideSpec[], index: number): Colour => {
   const isColour = (g: Ground): g is Colour => g !== "paper" && g !== "ink";
   for (let i = index; i >= 0; i--) {
-    const g = SLIDES[i].ground;
+    const g = slides[i].ground;
     if (isColour(g)) return g;
   }
-  const next = SLIDES.find((s) => isColour(s.ground));
+  const next = slides.find((s) => isColour(s.ground));
   return next && isColour(next.ground) ? next.ground : "haze";
 };
 
-const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
+const Deck: FC<DeckProps> = ({
+  onLanding,
+  onProduct,
+  onEvaluation,
+  slides = SLIDES,
+  label = "Design proposal",
+}) => {
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState<number | null>(null);
   /* Read by handlers that fire faster than React re-renders */
@@ -101,7 +112,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   const forward = useRef(true);
 
   const go = useCallback((next: number) => {
-    const to = Math.max(0, Math.min(SLIDES.length - 1, next));
+    const to = Math.max(0, Math.min(slides.length - 1, next));
     if (to === at.current) return;
     /* Measured now, while the old slide is still the one on screen */
     noteCarried(current.current);
@@ -109,16 +120,16 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
     setLeaving(at.current);
     at.current = to;
     setIndex(to);
-  }, []);
+  }, [slides]);
 
   /* Timed slides move on by themselves. Any other move in the meantime — a
      click, a key — replaces the timer rather than racing it. */
   useEffect(() => {
-    const wait = SLIDES[index].auto;
+    const wait = slides[index].auto;
     if (!wait || !forward.current) return;
     const t = window.setTimeout(() => go(index + 1), wait);
     return () => window.clearTimeout(t);
-  }, [index, go]);
+  }, [slides, index, go]);
 
   useEffect(() => {
     if (leaving === null) return;
@@ -129,7 +140,9 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
   /* The renders are the heaviest thing in the deck — one is almost 5 MB — and
      they sit near the end. Fetch them once the first slide is up, so none of
      them arrives in front of the room half loaded. */
+  const pictures = slides.some((s) => s.kind === "image");
   useEffect(() => {
+    if (!pictures) return;
     const t = window.setTimeout(() => {
       Object.values(SHOTS).forEach((src) => {
         const img = new Image();
@@ -138,7 +151,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
       });
     }, 600);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [pictures]);
 
   const next = useCallback(() => go(at.current + 1), [go]);
   const prev = useCallback(() => go(at.current - 1), [go]);
@@ -178,14 +191,14 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
           break;
         case "End":
           ev.preventDefault();
-          go(SLIDES.length - 1);
+          go(slides.length - 1);
           break;
         default:
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, go]);
+  }, [slides, next, prev, go]);
 
   /* A trackpad sends a burst of events per gesture, so one gesture would
      otherwise run the whole deck. Lock out the rest of the burst. */
@@ -225,14 +238,14 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
     if (Math.abs(dx) > 48) (dx < 0 ? next : prev)();
   };
 
-  const slide = SLIDES[index];
+  const slide = slides[index];
   const light = isLight(slide);
   const out = leaving !== null && leaving !== index ? leaving : null;
   /* Between two pictures the outgoing one holds until the next has covered
      it; fading both at once would show the ground through the middle of the
      change. Anywhere else it fades. */
   const hold =
-    out !== null && SLIDES[out].kind === "image" && slide.kind === "image";
+    out !== null && slides[out].kind === "image" && slide.kind === "image";
 
   return (
     <Stage
@@ -242,13 +255,13 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
       onTouchEnd={onTouchEnd}
       role="region"
       aria-roledescription="presentation"
-      aria-label="Design proposal"
+      aria-label={label}
     >
       <DeckFont />
 
       <Atmosphere
         ground={slide.ground}
-        lastColour={colourAt(index)}
+        lastColour={colourAt(slides, index)}
         pattern={!!slide.grid}
       />
 
@@ -258,13 +271,13 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
         .filter((i): i is number => i !== null)
         .map((i) => (
           <Layer
-            key={SLIDES[i].id}
+            key={slides[i].id}
             ref={i === index ? current : undefined}
             leaving={i !== index}
             hold={hold}
           >
             <Slide
-              slide={SLIDES[i]}
+              slide={slides[i]}
               onLanding={onLanding}
               onProduct={onProduct}
               onEvaluation={onEvaluation}
@@ -273,7 +286,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
         ))}
 
       <Rail aria-hidden="true">
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <Tick
             key={s.id}
             type="button"
@@ -286,7 +299,7 @@ const Deck: FC<DeckProps> = ({ onLanding, onProduct, onEvaluation }) => {
       </Rail>
 
       <Count $dark={light}>
-        {index + 1} / {SLIDES.length}
+        {index + 1} / {slides.length}
       </Count>
     </Stage>
   );
