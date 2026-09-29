@@ -31,8 +31,7 @@ export class PgSyncClient {
   private static _available: Promise<boolean> | null = null;
 
   /**
-   * @returns the backend's answer, or `null` when the request itself failed
-   * and there is none
+   * @returns the backend's answer, or `null` when there is none to remember
    */
   private static async _probe(): Promise<boolean | null> {
     let response: Response;
@@ -47,16 +46,18 @@ export class PgSyncClient {
       return null;
     }
 
+    // Only a definite answer is remembered. No `/api` route at all is one;
+    // a server error is not, and may be gone on the next ask.
+    if (response.status === 404) return false;
+    if (!response.ok) return null;
     try {
-      if (!response.ok) return false;
       const body = await response.json();
       return body?.enabled === true;
     } catch (e) {
-      // The timeout covers the body too, and a body cut off is no answer.
-      // One that is not JSON is: a deployment that serves the app for every
-      // path, with no `/api` behind it.
-      const name = (e as Error | undefined)?.name;
-      return name === "TimeoutError" || name === "AbortError" ? null : false;
+      // A body that is not JSON is an answer: a deployment that serves the
+      // app for every path, with no `/api` behind it. Anything else -- the
+      // body cut off by the timeout or a dropped connection -- is not.
+      return e instanceof SyntaxError ? false : null;
     }
   }
 }

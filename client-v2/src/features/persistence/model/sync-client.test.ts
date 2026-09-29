@@ -1,7 +1,11 @@
 import { PgSyncClient } from "./sync-client";
 
-const answer = (body: unknown, ok = true) =>
-  ({ ok, json: async () => body } as unknown as Response);
+const answer = (body: unknown, status = 200) =>
+  ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as unknown as Response);
 
 let fetchMock: jest.Mock;
 
@@ -36,6 +40,7 @@ describe("PgSyncClient.available", () => {
     // A deployment that answers every path with the app itself
     fetchMock.mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => {
         throw new SyntaxError("Unexpected token '<'");
       },
@@ -58,6 +63,38 @@ describe("PgSyncClient.available", () => {
     expect(await PgSyncClient.available()).toBe(false);
     expect(await PgSyncClient.available()).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("remembers a missing route as a no", async () => {
+    fetchMock.mockResolvedValue(answer({ error: "not found" }, 404));
+
+    expect(await PgSyncClient.available()).toBe(false);
+    await PgSyncClient.available();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks again after a server error", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer({}, 503))
+      .mockResolvedValueOnce(answer({ enabled: true }));
+
+    expect(await PgSyncClient.available()).toBe(false);
+    expect(await PgSyncClient.available()).toBe(true);
+  });
+
+  it("asks again after a body cut off part-way", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new TypeError("network error");
+        },
+      })
+      .mockResolvedValueOnce(answer({ enabled: true }));
+
+    expect(await PgSyncClient.available()).toBe(false);
+    expect(await PgSyncClient.available()).toBe(true);
   });
 
   it("sends the probe with a signal that gives up", async () => {
