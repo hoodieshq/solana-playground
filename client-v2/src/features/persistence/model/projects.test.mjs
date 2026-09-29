@@ -189,7 +189,97 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     });
 
     assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
     assert.equal(await getProject(userId, "p1"), null);
+  });
+
+  it("says a missed swap hit a tombstone, not a newer version", async () => {
+    const first = await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+    await deleteProject(userId, "p1");
+
+    const result = await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+      baseUpdatedAt: first.updatedAt,
+    });
+
+    assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
+  });
+
+  it("gives a plain version conflict no reason", async () => {
+    await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+    });
+
+    const result = await saveProject(userId, {
+      id: "p1",
+      name: "one",
+      kind: "project",
+      snapshot,
+      baseUpdatedAt: "2000-01-01T00:00:00.000Z",
+    });
+
+    assert.equal(result.conflict, true);
+    assert.equal(result.reason, undefined);
+  });
+
+  it("starts a deleted tutorial again under its own id", async () => {
+    // A tutorial's id is derived from its name, so starting it again after a
+    // delete can only ever arrive at the tombstone
+    await saveProject(userId, {
+      id: "tut:hello",
+      name: "Hello",
+      kind: "tutorial",
+      snapshot,
+    });
+    await deleteProject(userId, "tut:hello");
+
+    const fresh = { files: { "src/lib.rs": "fresh start" } };
+    const result = await saveProject(userId, {
+      id: "tut:hello",
+      name: "Hello",
+      kind: "tutorial",
+      snapshot: fresh,
+    });
+
+    assert.notEqual(result.conflict, true);
+    assert.ok(result.updatedAt);
+    assert.deepEqual((await getProject(userId, "tut:hello")).snapshot, fresh);
+  });
+
+  it("does not restart a deleted tutorial over a stale token", async () => {
+    // Only the create-only door restarts one: a token means the caller had
+    // the old run synced, which is the device that has to be told
+    const first = await saveProject(userId, {
+      id: "tut:hello",
+      name: "Hello",
+      kind: "tutorial",
+      snapshot,
+    });
+    await deleteProject(userId, "tut:hello");
+
+    const result = await saveProject(userId, {
+      id: "tut:hello",
+      name: "Hello",
+      kind: "tutorial",
+      snapshot,
+      baseUpdatedAt: first.updatedAt,
+    });
+
+    assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
+    assert.equal(await getProject(userId, "tut:hello"), null);
   });
 
   it("clobbers only when the caller says so in as many words", async () => {
@@ -227,6 +317,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       snapshot,
     });
     assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
     assert.equal(await getProject(userId, "p1"), null);
   });
 

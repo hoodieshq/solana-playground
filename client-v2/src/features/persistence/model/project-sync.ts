@@ -74,9 +74,10 @@ export type Resolution =
 /**
  * Which question a refusal is actually asking.
  *
- * The server answers two unrelated problems with a 409: a compare-and-swap
- * that missed, and a name another live project already holds. Only the first
- * carries `conflict: true`; the second names itself in `reason`. Branching on
+ * The server answers three problems with a 409: a compare-and-swap that
+ * missed, a write refused by a tombstone, and a name another live project
+ * already holds. The first two carry `conflict: true`; the last two name
+ * themselves in `reason`. Branching on
  * the status alone would put "Keep this version / Take the other version" in
  * front of a name collision -- a question about versions, asked about
  * something that is not one, with no answer that does anything.
@@ -93,6 +94,10 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
   }
 
   if (reason === "name-taken") return "name-taken";
+  // A tombstone refuses a write too, and it is the delete question the user
+  // needs: there is no other version to take, and keeping this one would
+  // quietly un-delete the project for every device
+  if (reason === "deleted") return "deleted-elsewhere";
   if (reason === "too-large" || response.status === 413) return "too-large";
   return "divergent";
 };

@@ -50,12 +50,27 @@ export const getProject = async (userId, id) => {
  * in order to try again. Both come back from a single statement, so they
  * cannot disagree the way two round trips can.
  *
- * @returns {{updatedAt: string} | {conflict: true, updatedAt: string | null}}
+ * `deleted` says the row that refused the write is a tombstone. Without it a
+ * write to a deleted project looked exactly like one to a project that had
+ * moved on, and the client asked "keep this version or take the other?" about
+ * a version that no longer exists -- a question with no answer that works,
+ * since there is nothing to take and keeping un-deletes it.
+ *
+ * @returns {{updatedAt: string} |
+ *   {conflict: true, updatedAt: string | null, reason?: "deleted"}}
  */
-const settle = ({ written, current }) =>
-  written
-    ? { updatedAt: written.toISOString() }
-    : { conflict: true, updatedAt: current ? current.toISOString() : null };
+const settle = ({ written, current, deleted }) => {
+  if (written) return { updatedAt: written.toISOString() };
+  const conflict = {
+    conflict: true,
+    updatedAt: current ? current.toISOString() : null,
+  };
+  return deleted ? { ...conflict, reason: "deleted" } : conflict;
+};
+
+/** Whether the row is a tombstone; null when there is no row at all */
+const TOMBSTONED = `(select deleted_at is not null from projects
+                      where user_id = $1 and id = $2)`;
 
 /**
  * Write a snapshot.
@@ -73,20 +88,28 @@ const settle = ({ written, current }) =>
  * - without one, create-only. An existing row is reported as a conflict, not
  *   overwritten: a client that has never read cannot be allowed to win by
  *   virtue of having nothing to lose. This is also what stops a tombstoned
- *   project being resurrected by a device that never saw the delete. The one
- *   exception is a row that holds no snapshot -- `ensureConversation` creates
+ *   project being resurrected by a device that never saw the delete. There
+ *   are two exceptions. One is a row that holds no snapshot -- `ensureConversation` creates
  *   one so a chat turn has a parent project, so a project whose assistant was
  *   used before its first upload already exists by the time that upload
  *   arrives. Refusing it meant a project could be permanently unable to make
  *   its own first push; adopting it is safe precisely because there is no code
- *   in it to overwrite.
+ *   in it to overwrite. The other is a tutorial's tombstone: a tutorial's id
+ *   is derived from its name, so starting one again after deleting it can only
+ *   ever arrive here, and refusing it left the restarted tutorial unable to
+ *   sync at all. A tutorial is the same thing on every device, so starting it
+ *   again is not the resurrection this door exists to stop. The trade is
+ *   deliberate: a device holding an old run it never uploaded (started while
+ *   signed out) brings that run back the same way, which keeps work rather
+ *   than losing it.
  * - with `force`, an unconditional overwrite that also un-tombstones. This is
  *   the "keep my copy" the user picks after being shown the conflict, and it
  *   is deliberately something a caller has to name.
  *
  * @param {{id: string, name: string, kind: string, snapshot: object,
  *          baseUpdatedAt?: string, force?: boolean}} input
- * @returns {Promise<{updatedAt: string} | {conflict: true, updatedAt: string | null}>}
+ * @returns {Promise<{updatedAt: string} |
+ *   {conflict: true, updatedAt: string | null, reason?: "deleted"}>}
  */
 export const saveProject = async (userId, input) => {
   const { id, name, kind, snapshot, baseUpdatedAt, force } = input;
@@ -126,7 +149,8 @@ export const saveProject = async (userId, input) => {
         returning updated_at
        )
        select (select updated_at from swapped) as written,
-              (select updated_at from target)  as current`,
+              (select updated_at from target)  as current,
+              ${TOMBSTONED}                    as deleted`,
       [...values, baseUpdatedAt]
     );
     return settle(rows[0]);
@@ -140,13 +164,17 @@ export const saveProject = async (userId, input) => {
          set name = excluded.name,
              kind = excluded.kind,
              snapshot = excluded.snapshot,
-             updated_at = now()
-       where projects.snapshot is null and projects.deleted_at is null
+             updated_at = now(),
+             deleted_at = null
+       where (projects.snapshot is null and projects.deleted_at is null)
+          or (projects.deleted_at is not null
+              and projects.kind = 'tutorial' and excluded.kind = 'tutorial')
        returning updated_at
      )
      select (select updated_at from created) as written,
             (select updated_at from projects
-              where user_id = $1 and id = $2 and deleted_at is null) as current`,
+              where user_id = $1 and id = $2 and deleted_at is null) as current,
+            ${TOMBSTONED} as deleted`,
     values
   );
   return settle(rows[0]);

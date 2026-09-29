@@ -881,6 +881,29 @@ describe("a refusal the user has to clear", () => {
     });
   });
 
+  it("asks about a delete, not a version, when the row is a tombstone", async () => {
+    // Previously `divergent`: "Take the other version" had nothing to take,
+    // and "Keep this version" un-deleted the project on the server
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        conflict: true,
+        updatedAt: null,
+        reason: "deleted",
+      }),
+    });
+    await signedIn();
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "deleted-elsewhere",
+    });
+  });
+
   it("falls back to divergent when the body says nothing", async () => {
     refusing({
       ok: false,
