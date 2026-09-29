@@ -2,7 +2,11 @@ import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import { reconcile } from "../../features/persistence/model/project-restore";
-import { isSyncedWorkspaceFile } from "../../features/persistence/model/snapshot";
+import {
+  buildSnapshot,
+  isSyncedWorkspaceFile,
+} from "../../features/persistence/model/snapshot";
+import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
@@ -95,6 +99,24 @@ export const projectSync = (): Disposable => {
     void push();
   };
 
+  /**
+   * Remember what the project opened with.
+   *
+   * This is where a merge's base content comes from: the next push compares
+   * against the last agreement, and keeps the opened content of any file that
+   * changed since. Taken on switch because that is the moment the in-memory
+   * copy is fresh -- the switch fires on every page load too.
+   */
+  const shadow = async () => {
+    const id = PgExplorer.currentWorkspaceId;
+    if (!id) return;
+    try {
+      PgSyncBase.track(id, (await buildSnapshot()).files);
+    } catch (e) {
+      report("shadow workspace", e);
+    }
+  };
+
   // Contents, then the shape of the tree. A rename or delete changes what the
   // snapshot should contain just as much as an edit does.
   //
@@ -130,6 +152,7 @@ export const projectSync = (): Disposable => {
       flush();
       // A different project, so whatever was flagged was the last one's
       flagged = false;
+      void shadow();
       refresh("switch");
     }),
 
