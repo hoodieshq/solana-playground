@@ -320,9 +320,21 @@ export const reloadCurrentFromDisk = (
 // Development only, like `__pgSyncDiagnostics`: `craco build` sets NODE_ENV
 // to production, so this is dropped from the shipped bundle. The browser
 // tests need the open workspace's id -- the one sync uploads it under -- and
-// nothing on screen shows it.
+// the text the editor holds for the open file, which `.view-lines` shows
+// only as far as the view is scrolled. Neither is on screen otherwise.
 if (process.env.NODE_ENV !== "production") {
   (
-    window as unknown as { __pgWorkspace?: { id: () => string | null } }
-  ).__pgWorkspace = { id: () => PgExplorer.currentWorkspaceId ?? null };
+    window as unknown as {
+      __pgWorkspace?: {
+        id: () => string | null;
+        openText: () => Promise<string | null>;
+      };
+    }
+  ).__pgWorkspace = {
+    id: () => PgExplorer.currentWorkspaceId ?? null,
+    openText: async () => {
+      const path = PgExplorer.currentFilePath;
+      return path ? await PgEditorModels.valueOf(path) : null;
+    },
+  };
 }
