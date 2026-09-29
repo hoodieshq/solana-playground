@@ -1,6 +1,5 @@
 import { isMissing, report } from "./diagnostics";
 import { PgEditorModels } from "./editor-models";
-import { PgWorkspaceRegistry } from "./workspace-registry";
 // Deep imports, not the `utils` barrel, for the reason `snapshot.ts` gives
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -66,9 +65,56 @@ const inMemory = () => {
 const sameKeys = (a: Record<string, string>, b: Record<string, string>) =>
   Object.keys(a).sort().join("\n") === Object.keys(b).sort().join("\n");
 
+/**
+ * Leave a workspace another tab deleted, the way that tab did.
+ *
+ * With nothing current, the explorer sidebar throws on its next render --
+ * the tree asks for the current workspace's path. So this goes where
+ * `deleteWorkspace` sends the tab that deleted it: the last workspace left,
+ * or the empty state when there is none.
+ *
+ * Only when the directory is gone. A delete removes it before the list is
+ * saved, so a directory that is still there means the list was written by a
+ * tab that had not seen this workspace yet, and walking away from it would
+ * leave it on disk with nothing pointing at it.
+ */
+const leaveDeleted = async (held: string): Promise<ReloadResult> => {
+  if (await PgFs.exists(`/${held}`)) {
+    report(`reload ${held}: missing from the project list`, null);
+    return "skipped";
+  }
+
+  const next = PgExplorer.allWorkspaceNames?.at(-1);
+  if (next) await PgExplorer.switchWorkspace(next);
+  else {
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_SWITCH_WORKSPACE
+    );
+  }
+  // The deleted workspace's models would otherwise come back for a project
+  // created later under the same name
+  await PgEditorModels.dropUnder(`/${held}/`, () => {
+    if (next) {
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_OPEN_FILE,
+        PgExplorer.getCurrentFile()
+      );
+    }
+  });
+  return "reopened";
+};
+
 const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
+  if (PgExplorer.isTemporary) return "skipped";
+
+  // The list first: a neighbour may have created, deleted or renamed a
+  // workspace, and a re-open below saves this tab's list over the store's.
+  // This tab's current one is kept by id, so a rename elsewhere is followed
+  // by name, and a delete elsewhere leaves it with nothing current.
+  const held = PgExplorer.currentWorkspaceName;
+  await PgExplorer.refreshWorkspaces();
   const name = PgExplorer.currentWorkspaceName;
-  if (!name || PgExplorer.isTemporary) return "skipped";
+  if (!name) return held ? await leaveDeleted(held) : "skipped";
 
   // Before the read, not after it. An autosave puts the text into state and
   // only then writes it, so one that runs while the store is being read can
@@ -86,22 +132,15 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
     // not written yet -- in any file, not only the open one -- would go.
     // Nothing forces this one, so it waits for them to land instead. A forced
     // re-open is `adopt`, where the user has already chosen to discard.
+    //
+    // Under the name memory holds them by, which is the old one when the
+    // workspace was renamed in another tab.
     if (!reopen) {
       const edited = await PgEditorModels.anyEditedUnder(
-        `/${name}/`,
+        `/${held ?? name}/`,
         (path) => PgExplorer.files[path]?.content
       );
       if (edited) return "deferred";
-
-      // `switchWorkspace` saves this tab's list of workspaces over the
-      // store's, and that list is the one this tab loaded with. A neighbour
-      // that created, deleted or renamed a project since would have it
-      // undone by a re-open nobody asked for. The tree stays as it is until
-      // this tab is loaded again.
-      if (!(await PgWorkspaceRegistry.matchesMemory())) {
-        report(`reload ${name}: project list changed in another tab`, null);
-        return "deferred";
-      }
       if (PgExplorer.currentWorkspaceName !== name) return "skipped";
     }
 
@@ -119,6 +158,10 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
         PgExplorer.getCurrentFile()
       )
     );
+    // Renamed in another tab: the old name's models would otherwise come
+    // back for a project created under it later. Last, once the editor is
+    // showing the new one's.
+    if (held && held !== name) await PgEditorModels.dropUnder(`/${held}/`);
     return "reopened";
   }
 

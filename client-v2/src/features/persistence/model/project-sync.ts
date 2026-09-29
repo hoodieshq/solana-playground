@@ -142,11 +142,12 @@ export class PgProjectSync {
       const name = PgExplorer.currentWorkspaceName;
       if (!id || !name) return "skipped";
 
-      // Renamed or deleted in another tab, which this one cannot hear: its
-      // memory still has the workspace, and its next autosave recreates the
-      // directory around the one file it writes. Uploading that under the
-      // id would replace the project with a fragment of it -- or bring a
-      // deleted one back. The store's registry is what both tabs share.
+      // Renamed or deleted in another tab, which this one has not heard of
+      // yet: its memory still has the workspace, and its next autosave
+      // recreates the directory around the one file it writes. Uploading
+      // that under the id would replace the project with a fragment of it
+      // -- or bring a deleted one back. The store's registry is what both
+      // tabs share.
       if (!(await PgWorkspaceRegistry.has(name, id))) {
         report(
           `push project ${id}: workspace no longer registered on disk`,

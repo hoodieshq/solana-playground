@@ -1,6 +1,5 @@
 import { isMissing, report } from "./diagnostics";
 // Deep imports, not the `utils` barrel, for the reason `snapshot.ts` gives
-import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
 
@@ -33,34 +32,15 @@ const onDisk = async (): Promise<Map<string, string> | null> => {
 };
 
 /**
- * The list of workspaces as this tab's explorer holds it.
+ * The list of workspaces as the store records it.
  *
- * Each tab reads the registry once, when it loads, and writes its own copy
- * back on every switch. So a tab that re-opens a workspace after a neighbour
- * created, deleted or renamed one undoes that change on disk -- and a tab
- * whose workspace a neighbour renamed or deleted goes on believing it exists.
- * Neither can be fixed from here without changing the explorer; both can be
- * noticed, which is what this is for.
+ * Each tab holds its own copy in memory, re-read at the start of every
+ * reload and whenever a neighbour writes it -- but a neighbour can still
+ * rename or delete a workspace in the moment before this tab hears of it.
+ * An upload has to ask the store, not memory, whether its workspace still
+ * exists.
  */
 export const PgWorkspaceRegistry = {
-  /**
-   * Whether the store's registry lists the same workspaces, under the same
-   * ids, as this tab's memory. Which one is current is not compared: every
-   * tab has its own, and the store holds whichever saved last.
-   *
-   * `true` when there is no registry to compare with.
-   */
-  async matchesMemory(): Promise<boolean> {
-    const disk = await onDisk();
-    if (!disk) return true;
-
-    const names = PgExplorer.allWorkspaceNames ?? [];
-    if (names.length !== disk.size) return false;
-    return names.every(
-      (name) => disk.get(name) === PgExplorer.workspaceIdOf(name)
-    );
-  },
-
   /**
    * Whether the store's registry still has `name` under `id`.
    *

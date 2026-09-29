@@ -41,6 +41,7 @@ beforeEach(() => {
       } as ReturnType<typeof PgExplorer.getCurrentFile>)
   );
   jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+  jest.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(undefined);
   jest.spyOn(PgCommon, "createAndDispatchCustomEvent");
   // CRA's jest preset sets `resetMocks: true`, which wipes the
   // implementation `jest.mock` above baked in before every test, not just
@@ -155,9 +156,10 @@ describe("reloadCurrentFromDisk", () => {
     expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
   });
 
-  it("leaves the tree alone when another tab changed the project list", async () => {
-    // A re-open saves this tab's list of workspaces over the store's, which
-    // would delete the project the other tab just created
+  it("re-opens even when another tab changed the project list", async () => {
+    // The list is re-read first, so the switch saves the store's list back
+    // rather than the one this tab loaded with. That was a deferral, which
+    // left the tree behind until the tab was loaded again.
     store().set("/alpha/src/new.rs", "created elsewhere");
     store().set(
       PgWorkspace.WORKSPACES_CONFIG_PATH,
@@ -174,27 +176,83 @@ describe("reloadCurrentFromDisk", () => {
       .mockReturnValue(["alpha"]);
     jest.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("a1");
 
-    expect(await reloadCurrentFromDisk()).toBe("deferred");
-    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
-    expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(PgExplorer.refreshWorkspaces).toHaveBeenCalled();
+    expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha");
   });
 
-  it("re-opens when the project list on disk is the one it holds", async () => {
-    // Which one is current is every tab's own, so it is not a difference
-    store().set("/alpha/src/new.rs", "created elsewhere");
-    store().set(
-      PgWorkspace.WORKSPACES_CONFIG_PATH,
-      JSON.stringify({
-        workspaces: [{ id: "a1", name: "alpha" }],
-        currentId: "someone-else",
-      })
-    );
-    jest
-      .spyOn(PgExplorer, "allWorkspaceNames", "get")
-      .mockReturnValue(["alpha"]);
-    jest.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("a1");
+  it("follows a rename made in another tab", async () => {
+    // The list is re-read before the name is: this tab keeps its workspace
+    // by id, so after the re-read it goes by the new name
+    store().clear();
+    store().set("/renamed/src/lib.rs", "old");
+    const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      name.mockReturnValue("renamed");
+    });
 
     expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("renamed");
+    // Keystrokes are looked for where memory holds them, under the old name
+    expect(PgEditorModels.anyEditedUnder).toHaveBeenCalledWith(
+      "/alpha/",
+      expect.any(Function)
+    );
+    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith(
+      "/renamed/",
+      expect.any(Function)
+    );
+    expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/alpha/");
+  });
+
+  describe("when another tab deleted the open workspace", () => {
+    beforeEach(() => {
+      const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+      (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(
+        async () => {
+          name.mockReturnValue(undefined);
+        }
+      );
+      store().clear();
+    });
+
+    it("moves to the last workspace left, as the deleting tab did", async () => {
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["beta", "gamma"]);
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("gamma");
+      expect(PgEditorModels.dropUnder).toHaveBeenCalledWith(
+        "/alpha/",
+        expect.any(Function)
+      );
+    });
+
+    it("shows the empty state when none are left", async () => {
+      jest.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([]);
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+      expect(dispatched()).toContain(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+    });
+
+    it("stays when the directory is still there", async () => {
+      // Then the list was saved by a tab that had not seen this workspace,
+      // not by a delete -- which removes the directory first
+      store().set("/alpha/src/lib.rs", "old");
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["beta"]);
+
+      expect(await reloadCurrentFromDisk()).toBe("skipped");
+      expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+      expect(getFailures()).toEqual([
+        expect.objectContaining({
+          what: "reload alpha: missing from the project list",
+        }),
+      ]);
+    });
   });
 
   it("re-opens on request over unsaved keystrokes", async () => {
