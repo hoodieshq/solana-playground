@@ -69,12 +69,14 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
     const existing = server.get(body.id);
     const live = existing && !existing.deleted ? existing : null;
 
+    // A tombstone names itself, as the real endpoint does
     const refuse = () => ({
       ok: false,
       status: 409,
       json: async () => ({
         conflict: true,
         updatedAt: live ? live.updatedAt : null,
+        ...(existing?.deleted ? { reason: "deleted" } : {}),
       }),
     });
 
@@ -87,7 +89,12 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
         // Create-only. A row with no snapshot is adoptable -- a chat turn
         // creates one before the project's own first upload.
         return refuse();
-      } else if (existing?.deleted) {
+      } else if (
+        existing?.deleted &&
+        !(existing.kind === "tutorial" && body.kind === "tutorial")
+      ) {
+        // A tutorial's tombstone is the exception: its id is derived from
+        // its name, so starting it again can only arrive here
         return refuse();
       }
     }
@@ -375,6 +382,25 @@ describe("deleting on one device", () => {
     expect(result.removed).toEqual([HELLO.name]);
   });
 
+  it("says it was deleted when an upload gets there first", async () => {
+    // A pending edit uploads before any reconcile has seen the delete. The
+    // refusal was indistinguishable from a newer version, so the user was
+    // asked "keep this or take the other?" about a project with no other.
+    asDevice([HELLO]);
+    await signedIn();
+    await PgProjectSync.pushCurrent();
+
+    otherDeviceDeleted(HELLO.id);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "deleted-elsewhere",
+    });
+    expect(server.get(HELLO.id)!.deleted).toBe(true);
+  });
+
   it("asks this one before removing work it never uploaded", async () => {
     asDevice([HELLO]);
     await signedIn();
@@ -393,6 +419,46 @@ describe("deleting on one device", () => {
     expect(result.conflicts).toEqual([
       { projectId: HELLO.id, kind: "deleted-elsewhere" },
     ]);
+  });
+});
+
+describe("a tutorial deleted and started again", () => {
+  beforeEach(setUp);
+  afterEach(() => jest.restoreAllMocks());
+
+  it("syncs the new run instead of calling it a conflict", async () => {
+    // Its id is derived from its name, so the restart reuses the tombstoned
+    // id. Every upload of the new run was refused, and the banner offered a
+    // version that did not exist.
+    const workspaces = [HELLO];
+    asDevice(workspaces);
+    await signedIn();
+    await PgProjectSync.pushCurrent();
+
+    jest.spyOn(PgExplorer, "deleteWorkspace").mockImplementation(async () => {
+      workspaces.splice(0, 1);
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_DELETE_WORKSPACE
+      );
+    });
+    const effect = projectSync();
+    try {
+      await PgExplorer.deleteWorkspace(HELLO.name);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      effect.dispose();
+    }
+    expect(server.get(HELLO.id)!.deleted).toBe(true);
+
+    jest.restoreAllMocks();
+    asDevice([HELLO], "a fresh start");
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(server.get(HELLO.id)).toMatchObject({
+      snapshot: { files: { "src/lib.rs": "a fresh start" } },
+    });
+    expect(server.get(HELLO.id)!.deleted).toBeFalsy();
   });
 });
 

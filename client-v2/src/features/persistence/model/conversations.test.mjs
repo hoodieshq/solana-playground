@@ -8,7 +8,9 @@ import {
   listMessages,
   listThreads,
   NotYours,
+  ThreadDeleted,
 } from "./conversations.mjs";
+import { deleteProject } from "./projects.mjs";
 
 // `yarn test-api` loads `.env`; without a database this suite skips rather
 // than fails, which is what lets the unit suites run on their own.
@@ -99,6 +101,25 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
     );
     // And the owner's thread is untouched by the attempt
     assert.equal((await listMessages(userId, thread(1))).length, 1);
+  });
+
+  it("refuses to add to a thread whose project was deleted", async () => {
+    // A deleted project's threads are tombstoned with it, and every read
+    // filters them out. Accepting a push anyway answered 200 for messages no
+    // device could ever read back -- and a client deletes its own copy of a
+    // thread on exactly that answer.
+    await appendMessages(userId, on(1), [item(1)]);
+    await deleteProject(userId, "p1");
+
+    await assert.rejects(
+      () => appendMessages(userId, on(1), [item(2)]),
+      ThreadDeleted
+    );
+    const { rows } = await query(
+      "select count(*)::int as n from messages where conversation_id = $1",
+      [thread(1)]
+    );
+    assert.equal(rows[0].n, 1);
   });
 
   describe("a project holding more than one thread", () => {

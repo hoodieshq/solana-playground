@@ -25,6 +25,21 @@ export class NotYours extends Error {
   }
 }
 
+/**
+ * A thread that was deleted with its project.
+ *
+ * Refused rather than written to: every read filters a tombstoned thread
+ * out, so messages accepted here could never be read back by any device --
+ * and a client deletes its own copy of a thread once the server has taken
+ * it. The client keeps the thread when told this instead.
+ */
+export class ThreadDeleted extends Error {
+  constructor() {
+    super("Thread was deleted");
+    this.name = "ThreadDeleted";
+  }
+}
+
 /** Columns a thread listing returns. Never the messages. */
 const THREAD_COLUMNS = `id, project_id as "projectId", title,
   created_at as "createdAt", updated_at as "updatedAt"`;
@@ -41,6 +56,7 @@ const THREAD_COLUMNS = `id, project_id as "projectId", title,
  * @param {{threadId: string, projectId: string, title?: string|null}} thread
  * @returns {Promise<string>} the thread id
  * @throws {NotYours} when the id is already somebody else's thread
+ * @throws {ThreadDeleted} when it was deleted with its project
  */
 const ensureThread = async (client, userId, thread) => {
   const { threadId, projectId, title = null } = thread;
@@ -69,10 +85,11 @@ const ensureThread = async (client, userId, thread) => {
   // messages to a stranger's thread.
   const { rows } = await run(
     client,
-    `select id from conversations where id = $1 and user_id = $2`,
+    `select id, deleted_at from conversations where id = $1 and user_id = $2`,
     [threadId, userId]
   );
   if (!rows.length) throw new NotYours();
+  if (rows[0].deleted_at) throw new ThreadDeleted();
 
   return rows[0].id;
 };
@@ -140,6 +157,7 @@ export const listMessages = async (userId, threadId) => {
  * @param {{threadId: string, projectId: string, title?: string|null}} thread
  * @returns {Promise<number>} how many rows were new
  * @throws {NotYours} when the thread id is somebody else's
+ * @throws {ThreadDeleted} when it was deleted with its project
  */
 export const appendMessages = async (userId, thread, items) => {
   const client = await getPool().connect();

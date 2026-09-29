@@ -1,8 +1,8 @@
 import { projectSync } from "./project-sync";
-import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import * as restore from "../../features/persistence/model/project-restore";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
@@ -347,7 +347,7 @@ describe("deleting a workspace here", () => {
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
     const forget = jest
-      .spyOn(PgChatStorage, "remove")
+      .spyOn(PgThreadIndex, "forget")
       .mockResolvedValue(undefined);
 
     effect = projectSync();
@@ -359,7 +359,10 @@ describe("deleting a workspace here", () => {
     expect(remove).toHaveBeenCalledWith("tut:hello");
     expect(remove).not.toHaveBeenCalledWith("still-here");
     // A tutorial's id is derived from its name, so restarting one reuses the
-    // id -- and without this the previous run's conversation comes back with it
+    // id -- and without this the previous run's conversation comes back with
+    // it. Through the index, by workspace id: storage is keyed by thread id,
+    // so removing by the project's id removed nothing.
     expect(forget).toHaveBeenCalledWith("tut:hello");
+    expect(forget).not.toHaveBeenCalledWith("still-here");
   });
 });
