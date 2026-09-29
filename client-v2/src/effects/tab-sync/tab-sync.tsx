@@ -116,27 +116,21 @@ export const tabSync = (): Disposable => {
   };
 
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
-  let listChanged = false;
-  const reload = async (refresh: boolean) => {
-    if (refresh) await PgExplorer.refreshWorkspaces();
-    await reloadCurrentFromDisk();
-  };
   channel.onmessage = ({ data }) => {
     if (isWorkspacesWritten(data)) {
       if (data.from === self) return;
-      listChanged = true;
     } else if (isFilesWritten(data)) {
       if (data.from === self) return;
       if (data.projectId !== PgExplorer.currentWorkspaceId) return;
     } else return;
 
     // One timer for both kinds, so a delete -- which announces the files and
-    // then the list -- is one reload
+    // then the list -- is one reload. A changed list needs nothing more: the
+    // reload re-reads it first, inside its own queue, so no other reload can
+    // be half-way through when it changes.
     if (reloadTimer) clearTimeout(reloadTimer);
     reloadTimer = setTimeout(() => {
-      const refresh = listChanged;
-      listChanged = false;
-      reload(refresh).catch((e) => report("reload from tab", e));
+      reloadCurrentFromDisk().catch((e) => report("reload from tab", e));
     }, RELOAD_MS);
   };
 

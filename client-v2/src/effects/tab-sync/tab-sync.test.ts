@@ -40,7 +40,6 @@ beforeEach(() => {
   // above before every test, so without this the mock resolves `undefined`
   // and the effect's `.catch` on a non-promise would throw.
   (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("unchanged");
-  jest.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -150,22 +149,13 @@ describe("tabSync", () => {
     effect.dispose();
   });
 
-  it("re-reads the list, then reloads, when a neighbour wrote it", async () => {
-    const order: string[] = [];
-    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
-      order.push("refresh");
-    });
-    (reloadCurrentFromDisk as jest.Mock).mockImplementation(async () => {
-      order.push("reload");
-      return "unchanged";
-    });
+  it("reloads when a neighbour wrote the list", () => {
+    // The reload re-reads the list itself, inside its own queue
     const effect = tabSync();
     deliver({ type: "workspaces-written", from: "other" });
     jest.advanceTimersByTime(400);
-    await Promise.resolve();
-    await Promise.resolve();
 
-    expect(order).toEqual(["refresh", "reload"]);
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
   });
 
@@ -175,7 +165,7 @@ describe("tabSync", () => {
     deliver({ type: "workspaces-written", from: "other" });
     jest.advanceTimersByTime(400);
 
-    expect(PgExplorer.refreshWorkspaces).toHaveBeenCalledTimes(1);
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
   });
 
@@ -186,7 +176,6 @@ describe("tabSync", () => {
     deliver(opened[0].posted[0]);
     jest.advanceTimersByTime(400);
 
-    expect(PgExplorer.refreshWorkspaces).not.toHaveBeenCalled();
     expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
   });

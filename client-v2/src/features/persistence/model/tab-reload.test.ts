@@ -4,6 +4,7 @@ import { clearFailures, getFailures } from "./diagnostics";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgRouter } from "../../../utils/router";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
 
 jest.mock("./editor-models", () => ({
@@ -207,6 +208,9 @@ describe("reloadCurrentFromDisk", () => {
 
   describe("when another tab deleted the open workspace", () => {
     beforeEach(() => {
+      // The id is kept through a refresh; it is the name that goes
+      jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("a1");
+      jest.spyOn(PgExplorer, "init").mockResolvedValue(undefined);
       const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
       (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(
         async () => {
@@ -216,7 +220,7 @@ describe("reloadCurrentFromDisk", () => {
       store().clear();
     });
 
-    it("moves to the last workspace left, as the deleting tab did", async () => {
+    it("moves to the last workspace left, as the deleter did", async () => {
       jest
         .spyOn(PgExplorer, "allWorkspaceNames", "get")
         .mockReturnValue(["beta", "gamma"]);
@@ -234,7 +238,35 @@ describe("reloadCurrentFromDisk", () => {
 
       expect(await reloadCurrentFromDisk()).toBe("reopened");
       expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
-      expect(dispatched()).toContain(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+      // `init` is what clears the deleted workspace's tree and tabs, and
+      // what the sidebar and the gallery listen for
+      expect(PgExplorer.init).toHaveBeenCalledWith();
+      // Not the delete event: sync would delete the project a second time
+      expect(dispatched()).not.toContain(
+        PgExplorer.events.ON_DID_DELETE_WORKSPACE
+      );
+      expect(PgEditorModels.dropUnder).toHaveBeenCalledWith(
+        "/alpha/",
+        expect.any(Function)
+      );
+    });
+
+    it("leaves a lesson's route when none are left", async () => {
+      jest.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([]);
+      jest.spyOn(PgRouter, "navigate").mockResolvedValue(undefined);
+      window.history.pushState({}, "", "/tutorials/hello-anchor");
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgRouter.navigate).toHaveBeenCalledWith();
+      window.history.pushState({}, "", "/");
+    });
+
+    it("does it once: a tree already emptied is left alone", async () => {
+      jest.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([]);
+      memory = {};
+
+      expect(await reloadCurrentFromDisk()).toBe("skipped");
+      expect(PgExplorer.init).not.toHaveBeenCalled();
     });
 
     it("stays when the directory is still there", async () => {

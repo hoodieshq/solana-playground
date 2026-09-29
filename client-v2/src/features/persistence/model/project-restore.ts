@@ -75,15 +75,14 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
   // path below does not depend on it: that path trusts the mark, which is on
   // disk and shared by every tab, not this tab's memory.
   //
-  // The list of workspaces goes first, and on its own account: everything
-  // below matches the server against it by name and id, and an import saves
-  // it back over the store's. A copy from before a neighbour created or
-  // deleted a project would undo that -- or import it a second time.
+  // The reload also re-reads the list of workspaces, first thing, and so
+  // this pass decides against a fresh one: everything below matches the
+  // server against it by name and id, and an import saves it back over the
+  // store's.
   //
   // A failure here is reported and the pass goes on. The reconcile decides
   // from disk and the server, neither of which a failed reload has touched.
   try {
-    await PgExplorer.refreshWorkspaces();
     await reloadCurrentFromDisk();
   } catch (e) {
     report("reload before reconcile", e);

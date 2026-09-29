@@ -4,6 +4,7 @@ import { PgEditorModels } from "./editor-models";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgRouter } from "../../../utils/router";
 
 /**
  * - `deferred`: the workspace needs re-opening, but not now -- a re-open would
@@ -66,41 +67,68 @@ const sameKeys = (a: Record<string, string>, b: Record<string, string>) =>
   Object.keys(a).sort().join("\n") === Object.keys(b).sort().join("\n");
 
 /**
+ * The workspace the in-memory tree is under, by the name it was loaded with.
+ *
+ * Taken from the tree rather than from the current name, because the list
+ * may already have been re-read -- and after a rename or delete in another
+ * tab the current name no longer says where memory holds the files.
+ */
+const memoryRoot = (): string | undefined => {
+  const path = PgExplorer.currentFilePath ?? Object.keys(PgExplorer.files)[0];
+  return path?.split("/")[1] || undefined;
+};
+
+/**
  * Leave a workspace another tab deleted, the way that tab did.
  *
- * With nothing current, the explorer sidebar throws on its next render --
- * the tree asks for the current workspace's path. So this goes where
- * `deleteWorkspace` sends the tab that deleted it: the last workspace left,
- * or the empty state when there is none.
+ * With workspaces listed and none of them current, the explorer sidebar
+ * throws on its next render -- the tree asks for the current workspace's
+ * path. So this goes where `deleteWorkspace` sends the tab that deleted it:
+ * the last workspace left, or the empty state when there is none.
  *
  * Only when the directory is gone. A delete removes it before the list is
  * saved, so a directory that is still there means the list was written by a
  * tab that had not seen this workspace yet, and walking away from it would
  * leave it on disk with nothing pointing at it.
  */
-const leaveDeleted = async (held: string): Promise<ReloadResult> => {
-  if (await PgFs.exists(`/${held}`)) {
-    report(`reload ${held}: missing from the project list`, null);
+const leaveDeleted = async (): Promise<ReloadResult> => {
+  const old = memoryRoot();
+  if (old && (await PgFs.exists(`/${old}`))) {
+    report(`reload ${old}: missing from the project list`, null);
     return "skipped";
   }
 
   const next = PgExplorer.allWorkspaceNames?.at(-1);
-  if (next) await PgExplorer.switchWorkspace(next);
-  else {
-    PgCommon.createAndDispatchCustomEvent(
-      PgExplorer.events.ON_DID_SWITCH_WORKSPACE
-    );
+  if (next) {
+    await PgExplorer.switchWorkspace(next);
+  } else {
+    // Already left: nothing is held in memory any more
+    if (!old) return "skipped";
+
+    // What the deleting tab's own `init` does with no workspaces: the tree,
+    // tabs and editor are reset, and the gallery opens over the empty state.
+    // Not `ON_DID_DELETE_WORKSPACE`, which would have sync delete the
+    // project a second time.
+    await PgExplorer.init();
+    // A lesson's route stays on the lesson otherwise. Its own handler for a
+    // delete sends it home the same way, only when none are left.
+    if (PgRouter.location.pathname.startsWith("/tutorials/")) {
+      await PgRouter.navigate();
+    }
   }
+
   // The deleted workspace's models would otherwise come back for a project
   // created later under the same name
-  await PgEditorModels.dropUnder(`/${held}/`, () => {
-    if (next) {
-      PgCommon.createAndDispatchCustomEvent(
-        PgExplorer.events.ON_DID_OPEN_FILE,
-        PgExplorer.getCurrentFile()
-      );
-    }
-  });
+  if (old) {
+    await PgEditorModels.dropUnder(`/${old}/`, () => {
+      if (next) {
+        PgCommon.createAndDispatchCustomEvent(
+          PgExplorer.events.ON_DID_OPEN_FILE,
+          PgExplorer.getCurrentFile()
+        );
+      }
+    });
+  }
   return "reopened";
 };
 
@@ -110,11 +138,13 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   // The list first: a neighbour may have created, deleted or renamed a
   // workspace, and a re-open below saves this tab's list over the store's.
   // This tab's current one is kept by id, so a rename elsewhere is followed
-  // by name, and a delete elsewhere leaves it with nothing current.
-  const held = PgExplorer.currentWorkspaceName;
+  // by name, and a delete elsewhere leaves an id that names nothing.
   await PgExplorer.refreshWorkspaces();
   const name = PgExplorer.currentWorkspaceName;
-  if (!name) return held ? await leaveDeleted(held) : "skipped";
+  if (!name) {
+    return PgExplorer.currentWorkspaceId ? await leaveDeleted() : "skipped";
+  }
+  const held = memoryRoot();
 
   // Before the read, not after it. An autosave puts the text into state and
   // only then writes it, so one that runs while the store is being read can
@@ -227,3 +257,4 @@ export const reloadCurrentFromDisk = (
   queue = queue.then(run, run);
   return queue;
 };
+
