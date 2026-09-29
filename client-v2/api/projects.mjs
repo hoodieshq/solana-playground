@@ -37,26 +37,67 @@ const MAX_BODY_BYTES = 8_000_000;
 /** Matches `projects_kind_check`, so a bad kind is a 400 and not a 500 */
 const KINDS = ["project", "tutorial"];
 
+/** A map of non-empty paths to string contents */
+const isFileMap = (value) =>
+  !!value &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  Object.entries(value).every(
+    ([path, content]) => path.length > 0 && typeof content === "string"
+  );
+
 /**
- * Whether a snapshot is something a client can be handed back.
+ * Which of the two write shapes a body is, or why it is neither.
  *
  * Checked on the way *in* because the read side is destructive: restoring a
- * project clears the workspace directory before writing the snapshot's files,
- * so a row holding `{}` or `{"files": null}` empties that project on every
- * device that syncs it, leaving nothing behind but a diagnostics line. The
- * client re-checks before the same call; this is what stops the bad row
- * existing in the first place.
+ * project replaces the workspace's files with what the row holds, so a row
+ * that is not a clean file map empties that project on every device that
+ * syncs it.
  *
- * `undefined` is allowed through: `ensureConversation` creates rows with no
- * snapshot at all, and this endpoint is not the only writer.
+ * - `files`: the whole set. Refused when empty -- a full write replaces the
+ *   file set, so an empty one would delete every file, and no editor ever has
+ *   a reason to send it (`pushCurrent` already refuses to build one).
+ * - `changed` + `removed`: a patch against the state `baseUpdatedAt` names.
+ *   Without a token there is nothing for it to be relative to, and `force`
+ *   means "whatever you hold, replace it", which a patch cannot express.
+ *
+ * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
+ *
+ * @returns {{files: Record<string, string>}
+ *   | {changed: Record<string, string>, removed: string[]}
+ *   | {error: string}}
  */
-const isValidSnapshot = (snapshot) => {
-  if (snapshot === undefined || snapshot === null) return true;
-  if (typeof snapshot !== "object" || Array.isArray(snapshot)) return false;
+export const describeWrite = (body) => {
+  const full = body.files !== undefined;
+  const patch = body.changed !== undefined || body.removed !== undefined;
+  if (full === patch) {
+    return { error: "Send either files, or changed and removed" };
+  }
 
-  const { files } = snapshot;
-  if (!files || typeof files !== "object" || Array.isArray(files)) return false;
-  return Object.values(files).every((content) => typeof content === "string");
+  if (full) {
+    return isFileMap(body.files) && Object.keys(body.files).length
+      ? { files: body.files }
+      : { error: "files must be a non-empty map of paths to strings" };
+  }
+
+  if (!body.baseUpdatedAt || body.force) {
+    return { error: "A patch needs baseUpdatedAt and cannot be forced" };
+  }
+  const changed = body.changed ?? {};
+  const removed = body.removed ?? [];
+  if (!isFileMap(changed)) {
+    return { error: "changed must be a map of paths to strings" };
+  }
+  if (
+    !Array.isArray(removed) ||
+    !removed.every((path) => typeof path === "string" && path.length > 0)
+  ) {
+    return { error: "removed must be a list of paths" };
+  }
+  if (removed.some((path) => path in changed)) {
+    return { error: "A path cannot be both changed and removed" };
+  }
+  return { changed, removed };
 };
 
 const sendJson = (res, status, body) => {
@@ -214,7 +255,7 @@ export default async function handler(req, res) {
       const read = await readBody(req);
       if (read.error === "too-large") {
         return sendJson(res, 413, {
-          error: `A workspace snapshot must be under ${MAX_BODY_BYTES} bytes`,
+          error: `A workspace upload must be under ${MAX_BODY_BYTES} bytes`,
           reason: "too-large",
         });
       }
@@ -229,11 +270,8 @@ export default async function handler(req, res) {
         return sendJson(res, 400, { error: "id, name and kind required" });
       }
 
-      if (!isValidSnapshot(body.snapshot)) {
-        return sendJson(res, 400, {
-          error: "snapshot.files must be a map of paths to strings",
-        });
-      }
+      const write = describeWrite(body);
+      if (write.error) return sendJson(res, 400, { error: write.error });
 
       // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
       // error from the driver, which is a 500 for what is really a bad request.
@@ -254,9 +292,9 @@ export default async function handler(req, res) {
         id: body.id,
         name: body.name,
         kind: body.kind,
-        snapshot: body.snapshot,
         baseUpdatedAt: body.baseUpdatedAt,
         force: body.force === true,
+        ...write,
       });
       return result.conflict
         ? sendJson(res, 409, result)

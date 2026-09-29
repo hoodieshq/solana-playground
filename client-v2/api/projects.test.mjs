@@ -265,4 +265,66 @@ describe("/api/projects", () => {
       }
     );
   });
+
+  describe("describeWrite", () => {
+    const token = { baseUpdatedAt: "2026-01-01T00:00:00.000Z" };
+
+    it("takes a whole file set", async () => {
+      const mod = await load();
+      assert.deepEqual(mod.describeWrite({ files: { a: "1" } }), {
+        files: { a: "1" },
+      });
+    });
+
+    it("refuses an empty file set, which would erase the project", async () => {
+      const mod = await load();
+      assert.ok(mod.describeWrite({ files: {} }).error);
+    });
+
+    it("takes a patch that carries a token", async () => {
+      const mod = await load();
+      assert.deepEqual(
+        mod.describeWrite({ changed: { a: "2" }, removed: ["b"], ...token }),
+        { changed: { a: "2" }, removed: ["b"] }
+      );
+    });
+
+    it("refuses a patch without a token: there is nothing it is relative to", async () => {
+      const mod = await load();
+      assert.ok(mod.describeWrite({ changed: { a: "2" }, removed: [] }).error);
+    });
+
+    it("refuses a patch alongside force", async () => {
+      const mod = await load();
+      assert.ok(
+        mod.describeWrite({ changed: {}, removed: [], force: true, ...token })
+          .error
+      );
+    });
+
+    it("refuses both shapes at once, and neither", async () => {
+      const mod = await load();
+      assert.ok(
+        mod.describeWrite({ files: { a: "1" }, changed: {}, ...token }).error
+      );
+      assert.ok(mod.describeWrite({}).error);
+    });
+
+    it("refuses a path that is both changed and removed", async () => {
+      const mod = await load();
+      assert.ok(
+        mod.describeWrite({ changed: { a: "1" }, removed: ["a"], ...token })
+          .error
+      );
+    });
+
+    it("refuses content that is not a string, and an empty path", async () => {
+      const mod = await load();
+      assert.ok(mod.describeWrite({ files: { a: 1 } }).error);
+      assert.ok(mod.describeWrite({ files: { "": "x" } }).error);
+      assert.ok(
+        mod.describeWrite({ changed: {}, removed: [7], ...token }).error
+      );
+    });
+  });
 });
