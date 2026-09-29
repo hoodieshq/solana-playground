@@ -250,7 +250,7 @@ const SUGGESTIONS = [
  * @param output build output(stderr)
  * @returns the improved output
  */
-const improveOutput = (output: string) => {
+export const improveOutput = (output: string) => {
   output = output
     // Blocking "waiting for file lock on package cache"
     .replaceAll("Blocking waiting for file lock on package cache\n", "")
