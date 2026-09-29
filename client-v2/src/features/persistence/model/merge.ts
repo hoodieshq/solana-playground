@@ -108,8 +108,11 @@ export const merge3 = (
       out.push(...render(group[0].side));
     } else {
       const mine = render("ours");
-      // Both sides made the same change: nothing to decide
-      if (mine.join("\n") !== render("theirs").join("\n")) return null;
+      // Both sides made the same change: nothing to decide. Compared line by
+      // line, since joining would make a deleted line and a blanked one equal.
+      const yours = render("theirs");
+      if (mine.length !== yours.length || mine.some((l, k) => l !== yours[k]))
+        return null;
       out.push(...mine);
     }
     at = end;

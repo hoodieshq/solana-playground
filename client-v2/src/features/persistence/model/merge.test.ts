@@ -64,6 +64,19 @@ describe("merge3", () => {
     ).toBeNull();
   });
 
+  it("tells a deleted line from one replaced by a blank line", () => {
+    const five = "a\nb\nc\nd\ne";
+    const deleted = "a\nc\nd\nE";
+    const blanked = "a\n\nc\nd\ne";
+    expect(merge3(five, deleted, blanked)).toBeNull();
+    expect(merge3(five, blanked, deleted)).toBeNull();
+  });
+
+  it("tells a deleted final line from an emptied one", () => {
+    expect(merge3("a\nb", "a\n", "a")).toBeNull();
+    expect(merge3("a\nb", "a", "a\n")).toBeNull();
+  });
+
   it("keeps a missing trailing newline and CRLF endings byte for byte", () => {
     const crlf = "a\r\nb\r\nc\r\nd\r\ne";
     expect(merge3(crlf, "A\r\nb\r\nc\r\nd\r\ne", "a\r\nb\r\nc\r\nd\r\nE")).toBe(
