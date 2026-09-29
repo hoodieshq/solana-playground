@@ -2887,6 +2887,18 @@ with no timeout; `settleLocalDeletes` runs outside the lock; typing in a
 tab and then hiding it inside the 500 ms autosave window leaves an edit on
 disk and dirty but unpushed until that tab, or a reconcile, pushes it.
 
+**Amended 2026-09-29: the workspaces config is re-read, replacing the
+guard.** Each tab now re-reads `/.config/workspaces.json` when a sibling
+announces a write of it (`workspaces-written` on the channel) and at the
+start of every reload and reconcile, keeping its own current workspace
+(`PgExplorer.refreshWorkspaces`, upstream-divergences B17). That replaces
+the earlier guard, which deferred a re-open whenever the list on disk
+differed from memory and so left the tab's tree behind until it was
+loaded again; a workspace renamed elsewhere is now followed, and one
+deleted elsewhere is left for the last one remaining, as the deleting tab
+does. The `/api/sync` probe is time-limited too, and a probe that got no
+answer is asked again rather than remembered as "sync unavailable".
+
 **Revisit when** same-file concurrent editing becomes a requirement (the
 spec's own revisit condition), or when the thread-index variant of this
 same bug, HOO-1814, is taken up.
