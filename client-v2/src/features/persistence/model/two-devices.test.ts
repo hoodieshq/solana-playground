@@ -1,3 +1,4 @@
+import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
@@ -214,12 +215,38 @@ const localFilesAre = (name: string, files: Record<string, string>) =>
       ])
     );
 
-/** The workspace writes a merge makes, captured instead of hitting the store */
+/**
+ * The workspace writes a merge makes, captured instead of hitting the store.
+ *
+ * Re-opening behaves like the real explorer's: the files a replace wrote are
+ * what the workspace holds in memory afterwards, and not before. That window
+ * is where a stale copy used to escape from.
+ */
 const captureWrites = () => {
-  jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+  const rewritten = new Map<string, Record<string, string>>();
+  jest
+    .spyOn(PgExplorer, "switchWorkspace")
+    .mockImplementation(async (name: string) => {
+      const files = rewritten.get(name);
+      if (files) localFilesAre(name, files);
+    });
   return jest
     .spyOn(PgExplorer, "replaceWorkspaceFiles")
-    .mockResolvedValue(undefined as never);
+    .mockImplementation(async (name: string, files: Record<string, string>) => {
+      rewritten.set(name, files);
+    });
+};
+
+/** What the editor holds, per full path, standing in for Monaco's models */
+let editor: { dispose: () => void } | null = null;
+const editorHolds = (buffers: Record<string, string>) => {
+  const held = new Map(Object.entries(buffers));
+  editor = PgExplorer.registerEditorBuffers({
+    read: (path) => held.get(path),
+    write: (path, content) => void held.set(path, content),
+    discard: (path) => void held.delete(path),
+  });
+  return held;
 };
 
 /** The other browser deleted it, so the row is tombstoned */
@@ -368,8 +395,16 @@ describe("work that never reached the server", () => {
 });
 
 describe("both devices changed it", () => {
-  beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  beforeEach(() => {
+    setUp();
+    clearFailures();
+  });
+  afterEach(() => {
+    editor?.dispose();
+    editor = null;
+    clearFailures();
+    jest.restoreAllMocks();
+  });
 
   const base = "a\nb\nc\nd\ne\n";
 
@@ -537,6 +572,180 @@ describe("both devices changed it", () => {
         "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
         "src/mine.rs": "my change",
       },
+    });
+  });
+
+  it("asks again, writing nothing, when more has come to overlap since the question", async () => {
+    await startFrom(
+      { "src/lib.rs": base, "tests/t.rs": base },
+      { "src/lib.rs": "a\ntheirs\nc\nd\ne\n", "tests/t.rs": base }
+    );
+    localFilesAre(HELLO.name, {
+      "src/lib.rs": "a\nmine\nc\nd\ne\n",
+      "tests/t.rs": "a\nb\nc\nmine\ne\n",
+    });
+    const replace = captureWrites();
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+    expect(PgProjectSync.conflictFor(HELLO.id)?.paths).toEqual(["src/lib.rs"]);
+
+    // While the banner is up, the other device edits the same line of the
+    // file this one had merged cleanly
+    const theirs = {
+      "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
+      "tests/t.rs": "a\nb\nc\ntheirs\ne\n",
+    };
+    otherDeviceWroteFiles(HELLO.id, theirs);
+
+    // The user was asked about `src/lib.rs` only, so "keep mine" does not
+    // cover `tests/t.rs`
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(false);
+
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "divergent",
+      paths: ["src/lib.rs", "tests/t.rs"],
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: theirs });
+  });
+
+  // Separate files, so the merge needs no base content: these call the merge
+  // directly, without the refused push that would have captured one
+  const before = { "src/lib.rs": "lib", "src/mine.rs": "x" };
+  const theirs = { "src/lib.rs": "their lib", "src/mine.rs": "x" };
+  const mine = { "src/lib.rs": "lib", "src/mine.rs": "my change" };
+  const both = { "src/lib.rs": "their lib", "src/mine.rs": "my change" };
+
+  it("does not upload a copy read before a merge it was parked behind", async () => {
+    await startFrom(before, theirs);
+    localFilesAre(HELLO.name, mine);
+    captureWrites();
+
+    // The editor's debounce fires while something holds the gate -- a
+    // reconcile, say -- and then a merge runs before the gate opens
+    PgProjectSync.holdPushes();
+    const parked = PgProjectSync.pushCurrent();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await PgProjectSync.mergeWithServer(HELLO.id, HELLO.name)).toBe(
+      "merged"
+    );
+    PgProjectSync.releasePushes();
+    await parked;
+
+    // Both sides' changes. The parked push, had it sent what it read before
+    // waiting, would have patched `lib` back over `their lib` and passed the
+    // swap.
+    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+  });
+
+  it("drops a snapshot read before a merge rewrote the files", async () => {
+    await startFrom(before, theirs);
+    localFilesAre(HELLO.name, mine);
+    captureWrites();
+
+    const generation = PgProjectSync.generationOf(HELLO.id);
+    expect(await PgProjectSync.mergeWithServer(HELLO.id, HELLO.name)).toBe(
+      "merged"
+    );
+
+    expect(
+      await PgProjectSync.push(HELLO.id, { files: mine }, HELLO.name, {
+        generation,
+      })
+    ).toBe("skipped");
+    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+  });
+
+  it("brings the open file's editor buffer up to the merged copy", async () => {
+    // Monaco reuses a file's model on re-open instead of taking its new
+    // content, and autosaves it back half a second after a keystroke. The
+    // buffer is the copy that has to change, or the merge is undone by typing.
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+    const buffers = editorHolds({
+      [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n",
+    });
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
+  });
+
+  it("folds in what was typed while the merge ran", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+    // Typed, and not yet autosaved: the buffer is ahead of what the merge read
+    const buffers = editorHolds({
+      [`/${HELLO.name}/src/lib.rs`]: "a\nb\nC\nd\nE\n",
+    });
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nC\nd\nE\n");
+    // and on disk, so the re-read and the next upload see it too
+    expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
+      "A\nb\nC\nd\nE\n"
+    );
+    expect(getFailures()).toEqual([]);
+  });
+
+  it("keeps the merged copy, and says so, when what was typed overlaps it", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+    const buffers = editorHolds({
+      [`/${HELLO.name}/src/lib.rs`]: "typed\nb\nc\nd\nE\n",
+    });
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
+    expect(getFailures().map((f) => f.what)).toEqual([
+      expect.stringContaining("src/lib.rs"),
+    ]);
+  });
+
+  it("brings the editor buffer up to a copy taken from the other device", async () => {
+    // `adopt` shares the replace, and so shared the stale model
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    captureWrites();
+    const buffers = editorHolds({ [`/${HELLO.name}/src/lib.rs`]: base });
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\ne\n");
+  });
+
+  it("leaves a project whose merge is still running to the next pass", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    const replace = captureWrites();
+    jest.spyOn(PgProjectSync, "isMerging").mockReturnValue(true);
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.replaced).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\ne\n" },
     });
   });
 });

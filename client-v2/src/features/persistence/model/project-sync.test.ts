@@ -715,6 +715,27 @@ describe("holding pushes until the account is reconciled", () => {
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe("ok");
   });
 
+  it("stays held until every holder has let go", async () => {
+    // A reconcile and a merge hold for their own reasons and overlap. With a
+    // single slot, whichever finished first opened the gate for both, and the
+    // editor uploaded its pre-merge copy while the merge was still writing.
+    await signedIn();
+    PgProjectSync.holdPushes();
+    PgProjectSync.holdPushes();
+
+    let done = false;
+    const push = PgProjectSync.push("p1", { files: { a: "1" } }).then((r) => {
+      done = true;
+      return r;
+    });
+    PgProjectSync.releasePushes();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(done).toBe(false);
+
+    PgProjectSync.releasePushes();
+    expect(await push).toBe("ok");
+  });
+
   it("holds nothing by default, so a caller that never reconciles still works", async () => {
     await signedIn();
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe("ok");

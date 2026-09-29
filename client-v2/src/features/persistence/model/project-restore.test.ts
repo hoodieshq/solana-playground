@@ -245,12 +245,13 @@ describe("reconcile", () => {
     const result = await reconcile();
 
     // `immediate` because reconcile runs inside the push gate it is the point
-    // of -- waiting on it here would wait for itself
+    // of -- waiting on it here would wait for itself. With the generation it
+    // read the files at, so a merge started meanwhile stops it going up.
     expect(push).toHaveBeenCalledWith(
       "p1",
       { files: { "src/lib.rs": "newer here" } },
       "alpha",
-      { immediate: true }
+      { immediate: true, generation: PgProjectSync.generationOf("p1") }
     );
     expect(result.pushed).toEqual(["alpha"]);
   });

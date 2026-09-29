@@ -3,7 +3,9 @@ import { PgWorkspace } from "./workspace";
 import { PgCommon } from "../common";
 import { PgLanguage } from "../language";
 import { PgView } from "../view";
+import type { Disposable } from "../types";
 import type {
+  EditorBuffers,
   Explorer,
   TupleFiles,
   Folder,
@@ -24,6 +26,8 @@ export class PgExplorer {
   private static _workspace: PgWorkspace | null = null;
   /** Current initialized workspace name */
   private static _initializedWorkspaceName: string | null = null;
+  /** The mounted editor's buffers -- see `registerEditorBuffers` */
+  private static _editorBuffers: EditorBuffers | null = null;
 
   /** `indexedDB` file system */
   static readonly fs = PgFs;
@@ -649,6 +653,28 @@ export class PgExplorer {
     }
 
     await this.fs.flush();
+  }
+
+  /**
+   * Let the editor say where its copies of files live.
+   *
+   * A registry rather than an event, because a caller that has just rewritten
+   * files needs the buffers updated *before* it goes on -- sync holds pushes
+   * until the editor agrees with the store, and an event gives it nothing to
+   * wait on.
+   */
+  static registerEditorBuffers(buffers: EditorBuffers): Disposable {
+    this._editorBuffers = buffers;
+    return {
+      dispose: () => {
+        if (this._editorBuffers === buffers) this._editorBuffers = null;
+      },
+    };
+  }
+
+  /** The editor's buffers, or `null` when no editor is mounted */
+  static get editorBuffers(): EditorBuffers | null {
+    return this._editorBuffers;
   }
 
   /**

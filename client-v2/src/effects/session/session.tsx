@@ -88,7 +88,7 @@ export const session = (): Disposable => {
     } finally {
       // Whatever happened, pushes stop waiting here. A reconcile that failed
       // is a reason to let this device save its work, not to hold it forever.
-      PgProjectSync.releasePushes();
+      releaseHold();
     }
 
     // The panel is still showing the thread it opened before sign-in, which
@@ -164,6 +164,15 @@ export const session = (): Disposable => {
   // reconcile is several round trips -- without this, whichever won decided
   // whether the user was told their other device had changed the project.
   PgProjectSync.holdPushes();
+  // Exactly once, however many of the paths below get there. The gate is
+  // counted, so a second release here would give up somebody else's hold --
+  // a merge's, say -- and let the editor upload while it was rewriting files.
+  let holding = true;
+  const releaseHold = () => {
+    if (!holding) return;
+    holding = false;
+    PgProjectSync.releasePushes();
+  };
 
   // The first transition is the cookie being restored on load, not the user
   // signing in -- `refresh` fires it before its own promise settles. Anything
@@ -188,7 +197,7 @@ export const session = (): Disposable => {
     restored = true;
     // Signed out, so no reconcile is coming and nothing should be waiting on
     // one. `adopt` releases in its own right when there is a session.
-    if (!PgSession.get()) PgProjectSync.releasePushes();
+    if (!PgSession.get()) releaseHold();
   });
 
   return {
@@ -196,7 +205,7 @@ export const session = (): Disposable => {
       onChange.dispose();
       PgSession.setOnSignOut(null);
       // Nothing is left to release the gate once this is gone
-      PgProjectSync.releasePushes();
+      releaseHold();
     },
   };
 };

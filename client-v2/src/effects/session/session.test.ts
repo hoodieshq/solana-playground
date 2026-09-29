@@ -205,6 +205,21 @@ describe("the session effect", () => {
     effect.dispose();
   });
 
+  it("gives up its hold once, however many ways it gets there", async () => {
+    // The gate is counted, so a second release would give up somebody else's
+    // hold -- a merge's -- and let the editor upload mid-rewrite. The reconcile
+    // finishing, a later sign-in and the effect going away all release.
+    const effect = session();
+    await settle();
+    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(user);
+    await settle();
+    effect.dispose();
+
+    expect(calls.filter((c) => c === "hold")).toHaveLength(1);
+    expect(calls.filter((c) => c === "release")).toHaveLength(1);
+  });
+
   it("releases them when nobody is signed in", async () => {
     jest.spyOn(PgSession, "refresh").mockImplementation(async () => {
       await PgSession.refreshWith(null);

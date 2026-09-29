@@ -117,6 +117,14 @@ export const reconcile = async (): Promise<SyncResult> => {
     PgProjectSync.rememberName(project.id, project.name);
     const local = PgExplorer.workspaceNameOf(project.id);
 
+    // A merge of it is already reading the server and rewriting the
+    // workspace, and racing it for the mark could undo it. Left for the next
+    // pass -- the merge uploads what it settles on itself.
+    if (PgProjectSync.isMerging(project.id)) {
+      if (local) result.latest ??= local;
+      continue;
+    }
+
     try {
       if (!local) {
         const name = await importFresh(project.id, project.name, taken);
@@ -152,14 +160,15 @@ export const reconcile = async (): Promise<SyncResult> => {
         // catch-up: an edit that was still debounced when the tab closed, a
         // push that failed while offline, or a rename -- which `isClean`
         // catches because the mark records the name as well as the hash.
+        // With the generation read first, so a merge the banner starts while
+        // this reads the files stops this snapshot from going up after it
+        const generation = PgProjectSync.generationOf(project.id);
         if (
           (await PgProjectSync.push(
             project.id,
             await snapshotOf(local),
             local,
-            {
-              immediate: true,
-            }
+            { immediate: true, generation }
           )) === "ok"
         ) {
           result.pushed.push(local);
