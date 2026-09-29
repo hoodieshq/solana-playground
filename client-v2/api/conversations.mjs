@@ -14,6 +14,7 @@ import {
   listMessages,
   listThreads,
   NotYours,
+  ThreadDeleted,
 } from "../src/features/persistence/server.mjs";
 
 /** Anything larger is not a conversation batch, it is an attack or a bug */
@@ -151,8 +152,8 @@ export default async function handler(req, res) {
 
   // One `try` around both branches that reach the database: without it a
   // driver error is an unhandled rejection on the platform rather than a
-  // response. `NotYours` is the one failure that maps to a status of its own;
-  // anything else either conflicts harmlessly, which `on conflict do nothing`
+  // response. `NotYours` and `ThreadDeleted` are the failures that map to a
+  // status of their own; anything else either conflicts harmlessly, which `on conflict do nothing`
   // already absorbs, or fails for a reason no client can act on, so a generic
   // 500 is the honest answer.
   try {
@@ -234,6 +235,11 @@ export default async function handler(req, res) {
     // guessed uuids
     if (e instanceof NotYours) {
       return sendJson(res, 404, { error: "No such thread" });
+    }
+    // Not a 2xx, so the client keeps its copy rather than deleting a thread
+    // the server did not take
+    if (e instanceof ThreadDeleted) {
+      return sendJson(res, 410, { error: "Thread was deleted" });
     }
 
     // The driver's own text stays server side: it names columns, constraints
