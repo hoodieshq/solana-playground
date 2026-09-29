@@ -2896,7 +2896,10 @@ the earlier guard, which deferred a re-open whenever the list on disk
 differed from memory and so left the tab's tree behind until it was
 loaded again; a workspace renamed elsewhere is now followed, and one
 deleted elsewhere is left for the last one remaining, as the deleting tab
-does. The `/api/sync` probe is time-limited too, and a probe that got no
+does, or for the empty state through `PgExplorer.init()` when none remain.
+A refresh never runs over this tab's own unsaved create, rename or delete:
+the explorer remembers the list it last saved or read and skips while
+memory differs from it. The `/api/sync` probe is time-limited too, and a probe that got no
 answer is asked again rather than remembered as "sync unavailable".
 
 **Revisit when** same-file concurrent editing becomes a requirement (the
