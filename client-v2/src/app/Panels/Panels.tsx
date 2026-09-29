@@ -8,7 +8,7 @@ import ModalBackdrop from "../../components/ModalBackdrop";
 import Toast from "../../components/Toast";
 import Wallet from "../../components/Wallet";
 import { PgView } from "../../utils";
-import Deck from "../../views/deck";
+import Deck, { ROADMAP } from "../../views/deck";
 import Evaluation from "../../views/evaluation";
 import Flow from "../../views/flow";
 import Landing from "../../views/landing";
@@ -17,7 +17,7 @@ const params = new URLSearchParams(window.location.search);
 const useClassic = params.has("classic");
 
 /**
- * Which of the four things the URL is asking for.
+ * Which of the five things the URL is asking for.
  *
  * The URL is the only thing that decides, and it decides on every pop — an
  * earlier version also remembered the choice for the tab, which meant `/`
@@ -28,7 +28,7 @@ const useClassic = params.has("classic");
  * asked for a page by name already knows what this is, and showing them a
  * pitch instead would be rude.
  */
-type Stage = "deck" | "landing" | "evaluation" | "product";
+type Stage = "deck" | "roadmap" | "landing" | "evaluation" | "product";
 
 const stageFromUrl = (): Stage => {
   if (window.location.pathname !== "/") return "product";
@@ -44,6 +44,8 @@ const stageFromUrl = (): Stage => {
 
   if (asked("app")) return "product";
   if (asked("evaluation")) return "evaluation";
+  /* The design plan after the proposal, presented the same way */
+  if (asked("roadmap")) return "roadmap";
   /* #landing-trail named the landing while it had a second version; the
      links shared then still arrive */
   if (asked("landing") || asked("landing-trail")) return "landing";
@@ -72,9 +74,15 @@ const Panels = () => {
   }, []);
 
   if (!useClassic) {
-    if (stage === "deck") {
+    /* Keyed, so moving between the two decks starts the other one at its
+       first slide rather than handing it this one's place */
+    if (stage === "deck" || stage === "roadmap") {
+      const roadmap = stage === "roadmap";
       return (
         <Deck
+          key={stage}
+          slides={roadmap ? ROADMAP : undefined}
+          label={roadmap ? "Design roadmap" : undefined}
           onLanding={() => goTo("landing", "/#landing")}
           onProduct={() => goTo("product", "/#app")}
           onEvaluation={() => goTo("evaluation", "/#evaluation")}

@@ -23,6 +23,51 @@ export type Exit = "landing" | "product" | "evaluation";
 /** What an image slide shows, from the supplied renders */
 export type Shot = "keyboard" | "app" | "tutorial" | "tee" | "home";
 
+/** The roadmap's two design tracks */
+export type Track = "brand" | "product";
+
+/** One piece of work, as a roadmap slide lists it */
+export interface PlanItem {
+  name: string;
+  note?: string;
+}
+
+/** A dated stop on the roadmap's line */
+export interface Stop {
+  date: string;
+  name: string;
+  note: string;
+  /** The stop the plan is built around, lit in Solana's colours */
+  key?: boolean;
+}
+
+/**
+ * A stretch of work on a sprint board, in sprints from the board's first
+ * column: 1 to 3 is the second and third sprints; 3.8 stops most of the way
+ * through the fourth, where a freeze falls.
+ */
+export interface Bar {
+  name: string;
+  from: number;
+  to: number;
+}
+
+/** A line across a sprint board: a freeze, or the event itself */
+export interface Gate {
+  at: number;
+  /** A gate that lasts, drawn as a band to here */
+  to?: number;
+  name: string;
+  note: string;
+  accent?: boolean;
+}
+
+/** The heading every roadmap slide opens with, and its one grey line */
+interface Heading {
+  title: string;
+  note?: string;
+}
+
 interface Base {
   id: string;
   ground: Ground;
@@ -46,6 +91,8 @@ export type SlideSpec =
       /** Hold the space of this many lines, so a line that is coming later
           does not move the ones already there */
       reserve?: number;
+      /** One line under the headline, as a signpost has */
+      note?: string;
     })
   | (Base & {
       kind: "cards";
@@ -76,7 +123,53 @@ export type SlideSpec =
       exit: Exit;
       note?: string;
       scale?: number;
-    });
+    })
+  /* The roadmap's slides, drawn in `Plan` */
+  /** A few things side by side, each under a hairline */
+  | (Base & Heading & { kind: "row"; items: PlanItem[] })
+  /** The plan's stops along one line */
+  | (Base & Heading & { kind: "horizons"; stops: Stop[] })
+  /** The two tracks, each with what it owns */
+  | (Base & {
+      kind: "tracks";
+      tracks: Array<{
+        track: Track;
+        name: string;
+        line: string;
+        items: string[];
+      }>;
+    })
+  /** Two columns read across: what one side does, what the other owes it */
+  | (Base &
+      Heading & {
+        kind: "pairs";
+        left: string;
+        right: string;
+        rows: Array<{ a: string; b: string }>;
+      })
+  /** Work in columns, a track to each — or one list with no track at all */
+  | (Base &
+      Heading & {
+        kind: "goals";
+        columns: Array<{ track?: Track; name?: string; items: PlanItem[] }>;
+      })
+  /** Work in MoSCoW groups, each ordered by its RICE score */
+  | (Base &
+      Heading & {
+        kind: "ranked";
+        groups: Array<{
+          name: string;
+          items: Array<{ name: string; track: Track; score: number }>;
+        }>;
+      })
+  /** Two-week sprints across, the tracks down, the work as bars */
+  | (Base &
+      Heading & {
+        kind: "board";
+        sprints: Array<{ name: string; date: string }>;
+        gates?: Gate[];
+        lanes: Array<{ track: Track; name: string; rows: Bar[][] }>;
+      });
 
 /* The line, built up over three slides, measured off the renders: 185.6px on
    the 1920 frame, Medium — its stems are 0.137em, and with the deck's -1%
