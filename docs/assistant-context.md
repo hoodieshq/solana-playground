@@ -163,11 +163,12 @@ Done:
   resumed session: the provider is re-seeded from the text of the
   conversation, and the tool calls behind it are not replayed.
 - Project code syncs both ways, so signing in on another device picks up where
-  the last one left off. Code is never merged. Each device records what the
-  server last accepted from it, which is what lets a reload tell a local copy
-  that is behind the account from one holding work that never finished
-  uploading — the user is asked only when both copies genuinely hold work, and
-  deleting a project propagates rather than coming back on the next load.
+  the last one left off. Changes from two devices are merged file by file and,
+  within a file, line by line; the user is asked only about lines both devices
+  changed. Each device records what the server last accepted from it, which is
+  what lets a reload tell a local copy that is behind the account from one
+  holding work that never finished uploading, and deleting a project
+  propagates rather than coming back on the next load.
 
 Ecosystem grounding shipped: skills the model loads on demand
 (`list_skills` / `load_skill` / `read_skill_reference`), and MCP tools — both
