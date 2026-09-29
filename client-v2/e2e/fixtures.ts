@@ -36,4 +36,26 @@ export const test = base.extend<{ seededPage: Page }>({
   },
 });
 
+type WriteBody = {
+  files?: Record<string, string>;
+  changed?: Record<string, string>;
+  removed?: string[];
+};
+
+/**
+ * What `/api/projects` stores for a write: the whole file set, or a patch on
+ * what it already holds. Route stubs use it so a patch does not quietly
+ * become a project holding only the files that changed.
+ */
+export const applyWrite = (
+  held: { files: Record<string, string> } | undefined,
+  body: WriteBody
+) => {
+  const files = body.files
+    ? { ...body.files }
+    : { ...(held?.files ?? {}), ...(body.changed ?? {}) };
+  for (const path of body.removed ?? []) delete files[path];
+  return { files };
+};
+
 export { expect };

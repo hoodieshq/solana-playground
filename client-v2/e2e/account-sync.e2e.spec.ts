@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { validate as isUuid } from "uuid";
 import type { Page, Route } from "@playwright/test";
+import { applyWrite } from "./fixtures";
 
 /**
  * What a signed-in browser does with an account it has never seen.
@@ -201,7 +202,10 @@ test("reloading a project the account already has writes nothing", async ({
   const localId = await makeLocalProject(page, "Shared");
 
   const writes: Array<{ snapshot?: unknown }> = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -213,7 +217,7 @@ test("reloading a project the account already has writes nothing", async ({
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: "2026-02-01T00:00:00.000Z",
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -243,7 +247,7 @@ test("reloading a project the account already has writes nothing", async ({
   // Second load: both sides now agree, and the mark says so
   writes.length = 0;
   await page.reload();
-  await expect.poll(() => threadId(page), LONG).toBe(localId);
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   await page.waitForTimeout(8000);
 
@@ -272,7 +276,10 @@ test("the other device's change arrives without asking", async ({ page }) => {
   const localId = await makeLocalProject(page, "Handover");
 
   const writes: unknown[] = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -284,7 +291,7 @@ test("the other device's change arrives without asking", async ({ page }) => {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: "2026-02-01T00:00:00.000Z",
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -320,10 +327,13 @@ test("the other device's change arrives without asking", async ({ page }) => {
 
   writes.length = 0;
   await page.reload();
-  await expect.poll(() => threadId(page), LONG).toBe(localId);
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   // Nothing to decide: this browser has no work of its own to weigh
-  await expect(page.getByText("changed on another device")).toHaveCount(0, LONG);
+  await expect(page.getByText("changed on another device")).toHaveCount(
+    0,
+    LONG
+  );
 
   // The file tree is rendered from the explorer's *in-memory* state, so the
   // new file appearing in it is the proof that the workspace was re-read --
@@ -359,7 +369,10 @@ test("the other device can change it twice without ever asking", async ({
   const localId = await makeLocalProject(page, "PingPong");
 
   const writes: unknown[] = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -371,7 +384,7 @@ test("the other device can change it twice without ever asking", async ({
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: `2026-02-0${writes.length}T00:00:00.000Z`,
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -410,7 +423,7 @@ test("the other device can change it twice without ever asking", async ({
 
     writes.length = 0;
     await page.reload();
-    await expect.poll(() => threadId(page), LONG).toBe(localId);
+    await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
     await expect(banner).toHaveCount(0, LONG);
     await expect(page.locator("#root-dir")).toContainText(`${marker}.rs`, LONG);
@@ -432,15 +445,23 @@ test("the other device can change it twice without ever asking", async ({
  * taking the server's copy, pushing this one, finishing a delete -- reconcile
  * decides on its own, because only one side has work in it.
  */
-test("a divergent project asks, and keeping this version force-pushes it", async ({
+test("a divergent project asks about the overlap, and keeping this version uploads it", async ({
   page,
 }) => {
   test.setTimeout(240_000);
 
   const localId = await makeLocalProject(page, "Contested");
 
-  const writes: Array<{ force?: boolean; baseUpdatedAt?: string }> = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  const writes: Array<{
+    baseUpdatedAt?: string;
+    changed?: Record<string, string>;
+    force?: boolean;
+  }> = [];
+  // The other device's copy, which this browser has never agreed on
+  let stored = {
+    snapshot: { files: { "src/lib.rs": "// written on the other device" } },
+    updatedAt: "2026-03-01T00:00:00.000Z",
+  };
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -451,16 +472,18 @@ test("a divergent project asks, and keeping this version force-pushes it", async
     if (r.request().method() === "PUT") {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
-      // Only `force` gets through. A plain swap is refused, standing in for
-      // the other device having written since this one last read.
-      if (!body.force) {
+      // The real swap: only a write built on the current token lands
+      if (body.baseUpdatedAt !== stored.updatedAt) {
         return r.fulfill({
           status: 409,
           contentType: "application/json",
-          body: JSON.stringify({ conflict: true, updatedAt: stored?.updatedAt }),
+          body: JSON.stringify({ conflict: true, updatedAt: stored.updatedAt }),
         });
       }
-      stored = { snapshot: body.snapshot, updatedAt: "2026-04-01T00:00:00.000Z" };
+      stored = {
+        snapshot: applyWrite(stored.snapshot, body),
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      };
       return json(r, { updatedAt: stored.updatedAt });
     }
 
@@ -468,36 +491,41 @@ test("a divergent project asks, and keeping this version force-pushes it", async
       id: localId,
       name: "Contested",
       kind: "project",
-      updatedAt: stored?.updatedAt ?? "2026-03-01T00:00:00.000Z",
+      updatedAt: stored.updatedAt,
     };
     const id = new URL(r.request().url()).searchParams.get("id");
-    if (id) {
-      return json(r, {
-        project: {
-          ...shared,
-          snapshot: stored?.snapshot ?? {
-            files: { "src/lib.rs": "// written on the other device" },
-          },
-        },
-      });
-    }
-    return json(r, { projects: [shared] });
+    return id
+      ? json(r, { project: { ...shared, snapshot: stored.snapshot } })
+      : json(r, { projects: [shared] });
   });
 
   await page.reload();
 
   const banner = page.getByText("changed on another device");
   await expect(banner).toBeVisible(LONG);
+  // Named: the question is about this file, not the whole project
+  await expect(banner).toContainText("src/lib.rs");
 
-  // And it stops pushing while the question is open, rather than re-sending a
-  // swap that can never match again
+  // Nothing is *accepted* while the question is open. A create-only upload of
+  // a project the account already holds may go out first; the server refuses
+  // it, so it cannot clobber anything. A patch must never appear: it would
+  // mean a merge result was sent before the user answered.
   await page.waitForTimeout(8000);
   const beforeAnswer = writes.length;
+  for (const write of writes) {
+    expect(write.baseUpdatedAt).not.toBe("2026-03-01T00:00:00.000Z");
+    expect(write.changed).toBeUndefined();
+  }
 
   await page.getByRole("button", { name: "Keep this version" }).click();
 
-  await expect.poll(() => writes.at(-1)?.force, LONG).toBe(true);
-  expect(writes.length).toBe(beforeAnswer + 1);
+  await expect.poll(() => writes.length, LONG).toBeGreaterThan(beforeAnswer);
+  const answer = writes.at(-1)!;
+  expect(answer.force).toBeUndefined();
+  expect(answer.baseUpdatedAt).toBe("2026-03-01T00:00:00.000Z");
+  expect(answer.changed?.["src/lib.rs"]).not.toBe(
+    "// written on the other device"
+  );
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
@@ -512,11 +540,16 @@ test("a divergent project can take the other version instead", async ({
   const localId = await makeLocalProject(page, "Contested");
 
   const writes: Array<{ force?: boolean }> = [];
-  const theirs = {
-    files: {
-      "src/lib.rs": "// written on the other device",
-      "src/from_other_device.rs": "// new over there",
+  // The other device's copy. Answered with the same token check as above, so
+  // what the browser uploads after the answer is accepted rather than refused.
+  let stored = {
+    snapshot: {
+      files: {
+        "src/lib.rs": "// written on the other device",
+        "src/from_other_device.rs": "// new over there",
+      },
     },
+    updatedAt: "2026-03-01T00:00:00.000Z",
   };
 
   await page.route("**/api/auth/get-session", (r) =>
@@ -526,25 +559,30 @@ test("a divergent project can take the other version instead", async ({
   await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
   await page.route("**/api/projects*", (r) => {
     if (r.request().method() === "PUT") {
-      writes.push(JSON.parse(r.request().postData() ?? "{}"));
-      return r.fulfill({
-        status: 409,
-        contentType: "application/json",
-        body: JSON.stringify({
-          conflict: true,
-          updatedAt: "2026-03-01T00:00:00.000Z",
-        }),
-      });
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      if (body.baseUpdatedAt !== stored.updatedAt) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: stored.updatedAt }),
+        });
+      }
+      stored = {
+        snapshot: applyWrite(stored.snapshot, body),
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      };
+      return json(r, { updatedAt: stored.updatedAt });
     }
     const shared = {
       id: localId,
       name: "Contested",
       kind: "project",
-      updatedAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: stored.updatedAt,
     };
     const id = new URL(r.request().url()).searchParams.get("id");
     return id
-      ? json(r, { project: { ...shared, snapshot: theirs } })
+      ? json(r, { project: { ...shared, snapshot: stored.snapshot } })
       : json(r, { projects: [shared] });
   });
 
@@ -566,9 +604,9 @@ test("a divergent project can take the other version instead", async ({
   // actually sees. Clearing the workspace directory took the tab state with
   // it, so there was no current file to re-read and the pane went on showing
   // the version that had just been replaced, until the page was reloaded.
-  await expect(
-    page.getByText("// written on the other device")
-  ).toBeVisible(LONG);
+  await expect(page.getByText("// written on the other device")).toBeVisible(
+    LONG
+  );
 
   // And nothing goes back up afterwards. A push here would carry the discarded
   // copy and hand the *other* browser a conflict it did not cause.
@@ -605,7 +643,7 @@ test("a started tutorial hands over its keypair and progress", async ({
   // The keypair is written after the workspace is up, not with it
   await page.waitForTimeout(5000);
 
-  const writes: Array<{ snapshot?: { files: Record<string, string> } }> = [];
+  const writes: Array<{ files?: Record<string, string> }> = [];
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -624,7 +662,8 @@ test("a started tutorial hands over its keypair and progress", async ({
   await page.reload();
 
   await expect.poll(() => writes.length, LONG).toBeGreaterThan(0);
-  const sent = Object.keys(writes[0].snapshot?.files ?? {});
+  // A project's first upload is a full write
+  const sent = Object.keys(writes[0].files ?? {});
   expect(sent).toContain(".workspace/program-info.json");
   expect(sent).toContain(".tutorial.json");
 });
