@@ -750,6 +750,146 @@ describe("both devices changed it", () => {
   });
 });
 
+describe("two rewrites of one project at once", () => {
+  beforeEach(setUp);
+  afterEach(() => jest.restoreAllMocks());
+
+  const before = { "src/lib.rs": "lib", "src/mine.rs": "x" };
+  const theirs = { "src/lib.rs": "their lib", "src/mine.rs": "x" };
+  const mine = { "src/lib.rs": "lib", "src/mine.rs": "my change" };
+  const both = { "src/lib.rs": "their lib", "src/mine.rs": "my change" };
+
+  /** Let everything that can run without outside help run */
+  const settle = async () => {
+    for (let i = 0; i < 50; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  };
+
+  /**
+   * Replace and re-open like the real explorer, except that the re-open
+   * waits for `reopen()`: memory still holds the pre-merge copy until then,
+   * which is the window a second merge used to read it in.
+   */
+  const reopenOnCue = () => {
+    let reopen!: () => void;
+    const cue = new Promise<void>((resolve) => (reopen = resolve));
+    let rewritten: Record<string, string> | null = null;
+    const replace = jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockImplementation(
+        async (_name: string, files: Record<string, string>) => {
+          rewritten = files;
+        }
+      );
+    const switched = jest
+      .spyOn(PgExplorer, "switchWorkspace")
+      .mockImplementation(async (name: string) => {
+        await cue;
+        if (rewritten) localFilesAre(name, rewritten);
+      });
+    return { reopen, replace, switched };
+  };
+
+  const startFrom = async () => {
+    asDevice([HELLO]);
+    localFilesAre(HELLO.name, before);
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    otherDeviceWroteFiles(HELLO.id, theirs);
+    localFilesAre(HELLO.name, mine);
+  };
+
+  it("does not let a second merge revert the lines the first merged in", async () => {
+    // A debounced PUT refused while reconcile is merging reaches the merge
+    // from `push`. Run alongside, it read the pre-merge copy from memory and
+    // the first merge's agreement from the mark, and uploaded the pre-merge
+    // copy as if this device had reverted the other's lines.
+    await startFrom();
+    const { reopen, switched } = reopenOnCue();
+
+    const first = PgProjectSync.mergeWithServer(HELLO.id, HELLO.name);
+    await settle();
+    expect(switched).toHaveBeenCalledTimes(1);
+
+    const second = PgProjectSync.mergeWithServer(HELLO.id, HELLO.name);
+    await settle();
+    reopen();
+
+    expect(await first).toBe("merged");
+    expect(await second).toBe("merged");
+    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+  });
+
+  it("answers the banner after a merge already running, with the user's own answer", async () => {
+    const overlapping = {
+      "src/lib.rs": "a\nmine\nc\n",
+      "tests/t.rs": "test",
+    };
+    asDevice([HELLO]);
+    localFilesAre(HELLO.name, {
+      "src/lib.rs": "a\nb\nc\n",
+      "tests/t.rs": "test",
+    });
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    otherDeviceWroteFiles(HELLO.id, {
+      "src/lib.rs": "a\ntheirs\nc\n",
+      "tests/t.rs": "their test",
+    });
+    localFilesAre(HELLO.name, overlapping);
+    captureWrites();
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+
+    // A reconcile's merge, held at its read of the server
+    const online = global.fetch;
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    let reads = 0;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method && url.includes("id=") && ++reads === 1) await held;
+      return online(url, init);
+    }) as unknown as typeof fetch;
+
+    const running = PgProjectSync.mergeWithServer(HELLO.id, HELLO.name);
+    await settle();
+    const resolved = PgProjectSync.resolve(HELLO.id, "keep-local");
+    await settle();
+    // Waiting its turn: it has not read the server yet
+    expect(reads).toBe(1);
+
+    answer();
+    expect(await running).toBe("conflict");
+    expect(await resolved).toBe(true);
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "a\nmine\nc\n", "tests/t.rs": "their test" },
+    });
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("does not take the server's copy over work a merge it waited behind left unsent", async () => {
+    // Reconcile decided the copy was clean, and then queued behind a merge
+    // whose upload went nowhere. The merged work is only on this device.
+    await startFrom();
+    const { reopen, replace } = reopenOnCue();
+    const online = global.fetch;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") throw new Error("offline");
+      return online(url, init);
+    }) as unknown as typeof fetch;
+
+    const merging = PgProjectSync.mergeWithServer(HELLO.id, HELLO.name);
+    await settle();
+    const adopting = PgProjectSync.adopt(HELLO.id);
+    await settle();
+    reopen();
+
+    expect(await merging).toBe("merged");
+    expect(await adopting).toBeNull();
+    expect(replace).toHaveBeenLastCalledWith(HELLO.name, both);
+  });
+});
+
 describe("deleting on one device", () => {
   beforeEach(setUp);
   afterEach(() => jest.restoreAllMocks());

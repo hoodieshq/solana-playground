@@ -6,7 +6,13 @@ import {
   sameFiles,
   settleConflicts,
 } from "./merge";
-import { buildSnapshot, diffFiles, hashFiles, snapshotOf } from "./snapshot";
+import {
+  buildSnapshot,
+  diffFiles,
+  hashFiles,
+  sameUserFiles,
+  snapshotOf,
+} from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
@@ -448,7 +454,16 @@ export class PgProjectSync {
    *
    * @returns the local workspace name, or `null` if nothing was taken
    */
-  static async adopt(projectId: string): Promise<string | null> {
+  static adopt(projectId: string): Promise<string | null> {
+    return PgProjectSync._exclusive(projectId, (waited) =>
+      PgProjectSync._adopt(projectId, waited)
+    );
+  }
+
+  private static async _adopt(
+    projectId: string,
+    waited: boolean
+  ): Promise<string | null> {
     const full = await PgProjectSync.fetch(projectId);
     // A snapshot that is not a file map would empty the workspace:
     // `replaceWorkspaceFiles` removes the directory before it discovers it has
@@ -461,6 +476,19 @@ export class PgProjectSync {
 
     const local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
+
+    // The caller found the local copy expendable before this queued behind a
+    // merge, and the merge may since have put work in it that never uploaded
+    // -- an offline push leaves exactly that. Asked again, then, the way
+    // reconcile asks it; declining leaves the project to the next pass.
+    if (waited) {
+      const mark = await PgSyncMark.read(projectId);
+      const clean =
+        !!mark &&
+        mark.name === local &&
+        sameUserFiles(mark.files, await hashFiles(await snapshotOf(local)));
+      if (!clean) return null;
+    }
 
     // Held and counted for the same reasons as a merge's -- see there
     PgProjectSync.holdPushes();
@@ -604,7 +632,18 @@ export class PgProjectSync {
    * new set, rather than answered on the user's behalf. Absent when the
    * question was about the whole project.
    */
-  static async mergeWithServer(
+  static mergeWithServer(
+    projectId: string,
+    localName: string,
+    prefer?: "local" | "server",
+    asked?: readonly string[]
+  ): Promise<"merged" | "conflict" | "failed"> {
+    return PgProjectSync._exclusive(projectId, () =>
+      PgProjectSync._mergeWithServer(projectId, localName, prefer, asked)
+    );
+  }
+
+  private static async _mergeWithServer(
     projectId: string,
     localName: string,
     prefer?: "local" | "server",
@@ -614,10 +653,6 @@ export class PgProjectSync {
     // that starts or finishes meanwhile can neither open it early nor have
     // it opened under it.
     PgProjectSync.holdPushes();
-    PgProjectSync._merging.set(
-      projectId,
-      (PgProjectSync._merging.get(projectId) ?? 0) + 1
-    );
     // Every snapshot of this project read before now is of files this may be
     // about to replace, so none of them may be sent
     PgProjectSync._bump(projectId);
@@ -735,9 +770,6 @@ export class PgProjectSync {
         // store now does, any push would read the pre-merge copy
         if (written) await PgProjectSync._catchUp(localName, first!, written);
       } finally {
-        const running = (PgProjectSync._merging.get(projectId) ?? 1) - 1;
-        if (running) PgProjectSync._merging.set(projectId, running);
-        else PgProjectSync._merging.delete(projectId);
         // And after catching up, so a snapshot read while it ran is not sent
         PgProjectSync._bump(projectId);
         PgProjectSync.releasePushes();
@@ -746,14 +778,70 @@ export class PgProjectSync {
   }
 
   /**
-   * Whether a merge of this project is running.
+   * Whether a merge or adoption of this project is running, or waiting to.
    *
    * Reconcile leaves such a project for its next pass: the merge is already
    * reading the server and rewriting the workspace, and a second pass over
-   * the same project would race it for the mark.
+   * the same project would only queue behind it with a decision made before
+   * it ran.
    */
   static isMerging(projectId: string) {
     return PgProjectSync._merging.has(projectId);
+  }
+
+  /**
+   * Run `task` once nothing else is rewriting this project, then let the
+   * next one in.
+   *
+   * Two merges of one project cannot overlap safely. Each reads the local copy
+   * from memory and the agreement from the mark, at different moments: a
+   * second merge that read memory before the first had re-opened the
+   * workspace, and the mark after the first had written it, planned the
+   * pre-merge copy against the new agreement -- so every line only the other
+   * device changed read as this device reverting it, and it uploaded the
+   * revert, which the swap accepted. The second push to arrive -- a debounce
+   * refused mid-reconcile, or the user answering the banner -- reaches here
+   * as easily as the first.
+   *
+   * So a later caller waits, and then runs from scratch: fresh reads, its own
+   * `prefer`. Handing it the earlier call's outcome instead would answer the
+   * banner with whatever the reconcile decided.
+   *
+   * Nothing a task awaits may wait on this project's chain in turn. The merge's
+   * own upload does not merge again (`merging`), and the reconcile its re-open
+   * starts is not awaited and skips a project that `isMerging`.
+   *
+   * @param task given whether it had to wait, since what the caller decided
+   * before calling may no longer hold
+   */
+  private static async _exclusive<T>(
+    projectId: string,
+    task: (waited: boolean) => Promise<T>
+  ): Promise<T> {
+    const previous = PgProjectSync._tails.get(projectId);
+    let finish!: () => void;
+    // Resolves whatever the task does, so a failure cannot wedge the chain
+    const tail = new Promise<void>((resolve) => (finish = resolve));
+    PgProjectSync._tails.set(projectId, tail);
+    PgProjectSync._merging.set(
+      projectId,
+      (PgProjectSync._merging.get(projectId) ?? 0) + 1
+    );
+
+    try {
+      if (previous) await previous;
+      return await task(!!previous);
+    } finally {
+      const left = (PgProjectSync._merging.get(projectId) ?? 1) - 1;
+      if (left) PgProjectSync._merging.set(projectId, left);
+      else PgProjectSync._merging.delete(projectId);
+      // Only the newest link is kept, and only while it is outstanding, so
+      // the map holds at most one promise per project that is busy
+      if (PgProjectSync._tails.get(projectId) === tail) {
+        PgProjectSync._tails.delete(projectId);
+      }
+      finish();
+    }
   }
 
   /**
@@ -982,6 +1070,7 @@ export class PgProjectSync {
     PgProjectSync._conflictListeners.clear();
     PgProjectSync._signingOut = 0;
     PgProjectSync._merging.clear();
+    PgProjectSync._tails.clear();
     PgProjectSync._generations.clear();
     // Every hold at once: a reset is the one place that is allowed to
     PgProjectSync._holds = 0;
@@ -1004,8 +1093,10 @@ export class PgProjectSync {
   private static readonly _names = new Map<string, string>();
   private static readonly _conflicts = new Map<string, Conflict>();
   private static readonly _conflictListeners = new Set<() => void>();
-  /** Merges running, per project; a count so overlapping ones nest */
+  /** Merges and adoptions running or queued, per project -- see `_exclusive` */
   private static readonly _merging = new Map<string, number>();
+  /** The last queued merge or adoption per project, while any is outstanding */
+  private static readonly _tails = new Map<string, Promise<void>>();
   /** Rewrites of each project's local files -- see `generationOf` */
   private static readonly _generations = new Map<string, number>();
 
