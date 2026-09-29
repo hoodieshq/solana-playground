@@ -323,7 +323,10 @@ test("the other device's change arrives without asking", async ({ page }) => {
   await expect.poll(() => threadId(page), LONG).toBe(localId);
 
   // Nothing to decide: this browser has no work of its own to weigh
-  await expect(page.getByText("changed on another device")).toHaveCount(0, LONG);
+  await expect(page.getByText("changed on another device")).toHaveCount(
+    0,
+    LONG
+  );
 
   // The file tree is rendered from the explorer's *in-memory* state, so the
   // new file appearing in it is the proof that the workspace was re-read --
@@ -356,7 +359,13 @@ test("the other device can change it twice without ever asking", async ({
 }) => {
   test.setTimeout(240_000);
 
-  const localId = await makeLocalProject(page, "PingPong");
+  await makeLocalProject(page, "PingPong");
+  // The workspace's id, from the upload that hands it over. Not the helper's
+  // answer: that is the conversation's id, which is not the workspace's, and
+  // read as the gallery closes it is often still null. Listed under either,
+  // the row is a project this browser has never seen -- imported as
+  // "PingPong (imported)", while the real one reads as deleted elsewhere.
+  let projectId: string | null = null;
 
   const writes: unknown[] = [];
   let stored: { snapshot?: unknown; updatedAt: string } | null = null;
@@ -370,6 +379,7 @@ test("the other device can change it twice without ever asking", async ({
     if (r.request().method() === "PUT") {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
+      projectId ??= body.id;
       stored = {
         snapshot: body.snapshot,
         updatedAt: `2026-02-0${writes.length}T00:00:00.000Z`,
@@ -377,7 +387,7 @@ test("the other device can change it twice without ever asking", async ({
       return json(r, { updatedAt: stored.updatedAt });
     }
     const shared = {
-      id: localId,
+      id: projectId,
       name: "PingPong",
       kind: "project",
       updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
@@ -393,6 +403,8 @@ test("the other device can change it twice without ever asking", async ({
   await page.reload();
   await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
   await settled(page, writes);
+  await expect.poll(() => threadId(page), LONG).not.toBeNull();
+  const thread = await threadId(page);
 
   const banner = page.getByText("changed on another device");
 
@@ -410,7 +422,7 @@ test("the other device can change it twice without ever asking", async ({
 
     writes.length = 0;
     await page.reload();
-    await expect.poll(() => threadId(page), LONG).toBe(localId);
+    await expect.poll(() => threadId(page), LONG).toBe(thread);
 
     await expect(banner).toHaveCount(0, LONG);
     await expect(page.locator("#root-dir")).toContainText(`${marker}.rs`, LONG);
