@@ -298,7 +298,7 @@ const improveOutput = (output: string) => {
       output.substring(whiteSpaceStartIndex, startIndex).replaceAll(" ", "") +
       PgTerminal.success("Build successful. ") +
       "Completed" +
-      output.substring(output.indexOf(" in", startIndex)).replace("\n", ".\n"); // Time passed
+      output.substring(output.indexOf(" in", startIndex)).replace(/\n/g, ".\n"); // Time passed
   }
 
   output = output.substring(0, output.length - 1);

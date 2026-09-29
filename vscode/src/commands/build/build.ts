@@ -230,7 +230,7 @@ const editStderr = (stderr: string) => {
       stderr.substring(0, whiteSpaceStartIndex) + // Until whitespace start
       stderr.substring(whiteSpaceStartIndex, startIndex).replace(/\s+/, "") +
       "\nBuild successful. Completed" +
-      stderr.substring(stderr.indexOf(" in", startIndex)).replace("\n", ".\n"); // Time passed
+      stderr.substring(stderr.indexOf(" in", startIndex)).replace(/\n/g, ".\n"); // Time passed
   }
 
   return stderr.substring(0, stderr.length - 1);

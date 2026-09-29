@@ -185,12 +185,14 @@ const Tutorial: FC<TutorialProps> = ({ title, url }) => {
   );
 };
 
+const PLATFORM_ICONS: Record<string, string> = {
+  "youtube.com": "youtube.png",
+  "www.youtube.com": "youtube.png",
+  "dev.to": "devto.png",
+};
+
 const getSrc = (url: string) => {
-  let src = "";
-
-  if (url.includes("youtube.com")) src = "youtube.png";
-  else if (url.includes("dev.to")) src = "devto.png";
-
+  const src = PLATFORM_ICONS[new URL(url).hostname];
   if (src) return "/icons/platforms/" + src;
 };
 
