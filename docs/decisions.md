@@ -2900,9 +2900,14 @@ does, or for the empty state through `PgExplorer.init()` when none remain.
 A refresh never runs over this tab's own unsaved create, rename or delete:
 the explorer remembers the list it last saved or read and skips while
 memory differs from it. After a rename elsewhere the reload does not wait
-for autosave, whose writes under the old name can no longer land: unsaved
-editor text and state that never reached disk are written under the new
-name, then the workspace is re-opened. A list that lost this tab's
+for autosave, whose writes under the old name can no longer land: this
+tab's own changes -- unsaved editor text, and state that differs from what
+this tab last read or wrote for that file -- are written under the new
+name, then the workspace is re-opened. State that is merely old is not
+carried, so a neighbour's edit made before the rename survives. A tree
+under a name the list still has is this tab's own switch half-way, not a
+rename, and the reload leaves it alone; so it does while
+`refreshWorkspaces` reports a change of this tab's own to the list unsaved. A list that lost this tab's
 workspace while its directory is still on disk was written by a stale tab,
 not a delete, so the entry is put back (same name and id) and saved. The `/api/sync` probe is time-limited too, and a probe that got no
 answer is asked again rather than remembered as "sync unavailable".
