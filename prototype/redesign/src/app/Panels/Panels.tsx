@@ -83,6 +83,7 @@ const Panels = () => {
           key={stage}
           slides={roadmap ? ROADMAP : undefined}
           label={roadmap ? "Design roadmap" : undefined}
+          trail={roadmap}
           onLanding={() => goTo("landing", "/#landing")}
           onProduct={() => goTo("product", "/#app")}
           onEvaluation={() => goTo("evaluation", "/#evaluation")}

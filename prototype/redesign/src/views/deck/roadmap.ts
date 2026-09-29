@@ -92,7 +92,7 @@ export const ROADMAP: SlideSpec[] = [
         line: "Branding and guides",
         items: [
           "Final landing",
-          "Design system v0, then v1",
+          "Design system on shadcn and Tailwind",
           "Brand guides and motion",
           "Sole, the agent's brand",
           "Social kit",
@@ -139,7 +139,7 @@ export const ROADMAP: SlideSpec[] = [
       },
       {
         a: "Tokens and a new default theme",
-        b: "Design system v0, delivered as those tokens",
+        b: "Design system v0 on shadcn and Tailwind, its tokens mapped into the theme",
       },
       {
         a: "Sharing through GitHub",
@@ -173,7 +173,7 @@ export const ROADMAP: SlideSpec[] = [
           },
           {
             name: "Design system v0",
-            note: "The tokens of dev's new default theme, core components, a library",
+            note: "On shadcn/ui and Tailwind: tokens, core components, a Figma library",
           },
           {
             name: "Brand guides",
@@ -236,6 +236,10 @@ export const ROADMAP: SlideSpec[] = [
           {
             name: "Motion guidelines",
             note: "Easing, durations, the letter trail, the still stripes",
+          },
+          {
+            name: "Design system iteration",
+            note: "v0.x releases as sign-in, profiles and mobile need them",
           },
         ],
       },
@@ -302,7 +306,7 @@ export const ROADMAP: SlideSpec[] = [
           },
           {
             name: "Design system v1",
-            note: "XP, streaks, badges and levels, and their illustration",
+            note: "The shadcn system at v1: XP, streaks, badges, levels, illustration",
           },
         ],
       },
@@ -350,6 +354,7 @@ export const ROADMAP: SlideSpec[] = [
           { name: "Usability round 2", track: "product", score: 53 },
           { name: "Sign-in and models", track: "product", score: 47 },
           { name: "Full tutorial pass", track: "product", score: 43 },
+          { name: "Design system iteration", track: "brand", score: 40 },
           { name: "Share through GitHub", track: "product", score: 40 },
         ],
       },
@@ -425,7 +430,10 @@ export const ROADMAP: SlideSpec[] = [
             { name: "Final landing", from: 1, to: 3.8 },
             { name: "Social kit", from: 4.5, to: 6 },
           ],
-          [{ name: "Design system v0", from: 1, to: 3.8 }],
+          [
+            { name: "Design system v0", from: 1, to: 3.8 },
+            { name: "Design system iteration", from: 4.2, to: 7 },
+          ],
         ],
       },
       {
@@ -503,11 +511,59 @@ export const ROADMAP: SlideSpec[] = [
     ],
   },
   {
+    id: "specs",
+    kind: "row",
+    ground: "paper",
+    title: "Design specs",
+    note: "One per core idea, written the way product writes them: problem, goal, flow, states, and when it is done.",
+    perRow: 4,
+    items: [
+      {
+        name: "Design system on shadcn and Tailwind",
+        note: "Tokens and components, one library in Figma and code",
+      },
+      { name: "Final landing", note: "The page Breakpoint visitors arrive on" },
+      {
+        name: "Deploy and interact",
+        note: "0 SOL on devnet through Kora, forms from the IDL",
+      },
+      {
+        name: "First run and status",
+        note: "One click into a running example",
+      },
+      {
+        name: "The assistant across the IDE",
+        note: "Explain and Fix, every patch reviewed first",
+      },
+      {
+        name: "Sign-in and connected models",
+        note: "GitHub, then Claude or Codex, no pasted keys",
+      },
+      {
+        name: "Profiles, achievements, gamification",
+        note: "Progress that took real work",
+      },
+      {
+        name: "Full tutorial pass",
+        note: "Every tutorial stepped, on Anchor 1.2",
+      },
+      {
+        name: "Mobile without code",
+        note: "Describe, adjust and deploy from a phone",
+      },
+      { name: "Sole", note: "The agent's name, voice and mark" },
+      {
+        name: "Learning path",
+        note: "A lesson a day, for a younger audience",
+      },
+    ],
+  },
+  {
     id: "start",
     kind: "goals",
     ground: "paper",
     title: "What we need to start",
-    note: "The first two this week, in S0; the others before the work that waits on them.",
+    note: "The first this week, in S0; the others before the work that waits on them.",
     columns: [
       {
         items: [
@@ -516,8 +572,8 @@ export const ROADMAP: SlideSpec[] = [
             note: "Talk, booth, demo or launch post: it sets the landing's announcement",
           },
           {
-            name: "Two product designers from S1",
-            note: "Or agree now which Shoulds move to January",
+            name: "How the design system lands in code",
+            note: "shadcn and Tailwind in the product, or its tokens mapped into the theme",
           },
           {
             name: "Sign-off on the mark, lockup and palette",
