@@ -4,6 +4,14 @@ import { PgExplorer } from "./explorer";
 import { PgCommon } from "../common";
 import type { Disposable } from "../types";
 
+/** What `ON_DID_WRITE_FILE` carries */
+export interface WriteEvent {
+  /** Full path written */
+  path: string;
+  /** What was written to it */
+  data: string;
+}
+
 export class PgFs {
   static readonly events = {
     ON_DID_WRITE_FILE: "pgfsondidwritefile",
@@ -25,11 +33,18 @@ export class PgFs {
    * explorer's own, and the listener decides what it cares about -- the list
    * of paths worth syncing belongs to the sync feature, not to the filesystem.
    *
-   * @param cb callback function to run, with the full path written
+   * @param cb callback function to run, with the full path written and the
+   * data written to it -- which is not always what the explorer's state holds
+   * by the time the event is heard: an edit may already have moved it on
    * @returns a dispose function to clear the event
    */
-  static onDidWriteFile(cb: (path: string) => unknown): Disposable {
-    return PgCommon.onDidChange(PgFs.events.ON_DID_WRITE_FILE, cb);
+  static onDidWriteFile(
+    cb: (path: string, data: string) => unknown
+  ): Disposable {
+    return PgCommon.onDidChange<WriteEvent>(
+      PgFs.events.ON_DID_WRITE_FILE,
+      ({ path, data }) => cb(path, data)
+    );
   }
 
   /** Async `indexedDB` based file system instance */
@@ -58,7 +73,11 @@ export class PgFs {
 
     await this._fs.writeFile(path, data);
 
-    PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, path);
+    const written: WriteEvent = { path, data };
+    PgCommon.createAndDispatchCustomEvent(
+      PgFs.events.ON_DID_WRITE_FILE,
+      written
+    );
   }
 
   /**

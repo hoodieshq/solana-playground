@@ -89,13 +89,21 @@ const memoryRoot = (): string | undefined => {
  * tab's to write back. Kept from the explorer's own events rather than read
  * off disk, which is shared, and so cannot say whose a difference is.
  *
- * A write is recorded with the state it came from. `PgFs` announces a write
- * only once it has landed, so a failed one leaves the old entry in place.
+ * A write is recorded with the data it wrote, which the event carries: by
+ * the time it is heard, state may already hold a later edit, whose own write
+ * has yet to land -- or never will. `PgFs` announces a write only once it
+ * has landed, so a failed one leaves the old entry in place.
  */
 const known = new Map<string, string>();
 
 /** The workspace this tab last opened, by the name it had then */
 let openName: string | undefined;
+
+/**
+ * And by its id, which a rename elsewhere keeps. Only this tab's own switch
+ * changes the current id without the tree having been re-read yet.
+ */
+let openId: string | undefined;
 
 /**
  * Set once the empty state has been entered for a workspace deleted in
@@ -110,13 +118,11 @@ const recordOpen = () => {
     if (item.content !== undefined) known.set(path, item.content);
   }
   openName = PgExplorer.currentWorkspaceName;
+  openId = PgExplorer.currentWorkspaceId;
   left = false;
 };
 PgExplorer.onDidSwitchWorkspace(recordOpen);
-PgFs.onDidWriteFile((path) => {
-  const content = PgExplorer.files[path]?.content;
-  if (content !== undefined) known.set(path, content);
-});
+PgFs.onDidWriteFile((path, data) => known.set(path, data));
 // Loaded after the first open, the events above were missed. State then is
 // what was read, as far as anything here can tell.
 if (PgExplorer.isInitialized && !PgExplorer.isTemporary) recordOpen();
@@ -223,10 +229,14 @@ const carryRename = async (from: string, to: string) => {
     if (!path.startsWith(`/${from}/`) || path.endsWith("/")) continue;
     if (item.content === undefined) continue;
 
+    // A file with no record came into this tab's tree since it opened the
+    // workspace without a write under that path -- `renameItem` moves it
+    // with no write at all. Its first autosave may be the one that failed,
+    // so its state is this tab's own.
     const typed = await PgEditorModels.valueOf(path);
     let text: string | undefined;
     if (typed !== null && typed !== item.content) text = typed;
-    else if (known.has(path) && known.get(path) !== item.content) {
+    else if (!known.has(path) || known.get(path) !== item.content) {
       text = item.content;
     }
     if (text === undefined) continue;
@@ -253,12 +263,19 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
     return PgExplorer.currentWorkspaceId ? await leaveDeleted() : "skipped";
   }
 
-  // The tree is still under another name that is still listed: this tab's
-  // own switch has moved the current name and not yet the tree. Nothing was
-  // renamed, and the switch is about to finish what a reload would do.
+  // The current id has moved on from the one the tree was opened under:
+  // this tab's own switch, half-way -- the new current one is named before
+  // its tree is read. Not a rename, and the switch is about to finish what a
+  // reload would do. By id, not by name: another tab may rename this
+  // workspace and then create a new one under its old name, and by name
+  // that reads as a switch and gets stuck.
   const held = memoryRoot();
   const moved = !!held && held !== name;
-  if (moved && PgExplorer.allWorkspaceNames?.includes(held)) return "skipped";
+  const switching =
+    openId !== undefined
+      ? PgExplorer.currentWorkspaceId !== openId
+      : moved && !!PgExplorer.allWorkspaceNames?.includes(held);
+  if (switching) return "skipped";
 
   // Before the read, not after it. An autosave puts the text into state and
   // only then writes it, so one that runs while the store is being read can
@@ -271,8 +288,8 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   // The user may have switched projects while the store was being read
   if (PgExplorer.currentWorkspaceName !== name) return "skipped";
 
-  // Past that, a tree under a name the list no longer has is a rename made
-  // in another tab
+  // Past that, the same id with the tree under another name is a rename
+  // made in another tab
   const renamed = moved;
   if (reopen || renamed || !sameKeys(disk, memory)) {
     // A re-open rebuilds every model from state, so keystrokes autosave has

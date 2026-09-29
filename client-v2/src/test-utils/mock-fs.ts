@@ -36,15 +36,21 @@ export const mockFsModule = () => {
 
     events,
 
-    onDidWriteFile(cb: (path: string) => unknown) {
-      return PgCommon.onDidChange(events.ON_DID_WRITE_FILE, cb);
+    onDidWriteFile(cb: (path: string, data: string) => unknown) {
+      return PgCommon.onDidChange(
+        events.ON_DID_WRITE_FILE,
+        ({ path, data }: { path: string; data: string }) => cb(path, data)
+      );
     },
 
     async writeFile(path: string, data: string) {
       files.set(path, data);
       // Dispatched here as well, because what listens for it is the only
       // thing that uploads the three workspace files written this way
-      PgCommon.createAndDispatchCustomEvent(events.ON_DID_WRITE_FILE, path);
+      PgCommon.createAndDispatchCustomEvent(events.ON_DID_WRITE_FILE, {
+        path,
+        data,
+      });
     },
 
     async readToString(path: string) {

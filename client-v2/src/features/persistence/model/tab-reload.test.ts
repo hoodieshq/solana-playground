@@ -31,6 +31,7 @@ beforeEach(() => {
     .spyOn(PgExplorer, "currentWorkspaceName", "get")
     .mockReturnValue("alpha");
   jest.spyOn(PgExplorer, "isTemporary", "get").mockReturnValue(false);
+  jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("a1");
   jest
     .spyOn(PgExplorer, "files", "get")
     .mockImplementation(() => memory as typeof PgExplorer.files);
@@ -212,15 +213,16 @@ describe("reloadCurrentFromDisk", () => {
 
   it("leaves this tab's own switch alone while it is half-way", async () => {
     // `switchWorkspace` names the new current one before it loads the tree,
-    // so for a moment the tree is under a name the list still has. That is
-    // not a rename, and carrying the tree across would write one project's
-    // files into another's.
+    // so for a moment the current id is not the one the tree was opened
+    // under. That is not a rename, and carrying the tree across would write
+    // one project's files into another's.
     jest
       .spyOn(PgExplorer, "allWorkspaceNames", "get")
       .mockReturnValue(["alpha", "beta"]);
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("beta");
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("b1");
     store().set("/beta/src/lib.rs", "// fresh template");
     (PgEditorModels.valueOf as jest.Mock).mockResolvedValue("typed in alpha");
     const writes = jest.spyOn(PgFs, "writeFile");
@@ -231,12 +233,80 @@ describe("reloadCurrentFromDisk", () => {
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
   });
 
+  it("follows a rename though a new project took the old name", async () => {
+    // Another tab renamed alpha to beta, then created a new "alpha". By name
+    // the tree's "alpha" is still listed and reads as a switch half-way; by
+    // id this workspace -- a1 -- was renamed, and the new alpha is not it.
+    store().clear();
+    store().set("/beta/src/lib.rs", "old");
+    store().set("/alpha/src/lib.rs", "// someone else's new project");
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["beta", "alpha"]);
+    const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      name.mockReturnValue("beta");
+      return true;
+    });
+    (PgEditorModels.valueOf as jest.Mock).mockResolvedValue("typed");
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("beta");
+    expect(store().get("/beta/src/lib.rs")).toBe("typed");
+    expect(store().get("/alpha/src/lib.rs")).toBe(
+      "// someone else's new project"
+    );
+  });
+
   it("does nothing while its own change to the list is unsaved", async () => {
     (PgExplorer.refreshWorkspaces as jest.Mock).mockResolvedValue(false);
     store().set("/alpha/src/new.rs", "created elsewhere");
 
     expect(await reloadCurrentFromDisk()).toBe("skipped");
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("carries a file with no record across a rename", async () => {
+    // Renamed in this tab since the open: `renameItem` writes nothing, so
+    // there is no record of what it had on disk, and a failed first
+    // autosave left its text only in state
+    store().clear();
+    store().set("/renamed/src/lib.rs", "old");
+    store().set("/renamed/src/moved.rs", "");
+    memory["/alpha/src/moved.rs"] = { content: "// typed, never written" };
+    const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      name.mockReturnValue("renamed");
+      return true;
+    });
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(store().get("/renamed/src/moved.rs")).toBe(
+      "// typed, never written"
+    );
+    // Recorded at the open and unchanged since: not this tab's to write
+    expect(store().get("/renamed/src/lib.rs")).toBe("old");
+  });
+
+  it("records what a write carried, not state when heard", async () => {
+    // A second autosave has put newer text into state by the time the first
+    // write's event is heard -- and its own write then fails, the directory
+    // having moved. Recorded from state, the newer text would look written.
+    memory["/alpha/src/lib.rs"].content = "second";
+    PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, {
+      path: "/alpha/src/lib.rs",
+      data: "first",
+    });
+    store().clear();
+    store().set("/renamed/src/lib.rs", "first");
+    const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      name.mockReturnValue("renamed");
+      return true;
+    });
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(store().get("/renamed/src/lib.rs")).toBe("second");
   });
 
   it("carries typing under the old name across a rename", async () => {

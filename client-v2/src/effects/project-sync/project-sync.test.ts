@@ -113,10 +113,10 @@ describe("the project-sync effect", () => {
       "/Hello Seahorse/.workspace/tutorial-storage.json",
       "/Hello Seahorse/.workspace/program-info.json",
     ]) {
-      PgCommon.createAndDispatchCustomEvent(
-        PgFs.events.ON_DID_WRITE_FILE,
-        path
-      );
+      PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, {
+        path,
+        data: "",
+      });
     }
     jest.advanceTimersByTime(3000);
 
@@ -128,10 +128,10 @@ describe("the project-sync effect", () => {
     // it out on purpose -- scheduling for it would be pure churn
     effect = projectSync();
 
-    PgCommon.createAndDispatchCustomEvent(
-      PgFs.events.ON_DID_WRITE_FILE,
-      "/Hello Seahorse/.workspace/metadata.json"
-    );
+    PgCommon.createAndDispatchCustomEvent(PgFs.events.ON_DID_WRITE_FILE, {
+      path: "/Hello Seahorse/.workspace/metadata.json",
+      data: "[]",
+    });
     jest.advanceTimersByTime(3000);
 
     expect(push).not.toHaveBeenCalled();
