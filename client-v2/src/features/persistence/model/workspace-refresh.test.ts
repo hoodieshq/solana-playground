@@ -186,6 +186,40 @@ for (const [how, hear] of ways)
       expect(store().has("/beta/src/lib.rs")).toBe(false);
     });
 
+    it("does not write its old copy over a neighbour's edit", async () => {
+      // The neighbour edits, then renames. This tab never took the edit, and
+      // its copy is only old -- nothing of its own to carry.
+      store().set("/beta/src/lib.rs", "// the neighbour's edit");
+      elsewhere.rename("beta", "renamed");
+
+      await hear();
+
+      expect(store().get("/renamed/src/lib.rs")).toBe(
+        "// the neighbour's edit"
+      );
+      expect(PgExplorer.files["/renamed/src/lib.rs"].content).toBe(
+        "// the neighbour's edit"
+      );
+    });
+
+    it("carries only its own typing past a neighbour's edit", async () => {
+      store().set("/beta/src/other.rs", "// other");
+      await PgExplorer.switchWorkspace("beta");
+      (PgEditorModels.valueOf as jest.Mock).mockImplementation(
+        async (path: string) =>
+          path === "/beta/src/lib.rs" ? "// typed" : null
+      );
+      store().set("/beta/src/other.rs", "// the neighbour's edit");
+      elsewhere.rename("beta", "renamed");
+
+      await hear();
+
+      expect(store().get("/renamed/src/lib.rs")).toBe("// typed");
+      expect(store().get("/renamed/src/other.rs")).toBe(
+        "// the neighbour's edit"
+      );
+    });
+
     it("puts back a workspace a stale list left off", async () => {
       // The directory is still there: not a delete, but a list saved by a tab
       // that had not seen this workspace

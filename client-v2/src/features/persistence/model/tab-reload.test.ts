@@ -42,7 +42,7 @@ beforeEach(() => {
       } as ReturnType<typeof PgExplorer.getCurrentFile>)
   );
   jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
-  jest.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(undefined);
+  jest.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(true);
   jest.spyOn(PgCommon, "createAndDispatchCustomEvent");
   // CRA's jest preset sets `resetMocks: true`, which wipes the
   // implementation `jest.mock` above baked in before every test, not just
@@ -54,6 +54,12 @@ beforeEach(() => {
   (PgEditorModels.dropUnder as jest.Mock).mockImplementation(
     async (_prefix: string, then?: () => void) => then?.()
   );
+  // What an open does for the reload's own record of the tree: the name it
+  // was opened under, what it read, and that it is no longer "left"
+  PgCommon.createAndDispatchCustomEvent(
+    PgExplorer.events.ON_DID_SWITCH_WORKSPACE
+  );
+  (PgCommon.createAndDispatchCustomEvent as jest.Mock).mockClear();
 });
 
 afterEach(() => jest.restoreAllMocks());
@@ -190,6 +196,7 @@ describe("reloadCurrentFromDisk", () => {
     const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
     (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
       name.mockReturnValue("renamed");
+      return true;
     });
 
     expect(await reloadCurrentFromDisk()).toBe("reopened");
@@ -203,12 +210,42 @@ describe("reloadCurrentFromDisk", () => {
     expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/alpha/");
   });
 
+  it("leaves this tab's own switch alone while it is half-way", async () => {
+    // `switchWorkspace` names the new current one before it loads the tree,
+    // so for a moment the tree is under a name the list still has. That is
+    // not a rename, and carrying the tree across would write one project's
+    // files into another's.
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["alpha", "beta"]);
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("beta");
+    store().set("/beta/src/lib.rs", "// fresh template");
+    (PgEditorModels.valueOf as jest.Mock).mockResolvedValue("typed in alpha");
+    const writes = jest.spyOn(PgFs, "writeFile");
+
+    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(writes).not.toHaveBeenCalled();
+    expect(store().get("/beta/src/lib.rs")).toBe("// fresh template");
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("does nothing while its own change to the list is unsaved", async () => {
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockResolvedValue(false);
+    store().set("/alpha/src/new.rs", "created elsewhere");
+
+    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  });
+
   it("carries typing under the old name across a rename", async () => {
     store().clear();
     store().set("/renamed/src/lib.rs", "old");
     const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
     (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
       name.mockReturnValue("renamed");
+      return true;
     });
     (PgEditorModels.valueOf as jest.Mock).mockResolvedValue("typed");
 
@@ -225,6 +262,7 @@ describe("reloadCurrentFromDisk", () => {
       (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(
         async () => {
           name.mockReturnValue(undefined);
+          return true;
         }
       );
       store().clear();
@@ -271,12 +309,23 @@ describe("reloadCurrentFromDisk", () => {
       window.history.pushState({}, "", "/");
     });
 
-    it("does it once: a tree already emptied is left alone", async () => {
+    it("does it once: a tab that has left is left alone", async () => {
       jest.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([]);
-      memory = {};
 
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
       expect(await reloadCurrentFromDisk()).toBe("skipped");
-      expect(PgExplorer.init).not.toHaveBeenCalled();
+      expect(PgExplorer.init).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a workspace with no files of its own too", async () => {
+      // Nothing in the tree to name it: the name it was opened under does
+      memory = {};
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["beta"]);
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("beta");
     });
 
     it("puts it back when the directory is still there", async () => {
@@ -302,13 +351,14 @@ describe("reloadCurrentFromDisk", () => {
     });
 
     it("does not follow a neighbour into a project after leaving", async () => {
-      // The tree is already empty; the id this tab kept names the deleted
-      // workspace, so a project created elsewhere is no reason to open it
-      memory = {};
-      jest
+      const names = jest
         .spyOn(PgExplorer, "allWorkspaceNames", "get")
-        .mockReturnValue(["created-elsewhere"]);
+        .mockReturnValue([]);
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
 
+      // The id this tab kept names the deleted workspace, so a project
+      // created elsewhere is no reason to open it
+      names.mockReturnValue(["created-elsewhere"]);
       expect(await reloadCurrentFromDisk()).toBe("skipped");
       expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
     });
