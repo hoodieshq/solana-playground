@@ -6,7 +6,7 @@
  * That is the difference between "your other device won" and "your other
  * device's work is gone".
  */
-import { query } from "./db.mjs";
+import { query, transaction } from "./db.mjs";
 
 export const listProjects = async (userId) => {
   const { rows } = await query(
@@ -24,11 +24,21 @@ export const listProjects = async (userId) => {
   }));
 };
 
+/**
+ * Read one project with its files.
+ *
+ * One statement, so the files and the `updated_at` handed back as the next
+ * write's token come from the same snapshot of the database. Two reads could
+ * straddle another device's write and pair its files with the older token.
+ */
 export const getProject = async (userId, id) => {
   const { rows } = await query(
-    `select id, name, kind, snapshot, updated_at
-       from projects
-      where user_id = $1 and id = $2 and deleted_at is null`,
+    `select p.id, p.name, p.kind, p.updated_at,
+            (select jsonb_object_agg(f.path, f.content)
+               from project_files f
+              where f.user_id = p.user_id and f.project_id = p.id) as files
+       from projects p
+      where p.user_id = $1 and p.id = $2 and p.deleted_at is null`,
     [userId, id]
   );
   if (!rows.length) return null;
@@ -37,7 +47,8 @@ export const getProject = async (userId, id) => {
     id: r.id,
     name: r.name,
     kind: r.kind,
-    snapshot: r.snapshot,
+    // No rows is "no code yet" -- the parent row a chat turn creates
+    snapshot: r.files ? { files: r.files } : null,
     updatedAt: r.updated_at.toISOString(),
   };
 };
@@ -58,7 +69,80 @@ const settle = ({ written, current }) =>
     : { conflict: true, updatedAt: current ? current.toISOString() : null };
 
 /**
- * Write a snapshot.
+ * The swap: lands only if the row still holds the token the caller read.
+ *
+ * One statement, not an update followed by a read: between two round trips
+ * another write can land, and the token handed back with the conflict would
+ * already be the wrong one to retry with. The CTEs share a single snapshot, so
+ * `current` is the value that was there when the swap missed.
+ */
+const SWAP = `
+  with target as (
+    select updated_at from projects
+     where user_id = $1 and id = $2 and deleted_at is null
+  ),
+  swapped as (
+    update projects
+       set name = $3, kind = $4, updated_at = now()
+     where user_id = $1 and id = $2 and deleted_at is null
+       and updated_at = $5
+    returning updated_at
+  )
+  select (select updated_at from swapped) as written,
+         (select updated_at from target)  as current`;
+
+/**
+ * Create-only: a new row, or a live row that holds no files yet. The CTEs
+ * share one snapshot, so `current` is what was there when the insert missed.
+ */
+const CREATE = `
+  with created as (
+    insert into projects (id, user_id, name, kind, updated_at)
+    values ($2, $1, $3, $4, now())
+    on conflict (user_id, id) do update
+      set name = excluded.name, kind = excluded.kind, updated_at = now()
+    where projects.deleted_at is null
+      and not exists (
+        select 1 from project_files f
+         where f.user_id = projects.user_id and f.project_id = projects.id
+      )
+    returning updated_at
+  )
+  select (select updated_at from created) as written,
+         (select updated_at from projects
+           where user_id = $1 and id = $2 and deleted_at is null) as current`;
+
+/** Unconditional, and un-tombstones. Only for a caller that names `force`. */
+const FORCE = `
+  insert into projects (id, user_id, name, kind, updated_at)
+  values ($2, $1, $3, $4, now())
+  on conflict (user_id, id) do update
+    set name = excluded.name, kind = excluded.kind,
+        updated_at = now(), deleted_at = null
+  returning updated_at as written, null::timestamptz as current`;
+
+/**
+ * Upsert files, skipping any row whose content already matches: a full write
+ * resends every file, and rewriting the unchanged ones is exactly the cost
+ * this table exists to avoid.
+ */
+const UPSERT_FILES = `
+  insert into project_files (user_id, project_id, path, content)
+  select $1, $2, f.key, f.value from jsonb_each_text($3::jsonb) f
+  on conflict (user_id, project_id, path) do update
+    set content = excluded.content
+  where project_files.content is distinct from excluded.content`;
+
+const DELETE_NAMED = `
+  delete from project_files
+   where user_id = $1 and project_id = $2 and path = any($3::text[])`;
+
+const DELETE_OTHERS = `
+  delete from project_files
+   where user_id = $1 and project_id = $2 and not (path = any($3::text[]))`;
+
+/**
+ * Write a project.
  *
  * Three ways in, and a caller has to choose:
  *
@@ -69,12 +153,13 @@ const settle = ({ written, current }) =>
  *   re-checks the predicate afterwards, so exactly one wins and the other is
  *   told about it -- assuming READ COMMITTED, the default. Under REPEATABLE
  *   READ the loser would raise a serialisation failure instead of reporting a
- *   conflict, and this would need a retry.
+ *   conflict, and this would need a retry. The lock is held until commit,
+ *   which is why the file writes share the transaction.
  * - without one, create-only. An existing row is reported as a conflict, not
  *   overwritten: a client that has never read cannot be allowed to win by
  *   virtue of having nothing to lose. This is also what stops a tombstoned
  *   project being resurrected by a device that never saw the delete. The one
- *   exception is a row that holds no snapshot -- `ensureConversation` creates
+ *   exception is a row that holds no files -- `ensureConversation` creates
  *   one so a chat turn has a parent project, so a project whose assistant was
  *   used before its first upload already exists by the time that upload
  *   arrives. Refusing it meant a project could be permanently unable to make
@@ -84,85 +169,76 @@ const settle = ({ written, current }) =>
  *   the "keep my copy" the user picks after being shown the conflict, and it
  *   is deliberately something a caller has to name.
  *
- * @param {{id: string, name: string, kind: string, snapshot: object,
- *          baseUpdatedAt?: string, force?: boolean}} input
+ * The files are then either replaced (`files`: the whole set) or patched
+ * (`changed` and `removed`: only what differs from the state the token names).
+ * A patch is only ever accepted together with a token, so "what it differs
+ * from" is always the row the caller read.
+ *
+ * @param {{id: string, name: string, kind: string, baseUpdatedAt?: string,
+ *          force?: boolean, files?: Record<string, string>,
+ *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} | {conflict: true, updatedAt: string | null}>}
  */
-export const saveProject = async (userId, input) => {
-  const { id, name, kind, snapshot, baseUpdatedAt, force } = input;
-  const values = [userId, id, name, kind, snapshot];
+export const saveProject = async (userId, input) =>
+  transaction((q) => writeProject(q, userId, input));
 
-  if (force) {
-    const { rows } = await query(
-      `insert into projects (id, user_id, name, kind, snapshot, updated_at)
-       values ($2, $1, $3, $4, $5, now())
-       on conflict (user_id, id) do update
-         set name = excluded.name,
-             kind = excluded.kind,
-             snapshot = excluded.snapshot,
-             updated_at = now(),
-             deleted_at = null
-       returning updated_at as written, null::timestamptz as current`,
-      values
-    );
-    return settle(rows[0]);
+/**
+ * The statements behind `saveProject`, against a caller's `q`.
+ *
+ * A constant number of statements whatever the file count: every file of a
+ * write travels as one `jsonb` parameter and is expanded by
+ * `jsonb_each_text` inside a single upsert. A project created from a template
+ * is two statements, not one per file. Exported so a test can count them.
+ *
+ * @param {(text: string, params?: unknown[]) => Promise<import("pg").QueryResult>} q
+ */
+export const writeProject = async (q, userId, input) => {
+  const { id, name, kind, baseUpdatedAt, force, files, changed, removed } =
+    input;
+  const creating = !force && !baseUpdatedAt;
+
+  const { rows } = force
+    ? await q(FORCE, [userId, id, name, kind])
+    : baseUpdatedAt
+    ? await q(SWAP, [userId, id, name, kind, baseUpdatedAt])
+    : await q(CREATE, [userId, id, name, kind]);
+
+  const outcome = settle(rows[0]);
+  if (outcome.conflict) return outcome;
+
+  if (files) {
+    // A row that create-only let through has no files by definition -- it is
+    // new, or the empty parent a chat turn made -- so there is nothing to
+    // delete and no statement to spend on it
+    if (!creating) await q(DELETE_OTHERS, [userId, id, Object.keys(files)]);
+    await q(UPSERT_FILES, [userId, id, JSON.stringify(files)]);
+  } else {
+    if (removed?.length) await q(DELETE_NAMED, [userId, id, removed]);
+    if (changed && Object.keys(changed).length) {
+      await q(UPSERT_FILES, [userId, id, JSON.stringify(changed)]);
+    }
   }
-
-  if (baseUpdatedAt) {
-    // One statement, not an update followed by a read: between two round trips
-    // another write can land, and the token handed back with the conflict
-    // would already be the wrong one to retry with. The CTEs share a single
-    // snapshot, so `current` is the value that was there when the swap missed.
-    const { rows } = await query(
-      `with target as (
-         select updated_at from projects
-          where user_id = $1 and id = $2 and deleted_at is null
-       ),
-       swapped as (
-         update projects
-            set name = $3, kind = $4, snapshot = $5, updated_at = now()
-          where user_id = $1 and id = $2 and deleted_at is null
-            and updated_at = $6
-        returning updated_at
-       )
-       select (select updated_at from swapped) as written,
-              (select updated_at from target)  as current`,
-      [...values, baseUpdatedAt]
-    );
-    return settle(rows[0]);
-  }
-
-  const { rows } = await query(
-    `with created as (
-       insert into projects (id, user_id, name, kind, snapshot, updated_at)
-       values ($2, $1, $3, $4, $5, now())
-       on conflict (user_id, id) do update
-         set name = excluded.name,
-             kind = excluded.kind,
-             snapshot = excluded.snapshot,
-             updated_at = now()
-       where projects.snapshot is null and projects.deleted_at is null
-       returning updated_at
-     )
-     select (select updated_at from created) as written,
-            (select updated_at from projects
-              where user_id = $1 and id = $2 and deleted_at is null) as current`,
-    values
-  );
-  return settle(rows[0]);
+  return outcome;
 };
 
 /**
  * Tombstone a project.
  *
  * The row stays so another device's next sync sees "deleted" rather than
- * "missing" and does not push its local copy back up. The name is cleared of
- * the live-rows unique index by the same stroke, so it can be reused.
+ * "missing" and does not push its local copy back up. Its files go: a
+ * tombstone is never read back, and the name is freed from the live-rows
+ * unique index by the same stroke.
  */
 export const deleteProject = async (userId, id) => {
-  await query(
-    `update projects set deleted_at = now(), snapshot = null
-      where user_id = $1 and id = $2 and deleted_at is null`,
-    [userId, id]
-  );
+  await transaction(async (q) => {
+    await q(
+      `update projects set deleted_at = now()
+        where user_id = $1 and id = $2 and deleted_at is null`,
+      [userId, id]
+    );
+    await q(
+      `delete from project_files where user_id = $1 and project_id = $2`,
+      [userId, id]
+    );
+  });
 };

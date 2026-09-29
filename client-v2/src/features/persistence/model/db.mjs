@@ -100,3 +100,35 @@ export const query = async (text, params) => {
   if (!p) throw new Error("DATABASE_URL is not configured");
   return run(p, text, params);
 };
+
+/**
+ * Run several statements as one unit on a single pooled client.
+ *
+ * A project write is a compare-and-swap on the `projects` row followed by
+ * writes to its files. The swap's row lock is what serialises two writers, and
+ * it is only held across the file writes if they share its transaction -- on
+ * separate pool clients a second writer could land between them.
+ *
+ * @template T
+ * @param {(q: (text: string, params?: unknown[]) => Promise<import("pg").QueryResult>) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export const transaction = async (fn) => {
+  const p = getPool();
+  if (!p) throw new Error("DATABASE_URL is not configured");
+
+  const client = await p.connect();
+  try {
+    await client.query("begin");
+    const result = await fn((text, params) => run(client, text, params));
+    await client.query("commit");
+    return result;
+  } catch (e) {
+    // The original error is the one worth reporting; a failed rollback on a
+    // broken connection would only replace it
+    await client.query("rollback").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+};

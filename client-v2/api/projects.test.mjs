@@ -227,8 +227,8 @@ describe("/api/projects", () => {
         const userId = "test-user-api-projects";
         const row = (id, name) =>
           pool.query(
-            `insert into projects (id, user_id, name, kind, snapshot, updated_at)
-             values ($1, $2, $3, 'project', '{"files":{}}'::jsonb, now())`,
+            `insert into projects (id, user_id, name, kind, updated_at)
+             values ($1, $2, $3, 'project', now())`,
             [id, userId, name]
           );
 
