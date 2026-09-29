@@ -74,12 +74,22 @@ const ALPHA = [0.95, 0.9, 0.88, 0.8];
 /* Denser where the motion is fastest */
 const SAMPLES = [0, 0.05, 0.1, 0.16, 0.24, 0.34, 0.46, 0.6, 0.76, 0.9, 1];
 
+/* On white, the ramp at full strength reads as a hard stripe behind the
+   letter, so a light ground takes it softer: the same path, fainter and a
+   little more blurred */
+const TONES = {
+  full: { alpha: 1, blur: 1 },
+  soft: { alpha: 0.42, blur: 1.6 },
+} as const;
+export type TrailTone = keyof typeof TONES;
+
 /** How much of the way the letter still has to go, easing out */
 const away = (t: number) => Math.pow(1 - clamp01(t), 3);
 
 const em = (n: number) => `${Math.round(n * 10000) / 10000}em`;
 
-const frameAt = (t: number) => {
+const frameAt = (t: number, tone: TrailTone) => {
+  const { alpha, blur } = TONES[tone];
   const left = away(t);
   /* One copy's offset: where the letter was one lag ago, from where it is */
   const step = away(t - LAG) - left;
@@ -90,10 +100,9 @@ const frameAt = (t: number) => {
   const fade = 1 - smoothstep(0.5, 0.92, t);
   const stack = RAMP.map(
     (colour, i) =>
-      `drop-shadow(${em(dx)} ${em(dy)} ${em(spread * (0.12 + 0.2 * i))} ${rgba(
-        colour,
-        ALPHA[i] * fade
-      )})`
+      `drop-shadow(${em(dx)} ${em(dy)} ${em(
+        spread * (0.12 + 0.2 * i) * blur
+      )} ${rgba(colour, ALPHA[i] * fade * alpha)})`
   ).join(" ");
 
   return `${Math.round(t * 1000) / 10}% {
@@ -106,7 +115,9 @@ const frameAt = (t: number) => {
 /* Sampled rather than eased: the copies follow the letter's own path, so the
    path has to be known at every step. The last frame is the letter at rest
    with no trail, which is what it returns to when the animation lets go. */
-const sweep = keyframes`${SAMPLES.map(frameAt).join("\n")}`;
+const sweep = (tone: TrailTone) =>
+  keyframes`${SAMPLES.map((t) => frameAt(t, tone)).join("\n")}`;
+const SWEEPS = { full: sweep("full"), soft: sweep("soft") };
 
 /** Well under the ~1.2s a line may take, stagger included */
 export const TRAIL_MS = 760;
@@ -121,9 +132,12 @@ export const TRAIL_MS = 760;
  * given heading so nothing else on the page is touched. The inline delay
  * outranks the shorthand's, which is what keeps the stagger.
  */
-export const trailLetters = (heading: "h1" | "h2" | "p") => css`
+export const trailLetters = (
+  heading: "h1" | "h2" | "p",
+  tone: TrailTone = "full"
+) => css`
   ${heading} [data-carry] > span {
-    animation: ${sweep} ${TRAIL_MS}ms linear backwards;
+    animation: ${SWEEPS[tone]} ${TRAIL_MS}ms linear backwards;
   }
 
   @media (prefers-reduced-motion: reduce) {

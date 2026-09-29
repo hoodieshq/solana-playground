@@ -280,6 +280,7 @@ const Deck: FC<DeckProps> = ({
             ref={i === index ? current : undefined}
             leaving={i !== index}
             hold={hold}
+            light={isLight(slides[i])}
           >
             <Slide
               slide={slides[i]}
@@ -319,8 +320,13 @@ export default Deck;
  */
 const Layer = forwardRef<
   HTMLDivElement,
-  { leaving: boolean; hold: boolean; children: React.ReactNode }
->(({ leaving, hold, children }, ref) => {
+  {
+    leaving: boolean;
+    hold: boolean;
+    light: boolean;
+    children: React.ReactNode;
+  }
+>(({ leaving, hold, light, children }, ref) => {
   const own = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -343,6 +349,7 @@ const Layer = forwardRef<
       $hold={hold}
       data-leaving={leaving ? "" : undefined}
       data-current={leaving ? undefined : ""}
+      data-light={light ? "" : undefined}
       aria-hidden={leaving || undefined}
     >
       {children}
@@ -399,6 +406,13 @@ const Stage = styled.div<{ $trail: boolean }>`
     css`
       ${trailLetters("h1")}
       ${trailLetters("h2")}
+
+      /* On a white slide the trail is softer, so it reads as light, not a
+         stripe */
+      [data-light] {
+        ${trailLetters("h1", "soft")}
+        ${trailLetters("h2", "soft")}
+      }
     `}
 
   /* ...unless a tool is laid over it, in which case the deck is the subject
