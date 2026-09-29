@@ -1,5 +1,6 @@
 import { validate as isUuid } from "uuid";
 
+import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
 import { uuid } from "./ids";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -113,6 +114,30 @@ export class PgThreadIndex {
   static async set(workspaceId: string, threadId: string) {
     const index = await PgThreadIndex.all();
     await PgThreadIndex._write({ ...index, [workspaceId]: threadId });
+  }
+
+  /**
+   * Remove a deleted workspace's conversation, and the entry pointing at it.
+   *
+   * By workspace id, because that is all a delete knows, and the thread is
+   * found through this map -- storage has been keyed by thread id since
+   * threads got ids of their own, so removing a file named after the
+   * workspace removed nothing. The entry goes too: a tutorial's id is derived
+   * from its name, so starting one again reuses the id, and a surviving entry
+   * handed the new run the previous run's conversation.
+   */
+  static async forget(workspaceId: string) {
+    const index = await PgThreadIndex.all();
+    const threadId = index[workspaceId];
+    if (!threadId) return;
+
+    // The file before the entry. A file left behind without one is adopted by
+    // the next load's migration as a thread named after its workspace, and
+    // pushed as a project that never existed; an entry left pointing at a
+    // missing file just reads as an empty thread.
+    await PgChatStorage.remove(threadId);
+    const { [workspaceId]: _gone, ...rest } = index;
+    await PgThreadIndex._write(rest);
   }
 
   /**

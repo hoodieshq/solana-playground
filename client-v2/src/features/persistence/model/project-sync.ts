@@ -4,6 +4,7 @@ import { PgSyncClient } from "./sync-client";
 import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
+import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
@@ -517,6 +518,7 @@ export class PgProjectSync {
           case "delete-local": {
             if (name) await PgExplorer.deleteWorkspace(name);
             await PgSyncMark.remove(projectId);
+            await PgThreadIndex.forget(projectId);
             PgProjectSync._clear(projectId);
             return true;
           }

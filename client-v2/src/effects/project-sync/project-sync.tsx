@@ -1,9 +1,9 @@
-import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import { reconcile } from "../../features/persistence/model/project-restore";
 import { isSyncedWorkspaceFile } from "../../features/persistence/model/snapshot";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
 // a webpack-defined global jest has no answer for. Same workaround as
@@ -176,7 +176,7 @@ export const projectSync = (): Disposable => {
         // A tutorial's id is derived from its name, so deleting and restarting
         // one produces the same id -- and without this the previous run's
         // conversation reappears inside the new one.
-        await PgChatStorage.remove(projectId);
+        await PgThreadIndex.forget(projectId);
       }
     } catch (e) {
       report("settle local deletes", e);

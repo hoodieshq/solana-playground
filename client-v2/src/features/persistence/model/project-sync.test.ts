@@ -2,6 +2,7 @@ import { PgProjectSync } from "./project-sync";
 import { PgEditorModels } from "./editor-models";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
+import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -902,6 +903,19 @@ describe("a refusal the user has to clear", () => {
       projectId: "p1",
       kind: "deleted-elsewhere",
     });
+  });
+
+  it("forgets the conversation when the user finishes a delete", async () => {
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("mine");
+    jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+    const forget = jest
+      .spyOn(PgThreadIndex, "forget")
+      .mockResolvedValue(undefined);
+
+    expect(await PgProjectSync.resolve("p1", "delete-local")).toBe(true);
+    expect(forget).toHaveBeenCalledWith("p1");
   });
 
   it("falls back to divergent when the body says nothing", async () => {

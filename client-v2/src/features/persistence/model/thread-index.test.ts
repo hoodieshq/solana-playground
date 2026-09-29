@@ -56,6 +56,51 @@ describe("PgThreadIndex", () => {
     expect(await PgThreadIndex.workspaceOf(id)).toBe("tut:hello-anchor");
   });
 
+  describe("forgetting a deleted workspace's conversation", () => {
+    it("removes the thread and the entry that pointed at it", async () => {
+      // A tutorial's id is derived from its name, so a restart reuses it: an
+      // entry left behind reopened the previous run's conversation
+      const threadId = await PgThreadIndex.ensure("tut:hello");
+      await PgChatStorage.write(threadId, [item(1)]);
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.get("tut:hello")).toBeNull();
+      expect(await PgChatStorage.read(threadId)).toEqual([]);
+      expect(threadFiles()).toEqual([]);
+    });
+
+    it("is still gone after the index is read again from storage", async () => {
+      await PgThreadIndex.ensure("tut:hello");
+      await PgThreadIndex.forget("tut:hello");
+
+      PgThreadIndex.reload();
+      expect(await PgThreadIndex.get("tut:hello")).toBeNull();
+    });
+
+    it("leaves other workspaces' conversations alone", async () => {
+      await PgThreadIndex.ensure("tut:hello");
+      const kept = await PgThreadIndex.ensure("w2");
+      await PgChatStorage.write(kept, [item(2)]);
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.get("w2")).toBe(kept);
+      expect(await PgChatStorage.read(kept)).toEqual([item(2)]);
+    });
+
+    it("does nothing for a workspace that never had one", async () => {
+      await expect(PgThreadIndex.forget("never")).resolves.toBeUndefined();
+    });
+
+    it("gives a restarted workspace a new thread", async () => {
+      const old = await PgThreadIndex.ensure("tut:hello");
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.ensure("tut:hello")).not.toBe(old);
+    });
+  });
+
   it("has no workspace for a thread it does not know", async () => {
     expect(await PgThreadIndex.workspaceOf("nope")).toBeNull();
   });

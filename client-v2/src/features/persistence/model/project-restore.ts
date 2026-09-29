@@ -4,6 +4,7 @@ import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
 import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
+import { PgThreadIndex } from "./thread-index";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
 
@@ -335,6 +336,8 @@ const settleDeletes = async (serverIds: Set<string>, result: SyncResult) => {
       if (await isClean(projectId, local)) {
         await PgExplorer.deleteWorkspace(local);
         await PgSyncMark.remove(projectId);
+        // The server tombstoned its conversations with it
+        await PgThreadIndex.forget(projectId);
         result.removed.push(local);
         if (result.latest === local) result.latest = null;
         continue;

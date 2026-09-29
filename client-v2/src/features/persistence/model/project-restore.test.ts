@@ -2,6 +2,7 @@ import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
 import { hashSnapshot, hashUserFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
+import { PgThreadIndex } from "./thread-index";
 import * as tabReload from "./tab-reload";
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgSession } from "../../auth";
@@ -328,6 +329,9 @@ describe("reconcile", () => {
     const remove = jest
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
+    const forget = jest
+      .spyOn(PgThreadIndex, "forget")
+      .mockResolvedValue(undefined);
     serverHas([]);
 
     const result = await reconcile();
@@ -335,6 +339,9 @@ describe("reconcile", () => {
     expect(remove).toHaveBeenCalledWith("alpha");
     expect(result.removed).toEqual(["alpha"]);
     expect(await PgSyncMark.read("p1")).toBeNull();
+    // The server dropped its conversation with it; this device's copy goes
+    // too, or a tutorial started again here opens the old run's chat
+    expect(forget).toHaveBeenCalledWith("p1");
   });
 
   it("touches nothing when the account could not be read", async () => {

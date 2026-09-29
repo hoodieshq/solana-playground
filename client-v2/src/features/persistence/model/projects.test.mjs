@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
+import { appendMessages, getThread, listThreads } from "./conversations.mjs";
 import { query } from "./db.mjs";
 import {
   deleteProject,
@@ -26,6 +27,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
   });
 
   beforeEach(async () => {
+    await query("delete from conversations where user_id = $1", [userId]);
     await query("delete from projects where user_id = $1", [userId]);
   });
 
@@ -280,6 +282,31 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.equal(result.conflict, true);
     assert.equal(result.reason, "deleted");
     assert.equal(await getProject(userId, "tut:hello"), null);
+  });
+
+  it("deletes a project's conversations with it", async () => {
+    // Otherwise a tutorial started again restores the previous run's chat
+    // from the server, under the same project id
+    const threadId = "22222222-0000-4000-8000-000000000001";
+    await saveProject(userId, {
+      id: "tut:hello",
+      name: "Hello",
+      kind: "tutorial",
+      snapshot,
+    });
+    await appendMessages(userId, { threadId, projectId: "tut:hello" }, [
+      {
+        id: "22222222-0000-4000-8000-000000000101",
+        kind: "user",
+        createdAt: new Date(1000).toISOString(),
+        text: "old run",
+      },
+    ]);
+
+    await deleteProject(userId, "tut:hello");
+
+    assert.deepEqual(await listThreads(userId, "tut:hello"), []);
+    assert.equal(await getThread(userId, threadId), null);
   });
 
   it("clobbers only when the caller says so in as many words", async () => {

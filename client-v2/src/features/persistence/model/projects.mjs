@@ -186,11 +186,19 @@ export const saveProject = async (userId, input) => {
  * The row stays so another device's next sync sees "deleted" rather than
  * "missing" and does not push its local copy back up. The name is cleared of
  * the live-rows unique index by the same stroke, so it can be reused.
+ *
+ * Its conversations go with it, in the same statement. They are listed by
+ * project id, and a tutorial started again reuses its id, so a conversation
+ * left live here was handed to the new run as the previous run's chat.
  */
 export const deleteProject = async (userId, id) => {
   await query(
-    `update projects set deleted_at = now(), snapshot = null
-      where user_id = $1 and id = $2 and deleted_at is null`,
+    `with gone as (
+       update projects set deleted_at = now(), snapshot = null
+        where user_id = $1 and id = $2 and deleted_at is null
+     )
+     update conversations set deleted_at = now()
+      where user_id = $1 and project_id = $2 and deleted_at is null`,
     [userId, id]
   );
 };
