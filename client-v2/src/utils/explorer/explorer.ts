@@ -122,6 +122,35 @@ export class PgExplorer {
   /* ---------------------------- Public methods ---------------------------- */
 
   /**
+   * Re-read the list of workspaces from the store, keeping this tab's own
+   * current one. Writes nothing.
+   *
+   * Tabs of one browser share the store, but each read the list once at load
+   * and saved that copy back on every switch -- undoing a workspace another
+   * tab had created, deleted or renamed since. Which one is current is every
+   * tab's own, and the store holds whichever tab saved last, so that part is
+   * never taken from it. A config that cannot be read tells nothing, so the
+   * list in memory stays as it is rather than becoming empty.
+   */
+  static async refreshWorkspaces() {
+    const workspace = this._workspace;
+    if (!workspace) return;
+    let stored;
+    try {
+      stored = PgWorkspace.migrate(
+        await this.fs.readToJSON(PgWorkspace.WORKSPACES_CONFIG_PATH)
+      );
+    } catch {
+      return;
+    }
+    // Read after the wait: the user may have switched while it ran
+    workspace.setCurrent({
+      workspaces: stored.workspaces,
+      currentId: workspace.currentId,
+    });
+  }
+
+  /**
    * Initialize explorer.
    *
    * @param params -
