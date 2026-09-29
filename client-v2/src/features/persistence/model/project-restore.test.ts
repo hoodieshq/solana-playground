@@ -453,6 +453,30 @@ describe("reconcile", () => {
     expect(push).toHaveBeenCalled();
   });
 
+  it("does not hand over a project another tab has deleted", async () => {
+    // This tab read the workspace list at load and still lists `alpha`; the
+    // tab that deleted it removed it from the store and took its mark with
+    // it. Uploading from memory sent a create-only PUT at the tombstone, and
+    // the answer put a conflict nobody could settle on a deleted project.
+    withLocal({ alpha: "deleted-next-door", beta: "still-here" });
+    storedFiles().set(
+      "/.config/workspaces.json",
+      JSON.stringify({
+        workspaces: [{ id: "still-here", name: "beta" }],
+        currentId: "still-here",
+      })
+    );
+    withFiles("beta", { "src/lib.rs": "never uploaded" });
+    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    serverHas([]);
+
+    const result = await reconcile();
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0][0]).toBe("still-here");
+    expect(result.pushed).toEqual(["beta"]);
+  });
+
   it("never switches workspace itself, so a sync cannot interrupt the user", async () => {
     withLocal({});
     stubCreation();
