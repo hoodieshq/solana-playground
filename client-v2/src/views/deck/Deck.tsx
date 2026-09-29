@@ -349,7 +349,7 @@ const Layer = forwardRef<
       $hold={hold}
       data-leaving={leaving ? "" : undefined}
       data-current={leaving ? undefined : ""}
-      data-light={light ? "" : undefined}
+      data-ground={light ? "light" : "dark"}
       aria-hidden={leaving || undefined}
     >
       {children}
@@ -398,20 +398,16 @@ const Stage = styled.div<{ $trail: boolean }>`
   user-select: none;
   cursor: e-resize;
 
-  /* The landing's letter trail, on every headline: each letter arrives
-     trailing Solana's colours, and a word the last slide already had still
-     travels instead of arriving again */
+  /* The landing's letter trail, on the headlines of the colour and dark
+     slides: each letter arrives trailing Solana's colours, and a word the
+     last slide already had still travels instead of arriving again. White
+     slides keep the deck's own entrance; the trail reads harsh on white. */
   ${({ $trail }) =>
     $trail &&
     css`
-      ${trailLetters("h1")}
-      ${trailLetters("h2")}
-
-      /* On a white slide the trail is softer, so it reads as light, not a
-         stripe */
-      [data-light] {
-        ${trailLetters("h1", "soft")}
-        ${trailLetters("h2", "soft")}
+      [data-ground="dark"] {
+        ${trailLetters("h1")}
+        ${trailLetters("h2")}
       }
     `}
 
