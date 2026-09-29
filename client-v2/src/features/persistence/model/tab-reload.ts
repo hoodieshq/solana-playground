@@ -88,23 +88,22 @@ const memoryRoot = (): string | undefined => {
  *
  * Only when the directory is gone. A delete removes it before the list is
  * saved, so a directory that is still there means the list was written by a
- * tab that had not seen this workspace yet, and walking away from it would
- * leave it on disk with nothing pointing at it.
+ * tab that had not seen this workspace yet -- and that is put right instead.
  */
 const leaveDeleted = async (): Promise<ReloadResult> => {
+  // Already left: nothing is held in memory any more. Not a cue to move
+  // into whatever a neighbour creates next -- the id this tab kept names
+  // the deleted workspace, not a wish to be in the next one.
   const old = memoryRoot();
-  if (old && (await PgFs.exists(`/${old}`))) {
-    report(`reload ${old}: missing from the project list`, null);
-    return "skipped";
-  }
+  if (!old) return "skipped";
+
+  const id = PgExplorer.currentWorkspaceId;
+  if (id && (await PgFs.exists(`/${old}`))) return await restore(old, id);
 
   const next = PgExplorer.allWorkspaceNames?.at(-1);
   if (next) {
     await PgExplorer.switchWorkspace(next);
   } else {
-    // Already left: nothing is held in memory any more
-    if (!old) return "skipped";
-
     // What the deleting tab's own `init` does with no workspaces: the tree,
     // tabs and editor are reset, and the gallery opens over the empty state.
     // Not `ON_DID_DELETE_WORKSPACE`, which would have sync delete the
@@ -119,17 +118,73 @@ const leaveDeleted = async (): Promise<ReloadResult> => {
 
   // The deleted workspace's models would otherwise come back for a project
   // created later under the same name
-  if (old) {
-    await PgEditorModels.dropUnder(`/${old}/`, () => {
-      if (next) {
-        PgCommon.createAndDispatchCustomEvent(
-          PgExplorer.events.ON_DID_OPEN_FILE,
-          PgExplorer.getCurrentFile()
-        );
-      }
-    });
-  }
+  await PgEditorModels.dropUnder(`/${old}/`, () => {
+    if (next) {
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_OPEN_FILE,
+        PgExplorer.getCurrentFile()
+      );
+    }
+  });
   return "reopened";
+};
+
+/**
+ * Put this tab's workspace back on a list that lost it.
+ *
+ * Its directory is still there, so it was not deleted: the list was saved
+ * by a tab that had not seen it yet. Left off, the sidebar throws on its
+ * next render -- workspaces listed, none current -- and the next save of
+ * any tab makes the loss permanent. Registered again under the same name
+ * and id, and saved, which tells the other tabs too.
+ */
+const restore = async (name: string, id: string): Promise<ReloadResult> => {
+  report(`reload ${name}: missing from the project list, put back`, null);
+  try {
+    await PgExplorer.importWorkspace(name, { id, files: {} });
+  } catch (e) {
+    // The name is taken on the list that lost it; nothing safe to do here
+    report(`reload ${name}: put back`, e);
+    return "skipped";
+  }
+  return "unchanged";
+};
+
+/**
+ * Write what this tab holds under a workspace's old name to its new one.
+ *
+ * A rename in another tab moves the directory, but this tab's tree, tabs and
+ * models are still under the old name -- and every autosave from them now
+ * fails, because the directory it writes into is gone. Waiting for those
+ * keystrokes to land, as an ordinary re-open does, would wait for writes
+ * that never happen, and the re-open after them would lose the text. So
+ * they are carried over instead: an editor's unsaved text, or state that a
+ * failed autosave never got to disk.
+ *
+ * Only files the rename carried, or ones with typing in them. A file on
+ * neither side was deleted elsewhere after the rename, and writing it would
+ * bring it back.
+ *
+ * @param disk the new directory as the store has it, full paths to contents
+ */
+const carryRename = async (
+  from: string,
+  to: string,
+  disk: Record<string, string>
+) => {
+  for (const [path, item] of Object.entries(PgExplorer.files)) {
+    if (!path.startsWith(`/${from}/`) || path.endsWith("/")) continue;
+    if (item.content === undefined) continue;
+
+    const target = `/${to}/` + path.slice(from.length + 2);
+    const typed = await PgEditorModels.valueOf(path);
+    const unsaved = typed !== null && typed !== item.content;
+    const text = unsaved ? typed : item.content;
+    if (!unsaved && (disk[target] === undefined || disk[target] === text)) {
+      continue;
+    }
+    await PgFs.writeFile(target, text, { createParents: true });
+  }
 };
 
 const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
@@ -157,17 +212,21 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   // The user may have switched projects while the store was being read
   if (PgExplorer.currentWorkspaceName !== name) return "skipped";
 
-  if (reopen || !sameKeys(disk, memory)) {
+  const renamed = !!held && held !== name;
+  if (reopen || renamed || !sameKeys(disk, memory)) {
     // A re-open rebuilds every model from state, so keystrokes autosave has
     // not written yet -- in any file, not only the open one -- would go.
     // Nothing forces this one, so it waits for them to land instead. A forced
     // re-open is `adopt`, where the user has already chosen to discard.
     //
-    // Under the name memory holds them by, which is the old one when the
-    // workspace was renamed in another tab.
-    if (!reopen) {
+    // Renamed in another tab, there is nothing to wait for: autosave writes
+    // under the old name, which is gone. The text is carried across instead.
+    if (!reopen && held && renamed) {
+      await carryRename(held, name, disk);
+      if (PgExplorer.currentWorkspaceName !== name) return "skipped";
+    } else if (!reopen) {
       const edited = await PgEditorModels.anyEditedUnder(
-        `/${held ?? name}/`,
+        `/${name}/`,
         (path) => PgExplorer.files[path]?.content
       );
       if (edited) return "deferred";

@@ -132,11 +132,7 @@ for (const [how, hear] of ways)
       expect(PgExplorer.currentWorkspaceId).toBe(id);
       expect(PgExplorer.currentWorkspaceName).toBe("renamed");
       expect(paths().every((p) => p.startsWith("/renamed/"))).toBe(true);
-      // Keystrokes are looked for, and models dropped, under the old name
-      expect(PgEditorModels.anyEditedUnder).toHaveBeenCalledWith(
-        "/beta/",
-        expect.any(Function)
-      );
+      // The old name's models are dropped
       expect(PgEditorModels.dropUnder).toHaveBeenCalledWith("/beta/");
       // And a save now carries the other tab's list, not this one's old copy
       expect(config().workspaces.map((w) => w.name)).toEqual([
@@ -145,14 +141,33 @@ for (const [how, hear] of ways)
       ]);
     });
 
-    it("waits over keystrokes under the old name", async () => {
-      (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(true);
+    it("carries unsaved typing under the old name into the new", async () => {
+      // Autosave writes under the old name, which is gone, so waiting for it
+      // would wait forever -- and the re-open after it lost the text
+      (PgEditorModels.valueOf as jest.Mock).mockImplementation(
+        async (path: string) =>
+          path === "/beta/src/lib.rs" ? "// typed" : null
+      );
       elsewhere.rename("beta", "renamed");
 
       await hear();
 
-      // Still the old tree, with the typing in it, until autosave lands
-      expect(paths().every((p) => p.startsWith("/beta/"))).toBe(true);
+      expect(store().get("/renamed/src/lib.rs")).toBe("// typed");
+      expect(PgExplorer.files["/renamed/src/lib.rs"].content).toBe("// typed");
+      expect(store().has("/beta/src/lib.rs")).toBe(false);
+    });
+
+    it("carries a failed autosave's text too", async () => {
+      // In state but never written: its directory had moved
+      PgExplorer.files["/beta/src/lib.rs"].content = "// saved to state";
+      elsewhere.rename("beta", "renamed");
+
+      await hear();
+
+      expect(store().get("/renamed/src/lib.rs")).toBe("// saved to state");
+      expect(PgExplorer.files["/renamed/src/lib.rs"].content).toBe(
+        "// saved to state"
+      );
     });
 
     it("moves on from a workspace deleted in another tab", async () => {
@@ -169,6 +184,39 @@ for (const [how, hear] of ways)
       expect(config().workspaces.map((w) => w.name)).toEqual(["alpha"]);
       // Not brought back
       expect(store().has("/beta/src/lib.rs")).toBe(false);
+    });
+
+    it("puts back a workspace a stale list left off", async () => {
+      // The directory is still there: not a delete, but a list saved by a tab
+      // that had not seen this workspace
+      const id = PgExplorer.currentWorkspaceId;
+      const next = config();
+      next.workspaces = next.workspaces.filter((w) => w.name !== "beta");
+      store().set(PgWorkspace.WORKSPACES_CONFIG_PATH, JSON.stringify(next));
+
+      await hear();
+
+      expect(PgExplorer.currentWorkspaceName).toBe("beta");
+      expect(PgExplorer.currentWorkspaceId).toBe(id);
+      expect(config().workspaces).toContainEqual({ id, name: "beta" });
+    });
+
+    it("stays out of a project created elsewhere once it has left", async () => {
+      elsewhere.delete("alpha");
+      elsewhere.delete("beta");
+      await hear();
+
+      // A neighbour creates one; this tab's kept id names the deleted one
+      const next = config();
+      next.workspaces = [{ id: "n1", name: "fresh" }];
+      next.currentId = "n1";
+      store().set(PgWorkspace.WORKSPACES_CONFIG_PATH, JSON.stringify(next));
+      store().set("/fresh/src/lib.rs", "// fresh");
+      await hear();
+
+      expect(PgExplorer.allWorkspaceNames).toEqual(["fresh"]);
+      expect(PgExplorer.currentWorkspaceName).toBeUndefined();
+      expect(paths()).toEqual([]);
     });
 
     it("empties the tree when the last one was deleted", async () => {

@@ -232,7 +232,7 @@ describe("PgExplorer.refreshWorkspaces", () => {
     expect(PgExplorer.allWorkspaceNames).toBeUndefined();
   });
 
-  it("leaves a create of this tab's own alone while it is in flight", async () => {
+  it("leaves this tab's own create alone while it is in flight", async () => {
     // `createWorkspace` adds the entry to memory at once and saves it only
     // inside the switch, after awaits. A refresh in between used to take the
     // store's list -- without the new workspace -- and leave the files with
