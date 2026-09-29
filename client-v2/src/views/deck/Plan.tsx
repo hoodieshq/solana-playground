@@ -62,7 +62,9 @@ const Plan: FC<{ slide: PlanSpec; light: boolean }> = ({ slide, light }) => (
           light={light}
           legend={slide.kind === "ranked"}
         />
-        {slide.kind === "row" && <RowOf items={slide.items} />}
+        {slide.kind === "row" && (
+          <RowOf items={slide.items} perRow={slide.perRow} />
+        )}
         {slide.kind === "horizons" && <Horizons stops={slide.stops} />}
         {slide.kind === "pairs" && (
           <Pairs left={slide.left} right={slide.right} rows={slide.rows} />
@@ -251,11 +253,17 @@ const Quiet = styled.div`
 
 /* ── a few things side by side ────────────────────────────────────────── */
 
-const RowOf: FC<{ items: PlanItem[] }> = ({ items }) => (
-  <Row style={{ "--n": items.length } as CSSProperties}>
+const RowOf: FC<{ items: PlanItem[]; perRow?: number }> = ({
+  items,
+  perRow,
+}) => (
+  <Row
+    $wrap={!!perRow}
+    style={{ "--n": perRow ?? items.length } as CSSProperties}
+  >
     {items.map((item, i) => (
-      <RowItem key={item.name} style={at(i)}>
-        <RowName>{item.name}</RowName>
+      <RowItem key={item.name} style={at(perRow ? i * 0.5 : i)}>
+        <RowName $small={!!perRow}>{item.name}</RowName>
         {item.note && <RowNote>{item.note}</RowNote>}
       </RowItem>
     ))}
@@ -263,18 +271,23 @@ const RowOf: FC<{ items: PlanItem[] }> = ({ items }) => (
 );
 
 /* Low on the frame, under the heading's weight, so the slide reads as one
-   statement and its evidence */
-const Row = styled.div`
-  display: grid;
-  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-  gap: calc(48 * var(--u));
-  margin: auto 0 calc(200 * var(--u));
+   statement and its evidence. Rows that wrap start under the heading
+   instead, since they fill the frame. */
+const Row = styled.div<{ $wrap: boolean }>`
+  ${({ $wrap }) => css`
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    gap: calc(${$wrap ? 36 : 48} * var(--u)) calc(48 * var(--u));
+    margin: ${$wrap
+      ? "calc(64 * var(--u)) 0 0"
+      : "auto 0 calc(200 * var(--u))"};
 
-  @media ${TALL} {
-    grid-template-columns: 1fr;
-    gap: 0;
-    margin: 40px 0 0;
-  }
+    @media ${TALL} {
+      grid-template-columns: 1fr;
+      gap: 0;
+      margin: 40px 0 0;
+    }
+  `}
 `;
 
 const RowItem = styled.div`
@@ -287,8 +300,8 @@ const RowItem = styled.div`
   }
 `;
 
-const RowName = styled(Name)`
-  font-size: ${size(40, 22)};
+const RowName = styled(Name)<{ $small: boolean }>`
+  font-size: ${({ $small }) => ($small ? size(31, 19) : size(40, 22))};
 `;
 
 const RowNote = styled(Quiet)`
@@ -721,7 +734,7 @@ const RankRow = styled.div`
   display: flex;
   align-items: center;
   gap: calc(12 * var(--u));
-  min-height: calc(37 * var(--u));
+  min-height: calc(35 * var(--u));
   border-top: 1px solid var(--rule);
   font-size: ${size(19, 14)};
   ${arrive}

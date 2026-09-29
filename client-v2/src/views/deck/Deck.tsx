@@ -11,6 +11,7 @@ import styled, { createGlobalStyle, css, keyframes } from "styled-components";
 
 import Atmosphere from "./Atmosphere";
 import type { Ground } from "./Atmosphere";
+import { trailLetters } from "../landing/trail";
 import { CARRY_MS, noteCarried } from "./carry";
 import Slide, { SHOTS } from "./Slide";
 import { SLIDES, isLight } from "./slides";
@@ -44,6 +45,8 @@ interface DeckProps {
   slides?: SlideSpec[];
   /** What the presentation is called, for anyone not seeing it */
   label?: string;
+  /** Headlines arrive with the landing's letter trail */
+  trail?: boolean;
 }
 
 /**
@@ -98,6 +101,7 @@ const Deck: FC<DeckProps> = ({
   onEvaluation,
   slides = SLIDES,
   label = "Design proposal",
+  trail = false,
 }) => {
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState<number | null>(null);
@@ -249,6 +253,7 @@ const Deck: FC<DeckProps> = ({
 
   return (
     <Stage
+      $trail={trail}
       onClick={onClick}
       onWheel={onWheel}
       onTouchStart={onTouchStart}
@@ -375,7 +380,7 @@ const DeckFont = createGlobalStyle`
   @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400&family=Stack+Sans+Headline:wght@400..700&display=swap");
 `;
 
-const Stage = styled.div`
+const Stage = styled.div<{ $trail: boolean }>`
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -385,6 +390,16 @@ const Stage = styled.div`
   touch-action: none;
   user-select: none;
   cursor: e-resize;
+
+  /* The landing's letter trail, on every headline: each letter arrives
+     trailing Solana's colours, and a word the last slide already had still
+     travels instead of arriving again */
+  ${({ $trail }) =>
+    $trail &&
+    css`
+      ${trailLetters("h1")}
+      ${trailLetters("h2")}
+    `}
 
   /* ...unless a tool is laid over it, in which case the deck is the subject
      and not the interface: the cursor stops promising to advance, and text

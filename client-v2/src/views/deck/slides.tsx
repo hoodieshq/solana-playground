@@ -125,8 +125,9 @@ export type SlideSpec =
       scale?: number;
     })
   /* The roadmap's slides, drawn in `Plan` */
-  /** A few things side by side, each under a hairline */
-  | (Base & Heading & { kind: "row"; items: PlanItem[] })
+  /** A few things side by side, each under a hairline — in rows of
+      `perRow` when there are more than fit across */
+  | (Base & Heading & { kind: "row"; items: PlanItem[]; perRow?: number })
   /** The plan's stops along one line */
   | (Base & Heading & { kind: "horizons"; stops: Stop[] })
   /** The two tracks, each with what it owns */
