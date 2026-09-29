@@ -10,7 +10,7 @@ import { PgFs } from "../../../utils/explorer/fs";
  * `chat-storage`: the browser filesystem surfaces it as a code and as a
  * message.
  */
-const isMissing = (error: unknown) => {
+export const isMissing = (error: unknown) => {
   const e = error as { code?: string; message?: string };
   return e?.code === "ENOENT" || !!e?.message?.includes("ENOENT");
 };
