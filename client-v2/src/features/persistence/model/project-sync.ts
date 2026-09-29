@@ -1,10 +1,6 @@
 import { report } from "./diagnostics";
-import {
-  buildSnapshot,
-  hashSnapshot,
-  hashUserFiles,
-  snapshotOf,
-} from "./snapshot";
+import { buildSnapshot, diffFiles, hashFiles, snapshotOf } from "./snapshot";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
@@ -164,12 +160,14 @@ export class PgProjectSync {
    *   ever set by `resolve`, after the user has chosen.
    * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
    *   runs *inside* the gate it is the point of -- see below.
+   * - `merging`: set by the merge's own upload, so a refusal is reported
+   *   rather than merged again.
    */
   static async push(
     projectId: string,
     snapshot: Snapshot,
     name?: string,
-    opts: { force?: boolean; immediate?: boolean } = {}
+    opts: { force?: boolean; immediate?: boolean; merging?: boolean } = {}
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
     // Nothing goes up before this browser has reconciled with the account. A
@@ -184,6 +182,18 @@ export class PgProjectSync {
     // reconcile decided on is not racing anything.
     if (!opts.immediate) await PgProjectSync._gate;
 
+    const mark = await PgSyncMark.read(projectId);
+    const hashes = await hashFiles(snapshot);
+    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    // Relative to the last agreement, when there is one and the user has not
+    // overruled it. Without a mark there is nothing to be relative to.
+    const patch = mark && !opts.force ? diffFiles(mark.files, hashes) : null;
+
+    // Before anything that can decline to send. What these files held at the
+    // last agreement is the one thing a later merge cannot rebuild, and a
+    // project with a question outstanding goes on being edited.
+    if (patch) await PgSyncBase.capture(projectId, patch.changed, mark!.files);
+
     // A project with a question outstanding is not pushed again. This is what
     // turns a conflict from a permanent 409 loop -- the editor's debounce
     // re-firing every few seconds against a token that can never match -- into
@@ -192,20 +202,21 @@ export class PgProjectSync {
       return "skipped";
     }
 
-    const mark = await PgSyncMark.read(projectId);
-    const hash = await hashSnapshot(snapshot);
-    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
-
-    // Nothing the server does not already have. Both halves matter: the hash
-    // covers the files, and the name covers a rename, which changes what the
-    // row should say without changing a byte of the snapshot.
+    // Nothing the server does not already have. The name matters as much as
+    // the files: a rename changes what the row should say without changing a
+    // byte.
     //
     // Deliberately not conditioned on `dirty`. That flag is set by any write
     // at all, including rewriting a workspace file with the content it already
     // had -- which `PgProgramInfo` does on every load -- so letting it force
     // an upload meant every reload bumped the row, and a bumped row is what
     // the *other* browser reads as "this project changed elsewhere".
-    if (!opts.force && mark && mark.hash === hash && mark.name === storedName) {
+    if (
+      patch &&
+      !patch.changed.length &&
+      !patch.removed.length &&
+      mark!.name === storedName
+    ) {
       return "skipped";
     }
 
@@ -218,7 +229,14 @@ export class PgProjectSync {
           id: projectId,
           name: storedName,
           kind: projectId.startsWith("tut:") ? "tutorial" : "project",
-          snapshot,
+          ...(patch
+            ? {
+                changed: Object.fromEntries(
+                  patch.changed.map((path) => [path, snapshot.files[path]])
+                ),
+                removed: patch.removed,
+              }
+            : { files: snapshot.files }),
           // Omitted under `force`: the server reads the two as separate doors,
           // and sending a token alongside would be asking it to check
           // something the user has already overruled.
@@ -249,12 +267,16 @@ export class PgProjectSync {
 
       const body = await response.json();
       await PgSyncMark.write(projectId, {
-        hash,
-        contentHash: await hashUserFiles(snapshot),
+        files: hashes,
         name: storedName,
         updatedAt: body.updatedAt,
         dirty: false,
       });
+      await PgSyncBase.accepted(
+        projectId,
+        snapshot,
+        projectId === PgExplorer.currentWorkspaceId
+      );
       PgProjectSync._clear(projectId);
       return "ok";
     } catch (e) {
@@ -367,16 +389,16 @@ export class PgProjectSync {
     const local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
 
-    const serverHash = await hashSnapshot(full!.snapshot!);
-
     await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
     await PgSyncMark.write(projectId, {
-      hash: serverHash,
-      contentHash: await hashUserFiles(full!.snapshot!),
+      files: await hashFiles(full!.snapshot!),
       name: local,
       updatedAt: full!.updatedAt,
       dirty: false,
     });
+    // The local copy is now the server's, so nothing kept against the old
+    // agreement is a base for anything
+    await PgSyncBase.clear(projectId);
 
     // Only the current workspace is held in memory, and it is now the stale
     // copy -- `replaceWorkspaceFiles` writes to the store and deliberately
@@ -389,9 +411,9 @@ export class PgProjectSync {
     // longer on disk -- and pushed them back up on the next edit.
     // Re-opening is not inert -- `PgProgramInfo` rewrites the keypair file --
     // so the workspace will differ from the snapshot just adopted within a
-    // moment. That is why the mark records `contentHash` as well: reconcile
-    // decides on the user's files, which this cannot change, and the generated
-    // ones ride along on the next upload.
+    // moment. That is why reconcile decides on the mark's per-file hashes,
+    // compared on user files only: the user's files are what this cannot
+    // change, and the generated ones ride along on the next upload.
     if (local === PgExplorer.currentWorkspaceName) {
       await PgExplorer.switchWorkspace(local);
     }

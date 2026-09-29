@@ -1,6 +1,6 @@
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
-import { hashSnapshot, hashUserFiles } from "./snapshot";
+import { hashFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -80,8 +80,7 @@ const agreed = async (
   name = "alpha"
 ) => {
   await PgSyncMark.write(id, {
-    hash: await hashSnapshot(snapshot),
-    contentHash: await hashUserFiles(snapshot),
+    files: await hashFiles(snapshot),
     name,
     updatedAt,
     dirty: false,
@@ -100,8 +99,7 @@ const pending = async (
   name = "alpha"
 ) => {
   await PgSyncMark.write(id, {
-    hash: await hashSnapshot(snapshot),
-    contentHash: await hashUserFiles(snapshot),
+    files: await hashFiles(snapshot),
     name,
     updatedAt,
     dirty: true,
@@ -367,8 +365,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "theirs" });
     withFiles("alpha", { "src/lib.rs": "someone else's work" });
     await PgSyncMark.write("theirs", {
-      hash: "whatever",
-      contentHash: "whatever",
+      files: { "src/lib.rs": "whatever" },
       name: "alpha",
       updatedAt: "t1",
       dirty: false,

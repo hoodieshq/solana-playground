@@ -1,6 +1,8 @@
 import { report } from "./diagnostics";
 import { isUsableSnapshot, PgProjectSync } from "./project-sync";
-import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
+import { sameFiles } from "./merge";
+import { hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncMark } from "./sync-mark";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
@@ -48,8 +50,7 @@ const empty = (): SyncResult => ({
  * server's copy" path was unreachable, and a device that had done nothing at
  * all was asked to choose.
  *
- * Compared on `contentHash` -- the user's files -- rather than the whole
- * snapshot. The generated workspace files are rewritten on every open, so a
+ * Compared on user files only, rather than the whole snapshot. The generated workspace files are rewritten on every open, so a
  * device that has just adopted another's copy differs from it within a second
  * through nothing anyone typed, and on the *next* exchange that read as this
  * device having work of its own.
@@ -58,8 +59,9 @@ const isClean = async (projectId: string, localName: string) => {
   const mark = await PgSyncMark.read(projectId);
   if (!mark) return false;
   if (mark.name !== localName) return false;
-  return (
-    mark.contentHash === (await hashUserFiles(await snapshotOf(localName)))
+  return sameUserFiles(
+    mark.files,
+    await hashFiles(await snapshotOf(localName))
   );
 };
 
@@ -222,15 +224,15 @@ const settleDivergence = async (
     return null;
   }
 
-  const serverHash = await hashSnapshot(full.snapshot);
-  if (serverHash === (await hashSnapshot(await snapshotOf(local)))) {
+  const serverHashes = await hashFiles(full.snapshot);
+  if (sameFiles(serverHashes, await hashFiles(await snapshotOf(local)))) {
     await PgSyncMark.write(projectId, {
-      hash: serverHash,
-      contentHash: await hashUserFiles(full.snapshot),
+      files: serverHashes,
       name: local,
       updatedAt: full.updatedAt,
       dirty: false,
     });
+    await PgSyncBase.clear(projectId);
     return null;
   }
 
@@ -269,12 +271,13 @@ const importFresh = async (
   taken.add(name);
 
   await PgSyncMark.write(projectId, {
-    hash: await hashSnapshot(full!.snapshot!),
-    contentHash: await hashUserFiles(full!.snapshot!),
+    files: await hashFiles(full!.snapshot!),
     name,
     updatedAt: full!.updatedAt,
     dirty: false,
   });
+  // A tutorial restarted under the same id must not inherit an old base
+  await PgSyncBase.clear(projectId);
 
   return name;
 };

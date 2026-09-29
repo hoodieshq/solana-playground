@@ -1,4 +1,5 @@
 import { PgProjectSync } from "./project-sync";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgSession } from "../../auth";
@@ -67,6 +68,7 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
     });
 
     if (!body.force) {
+      if (body.changed && !body.baseUpdatedAt) return refuse();
       if (body.baseUpdatedAt) {
         // Compare-and-swap: the write lands only if the row still holds the
         // timestamp this client read
@@ -80,11 +82,20 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
       }
     }
 
+    // The real endpoint's two shapes: a whole file set, or a patch on the
+    // row the token names (which the swap above has just proved is `live`)
+    const held =
+      (live?.snapshot as { files: Record<string, string> } | null)?.files ?? {};
+    const files: Record<string, string> = body.files
+      ? { ...body.files }
+      : { ...held, ...(body.changed ?? {}) };
+    for (const path of body.removed ?? []) delete files[path];
+
     const stored: StoredProject = {
       id: body.id,
       name: body.name,
       kind: body.kind,
-      snapshot: body.snapshot,
+      snapshot: { files },
       updatedAt: tick(),
     };
     server.set(stored.id, stored);
@@ -154,6 +165,7 @@ const asFreshDevice = (
   content?: string
 ) => {
   PgProjectSync.reset();
+  PgSyncBase.reset();
   storedFiles().clear();
   jest.restoreAllMocks();
   return asDevice(workspaces, content);
@@ -165,6 +177,7 @@ const setUp = () => {
   PgSession.reset();
   PgSyncClient.reset();
   PgProjectSync.reset();
+  PgSyncBase.reset();
   storedFiles().clear();
   global.fetch = jest.fn(fakeFetch) as unknown as typeof fetch;
 };

@@ -1,4 +1,5 @@
 import { PgProjectSync } from "./project-sync";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
@@ -34,6 +35,7 @@ const reset = () => {
   PgSession.reset();
   PgSyncClient.reset();
   PgProjectSync.reset();
+  PgSyncBase.reset();
   storedFiles().clear();
 };
 
@@ -109,8 +111,7 @@ describe("PgProjectSync", () => {
     await signedIn();
 
     expect(await PgSyncMark.read("p1")).toEqual({
-      hash: expect.any(String),
-      contentHash: expect.any(String),
+      files: { a: expect.any(String) },
       name: "p1",
       updatedAt: "t1",
       dirty: false,
@@ -206,6 +207,54 @@ describe("PgProjectSync", () => {
     await signedIn();
 
     expect(await PgProjectSync.list()).toEqual(projects);
+  });
+
+  const okServer = () =>
+    (global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t1" }),
+          })
+    ) as unknown as typeof fetch);
+
+  it("sends the whole file set the first time", async () => {
+    okServer();
+    await signedIn();
+    await PgProjectSync.push("p1", { files: { a: "1", b: "2" } });
+    expect(lastBody()).toMatchObject({ files: { a: "1", b: "2" } });
+    expect(lastBody().changed).toBeUndefined();
+  });
+
+  it("sends only what changed after that", async () => {
+    okServer();
+    await signedIn();
+    await PgProjectSync.push("p1", { files: { a: "1", b: "2", c: "3" } });
+    await PgProjectSync.push("p1", { files: { a: "1", b: "9", d: "4" } });
+    expect(lastBody()).toMatchObject({
+      changed: { b: "9", d: "4" },
+      removed: ["c"],
+      baseUpdatedAt: "t1",
+    });
+    expect(lastBody().files).toBeUndefined();
+  });
+
+  it("keeps what a file held at the last agreement, even while a question is open", async () => {
+    // Pushes stop while the banner is up, and the user keeps typing. When
+    // they answer, the merge needs these files' base content, and the only
+    // moment to take it was before the edit went unsent.
+    okServer();
+    await signedIn();
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    await PgProjectSync.push("p1", { files: { a: "one" } });
+
+    PgProjectSync.raise({ projectId: "p1", kind: "divergent" });
+    expect(await PgProjectSync.push("p1", { files: { a: "two" } })).toBe(
+      "skipped"
+    );
+
+    expect((await PgSyncBase.read("p1")).a?.content).toBe("one");
   });
 });
 
@@ -338,7 +387,7 @@ describe("resolving a conflict", () => {
     const body = lastBody();
     expect(body.force).toBe(true);
     expect(body.baseUpdatedAt).toBeUndefined();
-    expect(body.snapshot.files["src/lib.rs"]).toBe("mine");
+    expect(body.files["src/lib.rs"]).toBe("mine");
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
   });
 
@@ -510,7 +559,7 @@ describe("PgProjectSync.pushCurrent", () => {
 
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
     expect(lastBody().id).toBe("tut:hello-anchor");
-    expect(lastBody().snapshot.files["src/lib.rs"]).toBe("fn main() {}");
+    expect(lastBody().files["src/lib.rs"]).toBe("fn main() {}");
   });
 
   it("names it as the user sees it, not by its id", async () => {

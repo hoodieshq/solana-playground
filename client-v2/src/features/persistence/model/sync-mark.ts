@@ -1,6 +1,7 @@
 import { report } from "./diagnostics";
 import { PgSession } from "../../auth";
 import { PgFs } from "../../../utils/explorer/fs";
+import type { FileHashes } from "./snapshot";
 
 /**
  * Whether an error just means "no such file".
@@ -48,16 +49,14 @@ const currentUserId = () => PgSession.get()?.id ?? null;
 
 /** What this device and the server last agreed on, for one project */
 export interface SyncMark {
-  /** `hashSnapshot` of the snapshot the server accepted */
-  hash: string;
   /**
-   * `hashUserFiles` of the same snapshot -- what the user actually wrote.
+   * `path -> sha256` of the snapshot the server accepted.
    *
-   * This is the one reconcile decides on. `hash` covers the generated
-   * workspace files too, which are rewritten on every open, so it answers
-   * "is an upload worth making" rather than "does this device hold work".
+   * Per file because every question sync asks is: which files to upload,
+   * which changed on which side, and which can be merged. It is also the base
+   * of every merge -- the version both sides started from.
    */
-  contentHash: string;
+  files: FileHashes;
   /**
    * The name it was stored under.
    *
@@ -73,7 +72,7 @@ export interface SyncMark {
   /**
    * Set the moment an edit lands, cleared when a push succeeds.
    *
-   * Strictly a hint -- `hash` is the truth, and reconcile re-hashes anything
+   * Strictly a hint -- `files` is the truth, and reconcile re-hashes anything
    * flagged. It exists so the common case, a device where nothing has changed,
    * costs a handful of small reads instead of re-hashing every project's
    * contents on every reconcile.
@@ -109,22 +108,26 @@ export class PgSyncMark {
     if (!userId) return null;
 
     try {
-      const raw = await PgFs.readToString(pathOf(userId, projectId));
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(
+        await PgFs.readToString(pathOf(userId, projectId))
+      );
+      const files = parsed?.files;
+      // A mark from before per-file hashes has none, and is read as no mark
+      // at all: nothing it holds can answer the questions asked of it now,
+      // and "never agreed" is a state reconcile already settles safely
+      if (files === undefined && typeof parsed?.hash === "string") return null;
       if (
-        typeof parsed?.hash !== "string" ||
+        !files ||
+        typeof files !== "object" ||
+        Array.isArray(files) ||
+        !Object.values(files).every((hash) => typeof hash === "string") ||
         typeof parsed?.updatedAt !== "string"
       ) {
         report(`sync mark ${projectId}: malformed`, null);
         return null;
       }
       return {
-        hash: parsed.hash,
-        // Absent in marks written before the field existed. Empty matches no
-        // snapshot, so the project is pushed once and the mark rewritten
-        // complete, which is the same tolerance `name` gets.
-        contentHash:
-          typeof parsed.contentHash === "string" ? parsed.contentHash : "",
+        files,
         // Absent in marks written before the field existed. Empty reads as
         // "not the name it is called now", so the project is pushed once and
         // the mark is rewritten complete.
