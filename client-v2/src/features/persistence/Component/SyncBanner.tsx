@@ -5,21 +5,38 @@ import { PgProjectSync } from "../model/project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
 
+/** `src/lib.rs`, or `src/lib.rs and 2 other files` */
+const describePaths = (paths: string[]) =>
+  paths.length === 1
+    ? paths[0]
+    : `${paths[0]} and ${paths.length - 1} other file${
+        paths.length > 2 ? "s" : ""
+      }`;
+
 /** What the user is shown, and what each answer does */
 const PROMPTS: Record<
   Conflict["kind"],
-  { message: string; actions: { label: string; resolution: Resolution }[] }
+  {
+    message: (conflict: Conflict) => string;
+    actions: { label: string; resolution: Resolution }[];
+  }
 > = {
   divergent: {
-    message:
-      "This project changed on another device, and this one has unsaved changes.",
+    // Everything else has already been merged by the time this shows, so it
+    // names what is left rather than offering to replace the whole project
+    message: ({ paths }) =>
+      paths?.length
+        ? `${describePaths(
+            paths
+          )} changed on another device and on this one, in the same place. Everything else was merged.`
+        : "This project changed on another device, and this one has unsaved changes.",
     actions: [
       { label: "Keep this version", resolution: "keep-local" },
       { label: "Take the other version", resolution: "take-server" },
     ],
   },
   "deleted-elsewhere": {
-    message:
+    message: () =>
       "This project was deleted on another device, but you have unsaved changes here.",
     actions: [
       { label: "Keep as a new project", resolution: "keep-as-new" },
@@ -33,12 +50,12 @@ const PROMPTS: Record<
   // deleting the file that made it too big would fix the cause and leave it
   // stuck anyway.
   "name-taken": {
-    message:
+    message: () =>
       "Another project in your account already uses this name, so this one cannot be uploaded. Rename it, then try again.",
     actions: [{ label: "Try again", resolution: "retry" }],
   },
   "too-large": {
-    message:
+    message: () =>
       "This project is too large to sync. Remove or shrink its largest files, then try again.",
     actions: [{ label: "Try again", resolution: "retry" }],
   },
@@ -47,11 +64,11 @@ const PROMPTS: Record<
 /**
  * Say why a project has stopped syncing, and offer the way out.
  *
- * Mostly that means asking which copy to keep -- deliberately a prompt rather
- * than a merge or a silent overwrite, because the failure this prevents is "I
- * opened the project on my phone and lost an afternoon on my laptop". Two
- * copies of a program are not something an automatic merge can reconcile, and
- * a bad merge is worse than a question.
+ * Mostly that means asking which copy to keep, because the failure this
+ * prevents is "I opened the project on my phone and lost an afternoon on my
+ * laptop". Asked only about what a merge could not settle -- lines both
+ * devices changed. Anything that overlaps, or merely touches, is a question
+ * rather than a guess, because a bad merge is worse than a question.
  *
  * It is the *only* place the user is asked anything. Every other outcome --
  * taking the server's copy, pushing this device's, finishing a delete -- is
@@ -109,7 +126,7 @@ const SyncBanner = () => {
 
   return (
     <Wrapper role="alert">
-      {prompt.message}
+      {prompt.message(conflict)}
       {prompt.actions.map((action) => (
         <Action
           key={action.resolution}

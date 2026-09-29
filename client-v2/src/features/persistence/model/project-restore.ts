@@ -1,6 +1,5 @@
 import { report } from "./diagnostics";
 import { isUsableSnapshot, PgProjectSync } from "./project-sync";
-import { sameFiles } from "./merge";
 import { hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncMark } from "./sync-mark";
@@ -66,8 +65,7 @@ const isClean = async (projectId: string, localName: string) => {
 };
 
 /**
- * Make this browser and the account agree, without merging and without
- * guessing.
+ * Make this browser and the account agree, without guessing.
  *
  * Runs on sign-in, on load, and whenever a backgrounded tab comes back. Each
  * project lands in one of four cells, decided by two independent questions --
@@ -77,7 +75,7 @@ const isClean = async (projectId: string, localName: string) => {
  * |          | server unchanged | server moved |
  * | -------- | ---------------- | ------------ |
  * | clean    | nothing          | take server  |
- * | dirty    | push             | **ask**      |
+ * | dirty    | push             | **merge**    |
  *
  * Both questions are answerable only because `PgSyncMark` persists what the
  * server last accepted from *this* device. Without it "local differs from the
@@ -85,9 +83,9 @@ const isClean = async (projectId: string, localName: string) => {
  * function resolved it by always taking the server's copy -- which quietly
  * destroyed anything that had not finished uploading.
  *
- * The bottom-right cell is the only one that asks the user anything, and it is
- * the only one that cannot be decided without them: both copies contain work,
- * and nothing here is entitled to pick.
+ * The bottom-right cell is the only one that can ask the user anything, and
+ * only about lines both copies changed: everything else merges, and for those
+ * lines nothing here is entitled to pick.
  *
  * Deletes are the same shape. A project the server no longer lists, for which
  * this device holds a mark, was deleted on another device: if the local copy is
@@ -190,17 +188,18 @@ export const reconcile = async (): Promise<SyncResult> => {
 /**
  * Decide whether "both sides differ" is really a question for the user.
  *
- * Two cases reach here that look divergent from the marks alone and are not,
- * and asking about either would be asking about nothing:
+ * Mostly it is not, and the merge settles it: two copies that are identical
+ * -- a tutorial, whose id is derived from its name and so is minted
+ * independently on every browser, holds the same bytes as the server with
+ * only the token missing -- merge to themselves, and so do edits to different
+ * files or to lines that do not overlap. What the merge cannot settle is
+ * raised with the files it concerns.
  *
- * - **The row has no code.** `ensureConversation` creates a `projects` row so
- *   a chat turn has a parent, so a project whose assistant was used before its
- *   first upload already exists server-side with a null snapshot. There is
- *   nothing there to lose, so this device's copy simply goes up.
- * - **The two copies are identical.** A device with no mark for a project it
- *   nonetheless holds -- a tutorial, whose id is derived from its name and so
- *   is minted independently on every browser -- has the same bytes as the
- *   server. Only the token is missing, so recording it is the whole fix.
+ * One case is handled before the merge, because there is nothing to merge
+ * with: **the row has no code.** `ensureConversation` creates a `projects` row
+ * so a chat turn has a parent, so a project whose assistant was used before
+ * its first upload already exists server-side with a null snapshot. There is
+ * nothing there to lose, so this device's copy simply goes up.
  *
  * @returns the conflict actually raised, or `null` when it settled itself
  */
@@ -224,21 +223,15 @@ const settleDivergence = async (
     return null;
   }
 
-  const serverHashes = await hashFiles(full.snapshot);
-  if (sameFiles(serverHashes, await hashFiles(await snapshotOf(local)))) {
-    await PgSyncMark.write(projectId, {
-      files: serverHashes,
-      name: local,
-      updatedAt: full.updatedAt,
-      dirty: false,
-    });
-    await PgSyncBase.clear(projectId);
+  // Identical copies, a missing mark, one side ahead per file, lines that do
+  // not overlap: all of it settles without a question. What is left is raised
+  // with the files it concerns.
+  const outcome = await PgProjectSync.mergeWithServer(projectId, local);
+  if (outcome === "merged") {
+    result.replaced.push(local);
     return null;
   }
-
-  const conflict: Conflict = { projectId, kind: "divergent" };
-  PgProjectSync.raise(conflict);
-  return conflict;
+  return PgProjectSync.conflictFor(projectId);
 };
 
 /**

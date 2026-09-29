@@ -150,7 +150,9 @@ describe("reconcile", () => {
     const result = await reconcile();
 
     expect(replace).not.toHaveBeenCalled();
-    expect(result.conflicts).toEqual([{ projectId: "p1", kind: "divergent" }]);
+    expect(result.conflicts).toEqual([
+      { projectId: "p1", kind: "divergent", paths: ["src/lib.rs"] },
+    ]);
     expect(PgProjectSync.conflictFor("p1")).not.toBeNull();
   });
 

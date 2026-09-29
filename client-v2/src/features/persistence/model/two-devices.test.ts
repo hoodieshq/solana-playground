@@ -67,19 +67,17 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
       }),
     });
 
-    if (!body.force) {
-      if (body.changed && !body.baseUpdatedAt) return refuse();
-      if (body.baseUpdatedAt) {
-        // Compare-and-swap: the write lands only if the row still holds the
-        // timestamp this client read
-        if (!live || live.updatedAt !== body.baseUpdatedAt) return refuse();
-      } else if (live && live.snapshot !== null) {
-        // Create-only. A row with no snapshot is adoptable -- a chat turn
-        // creates one before the project's own first upload.
-        return refuse();
-      } else if (existing?.deleted) {
-        return refuse();
-      }
+    if (body.changed && !body.baseUpdatedAt) return refuse();
+    if (body.baseUpdatedAt) {
+      // Compare-and-swap: the write lands only if the row still holds the
+      // timestamp this client read
+      if (!live || live.updatedAt !== body.baseUpdatedAt) return refuse();
+    } else if (live && live.snapshot !== null) {
+      // Create-only. A row with no snapshot is adoptable -- a chat turn
+      // creates one before the project's own first upload.
+      return refuse();
+    } else if (existing?.deleted) {
+      return refuse();
     }
 
     // The real endpoint's two shapes: a whole file set, or a patch on the
@@ -199,6 +197,31 @@ const otherDeviceWrote = (id: string, content: string) => {
   });
 };
 
+/** The other browser wrote these files, and only these */
+const otherDeviceWroteFiles = (id: string, files: Record<string, string>) => {
+  const existing = server.get(id)!;
+  server.set(id, { ...existing, snapshot: { files }, updatedAt: tick() });
+};
+
+/** This browser's current workspace now holds these files */
+const localFilesAre = (name: string, files: Record<string, string>) =>
+  jest
+    .spyOn(PgExplorer, "getAllFiles")
+    .mockReturnValue(
+      Object.entries(files).map(([path, content]) => [
+        `/${name}/${path}`,
+        content,
+      ])
+    );
+
+/** The workspace writes a merge makes, captured instead of hitting the store */
+const captureWrites = () => {
+  jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+  return jest
+    .spyOn(PgExplorer, "replaceWorkspaceFiles")
+    .mockResolvedValue(undefined as never);
+};
+
 /** The other browser deleted it, so the row is tombstoned */
 const otherDeviceDeleted = (id: string) => {
   const existing = server.get(id)!;
@@ -258,7 +281,11 @@ describe("a tutorial started on one browser, opened on another", () => {
     const result = await reconcile();
 
     expect(result.conflicts).toEqual([
-      { projectId: "tut:hello-anchor", kind: "divergent" },
+      {
+        projectId: "tut:hello-anchor",
+        kind: "divergent",
+        paths: ["src/lib.rs"],
+      },
     ]);
     expect(replace).not.toHaveBeenCalled();
   });
@@ -295,7 +322,7 @@ describe("work that never reached the server", () => {
 
     expect(replace).not.toHaveBeenCalled();
     expect(result.conflicts).toEqual([
-      { projectId: HELLO.id, kind: "divergent" },
+      { projectId: HELLO.id, kind: "divergent", paths: ["src/lib.rs"] },
     ]);
   });
 
@@ -337,6 +364,180 @@ describe("work that never reached the server", () => {
       "src/lib.rs": "the other device",
     });
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+});
+
+describe("both devices changed it", () => {
+  beforeEach(setUp);
+  afterEach(() => jest.restoreAllMocks());
+
+  const base = "a\nb\nc\nd\ne\n";
+
+  /** In sync on `files`, then the other device writes `theirs` */
+  const startFrom = async (
+    files: Record<string, string>,
+    theirs: Record<string, string>
+  ) => {
+    asDevice([HELLO]);
+    localFilesAre(HELLO.name, files);
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    otherDeviceWroteFiles(HELLO.id, theirs);
+  };
+
+  it("merges edits to different files without asking", async () => {
+    await startFrom(
+      { "src/lib.rs": "lib", "tests/t.rs": "test" },
+      { "src/lib.rs": "lib", "tests/t.rs": "their test" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "my lib", "tests/t.rs": "test" });
+    const replace = captureWrites();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "my lib", "tests/t.rs": "their test" },
+    });
+    expect(replace).toHaveBeenCalledWith(HELLO.name, {
+      "src/lib.rs": "my lib",
+      "tests/t.rs": "their test",
+    });
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("merges edits to different lines of one file without asking", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
+  it("starts over from what it merged when another write overtakes its upload", async () => {
+    await startFrom(
+      { "src/lib.rs": base, "tests/t.rs": "test" },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n", "tests/t.rs": "test" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": base, "tests/t.rs": "my test" });
+    const replace = captureWrites();
+    // The first PUT is this device's own, refused because the other device
+    // wrote; the second is the merge's, and the other device writes again
+    // just before it arrives. The workspace in memory still holds the
+    // pre-merge copy then, so a retry that re-read it would undo `A`.
+    const online = global.fetch;
+    let puts = 0;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT" && ++puts === 2) {
+        otherDeviceWroteFiles(HELLO.id, {
+          "src/lib.rs": "A\nb\nc\nd\ne\n",
+          "tests/t.rs": "test",
+          "src/new.rs": "new",
+        });
+      }
+      return online(url, init);
+    }) as unknown as typeof fetch;
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    const expected = {
+      "src/lib.rs": "A\nb\nc\nd\ne\n",
+      "tests/t.rs": "my test",
+      "src/new.rs": "new",
+    };
+    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: expected });
+    expect(replace).toHaveBeenLastCalledWith(HELLO.name, expected);
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("still merges after a reload, from the base it kept", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    // The first attempt is refused offline-style: the base is captured before
+    // the request, and then the page goes away
+    const online = global.fetch;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") throw new Error("offline");
+      return online(url, init);
+    }) as unknown as typeof fetch;
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    global.fetch = online;
+
+    PgProjectSync.reset();
+    PgSyncBase.reset();
+    await signedIn();
+    captureWrites();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
+  it("asks only about the file whose lines overlap, and merges the rest", async () => {
+    await startFrom(
+      { "src/lib.rs": base, "tests/t.rs": "test" },
+      { "src/lib.rs": "a\ntheirs\nc\nd\ne\n", "tests/t.rs": "their test" }
+    );
+    localFilesAre(HELLO.name, {
+      "src/lib.rs": "a\nmine\nc\nd\ne\n",
+      "tests/t.rs": "test",
+    });
+    const replace = captureWrites();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "divergent",
+      paths: ["src/lib.rs"],
+    });
+    // Nothing is written until the user answers
+    expect(replace).not.toHaveBeenCalled();
+
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(true);
+
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "a\nmine\nc\nd\ne\n", "tests/t.rs": "their test" },
+    });
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("takes the other device's side of the overlap, and keeps this device's merged work", async () => {
+    await startFrom(
+      { "src/lib.rs": base, "src/mine.rs": "x" },
+      { "src/lib.rs": "a\ntheirs\nc\nd\ne\n", "src/mine.rs": "x" }
+    );
+    localFilesAre(HELLO.name, {
+      "src/lib.rs": "a\nmine\nc\nd\ne\n",
+      "src/mine.rs": "my change",
+    });
+    const replace = captureWrites();
+    await PgProjectSync.pushCurrent();
+
+    expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
+
+    expect(replace).toHaveBeenLastCalledWith(HELLO.name, {
+      "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
+      "src/mine.rs": "my change",
+    });
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: {
+        "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
+        "src/mine.rs": "my change",
+      },
+    });
   });
 });
 

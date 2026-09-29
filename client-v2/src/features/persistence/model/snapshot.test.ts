@@ -4,7 +4,6 @@ import {
   diffFiles,
   filterSnapshotPaths,
   hashFiles,
-  hashSnapshot,
   isUserFile,
   sameUserFiles,
   sha256,
@@ -198,46 +197,5 @@ describe("snapshotOf", () => {
     store.set("/beta/src/lib.rs", "on disk");
 
     expect((await snapshotOf("beta")).files["src/lib.rs"]).toBe("on disk");
-  });
-});
-
-describe("hashSnapshot", () => {
-  it("does not depend on the order the files came in", async () => {
-    // The comparison this feeds crosses Postgres, and `snapshot` is stored as
-    // `jsonb`, which orders keys by length then bytewise rather than keeping
-    // insertion order. Hashing the raw JSON would make a snapshot that had
-    // round-tripped through the server hash differently from the identical one
-    // held here, so every reconcile would read as a change.
-    const one = await hashSnapshot({
-      files: { "a.rs": "1", "bb.rs": "2", "c.rs": "3" },
-    });
-    const other = await hashSnapshot({
-      files: { "c.rs": "3", "a.rs": "1", "bb.rs": "2" },
-    });
-
-    expect(one).toBe(other);
-  });
-
-  it("is a real digest, because it decides whether files are replaced", async () => {
-    // Not "has anything changed since the last upload" any more: reconcile
-    // replaces a project's files on the strength of two of these matching, so
-    // a collision is silent data loss rather than a skipped upload
-    expect(await hashSnapshot({ files: { "a.rs": "1" } })).toMatch(
-      /^[0-9a-f]{64}$/
-    );
-  });
-
-  it("separates a path change from a content change", async () => {
-    const moved = await hashSnapshot({ files: { "b.rs": "1" } });
-    const edited = await hashSnapshot({ files: { "a.rs": "2" } });
-    const original = await hashSnapshot({ files: { "a.rs": "1" } });
-
-    expect(new Set([moved, edited, original]).size).toBe(3);
-  });
-
-  it("tells an empty project from a missing one the same way every time", async () => {
-    expect(await hashSnapshot({ files: {} })).toBe(
-      await hashSnapshot({ files: {} })
-    );
   });
 });

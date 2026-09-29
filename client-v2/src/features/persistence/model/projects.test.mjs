@@ -213,16 +213,6 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.equal(await getProject(userId, "p1"), null);
   });
 
-  it("clobbers only when the caller says so in as many words", async () => {
-    // Removed with the client's last use of it, in the resolution task
-    await put({ files });
-    const result = await put({ files: { "src/lib.rs": "mine" }, force: true });
-    assert.notEqual(result.conflict, true);
-    assert.deepEqual((await getProject(userId, "p1")).snapshot, {
-      files: { "src/lib.rs": "mine" },
-    });
-  });
-
   it("tombstones rather than deleting, and drops the files", async () => {
     await put({ files });
     await deleteProject(userId, "p1");

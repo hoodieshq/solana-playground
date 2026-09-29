@@ -120,15 +120,6 @@ const CREATE = `
          (select updated_at from projects
            where user_id = $1 and id = $2 and deleted_at is null) as current`;
 
-/** Unconditional, and un-tombstones. Only for a caller that names `force`. */
-const FORCE = `
-  insert into projects (id, user_id, name, kind, updated_at)
-  values ($2, $1, $3, $4, now())
-  on conflict (user_id, id) do update
-    set name = excluded.name, kind = excluded.kind,
-        updated_at = now(), deleted_at = null
-  returning updated_at as written, null::timestamptz as current`;
-
 /**
  * Upsert files, skipping any row whose content already matches: a full write
  * resends every file, and rewriting the unchanged ones is exactly the cost
@@ -165,7 +156,7 @@ const DELETE_OTHERS = `
 /**
  * Write a project.
  *
- * Three ways in, and a caller has to choose:
+ * Two ways in, and a caller has to choose:
  *
  * - with `baseUpdatedAt`, a compare-and-swap. The write lands only if the row
  *   still holds the timestamp the caller read, so a device that has been away
@@ -186,9 +177,6 @@ const DELETE_OTHERS = `
  *   arrives. Refusing it meant a project could be permanently unable to make
  *   its own first push; adopting it is safe precisely because there is no code
  *   in it to overwrite.
- * - with `force`, an unconditional overwrite that also un-tombstones. This is
- *   the "keep my copy" the user picks after being shown the conflict, and it
- *   is deliberately something a caller has to name.
  *
  * The files are then either replaced (`files`: the whole set) or patched
  * (`changed` and `removed`: only what differs from the state the token names).
@@ -196,7 +184,7 @@ const DELETE_OTHERS = `
  * from" is always the row the caller read.
  *
  * @param {{id: string, name: string, kind: string, baseUpdatedAt?: string,
- *          force?: boolean, files?: Record<string, string>,
+ *          files?: Record<string, string>,
  *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} | {conflict: true, updatedAt: string | null}>}
  */
@@ -220,13 +208,10 @@ export const saveProject = async (userId, input) => {
  * @param {(text: string, params?: unknown[]) => Promise<import("pg").QueryResult>} q
  */
 export const writeProject = async (q, userId, input) => {
-  const { id, name, kind, baseUpdatedAt, force, files, changed, removed } =
-    input;
-  const creating = !force && !baseUpdatedAt;
+  const { id, name, kind, baseUpdatedAt, files, changed, removed } = input;
+  const creating = !baseUpdatedAt;
 
-  const { rows } = force
-    ? await q(FORCE, [userId, id, name, kind])
-    : baseUpdatedAt
+  const { rows } = baseUpdatedAt
     ? await q(SWAP, [userId, id, name, kind, baseUpdatedAt])
     : await q(CREATE, [userId, id, name, kind]);
 

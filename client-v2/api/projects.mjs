@@ -58,8 +58,11 @@ const isFileMap = (value) =>
  *   file set, so an empty one would delete every file, and no editor ever has
  *   a reason to send it (`pushCurrent` already refuses to build one).
  * - `changed` + `removed`: a patch against the state `baseUpdatedAt` names.
- *   Without a token there is nothing for it to be relative to, and `force`
- *   means "whatever you hold, replace it", which a patch cannot express.
+ *   Without a token there is nothing for it to be relative to.
+ *
+ * `force` is refused outright. There is no unconditional overwrite any more:
+ * two devices' copies are merged on the client, so every write is either a
+ * create or a swap against the row the caller read.
  *
  * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
  *
@@ -68,6 +71,7 @@ const isFileMap = (value) =>
  *   | {error: string}}
  */
 export const describeWrite = (body) => {
+  if (body.force !== undefined) return { error: "force is not supported" };
   const full = body.files !== undefined;
   const patch = body.changed !== undefined || body.removed !== undefined;
   if (full === patch) {
@@ -80,8 +84,8 @@ export const describeWrite = (body) => {
       : { error: "files must be a non-empty map of paths to strings" };
   }
 
-  if (!body.baseUpdatedAt || body.force) {
-    return { error: "A patch needs baseUpdatedAt and cannot be forced" };
+  if (!body.baseUpdatedAt) {
+    return { error: "A patch needs baseUpdatedAt" };
   }
   const changed = body.changed ?? {};
   const removed = body.removed ?? [];
@@ -285,15 +289,13 @@ export default async function handler(req, res) {
         });
       }
 
-      // Spread rather than passed through: `force` bypasses the concurrency
-      // check entirely, so it is read as a boolean from a named field rather
-      // than whatever truthy value happened to arrive on the body.
+      // Named fields rather than the body passed through, so nothing a client
+      // adds reaches the write without this handler having checked it
       const result = await saveProject(user.id, {
         id: body.id,
         name: body.name,
         kind: body.kind,
         baseUpdatedAt: body.baseUpdatedAt,
-        force: body.force === true,
         ...write,
       });
       return result.conflict

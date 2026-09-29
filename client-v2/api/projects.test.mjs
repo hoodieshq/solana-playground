@@ -294,12 +294,13 @@ describe("/api/projects", () => {
       assert.ok(mod.describeWrite({ changed: { a: "2" }, removed: [] }).error);
     });
 
-    it("refuses a patch alongside force", async () => {
+    it("refuses force outright", async () => {
       const mod = await load();
       assert.ok(
         mod.describeWrite({ changed: {}, removed: [], force: true, ...token })
           .error
       );
+      assert.ok(mod.describeWrite({ files: { a: "1" }, force: true }).error);
     });
 
     it("refuses both shapes at once, and neither", async () => {
