@@ -135,6 +135,7 @@ export class PgExplorer {
   static async refreshWorkspaces() {
     const workspace = this._workspace;
     if (!workspace) return;
+    const saved = this._savedWorkspaces;
     let stored;
     try {
       stored = PgWorkspace.migrate(
@@ -143,12 +144,23 @@ export class PgExplorer {
     } catch {
       return;
     }
+    // A create, rename or delete of this tab's own changes memory first and
+    // saves later, after awaits. Taking the store's list inside that window
+    // would undo it -- and so would taking it after a save that landed while
+    // it was being read. Its own save follows, and other tabs hear of that.
+    const inMemory = JSON.stringify(workspace.get().workspaces);
+    if (inMemory !== saved || this._savedWorkspaces !== saved) return;
+
     // Read after the wait: the user may have switched while it ran
     workspace.setCurrent({
       workspaces: stored.workspaces,
       currentId: workspace.currentId,
     });
+    this._savedWorkspaces = JSON.stringify(stored.workspaces);
   }
+
+  /** The list as this tab last saved or read it, for `refreshWorkspaces` */
+  private static _savedWorkspaces: string | null = null;
 
   /**
    * Initialize explorer.
@@ -1528,6 +1540,7 @@ export class PgExplorer {
   /** Saves workspaces from state to `indexedDB`. */
   private static async _saveWorkspaces() {
     if (this._workspace) {
+      this._savedWorkspaces = JSON.stringify(this._workspace.get().workspaces);
       await this.fs.writeFile(
         PgWorkspace.WORKSPACES_CONFIG_PATH,
         JSON.stringify(this._workspace.get()),
