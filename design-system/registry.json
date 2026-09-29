@@ -1,0 +1,574 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "playground",
+  "homepage": "https://solana-playground-ds.vercel.app/design-system/",
+  "items": [
+    {
+      "name": "playground-tokens",
+      "type": "registry:item",
+      "title": "Playground tokens",
+      "description": "Playground's tokens and their Tailwind theme: shadcn's semantic colours, the surface ramp, status, syntax, type, radius, layout, elevation, motion and the product utilities (frosted, gradient-stroke, brand-action). Import both files after tailwindcss.",
+      "dependencies": [
+        "tw-animate-css"
+      ],
+      "files": [
+        {
+          "path": "src/styles/tokens.css",
+          "type": "registry:file",
+          "target": "src/styles/playground-tokens.css"
+        },
+        {
+          "path": "src/styles/theme.css",
+          "type": "registry:file",
+          "target": "src/styles/playground-theme.css"
+        }
+      ]
+    },
+    {
+      "name": "use-indicator",
+      "type": "registry:hook",
+      "title": "useIndicator",
+      "description": "Measures the active item in a track, for a thumb that slides to it.",
+      "files": [
+        {
+          "path": "src/hooks/use-indicator.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "logo",
+      "type": "registry:ui",
+      "title": "Logo",
+      "description": "The Playground mark beside its name. The mark takes the colour of its text.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/logo.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "status-dot",
+      "type": "registry:ui",
+      "title": "Status dot",
+      "description": "The product's one sign for state: idle, success, warning, error, info, running (pulsing) and target.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/status-dot.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn"
+      ]
+    },
+    {
+      "name": "brand-button",
+      "type": "registry:ui",
+      "title": "Brand button",
+      "description": "The one call to action a screen has: a ring of Solana's two colours that fills on hover, or the flat accent.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/brand-button.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "async-button",
+      "type": "registry:ui",
+      "title": "Async button",
+      "description": "A Button that disables itself and shows a spinner until its onClick promise settles.",
+      "registryDependencies": [
+        "button",
+        "spinner",
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/async-button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "copy-button",
+      "type": "registry:ui",
+      "title": "Copy button",
+      "description": "Copies one value. Its tooltip turns from Copy to Copied, in green.",
+      "registryDependencies": [
+        "button",
+        "tooltip",
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/copy-button.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "help-tip",
+      "type": "registry:ui",
+      "title": "Help tip",
+      "description": "A small question mark with a large place to press, and the answer in a tooltip.",
+      "registryDependencies": [
+        "tooltip",
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/help-tip.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "callout",
+      "type": "registry:ui",
+      "title": "Callout",
+      "description": "A tinted note in a page or form: default, info, warning, success, error.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/callout.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn"
+      ]
+    },
+    {
+      "name": "tag",
+      "type": "registry:ui",
+      "title": "Tag",
+      "description": "A tinted label for a kind: level, framework, language. levelVariant() maps a level to its colour.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/tag.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "stepper",
+      "type": "registry:ui",
+      "title": "Stepper",
+      "description": "Write, Build, Deploy, Interact as one switch, with a sliding gradient thumb and a status per stage. Built on Tabs.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/use-indicator.json",
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/stepper.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "segmented",
+      "type": "registry:ui",
+      "title": "Segmented",
+      "description": "One choice of a few, always one: thumb, boxed with a count, gradient, chips. Built on ToggleGroup.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/use-indicator.json",
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/segmented.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "composer",
+      "type": "registry:ui",
+      "title": "Composer",
+      "description": "The assistant's prompt box: banner, context chips, a growing input, add, model, effort ring, send and stop.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/composer.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "console-drawer",
+      "type": "registry:ui",
+      "title": "Console drawer",
+      "description": "A frosted strip under the stage and a well that opens by height, so the terminal stays mounted. \u2318J.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/console-drawer.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "terminal",
+      "type": "registry:ui",
+      "title": "Terminal",
+      "description": "Terminal lines by kind (prompt, output, info, success, warning, error) and the green block caret.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/terminal.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn"
+      ]
+    },
+    {
+      "name": "code-block",
+      "type": "registry:ui",
+      "title": "Code block",
+      "description": "Code with a header, actions that show on hover and line numbers drawn by CSS.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/code-block.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "diagnostic",
+      "type": "registry:ui",
+      "title": "Diagnostic",
+      "description": "A build error said plainly, with the source excerpt and the faulty line marked.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/diagnostic.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "diff",
+      "type": "registry:ui",
+      "title": "Diff",
+      "description": "A suggested change: added and removed lines, each with its own mark, and the counts.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/diff.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn"
+      ]
+    },
+    {
+      "name": "action-card",
+      "type": "registry:ui",
+      "title": "Action card",
+      "description": "A card you open, with a link stretched over it. default, or frame with the brand ring and lift.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/action-card.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "setup-list",
+      "type": "registry:ui",
+      "title": "Setup list",
+      "description": "The sidebar's Get set up checklist: count in the title, fold, dismiss, and a status per step.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/setup-list.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "step-rail",
+      "type": "registry:ui",
+      "title": "Step rail",
+      "description": "A lesson's steps as a vertical line: done, skipped, current, locked.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/step-rail.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "objective-band",
+      "type": "registry:ui",
+      "title": "Objective band",
+      "description": "A lesson's frosted band: a gradient meter, the objective, back and on, and actions.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/objective-band.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "stage-empty",
+      "type": "registry:ui",
+      "title": "Stage empty",
+      "description": "What a stage says before it has anything: media, title, meta, description, notice, actions, footer.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/stage-empty.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "modal",
+      "type": "registry:ui",
+      "title": "Modal",
+      "description": "The product's dialog: a card on a desk, a page of its own on a phone, and a wide size.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/modal.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "menu-extras",
+      "type": "registry:ui",
+      "title": "Menu extras",
+      "description": "Parts for shadcn's menus: a line under an item, a note, and rows that fold open in place.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/menu-extras.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn",
+        "radix-ui"
+      ]
+    },
+    {
+      "name": "editor-tabs",
+      "type": "registry:ui",
+      "title": "Editor tabs",
+      "description": "The open files over the editor, the current one marked with a purple top line.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/editor-tabs.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "lucide-react",
+        "cn"
+      ]
+    },
+    {
+      "name": "drop-zone",
+      "type": "registry:ui",
+      "title": "Drop zone",
+      "description": "Where a file lands, and a button to browse for one.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/drop-zone.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "achievement",
+      "type": "registry:ui",
+      "title": "Achievement",
+      "description": "An achievement for a profile: a gradient ring when earned, grey until then.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/achievement.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": [
+        "cn"
+      ]
+    },
+    {
+      "name": "playground",
+      "type": "registry:item",
+      "title": "Everything",
+      "description": "The tokens and every Playground component, in one install.",
+      "registryDependencies": [
+        "https://solana-playground-ds.vercel.app/r/playground-tokens.json",
+        "https://solana-playground-ds.vercel.app/r/logo.json",
+        "https://solana-playground-ds.vercel.app/r/status-dot.json",
+        "https://solana-playground-ds.vercel.app/r/brand-button.json",
+        "https://solana-playground-ds.vercel.app/r/async-button.json",
+        "https://solana-playground-ds.vercel.app/r/copy-button.json",
+        "https://solana-playground-ds.vercel.app/r/help-tip.json",
+        "https://solana-playground-ds.vercel.app/r/callout.json",
+        "https://solana-playground-ds.vercel.app/r/tag.json",
+        "https://solana-playground-ds.vercel.app/r/stepper.json",
+        "https://solana-playground-ds.vercel.app/r/segmented.json",
+        "https://solana-playground-ds.vercel.app/r/composer.json",
+        "https://solana-playground-ds.vercel.app/r/console-drawer.json",
+        "https://solana-playground-ds.vercel.app/r/terminal.json",
+        "https://solana-playground-ds.vercel.app/r/code-block.json",
+        "https://solana-playground-ds.vercel.app/r/diagnostic.json",
+        "https://solana-playground-ds.vercel.app/r/diff.json",
+        "https://solana-playground-ds.vercel.app/r/action-card.json",
+        "https://solana-playground-ds.vercel.app/r/setup-list.json",
+        "https://solana-playground-ds.vercel.app/r/step-rail.json",
+        "https://solana-playground-ds.vercel.app/r/objective-band.json",
+        "https://solana-playground-ds.vercel.app/r/stage-empty.json",
+        "https://solana-playground-ds.vercel.app/r/modal.json",
+        "https://solana-playground-ds.vercel.app/r/menu-extras.json",
+        "https://solana-playground-ds.vercel.app/r/editor-tabs.json",
+        "https://solana-playground-ds.vercel.app/r/drop-zone.json",
+        "https://solana-playground-ds.vercel.app/r/achievement.json"
+      ],
+      "files": []
+    }
+  ]
+}
