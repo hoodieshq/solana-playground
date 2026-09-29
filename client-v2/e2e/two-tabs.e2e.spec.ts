@@ -28,7 +28,7 @@ interface Row {
 
 const fakeAccount = async (
   context: BrowserContext,
-  opts: { putDelayMs?: number } = {}
+  opts: { putDelayMs?: number; keepOthers?: boolean } = {}
 ) => {
   let tick = 0;
   const stamp = () =>
@@ -42,6 +42,10 @@ const fakeAccount = async (
     snapshot: { files: { [LIB]: "// v0\n" } },
   };
   const state = { conflicts: 0, rejectPuts: false };
+  // With `keepOthers`, a project this browser creates is kept and listed. A
+  // project uploaded and then missing from the list reads as deleted on
+  // another device, and the next reconcile removes it here.
+  const others = new Map<string, Row>();
 
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({
@@ -63,8 +67,21 @@ const fakeAccount = async (
     const req = r.request();
     if (req.method() === "PUT") {
       const body = req.postDataJSON();
-      // Anything else this browser owns is accepted and forgotten
-      if (body.id !== ID) return json(r, { updatedAt: stamp() });
+      // Anything else this browser owns is accepted and, unless asked to
+      // keep it, forgotten
+      if (body.id !== ID) {
+        const updatedAt = stamp();
+        if (opts.keepOthers) {
+          others.set(body.id, {
+            id: body.id,
+            name: body.name,
+            kind: "project",
+            updatedAt,
+            snapshot: body.snapshot,
+          });
+        }
+        return json(r, { updatedAt });
+      }
       if (opts.putDelayMs) {
         await new Promise((done) => setTimeout(done, opts.putDelayMs));
       }
@@ -83,16 +100,19 @@ const fakeAccount = async (
     if (req.method() === "DELETE") return json(r, {});
 
     const id = new URL(req.url()).searchParams.get("id");
-    const listed = {
-      id: row.id,
-      name: row.name,
-      kind: row.kind,
-      updatedAt: row.updatedAt,
-    };
-    if (!id) return json(r, { projects: [listed] });
-    return id === ID
-      ? json(r, { project: { ...listed, snapshot: row.snapshot } })
-      : json(r, {}, 404);
+    const listing = (p: Row) => ({
+      id: p.id,
+      name: p.name,
+      kind: p.kind,
+      updatedAt: p.updatedAt,
+    });
+    if (!id) {
+      return json(r, {
+        projects: [row, ...others.values()].map(listing),
+      });
+    }
+    const found = id === ID ? row : others.get(id);
+    return found ? json(r, { project: found }) : json(r, {}, 404);
   });
 
   return { row, state, stamp };
@@ -270,3 +290,64 @@ test("a file created in one tab appears in the other", async ({ context }) => {
     Object.keys(row.snapshot.files).some((path) => path.endsWith("notes.rs"))
   ).toBe(true);
 });
+
+const switcher = (page: Page) => page.locator('[aria-haspopup="true"]').first();
+
+const openMenu = async (page: Page) => {
+  await switcher(page).click();
+  const menu = page.getByLabel("Projects and lessons");
+  await expect(menu).toBeVisible();
+  return menu;
+};
+
+const createFile = async (page: Page, name: string) => {
+  await page.getByRole("button", { name: "New file" }).click();
+  const input = page.locator("#root-dir input");
+  await expect(input).toBeFocused();
+  await input.fill(name);
+  await input.press("Enter");
+};
+
+// Named for the reason `tabBroughtBackShowsEdit` gives
+const createdProjectSurvives = async ({
+  context,
+}: {
+  context: BrowserContext;
+}) => {
+  test.setTimeout(240_000);
+  await fakeAccount(context, { keepOthers: true });
+  const a = await context.newPage();
+  await openShared(a);
+  const b = await context.newPage();
+  await openShared(b);
+
+  // A new project in A. B loaded with a list that does not have it, and
+  // every re-open in B saves B's list back over the store's.
+  const menu = await openMenu(a);
+  await menu.getByText("Browse gallery").click();
+  const gallery = a.locator("[data-gallery-modal]");
+  await gallery.getByLabel("Project name").fill("Second");
+  await gallery.getByRole("button", { name: /^Start/ }).click();
+  await expect(gallery).toBeHidden(LONG);
+  await expect(switcher(a)).toContainText("Second", LONG);
+
+  // Back to Shared, and a new file there: B has Shared open, so it re-opens
+  // it -- which used to wait for a reload once the list had changed
+  await (await openMenu(a)).getByText("Shared", { exact: true }).click();
+  await expect(switcher(a)).toContainText("Shared", LONG);
+  await createFile(a, "notes.rs");
+  await expect(b.locator("#root-dir")).toContainText("notes.rs", LONG);
+
+  for (const page of [a, b]) {
+    await page.reload();
+    await expect(page.locator("#root-dir")).toBeVisible(LONG);
+    const listed = await openMenu(page);
+    await expect(listed.getByText("Second", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
+};
+
+test(
+  "a project created in one tab survives the other tab's reopen",
+  createdProjectSurvives
+);
