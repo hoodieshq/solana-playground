@@ -2899,7 +2899,12 @@ deleted elsewhere is left for the last one remaining, as the deleting tab
 does, or for the empty state through `PgExplorer.init()` when none remain.
 A refresh never runs over this tab's own unsaved create, rename or delete:
 the explorer remembers the list it last saved or read and skips while
-memory differs from it. The `/api/sync` probe is time-limited too, and a probe that got no
+memory differs from it. After a rename elsewhere the reload does not wait
+for autosave, whose writes under the old name can no longer land: unsaved
+editor text and state that never reached disk are written under the new
+name, then the workspace is re-opened. A list that lost this tab's
+workspace while its directory is still on disk was written by a stale tab,
+not a delete, so the entry is put back (same name and id) and saved. The `/api/sync` probe is time-limited too, and a probe that got no
 answer is asked again rather than remembered as "sync unavailable".
 
 **Revisit when** same-file concurrent editing becomes a requirement (the
