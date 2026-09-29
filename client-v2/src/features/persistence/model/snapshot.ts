@@ -49,6 +49,79 @@ export const filterSnapshotPaths = (paths: readonly string[]) =>
       SYNCED_WORKSPACE_FILES.includes(path) || !path.startsWith(".workspace/")
   );
 
+/** `path -> sha256` for every file in a snapshot */
+export type FileHashes = Record<string, string>;
+
+/**
+ * Whether a path is something the user writes, as opposed to one of the
+ * workspace files the app regenerates on every open.
+ */
+export const isUserFile = (path: string) =>
+  !SYNCED_WORKSPACE_FILES.includes(path);
+
+/**
+ * Lowercase hex SHA-256 of a string's UTF-8 bytes.
+ *
+ * SHA-256, not a cheap rolling hash: reconcile decides whether to replace a
+ * file, and a merge decides which lines to keep, by comparing these -- so a
+ * collision is silent data loss rather than a skipped upload.
+ *
+ * `crypto.subtle` is available in every browser in a secure context, which
+ * includes `localhost`; jsdom is the one environment without it and
+ * `setupTests.ts` polyfills it there.
+ */
+export const sha256 = async (text: string): Promise<string> => {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text)
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+/**
+ * Hash every file separately.
+ *
+ * Per file rather than per snapshot because every question sync asks is now
+ * per file: which ones to upload, which ones changed on which side, and which
+ * ones can be merged. It also retires the canonical-ordering workaround a
+ * whole-snapshot hash needed, since `jsonb` reordered keys.
+ */
+export const hashFiles = async (snapshot: Snapshot): Promise<FileHashes> => {
+  const entries = Object.entries(snapshot.files ?? {});
+  const hashes = await Promise.all(
+    entries.map(([, content]) => sha256(content))
+  );
+  return Object.fromEntries(entries.map(([path], i) => [path, hashes[i]]));
+};
+
+/** What `next` changed or added, and what it removed, relative to `base` */
+export const diffFiles = (base: FileHashes, next: FileHashes) => ({
+  changed: Object.keys(next)
+    .filter((path) => next[path] !== base[path])
+    .sort(),
+  removed: Object.keys(base)
+    .filter((path) => !(path in next))
+    .sort(),
+});
+
+/**
+ * Whether two copies hold the same *user* files.
+ *
+ * The generated workspace files are left out: `PgProgramInfo` rewrites the
+ * keypair file every time a workspace opens, so including them made a device
+ * that had just adopted another's copy differ from it within a second, and
+ * the next reconcile read that as local work.
+ */
+export const sameUserFiles = (a: FileHashes, b: FileHashes) => {
+  const paths = Object.keys(a).filter(isUserFile);
+  return (
+    paths.length === Object.keys(b).filter(isUserFile).length &&
+    paths.every((path) => a[path] === b[path])
+  );
+};
+
 /** One project, as it is stored */
 export interface Snapshot {
   files: Record<string, string>;

@@ -1,13 +1,51 @@
 import {
   buildSnapshot,
   buildSnapshotOf,
+  diffFiles,
   filterSnapshotPaths,
+  hashFiles,
   hashSnapshot,
+  isUserFile,
+  sameUserFiles,
+  sha256,
   snapshotOf,
   SYNCED_WORKSPACE_FILES,
 } from "./snapshot";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+
+describe("per-file hashes", () => {
+  it("hashes each file on its own", async () => {
+    const hashes = await hashFiles({ files: { "a.rs": "1", "b.rs": "1" } });
+    expect(Object.keys(hashes).sort()).toEqual(["a.rs", "b.rs"]);
+    expect(hashes["a.rs"]).toBe(hashes["b.rs"]);
+    expect(hashes["a.rs"]).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("is the SHA-256 of the UTF-8 bytes", async () => {
+    // Pinned so a client and a database computing the same hash agree
+    expect(await sha256("abc")).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+  });
+
+  it("names what changed and what went, against a base", () => {
+    expect(
+      diffFiles({ a: "1", b: "2", c: "3" }, { a: "1", b: "9", d: "4" })
+    ).toEqual({ changed: ["b", "d"], removed: ["c"] });
+  });
+
+  it("compares only the files a user writes", () => {
+    const generated = ".workspace/program-info.json";
+    expect(isUserFile(generated)).toBe(false);
+    expect(isUserFile("src/lib.rs")).toBe(true);
+    expect(
+      sameUserFiles({ a: "1", [generated]: "x" }, { a: "1", [generated]: "y" })
+    ).toBe(true);
+    expect(sameUserFiles({ a: "1" }, { a: "1", b: "2" })).toBe(false);
+    expect(sameUserFiles({ a: "1" }, { a: "2" })).toBe(false);
+  });
+});
 
 describe("filterSnapshotPaths", () => {
   it("keeps user source files", () => {
