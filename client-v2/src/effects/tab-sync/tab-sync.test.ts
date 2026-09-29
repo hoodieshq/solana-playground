@@ -3,6 +3,7 @@ import { reloadCurrentFromDisk } from "../../features/persistence/model/tab-relo
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
+import { PgWorkspace } from "../../utils/explorer/workspace";
 
 jest.mock("../../features/persistence/model/tab-reload", () => ({
   reloadCurrentFromDisk: jest.fn(async () => "unchanged"),
@@ -39,6 +40,7 @@ beforeEach(() => {
   // above before every test, so without this the mock resolves `undefined`
   // and the effect's `.catch` on a non-promise would throw.
   (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("unchanged");
+  jest.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -132,6 +134,60 @@ describe("tabSync", () => {
     jest.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
+    effect.dispose();
+  });
+
+  it("announces a write of the list of workspaces", async () => {
+    // Every create, delete, rename and switch saves it. A neighbour holding
+    // the old list would save that back over the change on its next switch.
+    const effect = tabSync();
+    await PgFs.writeFile(PgWorkspace.WORKSPACES_CONFIG_PATH, "{}");
+    jest.advanceTimersByTime(300);
+
+    expect(opened[0].posted).toEqual([
+      expect.objectContaining({ type: "workspaces-written" }),
+    ]);
+    effect.dispose();
+  });
+
+  it("re-reads the list, then reloads, when a neighbour wrote it", async () => {
+    const order: string[] = [];
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      order.push("refresh");
+    });
+    (reloadCurrentFromDisk as jest.Mock).mockImplementation(async () => {
+      order.push("reload");
+      return "unchanged";
+    });
+    const effect = tabSync();
+    deliver({ type: "workspaces-written", from: "other" });
+    jest.advanceTimersByTime(400);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(order).toEqual(["refresh", "reload"]);
+    effect.dispose();
+  });
+
+  it("makes one reload of a delete's files and list together", () => {
+    const effect = tabSync();
+    deliver({ type: "files-written", projectId: "p1", from: "other" });
+    deliver({ type: "workspaces-written", from: "other" });
+    jest.advanceTimersByTime(400);
+
+    expect(PgExplorer.refreshWorkspaces).toHaveBeenCalledTimes(1);
+    effect.dispose();
+  });
+
+  it("ignores its own write of the list", async () => {
+    const effect = tabSync();
+    await PgFs.writeFile(PgWorkspace.WORKSPACES_CONFIG_PATH, "{}");
+    jest.advanceTimersByTime(300);
+    deliver(opened[0].posted[0]);
+    jest.advanceTimersByTime(400);
+
+    expect(PgExplorer.refreshWorkspaces).not.toHaveBeenCalled();
+    expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
   });
 

@@ -4,6 +4,7 @@ import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, for the reason
 // `project-sync.tsx` gives
 import { PgExplorer } from "../../utils/explorer/explorer";
+import { PgWorkspace } from "../../utils/explorer/workspace";
 import type { Disposable } from "../../utils/types";
 
 const CHANNEL = "pg-workspace-sync";
@@ -22,6 +23,15 @@ interface FilesWritten {
 const isFilesWritten = (data: unknown): data is FilesWritten =>
   (data as FilesWritten)?.type === "files-written" &&
   typeof (data as FilesWritten).projectId === "string";
+
+/** The list of workspaces changed: one was created, deleted or renamed */
+interface WorkspacesWritten {
+  type: "workspaces-written";
+  from: string;
+}
+
+const isWorkspacesWritten = (data: unknown): data is WorkspacesWritten =>
+  (data as WorkspacesWritten)?.type === "workspaces-written";
 
 /**
  * An id for this tab, to tell its own announcements from a neighbour's.
@@ -74,32 +84,59 @@ export const tabSync = (): Disposable => {
   const self = tabId();
 
   const pending = new Set<string>();
+  let workspacesPending = false;
   let announceTimer: ReturnType<typeof setTimeout> | undefined;
+  const flush = () => {
+    for (const id of pending) {
+      const message: FilesWritten = {
+        type: "files-written",
+        projectId: id,
+        from: self,
+      };
+      channel.postMessage(message);
+    }
+    pending.clear();
+    if (workspacesPending) {
+      const message: WorkspacesWritten = {
+        type: "workspaces-written",
+        from: self,
+      };
+      channel.postMessage(message);
+      workspacesPending = false;
+    }
+  };
+  const schedule = () => {
+    if (announceTimer) clearTimeout(announceTimer);
+    announceTimer = setTimeout(flush, ANNOUNCE_MS);
+  };
   const announce = (projectId: string | null | undefined) => {
     if (!projectId) return;
     pending.add(projectId);
-    if (announceTimer) clearTimeout(announceTimer);
-    announceTimer = setTimeout(() => {
-      for (const id of pending) {
-        const message: FilesWritten = {
-          type: "files-written",
-          projectId: id,
-          from: self,
-        };
-        channel.postMessage(message);
-      }
-      pending.clear();
-    }, ANNOUNCE_MS);
+    schedule();
   };
 
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  let listChanged = false;
+  const reload = async (refresh: boolean) => {
+    if (refresh) await PgExplorer.refreshWorkspaces();
+    await reloadCurrentFromDisk();
+  };
   channel.onmessage = ({ data }) => {
-    if (!isFilesWritten(data) || data.from === self) return;
-    if (data.projectId !== PgExplorer.currentWorkspaceId) return;
+    if (isWorkspacesWritten(data)) {
+      if (data.from === self) return;
+      listChanged = true;
+    } else if (isFilesWritten(data)) {
+      if (data.from === self) return;
+      if (data.projectId !== PgExplorer.currentWorkspaceId) return;
+    } else return;
 
+    // One timer for both kinds, so a delete -- which announces the files and
+    // then the list -- is one reload
     if (reloadTimer) clearTimeout(reloadTimer);
     reloadTimer = setTimeout(() => {
-      reloadCurrentFromDisk().catch((e) => report("reload from tab", e));
+      const refresh = listChanged;
+      listChanged = false;
+      reload(refresh).catch((e) => report("reload from tab", e));
     }, RELOAD_MS);
   };
 
@@ -109,7 +146,16 @@ export const tabSync = (): Disposable => {
   // item is only ever renamed within its workspace, so either names the
   // project that changed, which is not always the one open by the time the
   // event is heard.
-  const onPath = (path: string) => announce(projectOfPath(path));
+  //
+  // The list of workspaces is written on every create, delete, rename and
+  // switch. A neighbour holding an old copy would save it back over the
+  // change on its next switch, so it has to hear of this one.
+  const onPath = (path: string) => {
+    if (path === PgWorkspace.WORKSPACES_CONFIG_PATH) {
+      workspacesPending = true;
+      schedule();
+    } else announce(projectOfPath(path));
+  };
   const subscriptions = [
     PgFs.onDidWriteFile(onPath),
     PgExplorer.onDidDeleteItem(onPath),
