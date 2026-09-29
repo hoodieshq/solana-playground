@@ -267,9 +267,8 @@ describe("reloadCurrentFromDisk", () => {
   });
 
   it("carries a file with no record across a rename", async () => {
-    // Renamed in this tab since the open: `renameItem` writes nothing, so
-    // there is no record of what it had on disk, and a failed first
-    // autosave left its text only in state
+    // Created in this tab since the open, so there is no record of what it
+    // had on disk, and a failed first autosave left its text only in state
     store().clear();
     store().set("/renamed/src/lib.rs", "old");
     store().set("/renamed/src/moved.rs", "");
@@ -286,6 +285,52 @@ describe("reloadCurrentFromDisk", () => {
     );
     // Recorded at the open and unchanged since: not this tab's to write
     expect(store().get("/renamed/src/lib.rs")).toBe("old");
+  });
+
+  it("keeps a file's record through a rename in this tab", async () => {
+    // Renamed here after the open: the same item under a new path. The
+    // neighbour then edits it and renames the workspace. This tab changed
+    // nothing in it, so its old copy must not go over that edit.
+    memory["/alpha/src/moved.rs"] = memory["/alpha/src/lib.rs"];
+    delete memory["/alpha/src/lib.rs"];
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_RENAME_ITEM,
+      "/alpha/src/lib.rs"
+    );
+    store().clear();
+    store().set("/renamed/src/moved.rs", "// the neighbour's edit");
+    const name = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockImplementation(async () => {
+      name.mockReturnValue("renamed");
+      return true;
+    });
+
+    expect(await reloadCurrentFromDisk()).toBe("reopened");
+    expect(store().get("/renamed/src/moved.rs")).toBe(
+      "// the neighbour's edit"
+    );
+  });
+
+  it("carries nothing of a temporary project into a workspace", async () => {
+    // A shared link's tree is `/src/...`, and saving it as a workspace moves
+    // those items under the new name. Half-way, that tree reads as held
+    // under "src" -- never opened, and not listed.
+    memory = { "/src/lib.rs": { content: "// shared" } };
+    jest.spyOn(PgExplorer, "isTemporary", "get").mockReturnValue(true);
+    PgCommon.createAndDispatchCustomEvent(PgExplorer.events.ON_DID_INIT);
+    jest.spyOn(PgExplorer, "isTemporary", "get").mockReturnValue(false);
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["mine"]);
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("mine");
+    store().set("/mine/src/lib.rs", "// template");
+    const writes = jest.spyOn(PgFs, "writeFile");
+
+    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(writes).not.toHaveBeenCalled();
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
   });
 
   it("records what a write carried, not state when heard", async () => {

@@ -93,8 +93,16 @@ const memoryRoot = (): string | undefined => {
  * the time it is heard, state may already hold a later edit, whose own write
  * has yet to land -- or never will. `PgFs` announces a write only once it
  * has landed, so a failed one leaves the old entry in place.
+ *
+ * Keyed by the explorer's item, not its path. A rename in this tab moves the
+ * same item to the new path, so the record goes with it -- the rename event
+ * names only the old path, and a record left behind there would make the
+ * renamed file look like this tab's own change, to be written back over a
+ * neighbour's later edit. A file created since the open is a new item, with
+ * no record at all.
  */
-const known = new Map<string, string>();
+type Item = typeof PgExplorer.files[string];
+let known = new WeakMap<Item, string>();
 
 /** The workspace this tab last opened, by the name it had then */
 let openName: string | undefined;
@@ -113,16 +121,28 @@ let openId: string | undefined;
 let left = false;
 
 const recordOpen = () => {
-  known.clear();
-  for (const [path, item] of Object.entries(PgExplorer.files)) {
-    if (item.content !== undefined) known.set(path, item.content);
+  known = new WeakMap();
+  for (const item of Object.values(PgExplorer.files)) {
+    if (item.content !== undefined) known.set(item, item.content);
   }
   openName = PgExplorer.currentWorkspaceName;
   openId = PgExplorer.currentWorkspaceId;
   left = false;
 };
 PgExplorer.onDidSwitchWorkspace(recordOpen);
-PgFs.onDidWriteFile((path, data) => known.set(path, data));
+PgFs.onDidWriteFile((path, data) => {
+  const item = PgExplorer.files[path];
+  if (item) known.set(item, data);
+});
+// A temporary project -- a shared link -- is nothing this tab opened from
+// disk. Forgotten, so that saving it as a workspace, which moves the same
+// items under a new name, never reads as a rename to carry.
+PgExplorer.onDidInit(() => {
+  if (!PgExplorer.isTemporary) return;
+  known = new WeakMap();
+  openName = undefined;
+  openId = undefined;
+});
 // Loaded after the first open, the events above were missed. State then is
 // what was read, as far as anything here can tell.
 if (PgExplorer.isInitialized && !PgExplorer.isTemporary) recordOpen();
@@ -229,14 +249,14 @@ const carryRename = async (from: string, to: string) => {
     if (!path.startsWith(`/${from}/`) || path.endsWith("/")) continue;
     if (item.content === undefined) continue;
 
-    // A file with no record came into this tab's tree since it opened the
-    // workspace without a write under that path -- `renameItem` moves it
-    // with no write at all. Its first autosave may be the one that failed,
-    // so its state is this tab's own.
+    // A file with no record was created in this tab since the open:
+    // `createItem` writes before the item is in state, so that write finds
+    // nothing to record against. Its first autosave may be the one that
+    // failed, so its state is this tab's own.
     const typed = await PgEditorModels.valueOf(path);
     let text: string | undefined;
     if (typed !== null && typed !== item.content) text = typed;
-    else if (!known.has(path) || known.get(path) !== item.content) {
+    else if (!known.has(item) || known.get(item) !== item.content) {
       text = item.content;
     }
     if (text === undefined) continue;
@@ -271,6 +291,16 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   // that reads as a switch and gets stuck.
   const held = memoryRoot();
   const moved = !!held && held !== name;
+  // A tree under a name this tab never opened, and that is not listed
+  // either: a temporary project's `/src/...` on its way into a workspace.
+  // There is nothing of a rename in it to follow.
+  if (
+    moved &&
+    held !== openName &&
+    !PgExplorer.allWorkspaceNames?.includes(held)
+  ) {
+    return "skipped";
+  }
   const switching =
     openId !== undefined
       ? PgExplorer.currentWorkspaceId !== openId
@@ -346,7 +376,7 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
     // Straight into state, not `saveFileToState`: that dispatches the save
     // event, which schedules an upload of what another tab already uploaded
     PgExplorer.files[path].content = content;
-    known.set(path, content);
+    known.set(PgExplorer.files[path], content);
     changed.push(path);
   }
   if (!changed.length) return "unchanged";
