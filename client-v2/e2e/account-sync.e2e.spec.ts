@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { expect, test } from "@playwright/test";
 import { validate as isUuid } from "uuid";
 import type { Page, Route } from "@playwright/test";
@@ -523,9 +525,20 @@ test("a divergent project asks about the overlap, and keeping this version uploa
   const answer = writes.at(-1)!;
   expect(answer.force).toBeUndefined();
   expect(answer.baseUpdatedAt).toBe("2026-03-01T00:00:00.000Z");
-  expect(answer.changed?.["src/lib.rs"]).not.toBe(
-    "// written on the other device"
+  // This browser's own copy went up: the default framework file the project
+  // was created from, read from the bundle rather than from the page so the
+  // expectation does not depend on the code under test.
+  expect(answer.changed).toBeDefined();
+  expect(answer.changed?.["src/lib.rs"]).toBe(
+    readFileSync(
+      join(__dirname, "../src/frameworks/anchor/files/src/lib.rs"),
+      "utf8"
+    )
   );
+  // ...and the server took it, rather than refusing it like the earlier ones
+  await expect
+    .poll(() => stored.updatedAt, LONG)
+    .toBe("2026-04-01T00:00:00.000Z");
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
