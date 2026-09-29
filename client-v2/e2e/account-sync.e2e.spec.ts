@@ -162,7 +162,29 @@ const settled = async (page: Page, writes: unknown[]) => {
   }
 };
 
-/** A project of this browser's own, to hand over and then reload against */
+/**
+ * The id of the workspace open in the page -- the one sync uploads it under.
+ *
+ * Not the conversation's: a thread has an id of its own, so a project may
+ * hold several, and it is not there at all until the panel has opened one.
+ */
+const workspaceId = (page: Page) =>
+  page.evaluate(
+    () =>
+      (
+        window as unknown as { __pgWorkspace?: { id: () => string | null } }
+      ).__pgWorkspace?.id() ?? null
+  );
+
+/**
+ * A project of this browser's own, to hand over and then reload against.
+ *
+ * @returns its workspace id. A row the fake account lists under any other id
+ * is a project this browser has never seen: it is imported beside the real
+ * one as "<name> (imported)", and the real one then reads as deleted on
+ * another device -- which is how these tests used to pass while testing
+ * nothing they meant to.
+ */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
   const gallery = page.locator("[data-gallery-modal]");
@@ -171,11 +193,22 @@ const makeLocalProject = async (page: Page, name: string) => {
   await gallery.getByRole("button", { name: /^Start/ }).click();
   await expect(gallery).toBeHidden(LONG);
 
-  return await page.evaluate(
-    () =>
-      (window as unknown as { __pgAssistant?: { threadId?: string } })
-        .__pgAssistant?.threadId as string
+  await expect.poll(() => workspaceId(page), LONG).not.toBeNull();
+  return (await workspaceId(page)) as string;
+};
+
+/** The same project is open again: not an imported copy beside it */
+const reopened = async (page: Page, id: string, name: string) => {
+  await expect.poll(() => workspaceId(page), LONG).toBe(id);
+  await expect(page.locator('[aria-haspopup="true"]').first()).toContainText(
+    name,
+    LONG
   );
+  await page.locator('[aria-haspopup="true"]').first().click();
+  const menu = page.getByLabel("Projects and lessons");
+  await expect(menu).toBeVisible(LONG);
+  await expect(menu.getByText(/\(imported\)/)).toHaveCount(0);
+  await page.keyboard.press("Escape");
 };
 
 /**
@@ -243,7 +276,7 @@ test("reloading a project the account already has writes nothing", async ({
   // Second load: both sides now agree, and the mark says so
   writes.length = 0;
   await page.reload();
-  await expect.poll(() => threadId(page), LONG).toBe(localId);
+  await reopened(page, localId, "Shared");
 
   await page.waitForTimeout(8000);
 
@@ -320,7 +353,7 @@ test("the other device's change arrives without asking", async ({ page }) => {
 
   writes.length = 0;
   await page.reload();
-  await expect.poll(() => threadId(page), LONG).toBe(localId);
+  await reopened(page, localId, "Handover");
 
   // Nothing to decide: this browser has no work of its own to weigh
   await expect(page.getByText("changed on another device")).toHaveCount(
@@ -359,13 +392,7 @@ test("the other device can change it twice without ever asking", async ({
 }) => {
   test.setTimeout(240_000);
 
-  await makeLocalProject(page, "PingPong");
-  // The workspace's id, from the upload that hands it over. Not the helper's
-  // answer: that is the conversation's id, which is not the workspace's, and
-  // read as the gallery closes it is often still null. Listed under either,
-  // the row is a project this browser has never seen -- imported as
-  // "PingPong (imported)", while the real one reads as deleted elsewhere.
-  let projectId: string | null = null;
+  const localId = await makeLocalProject(page, "PingPong");
 
   const writes: unknown[] = [];
   let stored: { snapshot?: unknown; updatedAt: string } | null = null;
@@ -379,7 +406,6 @@ test("the other device can change it twice without ever asking", async ({
     if (r.request().method() === "PUT") {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
-      projectId ??= body.id;
       stored = {
         snapshot: body.snapshot,
         updatedAt: `2026-02-0${writes.length}T00:00:00.000Z`,
@@ -387,7 +413,7 @@ test("the other device can change it twice without ever asking", async ({
       return json(r, { updatedAt: stored.updatedAt });
     }
     const shared = {
-      id: projectId,
+      id: localId,
       name: "PingPong",
       kind: "project",
       updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
@@ -403,8 +429,6 @@ test("the other device can change it twice without ever asking", async ({
   await page.reload();
   await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
   await settled(page, writes);
-  await expect.poll(() => threadId(page), LONG).not.toBeNull();
-  const thread = await threadId(page);
 
   const banner = page.getByText("changed on another device");
 
@@ -422,7 +446,7 @@ test("the other device can change it twice without ever asking", async ({
 
     writes.length = 0;
     await page.reload();
-    await expect.poll(() => threadId(page), LONG).toBe(thread);
+    await reopened(page, localId, "PingPong");
 
     await expect(banner).toHaveCount(0, LONG);
     await expect(page.locator("#root-dir")).toContainText(`${marker}.rs`, LONG);
@@ -469,10 +493,16 @@ test("a divergent project asks, and keeping this version force-pushes it", async
         return r.fulfill({
           status: 409,
           contentType: "application/json",
-          body: JSON.stringify({ conflict: true, updatedAt: stored?.updatedAt }),
+          body: JSON.stringify({
+            conflict: true,
+            updatedAt: stored?.updatedAt,
+          }),
         });
       }
-      stored = { snapshot: body.snapshot, updatedAt: "2026-04-01T00:00:00.000Z" };
+      stored = {
+        snapshot: body.snapshot,
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      };
       return json(r, { updatedAt: stored.updatedAt });
     }
 
@@ -513,6 +543,8 @@ test("a divergent project asks, and keeping this version force-pushes it", async
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
+  // And the question was about this browser's own project
+  await reopened(page, localId, "Contested");
 });
 
 /** The other answer to the same question, which is the destructive one */
@@ -578,15 +610,17 @@ test("a divergent project can take the other version instead", async ({
   // actually sees. Clearing the workspace directory took the tab state with
   // it, so there was no current file to re-read and the pane went on showing
   // the version that had just been replaced, until the page was reloaded.
-  await expect(
-    page.getByText("// written on the other device")
-  ).toBeVisible(LONG);
+  await expect(page.getByText("// written on the other device")).toBeVisible(
+    LONG
+  );
 
   // And nothing goes back up afterwards. A push here would carry the discarded
   // copy and hand the *other* browser a conflict it did not cause.
   writes.length = 0;
   await page.waitForTimeout(8000);
   expect(writes).toEqual([]);
+  // Taken into this browser's own project, not a copy imported beside it
+  await reopened(page, localId, "Contested");
 });
 
 /**

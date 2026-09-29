@@ -258,3 +258,12 @@ export const reloadCurrentFromDisk = (
   return queue;
 };
 
+// Development only, like `__pgSyncDiagnostics`: `craco build` sets NODE_ENV
+// to production, so this is dropped from the shipped bundle. The browser
+// tests need the open workspace's id -- the one sync uploads it under -- and
+// nothing on screen shows it.
+if (process.env.NODE_ENV !== "production") {
+  (
+    window as unknown as { __pgWorkspace?: { id: () => string | null } }
+  ).__pgWorkspace = { id: () => PgExplorer.currentWorkspaceId ?? null };
+}
