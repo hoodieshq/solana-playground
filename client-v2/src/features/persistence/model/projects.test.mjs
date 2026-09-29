@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
-import { query } from "./db.mjs";
+import { query, transaction } from "./db.mjs";
 import {
   deleteProject,
   getProject,
@@ -249,6 +249,50 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       (await listProjects(userId)).map((p) => p.id),
       ["p2"]
     );
+  });
+
+  it("refuses a create that races another first upload, and keeps one file set", async () => {
+    // Two devices uploading a brand-new project at once. B blocks on A's
+    // uncommitted row; when A commits, B's create-only insert must be refused,
+    // not adopt A's row and merge its files into A's.
+    const filesA = { "a.rs": "from A" };
+    const filesB = { "b.rs": "from B" };
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let aWritten;
+    const written = new Promise((resolve) => (aWritten = resolve));
+
+    const a = transaction(async (q) => {
+      await writeProject(q, userId, {
+        id: "p1",
+        name: "one",
+        kind: "project",
+        files: filesA,
+      });
+      aWritten();
+      await gate;
+    });
+    await written;
+
+    const b = put({ files: filesB });
+
+    // Polled rather than slept: B is ready once Postgres reports it waiting
+    // on a lock, which is the state this case needs it in
+    for (let i = 0; i < 100; i++) {
+      const { rows } = await query(
+        `select 1 from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock'`
+      );
+      if (rows.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    release();
+    const [, result] = await Promise.all([a, b]);
+    assert.equal(result.conflict, true);
+    assert.deepEqual((await getProject(userId, "p1")).snapshot, {
+      files: filesA,
+    });
   });
 
   it("frees the name for reuse once tombstoned", async () => {

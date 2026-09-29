@@ -94,6 +94,13 @@ const SWAP = `
 /**
  * Create-only: a new row, or a live row that holds no files yet. The CTEs
  * share one snapshot, so `current` is what was there when the insert missed.
+ *
+ * `adopted` is true when the row came from the DO UPDATE branch (`xmax` is
+ * non-zero there). The `not exists` below is not trustworthy on its own: a
+ * writer that blocked on another's uncommitted insert has the `where`
+ * re-checked against the newest row, but the subquery still reads the
+ * statement's original snapshot, in which the other writer's files do not
+ * exist yet. `writeProject` therefore re-checks an adoption in a new statement.
  */
 const CREATE = `
   with created as (
@@ -106,9 +113,10 @@ const CREATE = `
         select 1 from project_files f
          where f.user_id = projects.user_id and f.project_id = projects.id
       )
-    returning updated_at
+    returning updated_at, (xmax <> 0) as adopted
   )
   select (select updated_at from created) as written,
+         (select adopted from created) as adopted,
          (select updated_at from projects
            where user_id = $1 and id = $2 and deleted_at is null) as current`;
 
@@ -132,6 +140,19 @@ const UPSERT_FILES = `
   on conflict (user_id, project_id, path) do update
     set content = excluded.content
   where project_files.content is distinct from excluded.content`;
+
+/** Read after an adoption, in a statement of its own -- see `CREATE` */
+const HAS_FILES = `
+  select exists(
+    select 1 from project_files where user_id = $1 and project_id = $2
+  ) as has_files`;
+
+/**
+ * Thrown from inside the transaction so that it rolls back, and caught by
+ * `saveProject` outside it. Returning a conflict instead would commit the
+ * adoption's change to the row.
+ */
+class AdoptionRefused extends Error {}
 
 const DELETE_NAMED = `
   delete from project_files
@@ -179,8 +200,14 @@ const DELETE_OTHERS = `
  *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} | {conflict: true, updatedAt: string | null}>}
  */
-export const saveProject = async (userId, input) =>
-  transaction((q) => writeProject(q, userId, input));
+export const saveProject = async (userId, input) => {
+  try {
+    return await transaction((q) => writeProject(q, userId, input));
+  } catch (e) {
+    if (e instanceof AdoptionRefused) return e.outcome;
+    throw e;
+  }
+};
 
 /**
  * The statements behind `saveProject`, against a caller's `q`.
@@ -205,6 +232,21 @@ export const writeProject = async (q, userId, input) => {
 
   const outcome = settle(rows[0]);
   if (outcome.conflict) return outcome;
+
+  if (rows[0].adopted) {
+    // A new statement gets a fresh snapshot, and the row lock this
+    // transaction now holds means any earlier writer has committed, so its
+    // files are visible here and were not to the adopting statement itself.
+    const { rows: seen } = await q(HAS_FILES, [userId, id]);
+    if (seen[0].has_files) {
+      // The other writer's `updated_at` is gone -- this transaction just
+      // overwrote it -- so the token is null, which only makes the client
+      // read the project again.
+      const refused = new AdoptionRefused();
+      refused.outcome = { conflict: true, updatedAt: null };
+      throw refused;
+    }
+  }
 
   if (files) {
     // A row that create-only let through has no files by definition -- it is
