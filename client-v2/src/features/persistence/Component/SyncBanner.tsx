@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 
+import Button from "../../../components/Button";
 import { PgProjectSync } from "../model/project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
@@ -123,50 +124,109 @@ const SyncBanner = () => {
   if (!conflict) return null;
 
   const prompt = PROMPTS[conflict.kind];
+  const message = prompt.message(conflict);
+
+  // The first path is the one the message names, so it is set in code style
+  const named = conflict.paths?.[0];
+  const at = named ? message.indexOf(named) : -1;
 
   return (
     <Wrapper role="alert">
-      {prompt.message(conflict)}
-      {prompt.actions.map((action) => (
-        <Action
-          key={action.resolution}
-          disabled={busy}
-          onClick={() => void answer(action.resolution)}
-        >
-          {action.label}
-        </Action>
-      ))}
+      <Icon viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+        <path
+          d="M12 3.5L2.5 20h19L12 3.5zM12 10v4.5M12 17.25v.01"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Icon>
+      <Body>
+        <Message>
+          {named && at >= 0 ? (
+            <>
+              {message.slice(0, at)}
+              <Path>{named}</Path>
+              {message.slice(at + named.length)}
+            </>
+          ) : (
+            message
+          )}
+        </Message>
+        <Actions>
+          {prompt.actions.map((action, i) => (
+            <Button
+              key={action.resolution}
+              kind={i === 0 ? "primary" : "outline"}
+              size="small"
+              disabled={busy}
+              onClick={() => void answer(action.resolution)}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Actions>
+      </Body>
     </Wrapper>
   );
 };
 
+/** A floating card, like the project menu it hangs from */
 const Wrapper = styled.div`
-  ${({ theme }) => `
-    padding: 0.5rem 0.75rem;
-    background: ${theme.colors.state.warning.bg};
-    color: ${theme.colors.state.warning.color};
-    font-size: ${theme.font.code.size.small};
+  ${({ theme }) => css`
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
+    width: 26rem;
+    max-width: calc(100vw - 2rem);
+    margin-top: 0.375rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-left: 3px solid ${theme.colors.state.warning.color};
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgSecondary};
+    box-shadow: ${theme.default.boxShadow};
+    color: ${theme.colors.default.textPrimary};
+    font-family: ${theme.font.other.family};
+    font-size: ${theme.font.other.size.small};
+    line-height: 1.4;
+    white-space: normal;
   `}
 `;
 
-const Action = styled.button`
-  ${({ theme }) => `
-    color: ${theme.colors.state.warning.color};
-    text-decoration: underline;
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-size: inherit;
-    white-space: nowrap;
+const Icon = styled.svg`
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+  color: ${({ theme }) => theme.colors.state.warning.color};
+`;
 
-    &:disabled {
-      cursor: progress;
-      opacity: 0.6;
-    }
+const Body = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+`;
+
+const Message = styled.p`
+  margin: 0;
+  overflow-wrap: anywhere;
+`;
+
+const Path = styled.code`
+  ${({ theme }) => css`
+    padding: 0.0625rem 0.375rem;
+    border-radius: 6px;
+    background: ${theme.colors.default.bgPrimary};
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.code.size.small};
   `}
+`;
+
+const Actions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 `;
 
 export default SyncBanner;
