@@ -207,7 +207,33 @@ export class PgSyncMark {
     }
   }
 
-  static async write(projectId: string, mark: SyncMark) {
+  static write(projectId: string, mark: SyncMark) {
+    return PgSyncMark._serial(projectId, () =>
+      PgSyncMark._write(projectId, mark)
+    );
+  }
+
+  /**
+   * Note that this device has work the server has not seen.
+   *
+   * A project with no mark is already treated as unsynced, so there is nothing
+   * to record for one -- writing a mark here would invent an agreement that
+   * never happened.
+   *
+   * A read and a write back, so it runs in the project's queue with every
+   * other change to the mark. Unqueued, a push that wrote its accepted mark
+   * between the two was undone -- the old mark came back flagged, and the
+   * next push was judged against an agreement the server had moved past.
+   */
+  static markDirty(projectId: string) {
+    return PgSyncMark._serial(projectId, async () => {
+      const mark = await PgSyncMark.read(projectId);
+      if (!mark || mark.dirty) return;
+      await PgSyncMark._write(projectId, { ...mark, dirty: true });
+    });
+  }
+
+  private static async _write(projectId: string, mark: SyncMark) {
     const userId = currentUserId();
     if (!userId) return;
 
@@ -220,17 +246,29 @@ export class PgSyncMark {
     }
   }
 
+  /** The last change queued per project, while any is outstanding */
+  private static readonly _tails = new Map<string, Promise<void>>();
+
   /**
-   * Note that this device has work the server has not seen.
-   *
-   * A project with no mark is already treated as unsynced, so there is nothing
-   * to record for one -- writing a mark here would invent an agreement that
-   * never happened.
+   * Run `task` after every change to this project's mark queued before it.
+   * Settles whatever the task does, so one that throws cannot wedge the
+   * queue, and drops the entry once the queue is empty.
    */
-  static async markDirty(projectId: string) {
-    const mark = await PgSyncMark.read(projectId);
-    if (!mark || mark.dirty) return;
-    await PgSyncMark.write(projectId, { ...mark, dirty: true });
+  private static _serial(
+    projectId: string,
+    task: () => Promise<void>
+  ): Promise<void> {
+    const run = (PgSyncMark._tails.get(projectId) ?? Promise.resolve()).then(
+      task
+    );
+    const tail = run.catch(() => {});
+    PgSyncMark._tails.set(projectId, tail);
+    void tail.then(() => {
+      if (PgSyncMark._tails.get(projectId) === tail) {
+        PgSyncMark._tails.delete(projectId);
+      }
+    });
+    return run;
   }
 
   /**
@@ -252,15 +290,18 @@ export class PgSyncMark {
     }
   }
 
-  static async remove(projectId: string) {
-    const userId = currentUserId();
-    if (!userId) return;
+  /** Queued like a write, so a flag already reading it cannot bring it back */
+  static remove(projectId: string) {
+    return PgSyncMark._serial(projectId, async () => {
+      const userId = currentUserId();
+      if (!userId) return;
 
-    try {
-      await PgFs.removeFile(pathOf(userId, projectId));
-    } catch (e) {
-      if (!isMissing(e)) report(`remove sync mark ${projectId}`, e);
-    }
+      try {
+        await PgFs.removeFile(pathOf(userId, projectId));
+      } catch (e) {
+        if (!isMissing(e)) report(`remove sync mark ${projectId}`, e);
+      }
+    });
   }
 
   /**
