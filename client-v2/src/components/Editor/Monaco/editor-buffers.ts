@@ -6,7 +6,13 @@ import type { EditorBuffers } from "../../../utils/explorer/types";
 /** The part of a Monaco model the buffers need, so tests can stand one in */
 export type BufferModel = Pick<
   monaco.editor.ITextModel,
-  "uri" | "getValue" | "getPositionAt" | "pushEditOperations" | "dispose"
+  | "uri"
+  | "getValue"
+  | "getEOL"
+  | "getPositionAt"
+  | "pushEditOperations"
+  | "pushStackElement"
+  | "dispose"
 >;
 
 /** A text's lines, each with its own line break, so they join back exactly */
@@ -76,15 +82,28 @@ export const editorBuffersOf = (
       const model = find(path);
       if (!model) return;
       const current = model.getValue();
-      if (current === content) return;
+      // In the model's own line breaks, which Monaco would rewrite any edit's
+      // text to anyway. Diffed as they came, a file whose breaks differ from
+      // the model's differed on every line, and each write replaced it whole.
+      const eol = model.getEOL();
+      const wanted = content.replace(/\r\n|\r|\n/g, eol);
+      if (current === wanted) return;
       // Edits rather than `setValue`, so the user can still undo past them,
       // and so the editor's change listener -- autosave -- sees them and
       // writes the new text rather than a stale one. All in one call, with
       // every range read off the model before any is applied, as Monaco
-      // expects of a batch.
+      // expects of a batch -- and fenced into an undo step of its own, so
+      // undoing the sync does not take the user's typing with it.
+      //
+      // `forceMoveMarkers`, because the editor tracks its selection with
+      // `AlwaysGrowsWhenTypingAtEdges` stickiness: text inserted where the
+      // caret sits -- the other device's lines, landing just above the line
+      // being typed on -- otherwise grew the caret into a selection of them,
+      // and the next keystroke replaced them.
+      model.pushStackElement();
       model.pushEditOperations(
         [],
-        editsBetween(current, content).map(({ start, end, text }) => {
+        editsBetween(current, wanted).map(({ start, end, text }) => {
           const from = model.getPositionAt(start);
           const to = model.getPositionAt(end);
           return {
@@ -95,10 +114,12 @@ export const editorBuffersOf = (
               endColumn: to.column,
             },
             text,
+            forceMoveMarkers: true,
           };
         }),
         () => null
       );
+      model.pushStackElement();
     },
     discard: (path) => find(path)?.dispose(),
   };
