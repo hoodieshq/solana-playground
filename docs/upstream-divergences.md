@@ -83,7 +83,8 @@ next sync**; the *Why* column says which side wins.
 | `src/routes/share/share.tsx` | Flow visual parity (#10) | merge |
 | `src/settings/server/server.ts` | picker + Foundation default (D30; PR #31) | ours |
 | `src/utils/common.ts` | tutorials (#19); **hot** | merge; upstream's `formatSeconds` line (`8f4d7567`) is not ours -- it came with `pm install` (B15) |
-| `src/utils/explorer/explorer.ts` | workspace events (#19); port of `346adeae`/`837732bc` (PR #27) | merge |
+| `src/utils/explorer/explorer.ts` | workspace events (#19); port of `346adeae`/`837732bc` (PR #27); `renameWorkspace(newName, { from })` renames a workspace other than the current one in place, without switching, so sync can carry a rename from another device (HOO-1726) | merge; upstream's one-argument call is unchanged |
+| `src/utils/explorer/workspace.ts` | `rename(newName, from?)` renames a named workspace, not only the current one (HOO-1726) | merge; the default is upstream's behaviour |
 | `src/utils/explorer/fs.ts` | port of `837732bc` (PR #27) | identical to upstream at `57479351` |
 | `src/utils/keybind.ts` | cmd+B (#15), tutorials (#19) | ours |
 | `src/utils/program-info.ts` | port of `346adeae` (PR #27); **hot** | identical to upstream at `57479351` |
