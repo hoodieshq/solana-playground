@@ -91,8 +91,56 @@ const isClean = async (projectId: string, localName: string) => {
  * this device holds a mark, was deleted on another device: if the local copy is
  * clean the delete finishes here, and if it is not the user is asked rather
  * than having unsaved work removed on another device's say-so.
+ *
+ * One pass at a time. Several things ask for one -- the session on load, the
+ * explorer's first switch, a tab coming back, an adoption's re-open -- and two
+ * passes that overlap each see the other's writes half made: a workspace
+ * `importFresh` has created but not yet marked reads as a copy with work of
+ * its own, and merging that renamed the account's row to its de-duplicated
+ * local name. So a caller that arrives mid-pass waits for it, and then gets a
+ * pass of its own, shared with every other caller that arrived meanwhile.
+ *
+ * Not the pass already running: that one may have started signed out, or
+ * before the import the caller is asking about, and its `latest` and
+ * `replaced` would then answer a question nobody asked. Nothing inside a pass
+ * awaits `reconcile`, so waiting here cannot wait on itself -- the switch an
+ * adoption's re-open dispatches starts one without awaiting it.
  */
-export const reconcile = async (): Promise<SyncResult> => {
+export const reconcile = (): Promise<SyncResult> => {
+  if (!running) return start();
+  queued ??= new Promise<SyncResult>((resolve, reject) => {
+    next = { resolve, reject };
+  });
+  return queued;
+};
+
+/** The pass in progress, if any */
+let running: Promise<SyncResult> | null = null;
+/** The one pass every caller that arrived during `running` will share */
+let queued: Promise<SyncResult> | null = null;
+let next: {
+  resolve: (result: SyncResult) => void;
+  reject: (error: unknown) => void;
+} | null = null;
+
+const start = (): Promise<SyncResult> => {
+  const current = pass();
+  running = current;
+  const settle = () => {
+    running = null;
+    // Handed over in the same turn that `running` clears, so a caller that
+    // arrives in between cannot start a pass alongside the queued one
+    if (!next) return;
+    const { resolve, reject } = next;
+    next = null;
+    queued = null;
+    start().then(resolve, reject);
+  };
+  current.then(settle, settle);
+  return current;
+};
+
+const pass = async (): Promise<SyncResult> => {
   const result = empty();
 
   // Before anything reads the disk. Signed out, or on a deployment with no

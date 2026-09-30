@@ -451,6 +451,37 @@ describe("reconcile", () => {
     expect((await reconcile()).latest).toBe("newer");
   });
 
+  it("runs one pass at a time, and one more for everyone who asked meanwhile", async () => {
+    // Handing a caller the pass already running would give it a decision
+    // made before whatever it is asking about -- a pass that started signed
+    // out, or before an import. So it waits for that pass, then gets a fresh
+    // one, shared with every other caller that arrived in the meantime.
+    withLocal({});
+    let finish!: () => void;
+    const held = new Promise<void>((resolve) => (finish = resolve));
+    let passes = 0;
+    jest.spyOn(PgProjectSync, "list").mockImplementation(async () => {
+      if (++passes === 1) await held;
+      return [];
+    });
+
+    const first = reconcile();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = reconcile();
+    const third = reconcile();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(passes).toBe(1);
+
+    finish();
+    await Promise.all([first, second, third]);
+    expect(passes).toBe(2);
+    expect(second).toBe(third);
+
+    // And idle again afterwards: the next caller starts straight away
+    await reconcile();
+    expect(passes).toBe(3);
+  });
+
   it("does nothing at all when both sides are empty", async () => {
     withLocal({});
     const replace = jest

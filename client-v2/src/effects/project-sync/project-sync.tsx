@@ -232,6 +232,12 @@ export const projectSync = (): Disposable => {
     //
     // Dropping the second request rather than queueing it is right: a
     // reconcile already in flight is about to read the same account.
+    //
+    // Kept although `reconcile` now runs one pass at a time and queues the
+    // rest, which is what keeps this effect's passes apart from the session's.
+    // Queued, a pass that adopts would start the next one through its own
+    // re-open, and the bounce would end only because that next pass happened
+    // to find nothing to adopt. This ends it by construction.
     if (refreshing) return;
     refreshing = true;
 

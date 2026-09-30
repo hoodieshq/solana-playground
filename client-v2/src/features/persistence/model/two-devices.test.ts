@@ -1019,6 +1019,47 @@ describe("picking up where the account left off", () => {
     expect((await reconcile()).latest).toBe("Newer");
   });
 
+  it("imports a project once when two reconciles are asked for at once", async () => {
+    // Load asks twice: the session effect's own reconcile, and the one the
+    // explorer's first switch starts. Overlapping, the second saw the
+    // workspace the first had imported but not yet marked, took it for a
+    // copy with work of its own, and renamed the account's row to its
+    // de-duplicated local name. Or it imported the project a second time.
+    server.set("p1", {
+      id: "p1",
+      name: "Alpha",
+      kind: "project",
+      snapshot: { files: { "src/lib.rs": "from the laptop" } },
+      updatedAt: tick(),
+    });
+    const workspaces: Array<{ id: string; name: string }> = [];
+    asDevice(workspaces);
+    const importWorkspace = jest
+      .spyOn(PgExplorer, "importWorkspace")
+      .mockImplementation(async (name: string, opts) => {
+        workspaces.push({ id: opts.id, name });
+        for (const [path, content] of Object.entries(opts.files)) {
+          storedFiles().set(`/${name}/${path}`, content);
+        }
+      });
+    await signedIn();
+
+    const [first, second] = await Promise.all([reconcile(), reconcile()]);
+
+    expect(importWorkspace).toHaveBeenCalledTimes(1);
+    expect(first.imported).toEqual(["Alpha"]);
+    expect(second.imported).toEqual([]);
+    expect(first.conflicts).toEqual([]);
+    expect(second.conflicts).toEqual([]);
+    expect(PgProjectSync.conflicts).toEqual([]);
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(
+        ([, init]) => init?.method === "PUT"
+      )
+    ).toEqual([]);
+    expect(server.get("p1")!.name).toBe("Alpha");
+  });
+
   it("hands over a project made before signing in", async () => {
     // Only the editor's change handler used to push, so a project that was
     // made and then left alone never reached the account at all
