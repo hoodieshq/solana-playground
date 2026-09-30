@@ -165,7 +165,73 @@ const settled = async (page: Page, writes: unknown[]) => {
   }
 };
 
-/** A project of this browser's own, to hand over and then reload against */
+/**
+ * The id the explorer gave a workspace, read off its config in IndexedDB.
+ *
+ * From the store rather than from a handle on the page, which has none for
+ * it: the assistant's is the conversation's id, which has not been the
+ * workspace's since a project could hold several conversations. Every value
+ * is tried, because the volume keeps file contents by inode and the config
+ * is simply the one that parses as a workspace list naming this project.
+ */
+const workspaceIdOf = (page: Page, name: string) =>
+  page.evaluate(async (name) => {
+    const dbs: Array<{ name?: string }> = await (
+      indexedDB as unknown as {
+        databases: () => Promise<Array<{ name?: string }>>;
+      }
+    ).databases();
+
+    for (const { name: dbName } of dbs) {
+      if (!dbName) continue;
+      const db: IDBDatabase = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      for (const store of Array.from(db.objectStoreNames)) {
+        const values: unknown[] = await new Promise((resolve) => {
+          const request = db
+            .transaction(store, "readonly")
+            .objectStore(store)
+            .getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => resolve([]);
+        });
+
+        for (const value of values) {
+          try {
+            const text =
+              typeof value === "string"
+                ? value
+                : new TextDecoder().decode(value as ArrayBuffer);
+            const parsed = JSON.parse(text);
+            const found = (
+              parsed?.workspaces as Array<{ id: string; name: string }>
+            )?.find?.((w) => w.name === name);
+            if (found) {
+              db.close();
+              return found.id;
+            }
+          } catch {
+            // Not text, or not JSON: some other file, or the superblock
+          }
+        }
+      }
+      db.close();
+    }
+    return null;
+  }, name);
+
+/**
+ * A project of this browser's own, to hand over and then reload against.
+ *
+ * @returns the workspace's id, which is what the account has to list it under
+ * for the reload to be about this project. A different id is a project the
+ * browser has never seen: it is imported beside this one as `(imported)`,
+ * and everything the stub records is about the wrong project.
+ */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
   const gallery = page.locator("[data-gallery-modal]");
@@ -174,11 +240,12 @@ const makeLocalProject = async (page: Page, name: string) => {
   await gallery.getByRole("button", { name: /^Start/ }).click();
   await expect(gallery).toBeHidden(LONG);
 
-  return await page.evaluate(
-    () =>
-      (window as unknown as { __pgAssistant?: { threadId?: string } })
-        .__pgAssistant?.threadId as string
-  );
+  let id: string | null = null;
+  await expect
+    .poll(async () => (id = await workspaceIdOf(page, name)), LONG)
+    .toBeTruthy();
+  expect(isUuid(id!)).toBe(true);
+  return id!;
 };
 
 /**
@@ -455,15 +522,27 @@ test("a divergent project asks about the overlap, and keeping this version uploa
   const localId = await makeLocalProject(page, "Contested");
 
   const writes: Array<{
+    id?: string;
     baseUpdatedAt?: string;
     changed?: Record<string, string>;
     force?: boolean;
   }> = [];
-  // The other device's copy, which this browser has never agreed on
-  let stored = {
-    snapshot: { files: { "src/lib.rs": "// written on the other device" } },
-    updatedAt: "2026-03-01T00:00:00.000Z",
-  };
+  // The other device's copy, which this browser has never agreed on. Keyed
+  // by id, so the token is checked against the row a write names -- and a
+  // write naming any other project finds nothing there.
+  const rows = new Map([
+    [
+      localId,
+      {
+        snapshot: {
+          files: { "src/lib.rs": "// written on the other device" },
+        },
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ],
+  ]);
+  const notFound = (r: Route) =>
+    r.fulfill({ status: 404, contentType: "application/json", body: "{}" });
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -474,31 +553,40 @@ test("a divergent project asks about the overlap, and keeping this version uploa
     if (r.request().method() === "PUT") {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
+      const row = rows.get(body.id);
+      if (!row) return notFound(r);
       // The real swap: only a write built on the current token lands
-      if (body.baseUpdatedAt !== stored.updatedAt) {
+      if (body.baseUpdatedAt !== row.updatedAt) {
         return r.fulfill({
           status: 409,
           contentType: "application/json",
-          body: JSON.stringify({ conflict: true, updatedAt: stored.updatedAt }),
+          body: JSON.stringify({ conflict: true, updatedAt: row.updatedAt }),
         });
       }
-      stored = {
-        snapshot: applyWrite(stored.snapshot, body),
+      rows.set(body.id, {
+        snapshot: applyWrite(row.snapshot, body),
         updatedAt: "2026-04-01T00:00:00.000Z",
-      };
-      return json(r, { updatedAt: stored.updatedAt });
+      });
+      return json(r, { updatedAt: "2026-04-01T00:00:00.000Z" });
     }
 
-    const shared = {
-      id: localId,
+    const listed = [...rows].map(([id, row]) => ({
+      id,
       name: "Contested",
       kind: "project",
-      updatedAt: stored.updatedAt,
-    };
+      updatedAt: row.updatedAt,
+    }));
     const id = new URL(r.request().url()).searchParams.get("id");
-    return id
-      ? json(r, { project: { ...shared, snapshot: stored.snapshot } })
-      : json(r, { projects: [shared] });
+    if (!id) return json(r, { projects: listed });
+    const row = rows.get(id);
+    return row
+      ? json(r, {
+          project: {
+            ...listed.find((p) => p.id === id),
+            snapshot: row.snapshot,
+          },
+        })
+      : notFound(r);
   });
 
   await page.reload();
@@ -513,16 +601,20 @@ test("a divergent project asks about the overlap, and keeping this version uploa
   // it, so it cannot clobber anything. A patch must never appear: it would
   // mean a merge result was sent before the user answered.
   await page.waitForTimeout(8000);
-  const beforeAnswer = writes.length;
-  for (const write of writes) {
+  const ours = () => writes.filter((write) => write.id === localId);
+  const beforeAnswer = ours().length;
+  for (const write of ours()) {
     expect(write.baseUpdatedAt).not.toBe("2026-03-01T00:00:00.000Z");
     expect(write.changed).toBeUndefined();
   }
+  // And no other project is created beside it: the account's copy is this
+  // workspace's, not one to import as a duplicate
+  expect(writes.filter((write) => write.id !== localId)).toEqual([]);
 
   await page.getByRole("button", { name: "Keep this version" }).click();
 
-  await expect.poll(() => writes.length, LONG).toBeGreaterThan(beforeAnswer);
-  const answer = writes.at(-1)!;
+  await expect.poll(() => ours().length, LONG).toBeGreaterThan(beforeAnswer);
+  const answer = ours().at(-1)!;
   expect(answer.force).toBeUndefined();
   expect(answer.baseUpdatedAt).toBe("2026-03-01T00:00:00.000Z");
   // This browser's own copy went up: the default framework file the project
@@ -537,7 +629,7 @@ test("a divergent project asks about the overlap, and keeping this version uploa
   );
   // ...and the server took it, rather than refusing it like the earlier ones
   await expect
-    .poll(() => stored.updatedAt, LONG)
+    .poll(() => rows.get(localId)!.updatedAt, LONG)
     .toBe("2026-04-01T00:00:00.000Z");
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
