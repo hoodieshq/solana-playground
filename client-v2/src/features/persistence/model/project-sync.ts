@@ -5,6 +5,7 @@ import {
   planMerge,
   sameFiles,
   settleConflicts,
+  withLocalKeypair,
 } from "./merge";
 import {
   buildSnapshot,
@@ -536,7 +537,16 @@ export class PgProjectSync {
       // wait for whatever runs next
       PgProjectSync._bump(projectId);
       bumped = true;
-      await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
+      // The account's copy, except for a keypair only this device holds: a
+      // device that built before generated files were uploaded has the one
+      // keypair its program was deployed with, and dropping it here made the
+      // next build mint a new address
+      const files = withLocalKeypair(full!.snapshot!.files, before);
+      await PgExplorer.replaceWorkspaceFiles(local, files);
+      // Still the server's hashes, carried keypair or not. That is what makes
+      // the keypair read as a local change, which the next push uploads: the
+      // write event the rewrite fires for the file schedules it for the open
+      // project, and opening any other one rewrites the file and does the same.
       await PgSyncMark.write(projectId, {
         files: await hashFiles(full!.snapshot!),
         name: local,
@@ -558,15 +568,15 @@ export class PgProjectSync {
       // a moment. That is why reconcile decides on the mark's per-file hashes,
       // compared on user files only: the user's files are what this cannot
       // change, and the generated ones ride along on the next upload.
-      const owed = await PgProjectSync._catchUp(
-        local,
-        before,
-        full!.snapshot!.files
-      );
+      const owed = await PgProjectSync._catchUp(local, before, files);
       // Typing folded into the server's copy is on this device alone. After
       // the mark above, which said the copy was exactly the server's, or the
-      // cheap path in reconcile would skip the project until the next edit.
-      if (owed) await PgSyncMark.markDirty(projectId);
+      // cheap path in reconcile would skip the project until the next edit. A
+      // carried keypair is owed too, and flagged for the same honesty, though
+      // what uploads it is the push described above rather than reconcile.
+      if (owed || files !== full!.snapshot!.files) {
+        await PgSyncMark.markDirty(projectId);
+      }
     } finally {
       if (bumped) PgProjectSync._bump(projectId);
       PgProjectSync.releasePushes();

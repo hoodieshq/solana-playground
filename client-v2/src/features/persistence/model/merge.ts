@@ -1,7 +1,93 @@
 import { diffArrays } from "diff";
 
+import { report } from "./diagnostics";
 import { isUserFile } from "./snapshot";
 import type { FileHashes } from "./snapshot";
+
+/** Where `PgProgramInfo` keeps the program's keypair, relative to a workspace */
+export const PROGRAM_INFO_PATH = ".workspace/program-info.json";
+
+/** A 64-byte secret key as `PgProgramInfo` stores it: an array of bytes */
+const isSecretKey = (kp: unknown): kp is number[] =>
+  Array.isArray(kp) &&
+  kp.length === 64 &&
+  kp.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255);
+
+/** A parsed `program-info.json`, or `null` for anything that is not one */
+const parseProgramInfo = (
+  content: string,
+  side: "local" | "account"
+): Record<string, unknown> | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    report(`program info: unreadable ${side} copy`, e);
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    report(`program info: malformed ${side} copy`, null);
+    return null;
+  }
+  return parsed as Record<string, unknown>;
+};
+
+/**
+ * The account's `program-info.json`, carrying this device's keypair when the
+ * account has none.
+ *
+ * Sync replaces the local copy of the generated files with the account's, and
+ * for this one file that can throw away the only keypair there is: a device
+ * that built before generated files were uploaded holds a keypair the account
+ * never received. Dropping it makes the next build mint a new program
+ * address. Carried into the account's copy instead, the result differs from
+ * the server's, so the device's next push hands the account the keypair.
+ *
+ * Only the keypair is carried; every other field is the account's. When both
+ * sides hold one, the account's wins even if they differ, because that keeps
+ * the program at the address the account already deploys to. Anything that is
+ * not the stored shape leaves the account's copy as it is.
+ *
+ * @param local this device's copy, if it has one
+ * @param account the account's copy, if it has one
+ * @returns what the local file should hold, or `undefined` for no file
+ */
+export const keepLocalKeypair = (
+  local: string | undefined,
+  account: string | undefined
+): string | undefined => {
+  if (local === undefined) return account;
+  const mine = parseProgramInfo(local, "local");
+  if (!mine || !isSecretKey(mine.kp)) return account;
+
+  if (account === undefined) return JSON.stringify({ kp: mine.kp });
+  const theirs = parseProgramInfo(account, "account");
+  // Present in any form means the account has a keypair of its own, or a file
+  // nothing here can safely rewrite: either way it is left alone
+  if (!theirs || (theirs.kp !== null && theirs.kp !== undefined)) {
+    return account;
+  }
+
+  return JSON.stringify({ ...theirs, kp: mine.kp });
+};
+
+/**
+ * `files`, the account's copy of a project, with this device's keypair
+ * carried into it where the account has none -- see `keepLocalKeypair`.
+ *
+ * @returns `files` itself when nothing was carried
+ */
+export const withLocalKeypair = (
+  files: Record<string, string>,
+  local: Record<string, string>
+): Record<string, string> => {
+  const kept = keepLocalKeypair(
+    local[PROGRAM_INFO_PATH],
+    files[PROGRAM_INFO_PATH]
+  );
+  if (kept === files[PROGRAM_INFO_PATH]) return files;
+  return { ...files, [PROGRAM_INFO_PATH]: kept! };
+};
 
 /**
  * The content a file had at the last agreement, for the files this device has
@@ -150,7 +236,8 @@ export interface MergePlan {
  * The generated workspace files are never merged and never asked about. Nobody
  * types them: the keypair is regenerated on open and the tutorial files follow
  * the reader. When both sides changed one, the account's copy wins, which
- * keeps the program at the address the account already deploys to.
+ * keeps the program at the address the account already deploys to -- except
+ * that a keypair only this device holds is carried into it.
  */
 export const planMerge = (input: MergeInput): MergePlan => {
   const { base, baseContents, local, localHashes, server, serverHashes } =
@@ -176,8 +263,14 @@ export const planMerge = (input: MergeInput): MergePlan => {
     if (l === s) take(local);
     else if (l === b) take(server);
     else if (s === b) take(local);
-    else if (!isUserFile(path)) take(path in server ? server : local);
-    else {
+    else if (!isUserFile(path)) {
+      take(path in server ? server : local);
+      // The account's copy winning must not cost this device a keypair the
+      // account lacks, or the next build moves the program to a new address
+      if (path === PROGRAM_INFO_PATH && path in server) {
+        files[path] = keepLocalKeypair(local[path], server[path])!;
+      }
+    } else {
       const ancestor = baseContents[path];
       const merged =
         b !== undefined &&

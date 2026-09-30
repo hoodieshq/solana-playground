@@ -205,10 +205,13 @@ const pass = async (): Promise<SyncResult> => {
         // as the agreement, so the next build uploaded it and silently moved
         // the account's program to a new address.
         //
-        // The adoption re-checks cleanliness inside the project's queue. If
-        // the copy stopped being clean meanwhile, it writes nothing and the
-        // old mark stays for the next pass, which then merges against an
-        // empty base -- where the account's generated files win.
+        // The adoption re-checks cleanliness inside the project's queue, and
+        // writes nothing when it declines, so the old mark stays for the next
+        // pass. What that pass does depends on why it declined. If the copy
+        // stopped being clean meanwhile, it merges against an empty base,
+        // where the account's generated files win, less any keypair only this
+        // device holds, which is carried into them. If the fetch failed or the
+        // snapshot was unusable, the copy is still clean and it adopts again.
         if (await isClean(project.id, local)) {
           const adopted = await PgProjectSync.adopt(project.id);
           if (adopted) result.replaced.push(adopted);

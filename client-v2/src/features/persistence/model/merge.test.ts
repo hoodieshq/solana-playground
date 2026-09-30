@@ -1,4 +1,12 @@
-import { merge3, planMerge, settleConflicts, baseAfterMerge } from "./merge";
+import { clearFailures, getFailures } from "./diagnostics";
+import {
+  keepLocalKeypair,
+  merge3,
+  planMerge,
+  PROGRAM_INFO_PATH,
+  settleConflicts,
+  baseAfterMerge,
+} from "./merge";
 import type { MergeInput } from "./merge";
 
 const lines = (...xs: string[]) => xs.join("\n");
@@ -169,6 +177,115 @@ describe("planMerge", () => {
       input({ [keypair]: "0" }, { [keypair]: "local" }, { [keypair]: "server" })
     );
     expect(plan).toEqual({ files: { [keypair]: "server" }, conflicts: [] });
+  });
+
+  it("keeps this device's keypair when the server's changed copy has none", () => {
+    const plan = planMerge(
+      input(
+        { [PROGRAM_INFO_PATH]: info({ kp: null }) },
+        { [PROGRAM_INFO_PATH]: info({ kp: DEVICE_KP }) },
+        { [PROGRAM_INFO_PATH]: info({ kp: null, idl: "theirs" }) }
+      )
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(JSON.parse(plan.files[PROGRAM_INFO_PATH])).toEqual({
+      ...JSON.parse(info({ kp: null, idl: "theirs" })),
+      kp: DEVICE_KP,
+    });
+  });
+
+  it("still lets the server's keypair win over a different one here", () => {
+    const theirs = info({ kp: ACCOUNT_KP, idl: "theirs" });
+    const plan = planMerge(
+      input(
+        { [PROGRAM_INFO_PATH]: info({ kp: null }) },
+        { [PROGRAM_INFO_PATH]: info({ kp: DEVICE_KP }) },
+        { [PROGRAM_INFO_PATH]: theirs }
+      )
+    );
+    expect(plan).toEqual({
+      files: { [PROGRAM_INFO_PATH]: theirs },
+      conflicts: [],
+    });
+  });
+});
+
+/** Two different 64-byte secret keys, in the array form `PgProgramInfo` stores */
+const DEVICE_KP = Array.from({ length: 64 }, (_, i) => i);
+const ACCOUNT_KP = Array.from({ length: 64 }, (_, i) => 255 - i);
+
+/** A `program-info.json` as `PgProgramInfo` serialises it */
+const info = (fields: { kp: number[] | null; idl?: string }) =>
+  JSON.stringify({
+    uuid: "build-uuid",
+    idl: fields.idl ?? null,
+    kp: fields.kp,
+    customPk: null,
+    lastBuildFailed: false,
+  });
+
+describe("keepLocalKeypair", () => {
+  beforeEach(clearFailures);
+  afterEach(clearFailures);
+
+  it("carries this device's keypair into an account copy that has none", () => {
+    const account = info({ kp: null, idl: "theirs" });
+    const kept = keepLocalKeypair(info({ kp: DEVICE_KP }), account);
+    // Every other field is the account's
+    expect(JSON.parse(kept!)).toEqual({
+      ...JSON.parse(account),
+      kp: DEVICE_KP,
+    });
+  });
+
+  it("carries it into an account copy with no kp field at all", () => {
+    const account = JSON.stringify({ uuid: "theirs" });
+    expect(
+      JSON.parse(keepLocalKeypair(info({ kp: DEVICE_KP }), account)!)
+    ).toEqual({ uuid: "theirs", kp: DEVICE_KP });
+  });
+
+  it("carries only the keypair when the account has no copy at all", () => {
+    expect(
+      JSON.parse(keepLocalKeypair(info({ kp: DEVICE_KP }), undefined)!)
+    ).toEqual({ kp: DEVICE_KP });
+  });
+
+  it("keeps the account's copy when both hold different keypairs", () => {
+    const account = info({ kp: ACCOUNT_KP });
+    expect(keepLocalKeypair(info({ kp: DEVICE_KP }), account)).toBe(account);
+  });
+
+  it("keeps the account's copy when this device has no keypair", () => {
+    const account = info({ kp: null, idl: "theirs" });
+    expect(keepLocalKeypair(info({ kp: null }), account)).toBe(account);
+    expect(keepLocalKeypair(undefined, account)).toBe(account);
+    expect(keepLocalKeypair(undefined, undefined)).toBeUndefined();
+    expect(keepLocalKeypair(info({ kp: null }), undefined)).toBeUndefined();
+    // Nothing is wrong with a project that was never built
+    expect(getFailures()).toEqual([]);
+  });
+
+  it("keeps the account's copy, and says so, when either side is not JSON", () => {
+    const account = info({ kp: null });
+    expect(keepLocalKeypair("{not json", account)).toBe(account);
+    expect(keepLocalKeypair(info({ kp: DEVICE_KP }), "{not json")).toBe(
+      "{not json"
+    );
+    expect(getFailures()).toHaveLength(2);
+  });
+
+  it("keeps the account's copy when either side is not the stored shape", () => {
+    const account = info({ kp: null });
+    expect(keepLocalKeypair(JSON.stringify([1, 2]), account)).toBe(account);
+    expect(keepLocalKeypair(JSON.stringify({ kp: "abc" }), account)).toBe(
+      account
+    );
+    expect(keepLocalKeypair(JSON.stringify({ kp: [1, 2, 3] }), account)).toBe(
+      account
+    );
+    expect(keepLocalKeypair(info({ kp: DEVICE_KP }), "null")).toBe("null");
+    expect(keepLocalKeypair(info({ kp: DEVICE_KP }), "[]")).toBe("[]");
   });
 });
 

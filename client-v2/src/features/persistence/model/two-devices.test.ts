@@ -1306,6 +1306,245 @@ describe("a device upgraded from whole-snapshot marks", () => {
   });
 });
 
+describe("a program keypair only this device holds", () => {
+  beforeEach(() => {
+    setUp();
+    clearFailures();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    // Back to jsdom's own getter, which the first test shadows
+    delete (document as { visibilityState?: unknown }).visibilityState;
+    clearFailures();
+    jest.restoreAllMocks();
+  });
+
+  const PROGRAM_INFO = ".workspace/program-info.json";
+  const DEVICE_KP = Array.from({ length: 64 }, (_, i) => i);
+  const ACCOUNT_KP = Array.from({ length: 64 }, (_, i) => 255 - i);
+  /** A `program-info.json` as `PgProgramInfo` serialises it */
+  const info = (kp: number[] | null, idl: string | null = null) =>
+    JSON.stringify({
+      uuid: "u",
+      idl,
+      kp,
+      customPk: null,
+      lastBuildFailed: false,
+    });
+  const programInfoPath = `/${HELLO.name}/${PROGRAM_INFO}`;
+  const local = () => JSON.parse(storedFiles().get(programInfoPath)!);
+  const onServer = () =>
+    JSON.parse(
+      (server.get(HELLO.id)!.snapshot as { files: Record<string, string> })
+        .files[PROGRAM_INFO]
+    );
+
+  /**
+   * Replaces that land where the real explorer's do, through `PgFs` so the
+   * write event the sync effect listens for fires for the generated files
+   * exactly as it does in the browser.
+   */
+  const writesLand = () => {
+    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    return jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockImplementation(
+        async (name: string, files: Record<string, string>) => {
+          for (const path of SYNCED_WORKSPACE_FILES) {
+            if (path in files)
+              await PgFs.writeFile(`/${name}/${path}`, files[path]);
+            else storedFiles().delete(`/${name}/${path}`);
+          }
+          localFilesAre(
+            name,
+            Object.fromEntries(
+              Object.entries(files).filter(
+                ([path]) => !SYNCED_WORKSPACE_FILES.includes(path)
+              )
+            )
+          );
+        }
+      );
+  };
+
+  /** A mark from before per-file hashes, over the user files of `files` */
+  const legacyMark = async (
+    files: Record<string, string>,
+    updatedAt: string
+  ) => {
+    const pairs = Object.keys(files)
+      .filter((path) => !SYNCED_WORKSPACE_FILES.includes(path))
+      .sort()
+      .map((path) => [path, files[path]]);
+    storedFiles().set(
+      `/.config/sync/u1/${encodeURIComponent(HELLO.id)}.json`,
+      JSON.stringify({
+        hash: "whole snapshot",
+        contentHash: await sha256(JSON.stringify(pairs)),
+        name: HELLO.name,
+        updatedAt,
+        dirty: false,
+      })
+    );
+  };
+
+  const serverHolds = (files: Record<string, string>) => {
+    const updatedAt = tick();
+    server.set(HELLO.id, {
+      id: HELLO.id,
+      name: HELLO.name,
+      kind: "tutorial",
+      snapshot: { files },
+      updatedAt,
+    });
+    return updatedAt;
+  };
+
+  it("is kept when the account's copy is taken, and reaches the account and the other device", async () => {
+    // A device from before the upgrade built, which generated the keypair
+    // here. Nothing uploaded generated files in that era, so the account's
+    // copy has none, and taking it dropped the only keypair there was: the
+    // next build minted a new program address.
+    const account = { "src/lib.rs": "same", [PROGRAM_INFO]: info(null, "idl") };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
+    asDevice([HELLO], "same");
+    storedFiles().set(programInfoPath, info(DEVICE_KP));
+    writesLand();
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      configurable: true,
+    });
+    await signedIn();
+
+    // The effect is what uploads it in the browser: the rewrite fires a write
+    // event for the keypair file, and its debounced push is the next push
+    const pushes: Array<Promise<unknown>> = [];
+    const pushCurrent = PgProjectSync.pushCurrent.bind(PgProjectSync);
+    jest.spyOn(PgProjectSync, "pushCurrent").mockImplementation(() => {
+      const pushed = pushCurrent();
+      pushes.push(pushed);
+      return pushed;
+    });
+    jest.useFakeTimers();
+    const effect = projectSync();
+    try {
+      const result = await reconcile();
+      expect(result.conflicts).toEqual([]);
+      expect(result.replaced).toEqual([HELLO.name]);
+
+      // The account's fields, and this device's keypair
+      expect(local()).toEqual({
+        ...JSON.parse(info(null, "idl")),
+        kp: DEVICE_KP,
+      });
+      // Recorded as the server's copy, so the keypair reads as owed
+      expect((await PgSyncMark.read(HELLO.id))?.files[PROGRAM_INFO]).toBe(
+        await sha256(info(null, "idl"))
+      );
+
+      jest.advanceTimersByTime(3000);
+      expect(pushes).toHaveLength(1);
+      expect(await pushes[0]).toBe("ok");
+    } finally {
+      effect.dispose();
+      jest.useRealTimers();
+    }
+
+    expect(onServer()).toEqual({
+      ...JSON.parse(info(null, "idl")),
+      kp: DEVICE_KP,
+    });
+
+    // The other device last agreed on the account's keypair-less copy, and
+    // has none of its own: it now takes this device's
+    asFreshDevice([HELLO], "same");
+    await PgSyncMark.write(HELLO.id, {
+      files: {
+        "src/lib.rs": await sha256("same"),
+        [PROGRAM_INFO]: await sha256(info(null, "idl")),
+      },
+      name: HELLO.name,
+      updatedAt: agreedAt,
+      dirty: false,
+    });
+    storedFiles().set(programInfoPath, info(null, "idl"));
+    writesLand();
+
+    const other = await reconcile();
+
+    expect(other.replaced).toEqual([HELLO.name]);
+    expect(local().kp).toEqual(DEVICE_KP);
+  });
+
+  it("is kept when both sides changed the keypair file and the account's has none", async () => {
+    asDevice([HELLO], "lib");
+    storedFiles().set(programInfoPath, info(null));
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    // The other device rebuilt without a keypair; this one built with one
+    otherDeviceWroteFiles(HELLO.id, {
+      "src/lib.rs": "lib",
+      [PROGRAM_INFO]: info(null, "theirs"),
+    });
+    localFilesAre(HELLO.name, { "src/lib.rs": "my lib" });
+    storedFiles().set(programInfoPath, info(DEVICE_KP));
+    writesLand();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    const expected = { ...JSON.parse(info(null, "theirs")), kp: DEVICE_KP };
+    expect(local()).toEqual(expected);
+    expect(onServer()).toEqual(expected);
+    expect(
+      (server.get(HELLO.id)!.snapshot as { files: Record<string, string> })
+        .files["src/lib.rs"]
+    ).toBe("my lib");
+  });
+
+  it("gives way to the account's keypair when the account's copy is taken", async () => {
+    const account = {
+      "src/lib.rs": "same",
+      [PROGRAM_INFO]: info(ACCOUNT_KP, "idl"),
+    };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
+    asDevice([HELLO], "same");
+    storedFiles().set(programInfoPath, info(DEVICE_KP));
+    writesLand();
+    await signedIn();
+
+    await reconcile();
+    await PgProjectSync.pushCurrent();
+
+    expect(local().kp).toEqual(ACCOUNT_KP);
+    expect(onServer().kp).toEqual(ACCOUNT_KP);
+  });
+
+  it("gives way to the account's keypair when both sides changed the file", async () => {
+    asDevice([HELLO], "lib");
+    storedFiles().set(programInfoPath, info(null));
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    otherDeviceWroteFiles(HELLO.id, {
+      "src/lib.rs": "lib",
+      [PROGRAM_INFO]: info(ACCOUNT_KP, "theirs"),
+    });
+    localFilesAre(HELLO.name, { "src/lib.rs": "my lib" });
+    storedFiles().set(programInfoPath, info(DEVICE_KP));
+    writesLand();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(local()).toEqual(JSON.parse(info(ACCOUNT_KP, "theirs")));
+    expect(onServer()).toEqual(JSON.parse(info(ACCOUNT_KP, "theirs")));
+  });
+});
+
 describe("picking up where the account left off", () => {
   beforeEach(setUp);
   afterEach(() => jest.restoreAllMocks());
