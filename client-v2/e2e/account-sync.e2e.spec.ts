@@ -435,6 +435,78 @@ test("the other device's change arrives without asking", async ({ page }) => {
 });
 
 /**
+ * A rename on the other device arrives here, and stays.
+ *
+ * Taking the other device's copy used to take its files and keep this
+ * browser's name for them -- and record that name as agreed, so this
+ * browser's next edit uploaded it and renamed the project back for everyone.
+ */
+test("the other device's rename arrives, and the next edit keeps it", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Before");
+
+  const writes: Array<{ name?: string }> = [];
+  let name = "Before";
+  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      name = body.name;
+      stored = {
+        snapshot: body.snapshot,
+        updatedAt: new Date(
+          Date.UTC(2026, 1, 1, 0, 0, writes.length)
+        ).toISOString(),
+      };
+      return json(r, { updatedAt: stored.updatedAt });
+    }
+    const shared = {
+      id: localId,
+      name,
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (id) {
+      return json(r, { project: { ...shared, snapshot: stored?.snapshot } });
+    }
+    return json(r, { projects: stored ? [shared] : [] });
+  });
+
+  await page.reload();
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
+
+  // The other device renames it, and changes nothing else
+  name = "Renamed elsewhere";
+  stored = { ...stored!, updatedAt: "2026-05-01T00:00:00.000Z" };
+
+  writes.length = 0;
+  await page.reload();
+  await reopened(page, localId, "Renamed elsewhere");
+  await expect(page.getByText("changed on another device")).toHaveCount(0);
+
+  // An edit here goes up under the new name, not the old one
+  const editor = page.locator(".monaco-editor .view-lines");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("\n// an edit after the rename");
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  expect(writes.map((w) => w.name)).not.toContain("Before");
+  expect(name).toBe("Renamed elsewhere");
+});
+
+/**
  * The other device keeps going, and this one keeps up.
  *
  * One round trip is not enough to trust this: the first adopt is what puts the
