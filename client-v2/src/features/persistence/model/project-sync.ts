@@ -328,9 +328,10 @@ export class PgProjectSync {
             if (outcome === "merged") return "ok";
             if (outcome === "conflict") return "conflict";
             // A merge that could not read the server -- offline since the
-            // refusal, or the row tombstoned meanwhile -- raised nothing, and
-            // returning without raising would let the next debounce send the
-            // same doomed swap. The plain question below is the fallback.
+            // refusal -- raised nothing, and returning without raising would
+            // let the next debounce send the same doomed swap. The plain
+            // question below is the fallback. A row that is gone is not this
+            // case: the merge has asked about the delete already.
           }
         }
         // Deliberately without recording anything: the upload has not been
@@ -394,6 +395,29 @@ export class PgProjectSync {
   static async fetch(
     projectId: string
   ): Promise<(ServerProject & { snapshot: Snapshot | null }) | null> {
+    const found = await PgProjectSync.read(projectId);
+    if (found === "gone") {
+      report(`fetch project ${projectId}: HTTP 404`, null);
+      return null;
+    }
+    return found;
+  }
+
+  /**
+   * `fetch`, telling a row that is not there from a read that did not happen.
+   *
+   * The two call for different questions. A row tombstoned or never stored
+   * is a project deleted elsewhere, which the user can settle; a network
+   * failure is a project whose state is simply unknown. Folded into one
+   * `null`, a push refused on a deleted row asked the version question, and
+   * both of its answers merge against a server with nothing to merge with.
+   *
+   * @returns the project, `"gone"` for a 404, or `null` for anything else
+   * that did not produce one
+   */
+  static async read(
+    projectId: string
+  ): Promise<(ServerProject & { snapshot: Snapshot | null }) | "gone" | null> {
     if (!(await PgProjectSync._ready())) return null;
 
     try {
@@ -401,6 +425,7 @@ export class PgProjectSync {
         `/api/projects?id=${encodeURIComponent(projectId)}`,
         { credentials: "include", cache: "no-store" }
       );
+      if (response.status === 404) return "gone";
       if (!response.ok) {
         report(`fetch project ${projectId}: HTTP ${response.status}`, null);
         return null;
@@ -693,7 +718,13 @@ export class PgProjectSync {
 
     try {
       for (let attempt = 0; attempt < MERGE_ATTEMPTS; attempt++) {
-        const full = await PgProjectSync.fetch(projectId);
+        const full = await PgProjectSync.read(projectId);
+        // Deleted on another device, most likely while this one was editing:
+        // the question is whether to keep the work, not which version wins
+        if (full === "gone") {
+          PgProjectSync._raise({ projectId, kind: "deleted-elsewhere" });
+          return "conflict";
+        }
         if (!full || !isUsableSnapshot(full.snapshot)) return "failed";
 
         const server = full.snapshot.files;

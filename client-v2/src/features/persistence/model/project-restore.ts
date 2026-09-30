@@ -2,9 +2,10 @@ import { report } from "./diagnostics";
 import { isUsableSnapshot, PgProjectSync } from "./project-sync";
 import { hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
-import { PgSyncMark } from "./sync-mark";
+import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
+import type { LegacySyncMark, SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
 export interface SyncResult {
@@ -55,13 +56,56 @@ const empty = (): SyncResult => ({
  * device having work of its own.
  */
 const isClean = async (projectId: string, localName: string) => {
-  const mark = await PgSyncMark.read(projectId);
+  const mark = await PgSyncMark.inspect(projectId);
   if (!mark) return false;
   if (mark.name !== localName) return false;
-  return sameUserFiles(
-    mark.files,
-    await hashFiles(await snapshotOf(localName))
-  );
+  const files = (await snapshotOf(localName)).files;
+  // A mark from before per-file hashes answers this one question, as a
+  // whole, and nothing else -- see `upgradeLegacy`
+  if ("legacy" in mark) {
+    return (
+      !!mark.contentHash &&
+      mark.contentHash === (await legacyContentHash(files))
+    );
+  }
+  return sameUserFiles(mark.files, await hashFiles({ files }));
+};
+
+/**
+ * Turn a mark from before per-file hashes into one, where it can be done
+ * without guessing.
+ *
+ * The old mark says whether the user's files are exactly what the server
+ * accepted at its timestamp, and nothing about any one file. Where they are,
+ * the local copy's own per-file hashes *are* that agreement, and writing them
+ * puts the project back on the ordinary path: adopted silently if the server
+ * has moved, left alone if not. Without this a device that was merely behind
+ * merged against an empty base, where every line the other device changed
+ * reads as both sides adding different content -- it was asked about files
+ * it never touched, and "Keep this version" reverted the other device.
+ *
+ * Where they are not, nothing can be derived, and the old mark is left for
+ * the merge to replace: against an empty base, which asks about whatever the
+ * two copies disagree on. Never the old mark's hash used as if it were per
+ * file.
+ *
+ * @returns the mark to reconcile with, or `null` for "never agreed"
+ */
+const upgradeLegacy = async (
+  projectId: string,
+  localName: string,
+  legacy: LegacySyncMark
+): Promise<SyncMark | null> => {
+  if (!(await isClean(projectId, localName))) return null;
+
+  const mark: SyncMark = {
+    files: await hashFiles(await snapshotOf(localName)),
+    name: localName,
+    updatedAt: legacy.updatedAt,
+    dirty: false,
+  };
+  await PgSyncMark.write(projectId, mark);
+  return mark;
 };
 
 /**
@@ -185,7 +229,11 @@ const pass = async (): Promise<SyncResult> => {
 
       result.latest ??= local;
 
-      const mark = await PgSyncMark.read(project.id);
+      const found = await PgSyncMark.inspect(project.id);
+      const mark =
+        found && "legacy" in found
+          ? await upgradeLegacy(project.id, local, found)
+          : found;
 
       // The cheap path, and the overwhelmingly common one: this device has
       // nothing pending and the row is exactly where it was left. Neither side
@@ -387,7 +435,11 @@ const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
   for (const name of PgExplorer.allWorkspaceNames ?? []) {
     const id = PgExplorer.workspaceIdOf(name);
     if (!id || serverIds.has(id)) continue;
-    if (await PgSyncMark.read(id)) continue;
+    // Any mark at all, including one `read` cannot use: it is the record that
+    // this device synced the project, which makes its absence from the list a
+    // delete elsewhere -- `settleDeletes`'s -- and a create-only upload of it
+    // a refusal against the tombstone
+    if (await PgSyncMark.exists(id)) continue;
     if (await PgSyncMark.ownedByAnother(id)) continue;
 
     try {

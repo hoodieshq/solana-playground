@@ -1,4 +1,4 @@
-import { PgSyncMark } from "./sync-mark";
+import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgFs } from "../../../utils/explorer/fs";
 
@@ -44,6 +44,43 @@ describe("PgSyncMark", () => {
       })
     );
     expect(await PgSyncMark.read("p1")).toBeNull();
+  });
+
+  it("still tells what a mark from before per-file hashes can answer", async () => {
+    // Not an agreement per file, but a record that this device synced the
+    // project, and of the user's files it agreed on as a whole
+    storedFiles().set(
+      "/.config/sync/u1/p1.json",
+      JSON.stringify({
+        hash: "x",
+        contentHash: "y",
+        name: "one",
+        updatedAt: "t1",
+        dirty: false,
+      })
+    );
+    expect(await PgSyncMark.inspect("p1")).toEqual({
+      legacy: true,
+      contentHash: "y",
+      name: "one",
+      updatedAt: "t1",
+    });
+    expect(await PgSyncMark.exists("p1")).toBe(true);
+    expect(await PgSyncMark.exists("p2")).toBe(false);
+  });
+
+  it("matches a legacy content hash only against the same user files", async () => {
+    const files = { "src/b.rs": "b", "src/a.rs": "a" };
+    const hash = await legacyContentHash(files);
+    expect(
+      await legacyContentHash({
+        ...files,
+        ".workspace/program-info.json": "regenerated",
+      })
+    ).toBe(hash);
+    expect(await legacyContentHash({ ...files, "src/a.rs": "A" })).not.toBe(
+      hash
+    );
   });
 
   it("refuses a file map that is not strings", async () => {

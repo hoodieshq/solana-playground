@@ -62,9 +62,11 @@ const serverHas = (
   snapshots: Record<string, Snapshot | null> = {}
 ) => {
   jest.spyOn(PgProjectSync, "list").mockResolvedValue(projects);
-  jest.spyOn(PgProjectSync, "fetch").mockImplementation(async (id: string) => {
+  // `read` rather than `fetch`, which is built on it: the merge reads through
+  // it directly, to tell a row that is gone from a read that failed
+  jest.spyOn(PgProjectSync, "read").mockImplementation(async (id: string) => {
     const found = projects.find((p) => p.id === id);
-    if (!found) return null;
+    if (!found) return "gone";
     return {
       ...found,
       snapshot: id in snapshots ? snapshots[id] : { files: {} },
@@ -336,6 +338,34 @@ describe("reconcile", () => {
     const result = await reconcile();
 
     expect(remove).not.toHaveBeenCalled();
+    expect(result.conflicts).toEqual([
+      { projectId: "p1", kind: "deleted-elsewhere" },
+    ]);
+  });
+
+  it("does not hand over as new a project it holds a pre-upgrade mark for", async () => {
+    // The mark predates per-file hashes, so it is not read as an agreement --
+    // but it is still the record that this device synced the project, and a
+    // project the server no longer lists was deleted elsewhere, not never
+    // uploaded. A create-only upload of it meets the tombstone.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "work that never uploaded" });
+    storedFiles().set(
+      "/.config/sync/u1/p1.json",
+      JSON.stringify({
+        hash: "x",
+        contentHash: "y",
+        name: "alpha",
+        updatedAt: "t1",
+        dirty: false,
+      })
+    );
+    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    serverHas([]);
+
+    const result = await reconcile();
+
+    expect(push).not.toHaveBeenCalled();
     expect(result.conflicts).toEqual([
       { projectId: "p1", kind: "deleted-elsewhere" },
     ]);

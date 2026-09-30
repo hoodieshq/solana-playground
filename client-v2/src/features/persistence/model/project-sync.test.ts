@@ -366,9 +366,35 @@ describe("a conflict is asked once, not retried forever", () => {
   });
 
   it("still asks when the merge a refusal starts cannot read the server", async () => {
-    // Offline since the refusal, or the row tombstoned meanwhile. Returning
-    // without raising anything would leave pushes running, and every debounce
-    // would send the same doomed swap.
+    // Offline since the refusal. Returning without raising anything would
+    // leave pushes running, and every debounce would send the same doomed
+    // swap.
+    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      if (init?.method === "PUT") return Promise.resolve(refusal);
+      return Promise.reject(new TypeError("Failed to fetch"));
+    }) as unknown as typeof fetch;
+    await signedIn();
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "divergent",
+    });
+    expect(await PgProjectSync.push("p1", { files: { a: "2" } })).toBe(
+      "skipped"
+    );
+    expect(putCalls()).toHaveLength(1);
+  });
+
+  it("asks about the delete when the refused row turns out to be gone", async () => {
+    // A 409 on a tombstoned or missing row, and the merge's read of it a 404.
+    // Asked as a divergence, both answers merge against a server that has
+    // nothing to merge with and fail, so the banner could never be cleared --
+    // and "Keep as a new project", the answer that works, was never offered.
     global.fetch = jest
       .fn()
       .mockImplementation((url: string, init: any) =>
@@ -388,7 +414,7 @@ describe("a conflict is asked once, not retried forever", () => {
     );
     expect(PgProjectSync.conflictFor("p1")).toEqual({
       projectId: "p1",
-      kind: "divergent",
+      kind: "deleted-elsewhere",
     });
     expect(await PgProjectSync.push("p1", { files: { a: "2" } })).toBe(
       "skipped"

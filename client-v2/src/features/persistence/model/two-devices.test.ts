@@ -1,5 +1,6 @@
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
+import { sha256, SYNCED_WORKSPACE_FILES } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
@@ -998,6 +999,148 @@ describe("deleting on one device", () => {
     expect(result.conflicts).toEqual([
       { projectId: HELLO.id, kind: "deleted-elsewhere" },
     ]);
+  });
+});
+
+describe("a device upgraded from whole-snapshot marks", () => {
+  beforeEach(setUp);
+  afterEach(() => jest.restoreAllMocks());
+
+  /**
+   * A mark as the previous version wrote it: one hash of the user's files,
+   * sorted by path and serialised as pairs, and nothing per file. Computed
+   * here from that description rather than by the code under test, so the
+   * format is pinned.
+   */
+  const legacyMark = async (
+    files: Record<string, string>,
+    updatedAt: string
+  ) => {
+    const pairs = Object.keys(files)
+      .filter((path) => !SYNCED_WORKSPACE_FILES.includes(path))
+      .sort()
+      .map((path) => [path, files[path]]);
+    storedFiles().set(
+      `/.config/sync/u1/${encodeURIComponent(HELLO.id)}.json`,
+      JSON.stringify({
+        hash: "whole snapshot",
+        contentHash: await sha256(JSON.stringify(pairs)),
+        name: HELLO.name,
+        updatedAt,
+        dirty: false,
+      })
+    );
+  };
+
+  const serverHolds = (files: Record<string, string>) => {
+    const updatedAt = tick();
+    server.set(HELLO.id, {
+      id: HELLO.id,
+      name: HELLO.name,
+      kind: "tutorial",
+      snapshot: { files },
+      updatedAt,
+    });
+    return updatedAt;
+  };
+
+  const puts = () =>
+    (global.fetch as jest.Mock).mock.calls.filter(
+      ([, init]) => init?.method === "PUT"
+    );
+
+  it("takes the account's copy without asking when this one is what it last agreed", async () => {
+    // Merged against an empty base, every line the other device changed read
+    // as both sides adding different content, and a device that had done
+    // nothing was asked -- where "Keep this version" reverted the other one
+    const agreedAt = serverHolds({ "src/lib.rs": "a\nb\nc\n" });
+    await legacyMark({ "src/lib.rs": "a\nb\nc\n" }, agreedAt);
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "a\ntheirs\nc\n" });
+    asDevice([HELLO], "a\nb\nc\n");
+    const replace = captureWrites();
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.replaced).toEqual([HELLO.name]);
+    expect(replace).toHaveBeenCalledWith(HELLO.name, {
+      "src/lib.rs": "a\ntheirs\nc\n",
+    });
+    expect(puts()).toEqual([]);
+    // Rewritten in the current shape, from the copy it adopted
+    expect((await PgSyncMark.read(HELLO.id))?.updatedAt).toBe(
+      server.get(HELLO.id)!.updatedAt
+    );
+  });
+
+  it("settles identical copies silently, and writes a mark it can use", async () => {
+    const agreedAt = serverHolds({ "src/lib.rs": "same" });
+    await legacyMark({ "src/lib.rs": "same" }, agreedAt);
+    asDevice([HELLO], "same");
+    const replace = captureWrites();
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(puts()).toEqual([]);
+    expect(await PgSyncMark.read(HELLO.id)).toMatchObject({
+      name: HELLO.name,
+      updatedAt: agreedAt,
+    });
+  });
+
+  it("asks about a delete elsewhere over unsent work, and keeps the question answerable", async () => {
+    // Read as no mark at all, the project was also "never synced", so a
+    // create-only upload went out, met the tombstone, and replaced this
+    // question with a version question neither of whose answers can work
+    const agreedAt = serverHolds({ "src/lib.rs": "old" });
+    await legacyMark({ "src/lib.rs": "old" }, agreedAt);
+    otherDeviceDeleted(HELLO.id);
+    asDevice([HELLO], "unsent work");
+    const deleteWorkspace = jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([
+      { projectId: HELLO.id, kind: "deleted-elsewhere" },
+    ]);
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "deleted-elsewhere",
+    });
+    expect(puts()).toEqual([]);
+    expect(deleteWorkspace).not.toHaveBeenCalled();
+
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-as-new")).toBe(true);
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("finishes a delete elsewhere when this copy is what it last agreed", async () => {
+    const agreedAt = serverHolds({ "src/lib.rs": "old" });
+    await legacyMark({ "src/lib.rs": "old" }, agreedAt);
+    otherDeviceDeleted(HELLO.id);
+    const workspaces = [HELLO];
+    asDevice(workspaces, "old");
+    // Gone from the explorer as the real delete leaves it, so nothing later in
+    // the pass reads it as a project the account has never seen
+    const deleteWorkspace = jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockImplementation(async () => void workspaces.pop());
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.removed).toEqual([HELLO.name]);
+    expect(deleteWorkspace).toHaveBeenCalledWith(HELLO.name);
+    expect(puts()).toEqual([]);
   });
 });
 

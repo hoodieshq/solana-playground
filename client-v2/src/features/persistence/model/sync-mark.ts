@@ -1,4 +1,5 @@
 import { report } from "./diagnostics";
+import { isUserFile, sha256 } from "./snapshot";
 import { PgSession } from "../../auth";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { FileHashes } from "./snapshot";
@@ -85,6 +86,45 @@ export interface SyncMark {
 }
 
 /**
+ * A mark written before per-file hashes: one hash of the user's files as a
+ * whole, and none per file.
+ *
+ * Kept apart from `SyncMark` so nothing can mistake it for one. It cannot say
+ * which files changed, and it is no base for a merge -- trusting it as either
+ * would diff against hashes it does not have. What it can still say is that
+ * this device synced the project, and whether the user's files are exactly
+ * what it last agreed on, at which timestamp.
+ */
+export interface LegacySyncMark {
+  legacy: true;
+  /**
+   * `legacyContentHash` of the user files agreed on. Empty in marks older
+   * still, which matches no copy, so those are merged as never agreed.
+   */
+  contentHash: string;
+  name: string;
+  updatedAt: string;
+}
+
+/**
+ * The whole-snapshot hash legacy marks hold, for comparison with one only.
+ *
+ * Sorted by path and serialised as pairs, as the previous version did: its
+ * snapshots crossed `jsonb`, which reorders keys, so this was the canonical
+ * form. The generated workspace files were left out, as they are from every
+ * cleanliness question.
+ */
+export const legacyContentHash = async (files: Record<string, string>) =>
+  await sha256(
+    JSON.stringify(
+      Object.keys(files)
+        .filter(isUserFile)
+        .sort()
+        .map((path) => [path, files[path]])
+    )
+  );
+
+/**
  * The high-water mark: what the server had, last time this device agreed.
  *
  * This is the one piece of sync state that has to outlive the page. Without
@@ -102,8 +142,25 @@ export interface SyncMark {
  * which reconcile handles.
  */
 export class PgSyncMark {
-  /** @returns the mark, or `null` when this project has never synced here */
+  /**
+   * @returns the mark, or `null` when this project has never synced here.
+   * A mark from before per-file hashes is `null` too: nothing it holds can
+   * answer the questions asked of a mark now, and "never agreed" is a state
+   * every caller already settles safely. Only reconcile asks more of one,
+   * through `inspect`.
+   */
   static async read(projectId: string): Promise<SyncMark | null> {
+    const mark = await PgSyncMark.inspect(projectId);
+    return mark && "legacy" in mark ? null : mark;
+  }
+
+  /**
+   * `read`, with a mark from before per-file hashes returned in its own
+   * shape rather than as `null`.
+   */
+  static async inspect(
+    projectId: string
+  ): Promise<SyncMark | LegacySyncMark | null> {
     const userId = currentUserId();
     if (!userId) return null;
 
@@ -112,10 +169,19 @@ export class PgSyncMark {
         await PgFs.readToString(pathOf(userId, projectId))
       );
       const files = parsed?.files;
-      // A mark from before per-file hashes has none, and is read as no mark
-      // at all: nothing it holds can answer the questions asked of it now,
-      // and "never agreed" is a state reconcile already settles safely
-      if (files === undefined && typeof parsed?.hash === "string") return null;
+      if (
+        files === undefined &&
+        typeof parsed?.hash === "string" &&
+        typeof parsed?.updatedAt === "string"
+      ) {
+        return {
+          legacy: true,
+          contentHash:
+            typeof parsed.contentHash === "string" ? parsed.contentHash : "",
+          name: typeof parsed.name === "string" ? parsed.name : "",
+          updatedAt: parsed.updatedAt,
+        };
+      }
       if (
         !files ||
         typeof files !== "object" ||
@@ -165,6 +231,25 @@ export class PgSyncMark {
     const mark = await PgSyncMark.read(projectId);
     if (!mark || mark.dirty) return;
     await PgSyncMark.write(projectId, { ...mark, dirty: true });
+  }
+
+  /**
+   * Whether this device has any record of syncing this project for the
+   * signed-in account -- in any shape, readable or not.
+   *
+   * The question `projectIds` answers per project. A mark `read` cannot use
+   * is still the difference between "deleted elsewhere" and "never uploaded".
+   */
+  static async exists(projectId: string): Promise<boolean> {
+    const userId = currentUserId();
+    if (!userId) return false;
+
+    try {
+      return await PgFs.exists(pathOf(userId, projectId));
+    } catch (e) {
+      report(`find sync mark ${projectId}`, e);
+      return false;
+    }
   }
 
   static async remove(projectId: string) {
