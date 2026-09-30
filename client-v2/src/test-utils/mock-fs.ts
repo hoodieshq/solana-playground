@@ -76,6 +76,10 @@ export const mockFsModule = () => {
     },
 
     async rename(oldPath: string, newPath: string) {
+      // A directory may come with its trailing slash, as the explorer's
+      // canonical paths have it
+      oldPath = oldPath.replace(/\/+$/, "");
+      newPath = newPath.replace(/\/+$/, "");
       for (const [path, content] of [...files.entries()]) {
         if (path !== oldPath && !path.startsWith(oldPath + "/")) continue;
         files.delete(path);

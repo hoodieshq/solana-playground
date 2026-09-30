@@ -330,3 +330,62 @@ describe("PgExplorer.refreshWorkspaces", () => {
     expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
   });
 });
+
+/**
+ * Sync renames a workspace the user may not be in: a project renamed on
+ * another device is renamed here when this device takes that device's copy,
+ * and it need not be the open one. Switching into it to rename it would pull
+ * the user out of whatever they are working on.
+ */
+describe("renaming a workspace that is not the current one", () => {
+  beforeEach(reset);
+
+  it("renames it on disk and in the list, and stays where it was", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+    expect([...PgExplorer.allWorkspaceNames!].sort()).toEqual([
+      "beta",
+      "gamma",
+    ]);
+    expect(PgExplorer.workspaceIdOf("gamma")).toBe(alphaId);
+    expect(stored().get("/gamma/src/lib.rs")).toBe("declare_id!();");
+    expect(stored().has("/alpha/src/lib.rs")).toBe(false);
+    expect(
+      readConfig()
+        .workspaces.map((w) => w.name)
+        .sort()
+    ).toEqual(["beta", "gamma"]);
+  });
+
+  it("renames the current one as before when `from` names it", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(PgExplorer.currentWorkspaceName).toBe("gamma");
+    expect(PgExplorer.allWorkspaceNames).toEqual(["gamma"]);
+  });
+
+  it("refuses a name another workspace holds", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+
+    await expect(
+      PgExplorer.renameWorkspace("beta", { from: "alpha" })
+    ).rejects.toThrow(PgWorkspace.errors.ALREADY_EXISTS);
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+  });
+
+  it("refuses a workspace that does not exist", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await expect(
+      PgExplorer.renameWorkspace("gamma", { from: "nope" })
+    ).rejects.toThrow(PgWorkspace.errors.NOT_FOUND);
+  });
+});

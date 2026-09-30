@@ -731,14 +731,42 @@ export class PgExplorer {
   }
 
   /**
-   * Rename the current workspace.
+   * Rename a workspace, the current one unless `opts.from` names another.
+   *
+   * Another one is renamed where it lies, without switching to it: sync
+   * renames a project renamed on another device when it takes that device's
+   * copy, and the project need not be the one the user is in.
    *
    * @param newName new workspace name
+   * @param opts -
+   * - `from`: the workspace to rename; defaults to the current one
    */
-  static async renameWorkspace(newName: string) {
+  static async renameWorkspace(newName: string, opts?: { from?: string }) {
     newName = newName.trim();
     if (!this.isWorkspaceNameValid(newName)) {
       throw new Error(PgWorkspace.errors.INVALID_NAME);
+    }
+
+    const from = opts?.from;
+    if (from !== undefined && from !== this.currentWorkspaceName) {
+      if (!this._workspace?.allNames.includes(from)) {
+        throw new Error(PgWorkspace.errors.NOT_FOUND);
+      }
+      if (this._workspace.allNames.includes(newName)) {
+        throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
+      }
+
+      await this.fs.rename(
+        PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, from),
+        PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, newName)
+      );
+      this._workspace.rename(newName, from);
+      await this._saveWorkspaces();
+
+      PgCommon.createAndDispatchCustomEvent(
+        this.events.ON_DID_RENAME_WORKSPACE
+      );
+      return;
     }
 
     const workspacePath = this.getRequiredCurrentWorkspacePath();
