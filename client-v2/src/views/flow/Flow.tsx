@@ -31,6 +31,7 @@ import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
+import SyncBanner from "../../features/persistence/Component/SyncBanner";
 import Assistant from "../sidebar/assistant/Component";
 import { PgAssistant } from "../sidebar/assistant/store";
 import ModalBackdrop from "../../components/ModalBackdrop";
@@ -166,6 +167,11 @@ const Flow = () => {
         onToggleSettings={toggleSettings}
         settingsOpen={settingsOpen}
       />
+      {/* In flow, not floating: it is a blocking question, and the file it
+          names has to stay visible beneath it */}
+      <BannerSlot>
+        <SyncBanner />
+      </BannerSlot>
       <Columns $assistant={assistantOpen} $left={leftOpen}>
         {leftOpen ? (
           <Resizable
@@ -269,6 +275,15 @@ const Wrapper = styled.div`
     overflow: hidden;
     background: ${theme.colors.default.bgPrimary};
   `}
+`;
+
+// Empty while there is no conflict, and then takes no room at all
+const BannerSlot = styled.div`
+  padding: 0 ${GAP} ${GAP};
+
+  &:empty {
+    display: none;
+  }
 `;
 
 // Open, the left track is `auto` so the `Resizable` around `LeftPanel` sets

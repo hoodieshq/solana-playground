@@ -19,7 +19,7 @@ const PROMPTS: Record<
   Conflict["kind"],
   {
     message: (conflict: Conflict) => string;
-    actions: { label: string; resolution: Resolution }[];
+    actions: { label: string; resolution: Resolution; primary?: boolean }[];
   }
 > = {
   divergent: {
@@ -32,7 +32,7 @@ const PROMPTS: Record<
           )} changed on another device and on this one, in the same place. Everything else was merged.`
         : "This project changed on another device, and this one has unsaved changes.",
     actions: [
-      { label: "Keep this version", resolution: "keep-local" },
+      { label: "Keep this version", resolution: "keep-local", primary: true },
       { label: "Take the other version", resolution: "take-server" },
     ],
   },
@@ -40,7 +40,11 @@ const PROMPTS: Record<
     message: () =>
       "This project was deleted on another device, but you have unsaved changes here.",
     actions: [
-      { label: "Keep as a new project", resolution: "keep-as-new" },
+      {
+        label: "Keep as a new project",
+        resolution: "keep-as-new",
+        primary: true,
+      },
       { label: "Delete anyway", resolution: "delete-local" },
     ],
   },
@@ -53,12 +57,12 @@ const PROMPTS: Record<
   "name-taken": {
     message: () =>
       "Another project in your account already uses this name, so this one cannot be uploaded. Rename it, then try again.",
-    actions: [{ label: "Try again", resolution: "retry" }],
+    actions: [{ label: "Try again", resolution: "retry", primary: true }],
   },
   "too-large": {
     message: () =>
       "This project is too large to sync. Remove or shrink its largest files, then try again.",
-    actions: [{ label: "Try again", resolution: "retry" }],
+    actions: [{ label: "Try again", resolution: "retry", primary: true }],
   },
 };
 
@@ -155,10 +159,10 @@ const SyncBanner = () => {
           )}
         </Message>
         <Actions>
-          {prompt.actions.map((action, i) => (
+          {prompt.actions.map((action) => (
             <Button
               key={action.resolution}
-              kind={i === 0 ? "primary" : "outline"}
+              kind={action.primary ? "primary" : "outline"}
               size="small"
               disabled={busy}
               onClick={() => void answer(action.resolution)}
@@ -172,43 +176,42 @@ const SyncBanner = () => {
   );
 };
 
-/** A floating card, like the project menu it hangs from */
+/** A card in the layout's flow; the mount point supplies the page gutters */
 const Wrapper = styled.div`
   ${({ theme }) => css`
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
-    width: 26rem;
-    max-width: calc(100vw - 2rem);
-    margin-top: 0.375rem;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 1rem;
     border: 1px solid ${theme.colors.default.border};
     border-left: 3px solid ${theme.colors.state.warning.color};
     border-radius: ${theme.default.borderRadius};
     background: ${theme.colors.default.bgSecondary};
-    box-shadow: ${theme.default.boxShadow};
     color: ${theme.colors.default.textPrimary};
     font-family: ${theme.font.other.family};
     font-size: ${theme.font.other.size.small};
     line-height: 1.4;
-    white-space: normal;
   `}
 `;
 
 const Icon = styled.svg`
   flex-shrink: 0;
-  margin-top: 0.125rem;
   color: ${({ theme }) => theme.colors.state.warning.color};
 `;
 
+/** Message left, buttons right; the buttons drop below when it gets narrow */
 const Body = styled.div`
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
   min-width: 0;
 `;
 
 const Message = styled.p`
+  flex: 1 1 20rem;
   margin: 0;
   overflow-wrap: anywhere;
 `;
@@ -216,7 +219,6 @@ const Message = styled.p`
 const Path = styled.code`
   ${({ theme }) => css`
     padding: 0.0625rem 0.375rem;
-    border-radius: 6px;
     background: ${theme.colors.default.bgPrimary};
     font-family: ${theme.font.code.family};
     font-size: ${theme.font.code.size.small};

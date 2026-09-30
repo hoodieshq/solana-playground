@@ -8,7 +8,6 @@ import { foldRecord, getLessonPath, PgLesson, positionLabel } from "../lessons";
 import { useOnClickOutside, useRenderOnChange } from "../../../hooks";
 import { PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
-import SyncBanner from "../../../features/persistence/Component/SyncBanner";
 
 interface ProjectSwitcherProps {
   onOpenGallery: () => void;
@@ -82,12 +81,6 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
 
   return (
     <Wrapper ref={wrapperRef}>
-      {/* Anchored under the switcher rather than placed in the header row:
-          the banner appears only on a conflict, and reserving height for it
-          would shift the whole header every time one happened */}
-      <BannerSlot>
-        <SyncBanner />
-      </BannerSlot>
       <Trigger
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
@@ -189,15 +182,6 @@ const describeProgress = (name: string) => {
 
 const Wrapper = styled.div`
   position: relative;
-`;
-
-const BannerSlot = styled.div`
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 10;
-  min-width: 100%;
-  white-space: nowrap;
 `;
 
 const Trigger = styled.button`
