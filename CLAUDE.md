@@ -343,6 +343,24 @@ they render inline.
   Team statuses: Backlog, Todo, In Progress, In Review, QA Review, Done,
   Canceled. Two people and two sessions share one branch; a ticket sitting in
   Todo while its PR is open is how the same work gets picked up twice.
+- **Linear is mirrored to a Google Sheet for Alexander** (Slava,
+  2026-10-01). He has no Linear access. He works from
+  [Solana Playground tickets (Linear mirror)](https://docs.google.com/spreadsheets/d/19PCVS67EOhjottFa7SHZXPGmiLgaPigtEy6WRBBnrYQ/edit),
+  which is on the corporate Drive and shared with the team.
+  - Linear owns columns A to Q of the Tickets tab. Alexander owns R and S
+    ("Your status", "Your notes"). A row he adds with an empty ID is a ticket
+    proposal.
+  - **Before taking a ticket,** read the sheet. Carry what he changed into
+    Linear: a proposal becomes an issue assigned to Slava, and a note becomes
+    a comment on its ticket.
+  - **Whenever a ticket moves in Linear** (created, taken, In Progress,
+    In Review, closed, PR linked), update its row in the same round.
+  - Never write R or S.
+  - Writes go through Playwright in a Google-signed-in browser; there is no
+    API key, by choice. On Slava's machine the `linear-sheet-sync` skill
+    does the diff and the paste.
+  - This exists because on 2026-09-30 #40 and our sync stack were built on
+    the same files without either side seeing the other's tickets.
 - Update `docs/decisions.md` when you make a call worth remembering — especially
   when you reject something. The rejected options are why the next person does
   not re-litigate.
