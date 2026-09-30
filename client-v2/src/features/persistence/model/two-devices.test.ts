@@ -791,6 +791,27 @@ describe("both devices changed it", () => {
     expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
   });
 
+  it("merges an edit no push has sent yet, when a reconcile gets there first", async () => {
+    // Autosaved and flagged, with the debounce still pending, when a
+    // reconcile finds the other device has moved. Only a push kept a base,
+    // so the reconcile's merge had none and asked about the whole file.
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    await PgSyncMark.markDirty(HELLO.id);
+    captureWrites();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
   it("leaves a project whose merge is still running to the next pass", async () => {
     await startFrom(
       { "src/lib.rs": base },

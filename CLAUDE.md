@@ -175,6 +175,18 @@ yarn db-dump               # regenerate db/schema.sql after a migration
   replaced. `_initCurrentWorkspace` also falls back to the default open file
   when the metadata names none, so re-reading a workspace always lands
   somewhere.
+- **Typing folded in by sync has its base kept on the spot.** A merge or an
+  adoption folds typing into the files it rewrote (`_catchUp`), then re-opens
+  the workspace -- and the sync effect re-takes the shadow from that folded
+  copy, which no longer hashes to the mark. So `_adopt` and `_mergeWithServer`
+  call `PgSyncBase.capture(..., from)` with what they wrote; without it the
+  folded file had no base and the next exchange asked about the whole file.
+  Tests that stub `switchWorkspace` (`captureWrites`) never fire the switch
+  event and cannot see this; `explorerReopensFromTheStore` in
+  `two-devices.test.ts` does. A base is kept by every path that can reach a
+  merge: `push` before sending, the fold above, and `_mergeWithServer`'s first
+  attempt (for an edit a reconcile reaches before any push). Each captures
+  only content that hashes to the mark.
 - **A 409 is merged, not retried.** A divergent 409 runs
   `PgProjectSync.mergeWithServer`, which re-reads the server and retries its
   own upload at most three times; what it cannot merge is raised to

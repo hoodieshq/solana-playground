@@ -768,6 +768,19 @@ export class PgProjectSync {
           hashFiles({ files: server }),
         ]);
 
+        // What a push would have kept before sending. A merge that reconcile
+        // starts can reach an edit no push has seen -- autosaved, its
+        // debounce still pending -- and without this it had no base for it.
+        // First attempt only: a retry's local copy is the merge's own result,
+        // and the shadow's hash check refuses anything but the agreement.
+        if (mark && !carried) {
+          await PgSyncBase.capture(
+            projectId,
+            diffFiles(mark.files, localHashes).changed,
+            mark.files
+          );
+        }
+
         const plan = planMerge({
           base: mark?.files ?? {},
           baseContents: await PgSyncBase.read(projectId),
