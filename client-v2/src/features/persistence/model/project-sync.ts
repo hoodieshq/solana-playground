@@ -455,15 +455,12 @@ export class PgProjectSync {
    * @returns the local workspace name, or `null` if nothing was taken
    */
   static adopt(projectId: string): Promise<string | null> {
-    return PgProjectSync._exclusive(projectId, (waited) =>
-      PgProjectSync._adopt(projectId, waited)
+    return PgProjectSync._exclusive(projectId, () =>
+      PgProjectSync._adopt(projectId)
     );
   }
 
-  private static async _adopt(
-    projectId: string,
-    waited: boolean
-  ): Promise<string | null> {
+  private static async _adopt(projectId: string): Promise<string | null> {
     const full = await PgProjectSync.fetch(projectId);
     // A snapshot that is not a file map would empty the workspace:
     // `replaceWorkspaceFiles` removes the directory before it discovers it has
@@ -477,24 +474,37 @@ export class PgProjectSync {
     const local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
 
-    // The caller found the local copy expendable before this queued behind a
-    // merge, and the merge may since have put work in it that never uploaded
-    // -- an offline push leaves exactly that. Asked again, then, the way
-    // reconcile asks it; declining leaves the project to the next pass.
-    if (waited) {
+    // Held and counted for the same reasons as a merge's -- see there
+    PgProjectSync.holdPushes();
+    let bumped = false;
+    try {
+      // The caller found the local copy expendable, but that was before the
+      // fetch above, and possibly before this queued behind a merge. Typing
+      // that autosave stored during the round trip, or work a merge left
+      // unsent, is in the local copy now and in no other. So it is asked
+      // again, here, every time -- and the copy read to answer it is the one
+      // the editor is measured against below: any keystroke after this read
+      // is folded in rather than overwritten.
+      //
+      // Declining returns rather than merging in place. The work is already
+      // owed to the server, so the editor's next push meets the swap and
+      // merges through the ordinary path, and a reconcile that runs first
+      // finds the copy dirty and merges it there. Merging here instead would
+      // be a second route to the same result with its own ordering to get
+      // right.
+      const before = (await snapshotOf(local)).files;
       const mark = await PgSyncMark.read(projectId);
       const clean =
         !!mark &&
         mark.name === local &&
-        sameUserFiles(mark.files, await hashFiles(await snapshotOf(local)));
+        sameUserFiles(mark.files, await hashFiles({ files: before }));
       if (!clean) return null;
-    }
 
-    // Held and counted for the same reasons as a merge's -- see there
-    PgProjectSync.holdPushes();
-    PgProjectSync._bump(projectId);
-    try {
-      const before = (await snapshotOf(local)).files;
+      // Only once the copy is known to be expendable: a push already reading
+      // this copy is carrying work, and stopping it would leave that work to
+      // wait for whatever runs next
+      PgProjectSync._bump(projectId);
+      bumped = true;
       await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
       await PgSyncMark.write(projectId, {
         files: await hashFiles(full!.snapshot!),
@@ -517,9 +527,17 @@ export class PgProjectSync {
       // a moment. That is why reconcile decides on the mark's per-file hashes,
       // compared on user files only: the user's files are what this cannot
       // change, and the generated ones ride along on the next upload.
-      await PgProjectSync._catchUp(local, before, full!.snapshot!.files);
+      const owed = await PgProjectSync._catchUp(
+        local,
+        before,
+        full!.snapshot!.files
+      );
+      // Typing folded into the server's copy is on this device alone. After
+      // the mark above, which said the copy was exactly the server's, or the
+      // cheap path in reconcile would skip the project until the next edit.
+      if (owed) await PgSyncMark.markDirty(projectId);
     } finally {
-      PgProjectSync._bump(projectId);
+      if (bumped) PgProjectSync._bump(projectId);
       PgProjectSync.releasePushes();
     }
 
@@ -544,14 +562,17 @@ export class PgProjectSync {
    * @param before what the caller read as the local copy before rewriting.
    * A buffer that no longer matches it was typed into since, and is folded
    * into the new content rather than overwritten.
+   * @returns whether anything was folded in: the store then holds content
+   * that is not `after`, which is all the caller has recorded or uploaded
    */
   private static async _catchUp(
     localName: string,
     before: Record<string, string>,
     after: Record<string, string>
-  ) {
+  ): Promise<boolean> {
     const buffers = PgExplorer.editorBuffers;
     const paths = new Set([...Object.keys(before), ...Object.keys(after)]);
+    let folded = false;
 
     for (const path of buffers ? [...paths].sort() : []) {
       const full = `/${localName}/${path}`;
@@ -576,14 +597,15 @@ export class PgProjectSync {
 
         content = after[path];
         if (read !== undefined && buffer !== read && buffer !== content) {
-          const folded = merge3(read, buffer, content);
-          if (folded === null) {
+          const merged = merge3(read, buffer, content);
+          if (merged === null) {
             report(
               `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
               null
             );
           } else {
-            content = folded;
+            content = merged;
+            if (content !== after[path]) folded = true;
           }
         }
         if (buffer !== content) buffers!.write(full, content);
@@ -611,6 +633,8 @@ export class PgProjectSync {
     if (localName === PgExplorer.currentWorkspaceName) {
       await PgExplorer.switchWorkspace(localName);
     }
+
+    return folded;
   }
 
   /**
@@ -768,7 +792,16 @@ export class PgProjectSync {
       try {
         // Before the gate opens: until the editor and memory hold what the
         // store now does, any push would read the pre-merge copy
-        if (written) await PgProjectSync._catchUp(localName, first!, written);
+        if (
+          written &&
+          (await PgProjectSync._catchUp(localName, first!, written))
+        ) {
+          // The mark was written, and the upload made, from the merged copy
+          // alone. What the editor folded in on top is on this device only,
+          // and a mark that says nothing is owed would have reconcile's cheap
+          // path skip the project until the next edit.
+          await PgSyncMark.markDirty(projectId);
+        }
       } finally {
         // And after catching up, so a snapshot read while it ran is not sent
         PgProjectSync._bump(projectId);

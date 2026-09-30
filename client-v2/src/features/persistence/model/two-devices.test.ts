@@ -2,6 +2,7 @@ import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
+import { PgSyncMark } from "./sync-mark";
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgSession } from "../../auth";
 import { projectSync } from "../../../effects/project-sync/project-sync";
@@ -728,6 +729,65 @@ describe("both devices changed it", () => {
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
 
     expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\ne\n");
+  });
+
+  it("does not take the other device's copy over what was typed and saved while it was being fetched", async () => {
+    // Reconcile found the copy clean and adopted. The user typed during the
+    // adoption's round trip and autosave stored it, so a copy of the local
+    // files read after the fetch already held the typing -- and was taken as
+    // what the editor agreed with, so nothing was folded and the typing went.
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    const replace = captureWrites();
+    const path = `/${HELLO.name}/src/lib.rs`;
+    const buffers = editorHolds({ [path]: base });
+    const typed = "a\nb\nc\nd\nE\n";
+
+    const online = global.fetch;
+    let reads = 0;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      const response = await online(url, init);
+      if (!init?.method && url.includes("id=") && ++reads === 1) {
+        buffers.set(path, typed);
+        localFilesAre(HELLO.name, { "src/lib.rs": typed });
+      }
+      return response;
+    }) as unknown as typeof fetch;
+
+    const result = await reconcile();
+
+    expect(result.replaced).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(buffers.get(path)).toBe(typed);
+
+    // Left as work owed, so the next push merges it with the other device's
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
+  it("leaves the project marked as owing work when a merge folded in typing the server has not got", async () => {
+    // The merge's upload carries the merged copy; what was typed while it ran
+    // is folded in afterwards, and only on this device. A mark that says
+    // nothing is owed makes reconcile's cheap path skip the project, so the
+    // typing stayed here until the next edit.
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+    editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nC\nd\nE\n" });
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
+      "A\nb\nC\nd\nE\n"
+    );
+    expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
   });
 
   it("leaves a project whose merge is still running to the next pass", async () => {

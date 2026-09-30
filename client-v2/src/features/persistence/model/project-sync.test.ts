@@ -1,4 +1,5 @@
 import { PgProjectSync } from "./project-sync";
+import { hashFiles } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
@@ -42,6 +43,19 @@ const reset = () => {
 /** The body of the most recent request */
 const lastBody = () =>
   JSON.parse((global.fetch as jest.Mock).mock.calls.at(-1)![1].body);
+
+/** This device and the server agreed on `files`, under `name` */
+const agreedOn = async (
+  projectId: string,
+  name: string,
+  files: Record<string, string>
+) =>
+  PgSyncMark.write(projectId, {
+    files: await hashFiles({ files }),
+    name,
+    updatedAt: "t1",
+    dirty: false,
+  });
 
 const putCalls = () =>
   (global.fetch as jest.Mock).mock.calls.filter(
@@ -511,6 +525,8 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
+    // Adopting re-checks that the local copy is the last agreement
+    await agreedOn("p1", "mine", { "src/lib.rs": "mine" });
     jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
@@ -518,7 +534,7 @@ describe("resolving a conflict", () => {
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
 
-    await PgProjectSync.adopt("p1");
+    expect(await PgProjectSync.adopt("p1")).toBe("mine");
 
     expect(reload).toHaveBeenCalledWith("mine");
   });
@@ -544,6 +560,8 @@ describe("resolving a conflict", () => {
     await signedIn();
     asWorkspace("p1", "mine");
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
+    storedFiles().set("/other/src/lib.rs", "old");
+    await agreedOn("p2", "other", { "src/lib.rs": "old" });
     jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
@@ -551,7 +569,7 @@ describe("resolving a conflict", () => {
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
 
-    await PgProjectSync.adopt("p2");
+    expect(await PgProjectSync.adopt("p2")).toBe("other");
 
     expect(reload).not.toHaveBeenCalled();
   });
