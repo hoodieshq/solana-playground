@@ -772,3 +772,125 @@ test("a started tutorial hands over its keypair and progress", async ({
   expect(sent).toContain(".workspace/program-info.json");
   expect(sent).toContain(".tutorial.json");
 });
+
+/**
+ * Typing that lands while the other device's copy is being taken, and then
+ * the other device writes again.
+ *
+ * The adoption folds the typing into the account's copy, and re-opens the
+ * workspace -- which is where the sync effect re-takes its shadow, now holding
+ * the typing. The shadow no longer matched the agreement, so nothing kept the
+ * account's copy of the file as its base, and the next exchange asked about
+ * the whole file although no line was changed on both sides. It is the second
+ * exchange of an ordinary back-and-forth, and the unit tests missed it because
+ * they stub the re-open out.
+ */
+test("typing folded into the other device's copy still merges with its next change", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Folded");
+
+  let clock = 0;
+  const stamp = () => `2026-07-01T00:00:${String(++clock).padStart(2, "0")}Z`;
+  let row: { snapshot?: { files: Record<string, string> }; updatedAt: string } =
+    { updatedAt: stamp() };
+  const edit = (from: string, to: string) => {
+    const files = { ...row.snapshot!.files };
+    expect(files["src/lib.rs"]).toContain(from);
+    files["src/lib.rs"] = files["src/lib.rs"].replace(from, to);
+    row = { snapshot: { files }, updatedAt: stamp() };
+  };
+
+  // Released by the test, once it has typed: the adoption's read of the
+  // account's copy is held open until then
+  let holdRead: Promise<void> | null = null;
+  // The other device's next write, landing just before this browser's next
+  // upload
+  let beforeNextWrite: (() => void) | null = null;
+  const writes: unknown[] = [];
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", async (r) => {
+    const listed = {
+      id: localId,
+      name: "Folded",
+      kind: "project",
+      updatedAt: row.updatedAt,
+    };
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      beforeNextWrite?.();
+      beforeNextWrite = null;
+      if (row.snapshot && body.baseUpdatedAt !== row.updatedAt) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: row.updatedAt }),
+        });
+      }
+      row = { snapshot: applyWrite(row.snapshot, body), updatedAt: stamp() };
+      return json(r, { updatedAt: row.updatedAt });
+    }
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (!id) return json(r, { projects: row.snapshot ? [listed] : [] });
+    if (holdRead) await holdRead;
+    return json(r, { project: { ...listed, snapshot: row.snapshot } });
+  });
+
+  // Hand it over, so both sides agree to begin with
+  await page.reload();
+  await expect.poll(() => !!row.snapshot, LONG).toBe(true);
+  await settled(page, writes);
+  const lines = page.locator(".monaco-editor .view-lines").first();
+  await expect(lines).toContainText("declare_id", LONG);
+
+  // The other device changes the first line
+  edit("use anchor_lang::prelude::*;", "use anchor_lang::prelude::*; // A1");
+
+  // This browser comes back to the foreground and takes that copy -- and the
+  // user types at the end of the file while it is being fetched
+  let release!: () => void;
+  holdRead = new Promise((resolve) => (release = resolve));
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange"))
+  );
+  await lines.click();
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End"
+  );
+  await page.keyboard.type("\n// typed here");
+  // The other device changes the third line before the typing goes up.
+  // Pushes are held until the adoption is done, so the next write is the
+  // first one made from the adopted copy.
+  beforeNextWrite = () =>
+    edit(
+      "// This is your program's public key",
+      "// A2: this is your program's public key"
+    );
+  // Well inside autosave's half second, so the typing is in the editor alone
+  release();
+  holdRead = null;
+
+  // Whichever comes first: the typing uploaded, or the question
+  const banner = page.getByText("changed on another device");
+  await expect
+    .poll(
+      async () =>
+        row.snapshot!.files["src/lib.rs"].includes("// typed here") ||
+        (await banner.count()) > 0,
+      LONG
+    )
+    .toBe(true);
+  await expect(banner).toHaveCount(0);
+  const merged = row.snapshot!.files["src/lib.rs"];
+  expect(merged).toContain("// A1");
+  expect(merged).toContain("// A2");
+  expect(merged).toContain("// typed here");
+});

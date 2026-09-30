@@ -547,8 +547,9 @@ export class PgProjectSync {
       // the keypair read as a local change, which the next push uploads: the
       // write event the rewrite fires for the file schedules it for the open
       // project, and opening any other one rewrites the file and does the same.
+      const agreed = await hashFiles(full!.snapshot!);
       await PgSyncMark.write(projectId, {
-        files: await hashFiles(full!.snapshot!),
+        files: agreed,
         name: local,
         updatedAt: full!.updatedAt,
         dirty: false,
@@ -569,12 +570,16 @@ export class PgProjectSync {
       // compared on user files only: the user's files are what this cannot
       // change, and the generated ones ride along on the next upload.
       const owed = await PgProjectSync._catchUp(local, before, files);
+      // The account's copy of a file typed into is its base from here on --
+      // see `PgSyncBase`. Kept now, while it is known: the re-open above
+      // re-took the shadow from the folded copy.
+      await PgSyncBase.capture(projectId, owed, agreed, files);
       // Typing folded into the server's copy is on this device alone. After
       // the mark above, which said the copy was exactly the server's, or the
       // cheap path in reconcile would skip the project until the next edit. A
       // carried keypair is owed too, and flagged for the same honesty, though
       // what uploads it is the push described above rather than reconcile.
-      if (owed || files !== full!.snapshot!.files) {
+      if (owed.length || files !== full!.snapshot!.files) {
         await PgSyncMark.markDirty(projectId);
       }
     } finally {
@@ -603,17 +608,18 @@ export class PgProjectSync {
    * @param before what the caller read as the local copy before rewriting.
    * A buffer that no longer matches it was typed into since, and is folded
    * into the new content rather than overwritten.
-   * @returns whether anything was folded in: the store then holds content
-   * that is not `after`, which is all the caller has recorded or uploaded
+   * @returns the paths something was folded into: the store holds content
+   * for them that is not `after`, which is all the caller has recorded or
+   * uploaded
    */
   private static async _catchUp(
     localName: string,
     before: Record<string, string>,
     after: Record<string, string>
-  ): Promise<boolean> {
+  ): Promise<string[]> {
     const buffers = PgExplorer.editorBuffers;
     const paths = new Set([...Object.keys(before), ...Object.keys(after)]);
-    let folded = false;
+    const folded: string[] = [];
 
     for (const path of buffers ? [...paths].sort() : []) {
       const full = `/${localName}/${path}`;
@@ -646,7 +652,7 @@ export class PgProjectSync {
             );
           } else {
             content = merged;
-            if (content !== after[path]) folded = true;
+            if (content !== after[path]) folded.push(path);
           }
         }
         if (buffer !== content) buffers!.write(full, content);
@@ -839,10 +845,19 @@ export class PgProjectSync {
       try {
         // Before the gate opens: until the editor and memory hold what the
         // store now does, any push would read the pre-merge copy
-        if (
-          written &&
-          (await PgProjectSync._catchUp(localName, first!, written))
-        ) {
+        const folded = written
+          ? await PgProjectSync._catchUp(localName, first!, written)
+          : [];
+        if (folded.length) {
+          // What the merge wrote is the agreement for these files, or its
+          // base is kept already -- the merged copy when its upload landed,
+          // the server's when it did not. Kept now, as in `_adopt`: the
+          // re-open re-took the shadow from the folded copy, which no longer
+          // matches the mark.
+          const mark = await PgSyncMark.read(projectId);
+          if (mark) {
+            await PgSyncBase.capture(projectId, folded, mark.files, written!);
+          }
           // The mark was written, and the upload made, from the merged copy
           // alone. What the editor folded in on top is on this device only,
           // and a mark that says nothing is owed would have reconcile's cheap

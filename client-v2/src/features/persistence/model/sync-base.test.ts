@@ -38,6 +38,20 @@ describe("PgSyncBase", () => {
     expect(await PgSyncBase.read("p1")).toEqual({});
   });
 
+  it("takes the agreed content from the caller when it has it, and still checks it", async () => {
+    // Sync folding typing into a file it rewrote: the shadow has already been
+    // re-taken from the folded copy, and the caller holds the agreed one
+    PgSyncBase.track("p1", { f: "agreed plus typing", g: "other" });
+    const hashes = { f: await sha256("agreed"), g: await sha256("g agreed") };
+    await PgSyncBase.capture("p1", ["f", "g"], hashes, {
+      f: "agreed",
+      g: "not what the mark says",
+    });
+    expect(await PgSyncBase.read("p1")).toEqual({
+      f: { hash: hashes.f, content: "agreed" },
+    });
+  });
+
   it("keeps the first capture, not a later one", async () => {
     const hash = await sha256("before");
     PgSyncBase.track("p1", { f: "before" });

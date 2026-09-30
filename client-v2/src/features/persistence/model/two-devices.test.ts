@@ -1545,6 +1545,150 @@ describe("a program keypair only this device holds", () => {
   });
 });
 
+describe("the exchange after typing was folded into a rewrite", () => {
+  beforeEach(() => {
+    setUp();
+    clearFailures();
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      configurable: true,
+    });
+  });
+  afterEach(() => {
+    effect?.dispose();
+    effect = null;
+    editor?.dispose();
+    editor = null;
+    delete (document as { visibilityState?: unknown }).visibilityState;
+    clearFailures();
+    jest.restoreAllMocks();
+  });
+
+  let effect: { dispose: () => void } | null = null;
+  const base = "a\nb\nc\nd\ne\nf\ng\n";
+  const path = `/${HELLO.name}/src/lib.rs`;
+
+  /**
+   * An explorer whose re-open behaves like the real one: a rewrite lands in
+   * the store, and re-opening reads the workspace back out of it and then
+   * announces the switch -- which is what the sync effect takes its shadow
+   * from. `captureWrites` stubs the re-open out, and with it the one moment
+   * the shadow is re-taken, so a test built on it cannot see what the shadow
+   * holds after a fold.
+   */
+  const explorerReopensFromTheStore = () => {
+    const prefix = `/${HELLO.name}/`;
+    jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockImplementation(
+        async (name: string, files: Record<string, string>) => {
+          for (const [path, content] of Object.entries(files)) {
+            await PgFs.writeFile(`/${name}/${path}`, content, {
+              createParents: true,
+            });
+          }
+        }
+      );
+    jest.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      localFilesAre(
+        HELLO.name,
+        Object.fromEntries(
+          [...storedFiles()]
+            .filter(([full]) => full.startsWith(prefix))
+            .map(([full, content]) => [full.slice(prefix.length), content])
+            .filter(([rel]) => !rel.startsWith("."))
+        )
+      );
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_SWITCH_WORKSPACE
+      );
+    });
+  };
+
+  /** Both browsers agree on `base`, and this one runs the sync effect */
+  const inSync = async () => {
+    asDevice([HELLO]);
+    localFilesAre(HELLO.name, { "src/lib.rs": base });
+    await PgFs.writeFile(path, base, { createParents: true });
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    explorerReopensFromTheStore();
+    effect = projectSync();
+  };
+
+  /** Let the passes the effect started run out, then run one more */
+  const settle = async () => {
+    for (let i = 0; i < 3; i++) await reconcile();
+  };
+
+  it("merges the next change from the other device after a merge folded in typing", async () => {
+    await inSync();
+    // The other device changes the first line; this one the last, and the
+    // user goes on typing on the fourth while the merge runs
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "A\nb\nc\nd\ne\nf\ng\n" });
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\ne\nf\nG\n" });
+    const buffers = editorHolds({ [path]: "a\nb\nc\nD\ne\nf\nG\n" });
+
+    // The other device takes the merged copy and changes the second line,
+    // landing before this device's typing is uploaded
+    const online = global.fetch;
+    let puts = 0;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      const response = await online(url, init);
+      if (init?.method === "PUT" && ++puts === 2) {
+        expect(response.ok).toBe(true);
+        otherDeviceWroteFiles(HELLO.id, {
+          "src/lib.rs": "A\nB\nc\nd\ne\nf\nG\n",
+        });
+      }
+      return response;
+    }) as unknown as typeof fetch;
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    await settle();
+
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nB\nc\nD\ne\nf\nG\n" },
+    });
+    expect(buffers.get(path)).toBe("A\nB\nc\nD\ne\nf\nG\n");
+  });
+
+  it("merges the next change from the other device after taking its copy folded in typing", async () => {
+    await inSync();
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "A\nb\nc\nd\ne\nf\ng\n" });
+    const buffers = editorHolds({ [path]: base });
+
+    // Typed during the adoption's fetch, not yet autosaved: folded into the
+    // account's copy. Then the other device writes again before this
+    // device's next pass reads the account.
+    const online = global.fetch;
+    let reads = 0;
+    let lists = 0;
+    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method && url === "/api/projects" && ++lists === 2) {
+        otherDeviceWroteFiles(HELLO.id, {
+          "src/lib.rs": "A\nB\nc\nd\ne\nf\ng\n",
+        });
+      }
+      const response = await online(url, init);
+      if (!init?.method && url.includes("id=") && ++reads === 1) {
+        buffers.set(path, "a\nb\nc\nD\ne\nf\ng\n");
+      }
+      return response;
+    }) as unknown as typeof fetch;
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+    await settle();
+
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nB\nc\nD\ne\nf\ng\n" },
+    });
+    expect(buffers.get(path)).toBe("A\nB\nc\nD\ne\nf\ng\n");
+  });
+});
+
 describe("picking up where the account left off", () => {
   beforeEach(setUp);
   afterEach(() => jest.restoreAllMocks());

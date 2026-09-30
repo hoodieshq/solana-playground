@@ -35,6 +35,12 @@ const currentUserId = () => PgSession.get()?.id ?? null;
  * once per push, off the files the push already knows changed, never per
  * keystroke.
  *
+ * With one exception: typing that sync folds into files it has just rewritten
+ * is captured on the spot, from what sync wrote. The re-open that follows
+ * re-takes the shadow from the folded copy -- the typing included -- so it no
+ * longer matches the mark, and every file typed into during a merge or an
+ * adoption reached its next merge with no base and was asked about whole.
+ *
  * A capture that never happened -- the tab crashed before any push -- is not
  * repaired by guessing. The file is simply asked about, as a whole, which is
  * what every file was before this existed.
@@ -70,21 +76,28 @@ export class PgSyncBase {
    * hash has to match the mark. A shadow taken on open after a reload with
    * unpushed edits holds the edit, and keeping that as the base would turn a
    * later merge into a silent revert.
+   *
+   * @param from where the agreed content is read from, when the caller holds
+   * it and the shadow may not: sync folding typing into files it rewrote.
+   * Defaults to the shadow.
    */
   static async capture(
     projectId: string,
     paths: readonly string[],
-    base: FileHashes
+    base: FileHashes,
+    from?: Record<string, string>
   ) {
     const shadow = PgSyncBase._shadow;
-    if (!shadow || shadow.projectId !== projectId || !paths.length) return;
+    const source =
+      from ?? (shadow?.projectId === projectId ? shadow.files : null);
+    if (!source || !paths.length) return;
 
     const held = await PgSyncBase.read(projectId);
     let added = false;
 
     for (const path of paths) {
       if (path in held || !isUserFile(path)) continue;
-      const before = shadow.files[path];
+      const before = source[path];
       const hash = base[path];
       if (before === undefined || hash === undefined) continue;
       if ((await sha256(before)) !== hash) continue;
