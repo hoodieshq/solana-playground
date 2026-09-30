@@ -15,7 +15,7 @@ import {
 } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
-import { PgSyncMark } from "./sync-mark";
+import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
 // reaches `settings.ts`, which reads a webpack-defined global jest has no
@@ -23,6 +23,7 @@ import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { Snapshot } from "./snapshot";
+import type { LegacySyncMark, SyncMark } from "./sync-mark";
 import type { Disposable } from "../../../utils/types";
 
 type PushResult = "ok" | "conflict" | "skipped";
@@ -472,10 +473,13 @@ export class PgProjectSync {
   /**
    * Take the server's copy of a project into the local workspace.
    *
-   * Only ever called where the local copy is known to be expendable -- either
-   * it matches what this device last uploaded, or the user has just said to
-   * discard it. `replaceWorkspaceFiles` clears the directory first, so getting
-   * that wrong is the data loss this whole design exists to prevent.
+   * Only ever takes it over a local copy that is expendable: one whose user
+   * files are exactly what the mark says this device last agreed with the
+   * server. That is checked here, inside the project's queue, rather than
+   * trusted from the caller -- `replaceWorkspaceFiles` clears the directory
+   * first, so taking it over anything else is the data loss this whole design
+   * exists to prevent. A copy that is not clean is left alone, and nothing is
+   * written.
    *
    * @returns the local workspace name, or `null` if nothing was taken
    */
@@ -517,13 +521,15 @@ export class PgProjectSync {
       // finds the copy dirty and merges it there. Merging here instead would
       // be a second route to the same result with its own ordering to get
       // right.
+      //
+      // A mark from before per-file hashes is asked too, as a whole: reconcile
+      // adopts over one whose user files still match it, because it says
+      // nothing about the generated files and the account's copy is the only
+      // one known to be the agreement. Declining leaves it untouched, and the
+      // next pass decides again from it.
       const before = (await snapshotOf(local)).files;
-      const mark = await PgSyncMark.read(projectId);
-      const clean =
-        !!mark &&
-        mark.name === local &&
-        sameUserFiles(mark.files, await hashFiles({ files: before }));
-      if (!clean) return null;
+      const mark = await PgSyncMark.inspect(projectId);
+      if (!(await isCleanAgainst(mark, local, before))) return null;
 
       // Only once the copy is known to be expendable: a push already reading
       // this copy is carrying work, and stopping it would leave that work to
@@ -1205,6 +1211,30 @@ export class PgProjectSync {
     return !!PgSession.get() && (await PgSyncClient.available());
   }
 }
+
+/**
+ * Whether a local copy's user files are exactly what a mark says this device
+ * last agreed with the server, under the name it is called now.
+ *
+ * Shared by reconcile and adoption, because adoption re-asks the question
+ * reconcile decided on and the two must not disagree about the answer. A mark
+ * from before per-file hashes answers it as a whole, through the one hash it
+ * holds, and an empty hash -- marks older still -- matches no copy.
+ */
+export const isCleanAgainst = async (
+  mark: SyncMark | LegacySyncMark | null,
+  localName: string,
+  files: Record<string, string>
+): Promise<boolean> => {
+  if (!mark || mark.name !== localName) return false;
+  if ("legacy" in mark) {
+    return (
+      !!mark.contentHash &&
+      mark.contentHash === (await legacyContentHash(files))
+    );
+  }
+  return sameUserFiles(mark.files, await hashFiles({ files }));
+};
 
 /**
  * Whether a stored snapshot can be written to a workspace.

@@ -1,11 +1,15 @@
 import { report } from "./diagnostics";
-import { isUsableSnapshot, PgProjectSync } from "./project-sync";
-import { hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
+import {
+  isCleanAgainst,
+  isUsableSnapshot,
+  PgProjectSync,
+} from "./project-sync";
+import { hashFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
-import { legacyContentHash, PgSyncMark } from "./sync-mark";
+import { PgSyncMark } from "./sync-mark";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
-import type { LegacySyncMark, SyncMark } from "./sync-mark";
+import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
 export interface SyncResult {
@@ -55,58 +59,14 @@ const empty = (): SyncResult => ({
  * through nothing anyone typed, and on the *next* exchange that read as this
  * device having work of its own.
  */
-const isClean = async (projectId: string, localName: string) => {
-  const mark = await PgSyncMark.inspect(projectId);
-  if (!mark) return false;
-  if (mark.name !== localName) return false;
-  const files = (await snapshotOf(localName)).files;
-  // A mark from before per-file hashes answers this one question, as a
-  // whole, and nothing else -- see `upgradeLegacy`
-  if ("legacy" in mark) {
-    return (
-      !!mark.contentHash &&
-      mark.contentHash === (await legacyContentHash(files))
-    );
-  }
-  return sameUserFiles(mark.files, await hashFiles({ files }));
-};
-
-/**
- * Turn a mark from before per-file hashes into one, where it can be done
- * without guessing.
- *
- * The old mark says whether the user's files are exactly what the server
- * accepted at its timestamp, and nothing about any one file. Where they are,
- * the local copy's own per-file hashes *are* that agreement, and writing them
- * puts the project back on the ordinary path: adopted silently if the server
- * has moved, left alone if not. Without this a device that was merely behind
- * merged against an empty base, where every line the other device changed
- * reads as both sides adding different content -- it was asked about files
- * it never touched, and "Keep this version" reverted the other device.
- *
- * Where they are not, nothing can be derived, and the old mark is left for
- * the merge to replace: against an empty base, which asks about whatever the
- * two copies disagree on. Never the old mark's hash used as if it were per
- * file.
- *
- * @returns the mark to reconcile with, or `null` for "never agreed"
- */
-const upgradeLegacy = async (
-  projectId: string,
-  localName: string,
-  legacy: LegacySyncMark
-): Promise<SyncMark | null> => {
-  if (!(await isClean(projectId, localName))) return null;
-
-  const mark: SyncMark = {
-    files: await hashFiles(await snapshotOf(localName)),
-    name: localName,
-    updatedAt: legacy.updatedAt,
-    dirty: false,
-  };
-  await PgSyncMark.write(projectId, mark);
-  return mark;
-};
+const isClean = async (projectId: string, localName: string) =>
+  await isCleanAgainst(
+    await PgSyncMark.inspect(projectId),
+    localName,
+    (
+      await snapshotOf(localName)
+    ).files
+  );
 
 /**
  * Make this browser and the account agree, without guessing.
@@ -230,10 +190,38 @@ const pass = async (): Promise<SyncResult> => {
       result.latest ??= local;
 
       const found = await PgSyncMark.inspect(project.id);
-      const mark =
-        found && "legacy" in found
-          ? await upgradeLegacy(project.id, local, found)
-          : found;
+      let mark: SyncMark | null;
+      if (found && "legacy" in found) {
+        // A mark from before per-file hashes says whether the user's files
+        // are exactly what the server accepted at its timestamp, and nothing
+        // about any one file -- nor anything at all about the generated ones,
+        // which its hash never covered.
+        //
+        // Where the user files still match it, the account's copy is taken,
+        // whether or not the server has moved: nothing is lost, because the
+        // user's files were just found equal to the agreement, and it is the
+        // only copy of the generated files known to be agreed. Rebuilding the
+        // mark from this device's copy instead recorded this device's keypair
+        // as the agreement, so the next build uploaded it and silently moved
+        // the account's program to a new address.
+        //
+        // The adoption re-checks cleanliness inside the project's queue. If
+        // the copy stopped being clean meanwhile, it writes nothing and the
+        // old mark stays for the next pass, which then merges against an
+        // empty base -- where the account's generated files win.
+        if (await isClean(project.id, local)) {
+          const adopted = await PgProjectSync.adopt(project.id);
+          if (adopted) result.replaced.push(adopted);
+          continue;
+        }
+        // Where they do not, nothing can be derived, and the old mark is left
+        // for the merge to replace: against an empty base, which asks about
+        // whatever the two copies disagree on. Never the old mark's hash used
+        // as if it were per file.
+        mark = null;
+      } else {
+        mark = found;
+      }
 
       // The cheap path, and the overwhelmingly common one: this device has
       // nothing pending and the row is exactly where it was left. Neither side

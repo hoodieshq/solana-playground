@@ -1049,6 +1049,158 @@ describe("a device upgraded from whole-snapshot marks", () => {
       ([, init]) => init?.method === "PUT"
     );
 
+  const PROGRAM_INFO = ".workspace/program-info.json";
+  const ACCOUNT_INFO = '{"kp":"the account\'s"}';
+  const DEVICE_INFO = '{"kp":"this device\'s"}';
+  const programInfoPath = `/${HELLO.name}/${PROGRAM_INFO}`;
+  const localProgramInfo = () => storedFiles().get(programInfoPath);
+  const keypairOf = (content: string | undefined) =>
+    content === undefined ? undefined : JSON.parse(content).kp;
+  const serverFiles = () =>
+    (server.get(HELLO.id)!.snapshot as { files: Record<string, string> }).files;
+
+  /**
+   * Replaces that land where the real explorer's do: the generated files in
+   * the store, which is the only place a snapshot reads them from, and the
+   * user files in the explorer's memory.
+   */
+  const writesLand = () => {
+    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    return jest
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockImplementation(
+        async (name: string, files: Record<string, string>) => {
+          for (const path of SYNCED_WORKSPACE_FILES) {
+            if (path in files)
+              storedFiles().set(`/${name}/${path}`, files[path]);
+            else storedFiles().delete(`/${name}/${path}`);
+          }
+          localFilesAre(
+            name,
+            Object.fromEntries(
+              Object.entries(files).filter(
+                ([path]) => !SYNCED_WORKSPACE_FILES.includes(path)
+              )
+            )
+          );
+        }
+      );
+  };
+
+  it("takes the account's keypair when this copy is what it last agreed", async () => {
+    // A legacy hash never covered the generated files, so a mark rebuilt from
+    // this device's copy recorded this device's keypair as the agreement --
+    // and the next build uploaded it over the account's
+    const account = { "src/lib.rs": "same", [PROGRAM_INFO]: ACCOUNT_INFO };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
+    asDevice([HELLO], "same");
+    storedFiles().set(programInfoPath, DEVICE_INFO);
+    writesLand();
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(localProgramInfo()).toBe(ACCOUNT_INFO);
+    expect((await PgSyncMark.read(HELLO.id))?.files[PROGRAM_INFO]).toBe(
+      await sha256(ACCOUNT_INFO)
+    );
+    expect(puts()).toEqual([]);
+    expect(keypairOf(serverFiles()[PROGRAM_INFO])).toBe("the account's");
+  });
+
+  it("does not hand the account this device's keypair on the next build", async () => {
+    const account = { "src/lib.rs": "same", [PROGRAM_INFO]: ACCOUNT_INFO };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
+    asDevice([HELLO], "same");
+    storedFiles().set(programInfoPath, DEVICE_INFO);
+    writesLand();
+    await signedIn();
+    await reconcile();
+
+    // A build rewrites the file in place, keeping whatever keypair it holds
+    storedFiles().set(
+      programInfoPath,
+      JSON.stringify({ ...JSON.parse(localProgramInfo()!), idl: "built" })
+    );
+    await PgProjectSync.pushCurrent();
+
+    expect(keypairOf(serverFiles()[PROGRAM_INFO])).toBe("the account's");
+  });
+
+  it("leaves the old mark alone when the copy stops being clean before it is taken", async () => {
+    // Typing that lands while the account's copy is being fetched is on this
+    // device alone. The adoption declines, and the mark must not be rebuilt
+    // from this device's generated files in its place -- the next pass merges
+    // it against nothing, where the account's keypair wins
+    const account = { "src/lib.rs": "same", [PROGRAM_INFO]: ACCOUNT_INFO };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
+    asDevice([HELLO], "same");
+    storedFiles().set(programInfoPath, DEVICE_INFO);
+    const replace = writesLand();
+    const realFetch = PgProjectSync.fetch;
+    jest
+      .spyOn(PgProjectSync, "fetch")
+      .mockImplementationOnce(async (projectId: string) => {
+        localFilesAre(HELLO.name, { "src/lib.rs": "typed meanwhile" });
+        return await realFetch.call(PgProjectSync, projectId);
+      });
+    await signedIn();
+
+    const first = await reconcile();
+
+    expect(first.conflicts).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(puts()).toEqual([]);
+    expect(await PgSyncMark.inspect(HELLO.id)).toMatchObject({ legacy: true });
+
+    const second = await reconcile();
+
+    expect(second.conflicts).toEqual([
+      { projectId: HELLO.id, kind: "divergent", paths: ["src/lib.rs"] },
+    ]);
+    expect(puts()).toEqual([]);
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(true);
+    expect(serverFiles()).toEqual({
+      "src/lib.rs": "typed meanwhile",
+      [PROGRAM_INFO]: ACCOUNT_INFO,
+    });
+  });
+
+  it("merges against nothing when this copy is not what it last agreed, and keeps the account's keypair", async () => {
+    const agreedAt = serverHolds({
+      "src/lib.rs": "old",
+      [PROGRAM_INFO]: ACCOUNT_INFO,
+    });
+    await legacyMark({ "src/lib.rs": "old" }, agreedAt);
+    otherDeviceWroteFiles(HELLO.id, {
+      "src/lib.rs": "theirs",
+      [PROGRAM_INFO]: ACCOUNT_INFO,
+    });
+    asDevice([HELLO], "mine");
+    storedFiles().set(programInfoPath, DEVICE_INFO);
+    const replace = writesLand();
+    await signedIn();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([
+      { projectId: HELLO.id, kind: "divergent", paths: ["src/lib.rs"] },
+    ]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(puts()).toEqual([]);
+
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(true);
+    expect(serverFiles()).toEqual({
+      "src/lib.rs": "mine",
+      [PROGRAM_INFO]: ACCOUNT_INFO,
+    });
+    expect(localProgramInfo()).toBe(ACCOUNT_INFO);
+  });
+
   it("takes the account's copy without asking when this one is what it last agreed", async () => {
     // Merged against an empty base, every line the other device changed read
     // as both sides adding different content, and a device that had done
@@ -1075,20 +1227,30 @@ describe("a device upgraded from whole-snapshot marks", () => {
   });
 
   it("settles identical copies silently, and writes a mark it can use", async () => {
-    const agreedAt = serverHolds({ "src/lib.rs": "same" });
-    await legacyMark({ "src/lib.rs": "same" }, agreedAt);
+    // Taken from the account even so: an old mark cannot say whether the
+    // generated files agree, and the account's copy is the one that is known
+    // to be the agreement
+    const account = { "src/lib.rs": "same", [PROGRAM_INFO]: ACCOUNT_INFO };
+    const agreedAt = serverHolds(account);
+    await legacyMark(account, agreedAt);
     asDevice([HELLO], "same");
-    const replace = captureWrites();
+    storedFiles().set(programInfoPath, ACCOUNT_INFO);
+    const replace = writesLand();
     await signedIn();
 
     const result = await reconcile();
 
     expect(result.conflicts).toEqual([]);
-    expect(replace).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledWith(HELLO.name, account);
     expect(puts()).toEqual([]);
-    expect(await PgSyncMark.read(HELLO.id)).toMatchObject({
+    expect(await PgSyncMark.read(HELLO.id)).toEqual({
+      files: {
+        "src/lib.rs": await sha256("same"),
+        [PROGRAM_INFO]: await sha256(ACCOUNT_INFO),
+      },
       name: HELLO.name,
       updatedAt: agreedAt,
+      dirty: false,
     });
   });
 
