@@ -118,6 +118,11 @@ export const transaction = async (fn) => {
   if (!p) throw new Error("DATABASE_URL is not configured");
 
   const client = await p.connect();
+  // Set when the rollback itself fails. The connection is then in a state
+  // nobody knows -- still inside the transaction, or dead -- and returned to
+  // the pool the next request to draw it would inherit that. Passed to
+  // `release`, it tells `pg` to destroy the client instead.
+  let broken;
   try {
     await client.query("begin");
     const result = await fn((text, params) => run(client, text, params));
@@ -126,9 +131,11 @@ export const transaction = async (fn) => {
   } catch (e) {
     // The original error is the one worth reporting; a failed rollback on a
     // broken connection would only replace it
-    await client.query("rollback").catch(() => {});
+    await client.query("rollback").catch((rollbackError) => {
+      broken = rollbackError;
+    });
     throw e;
   } finally {
-    client.release();
+    client.release(broken);
   }
 };

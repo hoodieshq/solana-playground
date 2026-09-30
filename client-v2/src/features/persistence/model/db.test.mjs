@@ -47,6 +47,58 @@ describe("db", () => {
     assert.deepEqual(db.getPool().options.ssl, { rejectUnauthorized: true });
   });
 
+  /**
+   * A pool whose one client is scripted, so a transaction's handling of it can
+   * be watched without a database. Nothing here connects: `pg.Pool` is lazy.
+   */
+  const scriptedPool = async (failRollback) => {
+    process.env.DATABASE_URL = "postgres://x/y";
+    const db = await load();
+    const released = [];
+    const client = {
+      query: async (text) => {
+        if (text === "rollback" && failRollback) {
+          throw new Error("connection terminated");
+        }
+        return { rows: [] };
+      },
+      release: (err) => released.push(err),
+    };
+    db.getPool().connect = async () => client;
+    return { db, released };
+  };
+
+  it("destroys a client whose rollback failed, rather than pooling it", async () => {
+    // A rollback that fails leaves the connection in a state nobody knows --
+    // mid-transaction, or dead. Handed back to the pool, the next request
+    // that draws it inherits that. `release(err)` is how `pg` is told to
+    // throw it away instead.
+    const { db, released } = await scriptedPool(true);
+
+    await assert.rejects(
+      () =>
+        db.transaction(async () => {
+          throw new Error("the write failed");
+        }),
+      /the write failed/
+    );
+
+    assert.equal(released.length, 1);
+    assert.match(String(released[0]?.message), /connection terminated/);
+  });
+
+  it("returns a client to the pool after a clean rollback", async () => {
+    const { db, released } = await scriptedPool(false);
+
+    await assert.rejects(() =>
+      db.transaction(async () => {
+        throw new Error("the write failed");
+      })
+    );
+
+    assert.deepEqual(released, [undefined]);
+  });
+
   it("rejects a query when unconfigured, rather than throwing on import", async () => {
     const db = await load();
     await assert.rejects(() => db.query("select 1"), /not configured/i);
