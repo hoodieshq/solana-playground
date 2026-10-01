@@ -44,11 +44,13 @@ let disposables: Disposable[] = [];
 let isTutorialInView = false;
 let mainSecondaryHeight = 0;
 
-const handleTutorial = (name: string, page: string) => {
-  // The sidebar change this route makes itself, which its own listener must
-  // not read as the user leaving the lesson
-  let ownSidebarChange: SidebarPageName | undefined;
+// The sidebar change this route makes itself, which its own listener must
+// not read as the user leaving the lesson. Module scope, beside
+// `isTutorialInView`: the listener is registered on the first route call
+// only, and later calls set this for that same listener to read.
+let ownSidebarChange: SidebarPageName | undefined;
 
+const handleTutorial = (name: string, page: string) => {
   // Get the tutorial
   const tutorial = PgTutorial.all.find((t) => {
     return PgRouter.isPathsEqual(PgCommon.toKebabFromTitle(t.name), name);
@@ -191,7 +193,10 @@ const handleTutorial = (name: string, page: string) => {
       { dispose: () => PgView.setMainSecondaryHeight(mainSecondaryHeight) },
 
       // Set `isTutorialInView` to its default value
-      { dispose: () => (isTutorialInView = false) }
+      { dispose: () => (isTutorialInView = false) },
+
+      // Drop a pending own sidebar change the listener never saw
+      { dispose: () => (ownSidebarChange = undefined) }
     );
   }
 
