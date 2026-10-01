@@ -1,18 +1,30 @@
 import { report } from "./diagnostics";
 import {
+  baseAfterMerge,
+  merge3,
+  planMerge,
+  sameFiles,
+  settleConflicts,
+  withLocalKeypair,
+} from "./merge";
+import {
   buildSnapshot,
-  hashSnapshot,
-  hashUserFiles,
+  diffFiles,
+  hashFiles,
+  sameUserFiles,
   snapshotOf,
 } from "./snapshot";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
-import { PgSyncMark } from "./sync-mark";
+import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
 // reaches `settings.ts`, which reads a webpack-defined global jest has no
 // answer for, and importing it here would make this module untestable
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { PgFs } from "../../../utils/explorer/fs";
 import type { Snapshot } from "./snapshot";
+import type { LegacySyncMark, SyncMark } from "./sync-mark";
 import type { Disposable } from "../../../utils/types";
 
 type PushResult = "ok" | "conflict" | "skipped";
@@ -57,12 +69,20 @@ export type ConflictKind =
 export interface Conflict {
   projectId: string;
   kind: ConflictKind;
+  /**
+   * For `divergent`: the files both devices changed in the same place. Every
+   * other file has already been merged, so these are all the user is asked
+   * about. Absent when the merge could not get that far.
+   */
+  paths?: string[];
 }
 
 /**
  * What the user picked.
  *
- * The first two answer `divergent`, the next two `deleted-elsewhere`, and
+ * The first two settle the files of a `divergent` that could not be merged --
+ * everything else has merged already, and stays merged whichever is picked.
+ * The next two answer `deleted-elsewhere`, and
  * `retry` answers both refusals -- the user has gone and changed the thing
  * that was wrong, and is saying so.
  */
@@ -100,11 +120,20 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
 };
 
 /**
+ * A merge re-reads the server and tries again when another write lands
+ * between its fetch and its upload. Three is generous for one person's
+ * devices; past it the user is asked rather than looped.
+ */
+const MERGE_ATTEMPTS = 3;
+
+/**
  * Mirror project snapshots to Postgres.
  *
  * One user, one project at a time -- this is a playground, not a collaborative
  * editor. The job is that everything you type ends up on the server, and that
- * signing in elsewhere picks up where you left off. Nothing is ever merged.
+ * signing in elsewhere picks up where you left off. Changes from two devices
+ * are merged file by file and line by line; the user is asked only about
+ * lines both changed (`mergeWithServer`).
  *
  * The concurrency this still has to survive is a *stale writer*: a second tab,
  * or a laptop left open at home. Two things guard against one of those quietly
@@ -114,9 +143,10 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
  *   so a fresh load can tell a local copy that is behind from one that is
  *   ahead. That is the whole of the reconcile decision (`project-restore.ts`).
  * - the server's compare-and-swap on `updated_at`, as a backstop for the race
- *   between deciding and writing. When it refuses, this stops pushing that
- *   project and asks -- rather than retrying against a token that can never
- *   match again, which is what made a single conflict permanent.
+ *   between deciding and writing. When it refuses, this merges with the
+ *   server's copy, and stops pushing that project and asks only when the
+ *   merge cannot settle it -- rather than retrying against a token that can
+ *   never match again, which is what made a single conflict permanent.
  */
 export class PgProjectSync {
   /**
@@ -126,9 +156,19 @@ export class PgProjectSync {
    * down, and without this there was nothing to bring.
    */
   static async pushCurrent(): Promise<PushResult> {
+    // Waited on before anything is read, not only before sending. The gate is
+    // held while a merge or an adoption rewrites the workspace, and a snapshot
+    // taken before that and sent after it is the pre-merge copy: patched
+    // against the merged mark, it passes the server's swap and silently
+    // reverts every line the other device contributed.
+    await PgProjectSync._gate;
+
     const id = PgExplorer.currentWorkspaceId;
     if (!id) return "skipped";
 
+    // Read before the snapshot, so a rewrite that starts while it is being
+    // built is still caught before anything is sent
+    const generation = PgProjectSync._generationOf(id);
     const snapshot = await buildSnapshot();
 
     // An empty snapshot for a workspace that is open is not an edit -- it is
@@ -148,8 +188,21 @@ export class PgProjectSync {
     return await PgProjectSync.push(
       id,
       snapshot,
-      PgExplorer.currentWorkspaceName
+      PgExplorer.currentWorkspaceName,
+      { generation }
     );
+  }
+
+  /**
+   * How many times this project's local files have been rewritten by sync.
+   *
+   * A snapshot is only as current as the files it was read from. Pass this,
+   * read before building one, as `push`'s `generation`, and a rewrite that
+   * lands in between makes the push stand down instead of uploading a copy
+   * the rewrite has already replaced.
+   */
+  static generationOf(projectId: string) {
+    return PgProjectSync._generationOf(projectId);
   }
 
   /**
@@ -160,16 +213,20 @@ export class PgProjectSync {
    * `tut:hello-anchor` is a name `PgTutorial` does not match, so the tutorial
    * read as unstarted on the second device.
    * @param opts -
-   * - `force`: overwrite whatever the server holds, without comparing. Only
-   *   ever set by `resolve`, after the user has chosen.
    * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
    *   runs *inside* the gate it is the point of -- see below.
+   * - `merging`: set by the merge's own upload, so a refusal is reported
+   *   rather than merged again.
+   * - `generation`: `generationOf(projectId)` as it was when `snapshot` was
+   *   read. A snapshot older than the latest rewrite is not sent; whatever
+   *   rewrote the files already uploaded them, or left them to the next
+   *   reconcile.
    */
   static async push(
     projectId: string,
     snapshot: Snapshot,
     name?: string,
-    opts: { force?: boolean; immediate?: boolean } = {}
+    opts: { immediate?: boolean; merging?: boolean; generation?: number } = {}
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
     // Nothing goes up before this browser has reconciled with the account. A
@@ -184,28 +241,51 @@ export class PgProjectSync {
     // reconcile decided on is not racing anything.
     if (!opts.immediate) await PgProjectSync._gate;
 
+    const mark = await PgSyncMark.read(projectId);
+    const hashes = await hashFiles(snapshot);
+    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    // Relative to the last agreement, when there is one. Without a mark there
+    // is nothing to be relative to.
+    const patch = mark ? diffFiles(mark.files, hashes) : null;
+
+    // Before anything that can decline to send. What these files held at the
+    // last agreement is the one thing a later merge cannot rebuild, and a
+    // project with a question outstanding goes on being edited.
+    if (patch) await PgSyncBase.capture(projectId, patch.changed, mark!.files);
+
     // A project with a question outstanding is not pushed again. This is what
     // turns a conflict from a permanent 409 loop -- the editor's debounce
     // re-firing every few seconds against a token that can never match -- into
     // one refusal and one prompt.
-    if (!opts.force && PgProjectSync._conflicts.has(projectId)) {
+    if (PgProjectSync._conflicts.has(projectId)) {
       return "skipped";
     }
 
-    const mark = await PgSyncMark.read(projectId);
-    const hash = await hashSnapshot(snapshot);
-    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    // After the last await before sending, so a rewrite anywhere since the
+    // snapshot was read is seen. Measured against the mark that rewrite left,
+    // this snapshot would read as this device undoing it.
+    if (
+      opts.generation !== undefined &&
+      opts.generation !== PgProjectSync._generationOf(projectId)
+    ) {
+      return "skipped";
+    }
 
-    // Nothing the server does not already have. Both halves matter: the hash
-    // covers the files, and the name covers a rename, which changes what the
-    // row should say without changing a byte of the snapshot.
+    // Nothing the server does not already have. The name matters as much as
+    // the files: a rename changes what the row should say without changing a
+    // byte.
     //
     // Deliberately not conditioned on `dirty`. That flag is set by any write
     // at all, including rewriting a workspace file with the content it already
     // had -- which `PgProgramInfo` does on every load -- so letting it force
     // an upload meant every reload bumped the row, and a bumped row is what
     // the *other* browser reads as "this project changed elsewhere".
-    if (!opts.force && mark && mark.hash === hash && mark.name === storedName) {
+    if (
+      patch &&
+      !patch.changed.length &&
+      !patch.removed.length &&
+      mark!.name === storedName
+    ) {
       return "skipped";
     }
 
@@ -218,12 +298,15 @@ export class PgProjectSync {
           id: projectId,
           name: storedName,
           kind: projectId.startsWith("tut:") ? "tutorial" : "project",
-          snapshot,
-          // Omitted under `force`: the server reads the two as separate doors,
-          // and sending a token alongside would be asking it to check
-          // something the user has already overruled.
-          baseUpdatedAt: opts.force ? undefined : mark?.updatedAt,
-          force: opts.force === true,
+          ...(patch
+            ? {
+                changed: Object.fromEntries(
+                  patch.changed.map((path) => [path, snapshot.files[path]])
+                ),
+                removed: patch.removed,
+              }
+            : { files: snapshot.files }),
+          baseUpdatedAt: mark?.updatedAt,
         }),
       });
 
@@ -232,14 +315,31 @@ export class PgProjectSync {
       // workspace too big to upload is a project that has stopped syncing, and
       // reporting it only to the console meant nothing on screen ever said so.
       if (response.status === 409 || response.status === 413) {
-        // Deliberately without recording the hash or clearing `dirty`: the
-        // snapshot has not been accepted, and remembering it would make every
-        // later attempt look unchanged and strand the project out of sync for
-        // good.
-        PgProjectSync._raise({
-          projectId,
-          kind: await refusalKind(response),
-        });
+        const kind = await refusalKind(response);
+        // A swap that missed: another device wrote since this one last
+        // agreed. Fold its changes in rather than asking -- the merge asks
+        // only about lines both sides changed. Not from inside a merge,
+        // which starts over on its own.
+        if (kind === "divergent" && !opts.merging) {
+          const local = PgExplorer.workspaceNameOf(projectId);
+          if (local) {
+            const outcome = await PgProjectSync.mergeWithServer(
+              projectId,
+              local
+            );
+            if (outcome === "merged") return "ok";
+            if (outcome === "conflict") return "conflict";
+            // A merge that could not read the server -- offline since the
+            // refusal -- raised nothing, and returning without raising would
+            // let the next debounce send the same doomed swap. The plain
+            // question below is the fallback. A row that is gone is not this
+            // case: the merge has asked about the delete already.
+          }
+        }
+        // Deliberately without recording anything: the upload has not been
+        // accepted, and remembering it would make every later attempt look
+        // unchanged and strand the project out of sync for good.
+        PgProjectSync._raise({ projectId, kind });
         return "conflict";
       }
       if (!response.ok) {
@@ -249,12 +349,16 @@ export class PgProjectSync {
 
       const body = await response.json();
       await PgSyncMark.write(projectId, {
-        hash,
-        contentHash: await hashUserFiles(snapshot),
+        files: hashes,
         name: storedName,
         updatedAt: body.updatedAt,
         dirty: false,
       });
+      await PgSyncBase.accepted(
+        projectId,
+        snapshot,
+        projectId === PgExplorer.currentWorkspaceId
+      );
       PgProjectSync._clear(projectId);
       return "ok";
     } catch (e) {
@@ -300,6 +404,29 @@ export class PgProjectSync {
   static async fetch(
     projectId: string
   ): Promise<(ServerProject & { snapshot: Snapshot | null }) | null> {
+    const found = await PgProjectSync.read(projectId);
+    if (found === "gone") {
+      report(`fetch project ${projectId}: HTTP 404`, null);
+      return null;
+    }
+    return found;
+  }
+
+  /**
+   * `fetch`, telling a row that is not there from a read that did not happen.
+   *
+   * The two call for different questions. A row tombstoned or never stored
+   * is a project deleted elsewhere, which the user can settle; a network
+   * failure is a project whose state is simply unknown. Folded into one
+   * `null`, a push refused on a deleted row asked the version question, and
+   * both of its answers merge against a server with nothing to merge with.
+   *
+   * @returns the project, `"gone"` for a 404, or `null` for anything else
+   * that did not produce one
+   */
+  static async read(
+    projectId: string
+  ): Promise<(ServerProject & { snapshot: Snapshot | null }) | "gone" | null> {
     if (!(await PgProjectSync._ready())) return null;
 
     try {
@@ -307,6 +434,7 @@ export class PgProjectSync {
         `/api/projects?id=${encodeURIComponent(projectId)}`,
         { credentials: "include", cache: "no-store" }
       );
+      if (response.status === 404) return "gone";
       if (!response.ok) {
         report(`fetch project ${projectId}: HTTP ${response.status}`, null);
         return null;
@@ -353,14 +481,23 @@ export class PgProjectSync {
   /**
    * Take the server's copy of a project into the local workspace.
    *
-   * Only ever called where the local copy is known to be expendable -- either
-   * it matches what this device last uploaded, or the user has just said to
-   * discard it. `replaceWorkspaceFiles` clears the directory first, so getting
-   * that wrong is the data loss this whole design exists to prevent.
+   * Only ever takes it over a local copy that is expendable: one whose user
+   * files are exactly what the mark says this device last agreed with the
+   * server. That is checked here, inside the project's queue, rather than
+   * trusted from the caller -- `replaceWorkspaceFiles` clears the directory
+   * first, so taking it over anything else is the data loss this whole design
+   * exists to prevent. A copy that is not clean is left alone, and nothing is
+   * written.
    *
    * @returns the local workspace name, or `null` if nothing was taken
    */
-  static async adopt(projectId: string): Promise<string | null> {
+  static adopt(projectId: string): Promise<string | null> {
+    return PgProjectSync._exclusive(projectId, () =>
+      PgProjectSync._adopt(projectId)
+    );
+  }
+
+  private static async _adopt(projectId: string): Promise<string | null> {
     const full = await PgProjectSync.fetch(projectId);
     // A snapshot that is not a file map would empty the workspace:
     // `replaceWorkspaceFiles` removes the directory before it discovers it has
@@ -374,36 +511,452 @@ export class PgProjectSync {
     const local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
 
-    const serverHash = await hashSnapshot(full!.snapshot!);
+    // Held and counted for the same reasons as a merge's -- see there
+    PgProjectSync.holdPushes();
+    let bumped = false;
+    try {
+      // The caller found the local copy expendable, but that was before the
+      // fetch above, and possibly before this queued behind a merge. Typing
+      // that autosave stored during the round trip, or work a merge left
+      // unsent, is in the local copy now and in no other. So it is asked
+      // again, here, every time -- and the copy read to answer it is the one
+      // the editor is measured against below: any keystroke after this read
+      // is folded in rather than overwritten.
+      //
+      // Declining returns rather than merging in place. The work is already
+      // owed to the server, so the editor's next push meets the swap and
+      // merges through the ordinary path, and a reconcile that runs first
+      // finds the copy dirty and merges it there. Merging here instead would
+      // be a second route to the same result with its own ordering to get
+      // right.
+      //
+      // A mark from before per-file hashes is asked too, as a whole: reconcile
+      // adopts over one whose user files still match it, because it says
+      // nothing about the generated files and the account's copy is the only
+      // one known to be the agreement. Declining leaves it untouched, and the
+      // next pass decides again from it.
+      const before = (await snapshotOf(local)).files;
+      const mark = await PgSyncMark.inspect(projectId);
+      if (!(await isCleanAgainst(mark, local, before))) return null;
 
-    await PgExplorer.replaceWorkspaceFiles(local, full!.snapshot!.files);
-    await PgSyncMark.write(projectId, {
-      hash: serverHash,
-      contentHash: await hashUserFiles(full!.snapshot!),
-      name: local,
-      updatedAt: full!.updatedAt,
-      dirty: false,
-    });
+      // Only once the copy is known to be expendable: a push already reading
+      // this copy is carrying work, and stopping it would leave that work to
+      // wait for whatever runs next
+      PgProjectSync._bump(projectId);
+      bumped = true;
+      // The account's copy, except for a keypair only this device holds: a
+      // device that built before generated files were uploaded has the one
+      // keypair its program was deployed with, and dropping it here made the
+      // next build mint a new address
+      const files = withLocalKeypair(full!.snapshot!.files, before);
+      await PgExplorer.replaceWorkspaceFiles(local, files);
+      // Still the server's hashes, carried keypair or not. That is what makes
+      // the keypair read as a local change, which the next push uploads: the
+      // write event the rewrite fires for the file schedules it for the open
+      // project, and opening any other one rewrites the file and does the same.
+      const agreed = await hashFiles(full!.snapshot!);
+      await PgSyncMark.write(projectId, {
+        files: agreed,
+        name: local,
+        updatedAt: full!.updatedAt,
+        dirty: false,
+      });
+      // The local copy is now the server's, so nothing kept against the old
+      // agreement is a base for anything
+      await PgSyncBase.clear(projectId);
 
-    // Only the current workspace is held in memory, and it is now the stale
-    // copy -- `replaceWorkspaceFiles` writes to the store and deliberately
-    // leaves state alone. Re-opening is what makes the editor re-read it.
-    //
-    // Done here rather than in the callers because every path that adopts has
-    // the same problem: the reconcile's own, the user answering the banner,
-    // and a backgrounded tab coming back. The last had no re-read at all, so
-    // a tab that adopted on regaining focus kept showing files that were no
-    // longer on disk -- and pushed them back up on the next edit.
-    // Re-opening is not inert -- `PgProgramInfo` rewrites the keypair file --
-    // so the workspace will differ from the snapshot just adopted within a
-    // moment. That is why the mark records `contentHash` as well: reconcile
-    // decides on the user's files, which this cannot change, and the generated
-    // ones ride along on the next upload.
-    if (local === PgExplorer.currentWorkspaceName) {
-      await PgExplorer.switchWorkspace(local);
+      // Done here rather than in the callers because every path that adopts
+      // has the same problem: the reconcile's own, and a backgrounded tab
+      // coming back. The latter had no re-read at all, so a tab that adopted
+      // on regaining focus kept showing files that were no longer on disk --
+      // and pushed them back up on the next edit.
+      //
+      // Re-opening is not inert -- `PgProgramInfo` rewrites the keypair file
+      // -- so the workspace will differ from the snapshot just adopted within
+      // a moment. That is why reconcile decides on the mark's per-file hashes,
+      // compared on user files only: the user's files are what this cannot
+      // change, and the generated ones ride along on the next upload.
+      const owed = await PgProjectSync._catchUp(local, before, files);
+      // The account's copy of a file typed into is its base from here on --
+      // see `PgSyncBase`. Kept now, while it is known: the re-open above
+      // re-took the shadow from the folded copy.
+      await PgSyncBase.capture(projectId, owed, agreed, files);
+      // Typing folded into the server's copy is on this device alone. After
+      // the mark above, which said the copy was exactly the server's, or the
+      // cheap path in reconcile would skip the project until the next edit. A
+      // carried keypair is owed too, and flagged for the same honesty, though
+      // what uploads it is the push described above rather than reconcile.
+      if (owed.length || files !== full!.snapshot!.files) {
+        await PgSyncMark.markDirty(projectId);
+      }
+    } finally {
+      if (bumped) PgProjectSync._bump(projectId);
+      PgProjectSync.releasePushes();
     }
 
     return local;
+  }
+
+  /**
+   * Bring every other copy of a workspace's files level with the store, once
+   * sync has rewritten it: the editor's buffers, then -- for the current
+   * workspace -- the explorer's memory.
+   *
+   * `replaceWorkspaceFiles` writes the store and nothing else. The explorer
+   * re-reads on a re-open, but Monaco keeps a model per path and reuses it on
+   * the next open rather than taking the file's new content, and its autosave
+   * writes `editor.getValue()` back half a second after any keystroke. Left
+   * alone, the open file went on showing the pre-merge text and the next
+   * keystroke saved it over the merged one -- on every merge of an open file.
+   *
+   * Runs inside the push gate, so nothing uploads before memory and editor
+   * agree with the store.
+   *
+   * @param before what the caller read as the local copy before rewriting.
+   * A buffer that no longer matches it was typed into since, and is folded
+   * into the new content rather than overwritten.
+   * @returns the paths something was folded into: the store holds content
+   * for them that is not `after`, which is all the caller has recorded or
+   * uploaded
+   */
+  private static async _catchUp(
+    localName: string,
+    before: Record<string, string>,
+    after: Record<string, string>
+  ): Promise<string[]> {
+    const buffers = PgExplorer.editorBuffers;
+    const paths = new Set([...Object.keys(before), ...Object.keys(after)]);
+    const folded: string[] = [];
+
+    for (const path of buffers ? [...paths].sort() : []) {
+      const full = `/${localName}/${path}`;
+      let content: string | undefined;
+      try {
+        // Read and written with nothing awaited in between, so a keystroke
+        // cannot land after the read and be overwritten by the write
+        const buffer = buffers!.read(full);
+        if (buffer === undefined) continue;
+        const read = before[path];
+
+        if (!(path in after)) {
+          if (buffer !== read) {
+            report(
+              `catch up ${localName}: ${path} was edited here while sync removed it; the edit was discarded`,
+              null
+            );
+          }
+          buffers!.discard(full);
+          continue;
+        }
+
+        content = after[path];
+        if (read !== undefined && buffer !== read && buffer !== content) {
+          const merged = merge3(read, buffer, content);
+          if (merged === null) {
+            report(
+              `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
+              null
+            );
+          } else {
+            content = merged;
+            if (content !== after[path]) folded.push(path);
+          }
+        }
+        if (buffer !== content) buffers!.write(full, content);
+        // Nothing more to do when the buffer was already the new content and
+        // nobody typed: the store has it. Otherwise the store is written too,
+        // after any autosave that fired during the rewrite with the old text,
+        // so the re-read below finds what the editor now shows.
+        if (content === after[path] && buffer === read) continue;
+      } catch (e) {
+        report(`catch up ${localName}: editor buffer ${path}`, e);
+        continue;
+      }
+
+      try {
+        await PgFs.writeFile(full, content, { createParents: true });
+      } catch (e) {
+        report(`catch up ${localName}: write ${path}`, e);
+      }
+    }
+
+    // Only the current workspace is held in memory. Re-opening it inside the
+    // gate is safe now the gate is counted: the reconcile its switch starts
+    // takes a hold of its own, and skips this project while a merge of it is
+    // still running.
+    if (localName === PgExplorer.currentWorkspaceName) {
+      await PgExplorer.switchWorkspace(localName);
+    }
+
+    return folded;
+  }
+
+  /**
+   * Fold the server's copy into this device's, asking only about the lines
+   * both changed.
+   *
+   * The order of the writes is what makes an interruption harmless. Local
+   * files first: a tab closed after that still holds the old agreement, so
+   * the next reconcile sees both sides moved and merges again -- converging,
+   * because the server's changes are already in. Then the mark and base, which
+   * make the server's copy the agreement. Then the upload, which a closed tab
+   * leaves to the next reconcile as an ordinary "this device is ahead".
+   *
+   * @param prefer how to settle the files that cannot be merged. Without it
+   * they are raised as a conflict and nothing is written at all.
+   * @param asked the files the user was shown when they picked `prefer`. The
+   * answer covers those and no others: when the server has moved since and
+   * something else now overlaps too, the question is asked again, with the
+   * new set, rather than answered on the user's behalf. Absent when the
+   * question was about the whole project.
+   */
+  static mergeWithServer(
+    projectId: string,
+    localName: string,
+    prefer?: "local" | "server",
+    asked?: readonly string[]
+  ): Promise<"merged" | "conflict" | "failed"> {
+    return PgProjectSync._exclusive(projectId, () =>
+      PgProjectSync._mergeWithServer(projectId, localName, prefer, asked)
+    );
+  }
+
+  private static async _mergeWithServer(
+    projectId: string,
+    localName: string,
+    prefer?: "local" | "server",
+    asked?: readonly string[]
+  ): Promise<"merged" | "conflict" | "failed"> {
+    // Held for the whole merge, re-open included. Counted, so a reconcile
+    // that starts or finishes meanwhile can neither open it early nor have
+    // it opened under it.
+    PgProjectSync.holdPushes();
+    // Every snapshot of this project read before now is of files this may be
+    // about to replace, so none of them may be sent
+    PgProjectSync._bump(projectId);
+    // What was read as local on the first attempt -- what the editor's
+    // buffers were last known to agree with -- and what the store holds now
+    let first: Record<string, string> | null = null;
+    let written: Record<string, string> | null = null;
+    // What the workspace holds after an attempt that wrote it. Re-reading
+    // instead would be wrong for the current workspace: `snapshotOf` reads it
+    // from memory, which `replaceWorkspaceFiles` leaves alone until the
+    // re-open below -- so a retry would take the pre-merge copy for local work
+    // and undo, silently, the server's changes the first attempt merged in.
+    let carried: Record<string, string> | null = null;
+
+    try {
+      for (let attempt = 0; attempt < MERGE_ATTEMPTS; attempt++) {
+        const full = await PgProjectSync.read(projectId);
+        // Deleted on another device, most likely while this one was editing:
+        // the question is whether to keep the work, not which version wins
+        if (full === "gone") {
+          PgProjectSync._raise({ projectId, kind: "deleted-elsewhere" });
+          return "conflict";
+        }
+        if (!full || !isUsableSnapshot(full.snapshot)) return "failed";
+
+        const server = full.snapshot.files;
+        const local = carried ?? (await snapshotOf(localName)).files;
+        first ??= local;
+        // The same window `pushCurrent` refuses: the explorer mid-re-read
+        // reads as a project with every file deleted, and merging that would
+        // delete them on the server too
+        if (!Object.keys(local).length) {
+          report(
+            `merge project ${projectId}: refused an empty local copy`,
+            null
+          );
+          return "failed";
+        }
+        const mark = await PgSyncMark.read(projectId);
+        const [localHashes, serverHashes] = await Promise.all([
+          hashFiles({ files: local }),
+          hashFiles({ files: server }),
+        ]);
+
+        // What a push would have kept before sending. A merge that reconcile
+        // starts can reach an edit no push has seen -- autosaved, its
+        // debounce still pending -- and without this it had no base for it.
+        // First attempt only: a retry's local copy is the merge's own result,
+        // and the shadow's hash check refuses anything but the agreement.
+        if (mark && !carried) {
+          await PgSyncBase.capture(
+            projectId,
+            diffFiles(mark.files, localHashes).changed,
+            mark.files
+          );
+        }
+
+        const plan = planMerge({
+          base: mark?.files ?? {},
+          baseContents: await PgSyncBase.read(projectId),
+          local,
+          localHashes,
+          server,
+          serverHashes,
+        });
+
+        // Unanswered, or answered about other files than these. Checked on
+        // every attempt: a retry re-reads a server that may have moved again.
+        if (
+          plan.conflicts.length &&
+          (!prefer ||
+            (asked && !plan.conflicts.every((path) => asked.includes(path))))
+        ) {
+          PgProjectSync._raise({
+            projectId,
+            kind: "divergent",
+            paths: plan.conflicts,
+          });
+          return "conflict";
+        }
+
+        const merged = settleConflicts(plan, prefer ?? "server", local, server);
+        if (!Object.keys(merged).length) {
+          report(`merge project ${projectId}: refused an empty result`, null);
+          return "failed";
+        }
+
+        if (!sameFiles(merged, local)) {
+          await PgExplorer.replaceWorkspaceFiles(localName, merged);
+          written = merged;
+        }
+        await PgSyncMark.write(projectId, {
+          files: serverHashes,
+          name: full.name,
+          updatedAt: full.updatedAt,
+          // Clean when the merge came out as the server's copy -- identical
+          // copies, or only the server moved. Left set otherwise, so a merge
+          // whose upload never lands still reads as work owed.
+          dirty: !sameFiles(merged, server),
+        });
+        await PgSyncBase.replace(
+          projectId,
+          baseAfterMerge(merged, server, serverHashes)
+        );
+
+        // Cleared before uploading: `push` refuses a project with a question
+        // outstanding, and this is the answer to it
+        PgProjectSync._clear(projectId);
+        const result = await PgProjectSync.push(
+          projectId,
+          { files: merged },
+          localName,
+          { immediate: true, merging: true }
+        );
+        // "skipped" is either nothing left to send or no network; both leave
+        // a state the next reconcile continues from
+        if (result !== "conflict") return "merged";
+
+        // A refusal that is not about versions is the user's to clear
+        if (PgProjectSync._conflicts.get(projectId)?.kind !== "divergent") {
+          return "conflict";
+        }
+        // Another write landed between the fetch and the upload. The mark and
+        // base above are still an honest record, so start over from it.
+        PgProjectSync._clear(projectId);
+        carried = merged;
+      }
+
+      PgProjectSync._raise({ projectId, kind: "divergent" });
+      return "conflict";
+    } finally {
+      try {
+        // Before the gate opens: until the editor and memory hold what the
+        // store now does, any push would read the pre-merge copy
+        const folded = written
+          ? await PgProjectSync._catchUp(localName, first!, written)
+          : [];
+        if (folded.length) {
+          // What the merge wrote is the agreement for these files, or its
+          // base is kept already -- the merged copy when its upload landed,
+          // the server's when it did not. Kept now, as in `_adopt`: the
+          // re-open re-took the shadow from the folded copy, which no longer
+          // matches the mark.
+          const mark = await PgSyncMark.read(projectId);
+          if (mark) {
+            await PgSyncBase.capture(projectId, folded, mark.files, written!);
+          }
+          // The mark was written, and the upload made, from the merged copy
+          // alone. What the editor folded in on top is on this device only,
+          // and a mark that says nothing is owed would have reconcile's cheap
+          // path skip the project until the next edit.
+          await PgSyncMark.markDirty(projectId);
+        }
+      } finally {
+        // And after catching up, so a snapshot read while it ran is not sent
+        PgProjectSync._bump(projectId);
+        PgProjectSync.releasePushes();
+      }
+    }
+  }
+
+  /**
+   * Whether a merge or adoption of this project is running, or waiting to.
+   *
+   * Reconcile leaves such a project for its next pass: the merge is already
+   * reading the server and rewriting the workspace, and a second pass over
+   * the same project would only queue behind it with a decision made before
+   * it ran.
+   */
+  static isMerging(projectId: string) {
+    return PgProjectSync._merging.has(projectId);
+  }
+
+  /**
+   * Run `task` once nothing else is rewriting this project, then let the
+   * next one in.
+   *
+   * Two merges of one project cannot overlap safely. Each reads the local copy
+   * from memory and the agreement from the mark, at different moments: a
+   * second merge that read memory before the first had re-opened the
+   * workspace, and the mark after the first had written it, planned the
+   * pre-merge copy against the new agreement -- so every line only the other
+   * device changed read as this device reverting it, and it uploaded the
+   * revert, which the swap accepted. The second push to arrive -- a debounce
+   * refused mid-reconcile, or the user answering the banner -- reaches here
+   * as easily as the first.
+   *
+   * So a later caller waits, and then runs from scratch: fresh reads, its own
+   * `prefer`. Handing it the earlier call's outcome instead would answer the
+   * banner with whatever the reconcile decided.
+   *
+   * Nothing a task awaits may wait on this project's chain in turn. The merge's
+   * own upload does not merge again (`merging`), and the reconcile its re-open
+   * starts is not awaited and skips a project that `isMerging`.
+   *
+   * @param task given whether it had to wait, since what the caller decided
+   * before calling may no longer hold
+   */
+  private static async _exclusive<T>(
+    projectId: string,
+    task: (waited: boolean) => Promise<T>
+  ): Promise<T> {
+    const previous = PgProjectSync._tails.get(projectId);
+    let finish!: () => void;
+    // Resolves whatever the task does, so a failure cannot wedge the chain
+    const tail = new Promise<void>((resolve) => (finish = resolve));
+    PgProjectSync._tails.set(projectId, tail);
+    PgProjectSync._merging.set(
+      projectId,
+      (PgProjectSync._merging.get(projectId) ?? 0) + 1
+    );
+
+    try {
+      if (previous) await previous;
+      return await task(!!previous);
+    } finally {
+      const left = (PgProjectSync._merging.get(projectId) ?? 1) - 1;
+      if (left) PgProjectSync._merging.set(projectId, left);
+      else PgProjectSync._merging.delete(projectId);
+      // Only the newest link is kept, and only while it is outstanding, so
+      // the map holds at most one promise per project that is busy
+      if (PgProjectSync._tails.get(projectId) === tail) {
+        PgProjectSync._tails.delete(projectId);
+      }
+      finish();
+    }
   }
 
   /**
@@ -420,28 +973,27 @@ export class PgProjectSync {
 
     try {
       switch (resolution) {
-        case "keep-local": {
-          if (!name) return false;
-          const result = await PgProjectSync.push(
-            projectId,
-            await snapshotOf(name),
-            name,
-            { force: true }
-          );
-          return result === "ok";
-        }
-
+        case "keep-local":
         case "take-server": {
-          // `adopt` re-opens the workspace itself when it is the current one
-          const local = await PgProjectSync.adopt(projectId);
-          if (!local) return false;
-          PgProjectSync._clear(projectId);
-          return true;
+          if (!name) return false;
+          // Only the files that could not be merged follow the user's answer;
+          // everything that merged stays merged. Only the files the banner
+          // named, too: the merge re-reads the server, and an answer about
+          // `src/lib.rs` is not an answer about a file that has come to
+          // overlap since.
+          const outcome = await PgProjectSync.mergeWithServer(
+            projectId,
+            name,
+            resolution === "keep-local" ? "local" : "server",
+            PgProjectSync._conflicts.get(projectId)?.paths
+          );
+          return outcome === "merged";
         }
 
         case "delete-local": {
           if (name) await PgExplorer.deleteWorkspace(name);
           await PgSyncMark.remove(projectId);
+          await PgSyncBase.clear(projectId);
           PgProjectSync._clear(projectId);
           return true;
         }
@@ -460,6 +1012,7 @@ export class PgProjectSync {
           });
           await PgExplorer.deleteWorkspace(name);
           await PgSyncMark.remove(projectId);
+          await PgSyncBase.clear(projectId);
           PgProjectSync._clear(projectId);
           await PgExplorer.switchWorkspace(fresh);
           return true;
@@ -596,17 +1149,26 @@ export class PgProjectSync {
    * something that will never happen.
    */
   static holdPushes() {
-    if (PgProjectSync._release) return;
+    // Counted, not a single slot. Load, a tab coming back, and a merge each
+    // hold for their own reasons and overlap freely; with one slot, whichever
+    // finished first opened the gate for all of them -- a reconcile ending
+    // mid-merge let the editor upload the pre-merge copy, and a merge ending
+    // mid-reconcile did the same to the reconcile.
+    if (PgProjectSync._holds++ > 0) return;
     PgProjectSync._gate = new Promise((resolve) => {
       PgProjectSync._release = resolve;
     });
   }
 
-  /** Let held pushes through. Safe to call more than once. */
+  /**
+   * Give up one hold. Pushes go through once every holder has let go. A
+   * release with no hold outstanding does nothing, so it cannot open a gate
+   * someone else is holding.
+   */
   static releasePushes() {
-    PgProjectSync._release?.();
-    PgProjectSync._release = null;
-    PgProjectSync._gate = Promise.resolve();
+    if (!PgProjectSync._holds) return;
+    if (--PgProjectSync._holds > 0) return;
+    PgProjectSync._openGate();
   }
 
   /**
@@ -622,7 +1184,12 @@ export class PgProjectSync {
     PgProjectSync._conflicts.clear();
     PgProjectSync._conflictListeners.clear();
     PgProjectSync._signingOut = 0;
-    PgProjectSync.releasePushes();
+    PgProjectSync._merging.clear();
+    PgProjectSync._tails.clear();
+    PgProjectSync._generations.clear();
+    // Every hold at once: a reset is the one place that is allowed to
+    PgProjectSync._holds = 0;
+    PgProjectSync._openGate();
   }
 
   /** Sign-out: the account's state goes, the listeners stay */
@@ -635,15 +1202,44 @@ export class PgProjectSync {
 
   private static _gate: Promise<void> = Promise.resolve();
   private static _release: (() => void) | null = null;
+  private static _holds = 0;
   private static _signingOut = 0;
 
   private static readonly _names = new Map<string, string>();
   private static readonly _conflicts = new Map<string, Conflict>();
   private static readonly _conflictListeners = new Set<() => void>();
+  /** Merges and adoptions running or queued, per project -- see `_exclusive` */
+  private static readonly _merging = new Map<string, number>();
+  /** The last queued merge or adoption per project, while any is outstanding */
+  private static readonly _tails = new Map<string, Promise<void>>();
+  /** Rewrites of each project's local files -- see `generationOf` */
+  private static readonly _generations = new Map<string, number>();
+
+  private static _openGate() {
+    PgProjectSync._release?.();
+    PgProjectSync._release = null;
+    PgProjectSync._gate = Promise.resolve();
+  }
+
+  private static _generationOf(projectId: string) {
+    return PgProjectSync._generations.get(projectId) ?? 0;
+  }
+
+  private static _bump(projectId: string) {
+    PgProjectSync._generations.set(
+      projectId,
+      PgProjectSync._generationOf(projectId) + 1
+    );
+  }
 
   private static _raise(conflict: Conflict) {
     const existing = PgProjectSync._conflicts.get(conflict.projectId);
-    if (existing?.kind === conflict.kind) return;
+    if (
+      existing?.kind === conflict.kind &&
+      JSON.stringify(existing.paths) === JSON.stringify(conflict.paths)
+    ) {
+      return;
+    }
     PgProjectSync._conflicts.set(conflict.projectId, conflict);
     PgProjectSync._emit();
   }
@@ -660,6 +1256,30 @@ export class PgProjectSync {
     return !!PgSession.get() && (await PgSyncClient.available());
   }
 }
+
+/**
+ * Whether a local copy's user files are exactly what a mark says this device
+ * last agreed with the server, under the name it is called now.
+ *
+ * Shared by reconcile and adoption, because adoption re-asks the question
+ * reconcile decided on and the two must not disagree about the answer. A mark
+ * from before per-file hashes answers it as a whole, through the one hash it
+ * holds, and an empty hash -- marks older still -- matches no copy.
+ */
+export const isCleanAgainst = async (
+  mark: SyncMark | LegacySyncMark | null,
+  localName: string,
+  files: Record<string, string>
+): Promise<boolean> => {
+  if (!mark || mark.name !== localName) return false;
+  if ("legacy" in mark) {
+    return (
+      !!mark.contentHash &&
+      mark.contentHash === (await legacyContentHash(files))
+    );
+  }
+  return sameUserFiles(mark.files, await hashFiles({ files }));
+};
 
 /**
  * Whether a stored snapshot can be written to a workspace.

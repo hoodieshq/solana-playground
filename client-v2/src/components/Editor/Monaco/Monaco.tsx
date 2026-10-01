@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import styled, { useTheme } from "styled-components";
 import * as monaco from "monaco-editor";
 
+import { editorBuffersOf } from "./editor-buffers";
 import { initLanguages } from "./languages";
 import { SpinnerWithBg } from "../../Loading";
 import {
@@ -385,6 +386,19 @@ const Monaco = () => {
       deleteItem.dispose();
       monaco.editor.getModels().forEach((model) => model.dispose());
     };
+  }, [editor]);
+
+  // Sync rewrites files underneath the editor -- a merge with another device,
+  // or taking its copy -- and the open-file handler above reuses an existing
+  // model rather than taking the file's new content. So the models have to be
+  // reachable from the rewrite, or the editor keeps showing the old text and
+  // autosave writes it back over the new.
+  useEffect(() => {
+    if (!editor) return;
+    const registration = PgExplorer.registerEditorBuffers(
+      editorBuffersOf(() => monaco.editor.getModels())
+    );
+    return () => registration.dispose();
   }, [editor]);
 
   // Auto save

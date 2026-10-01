@@ -1,4 +1,6 @@
 import { PgProjectSync } from "./project-sync";
+import { hashFiles } from "./snapshot";
+import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
@@ -34,12 +36,26 @@ const reset = () => {
   PgSession.reset();
   PgSyncClient.reset();
   PgProjectSync.reset();
+  PgSyncBase.reset();
   storedFiles().clear();
 };
 
 /** The body of the most recent request */
 const lastBody = () =>
   JSON.parse((global.fetch as jest.Mock).mock.calls.at(-1)![1].body);
+
+/** This device and the server agreed on `files`, under `name` */
+const agreedOn = async (
+  projectId: string,
+  name: string,
+  files: Record<string, string>
+) =>
+  PgSyncMark.write(projectId, {
+    files: await hashFiles({ files }),
+    name,
+    updatedAt: "t1",
+    dirty: false,
+  });
 
 const putCalls = () =>
   (global.fetch as jest.Mock).mock.calls.filter(
@@ -109,8 +125,7 @@ describe("PgProjectSync", () => {
     await signedIn();
 
     expect(await PgSyncMark.read("p1")).toEqual({
-      hash: expect.any(String),
-      contentHash: expect.any(String),
+      files: { a: expect.any(String) },
       name: "p1",
       updatedAt: "t1",
       dirty: false,
@@ -246,6 +261,54 @@ describe("PgProjectSync", () => {
 
     expect(await PgProjectSync.list()).toEqual(projects);
   });
+
+  const okServer = () =>
+    (global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t1" }),
+          })
+    ) as unknown as typeof fetch);
+
+  it("sends the whole file set the first time", async () => {
+    okServer();
+    await signedIn();
+    await PgProjectSync.push("p1", { files: { a: "1", b: "2" } });
+    expect(lastBody()).toMatchObject({ files: { a: "1", b: "2" } });
+    expect(lastBody().changed).toBeUndefined();
+  });
+
+  it("sends only what changed after that", async () => {
+    okServer();
+    await signedIn();
+    await PgProjectSync.push("p1", { files: { a: "1", b: "2", c: "3" } });
+    await PgProjectSync.push("p1", { files: { a: "1", b: "9", d: "4" } });
+    expect(lastBody()).toMatchObject({
+      changed: { b: "9", d: "4" },
+      removed: ["c"],
+      baseUpdatedAt: "t1",
+    });
+    expect(lastBody().files).toBeUndefined();
+  });
+
+  it("keeps what a file held at the last agreement, even while a question is open", async () => {
+    // Pushes stop while the banner is up, and the user keeps typing. When
+    // they answer, the merge needs these files' base content, and the only
+    // moment to take it was before the edit went unsent.
+    okServer();
+    await signedIn();
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    await PgProjectSync.push("p1", { files: { a: "one" } });
+
+    PgProjectSync.raise({ projectId: "p1", kind: "divergent" });
+    expect(await PgProjectSync.push("p1", { files: { a: "two" } })).toBe(
+      "skipped"
+    );
+
+    expect((await PgSyncBase.read("p1")).a?.content).toBe("one");
+  });
 });
 
 describe("a conflict is asked once, not retried forever", () => {
@@ -256,6 +319,7 @@ describe("a conflict is asked once, not retried forever", () => {
   };
 
   beforeEach(reset);
+  afterEach(() => jest.restoreAllMocks());
 
   it("stops pushing the project until the user has answered", async () => {
     // The bug this replaces: the 409 left the stale token in place and did not
@@ -327,12 +391,74 @@ describe("a conflict is asked once, not retried forever", () => {
       kind: "divergent",
     });
 
+    // Settled the way the banner settles a refusal: the user answers, and the
+    // push that follows is accepted
     status = 200;
-    await PgProjectSync.push("p1", { files: { a: "2" } }, undefined, {
-      force: true,
-    });
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("one");
+    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([["/one/a", "2"]]);
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
     expect(changes).toBe(2);
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
+  });
+
+  it("still asks when the merge a refusal starts cannot read the server", async () => {
+    // Offline since the refusal. Returning without raising anything would
+    // leave pushes running, and every debounce would send the same doomed
+    // swap.
+    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      if (init?.method === "PUT") return Promise.resolve(refusal);
+      return Promise.reject(new TypeError("Failed to fetch"));
+    }) as unknown as typeof fetch;
+    await signedIn();
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "divergent",
+    });
+    expect(await PgProjectSync.push("p1", { files: { a: "2" } })).toBe(
+      "skipped"
+    );
+    expect(putCalls()).toHaveLength(1);
+  });
+
+  it("asks about the delete when the refused row turns out to be gone", async () => {
+    // A 409 on a tombstoned or missing row, and the merge's read of it a 404.
+    // Asked as a divergence, both answers merge against a server that has
+    // nothing to merge with and fail, so the banner could never be cleared --
+    // and "Keep as a new project", the answer that works, was never offered.
+    global.fetch = jest
+      .fn()
+      .mockImplementation((url: string, init: any) =>
+        Promise.resolve(
+          url === "/api/sync"
+            ? okProbe
+            : init?.method === "PUT"
+            ? refusal
+            : { ok: false, status: 404, json: async () => ({}) }
+        )
+      ) as unknown as typeof fetch;
+    await signedIn();
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+
+    expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "deleted-elsewhere",
+    });
+    expect(await PgProjectSync.push("p1", { files: { a: "2" } })).toBe(
+      "skipped"
+    );
+    expect(putCalls()).toHaveLength(1);
   });
 });
 
@@ -349,35 +475,53 @@ describe("resolving a conflict", () => {
   beforeEach(reset);
   afterEach(() => jest.restoreAllMocks());
 
-  it("sends force when the user keeps this device's version", async () => {
-    // `force` is the server's third door and nothing ever opened it: the
-    // banner documented it as the recovery and no client code sent it.
+  it("keeps this device's version as a swap against the server's, not an overwrite", async () => {
+    // There is no unconditional write any more. Keeping this device's side
+    // makes the server's copy the agreement first, so the upload is an
+    // ordinary compare-and-swap that a third write can still refuse.
     let status = 409;
-    global.fetch = jest.fn().mockImplementation((url: string) =>
-      url === "/api/sync"
-        ? Promise.resolve(okProbe)
-        : Promise.resolve({
-            ok: status === 200,
-            status,
-            json: async () =>
-              status === 200
-                ? { updatedAt: "t2" }
-                : { conflict: true, updatedAt: "t9" },
-          })
-    ) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      if (init?.method !== "PUT") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            project: {
+              id: "p1",
+              name: "mine",
+              kind: "project",
+              snapshot: { files: { "src/lib.rs": "theirs" } },
+              updatedAt: "t9",
+            },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: status === 200,
+        status,
+        json: async () =>
+          status === 200
+            ? { updatedAt: "t10" }
+            : { conflict: true, updatedAt: "t9" },
+      });
+    }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
 
     await PgProjectSync.pushCurrent();
-    expect(PgProjectSync.conflictFor("p1")).not.toBeNull();
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "divergent",
+      paths: ["src/lib.rs"],
+    });
 
     status = 200;
     expect(await PgProjectSync.resolve("p1", "keep-local")).toBe(true);
 
     const body = lastBody();
-    expect(body.force).toBe(true);
-    expect(body.baseUpdatedAt).toBeUndefined();
-    expect(body.snapshot.files["src/lib.rs"]).toBe("mine");
+    expect(body.force).toBeUndefined();
+    expect(body.baseUpdatedAt).toBe("t9");
+    expect(body.changed).toEqual({ "src/lib.rs": "mine" });
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
   });
 
@@ -446,6 +590,8 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
+    // Adopting re-checks that the local copy is the last agreement
+    await agreedOn("p1", "mine", { "src/lib.rs": "mine" });
     jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
@@ -453,7 +599,7 @@ describe("resolving a conflict", () => {
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
 
-    await PgProjectSync.adopt("p1");
+    expect(await PgProjectSync.adopt("p1")).toBe("mine");
 
     expect(reload).toHaveBeenCalledWith("mine");
   });
@@ -479,6 +625,8 @@ describe("resolving a conflict", () => {
     await signedIn();
     asWorkspace("p1", "mine");
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
+    storedFiles().set("/other/src/lib.rs", "old");
+    await agreedOn("p2", "other", { "src/lib.rs": "old" });
     jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
@@ -486,7 +634,7 @@ describe("resolving a conflict", () => {
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
 
-    await PgProjectSync.adopt("p2");
+    expect(await PgProjectSync.adopt("p2")).toBe("other");
 
     expect(reload).not.toHaveBeenCalled();
   });
@@ -549,7 +697,7 @@ describe("PgProjectSync.pushCurrent", () => {
 
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
     expect(lastBody().id).toBe("tut:hello-anchor");
-    expect(lastBody().snapshot.files["src/lib.rs"]).toBe("fn main() {}");
+    expect(lastBody().files["src/lib.rs"]).toBe("fn main() {}");
   });
 
   it("names it as the user sees it, not by its id", async () => {
@@ -648,6 +796,27 @@ describe("holding pushes until the account is reconciled", () => {
     PgProjectSync.releasePushes();
 
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe("ok");
+  });
+
+  it("stays held until every holder has let go", async () => {
+    // A reconcile and a merge hold for their own reasons and overlap. With a
+    // single slot, whichever finished first opened the gate for both, and the
+    // editor uploaded its pre-merge copy while the merge was still writing.
+    await signedIn();
+    PgProjectSync.holdPushes();
+    PgProjectSync.holdPushes();
+
+    let done = false;
+    const push = PgProjectSync.push("p1", { files: { a: "1" } }).then((r) => {
+      done = true;
+      return r;
+    });
+    PgProjectSync.releasePushes();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(done).toBe(false);
+
+    PgProjectSync.releasePushes();
+    expect(await push).toBe("ok");
   });
 
   it("holds nothing by default, so a caller that never reconciles still works", async () => {

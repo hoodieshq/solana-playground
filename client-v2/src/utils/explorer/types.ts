@@ -72,3 +72,20 @@ export interface Folder {
 
 /** Array<[Path, Content]> */
 export type TupleFiles = TupleString[];
+
+/**
+ * The editor's own copy of files, which can run ahead of the explorer's.
+ *
+ * Every path is a full path, `/<workspace>/<file>`. The editor keeps a model
+ * per file it has opened and reuses it on the next open, so anything that
+ * rewrites files underneath it has to update these too, or the editor goes
+ * on showing -- and autosaving -- the old text.
+ */
+export interface EditorBuffers {
+  /** The buffer's current text, or `undefined` when there is none */
+  read(path: string): string | undefined;
+  /** Replace the buffer's text, as one undoable edit */
+  write(path: string, content: string): void;
+  /** Drop the buffer of a file that no longer exists */
+  discard(path: string): void;
+}

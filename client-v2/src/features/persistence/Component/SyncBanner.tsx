@@ -1,28 +1,50 @@
 import { useCallback, useEffect, useState } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 
+import Button from "../../../components/Button";
 import { PgProjectSync } from "../model/project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
 
+/** `src/lib.rs`, or `src/lib.rs and 2 other files` */
+const describePaths = (paths: string[]) =>
+  paths.length === 1
+    ? paths[0]
+    : `${paths[0]} and ${paths.length - 1} other file${
+        paths.length > 2 ? "s" : ""
+      }`;
+
 /** What the user is shown, and what each answer does */
 const PROMPTS: Record<
   Conflict["kind"],
-  { message: string; actions: { label: string; resolution: Resolution }[] }
+  {
+    message: (conflict: Conflict) => string;
+    actions: { label: string; resolution: Resolution; primary?: boolean }[];
+  }
 > = {
   divergent: {
-    message:
-      "This project changed on another device, and this one has unsaved changes.",
+    // Everything else has already been merged by the time this shows, so it
+    // names what is left rather than offering to replace the whole project
+    message: ({ paths }) =>
+      paths?.length
+        ? `${describePaths(
+            paths
+          )} changed on another device and on this one, in the same place. Everything else was merged.`
+        : "This project changed on another device, and this one has unsaved changes.",
     actions: [
-      { label: "Keep this version", resolution: "keep-local" },
+      { label: "Keep this version", resolution: "keep-local", primary: true },
       { label: "Take the other version", resolution: "take-server" },
     ],
   },
   "deleted-elsewhere": {
-    message:
+    message: () =>
       "This project was deleted on another device, but you have unsaved changes here.",
     actions: [
-      { label: "Keep as a new project", resolution: "keep-as-new" },
+      {
+        label: "Keep as a new project",
+        resolution: "keep-as-new",
+        primary: true,
+      },
       { label: "Delete anyway", resolution: "delete-local" },
     ],
   },
@@ -33,25 +55,25 @@ const PROMPTS: Record<
   // deleting the file that made it too big would fix the cause and leave it
   // stuck anyway.
   "name-taken": {
-    message:
+    message: () =>
       "Another project in your account already uses this name, so this one cannot be uploaded. Rename it, then try again.",
-    actions: [{ label: "Try again", resolution: "retry" }],
+    actions: [{ label: "Try again", resolution: "retry", primary: true }],
   },
   "too-large": {
-    message:
+    message: () =>
       "This project is too large to sync. Remove or shrink its largest files, then try again.",
-    actions: [{ label: "Try again", resolution: "retry" }],
+    actions: [{ label: "Try again", resolution: "retry", primary: true }],
   },
 };
 
 /**
  * Say why a project has stopped syncing, and offer the way out.
  *
- * Mostly that means asking which copy to keep -- deliberately a prompt rather
- * than a merge or a silent overwrite, because the failure this prevents is "I
- * opened the project on my phone and lost an afternoon on my laptop". Two
- * copies of a program are not something an automatic merge can reconcile, and
- * a bad merge is worse than a question.
+ * Mostly that means asking which copy to keep, because the failure this
+ * prevents is "I opened the project on my phone and lost an afternoon on my
+ * laptop". Asked only about what a merge could not settle -- lines both
+ * devices changed. Anything that overlaps, or merely touches, is a question
+ * rather than a guess, because a bad merge is worse than a question.
  *
  * It is the *only* place the user is asked anything. Every other outcome --
  * taking the server's copy, pushing this device's, finishing a delete -- is
@@ -106,50 +128,107 @@ const SyncBanner = () => {
   if (!conflict) return null;
 
   const prompt = PROMPTS[conflict.kind];
+  const message = prompt.message(conflict);
+
+  // The first path is the one the message names, so it is set in code style
+  const named = conflict.paths?.[0];
+  const at = named ? message.indexOf(named) : -1;
 
   return (
     <Wrapper role="alert">
-      {prompt.message}
-      {prompt.actions.map((action) => (
-        <Action
-          key={action.resolution}
-          disabled={busy}
-          onClick={() => void answer(action.resolution)}
-        >
-          {action.label}
-        </Action>
-      ))}
+      <Icon viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+        <path
+          d="M12 3.5L2.5 20h19L12 3.5zM12 10v4.5M12 17.25v.01"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Icon>
+      <Body>
+        <Message>
+          {named && at >= 0 ? (
+            <>
+              {message.slice(0, at)}
+              <Path>{named}</Path>
+              {message.slice(at + named.length)}
+            </>
+          ) : (
+            message
+          )}
+        </Message>
+        <Actions>
+          {prompt.actions.map((action) => (
+            <Button
+              key={action.resolution}
+              kind={action.primary ? "primary" : "outline"}
+              size="small"
+              disabled={busy}
+              onClick={() => void answer(action.resolution)}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Actions>
+      </Body>
     </Wrapper>
   );
 };
 
+/** A card in the layout's flow; the mount point supplies the page gutters */
 const Wrapper = styled.div`
-  ${({ theme }) => `
-    padding: 0.5rem 0.75rem;
-    background: ${theme.colors.state.warning.bg};
-    color: ${theme.colors.state.warning.color};
-    font-size: ${theme.font.code.size.small};
+  ${({ theme }) => css`
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-left: 3px solid ${theme.colors.state.warning.color};
+    border-radius: ${theme.default.borderRadius};
+    background: ${theme.colors.default.bgSecondary};
+    color: ${theme.colors.default.textPrimary};
+    font-family: ${theme.font.other.family};
+    font-size: ${theme.font.other.size.small};
+    line-height: 1.4;
   `}
 `;
 
-const Action = styled.button`
-  ${({ theme }) => `
-    color: ${theme.colors.state.warning.color};
-    text-decoration: underline;
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-size: inherit;
-    white-space: nowrap;
+const Icon = styled.svg`
+  flex-shrink: 0;
+  color: ${({ theme }) => theme.colors.state.warning.color};
+`;
 
-    &:disabled {
-      cursor: progress;
-      opacity: 0.6;
-    }
+/** Message left, buttons right; the buttons drop below when it gets narrow */
+const Body = styled.div`
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+`;
+
+const Message = styled.p`
+  flex: 1 1 20rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+`;
+
+const Path = styled.code`
+  ${({ theme }) => css`
+    padding: 0.0625rem 0.375rem;
+    background: ${theme.colors.default.bgPrimary};
+    font-family: ${theme.font.code.family};
+    font-size: ${theme.font.code.size.small};
   `}
+`;
+
+const Actions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 `;
 
 export default SyncBanner;

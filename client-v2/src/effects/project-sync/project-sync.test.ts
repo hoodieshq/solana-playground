@@ -2,6 +2,8 @@ import { projectSync } from "./project-sync";
 import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import * as restore from "../../features/persistence/model/project-restore";
+import * as snapshot from "../../features/persistence/model/snapshot";
+import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
@@ -146,6 +148,32 @@ describe("the project-sync effect", () => {
 
     expect(PgSyncMark.markDirty).toHaveBeenCalledWith("p1");
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("remembers the files a project opened with, so an edit has a base", async () => {
+    jest
+      .spyOn(snapshot, "buildSnapshot")
+      .mockResolvedValue({ files: { "src/lib.rs": "opened with" } } as never);
+    const track = jest.spyOn(PgSyncBase, "track");
+    jest.spyOn(restore, "reconcile").mockResolvedValue({
+      imported: [],
+      replaced: [],
+      removed: [],
+      pushed: [],
+      conflicts: [],
+      latest: null,
+    });
+    effect = projectSync();
+
+    dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
+    // Three turns of the microtask queue: `buildSnapshot` and the async
+    // wrapper around it, then `track`. Not a timer API -- CRA 5 ships Jest 27,
+    // which has no async timer runners.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(track).toHaveBeenCalledWith("p1", { "src/lib.rs": "opened with" });
   });
 });
 
