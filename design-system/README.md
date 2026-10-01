@@ -24,6 +24,8 @@ npm install
 npm run dev
 ```
 
+`npm run build` builds the page, its snapshot, `ds-inject.css` and the registry. The snapshot drives Chromium through the Playwright that `client-v2` installs for its e2e tests, so install `client-v2` first, or point `PLAYWRIGHT` at another copy's `index.mjs`.
+
 ## Building and publishing
 
 ```bash
@@ -61,6 +63,8 @@ npx shadcn@latest add @playground/stepper
 `@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) still come from the shadcn registry. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
 
 Current shadcn needs React 19: it passes `ref` as a plain prop, and React 17 drops it. So client-v2 moves to React 19 before the first component.
+
+Two of ours need more than the copied files. `message-scroller` and `questionnaire` import the runtime package `@shadcn/react`, which needs React 19; it becomes a dependency of client-v2 when the first of them is installed. `combobox` alone is built on `@base-ui/react`, not Radix; the first ticket that needs a combobox decides whether Base UI stays or the combobox is rebuilt on Radix, so the client carries one set of primitives.
 
 ## How Studio connects
 

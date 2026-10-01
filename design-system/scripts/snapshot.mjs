@@ -11,12 +11,13 @@
 import http from "node:http"
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
-
-const PLAYWRIGHT = process.env.PLAYWRIGHT || "/Users/treptsov/playground-hoodies/client-v2/node_modules/playwright/index.mjs"
-const { chromium } = await import(PLAYWRIGHT)
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+// client-v2 already carries Playwright for its e2e tests.
+const PLAYWRIGHT = process.env.PLAYWRIGHT || path.resolve(here, "../../client-v2/node_modules/playwright/index.mjs")
+const { chromium } = await import(pathToFileURL(PLAYWRIGHT).href)
+
 const DIST = path.resolve(here, "../dist")
 const BASE = "/design-system/"
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".woff2": "font/woff2" }

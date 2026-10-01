@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "playground",
-  "homepage": "https://solana-playground-ds.vercel.app/design-system/",
+  "homepage": "https://github.com/hoodieshq/solana-playground/tree/master-2.0/design-system",
   "items": [
     {
       "name": "playground-tokens",
