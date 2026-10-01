@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build --base=/design-system/ && node scripts/snapshot.mjs && npm run build:inject && npm run build:registry",
     "build:inject": "tailwindcss -i src/styles/inject.css -o dist/ds-inject.css --minify",
     "build:registry": "shadcn build -o registry-dist/r",
+    "registry:serve": "node scripts/serve-registry.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -36,14 +36,29 @@ The page ships with a snapshot of itself in `index.html`. Studio reads the speci
 
 ## Using ours in client-v2
 
-The tokens first, then any component:
+Installs come from the repo, not from the public site. Our items depend on each other as `@playground/<name>`, and the consumer says where `@playground` lives. Build the registry and serve it:
 
 ```bash
-npx shadcn@latest add https://solana-playground-ds.vercel.app/r/playground-tokens.json
-npx shadcn@latest add https://solana-playground-ds.vercel.app/r/stepper.json
+npm run build:registry
+npm run registry:serve        # http://localhost:3010/r, PORT to change it
 ```
 
-`playground.json` installs everything at once. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
+Map the namespace in the consumer's `components.json`:
+
+```json
+"registries": {
+  "@playground": "http://localhost:3010/r/{name}.json"
+}
+```
+
+Then the tokens first, then any component:
+
+```bash
+npx shadcn@latest add @playground/playground-tokens
+npx shadcn@latest add @playground/stepper
+```
+
+`@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) still come from the shadcn registry. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
 
 Current shadcn needs React 19: it passes `ref` as a plain prop, and React 17 drops it. So client-v2 moves to React 19 before the first component.
 

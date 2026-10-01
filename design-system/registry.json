@@ -42,7 +42,7 @@
       "title": "Logo",
       "description": "The Playground mark beside its name. The mark takes the colour of its text.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -60,7 +60,7 @@
       "title": "Status dot",
       "description": "The product's one sign for state: idle, success, warning, error, info, running (pulsing) and target.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -79,7 +79,7 @@
       "title": "Brand button",
       "description": "The one call to action a screen has: a ring of Solana's two colours that fills on hover, or the flat accent.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -101,7 +101,7 @@
       "registryDependencies": [
         "button",
         "spinner",
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -118,7 +118,7 @@
       "registryDependencies": [
         "button",
         "tooltip",
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -138,7 +138,7 @@
       "description": "A small question mark with a large place to press, and the answer in a tooltip.",
       "registryDependencies": [
         "tooltip",
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -156,7 +156,7 @@
       "title": "Callout",
       "description": "A tinted note in a page or form: default, info, warning, success, error.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -175,7 +175,7 @@
       "title": "Tag",
       "description": "A tinted label for a kind: level, framework, language. levelVariant() maps a level to its colour.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -195,8 +195,8 @@
       "title": "Stepper",
       "description": "Write, Build, Deploy, Interact as one switch, with a sliding gradient thumb and a status per stage. Built on Tabs.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/use-indicator.json",
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/use-indicator",
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -216,8 +216,8 @@
       "title": "Segmented",
       "description": "One choice of a few, always one: thumb, boxed with a count, gradient, chips. Built on ToggleGroup.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/use-indicator.json",
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/use-indicator",
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -237,7 +237,7 @@
       "title": "Composer",
       "description": "The assistant's prompt box: banner, context chips, a growing input, add, model, effort ring, send and stop.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -256,7 +256,7 @@
       "title": "Console drawer",
       "description": "A frosted strip under the stage and a well that opens by height, so the terminal stays mounted. \u2318J.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -275,7 +275,7 @@
       "title": "Terminal",
       "description": "Terminal lines by kind (prompt, output, info, success, warning, error) and the green block caret.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -294,7 +294,7 @@
       "title": "Code block",
       "description": "Code with a header, actions that show on hover and line numbers drawn by CSS.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -312,7 +312,7 @@
       "title": "Diagnostic",
       "description": "A build error said plainly, with the source excerpt and the faulty line marked.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -330,7 +330,7 @@
       "title": "Diff",
       "description": "A suggested change: added and removed lines, each with its own mark, and the counts.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -349,7 +349,7 @@
       "title": "Action card",
       "description": "A card you open, with a link stretched over it. default, or frame with the brand ring and lift.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -369,7 +369,7 @@
       "title": "Setup list",
       "description": "The sidebar's Get set up checklist: count in the title, fold, dismiss, and a status per step.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -389,7 +389,7 @@
       "title": "Step rail",
       "description": "A lesson's steps as a vertical line: done, skipped, current, locked.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -408,7 +408,7 @@
       "title": "Objective band",
       "description": "A lesson's frosted band: a gradient meter, the objective, back and on, and actions.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -427,7 +427,7 @@
       "title": "Stage empty",
       "description": "What a stage says before it has anything: media, title, meta, description, notice, actions, footer.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -445,7 +445,7 @@
       "title": "Modal",
       "description": "The product's dialog: a card on a desk, a page of its own on a phone, and a wide size.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -465,7 +465,7 @@
       "title": "Menu extras",
       "description": "Parts for shadcn's menus: a line under an item, a note, and rows that fold open in place.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -485,7 +485,7 @@
       "title": "Editor tabs",
       "description": "The open files over the editor, the current one marked with a purple top line.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -504,7 +504,7 @@
       "title": "Drop zone",
       "description": "Where a file lands, and a button to browse for one.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -522,7 +522,7 @@
       "title": "Achievement",
       "description": "An achievement for a profile: a gradient ring when earned, grey until then.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
+        "@playground/playground-tokens"
       ],
       "files": [
         {
@@ -540,33 +540,33 @@
       "title": "Everything",
       "description": "The tokens and every Playground component, in one install.",
       "registryDependencies": [
-        "https://solana-playground-ds.vercel.app/r/playground-tokens.json",
-        "https://solana-playground-ds.vercel.app/r/logo.json",
-        "https://solana-playground-ds.vercel.app/r/status-dot.json",
-        "https://solana-playground-ds.vercel.app/r/brand-button.json",
-        "https://solana-playground-ds.vercel.app/r/async-button.json",
-        "https://solana-playground-ds.vercel.app/r/copy-button.json",
-        "https://solana-playground-ds.vercel.app/r/help-tip.json",
-        "https://solana-playground-ds.vercel.app/r/callout.json",
-        "https://solana-playground-ds.vercel.app/r/tag.json",
-        "https://solana-playground-ds.vercel.app/r/stepper.json",
-        "https://solana-playground-ds.vercel.app/r/segmented.json",
-        "https://solana-playground-ds.vercel.app/r/composer.json",
-        "https://solana-playground-ds.vercel.app/r/console-drawer.json",
-        "https://solana-playground-ds.vercel.app/r/terminal.json",
-        "https://solana-playground-ds.vercel.app/r/code-block.json",
-        "https://solana-playground-ds.vercel.app/r/diagnostic.json",
-        "https://solana-playground-ds.vercel.app/r/diff.json",
-        "https://solana-playground-ds.vercel.app/r/action-card.json",
-        "https://solana-playground-ds.vercel.app/r/setup-list.json",
-        "https://solana-playground-ds.vercel.app/r/step-rail.json",
-        "https://solana-playground-ds.vercel.app/r/objective-band.json",
-        "https://solana-playground-ds.vercel.app/r/stage-empty.json",
-        "https://solana-playground-ds.vercel.app/r/modal.json",
-        "https://solana-playground-ds.vercel.app/r/menu-extras.json",
-        "https://solana-playground-ds.vercel.app/r/editor-tabs.json",
-        "https://solana-playground-ds.vercel.app/r/drop-zone.json",
-        "https://solana-playground-ds.vercel.app/r/achievement.json"
+        "@playground/playground-tokens",
+        "@playground/logo",
+        "@playground/status-dot",
+        "@playground/brand-button",
+        "@playground/async-button",
+        "@playground/copy-button",
+        "@playground/help-tip",
+        "@playground/callout",
+        "@playground/tag",
+        "@playground/stepper",
+        "@playground/segmented",
+        "@playground/composer",
+        "@playground/console-drawer",
+        "@playground/terminal",
+        "@playground/code-block",
+        "@playground/diagnostic",
+        "@playground/diff",
+        "@playground/action-card",
+        "@playground/setup-list",
+        "@playground/step-rail",
+        "@playground/objective-band",
+        "@playground/stage-empty",
+        "@playground/modal",
+        "@playground/menu-extras",
+        "@playground/editor-tabs",
+        "@playground/drop-zone",
+        "@playground/achievement"
       ],
       "files": []
     }
