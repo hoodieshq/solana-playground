@@ -263,6 +263,8 @@ proposals, multi-file patches, errors with many diagnostics. Wide panels
 
 **Date:** 2026-08-19 · **Status:** chosen (deferral, as agreed before the overnight run)
 
+**Superseded by D51** (2026-10-01).
+
 The redesign is carried by the app's own theme system. No Tailwind, no shadcn.
 
 **Why.** shadcn is blocked outright: its components are built on Radix
@@ -284,6 +286,8 @@ client-2 codebase (a fresh codebase changes the calculus entirely).
 ## D9 — Redesign approach: a new default theme plus a thin component layer
 
 **Date:** 2026-08-19 · **Status:** implemented overnight
+
+**Amended by D53** (2026-10-01): two themes, not five.
 
 Canvas: <https://claude.ai/code/artifact/621475c8-0f47-405d-b6b9-d4351c4ca60a>
 Research: `docs/design/brand-research.md` · Spec:
@@ -2915,3 +2919,278 @@ answer is asked again rather than remembered as "sync unavailable".
 **Revisit when** same-file concurrent editing becomes a requirement (the
 spec's own revisit condition), or when the thread-index variant of this
 same bug, HOO-1814, is taken up.
+
+---
+
+## D51 - The client-v2 stack is Tailwind 4, shadcn on Radix and React 19
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Supersedes D8** - **Source:**
+`docs/superpowers/specs/2026-10-01-ui-migration-design.md`, decision 1
+
+**Chosen:** Tailwind 4, `class-variance-authority`, shadcn/ui on Radix,
+React 19, and vitest as the test runner. The designer has shipped a design
+system on exactly this stack (PR #32, `design-system/`), and the customer
+approved the redesign built on it. New code is built from it; existing code
+moves by the change rule in `client-v2/CLAUDE.md`, not in one pass.
+
+**Why D8 no longer holds.** D8 kept the native theme registry because shadcn
+needs React 18 and the client was on React 17, and named the move off React
+17 as its own revisit trigger. That move is this plan's critical path: the
+React 19 spike (HOO-1840) came back pixel-identical on a 23-step walk-through
+with 657 of 657 tests passing. D8's other worry, two styling systems side by
+side, is real and is handled rather than avoided: the token bridge
+(HOO-1802) builds the styled-components theme from the same `tokens.css`, so
+legacy and new components read one palette until styled-components is gone.
+
+**How this sits with D29.** D29 records Next as the client's long-term shape.
+That stays the direction, and this decision does not take it: Create React
+App stays for now. Nothing in the migration needs Next, Tailwind 4 runs
+through craco's PostCSS config, and putting a framework move on top of a
+React move and a styling move would block every parallel stream at once,
+with Breakpoint (Nov 15-17) six weeks out. Once the client is on React 19
+and the design system, the Next move is smaller, not larger: it would carry
+no styling or React-version work with it.
+
+**Rejected: keeping D8's native theme registry.** It cannot render a single
+design-system component, and the approved redesign is made of them.
+
+**Rejected: Tailwind without shadcn.** Possible on React 17, but it means
+rewriting the 60 stock components the design system already ships, and
+those rewrites would drift from the designer's source.
+
+**Rejected: moving to Next or Vite first.** See D29 above; it is its own
+decision.
+
+**Revisit when** Create React App blocks a step: PostCSS ordering, cssnano 5
+on Tailwind 4 output (`@property`, `@layer`, `color-mix()`), or
+`react-refresh` 0.11 on React 19. That is the moment the D29 move gets its
+own entry. Also if the React 19 gate (spec, "The React 19 gate") fails in a
+way the upgrade cannot fix.
+
+---
+
+## D52 - client-v2 is not synced with the upstream frontend
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 2
+
+**Chosen:** `client-v2` stops tracking upstream's frontend. When something
+upstream is wanted there, it comes in as a feature with its own ticket,
+ported by hand, and reviewed like any other change. `client/` stays
+byte-identical to upstream, and `server/` stays unmodified, so upstream syncs
+there are still fast-forwards.
+
+The root CLAUDE.md's "Merge safety" section and its "touch pre-existing
+upstream files inside `client-v2/` as little as possible" constraint are
+rewritten to apply to `client/` and `server/` only. The divergence register
+(`docs/upstream-divergences.md`) is frozen for `client-v2` as of this date:
+it stays as the history of how the fork diverged and as a map for porting
+upstream changes, but no rows are added for `client-v2` edits.
+
+**Why.** React 19, a new styling system, feature-sliced layers and two
+themes in place of five touch most of `client-v2`. After that, an upstream
+sync is not a merge but a rewrite of whatever upstream changed, and keeping
+each `client-v2` file close to upstream would hold every migration ticket
+back for a sync nobody can perform cheaply. The register's upkeep, a row per
+edited file, would cost on every PR and buy nothing.
+
+**Rejected: keeping `client-v2` syncable.** Incompatible with the migration
+above.
+
+**Rejected: dropping `client/`.** It is the upstream mirror that `master`
+guards, and the reference a port reads from.
+
+**Open:** how Sergey's upstream work reaches `client-v2` under this rule, for
+example the rust-analyzer LSP (spec, open question 3). For Sergey.
+
+**Revisit when** the Foundation asks for the redesign to go upstream, or
+upstream ships something large enough that porting it as a feature costs
+more than a sync would.
+
+---
+
+## D53 - Two themes: the design system's dark and light
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Amends D9** - **Source:** spec, decision 3
+
+**Chosen:** two themes, the design system's dark (the product default) and
+light (the design system calls it paper). Playground, Dracula, the old
+Solana, `Solana V2` and the other switchable themes are removed. The theme
+setting stays and offers the two. A user whose saved theme is gone falls back
+to dark, and the product says so once.
+
+**What changes in D9.** D9 kept Playground, Dracula, Light and the old Solana
+switchable beside `Solana V2`. That line no longer holds. D9's other calls
+(sourced tokens, the gradient policy, monospace where the IDE is an IDE)
+carry into the design system and are not reopened here.
+
+**Rejected: keeping every theme.** Each would need its own mapping onto the
+design system's tokens, and the design system defines two. A theme with no
+design is a theme that breaks quietly on every new component.
+
+**Rejected: dark only.** The design system ships light, and some users need
+it.
+
+**Revisit when** the designer adds a theme to the design system.
+
+---
+
+## D54 - The browser floor rises to Tailwind 4's
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 4 - **Ticket:** HOO-1860
+
+**Chosen:** Safari 16.4, Chrome 111, Firefox 128, Edge 111.
+`browserslist.production` in `client-v2/package.json` changes to match.
+Today it reaches back to Safari 14 and Chrome 67.
+
+**Why.** Tailwind 4 relies on `@property`, cascade layers and `color-mix()`,
+and states this floor. The design system is built on Tailwind 4.
+
+**Rejected: keeping Safari 14 on Tailwind 3.** It would mean a Tailwind 3
+port of the design system, which then drifts from the designer's source.
+
+**Rejected: polyfilling.** `@property` and `color-mix()` have no faithful
+polyfill; the output would look different on the browsers it claims to
+support.
+
+**Revisit when** real traffic below the floor shows up.
+
+---
+
+## D55 - New code sits in feature-sliced layers; the old roots are legacy
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 5 - **Enforced by:** HOO-1859
+
+**Chosen:** feature-sliced design with five layers, `app -> widgets ->
+features -> entities -> shared`, each importing only from layers below it.
+A feature never imports another feature; two features meet in a widget.
+There is no `pages` layer, because `widgets` plays that role on a one-screen
+IDE. Cross-imports between entities (`@x`) are not enabled.
+
+The existing roots (`components/`, `views/`, `utils/`, `hooks/`,
+`providers/`, `commands/`, `effects/` and the rest) are legacy. They sit
+outside the layers, new code may import from them, and the boundary check
+ignores them. Code leaves them by the change rule in `client-v2/CLAUDE.md`,
+not by a sweep.
+
+**Why.** Several people and several agents work on the client at once, and
+the code is organised by kind, so there is no agreed place for a new
+component and no rule about what it may import. Layers give both, and a lint
+rule can check them.
+
+**Rejected: moving all code into the layers now.** It blocks everyone and
+lands nothing before Breakpoint.
+
+**Rejected: a `pages` layer.** One screen, one route tree; it would be an
+empty layer.
+
+**Rejected: `@x` cross-imports.** Not needed yet, and easier to add than to
+take back.
+
+**Revisit when** a second screen with its own route tree appears (add
+`pages`), or two entities need each other in more than one place (`@x`).
+
+---
+
+## D56 - Our components come in pairs: `Base<Name>` and `<Name>`
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 6
+
+**Chosen:** a component of ours has two parts. `Base<Name>` is built from
+design-system parts and takes everything through props. `<Name>` wraps it
+and connects the data. Design-system components keep their shadcn names and
+never get the prefix. When the design system already has a component, it is
+installed, not rewritten as a Base.
+
+**Why.** A Base renders with no store, no explorer and no network, so the
+design-system catalogue and the designer's Studio can show it in every
+state, and a reviewer can tell a visual change from a data change by which
+file moved.
+
+**Rejected: one component that reaches for its own data.** The catalogue
+cannot render it without the whole app around it.
+
+**Rejected: `*View` / `*Container` suffixes.** The same split under names
+that read as two unrelated components in a file list.
+
+**Revisit when** the pair costs more than it saves for a whole class of
+components; name the class in the new entry.
+
+---
+
+## D57 - The design system is a package in the repository
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 7 - **Ticket:** HOO-1852
+
+**Chosen:** `design-system/` moves from PR #32 onto `master-2.0` as its own
+package. It is the one source of shared components. Its catalogue site
+replaces a Storybook in `client-v2`. Its shadcn registry is built from the
+repository and has no links to outside hosts. `client-v2` installs from it
+into `src/shared/ui` and never edits the installed files by hand; a change is
+made in `design-system/` and reinstalled. PR #32 itself is not merged; it
+stays a reference.
+
+**Rejected: copying components into `client-v2/src` by hand.** Two sources
+that drift from the first edit.
+
+**Rejected: a Storybook in `client-v2`.** The catalogue already exists and is
+what the designer works in.
+
+**Rejected: installing from `solana-playground-ds.vercel.app`.** Today's
+`registryDependencies` point there; an outside host in the install path
+means an install can break, or change, without a commit.
+
+**Revisit when** the design system is published as a versioned package that
+`client-v2` can depend on instead.
+
+---
+
+## D58 - The new layout is built once, on React 19
+
+**Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
+spec - **Source:** spec, decision 8 - **Ticket:** HOO-1854 (HOO-1793 folded
+in)
+
+**Chosen:** the layout's parts, the sidebar and the resizable panels, come
+from the design system, and `react-resizable-panels` v4 needs React 18 or 19.
+So the layout shell waits for the React 19 upgrade and is built once, on the
+new stack, with today's panels inside. It is the first screen built the new
+way.
+
+**Rejected: building the layout now on React 17 with `re-resizable`.** It
+would be rebuilt as soon as the upgrade lands: two layouts for one.
+
+**Revisit when** the upgrade slips past early November. Then the cut line
+decides (spec, open question 1): the new tokens on today's layout, or
+features cut to protect the upgrade.
+
+---
+
+## D59 - New feature slices use `ui/`, pending Sergey on D46
+
+**Date:** 2026-10-01 - **Status:** interim (Slava); the rename waits on
+Sergey - **Source:** spec, decision 9 - **References D46**
+
+**Chosen:** D46 names a feature's React folder `Component/`; feature-sliced
+design (D55) names it `ui/`. Until Sergey answers, new slices use `ui/`, and
+the two existing features with a React folder, `auth` and `persistence`,
+stay on `Component/`. D46's other rules (`model/`, `lib/`, `index.ts` as the
+browser's door, `server.mjs` as the route's) are unchanged.
+
+**Why ask rather than rename.** D46 came from Sergey's review, and renaming
+his layout without him is how the comment comes back.
+
+**Rejected: renaming `auth` and `persistence` now.** See above.
+
+**Rejected: new slices on `Component/`.** Every one would be renamed later
+if the answer is `ui/`, and FSD tooling (the boundary check, D55) expects
+`ui/`.
+
+**Revisit when** Sergey answers. Either answer becomes a new entry, and the
+two features move in one commit if it is `ui/`.
