@@ -92,11 +92,30 @@ export const session = (): Disposable => {
     }
 
     // The panel is still showing the thread it opened before sign-in, which
-    // the adoption above may have repointed the workspace away from
+    // the adoption above may have repointed the workspace away from. Opened
+    // again even when it was not: on load the chat effect opens the thread
+    // before the cookie is restored, so its pull stands down without asking
+    // the server, and this is the first moment a pull can happen at all.
+    // Skipping an unchanged thread left the panel showing only what this
+    // browser had stored, and the other device's messages never arrived.
+    //
+    // Safe to do mid-turn, which by this point is ordinary -- this runs
+    // several round trips after load. For an unchanged thread `openThread`
+    // folds the server's copy into memory rather than reloading, so a running
+    // turn keeps its status, its pending approval and what it streamed.
+    //
+    // The workspace is checked again after the index read: a switch landing
+    // inside it has already opened the new workspace's thread, and this must
+    // not repaint the old one over it.
     const workspaceId = PgExplorer.currentWorkspaceId;
     const open = PgAssistant.threadId;
     const wanted = workspaceId && (await PgThreadIndex.get(workspaceId));
-    if (workspaceId && wanted && open && open !== wanted) {
+    if (
+      workspaceId &&
+      wanted &&
+      open &&
+      PgExplorer.currentWorkspaceId === workspaceId
+    ) {
       await openThread(workspaceId, wanted);
     }
 

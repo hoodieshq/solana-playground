@@ -76,6 +76,136 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.equal((await listMessages(userId, thread(1))).length, 2);
   });
 
+  // Items change after they are created: a reply streams in, an approval is
+  // answered. The server used to keep whichever copy of an id arrived first,
+  // so a reply pushed mid-stream was what the account held for ever.
+  describe("a message that changed after it was pushed", () => {
+    const id = "00000000-0000-4000-8000-0000000000bb";
+    const createdAt = new Date(1000).toISOString();
+
+    /** One reply, as it stood at second `at`; no stamp is the unchanged one */
+    const replyAt = (text, at) => ({
+      id,
+      kind: "assistant",
+      createdAt,
+      text,
+      ...(at ? { updatedAt: new Date(at * 1000).toISOString() } : {}),
+    });
+
+    const stored = async () => {
+      const items = await listMessages(userId, thread(1));
+      assert.equal(items.length, 1);
+      return items[0];
+    };
+
+    it("replaces a partial reply with the finished one", async () => {
+      assert.equal(await appendMessages(userId, on(1), [replyAt("Do", 2)]), 1);
+      assert.equal(
+        await appendMessages(userId, on(1), [replyAt("Done.", 5)]),
+        1,
+        "the replacement counts as written"
+      );
+
+      assert.equal((await stored()).text, "Done.");
+    });
+
+    it("keeps the newer copy when a stale one arrives after it", async () => {
+      // The device that pulled the partial reply, running its sign-in dump
+      await appendMessages(userId, on(1), [replyAt("Done.", 5)]);
+
+      assert.equal(await appendMessages(userId, on(1), [replyAt("Do", 2)]), 0);
+      assert.equal((await stored()).text, "Done.");
+    });
+
+    it("writes nothing for an identical re-push", async () => {
+      await appendMessages(userId, on(1), [replyAt("Done.", 5)]);
+
+      assert.equal(
+        await appendMessages(userId, on(1), [replyAt("Done.", 5)]),
+        0
+      );
+    });
+
+    it("falls back to createdAt for a copy that was never stamped", async () => {
+      // Old data has no `updatedAt`. Its version is its creation, which any
+      // later change is stamped after -- and an unstamped copy arriving
+      // after a stamped one is the older of the two.
+      await appendMessages(userId, on(1), [replyAt("")]);
+      assert.equal(await appendMessages(userId, on(1), [replyAt("Hi", 2)]), 1);
+      assert.equal((await stored()).text, "Hi");
+
+      assert.equal(await appendMessages(userId, on(1), [replyAt("")]), 0);
+      assert.equal((await stored()).text, "Hi");
+    });
+
+    it("compares versions as times, not as strings", async () => {
+      // Equal instants, spelled differently: a string comparison calls the
+      // second newer and rewrites the row
+      await appendMessages(userId, on(1), [
+        { ...replyAt("first"), updatedAt: "2026-01-01T10:00:00.000Z" },
+      ]);
+
+      assert.equal(
+        await appendMessages(userId, on(1), [
+          { ...replyAt("second"), updatedAt: "2026-01-01T11:00:00.000+01:00" },
+        ]),
+        0
+      );
+      assert.equal((await stored()).text, "first");
+    });
+
+    it("leaves the creation time, and so the order, alone", async () => {
+      await appendMessages(userId, on(1), [replyAt("Do", 2)]);
+      await appendMessages(userId, on(1), [replyAt("Done.", 5)]);
+
+      const { rows } = await query(
+        "select created_at from messages where id = $1",
+        [id]
+      );
+      assert.equal(rows[0].created_at.toISOString(), createdAt);
+    });
+
+    it("takes the newest of two copies sent in one batch", async () => {
+      // A hand-edited thread can hold an id twice, and an upsert may not
+      // touch one row twice in a statement
+      assert.equal(
+        await appendMessages(userId, on(1), [
+          replyAt("Do", 2),
+          replyAt("Done.", 5),
+        ]),
+        1
+      );
+      assert.equal((await stored()).text, "Done.");
+    });
+
+    it("treats two spellings of one uuid in a batch as one item", async () => {
+      // The insert casts to `uuid`, which ignores case, so a dedupe keyed on
+      // the raw string let both through to one row and the statement failed
+      assert.equal(
+        await appendMessages(userId, on(1), [
+          { ...replyAt("Do", 2), id: id.toUpperCase() },
+          replyAt("Done.", 5),
+        ]),
+        1
+      );
+      assert.equal((await stored()).text, "Done.");
+    });
+
+    it("never updates the same id in somebody else's thread", async () => {
+      await appendMessages(userId, on(1), [replyAt("mine", 2)]);
+      await appendMessages(other, { threadId: thread(2), projectId: "p1" }, [
+        replyAt("theirs", 9),
+      ]);
+
+      assert.equal((await stored()).text, "mine");
+      await assert.rejects(
+        () => appendMessages(other, on(1), [replyAt("theirs", 9)]),
+        NotYours
+      );
+      assert.equal((await stored()).text, "mine");
+    });
+  });
+
   it("orders by creation time, then id", async () => {
     await appendMessages(userId, on(1), [item(3), item(1), item(2)]);
     const items = await listMessages(userId, thread(1));

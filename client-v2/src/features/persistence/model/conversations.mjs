@@ -35,7 +35,8 @@ const THREAD_COLUMNS = `id, project_id as "projectId", title,
  * The insert is `on conflict (id) do nothing` rather than an upsert: a thread
  * row is identity, not state, and every push after the first would otherwise
  * rewrite it for no gain. What each turn ran on is on the messages, in
- * `payload.origin`.
+ * `payload.origin`. Messages are the other way round: they are state, and
+ * `appendMessages` replaces one when a newer copy arrives.
  *
  * @param {import("pg").PoolClient} client
  * @param {{threadId: string, projectId: string, title?: string|null}} thread
@@ -128,17 +129,44 @@ export const listMessages = async (userId, threadId) => {
 };
 
 /**
- * Append items to a thread, creating it if this is its first push.
+ * An item's version: when it last changed, or when it was made.
  *
- * Ids are minted by the client, so this is safely repeatable: a second dump
- * of the same messages writes nothing. That is what lets sign-in sync run
- * unconditionally instead of exactly once.
+ * The JS twin of `VERSION_OF` below, for choosing between two copies of one id
+ * inside a single batch.
+ */
+const versionOf = (item) => Date.parse(item.updatedAt ?? item.createdAt);
+
+/**
+ * The same, in SQL, for a `payload` column of the given row.
+ *
+ * Cast and compared as `timestamptz`, not as text: two spellings of one
+ * instant -- a different offset, or no milliseconds -- would otherwise read
+ * as one being newer and rewrite the row for nothing.
+ */
+const VERSION_OF = (row) =>
+  `coalesce(${row}.payload ->> 'updatedAt', ${row}.payload ->> 'createdAt')::timestamptz`;
+
+/**
+ * Write items to a thread, creating it if this is its first push.
+ *
+ * An item is not immutable once pushed. A reply streams into an item that
+ * already exists, and an approval is answered and given an outcome later, so
+ * a push can carry a newer copy of an id the server already holds. The newer
+ * one replaces the older, by `updatedAt ?? createdAt`; an equal or older copy
+ * writes nothing. Insert-only used to be the rule, and a reply pushed while
+ * it was still streaming was then what the account kept for ever.
+ *
+ * Ids are minted by the client, so this is still safely repeatable: a second
+ * dump of the same messages writes nothing, and neither does a stale copy
+ * from a device that pulled before the turn finished. That is what lets
+ * sign-in sync run unconditionally instead of exactly once.
  *
  * Repeatable *within a conversation*, which is as far as a client-minted id
  * can be trusted -- see the `on conflict` below.
  *
  * @param {{threadId: string, projectId: string, title?: string|null}} thread
- * @returns {Promise<number>} how many rows were new
+ * @returns {Promise<number>} how many rows were written: inserted, or
+ * replaced by a newer copy. A copy that lost to the stored one is not counted.
  * @throws {NotYours} when the thread id is somebody else's
  */
 export const appendMessages = async (userId, thread, items) => {
@@ -147,14 +175,29 @@ export const appendMessages = async (userId, thread, items) => {
     await client.query("begin");
     const conversationId = await ensureThread(client, userId, thread);
 
+    // One copy per id, the newest. A thread can hold an id twice -- it lives
+    // in IndexedDB, which the user can edit -- and `on conflict do update`
+    // refuses to touch one row twice in a statement, so a duplicate would
+    // fail the whole push where `do nothing` used to absorb it.
+    //
+    // Keyed on the lower-cased id because that is what the row is keyed on:
+    // the insert casts to `uuid`, which ignores case, so two spellings of one
+    // id are one row and would trip the same refusal.
+    const newest = new Map();
+    for (const item of items) {
+      const key = item.id.toLowerCase();
+      const kept = newest.get(key);
+      if (!kept || versionOf(item) > versionOf(kept)) newest.set(key, item);
+    }
+
     // Not short-circuited on an empty batch: the first push of a thread that
     // has nothing in it yet is how the row comes into being, and the panel
     // does exactly that when a workspace opens.
     let rowCount = 0;
-    if (items.length) {
+    if (newest.size) {
       const values = [];
       const params = [];
-      items.forEach((item, i) => {
+      [...newest.values()].forEach((item, i) => {
         const at = i * 4;
         values.push(`($${at + 1}, $${at + 2}, $${at + 3}, $${at + 4})`);
         params.push(item.id, conversationId, item.kind, JSON.stringify(item));
@@ -166,7 +209,18 @@ export const appendMessages = async (userId, thread, items) => {
       // write dropped in silence -- and the returned count would answer
       // whether that id exists anywhere at all. Same reasoning as
       // `(user_id, id)` on `projects`, one level down. Re-dumping a thread
-      // still writes nothing: a repeat carries the same conversation.
+      // still writes nothing: a repeat carries the same conversation, and
+      // the same version.
+      //
+      // The key is also what keeps the update inside its owner's thread:
+      // `conversationId` is the one `ensureThread` has just proved is this
+      // user's, so a conflict can only ever be with a row of that thread.
+      // `created_at` is left as it was, because it is what orders the thread
+      // and a reply finishing does not move it.
+      //
+      // The versions compare clocks of one device, not two: an item is only
+      // ever changed by the tab running its turn -- see `mergeThreads` in
+      // `chat-codec.ts` -- so both copies of an id were stamped there.
       ({ rowCount } = await run(
         client,
         `insert into messages (id, conversation_id, kind, payload, created_at)
@@ -174,7 +228,9 @@ export const appendMessages = async (userId, thread, items) => {
                 (v.payload::jsonb ->> 'createdAt')::timestamptz
            from (values ${values.join(", ")})
                 as v(id, conversation_id, kind, payload)
-         on conflict (conversation_id, id) do nothing`,
+         on conflict (conversation_id, id) do update
+            set payload = excluded.payload, kind = excluded.kind
+          where ${VERSION_OF("excluded")} > ${VERSION_OF("messages")}`,
         params
       ));
     }

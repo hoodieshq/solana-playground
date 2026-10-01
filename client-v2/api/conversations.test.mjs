@@ -196,6 +196,28 @@ describe("/api/conversations", () => {
       );
     });
 
+    it("rejects an updatedAt no timestamptz cast would take", async () => {
+      // The upsert casts it to decide which copy is newer, so an unparseable
+      // one would be a 500 from the driver rather than a 400 from here
+      const mod = await load();
+      assert.equal(mod.isValidItem({ ...item, updatedAt: "later" }), false);
+      assert.equal(mod.isValidItem({ ...item, updatedAt: "" }), false);
+      assert.equal(
+        mod.isValidItem({ ...item, updatedAt: 1758535200000 }),
+        false
+      );
+      assert.equal(mod.isValidItem({ ...item, updatedAt: null }), false);
+    });
+
+    it("accepts an item with or without a valid updatedAt", async () => {
+      const mod = await load();
+      assert.equal(
+        mod.isValidItem({ ...item, updatedAt: "2026-09-22T10:00:05.000Z" }),
+        true
+      );
+      assert.equal(mod.isValidItem(item), true, "old data has none");
+    });
+
     it("still rejects an unknown kind and a missing item", async () => {
       const mod = await load();
       assert.equal(mod.isValidItem({ ...item, kind: "system" }), false);

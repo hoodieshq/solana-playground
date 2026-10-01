@@ -125,6 +125,30 @@ describe("encodeItem", () => {
     const item: ChatItem = { ...base, kind: "user", text: "hi" };
     expect(encodeItem(item)).toEqual(item);
   });
+
+  it("keeps an item's version, which the server and a pull decide on", () => {
+    const updatedAt = "2026-01-01T00:00:05.000Z";
+    const reply: ChatItem = {
+      ...base,
+      kind: "assistant",
+      text: "done",
+      updatedAt,
+    };
+    const approval: ChatItem = {
+      ...base,
+      kind: "approval",
+      status: "allowed",
+      request: { type: "command", name: "build", effect: "x" },
+      updatedAt,
+    };
+
+    expect(encodeItem(reply)).toMatchObject({ updatedAt });
+    expect(encodeItem(approval)).toMatchObject({ updatedAt });
+    expect(
+      encodeItem({ ...approval, status: "pending" } as ChatItem)
+    ).toMatchObject({ status: "denied", updatedAt });
+    expect(decodeItem(encodeItem(reply))).toMatchObject({ updatedAt });
+  });
 });
 
 describe("decodeThread", () => {
