@@ -274,7 +274,7 @@ Known work, from the review:
 | --- | --- | --- |
 | `typescript` `=5.0.4` | `@types/react` 19 declares TS 5.6 | Lift the pin first |
 | `styled-components` 5.3 | Likely runs. `@types/styled-components` 5 clashes with `@types/react` 19 | Keep 5 for runtime; types decide whether 6 is needed |
-| `react-toastify` 9 | Sets `defaultProps` on function components, which React 19 ignores. Toasts lose position and auto-close silently | Upgrade to 11 (breaking CSS import and props) |
+| `react-toastify` 9 | Measured on 19: position, transition and auto-close survive, because `styled(ToastContainer)` renders through styled-components 5's `createElement`, which still resolves `defaultProps` (the JSX runtime does not) | Keep 9. Rendering `ToastContainer` directly, or moving to styled-components 6, would drop its defaults silently; upgrade to 11 then |
 | `react-use-clipboard` | No release supports React 19 | Replace in `hooks/useCopy.tsx` |
 | `react-select` 5.5 | Peer range excludes 19 | 5.10 or newer |
 | `re-resizable` 6.9 | Peer range excludes 19. Under today's panels | 6.11 or newer |
