@@ -45,6 +45,10 @@ let isTutorialInView = false;
 let mainSecondaryHeight = 0;
 
 const handleTutorial = (name: string, page: string) => {
+  // The sidebar change this route makes itself, which its own listener must
+  // not read as the user leaving the lesson
+  let ownSidebarChange: SidebarPageName | undefined;
+
   // Get the tutorial
   const tutorial = PgTutorial.all.find((t) => {
     return PgRouter.isPathsEqual(PgCommon.toKebabFromTitle(t.name), name);
@@ -126,6 +130,10 @@ const handleTutorial = (name: string, page: string) => {
       PgView.onDidChangeCurrentSidebarPage(
         (p) => {
           if (!p) return;
+          if (p.name === ownSidebarChange) {
+            ownSidebarChange = undefined;
+            return;
+          }
 
           // Skip handling other routed pages in order to avoid navigation issues.
           // Without this check, this callback runs again after clicking to a
@@ -196,6 +204,7 @@ const handleTutorial = (name: string, page: string) => {
     });
     disposables.push({ dispose: () => (PgView.sidebar.props = {}) });
   } else if (!PgView.sidebar.name || PgView.sidebar.name === "Tutorials") {
+    ownSidebarChange = "Explorer";
     PgView.sidebar.name = "Explorer";
   } else {
     PgView.sidebar.props = {};
