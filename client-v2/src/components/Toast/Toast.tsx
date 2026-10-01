@@ -1,9 +1,10 @@
 import { useCallback } from "react";
 import styled, { css } from "styled-components";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer, toast, type ToastOptions } from "react-toastify";
 import "react-toastify/dist/ReactToastify.min.css";
 
 import { PgCommon, PgTheme, PgView } from "../../utils";
+import type { Elementable } from "../../utils";
 import { useSetStatic } from "../../hooks";
 
 export interface ToastChildProps {
@@ -17,14 +18,26 @@ interface ToastProps {
 }
 
 const Toast = ({ sidebarOffset = false }: ToastProps) => {
-  const setToast = useCallback(({ elementable, props }: any) => {
-    const id = PgCommon.generateRandomInt(0, 2 ** 12);
-    elementable = PgView.normalizeElement(elementable, {
-      ...props?.componentProps,
-      id,
-    });
-    toast(elementable, { ...props?.options, toastId: id });
-  }, []);
+  const setToast = useCallback(
+    ({
+      elementable,
+      props,
+    }: {
+      elementable: Elementable;
+      props?: {
+        componentProps?: Record<string, unknown>;
+        options?: ToastOptions;
+      };
+    }) => {
+      const id = PgCommon.generateRandomInt(0, 2 ** 12);
+      elementable = PgView.normalizeElement(elementable, {
+        ...props?.componentProps,
+        id,
+      });
+      toast(elementable, { ...props?.options, toastId: id });
+    },
+    []
+  );
 
   useSetStatic(PgView.events.TOAST_SET, setToast);
   useSetStatic(PgView.events.TOAST_CLOSE, toast.dismiss);

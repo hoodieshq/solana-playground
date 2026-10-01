@@ -324,8 +324,8 @@ const RecursiveFolder: FC<React.PropsWithChildren<RecursiveFolderProps>> = ({
   }, []);
 
   // Open the folder on drag over
-  const handleDragOver = useCallback((el: any) => {
-    PgExplorer.openFolder(el.firstChild);
+  const handleDragOver = useCallback((el: HTMLElement) => {
+    PgExplorer.openFolder(el.firstChild as HTMLDivElement);
   }, []);
 
   const theme = useTheme();

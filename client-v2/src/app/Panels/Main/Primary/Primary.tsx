@@ -10,12 +10,16 @@ import { useGetAndSetStatic } from "../../../../hooks";
 
 const Primary = () => {
   const [el, setEl] = useState<ErrorBoundaryChildren>(null);
-  const setElWithTransition = useCallback(async (el: any) => {
+  const setElWithTransition = useCallback(async (el: unknown) => {
     if (PgCommon.isAsyncFunction(el)) {
       setEl(null);
 
       const setContent = async () => {
-        setEl(PgCommon.callIfNeeded(await el()) as ErrorBoundaryChildren);
+        setEl(
+          PgCommon.callIfNeeded(
+            await (el as () => unknown)()
+          ) as ErrorBoundaryChildren
+        );
       };
 
       try {
@@ -24,7 +28,7 @@ const Primary = () => {
         setEl({ error: e as Error, refresh: setContent });
       }
     } else {
-      setEl(PgCommon.callIfNeeded(el));
+      setEl(PgCommon.callIfNeeded(el) as ErrorBoundaryChildren);
     }
   }, []);
 

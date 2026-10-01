@@ -12,6 +12,7 @@ import ErrorBoundary, {
   type ErrorBoundaryChildren,
 } from "../../../../components/ErrorBoundary";
 import FadeIn from "../../../../components/FadeIn";
+import type { ResizeCallback } from "re-resizable";
 import Resizable from "../../../../components/Resizable";
 import { Wormhole } from "../../../../components/Loading";
 import { PgCommon, PgTheme, PgView } from "../../../../utils";
@@ -35,8 +36,8 @@ const Right: FC<React.PropsWithChildren<RightProps>> = ({
   setWidth,
   oldWidth,
 }) => {
-  const handleResizeStop = useCallback(
-    (e: any, direction: any, ref: any, d: any) => {
+  const handleResizeStop = useCallback<ResizeCallback>(
+    (_e, _direction, _ref, d) => {
       setWidth((w) => {
         const newWidth = w + d.width;
         if (newWidth < AUTOMATIC_MINIMIZE_WIDTH) return 0;

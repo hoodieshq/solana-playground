@@ -13,6 +13,7 @@ import ErrorBoundary, {
   type ErrorBoundaryChildren,
 } from "../../../../components/ErrorBoundary";
 import ProgressBar from "../../../../components/ProgressBar";
+import type { ResizeCallback } from "re-resizable";
 import Resizable from "../../../../components/Resizable";
 import { Close, DoubleArrow, Tick } from "../../../../components/Icons";
 import {
@@ -66,9 +67,8 @@ const Secondary = () => {
   }, []);
   useSetStatic(PgView.events.MAIN_SECONDARY_HEIGHT_SET, setCheckedHeight);
 
-  const handleResizeStop = useCallback(
-    (_e: any, _dir: any, _ref: any, d: any) =>
-      setCheckedHeight((h) => h + d.height),
+  const handleResizeStop = useCallback<ResizeCallback>(
+    (_e, _dir, _ref, d) => setCheckedHeight((h) => h + d.height),
     [setCheckedHeight]
   );
 
@@ -184,7 +184,7 @@ const Secondary = () => {
                 }
                 onClick={action.run}
               >
-                {PgCommon.callIfNeeded(action.icon)}
+                {PgView.normalizeElement(action.icon)}
               </Button>
             ))}
           </ActionsWrapper>
