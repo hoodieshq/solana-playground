@@ -59,8 +59,11 @@ test.describe.serial("the editor", () => {
   });
 
   test("completes and checks TypeScript", async () => {
-    // Let the formatted text reach storage before the editor is torn down.
-    await page.waitForTimeout(2000);
+    // Workaround: the editor's autosave debounce (500 ms) is cancelled, not
+    // flushed, when the editor unmounts, so closing the last tab right after
+    // an edit drops it (Monaco.tsx autosave effect). Remove this wait when
+    // that is fixed.
+    await page.waitForTimeout(1000);
     await item(page, "client").click();
     await page
       .locator("#root-dir")
@@ -91,8 +94,6 @@ test.describe.serial("the editor", () => {
   });
 
   test("keeps the edit across a reload", async () => {
-    // Autosave debounces 500 ms and the explorer debounces its own write.
-    await page.waitForTimeout(2000);
     await page.reload();
     await expect(page.locator("#root-dir")).toBeVisible();
     if (!(await item(page, "lib.rs").isVisible())) {
