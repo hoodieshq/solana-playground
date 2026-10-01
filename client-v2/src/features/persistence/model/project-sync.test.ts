@@ -9,9 +9,10 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
 
-// `adopt` re-opens through `reloadCurrentFromDisk`, which drops Monaco's
-// cached models before it does -- and `monaco-editor` cannot load under
-// jsdom, so every test in this file goes through this stand-in instead.
+// Reconcile, adopt and merge reload the open workspace from disk through
+// `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
+// `monaco-editor` cannot load under jsdom, so every test in this file goes
+// through this stand-in instead.
 jest.mock("./editor-models", () => ({
   PgEditorModels: {
     valueOf: jest.fn(async () => null),

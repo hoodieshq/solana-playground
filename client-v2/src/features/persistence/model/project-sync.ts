@@ -12,6 +12,7 @@ import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
 import { legacyContentHash, PgSyncMark } from "./sync-mark";
+import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
@@ -543,6 +544,7 @@ export class PgProjectSync {
   }
 
   private static async _adopt(projectId: string): Promise<string | null> {
+    await PgProjectSync._catchUpWithDisk(projectId);
     const full = await PgProjectSync.fetch(projectId);
     // A snapshot that is not a file map would empty the workspace:
     // `replaceWorkspaceFiles` removes the directory before it discovers it has
@@ -775,6 +777,7 @@ export class PgProjectSync {
     prefer?: "local" | "server",
     asked?: readonly string[]
   ): Promise<"merged" | "conflict" | "failed"> {
+    await PgProjectSync._catchUpWithDisk(projectId);
     // Held for the whole merge, re-open included. Counted, so a reconcile
     // that starts or finishes meanwhile can neither open it early nor have
     // it opened under it.
@@ -786,11 +789,10 @@ export class PgProjectSync {
     // buffers were last known to agree with -- and what the store holds now
     let first: Record<string, string> | null = null;
     let written: Record<string, string> | null = null;
-    // What the workspace holds after an attempt that wrote it. Re-reading
-    // instead would be wrong for the current workspace: `snapshotOf` reads it
-    // from memory, which `replaceWorkspaceFiles` leaves alone until the
-    // re-open below -- so a retry would take the pre-merge copy for local work
-    // and undo, silently, the server's changes the first attempt merged in.
+    // What the workspace holds after an attempt that wrote it, kept rather
+    // than re-read: a retry has to start from exactly what the first attempt
+    // wrote, folded typing included, and take nothing else for local work --
+    // or it would undo, silently, the server's changes that attempt merged in.
     let carried: Record<string, string> | null = null;
 
     try {
@@ -953,11 +955,32 @@ export class PgProjectSync {
   }
 
   /**
+   * Bring the open workspace in line with the store before an adopt or a
+   * merge reads it.
+   *
+   * Both read the local copy off the store, which every tab shares, and then
+   * treat an editor buffer that differs from it as typing to fold in. In a
+   * tab that has not yet caught up with another tab's write, the buffer is
+   * not typing, it is the stale copy -- and folding it in reverted the other
+   * tab's edit and uploaded the revert. A reconcile pass reloads first on its
+   * own; this is for the paths that arrive without one: a push refused with a
+   * 409, and an answer to the banner.
+   */
+  private static async _catchUpWithDisk(projectId: string) {
+    if (projectId !== PgExplorer.currentWorkspaceId) return;
+    try {
+      await reloadCurrentFromDisk();
+    } catch (e) {
+      report(`reload before sync ${projectId}`, e);
+    }
+  }
+
+  /**
    * Run `task` once nothing else is rewriting this project, then let the
    * next one in.
    *
    * Two merges of one project cannot overlap safely. Each reads the local copy
-   * from memory and the agreement from the mark, at different moments: a
+   * and the agreement from the mark, at different moments: a
    * second merge that read memory before the first had re-opened the
    * workspace, and the mark after the first had written it, planned the
    * pre-merge copy against the new agreement -- so every line only the other

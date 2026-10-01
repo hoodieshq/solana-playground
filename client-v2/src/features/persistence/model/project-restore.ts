@@ -162,13 +162,17 @@ const passUnlocked = async (): Promise<SyncResult> => {
   // have written it since this one last looked, and everything below reads
   // the store while the editor still shows memory -- so a pass that adopted
   // or merged over a stale editor left it to autosave the old text back.
+  //
+  // Before the availability check, deliberately: the overwrite between tabs
+  // needs no account, and this is how a tab catches up on focus when it
+  // missed `effects/tab-sync`'s broadcast or the browser has none.
   try {
     await reloadCurrentFromDisk();
   } catch (e) {
     report("reload before reconcile", e);
   }
 
-  // Before anything reads the disk. Signed out, or on a deployment with no
+  // Before anything builds a snapshot. Signed out, or on a deployment with no
   // database, every call below is already a no-op -- but `push` takes a
   // snapshot as an argument, so reaching it means having built one, and that
   // is a walk of the whole workspace. This runs on every project switch now,
