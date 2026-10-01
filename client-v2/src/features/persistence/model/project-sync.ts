@@ -121,6 +121,60 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
  * between its fetch and its upload. Three is generous for one person's
  * devices; past it the user is asked rather than looped.
  */
+/**
+ * Which name a project should carry, given what it was called at the last
+ * agreement and what each side calls it now.
+ *
+ * The same three-way rule as for files: a side that did not move takes the
+ * other side's name. When both moved, this device's wins -- it is the one the
+ * upload is about to send, and the later rename is the one the user meant --
+ * unless the user has answered "Take the other version", which takes the
+ * other device's name along with its files.
+ *
+ * @returns `"server"` when the local workspace should be renamed to the
+ * server's name, `"local"` when the local name stands
+ */
+export const mergeName = (
+  base: string | undefined,
+  local: string,
+  server: string,
+  prefer?: "local" | "server"
+): "local" | "server" => {
+  if (server === local) return "local";
+  if (base !== undefined && local === base) return "server";
+  // Both moved, and the user has just said which version to take
+  return prefer === "server" ? "server" : "local";
+};
+
+/**
+ * Rename a local workspace to what the server calls it.
+ *
+ * A name another local workspace already holds is stepped around the way an
+ * import does, and it is not this project's to displace. The holder may be
+ * unsynced, or another account's -- or one of this account's own, renamed on
+ * the other device too and not yet reached by this pass: the other device
+ * renamed "Bar" to "Baz" and then "Foo" to "Bar". `settleSteppedNames` gives
+ * the name back once the holder has moved.
+ *
+ * @returns the name the workspace ended up with; the old one if the rename
+ * failed, which leaves a stale name rather than failing the whole exchange
+ */
+const renameToServer = async (local: string, serverName: string) => {
+  const taken = new Set(PgExplorer.allWorkspaceNames ?? []);
+  taken.delete(local);
+  // As `renameWorkspace` will, so the name returned is the one it took
+  let name = serverName.trim();
+  while (taken.has(name)) name = `${name} (imported)`;
+
+  try {
+    await PgExplorer.renameWorkspace(name, { from: local });
+    return name;
+  } catch (e) {
+    report(`rename ${local} to ${name}`, e);
+    return local;
+  }
+};
+
 const MERGE_ATTEMPTS = 3;
 
 /**
@@ -561,7 +615,7 @@ export class PgProjectSync {
       return null;
     }
 
-    const local = PgExplorer.workspaceNameOf(projectId);
+    let local = PgExplorer.workspaceNameOf(projectId);
     if (!local) return null;
 
     // Held and counted for the same reasons as a merge's -- see there
@@ -603,6 +657,12 @@ export class PgProjectSync {
       // next build mint a new address
       const files = withLocalKeypair(full!.snapshot!.files, before);
       await PgExplorer.replaceWorkspaceFiles(local, files);
+      // Renamed on the other device. The copy is clean, so its name is the
+      // one last agreed, and only the server's moved. After the files, so a
+      // rename of the open workspace, which re-opens it, reads the new ones.
+      if (mergeName(mark?.name, local, full!.name) === "server") {
+        local = await renameToServer(local, full!.name);
+      }
       // Still the server's hashes, carried keypair or not. That is what makes
       // the keypair read as a local change, which the next push uploads: the
       // write event the rewrite fires for the file schedules it for the open
@@ -874,6 +934,22 @@ export class PgProjectSync {
           return "failed";
         }
 
+        // The name merges like a file, against the one last agreed. Renamed
+        // only on the other device, the workspace takes the server's name
+        // here, before anything is written under the old one. Renamed here,
+        // or on both, the local name stands, and the upload below sends it.
+        // Recording the server's name without renaming the workspace pushed
+        // this device's old name straight back over the other device's.
+        //
+        // A name stepped around a local clash is not this device's rename:
+        // the upload keeps the server's, and `settleSteppedNames` gives it
+        // back once the holder moves.
+        let uploadName = localName;
+        if (mergeName(mark?.name, localName, full.name, prefer) === "server") {
+          localName = await renameToServer(localName, full.name);
+          uploadName = full.name;
+        }
+
         if (!sameFiles(merged, local)) {
           await PgExplorer.replaceWorkspaceFiles(localName, merged);
           written = merged;
@@ -898,7 +974,7 @@ export class PgProjectSync {
         const result = await PgProjectSync.push(
           projectId,
           { files: merged },
-          localName,
+          uploadName,
           { immediate: true, merging: true }
         );
         // "skipped" is either nothing left to send or no network; both leave

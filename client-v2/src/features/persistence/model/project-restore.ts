@@ -10,7 +10,7 @@ import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgExplorer } from "../../../utils/explorer/explorer";
-import type { Conflict } from "./project-sync";
+import type { Conflict, ServerProject } from "./project-sync";
 import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
@@ -69,6 +69,44 @@ const isClean = async (projectId: string, localName: string) =>
       await snapshotOf(localName)
     ).files
   );
+
+/**
+ * Give a project back the server's name, where an adopt or a merge stepped
+ * around it because another local workspace held it at the time.
+ *
+ * Told from a rename made on this device by the mark and the suffix. An adopt
+ * records the stepped name as agreed at the server's current token; a merge
+ * records the server's name and keeps the " (imported)" suffix locally. A
+ * rename made here reads the other way round -- the mark still holds the name
+ * before it, and the local name is the user's own -- and is not this pass's
+ * to undo. Left in place, the stepped name went up with this device's next
+ * edit and renamed the project on every device.
+ *
+ * Runs after the main pass, which is what moves a holder that was renamed
+ * elsewhere out of the way. A name still held here stays stepped around.
+ */
+const settleSteppedNames = async (server: ServerProject[]) => {
+  for (const project of server) {
+    const local = PgExplorer.workspaceNameOf(project.id);
+    if (!local || local === project.name) continue;
+    if (PgExplorer.allWorkspaceNames?.includes(project.name)) continue;
+
+    const mark = await PgSyncMark.read(project.id);
+    if (!mark || mark.updatedAt !== project.updatedAt) continue;
+    const stepped =
+      mark.name === local ||
+      (mark.name === project.name &&
+        local.startsWith(`${project.name} (imported)`));
+    if (!stepped) continue;
+
+    try {
+      await PgExplorer.renameWorkspace(project.name, { from: local });
+      await PgSyncMark.write(project.id, { ...mark, name: project.name });
+    } catch (e) {
+      report(`rename ${local} back to ${project.name}`, e);
+    }
+  }
+};
 
 /**
  * Make this browser and the account agree, without guessing.
@@ -304,6 +342,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
     }
   }
 
+  await settleSteppedNames(server);
   await settleDeletes(serverIds, result);
   await pushNeverSynced(serverIds, result);
 
