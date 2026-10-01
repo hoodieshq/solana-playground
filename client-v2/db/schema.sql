@@ -75,6 +75,18 @@ CREATE TABLE public.messages (
 
 
 --
+-- Name: project_files; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.project_files (
+    user_id text NOT NULL,
+    project_id text NOT NULL,
+    path text NOT NULL,
+    content text NOT NULL
+);
+
+
+--
 -- Name: projects; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -83,8 +95,6 @@ CREATE TABLE public.projects (
     user_id text NOT NULL,
     name text NOT NULL,
     kind text DEFAULT 'project'::text NOT NULL,
-    snapshot jsonb,
-    snapshot_hash text,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp(3) with time zone,
     CONSTRAINT projects_kind_check CHECK ((kind = ANY (ARRAY['project'::text, 'tutorial'::text])))
@@ -168,6 +178,14 @@ ALTER TABLE ONLY public.conversations
 
 ALTER TABLE ONLY public.messages
     ADD CONSTRAINT messages_pkey PRIMARY KEY (conversation_id, id);
+
+
+--
+-- Name: project_files project_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.project_files
+    ADD CONSTRAINT project_files_pkey PRIMARY KEY (user_id, project_id, path);
 
 
 --
@@ -308,6 +326,14 @@ ALTER TABLE ONLY public.messages
 
 
 --
+-- Name: project_files project_files_user_id_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.project_files
+    ADD CONSTRAINT project_files_user_id_project_id_fkey FOREIGN KEY (user_id, project_id) REFERENCES public.projects(user_id, id) ON DELETE CASCADE;
+
+
+--
 -- Name: projects projects_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -355,6 +381,7 @@ SET row_security = off;
 COPY public.schema_migrations (version) FROM stdin;
 20260915124433
 20260916032901
+20260929120000
 \.
 
 

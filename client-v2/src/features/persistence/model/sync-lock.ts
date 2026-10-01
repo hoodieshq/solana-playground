@@ -10,9 +10,14 @@ export const SYNC_LOCK = "pg-project-sync";
  * before A's flush landed and read the mark after it, and so saw a
  * divergence that was only A's own edit in flight.
  *
- * Not re-entrant -- no Web Lock is. A caller that already holds it says so
- * to `push` with `immediate`, which is the same promise `reconcile` makes
- * about the push gate.
+ * Held per tab, not per call. Every caller in this tab shares one Web Lock,
+ * taken by the first and released when the last one finishes, so a caller
+ * that already holds it -- a push that hits a 409 and merges, a reconcile
+ * that adopts -- never waits for itself. Web Locks are not re-entrant, and
+ * threading a "the caller holds it" flag through every path that can reach
+ * a push was how a missed one would deadlock the tab. Ordering *within* a
+ * tab is not this lock's job: the per-project queue and the push gate in
+ * `project-sync.ts` do that.
  *
  * Where the browser has no Web Locks (jsdom, very old engines) `fn` just
  * runs. That loses cross-tab ordering, not correctness within a tab.
@@ -20,8 +25,44 @@ export const SYNC_LOCK = "pg-project-sync";
 export const withSyncLock = async <T>(fn: () => Promise<T>): Promise<T> => {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
   if (!locks?.request) return await fn();
-  return (await locks.request(SYNC_LOCK, fn)) as T;
+
+  // Counted before waiting, so a holder that finishes meanwhile does not
+  // release a lock this caller is about to rely on
+  holders++;
+  held ??= acquire(locks);
+  try {
+    await held;
+    return await fn();
+  } finally {
+    holders--;
+    if (!holders) {
+      held = null;
+      release?.();
+      release = null;
+    }
+  }
 };
+
+/** Callers in this tab inside, or waiting for, the shared lock */
+let holders = 0;
+/** Settles once this tab holds the lock; `null` while it does not */
+let held: Promise<void> | null = null;
+/** Lets the lock go */
+let release: (() => void) | null = null;
+
+const acquire = (locks: LockManager) =>
+  new Promise<void>((acquired, failed) => {
+    locks
+      .request(
+        SYNC_LOCK,
+        () =>
+          new Promise<void>((done) => {
+            release = done;
+            acquired();
+          })
+      )
+      .catch(failed);
+  });
 
 /** How long a request made while holding the lock may take */
 export const LOCKED_REQUEST_MS = 15_000;

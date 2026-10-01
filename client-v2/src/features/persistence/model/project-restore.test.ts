@@ -1,6 +1,6 @@
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgProjectSync } from "./project-sync";
-import { hashSnapshot, hashUserFiles } from "./snapshot";
+import { hashFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
 import * as tabReload from "./tab-reload";
 import { clearFailures, getFailures } from "./diagnostics";
@@ -76,9 +76,11 @@ const serverHas = (
   snapshots: Record<string, Snapshot | null> = {}
 ) => {
   jest.spyOn(PgProjectSync, "list").mockResolvedValue(projects);
-  jest.spyOn(PgProjectSync, "fetch").mockImplementation(async (id: string) => {
+  // `read` rather than `fetch`, which is built on it: the merge reads through
+  // it directly, to tell a row that is gone from a read that failed
+  jest.spyOn(PgProjectSync, "read").mockImplementation(async (id: string) => {
     const found = projects.find((p) => p.id === id);
-    if (!found) return null;
+    if (!found) return "gone";
     return {
       ...found,
       snapshot: id in snapshots ? snapshots[id] : { files: {} },
@@ -94,8 +96,7 @@ const agreed = async (
   name = "alpha"
 ) => {
   await PgSyncMark.write(id, {
-    hash: await hashSnapshot(snapshot),
-    contentHash: await hashUserFiles(snapshot),
+    files: await hashFiles(snapshot),
     name,
     updatedAt,
     dirty: false,
@@ -114,8 +115,7 @@ const pending = async (
   name = "alpha"
 ) => {
   await PgSyncMark.write(id, {
-    hash: await hashSnapshot(snapshot),
-    contentHash: await hashUserFiles(snapshot),
+    files: await hashFiles(snapshot),
     name,
     updatedAt,
     dirty: true,
@@ -166,7 +166,9 @@ describe("reconcile", () => {
     const result = await reconcile();
 
     expect(replace).not.toHaveBeenCalled();
-    expect(result.conflicts).toEqual([{ projectId: "p1", kind: "divergent" }]);
+    expect(result.conflicts).toEqual([
+      { projectId: "p1", kind: "divergent", paths: ["src/lib.rs"] },
+    ]);
     expect(PgProjectSync.conflictFor("p1")).not.toBeNull();
   });
 
@@ -259,12 +261,13 @@ describe("reconcile", () => {
     const result = await reconcile();
 
     // `immediate` because reconcile runs inside the push gate it is the point
-    // of -- waiting on it here would wait for itself
+    // of -- waiting on it here would wait for itself. With the generation it
+    // read the files at, so a merge started meanwhile stops it going up.
     expect(push).toHaveBeenCalledWith(
       "p1",
       { files: { "src/lib.rs": "newer here" } },
       "alpha",
-      { immediate: true }
+      { immediate: true, generation: PgProjectSync.generationOf("p1") }
     );
     expect(result.pushed).toEqual(["alpha"]);
   });
@@ -387,6 +390,34 @@ describe("reconcile", () => {
     ]);
   });
 
+  it("does not hand over as new a project it holds a pre-upgrade mark for", async () => {
+    // The mark predates per-file hashes, so it is not read as an agreement --
+    // but it is still the record that this device synced the project, and a
+    // project the server no longer lists was deleted elsewhere, not never
+    // uploaded. A create-only upload of it meets the tombstone.
+    withLocal({ alpha: "p1" });
+    withFiles("alpha", { "src/lib.rs": "work that never uploaded" });
+    storedFiles().set(
+      "/.config/sync/u1/p1.json",
+      JSON.stringify({
+        hash: "x",
+        contentHash: "y",
+        name: "alpha",
+        updatedAt: "t1",
+        dirty: false,
+      })
+    );
+    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    serverHas([]);
+
+    const result = await reconcile();
+
+    expect(push).not.toHaveBeenCalled();
+    expect(result.conflicts).toEqual([
+      { projectId: "p1", kind: "deleted-elsewhere" },
+    ]);
+  });
+
   it("hands over a project the account has never seen", async () => {
     // Previously this waited for the user to open the project, because only
     // the editor's own change handler pushed -- so a project made before
@@ -414,8 +445,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "theirs" });
     withFiles("alpha", { "src/lib.rs": "someone else's work" });
     await PgSyncMark.write("theirs", {
-      hash: "whatever",
-      contentHash: "whatever",
+      files: { "src/lib.rs": "whatever" },
       name: "alpha",
       updatedAt: "t1",
       dirty: false,
@@ -516,6 +546,37 @@ describe("reconcile", () => {
     ]);
 
     expect((await reconcile()).latest).toBe("newer");
+  });
+
+  it("runs one pass at a time, and one more for everyone who asked meanwhile", async () => {
+    // Handing a caller the pass already running would give it a decision
+    // made before whatever it is asking about -- a pass that started signed
+    // out, or before an import. So it waits for that pass, then gets a fresh
+    // one, shared with every other caller that arrived in the meantime.
+    withLocal({});
+    let finish!: () => void;
+    const held = new Promise<void>((resolve) => (finish = resolve));
+    let passes = 0;
+    jest.spyOn(PgProjectSync, "list").mockImplementation(async () => {
+      if (++passes === 1) await held;
+      return [];
+    });
+
+    const first = reconcile();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = reconcile();
+    const third = reconcile();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(passes).toBe(1);
+
+    finish();
+    await Promise.all([first, second, third]);
+    expect(passes).toBe(2);
+    expect(second).toBe(third);
+
+    // And idle again afterwards: the next caller starts straight away
+    await reconcile();
+    expect(passes).toBe(3);
   });
 
   it("does nothing at all when both sides are empty", async () => {

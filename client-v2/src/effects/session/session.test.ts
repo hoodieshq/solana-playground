@@ -40,6 +40,11 @@ describe("the session effect", () => {
     calls = [];
     PgSession.reset();
 
+    jest
+      .spyOn(PgChatSync, "adoptAccountThreads")
+      .mockImplementation(async () => {
+        calls.push("adoptChats");
+      });
     jest.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
       calls.push("pushChats");
       return { pushed: [], complete: true };
@@ -76,6 +81,9 @@ describe("the session effect", () => {
     await settle();
 
     expect(calls.filter((c) => c !== "hold" && c !== "release")).toEqual([
+      // Adopt first: the dump would otherwise upload a thread minted while
+      // signed out as a second conversation, and the account's would be lost
+      "adoptChats",
       "pushChats",
       "reconcile",
     ]);
@@ -195,6 +203,21 @@ describe("the session effect", () => {
     // not to hold it forever
     expect(calls).toContain("release");
     effect.dispose();
+  });
+
+  it("gives up its hold once, however many ways it gets there", async () => {
+    // The gate is counted, so a second release would give up somebody else's
+    // hold -- a merge's -- and let the editor upload mid-rewrite. The reconcile
+    // finishing, a later sign-in and the effect going away all release.
+    const effect = session();
+    await settle();
+    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(user);
+    await settle();
+    effect.dispose();
+
+    expect(calls.filter((c) => c === "hold")).toHaveLength(1);
+    expect(calls.filter((c) => c === "release")).toHaveLength(1);
   });
 
   it("releases them when nobody is signed in", async () => {

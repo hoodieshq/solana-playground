@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { BrowserContext, Page, Route } from "@playwright/test";
+import { applyWrite } from "./fixtures";
 
 /**
  * Two tabs of one browser on one project.
@@ -77,7 +78,7 @@ const fakeAccount = async (
             name: body.name,
             kind: "project",
             updatedAt,
-            snapshot: body.snapshot,
+            snapshot: applyWrite(others.get(body.id)?.snapshot, body),
           });
         }
         return json(r, { updatedAt });
@@ -85,14 +86,14 @@ const fakeAccount = async (
       if (opts.putDelayMs) {
         await new Promise((done) => setTimeout(done, opts.putDelayMs));
       }
-      if (
-        state.rejectPuts ||
-        (!body.force && body.baseUpdatedAt !== row.updatedAt)
-      ) {
+      // The server's compare-and-swap: a write names the version it was
+      // made against, and anything else is refused
+      if (state.rejectPuts || body.baseUpdatedAt !== row.updatedAt) {
         state.conflicts++;
         return json(r, { conflict: true, updatedAt: row.updatedAt }, 409);
       }
-      row.snapshot = body.snapshot;
+      // A whole file set, or a patch of changed and removed paths
+      row.snapshot = applyWrite(row.snapshot, body);
       row.name = body.name;
       row.updatedAt = stamp();
       return json(r, { updatedAt: row.updatedAt });
@@ -145,6 +146,14 @@ const typeAtEnd = async (page: Page, text: string) => {
   await editor(page).click();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type(`\n${text}`);
+};
+
+/** Retype the first line, which is where the other device's edit is too */
+const retypeFirstLine = async (page: Page, text: string) => {
+  await editor(page).click();
+  await page.keyboard.press("ControlOrMeta+Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.type(text);
 };
 
 /**
@@ -255,7 +264,10 @@ test("taking the other version replaces a file that is already open", async ({
   row.updatedAt = stamp();
   state.rejectPuts = true;
 
-  await typeAtEnd(page, "// mine");
+  // On the line the other device changed: lines that merge cleanly stay
+  // merged under either answer, so only an overlap makes "Take the other
+  // version" discard anything
+  await retypeFirstLine(page, "// mine");
   const banner = page.getByText("changed on another device");
   await expect(banner).toBeVisible(LONG);
   state.rejectPuts = false;

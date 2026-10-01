@@ -2,7 +2,11 @@ import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import { reconcile } from "../../features/persistence/model/project-restore";
-import { isSyncedWorkspaceFile } from "../../features/persistence/model/snapshot";
+import {
+  isSyncedWorkspaceFile,
+  snapshotOf,
+} from "../../features/persistence/model/snapshot";
+import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
@@ -95,6 +99,29 @@ export const projectSync = (): Disposable => {
     void push();
   };
 
+  /**
+   * Remember what the project opened with.
+   *
+   * This is where a merge's base content comes from: the next push compares
+   * against the last agreement, and keeps the opened content of any file that
+   * changed since. Taken on switch because that is the moment the in-memory
+   * copy is fresh -- the switch fires on every page load too.
+   */
+  const shadow = async () => {
+    const id = PgExplorer.currentWorkspaceId;
+    const name = PgExplorer.currentWorkspaceName;
+    if (!id || !name) return;
+    try {
+      // Off the store, which every tab shares: this tab's memory can be
+      // behind another tab's write
+      const { files } = await snapshotOf(name);
+      // A switch that landed during the read has its own shadow coming
+      if (PgExplorer.currentWorkspaceId === id) PgSyncBase.track(id, files);
+    } catch (e) {
+      report("shadow workspace", e);
+    }
+  };
+
   // Contents, then the shape of the tree. A rename or delete changes what the
   // snapshot should contain just as much as an edit does.
   //
@@ -130,6 +157,7 @@ export const projectSync = (): Disposable => {
       flush();
       // A different project, so whatever was flagged was the last one's
       flagged = false;
+      void shadow();
       refresh("switch");
     }),
 
@@ -209,6 +237,12 @@ export const projectSync = (): Disposable => {
     //
     // Dropping the second request rather than queueing it is right: a
     // reconcile already in flight is about to read the same account.
+    //
+    // Kept although `reconcile` now runs one pass at a time and queues the
+    // rest, which is what keeps this effect's passes apart from the session's.
+    // Queued, a pass that adopts would start the next one through its own
+    // re-open, and the bounce would end only because that next pass happened
+    // to find nothing to adopt. This ends it by construction.
     if (refreshing) return;
     refreshing = true;
 

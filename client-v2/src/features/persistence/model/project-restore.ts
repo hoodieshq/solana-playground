@@ -1,11 +1,17 @@
 import { report } from "./diagnostics";
-import { isUsableSnapshot, PgProjectSync } from "./project-sync";
-import { hashSnapshot, hashUserFiles, snapshotOf } from "./snapshot";
+import {
+  isCleanAgainst,
+  isUsableSnapshot,
+  PgProjectSync,
+} from "./project-sync";
+import { hashFiles, snapshotOf } from "./snapshot";
+import { PgSyncBase } from "./sync-base";
 import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
+import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
 export interface SyncResult {
@@ -50,38 +56,112 @@ const empty = (): SyncResult => ({
  * server's copy" path was unreachable, and a device that had done nothing at
  * all was asked to choose.
  *
- * Compared on `contentHash` -- the user's files -- rather than the whole
- * snapshot. The generated workspace files are rewritten on every open, so a
+ * Compared on user files only, rather than the whole snapshot. The generated workspace files are rewritten on every open, so a
  * device that has just adopted another's copy differs from it within a second
  * through nothing anyone typed, and on the *next* exchange that read as this
  * device having work of its own.
  */
-const isClean = async (projectId: string, localName: string) => {
-  const mark = await PgSyncMark.read(projectId);
-  if (!mark) return false;
-  if (mark.name !== localName) return false;
-  return (
-    mark.contentHash === (await hashUserFiles(await snapshotOf(localName)))
+const isClean = async (projectId: string, localName: string) =>
+  await isCleanAgainst(
+    await PgSyncMark.inspect(projectId),
+    localName,
+    (
+      await snapshotOf(localName)
+    ).files
   );
+
+/**
+ * Make this browser and the account agree, without guessing.
+ *
+ * Runs on sign-in, on load, and whenever a backgrounded tab comes back. Each
+ * project lands in one of four cells, decided by two independent questions --
+ * has this device changed it since the server last took a copy, and has the
+ * server moved since then:
+ *
+ * |          | server unchanged | server moved |
+ * | -------- | ---------------- | ------------ |
+ * | clean    | nothing          | take server  |
+ * | dirty    | push             | **merge**    |
+ *
+ * Both questions are answerable only because `PgSyncMark` persists what the
+ * server last accepted from *this* device. Without it "local differs from the
+ * server" is one undifferentiated state, and the previous version of this
+ * function resolved it by always taking the server's copy -- which quietly
+ * destroyed anything that had not finished uploading.
+ *
+ * The bottom-right cell is the only one that can ask the user anything, and
+ * only about lines both copies changed: everything else merges, and for those
+ * lines nothing here is entitled to pick.
+ *
+ * Deletes are the same shape. A project the server no longer lists, for which
+ * this device holds a mark, was deleted on another device: if the local copy is
+ * clean the delete finishes here, and if it is not the user is asked rather
+ * than having unsaved work removed on another device's say-so.
+ *
+ * One pass at a time. Several things ask for one -- the session on load, the
+ * explorer's first switch, a tab coming back, an adoption's re-open -- and two
+ * passes that overlap each see the other's writes half made: a workspace
+ * `importFresh` has created but not yet marked reads as a copy with work of
+ * its own, and merging that renamed the account's row to its de-duplicated
+ * local name. So a caller that arrives mid-pass waits for it, and then gets a
+ * pass of its own, shared with every other caller that arrived meanwhile.
+ *
+ * Not the pass already running: that one may have started signed out, or
+ * before the import the caller is asking about, and its `latest` and
+ * `replaced` would then answer a question nobody asked. Nothing inside a pass
+ * awaits `reconcile`, so waiting here cannot wait on itself -- the switch an
+ * adoption's re-open dispatches starts one without awaiting it.
+ */
+export const reconcile = (): Promise<SyncResult> => {
+  if (!running) return start();
+  queued ??= new Promise<SyncResult>((resolve, reject) => {
+    next = { resolve, reject };
+  });
+  return queued;
 };
 
-const reconcileUnlocked = async (): Promise<SyncResult> => {
+/** The pass in progress, if any */
+let running: Promise<SyncResult> | null = null;
+/** The one pass every caller that arrived during `running` will share */
+let queued: Promise<SyncResult> | null = null;
+let next: {
+  resolve: (result: SyncResult) => void;
+  reject: (error: unknown) => void;
+} | null = null;
+
+const start = (): Promise<SyncResult> => {
+  const current = pass();
+  running = current;
+  const settle = () => {
+    running = null;
+    // Handed over in the same turn that `running` clears, so a caller that
+    // arrives in between cannot start a pass alongside the queued one
+    if (!next) return;
+    const { resolve, reject } = next;
+    next = null;
+    queued = null;
+    start().then(resolve, reject);
+  };
+  current.then(settle, settle);
+  return current;
+};
+
+/**
+ * One pass, held under `withSyncLock`: it decides against the sync marks,
+ * which every tab of this browser shares, and a push or a merge in another
+ * tab must not change a mark between this pass reading it and acting on it.
+ * The coalescing above orders passes within this tab; the lock orders them
+ * against the other tabs.
+ */
+const pass = (): Promise<SyncResult> => withSyncLock(passUnlocked);
+
+const passUnlocked = async (): Promise<SyncResult> => {
   const result = empty();
 
-  // Before anything reads the current workspace. This is the backstop for
-  // a neighbour's write this tab never heard about -- a message lost, or a
-  // tab opened before tabs announced writes at all. Without it this tab goes
-  // on showing, and autosaving back, a copy disk has moved past. The fast
-  // path below does not depend on it: that path trusts the mark, which is on
-  // disk and shared by every tab, not this tab's memory.
-  //
-  // The reload also re-reads the list of workspaces, first thing, and so
-  // this pass decides against a fresh one: everything below matches the
-  // server against it by name and id, and an import saves it back over the
-  // store's.
-  //
-  // A failure here is reported and the pass goes on. The reconcile decides
-  // from disk and the server, neither of which a failed reload has touched.
+  // First, bring the open workspace in line with the store. Another tab may
+  // have written it since this one last looked, and everything below reads
+  // the store while the editor still shows memory -- so a pass that adopted
+  // or merged over a stale editor left it to autosave the old text back.
   try {
     await reloadCurrentFromDisk();
   } catch (e) {
@@ -114,6 +194,14 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
     PgProjectSync.rememberName(project.id, project.name);
     const local = PgExplorer.workspaceNameOf(project.id);
 
+    // A merge of it is already reading the server and rewriting the
+    // workspace, and racing it for the mark could undo it. Left for the next
+    // pass -- the merge uploads what it settles on itself.
+    if (PgProjectSync.isMerging(project.id)) {
+      if (local) result.latest ??= local;
+      continue;
+    }
+
     try {
       if (!local) {
         const name = await importFresh(project.id, project.name, taken);
@@ -126,7 +214,42 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
 
       result.latest ??= local;
 
-      const mark = await PgSyncMark.read(project.id);
+      const found = await PgSyncMark.inspect(project.id);
+      let mark: SyncMark | null;
+      if (found && "legacy" in found) {
+        // A mark from before per-file hashes says whether the user's files
+        // are exactly what the server accepted at its timestamp, and nothing
+        // about any one file -- nor anything at all about the generated ones,
+        // which its hash never covered.
+        //
+        // Where the user files still match it, the account's copy is taken,
+        // whether or not the server has moved: nothing is lost, because the
+        // user's files were just found equal to the agreement, and it is the
+        // only copy of the generated files known to be agreed. Rebuilding the
+        // mark from this device's copy instead recorded this device's keypair
+        // as the agreement, so the next build uploaded it and silently moved
+        // the account's program to a new address.
+        //
+        // The adoption re-checks cleanliness inside the project's queue, and
+        // writes nothing when it declines, so the old mark stays for the next
+        // pass. What that pass does depends on why it declined. If the copy
+        // stopped being clean meanwhile, it merges against an empty base,
+        // where the account's generated files win, less any keypair only this
+        // device holds, which is carried into them. If the fetch failed or the
+        // snapshot was unusable, the copy is still clean and it adopts again.
+        if (await isClean(project.id, local)) {
+          const adopted = await PgProjectSync.adopt(project.id);
+          if (adopted) result.replaced.push(adopted);
+          continue;
+        }
+        // Where they do not, nothing can be derived, and the old mark is left
+        // for the merge to replace: against an empty base, which asks about
+        // whatever the two copies disagree on. Never the old mark's hash used
+        // as if it were per file.
+        mark = null;
+      } else {
+        mark = found;
+      }
 
       // The cheap path, and the overwhelmingly common one: this device has
       // nothing pending and the row is exactly where it was left. Neither side
@@ -149,14 +272,15 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
         // catch-up: an edit that was still debounced when the tab closed, a
         // push that failed while offline, or a rename -- which `isClean`
         // catches because the mark records the name as well as the hash.
+        // With the generation read first, so a merge the banner starts while
+        // this reads the files stops this snapshot from going up after it
+        const generation = PgProjectSync.generationOf(project.id);
         if (
           (await PgProjectSync.push(
             project.id,
             await snapshotOf(local),
             local,
-            {
-              immediate: true,
-            }
+            { immediate: true, generation }
           )) === "ok"
         ) {
           result.pushed.push(local);
@@ -183,56 +307,20 @@ const reconcileUnlocked = async (): Promise<SyncResult> => {
 };
 
 /**
- * Make this browser and the account agree, without merging and without
- * guessing.
- *
- * Runs on sign-in, on load, and whenever a backgrounded tab comes back. Each
- * project lands in one of four cells, decided by two independent questions --
- * has this device changed it since the server last took a copy, and has the
- * server moved since then:
- *
- * |          | server unchanged | server moved |
- * | -------- | ---------------- | ------------ |
- * | clean    | nothing          | take server  |
- * | dirty    | push             | **ask**      |
- *
- * Both questions are answerable only because `PgSyncMark` persists what the
- * server last accepted from *this* device. Without it "local differs from the
- * server" is one undifferentiated state, and the previous version of this
- * function resolved it by always taking the server's copy -- which quietly
- * destroyed anything that had not finished uploading.
- *
- * The bottom-right cell is the only one that asks the user anything, and it is
- * the only one that cannot be decided without them: both copies contain work,
- * and nothing here is entitled to pick.
- *
- * Deletes are the same shape. A project the server no longer lists, for which
- * this device holds a mark, was deleted on another device: if the local copy is
- * clean the delete finishes here, and if it is not the user is asked rather
- * than having unsaved work removed on another device's say-so.
- *
- * Held under `withSyncLock`: it decides against the sync marks and, along the
- * way, writes them (`adopt`, the catch-up push below, `settleDivergence`,
- * `settleDeletes`, `pushNeverSynced`) -- exactly the section no other tab may
- * run concurrently.
- */
-export const reconcile = (): Promise<SyncResult> =>
-  withSyncLock(reconcileUnlocked);
-
-/**
  * Decide whether "both sides differ" is really a question for the user.
  *
- * Two cases reach here that look divergent from the marks alone and are not,
- * and asking about either would be asking about nothing:
+ * Mostly it is not, and the merge settles it: two copies that are identical
+ * -- a tutorial, whose id is derived from its name and so is minted
+ * independently on every browser, holds the same bytes as the server with
+ * only the token missing -- merge to themselves, and so do edits to different
+ * files or to lines that do not overlap. What the merge cannot settle is
+ * raised with the files it concerns.
  *
- * - **The row has no code.** `ensureConversation` creates a `projects` row so
- *   a chat turn has a parent, so a project whose assistant was used before its
- *   first upload already exists server-side with a null snapshot. There is
- *   nothing there to lose, so this device's copy simply goes up.
- * - **The two copies are identical.** A device with no mark for a project it
- *   nonetheless holds -- a tutorial, whose id is derived from its name and so
- *   is minted independently on every browser -- has the same bytes as the
- *   server. Only the token is missing, so recording it is the whole fix.
+ * One case is handled before the merge, because there is nothing to merge
+ * with: **the row has no code.** `ensureConversation` creates a `projects` row
+ * so a chat turn has a parent, so a project whose assistant was used before
+ * its first upload already exists server-side with a null snapshot. There is
+ * nothing there to lose, so this device's copy simply goes up.
  *
  * @returns the conflict actually raised, or `null` when it settled itself
  */
@@ -256,21 +344,15 @@ const settleDivergence = async (
     return null;
   }
 
-  const serverHash = await hashSnapshot(full.snapshot);
-  if (serverHash === (await hashSnapshot(await snapshotOf(local)))) {
-    await PgSyncMark.write(projectId, {
-      hash: serverHash,
-      contentHash: await hashUserFiles(full.snapshot),
-      name: local,
-      updatedAt: full.updatedAt,
-      dirty: false,
-    });
+  // Identical copies, a missing mark, one side ahead per file, lines that do
+  // not overlap: all of it settles without a question. What is left is raised
+  // with the files it concerns.
+  const outcome = await PgProjectSync.mergeWithServer(projectId, local);
+  if (outcome === "merged") {
+    result.replaced.push(local);
     return null;
   }
-
-  const conflict: Conflict = { projectId, kind: "divergent" };
-  PgProjectSync.raise(conflict);
-  return conflict;
+  return PgProjectSync.conflictFor(projectId);
 };
 
 /**
@@ -303,12 +385,13 @@ const importFresh = async (
   taken.add(name);
 
   await PgSyncMark.write(projectId, {
-    hash: await hashSnapshot(full!.snapshot!),
-    contentHash: await hashUserFiles(full!.snapshot!),
+    files: await hashFiles(full!.snapshot!),
     name,
     updatedAt: full!.updatedAt,
     dirty: false,
   });
+  // A tutorial restarted under the same id must not inherit an old base
+  await PgSyncBase.clear(projectId);
 
   return name;
 };
@@ -368,7 +451,11 @@ const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
   for (const name of PgExplorer.allWorkspaceNames ?? []) {
     const id = PgExplorer.workspaceIdOf(name);
     if (!id || serverIds.has(id)) continue;
-    if (await PgSyncMark.read(id)) continue;
+    // Any mark at all, including one `read` cannot use: it is the record that
+    // this device synced the project, which makes its absence from the list a
+    // delete elsewhere -- `settleDeletes`'s -- and a create-only upload of it
+    // a refusal against the tombstone
+    if (await PgSyncMark.exists(id)) continue;
     if (await PgSyncMark.ownedByAnother(id)) continue;
 
     try {

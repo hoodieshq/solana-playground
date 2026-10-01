@@ -1,6 +1,9 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { expect, test } from "@playwright/test";
 import { validate as isUuid } from "uuid";
 import type { Page, Route } from "@playwright/test";
+import { applyWrite } from "./fixtures";
 
 /**
  * What a signed-in browser does with an account it has never seen.
@@ -163,27 +166,71 @@ const settled = async (page: Page, writes: unknown[]) => {
 };
 
 /**
- * The id of the workspace open in the page -- the one sync uploads it under.
+ * The id the explorer gave a workspace, read off its config in IndexedDB.
  *
- * Not the conversation's: a thread has an id of its own, so a project may
- * hold several, and it is not there at all until the panel has opened one.
+ * From the store rather than from a handle on the page, which has none for
+ * it: the assistant's is the conversation's id, which has not been the
+ * workspace's since a project could hold several conversations. Every value
+ * is tried, because the volume keeps file contents by inode and the config
+ * is simply the one that parses as a workspace list naming this project.
  */
-const workspaceId = (page: Page) =>
-  page.evaluate(
-    () =>
-      (
-        window as unknown as { __pgWorkspace?: { id: () => string | null } }
-      ).__pgWorkspace?.id() ?? null
-  );
+const workspaceIdOf = (page: Page, name: string) =>
+  page.evaluate(async (name) => {
+    const dbs: Array<{ name?: string }> = await (
+      indexedDB as unknown as {
+        databases: () => Promise<Array<{ name?: string }>>;
+      }
+    ).databases();
+
+    for (const { name: dbName } of dbs) {
+      if (!dbName) continue;
+      const db: IDBDatabase = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      for (const store of Array.from(db.objectStoreNames)) {
+        const values: unknown[] = await new Promise((resolve) => {
+          const request = db
+            .transaction(store, "readonly")
+            .objectStore(store)
+            .getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => resolve([]);
+        });
+
+        for (const value of values) {
+          try {
+            const text =
+              typeof value === "string"
+                ? value
+                : new TextDecoder().decode(value as ArrayBuffer);
+            const parsed = JSON.parse(text);
+            const found = (
+              parsed?.workspaces as Array<{ id: string; name: string }>
+            )?.find?.((w) => w.name === name);
+            if (found) {
+              db.close();
+              return found.id;
+            }
+          } catch {
+            // Not text, or not JSON: some other file, or the superblock
+          }
+        }
+      }
+      db.close();
+    }
+    return null;
+  }, name);
 
 /**
  * A project of this browser's own, to hand over and then reload against.
  *
- * @returns its workspace id. A row the fake account lists under any other id
- * is a project this browser has never seen: it is imported beside the real
- * one as "<name> (imported)", and the real one then reads as deleted on
- * another device -- which is how these tests used to pass while testing
- * nothing they meant to.
+ * @returns the workspace's id, which is what the account has to list it under
+ * for the reload to be about this project. A different id is a project the
+ * browser has never seen: it is imported beside this one as `(imported)`,
+ * and everything the stub records is about the wrong project.
  */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
@@ -193,13 +240,17 @@ const makeLocalProject = async (page: Page, name: string) => {
   await gallery.getByRole("button", { name: /^Start/ }).click();
   await expect(gallery).toBeHidden(LONG);
 
-  await expect.poll(() => workspaceId(page), LONG).not.toBeNull();
-  return (await workspaceId(page)) as string;
+  let id: string | null = null;
+  await expect
+    .poll(async () => (id = await workspaceIdOf(page, name)), LONG)
+    .toBeTruthy();
+  expect(isUuid(id!)).toBe(true);
+  return id!;
 };
 
 /** The same project is open again: not an imported copy beside it */
 const reopened = async (page: Page, id: string, name: string) => {
-  await expect.poll(() => workspaceId(page), LONG).toBe(id);
+  await expect.poll(() => workspaceIdOf(page, name), LONG).toBe(id);
   await expect(page.locator('[aria-haspopup="true"]').first()).toContainText(
     name,
     LONG
@@ -234,7 +285,10 @@ test("reloading a project the account already has writes nothing", async ({
   const localId = await makeLocalProject(page, "Shared");
 
   const writes: Array<{ snapshot?: unknown }> = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -246,7 +300,7 @@ test("reloading a project the account already has writes nothing", async ({
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: "2026-02-01T00:00:00.000Z",
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -276,7 +330,7 @@ test("reloading a project the account already has writes nothing", async ({
   // Second load: both sides now agree, and the mark says so
   writes.length = 0;
   await page.reload();
-  await reopened(page, localId, "Shared");
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   await page.waitForTimeout(8000);
 
@@ -305,7 +359,10 @@ test("the other device's change arrives without asking", async ({ page }) => {
   const localId = await makeLocalProject(page, "Handover");
 
   const writes: unknown[] = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -317,7 +374,7 @@ test("the other device's change arrives without asking", async ({ page }) => {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: "2026-02-01T00:00:00.000Z",
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -353,7 +410,7 @@ test("the other device's change arrives without asking", async ({ page }) => {
 
   writes.length = 0;
   await page.reload();
-  await reopened(page, localId, "Handover");
+  await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
   // Nothing to decide: this browser has no work of its own to weigh
   await expect(page.getByText("changed on another device")).toHaveCount(
@@ -395,7 +452,10 @@ test("the other device can change it twice without ever asking", async ({
   const localId = await makeLocalProject(page, "PingPong");
 
   const writes: unknown[] = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -407,7 +467,7 @@ test("the other device can change it twice without ever asking", async ({
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: `2026-02-0${writes.length}T00:00:00.000Z`,
       };
       return json(r, { updatedAt: stored.updatedAt });
@@ -446,7 +506,7 @@ test("the other device can change it twice without ever asking", async ({
 
     writes.length = 0;
     await page.reload();
-    await reopened(page, localId, "PingPong");
+    await expect.poll(() => threadIdIsUuid(page), LONG).toBe(true);
 
     await expect(banner).toHaveCount(0, LONG);
     await expect(page.locator("#root-dir")).toContainText(`${marker}.rs`, LONG);
@@ -468,15 +528,35 @@ test("the other device can change it twice without ever asking", async ({
  * taking the server's copy, pushing this one, finishing a delete -- reconcile
  * decides on its own, because only one side has work in it.
  */
-test("a divergent project asks, and keeping this version force-pushes it", async ({
+test("a divergent project asks about the overlap, and keeping this version uploads it", async ({
   page,
 }) => {
   test.setTimeout(240_000);
 
   const localId = await makeLocalProject(page, "Contested");
 
-  const writes: Array<{ force?: boolean; baseUpdatedAt?: string }> = [];
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  const writes: Array<{
+    id?: string;
+    baseUpdatedAt?: string;
+    changed?: Record<string, string>;
+    force?: boolean;
+  }> = [];
+  // The other device's copy, which this browser has never agreed on. Keyed
+  // by id, so the token is checked against the row a write names -- and a
+  // write naming any other project finds nothing there.
+  const rows = new Map([
+    [
+      localId,
+      {
+        snapshot: {
+          files: { "src/lib.rs": "// written on the other device" },
+        },
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ],
+  ]);
+  const notFound = (r: Route) =>
+    r.fulfill({ status: 404, contentType: "application/json", body: "{}" });
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -487,59 +567,84 @@ test("a divergent project asks, and keeping this version force-pushes it", async
     if (r.request().method() === "PUT") {
       const body = JSON.parse(r.request().postData() ?? "{}");
       writes.push(body);
-      // Only `force` gets through. A plain swap is refused, standing in for
-      // the other device having written since this one last read.
-      if (!body.force) {
+      const row = rows.get(body.id);
+      if (!row) return notFound(r);
+      // The real swap: only a write built on the current token lands
+      if (body.baseUpdatedAt !== row.updatedAt) {
         return r.fulfill({
           status: 409,
           contentType: "application/json",
-          body: JSON.stringify({
-            conflict: true,
-            updatedAt: stored?.updatedAt,
-          }),
+          body: JSON.stringify({ conflict: true, updatedAt: row.updatedAt }),
         });
       }
-      stored = {
-        snapshot: body.snapshot,
+      rows.set(body.id, {
+        snapshot: applyWrite(row.snapshot, body),
         updatedAt: "2026-04-01T00:00:00.000Z",
-      };
-      return json(r, { updatedAt: stored.updatedAt });
+      });
+      return json(r, { updatedAt: "2026-04-01T00:00:00.000Z" });
     }
 
-    const shared = {
-      id: localId,
+    const listed = [...rows].map(([id, row]) => ({
+      id,
       name: "Contested",
       kind: "project",
-      updatedAt: stored?.updatedAt ?? "2026-03-01T00:00:00.000Z",
-    };
+      updatedAt: row.updatedAt,
+    }));
     const id = new URL(r.request().url()).searchParams.get("id");
-    if (id) {
-      return json(r, {
-        project: {
-          ...shared,
-          snapshot: stored?.snapshot ?? {
-            files: { "src/lib.rs": "// written on the other device" },
+    if (!id) return json(r, { projects: listed });
+    const row = rows.get(id);
+    return row
+      ? json(r, {
+          project: {
+            ...listed.find((p) => p.id === id),
+            snapshot: row.snapshot,
           },
-        },
-      });
-    }
-    return json(r, { projects: [shared] });
+        })
+      : notFound(r);
   });
 
   await page.reload();
 
   const banner = page.getByText("changed on another device");
   await expect(banner).toBeVisible(LONG);
+  // Named: the question is about this file, not the whole project
+  await expect(banner).toContainText("src/lib.rs");
 
-  // And it stops pushing while the question is open, rather than re-sending a
-  // swap that can never match again
+  // Nothing is *accepted* while the question is open. A create-only upload of
+  // a project the account already holds may go out first; the server refuses
+  // it, so it cannot clobber anything. A patch must never appear: it would
+  // mean a merge result was sent before the user answered.
   await page.waitForTimeout(8000);
-  const beforeAnswer = writes.length;
+  const ours = () => writes.filter((write) => write.id === localId);
+  const beforeAnswer = ours().length;
+  for (const write of ours()) {
+    expect(write.baseUpdatedAt).not.toBe("2026-03-01T00:00:00.000Z");
+    expect(write.changed).toBeUndefined();
+  }
+  // And no other project is created beside it: the account's copy is this
+  // workspace's, not one to import as a duplicate
+  expect(writes.filter((write) => write.id !== localId)).toEqual([]);
 
   await page.getByRole("button", { name: "Keep this version" }).click();
 
-  await expect.poll(() => writes.at(-1)?.force, LONG).toBe(true);
-  expect(writes.length).toBe(beforeAnswer + 1);
+  await expect.poll(() => ours().length, LONG).toBeGreaterThan(beforeAnswer);
+  const answer = ours().at(-1)!;
+  expect(answer.force).toBeUndefined();
+  expect(answer.baseUpdatedAt).toBe("2026-03-01T00:00:00.000Z");
+  // This browser's own copy went up: the default framework file the project
+  // was created from, read from the bundle rather than from the page so the
+  // expectation does not depend on the code under test.
+  expect(answer.changed).toBeDefined();
+  expect(answer.changed?.["src/lib.rs"]).toBe(
+    readFileSync(
+      join(__dirname, "../src/frameworks/anchor/files/src/lib.rs"),
+      "utf8"
+    )
+  );
+  // ...and the server took it, rather than refusing it like the earlier ones
+  await expect
+    .poll(() => rows.get(localId)!.updatedAt, LONG)
+    .toBe("2026-04-01T00:00:00.000Z");
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
@@ -556,11 +661,16 @@ test("a divergent project can take the other version instead", async ({
   const localId = await makeLocalProject(page, "Contested");
 
   const writes: Array<{ force?: boolean }> = [];
-  const theirs = {
-    files: {
-      "src/lib.rs": "// written on the other device",
-      "src/from_other_device.rs": "// new over there",
+  // The other device's copy. Answered with the same token check as above, so
+  // what the browser uploads after the answer is accepted rather than refused.
+  let stored = {
+    snapshot: {
+      files: {
+        "src/lib.rs": "// written on the other device",
+        "src/from_other_device.rs": "// new over there",
+      },
     },
+    updatedAt: "2026-03-01T00:00:00.000Z",
   };
 
   await page.route("**/api/auth/get-session", (r) =>
@@ -570,25 +680,30 @@ test("a divergent project can take the other version instead", async ({
   await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
   await page.route("**/api/projects*", (r) => {
     if (r.request().method() === "PUT") {
-      writes.push(JSON.parse(r.request().postData() ?? "{}"));
-      return r.fulfill({
-        status: 409,
-        contentType: "application/json",
-        body: JSON.stringify({
-          conflict: true,
-          updatedAt: "2026-03-01T00:00:00.000Z",
-        }),
-      });
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      if (body.baseUpdatedAt !== stored.updatedAt) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: stored.updatedAt }),
+        });
+      }
+      stored = {
+        snapshot: applyWrite(stored.snapshot, body),
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      };
+      return json(r, { updatedAt: stored.updatedAt });
     }
     const shared = {
       id: localId,
       name: "Contested",
       kind: "project",
-      updatedAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: stored.updatedAt,
     };
     const id = new URL(r.request().url()).searchParams.get("id");
     return id
-      ? json(r, { project: { ...shared, snapshot: theirs } })
+      ? json(r, { project: { ...shared, snapshot: stored.snapshot } })
       : json(r, { projects: [shared] });
   });
 
@@ -651,7 +766,7 @@ test("a started tutorial hands over its keypair and progress", async ({
   // The keypair is written after the workspace is up, not with it
   await page.waitForTimeout(5000);
 
-  const writes: Array<{ snapshot?: { files: Record<string, string> } }> = [];
+  const writes: Array<{ files?: Record<string, string> }> = [];
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -670,7 +785,130 @@ test("a started tutorial hands over its keypair and progress", async ({
   await page.reload();
 
   await expect.poll(() => writes.length, LONG).toBeGreaterThan(0);
-  const sent = Object.keys(writes[0].snapshot?.files ?? {});
+  // A project's first upload is a full write
+  const sent = Object.keys(writes[0].files ?? {});
   expect(sent).toContain(".workspace/program-info.json");
   expect(sent).toContain(".tutorial.json");
+});
+
+/**
+ * Typing that lands while the other device's copy is being taken, and then
+ * the other device writes again.
+ *
+ * The adoption folds the typing into the account's copy, and re-opens the
+ * workspace -- which is where the sync effect re-takes its shadow, now holding
+ * the typing. The shadow no longer matched the agreement, so nothing kept the
+ * account's copy of the file as its base, and the next exchange asked about
+ * the whole file although no line was changed on both sides. It is the second
+ * exchange of an ordinary back-and-forth, and the unit tests missed it because
+ * they stub the re-open out.
+ */
+test("typing folded into the other device's copy still merges with its next change", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Folded");
+
+  let clock = 0;
+  const stamp = () => `2026-07-01T00:00:${String(++clock).padStart(2, "0")}Z`;
+  let row: { snapshot?: { files: Record<string, string> }; updatedAt: string } =
+    { updatedAt: stamp() };
+  const edit = (from: string, to: string) => {
+    const files = { ...row.snapshot!.files };
+    expect(files["src/lib.rs"]).toContain(from);
+    files["src/lib.rs"] = files["src/lib.rs"].replace(from, to);
+    row = { snapshot: { files }, updatedAt: stamp() };
+  };
+
+  // Released by the test, once it has typed: the adoption's read of the
+  // account's copy is held open until then
+  let holdRead: Promise<void> | null = null;
+  // The other device's next write, landing just before this browser's next
+  // upload
+  let beforeNextWrite: (() => void) | null = null;
+  const writes: unknown[] = [];
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", async (r) => {
+    const listed = {
+      id: localId,
+      name: "Folded",
+      kind: "project",
+      updatedAt: row.updatedAt,
+    };
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      beforeNextWrite?.();
+      beforeNextWrite = null;
+      if (row.snapshot && body.baseUpdatedAt !== row.updatedAt) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: row.updatedAt }),
+        });
+      }
+      row = { snapshot: applyWrite(row.snapshot, body), updatedAt: stamp() };
+      return json(r, { updatedAt: row.updatedAt });
+    }
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (!id) return json(r, { projects: row.snapshot ? [listed] : [] });
+    if (holdRead) await holdRead;
+    return json(r, { project: { ...listed, snapshot: row.snapshot } });
+  });
+
+  // Hand it over, so both sides agree to begin with
+  await page.reload();
+  await expect.poll(() => !!row.snapshot, LONG).toBe(true);
+  await settled(page, writes);
+  const lines = page.locator(".monaco-editor .view-lines").first();
+  await expect(lines).toContainText("declare_id", LONG);
+
+  // The other device changes the first line
+  edit("use anchor_lang::prelude::*;", "use anchor_lang::prelude::*; // A1");
+
+  // This browser comes back to the foreground and takes that copy -- and the
+  // user types at the end of the file while it is being fetched
+  let release!: () => void;
+  holdRead = new Promise((resolve) => (release = resolve));
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange"))
+  );
+  await lines.click();
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End"
+  );
+  await page.keyboard.type("\n// typed here");
+  // The other device changes the third line before the typing goes up.
+  // Pushes are held until the adoption is done, so the next write is the
+  // first one made from the adopted copy.
+  beforeNextWrite = () =>
+    edit(
+      "// This is your program's public key",
+      "// A2: this is your program's public key"
+    );
+  // Well inside autosave's half second, so the typing is in the editor alone
+  release();
+  holdRead = null;
+
+  // Whichever comes first: the typing uploaded, or the question
+  const banner = page.getByText("changed on another device");
+  await expect
+    .poll(
+      async () =>
+        row.snapshot!.files["src/lib.rs"].includes("// typed here") ||
+        (await banner.count()) > 0,
+      LONG
+    )
+    .toBe(true);
+  await expect(banner).toHaveCount(0);
+  const merged = row.snapshot!.files["src/lib.rs"];
+  expect(merged).toContain("// A1");
+  expect(merged).toContain("// A2");
+  expect(merged).toContain("// typed here");
 });
