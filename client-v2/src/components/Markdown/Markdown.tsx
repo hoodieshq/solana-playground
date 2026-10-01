@@ -18,16 +18,15 @@ interface MarkdownProps {
   rootSrc?: string;
   /** Whether to support URL hashes `<URL>#<HASH>` */
   linkable?: boolean;
-  /** Class name applied to the wrapper element */
-  className?: string;
 }
+
+/** react-markdown 9 passes one child where 8 passed an array. */
+const first = <T,>(v: T | T[]) => (Array.isArray(v) ? v[0] : v);
 
 const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
   rootSrc,
   linkable,
-  codeFontOnly,
-  className,
-  children,
+  ...props
 }) => {
   // Scroll to section if it's linkable
   useEffect(() => {
@@ -64,56 +63,49 @@ const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
   }, [linkable]);
 
   return (
-    // react-markdown 9 no longer accepts `className`, so the styles live on a
-    // wrapper element that its output is the direct child of
-    <StyledMarkdown className={className} codeFontOnly={codeFontOnly}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          /** Links */
-          a: (props) => <Link {...(props as unknown as LinkProps)} />,
+    <StyledMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        /** Links */
+        a: (props) => <Link {...(props as unknown as LinkProps)} />,
 
-          /** Images */
-          img: (props) => {
-            return (
-              <Img
-                {...props}
-                src={
-                  props.src && !props.src.startsWith("/")
-                    ? PgCommon.joinPaths(
-                        rootSrc ?? PgRouter.location.pathname,
-                        props.src
-                      )
-                    : props.src
-                }
-              />
-            );
-          },
+        /** Images */
+        img: (props) => {
+          return (
+            <Img
+              {...props}
+              src={
+                props.src && !props.src.startsWith("/")
+                  ? PgCommon.joinPaths(
+                      rootSrc ?? PgRouter.location.pathname,
+                      props.src
+                    )
+                  : props.src
+              }
+            />
+          );
+        },
 
-          /** Code blocks */
-          pre: (props) => {
-            // react-markdown 9 passes one child where 8 passed an array
-            const first = <T,>(v: T | T[]) => (Array.isArray(v) ? v[0] : v);
-            const codeProps = first((props as any).children).props;
-            const lang = codeProps.className?.split("-")?.at(1);
-            const code = first(codeProps.children);
+        /** Code blocks */
+        pre: (props) => {
+          const codeProps = first((props as any).children).props;
+          const lang = codeProps.className?.split("-")?.at(1);
+          const code = first(codeProps.children);
 
-            return <CodeBlock lang={lang}>{code}</CodeBlock>;
-          },
+          return <CodeBlock lang={lang}>{code}</CodeBlock>;
+        },
 
-          /** Section headers */
-          h1: (props) => <Header element="h1" linkable={linkable} {...props} />,
-          h2: (props) => <Header element="h2" linkable={linkable} {...props} />,
-          h3: (props) => <Header element="h3" linkable={linkable} {...props} />,
-        }}
-      >
-        {children}
-      </ReactMarkdown>
-    </StyledMarkdown>
+        /** Section headers */
+        h1: (props) => <Header element="h1" linkable={linkable} {...props} />,
+        h2: (props) => <Header element="h2" linkable={linkable} {...props} />,
+        h3: (props) => <Header element="h3" linkable={linkable} {...props} />,
+      }}
+      {...props}
+    />
   );
 };
 
-const StyledMarkdown = styled.div<Pick<MarkdownProps, "codeFontOnly">>`
+const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
   ${({ theme, codeFontOnly }) => css`
     --border-radius: ${theme.default.borderRadius};
     --color-prettylights-syntax-comment: #8b949e;
@@ -1118,9 +1110,7 @@ const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
 }) => {
   if (!linkable) return <H {...rest} />;
 
-  // A lone text child arrives as a string in react-markdown 9, an array in 8
-  const title = Array.isArray(rest.children) ? rest.children[0] : rest.children;
-  const hash = PgCommon.toKebabFromTitle(title as string);
+  const hash = PgCommon.toKebabFromTitle(first(rest.children) as string);
 
   return (
     <HeaderWrapper onClick={() => (PgRouter.location.hash = hash)}>
