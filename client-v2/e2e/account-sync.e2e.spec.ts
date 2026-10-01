@@ -450,7 +450,10 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
 
   const writes: Array<{ name?: string }> = [];
   let name = "Before";
-  let stored: { snapshot?: unknown; updatedAt: string } | null = null;
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
 
   await page.route("**/api/auth/get-session", (r) =>
     json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
@@ -463,7 +466,7 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
       writes.push(body);
       name = body.name;
       stored = {
-        snapshot: body.snapshot,
+        snapshot: applyWrite(stored?.snapshot, body),
         updatedAt: new Date(
           Date.UTC(2026, 1, 1, 0, 0, writes.length)
         ).toISOString(),
