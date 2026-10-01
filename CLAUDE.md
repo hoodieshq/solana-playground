@@ -31,7 +31,7 @@ and this file outranks both.
 | --- | --- |
 | `docs/product-brief.md` | Why this work exists, the roadmap, principles, open questions for the Foundation |
 | `docs/decisions.md` | What we chose, what we rejected, and what would make us revisit |
-| `docs/upstream-divergences.md` | Every place `client-v2` differs from `client/` and why -- read before a roadmap update, a release, or an upstream sync |
+| `docs/upstream-divergences.md` | How `client-v2` diverged from `client/` up to 2026-10-01, and why. Frozen for `client-v2` since then (D52); read it when porting an upstream change |
 | `docs/codebase-map.yaml` (+ `.html`) | How the existing client actually works — verified by reading and running, with file paths |
 | `docs/assistant-context.md` | What the in-product assistant knows about itself |
 | `docs/linear-conventions.md` | How to file a ticket for this repo — the team, the project, and the two substitutions the shared Bug template needs |
@@ -162,9 +162,12 @@ honest about what is real and what is mocked.
 - **Do not modify the backend**, the build server, the supported crate list,
   deploy mechanics, or the sharing infrastructure. If the assistant needs server
   capacity it belongs in a separate service, not in `server/`.
-- **Touch pre-existing upstream files inside `client-v2/` as little as
-  possible.** The panel is all new files; the pre-existing files the fork
-  edits are listed in `docs/decisions.md` D2, D4 and D9.
+- **Upstream's files stay upstream's in `client/` and `server/` only.**
+  `client/` is byte-identical and `server/` is not modified, so upstream
+  syncs there stay fast-forwards. `client-v2/` is ours and is no longer
+  synced with upstream's frontend (D52): edit it as the work needs, by the
+  rules in `client-v2/CLAUDE.md`. Something wanted from upstream comes into
+  `client-v2` as a feature with its own ticket.
 - **Everything stays open source.** No closed modules, no proprietary service.
 - **No API keys in the repository**, and not in `REACT_APP_*` either — CRA
   inlines those into the bundle for every visitor to read. The key is supplied by
@@ -176,8 +179,14 @@ honest about what is real and what is mocked.
 
 ## Merge safety
 
-The fork is level with upstream, and upstream is active — 223 commits in six
-months. Extend through the registries, stay out of the runtime internals.
+This applies to `client/` and `server/` only (D52). They are level with
+upstream, and upstream is active — 223 commits in six months — so nothing of
+ours goes into them, and a sync is a fast-forward.
+
+`client-v2/` is not synced with upstream's frontend. The lists below describe
+where upstream's churn is, which matters when an upstream change is ported
+into `client-v2` as a feature: a hot file there has probably moved several
+times since the copy. They are not a reason to avoid editing `client-v2`.
 
 **Cold — safe to extend** (commits in the last 12 months):
 `views/sidebar/sidebar.ts` 0 · `views/main/secondary/secondary.ts` 0 ·
@@ -189,8 +198,7 @@ months. Extend through the registries, stay out of the runtime internals.
 `utils/decorators/updatable.ts` 11 · `utils/wallet/wallet.ts` 9 ·
 `utils/program-info.ts` 8
 
-`commands/build/build.ts` sits between the two at 7, and is exactly the file D4
-needs. Keep that edit to a couple of lines that delegate to a new module.
+`commands/build/build.ts` sits between the two at 7.
 
 ## Environment facts worth knowing
 
@@ -332,9 +340,10 @@ they render inline.
 
 ## Working agreement
 
-- Record every edit to a pre-existing upstream file, and every behaviour
-  that differs from upstream, in `docs/upstream-divergences.md` in the
-  same round -- with the decision that justifies it (Slava, 2026-09-08).
+- `docs/upstream-divergences.md` is frozen for `client-v2` as of 2026-10-01
+  (D52): no new rows for `client-v2` edits. It stays as the history of how
+  the fork diverged. A change to `client/` or `server/` is still recorded
+  there, with the decision that justifies it -- and should not happen.
 - **Move the Linear ticket yourself, in the same turn, without being asked**
   (Slava, 2026-09-28). A ticket found linked to an open pull request -- ours
   or a teammate's -- is assigned to Slava and moved to **In Review**. A ticket

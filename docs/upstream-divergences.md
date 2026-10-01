@@ -1,5 +1,11 @@
 # Upstream divergences: where `client-v2` differs from `client/`, and why
 
+> **Frozen for `client-v2` on 2026-10-01 (D52).** `client-v2` is no longer
+> synced with upstream's frontend, so no rows are added for its edits. The
+> register stays as the history of how the fork diverged, and as a map when
+> an upstream change is ported into `client-v2` as a feature. Anything that
+> touches `client/` or `server/` is still recorded here.
+
 **Started:** 2026-09-08 (Slava, on the PR #27 retrospective) · **Owner:**
 whoever touches a pre-existing upstream file in `client-v2/` next.
 
