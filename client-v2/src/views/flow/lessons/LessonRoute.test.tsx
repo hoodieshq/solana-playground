@@ -19,8 +19,13 @@ jest.mock("./LessonSurface", () => ({
   default: () => <div data-testid="lesson-surface" />,
 }));
 
-import ReactDOM from "react-dom";
-import { act } from "react-dom/test-utils";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+
+// Tells React this environment runs `act`, as React 18+ expects
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 import LessonRoute from "./LessonRoute";
 import { PgTutorial } from "../../../utils";
@@ -51,17 +56,19 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("LessonRoute", () => {
   let container: HTMLDivElement;
+  let root: Root;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
+    root = createRoot(container);
     isStarted.mockReset();
     onDidChange.mockReset().mockReturnValue({ dispose: jest.fn() });
   });
 
   afterEach(() => {
     act(() => {
-      ReactDOM.unmountComponentAtNode(container);
+      root.unmount();
     });
     container.remove();
   });
@@ -70,7 +77,7 @@ describe("LessonRoute", () => {
     isStarted.mockReturnValue(false);
 
     await act(async () => {
-      ReactDOM.render(<LessonRoute tutorial={makeTutorial()} />, container);
+      root.render(<LessonRoute tutorial={makeTutorial()} />);
       await flush();
     });
 
@@ -86,7 +93,7 @@ describe("LessonRoute", () => {
     isStarted.mockReturnValue(true);
 
     await act(async () => {
-      ReactDOM.render(<LessonRoute tutorial={makeTutorial()} />, container);
+      root.render(<LessonRoute tutorial={makeTutorial()} />);
       await flush();
     });
 
@@ -102,7 +109,7 @@ describe("LessonRoute", () => {
     isStarted.mockReturnValue(false);
 
     await act(async () => {
-      ReactDOM.render(<LessonRoute tutorial={makeTutorial()} />, container);
+      root.render(<LessonRoute tutorial={makeTutorial()} />);
       await flush();
     });
     expect(
