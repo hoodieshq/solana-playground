@@ -20,6 +20,9 @@ interface State {
   error: Error | null;
 }
 
+/** What a panel may hand the boundary: content, or an error to show */
+export type ErrorBoundaryChildren = ReactNode | ChildrenError;
+
 interface ChildrenError {
   /** Error that was thrown */
   error: Error;
@@ -121,7 +124,8 @@ class ErrorBoundary extends Component<Props, State> {
     // Reset the error prop usage so that we can show the error next time
     this.usedErrorProp = false;
 
-    return this.props.children;
+    // An error object never reaches here: the branches above handle it
+    return this.props.children as ReactNode;
   }
 }
 

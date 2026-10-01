@@ -5,11 +5,12 @@ import {
   useState,
   useCallback,
   useRef,
-  ReactNode,
 } from "react";
 import styled, { css } from "styled-components";
 
-import ErrorBoundary from "../../../../components/ErrorBoundary";
+import ErrorBoundary, {
+  type ErrorBoundaryChildren,
+} from "../../../../components/ErrorBoundary";
 import FadeIn from "../../../../components/FadeIn";
 import Resizable from "../../../../components/Resizable";
 import { Wormhole } from "../../../../components/Loading";
@@ -68,7 +69,7 @@ const Content: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
   const props = useRenderOnChange(PgView.onDidChangeSidebarProps);
   const loadingCount = useRenderOnChange(PgView.onDidChangeSidebarLoadingCount);
 
-  const [el, setEl] = useState<ReactNode>(null);
+  const [el, setEl] = useState<ErrorBoundaryChildren>(null);
 
   const ids = useRef<boolean[]>([]);
   useAsyncEffect(async () => {
@@ -89,7 +90,7 @@ const Content: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
       PgView.setSidebarLoading(true);
       await setContent();
     } catch (e) {
-      setEl({ error: e, refresh: setContent });
+      setEl({ error: e as Error, refresh: setContent });
     } finally {
       PgView.setSidebarLoading(false);
     }

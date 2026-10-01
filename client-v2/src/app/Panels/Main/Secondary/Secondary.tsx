@@ -1,5 +1,4 @@
 import {
-  ReactNode,
   SetStateAction,
   useCallback,
   useEffect,
@@ -10,7 +9,9 @@ import {
 import styled, { css } from "styled-components";
 
 import Button from "../../../../components/Button";
-import ErrorBoundary from "../../../../components/ErrorBoundary";
+import ErrorBoundary, {
+  type ErrorBoundaryChildren,
+} from "../../../../components/ErrorBoundary";
 import ProgressBar from "../../../../components/ProgressBar";
 import Resizable from "../../../../components/Resizable";
 import { Close, DoubleArrow, Tick } from "../../../../components/Icons";
@@ -35,7 +36,7 @@ const Secondary = () => {
   }, [page]);
   const pageInfo = useMemo(() => getPage(page), [page]);
 
-  const [el, setEl] = useState<ReactNode>(null);
+  const [el, setEl] = useState<ErrorBoundaryChildren>(null);
   useAsyncEffect(async () => {
     const { default: PageComponent } = await pageInfo.importComponent();
     setEl(<PageComponent />);
@@ -183,7 +184,7 @@ const Secondary = () => {
                 }
                 onClick={action.run}
               >
-                {action.icon}
+                {PgCommon.callIfNeeded(action.icon)}
               </Button>
             ))}
           </ActionsWrapper>
