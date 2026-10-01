@@ -9,8 +9,9 @@ interface ProgramsProps {
   filters: Filter[];
 }
 
-const Programs: FC<ProgramsProps> = ({ programs, filters }) => (
-  <FilterGroups items={programs} filters={filters} />
-);
+const Programs: FC<React.PropsWithChildren<ProgramsProps>> = ({
+  programs,
+  filters,
+}) => <FilterGroups items={programs} filters={filters} />;
 
 export default Programs;

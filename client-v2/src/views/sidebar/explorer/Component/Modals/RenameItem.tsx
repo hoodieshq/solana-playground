@@ -8,7 +8,9 @@ interface RenameItemProps {
   path: string;
 }
 
-export const RenameItem: FC<RenameItemProps> = ({ path }) => {
+export const RenameItem: FC<React.PropsWithChildren<RenameItemProps>> = ({
+  path,
+}) => {
   const itemName = PgExplorer.getItemNameFromPath(path);
   const [newName, setNewName] = useState(itemName);
   const [error, setError] = useState("");

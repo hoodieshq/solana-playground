@@ -16,7 +16,9 @@ interface TerminalProps {
   cmdManager: CommandManager;
 }
 
-const Terminal: FC<TerminalProps> = ({ cmdManager }) => {
+const Terminal: FC<React.PropsWithChildren<TerminalProps>> = ({
+  cmdManager,
+}) => {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const theme = useTheme();

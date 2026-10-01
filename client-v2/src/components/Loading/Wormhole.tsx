@@ -10,7 +10,7 @@ interface WormholeProps {
   circleCount?: number;
 }
 
-export const Wormhole: FC<WormholeProps> = ({
+export const Wormhole: FC<React.PropsWithChildren<WormholeProps>> = ({
   size = DEFAULT_SIZE,
   circleCount = DEFAULT_CIRCLE_COUNT,
 }) => {

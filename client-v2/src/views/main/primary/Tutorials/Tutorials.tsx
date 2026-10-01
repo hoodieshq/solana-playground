@@ -16,7 +16,10 @@ interface TutorialsProps {
   filters: Filter[];
 }
 
-const Tutorials: FC<TutorialsProps> = ({ tutorials, filters }) => {
+const Tutorials: FC<React.PropsWithChildren<TutorialsProps>> = ({
+  tutorials,
+  filters,
+}) => {
   const filteredSearch = useFilteredSearch({
     route: "/tutorials",
     items: tutorials,

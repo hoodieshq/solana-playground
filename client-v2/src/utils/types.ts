@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 /** Get the keys of `T` (strings) */
 export type KeyOf<T> = Extract<keyof T, string>;
 

@@ -7,7 +7,9 @@ interface ProgressBarProps {
   value: number;
 }
 
-const ProgressBar: FC<ProgressBarProps> = ({ value }) => {
+const ProgressBar: FC<React.PropsWithChildren<ProgressBarProps>> = ({
+  value,
+}) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const theme = useTheme();

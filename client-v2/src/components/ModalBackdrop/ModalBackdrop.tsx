@@ -6,10 +6,12 @@ import { useKeybind, useSetStatic } from "../../hooks";
 
 interface ModalBackdropProps {}
 
-const ModalBackdrop: FC<ModalBackdropProps> = (props) => {
+const ModalBackdrop: FC<React.PropsWithChildren<ModalBackdropProps>> = (
+  props
+) => {
   const [modals, setModals] = useState<ReactElement[]>([]);
 
-  const setModalStatic = useCallback(({ elementable, props }) => {
+  const setModalStatic = useCallback(({ elementable, props }: any) => {
     // Treat `null` as close
     if (elementable === null) {
       setModals((modals) => modals.slice(0, -1));

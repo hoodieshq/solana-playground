@@ -17,7 +17,7 @@ interface TagProps {
   value: any;
 }
 
-const Tag: FC<TagProps> = ({ kind, ...props }) => {
+const Tag: FC<React.PropsWithChildren<TagProps>> = ({ kind, ...props }) => {
   switch (kind) {
     case "level":
       return <Level {...props}>{props.value}</Level>;
@@ -56,7 +56,10 @@ interface FrameworkProps {
   value: FrameworkName;
 }
 
-const Framework: FC<FrameworkProps> = ({ value, ...props }) => {
+const Framework: FC<React.PropsWithChildren<FrameworkProps>> = ({
+  value,
+  ...props
+}) => {
   const framework = useMemo(() => PgFramework.get(value), [value]);
   const ref = useDelayedDifferentBackground();
 
@@ -80,7 +83,10 @@ interface LanguageProps {
   value: LanguageName;
 }
 
-const Language: FC<LanguageProps> = ({ value, ...props }) => {
+const Language: FC<React.PropsWithChildren<LanguageProps>> = ({
+  value,
+  ...props
+}) => {
   const ref = useDelayedDifferentBackground();
   const path =
     "file." +
@@ -96,7 +102,10 @@ const Language: FC<LanguageProps> = ({ value, ...props }) => {
 
 type DefaultProps = Omit<TagProps, "kind">;
 
-const Default: FC<DefaultProps> = ({ value, ...props }) => {
+const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
+  value,
+  ...props
+}) => {
   const ref = useDelayedDifferentBackground();
   return (
     <Boxed ref={ref} {...props}>

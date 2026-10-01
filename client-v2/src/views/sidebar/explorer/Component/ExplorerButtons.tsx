@@ -46,7 +46,10 @@ interface ButtonProps {
   title: string;
 }
 
-const NewItemButton: FC<ButtonProps> = ({ imageName, title }) => {
+const NewItemButton: FC<React.PropsWithChildren<ButtonProps>> = ({
+  imageName,
+  title,
+}) => {
   const { createItem } = useCreateItem();
 
   return (

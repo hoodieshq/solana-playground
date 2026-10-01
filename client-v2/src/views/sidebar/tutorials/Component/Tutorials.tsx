@@ -11,7 +11,10 @@ interface TutorialsProps {
   filters?: Filter[];
 }
 
-const Tutorials: FC<TutorialsProps> = ({ filters, ...props }) => {
+const Tutorials: FC<React.PropsWithChildren<TutorialsProps>> = ({
+  filters,
+  ...props
+}) => {
   // FIXME: `props.tutorials` should always be defined
   if (!props.tutorials) return null;
 
@@ -24,7 +27,9 @@ const Tutorials: FC<TutorialsProps> = ({ filters, ...props }) => {
 
 type ProgressProsp = Omit<TutorialsProps, "filters">;
 
-const Progress: FC<ProgressProsp> = ({ tutorials }) => {
+const Progress: FC<React.PropsWithChildren<ProgressProsp>> = ({
+  tutorials,
+}) => {
   const tutorialsData = useMemo(() => {
     return tutorials.reduce(
       (acc, cur) => {
@@ -65,7 +70,10 @@ interface TutorialGroupProps {
   tutorials: TutorialFullData[];
 }
 
-const TutorialGroup: FC<TutorialGroupProps> = ({ name, tutorials }) => {
+const TutorialGroup: FC<React.PropsWithChildren<TutorialGroupProps>> = ({
+  name,
+  tutorials,
+}) => {
   if (!tutorials.length) return null;
 
   return (

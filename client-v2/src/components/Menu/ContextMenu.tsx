@@ -34,7 +34,7 @@ type Position = {
   y: number;
 };
 
-const ContextMenu: FC<ContextMenuProps> = ({
+const ContextMenu: FC<React.PropsWithChildren<ContextMenuProps>> = ({
   items,
   onContextMenu,
   onShow,

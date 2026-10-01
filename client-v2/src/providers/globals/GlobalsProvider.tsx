@@ -5,7 +5,9 @@ import { GLOBALS } from "../../globals";
 import { initAll } from "../../utils";
 import { useAsyncEffect } from "../../hooks";
 
-export const GlobalsProvider: FC = ({ children }) => {
+export const GlobalsProvider: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => {
   const [loading, setLoading] = useState(true);
 
   useAsyncEffect(async () => {

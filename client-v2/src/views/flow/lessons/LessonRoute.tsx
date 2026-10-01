@@ -27,7 +27,9 @@ interface LessonRouteProps {
  * `PgExplorer.createWorkspace()` has resolved, so `PgTutorial.isStarted`
  * already reflects the new workspace by the time this fires.
  */
-const LessonRoute: FC<LessonRouteProps> = ({ tutorial }) => {
+const LessonRoute: FC<React.PropsWithChildren<LessonRouteProps>> = ({
+  tutorial,
+}) => {
   useRenderOnChange(PgTutorial.onDidChange);
 
   // Loaded lazily and only once per mount -- this component lives for the

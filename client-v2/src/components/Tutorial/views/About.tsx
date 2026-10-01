@@ -10,11 +10,9 @@ import { Emoji } from "../../../constants";
 import { PgTheme, PgTutorial } from "../../../utils";
 import type { TutorialAboutComponentProps } from "../types";
 
-export const About: FC<TutorialAboutComponentProps> = ({
-  about,
-  isStarted,
-  start,
-}) => {
+export const About: FC<
+  React.PropsWithChildren<TutorialAboutComponentProps>
+> = ({ about, isStarted, start }) => {
   const tutorial = PgTutorial.current!;
   const isFinished = PgTutorial.completed;
 

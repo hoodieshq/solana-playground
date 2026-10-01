@@ -9,7 +9,9 @@ interface DeleteItemProps {
   path: string;
 }
 
-export const DeleteItem: FC<DeleteItemProps> = ({ path }) => {
+export const DeleteItem: FC<React.PropsWithChildren<DeleteItemProps>> = ({
+  path,
+}) => {
   const itemName = PgExplorer.getItemNameFromPath(path);
 
   const deleteItem = async () => {

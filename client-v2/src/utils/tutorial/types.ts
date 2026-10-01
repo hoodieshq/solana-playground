@@ -5,6 +5,8 @@ import {
 } from "./details";
 import type { Nullable, RequiredKey } from "../types";
 
+import type { JSX } from "react";
+
 type Author = {
   /** Author's name that will be displayed as one of the creators of the tutorial */
   name: string;

@@ -11,7 +11,11 @@ interface SidebarButtonProps extends ComponentPropsWithoutRef<"div"> {
   active?: boolean;
 }
 
-const SidebarButton: FC<SidebarButtonProps> = ({ src, tooltip, ...props }) => (
+const SidebarButton: FC<React.PropsWithChildren<SidebarButtonProps>> = ({
+  src,
+  tooltip,
+  ...props
+}) => (
   <Tooltip element={tooltip} placement="right" arrow={{ size: 4 }}>
     <IconWrapper {...props}>
       <Icon src={src} />

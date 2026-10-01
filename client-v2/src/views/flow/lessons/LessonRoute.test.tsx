@@ -19,7 +19,7 @@ jest.mock("./LessonSurface", () => ({
   default: () => <div data-testid="lesson-surface" />,
 }));
 
-import { act } from "react";
+import { act, type JSX } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 // Tells React this environment runs `act`, as React 18+ expects

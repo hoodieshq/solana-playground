@@ -66,7 +66,8 @@ const Secondary = () => {
   useSetStatic(PgView.events.MAIN_SECONDARY_HEIGHT_SET, setCheckedHeight);
 
   const handleResizeStop = useCallback(
-    (_e, _dir, _ref, d) => setCheckedHeight((h) => h + d.height),
+    (_e: any, _dir: any, _ref: any, d: any) =>
+      setCheckedHeight((h) => h + d.height),
     [setCheckedHeight]
   );
 

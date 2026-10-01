@@ -40,7 +40,10 @@ interface ProgramsTabProps {
  * repo layout from the GitHub Trees API, converts it to the playground
  * layout, and creates (or switches to) a workspace named after the repo.
  */
-const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
+const ProgramsTab: FC<React.PropsWithChildren<ProgramsTabProps>> = ({
+  query,
+  programs,
+}) => {
   const [error, setError] = useState<{ repo: string; message: string } | null>(
     null
   );

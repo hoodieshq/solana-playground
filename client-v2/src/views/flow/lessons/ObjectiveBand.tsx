@@ -42,7 +42,7 @@ interface ObjectiveBandProps {
  * The page comes first among the actions, and until it has been opened
  * it is the band's signpost (D34).
  */
-const ObjectiveBand: FC<ObjectiveBandProps> = ({
+const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
   state,
   flow,
   onRead,

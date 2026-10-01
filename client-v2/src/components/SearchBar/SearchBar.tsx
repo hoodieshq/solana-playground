@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type JSX,
 } from "react";
 import styled, { css } from "styled-components";
 
@@ -65,7 +66,7 @@ export type DropdownProps = {
   search: (item: Item) => void;
 };
 
-const SearchBar: FC<SearchBarProps> = ({
+const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   items,
   initialSelectedItems,
   showSearchOnMount,

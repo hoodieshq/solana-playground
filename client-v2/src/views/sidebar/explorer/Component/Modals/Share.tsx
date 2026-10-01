@@ -16,7 +16,7 @@ export const Share = () => (
 
 type DefaultProps = CommonModalPageProps;
 
-const Default: FC<DefaultProps> = ({ setPage }) => {
+const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   const [filePaths, setFilePaths] = useState(() =>
     Object.keys(PgExplorer.files).filter(
       (path) => PgExplorer.getItemTypeFromPath(path).file
@@ -61,7 +61,9 @@ interface ErrorPageProps {
   message: string;
 }
 
-const ErrorPage: FC<ErrorPageProps> = ({ message }) => (
+const ErrorPage: FC<React.PropsWithChildren<ErrorPageProps>> = ({
+  message,
+}) => (
   <Modal title buttonProps={{ text: "Continue" }}>
     <Text kind="error" icon={<Sad />}>
       Share error: {message}
@@ -73,7 +75,9 @@ interface SuccessPageProps {
   shareId: string;
 }
 
-const SuccessPage: FC<SuccessPageProps> = ({ shareId }) => {
+const SuccessPage: FC<React.PropsWithChildren<SuccessPageProps>> = ({
+  shareId,
+}) => {
   const shareLink = PgRouter.getPathUrl(shareId);
 
   return (

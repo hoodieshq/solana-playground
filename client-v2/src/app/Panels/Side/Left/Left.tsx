@@ -14,7 +14,11 @@ interface LeftProps<P = typeof PgView.sidebar.name, W = number> {
   width: W;
 }
 
-const Left: FC<LeftProps> = ({ pageName, width, setPageName }) => (
+const Left: FC<React.PropsWithChildren<LeftProps>> = ({
+  pageName,
+  width,
+  setPageName,
+}) => (
   <Wrapper>
     <Icons>
       <Top>

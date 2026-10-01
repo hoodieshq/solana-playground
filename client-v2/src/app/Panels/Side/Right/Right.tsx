@@ -28,9 +28,14 @@ interface RightProps<W = number> extends DefaultRightProps {
 
 const AUTOMATIC_MINIMIZE_WIDTH = PgCommon.convertToPx("12rem");
 
-const Right: FC<RightProps> = ({ page, width, setWidth, oldWidth }) => {
+const Right: FC<React.PropsWithChildren<RightProps>> = ({
+  page,
+  width,
+  setWidth,
+  oldWidth,
+}) => {
   const handleResizeStop = useCallback(
-    (e, direction, ref, d) => {
+    (e: any, direction: any, ref: any, d: any) => {
       setWidth((w) => {
         const newWidth = w + d.width;
         if (newWidth < AUTOMATIC_MINIMIZE_WIDTH) return 0;
@@ -55,11 +60,11 @@ const Right: FC<RightProps> = ({ page, width, setWidth, oldWidth }) => {
   );
 };
 
-const Title: FC<DefaultRightProps> = ({ page }) => (
+const Title: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => (
   <TitleWrapper>{page ? page.name.toUpperCase() : ""}</TitleWrapper>
 );
 
-const Content: FC<DefaultRightProps> = ({ page }) => {
+const Content: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
   const props = useRenderOnChange(PgView.onDidChangeSidebarProps);
   const loadingCount = useRenderOnChange(PgView.onDidChangeSidebarLoadingCount);
 
@@ -142,7 +147,7 @@ const ContentWrapper = styled(FadeIn)`
   `}
 `;
 
-const Loading: FC<DefaultRightProps> = ({ page }) => {
+const Loading: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
   if (page?.LoadingComponent) return <page.LoadingComponent />;
 
   return (

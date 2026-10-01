@@ -13,7 +13,7 @@ import { PgExplorer, PgFramework, PgView } from "../../../utils";
  * `PgFramework.get(name).getDefaultFiles()` then `PgExplorer.createWorkspace`
  * -- just laid out as a single row instead of a full-page form.
  */
-const StartFromScratch: FC = () => {
+const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
   const [framework, setFramework] = useState<FrameworkName | undefined>(
     PgFramework.all[0]?.name
   );

@@ -14,7 +14,10 @@ interface ProgramsProps {
   filters: Filter[];
 }
 
-const Programs: FC<ProgramsProps> = ({ programs, filters }) => {
+const Programs: FC<React.PropsWithChildren<ProgramsProps>> = ({
+  programs,
+  filters,
+}) => {
   const filteredSearch = useFilteredSearch({
     route: "/programs",
     items: programs,

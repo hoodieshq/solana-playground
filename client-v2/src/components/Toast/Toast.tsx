@@ -17,7 +17,7 @@ interface ToastProps {
 }
 
 const Toast = ({ sidebarOffset = false }: ToastProps) => {
-  const setToast = useCallback(({ elementable, props }) => {
+  const setToast = useCallback(({ elementable, props }: any) => {
     const id = PgCommon.generateRandomInt(0, 2 ** 12);
     elementable = PgView.normalizeElement(elementable, {
       ...props?.componentProps,

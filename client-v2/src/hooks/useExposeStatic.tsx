@@ -42,7 +42,7 @@ const useExposeMethodsAsStatic = <T,>(
   classObject: { [key: string]: any } | null
 ) => {
   const cb = useCallback(
-    async (data) => {
+    async (data: any) => {
       if (!classObject) return;
 
       const methodName = Object.keys(data)[0];

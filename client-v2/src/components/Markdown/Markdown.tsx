@@ -20,7 +20,11 @@ interface MarkdownProps {
   linkable?: boolean;
 }
 
-const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
+const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
+  rootSrc,
+  linkable,
+  ...props
+}) => {
   // Scroll to section if it's linkable
   useEffect(() => {
     if (!linkable) return;
@@ -1096,7 +1100,11 @@ type HeaderProps = {
   element: "h1" | "h2" | "h3";
 } & Pick<MarkdownProps, "linkable">;
 
-const Header: FC<HeaderProps> = ({ element: H, linkable, ...rest }) => {
+const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
+  element: H,
+  linkable,
+  ...rest
+}) => {
   if (!linkable) return <H {...rest} />;
 
   const hash = PgCommon.toKebabFromTitle((rest.children as string[])[0]);

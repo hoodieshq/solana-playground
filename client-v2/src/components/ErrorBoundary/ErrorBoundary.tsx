@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode, type JSX } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../Button";

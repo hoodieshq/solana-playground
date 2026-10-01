@@ -8,7 +8,7 @@ import { useGetAndSetStatic } from "../../../../hooks";
 
 const Primary = () => {
   const [el, setEl] = useState<ReactNode>(null);
-  const setElWithTransition = useCallback(async (el) => {
+  const setElWithTransition = useCallback(async (el: any) => {
     if (PgCommon.isAsyncFunction(el)) {
       setEl(null);
 

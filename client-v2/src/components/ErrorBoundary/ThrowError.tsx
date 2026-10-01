@@ -9,7 +9,9 @@ interface ThrowErrorProps {
   refresh: () => Promise<Fn | void>;
 }
 
-const ThrowError: FC<ThrowErrorProps> = ({ refresh }) => {
+const ThrowError: FC<React.PropsWithChildren<ThrowErrorProps>> = ({
+  refresh,
+}) => {
   useAsyncEffect(refresh, [refresh]);
   return <SpinnerWithBg loading size="2rem" />;
 };

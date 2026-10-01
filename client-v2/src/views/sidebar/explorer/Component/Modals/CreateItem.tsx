@@ -28,7 +28,10 @@ interface CreateItemInputProps {
   hide: Fn;
 }
 
-const CreateItemInput: FC<CreateItemInputProps> = ({ El, hide }) => {
+const CreateItemInput: FC<React.PropsWithChildren<CreateItemInputProps>> = ({
+  El,
+  hide,
+}) => {
   const [itemName, setItemName] = useState("");
   const [error, setError] = useState(false);
 

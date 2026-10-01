@@ -224,7 +224,9 @@ type SeedSearchBarProps = {
   select: (value: string) => void;
 };
 
-const SeedSearchBar: FC<SeedSearchBarProps> = ({ select }) => {
+const SeedSearchBar: FC<React.PropsWithChildren<SeedSearchBarProps>> = ({
+  select,
+}) => {
   const [value, setValue] = useState("");
   return (
     <SearchBar
@@ -250,7 +252,7 @@ type SelectedSeedProps = {
   searchBarProps: Partial<SearchBarProps>;
 };
 
-const SelectedSeed: FC<SelectedSeedProps> = ({
+const SelectedSeed: FC<React.PropsWithChildren<SelectedSeedProps>> = ({
   seed,
   index,
   searchBarProps,

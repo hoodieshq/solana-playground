@@ -7,31 +7,33 @@ import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
 import { PgAssistant, type ChatItem as Item } from "../store";
 
-const ChatItem: FC<{
-  item: Item;
-  /**
-   * Offered on the newest reply only: asks the assistant to turn what it just
-   * described into a patch. The patch still arrives as an approval card, so
-   * nothing is written on this click.
-   */
-  onMakeChange?: () => void;
-  /** Render it as a quiet way out rather than the obvious next step */
-  makeChangeIsLastResort?: boolean;
-  /**
-   * Runs the action that can prove the current lesson step — the move after a
-   * patch lands, and the reply's main CTA when offered.
-   */
-  onVerifyStep?: () => void;
-  verifyStepLabel?: string;
-  verifyStepTitle?: string | false | null;
-  /**
-   * The mid-lesson escape valve, offered only once a build has already been
-   * attempted on this step. Recorded as a skip — nothing in the chat proves a
-   * step.
-   */
-  onSkipStep?: () => void;
-  skipStepTitle?: string | false | null;
-}> = ({
+const ChatItem: FC<
+  React.PropsWithChildren<{
+    item: Item;
+    /**
+     * Offered on the newest reply only: asks the assistant to turn what it just
+     * described into a patch. The patch still arrives as an approval card, so
+     * nothing is written on this click.
+     */
+    onMakeChange?: () => void;
+    /** Render it as a quiet way out rather than the obvious next step */
+    makeChangeIsLastResort?: boolean;
+    /**
+     * Runs the action that can prove the current lesson step — the move after a
+     * patch lands, and the reply's main CTA when offered.
+     */
+    onVerifyStep?: () => void;
+    verifyStepLabel?: string;
+    verifyStepTitle?: string | false | null;
+    /**
+     * The mid-lesson escape valve, offered only once a build has already been
+     * attempted on this step. Recorded as a skip — nothing in the chat proves a
+     * step.
+     */
+    onSkipStep?: () => void;
+    skipStepTitle?: string | false | null;
+  }>
+> = ({
   item,
   onMakeChange,
   makeChangeIsLastResort,
@@ -120,9 +122,9 @@ const ChatItem: FC<{
   }
 };
 
-const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
-  item,
-}) => {
+const Approval: FC<
+  React.PropsWithChildren<{ item: Extract<Item, { kind: "approval" }> }>
+> = ({ item }) => {
   const { request, status } = item;
   const pending = status === "pending";
 
@@ -174,9 +176,11 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
   );
 };
 
-const PatchTitle: FC<{
-  request: Extract<Item, { kind: "approval" }>["request"] & { type: "patch" };
-}> = ({ request }) => {
+const PatchTitle: FC<
+  React.PropsWithChildren<{
+    request: Extract<Item, { kind: "approval" }>["request"] & { type: "patch" };
+  }>
+> = ({ request }) => {
   const { added, removed } = useMemo(
     () => summarizeDiff(diffLines(request.before, request.after)),
     [request.before, request.after]
@@ -193,10 +197,9 @@ const PatchTitle: FC<{
   );
 };
 
-const Diff: FC<{ before: string | null; after: string }> = ({
-  before,
-  after,
-}) => {
+const Diff: FC<
+  React.PropsWithChildren<{ before: string | null; after: string }>
+> = ({ before, after }) => {
   const lines = useMemo(() => diffLines(before, after), [before, after]);
 
   return (
