@@ -83,9 +83,10 @@ export const chatThread = (): Disposable => {
    * Whether anything has happened in the thread since it last reached the
    * server.
    *
-   * The whole thread is uploaded each time, and the server discards ids it
-   * already has, so a redundant push is harmless -- but it is a request per
-   * tab-switch for every user, so it is worth not making.
+   * The whole thread is uploaded each time, and the server only rewrites a
+   * message it holds an older version of, so a redundant push is harmless --
+   * but it is a request per tab-switch for every user, so it is worth not
+   * making.
    */
   let pending = false;
   const onChange = () => {
@@ -112,20 +113,46 @@ export const chatThread = (): Disposable => {
     if (!pending || !id) return;
 
     pending = false;
-    void PgChatSync.push(id)
-      .then((ok) => {
+    void (async () => {
+      try {
+        // `push` reads the thread from storage, and the store's writes are
+        // fired and forgotten, so the last one may still be in flight.
+        // Ordinarily it has long landed and this costs a microtask.
+        await PgAssistant.whenPersisted();
         // Put it back rather than swallowing it: the next hide tries again,
         // which is the only retry conversations have
-        if (!ok) pending = true;
-      })
-      .catch((e) => {
+        if (!(await PgChatSync.push(id))) pending = true;
+      } catch (e) {
         pending = true;
         report("flush thread", e);
-      });
+      }
+    })();
+  };
+
+  /**
+   * `flush`, unless a turn is still running.
+   *
+   * Mid-turn the reply is still streaming into its item, so what is on disk is
+   * a half-written answer. Pushing it put that fragment on the server, where
+   * the other device pulled it. "Awaiting" counts as running: the turn is
+   * blocked on an approval and its reply resumes once the user answers.
+   *
+   * `pending` is left set, so the thread is still owed: the end-of-turn push
+   * in `Chat` sends the finished items, and so does the next hide after it. A
+   * page closed mid-turn keeps them in IndexedDB, and the next load's
+   * `pushAll` uploads them.
+   *
+   * Only the hide and `pagehide` paths. A workspace switch closes the thread
+   * and denies whatever it was waiting on, so the outgoing thread is as
+   * finished as it will ever get and is pushed as it stands.
+   */
+  const flushUnlessRunning = () => {
+    if (PgAssistant.status !== "idle") return;
+    flush();
   };
 
   const onVisibilityChange = () => {
-    if (document.visibilityState === "hidden") flush();
+    if (document.visibilityState === "hidden") flushUnlessRunning();
   };
 
   void open();
@@ -140,13 +167,13 @@ export const chatThread = (): Disposable => {
   ];
 
   document.addEventListener("visibilitychange", onVisibilityChange);
-  window.addEventListener("pagehide", flush);
+  window.addEventListener("pagehide", flushUnlessRunning);
 
   return {
     dispose: () => {
       for (const sub of subscriptions) sub.dispose();
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("pagehide", flushUnlessRunning);
     },
   };
 };

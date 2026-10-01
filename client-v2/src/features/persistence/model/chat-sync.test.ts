@@ -195,6 +195,52 @@ describe("PgChatSync", () => {
     ]);
   });
 
+  describe("when both copies hold the same message", () => {
+    /** `reply(1)` as it stood at second `at`, holding `text` */
+    const replyAt = (text: string, at?: number): ChatItem => ({
+      kind: "assistant",
+      id: reply(1).id,
+      createdAt: reply(1).createdAt,
+      text,
+      ...(at ? { updatedAt: new Date(at * 1000).toISOString() } : {}),
+    });
+
+    const pulled = async (server: ChatItem, local: ChatItem) => {
+      respondingWith(() =>
+        Promise.resolve({ ok: true, json: async () => ({ items: [server] }) })
+      );
+      await signedIn();
+      await PgChatStorage.write(threadId, [local]);
+
+      const merged = await PgChatSync.pull(threadId);
+      // And what was written back, which is what the panel reloads from
+      expect(await PgChatStorage.read(threadId)).toEqual(merged);
+      return (merged![0] as { text: string }).text;
+    };
+
+    it("takes the server's when it is newer", async () => {
+      // This device pulled a reply mid-stream; the device that ran the turn
+      // has since pushed the finished one
+      expect(await pulled(replyAt("Done.", 5), replyAt("Do", 2))).toBe("Done.");
+    });
+
+    it("takes the server's over a local copy that was never changed", async () => {
+      // Old data and a fresh item carry no `updatedAt`; their version is
+      // `createdAt`, which every later change is stamped after
+      expect(await pulled(replyAt("Done.", 5), replyAt(""))).toBe("Done.");
+    });
+
+    it("keeps the local copy when it is newer", async () => {
+      expect(await pulled(replyAt("Do", 2), replyAt("Done.", 5))).toBe("Done.");
+    });
+
+    it("keeps the local copy on a tie", async () => {
+      expect(await pulled(replyAt("server", 5), replyAt("local", 5))).toBe(
+        "local"
+      );
+    });
+  });
+
   it("pulls by thread id, not by workspace", async () => {
     respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ items: [] }) })

@@ -5,6 +5,7 @@ import {
   LOCAL_MCP_SERVERS,
 } from "./grounding";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
+import { mergeThreads } from "../../../features/persistence/model/chat-codec";
 import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
 import { uuid } from "../../../features/persistence/model/ids";
 import type { Disposable } from "../../../utils";
@@ -41,6 +42,17 @@ interface ChatItemBase {
   id: string;
   /** ISO 8601. Orders a restored thread; `id` breaks ties. */
   createdAt: string;
+  /**
+   * ISO 8601, set on every change to an item that already exists: text
+   * streaming into a reply, an approval being answered or getting its
+   * outcome. Absent until the first one, so an item's version is
+   * `updatedAt ?? createdAt`.
+   *
+   * It is what lets the server and a pull keep the newer of two copies of the
+   * same id rather than whichever arrived first -- a reply pushed mid-stream
+   * would otherwise be the one the account kept for ever.
+   */
+  updatedAt?: string;
 }
 
 /**
@@ -154,6 +166,27 @@ export type AssistantStatus =
 
 const makeId = uuid;
 const now = () => new Date().toISOString();
+
+/**
+ * Mark an existing item as changed now.
+ *
+ * Strictly later than its previous version, even when the clock says
+ * otherwise: two deltas in one millisecond, or a clock stepped backwards,
+ * would otherwise give the newer copy a version that does not beat the older
+ * one, and the server would keep the shorter reply.
+ *
+ * In memory only. Persisting is the caller's `_emit`, which every mutator
+ * makes anyway, so stamping adds no storage write of its own -- not even per
+ * streamed token, where `_emit` already writes once.
+ */
+const stamp = (item: ChatItem) => {
+  const at = now();
+  // `NaN` for a version that does not parse, which compares false and so
+  // falls through to the clock rather than throwing on `new Date(NaN)`
+  const previous = Date.parse(item.updatedAt ?? item.createdAt);
+  item.updatedAt =
+    previous >= Date.parse(at) ? new Date(previous + 1).toISOString() : at;
+};
 
 const isSame = (a: Connection | null, b: Connection) =>
   !!a &&
@@ -464,6 +497,7 @@ export class PgAssistant {
     const item = PgAssistant._items.find((i) => i.id === id);
     if (item?.kind === "assistant") {
       item.text += delta;
+      stamp(item);
       PgAssistant._emit();
     }
   }
@@ -514,10 +548,18 @@ export class PgAssistant {
    * The promise settles when they click, which is what holds the agent loop
    * open — the tool's `run` does not return until then.
    *
+   * The card's id comes back with the answer so the caller can record the
+   * outcome on *this* card. Looking it up afterwards through `lastApprovalId`
+   * found whichever card was added last, and the Anthropic runner executes a
+   * turn's tool calls concurrently: with two gated tools, both outcomes landed
+   * on the second card and the first got none.
+   *
    * @param request what needs approving
-   * @returns whether the user allowed it
+   * @returns the card's id, and whether the user allowed it
    */
-  static requestApproval(request: ApprovalRequest) {
+  static requestApproval(
+    request: ApprovalRequest
+  ): Promise<{ id: string; allowed: boolean }> {
     const id = makeId();
     PgAssistant._items.push({
       kind: "approval",
@@ -529,8 +571,8 @@ export class PgAssistant {
     PgAssistant._status = "awaiting";
     PgAssistant._emit();
 
-    return new Promise<boolean>((resolve) => {
-      PgAssistant._pending.set(id, resolve);
+    return new Promise((resolve) => {
+      PgAssistant._pending.set(id, (allowed) => resolve({ id, allowed }));
     });
   }
 
@@ -540,6 +582,7 @@ export class PgAssistant {
     if (item?.kind !== "approval" || item.status !== "pending") return;
 
     item.status = allowed ? "allowed" : "denied";
+    stamp(item);
     PgAssistant._status = "running";
     PgAssistant._emit();
 
@@ -552,11 +595,17 @@ export class PgAssistant {
     const item = PgAssistant._items.find((i) => i.id === id);
     if (item?.kind === "approval") {
       item.outcome = outcome;
+      stamp(item);
       PgAssistant._emit();
     }
   }
 
-  /** The id of the approval added most recently, for recording its outcome */
+  /**
+   * The id of the approval added most recently.
+   *
+   * Not for recording an outcome: with two cards open it names the wrong one.
+   * Use the id `requestApproval` resolves with.
+   */
   static get lastApprovalId() {
     for (let i = PgAssistant._items.length - 1; i >= 0; i--) {
       const item = PgAssistant._items[i];
@@ -583,7 +632,12 @@ export class PgAssistant {
   private static _denyPending() {
     for (const [id, resolve] of PgAssistant._pending) {
       const item = PgAssistant._items.find((i) => i.id === id);
-      if (item?.kind === "approval") item.status = "denied";
+      // Stamped too: `cancelPending` persists this, and a stopped turn's card
+      // reading as denied is a change the account should keep
+      if (item?.kind === "approval") {
+        item.status = "denied";
+        stamp(item);
+      }
       resolve(false);
     }
     PgAssistant._pending.clear();
@@ -683,6 +737,39 @@ export class PgAssistant {
     // overwriting a file that may still be recoverable.
     if (adopted.length) PgAssistant._emit();
     else PgAssistant._emitOnly();
+  }
+
+  /**
+   * Merge the server's copy of the open thread into what is rendered.
+   *
+   * Instead of re-reading the thread from storage, which `loadThread(id,
+   * true)` does and which is wrong for a thread that is already open: it
+   * denies the card the user has not answered, drops the status to idle in
+   * the middle of a turn, and replaces memory with a copy on disk that can lag
+   * it -- the store's writes are queued, and a pull's storage write was not
+   * on that queue, so a message sent during the request could vanish.
+   *
+   * Here the merge is newest-wins by version with ties to this tab, like the
+   * pull's. Status and pending approvals are left exactly as they are, and an
+   * item this tab holds keeps its object, so a reply still streaming into it
+   * carries on. The result persists through `_emit`, on the same chain as
+   * every other write, which is what makes memory the source of truth.
+   *
+   * @param fromServer the server's items for the thread that is open
+   */
+  static foldIn(fromServer: readonly ChatItem[]) {
+    if (!PgAssistant._threadId) return;
+
+    const merged = mergeThreads(fromServer, PgAssistant._items);
+    // Every ordinary reopen lands here with nothing new, and a write per
+    // reopen is a write for nothing
+    const unchanged =
+      merged.length === PgAssistant._items.length &&
+      merged.every((item, i) => item === PgAssistant._items[i]);
+    if (unchanged) return;
+
+    PgAssistant._items = merged;
+    PgAssistant._emit();
   }
 
   /**

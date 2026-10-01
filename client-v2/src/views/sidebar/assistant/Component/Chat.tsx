@@ -175,9 +175,13 @@ const Chat = () => {
       // End of turn is the natural commit point: the exchange is complete and
       // the user is reading rather than typing. Deliberately not awaited --
       // a slow or failed upload must not hold up the panel, and the local
-      // copy is already written either way.
+      // copy is already written either way. After the last write has landed,
+      // though: `push` reads storage, and the write the final delta queued may
+      // still be in flight -- pushing first uploaded the reply short of it.
       const threadId = PgAssistant.threadId;
-      if (threadId) void PgChatSync.push(threadId);
+      if (threadId) {
+        void PgAssistant.whenPersisted().then(() => PgChatSync.push(threadId));
+      }
     }
   };
   sendRef.current = send;

@@ -45,4 +45,27 @@ describe("write_file", () => {
     PgAssistant.resolveApproval(PgAssistant.lastApprovalId!, false);
     expect(await pending).toContain("rejected");
   });
+
+  it("records each outcome on its own card when two run at once", async () => {
+    // The Anthropic runner executes a turn's tool calls concurrently, so two
+    // cards can be open together. Reading "the latest approval" after the
+    // await gave both outcomes to the second card and none to the first.
+    const b = bridge("old");
+    const first = writeFile(b).run({ path: "src/a.rs", content: "a" });
+    const second = writeFile(b).run({ path: "src/b.rs", content: "b" });
+    await Promise.resolve();
+
+    const [a, z] = PgAssistant.items;
+    PgAssistant.resolveApproval(a.id, true);
+    PgAssistant.resolveApproval(z.id, true);
+    await Promise.all([first, second]);
+
+    const outcomes = PgAssistant.items.map((item) =>
+      item.kind === "approval" ? [item.request, item.outcome] : null
+    );
+    expect(outcomes).toEqual([
+      [expect.objectContaining({ path: "src/a.rs" }), "wrote src/a.rs"],
+      [expect.objectContaining({ path: "src/b.rs" }), "wrote src/b.rs"],
+    ]);
+  });
 });
