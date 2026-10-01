@@ -119,3 +119,46 @@ describe("deleting the current workspace", () => {
     expect(PgExplorer.allWorkspaceNames).toEqual([]);
   });
 });
+
+describe("init calls that overlap", () => {
+  beforeEach(reset);
+
+  // Strict mode mounts the router effect twice, which starts two route
+  // handlers, and each one awaits `PgExplorer.init()`. Run side by side, both
+  // create the workspace directories and the second fails with EEXIST.
+  it("run one after another", async () => {
+    const statics = PgExplorer as unknown as {
+      _init: (params?: unknown) => Promise<void>;
+    };
+    const real = statics._init.bind(PgExplorer);
+    const order: string[] = [];
+    jest.spyOn(statics, "_init").mockImplementation(async (params) => {
+      order.push("start");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await real(params);
+      order.push("end");
+    });
+
+    await Promise.all([PgExplorer.init(), PgExplorer.init()]);
+
+    expect(order).toEqual(["start", "end", "start", "end"]);
+  });
+
+  it("do not stop the next one when the first fails", async () => {
+    const statics = PgExplorer as unknown as {
+      _init: (params?: unknown) => Promise<void>;
+    };
+    jest
+      .spyOn(statics, "_init")
+      .mockRejectedValueOnce(new Error("first failed"))
+      .mockResolvedValueOnce(undefined);
+
+    const first = PgExplorer.init();
+    const second = PgExplorer.init();
+
+    await expect(first).rejects.toThrow("first failed");
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+});

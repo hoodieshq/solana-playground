@@ -132,7 +132,20 @@ export class PgExplorer {
    * - `files`: Files to initialize the explorer from
    * - `name`: Initialize the given workspace name
    */
-  static async init(params?: {
+  static init(params?: { files?: ExplorerFiles | TupleFiles; name?: string }) {
+    // Two inits running side by side both create the workspace directories
+    // and the second fails with EEXIST. React's strict mode mounts the router
+    // effect twice, which starts two route handlers at once, so run them one
+    // after another instead.
+    const run = this._initQueue.then(() => this._init(params));
+    this._initQueue = run.catch(() => {});
+    return run;
+  }
+
+  /** Tail of the running and queued `init` calls */
+  private static _initQueue: Promise<void> = Promise.resolve();
+
+  private static async _init(params?: {
     files?: ExplorerFiles | TupleFiles;
     name?: string;
   }) {
