@@ -68,6 +68,15 @@ export interface SyncMark {
    * which happens on every load.
    */
   name: string;
+  /**
+   * The local workspace name this agreement maps to, when it is not `name`
+   * and sync, not the user, made it so: the server's name was taken here
+   * and stepped around with " (imported)", or renaming to it failed. A push
+   * sends `name` while the workspace is still called this, so the stand-in
+   * never reaches the account; `settleSteppedNames` renames the workspace
+   * once the server's name is free. Absent when the two names agree.
+   */
+  localName?: string;
   /** The row's `updated_at` when it accepted it */
   updatedAt: string;
   /**
@@ -198,6 +207,9 @@ export class PgSyncMark {
         // "not the name it is called now", so the project is pushed once and
         // the mark is rewritten complete.
         name: typeof parsed.name === "string" ? parsed.name : "",
+        ...(typeof parsed.localName === "string"
+          ? { localName: parsed.localName }
+          : {}),
         updatedAt: parsed.updatedAt,
         dirty: parsed.dirty === true,
       };

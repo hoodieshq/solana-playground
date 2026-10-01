@@ -2164,6 +2164,50 @@ describe("a project renamed on one device", () => {
     expect(server.get(FOO.id)!.name).toBe("Bar");
   });
 
+  it("never uploads the stand-in name a clash left, on any later edit", async () => {
+    // The merge's own upload kept the server's name, and the next ordinary
+    // push sent the stepped one -- which renamed the project on every device
+    // and could never be given back
+    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    await inSync(workspaces);
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    await reconcile();
+    expect(workspaces[0].name).toBe("Bar (imported)");
+
+    storedFiles().set("/Bar (imported)/src/lib.rs", "an edit here");
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(server.get(FOO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "an edit here" },
+    });
+  });
+
+  it("does not send the old name back when the rename here failed", async () => {
+    const workspaces = [{ ...FOO }];
+    const rename = await inSync(workspaces);
+    rename.mockRejectedValue(new Error("Invalid name"));
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    await reconcile();
+    expect(workspaces[0].name).toBe("Foo");
+
+    storedFiles().set("/Foo/src/lib.rs", "an edit here");
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(server.get(FOO.id)!.name).toBe("Bar");
+  });
+
+  it("uploads a name the user gives a stand-in", async () => {
+    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    await inSync(workspaces);
+    otherDeviceRenamed(FOO.id, "Bar");
+    await reconcile();
+
+    await userRenamed(workspaces, "Bar (imported)", "Qux");
+    await reconcile();
+    expect(server.get(FOO.id)!.name).toBe("Qux");
+  });
+
   it("steps around a local project that already has the name", async () => {
     const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
     const rename = await inSync(workspaces);

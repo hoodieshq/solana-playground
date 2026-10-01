@@ -71,37 +71,25 @@ const isClean = async (projectId: string, localName: string) =>
   );
 
 /**
- * Give a project back the server's name, where an adopt or a merge stepped
- * around it because another local workspace held it at the time.
+ * Give a project back the server's name, where an adopt or a merge left the
+ * workspace a stand-in because another local workspace held the name, or
+ * because renaming to it failed.
  *
- * Told from a rename made on this device by the mark and the suffix. An adopt
- * records the stepped name as agreed at the server's current token; a merge
- * records the server's name and keeps the " (imported)" suffix locally. A
- * rename made here reads the other way round -- the mark still holds the name
- * before it, and the local name is the user's own -- and is not this pass's
- * to undo. Left in place, the stepped name went up with this device's next
- * edit and renamed the project on every device.
+ * Found by the mark, which records the stand-in (`SyncMark.localName`); a
+ * rename the user made here is never recorded there, and is not this pass's
+ * to undo. Left in place, the stand-in stayed for good.
  *
  * Runs after the main pass, which is what moves a holder that was renamed
- * elsewhere out of the way. A name still held here stays stepped around.
+ * elsewhere out of the way: the other device renamed "Bar" to "Baz" and then
+ * "Foo" to "Bar", and reconcile reaches "Foo" first. A name still held here
+ * stays stepped around.
  */
 const settleSteppedNames = async (server: ServerProject[]) => {
   for (const project of server) {
     const local = PgExplorer.workspaceNameOf(project.id);
     if (!local || local === project.name) continue;
-    if (PgExplorer.allWorkspaceNames?.includes(project.name)) continue;
-
-    const mark = await PgSyncMark.read(project.id);
-    if (!mark || mark.updatedAt !== project.updatedAt) continue;
-    const stepped =
-      mark.name === local ||
-      (mark.name === project.name &&
-        local.startsWith(`${project.name} (imported)`));
-    if (!stepped) continue;
-
     try {
-      await PgExplorer.renameWorkspace(project.name, { from: local });
-      await PgSyncMark.write(project.id, { ...mark, name: project.name });
+      await PgProjectSync.settleStandIn(project.id, project.name);
     } catch (e) {
       report(`rename ${local} back to ${project.name}`, e);
     }

@@ -340,7 +340,12 @@ export class PgProjectSync {
 
     const mark = await PgSyncMark.read(projectId);
     const hashes = await hashFiles(snapshot);
-    const storedName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    const localName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
+    // A stand-in sync gave the workspace here -- see `SyncMark.localName` --
+    // is not a rename, and goes up as the name it stands in for
+    const pinned =
+      mark?.localName !== undefined && localName === mark.localName;
+    const storedName = pinned ? mark!.name : localName;
     // Relative to the last agreement, when there is one. Without a mark there
     // is nothing to be relative to.
     const patch = mark ? diffFiles(mark.files, hashes) : null;
@@ -449,6 +454,7 @@ export class PgProjectSync {
       await PgSyncMark.write(projectId, {
         files: hashes,
         name: storedName,
+        ...(pinned ? { localName } : {}),
         updatedAt: body.updatedAt,
         dirty: false,
       });
@@ -660,7 +666,14 @@ export class PgProjectSync {
       // Renamed on the other device. The copy is clean, so its name is the
       // one last agreed, and only the server's moved. After the files, so a
       // rename of the open workspace, which re-opens it, reads the new ones.
-      if (mergeName(mark?.name, local, full!.name) === "server") {
+      //
+      // A stand-in name this device already had for the project counts as
+      // the agreed one: it is what sync left here, not a rename.
+      const agreedName =
+        mark && !("legacy" in mark) && mark.localName === local
+          ? mark.name
+          : local;
+      if (mergeName(mark?.name, agreedName, full!.name) === "server") {
         local = await renameToServer(local, full!.name);
       }
       // Still the server's hashes, carried keypair or not. That is what makes
@@ -670,7 +683,9 @@ export class PgProjectSync {
       const agreed = await hashFiles(full!.snapshot!);
       await PgSyncMark.write(projectId, {
         files: agreed,
-        name: local,
+        name: full!.name,
+        // Still not the server's name: taken here, or the rename failed
+        ...(local !== full!.name ? { localName: local } : {}),
         updatedAt: full!.updatedAt,
         dirty: false,
       });
@@ -941,14 +956,25 @@ export class PgProjectSync {
         // Recording the server's name without renaming the workspace pushed
         // this device's old name straight back over the other device's.
         //
-        // A name stepped around a local clash is not this device's rename:
-        // the upload keeps the server's, and `settleSteppedNames` gives it
-        // back once the holder moves.
-        let uploadName = localName;
-        if (mergeName(mark?.name, localName, full.name, prefer) === "server") {
+        // A stand-in name sync gave the workspace earlier counts as the
+        // agreed one, and one this rename leaves -- the server's name taken
+        // here, or the rename failed -- is recorded as such, so no push
+        // sends it: see `SyncMark.localName`.
+        const standIn = mark?.localName === localName;
+        const takeServer =
+          mergeName(
+            mark?.name,
+            standIn ? mark!.name : localName,
+            full.name,
+            prefer
+          ) === "server";
+        if (takeServer && localName !== full.name) {
           localName = await renameToServer(localName, full.name);
-          uploadName = full.name;
         }
+        const localStandIn =
+          (takeServer || standIn) && localName !== full.name
+            ? localName
+            : undefined;
 
         if (!sameFiles(merged, local)) {
           await PgExplorer.replaceWorkspaceFiles(localName, merged);
@@ -957,6 +983,7 @@ export class PgProjectSync {
         await PgSyncMark.write(projectId, {
           files: serverHashes,
           name: full.name,
+          ...(localStandIn ? { localName: localStandIn } : {}),
           updatedAt: full.updatedAt,
           // Clean when the merge came out as the server's copy -- identical
           // copies, or only the server moved. Left set otherwise, so a merge
@@ -974,7 +1001,7 @@ export class PgProjectSync {
         const result = await PgProjectSync.push(
           projectId,
           { files: merged },
-          uploadName,
+          localName,
           { immediate: true, merging: true }
         );
         // "skipped" is either nothing left to send or no network; both leave
@@ -1034,6 +1061,43 @@ export class PgProjectSync {
    */
   static isMerging(projectId: string) {
     return PgProjectSync._merging.has(projectId);
+  }
+
+  /**
+   * Give a workspace the server's name back, where sync left it a stand-in
+   * (`SyncMark.localName`) and the name has since come free here.
+   *
+   * In the project's queue, and not while a merge of it runs: a merge holds
+   * the workspace's name for the whole exchange, and a rename under it sent
+   * its reads and writes to a name that no longer exists.
+   *
+   * @returns whether the workspace was renamed
+   */
+  static settleStandIn(projectId: string, serverName: string) {
+    if (PgProjectSync.isMerging(projectId)) return Promise.resolve(false);
+    return PgProjectSync._exclusive(projectId, async () => {
+      const local = PgExplorer.workspaceNameOf(projectId);
+      const mark = await PgSyncMark.read(projectId);
+      if (
+        !local ||
+        !mark ||
+        mark.localName !== local ||
+        mark.name !== serverName ||
+        PgExplorer.allWorkspaceNames?.includes(serverName)
+      ) {
+        return false;
+      }
+      try {
+        await PgExplorer.renameWorkspace(serverName, { from: local });
+      } catch (e) {
+        report(`rename ${local} back to ${serverName}`, e);
+        return false;
+      }
+      const settled = { ...mark };
+      delete settled.localName;
+      await PgSyncMark.write(projectId, settled);
+      return true;
+    });
   }
 
   /**
@@ -1460,7 +1524,11 @@ export const isCleanAgainst = async (
   localName: string,
   files: Record<string, string>
 ): Promise<boolean> => {
-  if (!mark || mark.name !== localName) return false;
+  // The name this device's copy goes by under the agreement: the server's,
+  // or the stand-in sync gave it here
+  const agreedLocal =
+    mark && !("legacy" in mark) ? mark.localName ?? mark.name : mark?.name;
+  if (!mark || agreedLocal !== localName) return false;
   if ("legacy" in mark) {
     return (
       !!mark.contentHash &&
