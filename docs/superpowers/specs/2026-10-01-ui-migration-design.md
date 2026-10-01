@@ -181,7 +181,10 @@ is Jest `moduleNameMapper` until vitest lands, then vitest `resolve.alias`.
 ## The plan
 
 Two tracks run in parallel after the rules. The tools track is the critical
-path. The spike sizes it, so no dates beyond the fixed ones are set here.
+path. After the spike it is: decisions, the React 19 upgrade (2-3 days),
+design-system components, the layout shell. vitest and the TypeScript pin
+left the path: React 19 builds, type-checks and passes all 657 tests on Jest
+27 and TypeScript 5.0.4.
 
 | Step | Track | Depends on | Done when |
 | --- | --- | --- | --- |
@@ -190,9 +193,9 @@ path. The spike sizes it, so no dates beyond the fixed ones are set here.
 | Layer check in CI | Rules | rules | `eslint-plugin-boundaries` in CRA's ESLint, legacy roots excluded, a violation fails the build |
 | Design system into the repo | Design system | - | `design-system/` on `master-2.0`, builds and serves its catalogue |
 | Registry that stands alone | Design system | package | No outside URLs in the built registry |
-| Jest to vitest (HOO-1715) | Tools | decisions | Same test count as Jest on `master-2.0` today (657 tests, 59 suites). No `jest.*` left in `src/` |
-| Lift the TypeScript pin | Tools | vitest | `typescript` above 5.6. The `=5.0.4` resolution is gone. Monaco's TypeScript features still work (completions, diagnostics, declarations) |
-| React 19 spike | Tools | TS pin | A list of what broke and a size. Throwaway code |
+| Jest to vitest (HOO-1715) | Tools, beside the path | decisions | Same test count as Jest on `master-2.0` today (657 tests, 59 suites). No `jest.*` left in `src/` |
+| Lift the TypeScript pin | Tools, beside the path | vitest | `typescript` above 5.6. The `=5.0.4` resolution is gone. Monaco's TypeScript features still work (completions, diagnostics, declarations) |
+| React 19 spike (HOO-1840) | Tools | decisions | Done 2026-10-01: see "Measured" below |
 | React 19 upgrade | Tools | spike | The product looks and behaves the same. The gate below passes |
 | DS components in shared UI | Tools | upgrade, registry | The first components a ticket needs are installed through the script |
 | Raise the browser floor | Foundation | decisions | `browserslist` updated. Build and bundle checked |
@@ -205,6 +208,46 @@ path. The spike sizes it, so no dates beyond the fixed ones are set here.
 
 Until the upgrade lands, new code may use Tailwind utilities and tokens, but
 no design-system components.
+
+### The React 19 spike, measured (HOO-1840, 2026-10-01)
+
+Branch `spike/react-19`, two commits, never merged. The same 23-step Playwright
+walk-through ran on React 17 and React 19, in development (strict mode) and as
+a production build: editor syntax colours, typing, Rust and TypeScript
+formatting on Ctrl+S, TypeScript completions and diagnostics, switching,
+creating, renaming and deleting files, closing every tab to the start screen
+and back, autosave across a reload, Vim mode, the light theme, the terminal,
+panel resize, the wallet window, Build. Toasts, lesson markdown and opening a
+lesson from the gallery were checked separately.
+
+- **Result:** 23 of 23 steps behave the same, and every screenshot is
+  identical pixel for pixel apart from the blinking caret. Toasts keep their
+  position and auto-close. Unit tests: 657 of 657.
+- **Broke, fixed in the spike:**
+  - Two `PgExplorer.init` calls ran side by side and the second failed with
+    EEXIST, so the editor never appeared after creating a project. The race is
+    old (it surfaced while integrating PR #32). Strict mode's double effect
+    run makes it certain. Fix: run `init` calls one after another.
+  - 1135 type errors. One `resolutions` line removed a nested
+    `@types/react` 17; `@types/styled-components` 5.1.36 took out the next
+    250; `types-react-codemod` (`implicit-children`, `scoped-jsx`,
+    `useCallback-implicit-any`) fixed 131 in 115 files; about ten manual fixes
+    covered the rest.
+  - `react-markdown` 8's types assume the global `JSX`. Version 9 (with
+    `remark-gfm` 4) passes one child where 8 passed an array, so the code-block
+    renderer changed.
+- **Broke, not fixed in the spike:** a direct link to a page of a lesson that
+  has not been started (`/tutorials/hello-anchor/1`) lands on `/`, in
+  development and in production. The route sets the sidebar to Explorer, and
+  its own sidebar listener reads that as "the user left a lesson that is not
+  started" and navigates away. On React 17 the event arrived before
+  `PgTutorial.current` was set and was skipped. Opening and starting a lesson
+  from the gallery works.
+- **Not needed after all:** styled-components 6 (5.3 runs, and its 5.1.36
+  types accept React 19), a `react-toastify` upgrade, lifting the TypeScript
+  pin.
+- **Not covered by the walk-through:** a real deploy, the assistant with a
+  key, an external wallet, Flow steps after a build.
 
 ### The React 19 gate
 
