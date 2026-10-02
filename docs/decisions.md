@@ -3194,3 +3194,47 @@ if the answer is `ui/`, and FSD tooling (the boundary check, D55) expects
 
 **Revisit when** Sergey answers. Either answer becomes a new entry, and the
 two features move in one commit if it is `ui/`.
+
+---
+
+## D60 - The client-v2 unit suite runs on vitest, with a config we own
+
+**Date:** 2026-10-02 - **Status:** decided (Slava), HOO-1715 - **Implements
+D51** (vitest as the test runner) - **Source:**
+`docs/superpowers/plans/2026-10-02-jest-to-vitest.md`
+
+**Chosen:** vitest 5 with jsdom and `client-v2/vitest.config.ts`, replacing
+the Jest 27 that `craco test` ran from inside react-scripts 5. The suite
+collects the same files as CRA's `testMatch` and keeps CRA's
+`resetMocks: true` as `mockReset: true`. Measured on the React 19 branch
+(PR #45, `6e304ad5`): 885 tests in 70 files before and after, name for
+name. Because vitest resolves ESM and `exports` maps itself, the whole
+`jest` block in `package.json` is gone rather than ported, including the
+list of 30-odd ESM packages PR #45 had to add to `transformIgnorePatterns`
+for react-markdown 9.
+
+**What did not port as a rename**, so the next person knows where to look:
+
+- Production code `require`s `.md` lazily (tutorials, lesson paths), and
+  vitest hands `require` to Node, past any Vite plugin. `setupTests.ts`
+  registers a Node `.md` hook rather than the tutorials being rewritten.
+- `monaco-editor` declares `module` and no `main`. Webpack takes `module`;
+  Vite's server-side resolution does not, so the config aliases it.
+- Tests that `require`d a module after mocking it now `await import` it,
+  and get real types where `require` gave `any`. Per-file helpers cast the
+  mocked module to the shape its factory gives it.
+- vitest's `mockReset` puts back the implementation passed to
+  `vi.fn(impl)`; Jest's dropped it. Comments that explained the old
+  behaviour were rewritten.
+
+**Rejected: defining `GLOBAL_SETTINGS` in the vitest config.** HOO-1715
+suggested it so tests could import the `utils` barrel. No test needs it,
+every existing test deep-imports or mocks the barrel, and it would mean
+moving the settings extraction out of `craco.config.js`.
+
+**Rejected: raising Jest inside react-scripts.** That overrides a config we
+do not own, which is the problem this solves.
+
+**Revisit when** a test genuinely needs the `utils` barrel (then define
+`GLOBAL_SETTINGS`), or when the TypeScript pin is lifted (HOO-1855, which
+this unblocks).
