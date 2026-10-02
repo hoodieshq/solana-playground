@@ -362,6 +362,21 @@ describe("renaming a workspace that is not the current one", () => {
     ).toEqual(["beta", "gamma"]);
   });
 
+  it("does not announce it as a rename of the current one", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const renamed = jest.fn();
+    const { dispose } = PgExplorer.onDidRenameWorkspace(renamed);
+
+    try {
+      await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+    } finally {
+      dispose();
+    }
+
+    expect(renamed).not.toHaveBeenCalled();
+  });
+
   it("renames the current one as before when `from` names it", async () => {
     await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
 

@@ -776,10 +776,9 @@ export class PgExplorer {
         await this._saveWorkspaces().catch(() => {});
         throw e;
       }
-
-      PgCommon.createAndDispatchCustomEvent(
-        this.events.ON_DID_RENAME_WORKSPACE
-      );
+      // No `ON_DID_RENAME_WORKSPACE`: its listeners take it as a rename of
+      // the current workspace, and sync flagged the open project dirty for a
+      // rename it never had
       return;
     }
 
