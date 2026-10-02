@@ -48,9 +48,9 @@ beforeEach(() => {
   vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue(["alpha"]);
   vi.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("p1");
   vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
-  // `mockReset` (see `vitest.config.ts`) resets every mock before each test,
-  // so without this the mock resolves `undefined` and the effect's `.catch`
-  // on a non-promise would throw.
+  // Same answer the factory gives: `mockReset` (see `vitest.config.ts`)
+  // restores it before each test anyway, and it is restated here so the
+  // test reads on its own.
   (reloadCurrentFromDisk as Mock).mockResolvedValue("unchanged");
 });
 

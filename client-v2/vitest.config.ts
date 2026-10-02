@@ -1,8 +1,9 @@
 import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
 
-// Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`), and
-// the lesson loaders `require` it that way. Same here: a string export.
+// Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`). This
+// covers `import` of a `.md` file; `require` goes to Node, past any plugin,
+// and is covered by the hook in `src/setupTests.ts`.
 const markdownAsText: Plugin = {
   name: "markdown-as-text",
   transform(src, id) {
@@ -34,8 +35,8 @@ export default defineConfig({
       "src/**/*.{spec,test}.{js,jsx,ts,tsx}",
     ],
     css: false,
-    // CRA 5's Jest config sets `resetMocks: true`; this is vitest's name
-    // for it.
+    // The closest match to CRA 5's Jest `resetMocks: true`. One difference:
+    // vitest resets a `vi.fn(impl)` back to `impl`, where Jest dropped it.
     mockReset: true,
   },
 });

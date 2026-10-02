@@ -156,8 +156,8 @@ describe("PgFlow.reduce", () => {
 
 describe("countErrors", () => {
   it("counts real diagnostics, not the summary lines", async () => {
-    // Set here rather than trusted from the factory: `mockReset` (see
-    // `vitest.config.ts`) resets every mock before each test.
+    // The factory's identity function: `mockReset` (see `vitest.config.ts`)
+    // restores it before each test anyway; restated so the test reads alone.
     const { stripKnownNoise } = await mockedBuildOutput();
     (stripKnownNoise as Mock).mockImplementation((s: string) => s);
 

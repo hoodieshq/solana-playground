@@ -44,10 +44,10 @@ beforeEach(() => {
   vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
   vi.spyOn(PgExplorer, "refreshWorkspaces").mockResolvedValue(true);
   vi.spyOn(PgCommon, "createAndDispatchCustomEvent");
-  // `mockReset` (see `vitest.config.ts`) resets every mock before each test,
-  // and the factory above gives these no implementation. Without this,
-  // `valueOf` answers `undefined` rather than `null`, and every path reads
-  // as "someone is typing in it".
+  // The answers the factory gives: `mockReset` (see `vitest.config.ts`)
+  // restores them before each test anyway, and they are restated here so
+  // the test reads on its own. `valueOf` must answer `null`, not
+  // `undefined`, or every path reads as "someone is typing in it".
   (PgEditorModels.valueOf as Mock).mockResolvedValue(null);
   (PgEditorModels.anyEditedUnder as Mock).mockResolvedValue(false);
   // The real one runs `then` once the models are gone; so does this
