@@ -140,7 +140,7 @@ describe("PgSyncMark", () => {
     });
 
     it("keeps going after a write that failed", async () => {
-      const writeFile = jest
+      const writeFile = vi
         .spyOn(PgFs, "writeFile")
         .mockRejectedValueOnce(new Error("quota"));
       await PgSyncMark.write("p1", old);

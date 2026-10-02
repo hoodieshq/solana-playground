@@ -146,27 +146,22 @@ const asDevice = (
   content = "declare_id!();"
 ) => {
   const current = workspaces[0];
-  jest
-    .spyOn(PgExplorer, "currentWorkspaceId", "get")
-    .mockReturnValue(current?.id);
-  jest
-    .spyOn(PgExplorer, "currentWorkspaceName", "get")
-    .mockReturnValue(current?.name);
-  jest
-    .spyOn(PgExplorer, "allWorkspaceNames", "get")
+  vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+    current?.id
+  );
+  vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+    current?.name
+  );
+  vi.spyOn(PgExplorer, "allWorkspaceNames", "get")
     // Read through to the list rather than snapshotting it, so a test that
     // removes a workspace mid-way sees the explorer it would really have
     .mockImplementation(() => workspaces.map((w) => w.name));
-  jest
-    .spyOn(PgExplorer, "workspaceIdOf")
-    .mockImplementation(
-      (name) => workspaces.find((w) => w.name === name)?.id as string
-    );
-  jest
-    .spyOn(PgExplorer, "workspaceNameOf")
-    .mockImplementation(
-      (id) => workspaces.find((w) => w.id === id)?.name as string
-    );
+  vi.spyOn(PgExplorer, "workspaceIdOf").mockImplementation(
+    (name) => workspaces.find((w) => w.name === name)?.id as string
+  );
+  vi.spyOn(PgExplorer, "workspaceNameOf").mockImplementation(
+    (id) => workspaces.find((w) => w.id === id)?.name as string
+  );
   if (current) storedFiles().set(`/${current.name}/src/lib.rs`, content);
   // `reconcile` reloads the open workspace from disk before anything else,
   // to catch a neighbour tab's write this one never heard about. Read
@@ -183,7 +178,7 @@ const asDevice = (
         .map(([path, content]) => [path, { content }])
     );
   });
-  return jest
+  return vi
     .spyOn(PgExplorer, "importWorkspace")
     .mockResolvedValue(undefined as never);
 };
@@ -253,7 +248,7 @@ const writeStored = (name: string, files: Record<string, string>) => {
  */
 const localFilesAre = (name: string, files: Record<string, string>) => {
   writeStored(name, files);
-  return jest
+  return vi
     .spyOn(PgExplorer, "getAllFiles")
     .mockReturnValue(
       Object.entries(files).map(([path, content]) => [
@@ -272,24 +267,22 @@ const localFilesAre = (name: string, files: Record<string, string>) => {
  */
 const captureWrites = () => {
   const rewritten = new Map<string, Record<string, string>>();
-  jest
-    .spyOn(PgExplorer, "switchWorkspace")
-    .mockImplementation(async (name: string) => {
+  vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(
+    async (name: string) => {
       // Memory re-read from what the replace wrote. The store is not
       // touched: whatever was folded in after the replace is already there.
       const files = rewritten.get(name);
       if (files) {
-        jest
-          .spyOn(PgExplorer, "getAllFiles")
-          .mockReturnValue(
-            Object.entries(files).map(([path, content]) => [
-              `/${name}/${path}`,
-              content,
-            ])
-          );
+        vi.spyOn(PgExplorer, "getAllFiles").mockReturnValue(
+          Object.entries(files).map(([path, content]) => [
+            `/${name}/${path}`,
+            content,
+          ])
+        );
       }
-    });
-  return jest
+    }
+  );
+  return vi
     .spyOn(PgExplorer, "replaceWorkspaceFiles")
     .mockImplementation(async (name: string, files: Record<string, string>) => {
       rewritten.set(name, files);
@@ -361,7 +354,7 @@ describe("a tutorial started on one browser, opened on another", () => {
     await signedIn();
     await PgProjectSync.pushCurrent();
 
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     asFreshDevice([HELLO], "my own half-finished attempt");
@@ -401,7 +394,7 @@ describe("work that never reached the server", () => {
 
   it("is not overwritten by a reload", async () => {
     await diverge();
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
 
@@ -440,7 +433,7 @@ describe("work that never reached the server", () => {
   it("takes the other device's copy when the user picks that", async () => {
     await diverge();
     await reconcile();
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
@@ -915,14 +908,14 @@ describe("two rewrites of one project at once", () => {
     let reopen!: () => void;
     const cue = new Promise<void>((resolve) => (reopen = resolve));
     let rewritten: Record<string, string> | null = null;
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
         async (_name: string, files: Record<string, string>) => {
           rewritten = files;
         }
       );
-    const switched = jest
+    const switched = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockImplementation(async (name: string) => {
         await cue;
@@ -1044,10 +1037,10 @@ describe("deleting on one device", () => {
 
     otherDeviceDeleted(HELLO.id);
 
-    const deleteWorkspace = jest
+    const deleteWorkspace = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
-    const importWorkspace = jest
+    const importWorkspace = vi
       .spyOn(PgExplorer, "importWorkspace")
       .mockResolvedValue(undefined as never);
 
@@ -1066,7 +1059,7 @@ describe("deleting on one device", () => {
     otherDeviceDeleted(HELLO.id);
     // ...and only then does this device get work that never uploaded
     storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
-    const deleteWorkspace = jest
+    const deleteWorkspace = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
 
@@ -1143,7 +1136,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
    */
   const writesLand = () => {
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
-    return jest
+    return vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
         async (name: string, files: Record<string, string>) => {
@@ -1214,12 +1207,12 @@ describe("a device upgraded from whole-snapshot marks", () => {
     storedFiles().set(programInfoPath, DEVICE_INFO);
     const replace = writesLand();
     const realFetch = PgProjectSync.fetch;
-    jest
-      .spyOn(PgProjectSync, "fetch")
-      .mockImplementationOnce(async (projectId: string) => {
+    vi.spyOn(PgProjectSync, "fetch").mockImplementationOnce(
+      async (projectId: string) => {
         localFilesAre(HELLO.name, { "src/lib.rs": "typed meanwhile" });
         return await realFetch.call(PgProjectSync, projectId);
-      });
+      }
+    );
     await signedIn();
 
     const first = await reconcile();
@@ -1334,7 +1327,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
     await legacyMark({ "src/lib.rs": "old" }, agreedAt);
     otherDeviceDeleted(HELLO.id);
     asDevice([HELLO], "unsent work");
-    const deleteWorkspace = jest
+    const deleteWorkspace = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
@@ -1364,7 +1357,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
     asDevice(workspaces, "old");
     // Gone from the explorer as the real delete leaves it, so nothing later in
     // the pass reads it as a project the account has never seen
-    const deleteWorkspace = jest
+    const deleteWorkspace = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockImplementation(async () => void workspaces.pop());
     await signedIn();
@@ -1418,7 +1411,7 @@ describe("a program keypair only this device holds", () => {
    */
   const writesLand = () => {
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
-    return jest
+    return vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
         async (name: string, files: Record<string, string>) => {
@@ -1652,17 +1645,15 @@ describe("the exchange after typing was folded into a rewrite", () => {
    */
   const explorerReopensFromTheStore = () => {
     const prefix = `/${HELLO.name}/`;
-    jest
-      .spyOn(PgExplorer, "replaceWorkspaceFiles")
-      .mockImplementation(
-        async (name: string, files: Record<string, string>) => {
-          for (const [path, content] of Object.entries(files)) {
-            await PgFs.writeFile(`/${name}/${path}`, content, {
-              createParents: true,
-            });
-          }
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) => {
+        for (const [path, content] of Object.entries(files)) {
+          await PgFs.writeFile(`/${name}/${path}`, content, {
+            createParents: true,
+          });
         }
-      );
+      }
+    );
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       localFilesAre(
         HELLO.name,
@@ -1796,7 +1787,7 @@ describe("picking up where the account left off", () => {
     });
     const workspaces: Array<{ id: string; name: string }> = [];
     asDevice(workspaces);
-    const importWorkspace = jest
+    const importWorkspace = vi
       .spyOn(PgExplorer, "importWorkspace")
       .mockImplementation(async (name: string, opts) => {
         workspaces.push({ id: opts.id, name });
@@ -1867,7 +1858,7 @@ describe("signing out of a browser", () => {
    * it unconditionally, and the `project-sync` effect is subscribed to it.
    */
   const explorerForgets = (workspaces: Array<{ id: string; name: string }>) =>
-    jest
+    vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockImplementation(async (name?: string) => {
         const index = workspaces.findIndex((w) => w.name === name);

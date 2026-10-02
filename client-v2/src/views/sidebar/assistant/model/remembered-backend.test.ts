@@ -36,7 +36,7 @@ describe("remembered backend", () => {
   it("answers no when storage refuses to say", () => {
     // Private windows and blocked site data both throw here rather than
     // returning null, and the panel has to open anyway
-    const spy = jest
+    const spy = vi
       .spyOn(Storage.prototype, "getItem")
       .mockImplementation(() => {
         throw new Error("denied");
@@ -47,7 +47,7 @@ describe("remembered backend", () => {
   });
 
   it("does not throw when storage refuses to be written to", () => {
-    const spy = jest
+    const spy = vi
       .spyOn(Storage.prototype, "setItem")
       .mockImplementation(() => {
         throw new Error("quota");

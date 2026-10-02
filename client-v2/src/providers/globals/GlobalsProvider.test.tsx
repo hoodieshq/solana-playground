@@ -11,9 +11,12 @@ vi.mock("../../components/Loading/App", () => ({
   AppLoading: () => <div data-testid="app-loading" />,
 }));
 
-vi.mock("../../hooks", () => ({
-  useAsyncEffect: jest.requireActual("../../hooks/useAsyncEffect")
-    .useAsyncEffect,
+vi.mock("../../hooks", async () => ({
+  useAsyncEffect: (
+    await vi.importActual<typeof import("../../hooks/useAsyncEffect")>(
+      "../../hooks/useAsyncEffect"
+    )
+  ).useAsyncEffect,
 }));
 
 import { StrictMode, act } from "react";
@@ -37,8 +40,8 @@ describe("GlobalsProvider", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    // Set here, not in the factory: CRA's `resetMocks` clears
-    // implementations before every test
+    // Set here, not in the factory: `mockReset` (see `vitest.config.ts`)
+    // resets every mock before each test
     (initAll as Mock).mockResolvedValue({ dispose: vi.fn() });
   });
 

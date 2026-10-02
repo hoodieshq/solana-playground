@@ -43,17 +43,17 @@ describe("the project-sync effect", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     effect = null;
-    push = jest
+    push = vi
       .spyOn(PgProjectSync, "pushCurrent")
       .mockResolvedValue("ok" as never);
     vi.spyOn(PgSyncMark, "markDirty").mockResolvedValue(undefined);
     vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue([]);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p1" as never);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("one" as never);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p1" as never
+    );
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "one" as never
+    );
     Object.defineProperty(document, "visibilityState", {
       value: "visible",
       configurable: true,
@@ -156,9 +156,9 @@ describe("the project-sync effect", () => {
   });
 
   it("remembers the files a project opened with, so an edit has a base", async () => {
-    jest
-      .spyOn(snapshot, "snapshotOf")
-      .mockResolvedValue({ files: { "src/lib.rs": "opened with" } } as never);
+    vi.spyOn(snapshot, "snapshotOf").mockResolvedValue({
+      files: { "src/lib.rs": "opened with" },
+    } as never);
     const track = vi.spyOn(PgSyncBase, "track");
     vi.spyOn(restore, "reconcile").mockResolvedValue({
       imported: [],
@@ -172,8 +172,8 @@ describe("the project-sync effect", () => {
 
     dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
     // Three turns of the microtask queue: `snapshotOf` and the async
-    // wrapper around it, then `track`. Not a timer API -- CRA 5 ships Jest 27,
-    // which has no async timer runners.
+    // wrapper around it, then `track`. Microtasks, not timers, so no timer
+    // API would drive them.
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -189,17 +189,17 @@ describe("a tab that is not in front", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     effect = null;
-    push = jest
+    push = vi
       .spyOn(PgProjectSync, "pushCurrent")
       .mockResolvedValue("ok" as never);
     vi.spyOn(PgSyncMark, "markDirty").mockResolvedValue(undefined);
     vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue([]);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p1" as never);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("one" as never);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p1" as never
+    );
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "one" as never
+    );
     Object.defineProperty(document, "visibilityState", {
       value: "visible",
       configurable: true,
@@ -237,12 +237,12 @@ describe("a tab that is not in front", () => {
 
   it("reconciles before it is allowed to push again", async () => {
     const order: string[] = [];
-    jest
-      .spyOn(PgProjectSync, "holdPushes")
-      .mockImplementation(() => order.push("hold"));
-    jest
-      .spyOn(PgProjectSync, "releasePushes")
-      .mockImplementation(() => order.push("release"));
+    vi.spyOn(PgProjectSync, "holdPushes").mockImplementation(() =>
+      order.push("hold")
+    );
+    vi.spyOn(PgProjectSync, "releasePushes").mockImplementation(() =>
+      order.push("release")
+    );
     vi.spyOn(restore, "reconcile").mockImplementation(async () => {
       order.push("reconcile");
       return {
@@ -294,12 +294,12 @@ describe("opening a project", () => {
     // A reconcile rather than a push, because which direction the project
     // needs to move is exactly the question, and only the marks can answer it.
     const order: string[] = [];
-    jest
-      .spyOn(PgProjectSync, "holdPushes")
-      .mockImplementation(() => order.push("hold"));
-    jest
-      .spyOn(PgProjectSync, "releasePushes")
-      .mockImplementation(() => order.push("release"));
+    vi.spyOn(PgProjectSync, "holdPushes").mockImplementation(() =>
+      order.push("hold")
+    );
+    vi.spyOn(PgProjectSync, "releasePushes").mockImplementation(() =>
+      order.push("release")
+    );
     vi.spyOn(restore, "reconcile").mockImplementation(async () => {
       order.push("reconcile");
       return {
@@ -381,19 +381,18 @@ describe("deleting a workspace here", () => {
   it("tombstones it on the server and drops its conversation", async () => {
     // `onDidDeleteWorkspace` carries no id, so the deleted project is found by
     // elimination: a mark whose id no longer resolves to a workspace
-    jest
-      .spyOn(PgSyncMark, "projectIds")
-      .mockResolvedValue(["tut:hello", "still-here"]);
+    vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue([
+      "tut:hello",
+      "still-here",
+    ]);
     vi.spyOn(PgSyncMark, "remove").mockResolvedValue(undefined);
-    jest
-      .spyOn(PgExplorer, "workspaceNameOf")
-      .mockImplementation((id: string) =>
-        id === "still-here" ? "Still Here" : undefined
-      );
-    const remove = jest
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockImplementation((id: string) =>
+      id === "still-here" ? "Still Here" : undefined
+    );
+    const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = jest
+    const forget = vi
       .spyOn(PgChatStorage, "remove")
       .mockResolvedValue(undefined);
 
@@ -415,15 +414,16 @@ describe("deleting a workspace here", () => {
   it("leaves a project another tab created that this tab has not listed", async () => {
     // Synced from the neighbour, so it has a mark, which every tab shares --
     // and no name here until this tab re-reads the list
-    jest
-      .spyOn(PgSyncMark, "projectIds")
-      .mockResolvedValue(["deleted-here", "made-next-door"]);
+    vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue([
+      "deleted-here",
+      "made-next-door",
+    ]);
     vi.spyOn(PgSyncMark, "remove").mockResolvedValue(undefined);
     vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(undefined);
-    const remove = jest
+    const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = jest
+    const forget = vi
       .spyOn(PgChatStorage, "remove")
       .mockResolvedValue(undefined);
     registered([{ id: "made-next-door", name: "Next Door" }]);
@@ -440,7 +440,7 @@ describe("deleting a workspace here", () => {
   it("deletes nothing when the store cannot say what it lists", async () => {
     vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue(["unknown"]);
     vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(undefined);
-    const remove = jest
+    const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
     stored().set(PgWorkspace.WORKSPACES_CONFIG_PATH, '{"workspaces":[');

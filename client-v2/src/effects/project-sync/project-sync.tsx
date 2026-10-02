@@ -11,7 +11,7 @@ import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgWorkspaceRegistry } from "../../features/persistence/model/workspace-registry";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global jest has no answer for. Same workaround as
+// a webpack-defined global vitest has no answer for. Same workaround as
 // `snapshot.ts`; here it is what makes this effect testable at all, and what
 // this effect subscribes to is exactly what was wrong before.
 import { PgExplorer } from "../../utils/explorer/explorer";

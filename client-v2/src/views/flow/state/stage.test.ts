@@ -32,8 +32,15 @@ vi.mock("../../../utils", () => ({
 }));
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
+import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 
-const BUILD_OUTPUT_PATH = "../../sidebar/assistant/bridge/build-output";
+/** The mocked build-output module, in the shape the factory above gives it:
+ * `latest` is a plain field here, where the real class has a getter. */
+const mockedBuildOutput = async () =>
+  (await import("../../sidebar/assistant/bridge/build-output")) as unknown as {
+    PgBuildOutput: { latest: Partial<BuildOutput> | null; onDidChange: Mock };
+    stripKnownNoise: Mock;
+  };
 
 describe("PgFlow.reduce", () => {
   it("starts on write with everything upcoming", () => {
@@ -148,12 +155,10 @@ describe("PgFlow.reduce", () => {
 });
 
 describe("countErrors", () => {
-  it("counts real diagnostics, not the summary lines", () => {
-    // `resetMocks` (CRA's Jest default) clears the factory's identity
-    // implementation before every test, so it has to be restored here.
-    const {
-      stripKnownNoise,
-    } = require("../../sidebar/assistant/bridge/build-output");
+  it("counts real diagnostics, not the summary lines", async () => {
+    // Set here rather than trusted from the factory: `mockReset` (see
+    // `vitest.config.ts`) resets every mock before each test.
+    const { stripKnownNoise } = await mockedBuildOutput();
     (stripKnownNoise as Mock).mockImplementation((s: string) => s);
 
     const stderr = `error[E0308]: mismatched types
@@ -170,19 +175,18 @@ error: could not compile \`hello\` due to previous error`;
 });
 
 describe("PgFlow.init wiring", () => {
-  // `resetMocks` (CRA's Jest default) drops the factory's implementation
-  // before every test, so each subscription `init` makes has to hand back a
-  // disposable again. These tests are about the build and deploy events, so
-  // the restore subscription just needs to not throw.
-  beforeEach(() => {
-    const { PgProgramInfo } = require("../../../utils");
-    (PgProgramInfo.onDidChangeOnChain as Mock).mockReturnValue({
+  // Every subscription `init` makes has to hand back a disposable, whatever
+  // an earlier test set its mock to. These tests are about the build and
+  // deploy events, so the restore subscription just needs to not throw.
+  beforeEach(async () => {
+    const { PgProgramInfo } = await import("../../../utils");
+    vi.mocked(PgProgramInfo.onDidChangeOnChain).mockReturnValue({
       dispose: vi.fn(),
     });
   });
 
-  it("deploy-finish detects success and failure via result shape", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("deploy-finish detects success and failure via result shape", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
     let deployCallback: ((result: unknown) => void) | undefined;
 
@@ -195,9 +199,8 @@ describe("PgFlow.init wiring", () => {
     const buildFinishReturn = { dispose: vi.fn() };
     buildFinishMock.mockReturnValueOnce(buildFinishReturn);
 
-    const buildOutputMock =
-      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
-        .onDidChange as Mock;
+    const buildOutputMock = (await mockedBuildOutput()).PgBuildOutput
+      .onDidChange as Mock;
     const buildOutputReturn = { dispose: vi.fn() };
     buildOutputMock.mockReturnValueOnce(buildOutputReturn);
 
@@ -236,8 +239,8 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("ignores a deploy-finish caused only by a pause or resume click", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("ignores a deploy-finish caused only by a pause or resume click", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     let deployStartCallback: (() => void) | undefined;
     let deployFinishCallback: ((result: unknown) => void) | undefined;
 
@@ -248,8 +251,7 @@ describe("PgFlow.init wiring", () => {
       dispose: vi.fn(),
     });
     (
-      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
-        .onDidChange as Mock
+      (await mockedBuildOutput()).PgBuildOutput.onDidChange as Mock
     ).mockReturnValueOnce({ dispose: vi.fn() });
     (PgCommand.deploy.onDidStart as Mock).mockImplementation((cb) => {
       deployStartCallback = cb;
@@ -289,10 +291,10 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("fails the build when it never reaches the compiler", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("fails the build when it never reaches the compiler", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    const buildOutputModule = await mockedBuildOutput();
     buildOutputModule.PgBuildOutput.latest = null;
 
     let buildStartCallback: (() => void) | undefined;
@@ -333,10 +335,10 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("ignores build.onDidFinish's err when real output already arrived", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("ignores build.onDidFinish's err when real output already arrived", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    const buildOutputModule = await mockedBuildOutput();
 
     let buildStartCallback: (() => void) | undefined;
     let buildFinishCallback: ((result: unknown) => void) | undefined;
@@ -457,7 +459,7 @@ describe("PgFlow.reduce, restoring a workspace after a reload", () => {
     expect(s.buildSettled).toBe("done");
   });
 
-  it("does not overwrite a build that is running right now", () => {
+  it("does not overwrite a build that is running right now", async () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "build-start",
       at: 1000,
@@ -475,9 +477,11 @@ describe("PgFlow.reduce, restoring a workspace after a reload", () => {
 describe("PgFlow.init, seeding a reloaded page", () => {
   /** Wire every subscription `init` makes, handing back the two callbacks
    * this suite drives. Each mock returns its own disposable. */
-  const initWithCapturedCallbacks = () => {
-    const { PgCommand, PgExplorer, PgProgramInfo } = require("../../../utils");
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+  const initWithCapturedCallbacks = async () => {
+    const { PgCommand, PgExplorer, PgProgramInfo } = await import(
+      "../../../utils"
+    );
+    const buildOutputModule = await mockedBuildOutput();
     let workspaceChange: (() => void) | undefined;
     let onChainChange: (() => void) | undefined;
 
@@ -500,10 +504,12 @@ describe("PgFlow.init, seeding a reloaded page", () => {
       workspaceChange = cb;
       return { dispose: vi.fn() };
     });
-    (PgProgramInfo.onDidChangeOnChain as Mock).mockImplementation((cb) => {
-      onChainChange = cb;
-      return { dispose: vi.fn() };
-    });
+    (PgProgramInfo.onDidChangeOnChain as unknown as Mock).mockImplementation(
+      (cb) => {
+        onChainChange = cb;
+        return { dispose: vi.fn() };
+      }
+    );
 
     const sub = PgFlow.init();
     return {
@@ -513,9 +519,15 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     };
   };
 
-  it("reads Deploy and Interact back from the on-chain program", () => {
-    const { PgProgramInfo } = require("../../../utils");
-    const wiring = initWithCapturedCallbacks();
+  it("reads Deploy and Interact back from the on-chain program", async () => {
+    // `onChain` is a getter on the real class, a plain field on the mock
+    const { PgProgramInfo } = (await import("../../../utils")) as unknown as {
+      PgProgramInfo: {
+        lastBuildFailed: boolean | null;
+        onChain: { deployed: boolean } | null;
+      };
+    };
+    const wiring = await initWithCapturedCallbacks();
     wiring.reset();
 
     // The workspace built cleanly and its program is live on the cluster.

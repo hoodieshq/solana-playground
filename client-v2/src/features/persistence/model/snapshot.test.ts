@@ -94,9 +94,9 @@ describe("buildSnapshotOf", () => {
     // Read as empty, a store that failed would be a project with every file
     // deleted -- and that is what the next push would upload
     store.set("/beta/src/lib.rs", "code");
-    jest
-      .spyOn(PgFs, "readDir")
-      .mockRejectedValueOnce(new Error("QuotaExceededError"));
+    vi.spyOn(PgFs, "readDir").mockRejectedValueOnce(
+      new Error("QuotaExceededError")
+    );
 
     await expect(buildSnapshotOf("beta")).rejects.toThrow("QuotaExceeded");
   });
@@ -133,12 +133,12 @@ describe("snapshotOf", () => {
     // still say "alpha" and to still hold a different value than the store,
     // so a regression back to reading memory for the current workspace fails
     // this test rather than passing it by accident.
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("alpha");
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([["/alpha/src/lib.rs", "unsaved edit"]]);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "alpha"
+    );
+    vi.spyOn(PgExplorer, "getAllFiles").mockReturnValue([
+      ["/alpha/src/lib.rs", "unsaved edit"],
+    ]);
   });
 
   afterEach(() => vi.restoreAllMocks());

@@ -51,7 +51,7 @@ describe("PgSession", () => {
   });
 
   it("treats a failed request as signed out rather than throwing", async () => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
 
@@ -126,7 +126,7 @@ describe("PgSession", () => {
 
   it("sends the popup to the completion route carrying a nonce", async () => {
     let body: string | undefined;
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string, init: RequestInit) => {
         if (url === "/api/auth/sign-in/social") {
@@ -153,7 +153,7 @@ describe("PgSession", () => {
   });
 
   it("only accepts a reply carrying this flow's nonce", async () => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string, init: RequestInit) =>
         url === "/api/auth/sign-in/social"
@@ -242,7 +242,7 @@ describe("PgSession", () => {
     global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
     await PgSession.refresh();
 
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
     await PgSession.signOut();

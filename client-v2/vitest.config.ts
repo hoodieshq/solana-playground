@@ -13,6 +13,16 @@ const markdownAsText: Plugin = {
 
 export default defineConfig({
   plugins: [markdownAsText],
+  resolve: {
+    alias: [
+      // monaco-editor declares only `module`, no `main`. Webpack takes
+      // `module`; vite's server-side resolution does not, so point it there.
+      {
+        find: /^monaco-editor$/,
+        replacement: "monaco-editor/esm/vs/editor/editor.main.js",
+      },
+    ],
+  },
   test: {
     globals: true,
     environment: "jsdom",

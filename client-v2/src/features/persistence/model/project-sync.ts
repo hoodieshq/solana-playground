@@ -16,7 +16,7 @@ import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
-// reaches `settings.ts`, which reads a webpack-defined global jest has no
+// reaches `settings.ts`, which reads a webpack-defined global vitest has no
 // answer for, and importing it here would make this module untestable
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
