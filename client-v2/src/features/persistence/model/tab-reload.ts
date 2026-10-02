@@ -79,6 +79,8 @@ const memoryRoot = (): string | undefined => {
   return path?.split("/")[1] || openName;
 };
 
+type Item = typeof PgExplorer.files[string];
+
 /**
  * What this tab last had on disk for each file of the open workspace: read
  * when it was opened, taken from disk by a reload, or written by this tab.
@@ -101,7 +103,6 @@ const memoryRoot = (): string | undefined => {
  * neighbour's later edit. A file created since the open is a new item, with
  * no record at all.
  */
-type Item = typeof PgExplorer.files[string];
 let known = new WeakMap<Item, string>();
 
 /** The workspace this tab last opened, by the name it had then */
@@ -142,6 +143,7 @@ PgExplorer.onDidInit(() => {
   known = new WeakMap();
   openName = undefined;
   openId = undefined;
+  left = false;
 });
 // Loaded after the first open, the events above were missed. State then is
 // what was read, as far as anything here can tell.
@@ -327,12 +329,6 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
     return PgExplorer.currentWorkspaceId ? await leaveDeleted() : "skipped";
   }
 
-  // The current id has moved on from the one the tree was opened under:
-  // this tab's own switch, half-way -- the new current one is named before
-  // its tree is read. Not a rename, and the switch is about to finish what a
-  // reload would do. By id, not by name: another tab may rename this
-  // workspace and then create a new one under its old name, and by name
-  // that reads as a switch and gets stuck.
   const held = memoryRoot();
   const moved = !!held && held !== name;
   // A tree under a name this tab never opened, and that is not listed
@@ -345,6 +341,12 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   ) {
     return "skipped";
   }
+  // The current id has moved on from the one the tree was opened under:
+  // this tab's own switch, half-way -- the new current one is named before
+  // its tree is read. Not a rename, and the switch is about to finish what a
+  // reload would do. By id, not by name: another tab may rename this
+  // workspace and then create a new one under its old name, and by name
+  // that reads as a switch and gets stuck.
   const switching =
     openId !== undefined
       ? PgExplorer.currentWorkspaceId !== openId
@@ -368,8 +370,9 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   if (reopen || renamed || !sameKeys(disk, memory)) {
     // A re-open rebuilds every model from state, so keystrokes autosave has
     // not written yet -- in any file, not only the open one -- would go.
-    // Nothing forces this one, so it waits for them to land instead. A forced
-    // re-open is `adopt`, where the user has already chosen to discard.
+    // Nothing forces this one, so it stands down as `deferred` instead, and
+    // is asked again once autosave has had its turn. A forced re-open is
+    // `adopt`, where the user has already chosen to discard.
     //
     // Renamed in another tab, there is nothing to wait for: autosave writes
     // under the old name, which is gone. The text is carried across instead.
