@@ -2300,6 +2300,31 @@ describe("a project renamed on one device", () => {
     expect(server.get("p3")!.name).toBe("Bar");
   });
 
+  it("gives the name back in the same pass when its holder was deleted elsewhere", async () => {
+    const workspaces = [foo(), bar()];
+    const rename = await inSync(workspaces);
+    storedFiles().set("/Bar/src/lib.rs", "declare_id!();");
+    await PgProjectSync.push("p2", await snapshotOf("Bar"), "Bar", {
+      immediate: true,
+    });
+    jest
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockImplementation(async (name?: string) => {
+        workspaces.splice(
+          workspaces.findIndex((w) => w.name === name),
+          1
+        );
+      });
+
+    otherDeviceDeleted("p2");
+    otherDeviceRenamed(FOO.id, "Bar");
+    const result = await reconcile();
+
+    expect(result.removed).toEqual(["Bar"]);
+    expect(rename).toHaveBeenLastCalledWith("Bar", { from: "Bar imported" });
+    expect(workspaces).toEqual([{ id: FOO.id, name: "Bar" }]);
+  });
+
   it("leaves a name the explorer refuses alone, without a report", async () => {
     // A name from before the explorer's rule, which a rename here would be
     // refused on every pass

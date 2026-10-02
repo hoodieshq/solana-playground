@@ -80,10 +80,10 @@ const isClean = async (projectId: string, localName: string) =>
  * rename the user made here is never recorded there, and is not this pass's
  * to undo. Left in place, the stand-in stayed for good.
  *
- * Runs after the main pass, which is what moves a holder that was renamed
- * elsewhere out of the way: the other device renamed "Bar" to "Baz" and then
- * "Foo" to "Bar", and reconcile reaches "Foo" first. A name still held here
- * stays stepped around.
+ * Runs after the main pass and the deletes, which are what move a holder
+ * out of the way: deleted elsewhere, or renamed -- the other device renamed
+ * "Bar" to "Baz" and then "Foo" to "Bar", and reconcile reaches "Foo"
+ * first. A name still held here stays stepped around.
  */
 const settleSteppedNames = async (server: ServerProject[]) => {
   for (const project of server) {
@@ -329,8 +329,10 @@ const passUnlocked = async (): Promise<SyncResult> => {
     }
   }
 
-  await settleSteppedNames(server);
+  // Deletes first: a holder deleted on the other device frees its name for
+  // a stand-in in the same pass
   await settleDeletes(serverIds, result);
+  await settleSteppedNames(server);
   await pushNeverSynced(serverIds, result);
 
   return result;
