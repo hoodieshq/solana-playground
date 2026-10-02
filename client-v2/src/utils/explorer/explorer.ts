@@ -630,6 +630,11 @@ export class PgExplorer {
     opts: { id: string; files: Record<string, string> }
   ) {
     if (!this._workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
+    // Before any file is written: the files go under the name, and a name
+    // already in use is another workspace's directory
+    if (this._workspace.allNames.includes(name)) {
+      throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
+    }
 
     for (const [path, content] of Object.entries(opts.files)) {
       await this.fs.writeFile(

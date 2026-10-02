@@ -389,3 +389,20 @@ describe("renaming a workspace that is not the current one", () => {
     ).rejects.toThrow(PgWorkspace.errors.NOT_FOUND);
   });
 });
+
+describe("importing a workspace under a name already in use", () => {
+  beforeEach(reset);
+
+  it("refuses before writing a file into the holder's directory", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await expect(
+      PgExplorer.importWorkspace("alpha", {
+        id: "p3",
+        files: { "src/lib.rs": "another project" },
+      })
+    ).rejects.toThrow(PgWorkspace.errors.ALREADY_EXISTS);
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(PgExplorer.workspaceNameOf("p3")).toBeUndefined();
+  });
+});
