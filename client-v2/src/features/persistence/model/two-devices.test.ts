@@ -2260,6 +2260,19 @@ describe("a project renamed on one device", () => {
         workspaces.push({ id: opts.id, name });
       });
 
+  /** Every upload refused with a 500, everything else answered as usual */
+  const uploadsFail = () => {
+    global.fetch = jest.fn(
+      async (url: string, init?: RequestInit): Promise<unknown> =>
+        init?.method === "PUT"
+          ? { ok: false, status: 500, json: async () => ({}) }
+          : fakeFetch(url, init)
+    ) as unknown as typeof fetch;
+  };
+  const uploadsWork = () => {
+    global.fetch = jest.fn(fakeFetch) as unknown as typeof fetch;
+  };
+
   it("imports a new project beside one just renamed onto its name", async () => {
     // One pass, newest first: "Foo" renamed to "Bar" elsewhere, and a new
     // project also called "Bar". The import went by the names from before
@@ -2323,6 +2336,77 @@ describe("a project renamed on one device", () => {
     expect(result.removed).toEqual(["Bar"]);
     expect(rename).toHaveBeenLastCalledWith("Bar", { from: "Bar imported" });
     expect(workspaces).toEqual([{ id: FOO.id, name: "Bar" }]);
+  });
+
+  it("keeps a rename made here owed when the merge's upload fails", async () => {
+    const workspaces = [foo()];
+    await inSync(workspaces);
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    await userRenamed(workspaces, "Foo", "Baz");
+    uploadsFail();
+    await reconcile();
+
+    const mark = await PgSyncMark.read(FOO.id);
+    expect(mark).toEqual(expect.objectContaining({ name: "Bar", dirty: true }));
+    expect(mark!.localName).toBeUndefined();
+
+    uploadsWork();
+    await reconcile();
+    expect(server.get(FOO.id)!.name).toBe("Baz");
+  });
+
+  it("keeps a stand-in off the account when the merge's upload fails", async () => {
+    const workspaces = [foo(), bar()];
+    await inSync(workspaces);
+    writeStored("Foo", { "src/lib.rs": "a\nb\nc\n" });
+    await PgProjectSync.pushCurrent();
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    otherDeviceWroteFiles(FOO.id, { "src/lib.rs": "a\nb\nC\n" });
+    writeStored("Foo", { "src/lib.rs": "A\nb\nc\n" });
+    await PgSyncMark.markDirty(FOO.id);
+    uploadsFail();
+    await reconcile();
+
+    expect(workspaces[0].name).toBe("Bar imported");
+    expect(await PgSyncMark.read(FOO.id)).toEqual(
+      expect.objectContaining({
+        name: "Bar",
+        localName: "Bar imported",
+        dirty: true,
+      })
+    );
+
+    uploadsWork();
+    await reconcile();
+    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(server.get(FOO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nC\n" },
+    });
+  });
+
+  it("settles a failed rename on a later pass, and reverts nothing", async () => {
+    const workspaces = [foo()];
+    const rename = await inSync(workspaces);
+    // The adopt's rename, and the retry at the end of the same pass
+    rename
+      .mockRejectedValueOnce(new Error("quota"))
+      .mockRejectedValueOnce(new Error("quota"));
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    await reconcile();
+    expect(workspaces[0].name).toBe("Foo");
+    expect(server.get(FOO.id)!.name).toBe("Bar");
+    clearFailures();
+
+    await reconcile();
+    expect(workspaces[0].name).toBe("Bar");
+    await reconcile();
+
+    expect(rename).toHaveBeenCalledTimes(3);
+    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(getFailures()).toEqual([]);
   });
 
   it("leaves a name the explorer refuses alone, without a report", async () => {

@@ -1029,8 +1029,11 @@ export class PgProjectSync {
           updatedAt: full.updatedAt,
           // Clean when the merge came out as the server's copy -- identical
           // copies, or only the server moved. Left set otherwise, so a merge
-          // whose upload never lands still reads as work owed.
-          dirty: !sameFiles(merged, server),
+          // whose upload never lands still reads as work owed. A name of this
+          // device's own is owed as well; a stand-in is not, no push sends it.
+          dirty:
+            !sameFiles(merged, server) ||
+            (localName !== full.name && !localStandIn),
         });
         await PgSyncBase.replace(
           projectId,
