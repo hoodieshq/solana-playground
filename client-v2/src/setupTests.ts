@@ -2,6 +2,8 @@
 // the gap is the test environment's, not the code's - polyfill rather than add
 // a weaker fallback to production.
 import { webcrypto } from "crypto";
+import { readFileSync } from "fs";
+import { createRequire } from "module";
 import { TextDecoder, TextEncoder } from "util";
 
 if (!globalThis.crypto?.subtle) {
@@ -25,11 +27,11 @@ if (!globalThis.TextEncoder) {
 // against it and takes the worker down. So the module is replaced with an
 // in-memory one for every test, globally. Nothing under jsdom could use the
 // real filesystem anyway; the browser round trip is covered in `e2e/`.
-jest.mock("./utils/explorer/fs", () =>
-  require("./test-utils/mock-fs").mockFsModule()
+vi.mock("./utils/explorer/fs", async () =>
+  (await import("./test-utils/mock-fs")).mockFsModule()
 );
 
-// jsdom ships no `fetch` either. Tests install their own with `jest.spyOn`,
+// jsdom ships no `fetch` either. Tests install their own with `vi.spyOn`,
 // which needs something already on the global to replace, so the stand-in is
 // a function that throws: a test that reaches the network without saying what
 // it expects back is a bug, and this is how it says so rather than hanging.
@@ -43,3 +45,11 @@ if (!globalThis.fetch) {
     writable: true,
   });
 }
+
+// Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`), and
+// the tutorials and lesson paths `require` it lazily. vitest hands `require`
+// straight to Node, past `vitest.config.ts`'s plugin, so Node is taught the
+// same rule: a `.md` file's export is its text.
+createRequire(import.meta.url).extensions[".md"] = (module, filename) => {
+  module.exports = readFileSync(filename, "utf8");
+};

@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { session } from "./session";
 import { PgSession } from "../../features/auth";
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
@@ -33,48 +34,47 @@ const result = (over: Partial<SyncResult> = {}): SyncResult => ({
 
 describe("the session effect", () => {
   let calls: string[];
-  let sync: jest.SpyInstance;
-  let switchWorkspace: jest.SpyInstance;
+  let sync: MockInstance;
+  let switchWorkspace: MockInstance;
 
   beforeEach(() => {
     calls = [];
     PgSession.reset();
 
-    jest
-      .spyOn(PgChatSync, "adoptAccountThreads")
-      .mockImplementation(async () => {
-        calls.push("adoptChats");
-      });
-    jest.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
+    vi.spyOn(PgChatSync, "adoptAccountThreads").mockImplementation(async () => {
+      calls.push("adoptChats");
+    });
+    vi.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
       calls.push("pushChats");
       return { pushed: [], complete: true };
     });
-    sync = jest.spyOn(restore, "reconcile").mockImplementation(async () => {
+    sync = vi.spyOn(restore, "reconcile").mockImplementation(async () => {
       calls.push("reconcile");
       return result();
     });
-    jest
-      .spyOn(PgProjectSync, "holdPushes")
-      .mockImplementation(() => calls.push("hold"));
-    jest
-      .spyOn(PgProjectSync, "releasePushes")
-      .mockImplementation(() => calls.push("release"));
-    switchWorkspace = jest
+    vi.spyOn(PgProjectSync, "holdPushes").mockImplementation(() =>
+      calls.push("hold")
+    );
+    vi.spyOn(PgProjectSync, "releasePushes").mockImplementation(() =>
+      calls.push("release")
+    );
+    switchWorkspace = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined as never);
-    jest
-      .spyOn(PgExplorer, "allWorkspaceNames", "get")
-      .mockReturnValue(["Hello Anchor", "Newest"]);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("Hello Anchor");
-    jest.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(true);
-    jest.spyOn(PgSession, "refresh").mockImplementation(async () => {
+    vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([
+      "Hello Anchor",
+      "Newest",
+    ]);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "Hello Anchor"
+    );
+    vi.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(true);
+    vi.spyOn(PgSession, "refresh").mockImplementation(async () => {
       await PgSession.refreshWith(user);
     });
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("reconciles the account before anything else touches it", async () => {
     const effect = session();
@@ -95,9 +95,9 @@ describe("the session effect", () => {
     // first meant `workspaceNameOf` answered `undefined` for everything and
     // `importWorkspace` threw `NOT_FOUND`, which the per-project catch turned
     // into a diagnostics line -- the whole account sync failing invisibly.
-    jest.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(false);
+    vi.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(false);
     let fireInit: () => void = () => {};
-    jest.spyOn(PgExplorer, "onDidInit").mockImplementation((cb: any) => {
+    vi.spyOn(PgExplorer, "onDidInit").mockImplementation((cb: any) => {
       fireInit = cb;
       return { dispose: () => {} };
     });
@@ -182,9 +182,9 @@ describe("the session effect", () => {
     // one sat outside it, so a thrown `pushAll` left every project on the
     // device unable to save for the rest of the session -- silently, because
     // the rejection is reported and swallowed.
-    jest
-      .spyOn(PgChatSync, "pushAll")
-      .mockRejectedValue(new Error("indexeddb is having a day"));
+    vi.spyOn(PgChatSync, "pushAll").mockRejectedValue(
+      new Error("indexeddb is having a day")
+    );
 
     const effect = session();
     await settle();
@@ -221,7 +221,7 @@ describe("the session effect", () => {
   });
 
   it("releases them when nobody is signed in", async () => {
-    jest.spyOn(PgSession, "refresh").mockImplementation(async () => {
+    vi.spyOn(PgSession, "refresh").mockImplementation(async () => {
       await PgSession.refreshWith(null);
     });
 
@@ -237,11 +237,11 @@ describe("the session effect", () => {
 describe("signing out", () => {
   beforeEach(() => {
     PgSession.reset();
-    jest.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(true);
-    jest.spyOn(PgSession, "refresh").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(true);
+    vi.spyOn(PgSession, "refresh").mockResolvedValue(undefined);
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("closes the thread after handing it over, not before", async () => {
     // Closing first would discard messages that had not been uploaded;
@@ -249,12 +249,12 @@ describe("signing out", () => {
     // transcript and writes it straight back into storage, from where the next
     // account's sign-in dump uploads it.
     const order: string[] = [];
-    jest.spyOn(PgChatSync, "handOver").mockImplementation(async () => {
+    vi.spyOn(PgChatSync, "handOver").mockImplementation(async () => {
       order.push("handOver");
     });
-    jest
-      .spyOn(PgAssistant, "closeThread")
-      .mockImplementation(() => order.push("closeThread") as unknown as void);
+    vi.spyOn(PgAssistant, "closeThread").mockImplementation(
+      () => order.push("closeThread") as unknown as void
+    );
 
     const effect = session();
     await PgSession.signOut();
@@ -264,8 +264,8 @@ describe("signing out", () => {
   });
 
   it("closes the thread even when the hand-over fails", async () => {
-    jest.spyOn(PgChatSync, "handOver").mockRejectedValue(new Error("offline"));
-    const close = jest
+    vi.spyOn(PgChatSync, "handOver").mockRejectedValue(new Error("offline"));
+    const close = vi
       .spyOn(PgAssistant, "closeThread")
       .mockImplementation(() => undefined);
 
@@ -280,8 +280,8 @@ describe("signing out", () => {
   });
 
   it("drops the previous account's conflicts", async () => {
-    jest.spyOn(PgChatSync, "handOver").mockResolvedValue(undefined);
-    jest.spyOn(PgAssistant, "closeThread").mockImplementation(() => undefined);
+    vi.spyOn(PgChatSync, "handOver").mockResolvedValue(undefined);
+    vi.spyOn(PgAssistant, "closeThread").mockImplementation(() => undefined);
     PgProjectSync.raise({ projectId: "tut:hello", kind: "divergent" });
 
     const effect = session();

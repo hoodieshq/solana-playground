@@ -1,18 +1,22 @@
+import type { Mock } from "vitest";
 // `initAll` is mocked so the test can count calls; `useAsyncEffect` is the
 // real hook, so the double mount runs the real effect twice.
-jest.mock("../../utils", () => ({
-  initAll: jest.fn(),
+vi.mock("../../utils", () => ({
+  initAll: vi.fn(),
 }));
 
-jest.mock("../../globals", () => ({ GLOBALS: [] }));
+vi.mock("../../globals", () => ({ GLOBALS: [] }));
 
-jest.mock("../../components/Loading/App", () => ({
+vi.mock("../../components/Loading/App", () => ({
   AppLoading: () => <div data-testid="app-loading" />,
 }));
 
-jest.mock("../../hooks", () => ({
-  useAsyncEffect: jest.requireActual("../../hooks/useAsyncEffect")
-    .useAsyncEffect,
+vi.mock("../../hooks", async () => ({
+  useAsyncEffect: (
+    await vi.importActual<typeof import("../../hooks/useAsyncEffect")>(
+      "../../hooks/useAsyncEffect"
+    )
+  ).useAsyncEffect,
 }));
 
 import { StrictMode, act } from "react";
@@ -36,9 +40,10 @@ describe("GlobalsProvider", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    // Set here, not in the factory: CRA's `resetMocks` clears
-    // implementations before every test
-    (initAll as jest.Mock).mockResolvedValue({ dispose: jest.fn() });
+    // The factory's `initAll` is a bare `vi.fn()`, which `mockReset` (see
+    // `vitest.config.ts`) returns to before each test, so its answer is set
+    // here
+    (initAll as Mock).mockResolvedValue({ dispose: vi.fn() });
   });
 
   afterEach(() => {

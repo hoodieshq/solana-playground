@@ -1,23 +1,24 @@
-jest.mock("../../sidebar/assistant/bridge/build-output", () => ({
+import type { Mock } from "vitest";
+vi.mock("../../sidebar/assistant/bridge/build-output", () => ({
   PgBuildOutput: {
     latest: null,
-    onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
   },
-  stripKnownNoise: jest.fn((s) => s),
+  stripKnownNoise: vi.fn((s) => s),
 }));
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgCommand: {
     build: {
-      onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
-      onDidFinish: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidStart: vi.fn(() => ({ dispose: vi.fn() })),
+      onDidFinish: vi.fn(() => ({ dispose: vi.fn() })),
     },
     deploy: {
-      onDidStart: jest.fn(() => ({ dispose: jest.fn() })),
-      onDidFinish: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidStart: vi.fn(() => ({ dispose: vi.fn() })),
+      onDidFinish: vi.fn(() => ({ dispose: vi.fn() })),
     },
   },
   PgExplorer: {
-    onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
   },
   PgGlobal: {
     deployState: "ready",
@@ -25,14 +26,21 @@ jest.mock("../../../utils", () => ({
   PgProgramInfo: {
     lastBuildFailed: null,
     onChain: null,
-    onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
-    onDidChangeOnChain: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeOnChain: vi.fn(() => ({ dispose: vi.fn() })),
   },
 }));
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
+import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 
-const BUILD_OUTPUT_PATH = "../../sidebar/assistant/bridge/build-output";
+/** The mocked build-output module, in the shape the factory above gives it:
+ * `latest` is a plain field here, where the real class has a getter. */
+const mockedBuildOutput = async () =>
+  (await import("../../sidebar/assistant/bridge/build-output")) as unknown as {
+    PgBuildOutput: { latest: Partial<BuildOutput> | null; onDidChange: Mock };
+    stripKnownNoise: Mock;
+  };
 
 describe("PgFlow.reduce", () => {
   it("starts on write with everything upcoming", () => {
@@ -147,13 +155,11 @@ describe("PgFlow.reduce", () => {
 });
 
 describe("countErrors", () => {
-  it("counts real diagnostics, not the summary lines", () => {
-    // `resetMocks` (CRA's Jest default) clears the factory's identity
-    // implementation before every test, so it has to be restored here.
-    const {
-      stripKnownNoise,
-    } = require("../../sidebar/assistant/bridge/build-output");
-    (stripKnownNoise as jest.Mock).mockImplementation((s: string) => s);
+  it("counts real diagnostics, not the summary lines", async () => {
+    // The factory's identity function: `mockReset` (see `vitest.config.ts`)
+    // restores it before each test anyway; restated so the test reads alone.
+    const { stripKnownNoise } = await mockedBuildOutput();
+    (stripKnownNoise as Mock).mockImplementation((s: string) => s);
 
     const stderr = `error[E0308]: mismatched types
   --> src/lib.rs:12:18
@@ -169,50 +175,48 @@ error: could not compile \`hello\` due to previous error`;
 });
 
 describe("PgFlow.init wiring", () => {
-  // `resetMocks` (CRA's Jest default) drops the factory's implementation
-  // before every test, so each subscription `init` makes has to hand back a
-  // disposable again. These tests are about the build and deploy events, so
-  // the restore subscription just needs to not throw.
-  beforeEach(() => {
-    const { PgProgramInfo } = require("../../../utils");
-    (PgProgramInfo.onDidChangeOnChain as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+  // Every subscription `init` makes has to hand back a disposable, whatever
+  // an earlier test set its mock to. These tests are about the build and
+  // deploy events, so the restore subscription just needs to not throw.
+  beforeEach(async () => {
+    const { PgProgramInfo } = await import("../../../utils");
+    vi.mocked(PgProgramInfo.onDidChangeOnChain).mockReturnValue({
+      dispose: vi.fn(),
     });
   });
 
-  it("deploy-finish detects success and failure via result shape", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("deploy-finish detects success and failure via result shape", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
     let deployCallback: ((result: unknown) => void) | undefined;
 
     // Store and verify all mocks return disposables
-    const buildStartMock = PgCommand.build.onDidStart as jest.Mock;
-    const buildStartReturn = { dispose: jest.fn() };
+    const buildStartMock = PgCommand.build.onDidStart as Mock;
+    const buildStartReturn = { dispose: vi.fn() };
     buildStartMock.mockReturnValueOnce(buildStartReturn);
 
-    const buildFinishMock = PgCommand.build.onDidFinish as jest.Mock;
-    const buildFinishReturn = { dispose: jest.fn() };
+    const buildFinishMock = PgCommand.build.onDidFinish as Mock;
+    const buildFinishReturn = { dispose: vi.fn() };
     buildFinishMock.mockReturnValueOnce(buildFinishReturn);
 
-    const buildOutputMock =
-      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
-        .onDidChange as jest.Mock;
-    const buildOutputReturn = { dispose: jest.fn() };
+    const buildOutputMock = (await mockedBuildOutput()).PgBuildOutput
+      .onDidChange as Mock;
+    const buildOutputReturn = { dispose: vi.fn() };
     buildOutputMock.mockReturnValueOnce(buildOutputReturn);
 
-    const deployStartMock = PgCommand.deploy.onDidStart as jest.Mock;
-    const deployStartReturn = { dispose: jest.fn() };
+    const deployStartMock = PgCommand.deploy.onDidStart as Mock;
+    const deployStartReturn = { dispose: vi.fn() };
     deployStartMock.mockReturnValueOnce(deployStartReturn);
 
-    const deployFinishMock = PgCommand.deploy.onDidFinish as jest.Mock;
-    const deployFinishReturn = { dispose: jest.fn() };
+    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
+    const deployFinishReturn = { dispose: vi.fn() };
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
       return deployFinishReturn;
     });
 
-    const workspaceChangeMock = PgExplorer.onDidSwitchWorkspace as jest.Mock;
-    const workspaceChangeReturn = { dispose: jest.fn() };
+    const workspaceChangeMock = PgExplorer.onDidSwitchWorkspace as Mock;
+    const workspaceChangeReturn = { dispose: vi.fn() };
     workspaceChangeMock.mockReturnValueOnce(workspaceChangeReturn);
 
     const sub = PgFlow.init();
@@ -235,31 +239,30 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("ignores a deploy-finish caused only by a pause or resume click", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("ignores a deploy-finish caused only by a pause or resume click", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     let deployStartCallback: (() => void) | undefined;
     let deployFinishCallback: ((result: unknown) => void) | undefined;
 
-    (PgCommand.build.onDidStart as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.build.onDidStart as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
-    (PgCommand.build.onDidFinish as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.build.onDidFinish as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
     (
-      require("../../sidebar/assistant/bridge/build-output").PgBuildOutput
-        .onDidChange as jest.Mock
-    ).mockReturnValueOnce({ dispose: jest.fn() });
-    (PgCommand.deploy.onDidStart as jest.Mock).mockImplementation((cb) => {
+      (await mockedBuildOutput()).PgBuildOutput.onDidChange as Mock
+    ).mockReturnValueOnce({ dispose: vi.fn() });
+    (PgCommand.deploy.onDidStart as Mock).mockImplementation((cb) => {
       deployStartCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgCommand.deploy.onDidFinish as jest.Mock).mockImplementation((cb) => {
+    (PgCommand.deploy.onDidFinish as Mock).mockImplementation((cb) => {
       deployFinishCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
@@ -288,34 +291,34 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("fails the build when it never reaches the compiler", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("fails the build when it never reaches the compiler", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    const buildOutputModule = await mockedBuildOutput();
     buildOutputModule.PgBuildOutput.latest = null;
 
     let buildStartCallback: (() => void) | undefined;
     let buildFinishCallback: ((result: unknown) => void) | undefined;
 
-    (PgCommand.build.onDidStart as jest.Mock).mockImplementation((cb) => {
+    (PgCommand.build.onDidStart as Mock).mockImplementation((cb) => {
       buildStartCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgCommand.build.onDidFinish as jest.Mock).mockImplementation((cb) => {
+    (PgCommand.build.onDidFinish as Mock).mockImplementation((cb) => {
       buildFinishCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (
-      buildOutputModule.PgBuildOutput.onDidChange as jest.Mock
-    ).mockReturnValueOnce({ dispose: jest.fn() });
-    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidStart as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidFinish as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
+    });
+    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
@@ -332,33 +335,33 @@ describe("PgFlow.init wiring", () => {
     sub.dispose();
   });
 
-  it("ignores build.onDidFinish's err when real output already arrived", () => {
-    const { PgCommand, PgExplorer, PgGlobal } = require("../../../utils");
+  it("ignores build.onDidFinish's err when real output already arrived", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+    const buildOutputModule = await mockedBuildOutput();
 
     let buildStartCallback: (() => void) | undefined;
     let buildFinishCallback: ((result: unknown) => void) | undefined;
 
-    (PgCommand.build.onDidStart as jest.Mock).mockImplementation((cb) => {
+    (PgCommand.build.onDidStart as Mock).mockImplementation((cb) => {
       buildStartCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgCommand.build.onDidFinish as jest.Mock).mockImplementation((cb) => {
+    (PgCommand.build.onDidFinish as Mock).mockImplementation((cb) => {
       buildFinishCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (
-      buildOutputModule.PgBuildOutput.onDidChange as jest.Mock
-    ).mockReturnValueOnce({ dispose: jest.fn() });
-    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidStart as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockReturnValueOnce({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidFinish as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
+    });
+    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+      dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
@@ -456,7 +459,7 @@ describe("PgFlow.reduce, restoring a workspace after a reload", () => {
     expect(s.buildSettled).toBe("done");
   });
 
-  it("does not overwrite a build that is running right now", () => {
+  it("does not overwrite a build that is running right now", async () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "build-start",
       at: 1000,
@@ -474,35 +477,39 @@ describe("PgFlow.reduce, restoring a workspace after a reload", () => {
 describe("PgFlow.init, seeding a reloaded page", () => {
   /** Wire every subscription `init` makes, handing back the two callbacks
    * this suite drives. Each mock returns its own disposable. */
-  const initWithCapturedCallbacks = () => {
-    const { PgCommand, PgExplorer, PgProgramInfo } = require("../../../utils");
-    const buildOutputModule = require(BUILD_OUTPUT_PATH);
+  const initWithCapturedCallbacks = async () => {
+    const { PgCommand, PgExplorer, PgProgramInfo } = await import(
+      "../../../utils"
+    );
+    const buildOutputModule = await mockedBuildOutput();
     let workspaceChange: (() => void) | undefined;
     let onChainChange: (() => void) | undefined;
 
-    (PgCommand.build.onDidStart as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+    (PgCommand.build.onDidStart as Mock).mockReturnValue({
+      dispose: vi.fn(),
     });
-    (PgCommand.build.onDidFinish as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+    (PgCommand.build.onDidFinish as Mock).mockReturnValue({
+      dispose: vi.fn(),
     });
-    (buildOutputModule.PgBuildOutput.onDidChange as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValue({
+      dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidStart as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidStart as Mock).mockReturnValue({
+      dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as jest.Mock).mockReturnValue({
-      dispose: jest.fn(),
+    (PgCommand.deploy.onDidFinish as Mock).mockReturnValue({
+      dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as jest.Mock).mockImplementation((cb) => {
+    (PgExplorer.onDidSwitchWorkspace as Mock).mockImplementation((cb) => {
       workspaceChange = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgProgramInfo.onDidChangeOnChain as jest.Mock).mockImplementation((cb) => {
-      onChainChange = cb;
-      return { dispose: jest.fn() };
-    });
+    (PgProgramInfo.onDidChangeOnChain as unknown as Mock).mockImplementation(
+      (cb) => {
+        onChainChange = cb;
+        return { dispose: vi.fn() };
+      }
+    );
 
     const sub = PgFlow.init();
     return {
@@ -512,9 +519,15 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     };
   };
 
-  it("reads Deploy and Interact back from the on-chain program", () => {
-    const { PgProgramInfo } = require("../../../utils");
-    const wiring = initWithCapturedCallbacks();
+  it("reads Deploy and Interact back from the on-chain program", async () => {
+    // `onChain` is a getter on the real class, a plain field on the mock
+    const { PgProgramInfo } = (await import("../../../utils")) as unknown as {
+      PgProgramInfo: {
+        lastBuildFailed: boolean | null;
+        onChain: { deployed: boolean } | null;
+      };
+    };
+    const wiring = await initWithCapturedCallbacks();
     wiring.reset();
 
     // The workspace built cleanly and its program is live on the cluster.

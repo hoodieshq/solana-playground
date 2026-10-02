@@ -3,7 +3,7 @@ import { report } from "../../features/persistence/model/diagnostics";
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global jest has no answer for. Same workaround as the
+// a webpack-defined global vitest has no answer for. Same workaround as the
 // other effects; here it is what makes this file testable at all.
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";

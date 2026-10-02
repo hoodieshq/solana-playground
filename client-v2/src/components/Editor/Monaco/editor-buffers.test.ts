@@ -1,9 +1,8 @@
 // Monaco's own text buffer and tracked-range tree, rather than a stand-in:
 // where the caret ends up after an edit is decided by the tree's stickiness
 // rules, and a stand-in that imitates them is exactly what let a caret turned
-// into a selection pass. `package.json`'s `transformIgnorePatterns` lets jest
-// transform these ES modules. Required rather than imported: they ship no
-// type declarations.
+// into a selection pass. Required rather than imported: they ship no type
+// declarations, and Node loads these ES modules through `require` as is.
 import { editorBuffersOf } from "./editor-buffers";
 import type { BufferModel } from "./editor-buffers";
 
@@ -23,9 +22,9 @@ const modelAt = (path: string, text: string) => {
     uri: { path },
     getValue: () => text,
     getEOL: () => "\n",
-    pushEditOperations: jest.fn(),
-    pushStackElement: jest.fn(),
-    dispose: jest.fn(),
+    pushEditOperations: vi.fn(),
+    pushStackElement: vi.fn(),
+    dispose: vi.fn(),
   };
   return model as unknown as BufferModel & typeof model;
 };
@@ -67,7 +66,7 @@ const monacoModel = (path: string, text: string) => {
     getEOL: () => buffer.getEOL(),
     getPositionAt: (offset: number) => buffer.getPositionAt(offset),
     pushStackElement: () => void calls.push("stack"),
-    pushEditOperations: jest.fn((_before: unknown, edits: RawEdit[]) => {
+    pushEditOperations: vi.fn((_before: unknown, edits: RawEdit[]) => {
       calls.push("edit");
       const result = buffer.applyEdits(
         edits.map((edit) => ({
@@ -96,7 +95,7 @@ const monacoModel = (path: string, text: string) => {
       }
       return null;
     }),
-    dispose: jest.fn(),
+    dispose: vi.fn(),
     /** Put the caret here, collapsed */
     caretAt: (offset: number) => {
       tree.delete(selection);

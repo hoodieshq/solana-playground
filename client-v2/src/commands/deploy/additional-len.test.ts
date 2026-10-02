@@ -3,10 +3,12 @@ import { PgWeb3 } from "../../utils";
 
 // The utils barrel needs webpack's globals; the class under test only needs
 // the loader program's arithmetic
-jest.mock("../../utils", () => ({
+vi.mock("../../utils", async () => ({
   PgWeb3: {
-    BpfLoaderUpgradeableProgram: jest.requireActual(
-      "../../utils/web3/bpf-loader-upgradeable"
+    BpfLoaderUpgradeableProgram: (
+      await vi.importActual<
+        typeof import("../../utils/web3/bpf-loader-upgradeable")
+      >("../../utils/web3/bpf-loader-upgradeable")
     ).BpfLoaderUpgradeableProgram,
   },
 }));

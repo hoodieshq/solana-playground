@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { chatThread } from "./chat-thread";
 import { openThread } from "./open-thread";
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
@@ -26,19 +27,19 @@ const setVisibility = (state: "visible" | "hidden") => {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the chat-thread effect", () => {
-  let push: jest.SpyInstance;
+  let push: MockInstance;
   let effect: Disposable | null;
 
   beforeEach(() => {
     effect = null;
-    push = jest.spyOn(PgChatSync, "push").mockResolvedValue(true);
-    jest.spyOn(PgChatSync, "pull").mockResolvedValue(null);
-    jest.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
-    jest.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
-    jest.spyOn(PgAssistant, "threadId", "get").mockReturnValue("p1");
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p1" as never);
+    push = vi.spyOn(PgChatSync, "push").mockResolvedValue(true);
+    vi.spyOn(PgChatSync, "pull").mockResolvedValue(null);
+    vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
+    vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
+    vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p1" as never
+    );
     Object.defineProperty(document, "visibilityState", {
       value: "visible",
       configurable: true,
@@ -47,7 +48,7 @@ describe("the chat-thread effect", () => {
 
   afterEach(() => {
     effect?.dispose();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("hands the open thread over as the tab goes to the background", async () => {
@@ -109,10 +110,10 @@ describe("the chat-thread effect", () => {
   it("moves to the account's thread when the server has never seen this one", async () => {
     // Sign-out clears the thread index, so the next open mints a fresh id and
     // its pull 404s -- while the account holds the conversation under another
-    jest
-      .spyOn(PgChatSync, "adoptAccountThread")
-      .mockResolvedValue("account-thread");
-    const load = PgAssistant.loadThread as unknown as jest.SpyInstance;
+    vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(
+      "account-thread"
+    );
+    const load = PgAssistant.loadThread as unknown as MockInstance;
 
     await openThread("p1", "p1");
 
@@ -122,7 +123,7 @@ describe("the chat-thread effect", () => {
   });
 
   it("does not look elsewhere when the pull found the thread", async () => {
-    jest.spyOn(PgChatSync, "pull").mockResolvedValue([]);
+    vi.spyOn(PgChatSync, "pull").mockResolvedValue([]);
 
     await openThread("p1", "p1");
 

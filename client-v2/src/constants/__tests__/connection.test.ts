@@ -84,16 +84,16 @@ describe("env wiring", () => {
 
   afterEach(() => {
     process.env = { ...OLD };
-    jest.resetModules();
+    vi.resetModules();
   });
 
-  it("reads REACT_APP_<CLUSTER>_RPC_URL", () => {
+  it("reads REACT_APP_<CLUSTER>_RPC_URL", async () => {
     process.env.REACT_APP_DEVNET_RPC_URL = "https://devnet.example.com";
     process.env.REACT_APP_TESTNET_RPC_URL = "https://testnet.example.com";
     process.env.REACT_APP_MAINNET_RPC_URL = "https://mainnet.example.com";
 
-    jest.resetModules();
-    const mod = require("../connection");
+    vi.resetModules();
+    const mod = await import("../connection");
 
     expect(
       mod.PLATFORM_ENDPOINTS.map((e: PlatformEndpoint) => e.value)
@@ -105,13 +105,13 @@ describe("env wiring", () => {
     expect(mod.DEFAULT_ENDPOINT).toBe("https://devnet.example.com");
   });
 
-  it("adds nothing and keeps the native default when unset", () => {
+  it("adds nothing and keeps the native default when unset", async () => {
     delete process.env.REACT_APP_DEVNET_RPC_URL;
     delete process.env.REACT_APP_TESTNET_RPC_URL;
     delete process.env.REACT_APP_MAINNET_RPC_URL;
 
-    jest.resetModules();
-    const mod = require("../connection");
+    vi.resetModules();
+    const mod = await import("../connection");
 
     expect(mod.PLATFORM_ENDPOINTS).toEqual([]);
     expect(mod.DEFAULT_ENDPOINT).toBe(Endpoint.DEVNET);

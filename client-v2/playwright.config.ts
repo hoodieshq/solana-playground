@@ -1,8 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Browser-level tests. Kept out of `src` so CRA's jest never collects them -
- * its testMatch would otherwise try to run `.spec.ts` files under a runner
+ * Browser-level tests. Kept out of `src` so vitest never collects them -
+ * its `include` would otherwise try to run `.spec.ts` files under a runner
  * that has no browser.
  */
 export default defineConfig({

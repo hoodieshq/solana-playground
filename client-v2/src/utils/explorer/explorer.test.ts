@@ -136,7 +136,7 @@ describe("init calls that overlap", () => {
     };
     const real = statics._init.bind(PgExplorer);
     const order: string[] = [];
-    jest.spyOn(statics, "_init").mockImplementation(async (params) => {
+    vi.spyOn(statics, "_init").mockImplementation(async (params) => {
       order.push("start");
       await new Promise((resolve) => setTimeout(resolve, 10));
       await real(params);
@@ -152,8 +152,7 @@ describe("init calls that overlap", () => {
     const statics = PgExplorer as unknown as {
       _init: (params?: unknown) => Promise<void>;
     };
-    jest
-      .spyOn(statics, "_init")
+    vi.spyOn(statics, "_init")
       .mockRejectedValueOnce(new Error("first failed"))
       .mockResolvedValueOnce(undefined);
 
@@ -164,7 +163,7 @@ describe("init calls that overlap", () => {
     await expect(second).resolves.toBeUndefined();
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 });
 
 /**
@@ -196,7 +195,7 @@ describe("PgExplorer.refreshWorkspaces", () => {
     await PgExplorer.createWorkspace("beta", { files: files("beta") });
     clearFailures();
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("takes a neighbour's list and keeps this tab's current", async () => {
     const alpha = PgExplorer.workspaceIdOf("alpha")!;
@@ -338,15 +337,15 @@ describe("PgExplorer.refreshWorkspaces", () => {
       _saveWorkspaces: () => Promise<void>;
     };
     const read = PgExplorer.fs.readToJSON.bind(PgExplorer.fs);
-    jest
-      .spyOn(PgExplorer.fs, "readToJSON")
-      .mockImplementationOnce(async (path: string) => {
+    vi.spyOn(PgExplorer.fs, "readToJSON").mockImplementationOnce(
+      async (path: string) => {
         explorer._workspace.rename("renamed");
         await explorer._saveWorkspaces();
         const config = await read(path);
         explorer._workspace.rename("beta");
         return config;
-      });
+      }
+    );
 
     expect(await PgExplorer.refreshWorkspaces()).toBe(false);
     expect(PgExplorer.currentWorkspaceName).toBe("beta");
@@ -357,14 +356,14 @@ describe("PgExplorer.refreshWorkspaces", () => {
     // look like the store's list at the next refresh -- which then took the
     // store's, without it
     const write = PgExplorer.fs.writeFile.bind(PgExplorer.fs);
-    jest
-      .spyOn(PgExplorer.fs, "writeFile")
-      .mockImplementation(async (path: string, data: string) => {
+    vi.spyOn(PgExplorer.fs, "writeFile").mockImplementation(
+      async (path: string, data: string) => {
         if (path === PgWorkspace.WORKSPACES_CONFIG_PATH) {
           throw new Error("QuotaExceededError");
         }
         await write(path, data);
-      });
+      }
+    );
     await expect(
       PgExplorer.createWorkspace("gamma", { files: files("gamma") })
     ).rejects.toThrow("QuotaExceeded");
