@@ -569,6 +569,19 @@ describe("reloadCurrentFromDisk", () => {
     });
   });
 
+  it("runs the next reload after one that threw", async () => {
+    // Queued one behind another, so a rejection passed down the chain would
+    // stop every reload this tab asks for from then on
+    (PgExplorer.refreshWorkspaces as jest.Mock).mockRejectedValueOnce(
+      new Error("store gone away")
+    );
+    const first = reloadCurrentFromDisk();
+    const second = reloadCurrentFromDisk();
+
+    await expect(first).rejects.toThrow("store gone away");
+    expect(await second).toBe("unchanged");
+  });
+
   it("re-opens on request over unsaved keystrokes", async () => {
     // `adopt`: the user has chosen to discard this tab's copy
     (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(true);
