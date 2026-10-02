@@ -481,7 +481,15 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
     };
     const id = new URL(r.request().url()).searchParams.get("id");
     if (id) {
-      return json(r, { project: { ...shared, snapshot: stored?.snapshot } });
+      return json(r, {
+        project: {
+          id: shared.id,
+          name: shared.name,
+          kind: shared.kind,
+          updatedAt: shared.updatedAt,
+          snapshot: stored?.snapshot,
+        },
+      });
     }
     return json(r, { projects: stored ? [shared] : [] });
   });
@@ -492,7 +500,10 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
 
   // The other device renames it, and changes nothing else
   name = "Renamed elsewhere";
-  stored = { ...stored!, updatedAt: "2026-05-01T00:00:00.000Z" };
+  stored = {
+    snapshot: stored!.snapshot,
+    updatedAt: "2026-05-01T00:00:00.000Z",
+  };
 
   writes.length = 0;
   await page.reload();
@@ -505,6 +516,7 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type("\n// an edit after the rename");
   await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
   expect(writes.map((w) => w.name)).not.toContain("Before");
   expect(name).toBe("Renamed elsewhere");
 });

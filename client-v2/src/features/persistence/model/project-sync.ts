@@ -1009,8 +1009,6 @@ export class PgProjectSync {
         // only on the other device, the workspace takes the server's name
         // here, before anything is written under the old one. Renamed here,
         // or on both, the local name stands, and the upload below sends it.
-        // Recording the server's name without renaming the workspace pushed
-        // this device's old name straight back over the other device's.
         //
         // A stand-in name sync gave the workspace earlier counts as the
         // agreed one, and one this rename leaves -- the server's name taken

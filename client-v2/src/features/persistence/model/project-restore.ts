@@ -78,7 +78,7 @@ const isClean = async (projectId: string, localName: string) =>
  *
  * Found by the mark, which records the stand-in (`SyncMark.localName`); a
  * rename the user made here is never recorded there, and is not this pass's
- * to undo. Left in place, the stand-in stayed for good.
+ * to undo.
  *
  * Runs after the main pass and the deletes, which are what move a holder
  * out of the way: deleted elsewhere, or renamed -- the other device renamed

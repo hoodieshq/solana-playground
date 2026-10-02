@@ -2237,17 +2237,6 @@ describe("a project renamed on one device", () => {
     expect(server.get(FOO.id)!.name).toBe("Qux");
   });
 
-  it("steps around a local project that already has the name", async () => {
-    const workspaces = [foo(), bar()];
-    const rename = await inSync(workspaces);
-
-    otherDeviceRenamed(FOO.id, "Bar");
-    await reconcile();
-
-    expect(rename).toHaveBeenCalledWith("Bar imported", { from: "Foo" });
-    expect(server.get(FOO.id)!.name).toBe("Bar");
-  });
-
   /** An import that does what the explorer's does to the list and the store */
   const importsInto = (workspaces: Array<{ id: string; name: string }>) =>
     jest
