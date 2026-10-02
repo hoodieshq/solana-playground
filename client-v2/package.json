@@ -82,8 +82,11 @@
     "@types/uuid": "^8.3.4",
     "circular-dependency-plugin": "^5.2.2",
     "csstype": "^3.1.2",
+    "jsdom": "^30.1.1",
     "monaco-editor-webpack-plugin": "^7.0.1",
-    "tsx": "^4.20.5"
+    "tsx": "^4.20.5",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   },
   "resolutions": {
     "@solana/buffer-layout": "^4.0.0",
@@ -117,6 +120,7 @@
     "test": "yarn test-types && yarn test-unit && yarn build",
     "test-types": "tsc --noEmit",
     "test-unit": "craco test --watchAll=false",
+    "test-vitest": "vitest run",
     "test-api": "node --test --env-file-if-exists=.env \"*.test.mjs\" \"api/**/*.test.mjs\" \"src/features/**/model/**/*.test.mjs\"",
     "db-migrate": "dbmate --no-dump-schema up",
     "db-rollback": "dbmate --no-dump-schema down",
