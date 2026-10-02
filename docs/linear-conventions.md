@@ -66,6 +66,12 @@ the TLDR before grooming, fills the Estimate field from the ballpark, and
 deletes both markers. Their absence is the signal that a human vetted the
 summary.
 
+**No ticket closes with a marker left in it** (Sergey, 2 Oct 2026). Before
+a ticket moves to Done, the italic draft lines are gone and the Estimate
+field is set: from the ballpark, or from our own estimate when the work
+turned out different. The `**Ballpark:**` line itself stays as the record
+of what was proposed. The scale is XS 1, S 2, M 3, L 5, XL 8.
+
 ## Why not fix this at the source
 
 Two better fixes exist and were both rejected for now:
