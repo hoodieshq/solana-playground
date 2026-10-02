@@ -60,4 +60,17 @@ export const PgWorkspaceRegistry = {
     if (disk === "unreadable") return false;
     return disk.get(name) === id;
   },
+
+  /**
+   * Whether the store's registry has `id` under any name.
+   *
+   * @returns `null` when there is no registry to ask, or it cannot be read:
+   * the callers are about to delete, and "cannot tell" must not read as
+   * "not there"
+   */
+  async lists(id: string): Promise<boolean | null> {
+    const disk = await onDisk();
+    if (disk === "missing" || disk === "unreadable") return null;
+    return [...disk.values()].includes(id);
+  },
 };

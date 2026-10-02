@@ -8,6 +8,7 @@ import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
+import { PgWorkspace } from "../../utils/explorer/workspace";
 import type { Disposable } from "../../utils/types";
 
 /**
@@ -363,7 +364,18 @@ describe("deleting a workspace here", () => {
   afterEach(() => {
     effect?.dispose();
     jest.restoreAllMocks();
+    stored().delete(PgWorkspace.WORKSPACES_CONFIG_PATH);
   });
+
+  const stored = () =>
+    (PgFs as unknown as { __files: Map<string, string> }).__files;
+
+  /** The list as the store holds it, which may be ahead of this tab's */
+  const registered = (workspaces: Array<{ id: string; name: string }>) =>
+    stored().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces })
+    );
 
   it("tombstones it on the server and drops its conversation", async () => {
     // `onDidDeleteWorkspace` carries no id, so the deleted project is found by
@@ -384,6 +396,8 @@ describe("deleting a workspace here", () => {
       .spyOn(PgChatStorage, "remove")
       .mockResolvedValue(undefined);
 
+    registered([{ id: "still-here", name: "Still Here" }]);
+
     effect = projectSync();
     dispatch(PgExplorer.events.ON_DID_DELETE_WORKSPACE);
     // A macrotask, not a handful of microtasks: the subscriber awaits the
@@ -395,5 +409,45 @@ describe("deleting a workspace here", () => {
     // A tutorial's id is derived from its name, so restarting one reuses the
     // id -- and without this the previous run's conversation comes back with it
     expect(forget).toHaveBeenCalledWith("tut:hello");
+  });
+
+  it("leaves a project another tab created that this tab has not listed", async () => {
+    // Synced from the neighbour, so it has a mark, which every tab shares --
+    // and no name here until this tab re-reads the list
+    jest
+      .spyOn(PgSyncMark, "projectIds")
+      .mockResolvedValue(["deleted-here", "made-next-door"]);
+    jest.spyOn(PgSyncMark, "remove").mockResolvedValue(undefined);
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(undefined);
+    const remove = jest
+      .spyOn(PgProjectSync, "remove")
+      .mockResolvedValue(true as never);
+    const forget = jest
+      .spyOn(PgChatStorage, "remove")
+      .mockResolvedValue(undefined);
+    registered([{ id: "made-next-door", name: "Next Door" }]);
+
+    effect = projectSync();
+    dispatch(PgExplorer.events.ON_DID_DELETE_WORKSPACE);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(remove).toHaveBeenCalledWith("deleted-here");
+    expect(remove).not.toHaveBeenCalledWith("made-next-door");
+    expect(forget).not.toHaveBeenCalledWith("made-next-door");
+  });
+
+  it("deletes nothing when the store cannot say what it lists", async () => {
+    jest.spyOn(PgSyncMark, "projectIds").mockResolvedValue(["unknown"]);
+    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(undefined);
+    const remove = jest
+      .spyOn(PgProjectSync, "remove")
+      .mockResolvedValue(true as never);
+    stored().set(PgWorkspace.WORKSPACES_CONFIG_PATH, '{"workspaces":[');
+
+    effect = projectSync();
+    dispatch(PgExplorer.events.ON_DID_DELETE_WORKSPACE);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(remove).not.toHaveBeenCalled();
   });
 });

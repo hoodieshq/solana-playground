@@ -8,6 +8,7 @@ import {
 } from "../../features/persistence/model/snapshot";
 import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgWorkspaceRegistry } from "../../features/persistence/model/workspace-registry";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel, which reaches `settings.ts` and
 // a webpack-defined global jest has no answer for. Same workaround as
@@ -193,11 +194,22 @@ export const projectSync = (): Disposable => {
    * Without the DELETE the tombstone machinery on the server was unreachable,
    * and the next reconcile re-imported the project from a row that was still
    * live -- deleting a project was undone by a reload.
+   *
+   * Decided against the store, not only this tab's list. Marks are shared by
+   * every tab, and this tab's list can be behind a neighbour's: a project
+   * created and synced in another tab has a mark, and no name here until
+   * this tab next re-reads the list. Taken from memory alone, deleting any
+   * project here deleted that one too -- on the server, chat included.
+   * Not by re-reading the list here: that is the reload's to do, inside its
+   * own queue, where nothing is half-way through when the list changes.
    */
   const settleLocalDeletes = async () => {
     try {
       for (const projectId of await PgSyncMark.projectIds()) {
         if (PgExplorer.workspaceNameOf(projectId)) continue;
+        // Listed in the store, or the store cannot say: not deleted, or not
+        // known to be
+        if ((await PgWorkspaceRegistry.lists(projectId)) !== false) continue;
 
         await PgProjectSync.remove(projectId);
         await PgSyncMark.remove(projectId);

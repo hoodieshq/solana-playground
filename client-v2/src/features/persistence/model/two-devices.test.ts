@@ -10,6 +10,7 @@ import { projectSync } from "../../../effects/project-sync/project-sync";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgWorkspace } from "../../../utils/explorer/workspace";
 
 // Reconcile, adopt and merge reload the open workspace from disk through
 // `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
@@ -1870,6 +1871,12 @@ describe("signing out of a browser", () => {
       .mockImplementation(async (name?: string) => {
         const index = workspaces.findIndex((w) => w.name === name);
         if (index >= 0) workspaces.splice(index, 1);
+        // Saved before the event, as the real delete does: what the effect
+        // settles a delete against is the store's list
+        storedFiles().set(
+          PgWorkspace.WORKSPACES_CONFIG_PATH,
+          JSON.stringify({ workspaces })
+        );
         PgCommon.createAndDispatchCustomEvent(
           PgExplorer.events.ON_DID_DELETE_WORKSPACE
         );
