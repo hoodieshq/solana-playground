@@ -134,7 +134,13 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
     setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
 
   const label =
-    status === "allowed" ? "APPLIED" : status === "denied" ? "DECLINED" : null;
+    status === "allowed"
+      ? "APPLIED"
+      : status === "denied"
+      ? "DECLINED"
+      : status === "unanswered"
+      ? "NOT ANSWERED"
+      : null;
 
   return (
     <Card $pending={pending}>
@@ -167,7 +173,12 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
         </Actions>
       ) : (
         <Outcome $allowed={status === "allowed"}>
-          {item.outcome ?? (status === "allowed" ? "done" : "not applied")}
+          {item.outcome ??
+            (status === "allowed"
+              ? "done"
+              : status === "unanswered"
+              ? "not applied -- the session ended before you answered"
+              : "not applied")}
         </Outcome>
       )}
     </Card>
@@ -393,9 +404,9 @@ const StatusLabel = styled.span<{ $status: string }>`
     letter-spacing: 0.08em;
     color: ${$status === "allowed"
       ? theme.colors.state.success.color
-      : $status === "denied"
-      ? theme.colors.default.textSecondary
-      : theme.colors.default.primary};
+      : $status === "pending"
+      ? theme.colors.default.primary
+      : theme.colors.default.textSecondary};
   `}
 `;
 

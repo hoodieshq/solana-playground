@@ -31,6 +31,38 @@ const SUFFIX = ".json";
 export const MAX_MESSAGES_PER_THREAD = 200;
 
 /**
+ * The id of the notice that stands in for what this device dropped.
+ *
+ * Derived from the thread id and therefore stable: a rewrite replaces the same
+ * item instead of stacking a second one, and the two devices that both
+ * truncate the same thread agree on the id rather than each contributing one.
+ */
+export const truncationNoticeId = (threadId: string) => `truncated:${threadId}`;
+
+/**
+ * Drop the truncation notice from a thread.
+ *
+ * The cap is this device's, not the conversation's -- the server keeps every
+ * message -- so the notice must not travel with a thread being uploaded, or a
+ * second device would be told that messages it can still see are gone.
+ */
+export const withoutTruncationNotice = (items: readonly ChatItem[]) =>
+  items.filter((item) => !item.id.startsWith("truncated:"));
+
+/**
+ * Deliberately carries no count. The number is unknowable on any write after
+ * the first -- by then the dropped messages are gone -- and a notice whose
+ * text never changes is one a rewrite can reproduce exactly.
+ */
+const truncationNotice = (threadId: string): ChatItem => ({
+  kind: "notice",
+  id: truncationNoticeId(threadId),
+  // Ahead of everything it stands for, so it sorts to the top of the thread
+  createdAt: new Date(0).toISOString(),
+  text: "Earlier messages in this conversation are not kept on this device.",
+});
+
+/**
  * Thread ids become file names, and a tutorial's id carries a colon
  * (`tut:hello-anchor`). Encoding keeps the mapping total and reversible
  * instead of relying on what the backing store happens to tolerate.
@@ -95,7 +127,18 @@ export class PgChatStorage {
   }
 
   static async write(threadId: string, items: readonly ChatItem[]) {
-    const capped = items.slice(-MAX_MESSAGES_PER_THREAD);
+    // The notice is re-derived rather than carried through, so a thread that
+    // has been truncated before keeps saying so even once the rest fits again
+    const real = withoutTruncationNotice(items);
+    const truncated =
+      real.length > MAX_MESSAGES_PER_THREAD || real.length < items.length;
+    // Past the cap one slot goes to the notice, so one more message makes way
+    const capped = truncated
+      ? [
+          truncationNotice(threadId),
+          ...real.slice(-(MAX_MESSAGES_PER_THREAD - 1)),
+        ]
+      : real;
 
     try {
       // `createParents` on the write, not a separate `createDir`: that helper
