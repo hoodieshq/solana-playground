@@ -40,8 +40,9 @@ describe("GlobalsProvider", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    // Set here, not in the factory: `mockReset` (see `vitest.config.ts`)
-    // resets every mock before each test
+    // The factory's `initAll` is a bare `vi.fn()`, which `mockReset` (see
+    // `vitest.config.ts`) returns to before each test, so its answer is set
+    // here
     (initAll as Mock).mockResolvedValue({ dispose: vi.fn() });
   });
 
