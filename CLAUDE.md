@@ -199,6 +199,15 @@ yarn db-dump               # regenerate db/schema.sql after a migration
   it flushes on `visibilitychange` -> `hidden` (not `beforeunload`, which is
   too late, and not `keepalive`, which caps at ~64 KB against an 8 MB limit)
   and reconciles before it may push again.
+- **Tabs agree through the store and one Web Lock.** Uploads are built from
+  disk (`snapshotOf`), never from a tab's memory, which can be behind another
+  tab's write. Reconcile passes, pushes, merges, adopts and banner answers all
+  run under `withSyncLock` (`model/sync-lock.ts`), one lock per origin. It is
+  held per tab, not per call, so a holder that reaches another locked path (a
+  push that 409s and merges, a reconcile that adopts) never waits for itself.
+  Take it before the per-project queue, never inside it. Each pass starts with
+  `reloadCurrentFromDisk` (`model/tab-reload.ts`), and `effects/tab-sync`
+  announces writes to the other tabs over `BroadcastChannel`.
 - **Sync never drops a program keypair the account lacks.** Wherever the
   account's `program-info.json` replaces the local one (adopt, and `planMerge`'s
   generated-file rule), `keepLocalKeypair` (`model/merge.ts`) carries a local

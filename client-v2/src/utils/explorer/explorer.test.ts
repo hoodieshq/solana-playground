@@ -1,5 +1,9 @@
 import { PgExplorer } from "./explorer";
 import { PgWorkspace } from "./workspace";
+import {
+  clearFailures,
+  getFailures,
+} from "../../features/persistence/model/diagnostics";
 
 /**
  * The two states the explorer could not hold: no current workspace, and a
@@ -117,5 +121,212 @@ describe("deleting the current workspace", () => {
     }
 
     expect(PgExplorer.allWorkspaceNames).toEqual([]);
+  });
+});
+
+/**
+ * Tabs of one browser share the workspaces config, and each used to read it
+ * once at load. `refreshWorkspaces` is how a tab catches up with a neighbour
+ * that created, deleted or renamed a workspace since -- without taking the
+ * neighbour's current workspace as its own.
+ */
+
+const stored = () =>
+  (PgExplorer.fs as unknown as { __files: Map<string, string> }).__files;
+
+const readConfig = () =>
+  JSON.parse(stored().get(PgWorkspace.WORKSPACES_CONFIG_PATH)!) as {
+    workspaces: Array<{ id: string; name: string }>;
+    currentId?: string;
+  };
+
+/** What a neighbour's save leaves in the store */
+const writeConfig = (config: {
+  workspaces: Array<{ id: string; name: string }>;
+  currentId?: string;
+}) => stored().set(PgWorkspace.WORKSPACES_CONFIG_PATH, JSON.stringify(config));
+
+describe("PgExplorer.refreshWorkspaces", () => {
+  beforeEach(async () => {
+    await reset();
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    clearFailures();
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it("takes a neighbour's list and keeps this tab's current", async () => {
+    const alpha = PgExplorer.workspaceIdOf("alpha")!;
+    const beta = PgExplorer.workspaceIdOf("beta")!;
+    writeConfig({
+      workspaces: [
+        { id: alpha, name: "alpha" },
+        { id: beta, name: "beta" },
+        { id: "g1", name: "gamma" },
+      ],
+      // The neighbour saved last, with its own current workspace
+      currentId: "g1",
+    });
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
+    expect(PgExplorer.currentWorkspaceId).toBe(beta);
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+  });
+
+  it("follows the current workspace through a rename elsewhere", async () => {
+    const alpha = PgExplorer.workspaceIdOf("alpha")!;
+    const beta = PgExplorer.workspaceIdOf("beta")!;
+    writeConfig({
+      workspaces: [
+        { id: alpha, name: "alpha" },
+        { id: beta, name: "renamed" },
+      ],
+      currentId: alpha,
+    });
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(PgExplorer.currentWorkspaceName).toBe("renamed");
+  });
+
+  it("drops a workspace deleted elsewhere", async () => {
+    const alpha = PgExplorer.workspaceIdOf("alpha")!;
+    writeConfig({
+      workspaces: [{ id: alpha, name: "alpha" }],
+      currentId: alpha,
+    });
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha"]);
+    // Deleted while this tab had it open: nothing is current any more, which
+    // `reloadCurrentFromDisk` answers by moving on
+    expect(PgExplorer.currentWorkspaceName).toBeUndefined();
+  });
+
+  it("writes nothing", async () => {
+    const alpha = PgExplorer.workspaceIdOf("alpha")!;
+    const config = {
+      workspaces: [{ id: alpha, name: "alpha" }],
+      currentId: "x",
+    };
+    writeConfig(config);
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(readConfig()).toEqual(config);
+  });
+
+  it("keeps the list in memory when the config cannot be read", async () => {
+    // A missing file reads as the empty default elsewhere. Taken here, that
+    // would empty this tab's list, and its next save would empty the store's.
+    stored().delete(PgWorkspace.WORKSPACES_CONFIG_PATH);
+
+    // Nothing there is nothing to take, so nothing is owed either
+    expect(await PgExplorer.refreshWorkspaces()).toBe(true);
+
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta"]);
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+  });
+
+  it("says so when the config is there and cannot be parsed", async () => {
+    // Caught half-written, or corrupted. Read as fresh, it told the reload
+    // there was nothing of a neighbour's to catch up with, when the store
+    // may hold exactly that.
+    stored().set(PgWorkspace.WORKSPACES_CONFIG_PATH, '{"workspaces":[');
+
+    expect(await PgExplorer.refreshWorkspaces()).toBe(false);
+
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta"]);
+    expect(getFailures()).toEqual([
+      expect.objectContaining({ what: "refresh workspaces" }),
+    ]);
+  });
+
+  it("does nothing in a temporary workspace", async () => {
+    await PgExplorer.init({ files: [["/src/lib.rs", "t"]] });
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(PgExplorer.allWorkspaceNames).toBeUndefined();
+  });
+
+  it("leaves this tab's own create alone while it is in flight", async () => {
+    // `createWorkspace` adds the entry to memory at once and saves it only
+    // inside the switch, after awaits. A refresh in between used to take the
+    // store's list -- without the new workspace -- and leave the files with
+    // nothing pointing at them.
+    const creating = PgExplorer.createWorkspace("gamma", {
+      files: files("gamma"),
+    });
+    // Said so, too: nothing was taken, and the caller has to know
+    expect(await PgExplorer.refreshWorkspaces()).toBe(false);
+    await creating;
+
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
+    expect(PgExplorer.currentWorkspaceName).toBe("gamma");
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+    ]);
+  });
+
+  it("refreshes again once that save has landed", async () => {
+    await PgExplorer.createWorkspace("gamma", { files: files("gamma") });
+    writeConfig({ workspaces: [], currentId: readConfig().currentId });
+
+    await PgExplorer.refreshWorkspaces();
+
+    expect(PgExplorer.allWorkspaceNames).toEqual([]);
+  });
+
+  it("leaves a save that lands during the read alone", async () => {
+    // A rename lands while the config is being read, and a second one has
+    // begun -- in memory, not yet saved -- by the time the read returns. The
+    // list in memory then looks untouched since the read started, but what
+    // the store holds is the first rename, and taking it would undo the
+    // second. Driven through the list and its save directly: the in-memory
+    // filesystem cannot move a workspace's directory.
+    const explorer = PgExplorer as unknown as {
+      _workspace: PgWorkspace;
+      _saveWorkspaces: () => Promise<void>;
+    };
+    const read = PgExplorer.fs.readToJSON.bind(PgExplorer.fs);
+    jest
+      .spyOn(PgExplorer.fs, "readToJSON")
+      .mockImplementationOnce(async (path: string) => {
+        explorer._workspace.rename("renamed");
+        await explorer._saveWorkspaces();
+        const config = await read(path);
+        explorer._workspace.rename("beta");
+        return config;
+      });
+
+    expect(await PgExplorer.refreshWorkspaces()).toBe(false);
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+  });
+
+  it("does not record a save that failed as saved", async () => {
+    // Recorded before the write, a failed one made this tab's own create
+    // look like the store's list at the next refresh -- which then took the
+    // store's, without it
+    const write = PgExplorer.fs.writeFile.bind(PgExplorer.fs);
+    jest
+      .spyOn(PgExplorer.fs, "writeFile")
+      .mockImplementation(async (path: string, data: string) => {
+        if (path === PgWorkspace.WORKSPACES_CONFIG_PATH) {
+          throw new Error("QuotaExceededError");
+        }
+        await write(path, data);
+      });
+    await expect(
+      PgExplorer.createWorkspace("gamma", { files: files("gamma") })
+    ).rejects.toThrow("QuotaExceeded");
+
+    expect(await PgExplorer.refreshWorkspaces()).toBe(false);
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
   });
 });
