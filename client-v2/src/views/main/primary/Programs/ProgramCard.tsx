@@ -35,7 +35,7 @@ export type ProgramCardProps = {
   icon: string;
 } & Required<Pick<TutorialData, "framework" | "categories">>;
 
-const ProgramCard: FC<ProgramCardProps> = ({
+const ProgramCard: FC<React.PropsWithChildren<ProgramCardProps>> = ({
   name,
   description,
   repo,
@@ -133,7 +133,9 @@ interface ClickableTagProps {
   value: Arrayable<string> | undefined;
 }
 
-const ClickableTag: FC<ClickableTagProps> = (props) => (
+const ClickableTag: FC<React.PropsWithChildren<ClickableTagProps>> = (
+  props
+) => (
   <Link href={`/programs?${props.kind}=${props.value}`}>
     <Tag {...props} />
   </Link>

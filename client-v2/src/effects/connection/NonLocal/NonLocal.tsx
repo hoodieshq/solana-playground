@@ -6,7 +6,9 @@ import { Endpoint } from "../../../constants";
 import { PgConnection, PgSettings, PgView } from "../../../utils";
 import type { ToastChildProps } from "../../../components/Toast";
 
-export const NonLocal: FC<ToastChildProps> = ({ id }) => {
+export const NonLocal: FC<React.PropsWithChildren<ToastChildProps>> = ({
+  id,
+}) => {
   // Close the toast if the user changes the cluster
   useEffect(() => {
     let isInitial = true;

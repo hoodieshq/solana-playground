@@ -8,7 +8,7 @@ interface SpinnerWithBgProps extends SpinnerProps {
   className?: string;
 }
 
-export const SpinnerWithBg: FC<SpinnerWithBgProps> = ({
+export const SpinnerWithBg: FC<React.PropsWithChildren<SpinnerWithBgProps>> = ({
   loading,
   className,
   children,

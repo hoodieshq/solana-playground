@@ -13,7 +13,7 @@ interface ImportButtonProps {
   title?: string;
 }
 
-const ImportButton: FC<ImportButtonProps> = ({
+const ImportButton: FC<React.PropsWithChildren<ImportButtonProps>> = ({
   onImport,
   accept,
   buttonKind = "outline",

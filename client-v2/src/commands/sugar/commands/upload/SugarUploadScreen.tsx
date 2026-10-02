@@ -8,7 +8,9 @@ interface SugarUploadScreenProps {
   title: string;
 }
 
-export const SugarUploadScreen: FC<SugarUploadScreenProps> = ({ title }) => {
+export const SugarUploadScreen: FC<
+  React.PropsWithChildren<SugarUploadScreenProps>
+> = ({ title }) => {
   const [files, setFiles] = useState<FileList>();
   const [error, setError] = useState("");
 

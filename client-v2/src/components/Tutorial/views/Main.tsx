@@ -18,7 +18,7 @@ import {
 } from "../../../utils";
 import type { TutorialMainComponentProps } from "../types";
 
-export const Main: FC<TutorialMainComponentProps> = ({
+export const Main: FC<React.PropsWithChildren<TutorialMainComponentProps>> = ({
   pageNumber,
   pages,
   layout = "editor-content",

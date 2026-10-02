@@ -10,7 +10,9 @@ interface TutorialDetailsProps {
   details: ClickableTutorialDetailProps[];
 }
 
-const TutorialDetails: FC<TutorialDetailsProps> = ({ details }) => {
+const TutorialDetails: FC<React.PropsWithChildren<TutorialDetailsProps>> = ({
+  details,
+}) => {
   const ref = useDifferentBackground();
 
   return (
@@ -80,10 +82,9 @@ interface ClickableTutorialDetailProps {
   data: Arrayable<string> | undefined;
 }
 
-const ClickableTutorialDetail: FC<ClickableTutorialDetailProps> = ({
-  data,
-  ...props
-}) => (
+const ClickableTutorialDetail: FC<
+  React.PropsWithChildren<ClickableTutorialDetailProps>
+> = ({ data, ...props }) => (
   <Link href={`/tutorials?${props.kind}=${data}`}>
     <Tag {...props} value={data} />
   </Link>

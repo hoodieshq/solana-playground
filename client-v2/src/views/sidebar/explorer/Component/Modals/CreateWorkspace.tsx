@@ -92,7 +92,7 @@ interface FrameworkProps extends FrameworkType {
   select: Fn;
 }
 
-const Framework: FC<FrameworkProps> = ({
+const Framework: FC<React.PropsWithChildren<FrameworkProps>> = ({
   name,
   language,
   icon,

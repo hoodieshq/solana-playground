@@ -92,7 +92,7 @@ interface ProgramSettingProps {
   isOpen?: boolean;
 }
 
-const ProgramSetting: FC<ProgramSettingProps> = ({
+const ProgramSetting: FC<React.PropsWithChildren<ProgramSettingProps>> = ({
   title,
   description,
   element,

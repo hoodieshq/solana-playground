@@ -44,6 +44,12 @@ let disposables: Disposable[] = [];
 let isTutorialInView = false;
 let mainSecondaryHeight = 0;
 
+// The sidebar change this route makes itself, which its own listener must
+// not read as the user leaving the lesson. Module scope, beside
+// `isTutorialInView`: the listener is registered on the first route call
+// only, and later calls set this for that same listener to read.
+let ownSidebarChange: SidebarPageName | undefined;
+
 const handleTutorial = (name: string, page: string) => {
   // Get the tutorial
   const tutorial = PgTutorial.all.find((t) => {
@@ -126,6 +132,10 @@ const handleTutorial = (name: string, page: string) => {
       PgView.onDidChangeCurrentSidebarPage(
         (p) => {
           if (!p) return;
+          if (p.name === ownSidebarChange) {
+            ownSidebarChange = undefined;
+            return;
+          }
 
           // Skip handling other routed pages in order to avoid navigation issues.
           // Without this check, this callback runs again after clicking to a
@@ -183,7 +193,10 @@ const handleTutorial = (name: string, page: string) => {
       { dispose: () => PgView.setMainSecondaryHeight(mainSecondaryHeight) },
 
       // Set `isTutorialInView` to its default value
-      { dispose: () => (isTutorialInView = false) }
+      { dispose: () => (isTutorialInView = false) },
+
+      // Drop a pending own sidebar change the listener never saw
+      { dispose: () => (ownSidebarChange = undefined) }
     );
   }
 
@@ -196,6 +209,7 @@ const handleTutorial = (name: string, page: string) => {
     });
     disposables.push({ dispose: () => (PgView.sidebar.props = {}) });
   } else if (!PgView.sidebar.name || PgView.sidebar.name === "Tutorials") {
+    ownSidebarChange = "Explorer";
     PgView.sidebar.name = "Explorer";
   } else {
     PgView.sidebar.props = {};

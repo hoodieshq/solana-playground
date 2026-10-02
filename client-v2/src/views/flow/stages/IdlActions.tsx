@@ -15,7 +15,10 @@ interface IdlActionsProps {
  * saves what the build already produced, "Load IDL file" replaces the IDL
  * this app uses -- neither touches the chain.
  */
-const IdlActions: FC<IdlActionsProps> = ({ showGenerate, showUpload }) => {
+const IdlActions: FC<React.PropsWithChildren<IdlActionsProps>> = ({
+  showGenerate,
+  showUpload,
+}) => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(
     null

@@ -29,7 +29,7 @@ interface HeaderProps {
  * The Flow layout's top bar: project switcher on the left, the dev-loop
  * stepper centered, cluster/wallet/settings on the right.
  */
-const Header: FC<HeaderProps> = ({
+const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
   onOpenGallery,
   onToggleSettings,
   settingsOpen,

@@ -10,7 +10,9 @@ interface SelectProgramProps {
   programNames: string[];
 }
 
-export const SelectProgram: FC<SelectProgramProps> = ({ programNames }) => {
+export const SelectProgram: FC<React.PropsWithChildren<SelectProgramProps>> = ({
+  programNames,
+}) => {
   const [selected, setSelected] = useState<string | null>(null);
 
   return (

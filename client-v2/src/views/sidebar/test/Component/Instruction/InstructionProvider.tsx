@@ -9,10 +9,9 @@ interface InstructionProviderProps {
 
 const InstructionContext = createContext<InstructionProviderProps | null>(null);
 
-const InstructionProvider: FC<InstructionProviderProps> = ({
-  children,
-  ...props
-}) => {
+const InstructionProvider: FC<
+  React.PropsWithChildren<InstructionProviderProps>
+> = ({ children, ...props }) => {
   return (
     <InstructionContext.Provider value={props}>
       {children}

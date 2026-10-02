@@ -20,7 +20,7 @@ interface ImportFsProps {
   importError?: string;
 }
 
-export const ImportFs: FC<ImportFsProps> = (props) => {
+export const ImportFs: FC<React.PropsWithChildren<ImportFsProps>> = (props) => {
   // Handle user input
   const [name, setName] = useState(props.name ?? "");
   const [files, setFiles] = useState(props.files);

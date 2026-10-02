@@ -25,7 +25,9 @@ interface ProjectSwitcherProps {
  * Only existing workspaces are listed. Starting something new stays
  * `Browse gallery`, so this never grows into a catalog.
  */
-const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
+const ProjectSwitcher: FC<React.PropsWithChildren<ProjectSwitcherProps>> = ({
+  onOpenGallery,
+}) => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
   // A project synced from another device arrives without a switch -- it is
   // deliberately not opened -- so the list has to be told separately

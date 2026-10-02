@@ -5,12 +5,14 @@ import {
   useState,
   useCallback,
   useRef,
-  ReactNode,
 } from "react";
 import styled, { css } from "styled-components";
 
-import ErrorBoundary from "../../../../components/ErrorBoundary";
+import ErrorBoundary, {
+  type ErrorBoundaryChildren,
+} from "../../../../components/ErrorBoundary";
 import FadeIn from "../../../../components/FadeIn";
+import type { ResizeCallback } from "re-resizable";
 import Resizable from "../../../../components/Resizable";
 import { Wormhole } from "../../../../components/Loading";
 import { PgCommon, PgTheme, PgView } from "../../../../utils";
@@ -28,9 +30,14 @@ interface RightProps<W = number> extends DefaultRightProps {
 
 const AUTOMATIC_MINIMIZE_WIDTH = PgCommon.convertToPx("12rem");
 
-const Right: FC<RightProps> = ({ page, width, setWidth, oldWidth }) => {
-  const handleResizeStop = useCallback(
-    (e, direction, ref, d) => {
+const Right: FC<React.PropsWithChildren<RightProps>> = ({
+  page,
+  width,
+  setWidth,
+  oldWidth,
+}) => {
+  const handleResizeStop = useCallback<ResizeCallback>(
+    (_e, _direction, _ref, d) => {
       setWidth((w) => {
         const newWidth = w + d.width;
         if (newWidth < AUTOMATIC_MINIMIZE_WIDTH) return 0;
@@ -55,15 +62,15 @@ const Right: FC<RightProps> = ({ page, width, setWidth, oldWidth }) => {
   );
 };
 
-const Title: FC<DefaultRightProps> = ({ page }) => (
+const Title: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => (
   <TitleWrapper>{page ? page.name.toUpperCase() : ""}</TitleWrapper>
 );
 
-const Content: FC<DefaultRightProps> = ({ page }) => {
+const Content: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
   const props = useRenderOnChange(PgView.onDidChangeSidebarProps);
   const loadingCount = useRenderOnChange(PgView.onDidChangeSidebarLoadingCount);
 
-  const [el, setEl] = useState<ReactNode>(null);
+  const [el, setEl] = useState<ErrorBoundaryChildren>(null);
 
   const ids = useRef<boolean[]>([]);
   useAsyncEffect(async () => {
@@ -84,7 +91,7 @@ const Content: FC<DefaultRightProps> = ({ page }) => {
       PgView.setSidebarLoading(true);
       await setContent();
     } catch (e) {
-      setEl({ error: e, refresh: setContent });
+      setEl({ error: e as Error, refresh: setContent });
     } finally {
       PgView.setSidebarLoading(false);
     }
@@ -142,7 +149,7 @@ const ContentWrapper = styled(FadeIn)`
   `}
 `;
 
-const Loading: FC<DefaultRightProps> = ({ page }) => {
+const Loading: FC<React.PropsWithChildren<DefaultRightProps>> = ({ page }) => {
   if (page?.LoadingComponent) return <page.LoadingComponent />;
 
   return (

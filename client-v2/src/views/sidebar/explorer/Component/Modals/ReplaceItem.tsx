@@ -10,7 +10,10 @@ interface ReplaceItemProps {
   toPath: string;
 }
 
-export const ReplaceItem: FC<ReplaceItemProps> = ({ fromPath, toPath }) => {
+export const ReplaceItem: FC<React.PropsWithChildren<ReplaceItemProps>> = ({
+  fromPath,
+  toPath,
+}) => {
   const itemName = PgExplorer.getItemNameFromPath(toPath);
 
   const replaceItem = async () => {

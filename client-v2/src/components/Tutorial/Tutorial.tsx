@@ -6,7 +6,7 @@ import { PgTheme, PgTutorial } from "../../utils";
 import { useRenderOnChange } from "../../hooks";
 import type { TutorialComponentProps } from "./types";
 
-export const Tutorial: FC<TutorialComponentProps> = ({
+export const Tutorial: FC<React.PropsWithChildren<TutorialComponentProps>> = ({
   about,
   pages,
   files,

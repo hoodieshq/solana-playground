@@ -12,7 +12,10 @@ interface EventProps {
   index: number;
 }
 
-const Event: FC<EventProps> = ({ index, eventName }) => {
+const Event: FC<React.PropsWithChildren<EventProps>> = ({
+  index,
+  eventName,
+}) => {
   const connection = useConnection();
   const wallet = useWallet();
   const { idl } = useIdl();

@@ -8,7 +8,7 @@ interface FallbackProps {
   error: Error;
 }
 
-const Fallback: FC<FallbackProps> = ({ error }) => (
+const Fallback: FC<React.PropsWithChildren<FallbackProps>> = ({ error }) => (
   <Text kind="error" icon={<Sad />}>
     <div>There was an unexpected error!</div>
     {error.message && <div>Reason: {error.message}</div>}

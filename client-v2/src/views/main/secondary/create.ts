@@ -22,7 +22,9 @@ type MainSecondaryPageParam<N extends string> = {
     run: () => void;
   }>;
   /** Lazy loader for the element */
-  importComponent?: () => Promise<{ default: FC }>;
+  importComponent?: () => Promise<{
+    default: FC<React.PropsWithChildren<unknown>>;
+  }>;
   /** Get whether the page is in focus */
   getIsFocused: () => boolean;
   /** Focus the page */

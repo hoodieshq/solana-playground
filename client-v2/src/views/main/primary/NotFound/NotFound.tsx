@@ -14,7 +14,10 @@ interface NotFoundProps {
   };
 }
 
-const NotFound: FC<NotFoundProps> = ({ text, navigate }) => (
+const NotFound: FC<React.PropsWithChildren<NotFoundProps>> = ({
+  text,
+  navigate,
+}) => (
   <Wrapper>
     <Text kind="error" icon={<Error />}>
       {text ?? `URL path not found: ${PgRouter.location.pathname}`}

@@ -4,13 +4,15 @@ import { BrowserRouter, useLocation, useNavigate } from "react-router-dom";
 import { PgCommon, PgRouter } from "../../utils";
 import { useGetStatic } from "../../hooks";
 
-export const RouterProvider: FC = ({ children }) => (
+export const RouterProvider: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => (
   <BrowserRouter>
     <InternalRouter>{children}</InternalRouter>
   </BrowserRouter>
 );
 
-const InternalRouter: FC = ({ children }) => {
+const InternalRouter: FC<React.PropsWithChildren<unknown>> = ({ children }) => {
   // Handle routes
   useEffect(() => PgRouter.init().dispose, []);
 

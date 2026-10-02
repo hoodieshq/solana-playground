@@ -17,7 +17,7 @@ import type { ConsoleStatus } from "./status";
  * height rather than unmounting, so the xterm buffer (scrollback, running
  * process) survives while the drawer is closed.
  */
-const ConsoleDrawer: FC = () => {
+const ConsoleDrawer: FC<React.PropsWithChildren<unknown>> = () => {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<ConsoleStatus>(() =>
     describeConsoleStatus(PgFlow.state)

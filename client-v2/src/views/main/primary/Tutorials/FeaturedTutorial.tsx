@@ -10,7 +10,9 @@ interface FeaturedTutorialProps {
   tutorial: TutorialData;
 }
 
-const FeaturedTutorial: FC<FeaturedTutorialProps> = ({ tutorial }) => (
+const FeaturedTutorial: FC<React.PropsWithChildren<FeaturedTutorialProps>> = ({
+  tutorial,
+}) => (
   <Wrapper>
     <LeftWrapper>
       <Thumbnail src={tutorial.thumbnail} />

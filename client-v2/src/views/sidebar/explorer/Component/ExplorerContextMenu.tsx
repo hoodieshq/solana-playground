@@ -18,7 +18,9 @@ import type { useExplorerContextMenu } from "./useExplorerContextMenu";
 
 type ExplorerContextMenuProps = ReturnType<typeof useExplorerContextMenu>;
 
-export const ExplorerContextMenu: FC<ExplorerContextMenuProps> = ({
+export const ExplorerContextMenu: FC<
+  React.PropsWithChildren<ExplorerContextMenuProps>
+> = ({
   itemData,
   ctxNewItem,
   renameItem,
