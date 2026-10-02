@@ -1,4 +1,9 @@
-import { MAX_MESSAGES_PER_THREAD, PgChatStorage } from "./chat-storage";
+import {
+  MAX_MESSAGES_PER_THREAD,
+  PgChatStorage,
+  truncationNoticeId,
+  withoutTruncationNotice,
+} from "./chat-storage";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 
@@ -51,7 +56,77 @@ describe("PgChatStorage", () => {
     const read = (await PgChatStorage.read("t1"))!;
     expect(read).toHaveLength(MAX_MESSAGES_PER_THREAD);
     expect(read[read.length - 1]).toEqual(many[many.length - 1]);
-    expect(read[0]).toEqual(many[10]);
+    // One slot goes to the notice saying the rest is gone
+    expect(read[1]).toEqual(many[11]);
+  });
+
+  describe("the truncation notice", () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => item(i));
+
+    it("says so at the top when messages were dropped", async () => {
+      await PgChatStorage.write("t1", many(MAX_MESSAGES_PER_THREAD + 1));
+
+      const read = (await PgChatStorage.read("t1"))!;
+      expect(read[0]).toMatchObject({
+        kind: "notice",
+        id: truncationNoticeId("t1"),
+      });
+      expect(read[0]).toHaveProperty(
+        "text",
+        expect.stringMatching(/not kept/i)
+      );
+    });
+
+    it("stays out of a thread that fits", async () => {
+      await PgChatStorage.write("t1", many(MAX_MESSAGES_PER_THREAD));
+
+      const read = (await PgChatStorage.read("t1"))!;
+      expect(read.some((i) => i.kind === "notice")).toBe(false);
+    });
+
+    it("is not duplicated when a truncated thread is written back", async () => {
+      await PgChatStorage.write("t1", many(MAX_MESSAGES_PER_THREAD + 10));
+      const once = (await PgChatStorage.read("t1"))!;
+
+      await PgChatStorage.write("t1", once);
+      const twice = (await PgChatStorage.read("t1"))!;
+
+      expect(twice.filter((i) => i.kind === "notice")).toHaveLength(1);
+      expect(twice[0]).toMatchObject({ id: truncationNoticeId("t1") });
+    });
+
+    it("survives a rewrite whose remainder now fits", async () => {
+      // The messages are still gone; only the count fits under the cap now
+      await PgChatStorage.write("t1", many(MAX_MESSAGES_PER_THREAD + 10));
+      const truncated = (await PgChatStorage.read("t1"))!;
+
+      await PgChatStorage.write("t1", truncated);
+
+      const read = (await PgChatStorage.read("t1"))!;
+      expect(read[0]).toMatchObject({ id: truncationNoticeId("t1") });
+    });
+
+    it("goes away on a thread that never carried it", async () => {
+      await PgChatStorage.write("t1", many(3));
+
+      const read = (await PgChatStorage.read("t1"))!;
+      expect(read.some((i) => i.kind === "notice")).toBe(false);
+    });
+
+    it("is local, so a thread on its way to the server never carries it", () => {
+      // The server keeps every message; only this device drops the old ones
+      const withNotice = [
+        {
+          kind: "notice" as const,
+          id: truncationNoticeId("t1"),
+          createdAt: "2026-01-01T00:00:00.000Z",
+          text: "x",
+        },
+        item(1),
+      ];
+
+      expect(withoutTruncationNotice(withNotice)).toEqual([item(1)]);
+    });
   });
 
   it("lists and removes threads", async () => {
@@ -180,8 +255,8 @@ describe("PgChatStorage", () => {
       throw new Error("expected a stored patch approval");
     }
     // Trimmed to the changed region, and a pending card cannot be resumed so
-    // it is stored as denied rather than left spinning
+    // it is stored as unanswered rather than left spinning
     expect(read.request.before!.length).toBeLessThan(big.length / 4);
-    expect(read.status).toBe("denied");
+    expect(read.status).toBe("unanswered");
   });
 });

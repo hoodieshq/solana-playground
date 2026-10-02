@@ -84,9 +84,26 @@ too.
   (`Component/diff.ts:10,36-84`), so the trimmed pair renders identically
   through the existing `Diff` component. Command approvals are small and stored
   whole.
-- **Pending approvals persist as `denied`.** The promise that blocked the agent
-  loop (`store.ts:417`) cannot be resumed; a restored `pending` card would spin
-  forever.
+- **Pending approvals persist as `unanswered`.** The promise that blocked the
+  agent loop (`store.ts:417`) cannot be resumed; a restored `pending` card
+  would spin forever. It is a status of its own rather than `denied`, which
+  would record a refusal the user never made -- the session ended under the
+  card. It renders as `NOT ANSWERED` and reads "not applied", so nothing
+  claims the patch landed.
+- **The model's reasoning is not stored, because it is never shown.** The
+  question was open on the assumption that reasoning was rendered and then
+  dropped. It is not: the Anthropic backend runs with `thinking: { type:
+  "adaptive" }` (`model/anthropic.ts:122`), but the panel turns that into a
+  three-dot working indicator (`Component/Chat.tsx:285`) and `ChatItem` has no
+  reasoning kind at all. A restored thread therefore loses nothing a live one
+  showed, and storing reasoning would mean first deciding to render it.
+- **A device that truncates says so.** `MAX_MESSAGES_PER_THREAD` applies to
+  the local file only -- the server keeps every message -- so the loss is this
+  device's. Past the cap the first stored item is a `notice` with the stable
+  id `truncated:<threadId>`, which renders through the existing `notice` kind
+  and is filtered out of the upload (`chat-sync.ts`). Without it a long thread
+  comes back shortened with nothing to say so, which is the one way a restored
+  thread can mislead: it looks complete.
 - Every item gets a **client-minted UUID and a `createdAt`** at creation,
   replacing `let nextId = 0; const makeId = () => \`i${++nextId}\`` (`store.ts:103-104`),
   which collides across reloads and devices. This makes the login dump

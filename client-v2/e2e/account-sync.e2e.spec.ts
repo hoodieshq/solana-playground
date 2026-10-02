@@ -248,6 +248,20 @@ const makeLocalProject = async (page: Page, name: string) => {
   return id!;
 };
 
+/** The same project is open again: not an imported copy beside it */
+const reopened = async (page: Page, id: string, name: string) => {
+  await expect.poll(() => workspaceIdOf(page, name), LONG).toBe(id);
+  await expect(page.locator('[aria-haspopup="true"]').first()).toContainText(
+    name,
+    LONG
+  );
+  await page.locator('[aria-haspopup="true"]').first().click();
+  const menu = page.getByLabel("Projects and lessons");
+  await expect(menu).toBeVisible(LONG);
+  await expect(menu.getByText(/\(imported\)/)).toHaveCount(0);
+  await page.keyboard.press("Escape");
+};
+
 /**
  * A reload is not an edit.
  *
@@ -634,6 +648,8 @@ test("a divergent project asks about the overlap, and keeping this version uploa
   // Answered, so the banner goes -- it used to stay up for the rest of the
   // session, over unrelated projects included
   await expect(banner).toHaveCount(0, LONG);
+  // And the question was about this browser's own project
+  await reopened(page, localId, "Contested");
 });
 
 /** The other answer to the same question, which is the destructive one */
@@ -718,6 +734,8 @@ test("a divergent project can take the other version instead", async ({
   writes.length = 0;
   await page.waitForTimeout(8000);
   expect(writes).toEqual([]);
+  // Taken into this browser's own project, not a copy imported beside it
+  await reopened(page, localId, "Contested");
 });
 
 /**

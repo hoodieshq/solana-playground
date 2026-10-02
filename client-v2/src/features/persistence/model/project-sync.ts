@@ -7,16 +7,13 @@ import {
   settleConflicts,
   withLocalKeypair,
 } from "./merge";
-import {
-  buildSnapshot,
-  diffFiles,
-  hashFiles,
-  sameUserFiles,
-  snapshotOf,
-} from "./snapshot";
+import { diffFiles, hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
+import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
 import { legacyContentHash, PgSyncMark } from "./sync-mark";
+import { reloadCurrentFromDisk } from "./tab-reload";
+import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
 // Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
 // reaches `settings.ts`, which reads a webpack-defined global jest has no
@@ -156,6 +153,12 @@ export class PgProjectSync {
    * down, and without this there was nothing to bring.
    */
   static async pushCurrent(): Promise<PushResult> {
+    // Cheap early exit, before paying for `_ready` and the gate -- but not
+    // trusted past this point. Both can wait long enough for the user to
+    // switch projects, so this is not the `id` the push below uses.
+    if (!PgExplorer.currentWorkspaceId) return "skipped";
+    if (!(await PgProjectSync._ready())) return "skipped";
+
     // Waited on before anything is read, not only before sending. The gate is
     // held while a merge or an adoption rewrites the workspace, and a snapshot
     // taken before that and sent after it is the pre-merge copy: patched
@@ -163,34 +166,39 @@ export class PgProjectSync {
     // reverts every line the other device contributed.
     await PgProjectSync._gate;
 
-    const id = PgExplorer.currentWorkspaceId;
-    if (!id) return "skipped";
+    return await withSyncLock(async () => {
+      // Read now that the gate and the lock have both had their say, and
+      // together, with no `await` between them: `id` and `name` have to
+      // describe the same workspace, or a switch landing between the two
+      // uploads one project's files under another's id -- and writes that
+      // project's mark with them, which a later cheap path then trusts.
+      const id = PgExplorer.currentWorkspaceId;
+      const name = PgExplorer.currentWorkspaceName;
+      if (!id || !name) return "skipped";
 
-    // Read before the snapshot, so a rewrite that starts while it is being
-    // built is still caught before anything is sent
-    const generation = PgProjectSync._generationOf(id);
-    const snapshot = await buildSnapshot();
+      // Another tab may have renamed or deleted this workspace since this
+      // tab last read the list. Its files are then gone from under `name`,
+      // or were never this id's, and uploading what is there would put that
+      // back on the account.
+      if (!(await PgWorkspaceRegistry.has(name, id))) {
+        report(
+          `push project ${id}: workspace no longer registered on disk`,
+          null
+        );
+        return "skipped";
+      }
 
-    // An empty snapshot for a workspace that is open is not an edit -- it is
-    // the explorer mid-re-read. `_initCurrentWorkspace` clears the file map
-    // before repopulating it from the store, so a push that lands inside that
-    // window sees nothing and uploads nothing, over whatever the server holds.
-    //
-    // Taking another device's copy re-opens the workspace, which is exactly
-    // when a push is most likely to be pending, so this window is reached by
-    // the one path where being wrong costs the most: the version the user just
-    // asked to keep, replaced by an empty project.
-    if (!Object.keys(snapshot.files).length) {
-      report(`push project ${id}: refused an empty snapshot`, null);
-      return "skipped";
-    }
-
-    return await PgProjectSync.push(
-      id,
-      snapshot,
-      PgExplorer.currentWorkspaceName,
-      { generation }
-    );
+      // Read before the snapshot, so a rewrite that starts while it is being
+      // built is still caught before anything is sent
+      const generation = PgProjectSync._generationOf(id);
+      // Off the store, which every tab shares, not this tab's memory: a tab
+      // that fell behind another tab's write would otherwise upload its old
+      // copy over the new one, and the server's swap would accept it because
+      // the shared mark already carries the newer token.
+      const snapshot = await snapshotOf(name);
+      // An empty one is refused by `push` itself -- see there
+      return await PgProjectSync.push(id, snapshot, name, { generation });
+    });
   }
 
   /**
@@ -213,8 +221,9 @@ export class PgProjectSync {
    * `tut:hello-anchor` is a name `PgTutorial` does not match, so the tutorial
    * read as unstarted on the second device.
    * @param opts -
-   * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
-   *   runs *inside* the gate it is the point of -- see below.
+   * - `immediate`: do not wait on the push gate. Only for the two callers
+   *   that run *inside* a hold of the gate: `reconcile`, and the merge's own
+   *   upload -- see below. `pushCurrent` and `resolve` wait like any push.
    * - `merging`: set by the merge's own upload, so a refusal is reported
    *   rather than merged again.
    * - `generation`: `generationOf(projectId)` as it was when `snapshot` was
@@ -228,17 +237,51 @@ export class PgProjectSync {
     name?: string,
     opts: { immediate?: boolean; merging?: boolean; generation?: number } = {}
   ): Promise<PushResult> {
+    // Held from reading the mark to writing the new one -- and through a
+    // merge a refusal leads to -- so no other tab decides against a mark that
+    // is about to change. Re-entrant within this tab: `pushCurrent`,
+    // `reconcile` and the merge's own upload already hold it.
+    return await withSyncLock(() =>
+      PgProjectSync._push(projectId, snapshot, name, opts)
+    );
+  }
+
+  private static async _push(
+    projectId: string,
+    snapshot: Snapshot,
+    name: string | undefined,
+    opts: { immediate?: boolean; merging?: boolean; generation?: number }
+  ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
+
+    // An empty snapshot is not an edit. It is a workspace read mid-rewrite --
+    // `replaceWorkspaceFiles` clears the directory before writing the taken
+    // copy back -- or one whose directory another tab renamed or deleted
+    // away. Sent, it uploads nothing over whatever the server holds.
+    //
+    // Here rather than in each caller, because every caller reads its
+    // snapshot off the same store and can land in the same window: the
+    // editor's push, reconcile's, and the user's answer to a banner. Taking
+    // another device's copy re-opens the workspace, which is exactly when a
+    // push is most likely to be pending -- the version the user just asked
+    // to keep, replaced by an empty project.
+    if (!Object.keys(snapshot.files).length) {
+      report(`push project ${projectId}: refused an empty snapshot`, null);
+      return "skipped";
+    }
+
     // Nothing goes up before this browser has reconciled with the account. A
     // push that arrives first carries no token, which the server can only treat
     // as a blind create and refuse -- a "conflict" caused by load order rather
     // than by anything the user did.
     //
-    // `reconcile` is the exception, and has to be: the gate is held across the
-    // whole pass and released when it returns, so a push issued from inside it
-    // that waited here would wait for itself. The gate exists to keep the
-    // *editor's* debounced pushes from racing the reconcile, and a push the
-    // reconcile decided on is not racing anything.
+    // `reconcile` and the merge's own upload are the exceptions, and have to
+    // be: each holds the gate across its whole run and releases it when it
+    // returns, so a push issued from inside one that waited here would wait
+    // for itself. The gate exists to keep the *editor's* debounced pushes
+    // from racing those runs, and a push one of them decided on is not
+    // racing anything. `pushCurrent` and the banner's `retry` are not inside
+    // a hold, and wait here like the editor's pushes.
     if (!opts.immediate) await PgProjectSync._gate;
 
     const mark = await PgSyncMark.read(projectId);
@@ -308,6 +351,7 @@ export class PgProjectSync {
             : { files: snapshot.files }),
           baseUpdatedAt: mark?.updatedAt,
         }),
+        signal: timeoutSignal(LOCKED_REQUEST_MS),
       });
 
       // A refusal this device can do nothing about on its own. 413 joins 409
@@ -383,6 +427,7 @@ export class PgProjectSync {
       const response = await fetch("/api/projects", {
         credentials: "include",
         cache: "no-store",
+        signal: timeoutSignal(LOCKED_REQUEST_MS),
       });
       if (!response.ok) {
         report(`list projects: HTTP ${response.status}`, null);
@@ -432,7 +477,11 @@ export class PgProjectSync {
     try {
       const response = await fetch(
         `/api/projects?id=${encodeURIComponent(projectId)}`,
-        { credentials: "include", cache: "no-store" }
+        {
+          credentials: "include",
+          cache: "no-store",
+          signal: timeoutSignal(LOCKED_REQUEST_MS),
+        }
       );
       if (response.status === 404) return "gone";
       if (!response.ok) {
@@ -492,12 +541,16 @@ export class PgProjectSync {
    * @returns the local workspace name, or `null` if nothing was taken
    */
   static adopt(projectId: string): Promise<string | null> {
-    return PgProjectSync._exclusive(projectId, () =>
-      PgProjectSync._adopt(projectId)
+    // The lock before the queue, on every path that takes both: a task
+    // queued here waiting for the lock, behind a holder that then queues
+    // here too, would wait for each other forever
+    return withSyncLock(() =>
+      PgProjectSync._exclusive(projectId, () => PgProjectSync._adopt(projectId))
     );
   }
 
   private static async _adopt(projectId: string): Promise<string | null> {
+    await PgProjectSync._catchUpWithDisk(projectId);
     const full = await PgProjectSync.fetch(projectId);
     // A snapshot that is not a file map would empty the workspace:
     // `replaceWorkspaceFiles` removes the directory before it discovers it has
@@ -716,8 +769,11 @@ export class PgProjectSync {
     prefer?: "local" | "server",
     asked?: readonly string[]
   ): Promise<"merged" | "conflict" | "failed"> {
-    return PgProjectSync._exclusive(projectId, () =>
-      PgProjectSync._mergeWithServer(projectId, localName, prefer, asked)
+    // Lock, then queue -- see `adopt`
+    return withSyncLock(() =>
+      PgProjectSync._exclusive(projectId, () =>
+        PgProjectSync._mergeWithServer(projectId, localName, prefer, asked)
+      )
     );
   }
 
@@ -727,6 +783,7 @@ export class PgProjectSync {
     prefer?: "local" | "server",
     asked?: readonly string[]
   ): Promise<"merged" | "conflict" | "failed"> {
+    await PgProjectSync._catchUpWithDisk(projectId);
     // Held for the whole merge, re-open included. Counted, so a reconcile
     // that starts or finishes meanwhile can neither open it early nor have
     // it opened under it.
@@ -738,11 +795,10 @@ export class PgProjectSync {
     // buffers were last known to agree with -- and what the store holds now
     let first: Record<string, string> | null = null;
     let written: Record<string, string> | null = null;
-    // What the workspace holds after an attempt that wrote it. Re-reading
-    // instead would be wrong for the current workspace: `snapshotOf` reads it
-    // from memory, which `replaceWorkspaceFiles` leaves alone until the
-    // re-open below -- so a retry would take the pre-merge copy for local work
-    // and undo, silently, the server's changes the first attempt merged in.
+    // What the workspace holds after an attempt that wrote it, kept rather
+    // than re-read: a retry has to start from exactly what the first attempt
+    // wrote, folded typing included, and take nothing else for local work --
+    // or it would undo, silently, the server's changes that attempt merged in.
     let carried: Record<string, string> | null = null;
 
     try {
@@ -905,11 +961,32 @@ export class PgProjectSync {
   }
 
   /**
+   * Bring the open workspace in line with the store before an adopt or a
+   * merge reads it.
+   *
+   * Both read the local copy off the store, which every tab shares, and then
+   * treat an editor buffer that differs from it as typing to fold in. In a
+   * tab that has not yet caught up with another tab's write, the buffer is
+   * not typing, it is the stale copy -- and folding it in reverted the other
+   * tab's edit and uploaded the revert. A reconcile pass reloads first on its
+   * own; this is for the paths that arrive without one: a push refused with a
+   * 409, and an answer to the banner.
+   */
+  private static async _catchUpWithDisk(projectId: string) {
+    if (projectId !== PgExplorer.currentWorkspaceId) return;
+    try {
+      await reloadCurrentFromDisk();
+    } catch (e) {
+      report(`reload before sync ${projectId}`, e);
+    }
+  }
+
+  /**
    * Run `task` once nothing else is rewriting this project, then let the
    * next one in.
    *
    * Two merges of one project cannot overlap safely. Each reads the local copy
-   * from memory and the agreement from the mark, at different moments: a
+   * and the agreement from the mark, at different moments: a
    * second merge that read memory before the first had re-opened the
    * workspace, and the mark after the first had written it, planned the
    * pre-merge copy against the new agreement -- so every line only the other
@@ -965,13 +1042,39 @@ export class PgProjectSync {
    * @returns whether the conflict is now settled. `false` leaves the prompt up
    * rather than pretending a failed resolution succeeded.
    */
-  static async resolve(
+  static resolve(projectId: string, resolution: Resolution): Promise<boolean> {
+    // Held for the whole answer: every branch reads or writes the sync marks,
+    // and the user's answer must not land between another tab's read and its
+    // write any more than the automatic paths may
+    return withSyncLock(() => PgProjectSync._resolve(projectId, resolution));
+  }
+
+  private static async _resolve(
     projectId: string,
     resolution: Resolution
   ): Promise<boolean> {
     const name = PgExplorer.workspaceNameOf(projectId);
 
     try {
+      // Every answer but a delete reads this workspace's files off the store,
+      // under the name this tab has for it. Another tab may have renamed or
+      // deleted it since this tab last read the list, and the files under
+      // that name are then gone, or another project's: `retry` would upload
+      // them over the account's copy, and `keep-as-new` would keep them. The
+      // question stays up instead, for an answer made against the list as it
+      // is now.
+      if (
+        name &&
+        resolution !== "delete-local" &&
+        !(await PgWorkspaceRegistry.has(name, projectId))
+      ) {
+        report(
+          `resolve ${projectId} as ${resolution}: workspace no longer registered on disk`,
+          null
+        );
+        return false;
+      }
+
       switch (resolution) {
         case "keep-local":
         case "take-server": {
@@ -1005,6 +1108,16 @@ export class PgProjectSync {
           // Imported alongside, then the original is removed -- there is no
           // API for re-keying a workspace in place.
           const snapshot = await snapshotOf(name);
+          // Nothing to keep, and the original goes below: an empty copy
+          // under a new name would be the work lost, with a project left
+          // standing to say it was kept
+          if (!Object.keys(snapshot.files).length) {
+            report(
+              `resolve ${projectId} as keep-as-new: nothing to keep`,
+              null
+            );
+            return false;
+          }
           const fresh = `${name} (kept)`;
           await PgExplorer.importWorkspace(fresh, {
             id: crypto.randomUUID(),
