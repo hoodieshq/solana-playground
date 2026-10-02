@@ -1,4 +1,4 @@
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgConnection: { cluster: "devnet" },
   PgExplorer: { currentWorkspaceName: "test" },
   PgGlobal: { deployState: "ready" },

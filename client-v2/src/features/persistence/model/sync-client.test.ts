@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { PgSyncClient } from "./sync-client";
 
 const answer = (body: unknown, status = 200) =>
@@ -7,11 +8,11 @@ const answer = (body: unknown, status = 200) =>
     json: async () => body,
   } as unknown as Response);
 
-let fetchMock: jest.Mock;
+let fetchMock: Mock;
 
 beforeEach(() => {
   PgSyncClient.reset();
-  fetchMock = jest.fn();
+  fetchMock = vi.fn();
   Object.defineProperty(globalThis, "fetch", {
     value: fetchMock,
     configurable: true,

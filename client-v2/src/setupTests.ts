@@ -25,11 +25,11 @@ if (!globalThis.TextEncoder) {
 // against it and takes the worker down. So the module is replaced with an
 // in-memory one for every test, globally. Nothing under jsdom could use the
 // real filesystem anyway; the browser round trip is covered in `e2e/`.
-jest.mock("./utils/explorer/fs", () =>
+vi.mock("./utils/explorer/fs", () =>
   require("./test-utils/mock-fs").mockFsModule()
 );
 
-// jsdom ships no `fetch` either. Tests install their own with `jest.spyOn`,
+// jsdom ships no `fetch` either. Tests install their own with `vi.spyOn`,
 // which needs something already on the global to replace, so the stand-in is
 // a function that throws: a test that reaches the network without saying what
 // it expects back is a bug, and this is how it says so rather than hanging.

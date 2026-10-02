@@ -1,4 +1,4 @@
-jest.mock("../CodeBlock", () => ({
+vi.mock("../CodeBlock", () => ({
   __esModule: true,
   default: ({ lang, children }: { lang?: string; children: string }) => (
     <pre data-testid="code-block" data-lang={lang}>
@@ -9,17 +9,17 @@ jest.mock("../CodeBlock", () => ({
 
 // The utils barrel reads generated globals that exist only in the built app,
 // so it is replaced with the few members Markdown touches
-jest.mock("../../utils", () => ({
+vi.mock("../../utils", () => ({
   PgCommon: {
-    joinPaths: jest.fn(),
+    joinPaths: vi.fn(),
     toKebabFromTitle: (s: string) => s.toLowerCase(),
   },
   PgRouter: { location: {}, onDidChangeHash: () => ({ dispose: () => {} }) },
   PgTheme: { convertToCSS: () => "" },
 }));
-jest.mock("../Link", () => ({ __esModule: true, default: () => null }));
-jest.mock("../Img", () => ({ __esModule: true, default: () => null }));
-jest.mock("../Icons", () => ({ HyperLink: () => null }));
+vi.mock("../Link", () => ({ __esModule: true, default: () => null }));
+vi.mock("../Img", () => ({ __esModule: true, default: () => null }));
+vi.mock("../Icons", () => ({ HyperLink: () => null }));
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

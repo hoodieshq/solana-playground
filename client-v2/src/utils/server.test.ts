@@ -5,13 +5,13 @@ const settings = {
   experimental: { unstable: false },
 };
 
-jest.mock("./settings", () => ({
+vi.mock("./settings", () => ({
   get PgSettings() {
     return settings;
   },
 }));
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
 const respond = (body: unknown) => {

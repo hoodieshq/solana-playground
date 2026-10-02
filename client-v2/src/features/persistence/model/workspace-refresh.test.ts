@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { PgEditorModels } from "./editor-models";
 import { reconcile } from "./project-restore";
 import { reloadCurrentFromDisk } from "./tab-reload";
@@ -16,12 +17,12 @@ import { PgWorkspace } from "../../../utils/explorer/workspace";
  * was meant to act on.
  */
 
-jest.mock("./editor-models", () => ({
+vi.mock("./editor-models", () => ({
   PgEditorModels: {
-    valueOf: jest.fn(async () => null),
-    drop: jest.fn(async () => {}),
-    dropUnder: jest.fn(async () => {}),
-    anyEditedUnder: jest.fn(async () => false),
+    valueOf: vi.fn(async () => null),
+    drop: vi.fn(async () => {}),
+    dropUnder: vi.fn(async () => {}),
+    anyEditedUnder: vi.fn(async () => false),
   },
 }));
 
@@ -95,9 +96,9 @@ beforeEach(async () => {
     value: FakeChannel,
     configurable: true,
   });
-  (PgEditorModels.valueOf as jest.Mock).mockResolvedValue(null);
-  (PgEditorModels.anyEditedUnder as jest.Mock).mockResolvedValue(false);
-  (PgEditorModels.dropUnder as jest.Mock).mockImplementation(
+  (PgEditorModels.valueOf as Mock).mockResolvedValue(null);
+  (PgEditorModels.anyEditedUnder as Mock).mockResolvedValue(false);
+  (PgEditorModels.dropUnder as Mock).mockImplementation(
     async (_prefix: string, then?: () => void) => then?.()
   );
 
@@ -144,7 +145,7 @@ for (const [how, hear] of ways)
     it("carries unsaved typing under the old name into the new", async () => {
       // Autosave writes under the old name, which is gone, so waiting for it
       // would wait forever -- and the re-open after it lost the text
-      (PgEditorModels.valueOf as jest.Mock).mockImplementation(
+      (PgEditorModels.valueOf as Mock).mockImplementation(
         async (path: string) =>
           path === "/beta/src/lib.rs" ? "// typed" : null
       );
@@ -205,7 +206,7 @@ for (const [how, hear] of ways)
     it("carries only its own typing past a neighbour's edit", async () => {
       store().set("/beta/src/other.rs", "// other");
       await PgExplorer.switchWorkspace("beta");
-      (PgEditorModels.valueOf as jest.Mock).mockImplementation(
+      (PgEditorModels.valueOf as Mock).mockImplementation(
         async (path: string) =>
           path === "/beta/src/lib.rs" ? "// typed" : null
       );

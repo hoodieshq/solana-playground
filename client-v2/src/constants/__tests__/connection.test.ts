@@ -84,7 +84,7 @@ describe("env wiring", () => {
 
   afterEach(() => {
     process.env = { ...OLD };
-    jest.resetModules();
+    vi.resetModules();
   });
 
   it("reads REACT_APP_<CLUSTER>_RPC_URL", () => {
@@ -92,7 +92,7 @@ describe("env wiring", () => {
     process.env.REACT_APP_TESTNET_RPC_URL = "https://testnet.example.com";
     process.env.REACT_APP_MAINNET_RPC_URL = "https://mainnet.example.com";
 
-    jest.resetModules();
+    vi.resetModules();
     const mod = require("../connection");
 
     expect(
@@ -110,7 +110,7 @@ describe("env wiring", () => {
     delete process.env.REACT_APP_TESTNET_RPC_URL;
     delete process.env.REACT_APP_MAINNET_RPC_URL;
 
-    jest.resetModules();
+    vi.resetModules();
     const mod = require("../connection");
 
     expect(mod.PLATFORM_ENDPOINTS).toEqual([]);

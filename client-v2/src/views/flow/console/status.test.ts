@@ -11,11 +11,11 @@ interface MockBuildOutput {
   PgBuildOutput: { latest: { stderr: string } | null };
 }
 
-jest.mock("../../sidebar/assistant/bridge/build-output", () => ({
+vi.mock("../../sidebar/assistant/bridge/build-output", () => ({
   PgBuildOutput: { latest: null },
-  // A plain passthrough, not `jest.fn(...)`: babel-plugin-jest-hoist does
-  // not reliably keep a `jest.fn` implementation defined inline in a
-  // hoisted `jest.mock` factory (`stage.test.ts` works around the same gap
+  // A plain passthrough, not `vi.fn(...)`: babel-plugin-jest-hoist does
+  // not reliably keep a `vi.fn` implementation defined inline in a
+  // hoisted `vi.mock` factory (`stage.test.ts` works around the same gap
   // by calling `.mockImplementation` after import instead).
   stripKnownNoise: (s: string) => s,
 }));

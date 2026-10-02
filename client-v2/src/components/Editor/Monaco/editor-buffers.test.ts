@@ -23,9 +23,9 @@ const modelAt = (path: string, text: string) => {
     uri: { path },
     getValue: () => text,
     getEOL: () => "\n",
-    pushEditOperations: jest.fn(),
-    pushStackElement: jest.fn(),
-    dispose: jest.fn(),
+    pushEditOperations: vi.fn(),
+    pushStackElement: vi.fn(),
+    dispose: vi.fn(),
   };
   return model as unknown as BufferModel & typeof model;
 };
@@ -67,7 +67,7 @@ const monacoModel = (path: string, text: string) => {
     getEOL: () => buffer.getEOL(),
     getPositionAt: (offset: number) => buffer.getPositionAt(offset),
     pushStackElement: () => void calls.push("stack"),
-    pushEditOperations: jest.fn((_before: unknown, edits: RawEdit[]) => {
+    pushEditOperations: vi.fn((_before: unknown, edits: RawEdit[]) => {
       calls.push("edit");
       const result = buffer.applyEdits(
         edits.map((edit) => ({
@@ -96,7 +96,7 @@ const monacoModel = (path: string, text: string) => {
       }
       return null;
     }),
-    dispose: jest.fn(),
+    dispose: vi.fn(),
     /** Put the caret here, collapsed */
     caretAt: (offset: number) => {
       tree.delete(selection);

@@ -74,7 +74,7 @@ describe("buildSnapshotOf", () => {
   const store = (PgFs as unknown as { __files: Map<string, string> }).__files;
 
   beforeEach(() => store.clear());
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("reads a project the user is not looking at", async () => {
     store.set("/beta/src/lib.rs", "other project");
@@ -141,7 +141,7 @@ describe("snapshotOf", () => {
       .mockReturnValue([["/alpha/src/lib.rs", "unsaved edit"]]);
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("reads the current workspace off the store too", async () => {
     // Memory is per tab and disk is shared, so memory is the copy that can

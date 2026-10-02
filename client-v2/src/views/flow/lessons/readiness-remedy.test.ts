@@ -1,40 +1,41 @@
+import type { Mock } from "vitest";
 // The band's wiring, tested without a rendered tree. Mocked at the
 // module boundary the same way the other lesson tests mock `../../../utils`
 // -- importing it for real reaches generated globals that only exist
 // once the app has booted.
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgCommand: {
-    build: { execute: jest.fn() },
-    connect: { execute: jest.fn() },
-    airdrop: { execute: jest.fn() },
+    build: { execute: vi.fn() },
+    connect: { execute: vi.fn() },
+    airdrop: { execute: vi.fn() },
   },
   PgSettings: { connection: { endpoint: "http://localhost:8899" } },
   PgTerminal: {
-    println: jest.fn(),
+    println: vi.fn(),
     error: (text: string) => `ERROR: ${text}`,
   },
 }));
 
-jest.mock("../../../constants", () => ({
+vi.mock("../../../constants", () => ({
   DEFAULT_ENDPOINT: "https://devnet.example/rpc",
 }));
 
-jest.mock("../../../features/auth", () => ({
-  PgSession: { signIn: jest.fn() },
+vi.mock("../../../features/auth", () => ({
+  PgSession: { signIn: vi.fn() },
 }));
 
 import { remedy } from "./readiness-remedy";
 import { PgSession } from "../../../features/auth";
 import { PgCommand, PgSettings, PgTerminal } from "../../../utils";
 
-const signIn = PgSession.signIn as jest.Mock;
-const println = PgTerminal.println as jest.Mock;
+const signIn = PgSession.signIn as Mock;
+const println = PgTerminal.println as Mock;
 
 /** Let the rejection handler attached inside the remedy run */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   signIn.mockResolvedValue(undefined);
   PgSettings.connection.endpoint = "http://localhost:8899";
 });
