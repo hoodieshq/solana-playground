@@ -93,6 +93,26 @@ describe("PgProjectSync", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it("refuses an empty snapshot whoever pushes it", async () => {
+    // Not only the editor's push: reconcile and an answer to the banner read
+    // their snapshot off the same store, and can land in the same window
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t2" }),
+          })
+    ) as unknown as typeof fetch;
+    await signedIn();
+    await agreedOn("p1", "one", { a: "1" });
+
+    expect(
+      await PgProjectSync.push("p1", { files: {} }, "one", { immediate: true })
+    ).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
+  });
+
   it("skips an unchanged snapshot rather than re-uploading it", async () => {
     global.fetch = jest.fn().mockImplementation((url: string) =>
       url === "/api/sync"
@@ -482,7 +502,8 @@ describe("a conflict is asked once, not retried forever", () => {
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("one");
-    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([["/one/a", "2"]]);
+    // Off the store, which is what the retry's snapshot reads
+    storedFiles().set("/one/a", "2");
     expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
     expect(changes).toBe(2);
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
@@ -1111,5 +1132,82 @@ describe("a refusal the user has to clear", () => {
       projectId: "p1",
       kind: "name-taken",
     });
+  });
+
+  it("does not retry over a directory another tab removed", async () => {
+    // The banner is still up in this tab, which has not re-read the list.
+    // Its snapshot reads nothing off the store, and sent, that nothing
+    // replaces every file of the project on the server.
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({ reason: "name-taken" }),
+    });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    await PgProjectSync.pushCurrent();
+    storedFiles().delete("/mine/src/lib.rs");
+
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(false);
+    expect(putCalls()).toHaveLength(1);
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("name-taken");
+  });
+
+  it("does not retry a workspace another tab renamed", async () => {
+    // Under its old name, the store may hold anything: a fragment an
+    // autosave recreated, or a new project that took the name
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({ reason: "name-taken" }),
+    });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    await PgProjectSync.pushCurrent();
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p1", name: "renamed" }] })
+    );
+
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(false);
+    expect(putCalls()).toHaveLength(1);
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("name-taken");
+  });
+
+  it("does not keep an empty copy of a directory another tab removed", async () => {
+    // Kept, it would be a project called "mine (kept)" with nothing in it,
+    // and the original deleted after it -- the work gone, with a project
+    // left standing that says it was kept
+    refusing({ ok: false, status: 404, json: async () => ({}) });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
+    storedFiles().delete("/mine/src/lib.rs");
+    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+
+    expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
+    expect(importWorkspace).not.toHaveBeenCalled();
+    expect(deleteWorkspace).not.toHaveBeenCalled();
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("deleted-elsewhere");
+  });
+
+  it("does not keep a workspace another tab renamed", async () => {
+    // And then delete it under the name it no longer has, which may by now
+    // be another project's
+    refusing({ ok: false, status: 404, json: async () => ({}) });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p2", name: "mine" }] })
+    );
+    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+
+    expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
+    expect(importWorkspace).not.toHaveBeenCalled();
+    expect(deleteWorkspace).not.toHaveBeenCalled();
   });
 });

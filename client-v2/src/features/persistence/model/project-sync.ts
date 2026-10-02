@@ -196,21 +196,7 @@ export class PgProjectSync {
       // copy over the new one, and the server's swap would accept it because
       // the shared mark already carries the newer token.
       const snapshot = await snapshotOf(name);
-
-      // An empty snapshot for a workspace that is open is not an edit -- it
-      // is a rewrite mid-way: `replaceWorkspaceFiles` clears the directory
-      // before writing the taken copy back, so a push landing in that window
-      // reads nothing and uploads nothing over whatever the server holds.
-      //
-      // Taking another device's copy re-opens the workspace, which is exactly
-      // when a push is most likely to be pending, so this window is reached
-      // by the one path where being wrong costs the most: the version the user
-      // just asked to keep, replaced by an empty project.
-      if (!Object.keys(snapshot.files).length) {
-        report(`push project ${id}: refused an empty snapshot`, null);
-        return "skipped";
-      }
-
+      // An empty one is refused by `push` itself -- see there
       return await PgProjectSync.push(id, snapshot, name, { generation });
     });
   }
@@ -266,6 +252,23 @@ export class PgProjectSync {
     opts: { immediate?: boolean; merging?: boolean; generation?: number }
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
+
+    // An empty snapshot is not an edit. It is a workspace read mid-rewrite --
+    // `replaceWorkspaceFiles` clears the directory before writing the taken
+    // copy back -- or one whose directory another tab renamed or deleted
+    // away. Sent, it uploads nothing over whatever the server holds.
+    //
+    // Here rather than in each caller, because every caller reads its
+    // snapshot off the same store and can land in the same window: the
+    // editor's push, reconcile's, and the user's answer to a banner. Taking
+    // another device's copy re-opens the workspace, which is exactly when a
+    // push is most likely to be pending -- the version the user just asked
+    // to keep, replaced by an empty project.
+    if (!Object.keys(snapshot.files).length) {
+      report(`push project ${projectId}: refused an empty snapshot`, null);
+      return "skipped";
+    }
+
     // Nothing goes up before this browser has reconciled with the account. A
     // push that arrives first carries no token, which the server can only treat
     // as a blind create and refuse -- a "conflict" caused by load order rather
@@ -1050,6 +1053,25 @@ export class PgProjectSync {
     const name = PgExplorer.workspaceNameOf(projectId);
 
     try {
+      // Every answer but a delete reads this workspace's files off the store,
+      // under the name this tab has for it. Another tab may have renamed or
+      // deleted it since this tab last read the list, and the files under
+      // that name are then gone, or another project's: `retry` would upload
+      // them over the account's copy, and `keep-as-new` would keep them. The
+      // question stays up instead, for an answer made against the list as it
+      // is now.
+      if (
+        name &&
+        resolution !== "delete-local" &&
+        !(await PgWorkspaceRegistry.has(name, projectId))
+      ) {
+        report(
+          `resolve ${projectId} as ${resolution}: workspace no longer registered on disk`,
+          null
+        );
+        return false;
+      }
+
       switch (resolution) {
         case "keep-local":
         case "take-server": {
@@ -1083,6 +1105,16 @@ export class PgProjectSync {
           // Imported alongside, then the original is removed -- there is no
           // API for re-keying a workspace in place.
           const snapshot = await snapshotOf(name);
+          // Nothing to keep, and the original goes below: an empty copy
+          // under a new name would be the work lost, with a project left
+          // standing to say it was kept
+          if (!Object.keys(snapshot.files).length) {
+            report(
+              `resolve ${projectId} as keep-as-new: nothing to keep`,
+              null
+            );
+            return false;
+          }
           const fresh = `${name} (kept)`;
           await PgExplorer.importWorkspace(fresh, {
             id: crypto.randomUUID(),

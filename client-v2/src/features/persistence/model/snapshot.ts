@@ -1,3 +1,4 @@
+import { isMissing } from "./diagnostics";
 // Deep import, not the `utils` barrel: the barrel reaches `settings.ts`,
 // which reads a webpack-defined global that does not exist under jest, so
 // importing it here would make this module untestable. Same reason
@@ -132,6 +133,10 @@ export interface Snapshot {
  * A directory that is not there reads as empty rather than throwing: a
  * workspace registered before its files landed is a real state, and it should
  * reconcile as "nothing here" rather than abort the pass.
+ *
+ * Only a directory that is not there. A store that failed to read is not an
+ * empty project, and passed off as one it is a snapshot that would delete
+ * every file on the server.
  */
 export const buildSnapshotOf = async (name: string): Promise<Snapshot> => {
   const root = `/${name}`;
@@ -141,8 +146,9 @@ export const buildSnapshotOf = async (name: string): Promise<Snapshot> => {
     let names: string[];
     try {
       names = await PgFs.readDir(dir);
-    } catch {
-      return;
+    } catch (e) {
+      if (isMissing(e)) return;
+      throw e;
     }
 
     for (const child of names) {

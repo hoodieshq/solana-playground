@@ -74,6 +74,7 @@ describe("buildSnapshotOf", () => {
   const store = (PgFs as unknown as { __files: Map<string, string> }).__files;
 
   beforeEach(() => store.clear());
+  afterEach(() => jest.restoreAllMocks());
 
   it("reads a project the user is not looking at", async () => {
     store.set("/beta/src/lib.rs", "other project");
@@ -87,6 +88,17 @@ describe("buildSnapshotOf", () => {
 
   it("reads a workspace whose files never landed as empty, not as a failure", async () => {
     expect((await buildSnapshotOf("ghost")).files).toEqual({});
+  });
+
+  it("throws when the store fails to read, rather than reading as empty", async () => {
+    // Read as empty, a store that failed would be a project with every file
+    // deleted -- and that is what the next push would upload
+    store.set("/beta/src/lib.rs", "code");
+    jest
+      .spyOn(PgFs, "readDir")
+      .mockRejectedValueOnce(new Error("QuotaExceededError"));
+
+    await expect(buildSnapshotOf("beta")).rejects.toThrow("QuotaExceeded");
   });
 
   it("applies the same filter, so the two agree on what a project is", async () => {
