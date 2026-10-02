@@ -1,5 +1,9 @@
 import { PgFs } from "./fs";
 import { PgWorkspace } from "./workspace";
+import {
+  isMissing,
+  report,
+} from "../../features/persistence/model/diagnostics";
 import { PgCommon } from "../common";
 import { PgLanguage } from "../language";
 import { PgView } from "../view";
@@ -136,8 +140,10 @@ export class PgExplorer {
    * never taken from it. A config that cannot be read tells nothing, so the
    * list in memory stays as it is rather than becoming empty.
    *
-   * @returns `false` when a change of this tab's own to the list is not saved
-   * yet, and the store's list was left alone for it; `true` otherwise
+   * @returns `false` when the store's list was left alone and may hold what
+   * this tab has yet to see: a change of this tab's own to the list is not
+   * saved yet, or the config failed to read. `true` otherwise, a store with
+   * no config at all included -- there is nothing in it to take.
    */
   static async refreshWorkspaces() {
     const workspace = this._workspace;
@@ -148,8 +154,10 @@ export class PgExplorer {
       stored = PgWorkspace.migrate(
         await this.fs.readToJSON(PgWorkspace.WORKSPACES_CONFIG_PATH)
       );
-    } catch {
-      return true;
+    } catch (e) {
+      if (isMissing(e)) return true;
+      report("refresh workspaces", e);
+      return false;
     }
     // A create, rename or delete of this tab's own changes memory first and
     // saves later, after awaits. Taking the store's list inside that window
@@ -1570,7 +1578,11 @@ export class PgExplorer {
   /** Saves workspaces from state to `indexedDB`. */
   private static async _saveWorkspaces() {
     if (this._workspace) {
-      this._savedWorkspaces = JSON.stringify(this._workspace.get().workspaces);
+      // Recorded as saved once it has landed, not before. Until then the
+      // store may still hold the old list -- or keep it, if the write fails
+      // -- and recorded early, this tab's own change would read as the
+      // store's at the next refresh, and be replaced by it.
+      const saving = JSON.stringify(this._workspace.get().workspaces);
       await this.fs.writeFile(
         PgWorkspace.WORKSPACES_CONFIG_PATH,
         JSON.stringify(this._workspace.get()),
@@ -1583,6 +1595,12 @@ export class PgExplorer {
       // directory was never persisted -- "No project", with the files still
       // on disk but unreachable.
       await this.fs.flush();
+      // Only while memory still holds what was written: a later change has
+      // a save of its own coming, and a refresh meanwhile has recorded what
+      // it took
+      if (JSON.stringify(this._workspace.get().workspaces) === saving) {
+        this._savedWorkspaces = saving;
+      }
     }
   }
 
