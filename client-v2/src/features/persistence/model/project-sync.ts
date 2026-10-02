@@ -221,8 +221,9 @@ export class PgProjectSync {
    * `tut:hello-anchor` is a name `PgTutorial` does not match, so the tutorial
    * read as unstarted on the second device.
    * @param opts -
-   * - `immediate`: do not wait on the push gate. Only for `reconcile`, which
-   *   runs *inside* the gate it is the point of -- see below.
+   * - `immediate`: do not wait on the push gate. Only for the two callers
+   *   that run *inside* a hold of the gate: `reconcile`, and the merge's own
+   *   upload -- see below. `pushCurrent` and `resolve` wait like any push.
    * - `merging`: set by the merge's own upload, so a refusal is reported
    *   rather than merged again.
    * - `generation`: `generationOf(projectId)` as it was when `snapshot` was
@@ -274,11 +275,13 @@ export class PgProjectSync {
     // as a blind create and refuse -- a "conflict" caused by load order rather
     // than by anything the user did.
     //
-    // `reconcile` is the exception, and has to be: the gate is held across the
-    // whole pass and released when it returns, so a push issued from inside it
-    // that waited here would wait for itself. The gate exists to keep the
-    // *editor's* debounced pushes from racing the reconcile, and a push the
-    // reconcile decided on is not racing anything.
+    // `reconcile` and the merge's own upload are the exceptions, and have to
+    // be: each holds the gate across its whole run and releases it when it
+    // returns, so a push issued from inside one that waited here would wait
+    // for itself. The gate exists to keep the *editor's* debounced pushes
+    // from racing those runs, and a push one of them decided on is not
+    // racing anything. `pushCurrent` and the banner's `retry` are not inside
+    // a hold, and wait here like the editor's pushes.
     if (!opts.immediate) await PgProjectSync._gate;
 
     const mark = await PgSyncMark.read(projectId);
