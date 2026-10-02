@@ -13,6 +13,17 @@ const CHANNEL = "pg-workspace-sync";
 const ANNOUNCE_MS = 250;
 /** Long enough that a run of messages is one reload */
 const RELOAD_MS = 300;
+/**
+ * How long a reload that came back `deferred` waits to ask again: past the
+ * editor's autosave, so typing has reached the store by then
+ */
+const DEFERRED_MS = 1000;
+/**
+ * How many times it asks before leaving it to the next message or focus.
+ * Bounded so a tab typed in without pause cannot keep reloading for ever,
+ * and long enough to outlast a burst of typing.
+ */
+const DEFERRED_TRIES = 30;
 
 interface FilesWritten {
   type: "files-written";
@@ -116,6 +127,29 @@ export const tabSync = (): Disposable => {
   };
 
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let tries = 0;
+  const reloadIn = (ms: number) => {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(reload, ms);
+  };
+  // A reload that is `deferred` is still owed: the neighbour's write that
+  // asked for it is on disk, and this tab goes on showing the old copy --
+  // and autosaving it -- until something reloads again. Nothing else would,
+  // short of another message or the tab losing and regaining focus.
+  const reload = () => {
+    reloadCurrentFromDisk()
+      .then((result) => {
+        if (result !== "deferred" || disposed || tries >= DEFERRED_TRIES) {
+          tries = 0;
+          return;
+        }
+        tries++;
+        reloadIn(DEFERRED_MS);
+      })
+      .catch((e) => report("reload from tab", e));
+  };
+
   channel.onmessage = ({ data }) => {
     if (isWorkspacesWritten(data)) {
       if (data.from === self) return;
@@ -128,10 +162,8 @@ export const tabSync = (): Disposable => {
     // then the list -- is one reload. A changed list needs nothing more: the
     // reload re-reads it first, inside its own queue, so no other reload can
     // be half-way through when it changes.
-    if (reloadTimer) clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(() => {
-      reloadCurrentFromDisk().catch((e) => report("reload from tab", e));
-    }, RELOAD_MS);
+    tries = 0;
+    reloadIn(RELOAD_MS);
   };
 
   // Writes cover edits and the three dotfiles. Deletes and renames reach the
@@ -158,6 +190,7 @@ export const tabSync = (): Disposable => {
 
   return {
     dispose: () => {
+      disposed = true;
       if (announceTimer) clearTimeout(announceTimer);
       if (reloadTimer) clearTimeout(reloadTimer);
       for (const sub of subscriptions) sub.dispose();

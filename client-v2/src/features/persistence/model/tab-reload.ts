@@ -7,8 +7,9 @@ import { PgFs } from "../../../utils/explorer/fs";
 import { PgRouter } from "../../../utils/router";
 
 /**
- * - `deferred`: the workspace needs re-opening, but not now -- a re-open would
- *   throw away something of this tab's. The next reload tries again.
+ * - `deferred`: not now, but the reload is still owed -- a re-open would
+ *   throw away something of this tab's, or this tab's own change to the
+ *   list has yet to be saved. The caller asks again.
  */
 export type ReloadResult =
   | "skipped"
@@ -321,9 +322,10 @@ const reloadOnce = async (reopen: boolean): Promise<ReloadResult> => {
   // by name, and a delete elsewhere leaves an id that names nothing.
   //
   // Not while this tab has a change of its own to the list in flight: the
-  // explorer is between states, and the change's own save and switch finish
-  // the job -- announced like any other.
-  if (!(await PgExplorer.refreshWorkspaces())) return "skipped";
+  // explorer is between states. Deferred, not skipped: the change's own save
+  // tells the other tabs, but nothing tells this one again of what the
+  // neighbour wrote, so the caller asks again once the save has landed.
+  if (!(await PgExplorer.refreshWorkspaces())) return "deferred";
   const name = PgExplorer.currentWorkspaceName;
   if (!name) {
     return PgExplorer.currentWorkspaceId ? await leaveDeleted() : "skipped";

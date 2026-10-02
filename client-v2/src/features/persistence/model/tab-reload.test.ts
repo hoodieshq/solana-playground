@@ -258,11 +258,13 @@ describe("reloadCurrentFromDisk", () => {
     );
   });
 
-  it("does nothing while its own change to the list is unsaved", async () => {
+  it("waits while its own change to the list is unsaved", async () => {
+    // Deferred rather than skipped: whatever asked for this reload still
+    // needs it, and is told to ask again
     (PgExplorer.refreshWorkspaces as jest.Mock).mockResolvedValue(false);
     store().set("/alpha/src/new.rs", "created elsewhere");
 
-    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(await reloadCurrentFromDisk()).toBe("deferred");
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
   });
 

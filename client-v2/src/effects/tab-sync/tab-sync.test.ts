@@ -23,6 +23,17 @@ class FakeChannel {
   close() {}
 }
 
+/**
+ * Advance fake time in steps, letting each reload's promise settle between
+ * them -- the next one is armed only once the last has answered
+ */
+const elapse = async (ms: number, step = 100) => {
+  for (let t = 0; t < ms; t += step) {
+    jest.advanceTimersByTime(step);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  }
+};
+
 const deliver = (data: unknown) =>
   opened.forEach((channel) => channel.onmessage?.({ data }));
 
@@ -178,6 +189,48 @@ describe("tabSync", () => {
 
     expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
+  });
+
+  it("asks again when a reload is deferred", async () => {
+    // Deferred is a reload still owed: the neighbour's write is on disk, and
+    // nothing else would bring this tab level with it
+    (reloadCurrentFromDisk as jest.Mock)
+      .mockResolvedValueOnce("deferred")
+      .mockResolvedValueOnce("reopened");
+    const effect = tabSync();
+    deliver({ type: "files-written", projectId: "p1", from: "other" });
+    await elapse(400);
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
+
+    await elapse(1000);
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(2);
+
+    // Done once it went through
+    await elapse(5000);
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(2);
+    effect.dispose();
+  });
+
+  it("stops asking after a bounded number of deferrals", async () => {
+    (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("deferred");
+    const effect = tabSync();
+    deliver({ type: "files-written", projectId: "p1", from: "other" });
+    await elapse(400 + 60_000);
+
+    // The first reload, and thirty more
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(31);
+    effect.dispose();
+  });
+
+  it("stops asking once disposed", async () => {
+    (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("deferred");
+    const effect = tabSync();
+    deliver({ type: "files-written", projectId: "p1", from: "other" });
+    await elapse(400);
+    effect.dispose();
+    await elapse(5000);
+
+    expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
   });
 
   it("is inert where the browser has no BroadcastChannel", () => {
