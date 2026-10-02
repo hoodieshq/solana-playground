@@ -147,31 +147,73 @@ export const mergeName = (
 };
 
 /**
+ * A name for a workspace that wants `base`, stepped around any other local
+ * workspace that holds it.
+ *
+ * `base` itself while it is free; then `"<base> imported"`,
+ * `"<base> imported 2"` and on. The suffix the explorer's name rule accepts:
+ * the parentheses an import used to add are refused by `renameWorkspace`, so
+ * every clash failed rather than stepping around. A `base` the rule rejects,
+ * from before it, is stepped from what is left of it once the characters it
+ * rejects are dropped.
+ *
+ * Read off the live list, so a name taken earlier in the same pass counts.
+ *
+ * @param own the workspace being renamed, whose own name is not in the way
+ */
+export const freeName = (base: string, own?: string) => {
+  const taken = new Set(PgExplorer.allWorkspaceNames ?? []);
+  if (own !== undefined) taken.delete(own);
+  if (!taken.has(base)) return base;
+
+  const stem = PgExplorer.isWorkspaceNameValid(base)
+    ? base
+    : base
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim() || "Project";
+  for (let n = 1; ; n++) {
+    const name = `${stem} imported${n > 1 ? ` ${n}` : ""}`;
+    if (!taken.has(name)) return name;
+  }
+};
+
+/**
  * Rename a local workspace to what the server calls it.
  *
- * A name another local workspace already holds is stepped around the way an
- * import does, and it is not this project's to displace. The holder may be
+ * A name another local workspace already holds is stepped around
+ * (`freeName`), and it is not this project's to displace. The holder may be
  * unsynced, or another account's -- or one of this account's own, renamed on
  * the other device too and not yet reached by this pass: the other device
  * renamed "Bar" to "Baz" and then "Foo" to "Bar". `settleSteppedNames` gives
  * the name back once the holder has moved.
  *
- * @returns the name the workspace ended up with; the old one if the rename
- * failed, which leaves a stale name rather than failing the whole exchange
+ * A server name the explorer's rule rejects, from before the rule, is left
+ * alone without a report: `renameWorkspace` would refuse it on every pass.
+ * The workspace keeps its name, and the caller records it as the stand-in.
+ *
+ * @returns the name the workspace ended up with, which is the old one when
+ * the rename was skipped or failed before moving anything -- a stale name
+ * rather than a failed exchange
  */
-const renameToServer = async (local: string, serverName: string) => {
-  const taken = new Set(PgExplorer.allWorkspaceNames ?? []);
-  taken.delete(local);
-  // As `renameWorkspace` will, so the name returned is the one it took
-  let name = serverName.trim();
-  while (taken.has(name)) name = `${name} (imported)`;
+const renameToServer = async (
+  projectId: string,
+  local: string,
+  serverName: string
+) => {
+  if (local === serverName || !PgExplorer.isWorkspaceNameValid(serverName)) {
+    return local;
+  }
+  const name = freeName(serverName, local);
+  if (name === local) return local;
 
   try {
     await PgExplorer.renameWorkspace(name, { from: local });
     return name;
   } catch (e) {
     report(`rename ${local} to ${name}`, e);
-    return local;
+    // A failure part-way may have moved it already
+    return PgExplorer.workspaceNameOf(projectId) ?? local;
   }
 };
 
@@ -674,7 +716,7 @@ export class PgProjectSync {
           ? mark.name
           : local;
       if (mergeName(mark?.name, agreedName, full!.name) === "server") {
-        local = await renameToServer(local, full!.name);
+        local = await renameToServer(projectId, local, full!.name);
       }
       // Still the server's hashes, carried keypair or not. That is what makes
       // the keypair read as a local change, which the next push uploads: the
@@ -969,7 +1011,7 @@ export class PgProjectSync {
             prefer
           ) === "server";
         if (takeServer && localName !== full.name) {
-          localName = await renameToServer(localName, full.name);
+          localName = await renameToServer(projectId, localName, full.name);
         }
         const localStandIn =
           (takeServer || standIn) && localName !== full.name
@@ -1083,6 +1125,8 @@ export class PgProjectSync {
         !mark ||
         mark.localName !== local ||
         mark.name !== serverName ||
+        // Refused by `renameWorkspace` on every pass: see `renameToServer`
+        !PgExplorer.isWorkspaceNameValid(serverName) ||
         PgExplorer.allWorkspaceNames?.includes(serverName)
       ) {
         return false;

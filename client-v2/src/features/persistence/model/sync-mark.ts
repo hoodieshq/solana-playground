@@ -71,7 +71,7 @@ export interface SyncMark {
   /**
    * The local workspace name this agreement maps to, when it is not `name`
    * and sync, not the user, made it so: the server's name was taken here
-   * and stepped around with " (imported)", or renaming to it failed. A push
+   * and stepped around (`freeName`), or renaming to it failed. A push
    * sends `name` while the workspace is still called this, so the stand-in
    * never reaches the account; `settleSteppedNames` renames the workspace
    * once the server's name is free. Absent when the two names agree.

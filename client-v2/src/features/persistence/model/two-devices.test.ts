@@ -1967,6 +1967,9 @@ describe("a project renamed on one device", () => {
   afterEach(() => jest.restoreAllMocks());
 
   const FOO = { id: "p1", name: "Foo" };
+  /** A fresh copy of the entry, which a rename here mutates */
+  const foo = () => ({ id: FOO.id, name: FOO.name });
+  const bar = () => ({ id: "p2", name: "Bar" });
 
   /**
    * A rename in this browser's explorer: the entry and its files move. The
@@ -2005,7 +2008,13 @@ describe("a project renamed on one device", () => {
   /** The other browser renamed it, which moves the row on */
   const otherDeviceRenamed = (id: string, name: string) => {
     const existing = server.get(id)!;
-    server.set(id, { ...existing, name, updatedAt: tick() });
+    server.set(id, {
+      id: existing.id,
+      name,
+      kind: existing.kind,
+      snapshot: existing.snapshot,
+      updatedAt: tick(),
+    });
   };
 
   /** Both devices agree on the project, and renames go through the explorer */
@@ -2013,9 +2022,18 @@ describe("a project renamed on one device", () => {
     asDevice(workspaces);
     await signedIn();
     await PgProjectSync.pushCurrent();
+    // Refusing what the real one refuses, the name rule included: a
+    // stepped-around name the rule rejects failed every clash
     const rename = jest
       .spyOn(PgExplorer, "renameWorkspace")
       .mockImplementation(async (to, opts) => {
+        to = to.trim();
+        if (!PgExplorer.isWorkspaceNameValid(to)) {
+          throw new Error(PgWorkspace.errors.INVALID_NAME);
+        }
+        if (workspaces.some((w) => w.name === to)) {
+          throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
+        }
         renameLocally(workspaces, opts?.from ?? workspaces[0].name, to);
       });
     jest
@@ -2028,9 +2046,9 @@ describe("a project renamed on one device", () => {
   };
 
   it("takes the new name here, and keeps it on the next edit", async () => {
-    // The ticket's sequence: the name came back because this device never
-    // took it, and then uploaded its own old one as authoritative
-    const workspaces = [{ ...FOO }];
+    // HOO-1726: the name came back because this device never took it, and
+    // then uploaded its own old one as authoritative
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
@@ -2048,17 +2066,13 @@ describe("a project renamed on one device", () => {
     // Both sides moved the files, so this is a merge rather than an adopt --
     // which recorded the server's name, kept the old one here, and uploaded
     // the old one straight back
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
     writeStored("Foo", { "src/lib.rs": "a\nb\nc\n" });
     await PgProjectSync.pushCurrent();
 
     otherDeviceRenamed(FOO.id, "Bar");
-    server.set(FOO.id, {
-      ...server.get(FOO.id)!,
-      snapshot: { files: { "src/lib.rs": "a\nb\nC\n" } },
-      updatedAt: tick(),
-    });
+    otherDeviceWroteFiles(FOO.id, { "src/lib.rs": "a\nb\nC\n" });
     writeStored("Foo", { "src/lib.rs": "A\nb\nc\n" });
     await PgSyncMark.markDirty(FOO.id);
 
@@ -2071,7 +2085,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("uploads a rename made here", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
 
     await userRenamed(workspaces, "Foo", "Baz");
@@ -2082,7 +2096,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("uploads this device's name when both renamed it and nothing else", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
@@ -2095,7 +2109,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("takes the other name along with the other files when asked", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
@@ -2114,7 +2128,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("keeps this device's name along with its files when asked", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
@@ -2128,7 +2142,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("still takes the files when the rename fails", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
     rename.mockRejectedValue(new Error("Invalid name"));
 
@@ -2141,11 +2155,26 @@ describe("a project renamed on one device", () => {
     });
   });
 
+  it("follows a rename that moved the workspace before it failed", async () => {
+    const workspaces = [foo()];
+    const rename = await inSync(workspaces);
+    rename.mockImplementationOnce(async (to, opts) => {
+      renameLocally(workspaces, opts!.from!, to);
+      throw new Error("save failed");
+    });
+
+    otherDeviceRenamed(FOO.id, "Bar");
+    await reconcile();
+
+    expect(workspaces[0].name).toBe("Bar");
+    expect((await PgSyncMark.read(FOO.id))!.localName).toBeUndefined();
+  });
+
   it("gives the name back once a project renamed elsewhere moves off it", async () => {
     // The other device renamed "Bar" to "Baz", then "Foo" to "Bar". Newest
     // first, so this device reaches "Foo" while its "Bar" still holds the
     // name -- and the stepped-around name used to stay, and go up next edit.
-    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    const workspaces = [foo(), bar()];
     const rename = await inSync(workspaces);
     storedFiles().set("/Bar/src/lib.rs", "declare_id!();");
     await PgProjectSync.push("p2", await snapshotOf("Bar"), "Bar", {
@@ -2156,7 +2185,7 @@ describe("a project renamed on one device", () => {
     otherDeviceRenamed(FOO.id, "Bar");
     await reconcile();
 
-    expect(rename).toHaveBeenCalledWith("Bar (imported)", { from: "Foo" });
+    expect(rename).toHaveBeenCalledWith("Bar imported", { from: "Foo" });
     expect(workspaces.map((w) => w.name)).toEqual(["Bar", "Baz"]);
 
     storedFiles().set("/Bar/src/lib.rs", "an edit after the renames");
@@ -2168,14 +2197,14 @@ describe("a project renamed on one device", () => {
     // The merge's own upload kept the server's name, and the next ordinary
     // push sent the stepped one -- which renamed the project on every device
     // and could never be given back
-    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    const workspaces = [foo(), bar()];
     await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
     await reconcile();
-    expect(workspaces[0].name).toBe("Bar (imported)");
+    expect(workspaces[0].name).toBe("Bar imported");
 
-    storedFiles().set("/Bar (imported)/src/lib.rs", "an edit here");
+    storedFiles().set("/Bar imported/src/lib.rs", "an edit here");
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
     expect(server.get(FOO.id)!.name).toBe("Bar");
     expect(server.get(FOO.id)!.snapshot).toEqual({
@@ -2184,7 +2213,7 @@ describe("a project renamed on one device", () => {
   });
 
   it("does not send the old name back when the rename here failed", async () => {
-    const workspaces = [{ ...FOO }];
+    const workspaces = [foo()];
     const rename = await inSync(workspaces);
     rename.mockRejectedValue(new Error("Invalid name"));
 
@@ -2198,24 +2227,96 @@ describe("a project renamed on one device", () => {
   });
 
   it("uploads a name the user gives a stand-in", async () => {
-    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    const workspaces = [foo(), bar()];
     await inSync(workspaces);
     otherDeviceRenamed(FOO.id, "Bar");
     await reconcile();
 
-    await userRenamed(workspaces, "Bar (imported)", "Qux");
+    await userRenamed(workspaces, "Bar imported", "Qux");
     await reconcile();
     expect(server.get(FOO.id)!.name).toBe("Qux");
   });
 
   it("steps around a local project that already has the name", async () => {
-    const workspaces = [{ ...FOO }, { id: "p2", name: "Bar" }];
+    const workspaces = [foo(), bar()];
     const rename = await inSync(workspaces);
 
     otherDeviceRenamed(FOO.id, "Bar");
     await reconcile();
 
-    expect(rename).toHaveBeenCalledWith("Bar (imported)", { from: "Foo" });
+    expect(rename).toHaveBeenCalledWith("Bar imported", { from: "Foo" });
     expect(server.get(FOO.id)!.name).toBe("Bar");
+  });
+
+  /** An import that does what the explorer's does to the list and the store */
+  const importsInto = (workspaces: Array<{ id: string; name: string }>) =>
+    jest
+      .spyOn(PgExplorer, "importWorkspace")
+      .mockImplementation(async (name, opts) => {
+        if (workspaces.some((w) => w.name === name)) {
+          throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
+        }
+        writeStored(name, opts.files);
+        workspaces.push({ id: opts.id, name });
+      });
+
+  it("imports a new project beside one just renamed onto its name", async () => {
+    // One pass, newest first: "Foo" renamed to "Bar" elsewhere, and a new
+    // project also called "Bar". The import went by the names from before
+    // the rename, and wrote the new project's files into the renamed one.
+    const workspaces = [foo()];
+    await inSync(workspaces);
+    importsInto(workspaces);
+    server.set("p3", {
+      id: "p3",
+      name: "Bar",
+      kind: "project",
+      snapshot: { files: { "src/lib.rs": "the new project" } },
+      updatedAt: tick(),
+    });
+    otherDeviceRenamed(FOO.id, "Bar");
+
+    await reconcile();
+
+    expect(workspaces).toEqual([
+      { id: FOO.id, name: "Bar" },
+      { id: "p3", name: "Bar imported" },
+    ]);
+    expect(storedFiles().get("/Bar/src/lib.rs")).toBe("declare_id!();");
+    expect(storedFiles().get("/Bar imported/src/lib.rs")).toBe(
+      "the new project"
+    );
+
+    // The stepped name is a stand-in, and stays off the account
+    storedFiles().set("/Bar imported/src/lib.rs", "an edit here");
+    expect(
+      await PgProjectSync.push(
+        "p3",
+        await snapshotOf("Bar imported"),
+        "Bar imported",
+        { immediate: true }
+      )
+    ).toBe("ok");
+    expect(server.get("p3")!.name).toBe("Bar");
+  });
+
+  it("leaves a name the explorer refuses alone, without a report", async () => {
+    // A name from before the explorer's rule, which a rename here would be
+    // refused on every pass
+    const workspaces = [foo()];
+    const rename = await inSync(workspaces);
+    clearFailures();
+
+    otherDeviceRenamed(FOO.id, "Bar (old)");
+    await reconcile();
+    await reconcile();
+
+    expect(rename).not.toHaveBeenCalled();
+    expect(workspaces[0].name).toBe("Foo");
+    expect(getFailures()).toEqual([]);
+
+    storedFiles().set("/Foo/src/lib.rs", "an edit here");
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(server.get(FOO.id)!.name).toBe("Bar (old)");
   });
 });

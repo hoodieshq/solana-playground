@@ -144,7 +144,7 @@ describe("reconcile", () => {
 
     const result = await reconcile();
 
-    expect(result.imported).toEqual(["alpha (imported)"]);
+    expect(result.imported).toEqual(["alpha imported"]);
     expect(created[0].id).toBe("server-uuid");
   });
 

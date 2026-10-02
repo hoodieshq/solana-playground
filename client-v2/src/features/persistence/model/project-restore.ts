@@ -1,5 +1,6 @@
 import { report } from "./diagnostics";
 import {
+  freeName,
   isCleanAgainst,
   isUsableSnapshot,
   PgProjectSync,
@@ -218,8 +219,6 @@ const passUnlocked = async (): Promise<SyncResult> => {
     b.updatedAt.localeCompare(a.updatedAt)
   );
 
-  const taken = new Set(PgExplorer.allWorkspaceNames ?? []);
-
   for (const project of newestFirst) {
     PgProjectSync.rememberName(project.id, project.name);
     const local = PgExplorer.workspaceNameOf(project.id);
@@ -234,7 +233,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
 
     try {
       if (!local) {
-        const name = await importFresh(project.id, project.name, taken);
+        const name = await importFresh(project.id, project.name);
         if (name) {
           result.imported.push(name);
           result.latest ??= name;
@@ -395,8 +394,7 @@ const settleDivergence = async (
  */
 const importFresh = async (
   projectId: string,
-  serverName: string,
-  taken: Set<string>
+  serverName: string
 ): Promise<string | null> => {
   const full = await PgProjectSync.fetch(projectId);
   if (!isUsableSnapshot(full?.snapshot)) {
@@ -406,18 +404,21 @@ const importFresh = async (
     return null;
   }
 
-  let name = serverName;
-  while (taken.has(name)) name = `${name} (imported)`;
-
+  // Off the live list: an adopt or a merge earlier in this pass may have
+  // renamed a workspace onto the name, and `importWorkspace` refuses one
+  // that is taken
+  const name = freeName(serverName);
   await PgExplorer.importWorkspace(name, {
     id: projectId,
     files: full!.snapshot!.files,
   });
-  taken.add(name);
 
   await PgSyncMark.write(projectId, {
     files: await hashFiles(full!.snapshot!),
-    name,
+    name: serverName,
+    // Stepped around a local workspace holding the name: a stand-in, which
+    // no push sends and `settleSteppedNames` gives back once it is free
+    ...(name !== serverName ? { localName: name } : {}),
     updatedAt: full!.updatedAt,
     dirty: false,
   });

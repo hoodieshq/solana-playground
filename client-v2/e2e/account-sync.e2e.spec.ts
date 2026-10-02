@@ -229,8 +229,8 @@ const workspaceIdOf = (page: Page, name: string) =>
  *
  * @returns the workspace's id, which is what the account has to list it under
  * for the reload to be about this project. A different id is a project the
- * browser has never seen: it is imported beside this one as `(imported)`,
- * and everything the stub records is about the wrong project.
+ * browser has never seen: it is imported beside this one as "<name>
+ * imported", and everything the stub records is about the wrong project.
  */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
@@ -258,7 +258,7 @@ const reopened = async (page: Page, id: string, name: string) => {
   await page.locator('[aria-haspopup="true"]').first().click();
   const menu = page.getByLabel("Projects and lessons");
   await expect(menu).toBeVisible(LONG);
-  await expect(menu.getByText(/\(imported\)/)).toHaveCount(0);
+  await expect(menu.getByText(/ imported( \d+)?$/)).toHaveCount(0);
   await page.keyboard.press("Escape");
 };
 
