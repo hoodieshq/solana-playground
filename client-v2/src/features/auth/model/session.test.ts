@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { PgSession } from "./session";
 
 const signedIn = (user: {
@@ -6,14 +7,14 @@ const signedIn = (user: {
   image?: string | null;
   login?: string | null;
 }) =>
-  jest.fn().mockResolvedValue({
+  vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ user }),
   }) as unknown as typeof fetch;
 
 describe("PgSession", () => {
   afterEach(() => {
-    (global.fetch as jest.Mock | undefined)?.mockReset?.();
+    (global.fetch as Mock | undefined)?.mockReset?.();
     PgSession.reset();
   });
 
@@ -39,7 +40,7 @@ describe("PgSession", () => {
   });
 
   it("treats an empty session body as signed out", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => null,
     }) as unknown as typeof fetch;
@@ -86,7 +87,7 @@ describe("PgSession", () => {
     // `sign-in/social` is POST-only and answers with the authorize URL rather
     // than redirecting, which is what lets us open a popup instead of
     // navigating away and losing everything the page holds in memory
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/auth/sign-in/social"
         ? Promise.resolve({
             ok: true,
@@ -172,7 +173,7 @@ describe("PgSession", () => {
         cancel: () => {},
       };
     });
-    const originalFetch = global.fetch as jest.Mock;
+    const originalFetch = global.fetch as Mock;
     await PgSession.signIn();
     nonce = JSON.parse(originalFetch.mock.calls[0][1].body).callbackURL.split(
       "nonce="
@@ -184,7 +185,7 @@ describe("PgSession", () => {
   });
 
   it("reports a blocked popup distinctly from a failed sign-in", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ url: "https://x/" }),
     }) as unknown as typeof fetch;
@@ -194,7 +195,7 @@ describe("PgSession", () => {
   });
 
   it("surfaces a cancelled popup as a cancellation", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ url: "https://x/" }),
     }) as unknown as typeof fetch;
@@ -211,12 +212,12 @@ describe("PgSession", () => {
   });
 
   it("throws rather than opening a popup when sign-in cannot start", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
       json: async () => ({ error: "Authentication is not configured" }),
     }) as unknown as typeof fetch;
-    const open = jest.fn();
+    const open = vi.fn();
     PgSession.setOpenChannel(open as never);
 
     await expect(PgSession.signIn()).rejects.toThrow(/sign-in/i);

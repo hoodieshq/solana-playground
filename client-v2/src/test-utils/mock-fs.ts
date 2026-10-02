@@ -6,12 +6,12 @@
  * installed, so the module has to be replaced outright:
  *
  * ```ts
- * jest.mock("../../../utils/explorer/fs", () =>
+ * vi.mock("../../../utils/explorer/fs", () =>
  *   require("../../../test-utils/mock-fs").mockFsModule()
  * );
  * ```
  *
- * A `jest.mock` factory is hoisted above the imports, which is why it must
+ * A `vi.mock` factory is hoisted above the imports, which is why it must
  * `require` this rather than close over anything.
  *
  * The real filesystem round trip is covered by the browser tests in `e2e/`.

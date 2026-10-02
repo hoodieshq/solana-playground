@@ -1,4 +1,4 @@
-jest.mock("../../../utils", () => ({}));
+vi.mock("../../../utils", () => ({}));
 
 import { statusOf } from "./Stepper";
 import { INITIAL_FLOW_STATE } from "../state/stage";

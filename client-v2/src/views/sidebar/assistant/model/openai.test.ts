@@ -1,12 +1,12 @@
 import { createOpenAiProvider } from "./openai";
 import { PgAssistant, type ChatItem } from "../store";
 
-jest.mock("./prompt", () => ({
+vi.mock("./prompt", () => ({
   systemPrompt: () => "system",
   describeProject: () => "project",
 }));
 
-jest.mock("./tools", () => ({
+vi.mock("./tools", () => ({
   createTools: () => [
     {
       name: "write_file",
@@ -34,7 +34,7 @@ const body = (events: string[]) => {
 /** Queue one response body per round trip the loop is expected to make */
 const respondWith = (...rounds: string[][]) => {
   const queue = [...rounds];
-  global.fetch = jest.fn(async () => ({
+  global.fetch = vi.fn(async () => ({
     ok: true,
     status: 200,
     statusText: "OK",

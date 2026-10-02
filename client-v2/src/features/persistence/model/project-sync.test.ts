@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { PgProjectSync } from "./project-sync";
 import { PgEditorModels } from "./editor-models";
 import { hashFiles } from "./snapshot";
@@ -13,12 +14,12 @@ import { PgWorkspace } from "../../../utils/explorer/workspace";
 // `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
 // `monaco-editor` cannot load under jsdom, so every test in this file goes
 // through this stand-in instead.
-jest.mock("./editor-models", () => ({
+vi.mock("./editor-models", () => ({
   PgEditorModels: {
-    valueOf: jest.fn(async () => null),
-    drop: jest.fn(async () => {}),
-    dropUnder: jest.fn(async () => {}),
-    anyEditedUnder: jest.fn(async () => false),
+    valueOf: vi.fn(async () => null),
+    drop: vi.fn(async () => {}),
+    dropUnder: vi.fn(async () => {}),
+    anyEditedUnder: vi.fn(async () => false),
   },
 }));
 
@@ -26,7 +27,7 @@ jest.mock("./editor-models", () => ({
  * A stubbed `fetch` response.
  *
  * Named rather than inferred: a stub shared between a ternary's two branches
- * and a `jest.fn()` whose own return is `any` gives TypeScript no fixed point
+ * and a `vi.fn()` whose own return is `any` gives TypeScript no fixed point
  * to infer `json` from.
  */
 type StubResponse = {
@@ -54,17 +55,17 @@ const reset = () => {
   PgSyncBase.reset();
   storedFiles().clear();
   // CRA's jest preset sets `resetMocks: true`, which wipes the
-  // implementations the `jest.mock` factory above baked in before every
+  // implementations the `vi.mock` factory above baked in before every
   // test, not just once. Without this, `valueOf` answers `undefined` by
   // default rather than `null`, which reads as "someone is typing in it".
-  (PgEditorModels.valueOf as jest.Mock).mockResolvedValue(null);
-  (PgEditorModels.drop as jest.Mock).mockResolvedValue(undefined);
-  (PgEditorModels.dropUnder as jest.Mock).mockResolvedValue(undefined);
+  (PgEditorModels.valueOf as Mock).mockResolvedValue(null);
+  (PgEditorModels.drop as Mock).mockResolvedValue(undefined);
+  (PgEditorModels.dropUnder as Mock).mockResolvedValue(undefined);
 };
 
 /** The body of the most recent request */
 const lastBody = () =>
-  JSON.parse((global.fetch as jest.Mock).mock.calls.at(-1)![1].body);
+  JSON.parse((global.fetch as Mock).mock.calls.at(-1)![1].body);
 
 /** This device and the server agreed on `files`, under `name` */
 const agreedOn = async (
@@ -80,7 +81,7 @@ const agreedOn = async (
   });
 
 const putCalls = () =>
-  (global.fetch as jest.Mock).mock.calls.filter(
+  (global.fetch as Mock).mock.calls.filter(
     ([url, init]) => url === "/api/projects" && init?.method === "PUT"
   );
 
@@ -88,7 +89,7 @@ describe("PgProjectSync", () => {
   beforeEach(reset);
 
   it("skips entirely when signed out", async () => {
-    global.fetch = jest.fn() as unknown as typeof fetch;
+    global.fetch = vi.fn() as unknown as typeof fetch;
     expect(await PgProjectSync.push("p1", { files: {} })).toBe("skipped");
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -96,7 +97,7 @@ describe("PgProjectSync", () => {
   it("refuses an empty snapshot whoever pushes it", async () => {
     // Not only the editor's push: reconcile and an answer to the banner read
     // their snapshot off the same store, and can land in the same window
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -114,7 +115,7 @@ describe("PgProjectSync", () => {
   });
 
   it("skips an unchanged snapshot rather than re-uploading it", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -131,7 +132,7 @@ describe("PgProjectSync", () => {
   });
 
   it("records what the server accepted, so the next push is a swap against it", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -149,7 +150,7 @@ describe("PgProjectSync", () => {
   });
 
   it("survives a reload: the mark is read back, not rebuilt from memory", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -180,7 +181,7 @@ describe("PgProjectSync", () => {
     // that forced an upload, every reload bumped the row -- and a bumped row
     // is exactly what the *other* browser reads as "changed elsewhere", so two
     // idle browsers generated conflicts against each other.
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -200,7 +201,7 @@ describe("PgProjectSync", () => {
   });
 
   it("uploads a rename, which changes no bytes at all", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -218,7 +219,7 @@ describe("PgProjectSync", () => {
   });
 
   it("keeps marks apart per account", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -244,7 +245,7 @@ describe("PgProjectSync", () => {
   });
 
   it("lists nothing when signed out, rather than calling the server", async () => {
-    global.fetch = jest.fn() as unknown as typeof fetch;
+    global.fetch = vi.fn() as unknown as typeof fetch;
     expect(await PgProjectSync.list()).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -312,11 +313,11 @@ describe("PgProjectSync", () => {
 
     beforeEach(() => {
       Object.defineProperty(AbortSignal, "timeout", {
-        value: jest.fn(() => signal),
+        value: vi.fn(() => signal),
         configurable: true,
         writable: true,
       });
-      global.fetch = jest.fn().mockImplementation((url: string) =>
+      global.fetch = vi.fn().mockImplementation((url: string) =>
         Promise.resolve(
           url === "/api/sync"
             ? okProbe
@@ -338,7 +339,7 @@ describe("PgProjectSync", () => {
     });
 
     const initOf = (match: (url: string, init?: RequestInit) => boolean) =>
-      (global.fetch as jest.Mock).mock.calls.find(([url, init]) =>
+      (global.fetch as Mock).mock.calls.find(([url, init]) =>
         match(url, init)
       )?.[1] as RequestInit | undefined;
 
@@ -367,7 +368,7 @@ describe("PgProjectSync", () => {
   });
 
   const okServer = () =>
-    (global.fetch = jest.fn().mockImplementation((url: string) =>
+    (global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -403,7 +404,7 @@ describe("PgProjectSync", () => {
     // moment to take it was before the edit went unsent.
     okServer();
     await signedIn();
-    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
     await PgProjectSync.push("p1", { files: { a: "one" } });
 
     PgProjectSync.raise({ projectId: "p1", kind: "divergent" });
@@ -423,7 +424,7 @@ describe("a conflict is asked once, not retried forever", () => {
   };
 
   beforeEach(reset);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("stops pushing the project until the user has answered", async () => {
     // The bug this replaces: the 409 left the stale token in place and did not
@@ -451,7 +452,7 @@ describe("a conflict is asked once, not retried forever", () => {
   });
 
   it("leaves other projects alone", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+    global.fetch = vi.fn().mockImplementation((url: string, init: any) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve(
         JSON.parse(init.body).id === "p1"
@@ -471,7 +472,7 @@ describe("a conflict is asked once, not retried forever", () => {
     // The banner had no way to hear the second half, so once shown it stayed
     // up for the rest of the session -- over unrelated projects included.
     let status = 409;
-    global.fetch = jest.fn().mockImplementation((url: string) =>
+    global.fetch = vi.fn().mockImplementation((url: string) =>
       url === "/api/sync"
         ? Promise.resolve(okProbe)
         : Promise.resolve({
@@ -498,7 +499,7 @@ describe("a conflict is asked once, not retried forever", () => {
     // Settled the way the banner settles a refusal: the user answers, and the
     // push that follows is accepted
     status = 200;
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("one");
@@ -513,13 +514,13 @@ describe("a conflict is asked once, not retried forever", () => {
     // Offline since the refusal. Returning without raising anything would
     // leave pushes running, and every debounce would send the same doomed
     // swap.
-    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+    global.fetch = vi.fn().mockImplementation((url: string, init: any) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       if (init?.method === "PUT") return Promise.resolve(refusal);
       return Promise.reject(new TypeError("Failed to fetch"));
     }) as unknown as typeof fetch;
     await signedIn();
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
 
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
       "conflict"
@@ -551,7 +552,7 @@ describe("a conflict is asked once, not retried forever", () => {
         )
       ) as unknown as typeof fetch;
     await signedIn();
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
 
     expect(await PgProjectSync.push("p1", { files: { a: "1" } })).toBe(
       "conflict"
@@ -569,21 +570,21 @@ describe("a conflict is asked once, not retried forever", () => {
 
 describe("resolving a conflict", () => {
   const asWorkspace = (id: string, name: string) => {
-    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
-    jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
     storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
   beforeEach(reset);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("keeps this device's version as a swap against the server's, not an overwrite", async () => {
     // There is no unconditional write any more. Keeping this device's side
     // makes the server's copy the agreement first, so the upload is an
     // ordinary compare-and-swap that a third write can still refuse.
     let status = 409;
-    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+    global.fetch = vi.fn().mockImplementation((url: string, init: any) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       if (init?.method !== "PUT") {
         return Promise.resolve({
@@ -629,7 +630,7 @@ describe("resolving a conflict", () => {
   });
 
   it("takes the server's files when the user picks the other version", async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       if (url.includes("id=p1")) {
         return Promise.resolve({
@@ -656,7 +657,7 @@ describe("resolving a conflict", () => {
     const replace = jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
-    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
 
     await PgProjectSync.pushCurrent();
     expect(await PgProjectSync.resolve("p1", "take-server")).toBe(true);
@@ -676,7 +677,7 @@ describe("resolving a conflict", () => {
     //
     // `switchWorkspace` is not enough on its own: `_initCurrentWorkspace`
     // skips when the workspace is already the initialized one.
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve({
         ok: true,
@@ -712,7 +713,7 @@ describe("resolving a conflict", () => {
   it("does not re-read a project the user is not looking at", async () => {
     // Only the current workspace is held in memory, so re-opening any other
     // would be a navigation the user did not ask for
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve({
         ok: true,
@@ -729,7 +730,7 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
     storedFiles().set("/other/src/lib.rs", "old");
     await agreedOn("p2", "other", { "src/lib.rs": "old" });
     jest
@@ -748,7 +749,7 @@ describe("resolving a conflict", () => {
     // `replaceWorkspaceFiles` removes the directory before it discovers there
     // is nothing to write back, so an unusable snapshot is not a no-op -- it
     // is the project being deleted on every device that syncs it.
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve({
         ok: true,
@@ -778,8 +779,8 @@ describe("PgProjectSync.pushCurrent", () => {
   const okPush = { ok: true, json: async () => ({ updatedAt: "t1" }) };
 
   const asWorkspace = (id: string | undefined, name: string | undefined) => {
-    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
-    jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
     if (name) storedFiles().set(`/${name}/src/lib.rs`, "fn main() {}");
   };
 
@@ -792,7 +793,7 @@ describe("PgProjectSync.pushCurrent", () => {
       ) as unknown as typeof fetch;
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("uploads the workspace the user is looking at", async () => {
     asWorkspace("tut:hello-anchor", "Hello Anchor");
@@ -821,7 +822,7 @@ describe("PgProjectSync.pushCurrent", () => {
     // workspace, which is precisely when a push is most likely to be
     // pending -- so the version the user asked to keep would be replaced by
     // an empty project.
-    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("mine");
@@ -846,8 +847,8 @@ describe("PgProjectSync.pushCurrent", () => {
     // push gate and the sync lock had all had their say. A switch in
     // between tore the three apart: this device's id, paired with whatever
     // project the user had switched to by the time execution resumed.
-    const idSpy = jest.spyOn(PgExplorer, "currentWorkspaceId", "get");
-    const nameSpy = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    const idSpy = vi.spyOn(PgExplorer, "currentWorkspaceId", "get");
+    const nameSpy = vi.spyOn(PgExplorer, "currentWorkspaceName", "get");
     const setWorkspace = (id: string, name: string) => {
       idSpy.mockReturnValue(id);
       nameSpy.mockReturnValue(name);
@@ -1007,9 +1008,9 @@ describe("holding pushes until the account is reconciled", () => {
 
 describe("a refusal the user has to clear", () => {
   const asWorkspace = (id: string, name: string) => {
-    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
-    jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
-    jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
     storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
@@ -1024,7 +1025,7 @@ describe("a refusal the user has to clear", () => {
       ) as unknown as typeof fetch);
 
   beforeEach(reset);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("tells a name collision from a divergence, though both are 409", async () => {
     // The whole reason the server puts a `reason` in the body. Branching on
@@ -1123,7 +1124,7 @@ describe("a refusal the user has to clear", () => {
     // mean the name is free. `push` raises nothing for a request that threw,
     // so `resolve` is what puts the original question back.
     let offline = false;
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       if (offline) return Promise.reject(new Error("offline"));
       return Promise.resolve({
@@ -1194,8 +1195,8 @@ describe("a refusal the user has to clear", () => {
     asWorkspace("p1", "mine");
     PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
     storedFiles().delete("/mine/src/lib.rs");
-    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
-    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+    const importWorkspace = vi.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = vi.spyOn(PgExplorer, "deleteWorkspace");
 
     expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
     expect(importWorkspace).not.toHaveBeenCalled();
@@ -1214,8 +1215,8 @@ describe("a refusal the user has to clear", () => {
       PgWorkspace.WORKSPACES_CONFIG_PATH,
       JSON.stringify({ workspaces: [{ id: "p2", name: "mine" }] })
     );
-    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
-    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+    const importWorkspace = vi.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = vi.spyOn(PgExplorer, "deleteWorkspace");
 
     expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
     expect(importWorkspace).not.toHaveBeenCalled();

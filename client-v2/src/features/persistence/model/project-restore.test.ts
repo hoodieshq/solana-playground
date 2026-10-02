@@ -13,12 +13,12 @@ import type { Snapshot } from "./snapshot";
 // `adopt` re-opens through `reloadCurrentFromDisk`, which switches and then
 // drops Monaco's cached models -- and `monaco-editor` cannot load under
 // jsdom, so every test in this file goes through this stand-in instead.
-jest.mock("./editor-models", () => ({
+vi.mock("./editor-models", () => ({
   PgEditorModels: {
-    valueOf: jest.fn(async () => null),
-    drop: jest.fn(async () => {}),
-    dropUnder: jest.fn(async () => {}),
-    anyEditedUnder: jest.fn(async () => false),
+    valueOf: vi.fn(async () => null),
+    drop: vi.fn(async () => {}),
+    dropUnder: vi.fn(async () => {}),
+    anyEditedUnder: vi.fn(async () => false),
   },
 }));
 
@@ -75,10 +75,10 @@ const serverHas = (
   projects: ServerProject[],
   snapshots: Record<string, Snapshot | null> = {}
 ) => {
-  jest.spyOn(PgProjectSync, "list").mockResolvedValue(projects);
+  vi.spyOn(PgProjectSync, "list").mockResolvedValue(projects);
   // `read` rather than `fetch`, which is built on it: the merge reads through
   // it directly, to tell a row that is gone from a read that failed
-  jest.spyOn(PgProjectSync, "read").mockImplementation(async (id: string) => {
+  vi.spyOn(PgProjectSync, "read").mockImplementation(async (id: string) => {
     const found = projects.find((p) => p.id === id);
     if (!found) return "gone";
     return {
@@ -130,16 +130,16 @@ describe("reconcile", () => {
     await signedIn();
     // The probe behind this reaches the network; the server's *answers* are
     // what these tests stub, one layer up
-    jest.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
+    vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("matches on id, not name, so a local project sharing a name is left alone", async () => {
     withLocal({ alpha: "local-uuid" });
     withFiles("alpha", { "src/lib.rs": "local" });
     const created = stubCreation();
-    jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([project("server-uuid", "alpha")]);
 
     const result = await reconcile();
@@ -255,7 +255,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "newer here" });
     await pending("p1", { files: { "src/lib.rs": "old" } }, "t1");
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([project("p1", "alpha", "t1")]);
 
     const result = await reconcile();
@@ -279,7 +279,7 @@ describe("reconcile", () => {
     const replace = jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([project("p1", "alpha", "t1")]);
 
     const result = await reconcile();
@@ -310,7 +310,7 @@ describe("reconcile", () => {
     // with no snapshot. There is nothing in it to lose.
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "mine" });
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([project("p1", "p1", "t1")], { p1: null });
 
     const result = await reconcile();
@@ -353,9 +353,9 @@ describe("reconcile", () => {
     const remove = jest
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
-    const tombstone = jest.spyOn(PgProjectSync, "remove");
-    jest.spyOn(PgProjectSync, "list").mockResolvedValue(null);
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const tombstone = vi.spyOn(PgProjectSync, "remove");
+    vi.spyOn(PgProjectSync, "list").mockResolvedValue(null);
 
     const result = await reconcile();
 
@@ -407,7 +407,7 @@ describe("reconcile", () => {
         dirty: false,
       })
     );
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([]);
 
     const result = await reconcile();
@@ -424,7 +424,7 @@ describe("reconcile", () => {
     // signing in and not touched since stayed on one device forever.
     withLocal({ alpha: "local-only" });
     withFiles("alpha", { "src/lib.rs": "never uploaded" });
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([]);
 
     const result = await reconcile();
@@ -456,7 +456,7 @@ describe("reconcile", () => {
       image: null,
       login: null,
     });
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([]);
 
     const result = await reconcile();
@@ -469,7 +469,7 @@ describe("reconcile", () => {
     // Made locally while signed out, so it belongs to whoever signs in
     withLocal({ alpha: "nobodys" });
     withFiles("alpha", { "src/lib.rs": "made while logged out" });
-    const push = jest.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([]);
 
     expect((await reconcile()).pushed).toEqual(["alpha"]);
@@ -557,7 +557,7 @@ describe("reconcile", () => {
     let finish!: () => void;
     const held = new Promise<void>((resolve) => (finish = resolve));
     let passes = 0;
-    jest.spyOn(PgProjectSync, "list").mockImplementation(async () => {
+    vi.spyOn(PgProjectSync, "list").mockImplementation(async () => {
       if (++passes === 1) await held;
       return [];
     });
@@ -609,10 +609,10 @@ describe("releasing local projects at sign-out", () => {
     // Sign-out flushes the open workspace first. Nothing here is testing that
     // request, and letting it reach the network would make every case below
     // depend on it.
-    jest.spyOn(PgProjectSync, "pushCurrent").mockResolvedValue("ok");
+    vi.spyOn(PgProjectSync, "pushCurrent").mockResolvedValue("ok");
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   const stubDelete = () =>
     jest

@@ -1,12 +1,12 @@
 // Same mock as `store.test.ts`, for the same reason: importing the store
 // as a value reaches `../../../utils` and its generated globals.
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgExplorer: {
     currentWorkspaceName: null,
-    onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
   },
   PgProgramInfo: { idl: null },
-  PgTutorial: { getStorage: jest.fn() },
+  PgTutorial: { getStorage: vi.fn() },
 }));
 
 import { entryReading } from "./reading";

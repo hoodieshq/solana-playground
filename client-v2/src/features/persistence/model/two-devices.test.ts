@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
 import { sha256, SYNCED_WORKSPACE_FILES } from "./snapshot";
@@ -16,12 +17,12 @@ import { PgWorkspace } from "../../../utils/explorer/workspace";
 // `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
 // `monaco-editor` cannot load under jsdom, so every test in this file goes
 // through this stand-in instead.
-jest.mock("./editor-models", () => ({
+vi.mock("./editor-models", () => ({
   PgEditorModels: {
-    valueOf: jest.fn(async () => null),
-    drop: jest.fn(async () => {}),
-    dropUnder: jest.fn(async () => {}),
-    anyEditedUnder: jest.fn(async () => false),
+    valueOf: vi.fn(async () => null),
+    drop: vi.fn(async () => {}),
+    dropUnder: vi.fn(async () => {}),
+    anyEditedUnder: vi.fn(async () => false),
   },
 }));
 
@@ -173,7 +174,7 @@ const asDevice = (
   // writes to it later (simulating this tab's own unsaved edit) is read as
   // the same edit in memory -- matching what autosave really does, and
   // keeping the reload a no-op rather than an unmocked `switchWorkspace`.
-  jest.spyOn(PgExplorer, "files", "get").mockImplementation(() => {
+  vi.spyOn(PgExplorer, "files", "get").mockImplementation(() => {
     if (!current) return {};
     const prefix = `/${current.name}/`;
     return Object.fromEntries(
@@ -195,7 +196,7 @@ const asFreshDevice = (
   PgProjectSync.reset();
   PgSyncBase.reset();
   storedFiles().clear();
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
   return asDevice(workspaces, content);
 };
 
@@ -207,7 +208,7 @@ const setUp = () => {
   PgProjectSync.reset();
   PgSyncBase.reset();
   storedFiles().clear();
-  global.fetch = jest.fn(fakeFetch) as unknown as typeof fetch;
+  global.fetch = vi.fn(fakeFetch) as unknown as typeof fetch;
 };
 
 /**
@@ -320,7 +321,7 @@ const HELLO = { id: "tut:hello-anchor", name: "Hello Anchor" };
 
 describe("a tutorial started on one browser, opened on another", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("arrives under the name the user knows it by", async () => {
     asDevice([HELLO]);
@@ -381,7 +382,7 @@ describe("a tutorial started on one browser, opened on another", () => {
 
 describe("work that never reached the server", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   /**
    * The sequence the old code lost an afternoon to: this device pushes, then
@@ -416,10 +417,10 @@ describe("work that never reached the server", () => {
     await diverge();
     await reconcile();
 
-    const before = (global.fetch as jest.Mock).mock.calls.length;
+    const before = (global.fetch as Mock).mock.calls.length;
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
-    expect((global.fetch as jest.Mock).mock.calls.length).toBe(before);
+    expect((global.fetch as Mock).mock.calls.length).toBe(before);
   });
 
   it("uploads this device's copy when the user keeps it", async () => {
@@ -442,7 +443,7 @@ describe("work that never reached the server", () => {
     const replace = jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
-    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
 
     expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
 
@@ -462,7 +463,7 @@ describe("both devices changed it", () => {
     editor?.dispose();
     editor = null;
     clearFailures();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   const base = "a\nb\nc\nd\ne\n";
@@ -527,7 +528,7 @@ describe("both devices changed it", () => {
     // pre-merge copy then, so a retry that re-read it would undo `A`.
     const online = global.fetch;
     let puts = 0;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "PUT" && ++puts === 2) {
         otherDeviceWroteFiles(HELLO.id, {
           "src/lib.rs": "A\nb\nc\nd\ne\n",
@@ -559,7 +560,7 @@ describe("both devices changed it", () => {
     // The first attempt is refused offline-style: the base is captured before
     // the request, and then the page goes away
     const online = global.fetch;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "PUT") throw new Error("offline");
       return online(url, init);
     }) as unknown as typeof fetch;
@@ -805,7 +806,7 @@ describe("both devices changed it", () => {
 
     const online = global.fetch;
     let reads = 0;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       const response = await online(url, init);
       if (!init?.method && url.includes("id=") && ++reads === 1) {
         buffers.set(path, typed);
@@ -876,7 +877,7 @@ describe("both devices changed it", () => {
     );
     localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
     const replace = captureWrites();
-    jest.spyOn(PgProjectSync, "isMerging").mockReturnValue(true);
+    vi.spyOn(PgProjectSync, "isMerging").mockReturnValue(true);
 
     const result = await reconcile();
 
@@ -891,7 +892,7 @@ describe("both devices changed it", () => {
 
 describe("two rewrites of one project at once", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   const before = { "src/lib.rs": "lib", "src/mine.rs": "x" };
   const theirs = { "src/lib.rs": "their lib", "src/mine.rs": "x" };
@@ -985,7 +986,7 @@ describe("two rewrites of one project at once", () => {
     let answer!: () => void;
     const held = new Promise<void>((resolve) => (answer = resolve));
     let reads = 0;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (!init?.method && url.includes("id=") && ++reads === 1) await held;
       return online(url, init);
     }) as unknown as typeof fetch;
@@ -1012,7 +1013,7 @@ describe("two rewrites of one project at once", () => {
     await startFrom();
     const { reopen, replace } = reopenOnCue();
     const online = global.fetch;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "PUT") throw new Error("offline");
       return online(url, init);
     }) as unknown as typeof fetch;
@@ -1031,7 +1032,7 @@ describe("two rewrites of one project at once", () => {
 
 describe("deleting on one device", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("removes it from this one too, and does not resurrect it", async () => {
     // This browser is in sync with the account, and then the project is
@@ -1080,7 +1081,7 @@ describe("deleting on one device", () => {
 
 describe("a device upgraded from whole-snapshot marks", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   /**
    * A mark as the previous version wrote it: one hash of the user's files,
@@ -1121,7 +1122,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
   };
 
   const puts = () =>
-    (global.fetch as jest.Mock).mock.calls.filter(
+    (global.fetch as Mock).mock.calls.filter(
       ([, init]) => init?.method === "PUT"
     );
 
@@ -1141,7 +1142,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
    * explorer's memory.
    */
   const writesLand = () => {
-    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
     return jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
@@ -1149,7 +1150,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
           // All of it in the store, which is what a snapshot reads; only the
           // user files in memory, as the explorer keeps them
           writeStored(name, files);
-          jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue(
+          vi.spyOn(PgExplorer, "getAllFiles").mockReturnValue(
             Object.entries(files)
               .filter(([path]) => !SYNCED_WORKSPACE_FILES.includes(path))
               .map(([path, content]) => [`/${name}/${path}`, content])
@@ -1336,7 +1337,7 @@ describe("a device upgraded from whole-snapshot marks", () => {
     const deleteWorkspace = jest
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
-    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
     await signedIn();
 
     const result = await reconcile();
@@ -1383,11 +1384,11 @@ describe("a program keypair only this device holds", () => {
     clearFailures();
   });
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     // Back to jsdom's own getter, which the first test shadows
     delete (document as { visibilityState?: unknown }).visibilityState;
     clearFailures();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   const PROGRAM_INFO = ".workspace/program-info.json";
@@ -1416,7 +1417,7 @@ describe("a program keypair only this device holds", () => {
    * exactly as it does in the browser.
    */
   const writesLand = () => {
-    jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
     return jest
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
@@ -1494,12 +1495,12 @@ describe("a program keypair only this device holds", () => {
     // event for the keypair file, and its debounced push is the next push
     const pushes: Array<Promise<unknown>> = [];
     const pushCurrent = PgProjectSync.pushCurrent.bind(PgProjectSync);
-    jest.spyOn(PgProjectSync, "pushCurrent").mockImplementation(() => {
+    vi.spyOn(PgProjectSync, "pushCurrent").mockImplementation(() => {
       const pushed = pushCurrent();
       pushes.push(pushed);
       return pushed;
     });
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const effect = projectSync();
     try {
       const result = await reconcile();
@@ -1516,12 +1517,12 @@ describe("a program keypair only this device holds", () => {
         await sha256(info(null, "idl"))
       );
 
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       expect(pushes).toHaveLength(1);
       expect(await pushes[0]).toBe("ok");
     } finally {
       effect.dispose();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
 
     expect(onServer()).toEqual({
@@ -1634,7 +1635,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     editor = null;
     delete (document as { visibilityState?: unknown }).visibilityState;
     clearFailures();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   let effect: { dispose: () => void } | null = null;
@@ -1662,7 +1663,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
           }
         }
       );
-    jest.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       localFilesAre(
         HELLO.name,
         Object.fromEntries(
@@ -1706,7 +1707,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     // landing before this device's typing is uploaded
     const online = global.fetch;
     let puts = 0;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       const response = await online(url, init);
       if (init?.method === "PUT" && ++puts === 2) {
         expect(response.ok).toBe(true);
@@ -1738,7 +1739,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     const online = global.fetch;
     let reads = 0;
     let lists = 0;
-    global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (!init?.method && url === "/api/projects" && ++lists === 2) {
         otherDeviceWroteFiles(HELLO.id, {
           "src/lib.rs": "A\nB\nc\nd\ne\nf\ng\n",
@@ -1764,13 +1765,13 @@ describe("the exchange after typing was folded into a rewrite", () => {
 
 describe("picking up where the account left off", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("names the most recently touched project, so it can be opened", async () => {
     asDevice([{ id: "older", name: "Older" }]);
     await signedIn();
     await PgProjectSync.pushCurrent();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     asDevice([{ id: "newer", name: "Newer" }]);
     await PgProjectSync.pushCurrent();
 
@@ -1814,7 +1815,7 @@ describe("picking up where the account left off", () => {
     expect(second.conflicts).toEqual([]);
     expect(PgProjectSync.conflicts).toEqual([]);
     expect(
-      (global.fetch as jest.Mock).mock.calls.filter(
+      (global.fetch as Mock).mock.calls.filter(
         ([, init]) => init?.method === "PUT"
       )
     ).toEqual([]);
@@ -1857,7 +1858,7 @@ describe("picking up where the account left off", () => {
 
 describe("signing out of a browser", () => {
   beforeEach(setUp);
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   /**
    * Take the workspace off this device the way `PgExplorer` does.

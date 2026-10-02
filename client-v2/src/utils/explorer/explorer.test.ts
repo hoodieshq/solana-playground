@@ -136,7 +136,7 @@ describe("init calls that overlap", () => {
     };
     const real = statics._init.bind(PgExplorer);
     const order: string[] = [];
-    jest.spyOn(statics, "_init").mockImplementation(async (params) => {
+    vi.spyOn(statics, "_init").mockImplementation(async (params) => {
       order.push("start");
       await new Promise((resolve) => setTimeout(resolve, 10));
       await real(params);
@@ -164,7 +164,7 @@ describe("init calls that overlap", () => {
     await expect(second).resolves.toBeUndefined();
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 });
 
 /**
@@ -196,7 +196,7 @@ describe("PgExplorer.refreshWorkspaces", () => {
     await PgExplorer.createWorkspace("beta", { files: files("beta") });
     clearFailures();
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("takes a neighbour's list and keeps this tab's current", async () => {
     const alpha = PgExplorer.workspaceIdOf("alpha")!;

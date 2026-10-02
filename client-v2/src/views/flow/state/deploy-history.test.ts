@@ -1,7 +1,8 @@
-jest.mock("../../../utils", () => ({
+import type { Mock } from "vitest";
+vi.mock("../../../utils", () => ({
   PgCommand: {
     deploy: {
-      onDidFinish: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidFinish: vi.fn(() => ({ dispose: vi.fn() })),
     },
   },
   PgConnection: {
@@ -14,7 +15,7 @@ jest.mock("../../../utils", () => ({
     deployState: "ready",
   },
   PgProgramInfo: {
-    getPkStr: jest.fn(() => "testProgramId"),
+    getPkStr: vi.fn(() => "testProgramId"),
   },
 }));
 
@@ -50,7 +51,7 @@ describe("PgDeployHistory", () => {
   });
 
   it("notifies listeners on add", () => {
-    const cb = jest.fn();
+    const cb = vi.fn();
     PgDeployHistory.onDidChange(cb);
     PgDeployHistory.add({
       workspace: "w",
@@ -75,8 +76,8 @@ describe("PgDeployHistory.init wiring", () => {
     let deployCallback: ((result: unknown) => void) | undefined;
 
     // Set up mocks
-    const deployFinishMock = PgCommand.deploy.onDidFinish as jest.Mock;
-    const deployFinishReturn = { dispose: jest.fn() };
+    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
+    const deployFinishReturn = { dispose: vi.fn() };
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
       return deployFinishReturn;
@@ -118,10 +119,10 @@ describe("PgDeployHistory.init wiring", () => {
     } = require("../../../utils");
     let deployCallback: ((result: unknown) => void) | undefined;
 
-    const deployFinishMock = PgCommand.deploy.onDidFinish as jest.Mock;
+    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
 
     PgConnection.cluster = "devnet";
