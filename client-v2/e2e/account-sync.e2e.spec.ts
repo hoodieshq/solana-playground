@@ -229,8 +229,8 @@ const workspaceIdOf = (page: Page, name: string) =>
  *
  * @returns the workspace's id, which is what the account has to list it under
  * for the reload to be about this project. A different id is a project the
- * browser has never seen: it is imported beside this one as `(imported)`,
- * and everything the stub records is about the wrong project.
+ * browser has never seen: it is imported beside this one as "<name>
+ * imported", and everything the stub records is about the wrong project.
  */
 const makeLocalProject = async (page: Page, name: string) => {
   await page.goto("/");
@@ -258,7 +258,7 @@ const reopened = async (page: Page, id: string, name: string) => {
   await page.locator('[aria-haspopup="true"]').first().click();
   const menu = page.getByLabel("Projects and lessons");
   await expect(menu).toBeVisible(LONG);
-  await expect(menu.getByText(/\(imported\)/)).toHaveCount(0);
+  await expect(menu.getByText(/ imported( \d+)?$/)).toHaveCount(0);
   await page.keyboard.press("Escape");
 };
 
@@ -432,6 +432,93 @@ test("the other device's change arrives without asking", async ({ page }) => {
   // changed elsewhere.
   await page.waitForTimeout(8000);
   expect(writes).toEqual([]);
+});
+
+/**
+ * A rename on the other device arrives here, and stays.
+ *
+ * Taking the other device's copy used to take its files and keep this
+ * browser's name for them -- and record that name as agreed, so this
+ * browser's next edit uploaded it and renamed the project back for everyone.
+ */
+test("the other device's rename arrives, and the next edit keeps it", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const localId = await makeLocalProject(page, "Before");
+
+  const writes: Array<{ name?: string }> = [];
+  let name = "Before";
+  let stored: {
+    snapshot?: { files: Record<string, string> };
+    updatedAt: string;
+  } | null = null;
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    if (r.request().method() === "PUT") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      writes.push(body);
+      name = body.name;
+      stored = {
+        snapshot: applyWrite(stored?.snapshot, body),
+        updatedAt: new Date(
+          Date.UTC(2026, 1, 1, 0, 0, writes.length)
+        ).toISOString(),
+      };
+      return json(r, { updatedAt: stored.updatedAt });
+    }
+    const shared = {
+      id: localId,
+      name,
+      kind: "project",
+      updatedAt: stored?.updatedAt ?? "2026-02-01T00:00:00.000Z",
+    };
+    const id = new URL(r.request().url()).searchParams.get("id");
+    if (id) {
+      return json(r, {
+        project: {
+          id: shared.id,
+          name: shared.name,
+          kind: shared.kind,
+          updatedAt: shared.updatedAt,
+          snapshot: stored?.snapshot,
+        },
+      });
+    }
+    return json(r, { projects: stored ? [shared] : [] });
+  });
+
+  await page.reload();
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
+
+  // The other device renames it, and changes nothing else
+  name = "Renamed elsewhere";
+  stored = {
+    snapshot: stored!.snapshot,
+    updatedAt: "2026-05-01T00:00:00.000Z",
+  };
+
+  writes.length = 0;
+  await page.reload();
+  await reopened(page, localId, "Renamed elsewhere");
+  await expect(page.getByText("changed on another device")).toHaveCount(0);
+
+  // An edit here goes up under the new name, not the old one
+  const editor = page.locator(".monaco-editor .view-lines");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("\n// an edit after the rename");
+  await expect.poll(() => writes.length, LONG).toBeGreaterThanOrEqual(1);
+  await settled(page, writes);
+  expect(writes.map((w) => w.name)).not.toContain("Before");
+  expect(name).toBe("Renamed elsewhere");
 });
 
 /**

@@ -173,22 +173,24 @@ export class PgWorkspace {
   }
 
   /**
-   * Rename the current workspace.
+   * Rename a workspace, the current one unless `from` names another.
    *
    * The id does not change -- that is the point of having one. Anything keyed
    * by it, sync included, follows the workspace through the rename.
    *
    * @param newName new workspace name
+   * @param from the workspace to rename; defaults to the current one
    */
-  rename(newName: string) {
+  rename(newName: string, from?: string) {
     if (this.allNames.includes(newName)) {
       throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
     }
 
-    const current = this._state.workspaces.find(
-      (w) => w.id === this._state.currentId
+    const target = this._state.workspaces.find((w) =>
+      from === undefined ? w.id === this._state.currentId : w.name === from
     );
-    if (current) current.name = newName;
+    if (target) target.name = newName;
+    else if (from !== undefined) throw new Error(PgWorkspace.errors.NOT_FOUND);
   }
 
   /* ---------------------------- Static methods ---------------------------- */
