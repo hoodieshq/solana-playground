@@ -761,12 +761,21 @@ export class PgExplorer {
         throw new Error(PgWorkspace.errors.ALREADY_EXISTS);
       }
 
-      await this.fs.rename(
-        PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, from),
-        PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, newName)
-      );
-      this._workspace.rename(newName, from);
-      await this._saveWorkspaces();
+      const fromPath = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, from);
+      const newPath = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, newName);
+      await this.fs.rename(fromPath, newPath);
+      try {
+        this._workspace.rename(newName, from);
+        await this._saveWorkspaces();
+      } catch (e) {
+        // Put back what moved, or the list names a directory that is gone
+        if (this._workspace.allNames.includes(newName)) {
+          this._workspace.rename(from, newName);
+        }
+        await this.fs.rename(newPath, fromPath);
+        await this._saveWorkspaces().catch(() => {});
+        throw e;
+      }
 
       PgCommon.createAndDispatchCustomEvent(
         this.events.ON_DID_RENAME_WORKSPACE

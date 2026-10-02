@@ -388,6 +388,36 @@ describe("renaming a workspace that is not the current one", () => {
       PgExplorer.renameWorkspace("gamma", { from: "nope" })
     ).rejects.toThrow(PgWorkspace.errors.NOT_FOUND);
   });
+
+  it("puts the directory and the list back when the save fails", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const writeFile = PgExplorer.fs.writeFile.bind(PgExplorer.fs);
+    const failing = jest
+      .spyOn(PgExplorer.fs, "writeFile")
+      .mockImplementationOnce(async () => {
+        throw new Error("quota");
+      })
+      .mockImplementation(writeFile);
+
+    try {
+      await expect(
+        PgExplorer.renameWorkspace("gamma", { from: "alpha" })
+      ).rejects.toThrow("quota");
+    } finally {
+      failing.mockRestore();
+    }
+
+    expect(PgExplorer.workspaceNameOf(alphaId!)).toBe("alpha");
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(stored().has("/gamma/src/lib.rs")).toBe(false);
+    expect(
+      readConfig()
+        .workspaces.map((w) => w.name)
+        .sort()
+    ).toEqual(["alpha", "beta"]);
+  });
 });
 
 describe("importing a workspace under a name already in use", () => {
