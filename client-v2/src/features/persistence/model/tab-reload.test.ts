@@ -458,24 +458,74 @@ describe("reloadCurrentFromDisk", () => {
         files: {},
       });
       expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+      // Put back is the repair working, not a failure
+      expect(getFailures()).toEqual([]);
+    });
+
+    it("leaves it as deleted when it cannot be put back", async () => {
+      // Its name is taken on the list that lost it. Staying put is the state
+      // the sidebar throws on: workspaces listed, none current.
+      store().set("/alpha/src/lib.rs", "old");
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["alpha", "beta"]);
+      jest
+        .spyOn(PgExplorer, "importWorkspace")
+        .mockRejectedValue(new Error("name taken"));
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("beta");
       expect(getFailures()).toEqual([
-        expect.objectContaining({
-          what: "reload alpha: missing from the project list, put back",
-        }),
+        expect.objectContaining({ what: "reload alpha: put back" }),
       ]);
     });
 
-    it("does not follow a neighbour into a project after leaving", async () => {
+    it("does not put back a directory holding only the tabs file", async () => {
+      // `saveMeta` recreates it around that one file in a tab that has not
+      // yet heard of the delete. Read as "still there", that undid the
+      // delete in every tab.
+      store().set("/alpha/.workspace/metadata.json", '{"tabs":[]}');
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["beta"]);
+      jest.spyOn(PgExplorer, "importWorkspace").mockResolvedValue(undefined);
+
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.importWorkspace).not.toHaveBeenCalled();
+      expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith("beta");
+    });
+
+    it("puts back a directory with a workspace file besides the tabs", async () => {
+      // The keypair is the project's, and only a delete takes it
+      store().set("/alpha/.workspace/metadata.json", '{"tabs":[]}');
+      store().set("/alpha/.workspace/program-info.json", '{"kp":[1]}');
+      jest
+        .spyOn(PgExplorer, "allWorkspaceNames", "get")
+        .mockReturnValue(["beta"]);
+      jest.spyOn(PgExplorer, "importWorkspace").mockResolvedValue(undefined);
+
+      expect(await reloadCurrentFromDisk()).toBe("unchanged");
+      expect(PgExplorer.importWorkspace).toHaveBeenCalled();
+    });
+
+    it("moves into a project a neighbour creates after leaving", async () => {
+      // Left, with nothing listed. A neighbour's create then lists one while
+      // the current id still names the deleted workspace -- workspaces
+      // listed and none current, which the sidebar throws on.
       const names = jest
         .spyOn(PgExplorer, "allWorkspaceNames", "get")
         .mockReturnValue([]);
       expect(await reloadCurrentFromDisk()).toBe("reopened");
+      (PgEditorModels.dropUnder as jest.Mock).mockClear();
 
-      // The id this tab kept names the deleted workspace, so a project
-      // created elsewhere is no reason to open it
       names.mockReturnValue(["created-elsewhere"]);
-      expect(await reloadCurrentFromDisk()).toBe("skipped");
-      expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+      expect(await reloadCurrentFromDisk()).toBe("reopened");
+      expect(PgExplorer.switchWorkspace).toHaveBeenCalledWith(
+        "created-elsewhere"
+      );
+      // Its models went with the first leave
+      expect(PgEditorModels.dropUnder).not.toHaveBeenCalled();
+      expect(PgExplorer.init).toHaveBeenCalledTimes(1);
     });
   });
 

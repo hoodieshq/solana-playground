@@ -148,6 +148,40 @@ PgExplorer.onDidInit(() => {
 if (PgExplorer.isInitialized && !PgExplorer.isTemporary) recordOpen();
 
 /**
+ * Whether a workspace's directory holds anything a delete would have taken.
+ *
+ * Not merely whether it exists: the editor runs `saveMeta` on an interval
+ * while its tab has focus, and the write of `.workspace/metadata.json`
+ * creates its parents. A tab that has not yet heard of a delete made
+ * elsewhere recreates the directory around that one file -- and read as
+ * "still there", that undid the delete in every tab.
+ */
+const holdsFiles = async (root: string): Promise<boolean> => {
+  const walk = async (dir: string): Promise<boolean> => {
+    for (const child of await PgFs.readDir(dir)) {
+      const path = `${dir}/${child}`;
+      if ((await PgFs.getMetadata(path)).isDirectory()) {
+        if (await walk(path)) return true;
+      } else if (path !== `${root}/.workspace/metadata.json`) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  try {
+    return await walk(root);
+  } catch (e) {
+    if (isMissing(e)) return false;
+    // A store that failed to read cannot say the workspace was deleted, and
+    // putting back one that was is the cheaper mistake: a project to delete
+    // again, rather than work dropped off the list
+    report(`reload ${root}: read`, e);
+    return true;
+  }
+};
+
+/**
  * Leave a workspace another tab deleted, the way that tab did.
  *
  * With workspaces listed and none of them current, the explorer sidebar
@@ -155,30 +189,37 @@ if (PgExplorer.isInitialized && !PgExplorer.isTemporary) recordOpen();
  * path. So this goes where `deleteWorkspace` sends the tab that deleted it:
  * the last workspace left, or the empty state when there is none.
  *
- * Only when the directory is gone. A delete removes it before the list is
- * saved, so a directory that is still there means the list was written by a
- * tab that had not seen this workspace yet -- and that is put right instead.
+ * Only when the directory holds nothing. A delete removes it before the list
+ * is saved, so files still there mean the list was written by a tab that had
+ * not seen this workspace yet -- and that is put right instead.
  */
 const leaveDeleted = async (): Promise<ReloadResult> => {
-  // Already left. Not a cue to move into whatever a neighbour creates next:
-  // the id this tab kept names the deleted workspace, not a wish to be in
-  // the next one.
-  if (left) return "skipped";
-
-  const old = memoryRoot();
+  // Already left, the deleted workspace's files and models are long gone,
+  // and there is nothing of it to put back or drop. What is left to do is
+  // the move itself, once there is somewhere to go: a neighbour that creates
+  // a workspace lists one, and staying put then is the state the sidebar
+  // throws on.
+  const old = left ? undefined : memoryRoot();
   const id = PgExplorer.currentWorkspaceId;
-  if (old && id && (await PgFs.exists(`/${old}`))) {
-    return await restore(old, id);
+  if (old && id && (await holdsFiles(`/${old}`)) && (await restore(old, id))) {
+    return "unchanged";
   }
 
   const next = PgExplorer.allWorkspaceNames?.at(-1);
   if (next) {
     await PgExplorer.switchWorkspace(next);
+    // Which the switch's own event does too, through `recordOpen`. Said here
+    // as well, because this is what decides the next reload.
+    left = false;
+  } else if (left) {
+    return "skipped";
   } else {
-    // What the deleting tab's own `init` does with no workspaces: the tree,
-    // tabs and editor are reset, and the gallery opens over the empty state.
-    // Not `ON_DID_DELETE_WORKSPACE`, which would have sync delete the
-    // project a second time.
+    // What the deleting tab ends up showing: the tree, tabs and editor
+    // reset, and the gallery opening over the empty state. Not what its
+    // `deleteWorkspace` does to get there -- that clears the current id,
+    // saves the list and announces a switch, and the list on disk is
+    // already the deleter's. Not `ON_DID_DELETE_WORKSPACE` either, which
+    // would have sync delete the project a second time.
     await PgExplorer.init();
     left = true;
     // A lesson's route stays on the lesson otherwise. Its own handler for a
@@ -206,27 +247,30 @@ const leaveDeleted = async (): Promise<ReloadResult> => {
 /**
  * Put this tab's workspace back on a list that lost it.
  *
- * Its directory is still there, so it was not deleted: the list was saved
- * by a tab that had not seen it yet. Left off, the sidebar throws on its
- * next render -- workspaces listed, none current -- and the next save of
- * any tab makes the loss permanent. Registered again under the same name
- * and id, and saved, which tells the other tabs too.
+ * Its files are still there, so it was not deleted: the list was saved by a
+ * tab that had not seen it yet. Left off, the sidebar throws on its next
+ * render -- workspaces listed, none current -- and the next save of any tab
+ * makes the loss permanent. Registered again under the same name and id,
+ * and saved, which tells the other tabs too.
  *
  * `importWorkspace` writes no files for an empty set and dispatches
  * `ON_DID_CREATE_WORKSPACE`. That re-renders the project switcher, and
  * `Flow.tsx` answers it by closing the gallery it opened over an empty
  * browser -- harmless here, where the list was not empty to begin with.
+ *
+ * @returns whether it is back. When it is not, the caller leaves it as a
+ * deleted one, which is at least a state the sidebar can render; its files
+ * stay where they are on disk.
  */
-const restore = async (name: string, id: string): Promise<ReloadResult> => {
-  report(`reload ${name}: missing from the project list, put back`, null);
+const restore = async (name: string, id: string): Promise<boolean> => {
   try {
     await PgExplorer.importWorkspace(name, { id, files: {} });
   } catch (e) {
-    // The name is taken on the list that lost it; nothing safe to do here
+    // The name is taken on the list that lost it, so it cannot go back
     report(`reload ${name}: put back`, e);
-    return "skipped";
+    return false;
   }
-  return "unchanged";
+  return true;
 };
 
 /**

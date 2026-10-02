@@ -235,12 +235,14 @@ for (const [how, hear] of ways)
       expect(config().workspaces).toContainEqual({ id, name: "beta" });
     });
 
-    it("stays out of a project created elsewhere once it has left", async () => {
+    it("moves into a project created elsewhere once it has left", async () => {
       elsewhere.delete("alpha");
       elsewhere.delete("beta");
       await hear();
 
-      // A neighbour creates one; this tab's kept id names the deleted one
+      // A neighbour creates one, while this tab's kept id still names the
+      // deleted one: workspaces listed and none current, which the sidebar
+      // throws on. So it goes where the deleting tab would have gone.
       const next = config();
       next.workspaces = [{ id: "n1", name: "fresh" }];
       next.currentId = "n1";
@@ -249,8 +251,8 @@ for (const [how, hear] of ways)
       await hear();
 
       expect(PgExplorer.allWorkspaceNames).toEqual(["fresh"]);
-      expect(PgExplorer.currentWorkspaceName).toBeUndefined();
-      expect(paths()).toEqual([]);
+      expect(PgExplorer.currentWorkspaceName).toBe("fresh");
+      expect(paths()).toContain("/fresh/src/lib.rs");
     });
 
     it("empties the tree when the last one was deleted", async () => {
