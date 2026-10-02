@@ -276,7 +276,7 @@ describe("PgExplorer.refreshWorkspaces", () => {
 
   it("refreshes again once that save has landed", async () => {
     await PgExplorer.createWorkspace("gamma", { files: files("gamma") });
-    writeConfig({ ...readConfig(), workspaces: [] });
+    writeConfig({ workspaces: [], currentId: readConfig().currentId });
 
     await PgExplorer.refreshWorkspaces();
 

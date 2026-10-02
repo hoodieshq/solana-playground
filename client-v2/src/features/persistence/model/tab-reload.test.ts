@@ -39,7 +39,7 @@ beforeEach(() => {
     () =>
       ({
         path: "/alpha/src/lib.rs",
-        ...memory["/alpha/src/lib.rs"],
+        content: memory["/alpha/src/lib.rs"]?.content,
       } as ReturnType<typeof PgExplorer.getCurrentFile>)
   );
   jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);

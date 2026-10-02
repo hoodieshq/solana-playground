@@ -55,7 +55,7 @@ const elsewhere = {
     }
     const next = config();
     next.workspaces = next.workspaces.map((w) =>
-      w.name === from ? { ...w, name: to } : w
+      w.name === from ? { id: w.id, name: to } : w
     );
     store().set(PgWorkspace.WORKSPACES_CONFIG_PATH, JSON.stringify(next));
   },

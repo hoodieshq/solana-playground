@@ -108,9 +108,9 @@ const fakeAccount = async (
       updatedAt: p.updatedAt,
     });
     if (!id) {
-      return json(r, {
-        projects: [row, ...others.values()].map(listing),
-      });
+      const projects = [listing(row)];
+      for (const other of others.values()) projects.push(listing(other));
+      return json(r, { projects });
     }
     const found = id === ID ? row : others.get(id);
     return found ? json(r, { project: found }) : json(r, {}, 404);
