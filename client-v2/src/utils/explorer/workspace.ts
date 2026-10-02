@@ -190,6 +190,7 @@ export class PgWorkspace {
       from === undefined ? w.id === this._state.currentId : w.name === from
     );
     if (target) target.name = newName;
+    else if (from !== undefined) throw new Error(PgWorkspace.errors.NOT_FOUND);
   }
 
   /* ---------------------------- Static methods ---------------------------- */
