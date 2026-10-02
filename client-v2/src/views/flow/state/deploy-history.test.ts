@@ -21,6 +21,16 @@ vi.mock("../../../utils", () => ({
 
 import { PgDeployHistory } from "./deploy-history";
 
+/** The mocked utils module, in the shape the factory above gives it */
+const mockedUtils = async () =>
+  (await import("../../../utils")) as unknown as {
+    PgCommand: { deploy: { onDidFinish: Mock } };
+    PgConnection: { cluster: string };
+    PgExplorer: { currentWorkspaceName: string | null };
+    PgGlobal: { deployState: string };
+    PgProgramInfo: { getPkStr: Mock };
+  };
+
 describe("PgDeployHistory", () => {
   beforeEach(() => localStorage.clear());
 
@@ -66,13 +76,9 @@ describe("PgDeployHistory", () => {
 describe("PgDeployHistory.init wiring", () => {
   beforeEach(() => localStorage.clear());
 
-  it("records deploys from onDidFinish callback", () => {
-    const {
-      PgCommand,
-      PgConnection,
-      PgExplorer,
-      PgProgramInfo,
-    } = require("../../../utils");
+  it("records deploys from onDidFinish callback", async () => {
+    const { PgCommand, PgConnection, PgExplorer, PgProgramInfo } =
+      await mockedUtils();
     let deployCallback: ((result: unknown) => void) | undefined;
 
     // Set up mocks
@@ -83,7 +89,7 @@ describe("PgDeployHistory.init wiring", () => {
       return deployFinishReturn;
     });
 
-    const { PgGlobal } = require("../../../utils");
+    const { PgGlobal } = await mockedUtils();
     PgGlobal.deployState = "ready";
     PgConnection.cluster = "devnet";
     PgExplorer.currentWorkspaceName = "w";
@@ -109,14 +115,9 @@ describe("PgDeployHistory.init wiring", () => {
     sub.dispose();
   });
 
-  it("does not record a finish caused by pausing/resuming a deploy", () => {
-    const {
-      PgCommand,
-      PgConnection,
-      PgExplorer,
-      PgGlobal,
-      PgProgramInfo,
-    } = require("../../../utils");
+  it("does not record a finish caused by pausing/resuming a deploy", async () => {
+    const { PgCommand, PgConnection, PgExplorer, PgGlobal, PgProgramInfo } =
+      await mockedUtils();
     let deployCallback: ((result: unknown) => void) | undefined;
 
     const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;

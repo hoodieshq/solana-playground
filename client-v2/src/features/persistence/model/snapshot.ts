@@ -1,6 +1,6 @@
 import { isMissing } from "./diagnostics";
 // Deep import, not the `utils` barrel: the barrel reaches `settings.ts`,
-// which reads a webpack-defined global that does not exist under jest, so
+// which reads a webpack-defined global that does not exist under vitest, so
 // importing it here would make this module untestable. Same reason
 // `chat-storage.ts` reaches for `utils/explorer/fs` directly.
 import { PgFs } from "../../../utils/explorer/fs";

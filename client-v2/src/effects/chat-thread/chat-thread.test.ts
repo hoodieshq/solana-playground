@@ -37,9 +37,9 @@ describe("the chat-thread effect", () => {
     vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
     vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
     vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("p1");
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p1" as never);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p1" as never
+    );
     Object.defineProperty(document, "visibilityState", {
       value: "visible",
       configurable: true,
@@ -110,9 +110,9 @@ describe("the chat-thread effect", () => {
   it("moves to the account's thread when the server has never seen this one", async () => {
     // Sign-out clears the thread index, so the next open mints a fresh id and
     // its pull 404s -- while the account holds the conversation under another
-    jest
-      .spyOn(PgChatSync, "adoptAccountThread")
-      .mockResolvedValue("account-thread");
+    vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(
+      "account-thread"
+    );
     const load = PgAssistant.loadThread as unknown as MockInstance;
 
     await openThread("p1", "p1");

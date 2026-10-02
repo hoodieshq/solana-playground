@@ -1,9 +1,8 @@
 // Monaco's own text buffer and tracked-range tree, rather than a stand-in:
 // where the caret ends up after an edit is decided by the tree's stickiness
 // rules, and a stand-in that imitates them is exactly what let a caret turned
-// into a selection pass. `package.json`'s `transformIgnorePatterns` lets jest
-// transform these ES modules. Required rather than imported: they ship no
-// type declarations.
+// into a selection pass. Required rather than imported: they ship no type
+// declarations, and Node loads these ES modules through `require` as is.
 import { editorBuffersOf } from "./editor-buffers";
 import type { BufferModel } from "./editor-buffers";
 

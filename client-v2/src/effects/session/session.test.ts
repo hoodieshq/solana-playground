@@ -41,11 +41,9 @@ describe("the session effect", () => {
     calls = [];
     PgSession.reset();
 
-    jest
-      .spyOn(PgChatSync, "adoptAccountThreads")
-      .mockImplementation(async () => {
-        calls.push("adoptChats");
-      });
+    vi.spyOn(PgChatSync, "adoptAccountThreads").mockImplementation(async () => {
+      calls.push("adoptChats");
+    });
     vi.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
       calls.push("pushChats");
       return { pushed: [], complete: true };
@@ -54,21 +52,22 @@ describe("the session effect", () => {
       calls.push("reconcile");
       return result();
     });
-    jest
-      .spyOn(PgProjectSync, "holdPushes")
-      .mockImplementation(() => calls.push("hold"));
-    jest
-      .spyOn(PgProjectSync, "releasePushes")
-      .mockImplementation(() => calls.push("release"));
-    switchWorkspace = jest
+    vi.spyOn(PgProjectSync, "holdPushes").mockImplementation(() =>
+      calls.push("hold")
+    );
+    vi.spyOn(PgProjectSync, "releasePushes").mockImplementation(() =>
+      calls.push("release")
+    );
+    switchWorkspace = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined as never);
-    jest
-      .spyOn(PgExplorer, "allWorkspaceNames", "get")
-      .mockReturnValue(["Hello Anchor", "Newest"]);
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("Hello Anchor");
+    vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([
+      "Hello Anchor",
+      "Newest",
+    ]);
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "Hello Anchor"
+    );
     vi.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(true);
     vi.spyOn(PgSession, "refresh").mockImplementation(async () => {
       await PgSession.refreshWith(user);
@@ -183,9 +182,9 @@ describe("the session effect", () => {
     // one sat outside it, so a thrown `pushAll` left every project on the
     // device unable to save for the rest of the session -- silently, because
     // the rejection is reported and swallowed.
-    jest
-      .spyOn(PgChatSync, "pushAll")
-      .mockRejectedValue(new Error("indexeddb is having a day"));
+    vi.spyOn(PgChatSync, "pushAll").mockRejectedValue(
+      new Error("indexeddb is having a day")
+    );
 
     const effect = session();
     await settle();
@@ -253,9 +252,9 @@ describe("signing out", () => {
     vi.spyOn(PgChatSync, "handOver").mockImplementation(async () => {
       order.push("handOver");
     });
-    jest
-      .spyOn(PgAssistant, "closeThread")
-      .mockImplementation(() => order.push("closeThread") as unknown as void);
+    vi.spyOn(PgAssistant, "closeThread").mockImplementation(
+      () => order.push("closeThread") as unknown as void
+    );
 
     const effect = session();
     await PgSession.signOut();
@@ -266,7 +265,7 @@ describe("signing out", () => {
 
   it("closes the thread even when the hand-over fails", async () => {
     vi.spyOn(PgChatSync, "handOver").mockRejectedValue(new Error("offline"));
-    const close = jest
+    const close = vi
       .spyOn(PgAssistant, "closeThread")
       .mockImplementation(() => undefined);
 

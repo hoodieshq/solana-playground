@@ -288,8 +288,8 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
 
   const flush = () => new Promise((resolve) => setTimeout(resolve));
 
-  // `beforeEach`, not `beforeAll`: CRA's jest config resets mock
-  // implementations before every test
+  // `beforeEach`, not `beforeAll`: `mockReset` (see `vitest.config.ts`)
+  // resets every mock before each test
   beforeEach(() => {
     registerPaths([PATH, PATH_B], [PATH.tutorial, PATH_B.tutorial]);
     explorer.fs.exists.mockImplementation(async () =>
@@ -339,6 +339,9 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
       expect.objectContaining({ message: "quota exceeded" })
     );
     expect(warn.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // The toast component is imported lazily, so it can land after `flush`
+    await vi.waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
+    await flush();
     expect(PgView.setToast).toHaveBeenCalledTimes(1);
     sub.dispose();
     warn.mockRestore();

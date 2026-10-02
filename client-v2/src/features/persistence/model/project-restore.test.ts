@@ -36,22 +36,20 @@ const signedIn = () =>
 
 /** Pretend the explorer holds these workspaces, name -> id */
 const withLocal = (local: Record<string, string>) => {
-  jest
-    .spyOn(PgExplorer, "allWorkspaceNames", "get")
-    .mockReturnValue(Object.keys(local));
-  jest
-    .spyOn(PgExplorer, "workspaceIdOf")
-    .mockImplementation((name: string) => local[name]);
-  jest
-    .spyOn(PgExplorer, "workspaceNameOf")
-    .mockImplementation((id: string) =>
-      Object.keys(local).find((name) => local[name] === id)
-    );
+  vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue(
+    Object.keys(local)
+  );
+  vi.spyOn(PgExplorer, "workspaceIdOf").mockImplementation(
+    (name: string) => local[name]
+  );
+  vi.spyOn(PgExplorer, "workspaceNameOf").mockImplementation((id: string) =>
+    Object.keys(local).find((name) => local[name] === id)
+  );
   // Nothing is "current", so every local snapshot is read off the store --
   // which is what reconcile does for the projects the user is not looking at
-  jest
-    .spyOn(PgExplorer, "currentWorkspaceName", "get")
-    .mockReturnValue(undefined);
+  vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+    undefined
+  );
 };
 
 /** Put a workspace's files where `buildSnapshotOf` will find them */
@@ -63,11 +61,11 @@ const withFiles = (name: string, files: Record<string, string>) => {
 
 const stubCreation = () => {
   const created: { name: string; id?: string }[] = [];
-  jest
-    .spyOn(PgExplorer, "importWorkspace")
-    .mockImplementation(async (name: string, opts: { id: string }) => {
+  vi.spyOn(PgExplorer, "importWorkspace").mockImplementation(
+    async (name: string, opts: { id: string }) => {
       created.push({ name, id: opts.id });
-    });
+    }
+  );
   return created;
 };
 
@@ -156,7 +154,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "an afternoon of work" });
     await agreed("p1", { files: { "src/lib.rs": "old" } }, "t1");
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     serverHas([project("p1", "alpha", "t2")], {
@@ -176,7 +174,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "old" });
     await agreed("p1", { files: { "src/lib.rs": "old" } }, "t1");
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     serverHas([project("p1", "alpha", "t2")], {
@@ -203,7 +201,7 @@ describe("reconcile", () => {
       { files: { "src/lib.rs": "exactly what was uploaded" } },
       "t1"
     );
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     serverHas([project("p1", "alpha", "t2")], {
@@ -236,7 +234,7 @@ describe("reconcile", () => {
       { files: { "src/lib.rs": "theirs" } },
       "t1"
     );
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     serverHas([project("p1", "alpha", "t2")], {
@@ -276,7 +274,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "same" });
     await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
@@ -328,7 +326,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "same" });
     await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
-    const remove = jest
+    const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
     serverHas([]);
@@ -350,7 +348,7 @@ describe("reconcile", () => {
     withFiles("gamma", { "src/lib.rs": "never synced" });
     await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
     await pending("p2", { files: { "src/lib.rs": "old" } }, "t1", "beta");
-    const remove = jest
+    const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
     const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
@@ -377,7 +375,7 @@ describe("reconcile", () => {
     withLocal({ alpha: "p1" });
     withFiles("alpha", { "src/lib.rs": "work that never uploaded" });
     await pending("p1", { files: { "src/lib.rs": "old" } }, "t1");
-    const remove = jest
+    const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
     serverHas([]);
@@ -479,7 +477,7 @@ describe("reconcile", () => {
   it("never switches workspace itself, so a sync cannot interrupt the user", async () => {
     withLocal({});
     stubCreation();
-    const switchSpy = jest
+    const switchSpy = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined as never);
     serverHas([project("server-uuid", "alpha")]);
@@ -502,14 +500,13 @@ describe("reconcile", () => {
   it("keeps going when one project cannot be fetched", async () => {
     withLocal({});
     const created = stubCreation();
-    jest
-      .spyOn(PgProjectSync, "list")
-      .mockResolvedValue([project("a", "alpha"), project("b", "beta")]);
-    jest
-      .spyOn(PgProjectSync, "fetch")
-      .mockImplementation(async (id: string) =>
-        id === "b" ? { ...project("b", "beta"), snapshot: { files: {} } } : null
-      );
+    vi.spyOn(PgProjectSync, "list").mockResolvedValue([
+      project("a", "alpha"),
+      project("b", "beta"),
+    ]);
+    vi.spyOn(PgProjectSync, "fetch").mockImplementation(async (id: string) =>
+      id === "b" ? { ...project("b", "beta"), snapshot: { files: {} } } : null
+    );
 
     const result = await reconcile();
 
@@ -524,9 +521,9 @@ describe("reconcile", () => {
     const created = stubCreation();
     serverHas([project("a", "alpha")]);
     clearFailures();
-    jest
-      .spyOn(tabReload, "reloadCurrentFromDisk")
-      .mockRejectedValue(new Error("store unreadable"));
+    vi.spyOn(tabReload, "reloadCurrentFromDisk").mockRejectedValue(
+      new Error("store unreadable")
+    );
 
     const result = await reconcile();
 
@@ -581,7 +578,7 @@ describe("reconcile", () => {
 
   it("does nothing at all when both sides are empty", async () => {
     withLocal({});
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined as never);
     serverHas([]);
@@ -615,7 +612,7 @@ describe("releasing local projects at sign-out", () => {
   afterEach(() => vi.restoreAllMocks());
 
   const stubDelete = () =>
-    jest
+    vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
 

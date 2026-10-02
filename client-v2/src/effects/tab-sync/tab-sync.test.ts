@@ -48,9 +48,9 @@ beforeEach(() => {
   vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue(["alpha"]);
   vi.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("p1");
   vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
-  // `resetMocks` in the CRA jest preset wipes the factory implementation
-  // above before every test, so without this the mock resolves `undefined`
-  // and the effect's `.catch` on a non-promise would throw.
+  // `mockReset` (see `vitest.config.ts`) resets every mock before each test,
+  // so without this the mock resolves `undefined` and the effect's `.catch`
+  // on a non-promise would throw.
   (reloadCurrentFromDisk as Mock).mockResolvedValue("unchanged");
 });
 
@@ -84,12 +84,13 @@ describe("tabSync", () => {
   it("announces a delete or rename under the project it happened in", () => {
     // Not the current one: by the time the event is heard, the user may be
     // looking at another project
-    jest
-      .spyOn(PgExplorer, "allWorkspaceNames", "get")
-      .mockReturnValue(["alpha", "beta"]);
-    jest
-      .spyOn(PgExplorer, "workspaceIdOf")
-      .mockImplementation((name: string) => (name === "beta" ? "p2" : "p1"));
+    vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([
+      "alpha",
+      "beta",
+    ]);
+    vi.spyOn(PgExplorer, "workspaceIdOf").mockImplementation((name: string) =>
+      name === "beta" ? "p2" : "p1"
+    );
     const effect = tabSync();
     PgCommon.createAndDispatchCustomEvent(
       PgExplorer.events.ON_DID_DELETE_ITEM,

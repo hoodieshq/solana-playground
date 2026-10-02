@@ -54,10 +54,10 @@ const reset = () => {
   PgProjectSync.reset();
   PgSyncBase.reset();
   storedFiles().clear();
-  // CRA's jest preset sets `resetMocks: true`, which wipes the
-  // implementations the `vi.mock` factory above baked in before every
-  // test, not just once. Without this, `valueOf` answers `undefined` by
-  // default rather than `null`, which reads as "someone is typing in it".
+  // `mockReset` (see `vitest.config.ts`) resets every mock before each test,
+  // and the factory above gives these no implementation. Without this,
+  // `valueOf` answers `undefined` rather than `null`, which reads as
+  // "someone is typing in it".
   (PgEditorModels.valueOf as Mock).mockResolvedValue(null);
   (PgEditorModels.drop as Mock).mockResolvedValue(undefined);
   (PgEditorModels.dropUnder as Mock).mockResolvedValue(undefined);
@@ -252,7 +252,7 @@ describe("PgProjectSync", () => {
 
   /** Sync is up; the list request itself answers with `list` */
   const listAnswers = (list: () => Promise<unknown>) => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         url === "/api/sync" ? Promise.resolve(okProbe) : list()
@@ -293,7 +293,7 @@ describe("PgProjectSync", () => {
     const projects = [
       { id: "p1", name: "one", kind: "project", updatedAt: "t1" },
     ];
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         url === "/api/sync"
@@ -431,7 +431,7 @@ describe("a conflict is asked once, not retried forever", () => {
     // record the hash, so the editor's debounce re-sent the same doomed swap
     // every few seconds for the life of the page, and the project never synced
     // again.
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         Promise.resolve(url === "/api/sync" ? okProbe : refusal)
@@ -500,9 +500,7 @@ describe("a conflict is asked once, not retried forever", () => {
     // push that follows is accepted
     status = 200;
     vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("one");
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue("one");
     // Off the store, which is what the retry's snapshot reads
     storedFiles().set("/one/a", "2");
     expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
@@ -540,7 +538,7 @@ describe("a conflict is asked once, not retried forever", () => {
     // Asked as a divergence, both answers merge against a server that has
     // nothing to merge with and fail, so the banner could never be cleared --
     // and "Keep as a new project", the answer that works, was never offered.
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string, init: any) =>
         Promise.resolve(
@@ -654,7 +652,7 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
@@ -696,10 +694,8 @@ describe("resolving a conflict", () => {
     asWorkspace("p1", "mine");
     // Adopting re-checks that the local copy is the last agreement
     await agreedOn("p1", "mine", { "src/lib.rs": "mine" });
-    jest
-      .spyOn(PgExplorer, "replaceWorkspaceFiles")
-      .mockResolvedValue(undefined);
-    const reload = jest
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockResolvedValue(undefined);
+    const reload = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
     // What the store holds is what the clean check reads
@@ -733,10 +729,8 @@ describe("resolving a conflict", () => {
     vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("other");
     storedFiles().set("/other/src/lib.rs", "old");
     await agreedOn("p2", "other", { "src/lib.rs": "old" });
-    jest
-      .spyOn(PgExplorer, "replaceWorkspaceFiles")
-      .mockResolvedValue(undefined);
-    const reload = jest
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockResolvedValue(undefined);
+    const reload = vi
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
 
@@ -766,7 +760,7 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
-    const replace = jest
+    const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
 
@@ -786,7 +780,7 @@ describe("PgProjectSync.pushCurrent", () => {
 
   beforeEach(() => {
     reset();
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         url === "/api/sync" ? Promise.resolve(okProbe) : Promise.resolve(okPush)
@@ -823,9 +817,7 @@ describe("PgProjectSync.pushCurrent", () => {
     // pending -- so the version the user asked to keep would be replaced by
     // an empty project.
     vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceName", "get")
-      .mockReturnValue("mine");
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue("mine");
     await signedIn();
 
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
@@ -922,7 +914,7 @@ describe("deleting a project", () => {
     // The tombstone machinery, its `deleted_at` column and its "does not
     // resurrect" tests were all server-side only: nothing ever issued the
     // DELETE, so deleting a project was undone by the next reconcile.
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         Promise.resolve(
@@ -944,7 +936,7 @@ describe("deleting a project", () => {
 describe("holding pushes until the account is reconciled", () => {
   beforeEach(() => {
     reset();
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         Promise.resolve(
@@ -1016,7 +1008,7 @@ describe("a refusal the user has to clear", () => {
 
   /** A `fetch` that answers the sync probe and hands every PUT `refusal` */
   const refusing = (refusal: StubResponse | (() => StubResponse)) =>
-    (global.fetch = jest
+    (global.fetch = vi
       .fn()
       .mockImplementation((url: string) =>
         url === "/api/sync"

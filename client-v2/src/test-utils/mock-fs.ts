@@ -1,3 +1,5 @@
+import { PgCommon } from "../utils/common";
+
 /**
  * An in-memory stand-in for `PgFs`, for tests that run under jsdom.
  *
@@ -6,18 +8,17 @@
  * installed, so the module has to be replaced outright:
  *
  * ```ts
- * vi.mock("../../../utils/explorer/fs", () =>
- *   require("../../../test-utils/mock-fs").mockFsModule()
+ * vi.mock("../../../utils/explorer/fs", async () =>
+ *   (await import("../../../test-utils/mock-fs")).mockFsModule()
  * );
  * ```
  *
  * A `vi.mock` factory is hoisted above the imports, which is why it must
- * `require` this rather than close over anything.
+ * import this rather than close over anything.
  *
  * The real filesystem round trip is covered by the browser tests in `e2e/`.
  */
 export const mockFsModule = () => {
-  const { PgCommon } = require("../utils/common");
   const files = new Map<string, string>();
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };

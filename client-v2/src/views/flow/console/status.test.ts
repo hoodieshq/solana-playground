@@ -13,18 +13,15 @@ interface MockBuildOutput {
 
 vi.mock("../../sidebar/assistant/bridge/build-output", () => ({
   PgBuildOutput: { latest: null },
-  // A plain passthrough, not `vi.fn(...)`: babel-plugin-jest-hoist does
-  // not reliably keep a `vi.fn` implementation defined inline in a
-  // hoisted `vi.mock` factory (`stage.test.ts` works around the same gap
-  // by calling `.mockImplementation` after import instead).
+  // A plain passthrough rather than a mock: nothing asserts on its calls.
   stripKnownNoise: (s: string) => s,
 }));
 
+import * as buildOutputModule from "../../sidebar/assistant/bridge/build-output";
 import { describeConsoleStatus } from "./status";
 
-const buildOutput: MockBuildOutput = jest.requireMock(
-  "../../sidebar/assistant/bridge/build-output"
-);
+// The mocked module, typed as what the factory above returns
+const buildOutput = buildOutputModule as unknown as MockBuildOutput;
 
 const DEFAULT_STATE: FlowState = {
   stage: "write",
