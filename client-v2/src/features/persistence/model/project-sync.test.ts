@@ -901,6 +901,17 @@ describe("PgProjectSync.pushCurrent", () => {
 
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
   });
+
+  it("does not upload against a registry it cannot parse", async () => {
+    // A config caught half-written says nothing about whether the workspace
+    // is still listed, and read as "no registry" it waved the push through
+    asWorkspace("p1", "mine");
+    storedFiles().set(PgWorkspace.WORKSPACES_CONFIG_PATH, '{"workspaces":[');
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
+  });
 });
 
 describe("deleting a project", () => {
