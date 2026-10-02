@@ -112,8 +112,12 @@ let openName: string | undefined;
 /**
  * And by its id, which a rename elsewhere keeps. Only this tab's own switch
  * changes the current id without the tree having been re-read yet.
+ *
+ * `null` for a temporary project, which was opened from no workspace at
+ * all: any id that becomes current is then this tab's own save of it,
+ * half-way, until the switch that ends the save records the open.
  */
-let openId: string | undefined;
+let openId: string | null | undefined;
 
 /**
  * Set once the empty state has been entered for a workspace deleted in
@@ -138,12 +142,14 @@ PgFs.onDidWriteFile((path, data) => {
 });
 // A temporary project -- a shared link -- is nothing this tab opened from
 // disk. Forgotten, so that saving it as a workspace, which moves the same
-// items under a new name, never reads as a rename to carry.
+// items under a new name, never reads as a rename to carry -- nor, while
+// the save is still writing them, as a workspace to re-open: read back
+// half-written, the tree would lose every file the save had yet to reach.
 PgExplorer.onDidInit(() => {
   if (!PgExplorer.isTemporary) return;
   known = new WeakMap();
   openName = undefined;
-  openId = undefined;
+  openId = null;
   left = false;
 });
 // Loaded after the first open, the events above were missed. State then is

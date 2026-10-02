@@ -335,6 +335,44 @@ describe("reloadCurrentFromDisk", () => {
     expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
   });
 
+  it("leaves a temporary project alone while it is saved as a workspace", async () => {
+    // A tab that opened a shared link straight away, with no workspace
+    // before it. Saving the link moves its items under the new name and
+    // then writes them one by one; a reload in between found the tree under
+    // the current name, half of it on disk, and re-opened it -- reading the
+    // half back over the files the save had yet to write.
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceId", "get")
+      .mockReturnValue(undefined);
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue(undefined);
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_SWITCH_WORKSPACE
+    );
+    memory = { "/src/lib.rs": { content: "// shared" } };
+    jest.spyOn(PgExplorer, "isTemporary", "get").mockReturnValue(true);
+    PgCommon.createAndDispatchCustomEvent(PgExplorer.events.ON_DID_INIT);
+
+    jest.spyOn(PgExplorer, "isTemporary", "get").mockReturnValue(false);
+    memory = {
+      "/mine/src/lib.rs": { content: "// shared" },
+      "/mine/src/util.rs": { content: "// not written yet" },
+    };
+    jest
+      .spyOn(PgExplorer, "allWorkspaceNames", "get")
+      .mockReturnValue(["mine"]);
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("mine");
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("m1");
+    store().clear();
+    store().set("/mine/src/lib.rs", "// shared");
+
+    expect(await reloadCurrentFromDisk()).toBe("skipped");
+    expect(PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  });
+
   it("records what a write carried, not state when heard", async () => {
     // A second autosave has put newer text into state by the time the first
     // write's event is heard -- and its own write then fails, the directory
