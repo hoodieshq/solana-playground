@@ -2409,6 +2409,19 @@ describe("a project renamed on one device", () => {
     expect(getFailures()).toEqual([]);
   });
 
+  it("takes a name the server holds with spaces round it, once", async () => {
+    const workspaces = [foo()];
+    const rename = await inSync(workspaces);
+
+    otherDeviceRenamed(FOO.id, " Bar ");
+    await reconcile();
+    await reconcile();
+
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(workspaces[0].name).toBe("Bar");
+    expect((await PgSyncMark.read(FOO.id))!.name).toBe("Bar");
+  });
+
   it("leaves a name the explorer refuses alone, without a report", async () => {
     // A name from before the explorer's rule, which a rename here would be
     // refused on every pass

@@ -35,6 +35,19 @@ export interface ServerProject {
 }
 
 /**
+ * A project with its name as the explorer would hold it.
+ *
+ * `renameWorkspace` trims what it is given, so an untrimmed name from the
+ * server never matched the workspace renamed to it. Trimmed here, where every
+ * read of the server comes in, the adopt, the merge and the stand-in all
+ * compare the same name.
+ */
+const trimmedName = <T extends ServerProject>(project: T): T =>
+  typeof project.name === "string"
+    ? { ...project, name: project.name.trim() }
+    : project;
+
+/**
  * What kind of question the user is being asked.
  *
  * The first two are about which copy of a project to keep:
@@ -540,7 +553,7 @@ export class PgProjectSync {
         report("list projects: malformed", null);
         return null;
       }
-      return body.projects;
+      return body.projects.map(trimmedName);
     } catch (e) {
       report("list projects", e);
       return null;
@@ -591,9 +604,10 @@ export class PgProjectSync {
         return null;
       }
 
-      const { project } = await response.json();
-      if (!project) return null;
+      const body = await response.json();
+      if (!body.project) return null;
 
+      const project = trimmedName(body.project);
       PgProjectSync._names.set(project.id, project.name);
       return project;
     } catch (e) {
