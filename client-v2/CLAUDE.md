@@ -188,7 +188,14 @@ either a Playwright test in `e2e/` whose title is
 marked `(manual)` in the spec. A manual gate (the React 19 walk-through, a
 release check) is the list of scenarios, not a separate document. The
 `spec:coverage` script prints every scenario that has neither; `--strict`
-makes that an exit code (HOO-1856).
+makes that an exit code (HOO-1856). 5. **`/opsx:archive` closes the change.** When every task is ticked, it
+merges the deltas into `openspec/specs/` and moves the folder to
+`changes/archive/<date>-<name>/`. `specs/` therefore always describes the
+code as it is, never a plan; nothing is back-filled for code that is not
+changing. 6. **Asked to build something, look in `openspec/changes/` first**
+(`openspec list`). If a change covers it, `/opsx:apply` that change and
+say which task. If none does and the work is more than a bug fix, offer
+`/opsx:propose` rather than starting on the code.
 
 ## What review keeps finding
 
@@ -258,8 +265,10 @@ until code moves out of them.
   endpoints with `page.route`, and the dev server serves `api/*.mjs` itself.
   Two tests connect to the keyless default backend and skip themselves where
   `/api/agent` reports none configured (CI included); they run only on a
-  machine with the default backend configured, which is the one gap the
-  job leaves (D61, on `context-archive`). CI retries a failed spec once,
+  machine with the default backend configured. One two-tabs test is
+  `test.fixme` on the runner, where its timing differs (HOO-1720). Those
+  three are the gap the job leaves, counted by the job and recorded in D61
+  (on `context-archive`). CI retries a failed spec once,
   because the runner is three times slower than a laptop and fails specs on
   timing alone; a pass on the retry is reported as **flaky**, named in the
   run's annotations, and is work to do, not a pass. Locally `retries` is 0,
