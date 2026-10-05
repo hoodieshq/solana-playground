@@ -137,7 +137,23 @@ export const projectSync = (): Disposable => {
     PgExplorer.onDidCreateItem(schedule),
     PgExplorer.onDidRenameItem(schedule),
     PgExplorer.onDidDeleteItem(schedule),
-    PgExplorer.onDidRenameWorkspace(schedule),
+    PgExplorer.onDidRenameWorkspace((renamed) => {
+      // The current workspace: an edit like any other
+      if (!renamed?.id || renamed.id === PgExplorer.currentWorkspaceId) {
+        schedule();
+        return;
+      }
+      // One the user renamed from the project switcher without opening it.
+      // Nothing else would ever send that name: its row has not moved and
+      // its mark is clean, so reconcile's cheap path skips it, and the
+      // editor's pushes are only ever for the open project. Flagged, the
+      // next pass sees the name differ and uploads it -- and that pass is
+      // asked for now.
+      const { id } = renamed;
+      void PgSyncMark.markDirty(id)
+        .catch((e) => report("mark dirty", e))
+        .then(() => refresh("rename"));
+    }),
     // Flushed, not scheduled: the debounce belongs to the workspace being
     // left, and `pushCurrent` reads whichever one is current when it runs. A
     // switch mid-debounce used to upload the *incoming* project under the

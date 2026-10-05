@@ -74,6 +74,13 @@ describe("PgWorkspace ids", () => {
     expect(() => ws.rename("a")).toThrow(PgWorkspace.errors.ALREADY_EXISTS);
   });
 
+  it("refuses to rename a workspace that is not there", () => {
+    const ws = new PgWorkspace(legacy(["a"], "a"));
+
+    expect(() => ws.rename("b", "nope")).toThrow(PgWorkspace.errors.NOT_FOUND);
+    expect(ws.allNames).toEqual(["a"]);
+  });
+
   it("drops the entry on delete", () => {
     const ws = new PgWorkspace(legacy(["a", "b"], "b"));
 
