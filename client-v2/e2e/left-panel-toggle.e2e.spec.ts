@@ -53,5 +53,22 @@ test("the rail's + expands the panel and opens the new-file input", async ({
   await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
   const input = page.locator("#root-dir input");
   await expect(input).toBeVisible();
-  await expect(input).toBeFocused();
+  // Polled by hand rather than `toBeFocused()`, so a failure names the
+  // element that holds focus instead of reporting "inactive"
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const active = document.activeElement;
+          if (active === document.querySelector("#root-dir input")) {
+            return "#root-dir input";
+          }
+          if (!active) return "nothing";
+          return `${active.tagName.toLowerCase()}#${active.id}.${
+            active.className
+          }`;
+        }),
+      { timeout: 20_000 }
+    )
+    .toBe("#root-dir input");
 });

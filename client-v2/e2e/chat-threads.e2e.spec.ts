@@ -75,10 +75,24 @@ const threadId = (page: Page) =>
     () => (window as AssistantWindow).__pgAssistant?.threadId ?? null
   );
 
-const items = (page: Page) =>
-  page.evaluate(() =>
-    JSON.stringify((window as AssistantWindow).__pgAssistant?.items ?? [])
-  );
+/**
+ * The store's view of the open thread, as one string.
+ *
+ * Carries the thread id and the last storage failure next to the items, so a
+ * poll that times out says which thread was open and whether a read failed,
+ * instead of a bare "[]".
+ */
+const storeState = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as AssistantWindow & {
+      __pgChatStorage?: { lastFailure: unknown };
+    };
+    return JSON.stringify({
+      threadId: w.__pgAssistant?.threadId ?? null,
+      items: w.__pgAssistant?.items ?? [],
+      lastFailure: w.__pgChatStorage?.lastFailure ?? null,
+    });
+  });
 
 /**
  * Whether the file system's directory tree lists a file whose name holds
@@ -200,7 +214,7 @@ test("a conversation survives a reload", async ({ page }) => {
   // than the transcript, which the panel shows only once it is past its
   // intro; what is asserted is the restore, not the panel's first view.
   await expect
-    .poll(() => items(page), { timeout: 15_000 })
+    .poll(() => storeState(page), { timeout: 15_000 })
     .toContain("remember me");
   await expect
     .poll(async () => JSON.stringify(await readThreads(page)), {
