@@ -459,7 +459,7 @@ describe("PgFlow.reduce, restoring a workspace after a reload", () => {
     expect(s.buildSettled).toBe("done");
   });
 
-  it("does not overwrite a build that is running right now", async () => {
+  it("does not overwrite a build that is running right now", () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "build-start",
       at: 1000,
@@ -504,12 +504,10 @@ describe("PgFlow.init, seeding a reloaded page", () => {
       workspaceChange = cb;
       return { dispose: vi.fn() };
     });
-    (PgProgramInfo.onDidChangeOnChain as unknown as Mock).mockImplementation(
-      (cb) => {
-        onChainChange = cb;
-        return { dispose: vi.fn() };
-      }
-    );
+    vi.mocked(PgProgramInfo.onDidChangeOnChain).mockImplementation((cb) => {
+      onChainChange = () => cb(PgProgramInfo.onChain);
+      return { dispose: vi.fn() };
+    });
 
     const sub = PgFlow.init();
     return {
