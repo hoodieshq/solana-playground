@@ -145,15 +145,39 @@ then `openspec --version` to check.
    works a task, ticks it. Tick a task only in the PR that lands it, and
    name the task in the PR description. The ordinary PR checklist (section
    "Before a PR") still applies to every task.
-5. **`/opsx:archive` closes the change.** When every task is ticked, it
-   merges the deltas into `openspec/specs/` and moves the folder to
-   `changes/archive/<date>-<name>/`. `specs/` therefore always describes the
-   code as it is, never a plan; nothing is back-filled for code that is not
-   changing.
-6. **Asked to build something, look in `openspec/changes/` first**
-   (`openspec list`). If a change covers it, `/opsx:apply` that change and
-   say which task. If none does and the work is more than a bug fix, offer
-   `/opsx:propose` rather than starting on the code.
+
+**Where the superpowers skills write.** Their default locations
+(`docs/superpowers/specs/`, `docs/superpowers/plans/`) are not used in this
+repository; OpenSpec is the place, and the skills honour a project
+preference:
+
+- `superpowers:brainstorming` ends by running `/opsx:propose`, not by
+  writing a design document. What it would have put in the document goes
+  into `proposal.md` and `design.md` through the command.
+- `superpowers:writing-plans` writes a task's detailed plan, when a task
+  needs one, to `openspec/changes/<name>/plans/<task-number>-<slug>.md`.
+  `tasks.md` stays a checklist of PR-sized tasks and links the plan from
+  the task line. The validator ignores `plans/`.
+- `superpowers:subagent-driven-development` and `executing-plans` run
+  inside `/opsx:apply`, one task at a time; `test-driven-development` and
+  `verification-before-completion` apply to every task as before.
+- `superpowers:finishing-a-development-branch` precedes `/opsx:archive`
+  for the last task of a change.
+
+**Scenarios are the test plan.** Every `#### Scenario:` in a spec is
+either a Playwright test in `e2e/` whose title is
+`<capability>: <scenario name>` (for example
+`client-v2-themes: A saved Dracula theme`), or a line in a manual checklist
+marked `(manual)` in the spec. A manual gate (the React 19 walk-through, a
+release check) is the list of scenarios, not a separate document. Coverage
+is reported by `yarn spec:coverage` once HOO-1856 lands it. 5. **`/opsx:archive` closes the change.** When every task is ticked, it
+merges the deltas into `openspec/specs/` and moves the folder to
+`changes/archive/<date>-<name>/`. `specs/` therefore always describes the
+code as it is, never a plan; nothing is back-filled for code that is not
+changing. 6. **Asked to build something, look in `openspec/changes/` first**
+(`openspec list`). If a change covers it, `/opsx:apply` that change and
+say which task. If none does and the work is more than a bug fix, offer
+`/opsx:propose` rather than starting on the code.
 
 ## What review keeps finding
 

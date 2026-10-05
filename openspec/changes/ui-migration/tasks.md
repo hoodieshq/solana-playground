@@ -34,6 +34,10 @@ utilities and tokens but no design-system components.
       (HOO-1856)
 - [ ] 3.6 First design-system components installed into `shared/ui` through
       the reinstall script (after 3.2 and 2.2)
+- [ ] 3.7 Scenarios as the test plan: e2e test titles follow
+      `<capability>: <scenario name>`, manual scenarios are marked
+      `(manual)` in the spec, and `yarn spec:coverage` reports every scenario
+      without a test or a mark (HOO-1856, with 3.5)
 
 ## 4. Foundation
 
