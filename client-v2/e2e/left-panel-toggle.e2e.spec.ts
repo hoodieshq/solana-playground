@@ -44,6 +44,16 @@ test("the chevron toggles the panel and the hint survives collapse", async ({
 test("the rail's + expands the panel and opens the new-file input", async ({
   seededPage: page,
 }) => {
+  // The editor takes focus when it opens the workspace's first file
+  // (`Monaco.tsx`, on a model switch). On a laptop that has happened long
+  // before this test clicks anything; on a slow runner it can land after the
+  // new-file input has focused itself, and the input loses focus to the
+  // editor. The claim here is about the rail's "+", not about who wins that
+  // race, so wait for the editor to be up and focused before starting.
+  const editor = page.locator(".monaco-editor textarea.inputarea");
+  await expect(editor).toBeVisible();
+  await expect(editor).toBeFocused();
+
   await page.keyboard.press("Meta+b");
   await expect(panel(page)).toHaveJSProperty("offsetWidth", RAIL_PX);
 
