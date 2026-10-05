@@ -3292,13 +3292,28 @@ it is retargeted.
   for the directory entry, and the two-projects test asserts one message
   per thread and none shared.
 
-**The gap, on purpose:** the two `assistant-reconnect` tests, which connect
-to the default backend and assert on the connection, stay skipped in CI.
-Configuring one for CI would make a model call per run and put a production
-endpoint in a job that every PR can run. They run on a machine with the
-default backend configured. Neither the `list` nor the `github` reporter
-prints a skip's reason, so the job reads the `json` report and fails if
-more than those two skipped: the gap is counted, not inferred.
+**The gap, on purpose:** three tests. The two `assistant-reconnect` tests,
+which connect to the default backend and assert on the connection, stay
+skipped in CI: configuring one for CI would make a model call per run and
+put a production endpoint in a job that every PR can run; they run on a
+machine with the default backend configured. And `two-tabs.e2e.spec.ts`
+"switching tabs mid-debounce raises no conflict" is `test.fixme` where `CI`
+is set: on the runner the fake server recorded a merged 409 in 2 of 5 runs,
+both attempts of one, with the user-visible contract (no banner, the edit
+arrived) holding every time; whether that is the test's fixed 1500 ms wait
+or a real double upload is HOO-1720's question, and the test still runs on
+a laptop. Neither the `list` nor the `github` reporter prints a skip's
+reason, so the job reads the `json` report and fails if more than those
+three skipped: the gap is counted, not inferred.
+
+**Scenarios as the test plan (task 3.7):** `yarn spec:coverage`
+(`client-v2/scripts/spec-coverage.mjs`) reads every `#### Scenario:` in
+`openspec/specs/` and the active changes and prints each one with neither a
+Playwright test titled `<capability>: <scenario name>` nor a `(manual)`
+mark; `--strict` makes that an exit code. Report only for now: 16 of 16
+scenarios are uncovered because the existing e2e specs have no OpenSpec spec
+to be titled after. Writing those specs, retitling the tests and casting
+the React 19 gate as `(manual)` scenarios is HOO-1896 (task 3.8).
 
 **Flakes:** one retry in CI, none locally (Slava, 2026-10-05, after four
 runner runs: one green and three red, each on a different spec failing on
