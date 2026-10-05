@@ -8,10 +8,16 @@ utilities and tokens but no design-system components.
 
 - [x] 1.1 Record the nine decisions in the project's decision log and narrow
       the root rules on upstream to `client/` and `server/` (HOO-1857)
-- [ ] 1.2 `client-v2/CLAUDE.md` and `openspec/` on `master-2.0` (HOO-1858,
+- [x] 1.2 `client-v2/CLAUDE.md` and `openspec/` on `master-2.0` (HOO-1858,
       PR #43)
 - [ ] 1.3 Layer check in CI: `eslint-plugin-boundaries` in CRA's ESLint,
       legacy roots excluded, a violation fails the build (HOO-1859)
+- [ ] 1.4 Break the `auth` <-> `persistence` cycle: `auth`'s server module
+      stops importing `persistence`'s pool, or the pool moves to `shared/`;
+      then drop the exemption from the boundary check and the
+      `client-v2-layers` spec (ticket to file; before 1.3 enforces features)
+- [ ] 1.5 ESLint for what review keeps finding, inside the layers, and the
+      ids module moved to `shared/lib` (HOO-1897; after 1.2)
 
 ## 2. Design system
 
@@ -33,7 +39,7 @@ utilities and tokens but no design-system components.
 - [ ] 3.5 e2e in CI, or the React 19 gate written down as a manual run
       (HOO-1856)
 - [ ] 3.6 First design-system components installed into `shared/ui` through
-      the reinstall script (after 3.2 and 2.2)
+      the reinstall script (ticket to file; after 3.2 and 2.2)
 - [ ] 3.7 Scenarios as the test plan: e2e test titles follow
       `<capability>: <scenario name>`, manual scenarios are marked
       `(manual)` in the spec, and `yarn spec:coverage` reports every scenario
@@ -54,7 +60,9 @@ utilities and tokens but no design-system components.
 - [ ] 5.1 New layout shell with today's panels inside; the responsive
       breakpoint agreed (HOO-1854; after 3.6 and 4.3)
 - [ ] 5.2 Panels move one by one, each by the change rule in
-      `client-v2/CLAUDE.md` (one ticket per panel; after 5.1)
-- [ ] 5.3 Breakpoint screens, what the cut line says, by Nov 11 (after 5.2)
+      `client-v2/CLAUDE.md` (one ticket per panel, to file; after 5.1)
+- [ ] 5.3 Breakpoint screens, what the cut line says, by Nov 11 (ticket to
+      file; after 5.2)
 - [ ] 5.4 Global reset on, styled-components out; Monaco and xterm excluded
-      from preflight or checked on their own (after Breakpoint)
+      from preflight or checked on their own (ticket to file; after
+      Breakpoint)

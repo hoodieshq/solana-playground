@@ -26,6 +26,15 @@ layers below its own in the order `app -> widgets -> features -> entities -> sha
 - **THEN** the import is a violation; cross-imports between entities are not
   enabled
 
+#### Scenario: The one standing exception, auth and persistence
+
+- **WHEN** `features/auth` imports `features/persistence` (its server module
+  uses the pool) or `features/persistence` imports `features/auth` (it reads
+  the session)
+- **THEN** the import is tolerated as the named exception until the cycle is
+  broken (`ui-migration` task 1.4), and the boundary check exempts exactly
+  these two
+
 #### Scenario: A new screen-level composition is needed
 
 - **WHEN** a new arrangement of panels or bars is built
@@ -44,11 +53,11 @@ through those files.
 
 ### Requirement: The legacy roots are outside the layers
 
-The pre-existing roots (`components/`, `views/`, `utils/`, `hooks/`,
-`providers/`, `commands/`, `effects/`, `routes/`, `settings/`, `themes/`,
-`frameworks/`, `languages/`, `tutorials/`, `block-explorers/`, `constants/`,
-`globals/`, `types/`) SHALL be treated as legacy: importable from new code,
-exempt from the boundary check, and closed to new UI.
+The pre-existing roots SHALL be treated as legacy: importable from new code,
+exempt from the boundary check, and closed to new UI. They are `components/`,
+`views/`, `utils/`, `hooks/`, `providers/`, `commands/`, `effects/`,
+`routes/`, `settings/`, `themes/`, `frameworks/`, `languages/`,
+`tutorials/`, `block-explorers/`, `constants/`, `globals/`, `types/`.
 
 #### Scenario: New code uses a legacy helper
 
@@ -93,9 +102,9 @@ reinstalled.
 
 ### Requirement: Identifiers survive a move
 
-When a component moves between folders, its element ids, `aria-label`s, test
-ids and `data-slot` names SHALL be unchanged, and a component of the file
-explorer's tree SHALL keep its element structure.
+A component that moves between folders SHALL keep its element ids,
+`aria-label`s, test ids and `data-slot` names unchanged, and a component of
+the file explorer's tree SHALL keep its element structure as well.
 
 #### Scenario: A test or the designer's Studio finds an element after a move
 

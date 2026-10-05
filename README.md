@@ -66,8 +66,8 @@ openspec --version   # planning CLI, optional: npm i -g @fission-ai/openspec
 follows in the client: layers, components, what review keeps finding, and
 the checklist before a PR. Planning runs through [OpenSpec](https://openspec.dev):
 specs and change proposals live in [`openspec/`](openspec/README.md), the
-`/opsx:*` commands are committed under `.claude/`, and `yarn spec:validate`
-in `client-v2/` checks them the way CI does.
+`/opsx:*` commands are committed under `.claude/`, and the `check` script in
+`client-v2/` runs what CI runs.
 
 ### Run with Docker
 

@@ -105,8 +105,9 @@
     "build-wasm": "build=\"../wasm/build.sh\" && chmod +x $build && $build --update",
     "format": "prettier --write src/ api/",
     "check-format": "prettier --check src/ api/",
-    "lint": "eslint --ext .ts,.tsx,.mjs src api e2e",
-    "spec:validate": "openspec validate --all",
+    "spec:validate": "openspec validate --all --strict --no-interactive",
+    "spec:archived": "node scripts/spec-archived.mjs",
+    "check": "yarn test-types && yarn check-format && yarn spec:validate && yarn spec:archived && yarn test-unit && yarn test-api",
     "generate": "node scripts/update-static.mjs && yarn generate-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-fast": "node scripts/update-static.mjs && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-crates": "node scripts/generate-crates.mjs",
@@ -129,79 +130,6 @@
   "eslintConfig": {
     "extends": [
       "react-app"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "src/**"
-        ],
-        "rules": {
-          "no-restricted-syntax": [
-            "error",
-            {
-              "selector": "MemberExpression[object.name='crypto'][property.name='randomUUID']",
-              "message": "Mint ids with uuid() from src/shared/lib/ids, which also covers the browsers browserslist still names."
-            }
-          ]
-        }
-      },
-      {
-        "files": [
-          "src/{features,shared,entities,widgets}/**"
-        ],
-        "rules": {
-          "no-empty": [
-            "error",
-            {
-              "allowEmptyCatch": false
-            }
-          ],
-          "no-nested-ternary": "error",
-          "no-restricted-imports": [
-            "error",
-            {
-              "paths": [
-                {
-                  "name": "uuid",
-                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
-                }
-              ]
-            }
-          ],
-          "no-restricted-syntax": [
-            "error",
-            {
-              "selector": "MemberExpression[object.name='crypto'][property.name='randomUUID']",
-              "message": "Mint ids with uuid() from src/shared/lib/ids, which also covers the browsers browserslist still names."
-            },
-            {
-              "selector": "Literal[regex.pattern=/0-9a-f\\]\\{8\\}/]",
-              "message": "Check an id with isUuid() from src/shared/lib/ids instead of a copied UUID regex."
-            }
-          ]
-        }
-      },
-      {
-        "files": [
-          "src/shared/lib/ids.ts",
-          "src/shared/lib/ids.test.ts"
-        ],
-        "rules": {
-          "no-restricted-imports": "off",
-          "no-restricted-syntax": "off"
-        }
-      },
-      {
-        "files": [
-          "**/*.test.ts",
-          "**/*.test.tsx",
-          "**/*.test.mjs",
-          "e2e/**"
-        ],
-        "rules": {
-          "import/first": "off"
-        }
-      }
     ]
   },
   "jest": {

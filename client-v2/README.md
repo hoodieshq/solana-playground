@@ -41,22 +41,22 @@ openspec --version                     # 1.14.0 or newer
 ```
 
 Without it the `/opsx:*` commands in Claude Code stop at "CLI not found";
-`yarn spec:validate` still works, because `client-v2` pins the same package
-as a devDependency for CI. The rules for contributors and agents are in
+the `spec:validate` script still works, because `client-v2` pins the same
+package as a devDependency for CI. The rules for contributors and agents are in
 [`CLAUDE.md`](CLAUDE.md); the specs are in [`../openspec/`](../openspec/README.md).
 
 ### Checks
 
-The same four CI runs, in the order it runs them:
+`yarn check` runs what CI runs, in CI's order, minus the production build:
+`test-types`, `check-format`, `spec:validate`, `spec:archived`, `test-unit`,
+`test-api`. Run it before a push, or make git do it:
 
 ```sh
-yarn test-types      # tsc --noEmit
-yarn check-format    # prettier over src/ and api/
-yarn lint            # eslint over src/, api/, e2e/ -- includes the rules in CLAUDE.md
-yarn spec:validate   # openspec validate --all over ../openspec
-yarn test-unit       # jest via craco
-yarn test-api        # node --test for api/ and **/server/*.mjs
+git config core.hooksPath .githooks   # once per clone; runs `check` on pre-push
 ```
+
+`spec:validate` runs the OpenSpec CLI pinned in `devDependencies`, so its
+verdict is the one CI sees whatever version is installed globally.
 
 ### Static assets and worktrees
 
@@ -64,7 +64,7 @@ yarn test-api        # node --test for api/ and **/server/*.mjs
 `yarn build` refresh it automatically. Run `make update-static` by hand only
 after bumping that submodule to change asset content.
 
-Worktrees are supported: the mirror is always copied from the *primary*
+Worktrees are supported: the mirror is always copied from the _primary_
 checkout, so a worktree never initialises a submodule of its own. (A submodule's
 git dir is shared via `.git/modules`, so initialising one in a second worktree
 detaches it in the first — which is why `public/` is not a submodule here.)
