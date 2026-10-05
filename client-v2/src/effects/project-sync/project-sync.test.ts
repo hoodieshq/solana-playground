@@ -208,8 +208,8 @@ describe("the project-sync effect", () => {
 
     dispatch(PgExplorer.events.ON_DID_SWITCH_WORKSPACE);
     // Three turns of the microtask queue: `snapshotOf` and the async
-    // wrapper around it, then `track`. Microtasks, not timers, so no timer
-    // API would drive them.
+    // wrapper around it, then `track`. Awaited one by one so the count is
+    // on the page; `vi.advanceTimersByTimeAsync(0)` would drain them too.
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();

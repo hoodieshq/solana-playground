@@ -66,10 +66,11 @@ yarn db-dump               # regenerate db/schema.sql after a migration
   `yarn db-dump` (which runs `pg_dump` inside the compose container, so no host
   Postgres client is needed) -- regenerate it whenever a migration changes.
 - **`api/*.mjs` is not covered by `yarn test-unit`.** vitest only collects
-  `src/**/*.{test,spec}.*` (see `vitest.config.ts`), and the server modules
-  need real Node. Run `yarn test-api`
-  (`node --test`); it loads `client-v2/.env`, and the database-backed cases
-  skip themselves without `DATABASE_URL` rather than failing.
+  `.js`, `.jsx`, `.ts` and `.tsx` test files under `src` (see `include` in
+  `vitest.config.ts`), so no `.mjs`, and the server modules need real Node.
+  Run `yarn test-api` (`node --test`); it loads `client-v2/.env`, and the
+  database-backed cases skip themselves without `DATABASE_URL` rather than
+  failing.
 - **Secrets live in `client-v2/.env`**, not `.env.local` -- so dbmate and
   `yarn test-api` find them without an env prefix on the command. Both names
   are gitignored.

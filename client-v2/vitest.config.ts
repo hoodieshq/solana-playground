@@ -35,8 +35,10 @@ export default defineConfig({
       "src/**/*.{spec,test}.{js,jsx,ts,tsx}",
     ],
     css: false,
-    // The closest match to CRA 5's Jest `resetMocks: true`. One difference:
-    // vitest resets a `vi.fn(impl)` back to `impl`, where Jest dropped it.
+    // The closest match to CRA 5's Jest `resetMocks: true`, with two
+    // differences: a `vi.fn(impl)` is reset back to `impl`, and a `vi.spyOn`
+    // spy back to calling the real method, where Jest left both returning
+    // `undefined`. So a spy that must answer something is set up per test.
     mockReset: true,
   },
 });
