@@ -129,6 +129,11 @@ jobs:
       - name: Archived changes
         run: yarn spec:archived
 
+      # Report only: which scenarios have neither a browser test nor a
+      # `(manual)` mark. `--strict` is for when the list is empty.
+      - name: Scenario coverage
+        run: yarn spec:coverage
+
       - name: Unit tests
         run: yarn test-unit
 
@@ -152,22 +157,12 @@ jobs:
             exit 1
           }
 
-  # The browser suite (`client-v2/e2e/`, Playwright). Its own job, so the
-  # checks above keep their five minutes and a browser failure is read as
-  # one. Every spec stubs the account endpoints with `page.route`, and the
-  # dev server serves `api/*.mjs` itself (`craco.config.js`), so no Postgres
-  # service and no secret is needed here: `/api/agent` answers
-  # `configured: false`, and the two assistant-reconnect tests that must
-  # connect to the keyless default backend skip themselves with that as the
-  # stated reason (`hasDefaultBackend` in `e2e/fixtures.ts`). With
-  # two-tabs:224 and account-sync:289, quarantined on the runner by
-  # `test.fixme` for the sync owners (HOO-1720), they are the suite's known
-  # gap, recorded as D61 in decisions.md on `context-archive`, not a flake.
-  #
-  # `CI=true` makes `playwright.config.ts` start its own `yarn dev` rather
-  # than reuse one, retry a failed spec once, and report through the
-  # `github` annotator as well as `list`; the config says why one retry and
-  # why none locally.
+  # The browser suite (`client-v2/e2e/`, Playwright) in its own job, so
+  # `checks` stays short and a browser failure reads as one. No Postgres and
+  # no secret: every spec stubs the account endpoints with `page.route`, and
+  # the dev server serves `api/*.mjs` itself. The skips the job expects are
+  # listed in `e2e/known-skips.txt`; `playwright.config.ts` says what `CI`
+  # changes. D61 (decisions.md on `context-archive`) has the reasoning.
   e2e:
     name: e2e
     runs-on: ubuntu-latest
@@ -176,8 +171,6 @@ jobs:
     # three times slower, so this is generous rather than tight. A genuine
     # hang still fails, just later.
     timeout-minutes: 30
-    env:
-      CI: "true"
 
     defaults:
       run:
@@ -213,7 +206,7 @@ jobs:
       # download Chromium again, and a red suite is when runs are frequent.
       - name: Playwright version
         id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(jq -r .version node_modules/@playwright/test/package.json)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache/restore@v6
         id: playwright-cache
@@ -240,34 +233,23 @@ jobs:
       - name: Browser tests
         run: yarn test-e2e
 
-      # A skipped test is green to Playwright, and a test that passed on its
-      # retry is green too; neither the `list` nor the `github` reporter
-      # says why or which. Both are read out of the json report here. The
-      # four skips the job expects are named, and one more -- a spec that
-      # adopted the guard, or `/api/agent` falling over -- fails rather than
-      # widening the gap quietly. A flaky test is a warning with its title:
-      # not a pass, work to do, and visible on the run's summary page.
-      - name: Count skips and name flakes
+      # A skipped test is green to Playwright, and so is one that passed on
+      # its retry; the reporters name neither. Both are read from the json
+      # report: a skip outside `e2e/known-skips.txt` fails the job, a listed
+      # test that no longer skips is a warning to prune the list, and a
+      # flaky test is a warning with its title -- work to do, not a pass.
+      - name: Check skips against the known list
         if: always()
         run: |
           report=test-results/report.json
           [ -f "$report" ] || { echo "::error::no $report -- the suite did not run to a report"; exit 1; }
-          skipped=$(node -p "require('./$report').stats.skipped")
-          echo "::notice title=e2e skips::$skipped skipped -- the two assistant-reconnect tests that connect to the default backend, two-tabs:224 and account-sync:289 (HOO-1720); see D61"
-          node -e '
-            const r = require("./'"$report"'");
-            const flaky = [];
-            const walk = (s, path) => {
-              for (const sub of s.suites ?? []) walk(sub, [...path, sub.title]);
-              for (const spec of s.specs ?? [])
-                for (const t of spec.tests ?? [])
-                  if (t.status === "flaky") flaky.push(`${path.join(" > ")} > ${spec.title}`);
-            };
-            for (const s of r.suites) walk(s, [s.title]);
-            for (const f of flaky) console.log(`::warning title=flaky e2e test::${f} -- failed once on this runner, passed on retry; the failed attempt'"'"'s trace is in the artifact`);
-            console.log(`${flaky.length} flaky`);
-          '
-          [ "$skipped" -le 4 ] || { echo "::error::$skipped tests skipped, at most 4 are accounted for"; exit 1; }
+          titles() { jq -r --arg s "$1" '.. | objects | select(has("tests")) | select(any(.tests[]; .status == $s)) | .title' "$report" | sort; }
+          grep -v '^#' e2e/known-skips.txt | sed '/^$/d' | sort > /tmp/known-skips
+          titles skipped > /tmp/skipped
+          comm -13 /tmp/known-skips /tmp/skipped | while read -r t; do echo "::error title=unexpected e2e skip::$t -- not in e2e/known-skips.txt"; done
+          comm -23 /tmp/known-skips /tmp/skipped | while read -r t; do echo "::warning title=stale known skip::$t -- listed in e2e/known-skips.txt but ran"; done
+          titles flaky | while read -r t; do echo "::warning title=flaky e2e test::$t -- failed once on this runner, passed on retry; its trace is in the artifact"; done
+          [ -z "$(comm -13 /tmp/known-skips /tmp/skipped)" ]
 
       # Traces, screenshots and the per-test error context of what failed.
       # Open a trace with `yarn playwright show-trace <file>`. `always()`,

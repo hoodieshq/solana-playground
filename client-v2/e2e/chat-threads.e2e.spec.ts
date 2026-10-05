@@ -78,19 +78,19 @@ const threadId = (page: Page) =>
 /**
  * The store's view of the open thread, as one string.
  *
- * Carries the thread id and the last storage failure next to the items, so a
+ * Carries the thread id and the persistence failures next to the items, so a
  * poll that times out says which thread was open and whether a read failed,
  * instead of a bare "[]".
  */
 const storeState = (page: Page) =>
   page.evaluate(() => {
     const w = window as AssistantWindow & {
-      __pgChatStorage?: { lastFailure: unknown };
+      __pgSyncDiagnostics?: { failures: () => unknown };
     };
     return JSON.stringify({
       threadId: w.__pgAssistant?.threadId ?? null,
       items: w.__pgAssistant?.items ?? [],
-      lastFailure: w.__pgChatStorage?.lastFailure ?? null,
+      failures: w.__pgSyncDiagnostics?.failures() ?? null,
     });
   });
 
@@ -165,10 +165,11 @@ const addMessage = async (
   text: string,
   { notThread = null }: { notThread?: string | null } = {}
 ) => {
+  let id: string | null = null;
   await expect
     .poll(
       async () => {
-        const id = await threadId(page);
+        id = await threadId(page);
         return !!id && id !== notThread;
       },
       { timeout: 15_000 }
@@ -184,7 +185,6 @@ const addMessage = async (
       timeout: 15_000,
     })
     .toContain(text);
-  const id = await threadId(page);
   await expect
     .poll(() => fileIsListed(page, encodeURIComponent(id!)), {
       timeout: 15_000,

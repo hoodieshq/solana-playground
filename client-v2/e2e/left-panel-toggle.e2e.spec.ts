@@ -49,7 +49,8 @@ test("the rail's + expands the panel and opens the new-file input", async ({
   // before this test clicks anything; on a slow runner it can land after the
   // new-file input has focused itself, and the input loses focus to the
   // editor. The claim here is about the rail's "+", not about who wins that
-  // race, so wait for the editor to be up and focused before starting.
+  // race, so wait for the editor to be up and focused before starting. The
+  // textarea is Monaco's own node, so a class is the handle it offers.
   const editor = page.locator(".monaco-editor textarea.inputarea");
   await expect(editor).toBeVisible();
   await expect(editor).toBeFocused();
@@ -63,22 +64,5 @@ test("the rail's + expands the panel and opens the new-file input", async ({
   await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
   const input = page.locator("#root-dir input");
   await expect(input).toBeVisible();
-  // Polled by hand rather than `toBeFocused()`, so a failure names the
-  // element that holds focus instead of reporting "inactive"
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const active = document.activeElement;
-          if (active === document.querySelector("#root-dir input")) {
-            return "#root-dir input";
-          }
-          if (!active) return "nothing";
-          return `${active.tagName.toLowerCase()}#${active.id}.${
-            active.className
-          }`;
-        }),
-      { timeout: 20_000 }
-    )
-    .toBe("#root-dir input");
+  await expect(input).toBeFocused();
 });

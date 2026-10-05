@@ -7,14 +7,13 @@
  * `spec.md` sits in, or a scenario checked by hand and marked `(manual)` at
  * the end of its heading. This prints every scenario that is neither.
  *
- * Specs are read from `openspec/specs/` (the code as it is) and from every
- * active change under `openspec/changes/` (`archive/` holds changes already
- * merged into `specs/`, so it is skipped). Test titles are read from the
- * source of `e2e/**` by a regex over `test(...)` and its `.only`/`.skip`/
- * `.fixme` forms with a plain string first argument -- not by loading
- * Playwright, which keeps this instant. A title built from a template
- * literal is not seen; the convention is a literal string, so that is the
- * rule, not a gap.
+ * Specs come from `openspec/specs/` and from every active change under
+ * `openspec/changes/` (`archive/` is skipped: those deltas are already in
+ * `specs/`). Scenarios under a `## REMOVED` heading of a delta are not owed
+ * a test. Test titles are read from the source of `e2e/` as the first
+ * double-quoted argument of `test(` or `test.only(` -- Prettier writes
+ * titles that way, and the convention is a literal string. A `test.skip` or
+ * `test.fixme` is not counted: a quarantined scenario is still uncovered.
  *
  *   yarn spec:coverage            # report, exit 0
  *   yarn spec:coverage --strict   # exit 1 when a scenario is uncovered
@@ -23,22 +22,25 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 
-const MANUAL = /\s*\(manual\)\s*$/i;
-const SCENARIO = /^####\s+Scenario:\s*(.+?)\s*$/;
-const TEST_TITLE =
-  /\btest(?:\.(?:only|skip|fixme))?\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g;
+const SCENARIO = /^#### Scenario: (.+)$/;
+const MANUAL = / \(manual\)$/i;
+const REMOVED = /^## REMOVED\b/;
+const SECTION = /^## /;
+const TEST_TITLE = /\btest(?:\.only)?\(\s*"([^"]*)"/g;
 
 /** `#### Scenario:` headings of one spec file, with the `(manual)` mark read off */
 export const extractScenarios = (markdown, capability, file = "") => {
   const out = [];
+  let removed = false;
   markdown.split("\n").forEach((line, i) => {
-    const m = SCENARIO.exec(line);
-    if (!m) return;
-    const manual = MANUAL.test(m[1]);
+    if (SECTION.test(line)) removed = REMOVED.test(line);
+    const m = SCENARIO.exec(line.trimEnd());
+    if (!m || removed) return;
+    const name = m[1].trim();
     out.push({
       capability,
-      name: m[1].replace(MANUAL, ""),
-      manual,
+      name: name.replace(MANUAL, ""),
+      manual: MANUAL.test(name),
       file,
       line: i + 1,
     });
@@ -46,12 +48,9 @@ export const extractScenarios = (markdown, capability, file = "") => {
   return out;
 };
 
-/** First-argument titles of every `test(` call in a Playwright source file */
-export const extractTestTitles = (source) => {
-  const titles = [];
-  for (const m of source.matchAll(TEST_TITLE)) titles.push(m[1] ?? m[2]);
-  return titles;
-};
+/** Titles of every `test(` and `test.only(` in a Playwright source file */
+export const extractTestTitles = (source) =>
+  Array.from(source.matchAll(TEST_TITLE), (m) => m[1]);
 
 /** Scenarios that are neither tested under their `<capability>: <name>` title nor manual */
 export const uncovered = (scenarios, titles) => {
@@ -81,35 +80,36 @@ const walk = async (dir, pick, skip = () => false) => {
   return found;
 };
 
-/** Every `spec.md` under `openspec/specs` and the active changes, keyed by capability */
+/**
+ * Every scenario under `openspec/specs` and the active changes, one per
+ * `<capability>: <name>` -- a scenario a delta modifies is also in `specs/`,
+ * and is owed one test, not two.
+ */
 export const readScenarios = async (openspecDir) => {
-  const specFiles = [
-    ...(await walk(path.join(openspecDir, "specs"), (f) =>
-      f.endsWith("spec.md")
-    )),
+  const isSpec = (f) => f.endsWith("spec.md");
+  const files = [
+    ...(await walk(path.join(openspecDir, "specs"), isSpec)),
     ...(await walk(
       path.join(openspecDir, "changes"),
-      (f) => f.endsWith("spec.md"),
+      isSpec,
       (d) => path.basename(d) === "archive"
     )),
   ];
-  const scenarios = [];
-  for (const file of specFiles) {
+  const seen = new Map();
+  for (const file of files) {
     const capability = path.basename(path.dirname(file));
     const markdown = await fs.readFile(file, "utf8");
-    scenarios.push(
-      ...extractScenarios(
-        markdown,
-        capability,
-        path.relative(openspecDir, file)
-      )
-    );
+    const rel = path.relative(openspecDir, file);
+    for (const s of extractScenarios(markdown, capability, rel)) {
+      const key = `${s.capability}: ${s.name}`;
+      if (!seen.has(key)) seen.set(key, s);
+    }
   }
-  return scenarios;
+  return Array.from(seen.values());
 };
 
 export const readTestTitles = async (e2eDir) => {
-  const files = await walk(e2eDir, (f) => /\.(spec|e2e)\.ts$/.test(f));
+  const files = await walk(e2eDir, (f) => f.endsWith(".ts"));
   const titles = [];
   for (const file of files) {
     titles.push(...extractTestTitles(await fs.readFile(file, "utf8")));
@@ -121,10 +121,9 @@ export const report = (scenarios, titles) => {
   const missing = uncovered(scenarios, titles);
   const manual = scenarios.filter((s) => s.manual).length;
   const tested = scenarios.length - manual - missing.length;
-  const lines = [];
-  for (const s of missing) {
-    lines.push(`  ${s.capability}: ${s.name}    (${s.file}:${s.line})`);
-  }
+  const lines = missing.map(
+    (s) => `  ${s.capability}: ${s.name}    (${s.file}:${s.line})`
+  );
   lines.push(
     `${scenarios.length} scenarios: ${tested} tested, ${manual} manual, ${missing.length} uncovered`
   );
@@ -134,11 +133,18 @@ export const report = (scenarios, titles) => {
 const main = async () => {
   const clientDir = path.resolve(fileURLToPath(import.meta.url), "..", "..");
   const openspecDir = path.join(clientDir, "..", "openspec");
+  try {
+    await fs.access(openspecDir);
+  } catch {
+    console.error(`spec:coverage: no ${openspecDir}`);
+    process.exit(2);
+  }
   const scenarios = await readScenarios(openspecDir);
   const titles = await readTestTitles(path.join(clientDir, "e2e"));
   const { missing, text } = report(scenarios, titles);
-  if (missing.length)
+  if (missing.length) {
     console.log("Scenarios with neither a test nor a (manual) mark:");
+  }
   console.log(text);
   if (missing.length && process.argv.includes("--strict")) process.exit(1);
 };
