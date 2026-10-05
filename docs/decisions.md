@@ -3238,3 +3238,58 @@ do not own, which is the problem this solves.
 **Revisit when** a test genuinely needs the `utils` barrel (then define
 `GLOBAL_SETTINGS`), or when the TypeScript pin is lifted (HOO-1855, which
 this unblocks).
+
+## D61 - The browser suite runs in CI, with its default-backend tests as the stated gap
+
+**Date:** 2026-10-05 - **Status:** decided (Slava), HOO-1856 - **Resolves**
+the "e2e in CI" choice left open by the UI migration spec ("The React 19
+gate") - **Source:** PR for HOO-1856, stacked on #43
+
+**Chosen:** a second job, `e2e`, in `.github/workflows/client-v2.yml`,
+running `yarn test-e2e` (Playwright, `client-v2/e2e/`) on every push and PR
+to `master-2.0`, in parallel with `checks`. A red spec blocks the merge.
+No Postgres service and no secret: the premise in the ticket and the spec,
+that "some specs need the API server and Postgres", was checked spec by spec
+and is false. Every one of the 9 spec files (37 tests) stubs the account
+endpoints with `page.route`, and the dev server serves `api/*.mjs` itself
+(`craco.config.js`), so `/api/agent` answers without a key.
+
+**Measured** on master-2.0 at `4a088ce7`, one worker, no retries: 32 passed,
+3 failed, 2 skipped in 4.7 minutes, after 57 seconds of dev-server boot.
+
+- `account-sync.e2e.spec.ts:127` needs the picker's "Start" button, which
+  exists only for the keyless default backend, which the dev server offers
+  only with the agent key in its environment. Not a flake: an environment
+  dependency the test did not state. It now skips, with the same
+  `hasDefaultBackend` guard and reason the two `assistant-reconnect` tests
+  already used (`e2e/fixtures.ts`).
+- `chat-threads.e2e.spec.ts`, both tests: the helper wrote a message and
+  read the disk (or reloaded) without waiting for the store's fire-and-
+  forget `_persist`, which also declines while no thread is open yet after
+  a workspace switch. `thread-restore`, which waits, passed all along. The
+  helper now waits for an open thread and for the file.
+
+**The gap, on purpose:** the three default-backend tests stay skipped in CI.
+Giving CI the agent key would make a model call per run and put a
+production secret in a job that every PR, fork included, can run. They run
+on a machine with the key; the skip reason says so in the job log.
+
+**Flakes:** `retries: 0` in every environment. A flaky spec fails the run
+and is seen; a retry would train it out of notice. Quarantine is an explicit
+`test.skip` or `test.fixme` with the reason as the argument. CI keeps a
+trace of each failure (`retain-on-failure`) and uploads `test-results/`
+for seven days; the `github` reporter annotates the failing line in the PR.
+
+**Rejected: running against the production build.** It would test the
+shipped bundle, but the dev-only `/api` middleware is what lets
+`hasDefaultBackend` and the stubs work, and `__pgAssistant` (the store
+handle the chat specs drive) is stripped from production. The manual
+walk-through in the UI migration spec stays the production-build check for
+a runtime upgrade.
+
+**Rejected: a written manual gate instead of CI.** The ticket's fallback.
+It was there for the Postgres premise, which did not hold.
+
+**Revisit when** a spec genuinely needs the server (then a Postgres service
+exists in `checks` already and can be shared), or when the job's wall time
+passes fifteen minutes on the runner.
