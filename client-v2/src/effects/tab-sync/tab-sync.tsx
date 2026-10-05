@@ -45,9 +45,6 @@ interface WorkspacesWritten {
 const isWorkspacesWritten = (data: unknown): data is WorkspacesWritten =>
   (data as WorkspacesWritten)?.type === "workspaces-written";
 
-/** An id for this tab, to tell its own announcements from a neighbour's. */
-const tabId = () => uuid();
-
 /**
  * Which project a written path belongs to, if it is worth announcing.
  *
@@ -83,7 +80,7 @@ export const tabSync = (): Disposable => {
   if (typeof BroadcastChannel !== "function") return { dispose: () => {} };
 
   const channel = new BroadcastChannel(CHANNEL);
-  const self = tabId();
+  const self = uuid();
 
   const pending = new Set<string>();
   let workspacesPending = false;
