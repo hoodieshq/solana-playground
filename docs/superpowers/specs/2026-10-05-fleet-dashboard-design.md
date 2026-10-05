@@ -155,8 +155,17 @@ Ghost and rename prompts are not stored as asks. The page derives them from
 
 ### `resources/<id>`
 
-`holder` (sessionId or null), `since`, `note` (session), `orphaned`
-(Dispatcher). First resource: `playwright-profile`.
+`holder` (sessionId or null), `holder_name`, `since`, `note` (session),
+`orphaned` (Dispatcher). First resource: `playwright-profile`.
+
+**Amended 2026-10-05:** `playwright-profile` is owned permanently by the
+long-lived "Sheet sync" session. Work sessions send it `SYNC:` / `CHECK:`
+requests over `SendMessage` and never claim the profile. As owner, Sheet sync
+also writes `queue_length`, `last_sync_at`, `google_signed_in` and `at` at
+every shift. Dispatcher checks a holder's liveness against the whole
+registry, since the owner may run outside the project. An orphaned resource
+is raised in Now; the page also shows "молчит" after 60 min without an
+update and "нужен вход" when Google is signed out.
 
 ### `links/<id>`
 
