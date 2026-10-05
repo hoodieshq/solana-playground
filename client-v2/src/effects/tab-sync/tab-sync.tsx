@@ -1,3 +1,4 @@
+import { uuid } from "../../shared/lib/ids";
 import { report } from "../../features/persistence/model/diagnostics";
 import { reloadCurrentFromDisk } from "../../features/persistence/model/tab-reload";
 import { PgFs } from "../../utils/explorer/fs";
@@ -44,18 +45,8 @@ interface WorkspacesWritten {
 const isWorkspacesWritten = (data: unknown): data is WorkspacesWritten =>
   (data as WorkspacesWritten)?.type === "workspaces-written";
 
-/**
- * An id for this tab, to tell its own announcements from a neighbour's.
- *
- * `crypto.randomUUID` is what every browser this runs in has. jsdom's own
- * `crypto` lacks it in some versions, and `setupTests`'s polyfill only swaps
- * in `webcrypto` when `subtle` is missing -- so a jsdom that has `subtle` but
- * not `randomUUID` would otherwise crash here before any test body runs.
- */
-const tabId = () =>
-  typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
+/** An id for this tab, to tell its own announcements from a neighbour's. */
+const tabId = () => uuid();
 
 /**
  * Which project a written path belongs to, if it is worth announcing.

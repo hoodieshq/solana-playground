@@ -14,7 +14,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
 } from "../../../features/persistence/model/chat-storage";
-import { uuid } from "../../../features/persistence/model/ids";
+import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";

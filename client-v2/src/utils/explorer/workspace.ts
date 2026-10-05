@@ -1,5 +1,5 @@
 import { tutorialProjectId } from "../../features/persistence/model/project-id";
-import { uuid } from "../../features/persistence/model/ids";
+import { uuid } from "../../shared/lib/ids";
 import { PgCommon } from "../common";
 
 /** One workspace, as recorded in the workspaces config */
