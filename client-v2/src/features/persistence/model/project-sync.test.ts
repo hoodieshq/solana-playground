@@ -1,4 +1,5 @@
 import { PgProjectSync } from "./project-sync";
+import { PgEditorModels } from "./editor-models";
 import { hashFiles } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
@@ -6,6 +7,20 @@ import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgWorkspace } from "../../../utils/explorer/workspace";
+
+// Reconcile, adopt and merge reload the open workspace from disk through
+// `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
+// `monaco-editor` cannot load under jsdom, so every test in this file goes
+// through this stand-in instead.
+jest.mock("./editor-models", () => ({
+  PgEditorModels: {
+    valueOf: jest.fn(async () => null),
+    drop: jest.fn(async () => {}),
+    dropUnder: jest.fn(async () => {}),
+    anyEditedUnder: jest.fn(async () => false),
+  },
+}));
 
 /**
  * A stubbed `fetch` response.
@@ -38,6 +53,13 @@ const reset = () => {
   PgProjectSync.reset();
   PgSyncBase.reset();
   storedFiles().clear();
+  // CRA's jest preset sets `resetMocks: true`, which wipes the
+  // implementations the `jest.mock` factory above baked in before every
+  // test, not just once. Without this, `valueOf` answers `undefined` by
+  // default rather than `null`, which reads as "someone is typing in it".
+  (PgEditorModels.valueOf as jest.Mock).mockResolvedValue(null);
+  (PgEditorModels.drop as jest.Mock).mockResolvedValue(undefined);
+  (PgEditorModels.dropUnder as jest.Mock).mockResolvedValue(undefined);
 };
 
 /** The body of the most recent request */
@@ -69,6 +91,26 @@ describe("PgProjectSync", () => {
     global.fetch = jest.fn() as unknown as typeof fetch;
     expect(await PgProjectSync.push("p1", { files: {} })).toBe("skipped");
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty snapshot whoever pushes it", async () => {
+    // Not only the editor's push: reconcile and an answer to the banner read
+    // their snapshot off the same store, and can land in the same window
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      url === "/api/sync"
+        ? Promise.resolve(okProbe)
+        : Promise.resolve({
+            ok: true,
+            json: async () => ({ updatedAt: "t2" }),
+          })
+    ) as unknown as typeof fetch;
+    await signedIn();
+    await agreedOn("p1", "one", { a: "1" });
+
+    expect(
+      await PgProjectSync.push("p1", { files: {} }, "one", { immediate: true })
+    ).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
   });
 
   it("skips an unchanged snapshot rather than re-uploading it", async () => {
@@ -262,6 +304,68 @@ describe("PgProjectSync", () => {
     expect(await PgProjectSync.list()).toEqual(projects);
   });
 
+  describe("requests made while holding the lock", () => {
+    // Every other tab's sync waits behind the lock, and `fetch` never gives
+    // up by itself -- so each request made inside it carries a timeout
+    const signal = new AbortController().signal;
+    const original = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+
+    beforeEach(() => {
+      Object.defineProperty(AbortSignal, "timeout", {
+        value: jest.fn(() => signal),
+        configurable: true,
+        writable: true,
+      });
+      global.fetch = jest.fn().mockImplementation((url: string) =>
+        Promise.resolve(
+          url === "/api/sync"
+            ? okProbe
+            : {
+                ok: true,
+                json: async () => ({
+                  projects: [],
+                  project: { id: "p1", name: "one", snapshot: null },
+                  updatedAt: "t1",
+                }),
+              }
+        )
+      ) as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      if (original) Object.defineProperty(AbortSignal, "timeout", original);
+      else delete (AbortSignal as { timeout?: unknown }).timeout;
+    });
+
+    const initOf = (match: (url: string, init?: RequestInit) => boolean) =>
+      (global.fetch as jest.Mock).mock.calls.find(([url, init]) =>
+        match(url, init)
+      )?.[1] as RequestInit | undefined;
+
+    it("times out the upload", async () => {
+      await signedIn();
+      await PgProjectSync.push("p1", { files: { "src/lib.rs": "x" } }, "one");
+
+      expect(initOf((_, init) => init?.method === "PUT")?.signal).toBe(signal);
+    });
+
+    it("times out the list", async () => {
+      await signedIn();
+      await PgProjectSync.list();
+
+      expect(initOf((url) => url === "/api/projects")?.signal).toBe(signal);
+    });
+
+    it("times out reading one project", async () => {
+      await signedIn();
+      await PgProjectSync.fetch("p1");
+
+      expect(initOf((url) => url.startsWith("/api/projects?id="))?.signal).toBe(
+        signal
+      );
+    });
+  });
+
   const okServer = () =>
     (global.fetch = jest.fn().mockImplementation((url: string) =>
       url === "/api/sync"
@@ -398,7 +502,8 @@ describe("a conflict is asked once, not retried forever", () => {
     jest
       .spyOn(PgExplorer, "currentWorkspaceName", "get")
       .mockReturnValue("one");
-    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([["/one/a", "2"]]);
+    // Off the store, which is what the retry's snapshot reads
+    storedFiles().set("/one/a", "2");
     expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
     expect(changes).toBe(2);
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
@@ -467,9 +572,7 @@ describe("resolving a conflict", () => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "mine"]]);
+    storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
   beforeEach(reset);
@@ -598,6 +701,8 @@ describe("resolving a conflict", () => {
     const reload = jest
       .spyOn(PgExplorer, "switchWorkspace")
       .mockResolvedValue(undefined);
+    // What the store holds is what the clean check reads
+    storedFiles().set("/mine/src/lib.rs", "mine");
 
     expect(await PgProjectSync.adopt("p1")).toBe("mine");
 
@@ -675,9 +780,7 @@ describe("PgProjectSync.pushCurrent", () => {
   const asWorkspace = (id: string | undefined, name: string | undefined) => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "fn main() {}"]]);
+    if (name) storedFiles().set(`/${name}/src/lib.rs`, "fn main() {}");
   };
 
   beforeEach(() => {
@@ -712,13 +815,16 @@ describe("PgProjectSync.pushCurrent", () => {
   });
 
   it("refuses to upload an empty snapshot over a project that has one", async () => {
-    // The explorer clears its file map before re-reading a workspace from the
-    // store, so a push landing in that window builds nothing at all. Taking
-    // another device's copy re-opens the workspace, which is precisely when a
-    // push is most likely to be pending -- so the version the user asked to
-    // keep would be replaced by an empty project.
-    asWorkspace("p1", "mine");
-    jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue([]);
+    // `replaceWorkspaceFiles` clears the workspace directory before writing
+    // the taken snapshot back, so a push landing in that window reads
+    // nothing off disk. Taking another device's copy re-opens the
+    // workspace, which is precisely when a push is most likely to be
+    // pending -- so the version the user asked to keep would be replaced by
+    // an empty project.
+    jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    jest
+      .spyOn(PgExplorer, "currentWorkspaceName", "get")
+      .mockReturnValue("mine");
     await signedIn();
 
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
@@ -727,6 +833,80 @@ describe("PgProjectSync.pushCurrent", () => {
 
   it("does nothing when there is no workspace to push", async () => {
     asWorkspace(undefined, undefined);
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
+  });
+
+  it("does not upload one project's files under another's id", async () => {
+    // `pushCurrent` reads `currentWorkspaceId` the moment it is called --
+    // synchronously, before its first `await` -- and used to read the
+    // snapshot and `currentWorkspaceName` much later, once `_ready`, the
+    // push gate and the sync lock had all had their say. A switch in
+    // between tore the three apart: this device's id, paired with whatever
+    // project the user had switched to by the time execution resumed.
+    const idSpy = jest.spyOn(PgExplorer, "currentWorkspaceId", "get");
+    const nameSpy = jest.spyOn(PgExplorer, "currentWorkspaceName", "get");
+    const setWorkspace = (id: string, name: string) => {
+      idSpy.mockReturnValue(id);
+      nameSpy.mockReturnValue(name);
+      storedFiles().set(`/${name}/src/lib.rs`, `// ${name}`);
+    };
+
+    setWorkspace("a", "A");
+    await signedIn();
+    PgProjectSync.holdPushes();
+
+    const push = PgProjectSync.pushCurrent();
+
+    // The user switches projects while this push is still waiting on the
+    // gate -- the same window a focus reconcile or another tab's reconcile
+    // holds it open for.
+    setWorkspace("b", "B");
+    PgProjectSync.releasePushes();
+    await push;
+
+    const body = lastBody();
+    expect(body.id).toBe("b");
+    expect(body.name).toBe("B");
+    expect(body.files["src/lib.rs"]).toBe("// B");
+  });
+
+  it("refuses to upload a workspace another tab renamed or deleted", async () => {
+    // This tab's memory still has it, and its autosave recreated the
+    // directory around the one file it wrote -- a fragment that would
+    // replace the whole project on the server
+    asWorkspace("p1", "mine");
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({
+        workspaces: [{ id: "p1", name: "renamed" }],
+        currentId: "p1",
+      })
+    );
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+    expect(putCalls()).toHaveLength(0);
+  });
+
+  it("uploads a workspace the registry on disk still has", async () => {
+    asWorkspace("p1", "mine");
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p1", name: "mine" }] })
+    );
+    await signedIn();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+  });
+
+  it("does not upload against a registry it cannot parse", async () => {
+    // A config caught half-written says nothing about whether the workspace
+    // is still listed, and read as "no registry" it waved the push through
+    asWorkspace("p1", "mine");
+    storedFiles().set(PgWorkspace.WORKSPACES_CONFIG_PATH, '{"workspaces":[');
     await signedIn();
 
     expect(await PgProjectSync.pushCurrent()).toBe("skipped");
@@ -830,9 +1010,7 @@ describe("a refusal the user has to clear", () => {
     jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(id);
     jest.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(name);
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(name);
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${name}/src/lib.rs`, "mine"]]);
+    storedFiles().set(`/${name}/src/lib.rs`, "mine");
   };
 
   /** A `fetch` that answers the sync probe and hands every PUT `refusal` */
@@ -965,5 +1143,82 @@ describe("a refusal the user has to clear", () => {
       projectId: "p1",
       kind: "name-taken",
     });
+  });
+
+  it("does not retry over a directory another tab removed", async () => {
+    // The banner is still up in this tab, which has not re-read the list.
+    // Its snapshot reads nothing off the store, and sent, that nothing
+    // replaces every file of the project on the server.
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({ reason: "name-taken" }),
+    });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    await PgProjectSync.pushCurrent();
+    storedFiles().delete("/mine/src/lib.rs");
+
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(false);
+    expect(putCalls()).toHaveLength(1);
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("name-taken");
+  });
+
+  it("does not retry a workspace another tab renamed", async () => {
+    // Under its old name, the store may hold anything: a fragment an
+    // autosave recreated, or a new project that took the name
+    refusing({
+      ok: false,
+      status: 409,
+      json: async () => ({ reason: "name-taken" }),
+    });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    await PgProjectSync.pushCurrent();
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p1", name: "renamed" }] })
+    );
+
+    expect(await PgProjectSync.resolve("p1", "retry")).toBe(false);
+    expect(putCalls()).toHaveLength(1);
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("name-taken");
+  });
+
+  it("does not keep an empty copy of a directory another tab removed", async () => {
+    // Kept, it would be a project called "mine (kept)" with nothing in it,
+    // and the original deleted after it -- the work gone, with a project
+    // left standing that says it was kept
+    refusing({ ok: false, status: 404, json: async () => ({}) });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
+    storedFiles().delete("/mine/src/lib.rs");
+    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+
+    expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
+    expect(importWorkspace).not.toHaveBeenCalled();
+    expect(deleteWorkspace).not.toHaveBeenCalled();
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("deleted-elsewhere");
+  });
+
+  it("does not keep a workspace another tab renamed", async () => {
+    // And then delete it under the name it no longer has, which may by now
+    // be another project's
+    refusing({ ok: false, status: 404, json: async () => ({}) });
+    await signedIn();
+    asWorkspace("p1", "mine");
+    PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [{ id: "p2", name: "mine" }] })
+    );
+    const importWorkspace = jest.spyOn(PgExplorer, "importWorkspace");
+    const deleteWorkspace = jest.spyOn(PgExplorer, "deleteWorkspace");
+
+    expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
+    expect(importWorkspace).not.toHaveBeenCalled();
+    expect(deleteWorkspace).not.toHaveBeenCalled();
   });
 });

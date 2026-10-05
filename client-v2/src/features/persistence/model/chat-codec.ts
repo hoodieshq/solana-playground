@@ -77,16 +77,17 @@ const encodeRequest = (request: ApprovalRequest): ApprovalRequest => {
 /**
  * Prepare one item for storage.
  *
- * A `pending` approval becomes `denied`: the promise that blocked the agent
- * loop is gone once the session ends, so a restored pending card would spin
- * for ever with nothing able to resolve it.
+ * A `pending` approval becomes `unanswered`: the promise that blocked the
+ * agent loop is gone once the session ends, so a restored pending card would
+ * spin for ever with nothing able to resolve it. It is not `denied`, which
+ * would report a refusal the user never made.
  */
 export const encodeItem = (item: ChatItem): StoredItem => {
   if (item.kind !== "approval") return item;
 
   return {
     ...item,
-    status: item.status === "pending" ? "denied" : item.status,
+    status: item.status === "pending" ? "unanswered" : item.status,
     request: encodeRequest(item.request),
   };
 };

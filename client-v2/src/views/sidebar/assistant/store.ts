@@ -31,7 +31,13 @@ export interface CommandApproval {
 
 export type ApprovalRequest = PatchApproval | CommandApproval;
 
-export type ApprovalStatus = "pending" | "allowed" | "denied";
+/**
+ * `unanswered` exists only on a restored card: the session ended while the
+ * question was still on screen. Kept apart from `denied` because the user
+ * never said no, and history that puts words in their mouth is worse than
+ * history that admits the turn was cut short.
+ */
+export type ApprovalStatus = "pending" | "allowed" | "denied" | "unanswered";
 
 /** What every rendered item carries, whatever its kind */
 interface ChatItemBase {

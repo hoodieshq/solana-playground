@@ -6,7 +6,9 @@ import {
 } from "./project-sync";
 import { hashFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
+import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
+import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict } from "./project-sync";
 import type { SyncMark } from "./sync-mark";
@@ -144,10 +146,33 @@ const start = (): Promise<SyncResult> => {
   return current;
 };
 
-const pass = async (): Promise<SyncResult> => {
+/**
+ * One pass, held under `withSyncLock`: it decides against the sync marks,
+ * which every tab of this browser shares, and a push or a merge in another
+ * tab must not change a mark between this pass reading it and acting on it.
+ * The coalescing above orders passes within this tab; the lock orders them
+ * against the other tabs.
+ */
+const pass = (): Promise<SyncResult> => withSyncLock(passUnlocked);
+
+const passUnlocked = async (): Promise<SyncResult> => {
   const result = empty();
 
-  // Before anything reads the disk. Signed out, or on a deployment with no
+  // First, bring the open workspace in line with the store. Another tab may
+  // have written it since this one last looked, and everything below reads
+  // the store while the editor still shows memory -- so a pass that adopted
+  // or merged over a stale editor left it to autosave the old text back.
+  //
+  // Before the availability check, deliberately: the overwrite between tabs
+  // needs no account, and this is how a tab catches up on focus when it
+  // missed `effects/tab-sync`'s broadcast or the browser has none.
+  try {
+    await reloadCurrentFromDisk();
+  } catch (e) {
+    report("reload before reconcile", e);
+  }
+
+  // Before anything builds a snapshot. Signed out, or on a deployment with no
   // database, every call below is already a no-op -- but `push` takes a
   // snapshot as an argument, so reaching it means having built one, and that
   // is a walk of the whole workspace. This runs on every project switch now,

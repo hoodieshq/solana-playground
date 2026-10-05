@@ -10,6 +10,20 @@ import { projectSync } from "../../../effects/project-sync/project-sync";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
+import { PgWorkspace } from "../../../utils/explorer/workspace";
+
+// Reconcile, adopt and merge reload the open workspace from disk through
+// `reloadCurrentFromDisk`, which drops Monaco's cached models -- and
+// `monaco-editor` cannot load under jsdom, so every test in this file goes
+// through this stand-in instead.
+jest.mock("./editor-models", () => ({
+  PgEditorModels: {
+    valueOf: jest.fn(async () => null),
+    drop: jest.fn(async () => {}),
+    dropUnder: jest.fn(async () => {}),
+    anyEditedUnder: jest.fn(async () => false),
+  },
+}));
 
 /**
  * One person, two browsers.
@@ -152,9 +166,22 @@ const asDevice = (
     .mockImplementation(
       (id) => workspaces.find((w) => w.id === id)?.name as string
     );
-  jest
-    .spyOn(PgExplorer, "getAllFiles")
-    .mockReturnValue(current ? [[`/${current.name}/src/lib.rs`, content]] : []);
+  if (current) storedFiles().set(`/${current.name}/src/lib.rs`, content);
+  // `reconcile` reloads the open workspace from disk before anything else,
+  // to catch a neighbour tab's write this one never heard about. Read
+  // through to the store rather than snapshotted once, so a test that
+  // writes to it later (simulating this tab's own unsaved edit) is read as
+  // the same edit in memory -- matching what autosave really does, and
+  // keeping the reload a no-op rather than an unmocked `switchWorkspace`.
+  jest.spyOn(PgExplorer, "files", "get").mockImplementation(() => {
+    if (!current) return {};
+    const prefix = `/${current.name}/`;
+    return Object.fromEntries(
+      [...storedFiles()]
+        .filter(([path]) => path.startsWith(prefix))
+        .map(([path, content]) => [path, { content }])
+    );
+  });
   return jest
     .spyOn(PgExplorer, "importWorkspace")
     .mockResolvedValue(undefined as never);
@@ -206,9 +233,26 @@ const otherDeviceWroteFiles = (id: string, files: Record<string, string>) => {
   server.set(id, { ...existing, snapshot: { files }, updatedAt: tick() });
 };
 
-/** This browser's current workspace now holds these files */
-const localFilesAre = (name: string, files: Record<string, string>) =>
-  jest
+/** Replace what the store holds for a workspace with exactly these files */
+const writeStored = (name: string, files: Record<string, string>) => {
+  const stored = storedFiles();
+  for (const path of [...stored.keys()]) {
+    if (path.startsWith(`/${name}/`)) stored.delete(path);
+  }
+  for (const [path, content] of Object.entries(files)) {
+    stored.set(`/${name}/${path}`, content);
+  }
+};
+
+/**
+ * This browser's current workspace now holds these files.
+ *
+ * In the store, which is what an upload reads: tabs share it, and only it.
+ * Memory says the same, the way autosave leaves it.
+ */
+const localFilesAre = (name: string, files: Record<string, string>) => {
+  writeStored(name, files);
+  return jest
     .spyOn(PgExplorer, "getAllFiles")
     .mockReturnValue(
       Object.entries(files).map(([path, content]) => [
@@ -216,6 +260,7 @@ const localFilesAre = (name: string, files: Record<string, string>) =>
         content,
       ])
     );
+};
 
 /**
  * The workspace writes a merge makes, captured instead of hitting the store.
@@ -229,13 +274,27 @@ const captureWrites = () => {
   jest
     .spyOn(PgExplorer, "switchWorkspace")
     .mockImplementation(async (name: string) => {
+      // Memory re-read from what the replace wrote. The store is not
+      // touched: whatever was folded in after the replace is already there.
       const files = rewritten.get(name);
-      if (files) localFilesAre(name, files);
+      if (files) {
+        jest
+          .spyOn(PgExplorer, "getAllFiles")
+          .mockReturnValue(
+            Object.entries(files).map(([path, content]) => [
+              `/${name}/${path}`,
+              content,
+            ])
+          );
+      }
     });
   return jest
     .spyOn(PgExplorer, "replaceWorkspaceFiles")
     .mockImplementation(async (name: string, files: Record<string, string>) => {
       rewritten.set(name, files);
+      // The store has them at once, as with the real replace; memory only
+      // once the workspace is re-opened
+      writeStored(name, files);
     });
 };
 
@@ -336,9 +395,7 @@ describe("work that never reached the server", () => {
     otherDeviceWrote(HELLO.id, "the other device");
 
     // ...and this device has local work it never managed to upload
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${HELLO.name}/src/lib.rs`, "an afternoon of work"]]);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "an afternoon of work");
   };
 
   it("is not overwritten by a reload", async () => {
@@ -1007,9 +1064,7 @@ describe("deleting on one device", () => {
 
     otherDeviceDeleted(HELLO.id);
     // ...and only then does this device get work that never uploaded
-    jest
-      .spyOn(PgExplorer, "getAllFiles")
-      .mockReturnValue([[`/${HELLO.name}/src/lib.rs`, "unsaved"]]);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
     const deleteWorkspace = jest
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
@@ -1081,9 +1136,9 @@ describe("a device upgraded from whole-snapshot marks", () => {
     (server.get(HELLO.id)!.snapshot as { files: Record<string, string> }).files;
 
   /**
-   * Replaces that land where the real explorer's do: the generated files in
-   * the store, which is the only place a snapshot reads them from, and the
-   * user files in the explorer's memory.
+   * Replaces that land where the real explorer's do: every file in the
+   * store, which is what a snapshot reads, and the user files in the
+   * explorer's memory.
    */
   const writesLand = () => {
     jest.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
@@ -1091,18 +1146,13 @@ describe("a device upgraded from whole-snapshot marks", () => {
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
         async (name: string, files: Record<string, string>) => {
-          for (const path of SYNCED_WORKSPACE_FILES) {
-            if (path in files)
-              storedFiles().set(`/${name}/${path}`, files[path]);
-            else storedFiles().delete(`/${name}/${path}`);
-          }
-          localFilesAre(
-            name,
-            Object.fromEntries(
-              Object.entries(files).filter(
-                ([path]) => !SYNCED_WORKSPACE_FILES.includes(path)
-              )
-            )
+          // All of it in the store, which is what a snapshot reads; only the
+          // user files in memory, as the explorer keeps them
+          writeStored(name, files);
+          jest.spyOn(PgExplorer, "getAllFiles").mockReturnValue(
+            Object.entries(files)
+              .filter(([path]) => !SYNCED_WORKSPACE_FILES.includes(path))
+              .map(([path, content]) => [`/${name}/${path}`, content])
           );
         }
       );
@@ -1371,11 +1421,9 @@ describe("a program keypair only this device holds", () => {
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockImplementation(
         async (name: string, files: Record<string, string>) => {
-          for (const path of SYNCED_WORKSPACE_FILES) {
-            if (path in files)
-              await PgFs.writeFile(`/${name}/${path}`, files[path]);
-            else storedFiles().delete(`/${name}/${path}`);
-          }
+          // The user files first, replacing the directory as the real
+          // replace does; then the generated ones through `PgFs`, so their
+          // write events fire
           localFilesAre(
             name,
             Object.fromEntries(
@@ -1384,6 +1432,10 @@ describe("a program keypair only this device holds", () => {
               )
             )
           );
+          for (const path of SYNCED_WORKSPACE_FILES) {
+            if (path in files)
+              await PgFs.writeFile(`/${name}/${path}`, files[path]);
+          }
         }
       );
   };
@@ -1819,6 +1871,12 @@ describe("signing out of a browser", () => {
       .mockImplementation(async (name?: string) => {
         const index = workspaces.findIndex((w) => w.name === name);
         if (index >= 0) workspaces.splice(index, 1);
+        // Saved before the event, as the real delete does: what the effect
+        // settles a delete against is the store's list
+        storedFiles().set(
+          PgWorkspace.WORKSPACES_CONFIG_PATH,
+          JSON.stringify({ workspaces })
+        );
         PgCommon.createAndDispatchCustomEvent(
           PgExplorer.events.ON_DID_DELETE_WORKSPACE
         );

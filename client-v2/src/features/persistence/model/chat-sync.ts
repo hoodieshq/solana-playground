@@ -1,5 +1,5 @@
 import { decodeThread, encodeThread, mergeThreads } from "./chat-codec";
-import { PgChatStorage } from "./chat-storage";
+import { PgChatStorage, withoutTruncationNotice } from "./chat-storage";
 import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
@@ -142,7 +142,10 @@ export class PgChatSync {
         body: JSON.stringify({
           threadId,
           projectId,
-          items: encodeThread(items),
+          // The truncation notice is this device's own bookkeeping. The
+          // server keeps every message, so uploading it would tell the next
+          // device that history it can still read is gone.
+          items: encodeThread(withoutTruncationNotice(items)),
         }),
       });
       if (!response.ok)

@@ -82,7 +82,7 @@ describe("encodeItem", () => {
     );
   });
 
-  it("stores a pending approval as denied, since it can never resume", () => {
+  it("stores a pending approval as unanswered, since it can never resume", () => {
     const item: ChatItem = {
       ...base,
       kind: "approval",
@@ -90,11 +90,12 @@ describe("encodeItem", () => {
       request: { type: "command", name: "build", effect: "Builds the program" },
     };
 
-    expect(encodeItem(item)).toMatchObject({ status: "denied" });
+    // Not `denied`: the user never said no, the session ended under the card
+    expect(encodeItem(item)).toMatchObject({ status: "unanswered" });
   });
 
   it("leaves a settled approval's status alone", () => {
-    for (const status of ["allowed", "denied"] as const) {
+    for (const status of ["allowed", "denied", "unanswered"] as const) {
       const item: ChatItem = {
         ...base,
         kind: "approval",
@@ -146,7 +147,7 @@ describe("encodeItem", () => {
     expect(encodeItem(approval)).toMatchObject({ updatedAt });
     expect(
       encodeItem({ ...approval, status: "pending" } as ChatItem)
-    ).toMatchObject({ status: "denied", updatedAt });
+    ).toMatchObject({ status: "unanswered", updatedAt });
     expect(decodeItem(encodeItem(reply))).toMatchObject({ updatedAt });
   });
 });

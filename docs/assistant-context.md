@@ -161,7 +161,13 @@ Done:
   or tutorial, kept in IndexedDB on the device, and synced to Postgres when
   signed in. A restored thread is history the model can read back, not a
   resumed session: the provider is re-seeded from the text of the
-  conversation, and the tool calls behind it are not replayed.
+  conversation, and the tool calls behind it are not replayed. What the panel
+  showed is what comes back — every message, tool line and approval card. The
+  model's own reasoning is not stored because it is never shown in the first
+  place; the panel renders a working indicator while a turn runs, not the
+  reasoning behind it. A card the user never answered comes back marked as
+  unanswered rather than declined, and a device that has dropped the oldest
+  messages of a long thread says so at the top of it.
 - Project code syncs both ways, so signing in on another device picks up where
   the last one left off. Changes from two devices are merged file by file and,
   within a file, line by line; the user is asked only about lines both devices

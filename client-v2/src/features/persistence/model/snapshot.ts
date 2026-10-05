@@ -1,8 +1,8 @@
+import { isMissing } from "./diagnostics";
 // Deep import, not the `utils` barrel: the barrel reaches `settings.ts`,
 // which reads a webpack-defined global that does not exist under jest, so
 // importing it here would make this module untestable. Same reason
 // `chat-storage.ts` reaches for `utils/explorer/fs` directly.
-import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 
 /**
@@ -128,56 +128,15 @@ export interface Snapshot {
 }
 
 /**
- * Serialize the current workspace.
- *
- * Paths are stored relative to the project root, not absolute: the absolute
- * form embeds the workspace name, so a renamed or differently-named project on
- * another device would not match.
- */
-export const buildSnapshot = async (): Promise<Snapshot> => {
-  const tuples = PgExplorer.getAllFiles();
-  const prefix = `/${PgExplorer.currentWorkspaceName}/`;
-  const files: Record<string, string> = {};
-
-  for (const [fullPath, content] of tuples) {
-    const path = fullPath.startsWith(prefix)
-      ? fullPath.slice(prefix.length)
-      : fullPath.replace(/^\//, "");
-    files[path] = content;
-  }
-
-  // Read off the store rather than the explorer, because the explorer does not
-  // have them: `isItemNameValid` rejects any name starting with a dot, so
-  // nothing under `.workspace/` -- nor `.tutorial.json` -- is ever in the
-  // in-memory tree. Filtering for them alone therefore filtered a set they
-  // were never in, and the program keypair and tutorial progress silently
-  // stayed on whichever device made them.
-  for (const path of SYNCED_WORKSPACE_FILES) {
-    try {
-      files[path] = await PgFs.readToString(prefix + path);
-    } catch {
-      // A project that has never been built has no keypair, and one that is
-      // not a tutorial has no progress. Absent is the common case, not a fault.
-    }
-  }
-
-  const kept = filterSnapshotPaths(Object.keys(files));
-  return {
-    files: Object.fromEntries(kept.map((path) => [path, files[path]])),
-  };
-};
-
-/**
- * Serialize a workspace that is *not* the current one.
- *
- * `buildSnapshot` reads `PgExplorer.getAllFiles()`, which only ever holds the
- * current workspace -- so it cannot answer "does this other project still
- * match what the server has". Reconciling every project on load needs exactly
- * that, and the backing store is the only place the answer lives.
+ * Serialize a workspace off the store.
  *
  * A directory that is not there reads as empty rather than throwing: a
  * workspace registered before its files landed is a real state, and it should
  * reconcile as "nothing here" rather than abort the pass.
+ *
+ * Only a directory that is not there. A store that failed to read is not an
+ * empty project, and passed off as one it is a snapshot that would delete
+ * every file on the server.
  */
 export const buildSnapshotOf = async (name: string): Promise<Snapshot> => {
   const root = `/${name}`;
@@ -187,8 +146,9 @@ export const buildSnapshotOf = async (name: string): Promise<Snapshot> => {
     let names: string[];
     try {
       names = await PgFs.readDir(dir);
-    } catch {
-      return;
+    } catch (e) {
+      if (isMissing(e)) return;
+      throw e;
     }
 
     for (const child of names) {
@@ -208,12 +168,13 @@ export const buildSnapshotOf = async (name: string): Promise<Snapshot> => {
 };
 
 /**
- * Serialize a workspace, current or not.
+ * Serialize a workspace, current or not, off the store.
  *
- * The current one comes from memory, because that is what the user is looking
- * at and what an unsaved edit lives in; any other comes off the store.
+ * The current one used to come from memory, on the grounds that an unsaved
+ * edit lives there. It does not stay there: autosave writes state and disk in
+ * the same callback. What memory does hold, and disk does not, is a stale
+ * copy -- tabs share the store but not each other's state, so a tab another
+ * tab has written underneath would upload its old files over the new ones.
  */
-export const snapshotOf = async (name: string): Promise<Snapshot> =>
-  name === PgExplorer.currentWorkspaceName
-    ? await buildSnapshot()
-    : await buildSnapshotOf(name);
+export const snapshotOf = (name: string): Promise<Snapshot> =>
+  buildSnapshotOf(name);
