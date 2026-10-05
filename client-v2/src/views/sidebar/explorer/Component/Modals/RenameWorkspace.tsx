@@ -1,20 +1,33 @@
+import type { FC } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import Input from "../../../../../components/Input";
 import Modal from "../../../../../components/Modal";
 import { PgCommon, PgExplorer, PgView } from "../../../../../utils";
 
-export const RenameWorkspace = () => {
-  const workspaceName = PgExplorer.currentWorkspaceName!;
+interface RenameWorkspaceProps {
+  /** Which workspace to rename; defaults to the one the user is in */
+  name?: string;
+}
+
+export const RenameWorkspace: FC<RenameWorkspaceProps> = ({ name }) => {
+  const workspaceName = name ?? PgExplorer.currentWorkspaceName!;
   const [newName, setNewName] = useState(workspaceName);
   const [error, setError] = useState("");
 
   const renameWorkspace = async () => {
-    if (PgExplorer.currentWorkspaceName === newName) return;
+    if (workspaceName === newName) return;
 
     try {
       PgView.setSidebarLoading(true);
-      await PgCommon.transition(PgExplorer.renameWorkspace(newName));
+      // Another workspace is renamed where it lies, and announced so sync
+      // uploads the new name; the current one is renamed as before
+      await PgCommon.transition(
+        PgExplorer.renameWorkspace(newName, {
+          from: workspaceName,
+          announce: true,
+        })
+      );
     } finally {
       PgView.setSidebarLoading(false);
     }

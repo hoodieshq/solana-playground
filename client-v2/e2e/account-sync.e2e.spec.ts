@@ -521,6 +521,109 @@ test("the other device's rename arrives, and the next edit keeps it", async ({
   expect(name).toBe("Renamed elsewhere");
 });
 
+test("a project renamed from the switcher, without opening it, reaches the account", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+
+  const alphaId = await makeLocalProject(page, "Alpha");
+  // A second project, so Alpha is not the open one
+  await page.locator('[aria-haspopup="true"]').first().click();
+  await page
+    .getByLabel("Projects and lessons")
+    .getByText("Browse gallery")
+    .click();
+  const gallery = page.locator("[data-gallery-modal]");
+  await gallery.getByLabel("Project name").fill("Beta");
+  await gallery.getByRole("button", { name: /^Start/ }).click();
+  await expect(gallery).toBeHidden(LONG);
+
+  // An account with the server's compare-and-swap, one row per project
+  const rows = new Map<
+    string,
+    {
+      name: string;
+      snapshot: { files: Record<string, string> };
+      updatedAt: string;
+    }
+  >();
+  const writes: Array<{ id: string; name: string }> = [];
+  let clock = 0;
+  const stamp = () =>
+    new Date(Date.UTC(2026, 1, 1, 0, 0, ++clock)).toISOString();
+
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "T", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) => {
+    const req = r.request();
+    if (req.method() === "PUT") {
+      const body = JSON.parse(req.postData() ?? "{}");
+      const row = rows.get(body.id);
+      if (row ? body.baseUpdatedAt !== row.updatedAt : !body.files) {
+        return r.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ conflict: true, updatedAt: row?.updatedAt }),
+        });
+      }
+      writes.push({ id: body.id, name: body.name });
+      const updatedAt = stamp();
+      rows.set(body.id, {
+        name: body.name,
+        snapshot: applyWrite(row?.snapshot, body),
+        updatedAt,
+      });
+      return json(r, { updatedAt });
+    }
+    const id = new URL(req.url()).searchParams.get("id");
+    if (id) {
+      const row = rows.get(id);
+      return json(r, {
+        project: row && {
+          id,
+          name: row.name,
+          kind: "project",
+          snapshot: row.snapshot,
+          updatedAt: row.updatedAt,
+        },
+      });
+    }
+    return json(r, {
+      projects: [...rows].map(([rowId, row]) => ({
+        id: rowId,
+        name: row.name,
+        kind: "project",
+        updatedAt: row.updatedAt,
+      })),
+    });
+  });
+
+  await page.reload();
+  await expect.poll(() => rows.has(alphaId), LONG).toBe(true);
+  await settled(page, writes);
+  await expect(page.locator('[aria-haspopup="true"]').first()).toContainText(
+    "Beta"
+  );
+
+  // Renamed from the switcher, the way a person would, while in Beta
+  await page.locator('[aria-haspopup="true"]').first().click();
+  const menu = page.getByLabel("Projects and lessons");
+  await menu.getByText("Alpha", { exact: true }).hover();
+  await menu.getByRole("button", { name: "Rename Alpha" }).click();
+  const input = page.locator("input").last();
+  await input.fill("Alpha renamed");
+  await page.getByRole("button", { name: "Rename", exact: true }).click();
+
+  await expect.poll(() => rows.get(alphaId)?.name, LONG).toBe("Alpha renamed");
+  // The user stays where they were
+  await expect(page.locator('[aria-haspopup="true"]').first()).toContainText(
+    "Beta"
+  );
+});
+
 /**
  * The other device keeps going, and this one keeps up.
  *
