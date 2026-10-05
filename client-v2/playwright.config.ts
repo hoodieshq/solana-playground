@@ -27,10 +27,15 @@ export default defineConfig({
   // sequentially takes longer than everything that follows it.
   expect: { timeout: 20_000 },
   fullyParallel: false,
-  // No retries anywhere: a flaky spec fails the run and is seen, rather than
-  // being retried into a pass and trained out of notice. Quarantine is an
+  // One retry in CI, none locally. The runner is three times slower than a
+  // laptop and reorders what lands first, so a spec can fail there on timing
+  // alone; red on every such run would block unrelated PRs and train people
+  // to ignore the job. A pass on the retry is not a pass: Playwright reports
+  // it as "flaky", the trace of the failed attempt is kept, and the job's
+  // count step names it in the annotations as work to do. Locally a flake
+  // fails outright, which is where it gets fixed. Quarantine is still an
   // explicit `test.skip`/`test.fixme` with the reason, never a retry.
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
   // `github` turns each failure into a PR annotation (Checks tab, inline
   // when the line is in the diff); `list` is the log a reviewer reads in
   // the job output; `json` is what the job's skip-count step reads, since
@@ -48,9 +53,9 @@ export default defineConfig({
   globalTimeout: process.env.CI ? 25 * 60_000 : 0,
   use: {
     baseURL: "http://localhost:3000",
-    // With no retries "on-first-retry" would never record. A failure keeps
-    // its trace instead, which CI uploads as the job's artifact; locally,
-    // `yarn playwright show-trace test-results/<test>/trace.zip` opens it.
+    // Every failed attempt keeps its trace, a flaky test's first attempt
+    // included; CI uploads them as the job's artifact, and locally
+    // `yarn playwright show-trace test-results/<test>/trace.zip` opens one.
     trace: "retain-on-failure",
     // Without this, an action inherits the whole test timeout and reports a
     // bare "test timeout" - naming no locator. Fail fast and say which one.
