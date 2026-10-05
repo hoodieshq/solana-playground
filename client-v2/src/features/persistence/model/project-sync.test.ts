@@ -539,17 +539,15 @@ describe("a conflict is asked once, not retried forever", () => {
     // Asked as a divergence, both answers merge against a server that has
     // nothing to merge with and fail, so the banner could never be cleared --
     // and "Keep as a new project", the answer that works, was never offered.
-    global.fetch = jest
-      .fn()
-      .mockImplementation((url: string, init: any) =>
-        Promise.resolve(
-          url === "/api/sync"
-            ? okProbe
-            : init?.method === "PUT"
-            ? refusal
-            : { ok: false, status: 404, json: async () => ({}) }
-        )
-      ) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockImplementation((url: string, init: any) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      if (init?.method === "PUT") return Promise.resolve(refusal);
+      return Promise.resolve({
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      });
+    }) as unknown as typeof fetch;
     await signedIn();
     jest.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("one");
 

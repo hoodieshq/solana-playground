@@ -6,7 +6,7 @@ import {
 } from "./grounding";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
 import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
-import { uuid } from "../../../features/persistence/model/ids";
+import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";

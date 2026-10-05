@@ -1,7 +1,5 @@
-import { validate as isUuid } from "uuid";
-
 import { report } from "./diagnostics";
-import { uuid } from "./ids";
+import { isUuid, uuid } from "../../../shared/lib/ids";
 import { PgFs } from "../../../utils/explorer/fs";
 
 /**
