@@ -3255,7 +3255,20 @@ endpoints with `page.route`, and the dev server serves `api/*.mjs` itself
 (`craco.config.js`), so `/api/agent` answers without a key.
 
 **Measured** on master-2.0 at `4a088ce7`, one worker, no retries: 32 passed,
-3 failed, 2 skipped in 4.7 minutes, after 57 seconds of dev-server boot.
+3 failed, 2 skipped in 4.7 minutes, after 57 seconds of dev-server boot. On
+the `ubuntu-latest` runner (PR #48, run 37319445441): 35 passed, 2 skipped
+in 5.0 minutes; the `e2e` job took 6 min 7 s wall, `checks` 4 min 51 s. Two
+failures showed only on the runner: `left-panel-toggle` lost the new-file
+input's focus to Monaco, which focuses itself when it opens the first file
+and on a slow machine does so after the input (the test now waits for the
+editor first); `chat-threads`' reload test saw an empty store once in three
+runs, and its poll now reports the thread id and the last storage failure
+so the next red run names the cause.
+
+**The workflow does not run on a stacked PR.** `client-v2.yml` triggers on
+pushes and PRs to `master-2.0` only, so a PR onto another branch gets no
+run; `workflow_dispatch` on the branch is how a stacked PR is checked until
+it is retargeted.
 
 - `account-sync.e2e.spec.ts:127` waited for the picker's "Start" button,
   which exists only for the keyless default backend, which the dev server
