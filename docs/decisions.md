@@ -3257,28 +3257,43 @@ endpoints with `page.route`, and the dev server serves `api/*.mjs` itself
 **Measured** on master-2.0 at `4a088ce7`, one worker, no retries: 32 passed,
 3 failed, 2 skipped in 4.7 minutes, after 57 seconds of dev-server boot.
 
-- `account-sync.e2e.spec.ts:127` needs the picker's "Start" button, which
-  exists only for the keyless default backend, which the dev server offers
-  only with the agent key in its environment. Not a flake: an environment
-  dependency the test did not state. It now skips, with the same
-  `hasDefaultBackend` guard and reason the two `assistant-reconnect` tests
-  already used (`e2e/fixtures.ts`).
+- `account-sync.e2e.spec.ts:127` waited for the picker's "Start" button,
+  which exists only for the keyless default backend, which the dev server
+  offers only when `AGENT_BASE_URL` and `AGENT_MODEL` are set. Not a flake:
+  an environment dependency the test did not state. Its claim is that the
+  restored conversation is readable before a backend is picked, and that
+  part never needed a backend, so the test is not skipped: it accepts
+  either label ("Start" or "Connect") and checks the exact one only where
+  the default exists. Skipping it whole would have dropped the only guard
+  on the hidden-conversation regression it was written for.
 - `chat-threads.e2e.spec.ts`, both tests: the helper wrote a message and
   read the disk (or reloaded) without waiting for the store's fire-and-
   forget `_persist`, which also declines while no thread is open yet after
   a workspace switch. `thread-restore`, which waits, passed all along. The
   helper now waits for an open thread and for the file.
 
-**The gap, on purpose:** the three default-backend tests stay skipped in CI.
-Giving CI the agent key would make a model call per run and put a
-production secret in a job that every PR, fork included, can run. They run
-on a machine with the key; the skip reason says so in the job log.
+**The gap, on purpose:** the two `assistant-reconnect` tests, which connect
+to the default backend and assert on the connection, stay skipped in CI.
+Configuring one for CI would make a model call per run and put a production
+endpoint in a job that every PR can run. They run on a machine with the
+default backend configured. Neither the `list` nor the `github` reporter
+prints a skip's reason, so the job reads the `json` report and fails if
+more than those two skipped: the gap is counted, not inferred.
 
 **Flakes:** `retries: 0` in every environment. A flaky spec fails the run
 and is seen; a retry would train it out of notice. Quarantine is an explicit
-`test.skip` or `test.fixme` with the reason as the argument. CI keeps a
-trace of each failure (`retain-on-failure`) and uploads `test-results/`
-for seven days; the `github` reporter annotates the failing line in the PR.
+`test.skip` or `test.fixme` with the reason as the argument. Every failure
+keeps its trace (`retain-on-failure`); CI uploads `test-results/` for seven
+days on every outcome, hang included, and the `github` reporter annotates
+each failure in the PR's checks. The dev server's stdout is piped in CI, so
+a bundle that fails to compile names its error in the job log instead of
+failing every test at its first locator.
+
+**`hasDefaultBackend` is strict.** Only a 200 with a boolean `configured`
+may skip a test; a 500, a 404 or a renamed field throws with the status and
+body. `GET /api/agent` has no other test, and a lenient probe would have
+read a broken endpoint as "not configured" and skipped with the documented
+reason attached.
 
 **Rejected: running against the production build.** It would test the
 shipped bundle, but the dev-only `/api` middleware is what lets
