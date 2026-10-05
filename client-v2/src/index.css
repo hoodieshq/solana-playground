@@ -1,19 +1,41 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap");
 
-/* Remove default margin and padding */
-*,
-::after,
-::before {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/*
+ * Tailwind 4 without preflight: its reset would fight the styled-components
+ * globals until the last of those is gone. `source(none)` plus `@source "./"`
+ * pins the class scan to `src/` instead of everything under the build cwd:
+ * `public/` alone holds several MB of tutorial, crate and grammar JSON. The
+ * path is relative to this file, so moving index.css moves the scan.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "./";
 
-body {
-  position: relative;
-}
+/*
+ * This file's own reset sits in `base`, below `utilities`. Unlayered CSS
+ * beats every layer, so left outside it the `*` rule would silently cancel
+ * `p-*` and `m-*` on every element, and the `a` rule the text colour and
+ * `underline` utilities on links.
+ * styled-components rules are unlayered and still win over a utility on the
+ * same element and property until that component is migrated.
+ */
+@layer base {
+  /* Remove default margin and padding */
+  *,
+  ::after,
+  ::before {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-a {
-  text-decoration: none;
-  color: inherit;
+  body {
+    position: relative;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }
