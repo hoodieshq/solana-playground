@@ -143,6 +143,42 @@ describe("the project-sync effect", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("flags and reconciles a project renamed from the switcher, not the open one", async () => {
+    // A rename of a workspace the user is not in: its row has not moved and
+    // its mark is clean, so without the flag reconcile's cheap path skips it
+    // and the new name never reaches the account
+    const pass = jest.spyOn(restore, "reconcile").mockResolvedValue({
+      imported: [],
+      replaced: [],
+      removed: [],
+      pushed: [],
+      conflicts: [],
+      latest: null,
+    });
+    effect = projectSync();
+
+    PgCommon.createAndDispatchCustomEvent(
+      PgExplorer.events.ON_DID_RENAME_WORKSPACE,
+      { id: "p2" }
+    );
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+
+    expect(PgSyncMark.markDirty).toHaveBeenCalledWith("p2");
+    expect(PgSyncMark.markDirty).not.toHaveBeenCalledWith("p1");
+    expect(pass).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("treats a rename of the open project as an edit", () => {
+    effect = projectSync();
+
+    dispatch(PgExplorer.events.ON_DID_RENAME_WORKSPACE);
+
+    expect(PgSyncMark.markDirty).toHaveBeenCalledWith("p1");
+    jest.advanceTimersByTime(3000);
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
   it("records an edit before attempting to upload it", () => {
     // Written first, so a tab closed or crashed between the keystroke and the
     // request still reads as having unsaved work on the next load

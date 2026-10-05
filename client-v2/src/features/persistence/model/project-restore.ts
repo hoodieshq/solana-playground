@@ -1,5 +1,6 @@
 import { report } from "./diagnostics";
 import {
+  freeName,
   isCleanAgainst,
   isUsableSnapshot,
   PgProjectSync,
@@ -10,7 +11,7 @@ import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgExplorer } from "../../../utils/explorer/explorer";
-import type { Conflict } from "./project-sync";
+import type { Conflict, ServerProject } from "./project-sync";
 import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
@@ -69,6 +70,32 @@ const isClean = async (projectId: string, localName: string) =>
       await snapshotOf(localName)
     ).files
   );
+
+/**
+ * Give a project back the server's name, where an adopt or a merge left the
+ * workspace a stand-in because another local workspace held the name, or
+ * because renaming to it failed.
+ *
+ * Found by the mark, which records the stand-in (`SyncMark.localName`); a
+ * rename the user made here is never recorded there, and is not this pass's
+ * to undo.
+ *
+ * Runs after the main pass and the deletes, which are what move a holder
+ * out of the way: deleted elsewhere, or renamed -- the other device renamed
+ * "Bar" to "Baz" and then "Foo" to "Bar", and reconcile reaches "Foo"
+ * first. A name still held here stays stepped around.
+ */
+const settleSteppedNames = async (server: ServerProject[]) => {
+  for (const project of server) {
+    const local = PgExplorer.workspaceNameOf(project.id);
+    if (!local || local === project.name) continue;
+    try {
+      await PgProjectSync.settleStandIn(project.id, project.name);
+    } catch (e) {
+      report(`rename ${local} back to ${project.name}`, e);
+    }
+  }
+};
 
 /**
  * Make this browser and the account agree, without guessing.
@@ -192,8 +219,6 @@ const passUnlocked = async (): Promise<SyncResult> => {
     b.updatedAt.localeCompare(a.updatedAt)
   );
 
-  const taken = new Set(PgExplorer.allWorkspaceNames ?? []);
-
   for (const project of newestFirst) {
     PgProjectSync.rememberName(project.id, project.name);
     const local = PgExplorer.workspaceNameOf(project.id);
@@ -208,7 +233,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
 
     try {
       if (!local) {
-        const name = await importFresh(project.id, project.name, taken);
+        const name = await importFresh(project.id, project.name);
         if (name) {
           result.imported.push(name);
           result.latest ??= name;
@@ -304,7 +329,10 @@ const passUnlocked = async (): Promise<SyncResult> => {
     }
   }
 
+  // Deletes first: a holder deleted on the other device frees its name for
+  // a stand-in in the same pass
   await settleDeletes(serverIds, result);
+  await settleSteppedNames(server);
   await pushNeverSynced(serverIds, result);
 
   return result;
@@ -368,8 +396,7 @@ const settleDivergence = async (
  */
 const importFresh = async (
   projectId: string,
-  serverName: string,
-  taken: Set<string>
+  serverName: string
 ): Promise<string | null> => {
   const full = await PgProjectSync.fetch(projectId);
   if (!isUsableSnapshot(full?.snapshot)) {
@@ -379,18 +406,21 @@ const importFresh = async (
     return null;
   }
 
-  let name = serverName;
-  while (taken.has(name)) name = `${name} (imported)`;
-
+  // Off the live list: an adopt or a merge earlier in this pass may have
+  // renamed a workspace onto the name, and `importWorkspace` refuses one
+  // that is taken
+  const name = freeName(serverName);
   await PgExplorer.importWorkspace(name, {
     id: projectId,
     files: full!.snapshot!.files,
   });
-  taken.add(name);
 
   await PgSyncMark.write(projectId, {
     files: await hashFiles(full!.snapshot!),
-    name,
+    name: serverName,
+    // Stepped around a local workspace holding the name: a stand-in, which
+    // no push sends and `settleSteppedNames` gives back once it is free
+    ...(name !== serverName ? { localName: name } : {}),
     updatedAt: full!.updatedAt,
     dirty: false,
   });
