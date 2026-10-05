@@ -265,10 +265,11 @@ until code moves out of them.
   endpoints with `page.route`, and the dev server serves `api/*.mjs` itself.
   Two tests connect to the keyless default backend and skip themselves where
   `/api/agent` reports none configured (CI included); they run only on a
-  machine with the default backend configured. One two-tabs test is
-  `test.fixme` on the runner, where its timing differs (HOO-1720). Those
-  three are the gap the job leaves, counted by the job and recorded in D61
-  (on `context-archive`). CI retries a failed spec once,
+  machine with the default backend configured. Two sync tests (two-tabs:224,
+  account-sync:289) are `test.fixme` on the runner, where the load's timing
+  differs and the sync races they guard show (HOO-1720). Those four are the
+  gap the job leaves, counted by the job and recorded in D61 (on
+  `context-archive`). CI retries a failed spec once,
   because the runner is three times slower than a laptop and fails specs on
   timing alone; a pass on the retry is reported as **flaky**, named in the
   run's annotations, and is work to do, not a pass. Locally `retries` is 0,

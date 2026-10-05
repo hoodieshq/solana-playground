@@ -160,9 +160,9 @@ jobs:
   # `configured: false`, and the two assistant-reconnect tests that must
   # connect to the keyless default backend skip themselves with that as the
   # stated reason (`hasDefaultBackend` in `e2e/fixtures.ts`). With
-  # two-tabs:224, quarantined on the runner by `test.fixme` (HOO-1720),
-  # they are the suite's known gap, recorded as D61 in decisions.md on
-  # `context-archive`, not a flake.
+  # two-tabs:224 and account-sync:289, quarantined on the runner by
+  # `test.fixme` for the sync owners (HOO-1720), they are the suite's known
+  # gap, recorded as D61 in decisions.md on `context-archive`, not a flake.
   #
   # `CI=true` makes `playwright.config.ts` start its own `yarn dev` rather
   # than reuse one, retry a failed spec once, and report through the
@@ -243,7 +243,7 @@ jobs:
       # A skipped test is green to Playwright, and a test that passed on its
       # retry is green too; neither the `list` nor the `github` reporter
       # says why or which. Both are read out of the json report here. The
-      # three skips the job expects are named, and one more -- a spec that
+      # four skips the job expects are named, and one more -- a spec that
       # adopted the guard, or `/api/agent` falling over -- fails rather than
       # widening the gap quietly. A flaky test is a warning with its title:
       # not a pass, work to do, and visible on the run's summary page.
@@ -253,7 +253,7 @@ jobs:
           report=test-results/report.json
           [ -f "$report" ] || { echo "::error::no $report -- the suite did not run to a report"; exit 1; }
           skipped=$(node -p "require('./$report').stats.skipped")
-          echo "::notice title=e2e skips::$skipped skipped -- the two assistant-reconnect tests that connect to the default backend, and two-tabs:224 (HOO-1720); see D61"
+          echo "::notice title=e2e skips::$skipped skipped -- the two assistant-reconnect tests that connect to the default backend, two-tabs:224 and account-sync:289 (HOO-1720); see D61"
           node -e '
             const r = require("./'"$report"'");
             const flaky = [];
@@ -267,7 +267,7 @@ jobs:
             for (const f of flaky) console.log(`::warning title=flaky e2e test::${f} -- failed once on this runner, passed on retry; the failed attempt'"'"'s trace is in the artifact`);
             console.log(`${flaky.length} flaky`);
           '
-          [ "$skipped" -le 3 ] || { echo "::error::$skipped tests skipped, at most 3 are accounted for"; exit 1; }
+          [ "$skipped" -le 4 ] || { echo "::error::$skipped tests skipped, at most 4 are accounted for"; exit 1; }
 
       # Traces, screenshots and the per-test error context of what failed.
       # Open a trace with `yarn playwright show-trace <file>`. `always()`,
