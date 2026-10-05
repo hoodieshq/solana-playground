@@ -125,6 +125,11 @@ jobs:
       - name: Lint
         run: yarn lint
 
+      # `openspec validate --all` over ../openspec: every active change has
+      # its proposal, delta specs, design and tasks in the schema's shape.
+      - name: Validate specs
+        run: yarn spec:validate
+
       - name: Unit tests
         run: yarn test-unit
 

@@ -119,29 +119,41 @@ the layers only when it is new.
 
 ## Specs and changes
 
-`../openspec/` holds what the client does (`specs/`) and what we are
-changing (`changes/`), in OpenSpec's layout without its CLI. The README
-there explains the folders; this is the workflow.
+Planning runs through [OpenSpec](https://openspec.dev). `../openspec/`
+holds what the client does (`specs/`) and what we are changing
+(`changes/`); `openspec/config.yaml` carries the project constraints every
+command below reads. The `/opsx:*` commands are committed in `.claude/`, so
+they are available in every session on this repository. The CLI itself is
+per machine: `npm i -g @fission-ai/openspec` (or `brew install openspec`),
+then `openspec --version` to check.
 
-1. **A change starts as a proposal, before code.** Anything that changes
-   behaviour or touches more than one slice gets
-   `openspec/changes/<name>/proposal.md` (problem, goals, non-goals,
-   decisions) and, when the how is not obvious, `design.md`. A bug fix with
-   a ticket does not; the ticket is its proposal.
-2. **The proposal is reviewed as a PR.** Small change: the same PR as the
-   code. A change that needs agreement first: a docs-only PR, then the code
-   PRs follow.
-3. **`tasks.md` is the live state.** Each task names its ticket and PR and
-   one of `backlog`, `todo`, `in progress`, `in review`, `done`. The PR
-   that moves a task updates the row.
-4. **`specs/` describes the code as it is, never a plan.** The PR that
-   lands a task updates the spec the task touched, in the same PR. When
-   every task of a change is `done`, the folder moves to
-   `openspec/changes/archive/<date>-<name>/`.
-5. **Asked to build something, look in `openspec/changes/` first.** If a
-   change covers it, work from its `tasks.md` and say which task. If none
-   does and the work is more than a bug fix, propose a change rather than
-   starting on the code.
+1. **Think first, with the brainstorming skill.** Anything that changes
+   behaviour or touches more than one slice starts as a conversation, not a
+   file: `superpowers:brainstorming` for the shape of the work (or
+   `/opsx:explore` to read an unfamiliar area of the code first). A bug fix
+   with a ticket skips this; the ticket is its proposal.
+2. **`/opsx:propose <kebab-name>` writes the change.** It creates
+   `openspec/changes/<name>/` with `proposal.md`, the delta specs under
+   `specs/<capability>/spec.md`, `design.md` and `tasks.md`, from the
+   schema's templates and `config.yaml`'s rules. Do not hand-write these
+   files; if one needs changing, `/opsx:update`. The brainstorm's
+   conclusions go into the proposal through the command, not beside it.
+3. **The proposal is reviewed as a PR before code.** A small change may
+   share the PR with its code; a change that needs agreement lands as a
+   docs-only PR first. `yarn spec:validate` (CI runs it) must pass.
+4. **`/opsx:apply` implements, one task per PR.** It reads `tasks.md`,
+   works a task, ticks it. Tick a task only in the PR that lands it, and
+   name the task in the PR description. The ordinary PR checklist (section
+   "Before a PR") still applies to every task.
+5. **`/opsx:archive` closes the change.** When every task is ticked, it
+   merges the deltas into `openspec/specs/` and moves the folder to
+   `changes/archive/<date>-<name>/`. `specs/` therefore always describes the
+   code as it is, never a plan; nothing is back-filled for code that is not
+   changing.
+6. **Asked to build something, look in `openspec/changes/` first**
+   (`openspec list`). If a change covers it, `/opsx:apply` that change and
+   say which task. If none does and the work is more than a bug fix, offer
+   `/opsx:propose` rather than starting on the code.
 
 ## What review keeps finding
 

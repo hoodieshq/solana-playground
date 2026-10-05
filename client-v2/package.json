@@ -69,6 +69,7 @@
   },
   "devDependencies": {
     "@craco/craco": "^6.4.3",
+    "@fission-ai/openspec": "1.14.0",
     "@playwright/test": "^1.62.1",
     "@types/bn.js": "^5.1.1",
     "@types/diff": "^5.0.0",
@@ -105,6 +106,7 @@
     "format": "prettier --write src/ api/",
     "check-format": "prettier --check src/ api/",
     "lint": "eslint --ext .ts,.tsx,.mjs src api e2e",
+    "spec:validate": "openspec validate --all",
     "generate": "node scripts/update-static.mjs && yarn generate-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-fast": "node scripts/update-static.mjs && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-crates": "node scripts/generate-crates.mjs",

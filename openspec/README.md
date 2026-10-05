@@ -1,27 +1,35 @@
 # openspec
 
-Specs and change proposals for `client-v2`, laid out the way
-[OpenSpec](https://github.com/Fission-AI/OpenSpec) lays them out. The
-structure is what matters; the CLI is not a dependency.
+Specs and change proposals for `client-v2`, managed with
+[OpenSpec](https://openspec.dev). The CLI is installed per machine
+(`npm i -g @fission-ai/openspec` or `brew install openspec`); the Claude
+Code commands it generated live in `.claude/commands/opsx/` and
+`.claude/skills/openspec-*/` and are committed, so every agent on this
+repository has them. `yarn spec:validate` in `client-v2/` runs
+`openspec validate --all`, and CI runs it too.
 
 ```
 openspec/
-  specs/<capability>/spec.md      what the system does today: the truth about
-                                  the code, kept current
-  changes/<change>/proposal.md    why we are changing it, goals, non-goals,
-                                  the decisions made
-  changes/<change>/design.md      how: architecture, trade-offs, what was
-                                  measured
-  changes/<change>/tasks.md       the steps, their state, their tickets/PRs
-  changes/archive/<date>-<change>/  closed changes, their deltas already in specs/
+  config.yaml                  project context and rules every /opsx:* command reads
+  specs/<capability>/spec.md   what the system does today; filled by archiving changes
+  changes/<change>/            a change in progress
+    .openspec.yaml             schema and creation date
+    proposal.md                why, what changes, which capabilities
+    specs/<capability>/spec.md the delta: ADDED / MODIFIED / REMOVED requirements
+    design.md                  context, decisions, risks
+    tasks.md                   checklist; one PR per task
+  changes/archive/<date>-<change>/   closed changes, deltas merged into specs/
 ```
 
-Two rules keep the two folders honest:
+`specs/` starts nearly empty and grows one change at a time; nothing is
+back-filled for code that is not changing. How a change moves through here
+is in `client-v2/CLAUDE.md`, section "Specs and changes".
 
-- `specs/` describes the code as it is. A plan never lives there. When a
-  change lands, the spec it touched is updated in the same PR.
-- `changes/` holds work in progress. When every task is done, the folder
-  moves to `archive/` with the date it closed.
+Useful commands:
 
-How a change moves through here is written in `client-v2/CLAUDE.md`, section
-"Specs and changes".
+```
+openspec list                      active changes
+openspec view                      one-screen dashboard
+openspec status --change <name>    which artifacts exist
+openspec validate --all            structure check, the same as CI
+```
