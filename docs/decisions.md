@@ -3311,8 +3311,12 @@ file is uploaded on a reload depends on when its store write lands against
 the load's reconcile. That is the row-bump-on-reload the test guards,
 showing only on a slow machine (HOO-1720; HOO-1725 is the likely root).
 Neither the `list` nor the `github` reporter prints a skip's reason, so the
-job reads the `json` report and fails if more than those four skipped: the
-gap is counted, not inferred.
+job compares the skipped titles in the `json` report (jq) with
+`client-v2/e2e/known-skips.txt`, a list kept by hand: a skip not in the
+list fails the job, a listed test that ran is a warning to prune the list.
+Sergey's review (2026-10-05) asked for the hand-kept list over a script,
+and for no ticket ids in code -- the tests' quarantine reasons name the
+symptom; this entry and HOO-1720 hold the tickets.
 
 **Scenarios as the test plan (task 3.7):** `yarn spec:coverage`
 (`client-v2/scripts/spec-coverage.mjs`) reads every `#### Scenario:` in
