@@ -3267,10 +3267,17 @@ endpoints with `page.route`, and the dev server serves `api/*.mjs` itself
   the default exists. Skipping it whole would have dropped the only guard
   on the hidden-conversation regression it was written for.
 - `chat-threads.e2e.spec.ts`, both tests: the helper wrote a message and
-  read the disk (or reloaded) without waiting for the store's fire-and-
-  forget `_persist`, which also declines while no thread is open yet after
-  a workspace switch. `thread-restore`, which waits, passed all along. The
-  helper now waits for an open thread and for the file.
+  read the disk (or reloaded) at once. Three things it did not wait for:
+  the store's fire-and-forget `_persist`; the thread itself, which is
+  closed for a moment after a workspace switch (so the message could land
+  in the previous project's conversation); and lightning-fs's directory
+  tree, which it saves half a second after the last write -- a reload
+  inside that window keeps the file's bytes and loses its entry, so the
+  old disk-only check passed while the store came back empty.
+  `thread-restore`, which waits a second, passed all along. The helper now
+  waits for an open thread other than the one it left, for the bytes, and
+  for the directory entry, and the two-projects test asserts one message
+  per thread and none shared.
 
 **The gap, on purpose:** the two `assistant-reconnect` tests, which connect
 to the default backend and assert on the connection, stay skipped in CI.
