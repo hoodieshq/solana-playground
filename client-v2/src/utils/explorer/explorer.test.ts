@@ -340,6 +340,41 @@ describe("PgExplorer.refreshWorkspaces", () => {
 describe("renaming a workspace that is not the current one", () => {
   beforeEach(reset);
 
+  /** Every rename event, with what it carried */
+  const renames = () => {
+    const seen: unknown[] = [];
+    const sub = PgExplorer.onDidRenameWorkspace((renamed) =>
+      seen.push(renamed)
+    );
+    return { seen, dispose: () => sub.dispose() };
+  };
+
+  it("announces a rename the user asked for, with the workspace's id", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const events = renames();
+
+    await PgExplorer.renameWorkspace("gamma", {
+      from: "alpha",
+      announce: true,
+    });
+    events.dispose();
+
+    expect(events.seen).toEqual([{ id: alphaId }]);
+  });
+
+  it("does not announce a rename sync made", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const events = renames();
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+    events.dispose();
+
+    expect(events.seen).toEqual([]);
+  });
+
   it("renames it on disk and in the list, and stays where it was", async () => {
     await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
     const alphaId = PgExplorer.currentWorkspaceId;

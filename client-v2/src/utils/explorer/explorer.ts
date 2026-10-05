@@ -746,7 +746,10 @@ export class PgExplorer {
    * @param opts -
    * - `from`: the workspace to rename; defaults to the current one
    */
-  static async renameWorkspace(newName: string, opts?: { from?: string }) {
+  static async renameWorkspace(
+    newName: string,
+    opts?: { from?: string; announce?: boolean }
+  ) {
     newName = newName.trim();
     if (!this.isWorkspaceNameValid(newName)) {
       throw new Error(PgWorkspace.errors.INVALID_NAME);
@@ -776,9 +779,16 @@ export class PgExplorer {
         await this._saveWorkspaces().catch(() => {});
         throw e;
       }
-      // No `ON_DID_RENAME_WORKSPACE`: its listeners take it as a rename of
-      // the current workspace, and sync flagged the open project dirty for a
-      // rename it never had
+      // Announced only when the user asked for it, and with the renamed
+      // workspace's id: a listener that took it as a rename of the current
+      // workspace flagged the open project dirty for a rename it never had.
+      // A rename sync made to follow another device is not announced at all.
+      if (opts?.announce) {
+        PgCommon.createAndDispatchCustomEvent(
+          this.events.ON_DID_RENAME_WORKSPACE,
+          { id: this.workspaceIdOf(newName) }
+        );
+      }
       return;
     }
 
@@ -1348,7 +1358,11 @@ export class PgExplorer {
    * @param cb callback function to run
    * @returns a dispose function to clear the event
    */
-  static onDidRenameWorkspace(cb: () => unknown) {
+  /**
+   * @param cb receives the renamed workspace's id when it was not the current
+   * one, and nothing for a rename of the current workspace
+   */
+  static onDidRenameWorkspace(cb: (renamed?: { id?: string }) => unknown) {
     return PgCommon.onDidChange(PgExplorer.events.ON_DID_RENAME_WORKSPACE, cb);
   }
 
