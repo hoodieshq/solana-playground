@@ -49,12 +49,26 @@ yarn test-types            # tsc --noEmit
 yarn test-e2e              # playwright
 yarn test-api              # node --test, for api/ and **/server/*.mjs
 yarn check-format          # prettier; CI enforces this
+yarn lint                  # eslint over src/, api/, e2e/; CI enforces this
+yarn spec:validate         # openspec validate --all; CI enforces this
 yarn db-migrate            # dbmate up; reads client-v2/.env
 yarn db-status             # which migrations are applied
 yarn db-dump               # regenerate db/schema.sql after a migration
 ```
 
 `make help` at the root lists Vercel deploy targets.
+
+Once per machine, for planning: `npm i -g @fission-ai/openspec@latest`
+(or `brew install openspec`). The `/opsx:*` commands committed under
+`.claude/` call it.
+
+## Frontend rules and specs
+
+`client-v2/CLAUDE.md` is loaded whenever work happens in that folder and
+holds the rules for the client: layers, components, what review keeps
+finding, the checklist before a PR, and the OpenSpec workflow. Specs and
+change proposals live in `openspec/`; `openspec list` shows the active
+changes. Asked to build something in the client, look there first.
 
 ## Gotchas
 

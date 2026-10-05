@@ -31,6 +31,33 @@ yarn start
 `yarn setup` rebuilds `wasm/*/pkg` unconditionally, so running it after
 `stub-packages.sh` replaces the stubs with the real packages.
 
+**Planning tools (once per machine).** Specs and change proposals are
+managed with [OpenSpec](https://openspec.dev). The CLI is global, not a
+project dependency:
+
+```sh
+npm i -g @fission-ai/openspec@latest   # or: brew install openspec
+openspec --version                     # 1.14.0 or newer
+```
+
+Without it the `/opsx:*` commands in Claude Code stop at "CLI not found";
+`yarn spec:validate` still works, because `client-v2` pins the same package
+as a devDependency for CI. The rules for contributors and agents are in
+[`CLAUDE.md`](CLAUDE.md); the specs are in [`../openspec/`](../openspec/README.md).
+
+### Checks
+
+The same four CI runs, in the order it runs them:
+
+```sh
+yarn test-types      # tsc --noEmit
+yarn check-format    # prettier over src/ and api/
+yarn lint            # eslint over src/, api/, e2e/ -- includes the rules in CLAUDE.md
+yarn spec:validate   # openspec validate --all over ../openspec
+yarn test-unit       # jest via craco
+yarn test-api        # node --test for api/ and **/server/*.mjs
+```
+
 ### Static assets and worktrees
 
 `public/` is mirrored from the `client/public` submodule, and `yarn start` /
