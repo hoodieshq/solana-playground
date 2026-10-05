@@ -1,4 +1,4 @@
-import { v4, validate } from "uuid";
+import { v4 } from "uuid";
 
 /**
  * A v4 UUID.
@@ -17,14 +17,3 @@ import { v4, validate } from "uuid";
  * reason above has somewhere to live.
  */
 export const uuid = (): string => v4();
-
-/**
- * Whether `value` is a UUID of any RFC 4122 version.
- *
- * The one place the UUID shape is known. Everything that checks an id --
- * a route guarding a parameter, a test asserting on a minted id -- calls this
- * rather than carrying its own regex, so the shape is stated once and a
- * reviewer can see every check by searching for the name.
- */
-export const isUuid = (value: unknown): value is string =>
-  typeof value === "string" && validate(value);

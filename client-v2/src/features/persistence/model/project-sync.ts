@@ -1,4 +1,3 @@
-import { uuid } from "../../../shared/lib/ids";
 import { report } from "./diagnostics";
 import {
   baseAfterMerge,
@@ -1121,7 +1120,7 @@ export class PgProjectSync {
           }
           const fresh = `${name} (kept)`;
           await PgExplorer.importWorkspace(fresh, {
-            id: uuid(),
+            id: crypto.randomUUID(),
             files: snapshot.files,
           });
           await PgExplorer.deleteWorkspace(name);

@@ -156,21 +156,14 @@ export class PgSession {
     // Never allowed to block the sign-out itself.
     try {
       await PgSession._onSignOut?.();
-    } catch (err) {
-      console.warn("sign-out hook failed; signing out anyway", err);
-    }
+    } catch {}
 
     try {
       await fetch("/api/auth/sign-out", {
         method: "POST",
         credentials: "include",
       });
-    } catch (err) {
-      console.warn(
-        "sign-out request failed; the cookie expires on its own",
-        err
-      );
-    }
+    } catch {}
 
     PgSession._set(null);
   }

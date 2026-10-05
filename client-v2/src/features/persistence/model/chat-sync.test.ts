@@ -1,4 +1,4 @@
-import { uuid } from "../../../shared/lib/ids";
+import { v4 as uuid } from "uuid";
 
 import { PgChatStorage } from "./chat-storage";
 import { PgChatSync } from "./chat-sync";

@@ -1,4 +1,4 @@
-import { isUuid } from "../../../shared/lib/ids";
+import { validate as isUuid } from "uuid";
 
 import { PgChatStorage } from "./chat-storage";
 import { PgThreadIndex } from "./thread-index";
