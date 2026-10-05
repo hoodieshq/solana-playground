@@ -3300,10 +3300,17 @@ default backend configured. Neither the `list` nor the `github` reporter
 prints a skip's reason, so the job reads the `json` report and fails if
 more than those two skipped: the gap is counted, not inferred.
 
-**Flakes:** `retries: 0` in every environment. A flaky spec fails the run
-and is seen; a retry would train it out of notice. Quarantine is an explicit
-`test.skip` or `test.fixme` with the reason as the argument. Every failure
-keeps its trace (`retain-on-failure`); CI uploads `test-results/` for seven
+**Flakes:** one retry in CI, none locally (Slava, 2026-10-05, after four
+runner runs: one green and three red, each on a different spec failing on
+timing alone -- the runner is three times slower than a laptop and reorders
+what lands first). `retries: 0` was the first cut; it would have blocked
+unrelated PRs on each such flake and trained reviewers to ignore the job,
+which is the outcome the gate exists to prevent. A pass on the retry is not
+a pass: Playwright reports it as `flaky`, the failed attempt's trace is
+kept, and the job's count step names each flaky test in a `::warning` on
+the run's summary. Locally a flake fails outright, which is where it gets
+fixed. Quarantine is still an explicit `test.skip` or `test.fixme` with the
+reason as the argument, never a retry. CI uploads `test-results/` for seven
 days on every outcome, hang included, and the `github` reporter annotates
 each failure in the PR's checks. The dev server's stdout is piped in CI, so
 a bundle that fails to compile names its error in the job log instead of
