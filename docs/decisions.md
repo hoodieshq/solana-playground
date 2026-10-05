@@ -3335,3 +3335,55 @@ It was there for the Postgres premise, which did not hold.
 **Revisit when** a spec genuinely needs the server (then a Postgres service
 exists in `checks` already and can be shared), or when the job's wall time
 passes fifteen minutes on the runner.
+
+---
+
+## D60 - Technical decisions are born in a change's design.md; this log keeps the rest
+
+**Date:** 2026-10-05 - **Status:** decided (Slava) - **Source:** PR #43,
+which brings OpenSpec into the repository
+
+**Chosen:** planning in `client-v2` runs through OpenSpec on `master-2.0`:
+`openspec/changes/<name>/` holds a change's `proposal.md`, delta specs,
+`design.md` and `tasks.md`; `openspec/specs/` holds what the code does
+today; archived changes keep their `design.md`. A decision about how a
+change is built -- stack, structure, library, mechanism -- is therefore
+recorded where the change is: in that change's `design.md`, under
+Decisions, with what was rejected and what would reopen it, in the same
+shape this log uses. It is not duplicated here.
+
+This log keeps three things OpenSpec has no place for:
+
+1. **Decisions that are not a change to the code.** Hosting (D29), scope
+   cuts (D41), what the roadmap spreadsheet is (D43), review conventions
+   that are not lint (D46), the role of the divergence register (D52).
+   They have no `changes/` folder because nothing is built for them.
+2. **The index across time.** One line per technical decision made in a
+   change, pointing at the change (`ui-migration`, decision 3) rather than
+   restating it, so that "D53 amends D9" chains still read, and the
+   Russian decoder Slava carries still maps every number.
+3. **History before 2026-10-05.** D1-D59 stay as written.
+
+**Why not drop this log.** `design.md` answers "why did this change do
+that"; `specs/` answers "what does the system do". Neither answers "what
+have we decided, across changes, and what would make us reopen it" for
+decisions with no code behind them -- and those are the ones that come back
+in calls with the customer and the tech lead. Nor is this log visible on
+code branches, which is why the technical half moves out of it: an agent
+on `master-2.0` must find the reasoning next to the code it touches.
+
+**Why not move everything into OpenSpec.** OpenSpec is deliberately
+brownfield and delta-first: it refuses a bulk conversion of existing
+documents and has no artifact for a decision without a change. Forcing one
+in (a `changes/decisions/` with `skip_specs`) would be the folder-naming
+exercise this PR replaced.
+
+**How the superpowers skills fit.** They are the process, OpenSpec is the
+format and the place: `brainstorming` ends in `/opsx:propose`,
+`writing-plans` writes a task's plan under the change's `plans/`,
+`subagent-driven-development` runs inside `/opsx:apply`. Written into
+`client-v2/CLAUDE.md`, section "Specs and changes".
+
+**Revisit when** a product or scope decision turns out to need a `changes/`
+folder after all (then the index line here points at it), or when OpenSpec
+gains a first-class artifact for standalone decisions.
