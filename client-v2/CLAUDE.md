@@ -252,3 +252,16 @@ until code moves out of them.
   push with `git config core.hooksPath .githooks` once per clone.
 - **The last task of a change archives it** (`/opsx:archive`) in the same
   PR.
+- **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
+  `client-v2.yml`) on every PR to `master-2.0`, and a red spec fails the
+  PR's checks. It needs no server and no Postgres: every spec stubs the account
+  endpoints with `page.route`, and the dev server serves `api/*.mjs` itself.
+  Two tests connect to the keyless default backend and skip themselves where
+  `/api/agent` reports none configured (CI included); they run only on a
+  machine with the default backend configured, which is the one gap the
+  job leaves (D61, on `context-archive`). A flaky spec is never retried
+  into a pass: `retries` is 0, and quarantine is an explicit `test.skip` or
+  `test.fixme` with the reason in the call.
+- **A runtime upgrade still gets the manual walk-through** from the UI
+  migration spec ("The React 19 gate"), in development and in the production
+  build, because the suite runs against the dev server only.

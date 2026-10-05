@@ -1,9 +1,9 @@
 name: client-v2
 
-# Types, formatting, the unit and API suites, and the CI=true production
-# bundle for the fork's frontend. Upstream's ci.yml guards `client/` on
-# master; this one guards `client-v2/` on master-2.0 and never touches the
-# Rust workspaces.
+# Types, formatting, the unit and API suites, the CI=true production bundle
+# and the browser suite for the fork's frontend. Upstream's ci.yml guards
+# `client/` on master; this one guards `client-v2/` on master-2.0 and never
+# touches the Rust workspaces.
 on:
   push:
     branches: ["master-2.0"]
@@ -151,3 +151,117 @@ jobs:
             echo "::error::Tailwind utilities are missing from build/static/css -- craco's PostCSS override is not applying"
             exit 1
           }
+
+  # The browser suite (`client-v2/e2e/`, Playwright). Its own job, so the
+  # checks above keep their five minutes and a browser failure is read as
+  # one. Every spec stubs the account endpoints with `page.route`, and the
+  # dev server serves `api/*.mjs` itself (`craco.config.js`), so no Postgres
+  # service and no secret is needed here: `/api/agent` answers
+  # `configured: false`, and the two assistant-reconnect tests that must
+  # connect to the keyless default backend skip themselves with that as the
+  # stated reason (`hasDefaultBackend` in `e2e/fixtures.ts`). They are the
+  # suite's known gap, recorded as D61 in decisions.md on `context-archive`,
+  # not a flake.
+  #
+  # `CI=true` makes `playwright.config.ts` start its own `yarn dev` rather
+  # than reuse one and report through the `github` annotator as well as
+  # `list`. Retries are 0 in every environment, on purpose; the config says
+  # why.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    # Measured locally at under five minutes for the suite plus a minute of
+    # dev-server boot (the dated number is in D61); a 2-vCPU runner is two to
+    # three times slower, so this is generous rather than tight. A genuine
+    # hang still fails, just later.
+    timeout-minutes: 30
+    env:
+      CI: "true"
+
+    defaults:
+      run:
+        working-directory: client-v2
+
+    steps:
+      # Same checkout as `checks`: `client-v2/public` is generated out of the
+      # `client/public` submodule, dated from its history.
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: client-v2/.nvmrc
+          cache: "yarn"
+          cache-dependency-path: "client-v2/yarn.lock"
+
+      - name: Stub the unbuilt WASM packages
+        run: ../wasm/stub-packages.sh
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      # The browser binary is cached by Playwright version, so only a bump
+      # re-downloads it. The runner's system libraries are not cached: on a
+      # hit they are installed alone (`install-deps`), on a miss together
+      # with the browser (`--with-deps`).
+      #
+      # restore + save rather than `actions/cache`, whose post step saves
+      # only when the job succeeds: while the suite is red, every run would
+      # download Chromium again, and a red suite is when runs are frequent.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: yarn playwright install --with-deps chromium
+
+      - uses: actions/cache/save@v6
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: yarn playwright install-deps chromium
+
+      # `yarn dev` runs `generate-fast` itself before `craco start`, and the
+      # config starts it (`webServer`), so there is no separate generate step.
+      - name: Browser tests
+        run: yarn test-e2e
+
+      # A skipped test is green to Playwright, and its reason is printed by
+      # neither the `list` nor the `github` reporter. The two skips the job
+      # expects are named here, so the count is in the annotations and one
+      # more -- a spec that adopted the guard, or `/api/agent` falling over
+      # -- fails rather than widening the gap quietly.
+      - name: Only the documented gap may skip
+        if: always()
+        run: |
+          report=test-results/report.json
+          [ -f "$report" ] || { echo "::error::no $report -- the suite did not run to a report"; exit 1; }
+          skipped=$(node -p "require('./$report').stats.skipped")
+          echo "::notice title=e2e skips::$skipped skipped -- the two assistant-reconnect tests that connect to the default backend (D61)"
+          [ "$skipped" -le 2 ] || { echo "::error::$skipped tests skipped, at most 2 are accounted for"; exit 1; }
+
+      # Traces, screenshots and the per-test error context of what failed.
+      # Open a trace with `yarn playwright show-trace <file>`. `always()`,
+      # not `failure()`: a run that `timeout-minutes` cancels is the one whose
+      # trace matters most, and `failure()` does not fire for it. On a green
+      # run the directory holds the json report and little else.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-test-results
+          path: client-v2/test-results/
+          retention-days: 7
+          if-no-files-found: warn
