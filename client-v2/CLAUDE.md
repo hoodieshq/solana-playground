@@ -117,6 +117,32 @@ When a move is right but costs too much now, say so and propose a ticket
 instead of making it. Code that is not UI (a hook, a command, a route) follows
 the layers only when it is new.
 
+## Specs and changes
+
+`../openspec/` holds what the client does (`specs/`) and what we are
+changing (`changes/`), in OpenSpec's layout without its CLI. The README
+there explains the folders; this is the workflow.
+
+1. **A change starts as a proposal, before code.** Anything that changes
+   behaviour or touches more than one slice gets
+   `openspec/changes/<name>/proposal.md` (problem, goals, non-goals,
+   decisions) and, when the how is not obvious, `design.md`. A bug fix with
+   a ticket does not; the ticket is its proposal.
+2. **The proposal is reviewed as a PR.** Small change: the same PR as the
+   code. A change that needs agreement first: a docs-only PR, then the code
+   PRs follow.
+3. **`tasks.md` is the live state.** Each task names its ticket and PR and
+   one of `backlog`, `todo`, `in progress`, `in review`, `done`. The PR
+   that moves a task updates the row.
+4. **`specs/` describes the code as it is, never a plan.** The PR that
+   lands a task updates the spec the task touched, in the same PR. When
+   every task of a change is `done`, the folder moves to
+   `openspec/changes/archive/<date>-<name>/`.
+5. **Asked to build something, look in `openspec/changes/` first.** If a
+   change covers it, work from its `tasks.md` and say which task. If none
+   does and the work is more than a bug fix, propose a change rather than
+   starting on the code.
+
 ## What review keeps finding
 
 Each rule here came back in review more than once. Inside the layers
