@@ -119,6 +119,12 @@ jobs:
       - name: Check format
         run: yarn check-format
 
+      # The production build lints only what webpack bundles. This step also
+      # covers tests, `api/` and `e2e/`, and the rules in `eslintConfig`
+      # that `client-v2/CLAUDE.md` promises fail the build.
+      - name: Lint
+        run: yarn lint
+
       - name: Unit tests
         run: yarn test-unit
 

@@ -116,3 +116,59 @@ Never moved along the way:
 When a move is right but costs too much now, say so and propose a ticket
 instead of making it. Code that is not UI (a hook, a command, a route) follows
 the layers only when it is new.
+
+## What review keeps finding
+
+Each rule here came back in review more than once. Inside the layers
+(`src/{features,shared,entities,widgets}/`) the first four are ESLint errors
+and fail the build; the legacy roots are exempt until code moves out of them.
+
+- **Ids come from `src/shared/lib/ids`.** `uuid()` mints one, `isUuid()`
+  checks one. Never `crypto.randomUUID()`, never a copied UUID regex, never
+  `import ... from "uuid"` anywhere else. `api/*.mjs` cannot import `src/`,
+  so it uses the `uuid` package directly; it is the one exception.
+- **A `catch` is never empty.** It rethrows, reports through the owning
+  feature's diagnostics, or tells the user. A failure that is swallowed on
+  purpose still logs why, in the `catch`, so the next reader does not have
+  to guess whether it was forgotten.
+- **No nested ternaries.** Two or more branches is an `if` chain or a
+  `Record` lookup.
+- **Imports go through a slice's door**, never a deep path (see Layers).
+- **A string that two places must agree on is declared once** and exported,
+  preferably as a predicate (`isTruncationNotice`), not as a prefix that each
+  caller compares by hand.
+- **Mock the network through the test runner** (`jest.spyOn` / `vi.spyOn`,
+  `vi.fn`), not by assigning `global.fetch` in each test. On Jest 27 jsdom
+  has no `fetch` to spy on, so the assignment is tolerated there and becomes
+  a lint error once the suite is on vitest.
+- **Do not collapse status codes.** A `429` and a `204` are different
+  answers and get different branches. A streamed error is a complete frame
+  of its own (`\n\ndata: ...\n\n`), and its test feeds a chunk cut
+  mid-frame.
+- **Shape state as a type, not as flags.** Four `let`s whose valid
+  combinations live in your head are a discriminated union. A result that
+  says `skipped` for eight reasons names the reason. A boolean parameter is
+  a sign the function wants an options object.
+- **A comment names a symbol, never a line number**, and says why, not what.
+  When the function changes, its JSDoc is part of the change.
+- **One migration per PR**, even while the schema is unshipped. Appending
+  to another PR's migration forces everyone on a preview database to roll
+  back by hand.
+
+## Before a PR
+
+- **A test for a bug fails first.** Run it against the code before the fix
+  and put the failing output, or the commit it failed at, in the PR
+  description. A test that passes with the fix reverted proves nothing.
+- **Infrastructure needs a reproduced problem.** Before building a proxy,
+  a fallback or a migration for a problem someone reported, reproduce it
+  live (a probe, a curl, a screenshot, dated) and put that in the PR. A PR
+  that solves a problem the repository does not have is closed, not fixed.
+- **Run the review agents.** `/pr-review-toolkit:review-pr` before
+  `gh pr create`; its four agents (silent failures, type design, test
+  coverage, comments) are the four headings every human review here has
+  used. What they find is fixed in the same PR.
+- **A stacked PR is rebased** whenever the one under it moves. "Needs a
+  rebase" is a review verdict here, not a nit.
+- `yarn lint`, `yarn check-format`, `yarn test-types` and the unit tests
+  are green locally before the push; CI runs the same four.
