@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { hasDefaultBackend, NO_DEFAULT_BACKEND } from "./fixtures";
 
 /**
  * The panel comes back usable after a reload, without being asked twice.
@@ -22,16 +23,7 @@ type AssistantWindow = Window & {
 };
 
 const isConnected = (page: Page) =>
-  page.evaluate(
-    () => !!(window as AssistantWindow).__pgAssistant?.isConnected
-  );
-
-const hasDefaultBackend = (page: Page) =>
-  page.evaluate(async () => {
-    const r = await fetch("/api/agent").catch(() => null);
-    if (!r?.ok) return false;
-    return !!(await r.json()).configured;
-  });
+  page.evaluate(() => !!(window as AssistantWindow).__pgAssistant?.isConnected);
 
 /** The picker's connect button reads "Start" for the keyless default */
 const start = (page: Page) =>
@@ -43,7 +35,7 @@ test("the default backend reconnects itself after a reload", async ({
   test.setTimeout(240_000);
 
   await page.goto("/");
-  test.skip(!(await hasDefaultBackend(page)), "no default backend configured");
+  test.skip(!(await hasDefaultBackend(page)), NO_DEFAULT_BACKEND);
 
   const gallery = page.locator("[data-gallery-modal]");
   await expect(gallery).toBeVisible(LONG);
@@ -67,7 +59,7 @@ test("disconnecting is not undone by the next reload", async ({ page }) => {
   test.setTimeout(240_000);
 
   await page.goto("/");
-  test.skip(!(await hasDefaultBackend(page)), "no default backend configured");
+  test.skip(!(await hasDefaultBackend(page)), NO_DEFAULT_BACKEND);
 
   const gallery = page.locator("[data-gallery-modal]");
   await expect(gallery).toBeVisible(LONG);
