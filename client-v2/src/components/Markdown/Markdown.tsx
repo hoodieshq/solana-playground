@@ -20,7 +20,14 @@ interface MarkdownProps {
   linkable?: boolean;
 }
 
-const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
+/** react-markdown 9 passes one child where 8 passed an array. */
+const first = <T,>(v: T | T[]) => (Array.isArray(v) ? v[0] : v);
+
+const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
+  rootSrc,
+  linkable,
+  ...props
+}) => {
   // Scroll to section if it's linkable
   useEffect(() => {
     if (!linkable) return;
@@ -60,7 +67,7 @@ const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
       remarkPlugins={[remarkGfm]}
       components={{
         /** Links */
-        a: (props) => <Link {...(props as LinkProps)} />,
+        a: (props) => <Link {...(props as unknown as LinkProps)} />,
 
         /** Images */
         img: (props) => {
@@ -81,9 +88,9 @@ const Markdown: FC<MarkdownProps> = ({ rootSrc, linkable, ...props }) => {
 
         /** Code blocks */
         pre: (props) => {
-          const codeProps = (props as any).children[0].props;
+          const codeProps = first((props as any).children).props;
           const lang = codeProps.className?.split("-")?.at(1);
-          const code = codeProps.children[0];
+          const code = first(codeProps.children);
 
           return <CodeBlock lang={lang}>{code}</CodeBlock>;
         },
@@ -1096,10 +1103,14 @@ type HeaderProps = {
   element: "h1" | "h2" | "h3";
 } & Pick<MarkdownProps, "linkable">;
 
-const Header: FC<HeaderProps> = ({ element: H, linkable, ...rest }) => {
+const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
+  element: H,
+  linkable,
+  ...rest
+}) => {
   if (!linkable) return <H {...rest} />;
 
-  const hash = PgCommon.toKebabFromTitle((rest.children as string[])[0]);
+  const hash = PgCommon.toKebabFromTitle(first(rest.children) as string);
 
   return (
     <HeaderWrapper onClick={() => (PgRouter.location.hash = hash)}>

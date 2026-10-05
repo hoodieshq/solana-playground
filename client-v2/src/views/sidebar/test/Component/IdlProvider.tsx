@@ -8,7 +8,10 @@ interface IdlProviderProps {
 
 const IdlContext = createContext<IdlProviderProps | null>(null);
 
-const IdlProvider: FC<IdlProviderProps> = ({ children, ...props }) => {
+const IdlProvider: FC<React.PropsWithChildren<IdlProviderProps>> = ({
+  children,
+  ...props
+}) => {
   return <IdlContext.Provider value={props}>{children}</IdlContext.Provider>;
 };
 

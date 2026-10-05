@@ -13,7 +13,7 @@ type ModalProps =
       multiple: true;
     } & MultipleModalProps);
 
-const Modal: FC<ModalProps> = (props) => {
+const Modal: FC<React.PropsWithChildren<ModalProps>> = (props) => {
   if (props.multiple) return <MultipleModal {...props} />;
   return <SingleModal {...props} />;
 };

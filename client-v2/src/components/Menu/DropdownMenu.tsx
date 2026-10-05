@@ -8,7 +8,7 @@ import type { CommonMenuProps } from "./Menu"; // Circular dependency
 
 export type DropdownMenuProps = {} & CommonMenuProps;
 
-const DropdownMenu: FC<DropdownMenuProps> = ({
+const DropdownMenu: FC<React.PropsWithChildren<DropdownMenuProps>> = ({
   items,
   onShow,
   onHide,

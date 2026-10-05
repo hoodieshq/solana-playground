@@ -18,7 +18,10 @@ interface AccountProps {
   index: number;
 }
 
-const Account: FC<AccountProps> = ({ accountName, index }) => {
+const Account: FC<React.PropsWithChildren<AccountProps>> = ({
+  accountName,
+  index,
+}) => {
   const [address, setAddress] = useState("");
   const [addressError, setAddressError] = useState(false);
   const [fetchedData, setFetchedData] = useState<object>();

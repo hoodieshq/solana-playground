@@ -9,7 +9,7 @@ interface LangIconProps {
   path: string;
 }
 
-const LangIcon: FC<LangIconProps> = ({ path }) => {
+const LangIcon: FC<React.PropsWithChildren<LangIconProps>> = ({ path }) => {
   const Icon = useMemo(() => {
     const lang = PgLanguage.getFromPath(path);
     if (!lang) return <QuestionMark />;

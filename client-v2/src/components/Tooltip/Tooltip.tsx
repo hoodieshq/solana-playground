@@ -12,7 +12,12 @@ export type TooltipProps = Omit<PopoverProps, "showOnHover" | "popEl"> & {
   help?: boolean;
 };
 
-const Tooltip: FC<TooltipProps> = ({ children, element, help, ...props }) => (
+const Tooltip: FC<React.PropsWithChildren<TooltipProps>> = ({
+  children,
+  element,
+  help,
+  ...props
+}) => (
   <StyledPopover {...props} popEl={element} showOnHover>
     {help ? <StyledQuestionMarkOutlined color="textSecondary" /> : children}
   </StyledPopover>

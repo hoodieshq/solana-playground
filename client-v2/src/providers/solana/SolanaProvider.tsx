@@ -11,7 +11,9 @@ import {
 import { PgWallet } from "../../utils";
 import { useWallet } from "../../hooks";
 
-export const SolanaProvider: FC = ({ children }) => {
+export const SolanaProvider: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => {
   const wallets = useMemo(() => [], []);
 
   return (
@@ -21,7 +23,9 @@ export const SolanaProvider: FC = ({ children }) => {
   );
 };
 
-const PgWalletProvider: FC = ({ children }) => {
+const PgWalletProvider: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => {
   const wallet = useWallet();
   const { wallets } = useSolanaWallet();
 

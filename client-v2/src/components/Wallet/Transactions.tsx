@@ -152,7 +152,7 @@ const NoTransaction = styled.div`
   }
 `;
 
-const Tx: FC<PgWeb3.ConfirmedSignatureInfo> = ({
+const Tx: FC<React.PropsWithChildren<PgWeb3.ConfirmedSignatureInfo>> = ({
   signature,
   slot,
   err,

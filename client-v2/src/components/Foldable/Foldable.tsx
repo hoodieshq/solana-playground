@@ -17,7 +17,7 @@ interface FoldableProps {
   setIsOpen?: Dispatch<SetStateAction<boolean>>;
 }
 
-const Foldable: FC<FoldableProps> = ({
+const Foldable: FC<React.PropsWithChildren<FoldableProps>> = ({
   element,
   isOpen = false,
   setIsOpen,

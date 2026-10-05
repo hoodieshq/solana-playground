@@ -7,7 +7,7 @@ interface DroppableProps {
   onDragOver?: (ref: HTMLElement) => void;
 }
 
-const Droppable: FC<DroppableProps> = ({
+const Droppable: FC<React.PropsWithChildren<DroppableProps>> = ({
   id,
   overStyle,
   onDragOver,

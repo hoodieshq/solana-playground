@@ -12,7 +12,9 @@ interface CustomSettingProps {
   setting: Setting;
 }
 
-export const CustomSetting: FC<CustomSettingProps> = ({ setting }) => {
+export const CustomSetting: FC<React.PropsWithChildren<CustomSettingProps>> = ({
+  setting,
+}) => {
   // TODO: Make the `setting` variable's type have `custom` property
   const { custom } = setting;
   if (!custom) throw new Error(setting.id);

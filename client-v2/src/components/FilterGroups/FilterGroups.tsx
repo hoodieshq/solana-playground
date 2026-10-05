@@ -46,7 +46,10 @@ interface FilterGroupProps {
   filters: Array<{ name: string } & Pick<FilterLabelProps, "count">>;
 }
 
-const FilterGroup: FC<FilterGroupProps> = ({ param, filters }) => {
+const FilterGroup: FC<React.PropsWithChildren<FilterGroupProps>> = ({
+  param,
+  filters,
+}) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchValues = searchParams.getAll(param);
 
@@ -108,7 +111,10 @@ type FilterLabelProps = ComponentProps<typeof Tag> & {
   count: number | undefined;
 };
 
-const FilterLabel: FC<FilterLabelProps> = ({ count, ...props }) => (
+const FilterLabel: FC<React.PropsWithChildren<FilterLabelProps>> = ({
+  count,
+  ...props
+}) => (
   <FilterLabelWrapper>
     <StyledTag {...props} />
     {count ? <FilterCount>({count})</FilterCount> : null}

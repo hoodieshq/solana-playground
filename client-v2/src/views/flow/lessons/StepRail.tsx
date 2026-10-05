@@ -17,7 +17,7 @@ interface StepRailProps {
  * pure navigation, and the model proves it), rows beyond the frontier
  * do not and say why. Nothing is "locked" -- some things are unproved.
  */
-const StepRail: FC<StepRailProps> = ({ state }) => {
+const StepRail: FC<React.PropsWithChildren<StepRailProps>> = ({ state }) => {
   const { path } = state;
   if (!path) return null;
 

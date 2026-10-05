@@ -8,7 +8,12 @@ interface InputLabelProps {
   isSigner?: boolean;
 }
 
-const InputLabel: FC<InputLabelProps> = ({ name, type, isMut, isSigner }) => (
+const InputLabel: FC<React.PropsWithChildren<InputLabelProps>> = ({
+  name,
+  type,
+  isMut,
+  isSigner,
+}) => (
   <Wrapper>
     <NameWrapper>
       <Name>{name}:</Name>

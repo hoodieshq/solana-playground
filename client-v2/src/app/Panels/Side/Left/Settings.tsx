@@ -67,7 +67,10 @@ type SettingGroupProps = {
   settings: SettingType[];
 };
 
-const SettingGroup: FC<SettingGroupProps> = ({ name, settings }) => (
+const SettingGroup: FC<React.PropsWithChildren<SettingGroupProps>> = ({
+  name,
+  settings,
+}) => (
   <SettingGroupWrapper>
     <Foldable
       isOpen
@@ -94,7 +97,7 @@ const SettingGroupWrapper = styled.div`
   `}
 `;
 
-const Setting: FC<SettingType> = (setting) => (
+const Setting: FC<React.PropsWithChildren<SettingType>> = (setting) => (
   <SettingWrapper isCheckBox={!setting.values}>
     <Left>
       <SettingName>{setting.name}</SettingName>
@@ -147,7 +150,10 @@ const Right = styled.div`
 
 type SettingSetterProps = SettingType;
 
-const SettingSetter: FC<SettingSetterProps> = ({ values, ...props }) => {
+const SettingSetter: FC<React.PropsWithChildren<SettingSetterProps>> = ({
+  values,
+  ...props
+}) => {
   useRenderOnChange(props.onChange);
   if (values) return <SettingSetterSelect values={values} {...props} />;
   return <SettingSetterCheckBox {...props} />;
@@ -155,7 +161,9 @@ const SettingSetter: FC<SettingSetterProps> = ({ values, ...props }) => {
 
 type SettingSetterSelectProps = RequiredKey<SettingSetterProps, "values">;
 
-const SettingSetterSelect: FC<SettingSetterSelectProps> = (setting) => {
+const SettingSetterSelect: FC<
+  React.PropsWithChildren<SettingSetterSelectProps>
+> = (setting) => {
   const options = useMemo(() => {
     const options = PgCommon.callIfNeeded(setting.values).map(convertValue);
     if (setting.custom) options.push({ label: "Custom", value: "" });
@@ -218,10 +226,9 @@ const findOption = (opts: any[], v: any): any => {
 
 type SettingSetterCheckBoxProps = Omit<SettingSetterProps, "values">;
 
-const SettingSetterCheckBox: FC<SettingSetterCheckBoxProps> = ({
-  getValue,
-  setValue,
-}) => (
+const SettingSetterCheckBox: FC<
+  React.PropsWithChildren<SettingSetterCheckBoxProps>
+> = ({ getValue, setValue }) => (
   <Checkbox
     onChange={(ev) => setValue(ev.target.checked)}
     checked={getValue()}

@@ -23,7 +23,7 @@ type MenuItemPropsWithHide = {
   hide: () => void;
 } & MenuItemProps;
 
-const MenuItem: FC<MenuItemPropsWithHide> = ({
+const MenuItem: FC<React.PropsWithChildren<MenuItemPropsWithHide>> = ({
   name,
   onClick,
   hide,

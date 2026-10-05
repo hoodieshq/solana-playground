@@ -21,7 +21,11 @@ interface FilePickerProps {
   setFilePaths: Dispatch<SetStateAction<string[]>>;
 }
 
-const FilePicker: FC<FilePickerProps> = ({ path, filePaths, setFilePaths }) => {
+const FilePicker: FC<React.PropsWithChildren<FilePickerProps>> = ({
+  path,
+  filePaths,
+  setFilePaths,
+}) => {
   const ref = useDifferentBackground();
 
   // Handle checkbox `checked`
@@ -50,7 +54,10 @@ const Wrapper = styled.div`
 
 type RecursiveFolderProps = Omit<FilePickerProps, "filePaths">;
 
-const RecursiveFolder: FC<RecursiveFolderProps> = ({ path, setFilePaths }) => {
+const RecursiveFolder: FC<React.PropsWithChildren<RecursiveFolderProps>> = ({
+  path,
+  setFilePaths,
+}) => {
   const folderName = useMemo(
     () => PgExplorer.getItemNameFromPath(path),
     [path]

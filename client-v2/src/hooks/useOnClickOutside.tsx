@@ -14,7 +14,7 @@ import { PgCommon, PgView } from "../utils";
  * what the `mousedown` just closed.
  */
 export const useOnClickOutside = (
-  ref: RefObject<HTMLElement>,
+  ref: RefObject<HTMLElement | null>,
   cb: () => void,
   listenCondition: boolean = true,
   ignoreSelector?: string

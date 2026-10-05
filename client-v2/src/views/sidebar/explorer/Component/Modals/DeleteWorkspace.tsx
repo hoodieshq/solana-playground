@@ -12,10 +12,9 @@ interface DeleteWorkspaceProps {
   isLesson?: boolean;
 }
 
-export const DeleteWorkspace: FC<DeleteWorkspaceProps> = ({
-  name,
-  isLesson,
-}) => {
+export const DeleteWorkspace: FC<
+  React.PropsWithChildren<DeleteWorkspaceProps>
+> = ({ name, isLesson }) => {
   const workspaceName = name ?? PgExplorer.currentWorkspaceName;
 
   return (
