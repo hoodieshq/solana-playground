@@ -55,7 +55,7 @@ const signedIn = () =>
  * `vi.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
  * puts the global back afterwards, so a stub one test installed cannot answer
  * the next one's request. The stand-in it replaces comes from
- * `setupTests.ts`, because jsdom has no `fetch` of its own to spy on.
+ * `setupTests.ts`, which throws, so an unstubbed request fails loudly.
  */
 let fetchMock: Mock;
 

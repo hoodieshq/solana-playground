@@ -31,20 +31,19 @@ vi.mock("./utils/explorer/fs", async () =>
   (await import("./test-utils/mock-fs")).mockFsModule()
 );
 
-// jsdom ships no `fetch` either. Tests install their own with `vi.spyOn`,
-// which needs something already on the global to replace, so the stand-in is
-// a function that throws: a test that reaches the network without saying what
-// it expects back is a bug, and this is how it says so rather than hanging.
-// `writable` keeps the older tests that assign `global.fetch` working.
-if (!globalThis.fetch) {
-  Object.defineProperty(globalThis, "fetch", {
-    value: () => {
-      throw new Error("fetch is not stubbed in this test");
-    },
-    configurable: true,
-    writable: true,
-  });
-}
+// A test that reaches the network without saying what it expects back is a
+// bug, so `fetch` is replaced with a function that throws, rather than
+// hanging or, worse, making the request: Node 22 has a real `fetch`, and
+// vitest's jsdom environment exposes it. Tests install their own with
+// `vi.spyOn`, which needs something on the global to replace; `writable`
+// keeps the older tests that assign `global.fetch` working.
+Object.defineProperty(globalThis, "fetch", {
+  value: () => {
+    throw new Error("fetch is not stubbed in this test");
+  },
+  configurable: true,
+  writable: true,
+});
 
 // Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`), and
 // the tutorials and lesson paths `require` it lazily. vitest hands `require`
