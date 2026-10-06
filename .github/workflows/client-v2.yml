@@ -119,6 +119,16 @@ jobs:
       - name: Check format
         run: yarn check-format
 
+      # `openspec validate --all` over ../openspec: every active change has
+      # its proposal, delta specs, design and tasks in the schema's shape.
+      - name: Validate specs
+        run: yarn spec:validate
+
+      # A change with every task ticked must be archived in the PR that
+      # ticked the last one (client-v2/CLAUDE.md, "Specs and changes").
+      - name: Archived changes
+        run: yarn spec:archived
+
       - name: Unit tests
         run: yarn test-unit
 

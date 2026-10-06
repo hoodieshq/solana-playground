@@ -69,6 +69,7 @@
   },
   "devDependencies": {
     "@craco/craco": "^6.4.3",
+    "@fission-ai/openspec": "1.14.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/bn.js": "^5.1.1",
@@ -112,6 +113,9 @@
     "build-wasm": "build=\"../wasm/build.sh\" && chmod +x $build && $build --update",
     "format": "prettier --write src/ api/",
     "check-format": "prettier --check src/ api/",
+    "spec:validate": "openspec validate --all --strict --no-interactive",
+    "spec:archived": "node scripts/spec-archived.mjs",
+    "check": "yarn test-types && yarn check-format && yarn spec:validate && yarn spec:archived && yarn test-unit && yarn test-api",
     "generate": "node scripts/update-static.mjs && yarn generate-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-fast": "node scripts/update-static.mjs && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-crates": "node scripts/generate-crates.mjs",
