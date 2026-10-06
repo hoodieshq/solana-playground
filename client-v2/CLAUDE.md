@@ -252,3 +252,24 @@ until code moves out of them.
   push with `git config core.hooksPath .githooks` once per clone.
 - **The last task of a change archives it** (`/opsx:archive`) in the same
   PR.
+- **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
+  `client-v2.yml`) on every PR to `master-2.0`, and a red spec fails the
+  PR's checks. It needs no server and no Postgres: every spec stubs the account
+  endpoints with `page.route`, and the dev server serves `api/*.mjs` itself.
+  Two tests connect to the keyless default backend and skip themselves where
+  `/api/agent` reports none configured (CI included); they run only on a
+  machine with the default backend configured. Two sync tests ("switching
+  tabs mid-debounce raises no conflict", "reloading a project the account
+  already has writes nothing") are `test.fixme` on the runner, where the
+  load's timing differs and the sync races they guard show. The four are
+  listed by title in `e2e/known-skips.txt`; the job fails on any skip that
+  is not in the list and warns on an entry that no longer skips. D61 (on
+  `context-archive`) records them. CI retries a failed spec once,
+  because the runner is three times slower than a laptop and fails specs on
+  timing alone; a pass on the retry is reported as **flaky**, named in the
+  run's annotations, and is work to do, not a pass. Locally `retries` is 0,
+  so a flake fails where it gets fixed. Quarantine is an explicit
+  `test.skip` or `test.fixme` with the reason in the call, never a retry.
+- **A runtime upgrade still gets the manual walk-through** from the UI
+  migration spec ("The React 19 gate"), in development and in the production
+  build, because the suite runs against the dev server only.
