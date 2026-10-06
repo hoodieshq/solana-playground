@@ -73,6 +73,8 @@
     "@fission-ai/openspec": "1.14.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/bn.js": "^5.1.1",
     "@types/diff": "^5.0.0",
     "@types/mocha": "^9.1.1",

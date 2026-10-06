@@ -1,4 +1,5 @@
-import { renderNode, unmountAll } from "../../../test-utils/render";
+import { render, screen } from "@testing-library/react";
+
 import { LoggerErrorBoundary } from "./error-boundary";
 import { installGlobalHandlers } from "./global-handlers";
 import { initLogger, resetLogger } from "./logger";
@@ -12,7 +13,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  unmountAll();
   resetLogger();
 });
 
@@ -30,7 +30,7 @@ describe("installGlobalHandlers", () => {
     const event = new Event("unhandledrejection") as PromiseRejectionEvent;
     Object.defineProperty(event, "reason", { value: reason });
 
-    window.dispatchEvent(event);
+    globalThis.dispatchEvent(event);
 
     expect(logged.entries).toEqual([
       expect.objectContaining({
@@ -43,7 +43,9 @@ describe("installGlobalHandlers", () => {
   });
 
   it("should panic with the message of an error event that carries no error", () => {
-    window.dispatchEvent(new ErrorEvent("error", { message: "Script error." }));
+    globalThis.dispatchEvent(
+      new ErrorEvent("error", { message: "Script error." })
+    );
 
     expect(logged.entries[0].error?.message).toBe("Script error.");
   });
@@ -57,15 +59,13 @@ describe("LoggerErrorBoundary", () => {
   it("should panic with namespace app:render and show the fallback", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const container = renderNode(
+    render(
       <LoggerErrorBoundary fallback={<p role="alert">fallback</p>}>
         <Thrower />
       </LoggerErrorBoundary>
     );
 
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      "fallback"
-    );
+    expect(screen.getByRole("alert").textContent).toBe("fallback");
     expect(logged.entries).toEqual([
       expect.objectContaining({ ns: "app:render", level: "panic" }),
     ]);

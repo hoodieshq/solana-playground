@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
+import { render } from "@testing-library/react";
 
-import { renderNode, unmountAll } from "../../../test-utils/render";
 import { initTelemetry, resetTelemetry } from "./collector";
 import { memoryProvider } from "./providers/memory";
 import { TelemetryScope, useTracker } from "./scope";
@@ -23,12 +23,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  unmountAll();
   resetTelemetry();
 });
 
 it("should attribute an event from a portal to the enclosing scope", () => {
-  renderNode(
+  render(
     <TelemetryScope name="deploy-panel">
       {createPortal(<Emitter />, document.body)}
     </TelemetryScope>
@@ -38,7 +37,7 @@ it("should attribute an event from a portal to the enclosing scope", () => {
 });
 
 it("should send no scope outside a TelemetryScope", () => {
-  renderNode(<Emitter />);
+  render(<Emitter />);
 
   expect(sent.events[0].scope).toBeUndefined();
 });

@@ -1,10 +1,10 @@
 import { StrictMode } from "react";
 import type { ReactNode } from "react";
 import * as Sentry from "@sentry/react";
+import { render, screen } from "@testing-library/react";
 
 import { resetLogger } from "../../../shared/lib/logger";
 import { resetTelemetry } from "../../../shared/lib/telemetry";
-import { renderNode, unmountAll } from "../../../test-utils/render";
 import { resetObservability } from "../model/init";
 import { Observability } from "./Observability";
 
@@ -16,7 +16,6 @@ vi.mock("@sentry/react", () => ({
 }));
 
 afterEach(() => {
-  unmountAll();
   resetObservability();
   resetLogger();
   resetTelemetry();
@@ -31,7 +30,7 @@ const renderObservability = (
   children: ReactNode,
   googleAnalytics: { measurementId?: string } = {}
 ) =>
-  renderNode(
+  render(
     <StrictMode>
       <Observability
         sentry={{ dsn: "https://key@o0.ingest.sentry.io/0" }}
@@ -53,11 +52,9 @@ const queuedEvents = () =>
 
 it("should initialise Sentry and queue obs_initialised once under StrictMode's double render", () => {
   // No gtag.js and no stub beforehand, as on a real page load
-  const container = renderObservability(<p>app</p>, {
-    measurementId: "G-TEST",
-  });
+  renderObservability(<p>app</p>, { measurementId: "G-TEST" });
 
-  expect(container.textContent).toBe("app");
+  expect(screen.getByText("app")).toBeTruthy();
   expect(Sentry.init).toHaveBeenCalledTimes(1);
   expect(queuedEvents()).toEqual(["obs_initialised"]);
   expect(
@@ -83,18 +80,16 @@ it("should show the fallback and report when a child throws while rendering", ()
     throw new Error("render failed");
   };
 
-  const container = renderObservability(<Thrower />);
+  renderObservability(<Thrower />);
 
-  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-    "fallback"
-  );
+  expect(screen.getByRole("alert").textContent).toBe("fallback");
   expect(Sentry.withScope).toHaveBeenCalled();
 });
 
 it("should warn in the console about each missing id", () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-  renderNode(
+  render(
     <Observability
       sentry={{}}
       googleAnalytics={{}}

@@ -1,4 +1,5 @@
-import { renderNode, unmountAll } from "../../../test-utils/render";
+import { render } from "@testing-library/react";
+
 import { GoogleAnalytics } from "./google-analytics";
 import { ga4Provider } from "./providers/ga4";
 
@@ -14,7 +15,6 @@ const lastQueued = () => {
 };
 
 afterEach(() => {
-  unmountAll();
   gtagScripts().forEach((script) => script.remove());
   delete window.gtag;
   delete window.dataLayer;
@@ -45,14 +45,14 @@ describe("ga4Provider", () => {
 
 describe("GoogleAnalytics", () => {
   it("should inject nothing without a measurement id", () => {
-    renderNode(<GoogleAnalytics />);
+    render(<GoogleAnalytics />);
 
     expect(gtagScripts()).toHaveLength(0);
   });
 
   it("should inject gtag.js once for the measurement id", () => {
-    renderNode(<GoogleAnalytics measurementId="G-TEST" />);
-    renderNode(<GoogleAnalytics measurementId="G-TEST" />);
+    render(<GoogleAnalytics measurementId="G-TEST" />);
+    render(<GoogleAnalytics measurementId="G-TEST" />);
 
     expect(gtagScripts()).toHaveLength(1);
     expect(gtagScripts()[0].src).toContain("id=G-TEST");
