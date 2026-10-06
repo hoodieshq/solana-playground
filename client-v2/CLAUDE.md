@@ -230,6 +230,15 @@ until code moves out of them; the rest hold by review.
 - **One migration per PR**, even while the schema is unshipped. Appending
   to another PR's migration forces everyone on a preview database to roll
   back by hand.
+- **On one element and one property, styled-components wins over a Tailwind
+  utility** until that component migrates: styled CSS is unlayered, while
+  utilities sit in `@layer utilities` and lose the cascade. Do not patch a
+  styled component with a utility; change the styled rule, or move the
+  component by the UI move rule.
+- **Build configuration is not unit-tested.** Guard the outcome instead: CI
+  greps the built CSS (or bundle) for what the configuration must produce.
+  A test that asserts the shape of `craco.config.js` passes while the build
+  is wrong.
 
 ## Before a PR
 
