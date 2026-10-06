@@ -1,4 +1,6 @@
+import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
+import { withSyncLock } from "./sync-lock";
 import { isUuid, uuid } from "../../../shared/lib/ids";
 import { PgFs } from "../../../utils/explorer/fs";
 
@@ -121,6 +123,74 @@ export class PgThreadIndex {
   }
 
   /**
+   * Remove a deleted workspace's conversation, and the entry pointing at it.
+   *
+   * By workspace id, because that is all a delete knows, and the thread is
+   * found through this map -- storage has been keyed by thread id since
+   * threads got ids of their own, so removing a file named after the
+   * workspace removed nothing. The entry goes too: a tutorial's id is derived
+   * from its name, so starting one again reuses the id, and a surviving entry
+   * handed the new run the previous run's conversation.
+   *
+   * Under the cross-tab lock, and against the map as it is *after* the file
+   * is gone: the wait on storage is long enough for this tab to mint a
+   * thread, or a neighbour tab to write the map, and writing the copy read
+   * before it put the stale map back over either.
+   */
+  static async forget(workspaceId: string) {
+    await withSyncLock(async () => {
+      const threadId = (await PgThreadIndex._refresh())[workspaceId];
+      if (!threadId) return;
+
+      // The file before the entry. A file left behind without one is adopted
+      // by the next load's migration as a thread named after its workspace,
+      // and pushed as a project that never existed; an entry left pointing at
+      // a missing file just reads as an empty thread.
+      await PgChatStorage.remove(threadId);
+      const { [workspaceId]: _gone, ...rest } = await PgThreadIndex._refresh();
+      await PgThreadIndex._write(rest);
+    });
+  }
+
+  /**
+   * Move a workspace's conversation to another workspace, under a fresh
+   * thread id.
+   *
+   * For "keep as a new project": the project was deleted on another device,
+   * its conversation was tombstoned with it, and the user keeps this
+   * device's work under a new id. The chat is part of that work. It cannot
+   * keep its thread id -- the server refuses every push to a tombstoned
+   * thread, whatever project the push names -- so the items move to a thread
+   * minted for the new workspace, whose first push creates it.
+   *
+   * @returns the new thread id, or `null` when there was nothing to carry or
+   * the old thread could not be read -- then the new workspace starts with a
+   * fresh conversation and the old one stays where it was
+   */
+  static async carry(
+    fromWorkspaceId: string,
+    toWorkspaceId: string
+  ): Promise<string | null> {
+    return withSyncLock(async () => {
+      const from = (await PgThreadIndex._refresh())[fromWorkspaceId];
+      if (!from) return null;
+
+      const items = await PgChatStorage.read(from);
+      // Nothing is moved that could not be read: the old file stays, so the
+      // conversation is not lost, only not carried
+      if (items === null) return null;
+
+      const to = uuid();
+      await PgChatStorage.write(to, items);
+      await PgChatStorage.remove(from);
+      const { [fromWorkspaceId]: _moved, ...rest } =
+        await PgThreadIndex._refresh();
+      await PgThreadIndex._write({ ...rest, [toWorkspaceId]: to });
+      return to;
+    });
+  }
+
+  /**
    * Drop what is held in memory, so the next read goes to storage.
    *
    * This map is read on the way into every conversation and on every push, so
@@ -145,6 +215,19 @@ export class PgThreadIndex {
 
   /** The map as last read or written; `null` until the first read */
   private static _cache: Index | null = null;
+
+  /**
+   * The map as storage holds it now, read past the cache.
+   *
+   * For a write that has to see a neighbour tab's writes: the cache is this
+   * tab's, and `set` spreading it protects only against this tab's own
+   * interleaving. The cache is replaced, not cleared, so `ensureSync` keeps
+   * answering throughout.
+   */
+  private static async _refresh(): Promise<Index> {
+    await PgThreadIndex._migrateOnce();
+    return (PgThreadIndex._cache = await PgThreadIndex._read());
+  }
 
   /**
    * The adoption pass, run once per load.

@@ -3,6 +3,7 @@ import { PgProjectSync } from "./project-sync";
 import { hashFiles } from "./snapshot";
 import { PgSyncMark } from "./sync-mark";
 import * as tabReload from "./tab-reload";
+import { PgThreadIndex } from "./thread-index";
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgSession } from "../../auth";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -329,6 +330,9 @@ describe("reconcile", () => {
     const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
+    const forget = vi
+      .spyOn(PgThreadIndex, "forget")
+      .mockResolvedValue(undefined);
     serverHas([]);
 
     const result = await reconcile();
@@ -336,6 +340,9 @@ describe("reconcile", () => {
     expect(remove).toHaveBeenCalledWith("alpha");
     expect(result.removed).toEqual(["alpha"]);
     expect(await PgSyncMark.read("p1")).toBeNull();
+    // The server dropped its conversation with it; this device's copy goes
+    // too, or a tutorial started again here opens the old run's chat
+    expect(forget).toHaveBeenCalledWith("p1");
   });
 
   it("touches nothing when the account could not be read", async () => {
@@ -472,6 +479,30 @@ describe("reconcile", () => {
 
     expect((await reconcile()).pushed).toEqual(["alpha"]);
     expect(push).toHaveBeenCalled();
+  });
+
+  it("does not hand over a project another tab has deleted", async () => {
+    // This tab read the workspace list at load and still lists `alpha`; the
+    // tab that deleted it removed it from the store and took its mark with
+    // it. Uploading from memory sent a create-only PUT at the tombstone, and
+    // the answer put a conflict nobody could settle on a deleted project.
+    withLocal({ alpha: "deleted-next-door", beta: "still-here" });
+    storedFiles().set(
+      "/.config/workspaces.json",
+      JSON.stringify({
+        workspaces: [{ id: "still-here", name: "beta" }],
+        currentId: "still-here",
+      })
+    );
+    withFiles("beta", { "src/lib.rs": "never uploaded" });
+    const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
+    serverHas([]);
+
+    const result = await reconcile();
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0][0]).toBe("still-here");
+    expect(result.pushed).toEqual(["beta"]);
   });
 
   it("never switches workspace itself, so a sync cannot interrupt the user", async () => {

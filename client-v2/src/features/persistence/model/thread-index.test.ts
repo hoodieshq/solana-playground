@@ -25,6 +25,8 @@ beforeEach(() => {
   PgThreadIndex.reload();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("PgThreadIndex", () => {
   it("mints a thread for a workspace that has never had one", async () => {
     const id = await PgThreadIndex.ensure("w1");
@@ -58,6 +60,128 @@ describe("PgThreadIndex", () => {
 
   it("has no workspace for a thread it does not know", async () => {
     expect(await PgThreadIndex.workspaceOf("nope")).toBeNull();
+  });
+
+  describe("forgetting a deleted workspace's conversation", () => {
+    it("removes the thread and the entry that pointed at it", async () => {
+      // A tutorial's id is derived from its name, so a restart reuses it: an
+      // entry left behind reopened the previous run's conversation
+      const threadId = await PgThreadIndex.ensure("tut:hello");
+      await PgChatStorage.write(threadId, [item(1)]);
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.get("tut:hello")).toBeNull();
+      expect(await PgChatStorage.read(threadId)).toEqual([]);
+      expect(threadFiles()).toEqual([]);
+    });
+
+    it("is still gone after the index is read again from storage", async () => {
+      await PgThreadIndex.ensure("tut:hello");
+      await PgThreadIndex.forget("tut:hello");
+
+      PgThreadIndex.reload();
+      expect(await PgThreadIndex.get("tut:hello")).toBeNull();
+    });
+
+    it("leaves other workspaces' conversations alone", async () => {
+      await PgThreadIndex.ensure("tut:hello");
+      const kept = await PgThreadIndex.ensure("w2");
+      await PgChatStorage.write(kept, [item(2)]);
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.get("w2")).toBe(kept);
+      expect(await PgChatStorage.read(kept)).toEqual([item(2)]);
+    });
+
+    it("does nothing for a workspace that never had one", async () => {
+      await expect(PgThreadIndex.forget("never")).resolves.toBeUndefined();
+    });
+
+    it("gives a restarted workspace a new thread", async () => {
+      const old = await PgThreadIndex.ensure("tut:hello");
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.ensure("tut:hello")).not.toBe(old);
+    });
+
+    it("keeps an entry another tab wrote while the file was being removed", async () => {
+      // The map was read before the wait on storage and written back after
+      // it, so whatever landed in between -- a neighbour tab's entry, or a
+      // thread this tab minted -- was put back the way it was before
+      await PgThreadIndex.ensure("tut:hello");
+      vi.spyOn(PgChatStorage, "remove").mockImplementation(
+        async (threadId: string) => {
+          mockFiles.delete(`/.config/chats/${threadId}.json`);
+          // Another tab, straight to storage, past this tab's cache
+          const onDisk = JSON.parse(
+            mockFiles.get("/.config/chats/index.json")!
+          );
+          mockFiles.set(
+            "/.config/chats/index.json",
+            JSON.stringify({ ...onDisk, "next-door": item(7).id })
+          );
+        }
+      );
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(await PgThreadIndex.get("tut:hello")).toBeNull();
+      expect(await PgThreadIndex.get("next-door")).toBe(item(7).id);
+      PgThreadIndex.reload();
+      expect(await PgThreadIndex.get("next-door")).toBe(item(7).id);
+    });
+
+    it("keeps a thread this tab minted while the file was being removed", async () => {
+      await PgThreadIndex.ensure("tut:hello");
+      let minted: string | null = null;
+      vi.spyOn(PgChatStorage, "remove").mockImplementation(
+        async (threadId: string) => {
+          mockFiles.delete(`/.config/chats/${threadId}.json`);
+          minted = PgThreadIndex.ensureSync("w2");
+        }
+      );
+
+      await PgThreadIndex.forget("tut:hello");
+
+      expect(minted).not.toBeNull();
+      expect(await PgThreadIndex.get("w2")).toBe(minted);
+    });
+  });
+
+  describe("carrying a conversation to a new workspace", () => {
+    // "Keep as a new project": the project was deleted on another device,
+    // its conversation tombstoned with it, and the user keeps this device's
+    // work under a new id -- chat included
+    it("moves the items under a fresh thread id, and drops the old one", async () => {
+      const old = await PgThreadIndex.ensure("p1");
+      await PgChatStorage.write(old, [item(1), item(2)]);
+
+      const fresh = await PgThreadIndex.carry("p1", "p2");
+
+      expect(fresh).not.toBeNull();
+      expect(fresh).not.toBe(old);
+      expect(await PgThreadIndex.get("p2")).toBe(fresh);
+      expect(await PgThreadIndex.get("p1")).toBeNull();
+      expect(await PgChatStorage.read(fresh!)).toEqual([item(1), item(2)]);
+      expect(threadFiles()).toHaveLength(1);
+    });
+
+    it("does nothing when the workspace had no conversation", async () => {
+      expect(await PgThreadIndex.carry("p1", "p2")).toBeNull();
+      expect(await PgThreadIndex.get("p2")).toBeNull();
+    });
+
+    it("leaves a thread it could not read where it is", async () => {
+      // Moving what cannot be read would lose it; not carried is not lost
+      const old = await PgThreadIndex.ensure("p1");
+      mockFiles.set(`/.config/chats/${old}.json`, "{ not json");
+
+      expect(await PgThreadIndex.carry("p1", "p2")).toBeNull();
+      expect(await PgThreadIndex.get("p1")).toBe(old);
+      expect(mockFiles.get(`/.config/chats/${old}.json`)).toBe("{ not json");
+    });
   });
 
   describe("migrating a thread file named after its workspace", () => {

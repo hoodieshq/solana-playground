@@ -77,14 +77,27 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
     const existing = server.get(body.id);
     const live = existing && !existing.deleted ? existing : null;
 
-    const refuse = () => ({
-      ok: false,
-      status: 409,
-      json: async () => ({
-        conflict: true,
-        updatedAt: live ? live.updatedAt : null,
-      }),
-    });
+    // A tombstone names itself, as the real endpoint does. Two literals
+    // rather than one with a spread, so each answer's fields are in view.
+    const refuse = () =>
+      existing?.deleted
+        ? {
+            ok: false,
+            status: 409,
+            json: async () => ({
+              conflict: true,
+              updatedAt: null,
+              reason: "deleted",
+            }),
+          }
+        : {
+            ok: false,
+            status: 409,
+            json: async () => ({
+              conflict: true,
+              updatedAt: live ? live.updatedAt : null,
+            }),
+          };
 
     if (body.changed && !body.baseUpdatedAt) return refuse();
     if (body.baseUpdatedAt) {
@@ -95,7 +108,12 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
       // Create-only. A row with no snapshot is adoptable -- a chat turn
       // creates one before the project's own first upload.
       return refuse();
-    } else if (existing?.deleted) {
+    } else if (
+      existing?.deleted &&
+      !(existing.kind === "tutorial" && body.kind === "tutorial")
+    ) {
+      // A tutorial's tombstone is the exception: its id is derived from its
+      // name, so starting it again can only arrive here
       return refuse();
     }
 
@@ -1071,6 +1089,76 @@ describe("deleting on one device", () => {
     expect(result.conflicts).toEqual([
       { projectId: HELLO.id, kind: "deleted-elsewhere" },
     ]);
+  });
+
+  it("says it was deleted when an upload gets there first", async () => {
+    // A pending edit uploads before any reconcile has seen the delete. The
+    // refusal was indistinguishable from a newer version, so the user was
+    // asked "keep this or take the other?" about a project with no other.
+    asDevice([HELLO]);
+    await signedIn();
+    await PgProjectSync.pushCurrent();
+
+    otherDeviceDeleted(HELLO.id);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "deleted-elsewhere",
+    });
+    expect(server.get(HELLO.id)!.deleted).toBe(true);
+  });
+});
+
+describe("a tutorial deleted and started again", () => {
+  beforeEach(setUp);
+  afterEach(() => vi.restoreAllMocks());
+
+  it("syncs the new run instead of calling it a conflict", async () => {
+    // Its id is derived from its name, so the restart reuses the tombstoned
+    // id. Every upload of the new run was refused, and the banner offered a
+    // version that did not exist.
+    const workspaces = [HELLO];
+    asDevice(workspaces);
+    await signedIn();
+    await PgProjectSync.pushCurrent();
+
+    vi.spyOn(PgExplorer, "deleteWorkspace").mockImplementation(async () => {
+      workspaces.splice(0, 1);
+      // Saved before the event, as the real delete does: the effect settles
+      // a delete against the store's list
+      storedFiles().set(
+        PgWorkspace.WORKSPACES_CONFIG_PATH,
+        JSON.stringify({ workspaces })
+      );
+      PgCommon.createAndDispatchCustomEvent(
+        PgExplorer.events.ON_DID_DELETE_WORKSPACE
+      );
+    });
+    const effect = projectSync();
+    try {
+      await PgExplorer.deleteWorkspace(HELLO.name);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      effect.dispose();
+    }
+    expect(server.get(HELLO.id)!.deleted).toBe(true);
+
+    vi.restoreAllMocks();
+    asDevice([HELLO], "a fresh start");
+    // Started again, so the store lists it again
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [HELLO] })
+    );
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(server.get(HELLO.id)).toMatchObject({
+      snapshot: { files: { "src/lib.rs": "a fresh start" } },
+    });
+    expect(server.get(HELLO.id)!.deleted).toBeFalsy();
   });
 });
 

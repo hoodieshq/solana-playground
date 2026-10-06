@@ -116,7 +116,8 @@ export const chatThread = (): Disposable => {
     void (async () => {
       try {
         // Put it back rather than swallowing it: the next hide tries again,
-        // which is the only retry conversations have
+        // which is the only retry conversations have. A thread the server
+        // has closed is settled, not owed.
         if (!(await pushThread(id))) pending = true;
       } catch (e) {
         pending = true;
