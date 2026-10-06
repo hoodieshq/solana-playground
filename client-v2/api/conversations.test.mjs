@@ -124,6 +124,63 @@ describe("/api/conversations", () => {
     });
   });
 
+  describe("describeFailure", () => {
+    it("maps a thread that is somebody else's to 404", async () => {
+      const mod = await load();
+      const { NotYours } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status } = mod.describeFailure(new NotYours());
+
+      assert.equal(status, 404);
+    });
+
+    it("maps a thread deleted with its project to 410, not 2xx", async () => {
+      // The client deletes its own copy of a thread once the server has
+      // taken it, so a 200 here lost the messages; a 404 would send it
+      // looking for the account's thread, which is the one just deleted
+      const mod = await load();
+      const { ThreadDeleted } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status, body } = mod.describeFailure(new ThreadDeleted("thread"));
+
+      assert.equal(status, 410);
+      assert.equal(body.reason, "deleted");
+      assert.equal(body.scope, "thread");
+    });
+
+    it("says when it was the project that was deleted", async () => {
+      // The client leaves such a thread for the user's answer about the
+      // project, rather than replacing it on the spot
+      const mod = await load();
+      const { ThreadDeleted } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status, body } = mod.describeFailure(
+        new ThreadDeleted("project")
+      );
+
+      assert.equal(status, 410);
+      assert.equal(body.scope, "project");
+    });
+
+    it("keeps the driver's own text out of any other answer", async () => {
+      const mod = await load();
+      const { status, body } = mod.describeFailure(
+        Object.assign(new Error('column "secret" does not exist'), {
+          code: "42703",
+        })
+      );
+
+      assert.equal(status, 500);
+      assert.ok(!JSON.stringify(body).includes("secret"));
+    });
+  });
+
   describe("readBody", () => {
     /** A request body delivered as the platform delivers one */
     const streamOf = (...chunks) => ({

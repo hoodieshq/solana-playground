@@ -25,12 +25,38 @@ export class NotYours extends Error {
   }
 }
 
+/**
+ * A thread that was deleted with its project, or a project that was.
+ *
+ * Refused rather than written to: every read filters a tombstoned thread
+ * out, so messages accepted here could never be read back by any device --
+ * and a client deletes its own copy of a thread once the server has taken
+ * it. Its own type so the route can answer 410, which the client keeps its
+ * copy on. A 404 would send it looking for the account's thread for the
+ * project, which is the one just deleted.
+ *
+ * `scope` says which tombstone refused it, because the client acts
+ * differently on each: a thread deleted under a live project (a tutorial
+ * started again elsewhere) is replaced by a new one on the spot, while a
+ * thread under a deleted project waits for the user's answer about the
+ * project -- "keep as new" carries the conversation, "delete" drops it.
+ */
+export class ThreadDeleted extends Error {
+  /** @param {"project" | "thread"} scope which tombstone refused the write */
+  constructor(scope) {
+    super(scope === "project" ? "Project was deleted" : "Thread was deleted");
+    this.name = "ThreadDeleted";
+    this.scope = scope;
+  }
+}
+
 /** Columns a thread listing returns. Never the messages. */
 const THREAD_COLUMNS = `id, project_id as "projectId", title,
   created_at as "createdAt", updated_at as "updatedAt"`;
 
 /**
- * Ensure the project row and the thread row exist, and are this user's.
+ * Ensure the project row and the thread row exist, are this user's, and are
+ * live.
  *
  * The insert is `on conflict (id) do nothing` rather than an upsert: a thread
  * row is identity, not state, and every push after the first would otherwise
@@ -38,24 +64,37 @@ const THREAD_COLUMNS = `id, project_id as "projectId", title,
  * `payload.origin`. Messages are the other way round: they are state, and
  * `appendMessages` replaces one when a newer copy arrives.
  *
+ * The project is checked before the thread is inserted. Its insert is
+ * `do nothing` too, so a tombstone stays one -- and a thread row created
+ * beneath it would be a live thread on a dead project, which the next list
+ * by project hands out as the account's conversation.
+ *
  * @param {import("pg").PoolClient} client
  * @param {{threadId: string, projectId: string, title?: string|null}} thread
  * @returns {Promise<string>} the thread id
  * @throws {NotYours} when the id is already somebody else's thread
+ * @throws {ThreadDeleted} when the project, or the thread, was deleted
  */
 const ensureThread = async (client, userId, thread) => {
   const { threadId, projectId, title = null } = thread;
   const kind = projectId.startsWith("tut:") ? "tutorial" : "project";
 
   // `(user_id, id)`, not `id`: a tutorial's id is derived, so every user who
-  // starts the same one produces the same string
-  await run(
+  // starts the same one produces the same string.
+  //
+  // The select reads the statement's snapshot, which is from before the
+  // insert: no row means the insert just made one, which is live.
+  const { rows: project } = await run(
     client,
-    `insert into projects (id, user_id, name, kind)
-     values ($1, $2, $1, $3)
-     on conflict (user_id, id) do nothing`,
+    `with ensured as (
+       insert into projects (id, user_id, name, kind)
+       values ($1, $2, $1, $3)
+       on conflict (user_id, id) do nothing
+     )
+     select deleted_at from projects where user_id = $2 and id = $1`,
     [projectId, userId, kind]
   );
+  if (project[0]?.deleted_at) throw new ThreadDeleted("project");
 
   await run(
     client,
@@ -67,13 +106,15 @@ const ensureThread = async (client, userId, thread) => {
 
   // The insert above is silent when the id is taken, and a uuid can be
   // guessed. Without this read the next statement would append a stranger's
-  // messages to a stranger's thread.
+  // messages to a stranger's thread. Ownership first, then liveness: whether
+  // a stranger's thread was deleted is not this caller's to learn.
   const { rows } = await run(
     client,
-    `select id from conversations where id = $1 and user_id = $2`,
+    `select id, deleted_at from conversations where id = $1 and user_id = $2`,
     [threadId, userId]
   );
   if (!rows.length) throw new NotYours();
+  if (rows[0].deleted_at) throw new ThreadDeleted("thread");
 
   return rows[0].id;
 };
@@ -169,6 +210,7 @@ const VERSION_OF = (row, cast = "") =>
  * @returns {Promise<number>} how many rows were written: inserted, or
  * replaced by a newer copy. A copy that lost to the stored one is not counted.
  * @throws {NotYours} when the thread id is somebody else's
+ * @throws {ThreadDeleted} when the thread, or its project, was deleted
  */
 export const appendMessages = async (userId, thread, items) => {
   const client = await getPool().connect();

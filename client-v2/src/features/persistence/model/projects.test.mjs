@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
+import { appendMessages, getThread, listThreads } from "./conversations.mjs";
 import { query, transaction } from "./db.mjs";
 import {
   deleteProject,
@@ -27,6 +28,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
   });
 
   beforeEach(async () => {
+    await query("delete from conversations where user_id = $1", [userId]);
     await query("delete from projects where user_id = $1", [userId]);
   });
 
@@ -203,14 +205,185 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.equal(project.name, "one");
   });
 
-  it("does not adopt a tombstoned row", async () => {
+  it("does not adopt a tombstoned row, and says why it refused", async () => {
     // A tombstone has no files either, so "no files" alone would make every
-    // delete undoable by any device that had not seen it
+    // delete undoable by any device that had not seen it. The refusal names
+    // the tombstone: without `reason` it read as a version conflict, and the
+    // client asked "keep this version or take the other?" about a project
+    // with no other version to take.
     await put({ files });
     await deleteProject(userId, "p1");
     const result = await put({ files });
     assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
     assert.equal(await getProject(userId, "p1"), null);
+  });
+
+  it("says a missed swap hit a tombstone, not a newer version", async () => {
+    const first = await put({ files });
+    await deleteProject(userId, "p1");
+
+    const result = await put({ files, baseUpdatedAt: first.updatedAt });
+
+    assert.equal(result.conflict, true);
+    assert.equal(result.reason, "deleted");
+    assert.equal(result.updatedAt, null);
+  });
+
+  it("gives a plain version conflict no reason", async () => {
+    await put({ files });
+
+    const result = await put({
+      files,
+      baseUpdatedAt: "2000-01-01T00:00:00.000Z",
+    });
+
+    assert.equal(result.conflict, true);
+    assert.equal(result.reason, undefined);
+  });
+
+  describe("a tutorial deleted and started again", () => {
+    // A tutorial's id is derived from its name, so starting one again after
+    // a delete can only ever arrive at the tombstone
+    const tutorial = ({ files, baseUpdatedAt }) =>
+      saveProject(userId, {
+        id: "tut:hello",
+        name: "Hello",
+        kind: "tutorial",
+        files,
+        baseUpdatedAt,
+      });
+
+    it("starts again under its own id", async () => {
+      await tutorial({ files });
+      await deleteProject(userId, "tut:hello");
+
+      const fresh = { "src/lib.rs": "fresh start" };
+      const result = await tutorial({ files: fresh });
+
+      assert.notEqual(result.conflict, true);
+      assert.ok(result.updatedAt);
+      assert.deepEqual((await getProject(userId, "tut:hello")).snapshot, {
+        files: fresh,
+      });
+      assert.deepEqual(
+        (await listProjects(userId)).map((p) => p.id),
+        ["tut:hello"]
+      );
+    });
+
+    it("does not start again over a stale token", async () => {
+      // Only the create-only door restarts one: a token means the caller had
+      // the old run synced, which is the device that has to be told
+      const first = await tutorial({ files });
+      await deleteProject(userId, "tut:hello");
+
+      const result = await tutorial({ files, baseUpdatedAt: first.updatedAt });
+
+      assert.equal(result.conflict, true);
+      assert.equal(result.reason, "deleted");
+      assert.equal(await getProject(userId, "tut:hello"), null);
+    });
+
+    it("does not revive a deleted personal project the same way", async () => {
+      // The door is keyed on the kind the row holds and the kind the write
+      // names, and a personal project's id is a uuid nothing re-derives
+      await put({ files });
+      await deleteProject(userId, "p1");
+
+      const result = await saveProject(userId, {
+        id: "p1",
+        name: "one",
+        kind: "tutorial",
+        files,
+      });
+
+      assert.equal(result.conflict, true);
+      assert.equal(result.reason, "deleted");
+    });
+
+    it("leaves the previous run's conversation deleted", async () => {
+      // Deliberate: the conversations went with the delete, and bringing
+      // them back would hand the new run the old run's chat -- the bug the
+      // tombstoning exists to stop. A device still holding the old thread is
+      // told 410 on its next push and starts a new one.
+      const threadId = "22222222-0000-4000-8000-000000000002";
+      await tutorial({ files });
+      await appendMessages(userId, { threadId, projectId: "tut:hello" }, [
+        {
+          id: "22222222-0000-4000-8000-000000000102",
+          kind: "user",
+          createdAt: new Date(1000).toISOString(),
+          text: "old run",
+        },
+      ]);
+      await deleteProject(userId, "tut:hello");
+
+      await tutorial({ files });
+
+      assert.deepEqual(await listThreads(userId, "tut:hello"), []);
+      assert.equal(await getThread(userId, threadId), null);
+    });
+  });
+
+  it("deletes a project's conversations with it", async () => {
+    // Otherwise a tutorial started again restores the previous run's chat
+    // from the server, under the same project id
+    const threadId = "22222222-0000-4000-8000-000000000001";
+    await put({ files });
+    await appendMessages(userId, { threadId, projectId: "p1" }, [
+      {
+        id: "22222222-0000-4000-8000-000000000101",
+        kind: "user",
+        createdAt: new Date(1000).toISOString(),
+        text: "old run",
+      },
+    ]);
+
+    await deleteProject(userId, "p1");
+
+    assert.deepEqual(await listThreads(userId, "p1"), []);
+    assert.equal(await getThread(userId, threadId), null);
+  });
+
+  it("deletes only that project's conversations", async () => {
+    // Scoped by user and project in the statement itself: a delete that
+    // tombstoned by project id alone would take the same tutorial's chat
+    // from every account that started it
+    const otherUser = "test-user-projects-2";
+    await query(
+      `insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+       values ($1, 'Test', 'projects-2@example.com', false, now(), now())
+       on conflict (id) do nothing`,
+      [otherUser]
+    );
+    await query("delete from projects where user_id = $1", [otherUser]);
+    const mine = "22222222-0000-4000-8000-000000000011";
+    const neighbour = "22222222-0000-4000-8000-000000000012";
+    const theirs = "22222222-0000-4000-8000-000000000013";
+    const message = (n) => ({
+      id: `22222222-0000-4000-8000-0000000001${n}`,
+      kind: "user",
+      createdAt: new Date(1000).toISOString(),
+      text: "hi",
+    });
+    await appendMessages(userId, { threadId: mine, projectId: "tut:hello" }, [
+      message(11),
+    ]);
+    await appendMessages(userId, { threadId: neighbour, projectId: "p2" }, [
+      message(12),
+    ]);
+    await appendMessages(
+      otherUser,
+      { threadId: theirs, projectId: "tut:hello" },
+      [message(13)]
+    );
+
+    await deleteProject(userId, "tut:hello");
+
+    assert.equal(await getThread(userId, mine), null);
+    assert.ok(await getThread(userId, neighbour));
+    assert.ok(await getThread(otherUser, theirs));
   });
 
   it("tombstones rather than deleting, and drops the files", async () => {
