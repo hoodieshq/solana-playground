@@ -26,9 +26,15 @@ rules:
   proposal:
     - State what is out of scope under Impact, not only what is in
     - Name the user-visible consequence of every infrastructure item
+    - A change that adds or changes a slice under features/ or widgets/ lists
+      the telemetry events it adds, renames or removes under What Changes, or
+      says it changes none
   specs:
     - Requirements describe behaviour a test, a reviewer or a lint can check
     - Element ids, aria-labels and test ids are part of a UI requirement
+    - Each telemetry event a change adds or renames is described in a
+      requirement of its slice's spec: the name, when it fires, and each
+      parameter with its allowed values
   tasks:
     - Each task names its Linear ticket or says "ticket to file"
     - Each task says which tasks it depends on when the order matters
