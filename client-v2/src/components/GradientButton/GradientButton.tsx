@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-import Button from "../../../components/Button";
+import Button from "../Button";
 
 /**
  * The one decisive action of a view, carrying the brand gradient.
