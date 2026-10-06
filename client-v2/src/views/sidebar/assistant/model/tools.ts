@@ -123,13 +123,14 @@ export const createTools = (
         );
       }
 
-      const allowed = await PgAssistant.requestApproval({
+      // The id comes back with the answer: another tool's card may have been
+      // added while this one waited, so "the latest card" is not this one
+      const { id: approvalId, allowed } = await PgAssistant.requestApproval({
         type: "patch",
         path,
         before,
         after: content,
       });
-      const approvalId = PgAssistant.lastApprovalId;
 
       if (!allowed) {
         return (
@@ -140,15 +141,11 @@ export const createTools = (
 
       try {
         await bridge.applyPatch({ path, content });
-        if (approvalId) {
-          PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
-        }
+        PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
         return `Wrote ${path}.`;
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) {
-          PgAssistant.setApprovalOutcome(approvalId, "write failed");
-        }
+        PgAssistant.setApprovalOutcome(approvalId, "write failed");
         return `Could not write ${path}: ${message}`;
       }
     },
@@ -161,32 +158,27 @@ export const createTools = (
       "call get_build_error to see what the compiler said.",
     schema: { type: "object", properties: {}, additionalProperties: false },
     run: async () => {
-      const allowed = await PgAssistant.requestApproval({
+      const { id: approvalId, allowed } = await PgAssistant.requestApproval({
         type: "command",
         name: "build",
         effect:
           "Sends src/ to the build server and replaces the compiled program.",
       });
-      const approvalId = PgAssistant.lastApprovalId;
       if (!allowed) return "The user declined to build.";
 
       try {
         await bridge.build();
         const { buildError } = bridge.getProjectContext();
-        if (approvalId) {
-          PgAssistant.setApprovalOutcome(
-            approvalId,
-            buildError ? "build failed" : "build succeeded"
-          );
-        }
+        PgAssistant.setApprovalOutcome(
+          approvalId,
+          buildError ? "build failed" : "build succeeded"
+        );
         return buildError
           ? `The build failed:\n\n${buildError}`
           : "The build succeeded.";
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) {
-          PgAssistant.setApprovalOutcome(approvalId, "build errored");
-        }
+        PgAssistant.setApprovalOutcome(approvalId, "build errored");
         return `The build could not run: ${message}`;
       }
     },
@@ -200,17 +192,16 @@ export const createTools = (
     schema: { type: "object", properties: {}, additionalProperties: false },
     run: async () => {
       const { cluster } = bridge.getProjectContext();
-      const allowed = await PgAssistant.requestApproval({
+      const { id: approvalId, allowed } = await PgAssistant.requestApproval({
         type: "command",
         name: "deploy",
         effect: `Sends a transaction to ${cluster} and spends SOL from the connected wallet.`,
       });
-      const approvalId = PgAssistant.lastApprovalId;
       if (!allowed) return "The user declined to deploy.";
 
       try {
         const deployed = await bridge.deploy();
-        if (approvalId) PgAssistant.setApprovalOutcome(approvalId, "deployed");
+        PgAssistant.setApprovalOutcome(approvalId, "deployed");
         if (!deployed) {
           return "Deployed. The program id and transaction are in the terminal.";
         }
@@ -221,9 +212,7 @@ export const createTools = (
         );
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        if (approvalId) {
-          PgAssistant.setApprovalOutcome(approvalId, "deploy failed");
-        }
+        PgAssistant.setApprovalOutcome(approvalId, "deploy failed");
         return `The deployment failed: ${message}`;
       }
     },
