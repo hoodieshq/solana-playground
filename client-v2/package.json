@@ -113,6 +113,7 @@
     "build-wasm": "build=\"../wasm/build.sh\" && chmod +x $build && $build --update",
     "format": "prettier --write src/ api/",
     "check-format": "prettier --check src/ api/",
+    "ds-add": "node scripts/ds-add.mjs",
     "spec:validate": "openspec validate --all --strict --no-interactive",
     "spec:archived": "node scripts/spec-archived.mjs",
     "check": "yarn test-types && yarn check-format && yarn spec:validate && yarn spec:archived && yarn test-unit && yarn test-api",
