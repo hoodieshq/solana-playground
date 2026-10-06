@@ -16,7 +16,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "experimentalDecorators": true,
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["/**/*.raw.d.ts", "/**/declarations/packages/"]

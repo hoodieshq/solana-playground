@@ -1,7 +1,10 @@
 import { PgAssistant, turnProducedApproval, type ChatItem } from "./store";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
 import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
-import { PgFs } from "../../../utils/explorer/fs";
+// Through `@/` on purpose: the alias is mapped in `tsconfig.json`'s `paths`, in
+// craco's webpack alias and in `vitest.config.ts`'s `resolve.alias`, and this
+// import is what fails when the vitest mapping drifts from the other two.
+import { PgFs } from "@/utils/explorer/fs";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
