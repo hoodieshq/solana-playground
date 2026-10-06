@@ -10,6 +10,7 @@
 
 /**
  * A variable's value as set, or `undefined` when it is unset or empty.
+ * Node-only: a bundler inlines `process.env.NAME`, never `process.env[name]`.
  *
  * @param {string} name
  * @returns {string | undefined}
