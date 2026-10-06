@@ -21,14 +21,12 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { mcpExplorerEnv } from "../src/shared/config/server-env.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
 
 /** Separates upstream id from tool name when several are selected */
 const SEPARATOR = "__";
-
-/** Explorer's production MCP endpoint, overridable to test a preview */
-const EXPLORER_URL = "https://explorer.solana.com/mcp";
 
 /**
  * Configured upstreams.
@@ -48,16 +46,16 @@ const upstreams = () => {
     },
   };
 
-  const bypass = process.env.MCP_EXPLORER_BYPASS;
-  if (bypass) {
+  const explorer = mcpExplorerEnv();
+  if (explorer.bypass) {
     configured.explorer = {
       name: "Solana Explorer MCP",
-      url: process.env.MCP_EXPLORER_URL || EXPLORER_URL,
+      url: explorer.url,
       headers: {
-        "x-vercel-protection-bypass": bypass,
+        "x-vercel-protection-bypass": explorer.bypass,
         // Explorer gates on MCP_ACCESS_KEYS when its deployment sets them
-        ...(process.env.MCP_EXPLORER_TOKEN
-          ? { authorization: `Bearer ${process.env.MCP_EXPLORER_TOKEN}` }
+        ...(explorer.token
+          ? { authorization: `Bearer ${explorer.token}` }
           : {}),
       },
     };

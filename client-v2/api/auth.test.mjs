@@ -20,7 +20,7 @@ const makeRes = () => ({
 });
 
 describe("/api/auth", () => {
-  // Cleared before each case, not after: `yarn test-api` loads `.env.local`, so the
+  // Cleared before each case, not after: `yarn test-api` loads `.env`, so the
   // credentials these cases assert are missing would otherwise be present.
   beforeEach(() => {
     delete process.env.DATABASE_URL;

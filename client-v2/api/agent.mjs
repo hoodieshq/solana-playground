@@ -24,6 +24,7 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { agentEnv } from "../src/shared/config/server-env.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
@@ -31,36 +32,23 @@ const FORWARDED = ["messages", "tools", "tool_choice"];
 /**
  * The configured upstream, or `null` when this deployment has no key.
  *
- * The key alone enables the rail; the endpoint, model and reasoning effort
- * default to the values below. A fork with no key of its own gets the panel
- * reporting the default backend as unavailable.
+ * The key alone enables the rail; {@link agentEnv} defaults the rest. A fork
+ * with no key of its own gets the panel reporting the default backend as
+ * unavailable.
  *
  * `AGENT_BASE_URL` is a base, not a full path -- the same shape the panel's
  * OpenAI-compatible provider takes, so one endpoint is configured identically
  * whether it is reached through here or entered by hand.
  */
 const upstream = () => {
-  const apiKey = process.env.AGENT_API_KEY?.trim();
+  const { apiKey, baseUrl, model, reasoningEffort } = agentEnv();
   if (!apiKey) return null;
-
-  const configured =
-    process.env.AGENT_BASE_URL?.trim() ||
-    "https://inference-api.nousresearch.com/v1";
 
   // Tolerate a pasted full endpoint: provider docs quote the completions path,
   // the panel's own field wants the base, and both mean the same deployment
-  const baseUrl = configured
-    .replace(/\/+$/, "")
-    .replace(/\/chat\/completions$/, "");
+  const base = baseUrl.replace(/\/+$/, "").replace(/\/chat\/completions$/, "");
 
-  return {
-    url: `${baseUrl}/chat/completions`,
-    model: process.env.AGENT_MODEL?.trim() || "z-ai/glm-5.3-flash",
-    // GLM always reasons and defaults to `max`; the panel shows none of it,
-    // so a high effort reads as a stalled answer
-    reasoningEffort: process.env.AGENT_REASONING_EFFORT?.trim() || "low",
-    apiKey,
-  };
+  return { url: `${base}/chat/completions`, model, reasoningEffort, apiKey };
 };
 
 const sendJson = (res, status, body) => {

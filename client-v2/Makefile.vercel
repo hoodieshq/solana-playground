@@ -12,12 +12,11 @@ CLIENT_DIR := client-v2
 NEON_PROJECT_ID := spring-cake-75618686
 NEON_BRANCH_URL := NEON_PROJECT_ID=$(NEON_PROJECT_ID) $(CLIENT_DIR)/scripts/neon-preview-branch.sh
 
-# Secrets live in $(CLIENT_DIR)/.env.local, which the yarn db-* scripts hand to
-# dbmate. Make does not read it,
+# Secrets live in $(CLIENT_DIR)/.env, which dbmate reads by itself. Make does not,
 # so the key is lifted out here and exported to every recipe. `?=` leaves an
 # already-exported value alone; one key is read rather than the file sourced, so
 # a stray DATABASE_URL in there cannot redirect a migration.
-NEON_API_KEY ?= $(shell sed -n 's/^NEON_API_KEY=//p' $(CLIENT_DIR)/.env.local 2>/dev/null | head -1 | tr -d '"'"'"'"')
+NEON_API_KEY ?= $(shell sed -n 's/^NEON_API_KEY=//p' $(CLIENT_DIR)/.env 2>/dev/null | head -1 | tr -d '"'"'"'"')
 export NEON_API_KEY
 
 # `--token` is passed only when VERCEL_TOKEN is set; otherwise the CLI uses the
@@ -127,7 +126,7 @@ migrate-production-db: ## Apply pending migrations to the production database (S
 	@# DATABASE_URL is the PgBouncer endpoint and carries `channel_binding`, which
 	@# dbmate's driver cannot parse. The unpooled URL is direct and still carries
 	@# the `sslmode` that both dbmate and src/features/persistence/model/db.mjs
-	@# require. An inline DATABASE_URL wins over client-v2/.env.local, so the local
+	@# require. An inline DATABASE_URL wins over client-v2/.env, so the local
 	@# database is never the one that gets migrated here.
 	@#
 	@# The host is printed before anything else, pending or not: "nothing to

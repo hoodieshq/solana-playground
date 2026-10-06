@@ -12,6 +12,7 @@
  */
 import { betterAuth } from "better-auth";
 
+import { authEnv } from "../../../shared/config/server-env.mjs";
 import { getPool, isConfigured } from "../../persistence/server.mjs";
 
 let instance = null;
@@ -37,9 +38,10 @@ let instance = null;
  *
  * @returns {string | undefined} the origin, or `undefined` to let Better Auth decide
  */
-export const resolveBaseURL = () =>
-  process.env.AUTH_BASE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+export const resolveBaseURL = () => {
+  const { baseUrl, vercelUrl } = authEnv();
+  return baseUrl || (vercelUrl ? `https://${vercelUrl}` : undefined);
+};
 
 /**
  * Which of the settings sign-in needs are absent.
@@ -53,12 +55,14 @@ export const resolveBaseURL = () =>
  *
  * @returns {string[]} the missing variable names, empty when sign-in can run
  */
-export const missingConfig = () =>
-  [
+export const missingConfig = () => {
+  const { githubClientId, githubClientSecret } = authEnv();
+  return [
     isConfigured() ? null : "DATABASE_URL",
-    process.env.GITHUB_CLIENT_ID ? null : "GITHUB_CLIENT_ID",
-    process.env.GITHUB_CLIENT_SECRET ? null : "GITHUB_CLIENT_SECRET",
+    githubClientId ? null : "GITHUB_CLIENT_ID",
+    githubClientSecret ? null : "GITHUB_CLIENT_SECRET",
   ].filter(Boolean);
+};
 
 /**
  * The auth instance, created on first use.
@@ -71,10 +75,11 @@ export const getAuth = () => {
   const pool = getPool();
 
   if (!instance) {
+    const env = authEnv();
     instance = betterAuth({
       database: pool,
       baseURL: resolveBaseURL(),
-      secret: process.env.AUTH_SECRET,
+      secret: env.secret,
       user: {
         additionalFields: {
           // The @handle. Better Auth's core schema has `name` and `image` but
@@ -85,8 +90,8 @@ export const getAuth = () => {
       },
       socialProviders: {
         github: {
-          clientId: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          clientId: env.githubClientId,
+          clientSecret: env.githubClientSecret,
           mapProfileToUser: (profile) => ({ login: profile.login }),
           // Scope is deliberately not set. Better Auth already requests
           // `read:user user:email`, and the option appends rather than

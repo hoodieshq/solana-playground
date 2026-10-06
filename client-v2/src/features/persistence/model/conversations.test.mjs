@@ -12,7 +12,7 @@ import {
 } from "./conversations.mjs";
 import { deleteProject } from "./projects.mjs";
 
-// `yarn test-api` loads `.env.local`; without a database this suite skips rather
+// `yarn test-api` loads `.env`; without a database this suite skips rather
 // than fails, which is what lets the unit suites run on their own.
 const DB = process.env.DATABASE_URL;
 
