@@ -27,7 +27,10 @@ interface InstructionProps {
   index: number;
 }
 
-const Instruction: FC<InstructionProps> = ({ index, idlInstruction }) => {
+const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
+  index,
+  idlInstruction,
+}) => {
   const [instruction, setInstruction] = useState(() =>
     PgProgramInteraction.getOrCreateInstruction(idlInstruction)
   );

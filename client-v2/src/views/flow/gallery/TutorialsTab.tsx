@@ -15,7 +15,9 @@ interface TutorialsTabProps {
  * Opening one hands off to the existing tutorial route/flow, then closes
  * the gallery so the reader lands straight on the tutorial page.
  */
-const TutorialsTab: FC<TutorialsTabProps> = ({ query }) => {
+const TutorialsTab: FC<React.PropsWithChildren<TutorialsTabProps>> = ({
+  query,
+}) => {
   const [error, setError] = useState<{ name: string; message: string } | null>(
     null
   );

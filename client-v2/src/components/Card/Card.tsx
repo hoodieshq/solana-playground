@@ -11,7 +11,7 @@ import { PgTheme } from "../../utils";
 
 interface CardProps extends ComponentPropsWithoutRef<"div"> {}
 
-const Card: FC<CardProps> = (props) => {
+const Card: FC<React.PropsWithChildren<CardProps>> = (props) => {
   const [isClickable, setIsClickable] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

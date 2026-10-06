@@ -119,6 +119,16 @@ jobs:
       - name: Check format
         run: yarn check-format
 
+      # `openspec validate --all` over ../openspec: every active change has
+      # its proposal, delta specs, design and tasks in the schema's shape.
+      - name: Validate specs
+        run: yarn spec:validate
+
+      # A change with every task ticked must be archived in the PR that
+      # ticked the last one (client-v2/CLAUDE.md, "Specs and changes").
+      - name: Archived changes
+        run: yarn spec:archived
+
       - name: Unit tests
         run: yarn test-unit
 
@@ -130,3 +140,14 @@ jobs:
 
       - name: Production build
         run: yarn build-fast
+
+      # Tailwind reaches the bundle only through craco's PostCSS override. If
+      # that stops applying (a craco upgrade, a second CSS rule added after
+      # craco's style pass), the build stays green and the page ships
+      # unstyled, so look for one utility the Flow wrapper always carries.
+      - name: Check Tailwind is in the built CSS
+        run: |
+          grep -q '\.flex{display:flex}' build/static/css/main.*.css || {
+            echo "::error::Tailwind utilities are missing from build/static/css -- craco's PostCSS override is not applying"
+            exit 1
+          }

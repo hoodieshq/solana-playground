@@ -6,14 +6,15 @@ interface CheckboxProps extends ComponentPropsWithoutRef<"input"> {
   label?: ReactNode;
 }
 
-const Checkbox: FC<CheckboxProps> = forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ label, ...props }, ref) => (
-    <Label>
-      <StyledCheckbox ref={ref} type="checkbox" {...props} />
-      {label && <LabelText>{label}</LabelText>}
-    </Label>
-  )
-);
+const Checkbox: FC<React.PropsWithChildren<CheckboxProps>> = forwardRef<
+  HTMLInputElement,
+  CheckboxProps
+>(({ label, ...props }, ref) => (
+  <Label>
+    <StyledCheckbox ref={ref} type="checkbox" {...props} />
+    {label && <LabelText>{label}</LabelText>}
+  </Label>
+));
 
 const Label = styled.label`
   ${({ theme }) => css`

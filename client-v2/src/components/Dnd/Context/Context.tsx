@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, type JSX } from "react";
 import ReactDOM from "react-dom";
 import {
   DndContext,
@@ -17,7 +17,11 @@ interface ContextProps extends DndContextProps {
   };
 }
 
-const Context: FC<ContextProps> = ({ dragOverlay, children, ...props }) => {
+const Context: FC<React.PropsWithChildren<ContextProps>> = ({
+  dragOverlay,
+  children,
+  ...props
+}) => {
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {

@@ -22,7 +22,7 @@ interface StatusChipsProps {
 const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
 
 /** Cluster, wallet + balance and a settings entry point. */
-const StatusChips: FC<StatusChipsProps> = ({
+const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
   onToggleSettings,
   settingsOpen,
 }) => {
@@ -228,7 +228,7 @@ export default StatusChips;
 
 // Three slider tracks with knobs -- avoids a hand-authored gear path (a
 // version of that broke mid-render because of manual line wrapping).
-const GearIcon: FC = () => (
+const GearIcon: FC<React.PropsWithChildren<unknown>> = () => (
   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
     <g stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
       <line x1="2" y1="3.5" x2="14" y2="3.5" />
@@ -251,7 +251,7 @@ const GITHUB_MARK_PATH =
   " 2.2-.8.3.7.3 1.5.1 2.1a3 3 0 0 1 .8 2.1c0 3.1-1.9 3.8-3.7 4" +
   " .3.3.6.8.6 1.5v2.1c0 .2.1.4.5.4A8 8 0 0 0 8 .2Z";
 
-const GithubMark: FC = () => (
+const GithubMark: FC<React.PropsWithChildren<unknown>> = () => (
   <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden>
     <path fill="currentColor" d={GITHUB_MARK_PATH} />
   </svg>

@@ -63,7 +63,7 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
  * and import, Explorer shortcuts, then the upstream declarative settings
  * form (connection, build, editor, notification, block-explorer, ...).
  */
-const GearSidebar: FC<GearSidebarProps> = ({
+const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
   open,
   onClose,
   focus = "panel",

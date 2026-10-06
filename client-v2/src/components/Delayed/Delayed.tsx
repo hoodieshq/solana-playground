@@ -5,7 +5,10 @@ interface DelayedProps {
   delay?: number;
 }
 
-const Delayed: FC<DelayedProps> = ({ delay, children }) => {
+const Delayed: FC<React.PropsWithChildren<DelayedProps>> = ({
+  delay,
+  children,
+}) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {

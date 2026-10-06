@@ -48,7 +48,11 @@ interface StepperProps {
  * pill stepper. Each stage's status is carried by dot/glyph shape as well
  * as color, so the sequence reads correctly without color vision.
  */
-const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => (
+const Stepper: FC<React.PropsWithChildren<StepperProps>> = ({
+  state,
+  onSelect,
+  target,
+}) => (
   <Wrapper role="tablist" aria-label="Development loop">
     {STAGES.map((stage, i) => {
       const status = statusOf(state, stage);
@@ -120,10 +124,9 @@ const Connector = styled.span<{ $done: boolean }>`
  * small circular dot -- the shape difference (check vs. hollow ring vs.
  * filled circle) is what carries the status when color is unavailable.
  */
-const Dot: FC<{ $status: StageStatus; "aria-hidden"?: boolean }> = ({
-  $status,
-  ...rest
-}) =>
+const Dot: FC<
+  React.PropsWithChildren<{ $status: StageStatus; "aria-hidden"?: boolean }>
+> = ({ $status, ...rest }) =>
   $status === "done" ? (
     <CheckGlyph viewBox="0 0 14 14" width="14" height="14" {...rest}>
       <path

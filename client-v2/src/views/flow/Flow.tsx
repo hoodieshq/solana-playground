@@ -11,7 +11,7 @@ import {
   DEFAULT_LEFT_WIDTH,
   MIN_LEFT_WIDTH,
 } from "./left/width";
-import Resizable from "../../components/Resizable";
+import Resizable from "@/components/Resizable";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 // The barrel registers every lesson path as a side effect, so importing
@@ -31,15 +31,15 @@ import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
-import SyncBanner from "../../features/persistence/Component/SyncBanner";
-import Assistant from "../sidebar/assistant/Component";
-import { PgAssistant } from "../sidebar/assistant/store";
-import ModalBackdrop from "../../components/ModalBackdrop";
-import Toast from "../../components/Toast";
-import Wallet from "../../components/Wallet";
-import { useKeybind } from "../../hooks";
-import { PgExplorer, PgView } from "../../utils";
-import type { Disposable } from "../../utils/types";
+import SyncBanner from "@/features/persistence/Component/SyncBanner";
+import Assistant from "@/views/sidebar/assistant/Component";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
+import ModalBackdrop from "@/components/ModalBackdrop";
+import Toast from "@/components/Toast";
+import Wallet from "@/components/Wallet";
+import { useKeybind } from "@/hooks";
+import { PgExplorer, PgView } from "@/utils";
+import type { Disposable } from "@/utils/types";
 
 /**
  * The Flow layout: header, left project/file tabs, the stage router in the
@@ -265,7 +265,13 @@ const Flow = () => {
 
 export default Flow;
 
-const Wrapper = styled.div`
+// The three utilities repeat what the styled rule below already sets, so the
+// screen does not change. They are here so that Tailwind reaching the page
+// can be checked on a screen every visit renders: `e2e/tailwind.e2e.spec.ts`
+// reads their rules out of the utilities layer, and CI greps the built CSS.
+const Wrapper = styled.div.attrs({
+  className: "flex flex-col overflow-hidden",
+})`
   ${({ theme }) => css`
     width: 100vw;
     height: 100vh;

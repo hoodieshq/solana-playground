@@ -39,7 +39,7 @@ interface LeftPanelProps {
  * the header switcher's job -- the rail used to answer that too, and two
  * controls for one question is what this change removed.
  */
-const LeftPanel: FC<LeftPanelProps> = ({
+const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
   onToggle,
   pendingCreate = false,

@@ -35,7 +35,7 @@ interface ReaderProps {
  * and where you go next (the footer), so closing it is never a leap
  * into the unknown.
  */
-const Reader: FC<ReaderProps> = ({
+const Reader: FC<React.PropsWithChildren<ReaderProps>> = ({
   step,
   position,
   criterion,

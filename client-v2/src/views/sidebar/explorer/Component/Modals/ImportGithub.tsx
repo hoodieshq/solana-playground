@@ -122,7 +122,7 @@ interface ExampleProps {
   framework: Framework;
 }
 
-const Example: FC<ExampleProps> = ({ framework }) => (
+const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => (
   <ExampleWrapper>
     <FrameworkWrapper>
       <FrameworkImage src={framework.icon} $circle={framework.circleImage} />

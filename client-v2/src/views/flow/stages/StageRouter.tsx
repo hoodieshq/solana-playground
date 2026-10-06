@@ -22,7 +22,9 @@ interface StageRouterProps {
  * the router through a one-shot custom event -- unmounting it on every stage
  * change would leave it permanently blank the next time `Write` remounts.
  */
-const StageRouter: FC<StageRouterProps> = ({ stage }) => (
+const StageRouter: FC<React.PropsWithChildren<StageRouterProps>> = ({
+  stage,
+}) => (
   <>
     <WriteSlot
       $hidden={stage !== "write"}

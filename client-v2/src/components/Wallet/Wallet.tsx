@@ -193,7 +193,9 @@ interface WalletRenameProps {
   hideRename: Fn;
 }
 
-const WalletRename: FC<WalletRenameProps> = ({ hideRename }) => {
+const WalletRename: FC<React.PropsWithChildren<WalletRenameProps>> = ({
+  hideRename,
+}) => {
   const [name, setName] = useState(PgWallet.current!.name);
 
   const inputRef = useRef<HTMLInputElement>(null);

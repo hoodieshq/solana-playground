@@ -8,7 +8,7 @@ import { PgTheme, PgTutorial, TutorialFullData } from "../../../../utils";
 
 type TutorialCardProps = TutorialFullData;
 
-const TutorialCard: FC<TutorialCardProps> = ({
+const TutorialCard: FC<React.PropsWithChildren<TutorialCardProps>> = ({
   name,
   description,
   thumbnail,

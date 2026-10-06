@@ -8,7 +8,11 @@ interface InteractionProps {
   index: number;
 }
 
-const Interaction: FC<InteractionProps> = ({ name, index, children }) => (
+const Interaction: FC<React.PropsWithChildren<InteractionProps>> = ({
+  name,
+  index,
+  children,
+}) => (
   <Wrapper index={index}>
     <Foldable element={name}>{children}</Foldable>
   </Wrapper>

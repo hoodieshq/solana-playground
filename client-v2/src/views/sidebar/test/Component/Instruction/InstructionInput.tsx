@@ -43,7 +43,7 @@ type InstructionInputProps = {
 } & InstructionInputArg &
   Partial<InstructionInputAccount>;
 
-const InstructionInput: FC<InstructionInputProps> = ({
+const InstructionInput: FC<React.PropsWithChildren<InstructionInputProps>> = ({
   prefix,
   updateInstruction,
   name,

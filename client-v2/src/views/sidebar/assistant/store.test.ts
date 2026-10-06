@@ -5,7 +5,10 @@ import {
   PgChatStorage,
   truncationNoticeId,
 } from "../../../features/persistence/model/chat-storage";
-import { PgFs } from "../../../utils/explorer/fs";
+// Through `@/` on purpose: the alias is mapped in tsconfig.paths.json, in
+// craco's webpack alias and in `jest.moduleNameMapper`, and this import is
+// what fails when the Jest mapping drifts from the other two.
+import { PgFs } from "@/utils/explorer/fs";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();

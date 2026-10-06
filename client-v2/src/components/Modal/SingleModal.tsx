@@ -29,7 +29,7 @@ export interface SingleModalProps {
   closeButton?: boolean;
 }
 
-const SingleModal: FC<SingleModalProps> = ({
+const SingleModal: FC<React.PropsWithChildren<SingleModalProps>> = ({
   title,
   buttonProps,
   closeButton = !buttonProps?.onSubmit,

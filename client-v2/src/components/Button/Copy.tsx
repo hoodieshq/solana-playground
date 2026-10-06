@@ -10,7 +10,9 @@ interface CopyButtonProps {
   copyText: string;
 }
 
-const CopyButton: FC<CopyButtonProps> = ({ copyText }) => {
+const CopyButton: FC<React.PropsWithChildren<CopyButtonProps>> = ({
+  copyText,
+}) => {
   const [copied, setCopied] = useCopy(copyText);
 
   return (

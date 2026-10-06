@@ -18,7 +18,10 @@ interface UploadAreaProps extends DropzoneOptions {
   className?: string;
 }
 
-const UploadArea: FC<UploadAreaProps> = ({ className, ...props }) => {
+const UploadArea: FC<React.PropsWithChildren<UploadAreaProps>> = ({
+  className,
+  ...props
+}) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone(props);
 
   return (
@@ -61,7 +64,7 @@ type ImportResultProps = Pick<
   Pick<DropzoneState, "isDragActive"> &
   Pick<DropzoneOptions, "noClick">;
 
-const ImportResult: FC<ImportResultProps> = ({
+const ImportResult: FC<React.PropsWithChildren<ImportResultProps>> = ({
   error,
   text,
   filesLength,

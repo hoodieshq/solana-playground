@@ -165,7 +165,9 @@ const Folders = () => {
   );
 };
 
-const ExplorerDndContext: FC = ({ children }) => {
+const ExplorerDndContext: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => {
   const [activeItemProps, setActiveItemProps] = useState<any>(null);
   const [parentFolderEl, setParentFolderEl] = useState<HTMLElement | null>(
     null
@@ -242,7 +244,7 @@ interface SectionButtonProps extends ButtonProps {
   addTextMargin?: boolean;
 }
 
-const SectionButton: FC<SectionButtonProps> = ({
+const SectionButton: FC<React.PropsWithChildren<SectionButtonProps>> = ({
   onClick,
   icon,
   addTextMargin,
@@ -271,7 +273,10 @@ interface FolderGroupProps {
   relativeRootPath: string;
 }
 
-const FolderGroup: FC<FolderGroupProps> = ({ folders, relativeRootPath }) => (
+const FolderGroup: FC<React.PropsWithChildren<FolderGroupProps>> = ({
+  folders,
+  relativeRootPath,
+}) => (
   <>
     {folders
       .sort((a, b) => a.localeCompare(b))
@@ -290,7 +295,9 @@ interface RecursiveFolderProps {
   path: string;
 }
 
-const RecursiveFolder: FC<RecursiveFolderProps> = ({ path }) => {
+const RecursiveFolder: FC<React.PropsWithChildren<RecursiveFolderProps>> = ({
+  path,
+}) => {
   const folderName = useMemo(
     () => PgExplorer.getItemNameFromPath(path),
     [path]
@@ -317,8 +324,8 @@ const RecursiveFolder: FC<RecursiveFolderProps> = ({ path }) => {
   }, []);
 
   // Open the folder on drag over
-  const handleDragOver = useCallback((el) => {
-    PgExplorer.openFolder(el.firstChild);
+  const handleDragOver = useCallback((el: HTMLElement) => {
+    PgExplorer.openFolder(el.firstChild as HTMLDivElement);
   }, []);
 
   const theme = useTheme();

@@ -124,6 +124,49 @@ describe("deleting the current workspace", () => {
   });
 });
 
+describe("init calls that overlap", () => {
+  beforeEach(reset);
+
+  // Strict mode mounts the router effect twice, which starts two route
+  // handlers, and each one awaits `PgExplorer.init()`. Run side by side, both
+  // create the workspace directories and the second fails with EEXIST.
+  it("run one after another", async () => {
+    const statics = PgExplorer as unknown as {
+      _init: (params?: unknown) => Promise<void>;
+    };
+    const real = statics._init.bind(PgExplorer);
+    const order: string[] = [];
+    jest.spyOn(statics, "_init").mockImplementation(async (params) => {
+      order.push("start");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await real(params);
+      order.push("end");
+    });
+
+    await Promise.all([PgExplorer.init(), PgExplorer.init()]);
+
+    expect(order).toEqual(["start", "end", "start", "end"]);
+  });
+
+  it("do not stop the next one when the first fails", async () => {
+    const statics = PgExplorer as unknown as {
+      _init: (params?: unknown) => Promise<void>;
+    };
+    jest
+      .spyOn(statics, "_init")
+      .mockRejectedValueOnce(new Error("first failed"))
+      .mockResolvedValueOnce(undefined);
+
+    const first = PgExplorer.init();
+    const second = PgExplorer.init();
+
+    await expect(first).rejects.toThrow("first failed");
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+});
+
 /**
  * Tabs of one browser share the workspaces config, and each used to read it
  * once at load. `refreshWorkspaces` is how a tab catches up with a neighbour
@@ -328,5 +371,161 @@ describe("PgExplorer.refreshWorkspaces", () => {
 
     expect(await PgExplorer.refreshWorkspaces()).toBe(false);
     expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta", "gamma"]);
+  });
+});
+
+/**
+ * Sync renames a workspace the user may not be in: a project renamed on
+ * another device is renamed here when this device takes that device's copy,
+ * and it need not be the open one. Switching into it to rename it would pull
+ * the user out of whatever they are working on.
+ */
+describe("renaming a workspace that is not the current one", () => {
+  beforeEach(reset);
+
+  /** Every rename event, with what it carried */
+  const renames = () => {
+    const seen: unknown[] = [];
+    const sub = PgExplorer.onDidRenameWorkspace((renamed) =>
+      seen.push(renamed)
+    );
+    return { seen, dispose: () => sub.dispose() };
+  };
+
+  it("announces a rename the user asked for, with the workspace's id", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const events = renames();
+
+    await PgExplorer.renameWorkspace("gamma", {
+      from: "alpha",
+      announce: true,
+    });
+    events.dispose();
+
+    expect(events.seen).toEqual([{ id: alphaId }]);
+  });
+
+  it("does not announce a rename sync made", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const events = renames();
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+    events.dispose();
+
+    expect(events.seen).toEqual([]);
+  });
+
+  it("renames it on disk and in the list, and stays where it was", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+    expect([...PgExplorer.allWorkspaceNames!].sort()).toEqual([
+      "beta",
+      "gamma",
+    ]);
+    expect(PgExplorer.workspaceIdOf("gamma")).toBe(alphaId);
+    expect(stored().get("/gamma/src/lib.rs")).toBe("declare_id!();");
+    expect(stored().has("/alpha/src/lib.rs")).toBe(false);
+    expect(
+      readConfig()
+        .workspaces.map((w) => w.name)
+        .sort()
+    ).toEqual(["beta", "gamma"]);
+  });
+
+  it("does not announce it as a rename of the current one", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const renamed = jest.fn();
+    const { dispose } = PgExplorer.onDidRenameWorkspace(renamed);
+
+    try {
+      await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+    } finally {
+      dispose();
+    }
+
+    expect(renamed).not.toHaveBeenCalled();
+  });
+
+  it("renames the current one as before when `from` names it", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(PgExplorer.currentWorkspaceName).toBe("gamma");
+    expect(PgExplorer.allWorkspaceNames).toEqual(["gamma"]);
+  });
+
+  it("refuses a name another workspace holds", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+
+    await expect(
+      PgExplorer.renameWorkspace("beta", { from: "alpha" })
+    ).rejects.toThrow(PgWorkspace.errors.ALREADY_EXISTS);
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+  });
+
+  it("refuses a workspace that does not exist", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await expect(
+      PgExplorer.renameWorkspace("gamma", { from: "nope" })
+    ).rejects.toThrow(PgWorkspace.errors.NOT_FOUND);
+  });
+
+  it("puts the directory and the list back when the save fails", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const alphaId = PgExplorer.currentWorkspaceId;
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    const writeFile = PgExplorer.fs.writeFile.bind(PgExplorer.fs);
+    const failing = jest
+      .spyOn(PgExplorer.fs, "writeFile")
+      .mockImplementationOnce(async () => {
+        throw new Error("quota");
+      })
+      .mockImplementation(writeFile);
+
+    try {
+      await expect(
+        PgExplorer.renameWorkspace("gamma", { from: "alpha" })
+      ).rejects.toThrow("quota");
+    } finally {
+      failing.mockRestore();
+    }
+
+    expect(PgExplorer.workspaceNameOf(alphaId!)).toBe("alpha");
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(stored().has("/gamma/src/lib.rs")).toBe(false);
+    expect(
+      readConfig()
+        .workspaces.map((w) => w.name)
+        .sort()
+    ).toEqual(["alpha", "beta"]);
+  });
+});
+
+describe("importing a workspace under a name already in use", () => {
+  beforeEach(reset);
+
+  it("refuses before writing a file into the holder's directory", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+
+    await expect(
+      PgExplorer.importWorkspace("alpha", {
+        id: "p3",
+        files: { "src/lib.rs": "another project" },
+      })
+    ).rejects.toThrow(PgWorkspace.errors.ALREADY_EXISTS);
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(PgExplorer.workspaceNameOf("p3")).toBeUndefined();
   });
 });

@@ -11,6 +11,8 @@ import type {
   UnionToTuple,
 } from "./types";
 
+import type { JSX } from "react";
+
 export type Settings = ConvertAll<UnionToTuple<InternalSetting>> & {
   // TODO: Store this in `PgProgramInfo` and remove
   build: {

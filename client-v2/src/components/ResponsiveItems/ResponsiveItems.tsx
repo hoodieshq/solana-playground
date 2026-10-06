@@ -9,7 +9,9 @@ interface ResponsiveItemsProps {
   gap: string;
 }
 
-const ResponsiveItems: FC<ResponsiveItemsProps> = (props) => {
+const ResponsiveItems: FC<React.PropsWithChildren<ResponsiveItemsProps>> = (
+  props
+) => {
   const [itemCount, setItemCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

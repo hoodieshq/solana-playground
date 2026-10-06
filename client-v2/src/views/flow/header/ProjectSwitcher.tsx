@@ -7,7 +7,10 @@ import type { WorkspaceEntry } from "./workspaces";
 import { foldRecord, getLessonPath, PgLesson, positionLabel } from "../lessons";
 import { useOnClickOutside, useRenderOnChange } from "../../../hooks";
 import { PgExplorer, PgTutorial, PgView } from "../../../utils";
-import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
+import {
+  DeleteWorkspace,
+  RenameWorkspace,
+} from "../../sidebar/explorer/Component/Modals";
 
 interface ProjectSwitcherProps {
   onOpenGallery: () => void;
@@ -25,7 +28,9 @@ interface ProjectSwitcherProps {
  * Only existing workspaces are listed. Starting something new stays
  * `Browse gallery`, so this never grows into a catalog.
  */
-const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
+const ProjectSwitcher: FC<React.PropsWithChildren<ProjectSwitcherProps>> = ({
+  onOpenGallery,
+}) => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
   // A project synced from another device arrives without a switch -- it is
   // deliberately not opened -- so the list has to be told separately
@@ -71,6 +76,13 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
     PgView.setModal(
       <DeleteWorkspace name={entry.name} isLesson={entry.isLesson} />
     );
+  };
+
+  // Projects only: a lesson is recognised by its workspace name, so a
+  // renamed one would no longer open as a lesson
+  const rename = (entry: WorkspaceEntry) => {
+    setOpen(false);
+    PgView.setModal(<RenameWorkspace name={entry.name} />);
   };
 
   const label = current
@@ -131,6 +143,22 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ onOpenGallery }) => {
               >
                 <RowName>{entry.name}</RowName>
               </Row>
+              <Rename
+                type="button"
+                aria-label={`Rename ${entry.name}`}
+                title={`Rename ${entry.name}`}
+                onClick={() => rename(entry)}
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden>
+                  <path
+                    d="M11.5 2.5l2 2L6 12H4v-2l7.5-7.5z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Rename>
               <Delete
                 type="button"
                 aria-label={`Delete ${entry.name}`}
@@ -269,9 +297,10 @@ const RowGroup = styled.div<{ $active: boolean }>`
       background: ${theme.colors.default.bgPrimary};
     }
 
-    /* Revealed on hover, and on focus so it is reachable by keyboard */
-    &:hover > button:last-child,
-    & > button:last-child:focus-visible {
+    /* The row's actions, revealed on hover, and on focus so they are
+       reachable by keyboard */
+    &:hover > button:not(:first-child),
+    & > button:not(:first-child):focus-visible {
       opacity: 1;
     }
   `}
@@ -345,4 +374,14 @@ const Separator = styled.div`
   height: 1px;
   margin: 0.25rem;
   background: ${({ theme }) => theme.colors.default.border};
+`;
+
+const Rename = styled(Delete)`
+  ${({ theme }) => css`
+    margin-right: 0;
+
+    &:hover {
+      color: ${theme.colors.default.primary};
+    }
+  `}
 `;

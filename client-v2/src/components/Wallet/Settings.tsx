@@ -22,7 +22,9 @@ interface SettingsProps {
   showRename: Fn;
 }
 
-const Settings: FC<SettingsProps> = ({ showRename }) => {
+const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
+  showRename,
+}) => {
   const { airdrop, airdropCondition } = useAirdrop();
   const { darken, lighten } = useDarken();
 

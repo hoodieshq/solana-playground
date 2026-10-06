@@ -6,7 +6,7 @@ import Modal from "../../Modal";
 interface ApproveProps {}
 
 // TODO:
-const Approve: FC<ApproveProps> = ({}) => {
+const Approve: FC<React.PropsWithChildren<ApproveProps>> = ({}) => {
   const handleApprove = () => {};
 
   return (

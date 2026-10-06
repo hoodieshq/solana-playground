@@ -32,9 +32,11 @@ export type SidebarPageParam<N extends string> = {
   /** Handle the page logic */
   handle?: () => Disposable | void;
   /** Lazy loader for the element */
-  importComponent?: () => Promise<{ default: FC }>;
+  importComponent?: () => Promise<{
+    default: FC<React.PropsWithChildren<unknown>>;
+  }>;
   /** Loading component to show until the page element is ready */
-  LoadingComponent?: FC;
+  LoadingComponent?: FC<React.PropsWithChildren<unknown>>;
 };
 
 /** Created sidebar page */

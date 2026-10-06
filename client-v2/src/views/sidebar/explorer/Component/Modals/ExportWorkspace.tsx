@@ -14,7 +14,7 @@ export const ExportWorkspace = () => (
 
 type DefaultProps = CommonModalPageProps;
 
-const Default: FC<DefaultProps> = ({ setPage }) => {
+const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   const convertAndExport = async () => {
     try {
       const { readme } = await PgFramework.exportWorkspace({ convert: true });
@@ -101,7 +101,7 @@ type ReadmeProps = CommonModalPageProps & {
   readme: string;
 };
 
-const Readme: FC<ReadmeProps> = ({ readme }) => (
+const Readme: FC<React.PropsWithChildren<ReadmeProps>> = ({ readme }) => (
   <Modal title buttonProps={{ text: "Continue" }}>
     <Markdown>{readme}</Markdown>
   </Modal>

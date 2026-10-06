@@ -11,7 +11,7 @@ interface ExportButtonProps {
   noButton?: boolean;
 }
 
-const ExportButton: FC<ExportButtonProps> = ({
+const ExportButton: FC<React.PropsWithChildren<ExportButtonProps>> = ({
   href,
   fileName,
   buttonKind = "outline",

@@ -8,7 +8,9 @@ interface ExplorerLinkProps {
   txHash: string;
 }
 
-export const ExplorerLink: FC<ExplorerLinkProps> = ({ txHash }) => {
+export const ExplorerLink: FC<React.PropsWithChildren<ExplorerLinkProps>> = ({
+  txHash,
+}) => {
   const blockExplorer = useBlockExplorer();
 
   return (

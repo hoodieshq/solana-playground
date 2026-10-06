@@ -96,7 +96,7 @@ const ResourceCardsWrapper = styled.div`
   gap: 2rem;
 `;
 
-const Resource: FC<ResourceProps> = ({
+const Resource: FC<React.PropsWithChildren<ResourceProps>> = ({
   name,
   description,
   url,
@@ -178,7 +178,10 @@ const TutorialCardsWrapper = styled.div`
   gap: 1rem;
 `;
 
-const Tutorial: FC<TutorialProps> = ({ title, url }) => {
+const Tutorial: FC<React.PropsWithChildren<TutorialProps>> = ({
+  title,
+  url,
+}) => {
   const src = getSrc(url);
 
   return (

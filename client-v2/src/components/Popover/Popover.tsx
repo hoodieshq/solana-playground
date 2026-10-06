@@ -44,7 +44,10 @@ export interface PopoverProps {
   bgSecondary?: boolean;
 }
 
-const Popover: FC<PopoverProps> = ({ anchorEl, ...props }) => {
+const Popover: FC<React.PropsWithChildren<PopoverProps>> = ({
+  anchorEl,
+  ...props
+}) => {
   return anchorEl ? (
     <AnchoredPopover {...props} anchorEl={anchorEl} />
   ) : (
@@ -54,7 +57,7 @@ const Popover: FC<PopoverProps> = ({ anchorEl, ...props }) => {
 
 type AnchoredPopoverProps = RequiredKey<PopoverProps, "anchorEl">;
 
-const AnchoredPopover: FC<AnchoredPopoverProps> = ({
+const AnchoredPopover: FC<React.PropsWithChildren<AnchoredPopoverProps>> = ({
   popEl,
   children,
   ...props
@@ -62,7 +65,11 @@ const AnchoredPopover: FC<AnchoredPopoverProps> = ({
 
 type ChildPopoverProps = Omit<PopoverProps, "anchorEl">;
 
-const ChildPopover: FC<ChildPopoverProps> = ({ popEl, children, ...props }) => {
+const ChildPopover: FC<React.PropsWithChildren<ChildPopoverProps>> = ({
+  popEl,
+  children,
+  ...props
+}) => {
   // Requires re-render on-mount to make sure `anchorRef.current` exists
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -91,7 +98,7 @@ const Wrapper = styled.div`
 
 type CommonPopoverProps = RequiredKey<PopoverProps, "anchorEl">;
 
-const CommonPopover: FC<CommonPopoverProps> = ({
+const CommonPopover: FC<React.PropsWithChildren<CommonPopoverProps>> = ({
   anchorEl,
   delay = 500,
   placement = "top",

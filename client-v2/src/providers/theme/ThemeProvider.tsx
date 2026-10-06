@@ -8,7 +8,9 @@ import { FONTS, THEMES } from "../../themes";
 import { PgCommon } from "../../utils/common";
 import { PgTheme, Theme } from "../../utils/theme";
 
-export const ThemeProvider: FC = ({ children }) => {
+export const ThemeProvider: FC<React.PropsWithChildren<unknown>> = ({
+  children,
+}) => {
   const [theme, setTheme] = useState<Theme>();
 
   // Create the initial theme
