@@ -175,7 +175,7 @@ describe("PgChatStorage", () => {
     });
 
     it("answers null when the threads cannot be enumerated", async () => {
-      const spy = jest
+      const spy = vi
         .spyOn(PgFs, "readDir")
         .mockRejectedValueOnce(new Error("quota"));
 
@@ -191,7 +191,7 @@ describe("PgChatStorage", () => {
     });
 
     it("records a write that failed", async () => {
-      const spy = jest
+      const spy = vi
         .spyOn(PgFs, "writeFile")
         .mockRejectedValueOnce(new Error("quota"));
 
@@ -215,7 +215,7 @@ describe("PgChatStorage", () => {
 
   it("does not throw when the write fails", async () => {
     // Losing a write must never take the panel down with it
-    const spy = jest
+    const spy = vi
       .spyOn(PgFs, "writeFile")
       .mockRejectedValueOnce(new Error("quota"));
 

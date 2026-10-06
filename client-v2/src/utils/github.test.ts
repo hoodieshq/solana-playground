@@ -2,22 +2,22 @@ import { filterRepoFiles, ImportCancelledError, PgGithub } from "./github";
 import type { ImportProgress } from "./github";
 
 // `./explorer` boots lightning-fs on import, which needs a real IndexedDB.
-jest.mock("./explorer", () => ({ PgExplorer: {} }));
+vi.mock("./explorer", () => ({ PgExplorer: {} }));
 
-jest.mock("./framework", () => ({
+vi.mock("./framework", () => ({
   PgFramework: { convertToPlaygroundLayout: (files: unknown) => files },
 }));
 
-const mockSetModal = jest.fn();
-jest.mock("./view", () => ({
+const mockSetModal = vi.fn();
+vi.mock("./view", () => ({
   PgView: { setModal: (...args: unknown[]) => mockSetModal(...args) },
 }));
-jest.mock("../frameworks/SelectProgram", () => ({
+vi.mock("../frameworks/SelectProgram", () => ({
   SelectProgram: "SelectProgram",
 }));
 
 // Mirrors the extensions of the languages the app ships with.
-jest.mock("./language", () => ({
+vi.mock("./language", () => ({
   PgLanguage: {
     getFromPath: (path: string) =>
       /\.(rs|ts|js|json|py)$/.test(path) ? { name: "Mock" } : undefined,
@@ -89,7 +89,7 @@ describe("PgGithub.getFiles", () => {
   };
 
   const mockFetch = (handle: (url: string) => MockResponse) => {
-    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const { status = 200, headers, body } = handle(input.toString());
       const payload = typeof body === "string" ? body : JSON.stringify(body);
       return new Response(payload, { status, headers });

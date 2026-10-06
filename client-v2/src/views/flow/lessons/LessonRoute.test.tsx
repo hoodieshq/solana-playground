@@ -1,20 +1,21 @@
+import type { Mock } from "vitest";
 // Only `PgTutorial` is mocked -- `useRenderOnChange` (from `../../../hooks`)
 // is the real hook, so this test exercises the actual subscription, not a
 // stand-in for it. `SpinnerWithBg` and `LessonSurface` are replaced with
 // markers: the former needs a styled-components theme this test does not
 // set up, and the latter renders the real editor, which is its own concern.
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgTutorial: {
-    isStarted: jest.fn(),
-    onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+    isStarted: vi.fn(),
+    onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
   },
 }));
 
-jest.mock("../../../components/Loading", () => ({
+vi.mock("../../../components/Loading", () => ({
   SpinnerWithBg: () => null,
 }));
 
-jest.mock("./LessonSurface", () => ({
+vi.mock("./LessonSurface", () => ({
   __esModule: true,
   default: () => <div data-testid="lesson-surface" />,
 }));
@@ -31,8 +32,8 @@ import LessonRoute from "./LessonRoute";
 import { PgTutorial } from "../../../utils";
 import type { TutorialData } from "../../../utils";
 
-const isStarted = PgTutorial.isStarted as jest.Mock;
-const onDidChange = PgTutorial.onDidChange as unknown as jest.Mock;
+const isStarted = PgTutorial.isStarted as Mock;
+const onDidChange = PgTutorial.onDidChange as unknown as Mock;
 
 /** Stands in for whatever `tutorial.importComponent()` resolves to. */
 const UpstreamMarker = (): JSX.Element => (
@@ -63,7 +64,7 @@ describe("LessonRoute", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     isStarted.mockReset();
-    onDidChange.mockReset().mockReturnValue({ dispose: jest.fn() });
+    onDidChange.mockReset().mockReturnValue({ dispose: vi.fn() });
   });
 
   afterEach(() => {

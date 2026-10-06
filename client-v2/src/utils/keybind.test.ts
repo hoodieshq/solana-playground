@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { PgKeybind } from "./keybind";
 
 const press = (key: string, mods: Partial<KeyboardEventInit> = {}) => {
@@ -8,9 +9,9 @@ const press = (key: string, mods: Partial<KeyboardEventInit> = {}) => {
 
 describe("PgKeybind", () => {
   let dispose: () => void;
-  let handle: jest.Mock;
+  let handle: Mock;
 
-  beforeEach(() => (handle = jest.fn()));
+  beforeEach(() => (handle = vi.fn()));
   afterEach(() => dispose?.());
 
   const bind = (keybind: string) => {

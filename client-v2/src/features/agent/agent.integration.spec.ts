@@ -1,6 +1,5 @@
-/** @jest-environment node */
-// `api/` is plain ESM outside the TS build (see api/health.mjs); jest
-// resolves it by relative path, as the other api specs do.
+// @vitest-environment node
+import type { Mock } from "vitest";
 import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
 
@@ -124,7 +123,7 @@ describe("POST /api/agent streaming", () => {
     res: ReturnType<typeof makeRes>,
     response: ReturnType<typeof upstream>
   ) => {
-    (globalThis as { fetch: unknown }).fetch = jest.fn(async () => response);
+    (globalThis as { fetch: unknown }).fetch = vi.fn(async () => response);
     await handler(
       makeReq('{"messages":[{"role":"user","content":"hi"}]}'),
       res as never
@@ -208,7 +207,7 @@ describe("POST /api/agent streaming", () => {
     res.emit("close");
     await pending;
 
-    const init = (globalThis.fetch as jest.Mock).mock.calls[0][1];
+    const init = (globalThis.fetch as Mock).mock.calls[0][1];
     expect((init.signal as AbortSignal).aborted).toBe(true);
     expect(res.body()).toBe("data: a\n\n");
     expect(res.ended).toBe(true);

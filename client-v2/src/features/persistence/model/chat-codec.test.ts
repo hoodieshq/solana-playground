@@ -126,6 +126,30 @@ describe("encodeItem", () => {
     const item: ChatItem = { ...base, kind: "user", text: "hi" };
     expect(encodeItem(item)).toEqual(item);
   });
+
+  it("keeps an item's version, which the server and a pull decide on", () => {
+    const updatedAt = "2026-01-01T00:00:05.000Z";
+    const reply: ChatItem = {
+      ...base,
+      kind: "assistant",
+      text: "done",
+      updatedAt,
+    };
+    const approval: ChatItem = {
+      ...base,
+      kind: "approval",
+      status: "allowed",
+      request: { type: "command", name: "build", effect: "x" },
+      updatedAt,
+    };
+
+    expect(encodeItem(reply)).toMatchObject({ updatedAt });
+    expect(encodeItem(approval)).toMatchObject({ updatedAt });
+    expect(
+      encodeItem({ ...approval, status: "pending" } as ChatItem)
+    ).toMatchObject({ status: "unanswered", updatedAt });
+    expect(decodeItem(encodeItem(reply))).toMatchObject({ updatedAt });
+  });
 });
 
 describe("decodeThread", () => {
@@ -182,5 +206,29 @@ describe("decodeThread", () => {
       decodeItem({ kind: "user", text: "x", createdAt: base.createdAt })
     ).toBeNull();
     expect(decodeItem({ kind: "user", text: "x", id: base.id })).toBeNull();
+  });
+
+  it("drops an updatedAt that does not parse, keeping the item", () => {
+    // The server refuses a whole thread over one item it cannot cast, so a
+    // bad stamp kept would fail every push of the thread for ever
+    const unstamped = {
+      id: base.id,
+      createdAt: base.createdAt,
+      kind: "user",
+      text: "hi",
+    };
+    /** `unstamped`, carrying `updatedAt` as stored */
+    const stampedWith = (updatedAt: unknown) => ({
+      id: base.id,
+      createdAt: base.createdAt,
+      kind: "user",
+      text: "hi",
+      updatedAt,
+    });
+
+    for (const updatedAt of ["yesterday", 42, null]) {
+      expect(decodeItem(stampedWith(updatedAt))).toEqual(unstamped);
+    }
+    expect(decodeThread([stampedWith("nope")])).toEqual([unstamped]);
   });
 });

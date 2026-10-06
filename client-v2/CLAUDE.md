@@ -207,16 +207,18 @@ makes that an exit code (HOO-1856).
 
 ## What review keeps finding
 
-Each rule here came back in review more than once. They hold by review
-today; HOO-1897 turns the first four into ESLint errors inside the layers
-(`src/{features,shared,entities,widgets}/`), with the legacy roots exempt
-until code moves out of them.
+Each rule here came back in review more than once. The first three are
+ESLint errors (`package.json` `eslintConfig`, run by `yarn lint`) in the
+layers, `src/{app,widgets,features,entities,shared}/`; the legacy roots are
+exempt until code moves out of them, except that `crypto.randomUUID` is an
+error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The
+lint catches the common spellings, not every one. The fourth is the boundary
+check's job (HOO-1859); the rest hold by review.
 
-- **Ids come from one module.** `uuid()` mints one, `isUuid()` checks one;
-  the module is `features/persistence/model/ids.ts` today and
-  `shared/lib/ids` after HOO-1897. Never `crypto.randomUUID()`, never a
+- **Ids come from `src/shared/lib/ids`.** `uuid()` mints one, `isUuid()`
+  checks one. Never `crypto.randomUUID()`, never a
   copied UUID regex, never `import ... from "uuid"` anywhere else.
-  `api/*.mjs` cannot import `src/`, so it uses the `uuid` package directly;
+  `api/` cannot import `src/`, so it uses the `uuid` package directly;
   it is the one exception.
 - **A `catch` is never empty.** It rethrows, reports through the owning
   feature's diagnostics, or tells the user. A failure that is swallowed on
@@ -229,10 +231,10 @@ until code moves out of them.
 - **A string that two places must agree on is declared once** and exported,
   preferably as a predicate (`isTruncationNotice`), not as a prefix that each
   caller compares by hand.
-- **Mock the network through the test runner** (`jest.spyOn` / `vi.spyOn`,
-  `vi.fn`), not by assigning `global.fetch` in each test. On Jest 27 jsdom
-  has no `fetch` to spy on, so the assignment is tolerated there and becomes
-  a lint error once the suite is on vitest (HOO-1715).
+- **Mock the network through the test runner** (`vi.spyOn`, `vi.fn`), not by
+  assigning `global.fetch` in each test. `setupTests.ts` installs a `fetch`
+  that throws, so a test that forgets its stub fails instead of reaching the
+  network.
 - **Do not collapse status codes.** A `429` and a `204` are different
   answers and get different branches. A streamed error is a complete frame
   of its own (`\n\ndata: ...\n\n`), and its test feeds a chunk cut
@@ -246,6 +248,15 @@ until code moves out of them.
 - **One migration per PR**, even while the schema is unshipped. Appending
   to another PR's migration forces everyone on a preview database to roll
   back by hand.
+- **On one element and one property, styled-components wins over a Tailwind
+  utility** until that component migrates: styled CSS is unlayered, while
+  utilities sit in `@layer utilities` and lose the cascade. Do not patch a
+  styled component with a utility; change the styled rule, or move the
+  component by the UI move rule.
+- **Build configuration is not unit-tested.** Guard the outcome instead: CI
+  greps the built CSS (or bundle) for what the configuration must produce.
+  A test that asserts the shape of `craco.config.js` passes while the build
+  is wrong.
 
 ## Before a PR
 
@@ -267,3 +278,24 @@ until code moves out of them.
   push with `git config core.hooksPath .githooks` once per clone.
 - **The last task of a change archives it** (`/opsx:archive`) in the same
   PR.
+- **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
+  `client-v2.yml`) on every PR to `master-2.0`, and a red spec fails the
+  PR's checks. It needs no server and no Postgres: every spec stubs the account
+  endpoints with `page.route`, and the dev server serves `api/*.mjs` itself.
+  Two tests connect to the keyless default backend and skip themselves where
+  `/api/agent` reports none configured (CI included); they run only on a
+  machine with the default backend configured. Two sync tests ("switching
+  tabs mid-debounce raises no conflict", "reloading a project the account
+  already has writes nothing") are `test.fixme` on the runner, where the
+  load's timing differs and the sync races they guard show. The four are
+  listed by title in `e2e/known-skips.txt`; the job fails on any skip that
+  is not in the list and warns on an entry that no longer skips. D61 (on
+  `context-archive`) records them. CI retries a failed spec once,
+  because the runner is three times slower than a laptop and fails specs on
+  timing alone; a pass on the retry is reported as **flaky**, named in the
+  run's annotations, and is work to do, not a pass. Locally `retries` is 0,
+  so a flake fails where it gets fixed. Quarantine is an explicit
+  `test.skip` or `test.fixme` with the reason in the call, never a retry.
+- **A runtime upgrade still gets the manual walk-through** from the UI
+  migration spec ("The React 19 gate"), in development and in the production
+  build, because the suite runs against the dev server only.

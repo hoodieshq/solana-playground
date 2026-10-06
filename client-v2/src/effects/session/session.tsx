@@ -9,9 +9,9 @@ import {
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 import { openThread } from "../chat-thread/open-thread";
-// Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global jest cannot resolve. Same workaround as
-// `snapshot.ts`, and what makes this effect testable.
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 
@@ -92,12 +92,39 @@ export const session = (): Disposable => {
     }
 
     // The panel is still showing the thread it opened before sign-in, which
-    // the adoption above may have repointed the workspace away from
-    const workspaceId = PgExplorer.currentWorkspaceId;
-    const open = PgAssistant.threadId;
-    const wanted = workspaceId && (await PgThreadIndex.get(workspaceId));
-    if (workspaceId && wanted && open && open !== wanted) {
-      await openThread(workspaceId, wanted);
+    // the adoption above may have repointed the workspace away from. Opened
+    // again even when it was not: on load the chat effect opens the thread
+    // before the cookie is restored, so its pull stands down without asking
+    // the server, and this is the first moment a pull is certain to find a
+    // session. Skipping an unchanged thread left the panel showing only what
+    // this browser had stored, and the other device's messages never arrived.
+    //
+    // A turn may well be running by now -- this is several round trips after
+    // load. For an unchanged thread the server's copy is folded into memory
+    // rather than reloaded, which leaves the turn alone; see `openThread` for
+    // the one case that does reload (the server has never seen the thread and
+    // the account holds another for the workspace).
+    //
+    // The workspace is checked again after the index read: a switch landing
+    // inside it has already opened the new workspace's thread, and this must
+    // not repaint the old one over it.
+    //
+    // Caught on its own, so a failure here cannot skip re-opening a
+    // workspace whose files reconcile has just replaced.
+    try {
+      const workspaceId = PgExplorer.currentWorkspaceId;
+      const open = PgAssistant.threadId;
+      const wanted = workspaceId && (await PgThreadIndex.get(workspaceId));
+      if (
+        workspaceId &&
+        wanted &&
+        open &&
+        PgExplorer.currentWorkspaceId === workspaceId
+      ) {
+        await openThread(workspaceId, wanted);
+      }
+    } catch (e) {
+      report("open thread", e);
     }
 
     const current = PgExplorer.currentWorkspaceName;

@@ -1,12 +1,13 @@
-jest.mock("../../../utils", () => ({
+import type { Mock } from "vitest";
+vi.mock("../../../utils", () => ({
   PgExplorer: {
     currentWorkspaceName: null,
-    onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
-    fs: { exists: jest.fn(async () => false) },
+    onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
+    fs: { exists: vi.fn(async () => false) },
   },
   PgProgramInfo: { idl: null },
-  PgTutorial: { getStorage: jest.fn() },
-  PgView: { setToast: jest.fn() },
+  PgTutorial: { getStorage: vi.fn() },
+  PgView: { setToast: vi.fn() },
 }));
 
 import { INITIAL_LESSON_STATE, PgLesson, reduceLesson } from "./store";
@@ -280,15 +281,15 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
   const files = new Map<string, { lesson?: unknown }>();
   const explorer = PgExplorer as unknown as {
     currentWorkspaceName: string | null;
-    onDidSwitchWorkspace: jest.Mock;
-    fs: { exists: jest.Mock };
+    onDidSwitchWorkspace: Mock;
+    fs: { exists: Mock };
   };
   let onSwitch: () => void = () => {};
 
   const flush = () => new Promise((resolve) => setTimeout(resolve));
 
-  // `beforeEach`, not `beforeAll`: CRA's jest config resets mock
-  // implementations before every test
+  // `beforeEach`, not `beforeAll`: `mockReset` (see `vitest.config.ts`)
+  // resets every mock before each test
   beforeEach(() => {
     registerPaths([PATH, PATH_B], [PATH.tutorial, PATH_B.tutorial]);
     explorer.fs.exists.mockImplementation(async () =>
@@ -296,9 +297,9 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
     );
     explorer.onDidSwitchWorkspace.mockImplementation((cb: () => void) => {
       onSwitch = cb;
-      return { dispose: jest.fn() };
+      return { dispose: vi.fn() };
     });
-    (PgTutorial.getStorage as jest.Mock).mockImplementation(
+    (PgTutorial.getStorage as Mock).mockImplementation(
       (defaultValue: { lesson?: unknown }) => ({
         getItem: async (key: "lesson") => {
           const ws = explorer.currentWorkspaceName as string;
@@ -316,8 +317,8 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
   });
 
   it("says so when progress cannot be saved, and toasts once", async () => {
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    (PgTutorial.getStorage as jest.Mock).mockImplementation(() => ({
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    (PgTutorial.getStorage as Mock).mockImplementation(() => ({
       getItem: async () => undefined,
       setItem: async () => {
         throw new Error("quota exceeded");
@@ -338,6 +339,9 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
       expect.objectContaining({ message: "quota exceeded" })
     );
     expect(warn.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // The toast component is imported lazily, so it can land after `flush`
+    await vi.waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
+    await flush();
     expect(PgView.setToast).toHaveBeenCalledTimes(1);
     sub.dispose();
     warn.mockRestore();

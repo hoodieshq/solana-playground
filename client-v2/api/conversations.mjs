@@ -57,9 +57,12 @@ const CASTABLE_UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 /**
  * Whether one item is something the insert can be handed.
  *
- * Every check here stands in for a cast in `appendMessages`: `v.id::uuid` and
- * `(payload ->> 'createdAt')::timestamptz`. Unvalidated, a bad value is a
- * driver error escaping the route as a 500 -- for what is plainly a bad
+ * Every check here stands in for a cast in `appendMessages`: `v.id::uuid`,
+ * `(payload ->> 'createdAt')::timestamptz`, and the same cast of `updatedAt`
+ * that decides which copy of a message is newer. `updatedAt` is optional --
+ * an item nobody has changed, and every item from before versions existed,
+ * has none -- but one that is present has to cast. Unvalidated, a bad value
+ * is a driver error escaping the route as a 500 -- for what is plainly a bad
  * request, and a reachable one: threads are stored in IndexedDB, which the
  * user can edit, and `chat-codec.isStoredItem` accepts any string for an id.
  *
@@ -72,6 +75,9 @@ export const isValidItem = (i) =>
   CASTABLE_UUID.test(i.id) &&
   typeof i.createdAt === "string" &&
   !Number.isNaN(Date.parse(i.createdAt)) &&
+  (!("updatedAt" in i) ||
+    (typeof i.updatedAt === "string" &&
+      !Number.isNaN(Date.parse(i.updatedAt)))) &&
   KINDS.has(i.kind);
 
 const sendJson = (res, status, body) => {
@@ -152,9 +158,9 @@ export default async function handler(req, res) {
   // One `try` around both branches that reach the database: without it a
   // driver error is an unhandled rejection on the platform rather than a
   // response. `NotYours` is the one failure that maps to a status of its own;
-  // anything else either conflicts harmlessly, which `on conflict do nothing`
-  // already absorbs, or fails for a reason no client can act on, so a generic
-  // 500 is the honest answer.
+  // anything else either conflicts harmlessly, which the versioned
+  // `on conflict` already absorbs, or fails for a reason no client can act
+  // on, so a generic 500 is the honest answer.
   try {
     if (req.method === "GET") {
       const threadId = url.searchParams.get("threadId");

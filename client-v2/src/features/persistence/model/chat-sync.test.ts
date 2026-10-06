@@ -1,4 +1,6 @@
-import { v4 as uuid } from "uuid";
+import type { Mock } from "vitest";
+
+import { uuid } from "../../../shared/lib/ids";
 
 import { PgChatStorage } from "./chat-storage";
 import { PgChatSync } from "./chat-sync";
@@ -44,6 +46,18 @@ const reply = (n: number, origin?: BackendParams): ChatItem => ({
   ...(origin ? { origin } : {}),
 });
 
+/**
+ * Fetch the server's copy and merge it into storage: what `openThread` does
+ * for a thread the panel does not have open.
+ *
+ * @returns the merged thread, or `null` when there was nothing to merge
+ */
+const pull = async (threadId: string) => {
+  const fromServer = await PgChatSync.fetchThread(threadId);
+  if (!Array.isArray(fromServer)) return null;
+  return await PgChatSync.storeMerged(threadId, fromServer);
+};
+
 /** Only `id` matters to sync; the rest of the session user is display */
 const signedIn = () =>
   PgSession.refreshWith({ id: "u1", name: null, image: null, login: null });
@@ -51,19 +65,19 @@ const signedIn = () =>
 /**
  * The spy standing in for `fetch`, reinstalled for each test.
  *
- * `jest.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
+ * `vi.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
  * puts the global back afterwards, so a stub one test installed cannot answer
  * the next one's request. The stand-in it replaces comes from
- * `setupTests.ts`, because jsdom has no `fetch` of its own to spy on.
+ * `setupTests.ts`, which throws, so an unstubbed request fails loudly.
  */
-let fetchMock: jest.Mock;
+let fetchMock: Mock;
 
 beforeEach(() => {
-  fetchMock = jest.spyOn(globalThis, "fetch") as unknown as jest.Mock;
+  fetchMock = vi.spyOn(globalThis, "fetch") as unknown as Mock;
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 /** `/api/sync` says yes; everything else is the caller's to describe */
@@ -186,7 +200,7 @@ describe("PgChatSync", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(2), item(3)]);
 
-    const merged = await PgChatSync.pull(threadId);
+    const merged = await pull(threadId);
 
     expect(merged!.map((i) => (i as { text: string }).text)).toEqual([
       "m1",
@@ -195,13 +209,59 @@ describe("PgChatSync", () => {
     ]);
   });
 
+  describe("when both copies hold the same message", () => {
+    /** `reply(1)` as it stood at second `at`, holding `text` */
+    const replyAt = (text: string, at?: number): ChatItem => ({
+      kind: "assistant",
+      id: reply(1).id,
+      createdAt: reply(1).createdAt,
+      text,
+      ...(at ? { updatedAt: new Date(at * 1000).toISOString() } : {}),
+    });
+
+    const pulled = async (server: ChatItem, local: ChatItem) => {
+      respondingWith(() =>
+        Promise.resolve({ ok: true, json: async () => ({ items: [server] }) })
+      );
+      await signedIn();
+      await PgChatStorage.write(threadId, [local]);
+
+      const merged = await pull(threadId);
+      // And what was written back, which is what the panel reloads from
+      expect(await PgChatStorage.read(threadId)).toEqual(merged);
+      return (merged![0] as { text: string }).text;
+    };
+
+    it("takes the server's when it is newer", async () => {
+      // This device pulled a reply mid-stream; the device that ran the turn
+      // has since pushed the finished one
+      expect(await pulled(replyAt("Done.", 5), replyAt("Do", 2))).toBe("Done.");
+    });
+
+    it("takes the server's over a local copy that was never changed", async () => {
+      // Old data and a fresh item carry no `updatedAt`; their version is
+      // `createdAt`, which every later change is stamped after
+      expect(await pulled(replyAt("Done.", 5), replyAt(""))).toBe("Done.");
+    });
+
+    it("keeps the local copy when it is newer", async () => {
+      expect(await pulled(replyAt("Do", 2), replyAt("Done.", 5))).toBe("Done.");
+    });
+
+    it("keeps the local copy on a tie", async () => {
+      expect(await pulled(replyAt("server", 5), replyAt("local", 5))).toBe(
+        "local"
+      );
+    });
+  });
+
   it("pulls by thread id, not by workspace", async () => {
     respondingWith(() =>
       Promise.resolve({ ok: true, json: async () => ({ items: [] }) })
     );
     await signedIn();
 
-    await PgChatSync.pull(threadId);
+    await pull(threadId);
 
     expect(fetchMock).toHaveBeenCalledWith(
       `/api/conversations?threadId=${threadId}`,
@@ -217,7 +277,8 @@ describe("PgChatSync", () => {
     await PgChatStorage.write(threadId, [item(1)]);
     PgChatStorage.clearLastFailure();
 
-    expect(await PgChatSync.pull(threadId)).toBeNull();
+    expect(await PgChatSync.fetchThread(threadId)).toBe("missing");
+    expect(await pull(threadId)).toBeNull();
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
     // Not a fault: a thread that has never been pushed is simply not there
     expect(PgChatStorage.lastFailure).toBeNull();
@@ -228,7 +289,10 @@ describe("PgChatSync", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    expect(await PgChatSync.pull(threadId)).toBeNull();
+    // Not "missing": a request that failed says nothing about whether the
+    // server has the thread, and `openThread` adopts only on the latter
+    expect(await PgChatSync.fetchThread(threadId)).toBeNull();
+    expect(await pull(threadId)).toBeNull();
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
   });
 
@@ -331,11 +395,11 @@ describe("handing conversations over at sign-out", () => {
     accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
-    jest.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
+    vi.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
 
     expect(await PgChatSync.pushAll()).toBeNull();
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
   });
 
@@ -393,7 +457,7 @@ describe("pulling a thread that cannot be read locally", () => {
     const corrupt = "{ not json";
     mockFiles.set(`/.config/chats/${threadId}.json`, corrupt);
 
-    await PgChatSync.pull(threadId);
+    await pull(threadId);
 
     expect(mockFiles.get(`/.config/chats/${threadId}.json`)).toBe(corrupt);
   });

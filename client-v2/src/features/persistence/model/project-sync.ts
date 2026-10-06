@@ -1,3 +1,4 @@
+import { uuid } from "../../../shared/lib/ids";
 import { report } from "./diagnostics";
 import {
   baseAfterMerge,
@@ -15,9 +16,9 @@ import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
-// Deep import for the same reason `snapshot.ts` uses one: the `utils` barrel
-// reaches `settings.ts`, which reads a webpack-defined global jest has no
-// answer for, and importing it here would make this module untestable
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { Snapshot } from "./snapshot";
@@ -1319,7 +1320,7 @@ export class PgProjectSync {
           }
           const fresh = `${name} (kept)`;
           await PgExplorer.importWorkspace(fresh, {
-            id: crypto.randomUUID(),
+            id: uuid(),
             files: snapshot.files,
           });
           await PgExplorer.deleteWorkspace(name);

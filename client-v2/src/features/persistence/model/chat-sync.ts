@@ -1,29 +1,10 @@
-import { decodeThread, encodeThread } from "./chat-codec";
+import { decodeThread, encodeThread, mergeThreads } from "./chat-codec";
 import { PgChatStorage, withoutTruncationNotice } from "./chat-storage";
 import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
-
-/** Oldest first, ties broken by id so two devices agree on the order */
-const byTime = (a: ChatItem, b: ChatItem) =>
-  a.createdAt === b.createdAt
-    ? a.id.localeCompare(b.id)
-    : a.createdAt.localeCompare(b.createdAt);
-
-/**
- * Union by id.
- *
- * Local is applied second, so a message the client has edited since uploading
- * wins over the server's copy. Ids are minted on the client, which is what
- * makes "the same message" answerable without asking the server.
- */
-const merge = (server: ChatItem[], local: ChatItem[]) => {
-  const byId = new Map<string, ChatItem>();
-  for (const item of [...server, ...local]) byId.set(item.id, item);
-  return [...byId.values()].sort(byTime);
-};
 
 /**
  * What a hand-over managed.
@@ -40,13 +21,56 @@ export interface HandOver {
 /**
  * Mirror local threads to Postgres.
  *
- * Push is append-only and every id is minted on the client, so it is safe to
- * repeat: signing in on a third device, or retrying after a failure, writes
- * only what is genuinely new.
+ * Every id is minted on the client and the server keeps the newer copy of
+ * each, so a push is safe to repeat: signing in on a third device, or
+ * retrying after a failure, writes only what is new or has changed since.
  */
 export class PgChatSync {
-  /** @returns the merged thread, or `null` when sync is unavailable */
-  static async pull(threadId: string): Promise<ChatItem[] | null> {
+  /**
+   * Merge the server's copy of a thread into the stored one, newest copy of
+   * each item winning and local on a tie.
+   *
+   * Only for a thread the panel does not have open. For the open one, storage
+   * lags memory -- the store's writes are queued on its own chain, which this
+   * read and write are not on -- so writing a merge of the stored copy back
+   * can drop an item the panel added a moment ago. That one goes to
+   * `PgAssistant.foldIn` instead; `openThread` decides which.
+   *
+   * @returns the merged thread, or the server's copy alone when the stored one
+   * could not be read
+   */
+  static async storeMerged(
+    threadId: string,
+    fromServer: ChatItem[]
+  ): Promise<ChatItem[]> {
+    // No `try` of its own: `PgChatStorage` reports and swallows its failures,
+    // answering `null` for a read that failed
+    const local = await PgChatStorage.read(threadId);
+    // Nothing is written back over a thread this device could not read. The
+    // merge is a union by id, so treating an unreadable file as empty would
+    // replace it with the server's half -- destroying exactly the messages
+    // that had not been uploaded yet. The server's copy is still returned, so
+    // the panel shows what the account has.
+    if (local === null) return fromServer;
+
+    const merged = mergeThreads(fromServer, local);
+    await PgChatStorage.write(threadId, merged);
+    return merged;
+  }
+
+  /**
+   * The server's copy of a thread, without touching storage.
+   *
+   * @returns the thread's items; **`"missing"`** when the server has never
+   * seen the thread; or `null` when sync is unavailable or the request
+   * failed. The last two are kept apart because a caller acts on the second:
+   * a thread the server lacks is a reason to go looking for the account's
+   * own, and a failed request is not -- adopting on it reloaded the open
+   * thread mid-turn, denying the card the user had not answered.
+   */
+  static async fetchThread(
+    threadId: string
+  ): Promise<ChatItem[] | "missing" | null> {
     if (!(await PgChatSync._ready())) return null;
 
     try {
@@ -57,7 +81,7 @@ export class PgChatSync {
       // A thread this browser started and has not pushed yet does not exist
       // on the server, and saying so is the honest answer rather than a
       // fault: there is simply nothing to merge in.
-      if (response.status === 404) return null;
+      if (response.status === 404) return "missing";
       if (!response.ok) {
         report(`pull ${threadId}: HTTP ${response.status}`, null);
         return null;
@@ -79,17 +103,7 @@ export class PgChatSync {
         );
       }
 
-      const local = await PgChatStorage.read(threadId);
-      // Nothing is written back over a thread this device could not read. The
-      // merge is local-wins-by-id, so treating an unreadable file as empty
-      // would replace it with the server's half -- destroying exactly the
-      // messages that had not been uploaded yet. The server's copy is still
-      // returned, so the panel shows what the account has.
-      if (local === null) return fromServer;
-
-      const merged = merge(fromServer, local);
-      await PgChatStorage.write(threadId, merged);
-      return merged;
+      return fromServer;
     } catch (e) {
       report(`pull ${threadId}`, e);
       return null;
@@ -150,7 +164,7 @@ export class PgChatSync {
    *
    * Anything already in the local thread is carried across rather than left
    * behind: it was typed on this workspace and belongs with its conversation.
-   * Local wins by id, the same rule as `pull`.
+   * The newer copy of an id wins, local on a tie -- `mergeThreads`' rule.
    *
    * @returns the thread the workspace now points at, when that changed
    */
@@ -191,7 +205,7 @@ export class PgChatSync {
       if (items.length) {
         const existing = await PgChatStorage.read(remote);
         if (existing === null) return null;
-        await PgChatStorage.write(remote, merge(existing, items));
+        await PgChatStorage.write(remote, mergeThreads(existing, items));
       }
     }
 

@@ -1,13 +1,21 @@
 import { PgAssistant, turnProducedApproval, type ChatItem } from "./store";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
-import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
-// Through `@/` on purpose: the alias is mapped in tsconfig.paths.json, in
-// craco's webpack alias and in `jest.moduleNameMapper`, and this import is
-// what fails when the Jest mapping drifts from the other two.
+import {
+  MAX_MESSAGES_PER_THREAD,
+  PgChatStorage,
+  truncationNoticeId,
+} from "../../../features/persistence/model/chat-storage";
+// Through `@/` on purpose: the alias is mapped in `tsconfig.json`'s `paths`, in
+// craco's webpack alias and in `vitest.config.ts`'s `resolve.alias`, and this
+// import is what fails when the vitest mapping drifts from the other two.
 import { PgFs } from "@/utils/explorer/fs";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
+
+/** The id of the approval card added most recently */
+const latestCard = () =>
+  PgAssistant.items.filter((i) => i.kind === "approval").slice(-1)[0].id;
 
 const at = "2026-01-01T00:00:00.000Z";
 
@@ -112,6 +120,280 @@ describe("PgAssistant item identity", () => {
 
     const ids = new Set(PgAssistant.items.map((i) => i.id));
     expect(ids.size).toBe(50);
+  });
+});
+
+/**
+ * Items change after they are created -- a reply streams in, an approval is
+ * answered -- and the server keeps whichever copy of an id is newer. So every
+ * change to an existing item has to say when it happened.
+ */
+describe("PgAssistant item versions", () => {
+  beforeEach(() => PgAssistant.clear());
+
+  /** An item's version: when it last changed, or when it was made */
+  const versionOf = (item: ChatItem) =>
+    Date.parse(item.updatedAt ?? item.createdAt);
+
+  const find = (id: string) => PgAssistant.items.find((i) => i.id === id)!;
+
+  it("leaves a new item unstamped, so its version is its creation", () => {
+    PgAssistant.addUserMessage("hi");
+    const id = PgAssistant.startAssistantMessage();
+
+    expect(PgAssistant.items[0].updatedAt).toBeUndefined();
+    expect(find(id).updatedAt).toBeUndefined();
+  });
+
+  it("stamps a reply each time text streams into it", () => {
+    const id = PgAssistant.startAssistantMessage();
+    const created = versionOf(find(id));
+
+    PgAssistant.appendToAssistantMessage(id, "Hel");
+    const first = versionOf(find(id));
+    PgAssistant.appendToAssistantMessage(id, "lo");
+    const second = versionOf(find(id));
+
+    expect(first).toBeGreaterThan(created);
+    // Strictly, even when two deltas land in the same millisecond: a tie
+    // would let the server keep the shorter copy
+    expect(second).toBeGreaterThan(first);
+  });
+
+  it("stamps an approval when the user answers it", () => {
+    void PgAssistant.requestApproval({
+      type: "command",
+      name: "build",
+      effect: "builds",
+    });
+    const id = latestCard();
+    const created = versionOf(find(id));
+
+    PgAssistant.resolveApproval(id, true);
+
+    expect(versionOf(find(id))).toBeGreaterThan(created);
+  });
+
+  it("stamps an approval when its outcome is recorded", () => {
+    void PgAssistant.requestApproval({
+      type: "command",
+      name: "build",
+      effect: "builds",
+    });
+    const id = latestCard();
+    PgAssistant.resolveApproval(id, true);
+    const answered = versionOf(find(id));
+
+    PgAssistant.setApprovalOutcome(id, "built");
+
+    expect(versionOf(find(id))).toBeGreaterThan(answered);
+  });
+
+  it("stamps an approval denied because the turn was stopped", () => {
+    void PgAssistant.requestApproval({
+      type: "command",
+      name: "deploy",
+      effect: "deploys",
+    });
+    const id = latestCard();
+    const created = versionOf(find(id));
+
+    PgAssistant.cancelPending();
+
+    expect(versionOf(find(id))).toBeGreaterThan(created);
+  });
+
+  it("writes the stamp to storage with the item", async () => {
+    PgAssistant.closeThread();
+    (PgFs as unknown as { __files: Map<string, string> }).__files.clear();
+    await PgAssistant.loadThread("versions");
+    const id = PgAssistant.startAssistantMessage();
+    PgAssistant.appendToAssistantMessage(id, "done");
+    await settled();
+
+    const [stored] = (await PgChatStorage.read("versions"))!;
+    expect(stored.updatedAt).toEqual(expect.any(String));
+    expect(stored.updatedAt).toBe(find(id).updatedAt);
+    PgAssistant.closeThread();
+  });
+});
+
+/**
+ * The server's copy of the open thread, merged into memory rather than
+ * reloaded from storage -- a reload denies pending approvals, resets the
+ * status, and replaces memory with a copy on disk that can lag it.
+ */
+describe("PgAssistant.foldIn", () => {
+  const files = () =>
+    (PgFs as unknown as { __files: Map<string, string> }).__files;
+
+  beforeEach(async () => {
+    files().clear();
+    PgAssistant.closeThread();
+    PgAssistant.clear();
+    await PgAssistant.loadThread("fold");
+  });
+
+  afterEach(() => PgAssistant.closeThread());
+
+  const reply = (text: string, updatedAt?: string): ChatItem => ({
+    kind: "assistant",
+    id: "66666666-6666-4666-8666-666666666666",
+    createdAt: at,
+    text,
+    ...(updatedAt ? { updatedAt } : {}),
+  });
+
+  const texts = () =>
+    PgAssistant.items.map((i) => ("text" in i ? i.text : i.kind));
+
+  it("adds the server's items and keeps the ones only this tab has", async () => {
+    PgAssistant.addUserMessage("local only");
+
+    await PgAssistant.foldIn("fold", [reply("from the server")]);
+
+    expect(texts()).toEqual(["from the server", "local only"]);
+    await settled();
+    expect(await PgChatStorage.read("fold")).toHaveLength(2);
+  });
+
+  it("takes the server's copy of an item when it is newer", async () => {
+    await PgAssistant.foldIn("fold", [reply("Do", "2026-01-01T00:00:01.000Z")]);
+
+    await PgAssistant.foldIn("fold", [
+      reply("Done.", "2026-01-01T00:00:05.000Z"),
+    ]);
+
+    expect(texts()).toEqual(["Done."]);
+  });
+
+  it("keeps this tab's copy when it is newer, or on a tie", async () => {
+    await PgAssistant.foldIn("fold", [
+      reply("Done.", "2026-01-01T00:00:05.000Z"),
+    ]);
+
+    await PgAssistant.foldIn("fold", [reply("Do", "2026-01-01T00:00:01.000Z")]);
+    await PgAssistant.foldIn("fold", [
+      reply("other", "2026-01-01T00:00:05.000Z"),
+    ]);
+
+    expect(texts()).toEqual(["Done."]);
+  });
+
+  it("leaves a running turn running, and its approval waiting", async () => {
+    PgAssistant.setStatus("running");
+    const id = PgAssistant.startAssistantMessage();
+    const approval = PgAssistant.requestApproval({
+      type: "command",
+      name: "build",
+      effect: "builds",
+    });
+    const card = latestCard();
+
+    // The server's copy of the card reads as unanswered: the codec stores a
+    // pending one that way. Same version, so this tab's copy stands.
+    const asked = PgAssistant.items.find((i) => i.id === card)!;
+    await PgAssistant.foldIn("fold", [
+      {
+        kind: "approval",
+        id: asked.id,
+        createdAt: asked.createdAt,
+        request: { type: "command", name: "build", effect: "builds" },
+        status: "unanswered",
+      },
+    ]);
+
+    expect(PgAssistant.status).toBe("awaiting");
+    expect(PgAssistant.items.find((i) => i.id === card)).toMatchObject({
+      status: "pending",
+    });
+
+    // The reply still streams into the item the turn is holding
+    PgAssistant.appendToAssistantMessage(id, "Hi");
+    expect(texts()).toContain("Hi");
+
+    PgAssistant.resolveApproval(card, true);
+    await expect(approval).resolves.toEqual({ id: card, allowed: true });
+  });
+
+  it("writes nothing when the server had nothing new", async () => {
+    PgAssistant.addUserMessage("hi");
+    await settled();
+    const write = vi.spyOn(PgChatStorage, "write");
+
+    await PgAssistant.foldIn("fold", [...PgAssistant.items]);
+    await settled();
+
+    expect(write).not.toHaveBeenCalled();
+    write.mockRestore();
+  });
+
+  it("does nothing for a thread that is not open", async () => {
+    expect(await PgAssistant.foldIn("other", [reply("elsewhere")])).toBe(false);
+
+    expect(PgAssistant.items).toHaveLength(0);
+  });
+
+  it("waits for the thread's read, so the stored items are not added twice", async () => {
+    // A fold into the empty list standing in for the thread, followed by the
+    // read landing, appended the stored thread to the server's copy as though
+    // every item had arrived mid-read
+    const stored = reply("stored");
+    await PgChatStorage.write("racy", [stored]);
+    PgAssistant.closeThread();
+
+    const loading = PgAssistant.loadThread("racy");
+    const folded = PgAssistant.foldIn("racy", [stored]);
+    await Promise.all([loading, folded]);
+
+    expect(texts()).toEqual(["stored"]);
+  });
+
+  describe("on a thread longer than this device keeps", () => {
+    /** `n` server messages, oldest first, a second apart */
+    const history = (n: number) =>
+      Array.from(
+        { length: n },
+        (_, i): ChatItem => ({
+          kind: "user",
+          id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+          createdAt: new Date(Date.UTC(2025, 0, 1, 0, 0, i)).toISOString(),
+          text: `m${i}`,
+        })
+      );
+
+    it("keeps only the newest, as storage would", async () => {
+      // The server keeps every message; memory held all of them under a
+      // notice saying the earlier ones were not on this device
+      await PgAssistant.foldIn("fold", history(MAX_MESSAGES_PER_THREAD + 50));
+
+      expect(PgAssistant.items).toHaveLength(MAX_MESSAGES_PER_THREAD);
+      expect(PgAssistant.items[0].id).toBe(truncationNoticeId("fold"));
+      expect(texts()).toContain(`m${MAX_MESSAGES_PER_THREAD + 49}`);
+    });
+
+    it("writes nothing when folding the same history again", async () => {
+      const server = history(MAX_MESSAGES_PER_THREAD + 50);
+      await PgAssistant.foldIn("fold", server);
+      await settled();
+      const write = vi.spyOn(PgChatStorage, "write");
+
+      await PgAssistant.foldIn("fold", server);
+
+      expect(write).not.toHaveBeenCalled();
+      write.mockRestore();
+    });
+
+    it("never trims what a long session already shows", async () => {
+      const server = history(MAX_MESSAGES_PER_THREAD);
+      await PgAssistant.foldIn("fold", server);
+      for (let i = 0; i < 20; i++) PgAssistant.addUserMessage(`new ${i}`);
+      const shown = PgAssistant.items.map((i) => i.id).sort();
+
+      await PgAssistant.foldIn("fold", server);
+
+      expect(PgAssistant.items.map((i) => i.id).sort()).toEqual(shown);
+    });
   });
 });
 

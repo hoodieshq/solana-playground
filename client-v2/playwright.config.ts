@@ -1,8 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Browser-level tests. Kept out of `src` so CRA's jest never collects them -
- * its testMatch would otherwise try to run `.spec.ts` files under a runner
+ * Browser-level tests. Kept out of `src` so vitest never collects them -
+ * its `include` would otherwise try to run `.spec.ts` files under a runner
  * that has no browser.
  */
 export default defineConfig({
@@ -27,10 +27,36 @@ export default defineConfig({
   // sequentially takes longer than everything that follows it.
   expect: { timeout: 20_000 },
   fullyParallel: false,
-  reporter: process.env.CI ? "list" : "line",
+  // One retry in CI, none locally. The runner is three times slower than a
+  // laptop and reorders what lands first, so a spec can fail there on timing
+  // alone; red on every such run would block unrelated PRs and train people
+  // to ignore the job. A pass on the retry is not a pass: Playwright reports
+  // it as "flaky", the trace of the failed attempt is kept, and the job's
+  // count step names it in the annotations as work to do. Locally a flake
+  // fails outright, which is where it gets fixed. Quarantine is still an
+  // explicit `test.skip`/`test.fixme` with the reason, never a retry.
+  retries: process.env.CI ? 1 : 0,
+  // `github` turns each failure into a PR annotation (Checks tab, inline
+  // when the line is in the diff); `list` is the log a reviewer reads in
+  // the job output; `json` is what the job's skip-count step reads, since
+  // neither of the other two prints a skip's reason.
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["github"],
+        ["json", { outputFile: "test-results/report.json" }],
+      ]
+    : "line",
+  // Under the job's 30-minute limit, so Playwright itself ends a hung run
+  // and still prints its summary; a GitHub cancel keeps the traces but not
+  // the line saying which test was running.
+  globalTimeout: process.env.CI ? 25 * 60_000 : 0,
   use: {
     baseURL: "http://localhost:3000",
-    trace: "on-first-retry",
+    // Every failed attempt keeps its trace, a flaky test's first attempt
+    // included; CI uploads them as the job's artifact, and locally
+    // `yarn playwright show-trace test-results/<test>/trace.zip` opens one.
+    trace: "retain-on-failure",
     // Without this, an action inherits the whole test timeout and reports a
     // bare "test timeout" - naming no locator. Fail fast and say which one.
     actionTimeout: 10_000,
@@ -44,7 +70,15 @@ export default defineConfig({
     url: "http://localhost:3000",
     // Reuse a dev server you already have running; CI always starts its own
     reuseExistingServer: !process.env.CI,
-    timeout: 300_000,
+    // A minute on a laptop; a 2-vCPU runner compiles the same bundle several
+    // times slower, and a boot that times out fails the whole job for nothing
+    timeout: process.env.CI ? 600_000 : 300_000,
+    // CRA prints "Failed to compile" to stdout, which Playwright drops by
+    // default. A broken bundle still serves index.html, so without this
+    // every test fails at its first locator with the cause nowhere in the
+    // job log.
+    stdout: process.env.CI ? "pipe" : "ignore",
+    stderr: "pipe",
     env: { BROWSER: "none" },
   },
 });

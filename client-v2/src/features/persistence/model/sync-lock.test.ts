@@ -15,9 +15,7 @@ describe("withSyncLock", () => {
   });
 
   it("asks for the one shared lock by name", async () => {
-    const request = jest.fn((_name: string, fn: () => Promise<unknown>) =>
-      fn()
-    );
+    const request = vi.fn((_name: string, fn: () => Promise<unknown>) => fn());
     setLocks({ request });
 
     expect(await withSyncLock(async () => "done")).toBe("done");
@@ -27,7 +25,7 @@ describe("withSyncLock", () => {
   /** A browser's lock manager, with another tab that can hold the lock */
   const browser = () => {
     let tail: Promise<unknown> = Promise.resolve();
-    const request = jest.fn((_name: string, fn: () => Promise<unknown>) => {
+    const request = vi.fn((_name: string, fn: () => Promise<unknown>) => {
       const run = tail.then(fn);
       tail = run.catch(() => {});
       return run;
@@ -136,7 +134,7 @@ describe("timeoutSignal", () => {
 
   it("asks the browser for a signal that times out", () => {
     const signal = new AbortController().signal;
-    const timeout = jest.fn(() => signal);
+    const timeout = vi.fn(() => signal);
     setTimeoutFn(timeout);
 
     expect(timeoutSignal(15_000)).toBe(signal);
