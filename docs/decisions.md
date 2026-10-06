@@ -3318,6 +3318,13 @@ Sergey's review (2026-10-05) asked for the hand-kept list over a script,
 and for no ticket ids in code -- the tests' quarantine reasons name the
 symptom; this entry and HOO-1720 hold the tickets.
 
+**First flaky under the policy** (run 37434370434, 2026-10-06): account-sync
+"the other device can change it twice without ever asking" failed its first
+attempt (the second change's `third.rs` had not reached the tree in 60 s)
+and passed on retry; the job stayed green and named it in a warning. A
+fifth sync test the runner's timing touches; it joins the HOO-1720 list if
+it repeats.
+
 **Scenarios as the test plan (task 3.7):** `yarn spec:coverage`
 (`client-v2/scripts/spec-coverage.mjs`) reads every `#### Scenario:` in
 `openspec/specs/` and the active changes and prints each one with neither a
