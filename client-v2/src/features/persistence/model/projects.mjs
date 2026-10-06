@@ -7,6 +7,7 @@
  * device's work is gone".
  */
 import { query, transaction } from "./db.mjs";
+import { DELETED_REASON } from "./deleted.mjs";
 
 export const listProjects = async (userId) => {
   const { rows } = await query(
@@ -77,7 +78,7 @@ const settle = ({ written, current, deleted }) => {
     conflict: true,
     updatedAt: current ? current.toISOString() : null,
   };
-  if (deleted) conflict.reason = "deleted";
+  if (deleted) conflict.reason = DELETED_REASON;
   return conflict;
 };
 

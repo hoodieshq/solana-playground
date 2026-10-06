@@ -10,6 +10,7 @@
  * and what makes a repeated push a no-op rather than a second thread.
  */
 import { getPool, query, run } from "./db.mjs";
+import { isDeletedScope } from "./deleted.mjs";
 
 /**
  * A thread id that exists but belongs to somebody else.
@@ -48,7 +49,7 @@ export class ThreadDeleted extends Error {
     // Checked here because `scope` goes on the wire, and the client acts on
     // `thread` by dropping its copy: a misspelling must fail the server, not
     // fall through to either branch
-    if (scope !== "project" && scope !== "thread") {
+    if (!isDeletedScope(scope)) {
       throw new TypeError(`ThreadDeleted: unknown scope ${String(scope)}`);
     }
     super(scope === "project" ? "Project was deleted" : "Thread was deleted");

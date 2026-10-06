@@ -96,14 +96,21 @@ describe("PgThreadIndex", () => {
     });
 
     it("does nothing for a workspace that never had one", async () => {
-      await expect(PgThreadIndex.forget("never")).resolves.toBeUndefined();
+      await expect(PgThreadIndex.forget("never")).resolves.toBe(true);
     });
 
-    it("gives a restarted workspace a new thread", async () => {
-      const old = await PgThreadIndex.ensure("tut:hello");
-      await PgThreadIndex.forget("tut:hello");
+    it("keeps the entry when the file could not be removed", async () => {
+      // An entry dropped over a file that stayed left the file for the next
+      // load's migration, which adopted it as a workspace named after the
+      // thread
+      const threadId = await PgThreadIndex.ensure("tut:hello");
+      await PgChatStorage.write(threadId, [item(1)]);
+      vi.spyOn(PgChatStorage, "remove").mockResolvedValue(false);
 
-      expect(await PgThreadIndex.ensure("tut:hello")).not.toBe(old);
+      await expect(PgThreadIndex.forget("tut:hello")).resolves.toBe(false);
+
+      PgThreadIndex.reload();
+      expect(await PgThreadIndex.get("tut:hello")).toBe(threadId);
     });
 
     it("keeps an entry another tab wrote while the file was being removed", async () => {
@@ -125,6 +132,7 @@ describe("PgThreadIndex", () => {
               "next-door": item(7).id,
             })
           );
+          return true;
         }
       );
 
@@ -143,6 +151,7 @@ describe("PgThreadIndex", () => {
         async (threadId: string) => {
           mockFiles.delete(`/.config/chats/${threadId}.json`);
           minted = PgThreadIndex.ensureSync("w2");
+          return true;
         }
       );
 
@@ -161,7 +170,7 @@ describe("PgThreadIndex", () => {
       const old = await PgThreadIndex.ensure("p1");
       await PgChatStorage.write(old, [item(1), item(2)]);
 
-      await PgThreadIndex.carry("p1", "p2");
+      await PgThreadIndex.carry({ from: "p1", to: "p2" });
 
       const fresh = await PgThreadIndex.get("p2");
       expect(fresh).not.toBeNull();
@@ -172,7 +181,7 @@ describe("PgThreadIndex", () => {
     });
 
     it("does nothing when the workspace had no conversation", async () => {
-      await PgThreadIndex.carry("p1", "p2");
+      await PgThreadIndex.carry({ from: "p1", to: "p2" });
 
       expect(await PgThreadIndex.get("p2")).toBeNull();
     });
@@ -182,7 +191,7 @@ describe("PgThreadIndex", () => {
       // workspace gets as an entry of its own
       await PgThreadIndex.ensure("p1");
 
-      await PgThreadIndex.carry("p1", "p2");
+      await PgThreadIndex.carry({ from: "p1", to: "p2" });
 
       expect(await PgThreadIndex.get("p1")).toBeNull();
       expect(await PgThreadIndex.get("p2")).not.toBeNull();
@@ -194,12 +203,50 @@ describe("PgThreadIndex", () => {
       const old = await PgThreadIndex.ensure("p1");
       mockFiles.set(`/.config/chats/${old}.json`, "{ not json");
 
-      await PgThreadIndex.carry("p1", "p2");
+      await PgThreadIndex.carry({ from: "p1", to: "p2" });
 
       const fresh = await PgThreadIndex.get("p2");
       expect(await PgThreadIndex.get("p1")).toBeNull();
       expect(mockFiles.get(`/.config/chats/${fresh}.json`)).toBe("{ not json");
       expect(threadFiles()).toHaveLength(1);
+    });
+
+    it("leaves everything as it was when the file cannot be moved", async () => {
+      // "Keep as new" goes on to delete the original, whose delete forgets
+      // the conversation: a carry that failed must say so
+      const old = await PgThreadIndex.ensure("p1");
+      await PgChatStorage.write(old, [item(1)]);
+      vi.spyOn(PgFs, "rename").mockRejectedValue(new Error("QuotaExceeded"));
+
+      await expect(PgThreadIndex.carry({ from: "p1", to: "p2" })).resolves.toBe(
+        false
+      );
+
+      expect(await PgThreadIndex.get("p1")).toBe(old);
+      expect(await PgThreadIndex.get("p2")).toBeNull();
+      expect(await PgChatStorage.read(old)).toEqual([item(1)]);
+    });
+
+    it("puts the file back when the map cannot be written", async () => {
+      // Left under its new name with no entry, the next load's migration
+      // adopts it as a workspace named after the thread
+      const old = await PgThreadIndex.ensure("p1");
+      await PgChatStorage.write(old, [item(1)]);
+      const write = PgFs.writeFile;
+      vi.spyOn(PgFs, "writeFile").mockImplementation(
+        async (path: string, ...rest) => {
+          if (path.endsWith("index.json")) throw new Error("QuotaExceeded");
+          return write(path, ...rest);
+        }
+      );
+
+      await expect(PgThreadIndex.carry({ from: "p1", to: "p2" })).resolves.toBe(
+        false
+      );
+
+      expect(await PgThreadIndex.get("p1")).toBe(old);
+      expect(await PgThreadIndex.get("p2")).toBeNull();
+      expect(threadFiles()).toEqual([`/.config/chats/${old}.json`]);
     });
   });
 

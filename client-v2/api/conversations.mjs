@@ -9,6 +9,7 @@ import { validate as isUuid } from "uuid";
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   appendMessages,
+  DELETED_REASON,
   getThread,
   isEnabled,
   listMessages,
@@ -168,7 +169,7 @@ export const describeFailure = (e) => {
   if (e instanceof ThreadDeleted) {
     return {
       status: 410,
-      body: { error: e.message, reason: "deleted", scope: e.scope },
+      body: { error: e.message, reason: DELETED_REASON, scope: e.scope },
     };
   }
   return { status: 500, body: { error: "Sync failed" } };

@@ -428,9 +428,7 @@ describe("deleting a workspace here", () => {
     const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = vi
-      .spyOn(PgThreadIndex, "forget")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
 
     registered([{ id: "still-here", name: "Still Here" }]);
 
@@ -462,9 +460,7 @@ describe("deleting a workspace here", () => {
     const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = vi
-      .spyOn(PgThreadIndex, "forget")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
     registered([{ id: "made-next-door", name: "Next Door" }]);
 
     effect = projectSync();

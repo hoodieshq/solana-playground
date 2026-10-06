@@ -51,7 +51,7 @@ describe("the session effect", () => {
     });
     vi.spyOn(PgChatSync, "pushAll").mockImplementation(async () => {
       calls.push("pushChats");
-      return { pushed: [], complete: true };
+      return { handedOver: [], complete: true };
     });
     sync = vi.spyOn(restore, "reconcile").mockImplementation(async () => {
       calls.push("reconcile");

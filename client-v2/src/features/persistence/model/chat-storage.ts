@@ -171,11 +171,18 @@ export class PgChatStorage {
     }
   }
 
-  static async remove(threadId: string) {
+  /**
+   * @returns whether the file is gone, which a file that was never there
+   * is. A failure is reported here; the caller only decides whether to go on.
+   */
+  static async remove(threadId: string): Promise<boolean> {
     try {
       await PgFs.removeFile(pathOf(threadId));
+      return true;
     } catch (e) {
-      if (!isMissing(e)) report(`remove ${threadId}`, e);
+      if (isMissing(e)) return true;
+      report(`remove ${threadId}`, e);
+      return false;
     }
   }
 

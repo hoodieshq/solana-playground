@@ -131,23 +131,30 @@ export class PgThreadIndex {
    * reuses the id, and a surviving entry hands the new run the previous
    * run's conversation.
    *
+   * Also for a thread the server closed under a live project: the panel
+   * moves to a fresh thread, and the closed one goes the same way.
+   *
    * Under the cross-tab lock, and against the map as it is *after* the file
-   * is gone: the wait on storage is long enough for this tab to mint a
+   * is gone: the wait on storage narrows the window for this tab to mint a
    * thread, or a neighbour tab to write the map, and writing the copy read
    * before it put the stale map back over either.
+   *
+   * @returns whether both are gone, or there was nothing to forget. `false`
+   * leaves the entry in place, so the caller can try again.
    */
-  static async forget(workspaceId: string) {
-    await withSyncLock(async () => {
+  static async forget(workspaceId: string): Promise<boolean> {
+    return withSyncLock(async () => {
       const threadId = (await PgThreadIndex._refresh())[workspaceId];
-      if (!threadId) return;
+      if (!threadId) return true;
 
-      // The file before the entry. A file left behind without one is adopted
-      // by the next load's migration as a thread named after its workspace,
-      // and pushed as a project that never existed; an entry left pointing at
-      // a missing file just reads as an empty thread.
-      await PgChatStorage.remove(threadId);
+      // The file before the entry, and the entry only once the file is gone.
+      // A file left behind without one is adopted by the next load's
+      // migration as a thread named after its workspace, and pushed as a
+      // project that never existed; an entry left pointing at a missing file
+      // just reads as an empty thread.
+      if (!(await PgChatStorage.remove(threadId))) return false;
       const { [workspaceId]: _gone, ...rest } = await PgThreadIndex._refresh();
-      await PgThreadIndex._write(rest);
+      return PgThreadIndex._commit(rest);
     });
   }
 
@@ -164,30 +171,43 @@ export class PgThreadIndex {
    *
    * Renamed, not read and rewritten: a file this device cannot decode moves
    * with the rest, so nothing is lost, and the old workspace's entry is gone
-   * either way -- an entry left pointing at a deleted project's id would hand
-   * a tutorial started again under that id the previous run's thread, which
-   * is the bug `forget` exists for. A rename that fails for any other reason
-   * is reported and leaves everything as it was.
+   * whether or not the file decodes -- an entry left pointing at a deleted
+   * project's id would hand a tutorial started again under that id the
+   * previous run's thread, which is the bug `forget` exists for.
+   *
+   * @returns whether the conversation is now the new workspace's, which it
+   * trivially is when there was none. `false` leaves everything as it was,
+   * so the caller must not go on to delete the old workspace: its delete
+   * forgets the conversation that failed to move.
    */
-  static async carry(fromWorkspaceId: string, toWorkspaceId: string) {
-    await withSyncLock(async () => {
-      const from = (await PgThreadIndex._refresh())[fromWorkspaceId];
-      if (!from) return;
+  static async carry({ from, to }: { from: string; to: string }) {
+    return withSyncLock(async () => {
+      const threadId = (await PgThreadIndex._refresh())[from];
+      if (!threadId) return true;
 
-      const to = uuid();
+      const fresh = uuid();
       try {
-        await PgFs.rename(pathOf(from), pathOf(to));
+        await PgFs.rename(pathOf(threadId), pathOf(fresh));
       } catch (e) {
         // An entry with no file yet is an empty conversation, which the new
         // workspace starts with anyway
         if (!isMissing(e)) {
-          report(`carry ${fromWorkspaceId} to ${toWorkspaceId}`, e);
-          return;
+          report(`carry ${from} to ${to}`, e);
+          return false;
         }
       }
-      const { [fromWorkspaceId]: _moved, ...rest } =
-        await PgThreadIndex._refresh();
-      await PgThreadIndex._write({ ...rest, [toWorkspaceId]: to });
+      const { [from]: _moved, ...rest } = await PgThreadIndex._refresh();
+      if (await PgThreadIndex._commit({ ...rest, [to]: fresh })) return true;
+
+      // The map still points at the old name, so the file goes back to it:
+      // left under the new one it has no entry, and the next load's
+      // migration adopts it as a workspace named after the thread
+      try {
+        await PgFs.rename(pathOf(fresh), pathOf(threadId));
+      } catch (e) {
+        if (!isMissing(e)) report(`carry ${from} back`, e);
+      }
+      return false;
     });
   }
 
@@ -274,15 +294,31 @@ export class PgThreadIndex {
     }
   }
 
-  private static async _write(index: Index) {
+  /** @returns whether the map reached storage; a failure is reported */
+  private static async _write(index: Index): Promise<boolean> {
     PgThreadIndex._cache = index;
     try {
       await PgFs.writeFile(INDEX_PATH, JSON.stringify(index), {
         createParents: true,
       });
+      return true;
     } catch (e) {
       report("write index", e);
+      return false;
     }
+  }
+
+  /**
+   * `_write`, for a caller that goes on only if it landed.
+   *
+   * `_write` sets the cache before it touches storage, so a failed write
+   * leaves this tab answering from a map storage never got. Read back, so
+   * the cache says what storage says.
+   */
+  private static async _commit(index: Index): Promise<boolean> {
+    if (await PgThreadIndex._write(index)) return true;
+    await PgThreadIndex._refresh();
+    return false;
   }
 
   /**

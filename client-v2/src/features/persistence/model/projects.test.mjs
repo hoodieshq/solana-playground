@@ -345,26 +345,6 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     });
   });
 
-  it("deletes a project's conversations with it", async () => {
-    // Otherwise a tutorial started again restores the previous run's chat
-    // from the server, under the same project id
-    const threadId = "22222222-0000-4000-8000-000000000001";
-    await put({ files });
-    await appendMessages(userId, { threadId, projectId: "p1" }, [
-      {
-        id: "22222222-0000-4000-8000-000000000101",
-        kind: "user",
-        createdAt: new Date(1000).toISOString(),
-        text: "old run",
-      },
-    ]);
-
-    await deleteProject(userId, "p1");
-
-    assert.deepEqual(await listThreads(userId, "p1"), []);
-    assert.equal(await getThread(userId, threadId), null);
-  });
-
   it("deletes only that project's conversations", async () => {
     // Scoped by user and project in the statement itself: a delete that
     // tombstoned by project id alone would take the same tutorial's chat

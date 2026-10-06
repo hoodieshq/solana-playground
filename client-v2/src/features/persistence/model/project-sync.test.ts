@@ -1210,9 +1210,7 @@ describe("a refusal the user has to clear", () => {
     vi.spyOn(PgExplorer, "deleteWorkspace").mockResolvedValue(
       undefined as never
     );
-    const forget = vi
-      .spyOn(PgThreadIndex, "forget")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
 
     expect(await PgProjectSync.resolve("p1", "delete-local")).toBe(true);
     expect(forget).toHaveBeenCalledWith("p1");
@@ -1234,13 +1232,14 @@ describe("a refusal the user has to clear", () => {
     const importWorkspace = vi
       .spyOn(PgExplorer, "importWorkspace")
       .mockResolvedValue(undefined as never);
-    vi.spyOn(PgExplorer, "deleteWorkspace").mockResolvedValue(
-      undefined as never
-    );
+    const deleteWorkspace = vi
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(
       undefined as never
     );
-    const carry = vi.spyOn(PgThreadIndex, "carry").mockResolvedValue(undefined);
+    const removeMark = vi.spyOn(PgSyncMark, "remove");
+    const carry = vi.spyOn(PgThreadIndex, "carry").mockResolvedValue(true);
 
     expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(true);
 
@@ -1248,9 +1247,36 @@ describe("a refusal the user has to clear", () => {
       string,
       { id: string }
     ];
-    expect(carry).toHaveBeenCalledWith("p1", imported.id);
+    expect(carry).toHaveBeenCalledWith({ from: "p1", to: imported.id });
     expect(imported.id).not.toBe("p1");
     expect(PgProjectSync.conflictFor("p1")).toBeNull();
+    // The delete event forgets the conversation of every mark whose
+    // workspace is gone: the chat has to have moved, and the mark to be
+    // gone, before the original is deleted
+    const [deleted] = deleteWorkspace.mock.invocationCallOrder;
+    expect(carry.mock.invocationCallOrder[0]).toBeLessThan(deleted);
+    expect(removeMark.mock.invocationCallOrder[0]).toBeLessThan(deleted);
+  });
+
+  it("keeps the original when the conversation could not be carried", async () => {
+    // Deleted anyway, its delete forgot the conversation that failed to
+    // move, while the banner closed as though the work was kept
+    await signedIn();
+    asWorkspace("p1", "mine");
+    PgProjectSync.raise({ projectId: "p1", kind: "deleted-elsewhere" });
+    vi.spyOn(PgExplorer, "importWorkspace").mockResolvedValue(
+      undefined as never
+    );
+    const deleteWorkspace = vi
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+    vi.spyOn(PgThreadIndex, "carry").mockResolvedValue(false);
+
+    expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(false);
+
+    // Only the copy goes, so answering again does not hit its name
+    expect(deleteWorkspace.mock.calls).toEqual([["mine (kept)"]]);
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("deleted-elsewhere");
   });
 
   it("does not keep an empty copy of a directory another tab removed", async () => {

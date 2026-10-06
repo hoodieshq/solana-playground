@@ -446,8 +446,10 @@ const settleDeletes = async (serverIds: Set<string>, result: SyncResult) => {
     try {
       const local = PgExplorer.workspaceNameOf(projectId);
       if (!local) {
-        // Gone from both sides. The mark is the last thing left of it.
+        // Gone from both sides. The mark and the thread-index entry are the
+        // last things left of it.
         await PgSyncMark.remove(projectId);
+        await PgThreadIndex.forget(projectId);
         continue;
       }
 

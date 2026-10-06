@@ -17,19 +17,23 @@ import { openThread } from "./open-thread";
  * own file, outside the `index.ts` barrel: every export there is mounted as
  * an effect.
  *
- * A thread the server has deleted is settled here, once, instead of being
- * pushed and refused again on every turn:
+ * A thread the server has deleted is not pushed again as though the push
+ * had merely failed:
  *
  * - deleted under a live project -- a tutorial started again on another
  *   device -- it is forgotten and, if the panel has it open, replaced by a
  *   fresh thread for the workspace, which then adopts the account's;
- * - deleted with its project, it is left alone. The user is about to be
- *   asked about the project (`SyncBanner`), and the answer settles the chat
- *   too: "keep as new" carries it, "delete" drops it. Forgetting it here
- *   would lose the conversation before that question is on screen.
+ * - deleted with its project, it is left alone and stays owed. The user is
+ *   about to be asked about the project (`SyncBanner`), and the answer
+ *   settles the chat too: "keep as new" carries it, "delete" drops it.
+ *   Forgetting it here would lose the conversation before that question is
+ *   on screen. Owed rather than settled because the tombstone may not
+ *   last: a tutorial restarted on this device revives its project with the
+ *   project push, and the thread then has to follow it.
  *
- * @returns whether the thread is settled: on the server, or closed by it.
- * `false` means it is still owed and the caller should try again.
+ * @returns whether the thread is settled: on the server, or closed by it
+ * and forgotten here. `false` means it is still owed and the caller should
+ * try again.
  */
 export const pushThread = async (threadId: string): Promise<boolean> => {
   await PgAssistant.whenPersisted();
@@ -38,32 +42,45 @@ export const pushThread = async (threadId: string): Promise<boolean> => {
     case "pushed":
       return true;
     case "thread-deleted":
-      await replaceDeleted(threadId);
-      return true;
+      return replaceDeleted(threadId);
     case "project-deleted":
-      return true;
     case "failed":
       return false;
   }
 };
 
-/** Forget a thread the server has closed, and open a new one in its place */
-const replaceDeleted = async (threadId: string) => {
+/**
+ * Forget a thread the server has closed, and open a new one in its place.
+ *
+ * The panel leaves the dead thread before its file goes, and waits for the
+ * store's last write to it: a message sent while `forget` waits on the lock
+ * was written into the file `forget` then deleted, and vanished with the
+ * reply streaming after it. Typed while no thread is open, it is adopted by
+ * the next one (`PgAssistant.loadThread`).
+ *
+ * @returns whether the thread is forgotten
+ */
+const replaceDeleted = async (threadId: string): Promise<boolean> => {
   const workspaceId = await PgThreadIndex.workspaceOf(threadId);
-  if (!workspaceId) return;
-  await PgThreadIndex.forget(workspaceId);
+  if (!workspaceId) return true;
 
   // Only when the panel is still showing the dead thread on the workspace
   // it belongs to. Switched away, the next open mints a fresh one anyway.
-  if (
-    PgAssistant.threadId !== threadId ||
-    PgExplorer.currentWorkspaceId !== workspaceId
-  ) {
-    return;
-  }
+  const showing =
+    PgAssistant.threadId === threadId &&
+    PgExplorer.currentWorkspaceId === workspaceId;
+  if (showing) PgAssistant.closeThread();
+  await PgAssistant.whenPersisted();
+
+  const forgotten = await PgThreadIndex.forget(workspaceId);
+  if (!showing) return forgotten;
+
+  // Not forgotten, the same thread opens again, which is still better than
+  // a panel with nothing open; it is pushed again on the next turn
   try {
     await openThread(workspaceId, await PgThreadIndex.ensure(workspaceId));
   } catch (e) {
     report(`reopen ${workspaceId} after its thread was deleted`, e);
   }
+  return forgotten;
 };

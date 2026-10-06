@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
+import { DELETED_REASON } from "../src/features/persistence/server.mjs";
+
 const load = async () => {
   // Fresh module per case: `db.mjs` memoises its pool at module scope
   const url = new URL("./conversations.mjs", import.meta.url);
@@ -136,10 +138,10 @@ describe("/api/conversations", () => {
       assert.equal(status, 404);
     });
 
-    it("maps a thread deleted with its project to 410, not 2xx", async () => {
+    it("maps a thread deleted under a live project to 410, not 2xx", async () => {
       // The client deletes its own copy of a thread once the server has
-      // taken it, so a 200 here lost the messages; a 404 would send it
-      // looking for the account's thread, which is the one just deleted
+      // taken it, so a 200 here lost the messages; a 404 reads as transient,
+      // so the thread would be pushed again on every turn
       const mod = await load();
       const { ThreadDeleted } = await import(
         "../src/features/persistence/model/conversations.mjs"
@@ -148,7 +150,7 @@ describe("/api/conversations", () => {
       const { status, body } = mod.describeFailure(new ThreadDeleted("thread"));
 
       assert.equal(status, 410);
-      assert.equal(body.reason, "deleted");
+      assert.equal(body.reason, DELETED_REASON);
       assert.equal(body.scope, "thread");
     });
 

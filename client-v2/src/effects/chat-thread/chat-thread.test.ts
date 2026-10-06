@@ -384,8 +384,9 @@ describe("pushThread", () => {
       vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
       vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
       vi.spyOn(PgThreadIndex, "workspaceOf").mockResolvedValue("p1");
-      vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(undefined);
+      vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
       vi.spyOn(PgThreadIndex, "ensure").mockResolvedValue("t2");
+      vi.spyOn(PgAssistant, "closeThread").mockImplementation(() => {});
       vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
         "p1" as never
       );
@@ -407,6 +408,49 @@ describe("pushThread", () => {
       expect(PgChatSync.fetchThread).toHaveBeenCalledWith("t2");
     });
 
+    it("moves the panel off it before its file goes", async () => {
+      // A message sent while `forget` waited on the lock was written into
+      // the file it then deleted, and vanished with the reply after it
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      const persisted = vi.spyOn(PgAssistant, "whenPersisted");
+
+      await pushThread("t1");
+
+      const [forgotten] = vi.mocked(PgThreadIndex.forget).mock
+        .invocationCallOrder;
+      const [closed] = vi.mocked(PgAssistant.closeThread).mock
+        .invocationCallOrder;
+      expect(closed).toBeLessThan(forgotten);
+      // The store's write chain is waited on again after the close: the
+      // first wait was before the push
+      expect(persisted.mock.invocationCallOrder[1]).toBeLessThan(forgotten);
+    });
+
+    it("stays owed when it could not be forgotten", async () => {
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      vi.mocked(PgThreadIndex.forget).mockResolvedValue(false);
+
+      await expect(pushThread("t1")).resolves.toBe(false);
+    });
+
+    it("is forgotten but not reopened when another workspace is open", async () => {
+      // The panel still names the thread, but the user has switched
+      // workspace and the switch has not reached it yet
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+        "p2" as never
+      );
+
+      await pushThread("t1");
+
+      expect(PgThreadIndex.forget).toHaveBeenCalledWith("p1");
+      expect(PgAssistant.closeThread).not.toHaveBeenCalled();
+      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
+    });
+
     it("is forgotten but not reopened when the panel has moved on", async () => {
       vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
       vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t9");
@@ -425,19 +469,12 @@ describe("pushThread", () => {
       vi.spyOn(PgChatSync, "push").mockResolvedValue("project-deleted");
       vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
 
-      // Settled, not owed: nothing is gained by pushing it again
-      await expect(pushThread("t1")).resolves.toBe(true);
-
-      expect(PgThreadIndex.forget).not.toHaveBeenCalled();
-      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
-    });
-
-    it("is still owed when the push merely failed", async () => {
-      vi.spyOn(PgChatSync, "push").mockResolvedValue("failed");
-
+      // Owed, not settled: a tutorial restarted on this device revives the
+      // project with its own push, and the thread has to follow it
       await expect(pushThread("t1")).resolves.toBe(false);
 
       expect(PgThreadIndex.forget).not.toHaveBeenCalled();
+      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
     });
   });
 });

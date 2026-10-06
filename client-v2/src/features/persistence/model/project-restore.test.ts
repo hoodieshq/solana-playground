@@ -330,9 +330,7 @@ describe("reconcile", () => {
     const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
-    const forget = vi
-      .spyOn(PgThreadIndex, "forget")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
     serverHas([]);
 
     const result = await reconcile();
@@ -385,6 +383,7 @@ describe("reconcile", () => {
     const remove = vi
       .spyOn(PgExplorer, "deleteWorkspace")
       .mockResolvedValue(undefined as never);
+    const forget = vi.spyOn(PgThreadIndex, "forget");
     serverHas([]);
 
     const result = await reconcile();
@@ -393,6 +392,23 @@ describe("reconcile", () => {
     expect(result.conflicts).toEqual([
       { projectId: "p1", kind: "deleted-elsewhere" },
     ]);
+    // The conversation waits for the same answer: "keep as new" carries it
+    expect(forget).not.toHaveBeenCalled();
+  });
+
+  it("forgets the conversation of a project gone from both sides", async () => {
+    // Deleted here while signed out and elsewhere too: the mark and the
+    // thread-index entry are all that is left, and the entry hands a
+    // tutorial started again under the id the previous run's chat
+    withLocal({});
+    await agreed("p1", { files: { "src/lib.rs": "same" } }, "t1");
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
+    serverHas([]);
+
+    await reconcile();
+
+    expect(await PgSyncMark.read("p1")).toBeNull();
+    expect(forget).toHaveBeenCalledWith("p1");
   });
 
   it("does not hand over as new a project it holds a pre-upgrade mark for", async () => {

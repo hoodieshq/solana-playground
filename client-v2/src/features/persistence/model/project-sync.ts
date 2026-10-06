@@ -1,4 +1,5 @@
 import { uuid } from "../../../shared/lib/ids";
+import { DELETED_REASON } from "./deleted.mjs";
 import { report } from "./diagnostics";
 import {
   baseAfterMerge,
@@ -133,7 +134,7 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
   }
 
   if (reason === "name-taken") return "name-taken";
-  if (reason === "deleted") return "deleted-elsewhere";
+  if (reason === DELETED_REASON) return "deleted-elsewhere";
   if (reason === "too-large" || response.status === 413) return "too-large";
   return "divergent";
 };
@@ -1338,10 +1339,21 @@ export class PgProjectSync {
           // The conversation is part of the work being kept. Under a fresh
           // thread id, because the old one is tombstoned on the server
           // along with the project, and would be refused for ever.
-          await PgThreadIndex.carry(projectId, freshId);
-          await PgExplorer.deleteWorkspace(name);
+          //
+          // Not carried, the original stays and the copy goes, so the
+          // question can be answered again: deleting the original would
+          // forget the conversation that failed to move.
+          if (!(await PgThreadIndex.carry({ from: projectId, to: freshId }))) {
+            await PgExplorer.deleteWorkspace(fresh);
+            return false;
+          }
+          // The mark before the workspace. The delete event settles every
+          // mark whose workspace is gone, and this project is being settled
+          // here: with its mark still present, the event deleted it on the
+          // server a second time and forgot its conversation by id.
           await PgSyncMark.remove(projectId);
           await PgSyncBase.clear(projectId);
+          await PgExplorer.deleteWorkspace(name);
           PgProjectSync._clear(projectId);
           await PgExplorer.switchWorkspace(fresh);
           return true;

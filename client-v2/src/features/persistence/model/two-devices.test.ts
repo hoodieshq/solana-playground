@@ -1097,8 +1097,8 @@ describe("deleting on one device", () => {
     // The chat is part of the work being kept. It moves under a fresh thread
     // id -- the old one is tombstoned with the project -- and the deleted id
     // keeps no entry, so a tutorial started again under it starts clean.
-    // Through the real index, in the order `_resolve` runs: the carry has to
-    // happen before the old workspace's delete, whose event forgets it.
+    // Through the real index. The delete is stubbed and fires no event, so
+    // the order against it is pinned in `project-sync.test.ts`, not here.
     asDevice([HELLO]);
     await signedIn();
     await PgProjectSync.pushCurrent();

@@ -1,5 +1,6 @@
 import { decodeThread, encodeThread, mergeThreads } from "./chat-codec";
 import { PgChatStorage, withoutTruncationNotice } from "./chat-storage";
+import { DELETED_REASON, isDeletedScope } from "./deleted.mjs";
 import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
@@ -9,13 +10,13 @@ import type { ChatItem } from "../../../views/sidebar/assistant/store";
 /**
  * What a hand-over managed.
  *
- * `pushed` is the ids this device may drop: the server holds them, or has
- * closed them under a project it still has. `complete` says whether that was
+ * `handedOver` is the ids this device may drop: the server holds them, or
+ * has closed them under a project it still has. `complete` says whether that was
  * all of them, which is the only thing that licenses dropping the directory
  * wholesale.
  */
 export interface HandOver {
-  pushed: string[];
+  handedOver: string[];
   complete: boolean;
 }
 
@@ -183,10 +184,12 @@ export class PgChatSync {
       // says why a thread stopped syncing.
       if (response.status === 410) {
         const scope = await PgChatSync._deletedScope(response);
+        if (scope === "unknown") {
+          report(`push ${threadId}: unrecognised HTTP 410`, null);
+          return "failed";
+        }
         report(`push ${threadId}: ${scope} deleted on the server`, null);
-        if (scope === "project") return "project-deleted";
-        if (scope === "thread") return "thread-deleted";
-        return "failed";
+        return scope === "project" ? "project-deleted" : "thread-deleted";
       }
       report(`push ${threadId}: HTTP ${response.status}`, null);
       return "failed";
@@ -216,9 +219,8 @@ export class PgChatSync {
       report("read 410 body", e);
       return "unknown";
     }
-    if (body?.reason !== "deleted") return "unknown";
-    if (body.scope === "project" || body.scope === "thread") return body.scope;
-    return "unknown";
+    if (body?.reason !== DELETED_REASON) return "unknown";
+    return isDeletedScope(body.scope) ? body.scope : "unknown";
   }
 
   /**
@@ -342,7 +344,7 @@ export class PgChatSync {
       }))
     );
     return {
-      pushed: outcomes.filter((o) => o.handedOver).map((o) => o.id),
+      handedOver: outcomes.filter((o) => o.handedOver).map((o) => o.id),
       complete: outcomes.every((o) => o.handedOver),
     };
   }
@@ -354,7 +356,8 @@ export class PgChatSync {
    * it: `features/auth` must not import `features/persistence`, because this
    * module already imports `features/auth` and the two would be circular.
    *
-   * A thread is only dropped once the server holds it. A failed push leaves
+   * A thread is only dropped once the server holds it, or has closed it
+   * under a project it still has (`isHandedOver`). A failed push leaves
    * that thread where it is and the next sign-in tries again -- losing
    * messages to a flaky network is the worse failure, and the cost of being
    * wrong the other way is that the next user of this browser sees a thread
@@ -387,7 +390,7 @@ export class PgChatSync {
     // the ones just removed. A stale entry costs an empty thread on the next
     // open, which `PgChatStorage.read` answers with `[]` -- not the wrong
     // account's messages, which is what this is protecting.
-    await Promise.all(handed.pushed.map((id) => PgChatStorage.remove(id)));
+    await Promise.all(handed.handedOver.map((id) => PgChatStorage.remove(id)));
   }
 
   private static async _ready() {
