@@ -1,4 +1,9 @@
 import {
+  initLogger,
+  memoryProvider,
+  resetLogger,
+} from "../../../shared/lib/logger";
+import {
   clearFailures,
   getFailures,
   getLastFailure,
@@ -6,10 +11,15 @@ import {
   report,
 } from "./diagnostics";
 
+let logged: ReturnType<typeof memoryProvider>;
+
 beforeEach(() => {
   clearFailures();
-  vi.spyOn(console, "error").mockImplementation(() => {});
+  logged = memoryProvider();
+  initLogger({ providers: [logged] });
 });
+
+afterEach(() => resetLogger());
 
 it("records a failure and hands back the newest one", () => {
   const error = new Error("disk full");
@@ -17,10 +27,21 @@ it("records a failure and hands back the newest one", () => {
 
   expect(getLastFailure()).toMatchObject({ what: "write thread", error });
   expect(getFailures()).toHaveLength(1);
-  expect(console.error).toHaveBeenCalledWith(
-    "persistence: write thread failed",
-    error
-  );
+});
+
+it("should report a failure to error tracking under its namespace", () => {
+  const error = new Error("disk full");
+  report("write thread", error);
+
+  expect(logged.entries).toEqual([
+    expect.objectContaining({
+      ns: "persistence:diagnostics",
+      level: "error",
+      error,
+      report: true,
+      context: { what: "write thread failed" },
+    }),
+  ]);
 });
 
 it("keeps the list bounded so a failing loop cannot grow it forever", () => {

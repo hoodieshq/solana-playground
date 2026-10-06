@@ -47,6 +47,15 @@ A slice's segments: `ui/` for React, `model/` for logic, `lib/` for leaf
 helpers. Its public API is `index.ts` for browser code and `server.mjs` for
 `api/` routes; import a slice through its public API, never a deep path.
 
+**Every slice with an `index.ts` measures itself.** Under `features/` and
+`widgets/`, it declares its events in `model/telemetry.ts` with
+`createTracker` from `shared/lib/telemetry`, registers its prefix in
+`shared/lib/telemetry/prefixes.ts`, and gives every event a doc comment saying
+when it fires. `src/app/slice-structure.test.ts` fails otherwise. A change that
+adds or renames an event describes it in its spec delta too
+(`openspec/config.yaml`). Logs go through `shared/lib/logger`: a slice binds
+its own namespace with `createLogger("<slice>:<module>")`.
+
 The two existing features with a React folder, `auth` and `persistence`, keep
 `Component/` until the naming is settled; new slices use `ui/`.
 
@@ -205,10 +214,11 @@ check's job (HOO-1859); the rest hold by review.
   copied UUID regex, never `import ... from "uuid"` anywhere else.
   `api/` cannot import `src/`, so it uses the `uuid` package directly;
   it is the one exception.
-- **A `catch` is never empty.** It rethrows, reports through the owning
-  feature's diagnostics, or tells the user. A failure that is swallowed on
-  purpose still logs why, in the `catch`, so the next reader does not have
-  to guess whether it was forgotten.
+- **A `catch` is never empty.** It rethrows, logs through `shared/lib/logger`
+  (with `report: true` when the team must hear of it in production), or tells
+  the user. A failure that is swallowed on purpose still logs why, in the
+  `catch`, so the next reader does not have to guess whether it was
+  forgotten.
 - **No nested ternaries.** Two or more branches is an `if` chain or a
   `Record` lookup.
 - **Imports go through a slice's public API**, never a deep path (see

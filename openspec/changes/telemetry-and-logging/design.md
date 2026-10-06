@@ -87,13 +87,19 @@ and the level set and error handling of its
    those `mechanism: { handled: false }`. _Rejected:_ Sentry's handlers (two
    paths; console and tests never see unhandled errors).
 
-10. **Vendors load from the app layer and wait for their ids.**
-    `<GoogleAnalytics>` (in `shared/lib/telemetry`) injects `gtag.js` when
-    `REACT_APP_GA_MEASUREMENT_ID` is set, and renders nothing otherwise.
-    Sentry is initialised by `initLogger` in `src/index.tsx` before the first
-    render, not by a component: a component's effect runs after the first
-    render, so an error thrown during it would miss Sentry. Without
-    `REACT_APP_SENTRY_DSN` the Sentry provider does nothing.
+10. **One widget owns initialisation, behind a typed contract.**
+    `widgets/observability` exports `<Observability sentry googleAnalytics
+    logLevel fallback>`; `src/index.tsx` renders it around `<App />` and
+    passes the ids from the environment. It initialises the logger, the
+    global handlers and telemetry in a `useState` initialiser: that runs
+    during its first render, before its children render, so their errors
+    reach Sentry (an effect would run after them). A module-level guard keeps
+    StrictMode's second render from calling `Sentry.init` again. It renders
+    `GoogleAnalytics`, which injects `gtag.js` only with a measurement id, and
+    the root `LoggerErrorBoundary`. Each vendor does nothing until its id is
+    passed. _Rejected:_ plain calls in `src/index.tsx` (no contract to review
+    or test); an app-layer component (the widget is the agreed home, and it
+    measures itself like any other slice).
 
 11. **Events are described for two readers.** TSDoc on each key for the
     developer, checked by the slice-structure test through the TypeScript

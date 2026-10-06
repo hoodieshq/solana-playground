@@ -144,9 +144,16 @@ runs.
 
 ### Requirement: GA4 loads only with a measurement id
 
-`GoogleAnalytics` SHALL inject `gtag.js` when `REACT_APP_GA_MEASUREMENT_ID` is
-set, and SHALL render nothing and inject nothing when it is unset; the GA4
-provider SHALL do nothing while `gtag.js` is absent.
+The GA4 provider SHALL send nothing without a measurement id, and with one
+SHALL queue events from its creation, so events tracked before `gtag.js`
+loads are sent once it does. `GoogleAnalytics` SHALL inject `gtag.js` once
+when a measurement id is set, and nothing when it is unset.
+
+#### Scenario: An event before gtag.js loads
+
+- **WHEN** an event is tracked after `initTelemetry` and before `gtag.js` has
+  loaded, with a measurement id set
+- **THEN** the event is in the queue `gtag.js` reads when it loads
 
 #### Scenario: No measurement id
 

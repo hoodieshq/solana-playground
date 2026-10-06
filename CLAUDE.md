@@ -242,9 +242,10 @@ changes. Asked to build something in the client, look there first.
 - **Persistence failures are reported, not swallowed.** `chat-storage`,
   `chat-sync`, `project-sync` and `project-restore` all catch -- a lost write
   must not take the panel down -- but every failure goes through
-  `model/diagnostics.ts`. In the browser console,
-  `__pgSyncDiagnostics.failures()` lists them. A missing file is not a failure
-  and is deliberately silent.
+  `model/diagnostics.ts`, which logs each one under `persistence:diagnostics`
+  with `report: true`, so it reaches Sentry once a DSN is configured. In the
+  browser console, `__pgSyncDiagnostics.failures()` lists them. A missing file
+  is not a failure and is deliberately silent.
 
 - **`wasm/stub-packages.sh` is not optional.** Six of the eight local
   `wasm/*/pkg` deps compile from Rust and take about an hour. `yarn install`

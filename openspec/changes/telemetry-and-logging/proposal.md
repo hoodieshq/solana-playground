@@ -38,6 +38,11 @@ those slices exist, not after.
   and environment. Unhandled errors and render errors go through the logger.
 - `features/persistence` reports its failures through the logger, so they
   reach Sentry.
+- A `widgets/observability` widget initialises the logger, Sentry, and
+  telemetry from typed props, and holds the root error boundary.
+- Events added: `auth_sign_in_started`, `auth_signed_in`,
+  `auth_sign_in_failed`, `auth_signed_out` (`features/auth`), and
+  `obs_initialised` (`widgets/observability`).
 
 ## Capabilities
 
@@ -47,6 +52,9 @@ those slices exist, not after.
   names and parameters are allowed, and when events leave the browser.
 - `client-v2-logging`: how code logs, how entries are namespaced, which
   providers receive them, and which entries reach Sentry.
+- `client-v2-observability`: the widget that initialises both, its props, and
+  its event.
+- `client-v2-auth`: the events sign-in and sign-out send.
 
 ### Modified Capabilities
 
@@ -56,12 +64,13 @@ changes archive independently.
 
 ## Impact
 
-- `client-v2/package.json`: `@sentry/react`, and `@sentry/cli` as a
-  development dependency.
+- `client-v2/package.json`: `@sentry/react`; `@sentry/cli` as a development
+  dependency with task 2.3.
 - `client-v2/src/shared/lib/telemetry/`, `client-v2/src/shared/lib/logger/`:
   new.
-- `client-v2/src/app/` and `client-v2/src/index.tsx`: `initLogger`,
-  `initTelemetry`, `GoogleAnalytics`, and the root error boundary.
+- `client-v2/src/widgets/observability/`: new; `client-v2/src/index.tsx`
+  renders it around the app.
+- `client-v2/src/features/auth/`: tracks sign-in and sign-out.
 - `client-v2/src/features/persistence/model/diagnostics.ts`: reports through
   the logger.
 - `openspec/config.yaml`: two rules on describing events.

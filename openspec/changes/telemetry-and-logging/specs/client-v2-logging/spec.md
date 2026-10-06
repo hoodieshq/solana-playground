@@ -70,8 +70,8 @@ SHALL print only entries at or above its threshold: `debug` in development,
 #### Scenario: The app's configuration
 
 - **WHEN** the app starts
-- **THEN** `initLogger` is called once, from the app layer, with the console
-  and Sentry providers
+- **THEN** `initLogger` is called once, by the `Observability` widget, with
+  the console and Sentry providers
 
 ### Requirement: Sentry receives reported entries through one provider
 
