@@ -125,12 +125,11 @@ export class PgThreadIndex {
   /**
    * Remove a deleted workspace's conversation, and the entry pointing at it.
    *
-   * By workspace id, because that is all a delete knows, and the thread is
-   * found through this map -- storage has been keyed by thread id since
-   * threads got ids of their own, so removing a file named after the
-   * workspace removed nothing. The entry goes too: a tutorial's id is derived
-   * from its name, so starting one again reuses the id, and a surviving entry
-   * handed the new run the previous run's conversation.
+   * By workspace id, because that is all a delete knows: storage is keyed
+   * by thread id, so the thread is found through this map. The entry goes
+   * too: a tutorial's id is derived from its name, so starting one again
+   * reuses the id, and a surviving entry hands the new run the previous
+   * run's conversation.
    *
    * Under the cross-tab lock, and against the map as it is *after* the file
    * is gone: the wait on storage is long enough for this tab to mint a
@@ -160,33 +159,35 @@ export class PgThreadIndex {
    * its conversation was tombstoned with it, and the user keeps this
    * device's work under a new id. The chat is part of that work. It cannot
    * keep its thread id -- the server refuses every push to a tombstoned
-   * thread, whatever project the push names -- so the items move to a thread
-   * minted for the new workspace, whose first push creates it.
+   * thread, whatever project the push names -- so the file is renamed to a
+   * thread id minted for the new workspace, whose first push creates it.
    *
-   * @returns the new thread id, or `null` when there was nothing to carry or
-   * the old thread could not be read -- then the new workspace starts with a
-   * fresh conversation and the old one stays where it was
+   * Renamed, not read and rewritten: a file this device cannot decode moves
+   * with the rest, so nothing is lost, and the old workspace's entry is gone
+   * either way -- an entry left pointing at a deleted project's id would hand
+   * a tutorial started again under that id the previous run's thread, which
+   * is the bug `forget` exists for. A rename that fails for any other reason
+   * is reported and leaves everything as it was.
    */
-  static async carry(
-    fromWorkspaceId: string,
-    toWorkspaceId: string
-  ): Promise<string | null> {
-    return withSyncLock(async () => {
+  static async carry(fromWorkspaceId: string, toWorkspaceId: string) {
+    await withSyncLock(async () => {
       const from = (await PgThreadIndex._refresh())[fromWorkspaceId];
-      if (!from) return null;
-
-      const items = await PgChatStorage.read(from);
-      // Nothing is moved that could not be read: the old file stays, so the
-      // conversation is not lost, only not carried
-      if (items === null) return null;
+      if (!from) return;
 
       const to = uuid();
-      await PgChatStorage.write(to, items);
-      await PgChatStorage.remove(from);
+      try {
+        await PgFs.rename(pathOf(from), pathOf(to));
+      } catch (e) {
+        // An entry with no file yet is an empty conversation, which the new
+        // workspace starts with anyway
+        if (!isMissing(e)) {
+          report(`carry ${fromWorkspaceId} to ${toWorkspaceId}`, e);
+          return;
+        }
+      }
       const { [fromWorkspaceId]: _moved, ...rest } =
         await PgThreadIndex._refresh();
       await PgThreadIndex._write({ ...rest, [toWorkspaceId]: to });
-      return to;
     });
   }
 

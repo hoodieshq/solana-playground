@@ -1240,7 +1240,7 @@ describe("a refusal the user has to clear", () => {
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(
       undefined as never
     );
-    const carry = vi.spyOn(PgThreadIndex, "carry").mockResolvedValue("t2");
+    const carry = vi.spyOn(PgThreadIndex, "carry").mockResolvedValue(undefined);
 
     expect(await PgProjectSync.resolve("p1", "keep-as-new")).toBe(true);
 

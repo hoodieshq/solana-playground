@@ -1,10 +1,12 @@
 import type { Mock } from "vitest";
+import { PgChatStorage } from "./chat-storage";
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
 import { sha256, snapshotOf, SYNCED_WORKSPACE_FILES } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
+import { PgThreadIndex } from "./thread-index";
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgSession } from "../../auth";
 import { isUuid } from "../../../shared/lib/ids";
@@ -1089,6 +1091,55 @@ describe("deleting on one device", () => {
     expect(result.conflicts).toEqual([
       { projectId: HELLO.id, kind: "deleted-elsewhere" },
     ]);
+  });
+
+  it("carries the conversation into the project kept as new", async () => {
+    // The chat is part of the work being kept. It moves under a fresh thread
+    // id -- the old one is tombstoned with the project -- and the deleted id
+    // keeps no entry, so a tutorial started again under it starts clean.
+    // Through the real index, in the order `_resolve` runs: the carry has to
+    // happen before the old workspace's delete, whose event forgets it.
+    asDevice([HELLO]);
+    await signedIn();
+    await PgProjectSync.pushCurrent();
+    const oldThread = await PgThreadIndex.ensure(HELLO.id);
+    await PgChatStorage.write(oldThread, [
+      {
+        kind: "user",
+        id: "33333333-0000-4000-8000-000000000001",
+        createdAt: new Date(1000).toISOString(),
+        text: "kept with the code",
+      },
+    ]);
+
+    otherDeviceDeleted(HELLO.id);
+    storedFiles().set(`/${HELLO.name}/src/lib.rs`, "unsaved");
+    storedFiles().set(
+      PgWorkspace.WORKSPACES_CONFIG_PATH,
+      JSON.stringify({ workspaces: [HELLO] })
+    );
+    let keptId: string | null = null;
+    vi.spyOn(PgExplorer, "importWorkspace").mockImplementation(
+      async (_name: string, opts: { id: string }) => {
+        keptId = opts.id;
+      }
+    );
+    vi.spyOn(PgExplorer, "deleteWorkspace").mockResolvedValue(
+      undefined as never
+    );
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    await reconcile();
+
+    expect(await PgProjectSync.resolve(HELLO.id, "keep-as-new")).toBe(true);
+
+    expect(keptId).not.toBeNull();
+    const carried = await PgThreadIndex.get(keptId!);
+    expect(carried).not.toBeNull();
+    expect(carried).not.toBe(oldThread);
+    expect(await PgChatStorage.read(carried!)).toMatchObject([
+      { text: "kept with the code" },
+    ]);
+    expect(await PgThreadIndex.get(HELLO.id)).toBeNull();
   });
 
   it("says it was deleted when an upload gets there first", async () => {

@@ -31,9 +31,10 @@ export class NotYours extends Error {
  * Refused rather than written to: every read filters a tombstoned thread
  * out, so messages accepted here could never be read back by any device --
  * and a client deletes its own copy of a thread once the server has taken
- * it. Its own type so the route can answer 410, which the client keeps its
- * copy on. A 404 would send it looking for the account's thread for the
- * project, which is the one just deleted.
+ * it. Its own type so the route can answer 410: a 404 is what a guessed id
+ * gets, and the client reads every refusal but a 410 as transient and
+ * pushes the thread again on every turn, against a tombstone that never
+ * lifts.
  *
  * `scope` says which tombstone refused it, because the client acts
  * differently on each: a thread deleted under a live project (a tutorial
@@ -44,6 +45,12 @@ export class NotYours extends Error {
 export class ThreadDeleted extends Error {
   /** @param {"project" | "thread"} scope which tombstone refused the write */
   constructor(scope) {
+    // Checked here because `scope` goes on the wire, and the client acts on
+    // `thread` by dropping its copy: a misspelling must fail the server, not
+    // fall through to either branch
+    if (scope !== "project" && scope !== "thread") {
+      throw new TypeError(`ThreadDeleted: unknown scope ${String(scope)}`);
+    }
     super(scope === "project" ? "Project was deleted" : "Thread was deleted");
     this.name = "ThreadDeleted";
     this.scope = scope;
@@ -67,7 +74,10 @@ const THREAD_COLUMNS = `id, project_id as "projectId", title,
  * The project is checked before the thread is inserted. Its insert is
  * `do nothing` too, so a tombstone stays one -- and a thread row created
  * beneath it would be a live thread on a dead project, which the next list
- * by project hands out as the account's conversation.
+ * by project hands out as the account's conversation. An ordering, not a
+ * lock: under READ COMMITTED a `deleteProject` committing between the two
+ * statements still leaves such a thread, and the next push to it is what
+ * tells the device.
  *
  * @param {import("pg").PoolClient} client
  * @param {{threadId: string, projectId: string, title?: string|null}} thread

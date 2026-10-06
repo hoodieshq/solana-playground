@@ -9,10 +9,10 @@ import type { ChatItem } from "../../../views/sidebar/assistant/store";
 /**
  * What a hand-over managed.
  *
- * `pushed` is the ids the server has settled -- it holds them, or it has
- * deleted them -- so a caller can drop exactly those and no more. `complete`
- * says whether that was all of them, which is the only thing that licenses
- * dropping the directory wholesale.
+ * `pushed` is the ids this device may drop: the server holds them, or has
+ * closed them under a project it still has. `complete` says whether that was
+ * all of them, which is the only thing that licenses dropping the directory
+ * wholesale.
  */
 export interface HandOver {
   pushed: string[];
@@ -32,8 +32,8 @@ export interface HandOver {
  *   "delete" drops it.
  * - `failed`: nothing is known; the thread stays and is tried again.
  *
- * The two deletions used to be `failed`, and a thread deleted with its
- * project was pushed and refused again on every turn, for ever.
+ * Neither deletion is `failed`: a failed thread is tried again on every
+ * turn, and a tombstone never lifts.
  */
 export type PushOutcome =
   | "pushed"
@@ -41,8 +41,16 @@ export type PushOutcome =
   | "project-deleted"
   | "failed";
 
-/** Whether the server has settled the thread, one way or the other */
-export const isSettled = (outcome: PushOutcome) => outcome !== "failed";
+/**
+ * Whether this device may drop its copy after the push.
+ *
+ * Named positively, so an outcome added later has to opt in to deletion.
+ * `project-deleted` is not in it: that thread is waiting for the user's
+ * answer about the project, and `releaseLocalProjects` keeps the project
+ * for the same answer -- the two hand-overs have to make the same trade.
+ */
+export const isHandedOver = (outcome: PushOutcome) =>
+  outcome === "pushed" || outcome === "thread-deleted";
 
 /**
  * Mirror local threads to Postgres.
@@ -176,7 +184,9 @@ export class PgChatSync {
       if (response.status === 410) {
         const scope = await PgChatSync._deletedScope(response);
         report(`push ${threadId}: ${scope} deleted on the server`, null);
-        return scope === "project" ? "project-deleted" : "thread-deleted";
+        if (scope === "project") return "project-deleted";
+        if (scope === "thread") return "thread-deleted";
+        return "failed";
       }
       report(`push ${threadId}: HTTP ${response.status}`, null);
       return "failed";
@@ -189,20 +199,26 @@ export class PgChatSync {
   /**
    * Which tombstone a 410 names.
    *
-   * A 410 with no readable body is read as the thread's own: replacing a
-   * thread the server has closed is the smaller mistake, since the
-   * project's answer still drops or carries the replacement with it.
+   * Only our own 410 counts: the body has to carry `reason: "deleted"` and a
+   * scope, as `api/conversations.mjs` sends them. Anything else -- a body
+   * that cannot be read, a platform's or a proxy's 410 page -- is `unknown`,
+   * and the push counts as failed: nothing is known, so nothing may be
+   * dropped. The caller acts on `thread` by forgetting the conversation, and
+   * a status alone must not be what decides that.
    */
   private static async _deletedScope(
     response: Response
-  ): Promise<"project" | "thread"> {
+  ): Promise<"project" | "thread" | "unknown"> {
+    let body: { reason?: unknown; scope?: unknown } | null = null;
     try {
-      const body = await response.json();
-      return body?.scope === "project" ? "project" : "thread";
+      body = await response.json();
     } catch (e) {
       report("read 410 body", e);
-      return "thread";
+      return "unknown";
     }
+    if (body?.reason !== "deleted") return "unknown";
+    if (body.scope === "project" || body.scope === "thread") return body.scope;
+    return "unknown";
   }
 
   /**
@@ -285,7 +301,8 @@ export class PgChatSync {
    * Push every local thread -- the sign-in dump, and the last thing that runs
    * before sign-out clears local storage.
    *
-   * @returns which threads the server now holds, or `null` when this device
+   * @returns which threads this device may drop -- the server holds them, or
+   * has closed them under a live project -- or `null` when this device
    * could not enumerate its own. `null` rather than an empty result on
    * purpose: "I could not look" and "there were none" license entirely
    * different things at the other end.
@@ -314,18 +331,19 @@ export class PgChatSync {
     // the device rather than dropping it.
     const threadIds = [...new Set([...indexed, ...stored])];
 
-    // A thread the server has deleted counts as handed over: it will never
-    // take it, and the user deleted the project it belonged to. Keeping the
-    // file for the next user of this browser protects nothing.
+    // A thread the server has closed under a live project counts as handed
+    // over: it will never take it again, and keeping the file for the next
+    // user of this browser protects nothing. One under a deleted project
+    // stays, like the project it belongs to -- see `isHandedOver`.
     const outcomes = await Promise.all(
       threadIds.map(async (id) => ({
         id,
-        settled: isSettled(await PgChatSync.push(id)),
+        handedOver: isHandedOver(await PgChatSync.push(id)),
       }))
     );
     return {
-      pushed: outcomes.filter((o) => o.settled).map((o) => o.id),
-      complete: outcomes.every((o) => o.settled),
+      pushed: outcomes.filter((o) => o.handedOver).map((o) => o.id),
+      complete: outcomes.every((o) => o.handedOver),
     };
   }
 

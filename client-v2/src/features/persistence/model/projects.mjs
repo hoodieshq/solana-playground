@@ -84,7 +84,9 @@ const settle = ({ written, current, deleted }) => {
 /**
  * Whether the row the write aimed at is a tombstone, in the same statement
  * as the write, so it describes the row that actually refused it. Null when
- * there is no row at all.
+ * there is no row at all. Read from the statement's snapshot, so it is also
+ * true for a tutorial tombstone the write has just restarted; `settle`
+ * checks `written` first, which is what makes that harmless.
  */
 const TOMBSTONED = `(select deleted_at is not null from projects
                       where user_id = $1 and id = $2)`;

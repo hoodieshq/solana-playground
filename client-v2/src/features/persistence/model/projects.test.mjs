@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
-import { appendMessages, getThread, listThreads } from "./conversations.mjs";
+import {
+  appendMessages,
+  getThread,
+  listThreads,
+  ThreadDeleted,
+} from "./conversations.mjs";
 import { query, transaction } from "./db.mjs";
 import {
   deleteProject,
@@ -323,6 +328,20 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
       assert.deepEqual(await listThreads(userId, "tut:hello"), []);
       assert.equal(await getThread(userId, threadId), null);
+      // The device still holding the old thread is told so, and told that
+      // only the thread is gone -- the project it pushes to is live again
+      await assert.rejects(
+        () =>
+          appendMessages(userId, { threadId, projectId: "tut:hello" }, [
+            {
+              id: "22222222-0000-4000-8000-000000000103",
+              kind: "user",
+              createdAt: new Date(2000).toISOString(),
+              text: "still here?",
+            },
+          ]),
+        (e) => e instanceof ThreadDeleted && e.scope === "thread"
+      );
     });
   });
 

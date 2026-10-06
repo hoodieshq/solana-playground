@@ -211,7 +211,10 @@ describe("PgChatSync", () => {
       expect(await PgChatSync.push(threadId)).toBe("project-deleted");
     });
 
-    it("reads a 410 with no usable body as the thread's own", async () => {
+    it("reads a 410 with no usable body as a failure, so nothing is dropped", async () => {
+      // A proxy's error page in place of the body says nothing about which
+      // tombstone it was, and `thread-deleted` is acted on by forgetting
+      // the conversation
       respondingWith(() =>
         Promise.resolve({
           ok: false,
@@ -224,7 +227,23 @@ describe("PgChatSync", () => {
       await signedIn();
       await PgChatStorage.write(threadId, [item(1)]);
 
-      expect(await PgChatSync.push(threadId)).toBe("thread-deleted");
+      expect(await PgChatSync.push(threadId)).toBe("failed");
+    });
+
+    it("reads a 410 that is not ours as a failure too", async () => {
+      // A platform answers 410 for a deleted deployment, with its own body;
+      // only a body carrying our reason and a scope is a tombstone
+      respondingWith(() =>
+        Promise.resolve({
+          ok: false,
+          status: 410,
+          json: async () => ({ error: "DEPLOYMENT_DELETED", scope: "thread" }),
+        })
+      );
+      await signedIn();
+      await PgChatStorage.write(threadId, [item(1)]);
+
+      expect(await PgChatSync.push(threadId)).toBe("failed");
     });
 
     it("keeps the local copy: push alone decides nothing", async () => {
@@ -487,11 +506,29 @@ describe("handing conversations over at sign-out", () => {
     );
   });
 
-  it("drops a thread the server has deleted, as handed over", async () => {
-    // The server will never take it, and the user deleted the project it
-    // belonged to; keeping the file for the next user of this browser
-    // protects nothing. Counted as `failed`, one such thread kept every
-    // other thread on the device too.
+  it("drops a thread the server closed under a live project, as handed over", async () => {
+    // The server will never take it again; keeping the file for the next
+    // user of this browser protects nothing. Counted as `failed`, one such
+    // thread kept every other thread on the device too.
+    respondingWith(() =>
+      Promise.resolve({
+        ok: false,
+        status: 410,
+        json: async () => ({ reason: "deleted", scope: "thread" }),
+      })
+    );
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.threadIds()).toEqual([]);
+  });
+
+  it("keeps a thread whose project was deleted, as the project is kept", async () => {
+    // `releaseLocalProjects` keeps a project that is waiting for the user's
+    // answer about a delete elsewhere, and "keep as new" carries its chat.
+    // Dropping the chat here handed that answer an empty conversation.
     respondingWith(() =>
       Promise.resolve({
         ok: false,
@@ -504,7 +541,7 @@ describe("handing conversations over at sign-out", () => {
 
     await PgChatSync.handOver();
 
-    expect(await PgChatStorage.threadIds()).toEqual([]);
+    expect(await PgChatStorage.read(threadId)).toEqual([item(1)]);
   });
 });
 

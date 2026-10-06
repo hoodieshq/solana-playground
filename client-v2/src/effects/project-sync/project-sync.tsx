@@ -231,8 +231,8 @@ export const projectSync = (): Disposable => {
         // A tutorial's id is derived from its name, so deleting and restarting
         // one produces the same id -- and without this the previous run's
         // conversation reappears inside the new one. Through the index, by
-        // workspace id: storage is keyed by thread id, so removing a file
-        // named after the project removed nothing.
+        // workspace id, which is all a delete knows: storage is keyed by
+        // thread id.
         await PgThreadIndex.forget(projectId);
       }
     } catch (e) {

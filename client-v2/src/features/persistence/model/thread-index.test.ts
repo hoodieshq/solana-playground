@@ -120,7 +120,10 @@ describe("PgThreadIndex", () => {
           );
           mockFiles.set(
             "/.config/chats/index.json",
-            JSON.stringify({ ...onDisk, "next-door": item(7).id })
+            JSON.stringify({
+              "tut:hello": onDisk["tut:hello"],
+              "next-door": item(7).id,
+            })
           );
         }
       );
@@ -158,29 +161,45 @@ describe("PgThreadIndex", () => {
       const old = await PgThreadIndex.ensure("p1");
       await PgChatStorage.write(old, [item(1), item(2)]);
 
-      const fresh = await PgThreadIndex.carry("p1", "p2");
+      await PgThreadIndex.carry("p1", "p2");
 
+      const fresh = await PgThreadIndex.get("p2");
       expect(fresh).not.toBeNull();
       expect(fresh).not.toBe(old);
-      expect(await PgThreadIndex.get("p2")).toBe(fresh);
       expect(await PgThreadIndex.get("p1")).toBeNull();
       expect(await PgChatStorage.read(fresh!)).toEqual([item(1), item(2)]);
       expect(threadFiles()).toHaveLength(1);
     });
 
     it("does nothing when the workspace had no conversation", async () => {
-      expect(await PgThreadIndex.carry("p1", "p2")).toBeNull();
+      await PgThreadIndex.carry("p1", "p2");
+
       expect(await PgThreadIndex.get("p2")).toBeNull();
     });
 
-    it("leaves a thread it could not read where it is", async () => {
-      // Moving what cannot be read would lose it; not carried is not lost
+    it("carries an entry whose file was never written", async () => {
+      // Minted, nothing said yet: an empty conversation, which the new
+      // workspace gets as an entry of its own
+      await PgThreadIndex.ensure("p1");
+
+      await PgThreadIndex.carry("p1", "p2");
+
+      expect(await PgThreadIndex.get("p1")).toBeNull();
+      expect(await PgThreadIndex.get("p2")).not.toBeNull();
+    });
+
+    it("carries a file it cannot read as it is, so nothing is lost", async () => {
+      // And leaves no entry under the deleted id: a tutorial started again
+      // under it would otherwise inherit this file
       const old = await PgThreadIndex.ensure("p1");
       mockFiles.set(`/.config/chats/${old}.json`, "{ not json");
 
-      expect(await PgThreadIndex.carry("p1", "p2")).toBeNull();
-      expect(await PgThreadIndex.get("p1")).toBe(old);
-      expect(mockFiles.get(`/.config/chats/${old}.json`)).toBe("{ not json");
+      await PgThreadIndex.carry("p1", "p2");
+
+      const fresh = await PgThreadIndex.get("p2");
+      expect(await PgThreadIndex.get("p1")).toBeNull();
+      expect(mockFiles.get(`/.config/chats/${fresh}.json`)).toBe("{ not json");
+      expect(threadFiles()).toHaveLength(1);
     });
   });
 

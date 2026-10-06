@@ -118,6 +118,8 @@ export type Resolution =
  * other version" has nothing to take and "keep this version" quietly
  * un-deletes the project for every device.
  *
+ * A 413 comes here too, and is `too-large` whether or not its body says so.
+ *
  * An unreadable body falls back to the older meaning, whose prompt is at least
  * about the right project.
  */

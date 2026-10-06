@@ -31,11 +31,20 @@ import { openThread } from "./open-thread";
  * @returns whether the thread is settled: on the server, or closed by it.
  * `false` means it is still owed and the caller should try again.
  */
-export const pushThread = async (threadId: string) => {
+export const pushThread = async (threadId: string): Promise<boolean> => {
   await PgAssistant.whenPersisted();
   const outcome = await PgChatSync.push(threadId);
-  if (outcome === "thread-deleted") await replaceDeleted(threadId);
-  return outcome !== "failed";
+  switch (outcome) {
+    case "pushed":
+      return true;
+    case "thread-deleted":
+      await replaceDeleted(threadId);
+      return true;
+    case "project-deleted":
+      return true;
+    case "failed":
+      return false;
+  }
 };
 
 /** Forget a thread the server has closed, and open a new one in its place */

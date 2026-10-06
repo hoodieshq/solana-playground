@@ -144,10 +144,10 @@ const isAllowedOrigin = (req) => {
  * Two failures are a client's to act on and get a status of their own. An id
  * that is somebody else's reads the same as one that does not exist:
  * confirming which would turn this route into an oracle for guessed uuids. A
- * thread deleted with its project is 410, and the distinction from 404
- * matters at the other end: the client deletes its own copy of a thread once
- * the server has taken it, so a 2xx here lost messages, and a 404 sends it
- * looking for the account's thread for the project -- the one just deleted.
+ * thread deleted with its project is 410, and the distinction matters at the
+ * other end: the client deletes its own copy of a thread once the server has
+ * taken it, so a 2xx would lose messages, and it reads every other refusal
+ * as transient, so a 404 would have it push the thread again on every turn.
  * `scope` says which tombstone it was, and the client acts on it: a thread
  * deleted under a live project is replaced on the spot; one under a deleted
  * project waits for the user's answer about the project.

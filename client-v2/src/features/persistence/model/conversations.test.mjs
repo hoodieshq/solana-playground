@@ -303,6 +303,12 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.equal(rows[0].n, 0);
     });
 
+    it("refuses a scope the client would not know", async () => {
+      // `scope` goes on the wire and the client drops its copy on one of
+      // its values, so a typo has to fail here rather than pick a branch
+      assert.throws(() => new ThreadDeleted("conversation"), TypeError);
+    });
+
     it("still answers a stranger's thread id as not yours", async () => {
       // The ownership check comes first: confirming that somebody else's
       // thread was deleted would turn the refusal into an oracle for
