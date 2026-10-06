@@ -38,6 +38,8 @@ The page ships with a snapshot of itself in `index.html`. Studio reads the speci
 
 ## Using ours in client-v2
 
+From `client-v2`, `yarn ds-add <name...>` does all of the below in one step: it builds the registry, serves it, installs with `--overwrite` and stops the server (`client-v2/CLAUDE.md`, "Components"). The manual route, for any other consumer:
+
 Installs come from the repo, not from the public site. Our items depend on each other as `@playground/<name>`, and the consumer says where `@playground` lives. Build the registry and serve it:
 
 ```bash
