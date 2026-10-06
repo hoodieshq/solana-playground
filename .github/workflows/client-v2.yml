@@ -130,3 +130,14 @@ jobs:
 
       - name: Production build
         run: yarn build-fast
+
+      # Tailwind reaches the bundle only through craco's PostCSS override. If
+      # that stops applying (a craco upgrade, a second CSS rule added after
+      # craco's style pass), the build stays green and the page ships
+      # unstyled, so look for one utility the Flow wrapper always carries.
+      - name: Check Tailwind is in the built CSS
+        run: |
+          grep -q '\.flex{display:flex}' build/static/css/main.*.css || {
+            echo "::error::Tailwind utilities are missing from build/static/css -- craco's PostCSS override is not applying"
+            exit 1
+          }

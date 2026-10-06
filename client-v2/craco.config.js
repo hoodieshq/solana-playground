@@ -15,7 +15,30 @@ if (!fs.existsSync(path.join(__dirname, "public", "index.html"))) {
 }
 
 module.exports = {
+  style: {
+    postcss: {
+      // Hand PostCSS to `postcss.config.js` whole, so Tailwind runs before
+      // CRA's own plugins. craco 6's two modes predate CRA 5's `postcssOptions`
+      // shape: `extends` calls `options.plugins()`, which is gone, and `file`
+      // writes a top-level `ident` key (the postcss-loader 3 form) that
+      // postcss-loader 6's strict schema rejects. So the loader options are
+      // rebuilt here: CRA's source-map choice is kept and everything else
+      // comes from the config file.
+      loaderOptions: (options) => ({
+        sourceMap: options.sourceMap,
+        postcssOptions: { config: path.join(__dirname, "postcss.config.js") },
+      }),
+    },
+  },
+
   webpack: {
+    // `@/` is `src/`. The same mapping lives in tsconfig.json `paths` for the
+    // compiler and the editor, and in `jest.moduleNameMapper` in package.json
+    // for the tests. CRA's `verifyTypeScriptSetup` would strip `paths` from
+    // tsconfig.json, but react-scripts 5.0.0 only runs it from `init`, never
+    // from start or build (checked: both leave the file untouched).
+    alias: { "@": path.resolve(__dirname, "src") },
+
     configure: (webpackConfig) => {
       // Resolve WASM and CommonJS
       webpackConfig.resolve.extensions.push(".wasm");

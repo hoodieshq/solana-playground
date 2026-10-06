@@ -70,6 +70,7 @@
   "devDependencies": {
     "@craco/craco": "^6.4.3",
     "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/bn.js": "^5.1.1",
     "@types/diff": "^5.0.0",
     "@types/jest": "^27.5.0",
@@ -83,6 +84,11 @@
     "circular-dependency-plugin": "^5.2.2",
     "csstype": "^3.1.2",
     "monaco-editor-webpack-plugin": "^7.0.1",
+    "postcss": "^8.5.16",
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-normalize": "^10.0.1",
+    "postcss-preset-env": "^7.0.1",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.20.5"
   },
   "resolutions": {
@@ -133,7 +139,8 @@
   "jest": {
     "moduleNameMapper": {
       "^#(minpath|minproc|minurl)$": "<rootDir>/node_modules/vfile/lib/$1.js",
-      "^unist-util-visit-parents/do-not-use-color$": "<rootDir>/node_modules/unist-util-visit-parents/lib/color.node.js"
+      "^unist-util-visit-parents/do-not-use-color$": "<rootDir>/node_modules/unist-util-visit-parents/lib/color.node.js",
+      "^@/(.*)$": "<rootDir>/src/$1"
     },
     "transform": {
       "^(?!.*\\.(js|jsx|mjs|cjs|ts|tsx|css|json)$)": "<rootDir>/config/jest/fileTransform.js"
@@ -145,11 +152,11 @@
   },
   "browserslist": {
     "production": [
-      "chrome >= 67",
-      "edge >= 79",
-      "firefox >= 68",
-      "opera >= 54",
-      "safari >= 14"
+      "chrome >= 111",
+      "edge >= 111",
+      "firefox >= 128",
+      "opera >= 97",
+      "safari >= 16.4"
     ],
     "development": [
       "last 1 chrome version",
