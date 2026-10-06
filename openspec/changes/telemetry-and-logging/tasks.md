@@ -8,17 +8,18 @@ the same time; section 3 follows both.
 
 - [ ] 1.1 `shared/lib/telemetry`: event-map types, the GA4 name guard copied
       from the Explorer, `createTracker`, `prefixes.ts`, `TelemetryScope` and
-      `useTracker`, `initTelemetry` with the consent gate and the bounded
-      buffer, console and memory providers (ticket to file)
+      `useTracker`, `initTelemetry` with the bounded buffer, console and
+      memory providers (ticket to file)
 - [ ] 1.2 Type tests for the guard (40 accepted, 41 rejected, wide key
       rejected, unregistered prefix rejected) and the prefix uniqueness test
       (ticket to file; after 1.1)
 - [ ] 1.3 Slice-structure test: every `features/*` and `widgets/*` with an
       `index.ts` has `model/telemetry.ts`, and every key of its event map has
       a TSDoc comment (ticket to file; after 1.1)
-- [ ] 1.4 GA4 provider (`gtag`, then `dataLayer`) wired in the app layer with
-      `hasConsent: () => false` until consent exists (ticket to file; after
-      1.1)
+- [ ] 1.4 GA4 provider (`gtag`, then `dataLayer`) and the `GoogleAnalytics`
+      component, rendered by the app layer; both do nothing without
+      `REACT_APP_GA_MEASUREMENT_ID`. A person sets the id in Vercel (ticket
+      to file; after 1.1)
 - [ ] 1.5 `features/auth` and `features/persistence` declare, describe and
       emit their first events, so 1.3 passes on the existing slices; their
       events are described in a spec delta as the config rule requires

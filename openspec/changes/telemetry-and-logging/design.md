@@ -15,12 +15,13 @@ and the level set and error handling of its
 ## Decisions
 
 1. **Two modules in `shared/lib`, one shape.** `shared/lib/telemetry` and
-   `shared/lib/logger`, each sending to a list of providers. Telemetry waits
-   for consent and carries primitives; error reports carry stack traces and do
-   not wait. Their React parts live inside the module, because `shared/ui` is
-   overwritten by the design system. _Rejected:_ one module (it blocks errors
-   on consent or leaks analytics to Sentry); `shared/telemetry` beside the
-   segments.
+   `shared/lib/logger`, each sending to a list of providers. Telemetry carries
+   primitives for a product dashboard; error reports carry stack traces for
+   debugging, and a consent gate added later must apply to the first only.
+   Their React parts live inside the module, because `shared/ui` is
+   overwritten by the design system. _Rejected:_ one module (analytics data
+   would reach Sentry, and a later consent gate could not separate the two);
+   `shared/telemetry` beside the segments.
 
 2. **A slice owns its events as a type.**
 
@@ -86,7 +87,15 @@ and the level set and error handling of its
    those `mechanism: { handled: false }`. _Rejected:_ Sentry's handlers (two
    paths; console and tests never see unhandled errors).
 
-10. **Events are described for two readers.** TSDoc on each key for the
+10. **Vendors load from the app layer and wait for their ids.**
+    `<GoogleAnalytics>` (in `shared/lib/telemetry`) injects `gtag.js` when
+    `REACT_APP_GA_MEASUREMENT_ID` is set, and renders nothing otherwise.
+    Sentry is initialised by `initLogger` in `src/index.tsx` before the first
+    render, not by a component: a component's effect runs after the first
+    render, so an error thrown during it would miss Sentry. Without
+    `REACT_APP_SENTRY_DSN` the Sentry provider does nothing.
+
+11. **Events are described for two readers.** TSDoc on each key for the
     developer, checked by the slice-structure test through the TypeScript
     compiler API; a spec requirement for the reviewer, before code exists.
     _Rejected:_ a hand-written catalogue (drifts); TSDoc alone (a change's
@@ -96,12 +105,9 @@ and the level set and error handling of its
 
 - `shared` gains a list of slice names in `prefixes.ts`.
 - `@sentry/react` loads eagerly; its size is unmeasured until task 2.2.
-- Production sends no analytics until a consent mechanism exists.
+- GA4 receives events without a consent prompt. For visitors in the EU and
+  the UK this may require consent under GDPR and ePrivacy rules; the decision
+  to send without consent is the product owner's, and a gate can be added in
+  `initTelemetry` without touching any slice.
 - `handled: false` is taken from Sentry's own integrations; task 2.2 confirms
   the public type accepts it.
-
-## Open Questions
-
-- GA4 or another analytics product?
-- Where does consent come from, and who owns it?
-- Does a Sentry organisation and project exist?

@@ -27,7 +27,8 @@ those slices exist, not after.
 - A telemetry module in `shared/lib/telemetry`: typed per-slice event maps,
   the GA4 event-name length guard reused from the Solana Explorer, a scope
   that attributes events to a widget without props, and providers (GA4,
-  console, memory) behind one interface. Nothing is sent before consent.
+  console, memory) behind one interface. A `GoogleAnalytics` component loads
+  GA4 when a measurement id is configured.
 - A logger in `shared/lib/logger`: levels, a namespace on every entry
   (`[slice:module]`), and providers behind one interface. Console is the
   default provider; Sentry is a second provider and the only code that
@@ -60,7 +61,7 @@ changes archive independently.
 - `client-v2/src/shared/lib/telemetry/`, `client-v2/src/shared/lib/logger/`:
   new.
 - `client-v2/src/app/` and `client-v2/src/index.tsx`: `initLogger`,
-  `initTelemetry`, and the root error boundary.
+  `initTelemetry`, `GoogleAnalytics`, and the root error boundary.
 - `client-v2/src/features/persistence/model/diagnostics.ts`: reports through
   the logger.
 - `openspec/config.yaml`: two rules on describing events.
@@ -71,14 +72,16 @@ changes archive independently.
 - Vercel and CI configuration: `REACT_APP_SENTRY_DSN`, `REACT_APP_LOG_LEVEL`,
   `REACT_APP_GA_MEASUREMENT_ID`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`,
   `SENTRY_PROJECT`. A person with access sets them; no agent handles them.
-- Users: an error in their browser reaches the team with a stack trace. No
-  analytics event leaves the browser until they consent. The bundle grows by
-  the Sentry SDK; the size is measured in task 2.2.
+- Users: an error in their browser reaches the team with a stack trace, and
+  their use of the product is sent to GA4 without a consent prompt. The bundle
+  grows by the Sentry SDK; the size is measured in task 2.2.
+- Until the GA4 measurement id and the Sentry DSN are configured, both
+  providers do nothing; the code ships first and the ids follow.
 - Out of scope:
   - Logging and Sentry for `client-v2/api/*.mjs`. Those routes cannot import
     `src/`, so they need their own module (ticket to file).
-  - The consent banner and where consent is stored. This change reads consent
-    through one function and treats "unknown" as "no".
+  - A consent prompt or consent gate. Events are sent without one; adding one
+    is a separate change.
   - Session replay and performance tracing in Sentry.
   - A provider that writes telemetry events as Sentry breadcrumbs.
   - Moving `console.*` calls in the legacy roots to the logger; they move with

@@ -130,23 +130,33 @@ a portal.
 - **WHEN** a module under `model/` calls `tracker.track` without a scope
 - **THEN** the event is recorded with no scope, and nothing throws
 
-### Requirement: No event leaves the browser without consent
+### Requirement: Events are delivered once telemetry is initialised
 
-Events SHALL reach providers only after `initTelemetry` and only while its
-`hasConsent` function returns `true`. Events tracked before `initTelemetry`
-SHALL be buffered up to a fixed bound and then delivered or dropped by the
-same rule.
-
-#### Scenario: Consent is not given
-
-- **WHEN** `hasConsent` returns `false` and an event is tracked
-- **THEN** no provider receives it
+Events SHALL reach providers after `initTelemetry`. Events tracked before
+`initTelemetry` SHALL be buffered up to a fixed bound and delivered once it
+runs.
 
 #### Scenario: An event before initialisation
 
 - **WHEN** an event is tracked before `initTelemetry`, and `initTelemetry` is
-  then called with `hasConsent` returning `true`
+  then called
 - **THEN** the provider receives the buffered event once
+
+### Requirement: GA4 loads only with a measurement id
+
+`GoogleAnalytics` SHALL inject `gtag.js` when `REACT_APP_GA_MEASUREMENT_ID` is
+set, and SHALL render nothing and inject nothing when it is unset; the GA4
+provider SHALL do nothing while `gtag.js` is absent.
+
+#### Scenario: No measurement id
+
+- **WHEN** a build without `REACT_APP_GA_MEASUREMENT_ID` tracks an event
+- **THEN** no request goes to Google and nothing throws
+
+#### Scenario: A measurement id is set
+
+- **WHEN** a build with `REACT_APP_GA_MEASUREMENT_ID` tracks `dply_started`
+- **THEN** `gtag` is called with event `dply_started` and its parameters
 
 #### Scenario: Rendering on the server or in a test without initialisation
 
