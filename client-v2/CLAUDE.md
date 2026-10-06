@@ -146,7 +146,10 @@ counts.
    behaviour or touches more than one slice starts as a conversation, not a
    file: `superpowers:brainstorming` for the shape of the work (or
    `/opsx:explore` to read an unfamiliar area of the code first). A bug fix
-   with a ticket skips this; the ticket is its proposal.
+   with a ticket skips this; the ticket is its proposal. For a feature or a
+   widget, the conversation includes its telemetry: propose the events
+   (the user's actions there, how each can fail) and the namespace it logs
+   under, unprompted, and let the user confirm or trim them.
 2. **`/opsx:propose <kebab-name>` writes the change.** It creates
    `openspec/changes/<name>/` with `proposal.md`, the delta specs under
    `specs/<capability>/spec.md`, `design.md` and `tasks.md`, from the
@@ -169,7 +172,9 @@ counts.
 6. **Asked to build something, look in `openspec/changes/` first**
    (`openspec list`). If a change covers it, `/opsx:apply` that change and
    say which task. If none does and the work is more than a bug fix, offer
-   `/opsx:propose` rather than starting on the code.
+   `/opsx:propose` rather than starting on the code. A bug fix in a slice
+   that sends no events, or none for the path being fixed, says so and
+   proposes the missing events as a follow-up ticket.
 
 **Where the superpowers skills write.** Their default locations
 (`docs/superpowers/specs/`, `docs/superpowers/plans/`) are not used in this
