@@ -43,4 +43,7 @@ operations:
       - Never edit client/ or server/
   archive:
     guidance:
-      - Say which spec files changed and which tasks were left unchecked
+      - Run only when a human asked for it in this session
+      - Before archiving, confirm every task in tasks.md is ticked, then
+        delete tasks.md
+      - Say which spec files changed
