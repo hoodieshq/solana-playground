@@ -1,11 +1,7 @@
 import { consoleProvider, reportProviderFailure } from "./providers/console";
-import type {
-  Level,
-  LogEntry,
-  LogOptions,
-  LogProvider,
-  Namespace,
-} from "./types";
+import { isReported } from "./severity";
+import type { Level } from "./severity";
+import type { LogEntry, LogOptions, LogProvider, Namespace } from "./types";
 
 // Read on every call: module-level loggers exist before `initLogger` runs
 let providers: LogProvider[] = [consoleProvider()];
@@ -63,7 +59,7 @@ export const createLogger = (ns: Namespace): Log => {
     level,
     ...fields,
     context: options?.context,
-    report: level === "panic" || options?.report === true,
+    report: isReported(level, options?.report === true),
     unhandled: options?.unhandled === true,
   });
 

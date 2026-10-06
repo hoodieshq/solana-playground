@@ -1,7 +1,8 @@
 // The only module that imports the Sentry SDK: everything else reports through the logger
 import * as Sentry from "@sentry/react";
 
-import type { Level, LogEntry, LogProvider } from "../types";
+import type { Level } from "../severity";
+import type { LogEntry, LogProvider } from "../types";
 
 const SEVERITY: Record<Level, Sentry.SeverityLevel> = {
   panic: "fatal",
@@ -10,9 +11,6 @@ const SEVERITY: Record<Level, Sentry.SeverityLevel> = {
   info: "info",
   debug: "debug",
 };
-
-const isReported = ({ level, report }: LogEntry) =>
-  level === "panic" || ((level === "error" || level === "warn") && report);
 
 const capture = (entry: LogEntry) =>
   Sentry.withScope((scope) => {
@@ -34,8 +32,8 @@ const capture = (entry: LogEntry) =>
   });
 
 /**
- * Initialises Sentry and sends `panic` entries, and `error` and `warn` entries
- * logged with `report: true`. Without a DSN it initialises nothing and sends nothing.
+ * Initialises Sentry and sends the entries marked `report` (see `isReported`).
+ * Without a DSN it initialises nothing and sends nothing.
  */
 export const sentryProvider = ({
   dsn,
@@ -59,7 +57,7 @@ export const sentryProvider = ({
 
   return {
     log: (entry) => {
-      if (isReported(entry)) capture(entry);
+      if (entry.report) capture(entry);
     },
   };
 };

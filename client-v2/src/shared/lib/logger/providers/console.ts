@@ -1,5 +1,6 @@
-import { isLevel, LEVELS } from "../types";
-import type { Level, LogEntry, LogProvider } from "../types";
+import { atLeast, isLevel } from "../severity";
+import type { Level } from "../severity";
+import type { LogEntry, LogProvider } from "../types";
 
 const METHOD: Record<Level, "error" | "warn" | "info" | "debug"> = {
   panic: "error",
@@ -29,7 +30,7 @@ export const consoleProvider = ({
   level = defaultLevel(),
 }: { level?: Level } = {}): LogProvider => ({
   log: (entry) => {
-    if (LEVELS.indexOf(entry.level) > LEVELS.indexOf(level)) return;
+    if (!atLeast(entry.level, level)) return;
     console[METHOD[entry.level]](...argsOf(entry));
   },
 });

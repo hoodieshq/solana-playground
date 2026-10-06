@@ -56,18 +56,11 @@ it("should keep a thrown non-Error value as the cause", () => {
   expect(error?.cause).toBe("timeout");
 });
 
-it.each([
-  ["panic without the option", () => Logger.panic(new Error("x")), true],
-  [
-    "error with the option",
-    () => Logger.error(new Error("x"), { report: true }),
-    true,
-  ],
-  ["error without the option", () => Logger.error(new Error("x")), false],
-])("should mark %s as reported: %s", (_, act, report) => {
-  act();
+// The rule itself is tested in `severity.test.ts`; this proves the logger applies it
+it("should mark an entry reported by its level's rule, not only by the option", () => {
+  Logger.panic(new Error("x"));
 
-  expect(logged.entries[0].report).toBe(report);
+  expect(logged.entries[0].report).toBe(true);
 });
 
 it("should keep delivering to other providers when one throws", () => {

@@ -1,5 +1,6 @@
 import type { TelemetryEvent, TelemetryProvider } from "../types";
 
+// gtag.js is a browser script, and Google's snippet puts both on `window`
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
@@ -22,7 +23,7 @@ const installGtagQueue = (measurementId: string) => {
 };
 
 /**
- * Sends events to GA4 for `measurementId`; without one, sends nothing.
+ * Sends events to GA4 for `measurementId`; without one, or outside a browser, sends nothing.
  *
  * Queues from creation, so events tracked before `GoogleAnalytics` loads gtag.js are kept.
  */
@@ -31,8 +32,9 @@ export const ga4Provider = ({
 }: {
   measurementId?: string;
 }): TelemetryProvider => {
-  if (!measurementId || typeof window === "undefined")
+  if (!measurementId || typeof window === "undefined") {
     return { send: () => {} };
+  }
   if (!window.gtag) installGtagQueue(measurementId);
 
   return {

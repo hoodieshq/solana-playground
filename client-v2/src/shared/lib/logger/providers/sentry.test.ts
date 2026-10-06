@@ -54,24 +54,13 @@ it("should leave out Sentry's global handlers so errors take the logger's path",
   ).toEqual(["Dedupe"]);
 });
 
+// Which levels are reported is `isReported`'s rule; the provider follows `entry.report`
 it.each([
-  ["panic", false, true],
-  ["error", true, true],
-  ["error", false, false],
-  ["warn", true, true],
-  ["warn", false, false],
-  ["info", true, false],
-  ["debug", true, false],
-] as const)("should send %s with report=%s: %s", (level, report, sent) => {
-  const provider = sentryProvider({ dsn: DSN });
-
-  provider.log(
-    entry({
-      level,
-      report,
-      message: "m",
-      error: level === "warn" ? undefined : new Error("e"),
-    })
+  [true, true],
+  [false, false],
+])("should send an entry with report=%s: %s", (report, sent) => {
+  sentryProvider({ dsn: DSN }).log(
+    entry({ level: "panic", report, error: new Error("e") })
   );
 
   expect(vi.mocked(Sentry.withScope).mock.calls.length > 0).toBe(sent);

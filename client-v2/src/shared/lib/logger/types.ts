@@ -1,10 +1,6 @@
-/** Most severe first; a threshold lets through its own level and those before it */
-export const LEVELS = ["panic", "error", "warn", "info", "debug"] as const;
+import type { Level } from "./severity";
 
-export type Level = typeof LEVELS[number];
-
-export const isLevel = (value: unknown): value is Level =>
-  LEVELS.includes(value as Level);
+export type { Level } from "./severity";
 
 /** `<slice>:<module>`, such as `persistence:sync` */
 export type Namespace = `${string}:${string}`;
@@ -15,7 +11,7 @@ export interface LogEntry {
   message?: string;
   error?: Error;
   context?: Record<string, unknown>;
-  /** Asked to reach error tracking; always true for `panic` */
+  /** Reaches error tracking, as decided by `isReported` */
   report: boolean;
   /** Came from a global handler, not from a `catch` */
   unhandled: boolean;
