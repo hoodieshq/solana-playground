@@ -96,8 +96,8 @@ describe("the session effect", () => {
     // `importWorkspace` threw `NOT_FOUND`, which the per-project catch turned
     // into a diagnostics line -- the whole account sync failing invisibly.
     vi.spyOn(PgExplorer, "isInitialized", "get").mockReturnValue(false);
-    let fireInit: () => void = () => {};
-    vi.spyOn(PgExplorer, "onDidInit").mockImplementation((cb: any) => {
+    let fireInit: () => unknown = () => {};
+    vi.spyOn(PgExplorer, "onDidInit").mockImplementation((cb) => {
       fireInit = cb;
       return { dispose: () => {} };
     });

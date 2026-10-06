@@ -159,7 +159,7 @@ describe("countErrors", () => {
     // The factory's identity function: `mockReset` (see `vitest.config.ts`)
     // restores it before each test anyway; restated so the test reads alone.
     const { stripKnownNoise } = await mockedBuildOutput();
-    (stripKnownNoise as Mock).mockImplementation((s: string) => s);
+    vi.mocked(stripKnownNoise).mockImplementation((s: string) => s);
 
     const stderr = `error[E0308]: mismatched types
   --> src/lib.rs:12:18
@@ -188,34 +188,36 @@ describe("PgFlow.init wiring", () => {
   it("deploy-finish detects success and failure via result shape", async () => {
     const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
     PgGlobal.deployState = "ready";
-    let deployCallback: ((result: unknown) => void) | undefined;
+    let deployCallback:
+      | Parameters<typeof PgCommand.deploy.onDidFinish>[0]
+      | undefined;
 
     // Store and verify all mocks return disposables
-    const buildStartMock = PgCommand.build.onDidStart as Mock;
+    const buildStartMock = vi.mocked(PgCommand.build.onDidStart);
     const buildStartReturn = { dispose: vi.fn() };
     buildStartMock.mockReturnValueOnce(buildStartReturn);
 
-    const buildFinishMock = PgCommand.build.onDidFinish as Mock;
+    const buildFinishMock = vi.mocked(PgCommand.build.onDidFinish);
     const buildFinishReturn = { dispose: vi.fn() };
     buildFinishMock.mockReturnValueOnce(buildFinishReturn);
 
     const buildOutputMock = (await mockedBuildOutput()).PgBuildOutput
-      .onDidChange as Mock;
+      .onDidChange;
     const buildOutputReturn = { dispose: vi.fn() };
     buildOutputMock.mockReturnValueOnce(buildOutputReturn);
 
-    const deployStartMock = PgCommand.deploy.onDidStart as Mock;
+    const deployStartMock = vi.mocked(PgCommand.deploy.onDidStart);
     const deployStartReturn = { dispose: vi.fn() };
     deployStartMock.mockReturnValueOnce(deployStartReturn);
 
-    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
+    const deployFinishMock = vi.mocked(PgCommand.deploy.onDidFinish);
     const deployFinishReturn = { dispose: vi.fn() };
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
       return deployFinishReturn;
     });
 
-    const workspaceChangeMock = PgExplorer.onDidSwitchWorkspace as Mock;
+    const workspaceChangeMock = vi.mocked(PgExplorer.onDidSwitchWorkspace);
     const workspaceChangeReturn = { dispose: vi.fn() };
     workspaceChangeMock.mockReturnValueOnce(workspaceChangeReturn);
 
@@ -230,7 +232,7 @@ describe("PgFlow.init wiring", () => {
     expect(PgFlow.state.stage).toBe("deploy");
 
     // Test success case
-    deployCallback!({ ok: "transaction-sig" });
+    deployCallback!({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("done");
     expect(PgFlow.state.interact).toBe("active");
     expect(PgFlow.state.stage).toBe("deploy");
@@ -241,33 +243,37 @@ describe("PgFlow.init wiring", () => {
 
   it("ignores a deploy-finish caused only by a pause or resume click", async () => {
     const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
-    let deployStartCallback: (() => void) | undefined;
-    let deployFinishCallback: ((result: unknown) => void) | undefined;
+    let deployStartCallback:
+      | Parameters<typeof PgCommand.deploy.onDidStart>[0]
+      | undefined;
+    let deployFinishCallback:
+      | Parameters<typeof PgCommand.deploy.onDidFinish>[0]
+      | undefined;
 
-    (PgCommand.build.onDidStart as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.build.onDidStart).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgCommand.build.onDidFinish as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.build.onDidFinish).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (
-      (await mockedBuildOutput()).PgBuildOutput.onDidChange as Mock
-    ).mockReturnValueOnce({ dispose: vi.fn() });
-    (PgCommand.deploy.onDidStart as Mock).mockImplementation((cb) => {
+    (await mockedBuildOutput()).PgBuildOutput.onDidChange.mockReturnValueOnce({
+      dispose: vi.fn(),
+    });
+    vi.mocked(PgCommand.deploy.onDidStart).mockImplementation((cb) => {
       deployStartCallback = cb;
       return { dispose: vi.fn() };
     });
-    (PgCommand.deploy.onDidFinish as Mock).mockImplementation((cb) => {
+    vi.mocked(PgCommand.deploy.onDidFinish).mockImplementation((cb) => {
       deployFinishCallback = cb;
       return { dispose: vi.fn() };
     });
-    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockReturnValueOnce({
       dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
 
-    deployStartCallback!();
+    deployStartCallback!(null);
     expect(PgFlow.state.deploy).toBe("running");
 
     // A second click while loading flips `deployState` to "paused" and
@@ -285,7 +291,7 @@ describe("PgFlow.init wiring", () => {
     // The deploy command itself always settles back to "ready" before its
     // own real finish event fires, success or failure.
     PgGlobal.deployState = "ready";
-    deployFinishCallback!({ ok: "sig" });
+    deployFinishCallback!({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("done");
 
     sub.dispose();
@@ -297,33 +303,37 @@ describe("PgFlow.init wiring", () => {
     const buildOutputModule = await mockedBuildOutput();
     buildOutputModule.PgBuildOutput.latest = null;
 
-    let buildStartCallback: (() => void) | undefined;
-    let buildFinishCallback: ((result: unknown) => void) | undefined;
+    let buildStartCallback:
+      | Parameters<typeof PgCommand.build.onDidStart>[0]
+      | undefined;
+    let buildFinishCallback:
+      | Parameters<typeof PgCommand.build.onDidFinish>[0]
+      | undefined;
 
-    (PgCommand.build.onDidStart as Mock).mockImplementation((cb) => {
+    vi.mocked(PgCommand.build.onDidStart).mockImplementation((cb) => {
       buildStartCallback = cb;
       return { dispose: vi.fn() };
     });
-    (PgCommand.build.onDidFinish as Mock).mockImplementation((cb) => {
+    vi.mocked(PgCommand.build.onDidFinish).mockImplementation((cb) => {
       buildFinishCallback = cb;
       return { dispose: vi.fn() };
     });
-    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValueOnce({
+    vi.mocked(buildOutputModule.PgBuildOutput.onDidChange).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidStart as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.deploy.onDidStart).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.deploy.onDidFinish).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockReturnValueOnce({
       dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
 
-    buildStartCallback!();
+    buildStartCallback!(null);
     expect(PgFlow.state.build).toBe("running");
 
     // The build server was unreachable: the `build` command rejects and
@@ -340,33 +350,37 @@ describe("PgFlow.init wiring", () => {
     PgGlobal.deployState = "ready";
     const buildOutputModule = await mockedBuildOutput();
 
-    let buildStartCallback: (() => void) | undefined;
-    let buildFinishCallback: ((result: unknown) => void) | undefined;
+    let buildStartCallback:
+      | Parameters<typeof PgCommand.build.onDidStart>[0]
+      | undefined;
+    let buildFinishCallback:
+      | Parameters<typeof PgCommand.build.onDidFinish>[0]
+      | undefined;
 
-    (PgCommand.build.onDidStart as Mock).mockImplementation((cb) => {
+    vi.mocked(PgCommand.build.onDidStart).mockImplementation((cb) => {
       buildStartCallback = cb;
       return { dispose: vi.fn() };
     });
-    (PgCommand.build.onDidFinish as Mock).mockImplementation((cb) => {
+    vi.mocked(PgCommand.build.onDidFinish).mockImplementation((cb) => {
       buildFinishCallback = cb;
       return { dispose: vi.fn() };
     });
-    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValueOnce({
+    vi.mocked(buildOutputModule.PgBuildOutput.onDidChange).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidStart as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.deploy.onDidStart).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as Mock).mockReturnValueOnce({
+    vi.mocked(PgCommand.deploy.onDidFinish).mockReturnValueOnce({
       dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as Mock).mockReturnValueOnce({
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockReturnValueOnce({
       dispose: vi.fn(),
     });
 
     const sub = PgFlow.init();
 
-    buildStartCallback!();
+    buildStartCallback!(null);
     // The real build output for this run already arrived and was handled.
     buildOutputModule.PgBuildOutput.latest = {
       stderr: "error: could not compile `hello`",
@@ -485,22 +499,22 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     let workspaceChange: (() => void) | undefined;
     let onChainChange: (() => void) | undefined;
 
-    (PgCommand.build.onDidStart as Mock).mockReturnValue({
+    vi.mocked(PgCommand.build.onDidStart).mockReturnValue({
       dispose: vi.fn(),
     });
-    (PgCommand.build.onDidFinish as Mock).mockReturnValue({
+    vi.mocked(PgCommand.build.onDidFinish).mockReturnValue({
       dispose: vi.fn(),
     });
-    (buildOutputModule.PgBuildOutput.onDidChange as Mock).mockReturnValue({
+    vi.mocked(buildOutputModule.PgBuildOutput.onDidChange).mockReturnValue({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidStart as Mock).mockReturnValue({
+    vi.mocked(PgCommand.deploy.onDidStart).mockReturnValue({
       dispose: vi.fn(),
     });
-    (PgCommand.deploy.onDidFinish as Mock).mockReturnValue({
+    vi.mocked(PgCommand.deploy.onDidFinish).mockReturnValue({
       dispose: vi.fn(),
     });
-    (PgExplorer.onDidSwitchWorkspace as Mock).mockImplementation((cb) => {
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockImplementation((cb) => {
       workspaceChange = cb;
       return { dispose: vi.fn() };
     });

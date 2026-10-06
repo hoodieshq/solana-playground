@@ -82,7 +82,7 @@ describe("PgDeployHistory.init wiring", () => {
     let deployCallback: ((result: unknown) => void) | undefined;
 
     // Set up mocks
-    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
+    const deployFinishMock = PgCommand.deploy.onDidFinish;
     const deployFinishReturn = { dispose: vi.fn() };
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
@@ -120,7 +120,7 @@ describe("PgDeployHistory.init wiring", () => {
       await mockedUtils();
     let deployCallback: ((result: unknown) => void) | undefined;
 
-    const deployFinishMock = PgCommand.deploy.onDidFinish as Mock;
+    const deployFinishMock = PgCommand.deploy.onDidFinish;
     deployFinishMock.mockImplementation((cb) => {
       deployCallback = cb;
       return { dispose: vi.fn() };
