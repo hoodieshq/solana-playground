@@ -5,7 +5,15 @@ import {
   LOCAL_MCP_SERVERS,
 } from "./grounding";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
-import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
+import {
+  mergeThreads,
+  versionOf,
+} from "../../../features/persistence/model/chat-codec";
+import {
+  capThread,
+  MAX_MESSAGES_PER_THREAD,
+  PgChatStorage,
+} from "../../../features/persistence/model/chat-storage";
 import { uuid } from "../../../features/persistence/model/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
@@ -30,6 +38,12 @@ export interface CommandApproval {
 
 export type ApprovalRequest = PatchApproval | CommandApproval;
 
+/** How an approval was answered, and which card it was asked on */
+export interface ApprovalAnswer {
+  id: string;
+  allowed: boolean;
+}
+
 /**
  * `unanswered` exists only on a restored card: the session ended while the
  * question was still on screen. Kept apart from `denied` because the user
@@ -47,6 +61,17 @@ interface ChatItemBase {
   id: string;
   /** ISO 8601. Orders a restored thread; `id` breaks ties. */
   createdAt: string;
+  /**
+   * ISO 8601, set on every change to an item that already exists: text
+   * streaming into a reply, an approval being answered or getting its
+   * outcome. Absent until the first one, so an item's version is
+   * `updatedAt ?? createdAt`.
+   *
+   * It is what lets the server and a pull keep the newer of two copies of the
+   * same id: see `mergeThreads` in `chat-codec` and `appendMessages` in
+   * `conversations.mjs`.
+   */
+  updatedAt?: string;
 }
 
 /**
@@ -160,6 +185,27 @@ export type AssistantStatus =
 
 const makeId = uuid;
 const now = () => new Date().toISOString();
+
+/**
+ * Mark an existing item as changed now.
+ *
+ * Strictly later than its previous version, even when the clock says
+ * otherwise: two deltas in one millisecond, or a clock stepped backwards,
+ * would otherwise give the newer copy a version that does not beat the older
+ * one, and the server would keep the shorter reply.
+ *
+ * In memory only. Persisting is the caller's `_emit`, which every mutator
+ * makes anyway, so stamping adds no storage write of its own -- not even per
+ * streamed token, where `_emit` already writes once.
+ */
+const stamp = (item: ChatItem) => {
+  const at = now();
+  // `NaN` for a version that does not parse, which compares false and so
+  // falls through to the clock rather than throwing on `new Date(NaN)`
+  const previous = versionOf(item);
+  item.updatedAt =
+    previous >= Date.parse(at) ? new Date(previous + 1).toISOString() : at;
+};
 
 const isSame = (a: Connection | null, b: Connection) =>
   !!a &&
@@ -470,6 +516,7 @@ export class PgAssistant {
     const item = PgAssistant._items.find((i) => i.id === id);
     if (item?.kind === "assistant") {
       item.text += delta;
+      stamp(item);
       PgAssistant._emit();
     }
   }
@@ -520,10 +567,16 @@ export class PgAssistant {
    * The promise settles when they click, which is what holds the agent loop
    * open — the tool's `run` does not return until then.
    *
+   * The card's id comes back with the answer so the caller can record the
+   * outcome on *this* card. Looking up "the latest card" afterwards found
+   * whichever card was added last, and the Anthropic runner executes a
+   * turn's tool calls concurrently: with two gated tools, both outcomes landed
+   * on the second card and the first got none.
+   *
    * @param request what needs approving
-   * @returns whether the user allowed it
+   * @returns the card's id, and whether the user allowed it
    */
-  static requestApproval(request: ApprovalRequest) {
+  static requestApproval(request: ApprovalRequest): Promise<ApprovalAnswer> {
     const id = makeId();
     PgAssistant._items.push({
       kind: "approval",
@@ -535,8 +588,8 @@ export class PgAssistant {
     PgAssistant._status = "awaiting";
     PgAssistant._emit();
 
-    return new Promise<boolean>((resolve) => {
-      PgAssistant._pending.set(id, resolve);
+    return new Promise((resolve) => {
+      PgAssistant._pending.set(id, (allowed) => resolve({ id, allowed }));
     });
   }
 
@@ -546,6 +599,7 @@ export class PgAssistant {
     if (item?.kind !== "approval" || item.status !== "pending") return;
 
     item.status = allowed ? "allowed" : "denied";
+    stamp(item);
     PgAssistant._status = "running";
     PgAssistant._emit();
 
@@ -558,17 +612,9 @@ export class PgAssistant {
     const item = PgAssistant._items.find((i) => i.id === id);
     if (item?.kind === "approval") {
       item.outcome = outcome;
+      stamp(item);
       PgAssistant._emit();
     }
-  }
-
-  /** The id of the approval added most recently, for recording its outcome */
-  static get lastApprovalId() {
-    for (let i = PgAssistant._items.length - 1; i >= 0; i--) {
-      const item = PgAssistant._items[i];
-      if (item.kind === "approval") return item.id;
-    }
-    return null;
   }
 
   /** Deny everything still waiting — used when a turn is abandoned */
@@ -583,13 +629,18 @@ export class PgAssistant {
    * Leaving a thread has to resolve its blocked promises, but must not persist
    * on the way out: at that moment the items still belong to the thread being
    * left while the caller is already pointing elsewhere. The stored copy needs
-   * no fixing either — the codec writes a pending approval as denied, because
-   * nothing could ever resolve it after a reload.
+   * no fixing either — the codec writes a pending approval as `unanswered`,
+   * because nothing could ever resolve it after a reload.
    */
   private static _denyPending() {
     for (const [id, resolve] of PgAssistant._pending) {
       const item = PgAssistant._items.find((i) => i.id === id);
-      if (item?.kind === "approval") item.status = "denied";
+      // Stamped too: `cancelPending` persists this, and a stopped turn's card
+      // reading as denied is a change the account should keep
+      if (item?.kind === "approval") {
+        item.status = "denied";
+        stamp(item);
+      }
       resolve(false);
     }
     PgAssistant._pending.clear();
@@ -649,12 +700,38 @@ export class PgAssistant {
    * would repaint the panel after the user has already moved to B.
    *
    * @param threadId the workspace whose conversation to open
+   * A call for the thread that is already open does nothing -- but waits for
+   * that thread's read when it is still out. Returning at once let a caller
+   * act on the empty list standing in for it: `foldIn` merged the server's
+   * copy into that list, and the read then landing appended the stored
+   * thread to it as though every item had arrived mid-read, so each synced
+   * message appeared twice.
+   *
    * @param force re-read even if this thread is already open, for when sync
    * has just rewritten it underneath
    */
   static async loadThread(threadId: string, force = false) {
-    if (!force && PgAssistant._threadId === threadId) return;
+    if (!force && PgAssistant._threadId === threadId) {
+      await PgAssistant._settled(threadId);
+      return;
+    }
 
+    const loading = { threadId, done: PgAssistant._load(threadId) };
+    PgAssistant._loading = loading;
+    try {
+      await loading.done;
+    } finally {
+      if (PgAssistant._loading === loading) PgAssistant._loading = null;
+    }
+  }
+
+  /** Once `threadId`'s read has landed, if one is in flight */
+  private static async _settled(threadId: string) {
+    const loading = PgAssistant._loading;
+    if (loading?.threadId === threadId) await loading.done;
+  }
+
+  private static async _load(threadId: string) {
     // Messages sitting in a panel with no thread open belong to nothing yet:
     // the thread that opens adopts them, rather than what the user typed
     // vanishing because a read was still in flight. On a switch there *is* a
@@ -689,6 +766,58 @@ export class PgAssistant {
     // overwriting a file that may still be recoverable.
     if (adopted.length) PgAssistant._emit();
     else PgAssistant._emitOnly();
+  }
+
+  /**
+   * Merge the server's copy of the open thread into what is rendered.
+   *
+   * Instead of re-reading the thread from storage, which `loadThread(id,
+   * true)` does and which is wrong for a thread that is already open: it
+   * denies the card the user has not answered, drops the status to idle in
+   * the middle of a turn, and replaces memory with a copy on disk that can lag
+   * it -- the store's writes are queued, and a pull's storage write was not
+   * on that queue, so a message sent during the request could vanish.
+   *
+   * Here the merge is newest-wins by version with ties to this tab, like the
+   * pull's. Status and pending approvals are left exactly as they are, and an
+   * item this tab holds keeps its object, so a reply still streaming into it
+   * carries on. The result persists through `_emit`, on the same chain as
+   * every other write, which is what makes memory the source of truth.
+   *
+   * Capped like storage: the server keeps every message, and without the cap
+   * a long thread rendered all of them under a notice saying the earlier ones
+   * are not on this device, and replayed them all to the provider. The cap
+   * never trims below what is already in memory, so a session that has grown
+   * past it keeps showing what it showed.
+   *
+   * Waits for the thread's read when one is still out, for the same reason
+   * as `loadThread`: merged into the empty list standing in for it, the read
+   * landing afterwards would duplicate every item.
+   *
+   * @param threadId the thread the server's copy belongs to
+   * @param fromServer the server's items for it
+   * @returns whether that thread was open, so the copy is now in memory
+   */
+  static async foldIn(threadId: string, fromServer: readonly ChatItem[]) {
+    await PgAssistant._settled(threadId);
+    if (PgAssistant._threadId !== threadId) return false;
+
+    const items = PgAssistant._items;
+    const merged = capThread(
+      threadId,
+      mergeThreads(fromServer, items),
+      Math.max(MAX_MESSAGES_PER_THREAD, items.length)
+    );
+    // Every ordinary reopen lands here with nothing new, and a write per
+    // reopen is a write for nothing
+    const unchanged =
+      merged.length === items.length &&
+      merged.every((item, i) => item === items[i]);
+    if (unchanged) return true;
+
+    PgAssistant._items = merged;
+    PgAssistant._emit();
+    return true;
   }
 
   /**
@@ -732,6 +861,9 @@ export class PgAssistant {
   /** Set when the open thread failed to read, cleared when one reads cleanly */
   private static _readOnly = false;
   private static _lastWrite: Promise<void> = Promise.resolve();
+  /** The thread read `loadThread` has out, if any */
+  private static _loading: { threadId: string; done: Promise<void> } | null =
+    null;
 
   /**
    * Resolves once every pending write has landed.

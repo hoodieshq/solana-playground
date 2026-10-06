@@ -69,6 +69,15 @@ const addMessage = (page: Page, text: string) =>
 test("a conversation survives a reload", async ({ page }) => {
   await seedWorkspace(page, "alpha");
   await addMessage(page, "remember me");
+  // The store's writes are fired and forgotten; a reload landing first cuts
+  // this one off, which is not what this test is about
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __pgAssistant: { whenPersisted: () => Promise<void> };
+      }
+    ).__pgAssistant.whenPersisted()
+  );
 
   await page.reload();
   await expect(page.locator("#root-dir")).toBeVisible();

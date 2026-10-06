@@ -14,7 +14,8 @@ import { PgBuildOutput } from "../bridge/build-output";
 import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
-import { PgChatSync } from "../../../../features/persistence/model/chat-sync";
+import { pushThread } from "../../../../effects/chat-thread/push-thread";
+import { report } from "../../../../features/persistence/model/diagnostics";
 import { toReplayMessages } from "../../../../features/persistence/model/replay";
 import { PgCommand, PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
@@ -177,7 +178,9 @@ const Chat = () => {
       // a slow or failed upload must not hold up the panel, and the local
       // copy is already written either way.
       const threadId = PgAssistant.threadId;
-      if (threadId) void PgChatSync.push(threadId);
+      if (threadId) {
+        void pushThread(threadId).catch((e) => report("push turn", e));
+      }
     }
   };
   sendRef.current = send;

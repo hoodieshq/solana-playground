@@ -63,6 +63,34 @@ const truncationNotice = (threadId: string): ChatItem => ({
 });
 
 /**
+ * Bound a thread to the newest `limit` items, the truncation notice included.
+ *
+ * The notice is re-derived rather than carried through, so a thread that has
+ * been truncated before keeps saying so even once the rest fits again. An
+ * existing notice object is reused, so capping a thread that is already capped
+ * hands back the very same items -- which is how the store tells that a fold
+ * changed nothing.
+ *
+ * @param limit the most items to keep; the store passes more than the cap so
+ * a fold never trims what a running session already shows
+ */
+export const capThread = (
+  threadId: string,
+  items: readonly ChatItem[],
+  limit = MAX_MESSAGES_PER_THREAD
+): ChatItem[] => {
+  const real = withoutTruncationNotice(items);
+  const truncated = real.length > limit || real.length < items.length;
+  if (!truncated) return real;
+
+  // Past the limit one slot goes to the notice, so one more message makes way
+  const noticeId = truncationNoticeId(threadId);
+  const notice =
+    items.find((item) => item.id === noticeId) ?? truncationNotice(threadId);
+  return [notice, ...real.slice(-(limit - 1))];
+};
+
+/**
  * Thread ids become file names, and a tutorial's id carries a colon
  * (`tut:hello-anchor`). Encoding keeps the mapping total and reversible
  * instead of relying on what the backing store happens to tolerate.
@@ -127,18 +155,7 @@ export class PgChatStorage {
   }
 
   static async write(threadId: string, items: readonly ChatItem[]) {
-    // The notice is re-derived rather than carried through, so a thread that
-    // has been truncated before keeps saying so even once the rest fits again
-    const real = withoutTruncationNotice(items);
-    const truncated =
-      real.length > MAX_MESSAGES_PER_THREAD || real.length < items.length;
-    // Past the cap one slot goes to the notice, so one more message makes way
-    const capped = truncated
-      ? [
-          truncationNotice(threadId),
-          ...real.slice(-(MAX_MESSAGES_PER_THREAD - 1)),
-        ]
-      : real;
+    const capped = capThread(threadId, items);
 
     try {
       // `createParents` on the write, not a separate `createDir`: that helper
