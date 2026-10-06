@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { expect, test } from "@playwright/test";
-import { validate as isUuid } from "uuid";
+import { isUuid } from "../src/shared/lib/ids";
 import type { Page, Route } from "@playwright/test";
 import { applyWrite, hasDefaultBackend } from "./fixtures";
 

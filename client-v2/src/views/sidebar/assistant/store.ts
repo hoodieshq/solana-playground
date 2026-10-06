@@ -367,7 +367,9 @@ export class PgAssistant {
     try {
       PgAssistant._gatewayServers = await listGatewayServers();
       PgAssistant._emit();
-    } catch {}
+    } catch (err) {
+      console.warn("MCP gateway unavailable; using local servers only", err);
+    }
   }
 
   /** Learn what exists, then what it offers. Safe to call on every mount. */
@@ -415,7 +417,9 @@ export class PgAssistant {
       servers.map(async (server) => {
         try {
           PgAssistant.setMcpTools(server.id, await listTools(server));
-        } catch {}
+        } catch (err) {
+          console.warn(`MCP server ${server.id}: tool discovery failed`, err);
+        }
       })
     );
   }

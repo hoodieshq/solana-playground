@@ -146,21 +146,67 @@
     "overrides": [
       {
         "files": [
-          "src/**"
+          "src/**",
+          "e2e/**"
         ],
         "rules": {
           "no-restricted-syntax": [
             "error",
             {
-              "selector": "MemberExpression[object.name='crypto'][property.name='randomUUID']",
-              "message": "Mint ids with uuid() from src/shared/lib/ids, which also covers the browsers browserslist still names."
+              "selector": "MemberExpression[property.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
+            },
+            {
+              "selector": "VariableDeclarator > ObjectPattern > Property[key.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
             }
           ]
         }
       },
       {
         "files": [
-          "src/{features,shared,entities,widgets}/**"
+          "e2e/**"
+        ],
+        "rules": {
+          "no-restricted-imports": [
+            "error",
+            {
+              "paths": [
+                {
+                  "name": "uuid",
+                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
+                }
+              ],
+              "patterns": [
+                {
+                  "group": [
+                    "uuid/*"
+                  ],
+                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
+                }
+              ]
+            }
+          ],
+          "no-restricted-syntax": [
+            "error",
+            {
+              "selector": "MemberExpression[property.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
+            },
+            {
+              "selector": "VariableDeclarator > ObjectPattern > Property[key.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
+            },
+            {
+              "selector": "Literal[regex.pattern=/\\{8\\}\\\\?-/]",
+              "message": "Check an id with isUuid() from src/shared/lib/ids instead of a copied UUID regex."
+            }
+          ]
+        }
+      },
+      {
+        "files": [
+          "src/{app,features,shared,entities,widgets}/**"
         ],
         "rules": {
           "no-empty": [
@@ -178,17 +224,29 @@
                   "name": "uuid",
                   "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
                 }
+              ],
+              "patterns": [
+                {
+                  "group": [
+                    "uuid/*"
+                  ],
+                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
+                }
               ]
             }
           ],
           "no-restricted-syntax": [
             "error",
             {
-              "selector": "MemberExpression[object.name='crypto'][property.name='randomUUID']",
-              "message": "Mint ids with uuid() from src/shared/lib/ids, which also covers the browsers browserslist still names."
+              "selector": "MemberExpression[property.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
             },
             {
-              "selector": "Literal[regex.pattern=/0-9a-f\\]\\{8\\}/]",
+              "selector": "VariableDeclarator > ObjectPattern > Property[key.name='randomUUID']",
+              "message": "Mint ids with uuid() from src/shared/lib/ids; crypto.randomUUID exists only in secure contexts."
+            },
+            {
+              "selector": "Literal[regex.pattern=/\\{8\\}\\\\?-/]",
               "message": "Check an id with isUuid() from src/shared/lib/ids instead of a copied UUID regex."
             }
           ]

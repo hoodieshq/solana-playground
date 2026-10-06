@@ -157,14 +157,21 @@ export class PgSession {
     try {
       await PgSession._onSignOut?.();
     } catch (err) {
-      console.warn("sign-out hook failed; signing out anyway", err);
+      console.error("sign-out hook failed; signing out anyway", err);
     }
 
     try {
-      await fetch("/api/auth/sign-out", {
+      const res = await fetch("/api/auth/sign-out", {
         method: "POST",
         credentials: "include",
       });
+      // The server session survives a refused sign-out, and a reload signs
+      // the user back in; say so rather than only on a network error
+      if (!res.ok) {
+        console.error(
+          `sign-out request answered ${res.status}; the server session may survive`
+        );
+      }
     } catch (err) {
       console.warn(
         "sign-out request failed; the cookie expires on its own",

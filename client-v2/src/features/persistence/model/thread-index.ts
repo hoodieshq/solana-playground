@@ -175,12 +175,15 @@ export class PgThreadIndex {
       }
 
       // Hand-editable JSON in the user's own browser storage: one bad entry
-      // must cost that entry, not every workspace's conversation
-      return Object.fromEntries(
-        Object.entries(parsed as Record<string, unknown>).filter(
-          ([, id]) => typeof id === "string" && isUuid(id)
-        )
-      ) as Index;
+      // must cost that entry, not every workspace's conversation. Reported,
+      // because the next write persists the loss.
+      const entries = Object.entries(parsed as Record<string, unknown>);
+      const kept = entries.filter(([, id]) => isUuid(id));
+      if (kept.length < entries.length) {
+        const dropped = entries.filter(([, id]) => !isUuid(id));
+        report("read index: dropped entries without a uuid", dropped);
+      }
+      return Object.fromEntries(kept) as Index;
     } catch (e) {
       if (!isMissing(e)) report("read index", e);
       return {};

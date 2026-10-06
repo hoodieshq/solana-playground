@@ -192,15 +192,18 @@ makes that an exit code (HOO-1856).
 
 ## What review keeps finding
 
-Each rule here came back in review more than once. The first four are
-ESLint errors inside the layers (`src/{features,shared,entities,widgets}/`;
-the rules are in `package.json` `eslintConfig`), with the legacy roots exempt
-until code moves out of them; the rest hold by review.
+Each rule here came back in review more than once. The first three are
+ESLint errors (`package.json` `eslintConfig`, run by `yarn lint`) in the
+layers, `src/{app,widgets,features,entities,shared}/`; the legacy roots are
+exempt until code moves out of them, except that `crypto.randomUUID` is an
+error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The
+lint catches the common spellings, not every one. The fourth is the boundary
+check's job (HOO-1859); the rest hold by review.
 
 - **Ids come from `src/shared/lib/ids`.** `uuid()` mints one, `isUuid()`
   checks one. Never `crypto.randomUUID()`, never a
   copied UUID regex, never `import ... from "uuid"` anywhere else.
-  `api/*.mjs` cannot import `src/`, so it uses the `uuid` package directly;
+  `api/` cannot import `src/`, so it uses the `uuid` package directly;
   it is the one exception.
 - **A `catch` is never empty.** It rethrows, reports through the owning
   feature's diagnostics, or tells the user. A failure that is swallowed on

@@ -249,4 +249,18 @@ describe("PgSession", () => {
 
     expect(PgSession.get()).toBeNull();
   });
+
+  it("says so when the server refuses the sign-out", async () => {
+    global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
+    await PgSession.refresh();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    await PgSession.signOut();
+
+    expect(PgSession.get()).toBeNull();
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("500"));
+  });
 });

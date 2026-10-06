@@ -49,7 +49,8 @@ package as a devDependency for CI. The rules for contributors and agents are in
 
 `yarn check` runs what CI runs, in CI's order, minus the production build:
 `test-types`, `check-format`, `lint`, `spec:validate`, `spec:archived`,
-`test-unit`, `test-api`. Run it before a push, or make git do it:
+`spec:coverage`, `test-unit`, `test-api`. Run it before a push, or make git
+do it:
 
 ```sh
 git config core.hooksPath .githooks   # once per clone; runs `check` on pre-push

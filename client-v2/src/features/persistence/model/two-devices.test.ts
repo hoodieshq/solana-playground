@@ -7,6 +7,7 @@ import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import { reconcile, releaseLocalProjects } from "./project-restore";
 import { PgSession } from "../../auth";
+import { isUuid } from "../../../shared/lib/ids";
 import { projectSync } from "../../../effects/project-sync/project-sync";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -1346,8 +1347,23 @@ describe("a device upgraded from whole-snapshot marks", () => {
     expect(puts()).toEqual([]);
     expect(deleteWorkspace).not.toHaveBeenCalled();
 
+    const importWorkspace = vi.spyOn(PgExplorer, "importWorkspace");
     expect(await PgProjectSync.resolve(HELLO.id, "keep-as-new")).toBe(true);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+
+    // Under a fresh id: the old one is tombstoned, and every push under it
+    // would be refused. Imported before the original goes.
+    const [name, { id }] = importWorkspace.mock.calls[0] as [
+      string,
+      { id: string }
+    ];
+    expect(name).toBe(`${HELLO.name} (kept)`);
+    expect(isUuid(id)).toBe(true);
+    expect(id).not.toBe(HELLO.id);
+    expect(deleteWorkspace).toHaveBeenCalledWith(HELLO.name);
+    expect(importWorkspace.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteWorkspace.mock.invocationCallOrder[0]
+    );
   });
 
   it("finishes a delete elsewhere when this copy is what it last agreed", async () => {
