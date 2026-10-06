@@ -75,7 +75,7 @@ installed files:
 
 ```sh
 yarn ds-add stepper callout     # install or reinstall, by registry name
-yarn ds-add stepper --dry-run   # what would be written; --diff for the diff
+yarn ds-add stepper --dry-run   # what would be written; --diff, --view too
 ```
 
 The script builds the registry in `../design-system` (run `npm ci` there

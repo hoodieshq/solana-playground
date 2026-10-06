@@ -44,14 +44,14 @@ Installs come from the repo, not from the public site. Our items depend on each 
 
 ```bash
 npm run build:registry
-npm run registry:serve        # http://localhost:3010/r, PORT to change it
+npm run registry:serve        # http://127.0.0.1:3010/r, PORT to change it
 ```
 
 Map the namespace in the consumer's `components.json`:
 
 ```json
 "registries": {
-  "@playground": "http://localhost:3010/r/{name}.json"
+  "@playground": "http://127.0.0.1:3010/r/{name}.json"
 }
 ```
 

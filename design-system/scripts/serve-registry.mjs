@@ -5,6 +5,11 @@
  * reaches the public host. A missing item answers 404 JSON, not a page, so
  * shadcn reports it as not found.
  *
+ * Started by client-v2's ds-add with an IPC channel, it sends one message
+ * over that channel once it accepts requests (ds-add waits for any message,
+ * so no text has to match), and exits when its parent goes, so a killed
+ * install never leaves it holding the port.
+ *
  *   npm run build:registry && npm run registry:serve     PORT=3010 by default
  */
 import http from "node:http"
@@ -36,5 +41,8 @@ http
     process.exit(1)
   })
   .listen(PORT, "127.0.0.1", () => {
-    console.log(`registry on http://localhost:${PORT}/r`)
+    console.log(`registry on http://127.0.0.1:${PORT}/r`)
+    process.send?.("ready")
   })
+
+if (process.send) process.on("disconnect", () => process.exit(0))
