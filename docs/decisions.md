@@ -3040,7 +3040,8 @@ it.
 ## D54 - The browser floor rises to Tailwind 4's
 
 **Date:** 2026-10-01 - **Status:** decided (Slava), from the UI migration
-spec - **Source:** spec, decision 4 - **Ticket:** HOO-1860
+spec; implemented in PR #47 (`e48accaa`, 2026-10-06) - **Source:** spec,
+decision 4 - **Ticket:** HOO-1860
 
 **Chosen:** Safari 16.4, Chrome 111, Firefox 128, Edge 111.
 `browserslist.production` in `client-v2/package.json` changes to match.

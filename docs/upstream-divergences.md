@@ -54,6 +54,7 @@ row: what differs, why, the decision, and what to do on sync / release.
 | B15 | **No package bundler**: `/bundle`, `PgJsPackage` and `pm install` are not ported. The runtime's package imports and Monaco's package types always read the bundled packages and the static `/packages/*` files, with the `unstable` switch on or off; upstream reads the installed bundle when the switch is on | Sergey, PR #27 review 2026-09-22: `pm install` is not needed, and the bundler's server side has an undefined blast radius (D38) | D38, amended 2026-09-23 (PR #27) | Skip every upstream commit that touches `js-package.ts`, `commands/package-manager/` or `PgServer.bundle`; in `package-import-template.ts.raw` and `declarations/helper.ts` keep ours | none: no hosted server has `/bundle` |
 | B16 | **Endpoints are stored as the option picked, not its address.** `connection.endpoint` and `server.endpoint` go into `localStorage` as an option key (`devnet-platform`, `foundation`, `configured`, ...) and resolve from the env on read; a custom address is stored as `{ option: "custom", url }`, untouched. Upstream stores the address | A rotated platform RPC key or a moved build server has to reach profiles that stored the old one; a custom URL may carry the user's own token (Sergey, PR #31) | D47 (PR #31) | `utils/settings.ts` is ours by two calls in `storage.read`/`write`; take upstream's file and re-apply them. A new option in either picker needs its key in `settings/stored-endpoint.ts`; `stored-endpoint.test.ts` fails until it has one | A key whose option the deploy drops reads as the default |
 | B17 | **Tabs re-read the workspaces config** (`/.config/workspaces.json`) when a sibling tab writes it, and at the start of every reload and reconcile, through a new public `PgExplorer.refreshWorkspaces()`; each tab keeps its own current workspace. Upstream reads it once at load and saves that copy back on every switch | A tab that never re-read it saved its stale list over a project another tab had just created, deleted or renamed (HOO-1723) | D50 (PR #38) | `explorer.ts` is ours by one method; keep it when taking upstream's file. The callers are fork-only (`tab-reload.ts`, `project-restore.ts`, `effects/tab-sync`) | none |
+| B18 | **Tailwind 4 beside styled-components, and `@/` → `src/`.** `@tailwindcss/postcss` runs from `postcss.config.js` through craco's `style.postcss.loaderOptions`, ahead of CRA's three default plugins; preflight off; `index.css`'s own reset sits in `@layer base`; the class scan is pinned to `src/`. The alias is in `tsconfig.json` `paths`, craco `webpack.alias` and Jest `moduleNameMapper`. `browserslist.production` is Safari 16.4 / Chrome 111 / Edge 111 / Firefox 128 / Opera 97; upstream still reaches Safari 14 / Chrome 67 and has no Tailwind and no alias | The design system is built on Tailwind 4 (D51); its output needs the new floor (D54). Unlayered CSS beats any layer, so a styled-components rule on the same element and property still wins over a utility until that component migrates | D51, D54 (PR #47) | `index.css`, `tsconfig.json`, `craco.config.js`, `package.json` are ours; `postcss.config.js` and `e2e/tailwind.e2e.spec.ts` are new. Upstream's `browserslist` change, if any, is never taken | Browsers below the floor are unsupported; no polyfill (D54). CI greps the built CSS for `.flex{display:flex}`, so a craco upgrade that drops the PostCSS override fails the build |
 
 ## 2. Pre-existing upstream files the fork has edited
 
@@ -65,9 +66,9 @@ next sync**; the *Why* column says which side wins.
 
 | File | Why (decision / PR) | On sync |
 | --- | --- | --- |
-| `craco.config.js` | `/api` middleware (D20), MCP (D12) | ours; upstream rarely touches it |
+| `craco.config.js` | `/api` middleware (D20), MCP (D12), PostCSS override and `@/` alias (B18, PR #47) | ours; upstream rarely touches it |
 | `vercel.json` | rewrites, `maxDuration` (D28, D36) | ours |
-| `package.json`, `yarn.lock` | `@anthropic-ai/sdk`, playwright, scripts (#10) | merge; keep our scripts and deps |
+| `package.json`, `yarn.lock` | `@anthropic-ai/sdk`, playwright, scripts (#10); `browserslist` floor, Tailwind and PostCSS deps, Jest `moduleNameMapper` (B18, PR #47) | merge; keep our scripts, deps and `browserslist` |
 | `Dockerfile`, `Makefile.vercel`, `.prettierignore` | static assets, docker profile (#11) | ours |
 | `README.md`, `docs/deploy-client-vercel.md`, `src/tutorials/README.md` | fork docs | ours |
 | `scripts/generate-crates.mjs`, `scripts/utils.mjs` | worktree-aware paths (#5) | ours |
@@ -85,7 +86,8 @@ next sync**; the *Why* column says which side wins.
 | `src/constants/connection.ts`, `src/settings/connection/connection.ts`, `src/utils/connection.ts` | platform RPC (#16, B9) | ours; watch upstream `1d906604` |
 | `src/frameworks/anchor/anchor.ts`, `src/utils/github.ts` | Trees API import (D22) | ours |
 | `src/hooks/useOnClickOutside.tsx` | header cluster toggle (#16) | merge |
-| `src/index.css`, `src/themes/playground/playground.ts`, `src/utils/theme/interface.ts`, `src/utils/theme/theme.ts` | Solana theme (D9) | ours |
+| `src/index.css`, `src/themes/playground/playground.ts`, `src/utils/theme/interface.ts`, `src/utils/theme/theme.ts` | Solana theme (D9); Tailwind layers and the layered reset in `index.css` (B18) | ours |
+| `tsconfig.json` | `@/` alias in `paths` (B18, PR #47) | ours; take upstream's compiler options, keep `paths` |
 | `src/routes/common.tsx`, `src/routes/tutorials/tutorials.tsx` | assistant as landing (D15), tutorial race (D16) | ours |
 | `src/routes/share/share.tsx` | Flow visual parity (#10) | merge |
 | `src/settings/server/server.ts` | picker + Foundation default (D30; PR #31) | ours |
