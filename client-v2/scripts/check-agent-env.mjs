@@ -13,7 +13,7 @@ if (key === undefined) {
 
 // A local `vercel build` pulls a Secret variable as an empty value; the
 // deployment still receives the real one at runtime
-if (!key.trim()) {
+if (!key) {
   console.log(
     "check-agent-env: AGENT_API_KEY is set but empty here, as a pulled " +
       "Secret is; the deployment reads its value at runtime."

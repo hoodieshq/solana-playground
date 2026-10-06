@@ -47,15 +47,15 @@ const upstreams = () => {
   };
 
   const explorer = mcpExplorerEnv();
-  if (explorer.bypass) {
+  if (explorer.BYPASS) {
     configured.explorer = {
       name: "Solana Explorer MCP",
-      url: explorer.url,
+      url: explorer.URL,
       headers: {
-        "x-vercel-protection-bypass": explorer.bypass,
+        "x-vercel-protection-bypass": explorer.BYPASS,
         // Explorer gates on MCP_ACCESS_KEYS when its deployment sets them
-        ...(explorer.token
-          ? { authorization: `Bearer ${explorer.token}` }
+        ...(explorer.TOKEN
+          ? { authorization: `Bearer ${explorer.TOKEN}` }
           : {}),
       },
     };

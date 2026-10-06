@@ -4,53 +4,55 @@
 //
 // Every getter reads `process.env` when called, never at import: tests stub
 // the environment per case, and a value captured on import would outlive it.
-// Names and defaults live here and nowhere else; `.env.example` documents them.
+// Each field is named after its variable, minus the group's prefix where all
+// its variables share one: `mcpExplorerEnv().BYPASS` is `MCP_EXPLORER_BYPASS`. Names and defaults live
+// here and nowhere else; `.env.example` documents them.
 
 /**
- * A variable's value, or `undefined` when it is unset or blank.
+ * A variable's value as set, or `undefined` when it is unset or empty.
  *
  * @param {string} name
  * @returns {string | undefined}
  */
-const read = (name) => process.env[name]?.trim() || undefined;
+const read = (name) => process.env[name] || undefined;
 
 /**
- * The assistant's Default backend. Only `apiKey` has no default: without it
- * the backend is off.
+ * `AGENT_*`: the assistant's Default backend. Only `API_KEY` has no default:
+ * without it the backend is off.
  */
 export const agentEnv = () => ({
-  apiKey: read("AGENT_API_KEY"),
-  baseUrl:
+  API_KEY: read("AGENT_API_KEY"),
+  BASE_URL:
     read("AGENT_BASE_URL") || "https://inference-api.nousresearch.com/v1",
-  model: read("AGENT_MODEL") || "z-ai/glm-5.3-flash:US",
+  MODEL: read("AGENT_MODEL") || "z-ai/glm-5.3-flash:US",
   // GLM always reasons and defaults to `max`; the panel shows none of it, so
   // a high effort reads as a stalled answer
-  reasoningEffort: read("AGENT_REASONING_EFFORT") || "low",
+  REASONING_EFFORT: read("AGENT_REASONING_EFFORT") || "low",
 });
 
-/** The Explorer MCP upstream; `bypass` unset leaves it out of the gateway */
+/** `MCP_EXPLORER_*`: the Explorer MCP upstream; no `BYPASS` leaves it out */
 export const mcpExplorerEnv = () => ({
-  bypass: read("MCP_EXPLORER_BYPASS"),
-  url: read("MCP_EXPLORER_URL") || "https://explorer.solana.com/mcp",
-  token: read("MCP_EXPLORER_TOKEN"),
+  BYPASS: read("MCP_EXPLORER_BYPASS"),
+  URL: read("MCP_EXPLORER_URL") || "https://explorer.solana.com/mcp",
+  TOKEN: read("MCP_EXPLORER_TOKEN"),
 });
 
 /** Postgres for sync, and its opt-in kill switch */
 export const databaseEnv = () => ({
-  url: read("DATABASE_URL"),
+  DATABASE_URL: read("DATABASE_URL"),
   // Only the exact string enables sync; anything else keeps it off
-  syncEnabled: process.env.SYNC_ENABLED === "true",
+  SYNC_ENABLED: process.env.SYNC_ENABLED === "true",
 });
 
 /**
  * Better Auth's secret and GitHub credentials, and the origins it can build
- * URLs from. `vercelUrl` is Vercel's own hostname for the deployment, without
- * a scheme.
+ * URLs from. `VERCEL_URL` is Vercel's own hostname for the deployment,
+ * without a scheme.
  */
 export const authEnv = () => ({
-  baseUrl: read("AUTH_BASE_URL"),
-  vercelUrl: read("VERCEL_URL"),
-  secret: read("AUTH_SECRET"),
-  githubClientId: read("GITHUB_CLIENT_ID"),
-  githubClientSecret: read("GITHUB_CLIENT_SECRET"),
+  AUTH_BASE_URL: read("AUTH_BASE_URL"),
+  VERCEL_URL: read("VERCEL_URL"),
+  AUTH_SECRET: read("AUTH_SECRET"),
+  GITHUB_CLIENT_ID: read("GITHUB_CLIENT_ID"),
+  GITHUB_CLIENT_SECRET: read("GITHUB_CLIENT_SECRET"),
 });

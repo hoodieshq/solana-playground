@@ -39,8 +39,8 @@ let instance = null;
  * @returns {string | undefined} the origin, or `undefined` to let Better Auth decide
  */
 export const resolveBaseURL = () => {
-  const { baseUrl, vercelUrl } = authEnv();
-  return baseUrl || (vercelUrl ? `https://${vercelUrl}` : undefined);
+  const { AUTH_BASE_URL, VERCEL_URL } = authEnv();
+  return AUTH_BASE_URL || (VERCEL_URL ? `https://${VERCEL_URL}` : undefined);
 };
 
 /**
@@ -56,11 +56,11 @@ export const resolveBaseURL = () => {
  * @returns {string[]} the missing variable names, empty when sign-in can run
  */
 export const missingConfig = () => {
-  const { githubClientId, githubClientSecret } = authEnv();
+  const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = authEnv();
   return [
     isConfigured() ? null : "DATABASE_URL",
-    githubClientId ? null : "GITHUB_CLIENT_ID",
-    githubClientSecret ? null : "GITHUB_CLIENT_SECRET",
+    GITHUB_CLIENT_ID ? null : "GITHUB_CLIENT_ID",
+    GITHUB_CLIENT_SECRET ? null : "GITHUB_CLIENT_SECRET",
   ].filter(Boolean);
 };
 
@@ -79,7 +79,7 @@ export const getAuth = () => {
     instance = betterAuth({
       database: pool,
       baseURL: resolveBaseURL(),
-      secret: env.secret,
+      secret: env.AUTH_SECRET,
       user: {
         additionalFields: {
           // The @handle. Better Auth's core schema has `name` and `image` but
@@ -90,8 +90,8 @@ export const getAuth = () => {
       },
       socialProviders: {
         github: {
-          clientId: env.githubClientId,
-          clientSecret: env.githubClientSecret,
+          clientId: env.GITHUB_CLIENT_ID,
+          clientSecret: env.GITHUB_CLIENT_SECRET,
           mapProfileToUser: (profile) => ({ login: profile.login }),
           // Scope is deliberately not set. Better Auth already requests
           // `read:user user:email`, and the option appends rather than

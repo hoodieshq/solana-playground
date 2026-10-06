@@ -71,7 +71,7 @@ describe("POST /api/agent body validation", () => {
 
   const missingKeys: Array<[label: string, key: string | undefined]> = [
     ["unset", undefined],
-    ["blank", " "],
+    ["empty", ""],
   ];
 
   for (const [label, key] of missingKeys) {

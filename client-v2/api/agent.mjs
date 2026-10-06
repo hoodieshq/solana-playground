@@ -36,19 +36,19 @@ const FORWARDED = ["messages", "tools", "tool_choice"];
  * with no key of its own gets the panel reporting the default backend as
  * unavailable.
  *
- * `AGENT_BASE_URL` is a base, not a full path -- the same shape the panel's
- * OpenAI-compatible provider takes, so one endpoint is configured identically
- * whether it is reached through here or entered by hand.
+ * `AGENT_BASE_URL` is used as given: a base with no trailing slash and no
+ * `/chat/completions`, the path this appends.
  */
 const upstream = () => {
-  const { apiKey, baseUrl, model, reasoningEffort } = agentEnv();
-  if (!apiKey) return null;
+  const agent = agentEnv();
+  if (!agent.API_KEY) return null;
 
-  // Tolerate a pasted full endpoint: provider docs quote the completions path,
-  // the panel's own field wants the base, and both mean the same deployment
-  const base = baseUrl.replace(/\/+$/, "").replace(/\/chat\/completions$/, "");
-
-  return { url: `${base}/chat/completions`, model, reasoningEffort, apiKey };
+  return {
+    url: `${agent.BASE_URL}/chat/completions`,
+    model: agent.MODEL,
+    reasoningEffort: agent.REASONING_EFFORT,
+    apiKey: agent.API_KEY,
+  };
 };
 
 const sendJson = (res, status, body) => {
