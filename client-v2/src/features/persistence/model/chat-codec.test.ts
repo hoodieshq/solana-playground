@@ -207,4 +207,21 @@ describe("decodeThread", () => {
     ).toBeNull();
     expect(decodeItem({ kind: "user", text: "x", id: base.id })).toBeNull();
   });
+
+  it("drops an updatedAt that does not parse, keeping the item", () => {
+    // The server refuses a whole thread over one item it cannot cast, so a
+    // bad stamp kept would fail every push of the thread for ever
+    for (const updatedAt of ["yesterday", 42, null]) {
+      const decoded = decodeItem({
+        ...base,
+        kind: "user",
+        text: "hi",
+        updatedAt,
+      });
+      expect(decoded).toEqual({ ...base, kind: "user", text: "hi" });
+    }
+    expect(
+      decodeThread([{ ...base, kind: "user", text: "hi", updatedAt: "nope" }])
+    ).toEqual([{ ...base, kind: "user", text: "hi" }]);
+  });
 });

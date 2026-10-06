@@ -137,14 +137,15 @@ export const listMessages = async (userId, threadId) => {
 const versionOf = (item) => Date.parse(item.updatedAt ?? item.createdAt);
 
 /**
- * The same, in SQL, for a `payload` column of the given row.
+ * The same, in SQL, for a `payload` column of the given row -- with `cast`
+ * applied to the column first when it is not `jsonb` yet.
  *
  * Cast and compared as `timestamptz`, not as text: two spellings of one
  * instant -- a different offset, or no milliseconds -- would otherwise read
  * as one being newer and rewrite the row for nothing.
  */
-const VERSION_OF = (row) =>
-  `coalesce(${row}.payload ->> 'updatedAt', ${row}.payload ->> 'createdAt')::timestamptz`;
+const VERSION_OF = (row, cast = "") =>
+  `coalesce(${row}.payload${cast} ->> 'updatedAt', ${row}.payload${cast} ->> 'createdAt')::timestamptz`;
 
 /**
  * Write items to a thread, creating it if this is its first push.
@@ -216,11 +217,14 @@ export const appendMessages = async (userId, thread, items) => {
       // `conversationId` is the one `ensureThread` has just proved is this
       // user's, so a conflict can only ever be with a row of that thread.
       // `created_at` is left as it was, because it is what orders the thread
-      // and a reply finishing does not move it.
+      // and a reply finishing does not move it. Why two versions can be
+      // compared at all: `mergeThreads` in `chat-codec.ts`.
       //
-      // The versions compare clocks of one device, not two: an item is only
-      // ever changed by the tab running its turn -- see `mergeThreads` in
-      // `chat-codec.ts` -- so both copies of an id were stamped there.
+      // The `where` casts every incoming version up front, and is true for
+      // any value that casts. Otherwise only the conflict branch cast
+      // `updatedAt`, so a value `Date.parse` accepts and `timestamptz` does
+      // not was stored on first insert, and every later push touching that
+      // row failed.
       ({ rowCount } = await run(
         client,
         `insert into messages (id, conversation_id, kind, payload, created_at)
@@ -228,6 +232,7 @@ export const appendMessages = async (userId, thread, items) => {
                 (v.payload::jsonb ->> 'createdAt')::timestamptz
            from (values ${values.join(", ")})
                 as v(id, conversation_id, kind, payload)
+          where ${VERSION_OF("v", "::jsonb")} is not null
          on conflict (conversation_id, id) do update
             set payload = excluded.payload, kind = excluded.kind
           where ${VERSION_OF("excluded")} > ${VERSION_OF("messages")}`,

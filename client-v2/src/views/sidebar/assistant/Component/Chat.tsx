@@ -14,7 +14,8 @@ import { PgBuildOutput } from "../bridge/build-output";
 import { describeLesson } from "../bridge/lesson-context";
 import { realBridge } from "../bridge/playground-bridge";
 import { createProvider } from "../model";
-import { PgChatSync } from "../../../../features/persistence/model/chat-sync";
+import { pushThread } from "../../../../effects/chat-thread/push-thread";
+import { report } from "../../../../features/persistence/model/diagnostics";
 import { toReplayMessages } from "../../../../features/persistence/model/replay";
 import { PgCommand, PgExplorer, PgProgramInfo } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
@@ -175,12 +176,10 @@ const Chat = () => {
       // End of turn is the natural commit point: the exchange is complete and
       // the user is reading rather than typing. Deliberately not awaited --
       // a slow or failed upload must not hold up the panel, and the local
-      // copy is already written either way. After the last write has landed,
-      // though: `push` reads storage, and the write the final delta queued may
-      // still be in flight -- pushing first uploaded the reply short of it.
+      // copy is already written either way.
       const threadId = PgAssistant.threadId;
       if (threadId) {
-        void PgAssistant.whenPersisted().then(() => PgChatSync.push(threadId));
+        void pushThread(threadId).catch((e) => report("push turn", e));
       }
     }
   };

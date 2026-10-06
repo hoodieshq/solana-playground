@@ -136,7 +136,7 @@ describe("the session effect", () => {
     jest.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
     jest.spyOn(PgThreadIndex, "get").mockResolvedValue("t1");
     jest.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
-    jest.spyOn(PgAssistant, "foldIn").mockImplementation(() => {});
+    jest.spyOn(PgAssistant, "foldIn").mockResolvedValue(true);
     const pull = jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue([]);
 
     const effect = session();

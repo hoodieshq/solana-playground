@@ -191,6 +191,17 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.equal((await stored()).text, "Done.");
     });
 
+    it("refuses a version Postgres cannot read before storing it", async () => {
+      // `Date.parse` rolls this over to March; `timestamptz` refuses it. Cast
+      // only on conflict, it was stored on first insert, and every later
+      // push touching the row failed on it.
+      const odd = { ...replyAt("Do"), updatedAt: "February 30, 2026" };
+      assert.ok(!Number.isNaN(Date.parse(odd.updatedAt)));
+
+      await assert.rejects(() => appendMessages(userId, on(1), [odd]));
+      assert.deepEqual(await listMessages(userId, thread(1)), []);
+    });
+
     it("never updates the same id in somebody else's thread", async () => {
       await appendMessages(userId, on(1), [replyAt("mine", 2)]);
       await appendMessages(other, { threadId: thread(2), projectId: "p1" }, [

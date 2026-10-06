@@ -17,6 +17,10 @@ const bridge = (content: string | null): PlaygroundBridge =>
 const writeFile = (b: PlaygroundBridge) =>
   createTools(b).find((tool) => tool.name === "write_file")!;
 
+/** The id of the approval card added most recently */
+const latestCard = () =>
+  PgAssistant.items.filter((i) => i.kind === "approval").slice(-1)[0].id;
+
 beforeEach(() => PgAssistant.clear());
 
 describe("write_file", () => {
@@ -42,7 +46,7 @@ describe("write_file", () => {
     expect(PgAssistant.items).toHaveLength(1);
     expect(PgAssistant.status).toBe("awaiting");
 
-    PgAssistant.resolveApproval(PgAssistant.lastApprovalId!, false);
+    PgAssistant.resolveApproval(latestCard(), false);
     expect(await pending).toContain("rejected");
   });
 

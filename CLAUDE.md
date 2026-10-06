@@ -77,17 +77,12 @@ yarn db-dump               # regenerate db/schema.sql after a migration
   already near its origin budget with `settings`, `wallet`, `theme` and
   `flow.deploys`. `threadId` is the stable workspace id, so a rename keeps the
   conversation.
-- **Chat messages are versioned, not immutable.** A reply streams into an
-  item that already exists and an approval is answered later, so every change
-  to an existing item stamps `updatedAt` (`stamp` in `assistant/store.ts`,
-  strictly later than the item's previous version). An item's version is
-  `updatedAt ?? createdAt`; `appendMessages` upserts only a newer copy and
-  `PgChatSync`'s merge keeps the newer copy, local on a tie. Insert-only was
-  the old rule, and a reply pushed mid-stream was then what the account kept
-  for ever. Versions from two devices never need their clocks to agree: an
-  item is only ever changed by the tab running its turn. The chat effect also
-  skips the hide/`pagehide` push while `PgAssistant.status` is not `idle`,
-  leaving the thread owed for the end-of-turn push.
+- **Chat messages are versioned, not immutable.** Every change to an existing
+  item stamps `updatedAt` (`stamp` in `assistant/store.ts`); an item's version
+  is `updatedAt ?? createdAt`. `appendMessages` upserts only a newer copy and
+  `mergeThreads` (`model/chat-codec.ts`) keeps the newer copy, local on a tie
+  -- see it for why two devices' clocks never need to agree. The open thread
+  takes the server's copy through `PgAssistant.foldIn`, never a reload.
 - **Project sync turns on a persisted "sync mark"**, one file per project per
   account at `/.config/sync/<userId>/<projectId>.json` (`model/sync-mark.ts`):
   a SHA-256 per file of what the server last accepted, the **name** it was

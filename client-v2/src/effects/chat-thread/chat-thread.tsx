@@ -1,4 +1,3 @@
-import { PgChatSync } from "../../features/persistence/model/chat-sync";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
@@ -8,6 +7,7 @@ import { PgAssistant } from "../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 import { openThread } from "./open-thread";
+import { pushThread } from "./push-thread";
 
 /**
  * Keep the open conversation pointed at the current workspace, and get it to
@@ -115,13 +115,9 @@ export const chatThread = (): Disposable => {
     pending = false;
     void (async () => {
       try {
-        // `push` reads the thread from storage, and the store's writes are
-        // fired and forgotten, so the last one may still be in flight.
-        // Ordinarily it has long landed and this costs a microtask.
-        await PgAssistant.whenPersisted();
         // Put it back rather than swallowing it: the next hide tries again,
         // which is the only retry conversations have
-        if (!(await PgChatSync.push(id))) pending = true;
+        if (!(await pushThread(id))) pending = true;
       } catch (e) {
         pending = true;
         report("flush thread", e);
@@ -142,9 +138,11 @@ export const chatThread = (): Disposable => {
    * page closed mid-turn keeps them in IndexedDB, and the next load's
    * `pushAll` uploads them.
    *
-   * Only the hide and `pagehide` paths. A workspace switch closes the thread
-   * and denies whatever it was waiting on, so the outgoing thread is as
-   * finished as it will ever get and is pushed as it stands.
+   * Only the hide and `pagehide` paths. A workspace switch closes the thread,
+   * and nothing is written to it after that: `closeThread` denies what it was
+   * waiting on in memory without persisting. So the switch pushes the stored
+   * copy as it stands -- a pending card in it reads `unanswered` -- and that
+   * is as finished as the outgoing thread will ever get.
    */
   const flushUnlessRunning = () => {
     if (PgAssistant.status !== "idle") return;

@@ -101,8 +101,11 @@ const byTime = (a: ChatItem, b: ChatItem) =>
     ? a.id.localeCompare(b.id)
     : a.createdAt.localeCompare(b.createdAt);
 
-/** When an item last changed, as a number a comparison can use */
-const versionOf = (item: ChatItem) =>
+/**
+ * When an item last changed, as a number a comparison can use: `updatedAt`
+ * when it has one, else `createdAt`. `NaN` for a version that does not parse.
+ */
+export const versionOf = (item: ChatItem) =>
   Date.parse(item.updatedAt ?? item.createdAt);
 
 /**
@@ -169,9 +172,28 @@ const isStoredItem = (value: unknown): value is StoredItem => {
   );
 };
 
-/** Read one stored item, or `null` if it is not one */
-export const decodeItem = (stored: unknown): ChatItem | null =>
-  isStoredItem(stored) ? stored : null;
+/**
+ * Read one stored item, or `null` if it is not one.
+ *
+ * An `updatedAt` that does not parse is dropped rather than costing the item:
+ * the item falls back to `createdAt` as its version. Kept, it would be
+ * uploaded with every push of the thread, and the server refuses a whole
+ * thread over one item it cannot cast.
+ */
+export const decodeItem = (stored: unknown): ChatItem | null => {
+  if (!isStoredItem(stored)) return null;
+  if (stored.updatedAt === undefined) return stored;
+  if (
+    typeof stored.updatedAt === "string" &&
+    !Number.isNaN(Date.parse(stored.updatedAt))
+  ) {
+    return stored;
+  }
+
+  const item = { ...stored };
+  delete item.updatedAt;
+  return item;
+};
 
 /**
  * Read a stored thread back.
@@ -181,4 +203,6 @@ export const decodeItem = (stored: unknown): ChatItem | null =>
  * conversation.
  */
 export const decodeThread = (stored: unknown): ChatItem[] =>
-  Array.isArray(stored) ? stored.filter(isStoredItem) : [];
+  Array.isArray(stored)
+    ? stored.map(decodeItem).filter((item): item is ChatItem => item !== null)
+    : [];

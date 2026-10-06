@@ -1,10 +1,18 @@
 import { PgAssistant, turnProducedApproval, type ChatItem } from "./store";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
-import { PgChatStorage } from "../../../features/persistence/model/chat-storage";
+import {
+  MAX_MESSAGES_PER_THREAD,
+  PgChatStorage,
+  truncationNoticeId,
+} from "../../../features/persistence/model/chat-storage";
 import { PgFs } from "../../../utils/explorer/fs";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
+
+/** The id of the approval card added most recently */
+const latestCard = () =>
+  PgAssistant.items.filter((i) => i.kind === "approval").slice(-1)[0].id;
 
 const at = "2026-01-01T00:00:00.000Z";
 
@@ -155,7 +163,7 @@ describe("PgAssistant item versions", () => {
       name: "build",
       effect: "builds",
     });
-    const id = PgAssistant.lastApprovalId!;
+    const id = latestCard();
     const created = versionOf(find(id));
 
     PgAssistant.resolveApproval(id, true);
@@ -169,7 +177,7 @@ describe("PgAssistant item versions", () => {
       name: "build",
       effect: "builds",
     });
-    const id = PgAssistant.lastApprovalId!;
+    const id = latestCard();
     PgAssistant.resolveApproval(id, true);
     const answered = versionOf(find(id));
 
@@ -184,7 +192,7 @@ describe("PgAssistant item versions", () => {
       name: "deploy",
       effect: "deploys",
     });
-    const id = PgAssistant.lastApprovalId!;
+    const id = latestCard();
     const created = versionOf(find(id));
 
     PgAssistant.cancelPending();
@@ -239,26 +247,32 @@ describe("PgAssistant.foldIn", () => {
   it("adds the server's items and keeps the ones only this tab has", async () => {
     PgAssistant.addUserMessage("local only");
 
-    PgAssistant.foldIn([reply("from the server")]);
+    await PgAssistant.foldIn("fold", [reply("from the server")]);
 
     expect(texts()).toEqual(["from the server", "local only"]);
     await settled();
     expect(await PgChatStorage.read("fold")).toHaveLength(2);
   });
 
-  it("takes the server's copy of an item when it is newer", () => {
-    PgAssistant.foldIn([reply("Do", "2026-01-01T00:00:01.000Z")]);
+  it("takes the server's copy of an item when it is newer", async () => {
+    await PgAssistant.foldIn("fold", [reply("Do", "2026-01-01T00:00:01.000Z")]);
 
-    PgAssistant.foldIn([reply("Done.", "2026-01-01T00:00:05.000Z")]);
+    await PgAssistant.foldIn("fold", [
+      reply("Done.", "2026-01-01T00:00:05.000Z"),
+    ]);
 
     expect(texts()).toEqual(["Done."]);
   });
 
-  it("keeps this tab's copy when it is newer, or on a tie", () => {
-    PgAssistant.foldIn([reply("Done.", "2026-01-01T00:00:05.000Z")]);
+  it("keeps this tab's copy when it is newer, or on a tie", async () => {
+    await PgAssistant.foldIn("fold", [
+      reply("Done.", "2026-01-01T00:00:05.000Z"),
+    ]);
 
-    PgAssistant.foldIn([reply("Do", "2026-01-01T00:00:01.000Z")]);
-    PgAssistant.foldIn([reply("other", "2026-01-01T00:00:05.000Z")]);
+    await PgAssistant.foldIn("fold", [reply("Do", "2026-01-01T00:00:01.000Z")]);
+    await PgAssistant.foldIn("fold", [
+      reply("other", "2026-01-01T00:00:05.000Z"),
+    ]);
 
     expect(texts()).toEqual(["Done."]);
   });
@@ -271,12 +285,14 @@ describe("PgAssistant.foldIn", () => {
       name: "build",
       effect: "builds",
     });
-    const card = PgAssistant.lastApprovalId!;
+    const card = latestCard();
 
-    // The server's copy of the card reads as denied: the codec stores a
+    // The server's copy of the card reads as unanswered: the codec stores a
     // pending one that way. Same version, so this tab's copy stands.
     const stored = PgAssistant.items.find((i) => i.id === card)!;
-    PgAssistant.foldIn([{ ...stored, status: "denied" } as ChatItem]);
+    await PgAssistant.foldIn("fold", [
+      { ...stored, status: "unanswered" } as ChatItem,
+    ]);
 
     expect(PgAssistant.status).toBe("awaiting");
     expect(PgAssistant.items.find((i) => i.id === card)).toMatchObject({
@@ -296,11 +312,79 @@ describe("PgAssistant.foldIn", () => {
     await settled();
     const write = jest.spyOn(PgChatStorage, "write");
 
-    PgAssistant.foldIn([...PgAssistant.items]);
+    await PgAssistant.foldIn("fold", [...PgAssistant.items]);
     await settled();
 
     expect(write).not.toHaveBeenCalled();
     write.mockRestore();
+  });
+
+  it("does nothing for a thread that is not open", async () => {
+    expect(await PgAssistant.foldIn("other", [reply("elsewhere")])).toBe(false);
+
+    expect(PgAssistant.items).toHaveLength(0);
+  });
+
+  it("waits for the thread's read, so the stored items are not added twice", async () => {
+    // A fold into the empty list standing in for the thread, followed by the
+    // read landing, appended the stored thread to the server's copy as though
+    // every item had arrived mid-read
+    const stored = reply("stored");
+    await PgChatStorage.write("racy", [stored]);
+    PgAssistant.closeThread();
+
+    const loading = PgAssistant.loadThread("racy");
+    const folded = PgAssistant.foldIn("racy", [stored]);
+    await Promise.all([loading, folded]);
+
+    expect(texts()).toEqual(["stored"]);
+  });
+
+  describe("on a thread longer than this device keeps", () => {
+    /** `n` server messages, oldest first, a second apart */
+    const history = (n: number) =>
+      Array.from(
+        { length: n },
+        (_, i): ChatItem => ({
+          kind: "user",
+          id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+          createdAt: new Date(Date.UTC(2025, 0, 1, 0, 0, i)).toISOString(),
+          text: `m${i}`,
+        })
+      );
+
+    it("keeps only the newest, as storage would", async () => {
+      // The server keeps every message; memory held all of them under a
+      // notice saying the earlier ones were not on this device
+      await PgAssistant.foldIn("fold", history(MAX_MESSAGES_PER_THREAD + 50));
+
+      expect(PgAssistant.items).toHaveLength(MAX_MESSAGES_PER_THREAD);
+      expect(PgAssistant.items[0].id).toBe(truncationNoticeId("fold"));
+      expect(texts()).toContain(`m${MAX_MESSAGES_PER_THREAD + 49}`);
+    });
+
+    it("writes nothing when folding the same history again", async () => {
+      const server = history(MAX_MESSAGES_PER_THREAD + 50);
+      await PgAssistant.foldIn("fold", server);
+      await settled();
+      const write = jest.spyOn(PgChatStorage, "write");
+
+      await PgAssistant.foldIn("fold", server);
+
+      expect(write).not.toHaveBeenCalled();
+      write.mockRestore();
+    });
+
+    it("never trims what a long session already shows", async () => {
+      const server = history(MAX_MESSAGES_PER_THREAD);
+      await PgAssistant.foldIn("fold", server);
+      for (let i = 0; i < 20; i++) PgAssistant.addUserMessage(`new ${i}`);
+      const shown = PgAssistant.items.map((i) => i.id).sort();
+
+      await PgAssistant.foldIn("fold", server);
+
+      expect(PgAssistant.items.map((i) => i.id).sort()).toEqual(shown);
+    });
   });
 });
 

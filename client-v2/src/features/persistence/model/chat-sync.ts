@@ -27,25 +27,14 @@ export interface HandOver {
  */
 export class PgChatSync {
   /**
-   * Read the server's copy of a thread and merge it into storage.
+   * Merge the server's copy of a thread into the stored one, newest copy of
+   * each item winning and local on a tie.
    *
    * Only for a thread the panel does not have open. For the open one, storage
    * lags memory -- the store's writes are queued on its own chain, which this
    * read and write are not on -- so writing a merge of the stored copy back
-   * can drop an item the panel added a moment ago. `openThread` fetches with
-   * `fetchThread` and hands the open thread to `PgAssistant.foldIn` instead.
-   *
-   * @returns the merged thread, or `null` when sync is unavailable
-   */
-  static async pull(threadId: string): Promise<ChatItem[] | null> {
-    const fromServer = await PgChatSync.fetchThread(threadId);
-    if (!fromServer) return null;
-    return await PgChatSync.storeMerged(threadId, fromServer);
-  }
-
-  /**
-   * Merge the server's copy of a thread into the stored one, newest copy of
-   * each item winning and local on a tie.
+   * can drop an item the panel added a moment ago. That one goes to
+   * `PgAssistant.foldIn` instead; `openThread` decides which.
    *
    * @returns the merged thread, or the server's copy alone when the stored one
    * could not be read
@@ -72,10 +61,16 @@ export class PgChatSync {
   /**
    * The server's copy of a thread, without touching storage.
    *
-   * @returns the thread's items, or `null` when sync is unavailable, the
-   * server has never seen the thread, or it could not be reached
+   * @returns the thread's items; **`"missing"`** when the server has never
+   * seen the thread; or `null` when sync is unavailable or the request
+   * failed. The last two are kept apart because a caller acts on the second:
+   * a thread the server lacks is a reason to go looking for the account's
+   * own, and a failed request is not -- adopting on it reloaded the open
+   * thread mid-turn, denying the card the user had not answered.
    */
-  static async fetchThread(threadId: string): Promise<ChatItem[] | null> {
+  static async fetchThread(
+    threadId: string
+  ): Promise<ChatItem[] | "missing" | null> {
     if (!(await PgChatSync._ready())) return null;
 
     try {
@@ -86,7 +81,7 @@ export class PgChatSync {
       // A thread this browser started and has not pushed yet does not exist
       // on the server, and saying so is the honest answer rather than a
       // fault: there is simply nothing to merge in.
-      if (response.status === 404) return null;
+      if (response.status === 404) return "missing";
       if (!response.ok) {
         report(`pull ${threadId}: HTTP ${response.status}`, null);
         return null;
@@ -169,7 +164,7 @@ export class PgChatSync {
    *
    * Anything already in the local thread is carried across rather than left
    * behind: it was typed on this workspace and belongs with its conversation.
-   * The newer copy of an id wins, local on a tie -- the same rule as `pull`.
+   * The newer copy of an id wins, local on a tie -- `mergeThreads`' rule.
    *
    * @returns the thread the workspace now points at, when that changed
    */
