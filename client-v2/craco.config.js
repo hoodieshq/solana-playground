@@ -14,6 +14,18 @@ if (!fs.existsSync(path.join(__dirname, "public", "index.html"))) {
   );
 }
 
+// Node 22 `require`s an ES module; the id list is shared with the API functions
+const {
+  missingObservabilityIds,
+} = require("./src/features/api/server/observability.mjs");
+
+// The build succeeds without these, so say in the build log what it ships without
+const warnAboutMissingObservabilityIds = () => {
+  for (const message of missingObservabilityIds(process.env)) {
+    console.warn(`warning: ${message}`);
+  }
+};
+
 module.exports = {
   style: {
     postcss: {
@@ -40,6 +52,9 @@ module.exports = {
     alias: { "@": path.resolve(__dirname, "src") },
 
     configure: (webpackConfig) => {
+      // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
+      warnAboutMissingObservabilityIds();
+
       // Resolve WASM and CommonJS
       webpackConfig.resolve.extensions.push(".wasm");
       webpackConfig.experiments = {

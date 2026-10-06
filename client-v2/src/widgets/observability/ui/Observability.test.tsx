@@ -91,6 +91,32 @@ it("should show the fallback and report when a child throws while rendering", ()
   expect(Sentry.withScope).toHaveBeenCalled();
 });
 
+it("should warn in the console about each missing id", () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+  renderNode(
+    <Observability
+      sentry={{}}
+      googleAnalytics={{}}
+      logLevel="warn"
+      fallback={null}
+    >
+      <p>app</p>
+    </Observability>
+  );
+
+  expect(warn.mock.calls).toEqual([
+    [
+      "[observability:init]",
+      "Sentry DSN is not set; errors are not reported to Sentry",
+    ],
+    [
+      "[observability:init]",
+      "GA4 measurement id is not set; events are not sent to Google Analytics",
+    ],
+  ]);
+});
+
 it("should send nothing to Google without a measurement id", () => {
   renderObservability(<p>app</p>);
 

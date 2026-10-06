@@ -1,5 +1,6 @@
 import {
   consoleProvider,
+  createLogger,
   initLogger,
   installGlobalHandlers,
   sentryProvider,
@@ -19,7 +20,24 @@ export interface ObservabilityConfig {
   logLevel?: Level;
 }
 
+const log = createLogger("observability:init");
+
 let initialised = false;
+
+/** Names each vendor left off for want of an id, so a misconfigured deploy shows in the console */
+const warnAboutMissingIds = ({
+  sentry,
+  googleAnalytics,
+}: ObservabilityConfig) => {
+  if (!sentry.dsn) {
+    log.warn("Sentry DSN is not set; errors are not reported to Sentry");
+  }
+  if (!googleAnalytics.measurementId) {
+    log.warn(
+      "GA4 measurement id is not set; events are not sent to Google Analytics"
+    );
+  }
+};
 
 /** Runs once per page: React's StrictMode renders twice, and `Sentry.init` must not */
 export const initObservability = ({
@@ -33,6 +51,7 @@ export const initObservability = ({
   initLogger({
     providers: [consoleProvider({ level: logLevel }), sentryProvider(sentry)],
   });
+  warnAboutMissingIds({ sentry, googleAnalytics });
   installGlobalHandlers();
   initTelemetry({
     providers: [ga4Provider(googleAnalytics), logProvider()],

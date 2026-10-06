@@ -1,3 +1,5 @@
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+
 /**
  * Liveness probe for the API harness.
  *
@@ -14,6 +16,7 @@
  * @param {import("node:http").ServerResponse} res
  */
 export default function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   res.statusCode = 200;
   res.setHeader("content-type", "application/json");
   res.end(

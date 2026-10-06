@@ -36,6 +36,19 @@ children first render.
 - **WHEN** `Observability` renders without a DSN and without a measurement id
 - **THEN** no request goes to Sentry or Google, and the children render
 
+### Requirement: A missing id is announced where the deployment is read
+
+A warning SHALL name each unset `REACT_APP_SENTRY_DSN` or
+`REACT_APP_GA_MEASUREMENT_ID` and what is lost without it, in the browser
+console at start-up, in the build log, and in the log of each `api/`
+function once per instance.
+
+#### Scenario: A deployment without ids
+
+- **WHEN** the app is built and served without either variable
+- **THEN** the build log, the browser console, and the first request to each
+  `api/` function each print one warning per missing variable
+
 ### Requirement: Initialisation is tracked
 
 `widgets/observability` SHALL track `obs_initialised`, with no parameters,

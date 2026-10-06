@@ -10,6 +10,7 @@
  * at from there.
  */
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 import {
   deleteProject,
   getProject,
@@ -225,6 +226,7 @@ export const describeDriverError = (e) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   if (!isEnabled()) return sendJson(res, 503, { error: "Sync is disabled" });
 
   // Ahead of the session lookup: a request from somewhere else is refused on

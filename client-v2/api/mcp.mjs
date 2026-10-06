@@ -20,6 +20,7 @@
  */
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
 
@@ -205,6 +206,7 @@ const callTool = async (id, ids, configured, params) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   const configured = upstreams();
 
   // Discovery. The server decides which upstreams exist — the client asks
