@@ -5,8 +5,10 @@
 // Builds the registry in ../design-system, serves it on the port
 // components.json maps `@playground` to, runs the shadcn CLI the design
 // system pins with `--overwrite` (the CLI never overwrites silently, and
-// `shared/ui` is installed, never edited), then stops the server. Nothing is
-// fetched from the design system's public site.
+// `shared/ui` is installed, never edited), stops the server, and formats what
+// landed with this package's prettier, so CI's format check passes and a
+// reinstall of an unchanged component leaves no diff. Nothing is fetched from
+// the design system's public site; npm dependencies still come from npm.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -15,6 +17,9 @@ import { fileURLToPath } from "node:url";
 const CLIENT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DS = path.resolve(CLIENT, "../design-system");
 const SHADCN = path.join(DS, "node_modules/.bin/shadcn");
+const PRETTIER = path.join(CLIENT, "node_modules/.bin/prettier");
+// Where components.json's aliases and the registry's file targets write.
+const INSTALLED = ["src/shared", "src/styles"];
 const PORT = "3010";
 
 const args = process.argv.slice(2);
@@ -57,12 +62,28 @@ try {
 } finally {
   server.kill();
 }
+if (status !== 0) process.exit(status);
+
+const written = INSTALLED.filter((dir) => existsSync(path.join(CLIENT, dir)));
+if (written.length > 0) {
+  const format = spawnSync(
+    PRETTIER,
+    ["--write", "--log-level=warn", ...written],
+    {
+      cwd: CLIENT,
+      stdio: "inherit",
+    }
+  );
+  status = format.status ?? 1;
+}
 process.exit(status);
 
 /**
  * Starts the design system's registry server and resolves once it listens.
- * A busy port is an error, not something to reuse: another worktree's server
- * would serve that worktree's registry without a word.
+ * It binds 127.0.0.1, the host components.json names, so a dev server on
+ * *:3010 does not intercept. A busy 127.0.0.1:3010 is an error, not something
+ * to reuse: another worktree's server would serve that worktree's registry
+ * without a word.
  */
 function startServer() {
   return new Promise((resolve, reject) => {
