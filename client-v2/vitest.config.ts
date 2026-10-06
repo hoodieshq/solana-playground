@@ -3,7 +3,7 @@ import type { Plugin } from "vite";
 
 // Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`). This
 // covers `import` of a `.md` file; `require` goes to Node, past any plugin,
-// and is covered by the hook in `src/setupTests.ts`.
+// and is covered by the hook in `src/setupTests.ts`. Only `.md` is covered.
 const markdownAsText: Plugin = {
   name: "markdown-as-text",
   transform(src, id) {

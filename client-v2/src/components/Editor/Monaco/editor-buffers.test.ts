@@ -2,7 +2,7 @@
 // where the caret ends up after an edit is decided by the tree's stickiness
 // rules, and a stand-in that imitates them is exactly what let a caret turned
 // into a selection pass. Required rather than imported: they ship no type
-// declarations, and Node loads these ES modules through `require` as is.
+// declarations. They are ES modules, which Node 22's `require(esm)` loads.
 import { editorBuffersOf } from "./editor-buffers";
 import type { BufferModel } from "./editor-buffers";
 

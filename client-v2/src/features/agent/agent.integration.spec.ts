@@ -1,7 +1,5 @@
 // @vitest-environment node
 import type { Mock } from "vitest";
-// `api/` is plain ESM outside the TS build (see api/health.mjs); vitest
-// resolves it by relative path, as the other api specs do.
 import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
 

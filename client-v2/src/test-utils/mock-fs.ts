@@ -5,16 +5,8 @@ import { PgCommon } from "../utils/common";
  *
  * `PgFs` wraps lightning-fs, which constructs an IndexedDB store the moment
  * the module is imported. Under jsdom that throws before any spy could be
- * installed, so the module has to be replaced outright:
- *
- * ```ts
- * vi.mock("../../../utils/explorer/fs", async () =>
- *   (await import("../../../test-utils/mock-fs")).mockFsModule()
- * );
- * ```
- *
- * A `vi.mock` factory is hoisted above the imports, which is why it must
- * import this rather than close over anything.
+ * installed, so the module is replaced outright. `setupTests.ts` already does
+ * that for every test file; no test needs its own `vi.mock` for it.
  *
  * The real filesystem round trip is covered by the browser tests in `e2e/`.
  */

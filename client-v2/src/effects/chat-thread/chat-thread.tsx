@@ -2,9 +2,9 @@ import { PgChatSync } from "../../features/persistence/model/chat-sync";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
-// Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global vitest has no answer for. Same workaround as the
-// other effects; here it is what makes this file testable at all.
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 import { openThread } from "./open-thread";

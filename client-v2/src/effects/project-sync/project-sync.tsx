@@ -10,10 +10,9 @@ import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgWorkspaceRegistry } from "../../features/persistence/model/workspace-registry";
 import { PgFs } from "../../utils/explorer/fs";
-// Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global vitest has no answer for. Same workaround as
-// `snapshot.ts`; here it is what makes this effect testable at all, and what
-// this effect subscribes to is exactly what was wrong before.
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 

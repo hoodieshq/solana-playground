@@ -25,8 +25,9 @@ if (!globalThis.TextEncoder) {
 //
 // `fake-indexeddb` does not help: lightning-fs throws bare `DOMException`s
 // against it and takes the worker down. So the module is replaced with an
-// in-memory one for every test, globally. Nothing under jsdom could use the
-// real filesystem anyway; the browser round trip is covered in `e2e/`.
+// in-memory one, once per test file: the tests in one file share its files.
+// Nothing under jsdom could use the real filesystem anyway; the browser round
+// trip is covered in `e2e/`.
 vi.mock("./utils/explorer/fs", async () =>
   (await import("./test-utils/mock-fs")).mockFsModule()
 );
@@ -48,7 +49,9 @@ Object.defineProperty(globalThis, "fetch", {
 // Webpack loads `.md` as raw text (`asset/source` in `craco.config.js`), and
 // the tutorials and lesson paths `require` it lazily. vitest hands `require`
 // straight to Node, past `vitest.config.ts`'s plugin, so Node is taught the
-// same rule: a `.md` file's export is its text.
+// same rule: a `.md` file's export is its text. Only `.md`: webpack's rule also
+// covers `.rs`, `.py`, `.toml`, `.raw` and `.d.ts`, which no test loads; one
+// that did would reach Node as JavaScript and fail with a SyntaxError.
 createRequire(import.meta.url).extensions[".md"] = (module, filename) => {
   module.exports = readFileSync(filename, "utf8");
 };
