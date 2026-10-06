@@ -1,12 +1,12 @@
 import { experimental } from "./experimental";
 
-jest.mock("../../utils", () => ({
+vi.mock("../../utils", () => ({
   PgCommon: {
     toTitleFromCamel: (s: string) => s,
     toKebabFromTitle: (s: string) => s,
     capitalize: (s: string) => s.charAt(0).toUpperCase() + s.slice(1),
-    getValue: jest.fn(),
-    setValue: jest.fn(),
+    getValue: vi.fn(),
+    setValue: vi.fn(),
   },
   PgSettings: {},
 }));

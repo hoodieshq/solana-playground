@@ -2,16 +2,16 @@ import { createTools } from "./tools";
 import { PgAssistant } from "../store";
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
 
-jest.mock("./skill-tools", () => ({ createSkillTools: () => [] }));
-jest.mock("./mcp-tools", () => ({ createMcpTools: () => [] }));
+vi.mock("./skill-tools", () => ({ createSkillTools: () => [] }));
+vi.mock("./mcp-tools", () => ({ createMcpTools: () => [] }));
 // Only the default value is needed here; reaching the real one drags in the
 // utils barrel, which wants webpack-injected globals
-jest.mock("../bridge/playground-bridge", () => ({ realBridge: {} }));
+vi.mock("../bridge/playground-bridge", () => ({ realBridge: {} }));
 
 const bridge = (content: string | null): PlaygroundBridge =>
   ({
     readFile: () => content,
-    applyPatch: jest.fn(async () => {}),
+    applyPatch: vi.fn(async () => {}),
   } as unknown as PlaygroundBridge);
 
 const writeFile = (b: PlaygroundBridge) =>

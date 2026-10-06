@@ -1,8 +1,7 @@
 import { isMissing } from "./diagnostics";
-// Deep import, not the `utils` barrel: the barrel reaches `settings.ts`,
-// which reads a webpack-defined global that does not exist under jest, so
-// importing it here would make this module untestable. Same reason
-// `chat-storage.ts` reaches for `utils/explorer/fs` directly.
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgFs } from "../../../utils/explorer/fs";
 
 /**

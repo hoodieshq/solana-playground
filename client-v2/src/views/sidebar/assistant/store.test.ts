@@ -5,9 +5,9 @@ import {
   PgChatStorage,
   truncationNoticeId,
 } from "../../../features/persistence/model/chat-storage";
-// Through `@/` on purpose: the alias is mapped in tsconfig.paths.json, in
-// craco's webpack alias and in `jest.moduleNameMapper`, and this import is
-// what fails when the Jest mapping drifts from the other two.
+// Through `@/` on purpose: the alias is mapped in `tsconfig.json`'s `paths`, in
+// craco's webpack alias and in `vitest.config.ts`'s `resolve.alias`, and this
+// import is what fails when the vitest mapping drifts from the other two.
 import { PgFs } from "@/utils/explorer/fs";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
@@ -319,7 +319,7 @@ describe("PgAssistant.foldIn", () => {
   it("writes nothing when the server had nothing new", async () => {
     PgAssistant.addUserMessage("hi");
     await settled();
-    const write = jest.spyOn(PgChatStorage, "write");
+    const write = vi.spyOn(PgChatStorage, "write");
 
     await PgAssistant.foldIn("fold", [...PgAssistant.items]);
     await settled();
@@ -376,7 +376,7 @@ describe("PgAssistant.foldIn", () => {
       const server = history(MAX_MESSAGES_PER_THREAD + 50);
       await PgAssistant.foldIn("fold", server);
       await settled();
-      const write = jest.spyOn(PgChatStorage, "write");
+      const write = vi.spyOn(PgChatStorage, "write");
 
       await PgAssistant.foldIn("fold", server);
 

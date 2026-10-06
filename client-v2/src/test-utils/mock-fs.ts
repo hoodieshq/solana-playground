@@ -1,23 +1,16 @@
+import { PgCommon } from "../utils/common";
+
 /**
  * An in-memory stand-in for `PgFs`, for tests that run under jsdom.
  *
  * `PgFs` wraps lightning-fs, which constructs an IndexedDB store the moment
  * the module is imported. Under jsdom that throws before any spy could be
- * installed, so the module has to be replaced outright:
- *
- * ```ts
- * jest.mock("../../../utils/explorer/fs", () =>
- *   require("../../../test-utils/mock-fs").mockFsModule()
- * );
- * ```
- *
- * A `jest.mock` factory is hoisted above the imports, which is why it must
- * `require` this rather than close over anything.
+ * installed, so the module is replaced outright. `setupTests.ts` already does
+ * that for every test file; no test needs its own `vi.mock` for it.
  *
  * The real filesystem round trip is covered by the browser tests in `e2e/`.
  */
 export const mockFsModule = () => {
-  const { PgCommon } = require("../utils/common");
   const files = new Map<string, string>();
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };

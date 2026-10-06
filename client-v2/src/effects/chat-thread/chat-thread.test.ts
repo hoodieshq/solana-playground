@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { chatThread } from "./chat-thread";
 import { openThread } from "./open-thread";
 import { pushThread } from "./push-thread";
@@ -27,19 +28,19 @@ const setVisibility = (state: "visible" | "hidden") => {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the chat-thread effect", () => {
-  let push: jest.SpyInstance;
+  let push: MockInstance;
   let effect: Disposable | null;
 
   beforeEach(() => {
     effect = null;
-    push = jest.spyOn(PgChatSync, "push").mockResolvedValue(true);
-    jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
-    jest.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
-    jest.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
-    jest.spyOn(PgAssistant, "threadId", "get").mockReturnValue("p1");
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p1" as never);
+    push = vi.spyOn(PgChatSync, "push").mockResolvedValue(true);
+    vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
+    vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
+    vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
+    vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p1" as never
+    );
     Object.defineProperty(document, "visibilityState", {
       value: "visible",
       configurable: true,
@@ -48,7 +49,7 @@ describe("the chat-thread effect", () => {
 
   afterEach(() => {
     effect?.dispose();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("hands the open thread over as the tab goes to the background", async () => {
@@ -69,9 +70,9 @@ describe("the chat-thread effect", () => {
     // and forgotten: pushing straight away could upload the copy from one
     // write earlier, missing the last thing that happened
     let landed: () => void = () => {};
-    jest
-      .spyOn(PgAssistant, "whenPersisted")
-      .mockReturnValue(new Promise<void>((resolve) => (landed = resolve)));
+    vi.spyOn(PgAssistant, "whenPersisted").mockReturnValue(
+      new Promise<void>((resolve) => (landed = resolve))
+    );
     effect = chatThread();
     await settle();
     push.mockClear();
@@ -123,10 +124,10 @@ describe("the chat-thread effect", () => {
     // The reply is still streaming into its item, so the thread on disk holds
     // a half-written answer. Pushing it put that fragment on the server, and
     // the other device pulled it.
-    let status: jest.SpyInstance;
+    let status: MockInstance;
 
     beforeEach(() => {
-      status = jest.spyOn(PgAssistant, "status", "get");
+      status = vi.spyOn(PgAssistant, "status", "get");
     });
 
     it("does not push as the tab goes to the background", async () => {
@@ -210,11 +211,11 @@ describe("the chat-thread effect", () => {
     // is stored is as finished as it gets, and it has to go before the new
     // thread replaces it as the open one
     let switched: () => void = () => {};
-    jest.spyOn(PgExplorer, "onDidSwitchWorkspace").mockImplementation((cb) => {
+    vi.spyOn(PgExplorer, "onDidSwitchWorkspace").mockImplementation((cb) => {
       switched = cb as () => void;
       return { dispose: () => {} };
     });
-    jest.spyOn(PgAssistant, "status", "get").mockReturnValue("running");
+    vi.spyOn(PgAssistant, "status", "get").mockReturnValue("running");
     const order: string[] = [];
     push.mockImplementation(async (id: string) => {
       order.push(`push ${id}`);
@@ -223,14 +224,14 @@ describe("the chat-thread effect", () => {
     effect = chatThread();
     await settle();
     order.length = 0;
-    const close = jest
+    const close = vi
       .spyOn(PgAssistant, "closeThread")
       .mockImplementation(() => order.push("close"));
 
     PgAssistant.clear();
-    jest
-      .spyOn(PgExplorer, "currentWorkspaceId", "get")
-      .mockReturnValue("p2" as never);
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+      "p2" as never
+    );
     switched();
     await settle();
 
@@ -242,13 +243,13 @@ describe("the chat-thread effect", () => {
   it("moves to the account's thread when the server has never seen this one", async () => {
     // Sign-out clears the thread index, so the next open mints a fresh id and
     // its pull 404s -- while the account holds the conversation under another
-    jest
-      .spyOn(PgChatSync, "fetchThread")
-      .mockImplementation(async (id) => (id === "p1" ? "missing" : null));
-    jest
-      .spyOn(PgChatSync, "adoptAccountThread")
-      .mockResolvedValue("account-thread");
-    const load = PgAssistant.loadThread as unknown as jest.SpyInstance;
+    vi.spyOn(PgChatSync, "fetchThread").mockImplementation(async (id) =>
+      id === "p1" ? "missing" : null
+    );
+    vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(
+      "account-thread"
+    );
+    const load = PgAssistant.loadThread as unknown as MockInstance;
 
     await openThread("p1", "p1");
 
@@ -261,7 +262,7 @@ describe("the chat-thread effect", () => {
     // Adopting reloads the panel, and the session effect opens a thread that
     // may be mid-turn: a reload then denies the card the user has not
     // answered. Only a thread the server says it lacks is worth that.
-    jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
+    vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
 
     await openThread("p1", "p1");
 
@@ -269,8 +270,8 @@ describe("the chat-thread effect", () => {
   });
 
   it("does not look elsewhere when the pull found the thread", async () => {
-    jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue([]);
-    jest.spyOn(PgAssistant, "foldIn").mockResolvedValue(true);
+    vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue([]);
+    vi.spyOn(PgAssistant, "foldIn").mockResolvedValue(true);
 
     await openThread("p1", "p1");
 
@@ -288,10 +289,10 @@ describe("the chat-thread effect", () => {
         text: "from the server",
       },
     ];
-    jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue(served);
-    const fold = jest.spyOn(PgAssistant, "foldIn").mockResolvedValue(true);
-    const stored = jest.spyOn(PgChatSync, "storeMerged");
-    const load = PgAssistant.loadThread as unknown as jest.SpyInstance;
+    vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue(served);
+    const fold = vi.spyOn(PgAssistant, "foldIn").mockResolvedValue(true);
+    const stored = vi.spyOn(PgChatSync, "storeMerged");
+    const load = PgAssistant.loadThread as unknown as MockInstance;
 
     await openThread("p1", "p1");
 
@@ -302,18 +303,18 @@ describe("the chat-thread effect", () => {
 
   describe("when the user switched away mid-request", () => {
     // Nothing in memory to fold into, and storage is then the only copy
-    let fold: jest.SpyInstance;
-    let stored: jest.SpyInstance;
+    let fold: MockInstance;
+    let stored: MockInstance;
     /** Lands the store's last write to the thread just left */
     let landed: () => void;
 
     beforeEach(() => {
-      jest.spyOn(PgChatSync, "fetchThread").mockResolvedValue([]);
-      fold = jest.spyOn(PgAssistant, "foldIn").mockResolvedValue(false);
-      stored = jest.spyOn(PgChatSync, "storeMerged").mockResolvedValue([]);
-      jest
-        .spyOn(PgAssistant, "whenPersisted")
-        .mockReturnValue(new Promise<void>((resolve) => (landed = resolve)));
+      vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue([]);
+      fold = vi.spyOn(PgAssistant, "foldIn").mockResolvedValue(false);
+      stored = vi.spyOn(PgChatSync, "storeMerged").mockResolvedValue([]);
+      vi.spyOn(PgAssistant, "whenPersisted").mockReturnValue(
+        new Promise<void>((resolve) => (landed = resolve))
+      );
     });
 
     it("stores the server's copy once the last write has landed", async () => {
@@ -356,16 +357,16 @@ describe("the chat-thread effect", () => {
 });
 
 describe("pushThread", () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it("waits for the store's last write before pushing", async () => {
     // `push` reads storage, and the write the final streamed delta queued
     // may still be in flight: pushing first uploaded the reply short of it
     let landed: () => void = () => {};
-    jest
-      .spyOn(PgAssistant, "whenPersisted")
-      .mockReturnValue(new Promise<void>((resolve) => (landed = resolve)));
-    const push = jest.spyOn(PgChatSync, "push").mockResolvedValue(true);
+    vi.spyOn(PgAssistant, "whenPersisted").mockReturnValue(
+      new Promise<void>((resolve) => (landed = resolve))
+    );
+    const push = vi.spyOn(PgChatSync, "push").mockResolvedValue(true);
 
     const pushed = pushThread("t1");
     await settle();

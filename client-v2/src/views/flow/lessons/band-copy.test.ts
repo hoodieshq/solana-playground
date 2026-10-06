@@ -3,13 +3,13 @@
 // globals (`GLOBAL_SETTINGS`) that exist only once the app has actually
 // booted -- see `store.test.ts` and `console/status.test.ts` for the same
 // mock, needed for the same reason.
-jest.mock("../../../utils", () => ({
+vi.mock("../../../utils", () => ({
   PgExplorer: {
     currentWorkspaceName: null,
-    onDidSwitchWorkspace: jest.fn(() => ({ dispose: jest.fn() })),
+    onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
   },
   PgProgramInfo: { idl: null },
-  PgTutorial: { getStorage: jest.fn() },
+  PgTutorial: { getStorage: vi.fn() },
 }));
 
 import {

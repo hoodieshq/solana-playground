@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { v4 as uuid } from "uuid";
 
 import { PgChatStorage } from "./chat-storage";
@@ -63,19 +64,19 @@ const signedIn = () =>
 /**
  * The spy standing in for `fetch`, reinstalled for each test.
  *
- * `jest.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
+ * `vi.spyOn` rather than assigning `global.fetch`: `restoreAllMocks` then
  * puts the global back afterwards, so a stub one test installed cannot answer
  * the next one's request. The stand-in it replaces comes from
- * `setupTests.ts`, because jsdom has no `fetch` of its own to spy on.
+ * `setupTests.ts`, which throws, so an unstubbed request fails loudly.
  */
-let fetchMock: jest.Mock;
+let fetchMock: Mock;
 
 beforeEach(() => {
-  fetchMock = jest.spyOn(globalThis, "fetch") as unknown as jest.Mock;
+  fetchMock = vi.spyOn(globalThis, "fetch") as unknown as Mock;
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 /** `/api/sync` says yes; everything else is the caller's to describe */
@@ -393,11 +394,11 @@ describe("handing conversations over at sign-out", () => {
     accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
-    jest.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
+    vi.spyOn(PgFs, "readDir").mockRejectedValue(new Error("quota"));
 
     expect(await PgChatSync.pushAll()).toBeNull();
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
   });
 

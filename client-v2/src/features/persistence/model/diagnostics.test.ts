@@ -8,7 +8,7 @@ import {
 
 beforeEach(() => {
   clearFailures();
-  jest.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 it("records a failure and hands back the newest one", () => {

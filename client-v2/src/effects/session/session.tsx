@@ -9,9 +9,9 @@ import {
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 import { openThread } from "../chat-thread/open-thread";
-// Deep import rather than the `utils` barrel, which reaches `settings.ts` and
-// a webpack-defined global jest cannot resolve. Same workaround as
-// `snapshot.ts`, and what makes this effect testable.
+// Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
+// which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
+// tests could not load this module.
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
 

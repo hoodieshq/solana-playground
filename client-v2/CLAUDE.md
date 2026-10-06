@@ -214,10 +214,10 @@ until code moves out of them.
 - **A string that two places must agree on is declared once** and exported,
   preferably as a predicate (`isTruncationNotice`), not as a prefix that each
   caller compares by hand.
-- **Mock the network through the test runner** (`jest.spyOn` / `vi.spyOn`,
-  `vi.fn`), not by assigning `global.fetch` in each test. On Jest 27 jsdom
-  has no `fetch` to spy on, so the assignment is tolerated there and becomes
-  a lint error once the suite is on vitest (HOO-1715).
+- **Mock the network through the test runner** (`vi.spyOn`, `vi.fn`), not by
+  assigning `global.fetch` in each test. `setupTests.ts` installs a `fetch`
+  that throws, so a test that forgets its stub fails instead of reaching the
+  network.
 - **Do not collapse status codes.** A `429` and a `204` are different
   answers and get different branches. A streamed error is a complete frame
   of its own (`\n\ndata: ...\n\n`), and its test feeds a chunk cut

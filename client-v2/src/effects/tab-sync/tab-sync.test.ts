@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { tabSync } from "./tab-sync";
 import { reloadCurrentFromDisk } from "../../features/persistence/model/tab-reload";
 import { PgCommon } from "../../utils/common";
@@ -5,8 +6,8 @@ import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
 import { PgWorkspace } from "../../utils/explorer/workspace";
 
-jest.mock("../../features/persistence/model/tab-reload", () => ({
-  reloadCurrentFromDisk: jest.fn(async () => "unchanged"),
+vi.mock("../../features/persistence/model/tab-reload", () => ({
+  reloadCurrentFromDisk: vi.fn(async () => "unchanged"),
 }));
 
 /** Every channel opened in this test, so one can talk to another */
@@ -29,7 +30,7 @@ class FakeChannel {
  */
 const elapse = async (ms: number, step = 100) => {
   for (let t = 0; t < ms; t += step) {
-    jest.advanceTimersByTime(step);
+    vi.advanceTimersByTime(step);
     for (let i = 0; i < 10; i++) await Promise.resolve();
   }
 };
@@ -38,24 +39,24 @@ const deliver = (data: unknown) =>
   opened.forEach((channel) => channel.onmessage?.({ data }));
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   opened.length = 0;
   Object.defineProperty(globalThis, "BroadcastChannel", {
     value: FakeChannel,
     configurable: true,
   });
-  jest.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue(["alpha"]);
-  jest.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("p1");
-  jest.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
-  // `resetMocks` in the CRA jest preset wipes the factory implementation
-  // above before every test, so without this the mock resolves `undefined`
-  // and the effect's `.catch` on a non-promise would throw.
-  (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("unchanged");
+  vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue(["alpha"]);
+  vi.spyOn(PgExplorer, "workspaceIdOf").mockReturnValue("p1");
+  vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+  // Same answer the factory gives: `mockReset` (see `vitest.config.ts`)
+  // restores it before each test anyway, and it is restated here so the
+  // test reads on its own.
+  (reloadCurrentFromDisk as Mock).mockResolvedValue("unchanged");
 });
 
 afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("tabSync", () => {
@@ -63,7 +64,7 @@ describe("tabSync", () => {
     const effect = tabSync();
     await PgFs.writeFile("/alpha/src/lib.rs", "a");
     await PgFs.writeFile("/alpha/src/lib.rs", "ab");
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
 
     expect(opened[0].posted).toEqual([
       expect.objectContaining({ type: "files-written", projectId: "p1" }),
@@ -74,7 +75,7 @@ describe("tabSync", () => {
   it("does not announce the tabs-and-cursors file", async () => {
     const effect = tabSync();
     await PgFs.writeFile("/alpha/.workspace/metadata.json", "[]");
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
 
     expect(opened[0].posted).toEqual([]);
     effect.dispose();
@@ -83,12 +84,13 @@ describe("tabSync", () => {
   it("announces a delete or rename under the project it happened in", () => {
     // Not the current one: by the time the event is heard, the user may be
     // looking at another project
-    jest
-      .spyOn(PgExplorer, "allWorkspaceNames", "get")
-      .mockReturnValue(["alpha", "beta"]);
-    jest
-      .spyOn(PgExplorer, "workspaceIdOf")
-      .mockImplementation((name: string) => (name === "beta" ? "p2" : "p1"));
+    vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([
+      "alpha",
+      "beta",
+    ]);
+    vi.spyOn(PgExplorer, "workspaceIdOf").mockImplementation((name: string) =>
+      name === "beta" ? "p2" : "p1"
+    );
     const effect = tabSync();
     PgCommon.createAndDispatchCustomEvent(
       PgExplorer.events.ON_DID_DELETE_ITEM,
@@ -98,7 +100,7 @@ describe("tabSync", () => {
       PgExplorer.events.ON_DID_RENAME_ITEM,
       "/beta/src/other.rs"
     );
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
 
     expect(opened[0].posted).toEqual([
       expect.objectContaining({ type: "files-written", projectId: "p2" }),
@@ -110,7 +112,7 @@ describe("tabSync", () => {
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p1", from: "other" });
     deliver({ type: "files-written", projectId: "p1", from: "other" });
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
@@ -119,7 +121,7 @@ describe("tabSync", () => {
   it("ignores a neighbour's write to another project", () => {
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p2", from: "other" });
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
@@ -128,9 +130,9 @@ describe("tabSync", () => {
   it("ignores its own announcements", async () => {
     const effect = tabSync();
     await PgFs.writeFile("/alpha/src/lib.rs", "a");
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
     deliver(opened[0].posted[0]);
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
@@ -141,7 +143,7 @@ describe("tabSync", () => {
     // needs no account at all
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p1", from: "other" });
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
@@ -152,7 +154,7 @@ describe("tabSync", () => {
     // the old list would save that back over the change on its next switch.
     const effect = tabSync();
     await PgFs.writeFile(PgWorkspace.WORKSPACES_CONFIG_PATH, "{}");
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
 
     expect(opened[0].posted).toEqual([
       expect.objectContaining({ type: "workspaces-written" }),
@@ -164,7 +166,7 @@ describe("tabSync", () => {
     // The reload re-reads the list itself, inside its own queue
     const effect = tabSync();
     deliver({ type: "workspaces-written", from: "other" });
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
@@ -174,7 +176,7 @@ describe("tabSync", () => {
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p1", from: "other" });
     deliver({ type: "workspaces-written", from: "other" });
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).toHaveBeenCalledTimes(1);
     effect.dispose();
@@ -183,9 +185,9 @@ describe("tabSync", () => {
   it("ignores its own write of the list", async () => {
     const effect = tabSync();
     await PgFs.writeFile(PgWorkspace.WORKSPACES_CONFIG_PATH, "{}");
-    jest.advanceTimersByTime(300);
+    vi.advanceTimersByTime(300);
     deliver(opened[0].posted[0]);
-    jest.advanceTimersByTime(400);
+    vi.advanceTimersByTime(400);
 
     expect(reloadCurrentFromDisk).not.toHaveBeenCalled();
     effect.dispose();
@@ -194,7 +196,7 @@ describe("tabSync", () => {
   it("asks again when a reload is deferred", async () => {
     // Deferred is a reload still owed: the neighbour's write is on disk, and
     // nothing else would bring this tab level with it
-    (reloadCurrentFromDisk as jest.Mock)
+    (reloadCurrentFromDisk as Mock)
       .mockResolvedValueOnce("deferred")
       .mockResolvedValueOnce("reopened");
     const effect = tabSync();
@@ -212,7 +214,7 @@ describe("tabSync", () => {
   });
 
   it("stops asking after a bounded number of deferrals", async () => {
-    (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("deferred");
+    (reloadCurrentFromDisk as Mock).mockResolvedValue("deferred");
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p1", from: "other" });
     await elapse(400 + 60_000);
@@ -223,7 +225,7 @@ describe("tabSync", () => {
   });
 
   it("stops asking once disposed", async () => {
-    (reloadCurrentFromDisk as jest.Mock).mockResolvedValue("deferred");
+    (reloadCurrentFromDisk as Mock).mockResolvedValue("deferred");
     const effect = tabSync();
     deliver({ type: "files-written", projectId: "p1", from: "other" });
     await elapse(400);

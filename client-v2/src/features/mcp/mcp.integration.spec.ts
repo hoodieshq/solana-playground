@@ -1,6 +1,4 @@
-/** @jest-environment node */
-// `api/` is plain ESM outside the TS build (see api/health.mjs); jest
-// resolves it by relative path, as the other api specs do.
+// @vitest-environment node
 import handler from "../../../api/mcp.mjs";
 import { jsonBody, postJson } from "../../test/api-handler";
 

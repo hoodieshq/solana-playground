@@ -1,6 +1,6 @@
 import { PgCommon } from "./common";
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
 const respond = (over: { ok?: boolean; status?: number; body?: string }) => {
