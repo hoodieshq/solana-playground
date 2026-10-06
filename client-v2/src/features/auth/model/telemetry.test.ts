@@ -76,21 +76,26 @@ describe("auth telemetry", () => {
     [
       "popup-blocked",
       "the popup is blocked",
-      () => (startsSignIn(), popupAnswers(undefined)),
+      () => {
+        startsSignIn();
+        popupAnswers(undefined);
+      },
     ],
     [
       "cancelled",
       "the user closes the popup",
-      () => (
-        startsSignIn(), popupAnswers({ delivered: false, reason: "cancelled" })
-      ),
+      () => {
+        startsSignIn();
+        popupAnswers({ delivered: false, reason: "cancelled" });
+      },
     ],
     [
       "expired",
       "the popup never answers",
-      () => (
-        startsSignIn(), popupAnswers({ delivered: false, reason: "expired" })
-      ),
+      () => {
+        startsSignIn();
+        popupAnswers({ delivered: false, reason: "expired" });
+      },
     ],
   ])("should track failure reason %s when %s", async (reason, _, arrange) => {
     arrange();
