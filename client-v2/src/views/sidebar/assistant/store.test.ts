@@ -292,9 +292,15 @@ describe("PgAssistant.foldIn", () => {
 
     // The server's copy of the card reads as unanswered: the codec stores a
     // pending one that way. Same version, so this tab's copy stands.
-    const stored = PgAssistant.items.find((i) => i.id === card)!;
+    const asked = PgAssistant.items.find((i) => i.id === card)!;
     await PgAssistant.foldIn("fold", [
-      { ...stored, status: "unanswered" } as ChatItem,
+      {
+        kind: "approval",
+        id: asked.id,
+        createdAt: asked.createdAt,
+        request: { type: "command", name: "build", effect: "builds" },
+        status: "unanswered",
+      },
     ]);
 
     expect(PgAssistant.status).toBe("awaiting");

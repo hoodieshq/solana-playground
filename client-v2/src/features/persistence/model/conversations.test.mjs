@@ -195,7 +195,13 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
       // `Date.parse` rolls this over to March; `timestamptz` refuses it. Cast
       // only on conflict, it was stored on first insert, and every later
       // push touching the row failed on it.
-      const odd = { ...replyAt("Do"), updatedAt: "February 30, 2026" };
+      const odd = {
+        id,
+        kind: "assistant",
+        createdAt,
+        text: "Do",
+        updatedAt: "February 30, 2026",
+      };
       assert.ok(!Number.isNaN(Date.parse(odd.updatedAt)));
 
       await assert.rejects(() => appendMessages(userId, on(1), [odd]));
