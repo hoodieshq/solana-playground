@@ -79,7 +79,8 @@ yarn ds-add stepper --dry-run   # what would be written; --diff, --view too
 ```
 
 The script builds the registry in `../design-system` (run `npm ci` there
-once), serves it on `127.0.0.1:3010` for as long as the install runs, and
+once, and again whenever its lockfile changes), serves it on the port
+`components.json` maps `@playground` to for as long as the install runs, and
 formats what lands with this package's prettier. Names are the registry's
 (`design-system/registry.json`); `components.json` maps `@playground` to that
 server and the aliases to `@/shared/ui`, `@/shared/lib` and
@@ -96,10 +97,6 @@ One exception: the design system's components named after product parts
 (the catalogue lists them: composer, console drawer, step rail and the rest)
 are installed into `shared/ui`. They only draw what they are given; their
 connected versions live in the slice that owns the data.
-
-**Until HOO-1850 (React 19) merges:** Tailwind utilities and tokens only. No
-design-system components, because they pass `ref` as a plain prop, which
-React 17 drops.
 
 ## What survives every move
 
