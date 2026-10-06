@@ -202,7 +202,7 @@ since the deployment reads the real value at runtime:
 |---|---|
 | `AGENT_API_KEY` | Bearer token for the upstream. Required on Vercel |
 | `AGENT_BASE_URL` | Optional, defaults to `https://inference-api.nousresearch.com/v1`. OpenAI-compatible base URL, the same shape the panel's own provider field takes. A pasted `/chat/completions` suffix is tolerated |
-| `AGENT_MODEL` | Optional, defaults to `z-ai/glm-5.3-flash`. Model id the upstream runs. The client never picks one. Ids: [Nous catalogue](https://inference-api.nousresearch.com/v1/models) |
+| `AGENT_MODEL` | Optional, defaults to `z-ai/glm-5.3-flash:US`. Model id the upstream runs. The client never picks one. Ids: [Nous catalogue](https://inference-api.nousresearch.com/v1/models) |
 | `AGENT_REASONING_EFFORT` | Optional, defaults to `low`. Sent as `reasoning_effort`; accepted values are the model's `reasoning.supported_efforts` in the [Nous catalogue](https://inference-api.nousresearch.com/v1/models). The panel shows no reasoning, so a high effort looks like a stalled answer |
 
 The defaults for model and effort are Nous-specific: pointing `AGENT_BASE_URL`

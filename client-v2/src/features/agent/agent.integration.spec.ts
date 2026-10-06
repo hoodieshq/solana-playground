@@ -117,7 +117,7 @@ describe("POST /api/agent upstream request", () => {
     expect(url).toBe(
       "https://inference-api.nousresearch.com/v1/chat/completions"
     );
-    expect(body.model).toBe("z-ai/glm-5.3-flash");
+    expect(body.model).toBe("z-ai/glm-5.3-flash:US");
     expect(body.reasoning_effort).toBe("low");
   });
 

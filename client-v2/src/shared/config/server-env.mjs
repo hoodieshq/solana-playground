@@ -22,7 +22,7 @@ export const agentEnv = () => ({
   apiKey: read("AGENT_API_KEY"),
   baseUrl:
     read("AGENT_BASE_URL") || "https://inference-api.nousresearch.com/v1",
-  model: read("AGENT_MODEL") || "z-ai/glm-5.3-flash",
+  model: read("AGENT_MODEL") || "z-ai/glm-5.3-flash:US",
   // GLM always reasons and defaults to `max`; the panel shows none of it, so
   // a high effort reads as a stalled answer
   reasoningEffort: read("AGENT_REASONING_EFFORT") || "low",
