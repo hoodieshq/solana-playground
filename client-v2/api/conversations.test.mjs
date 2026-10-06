@@ -24,7 +24,7 @@ const makeRes = () => ({
 });
 
 describe("/api/conversations", () => {
-  // Cleared before each case, not after: `yarn test-api` loads `.env`, so the
+  // Cleared before each case, not after: `yarn test-api` loads `.env.local`, so the
   // environment these cases assert is absent would otherwise be present.
   beforeEach(() => {
     delete process.env.DATABASE_URL;

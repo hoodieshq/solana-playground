@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "bash scripts/vercel-install.sh",
-  "buildCommand": "NODE_OPTIONS='--max-old-space-size=6144' yarn build",
+  "buildCommand": "node scripts/check-agent-env.mjs && NODE_OPTIONS='--max-old-space-size=6144' yarn build",
   "devCommand": "yarn dev-cra",
   "outputDirectory": "build",
   "trailingSlash": false,

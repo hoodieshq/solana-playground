@@ -6,8 +6,8 @@
  * key and the model are configured here from the environment and never taken
  * from the request — same rule as `api/mcp.mjs`, and for the same reason.
  *
- * What runs behind it is a deploy-time choice: a hosted model today, an agent
- * service later. The wire shape is the contract; nothing else is promised.
+ * What runs behind it is a deploy-time choice, read from the environment by
+ * `upstream`. The wire shape is the contract; nothing else is promised.
  *
  * **This is not a cost gate.** Anything that can reach our origin can spend the
  * configured key. A challenge and a per-session limit belong in front of this
@@ -28,24 +28,24 @@ import { warnAboutMissingObservabilityIds } from "../src/features/api/server/obs
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
 
-/** An operator's kill switch: off even when the rail is fully configured */
-const enabled = () =>
-  !/^(false|0|off|no)$/i.test(process.env.AGENT_ENABLED ?? "");
-
 /**
- * The configured upstream, or `null` when this deployment has none.
+ * The configured upstream, or `null` when this deployment has no key.
  *
- * Absent by default: with nothing set the panel simply reports the default
- * backend as unavailable, which is what a fork with no key of its own wants.
+ * The key alone enables the rail; the endpoint, model and reasoning effort
+ * default to the values below. A fork with no key of its own gets the panel
+ * reporting the default backend as unavailable.
  *
  * `AGENT_BASE_URL` is a base, not a full path -- the same shape the panel's
  * OpenAI-compatible provider takes, so one endpoint is configured identically
  * whether it is reached through here or entered by hand.
  */
 const upstream = () => {
-  const configured = process.env.AGENT_BASE_URL?.trim();
-  const model = process.env.AGENT_MODEL;
-  if (!enabled() || !configured || !model) return null;
+  const apiKey = process.env.AGENT_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const configured =
+    process.env.AGENT_BASE_URL?.trim() ||
+    "https://inference-api.nousresearch.com/v1";
 
   // Tolerate a pasted full endpoint: provider docs quote the completions path,
   // the panel's own field wants the base, and both mean the same deployment
@@ -55,8 +55,11 @@ const upstream = () => {
 
   return {
     url: `${baseUrl}/chat/completions`,
-    model,
-    apiKey: process.env.AGENT_API_KEY ?? "",
+    model: process.env.AGENT_MODEL?.trim() || "z-ai/glm-5.3-flash",
+    // GLM always reasons and defaults to `max`; the panel shows none of it,
+    // so a high effort reads as a stalled answer
+    reasoningEffort: process.env.AGENT_REASONING_EFFORT?.trim() || "low",
+    apiKey,
   };
 };
 
@@ -181,9 +184,7 @@ export default async function handler(req, res) {
       headers: {
         "content-type": "application/json",
         accept: "text/event-stream",
-        ...(configured.apiKey
-          ? { authorization: `Bearer ${configured.apiKey}` }
-          : {}),
+        authorization: `Bearer ${configured.apiKey}`,
       },
       body: JSON.stringify({
         ...Object.fromEntries(
@@ -193,6 +194,7 @@ export default async function handler(req, res) {
           ])
         ),
         model: configured.model,
+        reasoning_effort: configured.reasoningEffort,
         stream: true,
       }),
     });

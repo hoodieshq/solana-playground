@@ -21,8 +21,8 @@ set -e
 
 # A Vercel-managed Neon account has no CLI login -- `neon login` cannot work, so
 # a project-scoped key from the Neon console is the only way in. Makefile.vercel
-# reads it out of client-v2/.env, the same file dbmate takes DATABASE_URL from.
-: "${NEON_API_KEY:?NEON_API_KEY is unset -- add it to client-v2/.env}"
+# reads it out of client-v2/.env.local, the same file dbmate takes DATABASE_URL from.
+: "${NEON_API_KEY:?NEON_API_KEY is unset -- add it to client-v2/.env.local}"
 : "${NEON_PROJECT_ID:?NEON_PROJECT_ID is unset -- set by Makefile.vercel}"
 
 DATABASE=${NEON_DATABASE:-neondb}

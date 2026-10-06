@@ -131,7 +131,7 @@ Setting the dashboard Root Directory to `client-v2` makes both paths agree; the 
    ```
 
    `-f` matters: the root `Makefile` still includes `client/Makefile.vercel`, so a bare `make <target>` runs the pre-move targets and deploys the upstream client.
-6. Neon console → the org named `Vercel: Hoodies` → Settings → API keys → Create new → Project-scoped, for project `spring-cake-75618686`. Put it in `client-v2/.env` as `NEON_API_KEY=...`, alongside `DATABASE_URL` — `Makefile.vercel` lifts it out of there, because make does not read `.env` the way dbmate does. A Vercel-managed Neon account has no CLI login — `neon login` cannot work — so this key is the only way the Makefile reaches the Neon API, and only org Admins can mint one. The token is shown once.
+6. Neon console → the org named `Vercel: Hoodies` → Settings → API keys → Create new → Project-scoped, for project `spring-cake-75618686`. Put it in `client-v2/.env.local` as `NEON_API_KEY=...`, alongside `DATABASE_URL` — `Makefile.vercel` lifts it out of there, because make does not read `.env.local` the way the yarn `db-*` scripts do. A Vercel-managed Neon account has no CLI login — `neon login` cannot work — so this key is the only way the Makefile reaches the Neon API, and only org Admins can mint one. The token is shown once.
 7. Cut the empty parent that every preview database branches from, **before** anything migrates the shared database:
 
    ```sh
@@ -190,15 +190,23 @@ GitHub app connection.
 
 `api/agent.mjs` is the assistant's **Default** backend: the panel posts a
 chat-completions turn to it and the route forwards that upstream with a key the
-browser never sees. Set all three or the option reports itself unconfigured and
-the panel falls back to bring-your-own-key:
+browser never sees. The key enables the Default backend; without one the option reports itself
+unconfigured and the panel falls back to bring-your-own-key. A Vercel build
+without the key fails: `vercel.json`'s `buildCommand` runs
+`scripts/check-agent-env.mjs` first, so set the key for Production and Preview
+alike. Store it as a Secret. A local `vercel build` (the `Makefile.vercel`
+deploy targets) pulls a Secret as an empty value; the check accepts that,
+since the deployment reads the real value at runtime:
 
 | Variable | Meaning |
 |---|---|
-| `AGENT_BASE_URL` | OpenAI-compatible base URL, e.g. `https://api.openai.com/v1` — the same shape the panel's own provider field takes. A pasted `/chat/completions` suffix is tolerated |
-| `AGENT_MODEL` | Model id the upstream should run — the client never picks one |
-| `AGENT_API_KEY` | Bearer token for the upstream; omit only for an endpoint that checks none |
-| `AGENT_ENABLED` | Optional kill switch. `false`, `0`, `off` or `no` disables the backend even when the three above are set; unset means on |
+| `AGENT_API_KEY` | Bearer token for the upstream. Required on Vercel |
+| `AGENT_BASE_URL` | Optional, defaults to `https://inference-api.nousresearch.com/v1`. OpenAI-compatible base URL, the same shape the panel's own provider field takes. A pasted `/chat/completions` suffix is tolerated |
+| `AGENT_MODEL` | Optional, defaults to `z-ai/glm-5.3-flash`. Model id the upstream runs. The client never picks one. Ids: [Nous catalogue](https://inference-api.nousresearch.com/v1/models) |
+| `AGENT_REASONING_EFFORT` | Optional, defaults to `low`. Sent as `reasoning_effort`; accepted values are the model's `reasoning.supported_efforts` in the [Nous catalogue](https://inference-api.nousresearch.com/v1/models). The panel shows no reasoning, so a high effort looks like a stalled answer |
+
+The defaults for model and effort are Nous-specific: pointing `AGENT_BASE_URL`
+elsewhere usually means setting both as well.
 
 There is no cost gate in front of this route. Anything that can reach the
 deployment can spend that key, so put a challenge and a per-session limit
