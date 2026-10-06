@@ -16,8 +16,8 @@ utilities and tokens but no design-system components.
       stops importing `persistence`'s pool, or the pool moves to `shared/`;
       then drop the exemption from the boundary check and the
       `client-v2-layers` spec (ticket to file; before 1.3 enforces features)
-- [ ] 1.5 ESLint for what review keeps finding, inside the layers, and the
-      ids module moved to `shared/lib` (HOO-1897; after 1.2)
+- [x] 1.5 ESLint for what review keeps finding, inside the layers, and the
+      ids module moved to `shared/lib` (HOO-1897, PR #49)
 
 ## 2. Design system
 

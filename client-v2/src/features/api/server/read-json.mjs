@@ -27,16 +27,14 @@ const readStream = async (req) => {
  * as a 500 (M3, from the #13 review).
  */
 export async function readJson(req) {
-  // `!== undefined`, not truthiness: Vercel pre-parses a JSON body and
+  // `=== undefined`, not falsiness: Vercel pre-parses a JSON body and
   // drains the stream, so a falsy pre-parsed body (`null`, `0`, `""`)
   // would otherwise fall through to a stream with nothing left in it and
   // be read as `{}` -- the platform where the M3 report came from.
-  const parsed =
-    req.body !== undefined
-      ? typeof req.body === "string"
-        ? JSON.parse(req.body)
-        : req.body
-      : JSON.parse(await readStream(req));
+  let parsed;
+  if (req.body === undefined) parsed = JSON.parse(await readStream(req));
+  else if (typeof req.body === "string") parsed = JSON.parse(req.body);
+  else parsed = req.body;
 
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("Expected a JSON object");

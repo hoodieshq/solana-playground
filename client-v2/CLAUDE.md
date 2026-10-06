@@ -192,16 +192,18 @@ makes that an exit code (HOO-1856).
 
 ## What review keeps finding
 
-Each rule here came back in review more than once. They hold by review
-today; HOO-1897 turns the first four into ESLint errors inside the layers
-(`src/{features,shared,entities,widgets}/`), with the legacy roots exempt
-until code moves out of them.
+Each rule here came back in review more than once. The first three are
+ESLint errors (`package.json` `eslintConfig`, run by `yarn lint`) in the
+layers, `src/{app,widgets,features,entities,shared}/`; the legacy roots are
+exempt until code moves out of them, except that `crypto.randomUUID` is an
+error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The
+lint catches the common spellings, not every one. The fourth is the boundary
+check's job (HOO-1859); the rest hold by review.
 
-- **Ids come from one module.** `uuid()` mints one, `isUuid()` checks one;
-  the module is `features/persistence/model/ids.ts` today and
-  `shared/lib/ids` after HOO-1897. Never `crypto.randomUUID()`, never a
+- **Ids come from `src/shared/lib/ids`.** `uuid()` mints one, `isUuid()`
+  checks one. Never `crypto.randomUUID()`, never a
   copied UUID regex, never `import ... from "uuid"` anywhere else.
-  `api/*.mjs` cannot import `src/`, so it uses the `uuid` package directly;
+  `api/` cannot import `src/`, so it uses the `uuid` package directly;
   it is the one exception.
 - **A `catch` is never empty.** It rethrows, reports through the owning
   feature's diagnostics, or tells the user. A failure that is swallowed on
@@ -231,6 +233,15 @@ until code moves out of them.
 - **One migration per PR**, even while the schema is unshipped. Appending
   to another PR's migration forces everyone on a preview database to roll
   back by hand.
+- **On one element and one property, styled-components wins over a Tailwind
+  utility** until that component migrates: styled CSS is unlayered, while
+  utilities sit in `@layer utilities` and lose the cascade. Do not patch a
+  styled component with a utility; change the styled rule, or move the
+  component by the UI move rule.
+- **Build configuration is not unit-tested.** Guard the outcome instead: CI
+  greps the built CSS (or bundle) for what the configuration must produce.
+  A test that asserts the shape of `craco.config.js` passes while the build
+  is wrong.
 
 ## Before a PR
 

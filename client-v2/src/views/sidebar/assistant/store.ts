@@ -14,7 +14,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
 } from "../../../features/persistence/model/chat-storage";
-import { uuid } from "../../../features/persistence/model/ids";
+import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
 import type { Effort, ProviderId } from "./model/types";
@@ -367,7 +367,9 @@ export class PgAssistant {
     try {
       PgAssistant._gatewayServers = await listGatewayServers();
       PgAssistant._emit();
-    } catch {}
+    } catch (err) {
+      console.warn("MCP gateway unavailable; using local servers only", err);
+    }
   }
 
   /** Learn what exists, then what it offers. Safe to call on every mount. */
@@ -415,7 +417,9 @@ export class PgAssistant {
       servers.map(async (server) => {
         try {
           PgAssistant.setMcpTools(server.id, await listTools(server));
-        } catch {}
+        } catch (err) {
+          console.warn(`MCP server ${server.id}: tool discovery failed`, err);
+        }
       })
     );
   }

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { validate as isUuid } from "uuid";
+import { isUuid } from "../src/shared/lib/ids";
 import type { Page } from "@playwright/test";
 
 /**

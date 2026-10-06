@@ -9,9 +9,9 @@ This file records only what the code and git history do not make obvious.
 `hoodieshq/solana-playground`, forked from `solana-playground/solana-playground`.
 There is one remote (`origin`) and it is the fork.
 
-| Branch | Role |
-| --- | --- |
-| `master` | Tracks upstream. Guards `client/`, `server/`, `wasm/` via `ci.yml`. |
+| Branch       | Role                                                                        |
+| ------------ | --------------------------------------------------------------------------- |
+| `master`     | Tracks upstream. Guards `client/`, `server/`, `wasm/` via `ci.yml`.         |
 | `master-2.0` | **The fork's integration branch.** Guards `client-v2/` via `client-v2.yml`. |
 
 **Open PRs against `master-2.0`, not `master`.** Feature branches come off
@@ -49,6 +49,7 @@ yarn test-types            # tsc --noEmit
 yarn test-e2e              # playwright
 yarn test-api              # node --test, for api/ and **/server/*.mjs
 yarn check-format          # prettier; CI enforces this
+yarn lint                  # eslint over src/, api/, e2e/; CI enforces this
 yarn spec:validate         # openspec validate --all --strict; CI enforces this
 yarn spec:archived         # a fully ticked change must be archived; CI enforces this
 yarn check                 # everything CI runs, minus the production build
@@ -128,7 +129,7 @@ changes. Asked to build something in the client, look there first.
   (`PgSyncMark.exists`).
 - **The sync mark holds a hash per file, and that is the merge base.**
   `mark.files` is `path -> sha256` of what the server last accepted from this
-  device. `isClean` compares it on *user* files only (the three generated
+  device. `isClean` compares it on _user_ files only (the three generated
   workspace files are rewritten on every open); the push compares all files to
   decide what to send. A reconcile that finds both sides moved runs a
   three-way merge (`model/merge.ts`) against it and asks only about files whose
@@ -166,7 +167,7 @@ changes. Asked to build something in the client, look there first.
   was load-bearing twice and wrong both times: a workspace switch sets it on
   every page load (so nothing was ever "clean" and every difference became a
   prompt), and `PgProgramInfo` rewrites `program-info.json` with identical
-  content on every load (so every reload bumped the row, which the *other*
+  content on every load (so every reload bumped the row, which the _other_
   browser reads as "changed elsewhere"). The name is in the mark so a rename,
   which changes no bytes, still pushes.
 - **The three files in `SYNCED_WORKSPACE_FILES` fire no explorer event.**
@@ -218,7 +219,7 @@ changes. Asked to build something in the client, look there first.
   the user answers. A row that reads as 404 is raised as `deleted-elsewhere`
   (`PgProjectSync.read` returns `"gone"`), since both version answers would
   merge against nothing.
-- **Only a visible tab pushes.** Tabs share IndexedDB but hold the *current*
+- **Only a visible tab pushes.** Tabs share IndexedDB but hold the _current_
   workspace in memory separately, so a backgrounded tab's snapshot goes stale;
   it flushes on `visibilitychange` -> `hidden` (not `beforeunload`, which is
   too late, and not `keepalive`, which caps at ~64 KB against an 8 MB limit)
@@ -236,7 +237,7 @@ changes. Asked to build something in the client, look there first.
   account's `program-info.json` replaces the local one (adopt, and `planMerge`'s
   generated-file rule), `keepLocalKeypair` (`model/merge.ts`) carries a local
   `kp` into an account copy whose `kp` is null or absent. The mark keeps the
-  *server's* hash, so the keypair reads as a local change and the next push
+  _server's_ hash, so the keypair reads as a local change and the next push
   uploads it. If both sides have a `kp`, the account's still wins.
 - **Persistence failures are reported, not swallowed.** `chat-storage`,
   `chat-sync`, `project-sync` and `project-restore` all catch -- a lost write

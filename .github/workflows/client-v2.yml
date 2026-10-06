@@ -1,9 +1,8 @@
 name: client-v2
 
-# Types, formatting, the unit and API suites, the CI=true production bundle
-# and the browser suite for the fork's frontend. Upstream's ci.yml guards
-# `client/` on master; this one guards `client-v2/` on master-2.0 and never
-# touches the Rust workspaces.
+# The fork's frontend checks. Upstream's ci.yml guards `client/` on master;
+# this one guards `client-v2/` on master-2.0 and never touches the Rust
+# workspaces.
 on:
   push:
     branches: ["master-2.0"]
@@ -118,6 +117,13 @@ jobs:
 
       - name: Check format
         run: yarn check-format
+
+      # The production build lints only what webpack bundles. This step also
+      # covers tests, `api/` and `e2e/`. Only errors fail it: the review
+      # rules in `eslintConfig` are errors, and the legacy code still holds
+      # warnings, so they print without failing.
+      - name: Lint
+        run: yarn lint
 
       # `openspec validate --all` over ../openspec: every active change has
       # its proposal, delta specs, design and tasks in the schema's shape.
