@@ -1,4 +1,5 @@
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withSentry } from "../src/features/api/server/sentry.mjs";
 
 /**
  * Liveness probe for the API harness.
@@ -15,7 +16,7 @@ import { warnAboutMissingObservabilityIds } from "../src/features/api/server/obs
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default function handler(req, res) {
+function handler(req, res) {
   warnAboutMissingObservabilityIds();
   res.statusCode = 200;
   res.setHeader("content-type", "application/json");
@@ -27,3 +28,5 @@ export default function handler(req, res) {
     })
   );
 }
+
+export default withSentry("health", handler);

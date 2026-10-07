@@ -24,6 +24,7 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withSentry } from "../src/features/api/server/sentry.mjs";
 import { agentEnv } from "../src/shared/config/server-env.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
@@ -113,7 +114,7 @@ const pipeStream = async (res, body) => {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
   warnAboutMissingObservabilityIds();
   const configured = upstream();
 
@@ -212,3 +213,5 @@ export default async function handler(req, res) {
   res.setHeader("cache-control", "no-cache, no-transform");
   await pipeStream(res, response.body);
 }
+
+export default withSentry("agent", handler);
