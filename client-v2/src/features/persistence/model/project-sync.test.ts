@@ -610,10 +610,25 @@ describe("resolving a conflict", () => {
     asWorkspace("p1", "mine");
 
     await PgProjectSync.pushCurrent();
+    const hashes = {
+      local: await hashFiles({ files: { "src/lib.rs": "mine" } }),
+      server: await hashFiles({ files: { "src/lib.rs": "theirs" } }),
+    };
     expect(PgProjectSync.conflictFor("p1")).toEqual({
       projectId: "p1",
       kind: "divergent",
       paths: ["src/lib.rs"],
+      // No mark, so no base: the file is one question
+      files: [
+        {
+          kind: "whole",
+          path: "src/lib.rs",
+          local: "mine",
+          server: "theirs",
+          localHash: hashes.local["src/lib.rs"],
+          serverHash: hashes.server["src/lib.rs"],
+        },
+      ],
     });
 
     status = 200;
@@ -765,6 +780,177 @@ describe("resolving a conflict", () => {
 
     expect(await PgProjectSync.adopt("p1")).toBeNull();
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolving a conflict with content of the user's own", () => {
+  const LIB = "src/lib.rs";
+  /** What the account holds, and since when; changed by the tests */
+  let held: string;
+  let heldAt: string;
+  /** Whether the next upload is accepted */
+  let accepting: boolean;
+
+  const hashOf = async (content: string) =>
+    (await hashFiles({ files: { [LIB]: content } }))[LIB];
+
+  const serverIsUp = () =>
+    vi.spyOn(global, "fetch").mockImplementation((async (
+      url: string,
+      init?: RequestInit
+    ) => {
+      if (url === "/api/sync") return okProbe;
+      if (init?.method === "PUT") {
+        if (!accepting) {
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({ conflict: true, updatedAt: heldAt }),
+          };
+        }
+        return { ok: true, json: async () => ({ updatedAt: "t10" }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          project: {
+            id: "p1",
+            name: "mine",
+            kind: "project",
+            snapshot: { files: { [LIB]: held } },
+            updatedAt: heldAt,
+          },
+        }),
+      };
+    }) as unknown as typeof fetch);
+
+  /**
+   * This device holds "mine", the account "theirs", and a refused push has
+   * raised the question
+   */
+  const askedAboutLib = async () => {
+    held = "theirs";
+    heldAt = "t9";
+    accepting = false;
+    serverIsUp();
+    await signedIn();
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue("mine");
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("mine");
+    storedFiles().set(`/mine/${LIB}`, "mine");
+    vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
+    const replace = vi
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined);
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+    return replace;
+  };
+
+  /** Both lines, this device's first, against the hashes the view was shown */
+  const takeBoth = async () => ({
+    kind: "resolved" as const,
+    files: {
+      [LIB]: {
+        content: "mine\ntheirs",
+        localHash: await hashOf("mine"),
+        serverHash: await hashOf("theirs"),
+      },
+    },
+  });
+
+  beforeEach(reset);
+  afterEach(() => vi.restoreAllMocks());
+
+  it("writes the resolved content, records it as agreed and uploads it", async () => {
+    const replace = await askedAboutLib();
+    expect(PgProjectSync.conflictFor("p1")?.files).toEqual([
+      {
+        kind: "whole",
+        path: LIB,
+        local: "mine",
+        server: "theirs",
+        localHash: await hashOf("mine"),
+        serverHash: await hashOf("theirs"),
+      },
+    ]);
+
+    accepting = true;
+    expect(await PgProjectSync.resolve("p1", await takeBoth())).toBe(true);
+
+    expect(replace).toHaveBeenCalledWith("mine", { [LIB]: "mine\ntheirs" });
+    const body = lastBody();
+    expect(body.baseUpdatedAt).toBe("t9");
+    expect(body.changed).toEqual({ [LIB]: "mine\ntheirs" });
+    const mark = await PgSyncMark.read("p1");
+    expect(mark?.updatedAt).toBe("t10");
+    expect(mark?.files).toEqual({ [LIB]: await hashOf("mine\ntheirs") });
+    expect(PgProjectSync.conflictFor("p1")).toBeNull();
+  });
+
+  it("asks again with the new copy, writing and sending nothing, when the account moved since", async () => {
+    const replace = await askedAboutLib();
+    const answer = await takeBoth();
+    held = "theirs, again";
+    heldAt = "t11";
+    accepting = true;
+
+    expect(await PgProjectSync.resolve("p1", answer)).toBe(false);
+
+    expect(PgProjectSync.conflictFor("p1")).toEqual({
+      projectId: "p1",
+      kind: "divergent",
+      paths: [LIB],
+      files: [
+        {
+          kind: "whole",
+          path: LIB,
+          local: "mine",
+          server: "theirs, again",
+          localHash: await hashOf("mine"),
+          serverHash: await hashOf("theirs, again"),
+        },
+      ],
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(putCalls()).toHaveLength(1);
+    expect(await PgSyncMark.read("p1")).toBeNull();
+  });
+
+  it("asks again with the new copy, writing and sending nothing, when this device's copy moved since", async () => {
+    const replace = await askedAboutLib();
+    const answer = await takeBoth();
+    storedFiles().set(`/mine/${LIB}`, "mine, edited");
+    accepting = true;
+
+    expect(await PgProjectSync.resolve("p1", answer)).toBe(false);
+
+    expect(PgProjectSync.conflictFor("p1")?.files).toEqual([
+      {
+        kind: "whole",
+        path: LIB,
+        local: "mine, edited",
+        server: "theirs",
+        localHash: await hashOf("mine, edited"),
+        serverHash: await hashOf("theirs"),
+      },
+    ]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(putCalls()).toHaveLength(1);
+    expect(await PgSyncMark.read("p1")).toBeNull();
+  });
+
+  it("asks again when the answer leaves out a file in conflict", async () => {
+    const replace = await askedAboutLib();
+    accepting = true;
+
+    expect(
+      await PgProjectSync.resolve("p1", { kind: "resolved", files: {} })
+    ).toBe(false);
+
+    expect(PgProjectSync.conflictFor("p1")?.paths).toEqual([LIB]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(putCalls()).toHaveLength(1);
   });
 });
 

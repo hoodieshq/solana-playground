@@ -19,7 +19,12 @@ const PROMPTS: Record<
   Conflict["kind"],
   {
     message: (conflict: Conflict) => string;
-    actions: { label: string; resolution: Resolution; primary?: boolean }[];
+    // Only the answers a button can give alone; `resolved` carries content
+    actions: {
+      label: string;
+      resolution: Extract<Resolution, string>;
+      primary?: boolean;
+    }[];
   }
 > = {
   divergent: {

@@ -23,7 +23,8 @@ import { PgSession } from "../../auth";
 // tests could not load this module.
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
-import type { Snapshot } from "./snapshot";
+import type { FileConflict, MergePlan, ResolvedFiles } from "./merge";
+import type { FileHashes, Snapshot } from "./snapshot";
 import type { LegacySyncMark, SyncMark } from "./sync-mark";
 import type { Disposable } from "../../../utils/types";
 
@@ -85,26 +86,83 @@ export interface Conflict {
   /**
    * For `divergent`: the files both devices changed in the same place. Every
    * other file has already been merged, so these are all the user is asked
-   * about. Absent when the merge could not get that far.
+   * about. Absent when the merge could not get that far. Always `files`'
+   * paths, in order, when `files` is there.
    */
   paths?: string[];
+  /**
+   * For `divergent`: each of `paths` with the lines in question, or the
+   * whole file, and the hashes of the two copies it was read from. In memory
+   * only, as the conflict itself is: a reload re-raises it with fresh ones.
+   * Absent where `paths` is.
+   */
+  files?: FileConflict[];
 }
 
 /**
  * What the user picked.
  *
- * The first two settle the files of a `divergent` that could not be merged --
- * everything else has merged already, and stays merged whichever is picked.
- * The next two answer `deleted-elsewhere`, and
- * `retry` answers both refusals -- the user has gone and changed the thing
- * that was wrong, and is saying so.
+ * `keep-local`, `take-server` and `resolved` settle the files of a
+ * `divergent` that could not be merged -- everything else has merged already,
+ * and stays merged whichever is picked. `resolved` is the user's own content
+ * per file, applied only to the copies it was made against (see
+ * `mergeWithServer`). `delete-local` and `keep-as-new` answer
+ * `deleted-elsewhere`, and `retry` answers both refusals -- the user has gone
+ * and changed the thing that was wrong, and is saying so.
  */
 export type Resolution =
   | "keep-local"
   | "take-server"
   | "delete-local"
   | "keep-as-new"
-  | "retry";
+  | "retry"
+  | { kind: "resolved"; files: ResolvedFiles };
+
+/** A resolution as diagnostics name it */
+const describeResolution = (resolution: Resolution) =>
+  typeof resolution === "string" ? resolution : resolution.kind;
+
+/**
+ * The divergent conflict a merge plan raises: its files, and their paths for
+ * everything that reads only those.
+ */
+const divergentOf = (projectId: string, plan: MergePlan): Conflict => ({
+  projectId,
+  kind: "divergent",
+  paths: plan.conflicts.map(({ path }) => path),
+  files: plan.conflicts,
+});
+
+/**
+ * Whether an answer settles every conflict of this plan.
+ *
+ * A side's answer (`"local"`, `"server"`) is a rule, and settles any conflict
+ * on a file the user was asked about. Content is not: it was written against
+ * two particular copies, and is an answer about those only. Every conflicted
+ * file needs an entry whose hashes are this plan's -- `undefined` for a side
+ * that deleted the file -- or the user is asked again about what is there now.
+ */
+const answers = (
+  plan: MergePlan,
+  prefer: "local" | "server" | ResolvedFiles | undefined,
+  asked: readonly string[] | undefined,
+  hashes: { local: FileHashes; server: FileHashes }
+) => {
+  if (!plan.conflicts.length) return true;
+  if (!prefer) return false;
+  if (asked && !plan.conflicts.every(({ path }) => asked.includes(path))) {
+    return false;
+  }
+  if (typeof prefer === "string") return true;
+  return plan.conflicts.every(({ path }) => {
+    if (!Object.prototype.hasOwnProperty.call(prefer, path)) return false;
+    const entry = prefer[path];
+    return (
+      entry.localHash === hashes.local[path] &&
+      entry.serverHash === hashes.server[path]
+    );
+  });
+};
 
 /**
  * Which question a refusal is actually asking.
@@ -845,14 +903,16 @@ export class PgProjectSync {
 
         content = after[path];
         if (read !== undefined && buffer !== read && buffer !== content) {
+          // Nobody is asked here: the typing is seconds old and the user is
+          // still in the file, so an overlap keeps the synced copy and says so
           const merged = merge3(read, buffer, content);
-          if (merged === null) {
+          if (merged.kind === "conflict") {
             report(
               `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
               null
             );
           } else {
-            content = merged;
+            content = merged.text;
             if (content !== after[path]) folded.push(path);
           }
         }
@@ -896,8 +956,16 @@ export class PgProjectSync {
    * make the server's copy the agreement. Then the upload, which a closed tab
    * leaves to the next reconcile as an ordinary "this device is ahead".
    *
-   * @param prefer how to settle the files that cannot be merged. Without it
-   * they are raised as a conflict and nothing is written at all.
+   * @param prefer how to settle the files that cannot be merged: one side's
+   * copy of each, or the user's own content per file (`ResolvedFiles`).
+   * Content is pinned to the two copies the user was shown: it is applied
+   * only when, on this attempt's read, every conflicted file has an entry
+   * whose `localHash` and `serverHash` are the copies' hashes now. Without
+   * `prefer`, or with content for copies that have moved since, the conflict
+   * is raised with this attempt's files and nothing is written at all. A
+   * retry after a refused upload re-reads and re-checks, so content never
+   * lands on a server copy the user did not see. The name merges as for
+   * `"local"`.
    * @param asked the files the user was shown when they picked `prefer`. The
    * answer covers those and no others: when the server has moved since and
    * something else now overlaps too, the question is asked again, with the
@@ -907,7 +975,7 @@ export class PgProjectSync {
   static mergeWithServer(
     projectId: string,
     localName: string,
-    prefer?: "local" | "server",
+    prefer?: "local" | "server" | ResolvedFiles,
     asked?: readonly string[]
   ): Promise<"merged" | "conflict" | "failed"> {
     // Lock, then queue -- see `adopt`
@@ -921,7 +989,7 @@ export class PgProjectSync {
   private static async _mergeWithServer(
     projectId: string,
     localName: string,
-    prefer?: "local" | "server",
+    prefer?: "local" | "server" | ResolvedFiles,
     asked?: readonly string[]
   ): Promise<"merged" | "conflict" | "failed"> {
     await PgProjectSync._catchUpWithDisk(projectId);
@@ -994,18 +1062,16 @@ export class PgProjectSync {
           serverHashes,
         });
 
-        // Unanswered, or answered about other files than these. Checked on
-        // every attempt: a retry re-reads a server that may have moved again.
+        // Unanswered, answered about other files than these, or answered with
+        // content for copies that are no longer these. Checked on every
+        // attempt: a retry re-reads a server that may have moved again.
         if (
-          plan.conflicts.length &&
-          (!prefer ||
-            (asked && !plan.conflicts.every((path) => asked.includes(path))))
+          !answers(plan, prefer, asked, {
+            local: localHashes,
+            server: serverHashes,
+          })
         ) {
-          PgProjectSync._raise({
-            projectId,
-            kind: "divergent",
-            paths: plan.conflicts,
-          });
+          PgProjectSync._raise(divergentOf(projectId, plan));
           return "conflict";
         }
 
@@ -1024,13 +1090,16 @@ export class PgProjectSync {
         // agreed one, and one this rename leaves -- the server's name taken
         // here, or the rename failed -- is recorded as such, so no push
         // sends it: see `SyncMark.localName`.
+        //
+        // Content the user wrote is this device's answer, so it keeps this
+        // device's name as "Keep this version" would.
         const standIn = mark?.localName === localName;
         const takeServer =
           mergeName(
             mark?.name,
             standIn ? mark!.name : localName,
             full.name,
-            prefer
+            typeof prefer === "object" ? "local" : prefer
           ) === "server";
         if (takeServer && localName !== full.name) {
           localName = await renameToServer(projectId, localName, full.name);
@@ -1248,6 +1317,11 @@ export class PgProjectSync {
   /**
    * Act on the user's answer to a conflict, and stop asking.
    *
+   * `keep-local`, `take-server` and `resolved` all go through
+   * `mergeWithServer`, answering for the paths the conflict named. A
+   * `resolved` answer made against copies that have moved since is refused
+   * there, and the conflict comes back with the files as they are now.
+   *
    * @returns whether the conflict is now settled. `false` leaves the prompt up
    * rather than pretending a failed resolution succeeded.
    */
@@ -1278,10 +1352,26 @@ export class PgProjectSync {
         !(await PgWorkspaceRegistry.has(name, projectId))
       ) {
         report(
-          `resolve ${projectId} as ${resolution}: workspace no longer registered on disk`,
+          `resolve ${projectId} as ${describeResolution(
+            resolution
+          )}: workspace no longer registered on disk`,
           null
         );
         return false;
+      }
+
+      if (typeof resolution === "object") {
+        if (!name) return false;
+        // The same path as the two whole-file answers below, with the
+        // user's content for the conflicted files. The merge applies it only
+        // to the copies it was written against, and asks again otherwise.
+        const outcome = await PgProjectSync.mergeWithServer(
+          projectId,
+          name,
+          resolution.files,
+          PgProjectSync._conflicts.get(projectId)?.paths
+        );
+        return outcome === "merged";
       }
 
       switch (resolution) {
@@ -1389,7 +1479,7 @@ export class PgProjectSync {
         }
       }
     } catch (e) {
-      report(`resolve ${projectId} as ${resolution}`, e);
+      report(`resolve ${projectId} as ${describeResolution(resolution)}`, e);
       return false;
     }
   }
@@ -1573,12 +1663,28 @@ export class PgProjectSync {
     );
   }
 
+  /**
+   * Put a question up, or replace the one up for the project.
+   *
+   * The same question again is not announced: reconcile re-raises on every
+   * pass. "The same" includes the copies a divergent conflict's files were
+   * read from, so the same paths with a side that has moved since replace
+   * the files -- an answer pinned to the old ones can only be refused.
+   */
   private static _raise(conflict: Conflict) {
     const existing = PgProjectSync._conflicts.get(conflict.projectId);
-    if (
-      existing?.kind === conflict.kind &&
-      JSON.stringify(existing.paths) === JSON.stringify(conflict.paths)
-    ) {
+    /** What identifies a question, without the file contents */
+    const key = (c: Conflict) =>
+      JSON.stringify([
+        c.paths,
+        c.files?.map(({ kind, path, localHash, serverHash }) => [
+          kind,
+          path,
+          localHash,
+          serverHash,
+        ]),
+      ]);
+    if (existing?.kind === conflict.kind && key(existing) === key(conflict)) {
       return;
     }
     PgProjectSync._conflicts.set(conflict.projectId, conflict);

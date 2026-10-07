@@ -7,17 +7,31 @@ import {
   settleConflicts,
   baseAfterMerge,
 } from "./merge";
-import type { MergeInput } from "./merge";
+import type { Chunk, FileConflict, Merge3, MergeInput } from "./merge";
 
 const lines = (...xs: string[]) => xs.join("\n");
+
+/** One pane of the view: every settled line, and `side`'s lines of each hunk */
+const join = (chunks: Chunk[], side: "base" | "ours" | "theirs") =>
+  chunks
+    .flatMap((chunk) => (chunk.kind === "settled" ? chunk.lines : chunk[side]))
+    .join("\n");
+
+const clean = (text: string): Merge3 => ({ kind: "clean", text });
+
+/** The chunks of a merge that did not come out clean */
+const chunksOf = (merged: Merge3): Chunk[] => {
+  if (merged.kind !== "conflict") throw new Error("merged cleanly");
+  return merged.chunks;
+};
 
 describe("merge3", () => {
   const base = lines("a", "b", "c", "d", "e", "");
 
   it("takes the one side that changed", () => {
     const edited = lines("a", "B", "c", "d", "e", "");
-    expect(merge3(base, edited, base)).toBe(edited);
-    expect(merge3(base, base, edited)).toBe(edited);
+    expect(merge3(base, edited, base)).toEqual(clean(edited));
+    expect(merge3(base, base, edited)).toEqual(clean(edited));
   });
 
   it("merges edits to lines far apart", () => {
@@ -27,7 +41,7 @@ describe("merge3", () => {
         lines("A", "b", "c", "d", "e", ""),
         lines("a", "b", "c", "d", "E", "")
       )
-    ).toBe(lines("A", "b", "c", "d", "E", ""));
+    ).toEqual(clean(lines("A", "b", "c", "d", "E", "")));
   });
 
   it("merges an insertion with a deletion elsewhere", () => {
@@ -37,59 +51,222 @@ describe("merge3", () => {
         lines("x", "a", "b", "c", "d", "e", ""),
         lines("a", "b", "c", "e", "")
       )
-    ).toBe(lines("x", "a", "b", "c", "e", ""));
+    ).toEqual(clean(lines("x", "a", "b", "c", "e", "")));
   });
 
   it("accepts the same edit made on both sides", () => {
     const same = lines("a", "B", "c", "d", "e", "");
-    expect(merge3(base, same, same)).toBe(same);
+    expect(merge3(base, same, same)).toEqual(clean(same));
+    // The same change inside a group that also holds a one-sided one is
+    // still a group both sides touched
     expect(
       merge3(
         base,
         lines("A", "B", "c", "d", "e", ""),
         lines("a", "B", "c", "d", "e", "")
-      )
-    ).toBeNull();
+      ).kind
+    ).toBe("conflict");
   });
 
-  it("refuses edits to the same line", () => {
+  it("accepts the same edit made on both sides beside a one-sided edit far away", () => {
+    expect(
+      merge3(
+        base,
+        lines("a", "B", "c", "d", "E", ""),
+        lines("a", "B", "c", "d", "e", "")
+      )
+    ).toEqual(clean(lines("a", "B", "c", "d", "E", "")));
+  });
+
+  it("returns the lines both sides changed as a conflict between settled ones", () => {
     expect(
       merge3(
         base,
         lines("a", "mine", "c", "d", "e", ""),
         lines("a", "theirs", "c", "d", "e", "")
       )
-    ).toBeNull();
+    ).toEqual({
+      kind: "conflict",
+      chunks: [
+        { kind: "settled", lines: ["a"] },
+        { kind: "conflict", base: ["b"], ours: ["mine"], theirs: ["theirs"] },
+        { kind: "settled", lines: ["c", "d", "e", ""] },
+      ],
+    });
   });
 
-  it("refuses edits to adjacent lines, the way git does", () => {
+  it("treats edits to adjacent lines as one conflict, the way git does", () => {
     expect(
       merge3(
         base,
         lines("a", "B", "c", "d", "e", ""),
         lines("a", "b", "C", "d", "e", "")
       )
-    ).toBeNull();
+    ).toEqual({
+      kind: "conflict",
+      chunks: [
+        { kind: "settled", lines: ["a"] },
+        {
+          kind: "conflict",
+          base: ["b", "c"],
+          ours: ["B", "c"],
+          theirs: ["b", "C"],
+        },
+        { kind: "settled", lines: ["d", "e", ""] },
+      ],
+    });
+  });
+
+  it("settles every change only one side made, in one chunk with the lines around it", () => {
+    // The other device's `A` is in all three panes, so the view asks only
+    // about `d`
+    expect(
+      merge3(
+        base,
+        lines("a", "b", "c", "mine", "e", ""),
+        lines("A", "b", "c", "theirs", "e", "")
+      )
+    ).toEqual({
+      kind: "conflict",
+      chunks: [
+        { kind: "settled", lines: ["A", "b", "c"] },
+        { kind: "conflict", base: ["d"], ours: ["mine"], theirs: ["theirs"] },
+        { kind: "settled", lines: ["e", ""] },
+      ],
+    });
   });
 
   it("tells a deleted line from one replaced by a blank line", () => {
     const five = "a\nb\nc\nd\ne";
     const deleted = "a\nc\nd\nE";
     const blanked = "a\n\nc\nd\ne";
-    expect(merge3(five, deleted, blanked)).toBeNull();
-    expect(merge3(five, blanked, deleted)).toBeNull();
+    expect(chunksOf(merge3(five, deleted, blanked))).toEqual([
+      { kind: "settled", lines: ["a"] },
+      { kind: "conflict", base: ["b"], ours: [], theirs: [""] },
+      { kind: "settled", lines: ["c", "d", "E"] },
+    ]);
+    expect(merge3(five, blanked, deleted).kind).toBe("conflict");
   });
 
   it("tells a deleted final line from an emptied one", () => {
-    expect(merge3("a\nb", "a\n", "a")).toBeNull();
-    expect(merge3("a\nb", "a", "a\n")).toBeNull();
+    expect(chunksOf(merge3("a\nb", "a\n", "a"))).toEqual([
+      { kind: "settled", lines: ["a"] },
+      { kind: "conflict", base: ["b"], ours: [""], theirs: [] },
+    ]);
+    expect(merge3("a\nb", "a", "a\n").kind).toBe("conflict");
   });
 
-  it("keeps a missing trailing newline and CRLF endings byte for byte", () => {
+  it("keeps a file without a final newline without one", () => {
+    const chunks = chunksOf(merge3("a\nb", "a\nmine", "a\ntheirs"));
+    expect(chunks).toEqual([
+      { kind: "settled", lines: ["a"] },
+      { kind: "conflict", base: ["b"], ours: ["mine"], theirs: ["theirs"] },
+    ]);
+    expect(join(chunks, "ours")).toBe("a\nmine");
+  });
+
+  it("keeps CRLF endings byte for byte", () => {
     const crlf = "a\r\nb\r\nc\r\nd\r\ne";
-    expect(merge3(crlf, "A\r\nb\r\nc\r\nd\r\ne", "a\r\nb\r\nc\r\nd\r\nE")).toBe(
-      "A\r\nb\r\nc\r\nd\r\nE"
+    expect(
+      merge3(crlf, "A\r\nb\r\nc\r\nd\r\ne", "a\r\nb\r\nc\r\nd\r\nE")
+    ).toEqual(clean("A\r\nb\r\nc\r\nd\r\nE"));
+
+    const chunks = chunksOf(
+      merge3("a\r\nb\r\nc", "a\r\nB\r\nc", "a\r\nX\r\nc")
     );
+    expect(chunks).toEqual([
+      { kind: "settled", lines: ["a\r"] },
+      { kind: "conflict", base: ["b\r"], ours: ["B\r"], theirs: ["X\r"] },
+      { kind: "settled", lines: ["c"] },
+    ]);
+    expect(join(chunks, "theirs")).toBe("a\r\nX\r\nc");
+  });
+
+  describe("the panes are joins of the chunks", () => {
+    /**
+     * Cases where every change either side made is inside a conflict, so a
+     * side's pane is that side's file exactly. Where one side also made a
+     * change nobody else touched, that change is settled and so in every
+     * pane -- see the cases below.
+     */
+    const exact: Array<[string, string, string, string]> = [
+      ["one line", "a\nb\nc\n", "a\nmine\nc\n", "a\ntheirs\nc\n"],
+      ["adjacent lines", "a\nb\nc\nd\n", "a\nB\nc\nd\n", "a\nb\nC\nd\n"],
+      [
+        "two conflicts",
+        "a\nb\nc\nd\ne\n",
+        "M\nb\nc\nd\nM\n",
+        "T\nb\nc\nd\nT\n",
+      ],
+      ["no final newline", "a\nb", "a\nmine", "a\ntheirs"],
+      ["a final newline added and removed", "a\nb", "a\nb\n", "a\nB"],
+      ["CRLF", "a\r\nb\r\nc\r\n", "a\r\nB\r\nc\r\n", "a\r\nX\r\nc\r\n"],
+      ["mixed endings", "a\r\nb\nc", "a\r\nB\r\nc", "a\r\nb\nC"],
+      ["an emptied file", "a\nb\n", "", "a\nB\n"],
+      ["from empty", "", "mine\n", "theirs\n"],
+      ["a delete against an edit", "a\nb\nc\n", "a\nc\n", "a\nB\nc\n"],
+      ["an insertion at one spot", "a\nb\n", "a\nmine\nb\n", "a\ntheirs\nb\n"],
+      ["blank against deleted", "a\nb\nc", "a\n\nc", "a\nc"],
+      ["a whole rewrite", "a\nb\nc", "x\ny", "p\nq\nr\ns"],
+    ];
+
+    for (const [name, b, o, t] of exact) {
+      it(`rebuilds all three files exactly: ${name}`, () => {
+        const chunks = chunksOf(merge3(b, o, t));
+        expect(join(chunks, "base")).toBe(b);
+        expect(join(chunks, "ours")).toBe(o);
+        expect(join(chunks, "theirs")).toBe(t);
+      });
+    }
+
+    /** Each side's pane carries the other side's settled change too */
+    const settled: Array<[string, string, string, string, string, string]> = [
+      [
+        "theirs changed a line far away",
+        "a\nb\nc\nd\ne\n",
+        "a\nb\nc\nmine\ne\n",
+        "A\nb\nc\ntheirs\ne\n",
+        "A\nb\nc\nmine\ne\n",
+        "A\nb\nc\nd\ne\n",
+      ],
+      [
+        "ours deleted a line far away",
+        "a\nb\nc\nd\ne",
+        "b\nc\nmine\ne",
+        "a\nb\nc\ntheirs\ne",
+        "b\nc\nmine\ne",
+        "b\nc\nd\ne",
+      ],
+      [
+        "both made the same change far away",
+        "a\nb\nc\nd\ne\n",
+        "S\nb\nc\nmine\ne\n",
+        "S\nb\nc\ntheirs\ne\n",
+        "S\nb\nc\nmine\ne\n",
+        "S\nb\nc\nd\ne\n",
+      ],
+    ];
+
+    for (const [name, b, o, t, ours, result] of settled) {
+      it(`applies what only one side changed in every pane: ${name}`, () => {
+        const chunks = chunksOf(merge3(b, o, t));
+        expect(join(chunks, "ours")).toBe(ours);
+        expect(join(chunks, "base")).toBe(result);
+      });
+    }
+
+    /** Settled lines run together: one chunk between two conflicts */
+    const coalesced = (name: string, b: string, o: string, t: string) =>
+      it(`never has two settled chunks in a row, or an empty one: ${name}`, () => {
+        const chunks = chunksOf(merge3(b, o, t));
+        chunks.forEach((chunk, k) => {
+          if (chunk.kind !== "settled") return;
+          expect(chunk.lines.length).toBeGreaterThan(0);
+          expect(chunks[k + 1]?.kind).not.toBe("settled");
+        });
+      });
+    for (const [name, b, o, t] of exact) coalesced(name, b, o, t);
+    for (const [name, b, o, t] of settled) coalesced(name, b, o, t);
   });
 });
 
@@ -147,28 +324,103 @@ describe("planMerge", () => {
     expect(plan).toEqual({ files: { f: "A\nb\nc\nd\nE" }, conflicts: [] });
   });
 
-  it("asks about a file whose base content was never captured", () => {
+  it("carries the lines both sides changed, pinned to both copies", () => {
+    const base = "a\nb\nc\n";
+    const plan = planMerge(
+      input(
+        { f: base, g: "1" },
+        { f: "a\nmine\nc\n", g: "2" },
+        { f: "a\ntheirs\nc\n", g: "1" },
+        { f: base }
+      )
+    );
+    const expected: FileConflict[] = [
+      {
+        kind: "lines",
+        path: "f",
+        chunks: [
+          { kind: "settled", lines: ["a"] },
+          {
+            kind: "conflict",
+            base: ["b"],
+            ours: ["mine"],
+            theirs: ["theirs"],
+          },
+          { kind: "settled", lines: ["c", ""] },
+        ],
+        localHash: "h(a\nmine\nc\n)",
+        serverHash: "h(a\ntheirs\nc\n)",
+      },
+    ];
+    expect(plan).toEqual({ files: { g: "2" }, conflicts: expected });
+  });
+
+  it("asks about a whole file whose base content was never captured", () => {
     const plan = planMerge(input({ f: "a" }, { f: "b" }, { f: "c" }));
-    expect(plan.conflicts).toEqual(["f"]);
+    const expected: FileConflict[] = [
+      {
+        kind: "whole",
+        path: "f",
+        local: "b",
+        server: "c",
+        localHash: "h(b)",
+        serverHash: "h(c)",
+      },
+    ];
+    expect(plan.conflicts).toEqual(expected);
     expect(plan.files).toEqual({});
   });
 
   it("does not trust base content that belongs to another agreement", () => {
     const i = input({ f: "a\nb\nc" }, { f: "A\nb\nc" }, { f: "a\nb\nC" });
     i.baseContents = { f: { hash: "h(something else)", content: "a\nb\nc" } };
-    expect(planMerge(i).conflicts).toEqual(["f"]);
+    const expected: FileConflict[] = [
+      {
+        kind: "whole",
+        path: "f",
+        local: "A\nb\nc",
+        server: "a\nb\nC",
+        localHash: "h(A\nb\nc)",
+        serverHash: "h(a\nb\nC)",
+      },
+    ];
+    expect(planMerge(i).conflicts).toEqual(expected);
   });
 
-  it("asks about a file deleted on one side and edited on the other", () => {
-    expect(planMerge(input({ f: "a" }, {}, { f: "b" })).conflicts).toEqual([
-      "f",
-    ]);
+  it("asks about a whole file deleted here and edited on the other side", () => {
+    const plan = planMerge(input({ f: "a" }, {}, { f: "b" }, { f: "a" }));
+    const expected: FileConflict[] = [
+      { kind: "whole", path: "f", server: "b", serverHash: "h(b)" },
+    ];
+    expect(plan.conflicts).toEqual(expected);
+    expect(plan.conflicts[0]).not.toHaveProperty("local");
+    expect(plan.conflicts[0]).not.toHaveProperty("localHash");
   });
 
-  it("asks about a file both sides added differently", () => {
-    expect(planMerge(input({}, { f: "a" }, { f: "b" })).conflicts).toEqual([
-      "f",
-    ]);
+  it("asks about a whole file deleted on the other side and edited here", () => {
+    const plan = planMerge(input({ f: "a" }, { f: "b" }, {}, { f: "a" }));
+    const expected: FileConflict[] = [
+      { kind: "whole", path: "f", local: "b", localHash: "h(b)" },
+    ];
+    expect(plan.conflicts).toEqual(expected);
+    expect(plan.conflicts[0]).not.toHaveProperty("server");
+    expect(plan.conflicts[0]).not.toHaveProperty("serverHash");
+  });
+
+  it("asks about a whole file both sides added differently", () => {
+    const expected: FileConflict[] = [
+      {
+        kind: "whole",
+        path: "f",
+        local: "a",
+        server: "b",
+        localHash: "h(a)",
+        serverHash: "h(b)",
+      },
+    ];
+    expect(planMerge(input({}, { f: "a" }, { f: "b" })).conflicts).toEqual(
+      expected
+    );
   });
 
   it("lets the server win a generated workspace file without asking", () => {
@@ -290,7 +542,18 @@ describe("keepLocalKeypair", () => {
 });
 
 describe("settling", () => {
-  const plan = { files: { a: "merged" }, conflicts: ["b", "c"] };
+  const conflicts: FileConflict[] = [
+    {
+      kind: "whole",
+      path: "b",
+      local: "local b",
+      server: "server b",
+      localHash: "hlb",
+      serverHash: "hsb",
+    },
+    { kind: "whole", path: "c", server: "server c", serverHash: "hsc" },
+  ];
+  const plan = { files: { a: "merged" }, conflicts };
   const local = { a: "l", b: "local b" };
   const server = { a: "s", b: "server b", c: "server c" };
 
@@ -304,6 +567,34 @@ describe("settling", () => {
       b: "server b",
       c: "server c",
     });
+  });
+
+  it("fills conflicted files with the content the user resolved, deleting on null", () => {
+    expect(
+      settleConflicts(
+        plan,
+        {
+          b: { content: "resolved b", localHash: "hlb", serverHash: "hsb" },
+          c: { content: null, serverHash: "hsc" },
+          // Not in conflict: what merged stays merged
+          a: { content: "ignored" },
+        },
+        local,
+        server
+      )
+    ).toEqual({ a: "merged", b: "resolved b" });
+  });
+
+  it("refuses a resolution that leaves a conflicted file unanswered", () => {
+    // Settling without it would drop the file, which reads as a delete
+    expect(() =>
+      settleConflicts(
+        plan,
+        { b: { content: "resolved b", localHash: "hlb", serverHash: "hsb" } },
+        local,
+        server
+      )
+    ).toThrow(/c/);
   });
 
   it("keeps as base the server's version of every file this device still differs on", () => {
