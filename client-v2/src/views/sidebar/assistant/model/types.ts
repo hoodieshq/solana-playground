@@ -113,17 +113,18 @@ export const PROVIDERS: ProviderInfo[] = [
     name: "Anthropic",
     description:
       "The SDK's tool runner, with Anthropic's own MCP connector for servers " +
-      "routed that way. Sonnet costs roughly a third of Opus per turn; " +
-      "effort is the other cost lever.",
+      "routed that way. Sonnet costs half of Opus per token; effort is the " +
+      "other cost lever.",
     needsKey: true,
     keyUrl: "https://console.anthropic.com/",
     keyPlaceholder: "sk-ant-…",
     modelSettings: {
       // Both take adaptive thinking and the full effort ladder. Haiku 4.5
       // takes neither, so offering it would need a different request shape.
-      models: ["claude-opus-5", "claude-sonnet-5"],
+      models: ["claude-opus-5-5", "claude-sonnet-5-5"],
       efforts: ["low", "medium", "high", "xhigh", "max"],
-      defaults: { model: "claude-opus-5", effort: "high" },
+      // Both 5.5 models match their predecessor's `high` at `medium`
+      defaults: { model: "claude-opus-5-5", effort: "medium" },
     },
   },
   {
