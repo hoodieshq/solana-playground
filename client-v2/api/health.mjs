@@ -1,5 +1,5 @@
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 
 /**
  * Liveness probe for the API harness.
@@ -29,4 +29,4 @@ function handler(req, res) {
   );
 }
 
-export default withSentry("health", handler);
+export default withObservability("health", handler);

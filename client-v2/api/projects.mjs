@@ -11,7 +11,7 @@
  */
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import {
   deleteProject,
   getProject,
@@ -344,4 +344,4 @@ async function handler(req, res) {
   return sendJson(res, 405, { error: "Method not allowed" });
 }
 
-export default withSentry("projects", handler);
+export default withObservability("projects", handler);

@@ -9,7 +9,7 @@
  * of `api/` -- see `api/health.mjs` for why.
  */
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import {
   isConfigured,
   isEnabled,
@@ -47,4 +47,4 @@ async function handler(req, res) {
   }
 }
 
-export default withSentry("sync", handler);
+export default withObservability("sync", handler);

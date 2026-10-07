@@ -24,7 +24,7 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import { agentEnv } from "../src/shared/config/server-env.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
@@ -214,4 +214,4 @@ async function handler(req, res) {
   await pipeStream(res, response.body);
 }
 
-export default withSentry("agent", handler);
+export default withObservability("agent", handler);

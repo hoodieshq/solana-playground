@@ -14,7 +14,7 @@ vi.mock("@sentry/node", () => sentry);
 /** A fresh module, so its per-instance SDK is decided again under this test's env */
 const load = async () => {
   vi.resetModules();
-  return import("./sentry.mjs");
+  return import("./with-observability.mjs");
 };
 
 const req = { method: "POST", headers: {} };
@@ -47,14 +47,16 @@ describe("tracesSampleRate", () => {
   }
 });
 
-describe("withSentry", () => {
+describe("withObservability", () => {
   it("hands the request straight to the handler where Sentry is off", async () => {
     vi.stubEnv("REACT_APP_SENTRY_DSN", "https://key@o0.ingest.sentry.io/0");
     vi.stubEnv("VERCEL_ENV", "preview");
-    const { withSentry } = await load();
+    const { withObservability } = await load();
     const handler = vi.fn(async () => "done");
 
-    await expect(withSentry("agent", handler)(req, res)).resolves.toBe("done");
+    await expect(withObservability("agent", handler)(req, res)).resolves.toBe(
+      "done"
+    );
     expect(handler).toHaveBeenCalledWith(req, res);
     expect(sentry.init).not.toHaveBeenCalled();
   });
@@ -63,9 +65,9 @@ describe("withSentry", () => {
     vi.stubEnv("REACT_APP_SENTRY_DSN", "https://key@o0.ingest.sentry.io/0");
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("SENTRY_TRACES_SAMPLE_RATE", "0.25");
-    const { withSentry } = await load();
+    const { withObservability } = await load();
 
-    await withSentry("agent", async () => "done")(req, res);
+    await withObservability("agent", async () => "done")(req, res);
 
     const { tracesSampler } = sentry.init.mock.calls[0][0];
     const inheritOrSampleWith = vi.fn((rate: number) => rate);
@@ -80,11 +82,11 @@ describe("withSentry", () => {
   it("reports a thrown error and still flushes", async () => {
     vi.stubEnv("REACT_APP_SENTRY_DSN", "https://key@o0.ingest.sentry.io/0");
     vi.stubEnv("VERCEL_ENV", "production");
-    const { withSentry } = await load();
+    const { withObservability } = await load();
     const error = new Error("boom");
 
     await expect(
-      withSentry("agent", async () => {
+      withObservability("agent", async () => {
         throw error;
       })(req, res)
     ).rejects.toBe(error);

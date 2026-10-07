@@ -1,6 +1,7 @@
-// Sentry for the API functions: one `http.server` span per request, errors
-// captured, flushed before the function returns. Only where the browser
-// reports too (`sentryEnabled`); elsewhere `@sentry/node` is never imported.
+// Observability for the API functions: one `http.server` span per request,
+// errors captured, flushed before the function returns. Sentry is the
+// provider, and runs only where the browser reports too (`sentryEnabled`);
+// elsewhere `@sentry/node` is never imported.
 import { sentryEnabled } from "../../../../scripts/sentry-gate.mjs";
 import { sentryEnv } from "../../../shared/config/server-env.mjs";
 
@@ -37,7 +38,7 @@ const loadSentry = () => {
       release: env.VERCEL_GIT_COMMIT_SHA,
       // A request the browser already traces keeps the browser's decision
       tracesSampler: ({ inheritOrSampleWith }) => inheritOrSampleWith(rate),
-      // `withSentry` names each request's span by route; the SDK's own
+      // `withObservability` names each request's span by route; the SDK's own
       // incoming-request span would be a second, unnamed trace per request
       integrations: [
         Sentry.httpIntegration({ disableIncomingRequestSpans: true }),
@@ -49,13 +50,13 @@ const loadSentry = () => {
 };
 
 /**
- * `handler` with a Sentry span named `<METHOD> /api/<route>` around each
- * request. Where Sentry is off, the request goes straight to `handler`.
+ * `handler` with a trace span named `<METHOD> /api/<route>` around each
+ * request. Where the provider is off, the request goes straight to `handler`.
  *
  * @param {string} route the function's name under `/api`
  * @param {(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) => unknown} handler
  */
-export const withSentry = (route, handler) => async (req, res) => {
+export const withObservability = (route, handler) => async (req, res) => {
   const Sentry = await loadSentry();
   if (!Sentry) return handler(req, res);
 
@@ -70,7 +71,6 @@ export const withSentry = (route, handler) => async (req, res) => {
           {
             name: `${req.method} /api/${route}`,
             op: "http.server",
-            forceTransaction: true,
             attributes: { "http.request.method": req.method },
           },
           async (span) => {

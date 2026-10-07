@@ -21,7 +21,7 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import { mcpExplorerEnv } from "../src/shared/config/server-env.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
@@ -263,4 +263,4 @@ async function handler(req, res) {
   }
 }
 
-export default withSentry("mcp", handler);
+export default withObservability("mcp", handler);

@@ -15,7 +15,7 @@
  * popup open and the app waiting until its timeout.
  */
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import {
   AUTH_CHANNEL_NAME,
   AUTH_MESSAGE_TYPE,
@@ -77,4 +77,4 @@ const page = (payload) =>
   `</script>` +
   `<p>You can close this window.</p>`;
 
-export default withSentry("auth-complete", handler);
+export default withObservability("auth-complete", handler);

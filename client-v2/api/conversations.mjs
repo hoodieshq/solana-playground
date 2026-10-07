@@ -8,7 +8,7 @@ import { validate as isUuid } from "uuid";
 
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import {
   appendMessages,
   DELETED_REASON,
@@ -307,4 +307,4 @@ async function handler(req, res) {
   return sendJson(res, 405, { error: "Method not allowed" });
 }
 
-export default withSentry("conversations", handler);
+export default withObservability("conversations", handler);

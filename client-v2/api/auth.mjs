@@ -15,7 +15,7 @@ import { toNodeHandler } from "better-auth/node";
 
 import { getAuth, missingConfig } from "../src/features/auth/server.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
-import { withSentry } from "../src/features/api/server/sentry.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 
 /**
  * Put the requested path back on the request.
@@ -71,4 +71,4 @@ async function handler(req, res) {
   return toNodeHandler(auth)(req, res);
 }
 
-export default withSentry("auth", handler);
+export default withObservability("auth", handler);
