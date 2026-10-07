@@ -36,7 +36,7 @@ file and hit a build failure.
 The build service resolves only these crates. Anything else fails at build
 time, so do not add it to `Cargo.toml`.
 
-```
+```text
 anchor-lang 0.29.0            anchor-spl 0.29.0
 arrayref 0.3.7                borsh 0.10.3
 borsh-derive 0.10.3           bytemuck 1.14.0

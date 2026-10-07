@@ -171,7 +171,7 @@ Account Settings → Tokens creates one, and it denies every user-level request.
 The CLI calls `/v2/user` and `/v3/user/tokens/current` on startup and enumerates
 `/v9/projects?limit=100`, so it fails with a message that blames the wrong thing:
 
-```
+```text
 Error: Could not retrieve Project Settings. To link your Project, remove the `.vercel` directory and deploy again.
 ```
 
@@ -201,7 +201,7 @@ deploy targets) pulls a Secret as an empty value; the check accepts that,
 since the deployment reads the real value at runtime:
 
 | Variable | Meaning |
-|---|---|
+| --- | --- |
 | `AGENT_API_KEY` | Bearer token for the upstream. Required on Vercel |
 | `AGENT_BASE_URL` | Optional, defaults to `https://inference-api.nousresearch.com/v1`. OpenAI-compatible base URL, used as given: no trailing slash and no `/chat/completions`, which the server appends |
 | `AGENT_MODEL` | Optional, defaults to `z-ai/glm-5.3-flash:US`. Model id the upstream runs. The client never picks one. Ids: [Nous catalogue](https://inference-api.nousresearch.com/v1/models) |
@@ -222,7 +222,7 @@ answer is no, so a deployment without a database behaves exactly as it did
 before this existed.
 
 | Variable | Meaning |
-|---|---|
+| --- | --- |
 | `DATABASE_URL` | Postgres connection string. **Must be a pooled endpoint.** A serverless function opens a connection per invocation and will exhaust `max_connections` against a direct one. TLS is required and the certificate verified unless the URL sets `sslmode` — so a provider needing a looser mode has to say so in the URL, where it is visible in review |
 | `SYNC_ENABLED` | Kill switch. Only the exact string `true` enables sync; unset or anything else keeps the app local-only |
 | `AUTH_SECRET` | Better Auth signing secret. Generate one per environment; rotating it signs everyone out |
