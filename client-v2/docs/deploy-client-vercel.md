@@ -160,11 +160,11 @@ A Git-integration build with no cache does not finish inside Vercel's [build tim
 | Place | Lives across | Needs |
 | --- | --- | --- |
 | `node_modules/.cache/wasm-pkg/<hash>.tar` | local runs; on Vercel, successful builds only, through the [build cache](https://vercel.com/docs/builds#limits-and-resources) | nothing |
-| `wasm-pkg/<hash>.tar` in the public Blob store `solana-playground-wasm` | every build, every machine | `BLOB_STORE_ID` in the environment |
+| `wasm-pkg/<hash>.tar` in the public Blob store `solana-playground-wasm` | every build, every machine | `BLOB_READ_WRITE_TOKEN` (or `BLOB_STORE_ID`) in the environment |
 
 On a miss the script builds, writes both places, and only then runs `yarn install` and the client build. A build that later exceeds Vercel's time limit still leaves the tar in the store, so the next build with the same `wasm/` files skips rustup, `wasm-pack`, and `cargo`. A laptop that already holds the local tar uploads it when the store does not have it, which is how the store gets seeded.
 
-The store is public so that downloads need no credential. Its content is the compiled output of the crates under `wasm/`, the same files the deployed client serves to every visitor. Uploads authenticate with the read-write token or OIDC token that Vercel adds to the project when the store is connected; the script passes neither to the log. A `robots.txt` in the store keeps its URLs out of search indexes. An upload failure prints a warning and the build continues; the next build rebuilds.
+The store is public so that downloads need no credential. Its content is the compiled output of the crates under `wasm/`, the same files the deployed client serves to every visitor. Connecting the store added `BLOB_READ_WRITE_TOKEN` to the project, and the script reads the store id out of that token, so uploads and downloads need no further configuration. The token is passed to `vercel blob put` as `--rw-token`, never printed: a build's environment also carries `VERCEL_OIDC_TOKEN`, and the CLI refuses to pick between the two on its own. A `robots.txt` in the store keeps its URLs out of search indexes. An upload failure prints a warning and the build continues; the next build rebuilds.
 
 Rust state (toolchains, cargo registry, and target dir) lives in `client-v2/.cache/rust`, outside `node_modules`. Vercel's build cache keeps `node_modules`, and the Rust state alone is larger than the cache size limit. On Vercel the Rust state is empty at the start of every build. Locally it persists.
 
@@ -174,7 +174,7 @@ Create the store once, from the repo root:
 make -f client-v2/Makefile.vercel vercel-wasm-cache-store
 ```
 
-The target creates the store, connects it to the project for every environment, pulls the resulting variables, and uploads the `robots.txt`.
+The target creates the store, connects it to the project for every environment, pulls the resulting variables, and uploads the `robots.txt`. `vercel blob create-store` also writes a repo-root `.env.local` holding the token; nothing reads it and it can be deleted. When only the `robots.txt` step needs repeating, run `vercel-wasm-cache-robots`.
 
 To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@latest deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
 
@@ -186,6 +186,10 @@ The deploy resolves this git branch's Neon branch first, before building, and pa
 
 `Makefile.vercel` passes `--token` only when `VERCEL_TOKEN` is set. Unset, the
 CLI uses the session from `vercel login`, so local deploys need no token at all.
+
+Every target that runs the CLI first runs `vercel whoami` with the same
+credentials, and stops with the fix when they are rejected. Run
+`make -f client-v2/Makefile.vercel vercel-auth` to run only that check.
 `vercel-bootstrap` is the exception — it calls the REST API with `curl`, and a
 raw HTTP request has no stored login to fall back on.
 

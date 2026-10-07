@@ -30,12 +30,15 @@ wasm_key=$(
 )
 wasm_tar="$WASM_CACHE/$wasm_key.tar"
 
-# The public Blob store shared by every build; Vercel sets BLOB_STORE_ID once the
-# store is connected (see docs/deploy-client-vercel.md, "Build cache").
+# The public Blob store shared by every build (see docs/deploy-client-vercel.md, "Build
+# cache"). Connecting it gives builds BLOB_READ_WRITE_TOKEN, whose fourth `_` segment is
+# the store id; BLOB_STORE_ID is honoured for a project connected through OIDC.
 blob_path="wasm-pkg/$wasm_key.tar"
 blob_url=""
-if [ -n "${BLOB_STORE_ID:-}" ]; then
-  store_host=$(printf '%s' "${BLOB_STORE_ID#store_}" | tr '[:upper:]' '[:lower:]')
+store_id="${BLOB_STORE_ID:-}"
+[ -n "$store_id" ] || store_id=$(printf '%s' "${BLOB_READ_WRITE_TOKEN:-}" | cut -d_ -f4)
+if [ -n "$store_id" ]; then
+  store_host=$(printf '%s' "${store_id#store_}" | tr '[:upper:]' '[:lower:]')
   blob_url="https://$store_host.public.blob.vercel-storage.com/$blob_path"
 fi
 
