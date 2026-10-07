@@ -15,7 +15,7 @@ same time; 3.1 needs both. Tick a task in the PR that lands it.
 
 ## 2. Sync model
 
-- [ ] 2.1 Conflicts as data, answers as content: `merge3` returns `Merge3`
+- [x] 2.1 Conflicts as data, answers as content: `merge3` returns `Merge3`
       chunks; `planMerge` returns `FileConflict[]`; `Conflict.files` beside
       the derived `paths`; `ResolvedFiles` accepted by `mergeWithServer`,
       `settleConflicts` and `resolve`, applied only when both hashes match
