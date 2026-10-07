@@ -1,4 +1,10 @@
 import type { Mock } from "vitest";
+
+import {
+  initLogger,
+  memoryProvider,
+  resetLogger,
+} from "../../../shared/lib/logger";
 import { PgSession } from "./session";
 
 const signedIn = (user: {
@@ -16,6 +22,7 @@ describe("PgSession", () => {
   afterEach(() => {
     (global.fetch as Mock | undefined)?.mockReset?.();
     PgSession.reset();
+    resetLogger();
   });
 
   it("is signed out before any refresh", () => {
@@ -253,7 +260,8 @@ describe("PgSession", () => {
   it("says so when the server refuses the sign-out", async () => {
     global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
     await PgSession.refresh();
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
 
     global.fetch = vi
       .fn()
@@ -261,6 +269,13 @@ describe("PgSession", () => {
     await PgSession.signOut();
 
     expect(PgSession.get()).toBeNull();
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("500"));
+    expect(logged.entries).toEqual([
+      expect.objectContaining({
+        ns: "auth:session",
+        level: "error",
+        report: true,
+        context: { step: "request", status: 500 },
+      }),
+    ]);
   });
 });

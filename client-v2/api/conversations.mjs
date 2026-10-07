@@ -7,6 +7,7 @@
 import { validate as isUuid } from "uuid";
 
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 import {
   appendMessages,
   DELETED_REASON,
@@ -180,6 +181,7 @@ export const describeFailure = (e) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   if (!isEnabled()) return sendJson(res, 503, { error: "Sync is disabled" });
 
   // Ahead of the session lookup: a request from somewhere else is refused on

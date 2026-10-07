@@ -8,6 +8,7 @@
  * Deliberately plain ESM using raw Node request/response APIs, like the rest
  * of `api/` -- see `api/health.mjs` for why.
  */
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 import {
   isConfigured,
   isEnabled,
@@ -26,6 +27,7 @@ const sendJson = (res, status, body) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   if (req.method !== "GET") {
     return sendJson(res, 405, { error: "Method not allowed" });
   }

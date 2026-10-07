@@ -23,6 +23,7 @@
  */
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
@@ -122,6 +123,7 @@ const pipeStream = async (res, body) => {
  * @param {import("node:http").ServerResponse} res
  */
 export default async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   const configured = upstream();
 
   // Discovery, mirroring `api/mcp.mjs`: the client asks whether this

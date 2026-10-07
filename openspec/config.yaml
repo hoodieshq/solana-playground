@@ -21,17 +21,31 @@ context: |
   like) or the documentation branch: neither resolves on master-2.0.
   Several people and agents work in parallel; a task is sized for one small
   PR, and a change names which tasks may run at the same time.
+  Every feature and widget is measured: it sends product events through
+  shared/lib/telemetry and logs through shared/lib/logger. A change that
+  builds or alters one proposes its events (what the user does there and
+  how it can fail) even when the request does not mention analytics, and
+  asks the user to confirm or trim them.
 
 rules:
   proposal:
     - State what is out of scope under Impact, not only what is in
     - Name the user-visible consequence of every infrastructure item
+    - A change that adds or changes a slice under features/ or widgets/ lists
+      the telemetry events it adds, renames or removes under What Changes, or
+      says it changes none
   specs:
     - Requirements describe behaviour a test, a reviewer or a lint can check
     - Element ids, aria-labels and test ids are part of a UI requirement
+    - Each telemetry event a change adds or renames is described in a
+      requirement of its slice's spec, giving the name, when it fires, and
+      each parameter with its allowed values
   tasks:
     - Each task names its Linear ticket or says "ticket to file"
     - Each task says which tasks it depends on when the order matters
+    - A task that adds or changes a slice under features/ or widgets/
+      declares, describes and emits that slice's events from the spec, with
+      tests that assert them through the memory provider
 
 operations:
   apply:
@@ -41,6 +55,9 @@ operations:
       - Run the pr-review-toolkit review before gh pr create and fix what it
         finds in the same PR
       - Never edit client/ or server/
+      - A slice the task touches emits the events its spec describes; when
+        the spec describes none and the slice has user actions, stop and
+        propose events before writing code
   archive:
     guidance:
       - Say which spec files changed and which tasks were left unchecked

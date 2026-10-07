@@ -6,7 +6,22 @@ import {
 } from "../config.mjs";
 import { openPopupChannel } from "../lib/popup-channel";
 import type { PopupChannel } from "../lib/popup-channel";
+import { authTelemetry } from "./telemetry";
+import type { SignInFailure } from "./telemetry";
+import { createLogger } from "../../../shared/lib/logger";
 import type { Disposable } from "../../../utils/types";
+
+/** A sign-in that ended at a known step; any other error counts as `request-failed` */
+class SignInFailed extends Error {
+  constructor(readonly reason: SignInFailure, message: string) {
+    super(message);
+  }
+}
+
+const reasonOf = (error: unknown): SignInFailure =>
+  error instanceof SignInFailed ? error.reason : "request-failed";
+
+const log = createLogger("auth:session");
 
 /** Distinguishes this flow's reply from anything else on the same-origin bus */
 const randomNonce = () =>
@@ -91,6 +106,17 @@ export class PgSession {
    * side re-reads the session.
    */
   static async signIn() {
+    authTelemetry.track("auth_sign_in_started", {});
+    try {
+      await PgSession._signInThroughPopup();
+    } catch (error) {
+      authTelemetry.track("auth_sign_in_failed", { reason: reasonOf(error) });
+      throw error;
+    }
+    authTelemetry.track("auth_signed_in", {});
+  }
+
+  private static async _signInThroughPopup() {
     const nonce = randomNonce();
 
     const response = await fetch("/api/auth/sign-in/social", {
@@ -102,10 +128,17 @@ export class PgSession {
         callbackURL: `${AUTH_COMPLETE_ROUTE}?nonce=${nonce}`,
       }),
     });
-    if (!response.ok) throw new Error("Could not start sign-in");
+    if (!response.ok) {
+      throw new SignInFailed("request-failed", "Could not start sign-in");
+    }
 
     const { url } = await response.json();
-    if (!url) throw new Error("Sign-in returned no authorize URL");
+    if (!url) {
+      throw new SignInFailed(
+        "request-failed",
+        "Sign-in returned no authorize URL"
+      );
+    }
 
     const isOurs = (data: unknown) =>
       !!data &&
@@ -124,11 +157,17 @@ export class PgSession {
       broadcastName: AUTH_CHANNEL_NAME,
       timeoutMs: FLOW_MAX_AGE_SECONDS * 1000,
     });
-    if (!channel) throw new Error("Allow popups for this site to sign in.");
+    if (!channel) {
+      throw new SignInFailed(
+        "popup-blocked",
+        "Allow popups for this site to sign in."
+      );
+    }
 
     const receipt = await channel.receive();
     if (!receipt.delivered) {
-      throw new Error(
+      throw new SignInFailed(
+        receipt.reason,
         receipt.reason === "cancelled"
           ? "Sign-in cancelled."
           : "Sign-in did not complete."
@@ -156,8 +195,9 @@ export class PgSession {
     // Never allowed to block the sign-out itself.
     try {
       await PgSession._onSignOut?.();
-    } catch (err) {
-      console.error("sign-out hook failed; signing out anyway", err);
+    } catch (error) {
+      // Unsynced local work may be lost: the team needs to hear of it
+      log.error(error, { report: true, context: { step: "flush" } });
     }
 
     try {
@@ -168,18 +208,22 @@ export class PgSession {
       // The server session survives a refused sign-out, and a reload signs
       // the user back in; say so rather than only on a network error
       if (!res.ok) {
-        console.error(
-          `sign-out request answered ${res.status}; the server session may survive`
+        log.error(
+          new Error(
+            `sign-out request answered ${res.status}; the server session may survive`
+          ),
+          { report: true, context: { step: "request", status: res.status } }
         );
       }
-    } catch (err) {
-      console.warn(
-        "sign-out request failed; the cookie expires on its own",
-        err
-      );
+    } catch (error) {
+      // The cookie expires on its own; the local sign-out still stands
+      log.warn("sign-out request failed; the cookie expires on its own", {
+        context: { error: String(error) },
+      });
     }
 
     PgSession._set(null);
+    authTelemetry.track("auth_signed_out", {});
   }
 
   /**
