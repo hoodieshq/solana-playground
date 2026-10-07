@@ -39,7 +39,7 @@ RUN git submodule update --init client/public
 
 # Install dependencies
 WORKDIR /home/${USER}/client-v2
-RUN yarn
+RUN yarn install --frozen-lockfile
 
 # Bake the assets in, so the container does not need the network to start.
 # `yarn start`/`yarn build` re-run this and it is idempotent.
