@@ -786,7 +786,7 @@ describe("resolving a conflict", () => {
 describe("resolving a conflict with content of the user's own", () => {
   const LIB = "src/lib.rs";
   /** What the account holds, and since when; changed by the tests */
-  let held: string;
+  let held: Record<string, string>;
   let heldAt: string;
   /** Whether the next upload is accepted */
   let accepting: boolean;
@@ -817,7 +817,7 @@ describe("resolving a conflict with content of the user's own", () => {
             id: "p1",
             name: "mine",
             kind: "project",
-            snapshot: { files: { [LIB]: held } },
+            snapshot: { files: held },
             updatedAt: heldAt,
           },
         }),
@@ -828,8 +828,16 @@ describe("resolving a conflict with content of the user's own", () => {
    * This device holds "mine", the account "theirs", and a refused push has
    * raised the question
    */
-  const askedAboutLib = async () => {
-    held = "theirs";
+  const askedAboutLib = () =>
+    askedAbout({ [LIB]: "mine" }, { [LIB]: "theirs" });
+
+  /** This device holds `mine`, the account `theirs`, and a refused push has
+   * raised the question */
+  const askedAbout = async (
+    mine: Record<string, string>,
+    theirs: Record<string, string>
+  ) => {
+    held = theirs;
     heldAt = "t9";
     accepting = false;
     serverIsUp();
@@ -837,7 +845,9 @@ describe("resolving a conflict with content of the user's own", () => {
     vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
     vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue("mine");
     vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue("mine");
-    storedFiles().set(`/mine/${LIB}`, "mine");
+    for (const [path, content] of Object.entries(mine)) {
+      storedFiles().set(`/mine/${path}`, content);
+    }
     vi.spyOn(PgExplorer, "switchWorkspace").mockResolvedValue(undefined);
     const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
@@ -891,7 +901,7 @@ describe("resolving a conflict with content of the user's own", () => {
   it("asks again with the new copy, writing and sending nothing, when the account moved since", async () => {
     const replace = await askedAboutLib();
     const answer = await takeBoth();
-    held = "theirs, again";
+    held = { [LIB]: "theirs, again" };
     heldAt = "t11";
     accepting = true;
 
@@ -938,6 +948,124 @@ describe("resolving a conflict with content of the user's own", () => {
     expect(replace).not.toHaveBeenCalled();
     expect(putCalls()).toHaveLength(1);
     expect(await PgSyncMark.read("p1")).toBeNull();
+  });
+
+  describe("an answer about two files", () => {
+    const A = "src/a.rs";
+    const B = "src/b.rs";
+
+    /** Both files answered, against the copies the question was raised on */
+    const answerBoth = async () => ({
+      kind: "resolved" as const,
+      files: {
+        [A]: {
+          content: "resolved a",
+          localHash: await hashOf("mine a"),
+          serverHash: await hashOf("theirs a"),
+        },
+        [B]: {
+          content: "resolved b",
+          localHash: await hashOf("mine b"),
+          serverHash: await hashOf("theirs b"),
+        },
+      },
+    });
+
+    const askedAboutBoth = () =>
+      askedAbout(
+        { [A]: "mine a", [B]: "mine b" },
+        { [A]: "theirs a", [B]: "theirs b" }
+      );
+
+    it("applies neither file's answer when the account moved one of them, and asks again", async () => {
+      const replace = await askedAboutBoth();
+      const answer = await answerBoth();
+      held = { [A]: "theirs a", [B]: "theirs b, again" };
+      heldAt = "t11";
+      accepting = true;
+
+      expect(await PgProjectSync.resolve("p1", answer)).toBe(false);
+
+      expect(PgProjectSync.conflictFor("p1")?.files).toEqual([
+        {
+          kind: "whole",
+          path: A,
+          local: "mine a",
+          server: "theirs a",
+          localHash: await hashOf("mine a"),
+          serverHash: await hashOf("theirs a"),
+        },
+        {
+          kind: "whole",
+          path: B,
+          local: "mine b",
+          server: "theirs b, again",
+          localHash: await hashOf("mine b"),
+          serverHash: await hashOf("theirs b, again"),
+        },
+      ]);
+      expect(replace).not.toHaveBeenCalled();
+      expect(putCalls()).toHaveLength(1);
+      expect(await PgSyncMark.read("p1")).toBeNull();
+    });
+
+    it("applies neither file's answer when one now merges on its own and the other still conflicts", async () => {
+      // The other device took this device's `b`: nothing left to ask about
+      // there, but the answer was about a version of it that is gone
+      const replace = await askedAboutBoth();
+      const answer = await answerBoth();
+      held = { [A]: "theirs a", [B]: "mine b" };
+      heldAt = "t11";
+      accepting = true;
+
+      expect(await PgProjectSync.resolve("p1", answer)).toBe(false);
+
+      expect(PgProjectSync.conflictFor("p1")).toEqual({
+        projectId: "p1",
+        kind: "divergent",
+        paths: [A],
+        files: [
+          {
+            kind: "whole",
+            path: A,
+            local: "mine a",
+            server: "theirs a",
+            localHash: await hashOf("mine a"),
+            serverHash: await hashOf("theirs a"),
+          },
+        ],
+      });
+      expect(replace).not.toHaveBeenCalled();
+      expect(putCalls()).toHaveLength(1);
+      expect(await PgSyncMark.read("p1")).toBeNull();
+    });
+  });
+
+  it("merges on its own, without the answer, when the answered file no longer conflicts", async () => {
+    // This device also added a file, which the merge then owes the account
+    const NEW = "src/new.rs";
+    const replace = await askedAbout(
+      { [LIB]: "mine", [NEW]: "new" },
+      { [LIB]: "theirs" }
+    );
+    const answer = await takeBoth();
+    // The other device took this device's copy of the file in question
+    held = { [LIB]: "mine" };
+    heldAt = "t11";
+    accepting = true;
+
+    expect(await PgProjectSync.resolve("p1", answer)).toBe(true);
+
+    // The automatic merge is this device's copy, so nothing is rewritten
+    expect(replace).not.toHaveBeenCalled();
+    const body = lastBody();
+    expect(body.baseUpdatedAt).toBe("t11");
+    expect(body.changed).toEqual({ [NEW]: "new" });
+    expect(body.removed).toEqual([]);
+    const mark = await PgSyncMark.read("p1");
+    expect(mark?.updatedAt).toBe("t10");
+    expect(mark?.files[LIB]).toBe(await hashOf("mine"));
+    expect(PgProjectSync.conflictFor("p1")).toBeNull();
   });
 
   it("asks again when the answer leaves out a file in conflict", async () => {

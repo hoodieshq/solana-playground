@@ -134,19 +134,37 @@ const divergentOf = (projectId: string, plan: MergePlan): Conflict => ({
 });
 
 /**
+ * Whether every file of a content answer is still the two copies it was
+ * written against: each entry's `localHash` and `serverHash` equal to the
+ * hashes read now, `undefined` matching a side that has no file.
+ *
+ * Every entry, not only the files still in conflict. An answer is one
+ * decision about the versions the user saw; once any of them is gone, the
+ * rest of it is an answer to a question nobody asked, and applying part of
+ * it would settle the remaining files on the user's behalf.
+ */
+const pinsHold = (
+  files: ResolvedFiles,
+  hashes: { local: FileHashes; server: FileHashes }
+) =>
+  Object.entries(files).every(
+    ([path, entry]) =>
+      entry.localHash === hashes.local[path] &&
+      entry.serverHash === hashes.server[path]
+  );
+
+/**
  * Whether an answer settles every conflict of this plan.
  *
  * A side's answer (`"local"`, `"server"`) is a rule, and settles any conflict
- * on a file the user was asked about. Content is not: it was written against
- * two particular copies, and is an answer about those only. Every conflicted
- * file needs an entry whose hashes are this plan's -- `undefined` for a side
- * that deleted the file -- or the user is asked again about what is there now.
+ * on a file the user was asked about. Content needs an entry for every
+ * conflicted file. Its pins are checked before this, by `pinsHold`: an answer
+ * whose pins miss arrives here as no answer at all.
  */
 const answers = (
   plan: MergePlan,
   prefer: "local" | "server" | ResolvedFiles | undefined,
-  asked: readonly string[] | undefined,
-  hashes: { local: FileHashes; server: FileHashes }
+  asked: readonly string[] | undefined
 ) => {
   if (!plan.conflicts.length) return true;
   if (!prefer) return false;
@@ -154,14 +172,9 @@ const answers = (
     return false;
   }
   if (typeof prefer === "string") return true;
-  return plan.conflicts.every(({ path }) => {
-    if (!Object.prototype.hasOwnProperty.call(prefer, path)) return false;
-    const entry = prefer[path];
-    return (
-      entry.localHash === hashes.local[path] &&
-      entry.serverHash === hashes.server[path]
-    );
-  });
+  return plan.conflicts.every(({ path }) =>
+    Object.prototype.hasOwnProperty.call(prefer, path)
+  );
 };
 
 /**
@@ -959,13 +972,16 @@ export class PgProjectSync {
    * @param prefer how to settle the files that cannot be merged: one side's
    * copy of each, or the user's own content per file (`ResolvedFiles`).
    * Content is pinned to the two copies the user was shown: it is applied
-   * only when, on this attempt's read, every conflicted file has an entry
-   * whose `localHash` and `serverHash` are the copies' hashes now. Without
-   * `prefer`, or with content for copies that have moved since, the conflict
-   * is raised with this attempt's files and nothing is written at all. A
-   * retry after a refused upload re-reads and re-checks, so content never
-   * lands on a server copy the user did not see. The name merges as for
-   * `"local"`.
+   * only when, on this attempt's read, every entry -- in conflict now or not
+   * -- has the `localHash` and `serverHash` of the copies there now, and
+   * every conflicted file has an entry. Any pin that misses voids the whole
+   * answer for the attempt, which then runs as if `prefer` were absent: none
+   * of the content is used, and a plan that still has conflicts raises them
+   * with this attempt's files and writes nothing, while one that now merges
+   * on its own is merged and uploaded. Without `prefer`, a conflict is
+   * likewise raised and nothing written. A retry after a refused upload
+   * re-reads and re-checks, so content never lands on a server copy the
+   * user did not see. The name merges as for `"local"`.
    * @param asked the files the user was shown when they picked `prefer`. The
    * answer covers those and no others: when the server has moved since and
    * something else now overlaps too, the question is asked again, with the
@@ -1062,20 +1078,23 @@ export class PgProjectSync {
           serverHashes,
         });
 
-        // Unanswered, answered about other files than these, or answered with
-        // content for copies that are no longer these. Checked on every
-        // attempt: a retry re-reads a server that may have moved again.
-        if (
-          !answers(plan, prefer, asked, {
-            local: localHashes,
-            server: serverHashes,
-          })
-        ) {
+        // Content written against copies that are no longer these is no
+        // answer at all, for any of its files: this attempt goes on as if
+        // the user had not answered. Checked on every attempt, as below.
+        const answer =
+          typeof prefer === "object" &&
+          !pinsHold(prefer, { local: localHashes, server: serverHashes })
+            ? undefined
+            : prefer;
+
+        // Unanswered, or answered about other files than these. Checked on
+        // every attempt: a retry re-reads a server that may have moved again.
+        if (!answers(plan, answer, asked)) {
           PgProjectSync._raise(divergentOf(projectId, plan));
           return "conflict";
         }
 
-        const merged = settleConflicts(plan, prefer ?? "server", local, server);
+        const merged = settleConflicts(plan, answer ?? "server", local, server);
         if (!Object.keys(merged).length) {
           report(`merge project ${projectId}: refused an empty result`, null);
           return "failed";
@@ -1099,7 +1118,7 @@ export class PgProjectSync {
             mark?.name,
             standIn ? mark!.name : localName,
             full.name,
-            typeof prefer === "object" ? "local" : prefer
+            typeof answer === "object" ? "local" : answer
           ) === "server";
         if (takeServer && localName !== full.name) {
           localName = await renameToServer(projectId, localName, full.name);
