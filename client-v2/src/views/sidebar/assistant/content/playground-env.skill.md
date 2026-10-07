@@ -15,8 +15,6 @@ pins matter:
 
 ## The Anchor pin applies to Anchor programs only
 
-Read this carefully before you refuse something:
-
 - **Anchor programs** compile against `anchor-lang 0.29`. APIs added in Anchor
   0.30, 0.31 or 1.x are not available. If a fix needs one, say so plainly
   instead of proposing code the server cannot compile.
@@ -59,7 +57,8 @@ Note `borsh` is **0.10**, not 1.x — the derive syntax and the
 
 ## Tests
 
-Tests are **TypeScript, run against devnet** from the browser. There is no
+Tests are **TypeScript, run from the browser** against the cluster set in
+Settings → Connection. There is no
 Rust-side test workflow here: no `cargo test`, no `solana-program-test`, no
 LiteSVM, no Mollusk, no Surfpool. If the right answer to a problem is a Rust
 unit test, say that the environment cannot run one and offer the TypeScript
@@ -70,7 +69,9 @@ keeping accurate.
 
 ## Deploy and wallet
 
-- Deploy target is **devnet**. It costs SOL and needs a funded wallet.
+- Deploy goes to the cluster set in Settings → Connection: devnet by default,
+  and the project snapshot names the current one. It costs SOL and needs a
+  wallet funded on that cluster.
 - The default wallet is an in-browser keypair in local storage. Clearing
   browser data destroys it along with the projects.
 
@@ -82,7 +83,6 @@ If a fix needs any of these, tell the user rather than working around it:
 - an Anchor API newer than 0.29 (for Anchor programs)
 - a Rust-side test
 - Pinocchio
-- a local validator, or any cluster other than devnet
+- starting a local validator: Playground can connect to one, not run one
 
-Naming the limit is more useful than a workaround that will not build. These
-gaps are collected as a friction log for the maintainers.
+Naming the limit is more useful than a workaround that will not build.
