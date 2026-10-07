@@ -176,7 +176,7 @@ make -f client-v2/Makefile.vercel vercel-wasm-cache-store
 
 The target creates the store, connects it to the project for every environment, pulls the resulting variables, and uploads the `robots.txt`. `vercel blob create-store` also writes a repo-root `.env.local` holding the token; nothing reads it and it can be deleted. When only the `robots.txt` step needs repeating, run `vercel-wasm-cache-robots`.
 
-To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@latest deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
+To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@<version> deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`, with the version pinned as `VERCEL_CLI` in `Makefile.vercel`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
 
 The deploy resolves this git branch's Neon branch first, before building, and passes it as `-e DATABASE_URL=<pooled url>` so the deployment overrides the project-level variable. Resolving first is deliberate: a Neon failure should not cost a full wasm build.
 
