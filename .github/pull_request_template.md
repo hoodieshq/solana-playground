@@ -34,7 +34,7 @@ Linear: HOO-
 
 - [ ] `check` script green locally ("Before a PR")
 - [ ] Review agents run; findings fixed here ("Before a PR")
-- [ ] Task ticked in `tasks.md`, and archived if it was the last ("Specs and changes" 4-5)
+- [ ] Task ticked in `tasks.md`; if it was the last, asked whether to close the change ("Specs and changes" 4-5)
 - [ ] Ids, `aria-label`s, test ids unchanged across any move ("What survives every move")
 - [ ] One migration, this PR's own ("What review keeps finding")
 

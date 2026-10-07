@@ -175,12 +175,13 @@ counts.
    works a task, ticks it. Tick a task only in the PR that lands it, and
    name the task in the PR description. The ordinary PR checklist (section
    "Before a PR") still applies to every task.
-5. **`/opsx:archive` closes the change, inside the PR that lands the last
-   task.** It merges the deltas into `openspec/specs/` and moves the folder
-   to `changes/archive/<date>-<name>/`. `specs/` therefore always describes
-   the code as it is, never a plan; nothing is back-filled for code that is
-   not changing. The `check` script (below) fails while a change has every
-   task ticked and is not archived, so the last task's PR cannot forget it.
+5. **A human closes the change.** When the last task is ticked, the agent
+   stops and asks whether to close the change; it never runs
+   `/opsx:archive` unasked. On a yes, delete `tasks.md`, then
+   `/opsx:archive` merges the deltas into `openspec/specs/` and moves the
+   folder to `changes/archive/<date>-<name>/`. `specs/` therefore always
+   describes the code as it is, never a plan; nothing is back-filled for
+   code that is not changing.
 6. **Asked to build something, look in `openspec/changes/` first**
    (`openspec list`). If a change covers it, `/opsx:apply` that change and
    say which task. If none does and the work is more than a bug fix, offer
@@ -204,8 +205,8 @@ an override of their default, and this section is that override:
 - `superpowers:subagent-driven-development` and `executing-plans` run
   inside `/opsx:apply`, one task at a time; `test-driven-development` and
   `verification-before-completion` apply to every task as before.
-- `superpowers:finishing-a-development-branch` precedes `/opsx:archive`
-  for the last task of a change.
+- `superpowers:finishing-a-development-branch` precedes the question
+  whether to close the change, for its last task.
 
 **Scenarios are the test plan.** Every `#### Scenario:` in a spec is
 either a Playwright test in `e2e/` whose title is
@@ -288,8 +289,9 @@ check's job (HOO-1859); the rest hold by review.
 - **The `check` script is green before the push.** It runs what CI runs,
   in CI's order, minus the production build. Opt in to running it on every
   push with `git config core.hooksPath .githooks` once per clone.
-- **The last task of a change archives it** (`/opsx:archive`) in the same
-  PR.
+- **Archiving is a human's call.** After the last task, ask whether to
+  close the change (delete `tasks.md`, then `/opsx:archive`). Never
+  archive unasked.
 - **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
   `client-v2.yml`) on every PR to `master-2.0`, and a red spec fails the
   PR's checks. It needs no server and no Postgres: every spec stubs the account
