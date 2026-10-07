@@ -1,7 +1,9 @@
 // Loaded by `utils/settings.ts` before everything else, so this file only
-// imports modules that import nothing themselves.
+// imports modules whose own imports end at `shared/config/client-env`, which
+// imports nothing.
 import { Endpoint, PLATFORM_ENDPOINTS } from "../constants/connection";
 import type { PlatformEndpoint } from "../constants/connection";
+import { SERVER_URL } from "../shared/config/client-env";
 import {
   FOUNDATION_ENDPOINT,
   LOCAL_ENDPOINT,
@@ -61,10 +63,7 @@ export const buildEndpointOptions = (
   ],
 });
 
-const ENDPOINT_OPTIONS = buildEndpointOptions(
-  PLATFORM_ENDPOINTS,
-  process.env.REACT_APP_SERVER_URL
-);
+const ENDPOINT_OPTIONS = buildEndpointOptions(PLATFORM_ENDPOINTS, SERVER_URL);
 
 type State = Record<string, unknown>;
 

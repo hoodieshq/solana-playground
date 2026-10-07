@@ -9,14 +9,15 @@
  */
 import pg from "pg";
 
+import { databaseEnv } from "../../../shared/config/server-env.mjs";
+
 let pool = null;
 
 /** Whether a connection string is present at all */
-export const isConfigured = () => !!process.env.DATABASE_URL;
+export const isConfigured = () => !!databaseEnv().DATABASE_URL;
 
 /** Whether sync should serve traffic. The kill switch is opt-in. */
-export const isEnabled = () =>
-  isConfigured() && process.env.SYNC_ENABLED === "true";
+export const isEnabled = () => isConfigured() && databaseEnv().SYNC_ENABLED;
 
 /**
  * The shared pool, created on first use.
@@ -28,7 +29,7 @@ export const getPool = () => {
   if (!isConfigured()) return null;
   if (!pool) {
     pool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: databaseEnv().DATABASE_URL,
       // Encrypted and verified unless the connection string says otherwise.
       //
       // node-postgres connects in the clear when the URL mentions no

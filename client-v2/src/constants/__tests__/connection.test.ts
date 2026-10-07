@@ -80,17 +80,15 @@ describe("buildPlatformEndpoints", () => {
 // Guards the `process.env` var names, which nothing else would catch: a typo
 // there just yields an empty list.
 describe("env wiring", () => {
-  const OLD = { ...process.env };
-
   afterEach(() => {
-    process.env = { ...OLD };
+    vi.unstubAllEnvs();
     vi.resetModules();
   });
 
   it("reads REACT_APP_<CLUSTER>_RPC_URL", async () => {
-    process.env.REACT_APP_DEVNET_RPC_URL = "https://devnet.example.com";
-    process.env.REACT_APP_TESTNET_RPC_URL = "https://testnet.example.com";
-    process.env.REACT_APP_MAINNET_RPC_URL = "https://mainnet.example.com";
+    vi.stubEnv("REACT_APP_DEVNET_RPC_URL", "https://devnet.example.com");
+    vi.stubEnv("REACT_APP_TESTNET_RPC_URL", "https://testnet.example.com");
+    vi.stubEnv("REACT_APP_MAINNET_RPC_URL", "https://mainnet.example.com");
 
     vi.resetModules();
     const mod = await import("../connection");
@@ -106,9 +104,9 @@ describe("env wiring", () => {
   });
 
   it("adds nothing and keeps the native default when unset", async () => {
-    delete process.env.REACT_APP_DEVNET_RPC_URL;
-    delete process.env.REACT_APP_TESTNET_RPC_URL;
-    delete process.env.REACT_APP_MAINNET_RPC_URL;
+    vi.stubEnv("REACT_APP_DEVNET_RPC_URL", undefined);
+    vi.stubEnv("REACT_APP_TESTNET_RPC_URL", undefined);
+    vi.stubEnv("REACT_APP_MAINNET_RPC_URL", undefined);
 
     vi.resetModules();
     const mod = await import("../connection");

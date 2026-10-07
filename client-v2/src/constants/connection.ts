@@ -1,3 +1,5 @@
+import { PLATFORM_RPC_URLS } from "../shared/config/client-env";
+
 /** RPC endpoint */
 export enum Endpoint {
   PLAYNET = "http://playnet",
@@ -55,14 +57,6 @@ export const resolveDefaultEndpoint = (platformDevnet?: string): string =>
   // `||` not `??`: sourcing an env file leaves unfilled keys as "", which is
   // not nullish and would win.
   platformDevnet || Endpoint.DEVNET;
-
-// Written as literal `process.env.REACT_APP_*` member expressions because CRA
-// only inlines the ones it can see statically.
-const PLATFORM_RPC_URLS: PlatformRpcUrls = {
-  devnet: process.env.REACT_APP_DEVNET_RPC_URL,
-  testnet: process.env.REACT_APP_TESTNET_RPC_URL,
-  mainnet: process.env.REACT_APP_MAINNET_RPC_URL,
-};
 
 /** Platform-provided RPC endpoints; empty when the deployment configures none. */
 export const PLATFORM_ENDPOINTS = buildPlatformEndpoints(PLATFORM_RPC_URLS);
