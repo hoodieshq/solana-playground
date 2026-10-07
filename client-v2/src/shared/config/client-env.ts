@@ -15,3 +15,16 @@ export const PLATFORM_RPC_URLS = {
   testnet: process.env.REACT_APP_TESTNET_RPC_URL,
   mainnet: process.env.REACT_APP_MAINNET_RPC_URL,
 };
+
+/**
+ * Error reporting, analytics and the console log level; each unset turns its
+ * part off. A getter, read when called, because tests stub these per case.
+ */
+export const observabilityEnv = () => ({
+  SENTRY_DSN: process.env.REACT_APP_SENTRY_DSN,
+  // Vercel copies its system variables with the CRA prefix at build time
+  VERCEL_GIT_COMMIT_SHA: process.env.REACT_APP_VERCEL_GIT_COMMIT_SHA,
+  VERCEL_ENV: process.env.REACT_APP_VERCEL_ENV,
+  GA_MEASUREMENT_ID: process.env.REACT_APP_GA_MEASUREMENT_ID,
+  LOG_LEVEL: process.env.REACT_APP_LOG_LEVEL,
+});

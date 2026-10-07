@@ -1,3 +1,5 @@
+import { observabilityEnv } from "../../../shared/config/server-env.mjs";
+
 /**
  * The ids the browser bundle needs to report errors and send analytics.
  *
@@ -19,7 +21,7 @@ export const missingObservabilityIds = (env) =>
 let warned = false;
 
 /** Warns once per function instance, so each cold start says what the deployment lacks */
-export const warnAboutMissingObservabilityIds = (env = process.env) => {
+export const warnAboutMissingObservabilityIds = (env = observabilityEnv()) => {
   if (warned) return;
   warned = true;
   for (const message of missingObservabilityIds(env)) {

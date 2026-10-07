@@ -5,8 +5,8 @@
 // Every getter reads `process.env` when called, never at import: tests stub
 // the environment per case, and a value captured on import would outlive it.
 // Each field is named after its variable, minus the group's prefix where all
-// its variables share one: `mcpExplorerEnv().BYPASS` is `MCP_EXPLORER_BYPASS`. Names and defaults live
-// here and nowhere else; `.env.example` documents them.
+// its variables share one: `mcpExplorerEnv().BYPASS` is `MCP_EXPLORER_BYPASS`.
+// Names and defaults live here and nowhere else; `.env.example` documents them.
 
 /**
  * A variable's value as set, or `undefined` when it is unset or empty.
@@ -43,6 +43,15 @@ export const databaseEnv = () => ({
   DATABASE_URL: read("DATABASE_URL"),
   // Only the exact string enables sync; anything else keeps it off
   SYNC_ENABLED: process.env.SYNC_ENABLED === "true",
+});
+
+/**
+ * The browser's observability ids, read here only to warn when a deployment
+ * lacks them. Full names, since `missingObservabilityIds` looks each up by name.
+ */
+export const observabilityEnv = () => ({
+  REACT_APP_SENTRY_DSN: read("REACT_APP_SENTRY_DSN"),
+  REACT_APP_GA_MEASUREMENT_ID: read("REACT_APP_GA_MEASUREMENT_ID"),
 });
 
 /**

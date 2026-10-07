@@ -1,3 +1,4 @@
+import { observabilityEnv } from "../../../config/client-env";
 import { atLeast, isLevel } from "../severity";
 import type { Level } from "../severity";
 import type { LogEntry, LogProvider } from "../types";
@@ -12,7 +13,7 @@ const METHOD: Record<Level, "error" | "warn" | "info" | "debug"> = {
 
 /** `REACT_APP_LOG_LEVEL` when valid; else `warn` in production builds and `debug` elsewhere */
 export const defaultLevel = (): Level => {
-  const configured = process.env.REACT_APP_LOG_LEVEL;
+  const configured = observabilityEnv().LOG_LEVEL;
   if (isLevel(configured)) return configured;
   return process.env.NODE_ENV === "production" ? "warn" : "debug";
 };
