@@ -1,4 +1,6 @@
+import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
+import { withSyncLock } from "./sync-lock";
 import { isUuid, uuid } from "../../../shared/lib/ids";
 import { PgFs } from "../../../utils/explorer/fs";
 
@@ -121,6 +123,95 @@ export class PgThreadIndex {
   }
 
   /**
+   * Remove a deleted workspace's conversation, and the entry pointing at it.
+   *
+   * By workspace id, because that is all a delete knows: storage is keyed
+   * by thread id, so the thread is found through this map. The entry goes
+   * too: a tutorial's id is derived from its name, so starting one again
+   * reuses the id, and a surviving entry hands the new run the previous
+   * run's conversation.
+   *
+   * Also for a thread the server closed under a live project: the panel
+   * moves to a fresh thread, and the closed one goes the same way.
+   *
+   * Under the cross-tab lock, and against the map as it is *after* the file
+   * is gone: the wait on storage narrows the window for this tab to mint a
+   * thread, or a neighbour tab to write the map, and writing the copy read
+   * before it put the stale map back over either.
+   *
+   * @returns whether both are gone, or there was nothing to forget. `false`
+   * leaves the entry in place, so the caller can try again.
+   */
+  static async forget(workspaceId: string): Promise<boolean> {
+    return withSyncLock(async () => {
+      const threadId = (await PgThreadIndex._refresh())[workspaceId];
+      if (!threadId) return true;
+
+      // The file before the entry, and the entry only once the file is gone.
+      // A file left behind without one is adopted by the next load's
+      // migration as a thread named after its workspace, and pushed as a
+      // project that never existed; an entry left pointing at a missing file
+      // just reads as an empty thread.
+      if (!(await PgChatStorage.remove(threadId))) return false;
+      const { [workspaceId]: _gone, ...rest } = await PgThreadIndex._refresh();
+      return PgThreadIndex._commit(rest);
+    });
+  }
+
+  /**
+   * Move a workspace's conversation to another workspace, under a fresh
+   * thread id.
+   *
+   * For "keep as a new project": the project was deleted on another device,
+   * its conversation was tombstoned with it, and the user keeps this
+   * device's work under a new id. The chat is part of that work. It cannot
+   * keep its thread id -- the server refuses every push to a tombstoned
+   * thread, whatever project the push names -- so the file is renamed to a
+   * thread id minted for the new workspace, whose first push creates it.
+   *
+   * Renamed, not read and rewritten: a file this device cannot decode moves
+   * with the rest, so nothing is lost, and the old workspace's entry is gone
+   * whether or not the file decodes -- an entry left pointing at a deleted
+   * project's id would hand a tutorial started again under that id the
+   * previous run's thread, which is the bug `forget` exists for.
+   *
+   * @returns whether the conversation is now the new workspace's, which it
+   * trivially is when there was none. `false` leaves everything as it was,
+   * so the caller must not go on to delete the old workspace: its delete
+   * forgets the conversation that failed to move.
+   */
+  static async carry({ from, to }: { from: string; to: string }) {
+    return withSyncLock(async () => {
+      const threadId = (await PgThreadIndex._refresh())[from];
+      if (!threadId) return true;
+
+      const fresh = uuid();
+      try {
+        await PgFs.rename(pathOf(threadId), pathOf(fresh));
+      } catch (e) {
+        // An entry with no file yet is an empty conversation, which the new
+        // workspace starts with anyway
+        if (!isMissing(e)) {
+          report(`carry ${from} to ${to}`, e);
+          return false;
+        }
+      }
+      const { [from]: _moved, ...rest } = await PgThreadIndex._refresh();
+      if (await PgThreadIndex._commit({ ...rest, [to]: fresh })) return true;
+
+      // The map still points at the old name, so the file goes back to it:
+      // left under the new one it has no entry, and the next load's
+      // migration adopts it as a workspace named after the thread
+      try {
+        await PgFs.rename(pathOf(fresh), pathOf(threadId));
+      } catch (e) {
+        if (!isMissing(e)) report(`carry ${from} back`, e);
+      }
+      return false;
+    });
+  }
+
+  /**
    * Drop what is held in memory, so the next read goes to storage.
    *
    * This map is read on the way into every conversation and on every push, so
@@ -145,6 +236,19 @@ export class PgThreadIndex {
 
   /** The map as last read or written; `null` until the first read */
   private static _cache: Index | null = null;
+
+  /**
+   * The map as storage holds it now, read past the cache.
+   *
+   * For a write that has to see a neighbour tab's writes: the cache is this
+   * tab's, and `set` spreading it protects only against this tab's own
+   * interleaving. The cache is replaced, not cleared, so `ensureSync` keeps
+   * answering throughout.
+   */
+  private static async _refresh(): Promise<Index> {
+    await PgThreadIndex._migrateOnce();
+    return (PgThreadIndex._cache = await PgThreadIndex._read());
+  }
 
   /**
    * The adoption pass, run once per load.
@@ -190,15 +294,31 @@ export class PgThreadIndex {
     }
   }
 
-  private static async _write(index: Index) {
+  /** @returns whether the map reached storage; a failure is reported */
+  private static async _write(index: Index): Promise<boolean> {
     PgThreadIndex._cache = index;
     try {
       await PgFs.writeFile(INDEX_PATH, JSON.stringify(index), {
         createParents: true,
       });
+      return true;
     } catch (e) {
       report("write index", e);
+      return false;
     }
+  }
+
+  /**
+   * `_write`, for a caller that goes on only if it landed.
+   *
+   * `_write` sets the cache before it touches storage, so a failed write
+   * leaves this tab answering from a map storage never got. Read back, so
+   * the cache says what storage says.
+   */
+  private static async _commit(index: Index): Promise<boolean> {
+    if (await PgThreadIndex._write(index)) return true;
+    await PgThreadIndex._refresh();
+    return false;
   }
 
   /**

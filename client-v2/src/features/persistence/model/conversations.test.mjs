@@ -8,7 +8,9 @@ import {
   listMessages,
   listThreads,
   NotYours,
+  ThreadDeleted,
 } from "./conversations.mjs";
+import { deleteProject } from "./projects.mjs";
 
 // `yarn test-api` loads `.env`; without a database this suite skips rather
 // than fails, which is what lets the unit suites run on their own.
@@ -246,6 +248,82 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
     );
     // And the owner's thread is untouched by the attempt
     assert.equal((await listMessages(userId, thread(1))).length, 1);
+  });
+
+  describe("a thread whose project was deleted", () => {
+    // A deleted project's threads are tombstoned with it, and every read
+    // filters them out. Accepting a push anyway answered 200 for messages no
+    // device could ever read back -- and a client deletes its own copy of a
+    // thread on exactly that answer.
+    it("refuses to add to it, and writes nothing", async () => {
+      await appendMessages(userId, on(1), [item(1)]);
+      await deleteProject(userId, "p1");
+
+      await assert.rejects(
+        () => appendMessages(userId, on(1), [item(2)]),
+        (e) => e instanceof ThreadDeleted && e.scope === "project"
+      );
+      const { rows } = await query(
+        "select count(*)::int as n from messages where conversation_id = $1",
+        [thread(1)]
+      );
+      assert.equal(rows[0].n, 1);
+    });
+
+    it("names the thread when only the thread is gone", async () => {
+      // A tutorial started again: the project row is live, the previous
+      // run's conversation is not. The client replaces such a thread on the
+      // spot, which is why it has to be told which tombstone it hit.
+      await appendMessages(userId, on(1), [item(1)]);
+      await query("update conversations set deleted_at = now() where id = $1", [
+        thread(1),
+      ]);
+
+      await assert.rejects(
+        () => appendMessages(userId, on(1), [item(2)]),
+        (e) => e instanceof ThreadDeleted && e.scope === "thread"
+      );
+    });
+
+    it("refuses a new thread under it, before creating one", async () => {
+      // The project insert is `on conflict do nothing`, so a tombstone stays
+      // one -- and a thread row inserted beneath it would be a live thread
+      // on a dead project, which the next list by project would hand out
+      await appendMessages(userId, on(1), [item(1)]);
+      await deleteProject(userId, "p1");
+
+      await assert.rejects(
+        () => appendMessages(userId, on(2), [item(2)]),
+        ThreadDeleted
+      );
+      const { rows } = await query(
+        "select count(*)::int as n from conversations where id = $1",
+        [thread(2)]
+      );
+      assert.equal(rows[0].n, 0);
+    });
+
+    it("refuses a scope the client would not know", async () => {
+      // `scope` goes on the wire and the client drops its copy on one of
+      // its values, so a typo has to fail here rather than pick a branch
+      assert.throws(() => new ThreadDeleted("conversation"), TypeError);
+    });
+
+    it("still answers a stranger's thread id as not yours", async () => {
+      // The ownership check comes first: confirming that somebody else's
+      // thread was deleted would turn the refusal into an oracle for
+      // guessed uuids
+      await appendMessages(userId, on(1), [item(1)]);
+      await deleteProject(userId, "p1");
+
+      await assert.rejects(
+        () =>
+          appendMessages(other, { threadId: thread(1), projectId: "p9" }, [
+            item(2),
+          ]),
+        NotYours
+      );
+    });
   });
 
   describe("a project holding more than one thread", () => {

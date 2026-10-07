@@ -1,11 +1,11 @@
 import type { MockInstance } from "vitest";
 import { projectSync } from "./project-sync";
-import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import * as restore from "../../features/persistence/model/project-restore";
 import * as snapshot from "../../features/persistence/model/snapshot";
 import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgCommon } from "../../utils/common";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import { PgFs } from "../../utils/explorer/fs";
@@ -428,9 +428,7 @@ describe("deleting a workspace here", () => {
     const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = vi
-      .spyOn(PgChatStorage, "remove")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
 
     registered([{ id: "still-here", name: "Still Here" }]);
 
@@ -443,8 +441,11 @@ describe("deleting a workspace here", () => {
     expect(remove).toHaveBeenCalledWith("tut:hello");
     expect(remove).not.toHaveBeenCalledWith("still-here");
     // A tutorial's id is derived from its name, so restarting one reuses the
-    // id -- and without this the previous run's conversation comes back with it
+    // id -- and without this the previous run's conversation comes back with
+    // it. Through the index, by workspace id: storage is keyed by thread id,
+    // so removing by the project's id removed nothing.
     expect(forget).toHaveBeenCalledWith("tut:hello");
+    expect(forget).not.toHaveBeenCalledWith("still-here");
   });
 
   it("leaves a project another tab created that this tab has not listed", async () => {
@@ -459,9 +460,7 @@ describe("deleting a workspace here", () => {
     const remove = vi
       .spyOn(PgProjectSync, "remove")
       .mockResolvedValue(true as never);
-    const forget = vi
-      .spyOn(PgChatStorage, "remove")
-      .mockResolvedValue(undefined);
+    const forget = vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
     registered([{ id: "made-next-door", name: "Next Door" }]);
 
     effect = projectSync();

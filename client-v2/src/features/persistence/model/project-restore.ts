@@ -10,6 +10,8 @@ import { PgSyncBase } from "./sync-base";
 import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
+import { PgThreadIndex } from "./thread-index";
+import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, ServerProject } from "./project-sync";
 import type { SyncMark } from "./sync-mark";
@@ -444,14 +446,20 @@ const settleDeletes = async (serverIds: Set<string>, result: SyncResult) => {
     try {
       const local = PgExplorer.workspaceNameOf(projectId);
       if (!local) {
-        // Gone from both sides. The mark is the last thing left of it.
+        // Gone from both sides. The mark and the thread-index entry are the
+        // last things left of it.
         await PgSyncMark.remove(projectId);
+        await PgThreadIndex.forget(projectId);
         continue;
       }
 
       if (await isClean(projectId, local)) {
         await PgExplorer.deleteWorkspace(local);
         await PgSyncMark.remove(projectId);
+        // The server tombstoned its conversations with it; this device's
+        // copy goes too, or a tutorial started again here opens the old
+        // run's chat
+        await PgThreadIndex.forget(projectId);
         result.removed.push(local);
         if (result.latest === local) result.latest = null;
         continue;
@@ -480,6 +488,14 @@ const settleDeletes = async (serverIds: Set<string>, result: SyncResult) => {
  * account-scoped and are not cleared on sign-out, so without the second check
  * the next person to sign in on a shared browser uploads the previous one's
  * work into their own account.
+ *
+ * It also excludes a workspace only this tab still believes in. A
+ * neighbouring tab that deletes a project takes its mark with it, so until
+ * this tab has re-read the list the ghost looks exactly like a project never
+ * uploaded, and its upload meets the tombstone. The reload at the start of
+ * the pass normally catches this first; this is the check for a reconcile
+ * that runs before the neighbour's write is announced, asking the store's
+ * registry, which is what the other tab changed.
  */
 const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
   for (const name of PgExplorer.allWorkspaceNames ?? []) {
@@ -491,6 +507,7 @@ const pushNeverSynced = async (serverIds: Set<string>, result: SyncResult) => {
     // a refusal against the tombstone
     if (await PgSyncMark.exists(id)) continue;
     if (await PgSyncMark.ownedByAnother(id)) continue;
+    if (!(await PgWorkspaceRegistry.has(name, id))) continue;
 
     try {
       if (

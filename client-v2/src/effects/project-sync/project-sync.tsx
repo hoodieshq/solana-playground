@@ -1,4 +1,3 @@
-import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { report } from "../../features/persistence/model/diagnostics";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
 import { reconcile } from "../../features/persistence/model/project-restore";
@@ -8,6 +7,7 @@ import {
 } from "../../features/persistence/model/snapshot";
 import { PgSyncBase } from "../../features/persistence/model/sync-base";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgWorkspaceRegistry } from "../../features/persistence/model/workspace-registry";
 import { PgFs } from "../../utils/explorer/fs";
 // Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
@@ -230,8 +230,10 @@ export const projectSync = (): Disposable => {
         await PgSyncMark.remove(projectId);
         // A tutorial's id is derived from its name, so deleting and restarting
         // one produces the same id -- and without this the previous run's
-        // conversation reappears inside the new one.
-        await PgChatStorage.remove(projectId);
+        // conversation reappears inside the new one. Through the index, by
+        // workspace id, which is all a delete knows: storage is keyed by
+        // thread id.
+        await PgThreadIndex.forget(projectId);
       }
     } catch (e) {
       report("settle local deletes", e);

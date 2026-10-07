@@ -1,5 +1,6 @@
 import { decodeThread, encodeThread, mergeThreads } from "./chat-codec";
 import { PgChatStorage, withoutTruncationNotice } from "./chat-storage";
+import { DELETED_REASON, isDeletedScope } from "./deleted.mjs";
 import { report } from "./diagnostics";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
@@ -9,14 +10,48 @@ import type { ChatItem } from "../../../views/sidebar/assistant/store";
 /**
  * What a hand-over managed.
  *
- * `pushed` is the ids the server is now known to hold, so a caller can drop
- * exactly those and no more. `complete` says whether that was all of them,
- * which is the only thing that licenses dropping the directory wholesale.
+ * `handedOver` is the ids this device may drop: the server holds them, or
+ * has closed them under a project it still has. `complete` says whether that was
+ * all of them, which is the only thing that licenses dropping the directory
+ * wholesale.
  */
 export interface HandOver {
-  pushed: string[];
+  handedOver: string[];
   complete: boolean;
 }
+
+/**
+ * How a push ended.
+ *
+ * - `pushed`: the server holds the thread.
+ * - `thread-deleted`: the server has tombstoned this thread and will not take
+ *   it again, while its project is live -- a tutorial started again on
+ *   another device. The caller replaces the thread.
+ * - `project-deleted`: the thread's project is tombstoned, so no thread
+ *   under it can be pushed. The caller leaves it for the user's answer about
+ *   the project (`SyncBanner`): "keep as new" carries the conversation,
+ *   "delete" drops it.
+ * - `failed`: nothing is known; the thread stays and is tried again.
+ *
+ * Neither deletion is `failed`: a failed thread is tried again on every
+ * turn, and a tombstone never lifts.
+ */
+export type PushOutcome =
+  | "pushed"
+  | "thread-deleted"
+  | "project-deleted"
+  | "failed";
+
+/**
+ * Whether this device may drop its copy after the push.
+ *
+ * Named positively, so an outcome added later has to opt in to deletion.
+ * `project-deleted` is not in it: that thread is waiting for the user's
+ * answer about the project, and `releaseLocalProjects` keeps the project
+ * for the same answer -- the two hand-overs have to make the same trade.
+ */
+export const isHandedOver = (outcome: PushOutcome) =>
+  outcome === "pushed" || outcome === "thread-deleted";
 
 /**
  * Mirror local threads to Postgres.
@@ -110,15 +145,15 @@ export class PgChatSync {
     }
   }
 
-  /** @returns whether the thread is now on the server */
-  static async push(threadId: string): Promise<boolean> {
-    if (!(await PgChatSync._ready())) return false;
+  /** @returns how the push ended -- see `PushOutcome` */
+  static async push(threadId: string): Promise<PushOutcome> {
+    if (!(await PgChatSync._ready())) return "failed";
 
     const items = await PgChatStorage.read(threadId);
     // "The thread is now on the server" is a claim, and the caller deletes on
     // it. It cannot be made about a thread this device could not read.
-    if (items === null) return false;
-    if (!items.length) return true;
+    if (items === null) return "failed";
+    if (!items.length) return "pushed";
 
     // Every thread belongs to a workspace, and the server stores the pair.
     // A thread the index has lost is one nothing can open, so pushing it
@@ -126,7 +161,7 @@ export class PgChatSync {
     const projectId = await PgThreadIndex.workspaceOf(threadId);
     if (!projectId) {
       report(`push ${threadId}: no workspace in the index`, null);
-      return false;
+      return "failed";
     }
 
     try {
@@ -143,13 +178,49 @@ export class PgChatSync {
           items: encodeThread(withoutTruncationNotice(items)),
         }),
       });
-      if (!response.ok)
-        report(`push ${threadId}: HTTP ${response.status}`, null);
-      return response.ok;
+      if (response.ok) return "pushed";
+      // Not a failure: the server has decided about this thread, and the
+      // body says which tombstone it hit. Reported anyway, so the console
+      // says why a thread stopped syncing.
+      if (response.status === 410) {
+        const scope = await PgChatSync._deletedScope(response);
+        if (scope === "unknown") {
+          report(`push ${threadId}: unrecognised HTTP 410`, null);
+          return "failed";
+        }
+        report(`push ${threadId}: ${scope} deleted on the server`, null);
+        return scope === "project" ? "project-deleted" : "thread-deleted";
+      }
+      report(`push ${threadId}: HTTP ${response.status}`, null);
+      return "failed";
     } catch (e) {
       report(`push ${threadId}`, e);
-      return false;
+      return "failed";
     }
+  }
+
+  /**
+   * Which tombstone a 410 names.
+   *
+   * Only our own 410 counts: the body has to carry `reason: "deleted"` and a
+   * scope, as `api/conversations.mjs` sends them. Anything else -- a body
+   * that cannot be read, a platform's or a proxy's 410 page -- is `unknown`,
+   * and the push counts as failed: nothing is known, so nothing may be
+   * dropped. The caller acts on `thread` by forgetting the conversation, and
+   * a status alone must not be what decides that.
+   */
+  private static async _deletedScope(
+    response: Response
+  ): Promise<"project" | "thread" | "unknown"> {
+    let body: { reason?: unknown; scope?: unknown } | null = null;
+    try {
+      body = await response.json();
+    } catch (e) {
+      report("read 410 body", e);
+      return "unknown";
+    }
+    if (body?.reason !== DELETED_REASON) return "unknown";
+    return isDeletedScope(body.scope) ? body.scope : "unknown";
   }
 
   /**
@@ -232,7 +303,8 @@ export class PgChatSync {
    * Push every local thread -- the sign-in dump, and the last thing that runs
    * before sign-out clears local storage.
    *
-   * @returns which threads the server now holds, or `null` when this device
+   * @returns which threads this device may drop -- the server holds them, or
+   * has closed them under a live project -- or `null` when this device
    * could not enumerate its own. `null` rather than an empty result on
    * purpose: "I could not look" and "there were none" license entirely
    * different things at the other end.
@@ -261,12 +333,19 @@ export class PgChatSync {
     // the device rather than dropping it.
     const threadIds = [...new Set([...indexed, ...stored])];
 
+    // A thread the server has closed under a live project counts as handed
+    // over: it will never take it again, and keeping the file for the next
+    // user of this browser protects nothing. One under a deleted project
+    // stays, like the project it belongs to -- see `isHandedOver`.
     const outcomes = await Promise.all(
-      threadIds.map(async (id) => ({ id, ok: await PgChatSync.push(id) }))
+      threadIds.map(async (id) => ({
+        id,
+        handedOver: isHandedOver(await PgChatSync.push(id)),
+      }))
     );
     return {
-      pushed: outcomes.filter((o) => o.ok).map((o) => o.id),
-      complete: outcomes.every((o) => o.ok),
+      handedOver: outcomes.filter((o) => o.handedOver).map((o) => o.id),
+      complete: outcomes.every((o) => o.handedOver),
     };
   }
 
@@ -277,7 +356,8 @@ export class PgChatSync {
    * it: `features/auth` must not import `features/persistence`, because this
    * module already imports `features/auth` and the two would be circular.
    *
-   * A thread is only dropped once the server holds it. A failed push leaves
+   * A thread is only dropped once the server holds it, or has closed it
+   * under a project it still has (`isHandedOver`). A failed push leaves
    * that thread where it is and the next sign-in tries again -- losing
    * messages to a flaky network is the worse failure, and the cost of being
    * wrong the other way is that the next user of this browser sees a thread
@@ -310,7 +390,7 @@ export class PgChatSync {
     // the ones just removed. A stale entry costs an empty thread on the next
     // open, which `PgChatStorage.read` answers with `[]` -- not the wrong
     // account's messages, which is what this is protecting.
-    await Promise.all(handed.pushed.map((id) => PgChatStorage.remove(id)));
+    await Promise.all(handed.handedOver.map((id) => PgChatStorage.remove(id)));
   }
 
   private static async _ready() {

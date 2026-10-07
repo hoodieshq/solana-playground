@@ -9,11 +9,13 @@ import { validate as isUuid } from "uuid";
 import { requireUser, resolveBaseURL } from "../src/features/auth/server.mjs";
 import {
   appendMessages,
+  DELETED_REASON,
   getThread,
   isEnabled,
   listMessages,
   listThreads,
   NotYours,
+  ThreadDeleted,
 } from "../src/features/persistence/server.mjs";
 
 /** Anything larger is not a conversation batch, it is an attack or a bug */
@@ -138,6 +140,42 @@ const isAllowedOrigin = (req) => {
 };
 
 /**
+ * What to answer when a write throws.
+ *
+ * Two failures are a client's to act on and get a status of their own. An id
+ * that is somebody else's reads the same as one that does not exist:
+ * confirming which would turn this route into an oracle for guessed uuids. A
+ * thread deleted with its project is 410, and the distinction matters at the
+ * other end: the client deletes its own copy of a thread once the server has
+ * taken it, so a 2xx would lose messages, and it reads every other refusal
+ * as transient, so a 404 would have it push the thread again on every turn.
+ * `scope` says which tombstone it was, and the client acts on it: a thread
+ * deleted under a live project is replaced on the spot; one under a deleted
+ * project waits for the user's answer about the project.
+ *
+ * Anything else is ours, so the client gets a generic 500 and the driver's
+ * own text stays server side -- it names columns, constraints and sometimes
+ * values. Same shape as `describeDriverError` in `api/projects.mjs`.
+ *
+ * Exported for `api/conversations.test.mjs`: the write is behind the auth
+ * gate, which a direct call cannot pass.
+ *
+ * @returns {{status: number, body: object}}
+ */
+export const describeFailure = (e) => {
+  if (e instanceof NotYours) {
+    return { status: 404, body: { error: "No such thread" } };
+  }
+  if (e instanceof ThreadDeleted) {
+    return {
+      status: 410,
+      body: { error: e.message, reason: DELETED_REASON, scope: e.scope },
+    };
+  }
+  return { status: 500, body: { error: "Sync failed" } };
+};
+
+/**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
@@ -157,10 +195,10 @@ export default async function handler(req, res) {
 
   // One `try` around both branches that reach the database: without it a
   // driver error is an unhandled rejection on the platform rather than a
-  // response. `NotYours` is the one failure that maps to a status of its own;
-  // anything else either conflicts harmlessly, which the versioned
-  // `on conflict` already absorbs, or fails for a reason no client can act
-  // on, so a generic 500 is the honest answer.
+  // response. `describeFailure` names the failures that map to a status of
+  // their own; anything else either conflicts harmlessly, which the
+  // versioned `on conflict` already absorbs, or fails for a reason no client
+  // can act on, so a generic 500 is the honest answer.
   try {
     if (req.method === "GET") {
       const threadId = url.searchParams.get("threadId");
@@ -235,15 +273,9 @@ export default async function handler(req, res) {
       });
     }
   } catch (e) {
-    // An id that is somebody else's reads the same as one that does not
-    // exist: confirming which would turn this route into an oracle for
-    // guessed uuids
-    if (e instanceof NotYours) {
-      return sendJson(res, 404, { error: "No such thread" });
-    }
-
-    // The driver's own text stays server side: it names columns, constraints
-    // and sometimes the values that tripped them.
+    const { status, body } = describeFailure(e);
+    // Only the generic branch is a surprise, and its text is the half that
+    // must not travel: driver messages name columns, constraints and values.
     //
     // Printed field by field rather than as one object, because `console.error`
     // on the platform stringifies an Error to its `message` and `stack` and
@@ -252,19 +284,21 @@ export default async function handler(req, res) {
     // `db.mjs` and is the text held by the module that is actually running:
     // against a schema-shaped failure it is the only way to tell code that is
     // behind the database from a database that is behind the code.
-    console.error("api/conversations:", {
-      message: e.message,
-      code: e.code,
-      constraint: e.constraint,
-      table: e.table,
-      column: e.column,
-      detail: e.detail,
-      hint: e.hint,
-      routine: e.routine,
-      statement: e.statement,
-      stack: e.stack,
-    });
-    return sendJson(res, 500, { error: "Sync failed" });
+    if (status === 500) {
+      console.error("api/conversations:", {
+        message: e.message,
+        code: e.code,
+        constraint: e.constraint,
+        table: e.table,
+        column: e.column,
+        detail: e.detail,
+        hint: e.hint,
+        routine: e.routine,
+        statement: e.statement,
+        stack: e.stack,
+      });
+    }
+    return sendJson(res, status, body);
   }
 
   return sendJson(res, 405, { error: "Method not allowed" });

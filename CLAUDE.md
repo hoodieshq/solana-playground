@@ -94,8 +94,11 @@ changes. Asked to build something in the client, look there first.
 - **Chat threads share the code's IndexedDB volume**, as files under
   `/.config/chats/<threadId>.json` via `PgFs` -- not `localStorage`, which is
   already near its origin budget with `settings`, `wallet`, `theme` and
-  `flow.deploys`. `threadId` is the stable workspace id, so a rename keeps the
-  conversation.
+  `flow.deploys`. A thread has an id of its own; `/.config/chats/index.json`
+  (`PgThreadIndex`) maps the stable workspace id to the thread open on it, so
+  a rename keeps the conversation, and anything that acts on a workspace's
+  chat (a delete, "keep as new") goes through the index, never by workspace
+  id against storage.
 - **Chat messages are versioned, not immutable.** Every change to an existing
   item stamps `updatedAt` (`stamp` in `assistant/store.ts`); an item's version
   is `updatedAt ?? createdAt`. `appendMessages` upserts only a newer copy and

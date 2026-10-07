@@ -23,7 +23,10 @@ export {
   listMessages,
   listThreads,
   NotYours,
+  ThreadDeleted,
 } from "./model/conversations.mjs";
+
+export { DELETED_REASON, isDeletedScope } from "./model/deleted.mjs";
 
 export { getPool, isConfigured, isEnabled, query } from "./model/db.mjs";
 

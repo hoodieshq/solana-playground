@@ -4,6 +4,7 @@ import { uuid } from "../../../shared/lib/ids";
 
 import { PgChatStorage } from "./chat-storage";
 import { PgChatSync } from "./chat-sync";
+import type { PushOutcome } from "./chat-sync";
 import { PgSyncClient } from "./sync-client";
 import { PgThreadIndex } from "./thread-index";
 import { PgSession } from "../../auth";
@@ -174,9 +175,69 @@ describe("PgChatSync", () => {
     const unknown = uuid();
     await PgChatStorage.write(unknown, [item(1)]);
 
-    const ok = await PgChatSync.push(unknown);
+    const outcome = await PgChatSync.push(unknown);
 
-    expect(ok).toBe(false);
+    expect(outcome).toBe("failed");
+  });
+
+  describe("a thread the server has deleted", () => {
+    const refusedWith = (json: () => Promise<unknown>) =>
+      respondingWith(() => Promise.resolve({ ok: false, status: 410, json }));
+
+    // A 410 used to be `!ok`, so a thread deleted with its project was
+    // pushed and refused again on every turn. Only our own body counts:
+    // `thread-deleted` is acted on by forgetting the conversation, so a
+    // proxy's error page, a platform's 410 for a deleted deployment, or a
+    // body that names no tombstone must not read as one.
+    const cases: {
+      body: string;
+      json: () => Promise<unknown>;
+      outcome: PushOutcome;
+    }[] = [
+      {
+        body: "names the thread",
+        json: async () => ({ reason: "deleted", scope: "thread" }),
+        outcome: "thread-deleted",
+      },
+      {
+        body: "names the project",
+        json: async () => ({ reason: "deleted", scope: "project" }),
+        outcome: "project-deleted",
+      },
+      {
+        body: "names no scope",
+        json: async () => ({ reason: "deleted" }),
+        outcome: "failed",
+      },
+      {
+        body: "names a scope it does not know",
+        json: async () => ({ reason: "deleted", scope: "account" }),
+        outcome: "failed",
+      },
+      {
+        body: "is not ours",
+        json: async () => ({ error: "DEPLOYMENT_DELETED", scope: "thread" }),
+        outcome: "failed",
+      },
+      {
+        body: "cannot be read",
+        json: async () => {
+          throw new Error("not json");
+        },
+        outcome: "failed",
+      },
+    ];
+    // `forEach`, not `it.each`: the mocha types this project also loads
+    // shadow vitest's `it` and do not know `each`
+    cases.forEach(({ body, json, outcome }) => {
+      it(`reads a 410 whose body ${body} as ${outcome}`, async () => {
+        refusedWith(json);
+        await signedIn();
+        await PgChatStorage.write(threadId, [item(1)]);
+
+        expect(await PgChatSync.push(threadId)).toBe(outcome);
+      });
+    });
   });
 
   it("keeps the local thread when the push fails, so nothing is lost", async () => {
@@ -186,7 +247,7 @@ describe("PgChatSync", () => {
 
     const handed = await PgChatSync.pushAll();
 
-    expect(handed).toEqual({ pushed: [], complete: false });
+    expect(handed).toEqual({ handedOver: [], complete: false });
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
   });
 
@@ -308,7 +369,7 @@ describe("PgChatSync", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    expect(await PgChatSync.push(threadId)).toBe(false);
+    expect(await PgChatSync.push(threadId)).toBe("failed");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -412,7 +473,7 @@ describe("handing conversations over at sign-out", () => {
     await PgChatStorage.write(threadId, [item(1)]);
     mockFiles.set(`/.config/chats/${threadId}.json`, "{ not json");
 
-    expect(await PgChatSync.push(threadId)).toBe(false);
+    expect(await PgChatSync.push(threadId)).toBe("failed");
     expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/conversations",
       expect.anything()
@@ -423,7 +484,75 @@ describe("handing conversations over at sign-out", () => {
     accepted();
     await signedIn();
 
-    expect(await PgChatSync.push(await PgThreadIndex.ensure("w9"))).toBe(true);
+    expect(await PgChatSync.push(await PgThreadIndex.ensure("w9"))).toBe(
+      "pushed"
+    );
+  });
+
+  it("drops a thread the server closed under a live project, as handed over", async () => {
+    // The server will never take it again; keeping the file for the next
+    // user of this browser protects nothing. Counted as `failed`, one such
+    // thread kept every other thread on the device too.
+    respondingWith(() =>
+      Promise.resolve({
+        ok: false,
+        status: 410,
+        json: async () => ({ reason: "deleted", scope: "thread" }),
+      })
+    );
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.threadIds()).toEqual([]);
+  });
+
+  it("keeps a thread whose project was deleted, as the project is kept", async () => {
+    // `releaseLocalProjects` keeps a project that is waiting for the user's
+    // answer about a delete elsewhere, and "keep as new" carries its chat.
+    // Dropping the chat here handed that answer an empty conversation.
+    respondingWith(() =>
+      Promise.resolve({
+        ok: false,
+        status: 410,
+        json: async () => ({ reason: "deleted", scope: "project" }),
+      })
+    );
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.read(threadId)).toEqual([item(1)]);
+  });
+
+  it("drops a closed thread and keeps a deleted project's in one hand-over", async () => {
+    // Decided per thread: the one under a live project is handed over even
+    // though the hand-over as a whole is not complete
+    const underDeleted = await PgThreadIndex.ensure("w2");
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/sync") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ enabled: true, db: "ok" }),
+        });
+      }
+      const body = JSON.parse(String(init?.body));
+      const scope = body.threadId === underDeleted ? "project" : "thread";
+      return Promise.resolve({
+        ok: false,
+        status: 410,
+        json: async () => ({ reason: "deleted", scope }),
+      });
+    });
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+    await PgChatStorage.write(underDeleted, [item(2)]);
+
+    await PgChatSync.handOver();
+
+    expect(await PgChatStorage.threadIds()).toEqual([underDeleted]);
   });
 });
 

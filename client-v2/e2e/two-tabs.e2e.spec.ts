@@ -17,6 +17,7 @@ import { applyWrite } from "./fixtures";
 
 const LONG = { timeout: 60_000 };
 const ID = "5b0c6a4e-2222-4222-8222-222222222222";
+const OTHER_ID = "5b0c6a4e-3333-4333-8333-333333333333";
 const LIB = "src/lib.rs";
 
 interface Row {
@@ -29,12 +30,22 @@ interface Row {
 
 const fakeAccount = async (
   context: BrowserContext,
-  opts: { putDelayMs?: number; keepOthers?: boolean } = {}
+  opts: { putDelayMs?: number; keepOthers?: boolean; other?: boolean } = {}
 ) => {
   let tick = 0;
   const stamp = () =>
     new Date(Date.UTC(2026, 2, 1, 0, 0, ++tick)).toISOString();
 
+  // Older than `row`, so `Shared` is still the one each tab opens
+  const other: Row | null = opts.other
+    ? {
+        id: OTHER_ID,
+        name: "Other",
+        kind: "project",
+        updatedAt: stamp(),
+        snapshot: { files: { [LIB]: "// other\n" } },
+      }
+    : null;
   const row: Row = {
     id: ID,
     name: "Shared",
@@ -42,7 +53,12 @@ const fakeAccount = async (
     updatedAt: stamp(),
     snapshot: { files: { [LIB]: "// v0\n" } },
   };
-  const state = { conflicts: 0, rejectPuts: false };
+  const state = {
+    conflicts: 0,
+    rejectPuts: false,
+    deleted: false,
+    putsAfterDelete: 0,
+  };
   // With `keepOthers`, a project this browser creates is kept and listed. A
   // project uploaded and then missing from the list reads as deleted on
   // another device, and the next reconcile removes it here.
@@ -83,6 +99,15 @@ const fakeAccount = async (
         }
         return json(r, { updatedAt });
       }
+      if (state.deleted) {
+        // The tombstone, as the real endpoint reports it
+        state.putsAfterDelete++;
+        return json(
+          r,
+          { conflict: true, updatedAt: null, reason: "deleted" },
+          409
+        );
+      }
       if (opts.putDelayMs) {
         await new Promise((done) => setTimeout(done, opts.putDelayMs));
       }
@@ -98,21 +123,27 @@ const fakeAccount = async (
       row.updatedAt = stamp();
       return json(r, { updatedAt: row.updatedAt });
     }
-    if (req.method() === "DELETE") return json(r, {});
+    if (req.method() === "DELETE") {
+      if (new URL(req.url()).searchParams.get("id") === ID) {
+        state.deleted = true;
+      }
+      return json(r, { deleted: true });
+    }
 
     const id = new URL(req.url()).searchParams.get("id");
+    // The live rows, which is what both the list and a read answer from
+    const live: Row[] = [];
+    if (!state.deleted) live.push(row);
+    if (other) live.push(other);
+    for (const kept of others.values()) live.push(kept);
     const listing = (p: Row) => ({
       id: p.id,
       name: p.name,
       kind: p.kind,
       updatedAt: p.updatedAt,
     });
-    if (!id) {
-      const projects = [listing(row)];
-      for (const other of others.values()) projects.push(listing(other));
-      return json(r, { projects });
-    }
-    const found = id === ID ? row : others.get(id);
+    if (!id) return json(r, { projects: live.map(listing) });
+    const found = live.find((p) => p.id === id);
     return found ? json(r, { project: found }) : json(r, {}, 404);
   });
 
@@ -293,6 +324,37 @@ test("taking the other version replaces a file that is already open", async ({
   await expect.poll(() => openText(page), LONG).toContain("// theirs");
   expect(await openText(page)).not.toContain("// mine");
   await expect(editor(page)).not.toContainText("// mine");
+});
+
+test("a project deleted in one tab is not re-uploaded by the other", async ({
+  context,
+}) => {
+  test.setTimeout(180_000);
+  const { state } = await fakeAccount(context, { other: true });
+  const a = await context.newPage();
+  await openShared(a);
+  const b = await context.newPage();
+  await openShared(b);
+  await setVisible(b, false);
+
+  // Through the project switcher, the way a person would
+  const menu = await openMenu(a);
+  await menu.getByRole("button", { name: "Delete Shared" }).click();
+  await a.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect.poll(() => state.deleted, LONG).toBe(true);
+
+  // B still lists `Shared` from when it loaded, and the delete took the sync
+  // mark with it -- which read as a project this browser never uploaded. The
+  // upload met the tombstone, and B asked "keep this version or take the
+  // other?" about a project that no longer existed.
+  //
+  // The positive signal is B's reconcile finishing the delete: it moves B
+  // off `Shared`, which is what the list no longer has.
+  await setVisible(b, true);
+  await expect(switcher(b)).not.toContainText("Shared", LONG);
+  await expect(switcher(b)).toContainText("Other");
+  await expect(b.getByText("changed on another device")).toHaveCount(0);
+  expect(state.putsAfterDelete).toBe(0);
 });
 
 test("a file created in one tab appears in the other", async ({ context }) => {

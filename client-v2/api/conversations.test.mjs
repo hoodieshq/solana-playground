@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
+import { DELETED_REASON } from "../src/features/persistence/server.mjs";
+
 const load = async () => {
   // Fresh module per case: `db.mjs` memoises its pool at module scope
   const url = new URL("./conversations.mjs", import.meta.url);
@@ -121,6 +123,63 @@ describe("/api/conversations", () => {
         res
       );
       assert.equal(res.statusCode, 401);
+    });
+  });
+
+  describe("describeFailure", () => {
+    it("maps a thread that is somebody else's to 404", async () => {
+      const mod = await load();
+      const { NotYours } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status } = mod.describeFailure(new NotYours());
+
+      assert.equal(status, 404);
+    });
+
+    it("maps a thread deleted under a live project to 410, not 2xx", async () => {
+      // The client deletes its own copy of a thread once the server has
+      // taken it, so a 200 here lost the messages; a 404 reads as transient,
+      // so the thread would be pushed again on every turn
+      const mod = await load();
+      const { ThreadDeleted } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status, body } = mod.describeFailure(new ThreadDeleted("thread"));
+
+      assert.equal(status, 410);
+      assert.equal(body.reason, DELETED_REASON);
+      assert.equal(body.scope, "thread");
+    });
+
+    it("says when it was the project that was deleted", async () => {
+      // The client leaves such a thread for the user's answer about the
+      // project, rather than replacing it on the spot
+      const mod = await load();
+      const { ThreadDeleted } = await import(
+        "../src/features/persistence/model/conversations.mjs"
+      );
+
+      const { status, body } = mod.describeFailure(
+        new ThreadDeleted("project")
+      );
+
+      assert.equal(status, 410);
+      assert.equal(body.scope, "project");
+    });
+
+    it("keeps the driver's own text out of any other answer", async () => {
+      const mod = await load();
+      const { status, body } = mod.describeFailure(
+        Object.assign(new Error('column "secret" does not exist'), {
+          code: "42703",
+        })
+      );
+
+      assert.equal(status, 500);
+      assert.ok(!JSON.stringify(body).includes("secret"));
     });
   });
 

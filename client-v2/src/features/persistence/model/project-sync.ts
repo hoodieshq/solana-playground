@@ -1,4 +1,5 @@
 import { uuid } from "../../../shared/lib/ids";
+import { DELETED_REASON } from "./deleted.mjs";
 import { report } from "./diagnostics";
 import {
   baseAfterMerge,
@@ -14,6 +15,7 @@ import { PgSyncClient } from "./sync-client";
 import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
 import { legacyContentHash, PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
+import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgSession } from "../../auth";
 // Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
@@ -107,12 +109,17 @@ export type Resolution =
 /**
  * Which question a refusal is actually asking.
  *
- * The server answers two unrelated problems with a 409: a compare-and-swap
- * that missed, and a name another live project already holds. Only the first
- * carries `conflict: true`; the second names itself in `reason`. Branching on
- * the status alone would put "Keep this version / Take the other version" in
- * front of a name collision -- a question about versions, asked about
- * something that is not one, with no answer that does anything.
+ * The server answers three problems with a 409: a compare-and-swap that
+ * missed, a write refused by a tombstone, and a name another live project
+ * already holds. The first two carry `conflict: true`; the last two name
+ * themselves in `reason`. Branching on the status alone would put "Keep this
+ * version / Take the other version" in front of a name collision -- a
+ * question about versions, asked about something that is not one, with no
+ * answer that does anything -- and in front of a delete, where "take the
+ * other version" has nothing to take and "keep this version" quietly
+ * un-deletes the project for every device.
+ *
+ * A 413 comes here too, and is `too-large` whether or not its body says so.
  *
  * An unreadable body falls back to the older meaning, whose prompt is at least
  * about the right project.
@@ -121,11 +128,13 @@ const refusalKind = async (response: Response): Promise<ConflictKind> => {
   let reason: unknown = null;
   try {
     reason = (await response.json())?.reason;
-  } catch {
+  } catch (e) {
     // A refusal with no readable body is still a refusal
+    report("read refusal body", e);
   }
 
   if (reason === "name-taken") return "name-taken";
+  if (reason === DELETED_REASON) return "deleted-elsewhere";
   if (reason === "too-large" || response.status === 413) return "too-large";
   return "divergent";
 };
@@ -1297,6 +1306,9 @@ export class PgProjectSync {
           if (name) await PgExplorer.deleteWorkspace(name);
           await PgSyncMark.remove(projectId);
           await PgSyncBase.clear(projectId);
+          // The server tombstoned its conversation with it, and a tutorial
+          // started again under this id must not inherit the old chat
+          await PgThreadIndex.forget(projectId);
           PgProjectSync._clear(projectId);
           return true;
         }
@@ -1319,13 +1331,29 @@ export class PgProjectSync {
             return false;
           }
           const fresh = `${name} (kept)`;
+          const freshId = uuid();
           await PgExplorer.importWorkspace(fresh, {
-            id: uuid(),
+            id: freshId,
             files: snapshot.files,
           });
-          await PgExplorer.deleteWorkspace(name);
+          // The conversation is part of the work being kept. Under a fresh
+          // thread id, because the old one is tombstoned on the server
+          // along with the project, and would be refused for ever.
+          //
+          // Not carried, the original stays and the copy goes, so the
+          // question can be answered again: deleting the original would
+          // forget the conversation that failed to move.
+          if (!(await PgThreadIndex.carry({ from: projectId, to: freshId }))) {
+            await PgExplorer.deleteWorkspace(fresh);
+            return false;
+          }
+          // The mark before the workspace. The delete event settles every
+          // mark whose workspace is gone, and this project is being settled
+          // here: with its mark still present, the event deleted it on the
+          // server a second time and forgot its conversation by id.
           await PgSyncMark.remove(projectId);
           await PgSyncBase.clear(projectId);
+          await PgExplorer.deleteWorkspace(name);
           PgProjectSync._clear(projectId);
           await PgExplorer.switchWorkspace(fresh);
           return true;

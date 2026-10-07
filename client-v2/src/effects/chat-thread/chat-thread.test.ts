@@ -3,6 +3,7 @@ import { chatThread } from "./chat-thread";
 import { openThread } from "./open-thread";
 import { pushThread } from "./push-thread";
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
+import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../utils/explorer/explorer";
 import type { Disposable } from "../../utils/types";
@@ -33,7 +34,7 @@ describe("the chat-thread effect", () => {
 
   beforeEach(() => {
     effect = null;
-    push = vi.spyOn(PgChatSync, "push").mockResolvedValue(true);
+    push = vi.spyOn(PgChatSync, "push").mockResolvedValue("pushed");
     vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
     vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
     vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
@@ -103,7 +104,7 @@ describe("the chat-thread effect", () => {
 
   it("tries again on the next hide when the push failed", async () => {
     // The only retry conversations have
-    push.mockResolvedValue(false);
+    push.mockResolvedValue("failed");
     effect = chatThread();
     await settle();
 
@@ -366,7 +367,7 @@ describe("pushThread", () => {
     vi.spyOn(PgAssistant, "whenPersisted").mockReturnValue(
       new Promise<void>((resolve) => (landed = resolve))
     );
-    const push = vi.spyOn(PgChatSync, "push").mockResolvedValue(true);
+    const push = vi.spyOn(PgChatSync, "push").mockResolvedValue("pushed");
 
     const pushed = pushThread("t1");
     await settle();
@@ -375,5 +376,105 @@ describe("pushThread", () => {
     landed();
     await expect(pushed).resolves.toBe(true);
     expect(push).toHaveBeenCalledWith("t1");
+  });
+
+  describe("a thread the server has deleted", () => {
+    beforeEach(() => {
+      vi.spyOn(PgChatSync, "fetchThread").mockResolvedValue(null);
+      vi.spyOn(PgChatSync, "adoptAccountThread").mockResolvedValue(null);
+      vi.spyOn(PgAssistant, "loadThread").mockResolvedValue(undefined);
+      vi.spyOn(PgThreadIndex, "workspaceOf").mockResolvedValue("p1");
+      vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
+      vi.spyOn(PgThreadIndex, "ensure").mockResolvedValue("t2");
+      vi.spyOn(PgAssistant, "closeThread").mockImplementation(() => {});
+      vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+        "p1" as never
+      );
+    });
+
+    it("is forgotten and replaced when its project is still live", async () => {
+      // A tutorial started again on another device: the project row is
+      // live, the previous run's thread is not. It used to be pushed and
+      // refused again on every turn, for ever.
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+
+      await expect(pushThread("t1")).resolves.toBe(true);
+
+      expect(PgThreadIndex.forget).toHaveBeenCalledWith("p1");
+      // The fresh thread is opened the ordinary way, so it adopts the
+      // account's conversation for the restarted run if there is one
+      expect(PgAssistant.loadThread).toHaveBeenCalledWith("t2");
+      expect(PgChatSync.fetchThread).toHaveBeenCalledWith("t2");
+    });
+
+    it("moves the panel off it before its file goes", async () => {
+      // A message sent while `forget` waited on the lock was written into
+      // the file it then deleted, and vanished with the reply after it
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      const persisted = vi.spyOn(PgAssistant, "whenPersisted");
+
+      await pushThread("t1");
+
+      const [forgotten] = vi.mocked(PgThreadIndex.forget).mock
+        .invocationCallOrder;
+      const [closed] = vi.mocked(PgAssistant.closeThread).mock
+        .invocationCallOrder;
+      expect(closed).toBeLessThan(forgotten);
+      // The store's write chain is waited on again after the close: the
+      // first wait was before the push
+      expect(persisted.mock.invocationCallOrder[1]).toBeLessThan(forgotten);
+    });
+
+    it("stays owed when it could not be forgotten", async () => {
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      vi.mocked(PgThreadIndex.forget).mockResolvedValue(false);
+
+      await expect(pushThread("t1")).resolves.toBe(false);
+    });
+
+    it("is forgotten but not reopened when another workspace is open", async () => {
+      // The panel still names the thread, but the user has switched
+      // workspace and the switch has not reached it yet
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+      vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue(
+        "p2" as never
+      );
+
+      await pushThread("t1");
+
+      expect(PgThreadIndex.forget).toHaveBeenCalledWith("p1");
+      expect(PgAssistant.closeThread).not.toHaveBeenCalled();
+      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
+    });
+
+    it("is forgotten but not reopened when the panel has moved on", async () => {
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("thread-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t9");
+
+      await pushThread("t1");
+
+      expect(PgThreadIndex.forget).toHaveBeenCalledWith("p1");
+      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
+    });
+
+    it("is left alone when the project itself was deleted", async () => {
+      // The user is about to be asked about the project, and the answer
+      // settles the chat too: "keep as new" carries it, "delete" drops it.
+      // Forgetting it here lost the conversation before the question was
+      // on screen.
+      vi.spyOn(PgChatSync, "push").mockResolvedValue("project-deleted");
+      vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("t1");
+
+      // Owed, not settled: a tutorial restarted on this device revives the
+      // project with its own push, and the thread has to follow it
+      await expect(pushThread("t1")).resolves.toBe(false);
+
+      expect(PgThreadIndex.forget).not.toHaveBeenCalled();
+      expect(PgAssistant.loadThread).not.toHaveBeenCalled();
+    });
   });
 });
