@@ -45,6 +45,8 @@ class GoogleTagPlugin {
   }
 }
 
+const { sentryEnabled } = require("./scripts/sentry-gate.mjs");
+
 /**
  * Each tracker: whether this build carries it, and the files that hold its
  * code under `src/shared/lib`, each with the `-off` stub of the same shape
@@ -52,7 +54,7 @@ class GoogleTagPlugin {
  */
 const TRACKERS = [
   {
-    enabled: (env) => !!env.REACT_APP_SENTRY_DSN,
+    enabled: sentryEnabled,
     files: [["logger/providers/sentry.ts", "logger/providers/sentry-off.ts"]],
   },
   {
@@ -134,6 +136,14 @@ module.exports = {
 
       // A tracker this build leaves out adds no code. One it carries is not
       // swapped, so Sentry still initialises during the first render.
+      if (process.env.REACT_APP_SENTRY_DSN && !sentryEnabled(process.env)) {
+        console.warn(
+          `warning: Sentry is off for VERCEL_ENV=${
+            process.env.VERCEL_ENV ?? "(unset)"
+          }; ` +
+            "it reports from production, and from preview with SENTRY_PREVIEW_ENABLED=true"
+        );
+      }
       const swaps = trackerSwaps(process.env);
       if (swaps.size) webpackConfig.plugins.push(new SwapFilesPlugin(swaps));
 
