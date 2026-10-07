@@ -45,6 +45,64 @@ class GoogleTagPlugin {
   }
 }
 
+/**
+ * Each tracker: whether this build carries it, and the files that hold its
+ * code under `src/shared/lib`, each with the `-off` stub of the same shape
+ * that replaces it when the tracker is off.
+ */
+const TRACKERS = [
+  {
+    enabled: (env) => !!env.REACT_APP_SENTRY_DSN,
+    files: [["logger/providers/sentry.ts", "logger/providers/sentry-off.ts"]],
+  },
+  {
+    enabled: (env) => !!env.REACT_APP_GA_MEASUREMENT_ID,
+    files: [
+      ["telemetry/providers/ga4.ts", "telemetry/providers/ga4-off.ts"],
+      ["telemetry/google-analytics.tsx", "telemetry/google-analytics-off.tsx"],
+    ],
+  },
+];
+
+/**
+ * Absolute file -> its stub, for each tracker this build leaves out. Throws
+ * when a listed file is missing: a renamed file would otherwise be bundled.
+ */
+const trackerSwaps = (env) => {
+  const swaps = new Map();
+  for (const { enabled, files } of TRACKERS) {
+    if (enabled(env)) continue;
+    for (const pair of files) {
+      const [file, stub] = pair.map((p) =>
+        path.join(__dirname, "src/shared/lib", p)
+      );
+      for (const p of [file, stub]) {
+        if (!fs.existsSync(p)) {
+          throw new Error(`craco: ${p} is missing; update TRACKERS`);
+        }
+      }
+      swaps.set(file, stub);
+    }
+  }
+  return swaps;
+};
+
+/** Bundles a stub wherever a module resolves to a file in `swaps` */
+class SwapFilesPlugin {
+  constructor(swaps) {
+    this.swaps = swaps;
+  }
+
+  apply(compiler) {
+    compiler.hooks.normalModuleFactory.tap("SwapFilesPlugin", (factory) => {
+      factory.hooks.afterResolve.tap("SwapFilesPlugin", ({ createData }) => {
+        const stub = this.swaps.get(createData.resource);
+        if (stub) createData.resource = stub;
+      });
+    });
+  }
+}
+
 module.exports = {
   style: {
     postcss: {
@@ -74,27 +132,10 @@ module.exports = {
       // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
       warnAboutMissingObservabilityIds();
 
-      // A tracker without its id adds no code: each module that holds its
-      // code is swapped for a `-off` stub of the same shape. With the id
-      // nothing is swapped, so Sentry still initialises during the first render.
-      const offWhenUnset = (variable, modules) => {
-        if (process.env[variable]) return;
-        for (const [request, stub] of modules) {
-          webpackConfig.plugins.push(
-            new webpack.NormalModuleReplacementPlugin(
-              request,
-              path.join(__dirname, "src/shared/lib", stub)
-            )
-          );
-        }
-      };
-      offWhenUnset("REACT_APP_SENTRY_DSN", [
-        [/[\\/]providers[\\/]sentry$/, "logger/providers/sentry-off.ts"],
-      ]);
-      offWhenUnset("REACT_APP_GA_MEASUREMENT_ID", [
-        [/[\\/]providers[\\/]ga4$/, "telemetry/providers/ga4-off.ts"],
-        [/[\\/]google-analytics$/, "telemetry/google-analytics-off.tsx"],
-      ]);
+      // A tracker this build leaves out adds no code. One it carries is not
+      // swapped, so Sentry still initialises during the first render.
+      const swaps = trackerSwaps(process.env);
+      if (swaps.size) webpackConfig.plugins.push(new SwapFilesPlugin(swaps));
 
       // In <head> from the first byte, rather than once the bundle has run
       const gaId = process.env.REACT_APP_GA_MEASUREMENT_ID;
