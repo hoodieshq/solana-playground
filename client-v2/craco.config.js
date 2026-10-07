@@ -26,6 +26,25 @@ const warnAboutMissingObservabilityIds = () => {
   }
 };
 
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const { insertGoogleTag } = require("./scripts/google-tag.mjs");
+
+/** Writes Google's tag into index.html; added to the build only with an id */
+class GoogleTagPlugin {
+  constructor(id) {
+    this.id = id;
+  }
+
+  apply(compiler) {
+    compiler.hooks.compilation.tap("GoogleTagPlugin", (compilation) => {
+      HtmlWebpackPlugin.getHooks(compilation).beforeEmit.tap(
+        "GoogleTagPlugin",
+        (data) => ({ ...data, html: insertGoogleTag(data.html, this.id) })
+      );
+    });
+  }
+}
+
 module.exports = {
   style: {
     postcss: {
@@ -54,6 +73,10 @@ module.exports = {
     configure: (webpackConfig) => {
       // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
       warnAboutMissingObservabilityIds();
+
+      // In <head> from the first byte, rather than once the bundle has run
+      const gaId = process.env.REACT_APP_GA_MEASUREMENT_ID;
+      if (gaId) webpackConfig.plugins.push(new GoogleTagPlugin(gaId));
 
       // Resolve WASM and CommonJS
       webpackConfig.resolve.extensions.push(".wasm");
