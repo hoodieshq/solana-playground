@@ -62,7 +62,7 @@ npx shadcn@latest add @playground/playground-tokens
 npx shadcn@latest add @playground/stepper
 ```
 
-`@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) still come from the shadcn registry, which leaves out their `class-variance-authority` and `radix-ui` dependencies, so the items of ours that use them list those two in `registry.json`. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
+`@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`), and the ones the layout shell needs (`sidebar`, `resizable` and their parts), are registry items too, so an install reaches nothing outside the repo. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
 
 Current shadcn needs React 19: it passes `ref` as a plain prop, and React 17 drops it. So client-v2 moves to React 19 before the first component.
 
