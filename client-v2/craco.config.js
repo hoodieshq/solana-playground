@@ -74,6 +74,28 @@ module.exports = {
       // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
       warnAboutMissingObservabilityIds();
 
+      // A tracker without its id adds no code: each module that holds its
+      // code is swapped for a `-off` stub of the same shape. With the id
+      // nothing is swapped, so Sentry still initialises during the first render.
+      const offWhenUnset = (variable, modules) => {
+        if (process.env[variable]) return;
+        for (const [request, stub] of modules) {
+          webpackConfig.plugins.push(
+            new webpack.NormalModuleReplacementPlugin(
+              request,
+              path.join(__dirname, "src/shared/lib", stub)
+            )
+          );
+        }
+      };
+      offWhenUnset("REACT_APP_SENTRY_DSN", [
+        [/[\\/]providers[\\/]sentry$/, "logger/providers/sentry-off.ts"],
+      ]);
+      offWhenUnset("REACT_APP_GA_MEASUREMENT_ID", [
+        [/[\\/]providers[\\/]ga4$/, "telemetry/providers/ga4-off.ts"],
+        [/[\\/]google-analytics$/, "telemetry/google-analytics-off.tsx"],
+      ]);
+
       // In <head> from the first byte, rather than once the bundle has run
       const gaId = process.env.REACT_APP_GA_MEASUREMENT_ID;
       if (gaId) webpackConfig.plugins.push(new GoogleTagPlugin(gaId));
