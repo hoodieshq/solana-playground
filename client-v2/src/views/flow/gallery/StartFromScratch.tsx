@@ -3,7 +3,7 @@ import styled, { css } from "styled-components";
 
 import Img from "../../../components/Img";
 import Input from "../../../components/Input";
-import GradientButton from "../../../shared/ui/gradient-button";
+import GradientButton from "../../../components/GradientButton";
 import { PgExplorer, PgFramework, PgView } from "../../../utils";
 
 /**

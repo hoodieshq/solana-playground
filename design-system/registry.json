@@ -108,6 +108,10 @@
           "path": "src/components/ui/async-button.tsx",
           "type": "registry:ui"
         }
+      ],
+      "dependencies": [
+        "class-variance-authority",
+        "radix-ui"
       ]
     },
     {
@@ -128,7 +132,9 @@
       ],
       "dependencies": [
         "lucide-react",
-        "cn"
+        "cn",
+        "class-variance-authority",
+        "radix-ui"
       ]
     },
     {
@@ -147,7 +153,8 @@
         }
       ],
       "dependencies": [
-        "cn"
+        "cn",
+        "radix-ui"
       ]
     },
     {

@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import IdlActions from "./IdlActions";
 import Button from "../../../components/Button";
 import Link from "../../../components/Link";
-import GradientButton from "../../../shared/ui/gradient-button";
+import GradientButton from "../../../components/GradientButton";
 import {
   useBlockExplorer,
   useProgramInfo,

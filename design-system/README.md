@@ -38,18 +38,20 @@ The page ships with a snapshot of itself in `index.html`. Studio reads the speci
 
 ## Using ours in client-v2
 
+From `client-v2`, `yarn ds-add <name...>` does all of the below in one step: it builds the registry, serves it, installs with `--overwrite` and stops the server (`client-v2/CLAUDE.md`, "Components"). The manual route, for any other consumer:
+
 Installs come from the repo, not from the public site. Our items depend on each other as `@playground/<name>`, and the consumer says where `@playground` lives. Build the registry and serve it:
 
 ```bash
 npm run build:registry
-npm run registry:serve        # http://localhost:3010/r, PORT to change it
+npm run registry:serve        # http://127.0.0.1:3010/r, PORT to change it
 ```
 
 Map the namespace in the consumer's `components.json`:
 
 ```json
 "registries": {
-  "@playground": "http://localhost:3010/r/{name}.json"
+  "@playground": "http://127.0.0.1:3010/r/{name}.json"
 }
 ```
 
@@ -60,7 +62,7 @@ npx shadcn@latest add @playground/playground-tokens
 npx shadcn@latest add @playground/stepper
 ```
 
-`@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) still come from the shadcn registry. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
+`@playground/playground` installs everything at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) still come from the shadcn registry, which leaves out their `class-variance-authority` and `radix-ui` dependencies, so the items of ours that use them list those two in `registry.json`. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
 
 Current shadcn needs React 19: it passes `ref` as a plain prop, and React 17 drops it. So client-v2 moves to React 19 before the first component.
 

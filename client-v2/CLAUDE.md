@@ -70,21 +70,33 @@ Both live in the slice that owns the data, under `ui/`. Design-system
 components keep their shadcn names and never get the `Base` prefix.
 
 **`shared/ui` is installed, never edited by hand.** A change to a shared
-component is made in the design system and reinstalled with the reinstall
-script that arrives with the design-system package (HOO-1852), which
-overwrites the installed files. `shared/ui/gradient-button` is the one
-hand-written component there. It leaves `shared/ui` the next time it is
-touched: replaced by the design system's button, or moved to a layer of its
-own by the UI move rule.
+component is made in the design system and reinstalled, which overwrites the
+installed files:
+
+```sh
+yarn ds-add stepper callout     # install or reinstall, by registry name
+yarn ds-add stepper --dry-run   # what would be written; --diff, --view too
+```
+
+The script builds the registry in `../design-system` (run `npm ci` there
+once, and again whenever its lockfile changes), serves it on the port
+`components.json` maps `@playground` to for as long as the install runs, and
+formats what lands with this package's prettier. Names are the registry's
+(`design-system/registry.json`); `components.json` maps `@playground` to that
+server and the aliases to `@/shared/ui`, `@/shared/lib` and
+`@/shared/lib/hooks`. Nothing comes from the design system's public site;
+the components' npm dependencies are added to `package.json` from npm. The
+stock shadcn parts a few of ours build on (`button`, `spinner`, `tooltip`)
+still come from `ui.shadcn.com`.
+
+The hand-written `GradientButton` is not in `shared/ui`: it lives in
+`components/GradientButton`, beside the legacy `Button` it wraps, until the
+design system's brand button replaces both.
 
 One exception: the design system's components named after product parts
 (the catalogue lists them: composer, console drawer, step rail and the rest)
 are installed into `shared/ui`. They only draw what they are given; their
 connected versions live in the slice that owns the data.
-
-**Until HOO-1850 (React 19) merges:** Tailwind utilities and tokens only. No
-design-system components, because they pass `ref` as a plain prop, which
-React 17 drops.
 
 ## What survives every move
 
