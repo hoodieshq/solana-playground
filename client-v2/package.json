@@ -17,6 +17,7 @@
     "@metaplex-foundation/mpl-candy-machine-core": "*",
     "@metaplex-foundation/mpl-token-metadata": "*",
     "@project-serum/anchor": "^0.23.0",
+    "@sentry/node": "11.4.0",
     "@sentry/react": "^11.4.0",
     "@solana-playground/anchor-cli": "../wasm/anchor-cli/pkg",
     "@solana-playground/playnet": "../wasm/pkgs/playnet",

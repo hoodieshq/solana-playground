@@ -55,6 +55,19 @@ export const observabilityEnv = () => ({
 });
 
 /**
+ * Sentry for the API functions. Full names, since `sentryEnabled`
+ * (scripts/sentry-gate.mjs) looks each up by name. `VERCEL_*` are Vercel's
+ * system variables, present at runtime.
+ */
+export const sentryEnv = () => ({
+  REACT_APP_SENTRY_DSN: read("REACT_APP_SENTRY_DSN"),
+  SENTRY_PREVIEW_ENABLED: read("SENTRY_PREVIEW_ENABLED"),
+  SENTRY_TRACES_SAMPLE_RATE: read("SENTRY_TRACES_SAMPLE_RATE"),
+  VERCEL_ENV: read("VERCEL_ENV"),
+  VERCEL_GIT_COMMIT_SHA: read("VERCEL_GIT_COMMIT_SHA"),
+});
+
+/**
  * Better Auth's secret and GitHub credentials, and the origins it can build
  * URLs from. `VERCEL_URL` is Vercel's own hostname for the deployment,
  * without a scheme.

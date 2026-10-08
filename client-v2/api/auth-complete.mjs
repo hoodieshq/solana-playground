@@ -15,6 +15,7 @@
  * popup open and the app waiting until its timeout.
  */
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import {
   AUTH_CHANNEL_NAME,
   AUTH_MESSAGE_TYPE,
@@ -27,7 +28,7 @@ const NONCE_PATTERN = /^[0-9a-f]{1,64}$/;
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default function handler(req, res) {
+function handler(req, res) {
   warnAboutMissingObservabilityIds();
   const url = new URL(req.url, "http://localhost");
   const raw = url.searchParams.get("nonce") ?? "";
@@ -75,3 +76,5 @@ const page = (payload) =>
   `}` +
   `</script>` +
   `<p>You can close this window.</p>`;
+
+export default withObservability("auth-complete", handler);

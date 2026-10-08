@@ -26,6 +26,85 @@ const warnAboutMissingObservabilityIds = () => {
   }
 };
 
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const { insertGoogleTag } = require("./scripts/google-tag.mjs");
+
+/** Writes Google's tag into index.html; added to the build only with an id */
+class GoogleTagPlugin {
+  constructor(id) {
+    this.id = id;
+  }
+
+  apply(compiler) {
+    compiler.hooks.compilation.tap("GoogleTagPlugin", (compilation) => {
+      HtmlWebpackPlugin.getHooks(compilation).beforeEmit.tap(
+        "GoogleTagPlugin",
+        (data) => ({ ...data, html: insertGoogleTag(data.html, this.id) })
+      );
+    });
+  }
+}
+
+const { sentryEnabled } = require("./scripts/sentry-gate.mjs");
+
+/**
+ * Each tracker: whether this build carries it, and the files that hold its
+ * code under `src/shared/lib`, each with the `-off` stub of the same shape
+ * that replaces it when the tracker is off.
+ */
+const TRACKERS = [
+  {
+    enabled: sentryEnabled,
+    files: [["logger/providers/sentry.ts", "logger/providers/sentry-off.ts"]],
+  },
+  {
+    enabled: (env) => !!env.REACT_APP_GA_MEASUREMENT_ID,
+    files: [
+      ["telemetry/providers/ga4.ts", "telemetry/providers/ga4-off.ts"],
+      ["telemetry/google-analytics.tsx", "telemetry/google-analytics-off.tsx"],
+    ],
+  },
+];
+
+/**
+ * Absolute file -> its stub, for each tracker this build leaves out. Throws
+ * when a listed file is missing: a renamed file would otherwise be bundled.
+ */
+const trackerSwaps = (env) => {
+  const swaps = new Map();
+  for (const { enabled, files } of TRACKERS) {
+    if (enabled(env)) continue;
+    for (const pair of files) {
+      const [file, stub] = pair.map((p) =>
+        path.join(__dirname, "src/shared/lib", p)
+      );
+      for (const p of [file, stub]) {
+        if (!fs.existsSync(p)) {
+          throw new Error(`craco: ${p} is missing; update TRACKERS`);
+        }
+      }
+      swaps.set(file, stub);
+    }
+  }
+  return swaps;
+};
+
+/** Bundles a stub wherever a module resolves to a file in `swaps` */
+class SwapFilesPlugin {
+  constructor(swaps) {
+    this.swaps = swaps;
+  }
+
+  apply(compiler) {
+    compiler.hooks.normalModuleFactory.tap("SwapFilesPlugin", (factory) => {
+      factory.hooks.afterResolve.tap("SwapFilesPlugin", ({ createData }) => {
+        const stub = this.swaps.get(createData.resource);
+        if (stub) createData.resource = stub;
+      });
+    });
+  }
+}
+
 module.exports = {
   style: {
     postcss: {
@@ -54,6 +133,23 @@ module.exports = {
     configure: (webpackConfig) => {
       // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
       warnAboutMissingObservabilityIds();
+
+      // A tracker this build leaves out adds no code. One it carries is not
+      // swapped, so Sentry still initialises during the first render.
+      if (process.env.REACT_APP_SENTRY_DSN && !sentryEnabled(process.env)) {
+        console.warn(
+          `warning: Sentry is off for VERCEL_ENV=${
+            process.env.VERCEL_ENV ?? "(unset)"
+          }; ` +
+            "it reports from production, and from preview with SENTRY_PREVIEW_ENABLED=true"
+        );
+      }
+      const swaps = trackerSwaps(process.env);
+      if (swaps.size) webpackConfig.plugins.push(new SwapFilesPlugin(swaps));
+
+      // In <head> from the first byte, rather than once the bundle has run
+      const gaId = process.env.REACT_APP_GA_MEASUREMENT_ID;
+      if (gaId) webpackConfig.plugins.push(new GoogleTagPlugin(gaId));
 
       // Resolve WASM and CommonJS
       webpackConfig.resolve.extensions.push(".wasm");

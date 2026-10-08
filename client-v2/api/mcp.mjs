@@ -21,6 +21,7 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import { mcpExplorerEnv } from "../src/shared/config/server-env.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
@@ -203,7 +204,7 @@ const callTool = async (id, ids, configured, params) => {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
   warnAboutMissingObservabilityIds();
   const configured = upstreams();
 
@@ -261,3 +262,5 @@ export default async function handler(req, res) {
     return rpcError(res, id, -32603, e.message);
   }
 }
+
+export default withObservability("mcp", handler);
