@@ -16,6 +16,7 @@ import {
   PgSettings,
   PgTerminal,
   PgTheme,
+  resolveTextMateTheme,
 } from "../../../utils";
 import {
   useAsyncEffect,
@@ -37,15 +38,6 @@ const resolveEditorColors = (colors: Record<string, string>) =>
       color === "inherit" ? TRANSPARENT : resolveColor(color),
     ])
   );
-
-/** TextMate rules carry colours too, and the grammars cannot read variables */
-const resolveRule = <T extends { foreground?: string; background?: string }>(
-  settings: T
-): T => ({
-  ...settings,
-  ...(settings.foreground && { foreground: resolveColor(settings.foreground) }),
-  ...(settings.background && { background: resolveColor(settings.background) }),
-});
 
 const Monaco = () => {
   const [editor, setEditor] = useState<monaco.editor.IStandaloneCodeEditor>();
@@ -187,15 +179,12 @@ const Monaco = () => {
     monaco.editor.setTheme(monacoThemeName);
 
     // Initialize language grammars and configurations
-    const textMate = PgTheme.convertToTextMateTheme(theme);
+    const textMate = resolveTextMateTheme(
+      PgTheme.convertToTextMateTheme(theme),
+      resolveColor
+    );
     const { dispose } = await PgCommon.transition(() => {
-      return initLanguages({
-        ...textMate,
-        settings: textMate.settings.map((rule) => ({
-          ...rule,
-          settings: resolveRule(rule.settings),
-        })),
-      });
+      return initLanguages(textMate);
     });
 
     setIsThemeSet(true);

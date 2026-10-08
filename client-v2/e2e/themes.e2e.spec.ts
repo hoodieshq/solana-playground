@@ -114,6 +114,28 @@ test.describe("client-v2-themes", () => {
     await expect(page.getByText(/theme was removed/)).toHaveCount(0);
   });
 
+  test("client-v2-themes: Code blocks in Markdown keep their syntax colours", async ({
+    page,
+  }) => {
+    // A tutorial page renders Markdown through the same CodeBlock as the
+    // assistant's answers, and needs no backend
+    await page.goto("/tutorials/hello-anchor/1");
+    const code = page.locator("pre.shiki").first();
+    await expect(code).toBeVisible();
+
+    const colours = () =>
+      code.evaluate(
+        (pre) =>
+          new Set(
+            [...pre.querySelectorAll<HTMLElement>("span[style]")].map(
+              (span) => span.style.color
+            )
+          ).size
+      );
+    // One colour means the grammar got no theme colours at all
+    await expect.poll(colours).toBeGreaterThan(1);
+  });
+
   test("client-v2-themes: Theme change with a file open", async ({
     seededPage: page,
   }) => {
