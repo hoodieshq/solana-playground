@@ -29,13 +29,13 @@ depends on these facts, read at
 
 Measurements on macOS at `b1bf2cf`, one run each:
 
-| Step                                                                   | Result                    |
+| Step | Result |
 | ---------------------------------------------------------------------- | ------------------------- |
-| `syn-file-expand-cli` 0.2.0 install                                    | 14 s                      |
-| `std`, `alloc`, `core` from `nightly-2022-12-12` with 0.2.0            | 2.1 MB, 1.0 MB, 10.3 MB   |
+| `syn-file-expand-cli` 0.2.0 install | 14 s |
+| `std`, `alloc`, `core` from `nightly-2022-12-12` with 0.2.0 | 2.1 MB, 1.0 MB, 10.3 MB |
 | `cargo fetch --locked` of `server/programs` into an empty `CARGO_HOME` | 796 MB, about 420 MB peak |
-| `generate-crates` after that fetch                                     | 85 files, 0 skipped       |
-| The same fetch on a filled registry                                    | 0.25 s                    |
+| `generate-crates` after that fetch | 85 files, 0 skipped |
+| The same fetch on a filled registry | 0.25 s |
 
 ### Upstream reference
 
@@ -50,12 +50,12 @@ was at `3fb888f`, and
 [`assets`](https://github.com/solana-playground/assets/commit/7fa9f326867f48f7e3abf47494d9a1849beff01f)
 at `7fa9f32`; neither contains these files.
 
-| File                                         | Bytes     | SHA-256                                                            | `ETag`                             | `Last-Modified`               |
+| File | Bytes | SHA-256 | `ETag` | `Last-Modified` |
 | -------------------------------------------- | --------- | ------------------------------------------------------------------ | ---------------------------------- | ----------------------------- |
-| `https://beta.solpg.io/crates/core.rs`       | 2,879,532 | `8efecd687c73dc8c1c2dc6972da42ef33568bf9e1b532a4f9da53bd726c1d764` | `187e6243e4e0a5b1699cd18815ef3a66` | Fri, 21 Aug 2026 18:42:20 GMT |
-| `https://beta.solpg.io/crates/alloc.rs`      | 815,113   | `83ce2a8d81dfa75b7c2248e55ae71799f39dbc7870eb360f7553d5562fb99078` | `31d1fe7d4c8d9af37190e9dac52d739e` | Fri, 21 Aug 2026 18:42:18 GMT |
-| `https://beta.solpg.io/crates/std.rs`        | 1,509,878 | `c1c2b7cbf5f597e1bdc89fe2cd2eb916c48fc941aa00de20031c123357f8045f` | `a3de96aced38def4f40687718f6cad32` | Fri, 21 Aug 2026 18:42:23 GMT |
-| `https://beta.solpg.io/crates/versions.json` | 728       | `36a5637374859fd5ee9facab6c91666c4ef164e14048e3ff33849d35b56fcfe5` | `09d9d359d686cb3c8669de38f4edcb16` | Fri, 21 Aug 2026 18:42:24 GMT |
+| `https://beta.solpg.io/crates/core.rs` | 2,879,532 | `8efecd687c73dc8c1c2dc6972da42ef33568bf9e1b532a4f9da53bd726c1d764` | `187e6243e4e0a5b1699cd18815ef3a66` | Fri, 21 Aug 2026 18:42:20 GMT |
+| `https://beta.solpg.io/crates/alloc.rs` | 815,113 | `83ce2a8d81dfa75b7c2248e55ae71799f39dbc7870eb360f7553d5562fb99078` | `31d1fe7d4c8d9af37190e9dac52d739e` | Fri, 21 Aug 2026 18:42:18 GMT |
+| `https://beta.solpg.io/crates/std.rs` | 1,509,878 | `c1c2b7cbf5f597e1bdc89fe2cd2eb916c48fc941aa00de20031c123357f8045f` | `a3de96aced38def4f40687718f6cad32` | Fri, 21 Aug 2026 18:42:23 GMT |
+| `https://beta.solpg.io/crates/versions.json` | 728 | `36a5637374859fd5ee9facab6c91666c4ef164e14048e3ff33849d35b56fcfe5` | `09d9d359d686cb3c8669de38f4edcb16` | Fri, 21 Aug 2026 18:42:24 GMT |
 
 To check whether upstream has replaced the files, compare the SHA-256 of a
 fresh download with this table.

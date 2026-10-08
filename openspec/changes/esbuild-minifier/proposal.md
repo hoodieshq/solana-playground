@@ -15,12 +15,12 @@ four are minified at once. On a 16-core machine the webpack process peaked at
 Cold production builds, measured once each on the same 16-core machine with
 the Vercel `NODE_OPTIONS`:
 
-| Minifier                       | Time | Peak memory | JS gzip        |
+| Minifier | Time | Peak memory | JS gzip |
 | ------------------------------ | ---- | ----------- | -------------- |
-| Terser, one worker per core    | 55 s | 9.6 GB      | 5.43 MB        |
-| Terser, `parallel: 2`          | 67 s | 6.3 GB      | 5.43 MB        |
-| Terser, `compress: false`      | 54 s | 5.8 GB      | 5.63 MB (+4%)  |
-| esbuild, `keepNames`, `es2017` | 47 s | 4.6 GB      | 6.30 MB (+16%) |
+| Terser, one worker per core | 55 s | 9.6 GB | 5.43 MB |
+| Terser, `parallel: 2` | 67 s | 6.3 GB | 5.43 MB |
+| Terser, `compress: false` | 54 s | 5.8 GB | 5.63 MB (+4%) |
+| esbuild, `keepNames`, `es2017` | 47 s | 4.6 GB | 6.30 MB (+16%) |
 
 We choose esbuild. It builds fastest and with the least memory, and it moves
 the build towards a modern, native toolchain rather than tuning the JavaScript
