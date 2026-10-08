@@ -11,7 +11,11 @@ import type {
   Highlight,
 } from "./interface";
 import { applyThemeMode } from "./mode";
+import { removedThemeNotice, resolveSavedTheme } from "./saved-theme";
+import { createLogger } from "../../shared/lib/logger";
 import type { ValueOf } from "../types";
+
+const log = createLogger("theme:saved");
 
 export class PgTheme {
   /** Current theme */
@@ -29,12 +33,11 @@ export class PgTheme {
   /** Theme key in localStorage */
   private static readonly _THEME_KEY = "theme";
 
-  /** One-time storage migration flag for the "Solana V2" default switch.
-   * Bumping the suffix re-runs the reset once in every existing profile. */
-  private static readonly _MIGRATION_KEY = "theme-migration-solana-v2-r2";
-
-  /** Superseded migration flags, removed on the next `set` */
-  private static readonly _STALE_MIGRATION_KEYS = ["theme-migration-solana-v2"];
+  /** Flags of the retired "Solana V2" default migration, cleared on load */
+  private static readonly _RETIRED_KEYS = [
+    "theme-migration-solana-v2",
+    "theme-migration-solana-v2-r2",
+  ];
 
   /** Font key in localStorage */
   private static readonly _FONT_KEY = "font";
@@ -113,22 +116,17 @@ export class PgTheme {
     const defaultTheme = this.themes.find((t) => t.isDefault)!;
     const defaultFont = this.fonts.find((f) => f.isDefault)!;
 
-    // Fork migration: the default theme changed to "Solana V2". The previous
-    // default was auto-written to storage on first load (see the `setItem`
-    // below), so without this one-time reset no existing browser would ever
-    // see the new default. Explicitly choosing "Playground" afterwards sticks,
-    // because the migration flag stays set.
-    if (!localStorage.getItem(PgTheme._MIGRATION_KEY)) {
-      localStorage.setItem(PgTheme._MIGRATION_KEY, "1");
-      if (localStorage.getItem(PgTheme._THEME_KEY) === "Playground") {
-        localStorage.removeItem(PgTheme._THEME_KEY);
-      }
-      for (const key of PgTheme._STALE_MIGRATION_KEYS) {
-        localStorage.removeItem(key);
-      }
+    const saved = resolveSavedTheme(localStorage.getItem(this._THEME_KEY));
+    if (saved.removed) {
+      removedThemeNotice.hold(saved.removed);
+      log.info("saved theme was removed, falling back to Dark", {
+        context: { removed: saved.removed },
+      });
     }
+    for (const key of PgTheme._RETIRED_KEYS) localStorage.removeItem(key);
+
     const { themeName, fontFamily } = PgCommon.setDefault(params, {
-      themeName: localStorage.getItem(this._THEME_KEY) ?? defaultTheme.name,
+      themeName: saved.name,
       fontFamily: localStorage.getItem(this._FONT_KEY) ?? defaultFont.family,
     });
 
@@ -255,6 +253,14 @@ export class PgTheme {
       cb,
       PgTheme._font ? { value: PgTheme._font.family } : undefined
     );
+  }
+
+  /**
+   * The theme a fallback replaced on this load, once. The start-up effect
+   * `themeNotice` shows it; every later call returns `null`.
+   */
+  static takeRemovedThemeNotice() {
+    return removedThemeNotice.take();
   }
 
   /**
