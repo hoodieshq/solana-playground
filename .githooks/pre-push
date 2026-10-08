@@ -9,4 +9,5 @@ if [ ! -d node_modules ]; then
   echo "pre-push: client-v2/node_modules missing; skipping check" >&2
   exit 0
 fi
-yarn --silent check
+# `run` is required: yarn 1's built-in `check` shadows the script of that name
+yarn --silent run check
