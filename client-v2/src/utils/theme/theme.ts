@@ -778,7 +778,6 @@ export class PgTheme {
   /** Set default state colors */
   private static _stateColors() {
     const state = this._theme.colors.state;
-    const theme = this._themeReady;
 
     state.disabled.bg ??= alpha(state.disabled.color, "low");
     state.error.bg ??= alpha(state.error.color, "low");
