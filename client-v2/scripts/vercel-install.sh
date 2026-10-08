@@ -39,7 +39,7 @@ wasm_source_key() {
 report_remote_credentials() {
   local name
   for name in VERCEL_ARTIFACTS_TOKEN VERCEL_ARTIFACTS_OWNER; do
-    if [ -n "${!name:-}" ]; then echo ">>> remote cache: $name set"; else echo ">>> remote cache: $name unset"; fi
+    if [ -n "${!name:-}" ]; then echo ">>> Remote Cache: $name set"; else echo ">>> Remote Cache: $name unset"; fi
   done
 }
 
@@ -73,7 +73,7 @@ remote_upload() {
   remote_enabled || return 0
   remote_curl -X PUT -H 'Content-Type: application/octet-stream' \
     --data-binary @"$2" -o /dev/null "$(remote_url "$1")" \
-    || echo ">>> wasm cache upload failed; the next build with these sources rebuilds" >&2
+    || echo ">>> wasm packages: Remote Cache upload failed; the next build with these sources rebuilds" >&2
 }
 
 build_wasm_packages() {
@@ -107,13 +107,13 @@ restore_wasm_packages() {
   local key="$1" archive="$WASM_CACHE/$1.tar"
 
   if [ -f "$archive" ]; then
-    echo ">>> wasm cache HIT, local ($key)"
+    echo ">>> wasm packages: HIT in Build Cache ($key)"
     # A build restored from the build cache seeds the remote cache when it lacks the tar.
     remote_has "$key" || remote_upload "$key" "$archive"
   elif remote_fetch "$key" "$archive"; then
-    echo ">>> wasm cache HIT, remote ($key)"
+    echo ">>> wasm packages: HIT in Remote Cache ($key)"
   else
-    echo ">>> wasm cache MISS ($key): building wasm packages"
+    echo ">>> wasm packages: MISS in Build Cache and Remote Cache ($key), building"
     build_wasm_packages
     pack_wasm_packages "$archive"
     # Uploaded before yarn install and the client build, so a build that later
@@ -131,7 +131,7 @@ install_node_modules() {
   key=$(cat yarn.lock package.json | sha256 | cut -d' ' -f1)-$1-$(node --version)
 
   if [ -f "$INSTALL_MARK" ] && [ "$(cat "$INSTALL_MARK")" = "$key" ]; then
-    echo ">>> node_modules up to date, skipping yarn install"
+    echo ">>> node_modules: current copy in Build Cache, skipping yarn install"
     return
   fi
   yarn install --frozen-lockfile
