@@ -422,10 +422,10 @@ const TAKE_ICON = { left: ChevronsRight, right: ChevronsLeft } as const
 /* A side's two controls in order, mirrored about the result: take sits
    nearest it, so this device's read × » and the other device's « ×. Render
    them in this order so focus moves the way the eye does */
-const mergeHunkOrder = {
+const mergeHunkOrder: Record<"left" | "right", readonly ["take" | "dismiss", "take" | "dismiss"]> = {
   left: ["dismiss", "take"],
   right: ["take", "dismiss"],
-} as const satisfies Record<"left" | "right", readonly ("take" | "dismiss")[]>
+}
 
 /* » takes this device's lines, « the other device's; × dismisses either.
    Lay a side's pair out by mergeHunkOrder */
