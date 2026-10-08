@@ -1,26 +1,41 @@
 // Fails when a colour literal appears in `src/` outside the token bridge.
-// Every colour comes from the design system's tokens (HOO-1802); this keeps
-// a new literal from landing quietly. Run: `yarn check-colors`.
+// Every colour comes from the design system's tokens; this keeps a new
+// literal from landing quietly. Run: `yarn check-colors`. Named colours
+// (`white`, `red`) are not caught: the words are too common in code to tell
+// apart from a colour without parsing CSS.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), "../src");
 
-/** A hex colour (not an HTML entity like `&#8592;`), or `rgb(`/`rgba(` */
-const COLOR = /(?<!&)#[0-9a-fA-F]{3,8}\b|\brgba?\(/g;
+/**
+ * A hex colour (not an HTML entity like `&#8592;`), or the start of a CSS
+ * colour function
+ */
+const COLOR =
+  /(?<!&)#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|\bcolor\(srgb/g;
 
 /** Where a colour literal belongs, relative to `src/` */
 const ALLOWED = [
   // The installed tokens, never edited by hand
   /^app\/styles\/playground-[a-z]+\.css$/,
-  // Hex for engines that cannot read CSS variables (Monaco, xterm)
+  // The resolver's own sentinel and transparent, and its parsing tests
   /^shared\/lib\/css-color\//,
   // Third-party logos keep their own colours on every ground
   /^languages\//,
 ];
 
-const EXTENSIONS = new Set([".ts", ".tsx", ".css", ".svg", ".js", ".jsx"]);
+const EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".css",
+  ".svg",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".html",
+]);
 
 export const isAllowed = (relPath) => ALLOWED.some((re) => re.test(relPath));
 

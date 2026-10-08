@@ -18,6 +18,22 @@ test("finds hex, rgb() and rgba()", () => {
   ]);
 });
 
+test("finds the other colour functions", () => {
+  const text = [
+    "a: hsl(0 0% 100%);",
+    "b: hsla(0, 0%, 0%, 0.5);",
+    "c: oklch(0.7 0.1 200);",
+    "d: color(srgb 1 0 0);",
+    "e: hwb(0 0% 0%); lab(50% 0 0); lch(50% 0 0); oklab(0.5 0 0);",
+    "fine: resolveColor(x); colorMix(a);",
+  ].join("\n");
+
+  assert.deepEqual(
+    findColors(text).map((hit) => hit.match),
+    ["hsl(", "hsla(", "oklch(", "color(srgb", "hwb(", "lab(", "lch(", "oklab("]
+  );
+});
+
 test("ignores HTML entities", () => {
   assert.deepEqual(findColors("<>&#8592;&#10003;</>"), []);
 });
