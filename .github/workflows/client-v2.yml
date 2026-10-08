@@ -118,6 +118,9 @@ jobs:
       - name: Check format
         run: yarn check-format
 
+      - name: Check Markdown
+        run: yarn check-md
+
       # The production build lints only what webpack bundles. This step also
       # covers tests, `api/` and `e2e/`. Only errors fail it: the review
       # rules in `eslintConfig` are errors, and the legacy code still holds

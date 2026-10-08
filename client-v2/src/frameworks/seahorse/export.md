@@ -2,31 +2,31 @@
 
 - Install tools
 
-Instructions on how to install [Seahorse](https://www.seahorse.dev) can be found [here](https://www.seahorse.dev/introduction/installation).
+Instructions on how to install [Seahorse](https://www.seahorse.dev) can be found in the [Seahorse installation guide](https://www.seahorse.dev/introduction/installation).
 
 - Install dependencies
 
 Extract the zip file in your project's directory and run:
 
-```
+```sh
 yarn
 ```
 
 - Build
 
-```
+```sh
 seahorse build
 ```
 
 - Test
 
-```
+```sh
 anchor test
 ```
 
 - Run client
 
-```
+```sh
 anchor run client
 ```
 
