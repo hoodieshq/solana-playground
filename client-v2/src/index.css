@@ -13,6 +13,60 @@
 @source "./";
 
 /*
+ * The design system's components in `shared/ui` (`yarn ds-add`): the
+ * enter/exit animations, shadcn's `data-open`/`data-closed` variants that
+ * Radix's `data-state` needs, and the tokens with their Tailwind theme. The
+ * tokens are the design system's palette, not the legacy themes', until the
+ * token bridge (HOO-1802); `.dark` is the product's ground.
+ */
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./styles/playground-tokens.css";
+@import "./styles/playground-theme.css";
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * The resolve view's hunk lines in Monaco, which keeps only plain class
+ * names on a decoration (`hunkLineClass` in features/persistence). Each is
+ * `mergeHunkVariants`' look for that state, so the editors and the ribbons
+ * change colour together; `hunk-class.test.ts` checks they still match.
+ */
+.pg-merge-hunk-conflict {
+  @apply bg-error/12 shadow-[inset_2px_0_0_var(--color-error)];
+}
+.pg-merge-hunk-resolved {
+  @apply bg-success/10 shadow-[inset_2px_0_0_var(--color-success)];
+}
+.pg-merge-hunk-dismissed {
+  @apply bg-muted-foreground/8 shadow-[inset_2px_0_0_var(--color-muted-foreground)];
+}
+
+/*
+ * Without preflight, a design-system element would keep the browser's
+ * button face and border. This resets those elements only, as the design
+ * system's `inject.css` does for pages not built on it; `:where` keeps it
+ * at no specificity, so every utility still wins.
+ */
+@layer base {
+  :where([data-slot], [data-slot] *, [data-slot] ::before, [data-slot]
+      ::after) {
+    border: 0 solid;
+  }
+  :where([data-slot]) {
+    font-family: var(--font-text);
+    -webkit-font-smoothing: antialiased;
+  }
+  :where([data-slot] button, [data-slot]
+      input, button[data-slot], input[data-slot]) {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    background-color: transparent;
+    border-radius: 0;
+  }
+}
+
+/*
  * This file's own reset sits in `base`, below `utilities`. Unlayered CSS
  * beats every layer, so left outside it the `*` rule would silently cancel
  * `p-*` and `m-*` on every element, and the `a` rule the text colour and
