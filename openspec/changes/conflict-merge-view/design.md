@@ -155,7 +155,7 @@ parts with `data-slot` names:
 | `MergePanes`                                                           | pane, ribbon, pane, ribbon, pane; below `md` one pane, picked by `MergePaneTabs`             |
 | `MergePane side`, `MergePaneHeader`, `MergePaneBody`                   | label, lock on read-only sides, an empty slot for the app's editor                           |
 | `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`               |
-| `MergeHunkActions`, `MergeHunkAction`                                  | `»` `«` `×` icon buttons with their accessible names                                         |
+| `MergeHunkActions`, `MergeHunkAction`, `mergeHunkOrder`                | `×` `»` and `«` `×` icon buttons, mirrored about the result, with their accessible names     |
 | `MergeFold`                                                            | "⋯ n unchanged lines" button                                                                 |
 | `MergeFooter`, `MergeFooterShortcuts`, `MergeFooterActions`            | the whole-file shortcuts left, Cancel / Apply right                                          |
 

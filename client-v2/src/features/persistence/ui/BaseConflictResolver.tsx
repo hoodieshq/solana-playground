@@ -20,6 +20,7 @@ import {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  mergeHunkOrder,
   MergeNav,
   MergePane,
   MergePaneBody,
@@ -220,18 +221,15 @@ export const BaseConflictResolver = ({
         >
           {open.map((side) => (
             <span key={side} className="contents">
-              <MergeHunkAction
-                action="take"
-                from={side}
-                disabled={busy}
-                onClick={() => act(i, side, "take")}
-              />
-              <MergeHunkAction
-                action="dismiss"
-                from={side}
-                disabled={busy}
-                onClick={() => act(i, side, "dismiss")}
-              />
+              {mergeHunkOrder[side].map((action) => (
+                <MergeHunkAction
+                  key={action}
+                  action={action}
+                  from={side}
+                  disabled={busy}
+                  onClick={() => act(i, side, action)}
+                />
+              ))}
             </span>
           ))}
         </MergeHunkActions>

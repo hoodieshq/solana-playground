@@ -499,7 +499,19 @@ const HUNK_ACTION = {
 
 const TAKE_ICON = { left: ChevronsRight, right: ChevronsLeft } as const;
 
-/* » takes this device's lines, « the other device's; × dismisses either */
+/* A side's two controls in order, mirrored about the result: take sits
+   nearest it, so this device's read × » and the other device's « ×. Render
+   them in this order so focus moves the way the eye does */
+const mergeHunkOrder: Record<
+  "left" | "right",
+  readonly ["take" | "dismiss", "take" | "dismiss"]
+> = {
+  left: ["dismiss", "take"],
+  right: ["take", "dismiss"],
+};
+
+/* » takes this device's lines, « the other device's; × dismisses either.
+   Lay a side's pair out by mergeHunkOrder */
 function MergeHunkAction({
   className,
   action,
@@ -611,6 +623,7 @@ export {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  mergeHunkOrder,
   mergeHunkVariants,
   MergeNav,
   MergePane,
