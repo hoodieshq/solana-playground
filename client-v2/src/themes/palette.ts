@@ -10,6 +10,7 @@ const BG_BASE = "var(--surface-base)", // chrome: rail, topbar, status bar, term
   BG_HOVER = "var(--surface-hover)",
   PRIMARY = "var(--primary)",
   PRIMARY_HOVER = "var(--accent-fill-hover)",
+  ON_PRIMARY = "var(--primary-foreground)",
   SECONDARY = "var(--track-brand)",
   GRADIENT = "var(--gradient-product)",
   TEXT_PRIMARY = "var(--text-primary)",
@@ -87,7 +88,7 @@ const PALETTE: ThemeParam = {
       },
       overrides: {
         primary: {
-          color: TEXT_PRIMARY,
+          color: ON_PRIMARY,
           hover: { bg: PRIMARY_HOVER },
         },
         outline: {
