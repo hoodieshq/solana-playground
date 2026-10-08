@@ -324,6 +324,28 @@ test("project-conflict-resolution: Taking both sides", async ({ page }) => {
   await expect(dialog.getByRole("button", { name: "Apply" })).toBeEnabled();
 });
 
+test("project-conflict-resolution: Undoing a take", async ({ page }) => {
+  test.setTimeout(240_000);
+  await lineTwelveConflict(page, "Undo");
+  const { dialog, pane } = await openResolver(page);
+  const take = dialog.getByRole("button", { name: "Take this device's lines" });
+
+  await take.click();
+  await expect.poll(() => linesIn(pane.result)).toContain(MINE);
+  await expect(take).toHaveCount(0);
+
+  await pane.result.locator(".view-lines").click();
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+z" : "Control+z"
+  );
+
+  await expect.poll(() => linesIn(pane.result)).toContain(LINE_12);
+  await expect.poll(() => linesIn(pane.result)).not.toContain(MINE);
+  await expect(take).toBeVisible();
+  await expect(dialog.getByText("1 conflict left")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Apply" })).toBeDisabled();
+});
+
 test("project-conflict-resolution: Editing the result by hand", async ({
   page,
 }) => {

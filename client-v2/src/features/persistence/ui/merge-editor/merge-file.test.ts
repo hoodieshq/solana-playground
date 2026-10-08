@@ -124,6 +124,26 @@ describe("MergeFile hunk state", () => {
     expect(file.unresolved).toBe(0);
   });
 
+  it("goes back to a snapshot, the hunk open to decide again", () => {
+    const { file } = openFile();
+    const before = file.snapshot();
+    const hunk = file.hunks[0].hunk;
+    file.take(0, "left");
+    file.dismiss(0, "right");
+    const after = file.snapshot();
+
+    file.restore(before);
+    expect(file.result).toBe(withLine(BASE, 3, "line 3 there"));
+    expect(file.unresolved).toBe(1);
+    // The same hunk, so a lookup made before the undo still finds it
+    expect(file.hunks[0].hunk).toBe(hunk);
+    expect(file.take(0, "right")).not.toBeNull();
+
+    file.restore(after);
+    expect(file.result).toBe(file.left);
+    expect(file.unresolved).toBe(0);
+  });
+
   it("ignores a second answer for a side already decided", () => {
     const { file } = openFile();
     file.take(0, "left");

@@ -62,7 +62,9 @@ Each side of each hunk SHALL offer to take its lines into the result
 them ("Dismiss this device's lines", "Dismiss the other device's lines").
 Taking both sides SHALL place this device's lines first. The result SHALL be
 editable. A hunk SHALL count as resolved once both its sides are taken or
-dismissed, or once the user edits its lines in the result.
+dismissed, or once the user edits its lines in the result. Undo and redo in
+the result SHALL take each hunk back to where it stood at that text, so an
+undone take or dismissal can be decided again.
 
 #### Scenario: Taking both sides
 
@@ -70,6 +72,14 @@ dismissed, or once the user edits its lines in the result.
   lines of the only hunk
 - **THEN** the result holds this device's lines followed by the other
   device's, the view says no conflicts are left, and "Apply" is enabled
+
+#### Scenario: Undoing a take
+
+- **WHEN** the user takes this device's lines of the only hunk and presses
+  undo in "Result"
+- **THEN** the result holds the lines both started from, "Take this device's
+  lines" is offered again, the view says 1 conflict is left, and "Apply" is
+  disabled
 
 #### Scenario: Editing the result by hand
 

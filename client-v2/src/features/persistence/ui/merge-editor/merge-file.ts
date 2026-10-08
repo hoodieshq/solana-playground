@@ -57,6 +57,12 @@ export interface Fold {
   count: number;
 }
 
+/** Where a file stood at one moment, for `restore` */
+export interface MergeSnapshot {
+  readonly lines: readonly string[];
+  readonly segments: readonly Segment[];
+}
+
 /** Lines of context kept visible around a hunk when folding */
 export const FOLD_CONTEXT = 3;
 /**
@@ -391,6 +397,26 @@ export class MergeFile {
         ? { serverHash: conflict.serverHash }
         : {}),
     };
+  }
+
+  /** Where the result and every hunk stand now */
+  snapshot(): MergeSnapshot {
+    return {
+      lines: [...this._lines],
+      segments: this.segments.map((s) => ({ ...s, lines: { ...s.lines } })),
+    };
+  }
+
+  /**
+   * Go back to a snapshot of this file, as the editor's undo goes back to
+   * the text it was taken with. The segments stay the same objects, so a
+   * hunk found before is the same hunk after.
+   */
+  restore(snapshot: MergeSnapshot) {
+    this._lines = [...snapshot.lines];
+    snapshot.segments.forEach((s, i) => {
+      Object.assign(this.segments[i], { ...s, lines: { ...s.lines } });
+    });
   }
 
   /** The hunk, if this side of it is still to decide */
