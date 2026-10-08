@@ -87,6 +87,7 @@
     "@types/uuid": "^8.3.4",
     "circular-dependency-plugin": "^5.2.2",
     "csstype": "^3.1.2",
+    "esbuild": "0.25.9",
     "jsdom": "^29.1.1",
     "markdownlint-cli2": "0.23.2",
     "monaco-editor-webpack-plugin": "^7.0.1",
