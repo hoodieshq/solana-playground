@@ -7,7 +7,11 @@ import { PgTheme, PgView, removedThemeMessage } from "../../utils";
 export const themeNotice = () => {
   const removed = PgTheme.takeRemovedThemeNotice();
   if (removed) {
-    PgView.setToast(() => <span>{removedThemeMessage(removed)}</span>);
+    // Shown once ever, and a gallery opened over it on a visit with no
+    // project would let a self-closing toast vanish unseen
+    PgView.setToast(() => <span>{removedThemeMessage(removed)}</span>, {
+      options: { autoClose: false },
+    });
   }
   return { dispose: () => {} };
 };
