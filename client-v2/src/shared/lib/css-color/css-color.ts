@@ -53,24 +53,35 @@ export const isTransparent = (computed: string) =>
   toHex(computed) === TRANSPARENT;
 
 /**
+ * A colour no token holds. A value the browser cannot compute (a misspelt
+ * token, a gradient token used as a colour) is invalid at computed-value
+ * time and inherits its parent's colour, so the probe's parent carries this
+ * one: getting it back means the value did not resolve.
+ */
+const SENTINEL = "rgb(1, 2, 3)";
+
+/**
  * Resolve any CSS colour (`var(--token)`, `color-mix(…)`, a keyword) to hex
  * against the current `<html>`, for engines that cannot read CSS variables:
- * Monaco's `defineTheme` and xterm's `theme`. Call it after the theme's
- * class is on `<html>`.
+ * Monaco's `defineTheme`, the TextMate grammars and xterm's `theme`. Call it
+ * after the theme's class is on `<html>`.
  */
 export const resolveColor = (value: string): string => {
+  const parent = document.createElement("span");
+  parent.style.display = "none";
+  parent.style.color = SENTINEL;
   const probe = document.createElement("span");
-  probe.style.display = "none";
   probe.style.color = value;
-  document.documentElement.appendChild(probe);
+  parent.appendChild(probe);
+  document.documentElement.appendChild(parent);
   const computed = getComputedStyle(probe).color;
-  probe.remove();
+  parent.remove();
 
-  const resolved = toHex(computed);
+  const resolved = computed === SENTINEL ? null : toHex(computed);
   if (resolved) return resolved;
 
-  // An unknown token must not take the editor down; it shows as a missing
-  // colour, and the log says which value it was
+  // An unknown token must not take the editor down, nor borrow the text
+  // colour: it is drawn as nothing, and the log names the value
   log.warn("colour could not be resolved, using transparent", {
     context: { value, computed },
   });
