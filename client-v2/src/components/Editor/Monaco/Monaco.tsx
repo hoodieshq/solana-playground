@@ -28,8 +28,8 @@ import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
 
 /**
  * Monaco paints its own canvas and cannot read CSS variables, so the theme's
- * values are resolved to hex against the current `<html>`. `inherit` has no
- * colour of its own here; it was always drawn as nothing.
+ * values are resolved to hex against the current `<html>`. Monaco has no
+ * parent to inherit from, so `inherit` is drawn as nothing.
  */
 const resolveEditorColors = (colors: Record<string, string>) =>
   Object.fromEntries(
@@ -78,8 +78,8 @@ const Monaco = () => {
   useAsyncEffect(async () => {
     const editorStyles = theme.components.editor;
 
-    // Monaco rejects theme names with spaces ("Illegal theme name!"), so
-    // multi-word playground theme names must be kebab-cased for it
+    // Monaco names its themes in one global registry and rejects spaces
+    // ("Illegal theme name!"), so ours are prefixed and kebab-cased
     const monacoThemeName = `pg-${PgCommon.toKebabFromTitle(theme.name)}`;
     monaco.editor.defineTheme(monacoThemeName, {
       base: theme.isDark ? "vs-dark" : "vs",
