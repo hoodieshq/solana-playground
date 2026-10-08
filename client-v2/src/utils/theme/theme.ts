@@ -10,6 +10,7 @@ import type {
   ThemeColor,
   Highlight,
 } from "./interface";
+import { applyThemeMode } from "./mode";
 import type { ValueOf } from "../types";
 
 export class PgTheme {
@@ -158,10 +159,7 @@ export class PgTheme {
     };
     this._font = font;
 
-    // Match native UI (scrollbars, form controls, system colors) to the theme
-    document.documentElement.style.colorScheme = this._theme.isDark
-      ? "dark"
-      : "light";
+    applyThemeMode(!!this._theme.isDark);
 
     // Load font if necessary.
     //
