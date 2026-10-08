@@ -103,9 +103,7 @@ test.describe("client-v2-themes", () => {
     await expect(notice).toHaveCount(0);
   });
 
-  test("client-v2-themes: A saved Light theme stays light, unannounced", async ({
-    page,
-  }) => {
+  test("a saved Light theme stays light, unannounced", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("theme", "Light"));
     await page.goto("/");
 
@@ -114,7 +112,7 @@ test.describe("client-v2-themes", () => {
     await expect(page.getByText(/theme was removed/)).toHaveCount(0);
   });
 
-  test("client-v2-themes: Code blocks in Markdown keep their syntax colours", async ({
+  test("code blocks in Markdown keep their syntax colours", async ({
     page,
   }) => {
     // A tutorial page renders Markdown through the same CodeBlock as the
@@ -141,12 +139,16 @@ test.describe("client-v2-themes", () => {
   }) => {
     const terminal = await runHelp(page);
     const editorBefore = await computed(page, EDITOR_TEXT, "color");
+    const terminalBefore = await computed(page, TERMINAL_TEXT, "color");
 
     await pickTheme(page, "Light");
 
     await expect
       .poll(() => computed(page, EDITOR_TEXT, "color"))
       .not.toBe(editorBefore);
+    await expect
+      .poll(() => computed(page, TERMINAL_TEXT, "color"))
+      .not.toBe(terminalBefore);
     // The terminal re-coloured in place: what `help` printed is still there,
     // where a rebuilt terminal would show only its welcome text
     await expect(terminal).toContainText("rustfmt");
