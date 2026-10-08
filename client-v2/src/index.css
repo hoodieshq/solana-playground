@@ -26,13 +26,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * The resolve view's hunk lines in Monaco, which keeps only plain class
+ * The resolve view's hunk lines, and the lines a side changed on its own
+ * (`changed`), in Monaco, which keeps only plain class
  * names on a decoration (`hunkLineClass` in features/persistence). Each is
  * `mergeHunkVariants`' look for that state, so the editors and the ribbons
  * change colour together; `hunk-class.test.ts` checks they still match.
  */
 .pg-merge-hunk-conflict {
   @apply bg-error/12 shadow-[inset_2px_0_0_var(--color-error)];
+}
+.pg-merge-hunk-changed {
+  @apply bg-info/10 shadow-[inset_2px_0_0_var(--color-info)];
 }
 .pg-merge-hunk-resolved {
   @apply bg-success/10 shadow-[inset_2px_0_0_var(--color-success)];

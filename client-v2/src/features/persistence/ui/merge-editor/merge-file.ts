@@ -1,6 +1,11 @@
 import { diffArrays } from "diff";
 
-import type { Chunk, FileConflict, ResolvedFiles } from "../../model/merge";
+import type {
+  Chunk,
+  FileConflict,
+  ResolvedFiles,
+  SettledChange,
+} from "../../model/merge";
 
 /** The three panes of the resolve view, by the design system's names */
 export type MergePane = "left" | "result" | "right";
@@ -14,6 +19,9 @@ export type SideState = "pending" | "taken" | "dismissed";
 /** A hunk's colour in one pane, by `mergeHunkVariants`' names */
 export type HunkLook = "conflict" | "resolved" | "dismissed";
 
+/** A line's colour in one pane: a hunk's, or one side's own change */
+export type LineLook = HunkLook | "changed";
+
 /** Lines per pane */
 type Counts = Record<MergePane, number>;
 
@@ -21,13 +29,14 @@ type Counts = Record<MergePane, number>;
  * A run of lines of the file, in the three panes at once.
  *
  * - `settled`: the same in every pane once merged. The result's copy can be
- *   edited, so its count may drift from the sides'.
+ *   edited, so its count may drift from the sides'. `changes` are the lines
+ *   in it that a side changed on its own, as `merge3` found them.
  * - `hunk`: lines both devices changed differently. `left` and `right` are
  *   where each side stands; `edited` is the user typing into the hunk's lines
  *   in the result, which answers it whatever the sides say.
  */
 export type Segment =
-  | { kind: "settled"; lines: Counts }
+  | { kind: "settled"; lines: Counts; changes: SettledChange[] }
   | {
       kind: "hunk";
       lines: Counts;
@@ -50,8 +59,8 @@ export interface TextEdit {
 
 /** A run of settled lines folded away, as line indices in each pane */
 export interface Fold {
-  /** The segment it is in */
-  segment: number;
+  /** Which fold it is, for `unfold`: one segment can hold several */
+  key: string;
   /** The first hidden line in each pane, 0-based */
   start: Counts;
   count: number;
@@ -63,14 +72,34 @@ export interface MergeSnapshot {
   readonly segments: readonly Segment[];
 }
 
-/** Lines of context kept visible around a hunk when folding */
+/**
+ * Lines one side changed on its own, at `offset` lines into a settled
+ * segment, and the panes that mark them: that side's, and the result while
+ * the run's result lines up with the sides. A `count` of 0 is a deletion,
+ * just above the line at `offset`.
+ */
+export interface Change {
+  segment: number;
+  offset: number;
+  count: number;
+  panes: MergePane[];
+}
+
+/** Lines of context kept visible around a hunk or a change when folding */
 export const FOLD_CONTEXT = 3;
 /**
- * The fewest lines worth a fold. A handful hidden saves no scrolling and
- * costs the reader the context around a hunk, lines one device changed on
- * its own included (the settled runs do not say which those are).
+ * The fewest lines worth a fold. The context around every hunk and change is
+ * kept apart from this; it only stops a fold whose control, most of a line
+ * tall itself, would save next to no scrolling.
  */
-const FOLD_MIN = 10;
+const FOLD_MIN = 4;
+
+/** The pane of the side that made a settled change */
+const SIDE_PANES: Record<SettledChange["by"], MergePane[]> = {
+  ours: ["left"],
+  theirs: ["right"],
+  both: ["left", "right"],
+};
 
 /**
  * A pane's lines, the file split on `\n` alone as `merge3` splits it, so a
@@ -146,7 +175,11 @@ export class MergeFile {
       this.segments = conflict.chunks.map((chunk): Segment => {
         if (chunk.kind === "settled") {
           const n = chunk.lines.length;
-          return { kind: "settled", lines: { left: n, result: n, right: n } };
+          return {
+            kind: "settled",
+            lines: { left: n, result: n, right: n },
+            changes: chunk.changes ?? [],
+          };
         }
         return {
           kind: "hunk",
@@ -253,6 +286,28 @@ export class MergeFile {
   }
 
   /**
+   * The lines each side changed on its own, and where they are marked. Once
+   * the result of their run is edited out of line with the sides, the result
+   * no longer marks them: which of its lines they are is no longer known.
+   */
+  changes(): Change[] {
+    const found: Change[] = [];
+    this.segments.forEach((segment, i) => {
+      if (segment.kind !== "settled") return;
+      const aligned = MergeFile._aligned(segment);
+      for (const { start, count, by } of segment.changes) {
+        found.push({
+          segment: i,
+          offset: start,
+          count,
+          panes: aligned ? [...SIDE_PANES[by], "result"] : SIDE_PANES[by],
+        });
+      }
+    });
+    return found;
+  }
+
+  /**
    * Take one side's lines into the result, after this device's when both
    * are taken.
    *
@@ -350,10 +405,11 @@ export class MergeFile {
 
   /**
    * Runs of settled lines to fold away, with `FOLD_CONTEXT` lines kept next
-   * to each hunk. The file's last line is never folded: Monaco shows a view
-   * zone only when the line after it is visible, and the fold's control is
-   * one. A run whose result was edited is left whole, since its
-   * lines no longer line up across the panes.
+   * to each hunk and around each change a side made on its own. The file's
+   * last line is never folded: Monaco shows a view zone only when the line
+   * after it is visible, and the fold's control is one. A run whose result
+   * was edited is left whole, since its lines no longer line up across the
+   * panes.
    */
   folds(): Fold[] {
     const panes = (["left", "result", "right"] as const).map((pane) => [
@@ -363,17 +419,29 @@ export class MergeFile {
     const last = this.segments.length - 1;
     const folds: Fold[] = [];
     this.segments.forEach((segment, i) => {
-      if (segment.kind !== "settled") return;
-      const { left, result, right } = segment.lines;
-      if (left !== result || right !== result) return;
-      const before = i === 0 ? 0 : FOLD_CONTEXT;
-      const after = i === last ? 1 : FOLD_CONTEXT;
-      const count = result - before - after;
-      if (count < FOLD_MIN) return;
-      const start = Object.fromEntries(
-        panes.map(([pane, starts]) => [pane, starts[i] + before])
-      ) as Counts;
-      folds.push({ segment: i, start, count });
+      if (segment.kind !== "settled" || !MergeFile._aligned(segment)) return;
+      const n = segment.lines.result;
+      /** Lines kept in view, as `[from, to)` within the run */
+      const kept: Array<[number, number]> = [];
+      if (i > 0) kept.push([0, FOLD_CONTEXT]);
+      kept.push(i === last ? [n - 1, n] : [n - FOLD_CONTEXT, n]);
+      for (const { start, count } of segment.changes) {
+        kept.push([start - FOLD_CONTEXT, start + count + FOLD_CONTEXT]);
+      }
+      kept.sort((x, y) => x[0] - y[0]);
+
+      let from = 0;
+      const fold = (to: number) => {
+        if (to - from < FOLD_MIN) return;
+        const start = Object.fromEntries(
+          panes.map(([pane, starts]) => [pane, starts[i] + from])
+        ) as Counts;
+        folds.push({ key: `${i}:${from}`, start, count: to - from });
+      };
+      for (const [a, b] of kept) {
+        fold(Math.min(a, n));
+        from = Math.max(from, b);
+      }
     });
     return folds;
   }
@@ -417,6 +485,12 @@ export class MergeFile {
     snapshot.segments.forEach((s, i) => {
       Object.assign(this.segments[i], { ...s, lines: { ...s.lines } });
     });
+  }
+
+  /** Whether a settled run's result still lines up with the sides */
+  private static _aligned(segment: Segment) {
+    const { left, result, right } = segment.lines;
+    return left === result && right === result;
   }
 
   /** The hunk, if this side of it is still to decide */

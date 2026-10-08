@@ -3,9 +3,9 @@ import { join } from "path";
 
 import { mergeHunkVariants } from "@/shared/ui/merge";
 import { hunkLineClass } from "./hunk-class";
-import type { HunkLook } from "./merge-file";
+import type { LineLook } from "./merge-file";
 
-const LOOKS: HunkLook[] = ["conflict", "resolved", "dismissed"];
+const LOOKS: LineLook[] = ["conflict", "changed", "resolved", "dismissed"];
 
 /** `index.css`'s rule for a class: what it applies, as one string */
 const applied = (css: string, className: string) => {

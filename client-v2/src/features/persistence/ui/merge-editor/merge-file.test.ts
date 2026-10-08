@@ -82,6 +82,49 @@ describe("MergeFile panes", () => {
   });
 });
 
+describe("MergeFile changes", () => {
+  it("marks the other device's line in its pane and the result", () => {
+    const { file } = openFile();
+    // Line 3, in the first segment, in "Other device" and "Result" only
+    expect(file.changes()).toEqual([
+      { segment: 0, offset: 2, count: 1, panes: ["right", "result"] },
+    ]);
+  });
+
+  it("marks this device's line in its pane, and both sides' same change in both", () => {
+    const ours = withLine(withLine(OURS, 5, "five"), 18, "line 18 here");
+    const theirs = withLine(THEIRS, 18, "line 18 here");
+    const file = MergeFile.from(linesConflict(BASE, ours, theirs));
+    expect(file.changes()).toEqual([
+      { segment: 0, offset: 2, count: 1, panes: ["right", "result"] },
+      { segment: 0, offset: 4, count: 1, panes: ["left", "result"] },
+      { segment: 2, offset: 5, count: 1, panes: ["left", "right", "result"] },
+    ]);
+  });
+
+  it("keeps a deletion as a change of no lines", () => {
+    const ours = OURS.split("\n")
+      .filter((_, i) => i !== 5)
+      .join("\n");
+    const file = MergeFile.from(linesConflict(BASE, ours, THEIRS));
+    expect(file.changes()).toContainEqual({
+      segment: 0,
+      offset: 5,
+      count: 0,
+      panes: ["left", "result"],
+    });
+  });
+
+  it("stops marking the result once its run is edited out of line", () => {
+    const { file, model } = openFile();
+    model.value = `added\n${model.value}`;
+    file.userEdit(model.value);
+    expect(file.changes()).toEqual([
+      { segment: 0, offset: 2, count: 1, panes: ["right"] },
+    ]);
+  });
+});
+
 describe("MergeFile hunk state", () => {
   it("takes both sides, this device's lines first, whichever is taken first", () => {
     for (const order of [
@@ -270,6 +313,28 @@ describe("MergeFile folds", () => {
       // The last line stays, for the fold's control to sit above
       [200 + FOLD_CONTEXT, 100 - FOLD_CONTEXT - 1],
     ]);
+  });
+
+  it("keeps the lines around a change one device made on its own", () => {
+    const base = numbered(300);
+    const file = MergeFile.from(
+      linesConflict(
+        base,
+        withLine(base, 200, "line 200 here"),
+        withLine(withLine(base, 100, "line 100 there"), 200, "line 200 there")
+      )
+    );
+    const folds = file.folds();
+    expect(folds.map((f) => [f.key, f.start.result, f.count])).toEqual([
+      ["0:0", 0, 99 - FOLD_CONTEXT],
+      // Line 100 and its context stay, between two folds of one run
+      ["0:103", 100 + FOLD_CONTEXT, 199 - 100 - 2 * FOLD_CONTEXT],
+      ["2:3", 200 + FOLD_CONTEXT, 100 - FOLD_CONTEXT - 1],
+    ]);
+    // The same lines in every pane, so each pane folds the same
+    expect(folds.map((f) => f.start.left)).toEqual(
+      folds.map((f) => f.start.result)
+    );
   });
 
   it("leaves a settled run whole once its result is edited", () => {

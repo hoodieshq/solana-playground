@@ -1,7 +1,8 @@
-import type { HunkLook } from "./merge-file";
+import type { LineLook } from "./merge-file";
 
 /**
- * The class Monaco puts on a hunk's lines.
+ * The class Monaco puts on a hunk's lines, or on lines a side changed on its
+ * own.
  *
  * The element's own classes cannot go on a decoration: Monaco cleans a
  * decoration's class name to letters, digits, `-` and `_`, which turns
@@ -9,4 +10,4 @@ import type { HunkLook } from "./merge-file";
  * and `index.css` gives it `mergeHunkVariants`' classes with `@apply`;
  * `hunk-class.test.ts` fails if the two stop matching.
  */
-export const hunkLineClass = (look: HunkLook) => `pg-merge-hunk-${look}`;
+export const hunkLineClass = (look: LineLook) => `pg-merge-hunk-${look}`;

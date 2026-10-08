@@ -59,7 +59,7 @@ export interface HunkPlace {
 
 /** A fold, and where its control goes in each pane, in px from the top */
 export interface FoldPlace {
-  segment: number;
+  key: string;
   count: number;
   top: Record<MergePane, number | null>;
 }
@@ -87,8 +87,8 @@ export interface MergeEditor {
   /** Mirror an edit the file made (a take or a dismiss) into the result */
   apply(edit: TextEdit | null): void;
   update(options: Partial<MergeEditorOptions>): void;
-  /** Open one fold */
-  unfold(segment: number): void;
+  /** Open one fold, by its `key` */
+  unfold(key: string): void;
   /** Scroll a hunk into view */
   reveal(hunk: number): void;
   dispose(): void;
@@ -122,7 +122,7 @@ class MonacoMergeEditor implements MergeEditor {
   private readonly _zones: Partial<Record<MergePane, string[]>> = {};
   private _zoneKey = "";
   private _folds: Fold[] = [];
-  private readonly _opened = new Set<number>();
+  private readonly _opened = new Set<string>();
   private readonly _disposables: monaco.IDisposable[] = [];
   private readonly _layoutListeners = new Set<() => void>();
   private readonly _editListeners = new Set<() => void>();
@@ -297,8 +297,8 @@ class MonacoMergeEditor implements MergeEditor {
     this._refresh();
   }
 
-  unfold(segment: number) {
-    this._opened.add(segment);
+  unfold(key: string) {
+    this._opened.add(key);
     this._refresh();
   }
 
@@ -329,7 +329,7 @@ class MonacoMergeEditor implements MergeEditor {
   /** The folds in force: none when showing everything or unable to hide */
   private _activeFolds(): Fold[] {
     if (this._options.showAll || !this._canFold()) return [];
-    return this._file.folds().filter((f) => !this._opened.has(f.segment));
+    return this._file.folds().filter((f) => !this._opened.has(f.key));
   }
 
   private _canFold() {
@@ -341,6 +341,7 @@ class MonacoMergeEditor implements MergeEditor {
   private _refresh() {
     const file = this._file;
     const folds = this._activeFolds();
+    const changes = file.changes();
 
     for (const pane of PANES) {
       const editor = this._editors[pane];
@@ -359,6 +360,14 @@ class MonacoMergeEditor implements MergeEditor {
           },
         });
       }
+      for (const change of changes) {
+        if (!change.count || !change.panes.includes(pane)) continue;
+        const start = starts[change.segment] + change.offset;
+        decorations.push({
+          range: new monaco.Range(start + 1, 1, start + change.count, 1),
+          options: { isWholeLine: true, className: hunkLineClass("changed") },
+        });
+      }
       this._decorations[pane] = editor.deltaDecorations(
         this._decorations[pane] ?? [],
         decorations
@@ -371,7 +380,7 @@ class MonacoMergeEditor implements MergeEditor {
     const spacers = this._options.single ? [] : this._spacers();
     const key = JSON.stringify([
       spacers.map(({ pane, after, lines, look }) => [pane, after, lines, look]),
-      folds.map((f) => [f.segment, f.start, f.count]),
+      folds.map((f) => [f.key, f.start, f.count]),
     ]);
     if (key !== this._zoneKey) {
       this._zoneKey = key;
@@ -533,9 +542,30 @@ class MonacoMergeEditor implements MergeEditor {
       });
     }
 
+    // A side's own change, joined to the result while the result marks it.
+    // A settled run starts at the same height in every pane, so it is read
+    // from the result; a deletion is a band of no height, a line.
+    for (const change of file.changes()) {
+      if (!change.panes.includes("result")) continue;
+      const y = topOf(
+        "result",
+        starts.result.starts[change.segment] + change.offset + 1
+      );
+      const bottom = y + change.count * lineHeight;
+      const band: MergeBand = {
+        fromTop: y,
+        fromBottom: bottom,
+        toTop: y,
+        toBottom: bottom,
+        state: "changed",
+      };
+      if (change.panes.includes("left")) bands.left.push(band);
+      if (change.panes.includes("right")) bands.right.push(band);
+    }
+
     // A fold's room sits right above the first line shown after it
     const folds = this._folds.map((fold) => ({
-      segment: fold.segment,
+      key: fold.key,
       count: fold.count,
       top: Object.fromEntries(
         PANES.map((p) => [

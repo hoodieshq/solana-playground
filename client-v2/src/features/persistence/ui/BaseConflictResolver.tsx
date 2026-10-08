@@ -245,11 +245,11 @@ export const BaseConflictResolver = ({
     return createPortal(
       (layout?.folds ?? []).map((fold) => (
         <MergeFold
-          key={fold.segment}
+          key={fold.key}
           count={fold.count}
           className="absolute inset-x-0"
           style={{ top: fold.top[pane] ?? 0, pointerEvents: "auto" }}
-          onClick={() => editor?.unfold(fold.segment)}
+          onClick={() => editor?.unfold(fold.key)}
         />
       )),
       overlay

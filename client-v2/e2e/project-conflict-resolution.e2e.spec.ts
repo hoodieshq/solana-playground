@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { hunkLineClass } from "../src/features/persistence/ui/merge-editor/hunk-class";
 import { applyWrite, json, LONG, makeLocalProject, settled } from "./fixtures";
 
 /**
@@ -166,6 +167,24 @@ const linesIn = (pane: Locator) =>
       .map((line) => (line.textContent ?? "").replace(/ /g, " ").trim())
   );
 
+/**
+ * The looks Monaco draws behind the line of a pane holding `text`: the
+ * `hunkLineClass` names on the decoration at that line's height.
+ */
+const looksOf = (pane: Locator, text: string) =>
+  pane.locator(".monaco-editor").evaluate((editor, text) => {
+    const line = Array.from(
+      editor.querySelectorAll<HTMLElement>(".view-lines .view-line")
+    ).find((l) => (l.textContent ?? "").replace(/\u00a0/g, " ").includes(text));
+    if (!line) return null;
+    const overlay = Array.from(
+      editor.querySelectorAll<HTMLElement>(".view-overlays > div")
+    ).find((o) => o.style.top === line.style.top);
+    return Array.from(overlay?.querySelectorAll("*") ?? [])
+      .flatMap((node) => Array.from(node.classList))
+      .filter((name) => name.startsWith("pg-merge-hunk-"));
+  }, text);
+
 const banner = (page: Page) => page.getByText("changed on another device");
 
 /**
@@ -254,6 +273,17 @@ test("project-conflict-resolution: Opening the view on a one-line conflict", asy
   for (const side of [pane.left, pane.result, pane.right]) {
     await expect.poll(() => linesIn(side)).toContain(THEIRS_3);
   }
+  // ...and marked as the other device's change where it shows as one
+  const changed = hunkLineClass("changed");
+  await expect.poll(() => looksOf(pane.result, THEIRS_3)).toEqual([changed]);
+  await expect.poll(() => looksOf(pane.right, THEIRS_3)).toEqual([changed]);
+  await expect.poll(() => looksOf(pane.left, THEIRS_3)).toEqual([]);
+  // ...and joined to the result by a band on the other device's side only
+  const ribbons = dialog.locator('[data-slot="merge-ribbon"]');
+  await expect(ribbons.first().locator('[data-state="changed"]')).toHaveCount(
+    0
+  );
+  await expect(ribbons.last().locator('[data-state="changed"]')).toHaveCount(1);
   // Each side's line 12 only where it belongs
   await expect.poll(() => linesIn(pane.result)).not.toContain(MINE);
   await expect.poll(() => linesIn(pane.result)).not.toContain(THEIRS);
