@@ -55,8 +55,8 @@ blob_has() {
 
 upload_blob() {
   [ -n "$blob_url" ] || return 0
-  local vercel=(npx --yes vercel@latest)
-  command -v vercel >/dev/null 2>&1 && vercel=(vercel)
+  # Same version as VERCEL_CLI in Makefile.vercel; Vercel runs this script without make.
+  local vercel=(npx --yes vercel@62.7.0)
   # Bash 3.2 (macOS) treats an empty array as unset under `set -u`, hence the `+` expansion.
   local auth=()
   [ -n "${BLOB_READ_WRITE_TOKEN:-}" ] && auth=(--rw-token "$BLOB_READ_WRITE_TOKEN")
