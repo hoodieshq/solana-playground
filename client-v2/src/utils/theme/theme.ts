@@ -122,7 +122,7 @@ export class PgTheme {
     const defaultFont = this.fonts.find((f) => f.isDefault)!;
 
     const saved = resolveSavedTheme(localStorage.getItem(this._THEME_KEY));
-    if (saved.removed) {
+    if ("removed" in saved) {
       removedThemeNotice.hold(saved.removed);
       log.info("saved theme was removed, falling back to Dark", {
         context: { removed: saved.removed },
@@ -362,9 +362,12 @@ export class PgTheme {
   static getDifferentBackground(bg: string) {
     const theme = this._themeReady;
     const { bgPrimary, bgSecondary } = theme.colors.default;
-    // The theme holds `var(--token)`, which a canvas cannot paint, so the
-    // comparison is made against the colour the token resolves to now
-    if (PgCommon.isColorsEqual(bg, resolveColor(bgPrimary))) return bgSecondary;
+    // Theme colours are CSS variables, which a canvas cannot paint, and a
+    // caller passes either one of them or a computed colour: both sides are
+    // compared as the colour they resolve to now
+    if (PgCommon.isColorsEqual(resolveColor(bg), resolveColor(bgPrimary))) {
+      return bgSecondary;
+    }
     return bgPrimary;
   }
 
