@@ -21,8 +21,11 @@ const hex = (r: number, g: number, b: number, a: number) =>
 
 const RGB =
   /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/;
-const SRGB =
-  /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/;
+/** A channel as the browser serialises it, out of gamut or in exponent form */
+const N = "(-?[\\d.]+(?:e[-+]?\\d+)?)";
+const SRGB = new RegExp(
+  `^color\\(srgb\\s+${N}\\s+${N}\\s+${N}(?:\\s*\\/\\s*([\\d.]+%?))?\\s*\\)$`
+);
 
 /**
  * Hex for a colour as `getComputedStyle` reports it: `rgb()`/`rgba()`, or
@@ -60,6 +63,9 @@ export const isTransparent = (computed: string) =>
  */
 const SENTINEL = "rgb(1, 2, 3)";
 
+/** Values already reported as unresolved */
+const warned = new Set<string>();
+
 /**
  * Resolve any CSS colour (`var(--token)`, `color-mix(…)`, a keyword) to hex
  * against the current `<html>`, for engines that cannot read CSS variables:
@@ -81,15 +87,13 @@ export const resolveColor = (value: string): string => {
   if (resolved) return resolved;
 
   // An unknown token must not take the editor down, nor borrow the text
-  // colour: it is drawn as nothing, and the log names the value
-  log.warn("colour could not be resolved, using transparent", {
-    context: { value, computed },
-  });
+  // colour: it is drawn as nothing, and the log names the value. Every code
+  // block resolves the whole theme, so the same value is named only once
+  if (!warned.has(value)) {
+    warned.add(value);
+    log.warn("colour could not be resolved, using transparent", {
+      context: { value, computed },
+    });
+  }
   return TRANSPARENT;
 };
-
-/** `resolveColor` over every value of a flat colour map */
-export const resolveColors = <T extends Record<string, string>>(colors: T) =>
-  Object.fromEntries(
-    Object.entries(colors).map(([key, value]) => [key, resolveColor(value)])
-  ) as T;

@@ -1,7 +1,1 @@
-export {
-  isTransparent,
-  resolveColor,
-  resolveColors,
-  toHex,
-  TRANSPARENT,
-} from "./css-color";
+export { isTransparent, resolveColor, TRANSPARENT } from "./css-color";

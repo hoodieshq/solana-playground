@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isTransparent, resolveColor, toHex, TRANSPARENT } from "./css-color";
 
+const warn = vi.hoisted(() => vi.fn());
+vi.mock("../logger", () => ({ createLogger: () => ({ warn }) }));
+
 describe("toHex", () => {
   it.each([
     ["rgb(16, 16, 17)", "#101011"],
@@ -11,6 +14,8 @@ describe("toHex", () => {
     ["rgb(153 69 255 / 50%)", "#9945ff80"],
     ["color(srgb 0.6 0.270588 1)", "#9945ff"],
     ["color(srgb 0.6 0.270588 1 / 0.39)", "#9945ff63"],
+    ["color(srgb 1 1e-06 0)", "#ff0000"],
+    ["color(srgb -0.01 0 1.02)", "#0000ff"],
   ])("%s -> %s", (computed, hex) => {
     expect(toHex(computed)).toBe(hex);
   });
@@ -59,5 +64,14 @@ describe("resolveColor", () => {
 
   it("falls back to transparent for a token the page does not define", () => {
     expect(resolveColor("var(--no-such-token)")).toBe(TRANSPARENT);
+  });
+
+  it("warns once per unresolved value, however often it is resolved", () => {
+    warn.mockClear();
+    resolveColor("var(--twice-missing)");
+    resolveColor("var(--twice-missing)");
+    resolveColor("var(--also-missing)");
+
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 });
