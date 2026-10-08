@@ -125,7 +125,8 @@ test.describe("client-v2-themes", () => {
       code.evaluate(
         (pre) =>
           new Set(
-            [...pre.querySelectorAll<HTMLElement>("span[style]")].map(
+            Array.from(
+              pre.querySelectorAll<HTMLElement>("span[style]"),
               (span) => span.style.color
             )
           ).size

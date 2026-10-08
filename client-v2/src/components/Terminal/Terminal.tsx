@@ -53,7 +53,6 @@ const Terminal: FC<React.PropsWithChildren<TerminalProps>> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cmdManager]);
 
-  // Follow the theme without rebuilding the terminal
   useEffect(() => {
     term.setAppearance({
       theme: xtermTheme(theme.components.terminal.xterm, resolveColor),

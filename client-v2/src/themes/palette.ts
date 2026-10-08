@@ -2,8 +2,8 @@ import type { ThemeParam } from "../utils";
 
 // Every colour is a token from `app/styles/playground-tokens.css`. `:root`
 // holds light and `.dark` the product, so this one object serves both
-// themes; `applyThemeMode` switches them. The layout is the one the Solana V2
-// theme introduced: floating panels on a ground, 8px gutters.
+// themes; `applyThemeMode` switches them. The layout floats the panels on a
+// ground, with 8px gutters between them.
 const BG_BASE = "var(--surface-base)", // chrome: rail, topbar, status bar, terminal
   BG_SURFACE = "var(--surface-panel)", // editor, panels
   BG_RAISED = "var(--surface-raised)", // cards, inputs, menus
