@@ -323,7 +323,8 @@ function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" 
       {rows.map((row, i) => {
         if ("fold" in row) return <MergeFold key={i} count={row.fold} />
         const cell = row[side]
-        if (!cell) return <div key={i} className="h-5" />
+        /* a spacer only aligns panes side by side; one pane at a time needs none */
+        if (!cell) return <div key={i} className="h-5 @max-3xl/merge:hidden" />
         const number = numbers[i]
         return (
           <div key={i} className={cn("relative flex h-5 items-center", cell.state && mergeHunkVariants({ state: cell.state }))}>
