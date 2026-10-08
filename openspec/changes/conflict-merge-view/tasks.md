@@ -5,7 +5,7 @@ same time; 3.1 needs both. Tick a task in the PR that lands it.
 
 ## 1. Design system
 
-- [ ] 1.1 The `merge` element in `design-system/`: `src/components/ui/merge.tsx`
+- [x] 1.1 The `merge` element in `design-system/`: `src/components/ui/merge.tsx`
       with the parts and `mergeHunkVariants` from design.md, the `merge`
       item in `registry.json`, and a `Block id="merge"` in
       `src/ds/pg-blocks.tsx` with a one-line conflict in `lib.rs`, a fold,
