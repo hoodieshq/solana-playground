@@ -1,5 +1,11 @@
 import { canHideLines, setHiddenLines } from "./hidden-areas";
 
+// Monaco's module graph is large: transformed cold, under the whole suite,
+// importing it alone can take longer than the default 5s. Set here rather
+// than as `it`'s third argument, which the dev server's type check (it reads
+// `it` from @types/mocha) rejects.
+vi.setConfig({ testTimeout: 60_000 });
+
 const RANGE = {
   startLineNumber: 2,
   startColumn: 1,
