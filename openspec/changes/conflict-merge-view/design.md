@@ -46,7 +46,7 @@ explorer keys its models by `monaco.Uri.parse(file.path)`.
 
 ```ts
 type Chunk =
-  | { kind: "settled"; lines: string[] }
+  | { kind: "settled"; lines: string[]; changes?: SettledChange[] }
   | { kind: "conflict"; base: string[]; ours: string[]; theirs: string[] };
 
 type Merge3 =
@@ -59,6 +59,12 @@ settled + `ours`, right is settled + `theirs`, and the result starts as
 settled + `base`. Line positions, folds and ribbon offsets all follow from
 chunk lengths, so `merge3` reports none. Split and join stay on `\n` alone,
 so `\r` and a missing final newline survive exactly as today.
+
+A settled chunk also says which of its lines one side changed on its own
+(`changes`: a run of lines and `ours`, `theirs` or `both`), which `merge3`
+knows as it applies that side's group. The view marks those lines as
+changed in the result and that side's pane. It is the only way it can tell
+them from untouched lines without diffing again, and no write path reads it.
 
 _Alternative:_ return hunk positions against the base and let the view
 rebuild the panes. Rejected: two places would have to agree on how a group
@@ -180,8 +186,12 @@ other version" here: one action, one name, in the banner and the view.
 `BaseConflictResolver` (props only: files, `onApply`, `onKeepLocal`,
 `onTakeServer`, `onCancel`) and the connected `ConflictResolver` beside it.
 
-- Models in a `pg-merge:` scheme (`pg-merge:/left/src/lib.rs`), never
-  colliding with the explorer's `Uri.parse(path)` models; disposed on close.
+- Models in a `pg-merge:` scheme with no leading slash
+  (`pg-merge:left/src/lib.rs`), disposed on close. The explorer,
+  `editor-buffers` and `PgEditorModels` find models by `uri.path` alone and
+  drop every model under a `/<workspace>/` prefix, so a slashed path would
+  read as a file of a workspace named `left`, `result` or `right`. Pane and
+  path are unique: one view is open at a time, one file's models at once.
   Language from the extension; the app's theme and editor settings apply.
 - Alignment by view-zone spacers, so a hunk takes the same height in all
   three panes; scroll synced through `onDidScrollChange` / `setScrollTop`.
@@ -192,16 +202,23 @@ other version" here: one action, one name, in the banner and the view.
 - Hunk state per side: `pending | taken | dismissed`, plus `edited` when a
   change in the result touches the hunk's range (tracked with a decoration
   that moves with edits). Taking inserts that side's lines at the hunk in
-  the result, this device's always before the other's.
+  the result, this device's always before the other's. Where a side
+  deleted the file, taking either side dismisses the other.
+- Undo and redo restore the hunk state kept for that version of the
+  result (`getAlternativeVersionId`); each take or dismissal is its own
+  undo step.
 - Apply reads the result models into `ResolvedFiles` with the hashes the
   files arrived with. An empty result on a `"whole"` conflict where a side
   is absent becomes `content: null`.
 
 ### Installing into `client-v2`
 
-`yarn ds-add modal merge button` lands them in `shared/ui` with the tokens
-in `src/styles/playground-*.css`; this is `ui-migration` task 3.6, ticked in
-the same PR. The stock `button` comes from `ui.shadcn.com`, as `client-v2/CLAUDE.md` notes.
+`yarn ds-add modal merge` lands them (and `segmented`) in `shared/ui` with
+the tokens in `src/styles/playground-*.css`; this is `ui-migration` task 3.6,
+ticked in the same PR. The registry publishes only Playground items, so the
+stock `button` comes through the same pinned shadcn CLI from
+`ui.shadcn.com`, as `client-v2/CLAUDE.md` notes; it is the design system's
+copy.
 
 ## Risks / Trade-offs
 

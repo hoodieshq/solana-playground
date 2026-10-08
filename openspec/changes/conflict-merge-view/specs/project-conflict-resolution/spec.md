@@ -26,7 +26,8 @@ version". A divergent conflict that names no files SHALL keep only those two.
 
 The resolve view SHALL be a dialog named "Resolve conflicts" with three panes
 named "This device", "Result" and "Other device". Every line that merged on
-its own SHALL be in all three panes. Each conflicting hunk SHALL show this
+its own SHALL be in all three panes; lines only one device changed SHALL be
+marked as changed in "Result" and in that device's pane. Each conflicting hunk SHALL show this
 device's lines on the left, the other device's on the right, and the lines
 both started from in the result. Apply SHALL be disabled while any hunk is
 unresolved.
@@ -38,7 +39,8 @@ unresolved.
 - **THEN** a dialog named "Resolve conflicts" shows `src/lib.rs`, "1 conflict
   left", this device's line 12 in "This device", the other device's in
   "Other device", the original line 12 in "Result", the other device's
-  line 3 in all three panes, and "Apply" disabled
+  line 3 in all three panes, marked as changed in "Result" and "Other
+  device", and "Apply" disabled
 
 ### Requirement: Unchanged regions are folded
 
@@ -107,7 +109,9 @@ When a conflicted file cannot be split into hunks (no copy both devices
 agreed on is known, or one device deleted it), the view SHALL show the whole
 file as one hunk, with a deleted side shown as an empty pane named as
 deleted, and the result starting from this device's copy. Applying an empty
-result where one side deleted the file SHALL delete it.
+result where one side deleted the file SHALL delete it. Taking either side
+of such a hunk SHALL dismiss the other, since the answer is one file or the
+other, not lines from both.
 
 #### Scenario: Deleted on the other device, edited here
 

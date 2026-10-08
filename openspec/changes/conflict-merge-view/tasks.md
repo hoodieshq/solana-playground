@@ -31,7 +31,7 @@ same time; 3.1 needs both. Tick a task in the PR that lands it.
 
 ## 3. Resolve view
 
-- [ ] 3.1 The view in `client-v2`, after 1.1 and 2.1: `yarn ds-add modal merge button` (ticks `ui-migration` task 3.6 in the same PR); the
+- [ ] 3.1 The view in `client-v2`, after 1.1 and 2.1: `yarn ds-add modal merge` and the stock shadcn `button` (ticks `ui-migration` task 3.6 in the same PR); the
       Monaco controller in `features/persistence/ui/merge-editor/`
       (`pg-merge:` models, view-zone alignment, scroll sync, the
       `setHiddenAreas` wrapper with its fallback, overlay hunk controls,
