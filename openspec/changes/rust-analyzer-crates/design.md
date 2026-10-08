@@ -139,6 +139,33 @@ Unsetting the AVX-512 variant keeps the generic `full_masks.rs`.
 - Alternative: `--full-crate-tree`, which also gets past that error (9.3 MB of
   output) but keeps duplicate modules instead of naming the variant it drops.
 
+### Brotli copies
+
+The generator also writes `<name>.rs.br` for each default crate: brotli at
+quality 11, text mode, window 24, through Node's `zlib`. Window 24 is the
+largest a browser's brotli decoder accepts. `zlib` comes with the Node version
+`.nvmrc` pins, so no other binary decides the bytes. Two runs at `e247abb5`
+produced the same SHA-256 for every `.rs` and `.rs.br`.
+
+Sizes of the generated files:
+
+| Default crate | `.rs` | gzip -9 | brotli 11 (`.rs.br`) | zstd -19 | xz -9 |
+| --- | --- | --- | --- | --- | --- |
+| `core` | 10,262,337 | 903,315 | 621,514 | 656,884 | 669,036 |
+| `std` | 2,071,630 | 333,191 | 240,668 | 249,139 | 248,772 |
+| `alloc` | 1,000,115 | 177,220 | 123,896 | 129,804 | 129,256 |
+
+A browser decodes brotli natively as an HTTP `Content-Encoding`, so a `.br`
+served with `Content-Encoding: br` reaches `fetchText` as plain text. Vercel
+compresses static files with brotli on the fly at a level it does not
+document. Serving the `.br` copies is not part of this change; until a task
+does it, `rust-analyzer.ts` fetches the `.rs` files.
+
+- Alternative: zstd or xz. Neither compresses better than brotli 11 here, and
+  a browser decodes neither without a decoder shipped in the bundle.
+- Alternative: gzip, decoded in the page with `DecompressionStream`, which
+  Safari 16.4 supports. 43% larger than brotli 11 in total.
+
 ### The registry is fetched into the cargo home the generation reads
 
 `generate-crates` runs this command against the `CARGO_HOME` it reads

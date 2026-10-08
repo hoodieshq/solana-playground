@@ -5,16 +5,18 @@ Group 4 needs all three.
 
 ## 1. Generation
 
-- [ ] 1.1 Add a script under `client-v2/scripts/` that installs the toolchain
+- [x] 1.1 Add a script under `client-v2/scripts/` that installs the toolchain
       in `wasm/rust-analyzer/rust-toolchain.toml` with `rust-src`, installs
       `syn-file-expand-cli` 0.2.0 into a root of its own, and writes the
       default crates `core.rs`, `alloc.rs`, and `std.rs` to `public/crates`
-      with the flags in design.md, section "Flags". A comment at the toolchain
-      lookup states that upstream serves default crates from about Rust 1.60
-      beside a 1.68.0-nightly analyzer, and that this script takes both from
-      the analyzer's toolchain. Verify: in the editor on `yarn dev-cra`,
-      `Vec::` completes `capacity` and `clear`, and `std::array::from_fn`
-      resolves; with the default crates removed, neither works. Ticket to file.
+      with the flags in design.md, section "Flags", plus a brotli copy of
+      each (`<name>.rs.br`, design.md, section "Brotli copies"). A comment at
+      the toolchain lookup states that upstream serves default crates from
+      about Rust 1.60 beside a 1.68.0-nightly analyzer, and that this script
+      takes both from the analyzer's toolchain. Verify: in the editor on
+      `yarn dev-cra`, `Vec::` completes `capacity` and `clear`, and
+      `std::array::from_fn` resolves; with the default crates removed,
+      neither works. Ticket to file.
 - [ ] 1.2 In `generate-crates.mjs`, run `cargo fetch --locked` on
       `server/programs` first, fail naming any supported crate it cannot
       generate, call the script from task 1.1, and write and honor
