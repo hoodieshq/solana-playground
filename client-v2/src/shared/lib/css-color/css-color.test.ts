@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isTransparent, resolveColor, toHex, TRANSPARENT } from "./css-color";
 
@@ -31,9 +31,33 @@ describe("isTransparent", () => {
 });
 
 describe("resolveColor", () => {
-  it("falls back to transparent when the browser cannot compute the value", () => {
-    // jsdom does not resolve custom properties, so the computed colour is
-    // not one `toHex` reads: the case of a misspelt token in a real browser
+  /**
+   * A browser's `getComputedStyle` for `color`: a token it knows resolves,
+   * anything else is invalid at computed-value time and inherits from the
+   * parent -- which is how a misspelt token looked like a real colour.
+   */
+  const KNOWN: Record<string, string> = {
+    "var(--primary)": "rgb(138, 63, 245)",
+  };
+  const inherited = (el: Element | null): string =>
+    (el as HTMLElement | null)?.style.color || "rgb(255, 255, 255)";
+
+  beforeEach(() => {
+    vi.spyOn(window, "getComputedStyle").mockImplementation(
+      (el) =>
+        ({
+          color:
+            KNOWN[(el as HTMLElement).style.color] ??
+            inherited(el.parentElement),
+        } as CSSStyleDeclaration)
+    );
+  });
+
+  it("resolves a token the page defines", () => {
+    expect(resolveColor("var(--primary)")).toBe("#8a3ff5");
+  });
+
+  it("falls back to transparent for a token the page does not define", () => {
     expect(resolveColor("var(--no-such-token)")).toBe(TRANSPARENT);
   });
 });
