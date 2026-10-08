@@ -129,10 +129,95 @@ describe("merge3", () => {
     ).toEqual({
       kind: "conflict",
       chunks: [
-        { kind: "settled", lines: ["A", "b", "c"] },
+        {
+          kind: "settled",
+          lines: ["A", "b", "c"],
+          changes: [{ start: 0, count: 1, by: "theirs" }],
+        },
         { kind: "conflict", base: ["d"], ours: ["mine"], theirs: ["theirs"] },
         { kind: "settled", lines: ["e", ""] },
       ],
+    });
+  });
+
+  describe("says which settled lines a side changed", () => {
+    /** The settled chunks' changes, in order */
+    const changesOf = (b: string, o: string, t: string) =>
+      chunksOf(merge3(b, o, t)).map((chunk) =>
+        chunk.kind === "settled" ? chunk.changes : "conflict"
+      );
+    const mid = lines("a", "b", "c", "d", "e", "f", "g");
+
+    it("this device's change", () => {
+      expect(
+        changesOf(
+          mid,
+          lines("a", "mine", "c", "d", "E1", "E2", "f", "g"),
+          lines("a", "theirs", "c", "d", "e", "f", "g")
+        )
+      ).toEqual([undefined, "conflict", [{ start: 2, count: 2, by: "ours" }]]);
+    });
+
+    it("the other device's change", () => {
+      expect(
+        changesOf(
+          mid,
+          lines("a", "b", "c", "d", "e", "mine", "g"),
+          lines("A", "b", "c", "d", "e", "theirs", "g")
+        )
+      ).toEqual([
+        [{ start: 0, count: 1, by: "theirs" }],
+        "conflict",
+        undefined,
+      ]);
+    });
+
+    it("the same change made on both, and one side's beside it", () => {
+      expect(
+        changesOf(
+          mid,
+          lines("S", "b", "c", "mine", "e", "F", "g"),
+          lines("S", "b", "c", "theirs", "e", "f", "g")
+        )
+      ).toEqual([
+        [{ start: 0, count: 1, by: "both" }],
+        "conflict",
+        [{ start: 1, count: 1, by: "ours" }],
+      ]);
+    });
+
+    it("a deletion, as no lines before the line after it", () => {
+      // Nothing is left of `b` to mark; where it was is still a change
+      expect(
+        changesOf(
+          mid,
+          lines("a", "c", "d", "e", "mine", "g"),
+          lines("a", "b", "c", "d", "e", "theirs", "g")
+        )
+      ).toEqual([[{ start: 1, count: 0, by: "ours" }], "conflict", undefined]);
+    });
+
+    it("points at the lines each side's change put in the chunk", () => {
+      const o = lines("a", "b", "d", "e", "mine", "g", "x");
+      const t = lines("A", "b", "c", "d", "e", "theirs", "g");
+      const chunks = chunksOf(merge3(mid, o, t));
+      expect(join(chunks, "base")).toBe(
+        lines("A", "b", "d", "e", "f", "g", "x")
+      );
+      const [before, , after] = chunks;
+      expect(before).toEqual({
+        kind: "settled",
+        lines: ["A", "b", "d", "e"],
+        changes: [
+          { start: 0, count: 1, by: "theirs" },
+          { start: 2, count: 0, by: "ours" },
+        ],
+      });
+      expect(after).toEqual({
+        kind: "settled",
+        lines: ["g", "x"],
+        changes: [{ start: 1, count: 1, by: "ours" }],
+      });
     });
   });
 
@@ -143,7 +228,11 @@ describe("merge3", () => {
     expect(chunksOf(merge3(five, deleted, blanked))).toEqual([
       { kind: "settled", lines: ["a"] },
       { kind: "conflict", base: ["b"], ours: [], theirs: [""] },
-      { kind: "settled", lines: ["c", "d", "E"] },
+      {
+        kind: "settled",
+        lines: ["c", "d", "E"],
+        changes: [{ start: 2, count: 1, by: "ours" }],
+      },
     ]);
     expect(merge3(five, blanked, deleted).kind).toBe("conflict");
   });

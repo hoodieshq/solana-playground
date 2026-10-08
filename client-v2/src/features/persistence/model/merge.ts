@@ -133,10 +133,22 @@ const hunksOf = (
 };
 
 /**
+ * Lines of a settled chunk that a side changed: `lines[start, start + count)`.
+ * A `count` of 0 is lines that side deleted, gone from before `start`.
+ */
+export interface SettledChange {
+  start: number;
+  count: number;
+  by: "ours" | "theirs" | "both";
+}
+
+/**
  * A run of lines in a file both sides edited.
  *
  * - `settled`: the same in every copy once the merge is done -- unchanged, or
- *   changed by one side only, or changed the same way by both.
+ *   changed by one side only, or changed the same way by both. `changes`
+ *   says which lines a side changed, for the resolve view to mark; absent
+ *   when none did. Nothing that writes a file reads it.
  * - `conflict`: lines both sides changed differently, as the base had them
  *   and as each side has them now.
  *
@@ -145,7 +157,7 @@ const hunksOf = (
  * included.
  */
 export type Chunk =
-  | { kind: "settled"; lines: string[] }
+  | { kind: "settled"; lines: string[]; changes?: SettledChange[] }
   | { kind: "conflict"; base: string[]; ours: string[]; theirs: string[] };
 
 /**
@@ -191,7 +203,26 @@ export const merge3 = (base: string, ours: string, theirs: string): Merge3 => {
   const chunks: Chunk[] = [];
   /** Settled lines since the last conflict, coalesced into one chunk */
   let out: string[] = [];
+  /** Where a side's changes landed in `out` */
+  let changes: SettledChange[] = [];
   let at = 0;
+
+  /** `out` as a chunk, with its changes when it has any */
+  const settle = () => {
+    if (!out.length) return;
+    chunks.push(
+      changes.length
+        ? { kind: "settled", lines: out, changes }
+        : { kind: "settled", lines: out }
+    );
+    out = [];
+    changes = [];
+  };
+  /** Settle `lines`, changed by `by` */
+  const changed = (lines: string[], by: SettledChange["by"]) => {
+    changes.push({ start: out.length, count: lines.length, by });
+    out.push(...lines);
+  };
 
   for (let i = 0; i < hunks.length; ) {
     // One group: every hunk that overlaps or touches the region so far. Two
@@ -220,15 +251,14 @@ export const merge3 = (base: string, ours: string, theirs: string): Merge3 => {
     out.push(...b.slice(at, start));
     const sides = new Set(group.map((h) => h.side));
     if (sides.size === 1) {
-      out.push(...render(group[0].side));
+      changed(render(group[0].side), group[0].side);
     } else {
       const mine = render("ours");
       // Both sides made the same change: nothing to decide. Compared line by
       // line, since joining would make a deleted line and a blanked one equal.
       const yours = render("theirs");
       if (mine.length !== yours.length || mine.some((l, k) => l !== yours[k])) {
-        if (out.length) chunks.push({ kind: "settled", lines: out });
-        out = [];
+        settle();
         chunks.push({
           kind: "conflict",
           base: b.slice(start, end),
@@ -236,7 +266,7 @@ export const merge3 = (base: string, ours: string, theirs: string): Merge3 => {
           theirs: yours,
         });
       } else {
-        out.push(...mine);
+        changed(mine, "both");
       }
     }
     at = end;
@@ -244,7 +274,7 @@ export const merge3 = (base: string, ours: string, theirs: string): Merge3 => {
 
   out.push(...b.slice(at));
   if (!chunks.length) return { kind: "clean", text: out.join("\n") };
-  if (out.length) chunks.push({ kind: "settled", lines: out });
+  settle();
   return { kind: "conflict", chunks };
 };
 
