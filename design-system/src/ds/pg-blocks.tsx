@@ -95,6 +95,7 @@ import {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  mergeHunkOrder,
   mergeHunkVariants,
   type MergeHunkState,
   MergeNav,
@@ -228,27 +229,21 @@ function band(rows: MergeRow[], index: number, lines: number, toLines: number, s
   return { fromTop: top, fromBottom: top + lines * LINE, toTop: top, toBottom: top + toLines * LINE, state }
 }
 
+/* A side's pair, mirrored about the result: × » on the left, « × on the right */
+const hunkPair = (from: "left" | "right") =>
+  mergeHunkOrder[from].map((action) => <MergeHunkAction key={`${from}-${action}`} action={action} from={from} />)
+
 const TAKE_LEFT = (
-  <MergeHunkActions className="absolute inset-y-0 right-1 my-auto h-fit rounded bg-surface-panel">
-    <MergeHunkAction action="take" from="left" />
-    <MergeHunkAction action="dismiss" from="left" />
-  </MergeHunkActions>
+  <MergeHunkActions className="absolute inset-y-0 right-1 my-auto h-fit rounded bg-surface-panel">{hunkPair("left")}</MergeHunkActions>
 )
 
-const TAKE_RIGHT = (
-  <MergeHunkActions className="mr-auto">
-    <MergeHunkAction action="take" from="right" />
-    <MergeHunkAction action="dismiss" from="right" />
-  </MergeHunkActions>
-)
+const TAKE_RIGHT = <MergeHunkActions className="mr-auto">{hunkPair("right")}</MergeHunkActions>
 
-/* At phone width the result carries both sides' controls */
+/* At phone width the result carries both sides' controls: × » « × */
 const TAKE_BOTH = (
   <MergeHunkActions className="absolute inset-y-0 right-1 my-auto h-fit rounded bg-surface-panel">
-    <MergeHunkAction action="take" from="left" />
-    <MergeHunkAction action="dismiss" from="left" />
-    <MergeHunkAction action="take" from="right" />
-    <MergeHunkAction action="dismiss" from="right" />
+    {hunkPair("left")}
+    {hunkPair("right")}
   </MergeHunkActions>
 )
 
