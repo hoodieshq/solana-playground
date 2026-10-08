@@ -39,7 +39,7 @@ utilities and tokens but no design-system components.
 - [x] 3.5 e2e in CI, or the React 19 gate written down as a manual run
       (HOO-1856, PR #48: the `e2e` job; the production-build walk-through
       stays manual until 3.8 writes it as scenarios)
-- [ ] 3.6 First design-system components installed into `shared/ui` through
+- [x] 3.6 First design-system components installed into `shared/ui` through
       the reinstall script (ticket to file; after 3.2 and 2.2)
 - [x] 3.7 `yarn spec:coverage` reports every scenario without a test
       titled `<capability>: <scenario name>` or a `(manual)` mark
