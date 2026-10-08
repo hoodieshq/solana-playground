@@ -19,7 +19,8 @@ describe("resolveSavedTheme", () => {
     ["Monokai", "Dark", null],
     ["", "Dark", null],
   ])("saved %j -> %s, notice %j", (saved, name, removed) => {
-    expect(resolveSavedTheme(saved)).toEqual({ name, removed });
+    const expected = removed === null ? { name } : { name, removed };
+    expect(resolveSavedTheme(saved)).toEqual(expected);
   });
 });
 
