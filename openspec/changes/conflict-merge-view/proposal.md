@@ -33,8 +33,8 @@ exactly which lines were in question (HOO-1837).
   the first components in `shared/ui` (`ui-migration` task 3.6).
 - The sync banner's divergent prompt gains "Resolve…", which opens the view
   over three Monaco editors kept aligned and scrolled together. "Keep this
-  version" and "Take the other version" stay, in the banner and as the
-  view's "Accept Left" and "Accept Right".
+  version" and "Take the other version" stay, in the banner and under the
+  same names in the view's footer (IDEA's "Accept Left" and "Accept Right").
 
 ## Capabilities
 

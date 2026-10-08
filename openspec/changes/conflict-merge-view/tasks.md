@@ -22,7 +22,7 @@ same time; 3.1 needs both. Tick a task in the PR that lands it.
       and re-raised with fresh files otherwise. No UI change: the banner
       behaves as before. Verify: vitest cases in `merge.test.ts` (overlap,
       touch, identical change, no final newline, `\r\n`, chunks rebuild
-      both sides exactly), `planMerge` `lines` vs `whole` (no base, stale
+      both sides exactly when every change is inside a conflict), `planMerge` `lines` vs `whole` (no base, stale
       base, delete on either side), `project-sync.test.ts` (resolved answer
       applied; server moved and local moved each re-raise and upload
       nothing), and a `two-devices.test.ts` case where device A resolves

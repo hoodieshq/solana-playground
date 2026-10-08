@@ -157,12 +157,13 @@ parts with `data-slot` names:
 | `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`               |
 | `MergeHunkActions`, `MergeHunkAction`                                  | `»` `«` `×` icon buttons with their accessible names                                         |
 | `MergeFold`                                                            | "⋯ n unchanged lines" button                                                                 |
-| `MergeFooter`                                                          | shortcuts left, Cancel / Apply right                                                         |
+| `MergeFooter`, `MergeFooterShortcuts`, `MergeFooterActions`            | the whole-file shortcuts left, Cancel / Apply right                                          |
 
-`mergeHunkVariants` (exported `cva`) gives the state classes (`conflict`,
-`resolved`, `dismissed`, `changed`) on the `error`, `warning`, `success` and
-`info` tokens; the client hands the same class names to Monaco decorations,
-so editor highlights and ribbons change together.
+`mergeHunkVariants` (exported `cva`) gives the state classes: `conflict` on
+`error`, `changed` on `info`, `resolved` on `success`, and `dismissed` on the
+muted tokens, since lines left out need no attention. The client hands the
+same class names to Monaco decorations, so editor highlights and ribbons
+change together.
 
 _Alternatives:_ Monaco inside the element (the design system would depend on
 Monaco and on client-v2's pin, themes and languages); a light editor of our
