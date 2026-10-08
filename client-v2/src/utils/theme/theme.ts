@@ -13,6 +13,7 @@ import type {
 import { alpha } from "./alpha";
 import { applyThemeMode } from "./mode";
 import { removedThemeNotice, resolveSavedTheme } from "./saved-theme";
+import { resolveColor } from "../../shared/lib/css-color";
 import { createLogger } from "../../shared/lib/logger";
 import type { ValueOf } from "../types";
 
@@ -361,7 +362,9 @@ export class PgTheme {
   static getDifferentBackground(bg: string) {
     const theme = this._themeReady;
     const { bgPrimary, bgSecondary } = theme.colors.default;
-    if (PgCommon.isColorsEqual(bg, bgPrimary)) return bgSecondary;
+    // The theme holds `var(--token)`, which a canvas cannot paint, so the
+    // comparison is made against the colour the token resolves to now
+    if (PgCommon.isColorsEqual(bg, resolveColor(bgPrimary))) return bgSecondary;
     return bgPrimary;
   }
 
