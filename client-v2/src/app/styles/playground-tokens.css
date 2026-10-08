@@ -161,7 +161,15 @@
   --accent-fill-hover: #9b5bff;
 
   /* The landing's button, green into purple, sampled off the brand render */
-  --gradient-brand: linear-gradient(90deg, #19c98c 0%, #339794 13%, #5673b0 25%, #794fcd 37.8%, #8845da 56%, #8e4be0 100%);
+  --gradient-brand: linear-gradient(
+    90deg,
+    #19c98c 0%,
+    #339794 13%,
+    #5673b0 25%,
+    #794fcd 37.8%,
+    #8845da 56%,
+    #8e4be0 100%
+  );
   /* The product's own: Solana's two colours, for the stepper's thumb, the
      brand ring and a lesson's meter (views/flow/components/gradient.ts) */
   --gradient-product: linear-gradient(120deg, #9945ff, #14f195);
@@ -182,8 +190,10 @@
   --syntax-plain: #f2f2f3;
 
   /* ── type ───────────────────────────────────────────────────────────── */
-  --font-headline: "Stack Sans Headline", "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-text: "Stack Sans Text", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-headline: "Stack Sans Headline", "Manrope", -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-text: "Stack Sans Text", "Manrope", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Helvetica, Arial, sans-serif;
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* ── layout: the canvas's shared sizes (views/flow/tokens.ts) ───────── */
@@ -208,7 +218,8 @@
   --shadow-glow-value: 0 0 0 10px rgb(153 69 255 / 0.12);
   --shadow-thumb-value: 0 1px 2px rgb(0 0 0 / 0.3);
   --shadow-sheet-value: 0 -12px 40px rgb(0 0 0 / 0.45);
-  --shadow-composer-value: inset 0 1px 0 rgb(255 255 255 / 0.02), 0 10px 30px -18px rgb(0 0 0 / 0.8);
+  --shadow-composer-value: inset 0 1px 0 rgb(255 255 255 / 0.02),
+    0 10px 30px -18px rgb(0 0 0 / 0.8);
   --backdrop: rgb(8 8 9 / 0.62);
 
   /* ── motion ─────────────────────────────────────────────────────────── */
