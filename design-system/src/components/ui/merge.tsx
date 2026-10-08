@@ -277,11 +277,18 @@ function MergePane({
   )
 }
 
+/* A side that deleted the file says so in place of its name */
+const DELETED_NAME: Record<MergeSide, string> = {
+  left: "Deleted on this device",
+  result: PANE_NAME.result,
+  right: "Deleted on the other device",
+}
+
 /* The pane's name, with a lock on a read-only side. Anything else, such as
    a version, goes after it */
 function MergePaneHeader({ className, children, ...props }: React.ComponentProps<"div">) {
   const { side, readOnly, deleted } = React.useContext(PaneContext)
-  const label = deleted && side === "left" ? "Deleted on this device" : deleted && side === "right" ? "Deleted on the other device" : PANE_NAME[side]
+  const label = deleted ? DELETED_NAME[side] : PANE_NAME[side]
   return (
     <div
       data-slot="merge-pane-header"
@@ -410,6 +417,8 @@ const HUNK_ACTION = {
   dismiss: { left: "Dismiss this device's lines", right: "Dismiss the other device's lines" },
 } as const
 
+const TAKE_ICON = { left: ChevronsRight, right: ChevronsLeft } as const
+
 /* » takes this device's lines, « the other device's; × dismisses either */
 function MergeHunkAction({
   className,
@@ -418,7 +427,7 @@ function MergeHunkAction({
   ...props
 }: Omit<React.ComponentProps<"button">, "children"> & { action: "take" | "dismiss"; from: "left" | "right" }) {
   const label = HUNK_ACTION[action][from]
-  const Icon = action === "dismiss" ? XIcon : from === "left" ? ChevronsRight : ChevronsLeft
+  const Icon = action === "dismiss" ? XIcon : TAKE_ICON[from]
   return (
     <button
       type="button"
