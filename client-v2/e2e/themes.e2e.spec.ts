@@ -82,21 +82,20 @@ test.describe("client-v2-themes", () => {
     await expect.poll(() => isDark(page)).toBe(false);
   });
 
-  test("client-v2-themes: A saved Dracula theme", async ({ page }) => {
-    // Seed once: a reload must read what the app saved, not the seed again
-    await page.addInitScript(() => {
-      if (!sessionStorage.getItem("seeded")) {
-        localStorage.setItem("theme", "Dracula");
-        sessionStorage.setItem("seeded", "1");
-      }
-    });
-    await page.goto("/");
+  test("client-v2-themes: A saved Dracula theme", async ({
+    seededPage: page,
+  }) => {
+    // A returning user: a project open, so no gallery covers the notice, and
+    // the removed theme still in storage from before the token bridge
+    await page.evaluate(() => localStorage.setItem("theme", "Dracula"));
+    await page.reload();
 
     await expect.poll(() => isDark(page)).toBe(true);
     const notice = page.getByText(
       "The Dracula theme was removed. Playground now uses Dark; Light is in Settings."
     );
     await expect(notice).toBeVisible();
+    await expect(page.locator("[data-gallery-modal]")).toBeHidden();
 
     await page.reload();
     await expect.poll(() => isDark(page)).toBe(true);
