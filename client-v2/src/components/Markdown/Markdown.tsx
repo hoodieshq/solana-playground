@@ -144,8 +144,7 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
     --color-canvas-default: ${theme.components.markdown.bg};
     --color-canvas-subtle: ${theme.components.markdown.subtleBg};
     --color-border-default: ${theme.colors.default.border};
-    --color-border-muted: ${theme.colors.default.border +
-    theme.default.transparency.high};
+    --color-border-muted: ${PgTheme.alpha(theme.colors.default.border, "high")};
     --color-neutral-muted: ${theme.colors.state.hover.bg};
     --color-accent-fg: ${theme.colors.default.primary};
     --color-accent-emphasis: #1f6feb;

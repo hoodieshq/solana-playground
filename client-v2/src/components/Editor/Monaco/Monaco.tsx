@@ -88,8 +88,7 @@ const Monaco = () => {
           foreground: editorStyles.default.color,
           errorForeground: theme.colors.state.error.color,
           descriptionForeground: theme.colors.default.textSecondary,
-          focusBorder:
-            theme.colors.default.primary + theme.default.transparency!.high,
+          focusBorder: PgTheme.alpha(theme.colors.default.primary, "high"),
 
           /////////////////////////////// Editor ///////////////////////////////
           "editor.foreground": editorStyles.default.color,
@@ -127,8 +126,10 @@ const Monaco = () => {
           "input.background": theme.components.input.bg!,
           "input.foreground": theme.components.input.color,
           "input.border": theme.components.input.borderColor,
-          "inputOption.activeBorder":
-            theme.colors.default.primary + theme.default.transparency.high,
+          "inputOption.activeBorder": PgTheme.alpha(
+            theme.colors.default.primary,
+            "high"
+          ),
           "input.placeholderForeground": theme.colors.default.textSecondary,
           "inputValidation.infoBackground": theme.colors.state.info.bg!,
           "inputValidation.infoBorder": theme.colors.state.info.color,
