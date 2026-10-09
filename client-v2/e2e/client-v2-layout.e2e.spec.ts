@@ -3,24 +3,11 @@ import type { Page } from "@playwright/test";
 import { expect, seedWorkspace, test } from "./fixtures";
 
 /**
- * Names of the telemetry events the page has logged so far.
+ * The telemetry event lines the page logs from now on.
  *
  * The dev server logs each event at `debug` from the `telemetry:event`
  * namespace, as `[telemetry:event] <name> {<params>}`.
  */
-const eventsOn = (page: Page) => {
-  const names: string[] = [];
-  page.on("console", (message) => {
-    const text = message.text();
-    if (text.startsWith("[telemetry:event]")) names.push(text.split(" ")[1]);
-  });
-  return names;
-};
-
-/** The first event line with this name, params included */
-const lineOf = (lines: string[], name: string) =>
-  lines.find((line) => line.startsWith(`[telemetry:event] ${name} `));
-
 const linesOn = (page: Page) => {
   const lines: string[] = [];
   page.on("console", (message) => {
@@ -29,6 +16,16 @@ const linesOn = (page: Page) => {
   });
   return lines;
 };
+
+/** Names of the telemetry events the page has logged so far */
+const eventsOn = (page: Page) => {
+  const lines = linesOn(page);
+  return { has: (name: string) => lines.some((l) => l.split(" ")[1] === name) };
+};
+
+/** The first event line with this name, params included */
+const lineOf = (lines: string[], name: string) =>
+  lines.find((line) => line.startsWith(`[telemetry:event] ${name} `));
 
 const assistantPanel = (page: Page) => page.locator("#assistant[data-panel]");
 const consoleHandle = (page: Page) =>
@@ -120,7 +117,9 @@ test.describe("on a phone", () => {
         .getByText("Editing works on screens 600 px and wider")
     ).toBeVisible();
     expect(await lines.innerText()).toBe(before);
-    expect(events).toContain("layout_readonly_edit_blocked");
+    await expect
+      .poll(() => events.has("layout_readonly_edit_blocked"))
+      .toBe(true);
 
     await page.getByRole("button", { name: "Expand assistant" }).click();
     const sheet = page.locator('[data-slot="sheet-content"]');
@@ -163,6 +162,7 @@ test("client-v2-layout: Toggling the assistant by key", async ({
   await expect(
     page.getByRole("button", { name: "Expand assistant" })
   ).toBeVisible();
+  await expect.poll(() => lineOf(lines, "layout_panel_toggled")).toBeTruthy();
   const line = lineOf(lines, "layout_panel_toggled");
   expect(line).toContain("panel: assistant");
   expect(line).toContain("open: false");
@@ -180,4 +180,24 @@ test("client-v2-layout: A corrupt saved layout is reported", async ({
   ).toBeVisible();
   await expect.poll(() => lineOf(lines, "layout_restore_failed")).toBeTruthy();
   expect(lineOf(lines, "layout_restore_failed")).toContain("reason: corrupt");
+});
+
+// The header sits above the left panel so its menus can be clicked; the
+// wallet window opens at the top right, over the header's bottom edge.
+test("the wallet window's close button is clickable over the header", async ({
+  seededPage: page,
+}) => {
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Toggle wallet" }).waitFor();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: /Wallet/ })
+    .click();
+
+  const wallet = page.locator(".react-draggable");
+  await expect(wallet).toBeVisible();
+  // The top bar's buttons are, in order, settings and close
+  await wallet.getByRole("button").nth(1).click();
+  await expect(wallet).toHaveCount(0);
 });
