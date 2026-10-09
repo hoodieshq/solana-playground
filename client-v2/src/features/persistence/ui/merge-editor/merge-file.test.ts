@@ -468,3 +468,33 @@ describe("MergeFile folds", () => {
     expect(file.folds()).toHaveLength(1);
   });
 });
+
+describe("MergeFile of a file that now merges on its own", () => {
+  it("shows what it merges to in every pane, with nothing to decide", () => {
+    const file = MergeFile.from({
+      kind: "settled",
+      path: "src/lib.rs",
+      content: "a\nb",
+      localHash: "l",
+      serverHash: "s",
+    });
+    expect([file.left, file.result, file.right]).toEqual([
+      "a\nb",
+      "a\nb",
+      "a\nb",
+    ]);
+    expect(file.hunks).toEqual([]);
+    expect(file.unresolved).toBe(0);
+    expect(file.resolved()).toEqual({
+      content: "a\nb",
+      localHash: "l",
+      serverHash: "s",
+    });
+  });
+
+  it("answers a delete for a file the merge leaves out", () => {
+    const file = MergeFile.from({ kind: "settled", path: "src/gone.rs" });
+    expect(file.result).toBe("");
+    expect(file.resolved()).toEqual({ content: null });
+  });
+});

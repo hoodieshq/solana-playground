@@ -325,6 +325,11 @@ export interface MergeInput {
  *   The file is one question. A side that deleted it has no content and no
  *   hash.
  *
+ * - `settled`: never in a plan. A file a refused answer was about that now
+ *   merges on its own, raised again beside the files still in conflict so
+ *   the view can show where it stands (`PgProjectSync.mergeWithServer`).
+ *   `content` is what it merges to, absent when the merge leaves no file.
+ *
  * The hashes are the plan's own `localHashes` / `serverHashes` for the path:
  * an answer carries them back (`ResolvedFiles`), and is applied only to the
  * same two copies.
@@ -342,6 +347,13 @@ export type FileConflict =
       path: string;
       local?: string;
       server?: string;
+      localHash?: string;
+      serverHash?: string;
+    }
+  | {
+      kind: "settled";
+      path: string;
+      content?: string;
       localHash?: string;
       serverHash?: string;
     };

@@ -6,7 +6,7 @@ import type * as Monaco from "monaco-editor";
 
 // Monaco's module graph is large: transformed cold, under the whole suite,
 // importing it alone can take longer than the default 5s
-vi.setConfig({ testTimeout: 60_000 });
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 /**
  * Monaco's text model and undo stack, the real ones. The editor API alone:

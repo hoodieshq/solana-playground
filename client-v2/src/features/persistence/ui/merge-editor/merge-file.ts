@@ -183,7 +183,23 @@ export class MergeFile {
     this.conflict = conflict;
     this.path = conflict.path;
 
-    if (conflict.kind === "lines") {
+    if (conflict.kind === "settled") {
+      // Nothing to decide: what it merges to, the same in every pane. The
+      // result stays editable, as for any file.
+      const text = conflict.content ?? "";
+      const n = text.split("\n").length;
+      this.deleted = { left: false, right: false };
+      this.segments = [
+        {
+          kind: "settled",
+          lines: { left: n, result: n, right: n },
+          changes: [],
+        },
+      ];
+      this.left = text;
+      this.right = text;
+      this._lines = text.split("\n");
+    } else if (conflict.kind === "lines") {
       this.deleted = { left: false, right: false };
       this.segments = conflict.chunks.map((chunk): Segment => {
         if (chunk.kind === "settled") {
@@ -525,6 +541,10 @@ export class MergeFile {
    */
   private _deletes() {
     const { deleted } = this;
+    // Merged away: shown as an empty file, and left deleted unless typed in
+    if (this.conflict.kind === "settled") {
+      return this.conflict.content === undefined && this.result === "";
+    }
     if (this.conflict.kind !== "whole" || !(deleted.left || deleted.right)) {
       return false;
     }

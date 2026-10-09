@@ -134,6 +134,42 @@ const divergentOf = (projectId: string, plan: MergePlan): Conflict => ({
 });
 
 /**
+ * The question a refused content answer raises again: every file the plan
+ * still cannot settle, and every other file the answer was about, as it now
+ * merges on its own (`settled`). The user answered about those too, about
+ * copies that are gone, so the view shows them as they stand rather than
+ * settling them behind the user's back. In path order, as the plan's.
+ */
+const refusedOf = (
+  projectId: string,
+  plan: MergePlan,
+  answer: ResolvedFiles,
+  hashes: { local: FileHashes; server: FileHashes }
+): Conflict => {
+  const conflicted = new Set(plan.conflicts.map(({ path }) => path));
+  const settled = Object.keys(answer)
+    .filter((path) => !conflicted.has(path))
+    .map((path): FileConflict => {
+      const file: FileConflict = { kind: "settled", path };
+      if (path in plan.files) file.content = plan.files[path];
+      if (hashes.local[path] !== undefined) file.localHash = hashes.local[path];
+      if (hashes.server[path] !== undefined) {
+        file.serverHash = hashes.server[path];
+      }
+      return file;
+    });
+  const files = [...plan.conflicts, ...settled].sort((a, b) =>
+    a.path < b.path ? -1 : Number(a.path > b.path)
+  );
+  return {
+    projectId,
+    kind: "divergent",
+    paths: files.map(({ path }) => path),
+    files,
+  };
+};
+
+/**
  * Whether every file of a content answer is still the two copies it was
  * written against: each entry's `localHash` and `serverHash` equal to the
  * hashes read now, `undefined` matching a side that has no file.
@@ -159,7 +195,7 @@ const pinsHold = (
  * A side's answer (`"local"`, `"server"`) is a rule, and settles any conflict
  * on a file the user was asked about. Content needs an entry for every
  * conflicted file. Its pins are checked before this, by `pinsHold`: an answer
- * whose pins miss arrives here as no answer at all.
+ * whose pins miss never arrives here.
  */
 const answers = (
   plan: MergePlan,
@@ -972,16 +1008,18 @@ export class PgProjectSync {
    * @param prefer how to settle the files that cannot be merged: one side's
    * copy of each, or the user's own content per file (`ResolvedFiles`).
    * Content is pinned to the two copies the user was shown: it is applied
-   * only when, on this attempt's read, every entry -- in conflict now or not
-   * -- has the `localHash` and `serverHash` of the copies there now, and
-   * every conflicted file has an entry. Any pin that misses voids the whole
-   * answer for the attempt, which then runs as if `prefer` were absent: none
-   * of the content is used, and a plan that still has conflicts raises them
-   * with this attempt's files and writes nothing, while one that now merges
-   * on its own is merged and uploaded. Without `prefer`, a conflict is
-   * likewise raised and nothing written. A retry after a refused upload
-   * re-reads and re-checks, so content never lands on a server copy the
-   * user did not see. The name merges as for `"local"`.
+   * only when, on the first attempt's read, every entry -- in conflict now
+   * or not -- has the `localHash` and `serverHash` of the copies there now,
+   * and every conflicted file has an entry. Any pin that misses refuses the
+   * whole answer: nothing is written or uploaded, and the question is raised
+   * again with the files as they are now -- those still in conflict, and the
+   * answered ones that now merge on their own as `settled` (`refusedOf`) --
+   * even when nothing conflicts any more, since the user answered about
+   * copies that are gone. Once applied, the content is this device's copy:
+   * a retry after a refused upload merges that copy with the server's newer
+   * one as any merge would, without the answer, and asks again only about
+   * lines that overlap. Without `prefer`, a conflict is raised and nothing
+   * written. The name merges as for `"local"`.
    * @param asked the files the user was shown when they picked `prefer`. The
    * answer covers those and no others: when the server has moved since and
    * something else now overlaps too, the question is asked again, with the
@@ -1079,13 +1117,22 @@ export class PgProjectSync {
         });
 
         // Content written against copies that are no longer these is no
-        // answer at all, for any of its files: this attempt goes on as if
-        // the user had not answered. Checked on every attempt, as below.
-        const answer =
+        // answer at all, for any of its files, and the user sees where the
+        // files stand now before anything is written -- even a file that
+        // would now merge on its own. Checked before content is applied;
+        // once it is (`carried`), it is this device's copy, merged on a
+        // retry like any other.
+        const hashes = { local: localHashes, server: serverHashes };
+        if (
           typeof prefer === "object" &&
-          !pinsHold(prefer, { local: localHashes, server: serverHashes })
-            ? undefined
-            : prefer;
+          !carried &&
+          !pinsHold(prefer, hashes)
+        ) {
+          PgProjectSync._raise(refusedOf(projectId, plan, prefer, hashes));
+          return "conflict";
+        }
+        const answer =
+          typeof prefer === "object" && carried ? undefined : prefer;
 
         // Unanswered, or answered about other files than these. Checked on
         // every attempt: a retry re-reads a server that may have moved again.
