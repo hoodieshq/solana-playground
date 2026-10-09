@@ -168,7 +168,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         className="flex min-h-0 flex-col"
         onResize={(size) => {
           const folded = consoleRef.current?.isCollapsed();
-          if (folded === false) consoleOpenSize.current = size.inPixels;
+          if (folded === false && size.inPixels > PANEL_SIZES.console.folded) {
+            consoleOpenSize.current = size.inPixels;
+          }
           if (folded !== undefined && folded === props.consoleOpen) {
             props.onConsoleOpenChange(!folded);
           }
@@ -227,7 +229,12 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               className="flex min-w-0 flex-col"
               onResize={(size) => {
                 const folded = assistantRef.current?.isCollapsed();
-                if (folded === false) assistantOpenSize.current = size.inPixels;
+                if (
+                  folded === false &&
+                  size.inPixels > PANEL_SIZES.assistant.folded
+                ) {
+                  assistantOpenSize.current = size.inPixels;
+                }
                 if (folded !== undefined && folded === props.assistantOpen) {
                   props.onAssistantOpenChange(!folded);
                 }
