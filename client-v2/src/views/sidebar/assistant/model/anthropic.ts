@@ -10,13 +10,34 @@ import type { ReplayMessage } from "../../../../features/persistence/model/repla
 import type { McpServerEntry } from "../grounding";
 import type { Effort, Provider, ToolInput } from "./types";
 
-const MAX_TOKENS = 32000;
+/** Thinking counts toward this even though its text is not returned */
+const MAX_TOKENS = 64000;
 /** A turn that has not finished after this many round trips is looping */
 const MAX_ITERATIONS = 12;
 /** Remote MCP servers are dialled by Anthropic, not from the browser */
 const MCP_BETA = "mcp-client-2025-11-20";
 /** A turn still pausing after this many resumes is not going to finish */
 const MAX_RESUMES = 3;
+/** `block_binding`, `display: "updates"` and `fallbacks: "default"` */
+const BETAS = [
+  "thinking-binding-controls-2026-08-01",
+  "thinking-display-updates-2026-08-18",
+  "server-side-fallback-2026-07-01",
+];
+
+/**
+ * The project snapshot, the skill catalogue and the MCP toolsets change between
+ * turns, so earlier thinking blocks no longer match their prefix: drop them
+ * rather than fail the request. `updates` returns the notes written between
+ * tool calls, which the 5.5 models send as thinking blocks, not text.
+ *
+ * Cast because SDK 0.117 types `thinking` without either field.
+ */
+const THINKING = {
+  type: "adaptive",
+  display: "updates",
+  block_binding: { prefix_mismatch_behavior: "drop_block" },
+} as unknown as Anthropic.Beta.BetaThinkingConfigParam;
 
 /**
  * Declare the enabled MCP servers, and the toolsets that expose them.
@@ -119,8 +140,10 @@ export const createAnthropicProvider = (
         {
           model,
           max_tokens: MAX_TOKENS,
-          thinking: { type: "adaptive" },
+          thinking: THINKING,
           output_config: { effort },
+          // A classifier decline is retried on the model Anthropic picks for it
+          fallbacks: "default",
           system: [
             {
               type: "text",
@@ -134,7 +157,8 @@ export const createAnthropicProvider = (
             },
           ],
           tools: [...tools, ...(mcp?.toolsets ?? [])],
-          ...(mcp ? { mcp_servers: mcp.mcp_servers, betas: mcp.betas } : {}),
+          ...(mcp ? { mcp_servers: mcp.mcp_servers } : {}),
+          betas: [...BETAS, ...(mcp?.betas ?? [])],
           messages: [...history, { role: "user", content: input }],
           max_iterations: MAX_ITERATIONS,
           stream: true,
@@ -148,9 +172,23 @@ export const createAnthropicProvider = (
 
       for await (const stream of runner) {
         const messageId = PgAssistant.startAssistantMessage();
+        // Progress notes and the reply are separate blocks; a blank line keeps
+        // them separate paragraphs in the one bubble
+        let wrote = false;
+        let newBlock = false;
+        const write = (delta: string) => {
+          if (!delta) return;
+          if (newBlock && wrote) {
+            PgAssistant.appendToAssistantMessage(messageId, "\n\n");
+          }
+          PgAssistant.appendToAssistantMessage(messageId, delta);
+          wrote = true;
+          newBlock = false;
+        };
 
         for await (const event of stream) {
           if (event.type === "content_block_start") {
+            newBlock = true;
             const block = event.content_block;
             // MCP tools run on Anthropic's side, so they arrive as their own
             // block types and never pass through a local `run`
@@ -162,11 +200,11 @@ export const createAnthropicProvider = (
               const label = mcpCalls.get(block.tool_use_id) ?? "an MCP tool";
               PgAssistant.addToolCall(`${label} failed`);
             }
-          } else if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            PgAssistant.appendToAssistantMessage(messageId, event.delta.text);
+          } else if (event.type === "content_block_delta") {
+            if (event.delta.type === "text_delta") write(event.delta.text);
+            else if (event.delta.type === "thinking_delta") {
+              write(event.delta.thinking);
+            }
           }
         }
 
@@ -180,6 +218,15 @@ export const createAnthropicProvider = (
         // after a local tool runs, so without this the answer is cut off
         // mid-thought with no error.
         const message = await stream.finalMessage();
+        // Reached only when the fallback declined too, or the category has none
+        if (message.stop_reason === "refusal") {
+          const category = message.stop_details?.category;
+          throw new Error(
+            `The model declined this request${
+              category ? ` (${category})` : ""
+            }. Rephrase it, or switch backends.`
+          );
+        }
         if (message.stop_reason === "pause_turn") {
           if (++resumes > MAX_RESUMES) {
             throw new Error(

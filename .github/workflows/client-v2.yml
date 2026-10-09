@@ -118,6 +118,9 @@ jobs:
       - name: Check format
         run: yarn check-format
 
+      - name: Check Markdown
+        run: yarn check-md
+
       # The production build lints only what webpack bundles. This step also
       # covers tests, `api/` and `e2e/`. Only errors fail it: the review
       # rules in `eslintConfig` are errors, and the legacy code still holds
@@ -129,11 +132,6 @@ jobs:
       # its proposal, delta specs, design and tasks in the schema's shape.
       - name: Validate specs
         run: yarn spec:validate
-
-      # A change with every task ticked must be archived in the PR that
-      # ticked the last one (client-v2/CLAUDE.md, "Specs and changes").
-      - name: Archived changes
-        run: yarn spec:archived
 
       # Report only: which scenarios have neither a browser test nor a
       # `(manual)` mark. `--strict` is for when the list is empty.

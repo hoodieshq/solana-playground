@@ -1,4 +1,5 @@
 import { GITHUB_URL } from "../../constants";
+import { SERVER_URL } from "../../shared/config/client-env";
 import { PgCommon } from "../../utils";
 import { createSetting } from "../create";
 import {
@@ -14,7 +15,7 @@ export const server = [
     // which host is Solana's and which is upstream's (D30)
     values: [...SERVER_ENDPOINT_OPTIONS],
     default: defaultServerEndpoint({
-      REACT_APP_SERVER_URL: process.env.REACT_APP_SERVER_URL,
+      REACT_APP_SERVER_URL: SERVER_URL,
       NODE_ENV: process.env.NODE_ENV,
     }),
     custom: {

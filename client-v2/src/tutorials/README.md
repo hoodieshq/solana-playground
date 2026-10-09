@@ -102,13 +102,13 @@ In order to add a thumbnail for your tutorial, put a file named `thumbnail.(png|
 
 The assets can be included in the Markdown files with the following syntax:
 
-```
+```md
 ![<DESCRIPTION>](<IMAGE_NAME>)
 ```
 
 **Example:**
 
-```
+```md
 ![Test UI](test-ui.png)
 ```
 

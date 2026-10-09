@@ -14,6 +14,8 @@
 import { toNodeHandler } from "better-auth/node";
 
 import { getAuth, missingConfig } from "../src/features/auth/server.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
 
 /**
  * Put the requested path back on the request.
@@ -45,7 +47,8 @@ export const restorePath = (req) => {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   const auth = getAuth();
   if (!auth) {
     // `missing` names the variables this deployment lacks. Every deployment
@@ -67,3 +70,5 @@ export default async function handler(req, res) {
   restorePath(req);
   return toNodeHandler(auth)(req, res);
 }
+
+export default withObservability("auth", handler);

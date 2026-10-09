@@ -12,18 +12,15 @@ import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
  * shared with `/api/mcp`; this spec proves the rail goes through it.
  */
 describe("POST /api/agent body validation", () => {
-  const env = { ...process.env };
-
   beforeEach(() => {
     // A configured rail, so requests get past the 503 and into parsing
-    process.env.AGENT_BASE_URL = "https://llm.test/v1";
-    process.env.AGENT_MODEL = "test-model";
-    process.env.AGENT_API_KEY = "k";
-    delete process.env.AGENT_ENABLED;
+    vi.stubEnv("AGENT_BASE_URL", "https://llm.test/v1");
+    vi.stubEnv("AGENT_MODEL", "test-model");
+    vi.stubEnv("AGENT_API_KEY", "k");
   });
 
   afterEach(() => {
-    process.env = { ...env };
+    vi.unstubAllEnvs();
   });
 
   const notObjects: Array<[label: string, raw: string]> = [
@@ -72,10 +69,66 @@ describe("POST /api/agent body validation", () => {
     expect(jsonBody(res).error).toMatch(/Malformed/);
   });
 
-  it("answers 503 when no backend is configured, before reading the body", async () => {
-    delete process.env.AGENT_BASE_URL;
-    const res = await postJson(handler, "null");
-    expect(res.statusCode).toBe(503);
+  const missingKeys: Array<[label: string, key: string | undefined]> = [
+    ["unset", undefined],
+    ["empty", ""],
+  ];
+
+  for (const [label, key] of missingKeys) {
+    it(`answers 503 when the key is ${label}, before reading the body`, async () => {
+      vi.stubEnv("AGENT_API_KEY", key);
+      const res = await postJson(handler, "null");
+      expect(res.statusCode).toBe(503);
+    });
+  }
+});
+
+/**
+ * What reaches the upstream. The key alone has to be enough: everything else
+ * has a default in `upstream`, and each variable overrides its own part.
+ */
+describe("POST /api/agent upstream request", () => {
+  beforeEach(() => {
+    vi.stubEnv("AGENT_BASE_URL", undefined);
+    vi.stubEnv("AGENT_MODEL", undefined);
+    vi.stubEnv("AGENT_REASONING_EFFORT", undefined);
+    vi.stubEnv("AGENT_API_KEY", "k");
+    (globalThis as { fetch: unknown }).fetch = vi.fn(async () => ({
+      ok: false,
+      status: 418,
+      text: async () => "",
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete (globalThis as { fetch?: unknown }).fetch;
+  });
+
+  /** The url and parsed body of the one upstream call a turn makes */
+  const sent = async () => {
+    await postJson(handler, '{"messages":[{"role":"user","content":"hi"}]}');
+    const [url, init] = (globalThis.fetch as Mock).mock.calls[0];
+    return { url, body: JSON.parse(init.body) };
+  };
+
+  it("defaults to GLM 5.3 Flash on Nous with low effort", async () => {
+    const { url, body } = await sent();
+    expect(url).toBe(
+      "https://inference-api.nousresearch.com/v1/chat/completions"
+    );
+    expect(body.model).toBe("z-ai/glm-5.3-flash:US");
+    expect(body.reasoning_effort).toBe("low");
+  });
+
+  it("lets each variable override its own default", async () => {
+    vi.stubEnv("AGENT_BASE_URL", "https://llm.test/v1");
+    vi.stubEnv("AGENT_MODEL", "test-model");
+    vi.stubEnv("AGENT_REASONING_EFFORT", "high");
+    const { url, body } = await sent();
+    expect(url).toBe("https://llm.test/v1/chat/completions");
+    expect(body.model).toBe("test-model");
+    expect(body.reasoning_effort).toBe("high");
   });
 });
 
@@ -85,16 +138,14 @@ describe("POST /api/agent body validation", () => {
  * everything it has to say from then on has to go inside the stream.
  */
 describe("POST /api/agent streaming", () => {
-  const env = { ...process.env };
-
   beforeEach(() => {
-    process.env.AGENT_BASE_URL = "https://llm.test/v1";
-    process.env.AGENT_MODEL = "test-model";
-    delete process.env.AGENT_ENABLED;
+    vi.stubEnv("AGENT_BASE_URL", "https://llm.test/v1");
+    vi.stubEnv("AGENT_MODEL", "test-model");
+    vi.stubEnv("AGENT_API_KEY", "k");
   });
 
   afterEach(() => {
-    process.env = { ...env };
+    vi.unstubAllEnvs();
     delete (globalThis as { fetch?: unknown }).fetch;
   });
 

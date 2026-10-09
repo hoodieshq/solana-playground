@@ -6,8 +6,8 @@
  * key and the model are configured here from the environment and never taken
  * from the request — same rule as `api/mcp.mjs`, and for the same reason.
  *
- * What runs behind it is a deploy-time choice: a hosted model today, an agent
- * service later. The wire shape is the contract; nothing else is promised.
+ * What runs behind it is a deploy-time choice, read from the environment by
+ * `upstream`. The wire shape is the contract; nothing else is promised.
  *
  * **This is not a cost gate.** Anything that can reach our origin can spend the
  * configured key. A challenge and a per-session limit belong in front of this
@@ -23,39 +23,32 @@
  */
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
+import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
+import { withObservability } from "../src/features/api/server/with-observability.mjs";
+import { agentEnv } from "../src/shared/config/server-env.mjs";
 
 /** Request fields forwarded upstream; everything else is the server's to decide */
 const FORWARDED = ["messages", "tools", "tool_choice"];
 
-/** An operator's kill switch: off even when the rail is fully configured */
-const enabled = () =>
-  !/^(false|0|off|no)$/i.test(process.env.AGENT_ENABLED ?? "");
-
 /**
- * The configured upstream, or `null` when this deployment has none.
+ * The configured upstream, or `null` when this deployment has no key.
  *
- * Absent by default: with nothing set the panel simply reports the default
- * backend as unavailable, which is what a fork with no key of its own wants.
+ * The key alone enables the rail; {@link agentEnv} defaults the rest. A fork
+ * with no key of its own gets the panel reporting the default backend as
+ * unavailable.
  *
- * `AGENT_BASE_URL` is a base, not a full path -- the same shape the panel's
- * OpenAI-compatible provider takes, so one endpoint is configured identically
- * whether it is reached through here or entered by hand.
+ * `AGENT_BASE_URL` is used as given: a base with no trailing slash and no
+ * `/chat/completions`, the path this appends.
  */
 const upstream = () => {
-  const configured = process.env.AGENT_BASE_URL?.trim();
-  const model = process.env.AGENT_MODEL;
-  if (!enabled() || !configured || !model) return null;
-
-  // Tolerate a pasted full endpoint: provider docs quote the completions path,
-  // the panel's own field wants the base, and both mean the same deployment
-  const baseUrl = configured
-    .replace(/\/+$/, "")
-    .replace(/\/chat\/completions$/, "");
+  const agent = agentEnv();
+  if (!agent.API_KEY) return null;
 
   return {
-    url: `${baseUrl}/chat/completions`,
-    model,
-    apiKey: process.env.AGENT_API_KEY ?? "",
+    url: `${agent.BASE_URL}/chat/completions`,
+    model: agent.MODEL,
+    reasoningEffort: agent.REASONING_EFFORT,
+    apiKey: agent.API_KEY,
   };
 };
 
@@ -121,7 +114,8 @@ const pipeStream = async (res, body) => {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
+  warnAboutMissingObservabilityIds();
   const configured = upstream();
 
   // Discovery, mirroring `api/mcp.mjs`: the client asks whether this
@@ -179,9 +173,7 @@ export default async function handler(req, res) {
       headers: {
         "content-type": "application/json",
         accept: "text/event-stream",
-        ...(configured.apiKey
-          ? { authorization: `Bearer ${configured.apiKey}` }
-          : {}),
+        authorization: `Bearer ${configured.apiKey}`,
       },
       body: JSON.stringify({
         ...Object.fromEntries(
@@ -191,6 +183,7 @@ export default async function handler(req, res) {
           ])
         ),
         model: configured.model,
+        reasoning_effort: configured.reasoningEffort,
         stream: true,
       }),
     });
@@ -220,3 +213,5 @@ export default async function handler(req, res) {
   res.setHeader("cache-control", "no-cache, no-transform");
   await pipeStream(res, response.body);
 }
+
+export default withObservability("agent", handler);

@@ -130,7 +130,7 @@ Setting the dashboard Root Directory to `client-v2` makes both paths agree; the 
    VERCEL_PROJECT_ID=prj_xxx make -f client-v2/Makefile.vercel vercel-bootstrap
    ```
 
-   `-f` matters: the root `Makefile` still includes `client/Makefile.vercel`, so a bare `make <target>` runs the pre-move targets and deploys the upstream client.
+   The root `Makefile` includes `client-v2/Makefile.vercel`, so a bare `make <target>` from the repo root runs the same targets, and `make help` lists them.
 6. Neon console → the org named `Vercel: Hoodies` → Settings → API keys → Create new → Project-scoped, for project `spring-cake-75618686`. Put it in `client-v2/.env` as `NEON_API_KEY=...`, alongside `DATABASE_URL` — `Makefile.vercel` lifts it out of there, because make does not read `.env` the way dbmate does. A Vercel-managed Neon account has no CLI login — `neon login` cannot work — so this key is the only way the Makefile reaches the Neon API, and only org Admins can mint one. The token is shown once.
 7. Cut the empty parent that every preview database branches from, **before** anything migrates the shared database:
 
@@ -146,10 +146,12 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 - **Automatic:** push the branch — but this builds `client`, not `client-v2`, until the dashboard Root Directory is changed.
 - **Local preview:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-preview`. Promote later with `vercel promote <url> --prod`.
-
+- **Local production:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-production`. The target prints the branch and commit, asks for a typed `yes`, and then runs `vercel build --prod` and `vercel deploy --prebuilt --prod`. Run `migrate-production-db` first when migrations are pending.
 - **Local production, fast:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-prod-fast`. Rebuilds from the working tree in ~5 minutes by skipping `installCommand` (rustup + `wasm/build.sh`, about an hour). It refuses to run unless a previous full build left `client-v2/node_modules` and the real — not stubbed — `wasm/*/pkg` packages on disk. It deploys whatever is in the working tree, committed or not.
 
-`vercel-link-preview` runs automatically as a prerequisite of the preview target.
+`vercel-link-preview` or `vercel-link-production` runs automatically as a prerequisite of the preview and full production targets.
+
+A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state that earlier local builds left in `client-v2/node_modules/.cache`.
 
 To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@latest deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
 
@@ -169,7 +171,7 @@ Account Settings → Tokens creates one, and it denies every user-level request.
 The CLI calls `/v2/user` and `/v3/user/tokens/current` on startup and enumerates
 `/v9/projects?limit=100`, so it fails with a message that blames the wrong thing:
 
-```
+```text
 Error: Could not retrieve Project Settings. To link your Project, remove the `.vercel` directory and deploy again.
 ```
 
@@ -190,15 +192,23 @@ GitHub app connection.
 
 `api/agent.mjs` is the assistant's **Default** backend: the panel posts a
 chat-completions turn to it and the route forwards that upstream with a key the
-browser never sees. Set all three or the option reports itself unconfigured and
-the panel falls back to bring-your-own-key:
+browser never sees. The key enables the Default backend; without one the option reports itself
+unconfigured and the panel falls back to bring-your-own-key. A Vercel build
+without the key fails: `vercel.json`'s `buildCommand` runs
+`scripts/check-agent-env.mjs` first, so set the key for Production and Preview
+alike. Store it as a Secret. A local `vercel build` (the `Makefile.vercel`
+deploy targets) pulls a Secret as an empty value; the check accepts that,
+since the deployment reads the real value at runtime:
 
 | Variable | Meaning |
-|---|---|
-| `AGENT_BASE_URL` | OpenAI-compatible base URL, e.g. `https://api.openai.com/v1` — the same shape the panel's own provider field takes. A pasted `/chat/completions` suffix is tolerated |
-| `AGENT_MODEL` | Model id the upstream should run — the client never picks one |
-| `AGENT_API_KEY` | Bearer token for the upstream; omit only for an endpoint that checks none |
-| `AGENT_ENABLED` | Optional kill switch. `false`, `0`, `off` or `no` disables the backend even when the three above are set; unset means on |
+| --- | --- |
+| `AGENT_API_KEY` | Bearer token for the upstream. Required on Vercel |
+| `AGENT_BASE_URL` | Optional, defaults to `https://inference-api.nousresearch.com/v1`. OpenAI-compatible base URL, used as given: no trailing slash and no `/chat/completions`, which the server appends |
+| `AGENT_MODEL` | Optional, defaults to `z-ai/glm-5.3-flash:US`. Model id the upstream runs. The client never picks one. Ids: [Nous catalogue](https://inference-api.nousresearch.com/v1/models) |
+| `AGENT_REASONING_EFFORT` | Optional, defaults to `low`. Sent as `reasoning_effort`; accepted values are the model's `reasoning.supported_efforts` in the [Nous catalogue](https://inference-api.nousresearch.com/v1/models). The panel shows no reasoning, so a high effort looks like a stalled answer |
+
+The defaults for model and effort are Nous-specific: pointing `AGENT_BASE_URL`
+elsewhere usually means setting both as well.
 
 There is no cost gate in front of this route. Anything that can reach the
 deployment can spend that key, so put a challenge and a per-session limit
@@ -212,7 +222,7 @@ answer is no, so a deployment without a database behaves exactly as it did
 before this existed.
 
 | Variable | Meaning |
-|---|---|
+| --- | --- |
 | `DATABASE_URL` | Postgres connection string. **Must be a pooled endpoint.** A serverless function opens a connection per invocation and will exhaust `max_connections` against a direct one. TLS is required and the certificate verified unless the URL sets `sslmode` — so a provider needing a looser mode has to say so in the URL, where it is visible in review |
 | `SYNC_ENABLED` | Kill switch. Only the exact string `true` enables sync; unset or anything else keeps the app local-only |
 | `AUTH_SECRET` | Better Auth signing secret. Generate one per environment; rotating it signs everyone out |

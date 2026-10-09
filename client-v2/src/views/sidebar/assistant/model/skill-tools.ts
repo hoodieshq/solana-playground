@@ -29,10 +29,9 @@ export const createSkillTools = (): ToolDefinition[] => [
   {
     name: "list_skills",
     description:
-      "List the reference skills available to load, with what each covers. " +
-      "Call this when a question touches Solana frameworks, versions, " +
-      "security, testing or this environment's limits, and you have not " +
-      "loaded a skill yet this conversation.",
+      "List the enabled skills with what each covers. Returns the same " +
+      "catalogue the system prompt already lists, so there is no need to " +
+      "call it before load_skill.",
     schema: { type: "object", properties: {}, additionalProperties: false },
     run: () => {
       PgAssistant.addToolCall("listed the skills");
@@ -43,10 +42,10 @@ export const createSkillTools = (): ToolDefinition[] => [
   {
     name: "load_skill",
     description:
-      "Read a skill's main document. Load playground-env before proposing " +
-      "any code, since it states which crate versions actually compile here. " +
-      "The document names its own reference files; read those with " +
-      "read_skill_reference rather than guessing at their contents.",
+      "Read a skill's main document. The document names its own reference " +
+      "files; read those with read_skill_reference rather than guessing at " +
+      "their contents. Returns an error string if the id is unknown or the " +
+      "fetch fails.",
     schema: {
       type: "object",
       properties: {
@@ -75,7 +74,9 @@ export const createSkillTools = (): ToolDefinition[] => [
     description:
       "Read one reference file belonging to a skill, using a path the " +
       "skill's own document gave you. Paths are relative to the skill " +
-      "folder, e.g. references/common-errors.md.",
+      "folder, e.g. references/common-errors.md; a path outside that " +
+      "folder is rejected. Bundled skills such as playground-env have no " +
+      "reference files. Very large files come back truncated with a marker.",
     schema: {
       type: "object",
       properties: {

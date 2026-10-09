@@ -6,15 +6,18 @@
  * that a real fault and an empty conversation used to look identical -- both
  * produced an empty thread and complete silence.
  *
- * So failures are recorded here and logged. `console.error` unconditionally
- * rather than a development-only `warn`: this fires when data the user created
- * failed to be stored, retrieved or synced, which is worth a line in
- * production too.
+ * So failures are recorded here and reported through the logger at `error`,
+ * which reaches the console and error tracking in production too: this fires
+ * when data the user created failed to be stored, retrieved or synced.
  *
  * While diagnosing, the whole list is one command away in the browser console:
  *
  *   __pgSyncDiagnostics.failures()
  */
+import { createLogger } from "../../../shared/lib/logger";
+
+const log = createLogger("persistence:diagnostics");
+
 export interface Failure {
   what: string;
   error: unknown;
@@ -29,7 +32,7 @@ const failures: Failure[] = [];
 export const report = (what: string, error: unknown) => {
   failures.push({ what, error, at: new Date().toISOString() });
   if (failures.length > MAX) failures.shift();
-  console.error(`persistence: ${what} failed`, error);
+  log.error(error, { report: true, context: { what: `${what} failed` } });
 };
 
 /**

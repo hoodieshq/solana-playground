@@ -47,6 +47,15 @@ A slice's segments: `ui/` for React, `model/` for logic, `lib/` for leaf
 helpers. Its public API is `index.ts` for browser code and `server.mjs` for
 `api/` routes; import a slice through its public API, never a deep path.
 
+**Every slice with an `index.ts` measures itself.** Under `features/` and
+`widgets/`, it declares its events in `model/telemetry.ts` with
+`createTracker` from `shared/lib/telemetry`, registers its prefix in
+`shared/lib/telemetry/prefixes.ts`, and gives every event a doc comment saying
+when it fires. `src/app/slice-structure.test.ts` fails otherwise. A change that
+adds or renames an event describes it in its spec delta too
+(`openspec/config.yaml`). Logs go through `shared/lib/logger`: a slice binds
+its own namespace with `createLogger("<slice>:<module>")`.
+
 The two existing features with a React folder, `auth` and `persistence`, keep
 `Component/` until the naming is settled; new slices use `ui/`.
 
@@ -149,7 +158,10 @@ counts.
    behaviour or touches more than one slice starts as a conversation, not a
    file: `superpowers:brainstorming` for the shape of the work (or
    `/opsx:explore` to read an unfamiliar area of the code first). A bug fix
-   with a ticket skips this; the ticket is its proposal.
+   with a ticket skips this; the ticket is its proposal. For a feature or a
+   widget, the conversation includes its telemetry: propose the events
+   (the user's actions there, how each can fail) and the namespace it logs
+   under, unprompted, and let the user confirm or trim them.
 2. **`/opsx:propose <kebab-name>` writes the change.** It creates
    `openspec/changes/<name>/` with `proposal.md`, the delta specs under
    `specs/<capability>/spec.md`, `design.md` and `tasks.md`, from the
@@ -163,16 +175,19 @@ counts.
    works a task, ticks it. Tick a task only in the PR that lands it, and
    name the task in the PR description. The ordinary PR checklist (section
    "Before a PR") still applies to every task.
-5. **`/opsx:archive` closes the change, inside the PR that lands the last
-   task.** It merges the deltas into `openspec/specs/` and moves the folder
-   to `changes/archive/<date>-<name>/`. `specs/` therefore always describes
-   the code as it is, never a plan; nothing is back-filled for code that is
-   not changing. The `check` script (below) fails while a change has every
-   task ticked and is not archived, so the last task's PR cannot forget it.
+5. **A human closes the change.** When the last task is ticked, the agent
+   stops and asks whether to close the change; it never runs
+   `/opsx:archive` unasked. On a yes, delete `tasks.md`, then
+   `/opsx:archive` merges the deltas into `openspec/specs/` and moves the
+   folder to `changes/archive/<date>-<name>/`. `specs/` therefore always
+   describes the code as it is, never a plan; nothing is back-filled for
+   code that is not changing.
 6. **Asked to build something, look in `openspec/changes/` first**
    (`openspec list`). If a change covers it, `/opsx:apply` that change and
    say which task. If none does and the work is more than a bug fix, offer
-   `/opsx:propose` rather than starting on the code.
+   `/opsx:propose` rather than starting on the code. A bug fix in a slice
+   that sends no events, or none for the path being fixed, says so and
+   proposes the missing events as a follow-up ticket.
 
 **Where the superpowers skills write.** Their default locations
 (`docs/superpowers/specs/`, `docs/superpowers/plans/`) are not used in this
@@ -190,8 +205,8 @@ an override of their default, and this section is that override:
 - `superpowers:subagent-driven-development` and `executing-plans` run
   inside `/opsx:apply`, one task at a time; `test-driven-development` and
   `verification-before-completion` apply to every task as before.
-- `superpowers:finishing-a-development-branch` precedes `/opsx:archive`
-  for the last task of a change.
+- `superpowers:finishing-a-development-branch` precedes the question
+  whether to close the change, for its last task.
 
 **Scenarios are the test plan.** Every `#### Scenario:` in a spec is
 either a Playwright test in `e2e/` whose title is
@@ -217,10 +232,11 @@ check's job (HOO-1859); the rest hold by review.
   copied UUID regex, never `import ... from "uuid"` anywhere else.
   `api/` cannot import `src/`, so it uses the `uuid` package directly;
   it is the one exception.
-- **A `catch` is never empty.** It rethrows, reports through the owning
-  feature's diagnostics, or tells the user. A failure that is swallowed on
-  purpose still logs why, in the `catch`, so the next reader does not have
-  to guess whether it was forgotten.
+- **A `catch` is never empty.** It rethrows, logs through `shared/lib/logger`
+  (with `report: true` when the team must hear of it in production), or tells
+  the user. A failure that is swallowed on purpose still logs why, in the
+  `catch`, so the next reader does not have to guess whether it was
+  forgotten.
 - **No nested ternaries.** Two or more branches is an `if` chain or a
   `Record` lookup.
 - **Imports go through a slice's public API**, never a deep path (see
@@ -273,8 +289,9 @@ check's job (HOO-1859); the rest hold by review.
 - **The `check` script is green before the push.** It runs what CI runs,
   in CI's order, minus the production build. Opt in to running it on every
   push with `git config core.hooksPath .githooks` once per clone.
-- **The last task of a change archives it** (`/opsx:archive`) in the same
-  PR.
+- **Archiving is a human's call.** After the last task, ask whether to
+  close the change (delete `tasks.md`, then `/opsx:archive`). Never
+  archive unasked.
 - **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
   `client-v2.yml`) on every PR to `master-2.0`, and a red spec fails the
   PR's checks. It needs no server and no Postgres: every spec stubs the account
