@@ -403,14 +403,27 @@ test.describe("the layout_viewport event", () => {
   };
 
   test("reports wide at 1280 px", async ({ page }) => {
-    expect(await widthClassAt(page, 1280)).toContain("width: wide");
+    expect(await widthClassAt(page, 1280)).toContain("viewport: wide");
   });
 
   test("reports compact at 800 px", async ({ page }) => {
-    expect(await widthClassAt(page, 800)).toContain("width: compact");
+    expect(await widthClassAt(page, 800)).toContain("viewport: compact");
   });
 
   test("reports phone at 375 px", async ({ page }) => {
-    expect(await widthClassAt(page, 375)).toContain("width: phone");
+    expect(await widthClassAt(page, 375)).toContain("viewport: phone");
   });
+});
+
+test("dragging the assistant shut is reported as a drag", async ({
+  seededPage: page,
+}) => {
+  const lines = linesOn(page);
+  await drag(page, assistantHandle(page), 600, 0);
+  await expect.poll(() => widthOf(page)).toBeLessThan(40);
+  await expect.poll(() => lineOf(lines, "layout_panel_toggled")).toBeTruthy();
+  const line = lineOf(lines, "layout_panel_toggled");
+  expect(line).toContain("panel: assistant");
+  expect(line).toContain("open: false");
+  expect(line).toContain("via: drag");
 });
