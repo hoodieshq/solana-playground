@@ -116,6 +116,11 @@ const LeftSheetWatcher = ({
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const assistantRef = usePanelRef();
   const consoleRef = usePanelRef();
+  // The size each panel last had open, in px. `expand()` restores a size the
+  // panel had before it folded, and a panel that mounted folded never had
+  // one, so it would open at its minimum instead of its default.
+  const assistantOpenSize = useRef<number>(PANEL_SIZES.assistant.default);
+  const consoleOpenSize = useRef<number>(PANEL_SIZES.console.default);
 
   // `open` props drive the panels; a drag that folds one reports back
   // through `onResize`, so the two never disagree for long. A panel that
@@ -125,14 +130,14 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   useEffect(() => {
     const panel = assistantRef.current;
     if (!panel || panel.isCollapsed() === !props.assistantOpen) return;
-    if (props.assistantOpen) panel.expand();
+    if (props.assistantOpen) panel.resize(assistantOpenSize.current);
     else panel.collapse();
   }, [props.assistantOpen, assistantRef]);
 
   useEffect(() => {
     const panel = consoleRef.current;
     if (!panel || panel.isCollapsed() === !props.consoleOpen) return;
-    if (props.consoleOpen) panel.expand();
+    if (props.consoleOpen) panel.resize(consoleOpenSize.current);
     else panel.collapse();
   }, [props.consoleOpen, consoleRef]);
 
@@ -161,8 +166,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         }
         minSize={PANEL_SIZES.console.min}
         className="flex min-h-0 flex-col"
-        onResize={() => {
+        onResize={(size) => {
           const folded = consoleRef.current?.isCollapsed();
+          if (folded === false) consoleOpenSize.current = size.inPixels;
           if (folded !== undefined && folded === props.consoleOpen) {
             props.onConsoleOpenChange(!folded);
           }
@@ -219,8 +225,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               minSize={PANEL_SIZES.assistant.min}
               maxSize={PANEL_SIZES.assistant.max}
               className="flex min-w-0 flex-col"
-              onResize={() => {
+              onResize={(size) => {
                 const folded = assistantRef.current?.isCollapsed();
+                if (folded === false) assistantOpenSize.current = size.inPixels;
                 if (folded !== undefined && folded === props.assistantOpen) {
                   props.onAssistantOpenChange(!folded);
                 }
