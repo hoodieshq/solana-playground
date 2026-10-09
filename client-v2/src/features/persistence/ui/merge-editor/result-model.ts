@@ -8,6 +8,13 @@ import type {
   TextEdit,
 } from "./merge-file";
 
+/**
+ * A text as a Monaco model holds it: every line break, `\r\n`, `\n` or a
+ * lone `\r`, as the model's one kind.
+ */
+const asModelHolds = (text: string, eol: string) =>
+  text.replace(/\r\n|\r|\n/g, eol);
+
 /** What the user can do to one side of a hunk */
 export type HunkAction = "take" | "dismiss";
 
@@ -60,7 +67,7 @@ export class MergeResult {
         e.isUndoing || e.isRedoing
           ? this._history.get(model.getAlternativeVersionId())
           : undefined;
-      if (seen && seen.lines.join("\n") === model.getValue()) {
+      if (seen && this._holds(seen.lines.join("\n"))) {
         this._file.restore(seen);
       } else {
         this._file.userEdit(model.getValue());
@@ -123,15 +130,24 @@ export class MergeResult {
         () => null
       );
       model.pushStackElement();
-      // The file's text is the truth. The model normalises line breaks to
-      // one kind, so a file that mixed them reads back differently: it is
-      // set whole rather than left to disagree with the hunk positions.
-      if (model.getValue() !== this._file.result) {
+      // The file's text is the truth, and the edit came from it, so the
+      // model can only disagree by more than its own line breaks if the two
+      // had drifted apart: then it is set whole, which costs the undo stack.
+      // Line breaks alone are expected: the model holds one kind, and a
+      // file whose copies mix them is asked about whole (`mixesLineBreaks`),
+      // where the file keeps each side's bytes for Apply.
+      if (!this._holds(this._file.result)) {
         model.setValue(this._file.result);
       }
     } finally {
       this._applying = false;
     }
+  }
+
+  /** Whether the model holds `text`, line breaks as it writes them */
+  private _holds(text: string) {
+    const model = this._model;
+    return model.getValue() === asModelHolds(text, model.getEOL());
   }
 
   /** Undo or redo of a decision that changed no text */

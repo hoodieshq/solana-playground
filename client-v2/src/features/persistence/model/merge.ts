@@ -278,6 +278,31 @@ export const merge3 = (base: string, ours: string, theirs: string): Merge3 => {
   return { kind: "conflict", chunks };
 };
 
+/** The line breaks a text uses: `\r\n`, a bare `\n`, a lone `\r` */
+const breaksIn = (text: string) => {
+  const found = new Set<"crlf" | "lf" | "cr">();
+  if (text.includes("\r\n")) found.add("crlf");
+  if (/(^|[^\r])\n/.test(text)) found.add("lf");
+  if (/\r(?!\n)/.test(text)) found.add("cr");
+  return found;
+};
+
+/**
+ * Whether these copies of a file break lines in more than one way between
+ * them, or with a lone `\r`.
+ *
+ * The resolve view shows a file's lines in Monaco, which breaks a line at a
+ * lone `\r` and rewrites every break to one kind; `merge3` splits on `\n`
+ * alone. For such a file the two count lines differently, so hunk positions
+ * cannot be trusted, and every take would read back different bytes from
+ * the editor. A file that uses one kind throughout, `\r\n` included, shows
+ * exactly as it is.
+ */
+export const mixesLineBreaks = (...copies: string[]) => {
+  const kinds = new Set(copies.flatMap((copy) => [...breaksIn(copy)]));
+  return kinds.size > 1 || kinds.has("cr");
+};
+
 export interface MergeInput {
   /** The mark's `files`: what both sides last agreed on */
   base: FileHashes;
@@ -294,9 +319,11 @@ export interface MergeInput {
  *
  * - `lines`: `merge3` ran and found lines both changed; `chunks` is the whole
  *   file.
- * - `whole`: `merge3` never ran -- no base was captured, the base kept is not
- *   the agreement's, or one side deleted the file. The file is one question.
- *   A side that deleted it has no content and no hash.
+ * - `whole`: no hunks to be had -- no base was captured, the base kept is
+ *   not the agreement's, one side deleted the file, or the copies break
+ *   lines in ways the view cannot show line by line (`mixesLineBreaks`).
+ *   The file is one question. A side that deleted it has no content and no
+ *   hash.
  *
  * The hashes are the plan's own `localHashes` / `serverHashes` for the path:
  * an answer carries them back (`ResolvedFiles`), and is applied only to the
@@ -355,7 +382,8 @@ export interface MergePlan {
  *
  * A user file both changed is merged line by line when the base content kept
  * for it is the agreement's; what overlaps comes back as a `lines` conflict.
- * Without that base, or with a side that deleted it, it is a `whole` one.
+ * Without that base, with a side that deleted it, or with line breaks the
+ * view cannot show line by line, it is a `whole` one.
  */
 export const planMerge = (input: MergeInput): MergePlan => {
   const { base, baseContents, local, localHashes, server, serverHashes } =
@@ -410,7 +438,16 @@ export const planMerge = (input: MergeInput): MergePlan => {
       }
       const merged = merge3(ancestor.content, local[path], server[path]);
       if (merged.kind === "clean") files[path] = merged.text;
-      else {
+      else if (mixesLineBreaks(ancestor.content, local[path], server[path])) {
+        conflicts.push({
+          kind: "whole",
+          path,
+          local: local[path],
+          server: server[path],
+          localHash: l,
+          serverHash: s,
+        });
+      } else {
         conflicts.push({
           kind: "lines",
           path,

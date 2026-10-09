@@ -1,3 +1,6 @@
+// `@types/mocha` also declares a global `it`, without `each`
+import { describe, expect, it } from "vitest";
+
 import { clearFailures, getFailures } from "./diagnostics";
 import {
   keepLocalKeypair,
@@ -510,6 +513,67 @@ describe("planMerge", () => {
     expect(planMerge(input({}, { f: "a" }, { f: "b" })).conflicts).toEqual(
       expected
     );
+  });
+
+  describe("line endings the resolve view cannot show line by line", () => {
+    /** Both sides changed the middle line, each copy written as given */
+    const conflictOf = (base: string, mine: string, theirs: string) =>
+      planMerge(input({ f: base }, { f: mine }, { f: theirs }, { f: base }))
+        .conflicts[0];
+
+    it.each([
+      [
+        "one copy mixes \\r\\n and \\n",
+        "a\r\nb\r\nc",
+        "a\r\nmine\nc",
+        "a\r\ntheirs\r\nc",
+      ],
+      [
+        "the copies use different ones",
+        "a\nb\nc",
+        "a\r\nmine\r\nc",
+        "a\ntheirs\nc",
+      ],
+      [
+        "a copy breaks lines with a lone \\r",
+        "a\rb\nc",
+        "a\rmine\nc",
+        "a\rtheirs\nc",
+      ],
+    ])("asks about the whole file when %s", (_, base, mine, theirs) => {
+      const expected: FileConflict = {
+        kind: "whole",
+        path: "f",
+        local: mine,
+        server: theirs,
+        localHash: h(mine),
+        serverHash: h(theirs),
+      };
+      expect(conflictOf(base, mine, theirs)).toEqual(expected);
+    });
+
+    it("still splits a file that uses \\r\\n throughout", () => {
+      const crlf = (s: string) => s.split("\n").join("\r\n");
+      expect(
+        conflictOf(crlf("a\nb\nc"), crlf("a\nmine\nc"), crlf("a\ntheirs\nc"))
+          .kind
+      ).toBe("lines");
+    });
+
+    it("still merges such a file when nothing overlaps", () => {
+      const plan = planMerge(
+        input(
+          { f: "a\r\nb\nc\nd\ne" },
+          { f: "A\r\nb\nc\nd\ne" },
+          { f: "a\r\nb\nc\nd\nE" },
+          { f: "a\r\nb\nc\nd\ne" }
+        )
+      );
+      expect(plan).toEqual({
+        files: { f: "A\r\nb\nc\nd\nE" },
+        conflicts: [],
+      });
+    });
   });
 
   it("lets the server win a generated workspace file without asking", () => {

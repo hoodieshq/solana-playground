@@ -141,6 +141,27 @@ describe("MergeResult undo", () => {
     expect(hunk().left).toBe("pending");
   });
 
+  it("keeps a take undoable, and each side's bytes for Apply, where line breaks mix", async () => {
+    const file = MergeFile.from({
+      kind: "whole",
+      path: "src/lib.rs",
+      local: "a\r\nb\nc",
+      server: "x\r\ny\nz",
+      localHash: "l",
+      serverHash: "s",
+    });
+    const { model, result, hunk } = bind(file);
+
+    result.decide(0, "right", "take");
+    // The model holds one kind of break; the answer keeps the side's own
+    expect(model.getValue()).toBe("x\ny\nz");
+    expect(file.resolved().content).toBe("x\r\ny\nz");
+
+    await undo(model);
+    expect(hunk().right).toBe("pending");
+    expect(file.result).toBe("a\r\nb\nc");
+  });
+
   it("ignores an answer for a side already decided", () => {
     const file = conflict();
     const { model, result } = bind(file);
