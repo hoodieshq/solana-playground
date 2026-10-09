@@ -276,8 +276,9 @@ owns the state; the subscriptions that open panels on their own
 
 The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
 three thresholds; that is accepted rather than editing `shared/`. On a phone
-Monaco gets `readOnly` and a `readOnlyMessage` saying editing works from 600
-px; chat works at every width. Explorer actions are not made read-only. The
+Monaco gets `readOnly`, and the message that editing works from 600 px is
+shown through Monaco's message controller (0.37 has no `readOnlyMessage`
+option); chat works at every width. Explorer actions are not made read-only. The
 header's own compact steps (80 and 72 rem) stay; phone screens for the header
 and stages are the Breakpoint work (5.3).
 
