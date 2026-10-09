@@ -72,7 +72,7 @@ no effect.
 The product SHALL send `layout_viewport` with the width class (`wide`,
 `compact` or `phone`) once per page load; `layout_panel_toggled` with the
 panel, whether it is now open, and whether a button, a key or the product
-itself opened it; `layout_readonly_edit_blocked` the first time in a session
+itself opened it; `layout_readonly_edit_blocked` the first time in a page load
 that a user tries to type in a read-only editor; and `layout_restore_failed`
 with the reason when a saved layout cannot be read.
 

@@ -218,16 +218,24 @@ Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
   window). _Rejected:_ one `ResizablePanelGroup` for all three columns, which
   keeps the drag but rebuilds the Sidebar's phone Sheet and ⌘B by hand; a
   drag handle added to the stock Sidebar, which edits `shared/ui`.
-- **Assistant and console become resizable** (`Resizable`, sizes in px), and
-  fold. The console folds to 0 and stays mounted so the xterm session lives;
-  the assistant unmounts when folded, as today.
+- **Assistant and console become resizable** (through `shared/ui/resizable`,
+  sizes in px), and fold. The console folds to a 28 px handle (not 0) and stays
+  mounted so the xterm session lives; the assistant folds to a 24 px strip and
+  unmounts its content, as today.
 
 ```
 widgets/layout-shell/
-  ui/LayoutShell.tsx      connected: SidebarProvider, panel groups, slots
-  ui/BaseLayoutShell.tsx  markup only: slots left/header/stage/console/assistant
-  model/layout-state.ts   the layout state, one localStorage key
+  ui/LayoutShell.tsx      connected: the state, the keys, the panels the
+                          product opens on its own, telemetry
+  ui/BaseLayoutShell.tsx  markup only: SidebarProvider, the two panel groups,
+                          the Sheets; slots left/stage/console/assistant
+  model/layout-state.ts   the saved layout, one localStorage key
+  model/use-layout-state.ts  the state hook: restore, toggle, save
+  model/telemetry.ts      the `layout_*` events
 ```
+
+`app/Panels/Side/Left/Settings.tsx` (and `CustomSetting.tsx`) stay with the
+classic panels' removal: `GearSidebar` uses them.
 
 `useViewport()` (wide >=1024, compact 600-1023, phone <600) lives in
 `shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
@@ -244,8 +252,13 @@ SidebarProvider (collapsible="icon", controlled open)
 
 **What survives a reload.** One `localStorage` key, `layout`, under 200
 bytes: `{v: 1, leftOpen, assistantOpen, consoleOpen, h, vert}`, where `h`
-and `vert` are the two groups' layouts from `onLayoutChanged` (written when
-a drag ends, not per frame). A corrupt value, another `v` or unavailable
+and `vert` are the two groups' layouts from `onLayoutChanged`, in percent,
+saved only when the user drags (not on mount, not per frame, not when the
+window resizes) and dropped when a toggle folds or unfolds their panel
+(assistant: `h`, console: `vert`), so a reload sizes that panel from its flag.
+The panel constraints are in px (assistant 280 to 560, console 120 minimum).
+A layout saved by a newer version is read as the defaults and never
+overwritten. A corrupt value, another `v` or unavailable
 storage falls back to today's defaults (left open, assistant open at 21.75
 rem, console closed, 16 rem when opened), is logged through
 `createLogger("layout-shell:state")` and sends `layout_restore_failed`. Crossing a breakpoint writes nothing. The widget
@@ -271,7 +284,7 @@ and stages are the Breakpoint work (5.3).
 **Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
 {panel, open, via: button | key | auto}`, `via: auto` when a deploy or "Fix
 with assistant" opened it; `layout_viewport {width}` once per load;
-`layout_readonly_edit_blocked` once per session, from Monaco's
+`layout_readonly_edit_blocked` once per page load, from Monaco's
 `onDidAttemptReadOnlyEdit`; `layout_restore_failed {reason: corrupt | version
 | storage-unavailable}`.
 
