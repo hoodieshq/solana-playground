@@ -40,13 +40,30 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   }, []);
 
   useEffect(() => {
-    if (viewport === "wide") setSheetOpen(false);
+    // Closed by the width, not by anyone: nothing to report
+    if (viewport === "wide") {
+      sheetNow.current = false;
+      setSheetOpen(false);
+    }
   }, [viewport]);
+
+  // Mirrors `sheetOpen` so the effect below, which outlives renders, sees it
+  const sheetNow = useRef(false);
+  const setSheet = (open: boolean, via: ToggleSource) => {
+    if (sheetNow.current === open) return;
+    sheetNow.current = open;
+    setSheetOpen(open);
+    layoutTelemetry.track("layout_panel_toggled", {
+      panel: "assistant",
+      open,
+      via,
+    });
+  };
 
   const assistantShown = viewport === "wide" ? state.assistantOpen : sheetOpen;
   const setAssistant = (open: boolean, via: ToggleSource) => {
     if (viewport === "wide") setOpen("assistant", open, via);
-    else setSheetOpen(open);
+    else setSheet(open, via);
   };
 
   // The handlers read what they toggle, so they are renewed with it
@@ -96,9 +113,19 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     setOpen("left", open, leftVia.current ?? "key");
     leftVia.current = null;
   };
-  const toggleLeft = () => {
+  // The stock toggle: on a desktop it calls `onLeftOpenChange`, below 768 px
+  // it flips the Sheet, which `onLeftSheetChange` reports
+  const toggleLeft = (stockToggle: () => void) => () => {
     leftVia.current = "button";
-    onLeftOpenChange(!state.leftOpen);
+    stockToggle();
+  };
+  const onLeftSheetChange = (open: boolean) => {
+    leftVia.current = null;
+    layoutTelemetry.track("layout_panel_toggled", {
+      panel: "left",
+      open,
+      via: "button",
+    });
   };
 
   return (
@@ -109,14 +136,15 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       assistantOpen={state.assistantOpen}
       onAssistantOpenChange={(open) => setOpen("assistant", open, "button")}
       assistantSheetOpen={sheetOpen}
-      onAssistantSheetChange={setSheetOpen}
+      onAssistantSheetChange={(open) => setSheet(open, "button")}
       consoleOpen={state.consoleOpen}
       onConsoleOpenChange={(open) => setOpen("console", open, "button")}
       horizontal={state.h}
       vertical={state.vert}
       onHorizontalLayout={setHorizontal}
       onVerticalLayout={setVertical}
-      left={left(!state.leftOpen, toggleLeft)}
+      left={(stockToggle) => left(!state.leftOpen, toggleLeft(stockToggle))}
+      onLeftSheetChange={onLeftSheetChange}
       stage={stage}
       console={console(state.consoleOpen, () =>
         setOpen("console", !state.consoleOpen, "button")
