@@ -427,3 +427,38 @@ test("dragging the assistant shut is reported as a drag", async ({
   expect(line).toContain("open: false");
   expect(line).toContain("via: drag");
 });
+
+test.describe("a select inside the assistant Sheet", () => {
+  test.use({ viewport: { width: 800, height: 1000 } });
+
+  test("opens its options above the Sheet", async ({ seededPage: page }) => {
+    await page.getByRole("button", { name: "Expand assistant" }).click();
+    const sheet = page.locator('[data-slot="sheet-content"]');
+    await expect(sheet).toBeVisible();
+    await sheet.getByText("claude-opus-5-5").click();
+    const option = page.getByRole("option").first();
+    await expect(option).toBeVisible();
+    await expect(option).toContainText("claude");
+    const hit = await option.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        rect.x + rect.width / 2,
+        rect.y + rect.height / 2
+      );
+      return top !== null && el.contains(top);
+    });
+    expect(hit).toBe(true);
+  });
+});
+
+test("a toggle on a wide window works after a trip through the compact Sheet", async ({
+  seededPage: page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.getByRole("button", { name: "Expand assistant" }).click();
+  await expect(page.locator('[data-slot="sheet-content"]')).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(assistantPanel(page)).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+r");
+  await expect.poll(() => widthOf(page)).toBeLessThan(40);
+});
