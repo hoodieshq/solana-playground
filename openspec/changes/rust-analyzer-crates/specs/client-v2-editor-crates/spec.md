@@ -68,23 +68,23 @@ scripts. Two runs on the same inputs SHALL produce identical bytes.
 - **WHEN** the generation runs twice on the same inputs, on one machine or two
 - **THEN** every file under `public/crates` has the same SHA-256 in both runs
 
-### Requirement: A build reuses the crates of an unchanged input set
+### Requirement: A build reuses the default crates of an unchanged input set
 
-A Vercel build SHALL restore `public/crates` from a cache keyed on the pinned
-inputs, and SHALL run the generation only when that key is absent from the
-cache.
+A Vercel build SHALL restore the default crates from a cache keyed on their
+pinned inputs, and SHALL run their generation only when that key is absent
+from the cache. The supported crates are generated in every build.
 
 #### Scenario: A build with unchanged inputs (manual)
 
 - **WHEN** a Vercel build runs on inputs that an earlier build generated
-- **THEN** the build log reports `public/crates` restored from the cache, and
-  the build runs neither the toolchain download nor the registry fetch
+- **THEN** the build log reports the default crates restored from the cache,
+  and the build installs no Rust toolchain for them
 
 #### Scenario: A build after an input changes (manual)
 
-- **WHEN** `server/programs/Cargo.lock` changes
-- **THEN** the next build generates the crates and stores them under the key
-  of the changed inputs
+- **WHEN** `wasm/rust-analyzer/rust-toolchain.toml` changes
+- **THEN** the next build generates the default crates and stores them under
+  the key of the changed inputs
 
 ### Requirement: A missing crate file answers 404
 

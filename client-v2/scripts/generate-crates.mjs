@@ -1,8 +1,13 @@
 // Generate crates for Rust Analyzer.
+//
+// Usage: `generate-crates.mjs` generates, or exits early when `KEY_PATH` matches;
+// `generate-crates.mjs --key` prints the key and exits.
 
 import path from "path";
 import fs from "fs/promises";
+import crypto from "crypto";
 import { homedir } from "os";
+import { fileURLToPath } from "url";
 import { execSync, spawnSync } from "child_process";
 
 import {
@@ -14,16 +19,11 @@ import {
   SUPPORTED_CRATES_PATH,
 } from "./utils.mjs";
 
-// Exit early if Rust is not installed
-try {
-  execSync("rustc --help", { stdio: "ignore" });
-} catch {
-  console.log("Could not find Rust installation. Skipping crate generation...");
-  process.exit(0);
-}
-
 /** Crates output directory path */
 const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
+
+/** Key of the inputs the supported crates in `CRATES_PATH` were generated from */
+const KEY_PATH = path.join(CRATES_PATH, ".crates-key");
 
 /** Path to the `Cargo.lock` */
 const LOCK_FILE_PATH = path.join(
@@ -36,11 +36,63 @@ const LOCK_FILE_PATH = path.join(
 /** `syn-file-expand-cli` name */
 const CLI_NAME = "syn-file-expand-cli";
 
-// Install `syn-file-expand-cli` if it's not installed
+/** `syn-file-expand-cli` version for the supported crates */
+const CLI_VERSION = "0.3.0";
+
+// The script's own source carries the tool version and the flags
+const key = crypto
+  .createHash("sha256")
+  .update(await fs.readFile(fileURLToPath(import.meta.url)))
+  .update("\0")
+  .update(await fs.readFile(LOCK_FILE_PATH))
+  .digest("hex");
+
+if (process.argv.includes("--key")) {
+  console.log(key);
+  process.exit(0);
+}
+
+if (
+  (await exists(path.join(CRATES_PATH, "versions.json"))) &&
+  (await exists(KEY_PATH)) &&
+  (await fs.readFile(KEY_PATH, "utf8")).trim() === key
+) {
+  console.log(`Crates are current (${key}). Skipping...`);
+  process.exit(0);
+}
+
+// Exit early if Rust is not installed
 try {
-  execSync(`${CLI_NAME} --help`, { stdio: "ignore" });
+  execSync("rustc --help", { stdio: "ignore" });
 } catch {
-  spawnSync("cargo", ["install", CLI_NAME, "--version", "0.3.0", "--locked"]);
+  console.log("Could not find Rust installation. Skipping crate generation...");
+  process.exit(0);
+}
+
+/** Cargo home the registry and the tool live in */
+const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
+
+// The registry holds only what something downloaded; fetch every locked crate first
+run("cargo", [
+  "fetch",
+  "--locked",
+  "--manifest-path",
+  path.join(path.dirname(LOCK_FILE_PATH), "Cargo.toml"),
+]);
+
+// A root of its own, so a different release on `PATH` never decides the output
+const cliRoot = path.join(cargoHome, "tools", `${CLI_NAME}-${CLI_VERSION}`);
+const cliPath = path.join(cliRoot, "bin", CLI_NAME);
+if (!(await exists(cliPath))) {
+  run("cargo", [
+    "install",
+    CLI_NAME,
+    "--version",
+    CLI_VERSION,
+    "--locked",
+    "--root",
+    cliRoot,
+  ]);
 }
 
 /** Local crates.io registry */
@@ -74,6 +126,9 @@ await withReset(async () => {
     JSON.stringify(crates)
   );
 });
+
+// Written last, so an interrupted run never looks current
+await fs.writeFile(KEY_PATH, `${key}\n`);
 
 /**
  * Execute the given callback after crates directory has been reset.
@@ -127,15 +182,13 @@ async function generateDependencies(crates, transitive) {
     if (cachedCrates.includes(name) || skippedCrates.includes(name)) continue;
 
     const version = crates[name];
-    const dirName = registry.crates.find(
-      (crate) => crate === `${name}-${version}`
-    );
-    if (!dirName) {
-      console.log(`Crate \`${name}(v${version})\` not found. Skipping...`);
-      continue;
+    const dirPath = registry.find(`${name}-${version}`);
+    if (!dirPath) {
+      // `cargo fetch` downloaded every locked crate, so a miss is a broken setup
+      throw new Error(
+        `Crate \`${name}(v${version})\` not found in ${registry.root}`
+      );
     }
-
-    const dirPath = path.join(registry.path, dirName);
 
     // Get transitive deps
     if (transitive) {
@@ -146,7 +199,7 @@ async function generateDependencies(crates, transitive) {
 
     // Generate crate
     const snakeCaseName = name.replaceAll("-", "_");
-    const result = spawnSync(CLI_NAME, [
+    const result = spawnSync(cliPath, [
       path.join(dirPath, "src", "lib.rs"),
       "--loopify",
       "--cfg-true-by-default",
@@ -216,23 +269,43 @@ export async function getCrates() {
 }
 
 /**
- * Get the local crates.io registry data.
+ * Get the local crates.io registries. Cargo releases name the directory
+ * differently, so a cargo home can hold several; each crate is looked up in all.
  *
- * @returns the registry path and crates
+ * @returns the registry root and a lookup from `<name>-<version>` to its source directory
  */
 async function getRegistry() {
-  const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
-  const registryPath = path.join(cargoHome, "registry", "src");
-  const registries = await fs.readdir(registryPath);
-  const cratesIoRegistry = registries.find((registry) => {
-    return registry.startsWith("index.crates.io");
-  });
-  if (!cratesIoRegistry) throw new Error("crates.io registry not found");
+  const root = path.join(cargoHome, "registry", "src");
+  const dirs = (await fs.readdir(root))
+    .filter((dir) => dir.startsWith("index.crates.io"))
+    .map((dir) => path.join(root, dir));
+  if (!dirs.length) throw new Error(`No crates.io registry in ${root}`);
 
-  const cratesIoRegistryPath = path.join(registryPath, cratesIoRegistry);
-  const registryCrates = await fs.readdir(cratesIoRegistryPath);
+  const sources = new Map();
+  for (const dir of dirs) {
+    for (const crate of await fs.readdir(dir)) {
+      if (!sources.has(crate)) sources.set(crate, path.join(dir, crate));
+    }
+  }
 
-  return { path: cratesIoRegistryPath, crates: registryCrates };
+  return { root, find: (crate) => sources.get(crate) };
+}
+
+/**
+ * Run a command and throw with its output when it fails.
+ *
+ * @param {string} command program to run
+ * @param {string[]} args its arguments
+ */
+function run(command, args) {
+  const result = spawnSync(command, args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(
+      `\`${command} ${args.join(" ")}\` failed:\n${
+        result.stderr ?? result.error
+      }`
+    );
+  }
 }
 
 /**

@@ -177,17 +177,29 @@ cargo fetch --locked --manifest-path ../server/programs/Cargo.toml
 
 ### A key file lets generation skip unchanged inputs
 
-The generation writes `public/crates/.inputs`, a SHA-256 over the inputs the
-spec names. When `.inputs` matches, `generate-crates` exits without emptying
-`public/crates`. A `public/crates` restored from the cache survives
-`yarn build`, which runs `generate-crates` again, only because of this key.
+Each generator writes a key file, a SHA-256 over its inputs:
+`public/crates/.crates-key` from `generate-crates.mjs` (the script and
+`server/programs/Cargo.lock`), and `public/crates/.default-crates-key` from
+`generate-default-crates.mjs` (the script, the Rust Analyzer toolchain file,
+and Node's brotli version). When its key matches, a generator exits without
+touching `public/crates`, and `--key` prints the key. A `public/crates`
+restored from the cache survives `yarn build`, which runs both generators
+again, only because of these keys.
 
 ### Remote Cache in `vercel-install.sh`
 
-The install script computes the same key and restores `public/crates` from a
+The install script computes the default crates' key and restores them from a
 tar in Vercel Remote Cache. When the key is absent, the script runs the
 generation and uploads the tar, before `yarn install`, as it does for the wasm
 packages. The script reuses `remote_has`, `remote_fetch`, and `remote_upload`.
+
+The supported crates are not cached. `yarn generate` produces them in every
+build with the Rust in Vercel's image. At `7c23f8a1`, measured on 16 cores:
+`cargo fetch` 22.6 s, compiling `syn-file-expand-cli` 11.9 s, expansion 1.6 s.
+
+- Alternative: cache the supported crates like the default crates. Written and
+  tested locally (a 444 KB tar), but it adds `rustup`, a pinned toolchain, and
+  about 30 lines of shell to save about a minute per build.
 
 - Alternative: commit the output to the assets submodule. The script can
   reproduce it, but 12 MB of generated text goes into a repository, and every

@@ -19,7 +19,7 @@ Group 4 needs all three.
       neither works. Ticket to file.
 - [ ] 1.2 In `generate-crates.mjs`, run `cargo fetch --locked` on
       `server/programs` first, fail naming any supported crate it cannot
-      generate, and write and honor `public/crates/.inputs` for the supported
+      generate, and write and honor `public/crates/.crates-key` for the supported
       crates. Verify: with an empty `CARGO_HOME`, `yarn generate-crates`
       produces every supported crate; a second run on the same inputs leaves
       the files untouched; two runs from empty produce the same SHA-256 per
@@ -42,13 +42,13 @@ Group 4 needs all three.
 
 ## 2. Serving on Vercel
 
-- [ ] 2.1 In `vercel-install.sh`, restore the supported crates in
-      `public/crates` from Vercel Remote Cache under the key from task 1.2,
-      as task 1.3 does for the default crates, and when the key is absent run
-      the generation and upload the tar, with log lines that name the Remote
-      Cache. Verify: the first preview build logs the key as absent and an
-      upload; a redeploy logs a hit and no `cargo fetch`. Depends on 1.2.
-      Ticket to file.
+- [ ] 2.1 Generate the supported crates in every Vercel build, with no cache:
+      `yarn generate` runs `generate-crates.mjs` with the Rust in Vercel's
+      image (design.md, section "Remote Cache in `vercel-install.sh`").
+      Verify: the preview build log shows `cargo fetch` and every supported
+      crate, `/crates/anchor_lang.rs` and `/crates/anchor_lang.toml` serve
+      Rust source and TOML, and the editor resolves the Anchor prelude.
+      Depends on 1.2. Ticket to file.
 - [ ] 2.2 Make a missing file under `/crates/` answer 404 through
       `vercel.json`. Verify on a preview: `/crates/no_such_crate.rs` answers
       404, and `/crates/std.rs` answers 200 with Rust source. If Vercel still
