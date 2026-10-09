@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { usePanelRef } from "react-resizable-panels";
 
@@ -10,7 +10,12 @@ import {
   ResizablePanelGroup,
 } from "@/shared/ui/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
-import { Sidebar, SidebarInset, SidebarProvider } from "@/shared/ui/sidebar";
+import {
+  Sidebar,
+  SidebarInset,
+  SidebarProvider,
+  useSidebar,
+} from "@/shared/ui/sidebar";
 import type { PanelLayout } from "../model/layout-state";
 
 /** Sizes in px; the design system gives the left panel's in rem (`SIDEBAR_STYLE`) */
@@ -48,13 +53,57 @@ export interface BaseLayoutShellProps {
   vertical?: PanelLayout;
   onHorizontalLayout: (layout: PanelLayout) => void;
   onVerticalLayout: (layout: PanelLayout) => void;
-  left: ReactNode;
+  /** Given the stock Sidebar's toggle: it opens the Sheet below 768 px */
+  left: (toggle: () => void) => ReactNode;
+  /** Below 768 px: the left panel's Sheet opened or closed */
+  onLeftSheetChange: (open: boolean) => void;
   stage: ReactNode;
   console: ReactNode;
   assistant: ReactNode;
   /** Below 1024 px: what opens the assistant Sheet, on the right edge */
   assistantOpener: ReactNode;
 }
+
+const LeftSlot = ({
+  render,
+}: {
+  render: (toggle: () => void) => ReactNode;
+}) => {
+  const { toggleSidebar } = useSidebar();
+  return render(toggleSidebar);
+};
+
+/**
+ * Below 768 px the stock Sidebar is a Sheet nothing else opens, so this
+ * renders its opener at the left edge and reports the Sheet opening and
+ * closing (not the value it starts with).
+ */
+const LeftSheetWatcher = ({
+  onChange,
+}: {
+  onChange: (open: boolean) => void;
+}) => {
+  const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const previous = useRef(openMobile);
+  useEffect(() => {
+    if (previous.current === openMobile) return;
+    previous.current = openMobile;
+    onChange(openMobile);
+  }, [openMobile, onChange]);
+  if (!isMobile) return null;
+  return (
+    <div className="absolute top-1 left-0 z-10">
+      <button
+        type="button"
+        aria-label="Expand project panel"
+        className="rounded-r-md border border-l-0 border-border bg-card px-1.5 py-2 text-muted-foreground hover:text-foreground"
+        onClick={() => setOpenMobile(true)}
+      >
+        ›
+      </button>
+    </div>
+  );
+};
 
 /**
  * The area under Flow's header: the left panel as the stock Sidebar, the
@@ -131,8 +180,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       {/* The stock Sidebar is fixed at the window's full height; Flow's
           header keeps the top, so it sits in the area under it instead */}
       <Sidebar collapsible="icon" className="absolute inset-y-0 h-full">
-        {props.left}
+        <LeftSlot render={props.left} />
       </Sidebar>
+      <LeftSheetWatcher onChange={props.onLeftSheetChange} />
       <SidebarInset className="relative min-h-0 min-w-0">
         {/* One tree at every width, so a rotate across 1024 px does not
             remount the stage, Monaco or the console's terminal. Below 1024 px

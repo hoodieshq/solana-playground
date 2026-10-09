@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useRef } from "react";
+import { createElement, useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 // Partial mock: only `usePanelRef` is replaced, so the tests can see which
@@ -7,6 +7,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 // assignment to `current`, which would replace the spies.
 const panelSpies = vi.hoisted(() => ({
   created: 0,
+  groups: {} as Record<
+    string,
+    { defaultLayout?: unknown; onLayoutChanged?: (l: unknown) => void }
+  >,
   handles: [] as Array<{
     collapse: ReturnType<typeof vi.fn>;
     expand: ReturnType<typeof vi.fn>;
@@ -17,6 +21,18 @@ vi.mock("react-resizable-panels", async (importOriginal) => {
   const real = await importOriginal<typeof import("react-resizable-panels")>();
   return {
     ...real,
+    // Records each group's layout props by id, then renders the real group
+    Group: (groupProps: {
+      id?: string;
+      defaultLayout?: unknown;
+      onLayoutChanged?: (l: unknown) => void;
+    }) => {
+      panelSpies.groups[groupProps.id ?? ""] = groupProps;
+      return createElement(
+        real.Group,
+        groupProps as React.ComponentProps<typeof real.Group>
+      );
+    },
     usePanelRef: () => {
       const index = useRef(-1);
       if (index.current < 0) index.current = panelSpies.created++;
@@ -51,6 +67,7 @@ const desktopMatchMedia = (query: string) => ({
 });
 beforeEach(() => {
   panelSpies.created = 0;
+  panelSpies.groups = {};
   panelSpies.handles = [0, 1].map(() => ({
     collapse: vi.fn(),
     expand: vi.fn(),
@@ -77,7 +94,8 @@ const props = (
   vertical: undefined,
   onHorizontalLayout: vi.fn(),
   onVerticalLayout: vi.fn(),
-  left: <nav>left slot</nav>,
+  left: () => <nav>left slot</nav>,
+  onLeftSheetChange: vi.fn(),
   stage: <main>stage slot</main>,
   console: <div className="xterm">console slot</div>,
   assistant: <section>assistant slot</section>,
@@ -131,6 +149,7 @@ it("should show the assistant Sheet when it is open", () => {
       onHorizontalLayout={open.onHorizontalLayout}
       onVerticalLayout={open.onVerticalLayout}
       left={open.left}
+      onLeftSheetChange={open.onLeftSheetChange}
       stage={open.stage}
       console={open.console}
       assistant={open.assistant}
@@ -204,14 +223,26 @@ it("should do nothing when the console panel already matches consoleOpen", () =>
   expect(consolePanel.expand).not.toHaveBeenCalled();
 });
 
-it("should not take or report a horizontal layout below 1024 px", () => {
+it("should not take or save a horizontal layout below 1024 px", () => {
   const compact = props("compact");
   render(
-    <BaseLayoutShell
-      {...compact}
-      horizontal={{ center: 70, assistant: 30 }}
-      onHorizontalLayout={compact.onHorizontalLayout}
-    />
+    <BaseLayoutShell {...compact} horizontal={{ center: 70, assistant: 30 }} />
   );
-  expect(compact.onHorizontalLayout).not.toHaveBeenCalled();
+  const group = panelSpies.groups["layout-horizontal"];
+  expect(group.defaultLayout).toBeUndefined();
+  expect(group.onLayoutChanged).toBeUndefined();
+});
+
+it("should take and save the horizontal layout on a wide screen", () => {
+  const wide = props("wide");
+  render(
+    <BaseLayoutShell {...wide} horizontal={{ center: 70, assistant: 30 }} />
+  );
+  const group = panelSpies.groups["layout-horizontal"];
+  expect(group.defaultLayout).toEqual({ center: 70, assistant: 30 });
+  group.onLayoutChanged!({ center: 60, assistant: 40 });
+  expect(wide.onHorizontalLayout).toHaveBeenCalledWith({
+    center: 60,
+    assistant: 40,
+  });
 });

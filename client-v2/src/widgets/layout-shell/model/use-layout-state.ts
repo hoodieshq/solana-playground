@@ -38,18 +38,17 @@ export const useLayoutState = () => {
     layoutTelemetry.track("layout_restore_failed", { reason: restored.reason });
   }, [restored]);
 
-  useEffect(() => {
-    const written = writeLayout(storage, state);
+  // Saved on a change, never on mount: a visit that changes nothing leaves
+  // what is stored alone, a value from a newer version included
+  const update = useCallback((next: LayoutState) => {
+    latest.current = next;
+    setState(next);
+    const written = writeLayout(storage, next);
     if (!written.ok) {
       log.warn("The layout could not be saved", {
         context: { error: String(written.error) },
       });
     }
-  }, [state]);
-
-  const update = useCallback((next: LayoutState) => {
-    latest.current = next;
-    setState(next);
   }, []);
 
   const setOpen = useCallback(

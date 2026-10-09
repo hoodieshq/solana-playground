@@ -66,13 +66,16 @@ class NoopResizeObserver {
 let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   width = 1440;
+  window.innerWidth = 1440;
   vi.stubGlobal("matchMedia", screenMedia);
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
   localStorage.clear();
+  PgFlow["_dispatch"]({ type: "workspace-change" });
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
 });
 afterEach(() => {
+  PgFlow["_dispatch"]({ type: "workspace-change" });
   vi.unstubAllGlobals();
   resetTelemetry();
 });
@@ -199,6 +202,44 @@ it("should send each toggle once under StrictMode", async () => {
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "button" }]);
 });
 
+it("should leave a saved value alone on mount, and write v1 on a toggle", () => {
+  const newer = JSON.stringify({ v: 2, leftOpen: true });
+  localStorage.setItem(LAYOUT_STORAGE_KEY, newer);
+  shell();
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(newer);
+  fireEvent.click(consoleButton());
+  expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
+    v: 1,
+    consoleOpen: true,
+  });
+});
+
+it("should report the assistant Sheet opening and closing, and save nothing", () => {
+  resizeTo(800);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand assistant" }));
+  fireEvent.keyDown(document.querySelector('[data-slot="sheet-content"]')!, {
+    key: "Escape",
+  });
+  expect(toggled()).toEqual([
+    { panel: "assistant", open: true, via: "button" },
+    { panel: "assistant", open: false, via: "button" },
+  ]);
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+});
+
+it("should open the project panel Sheet below 768 px and report it", () => {
+  resizeTo(500);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  const sheet = document.querySelector(
+    '[data-slot="sidebar"][data-mobile="true"]'
+  );
+  expect(sheet).not.toBeNull();
+  expect(toggled()).toEqual([{ panel: "left", open: true, via: "button" }]);
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+});
+
 it("should save the open state and read it back", () => {
   const first = shell();
   fireEvent.click(consoleButton());
@@ -242,9 +283,8 @@ it("should close the Sheet when crossing to wide and keep the saved state", () =
   expect(
     screen.getByRole("button", { name: "Collapse assistant" })
   ).toBeTruthy();
-  expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
-    assistantOpen: true,
-  });
+  // Crossing a breakpoint writes nothing
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
 it("should open the console when a deploy starts, as auto", () => {
@@ -258,6 +298,7 @@ it("should open the console once when a deploy fails, not for one already failed
   // The reducer is the only way to set a deploy's status without a deploy
   const dispatch = (ev: Parameters<typeof PgFlow.reduce>[1]) =>
     PgFlow["_dispatch"](ev);
+  dispatch({ type: "deploy-start" });
   dispatch({ type: "deploy-finish", ok: false });
   shell();
   expect(toggled()).toEqual([]);
