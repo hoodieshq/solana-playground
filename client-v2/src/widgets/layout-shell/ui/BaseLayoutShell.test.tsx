@@ -203,3 +203,15 @@ it("should do nothing when the console panel already matches consoleOpen", () =>
   expect(consolePanel.collapse).not.toHaveBeenCalled();
   expect(consolePanel.expand).not.toHaveBeenCalled();
 });
+
+it("should not take or report a horizontal layout below 1024 px", () => {
+  const compact = props("compact");
+  render(
+    <BaseLayoutShell
+      {...compact}
+      horizontal={{ center: 70, assistant: 30 }}
+      onHorizontalLayout={compact.onHorizontalLayout}
+    />
+  );
+  expect(compact.onHorizontalLayout).not.toHaveBeenCalled();
+});
