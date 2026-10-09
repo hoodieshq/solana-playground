@@ -34,8 +34,31 @@ const consoleHandle = (page: Page) =>
 const assistantHandle = (page: Page) =>
   page.locator('[data-slot="resizable-handle"][aria-controls="center"]');
 
+const consolePanel = (page: Page) => page.locator("#console[data-panel]");
+// The separator that resizes the console is the one controlling the stage
+const consoleSeparator = (page: Page) =>
+  page.locator('[data-slot="resizable-handle"][aria-controls="stage"]');
+
 const widthOf = (page: Page) =>
   assistantPanel(page).evaluate((el) => el.getBoundingClientRect().width);
+const heightOf = (page: Page) =>
+  consolePanel(page).evaluate((el) => el.getBoundingClientRect().height);
+
+/** Drags a separator by (dx, dy) from its centre */
+const drag = async (
+  page: Page,
+  separator: ReturnType<typeof assistantHandle>,
+  dx: number,
+  dy: number
+) => {
+  const box = (await separator.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + dx, y + dy, { steps: 8 });
+  await page.mouse.up();
+};
 
 test("client-v2-layout: A resized assistant and an open console", async ({
   seededPage: page,
@@ -51,12 +74,55 @@ test("client-v2-layout: A resized assistant and an open console", async ({
 
   await consoleHandle(page).click();
   await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
+  const shorter = await heightOf(page);
+  await drag(page, consoleSeparator(page), 0, -100);
+  const taller = await heightOf(page);
+  expect(taller).toBeGreaterThan(shorter + 60);
 
   await page.reload();
   await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
   await expect
     .poll(async () => Math.abs((await widthOf(page)) - widened))
     .toBeLessThan(4);
+  await expect
+    .poll(async () => Math.abs((await heightOf(page)) - taller))
+    .toBeLessThan(4);
+});
+
+test("a dragged assistant folded by its button stays folded after a reload", async ({
+  seededPage: page,
+}) => {
+  await drag(page, assistantHandle(page), -120, 0);
+  await page.getByRole("button", { name: "Collapse assistant" }).click();
+  await expect.poll(() => widthOf(page)).toBeLessThan(40);
+
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Expand assistant" })
+  ).toBeVisible();
+  await expect.poll(() => widthOf(page)).toBeLessThan(40);
+
+  await page.getByRole("button", { name: "Expand assistant" }).click();
+  await expect.poll(() => widthOf(page)).toBeGreaterThan(270);
+});
+
+test("a dragged console folded by its handle stays folded after a reload", async ({
+  seededPage: page,
+}) => {
+  await consoleHandle(page).click();
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
+  await drag(page, consoleSeparator(page), 0, -100);
+  await consoleHandle(page).click();
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(() => heightOf(page)).toBeLessThan(40);
+
+  await page.reload();
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(() => heightOf(page)).toBeLessThan(40);
+
+  await consoleHandle(page).click();
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(() => heightOf(page)).toBeGreaterThan(110);
 });
 
 const savedLayout = (page: Page) =>
@@ -141,6 +207,8 @@ test("client-v2-layout: Folding the project panel", async ({
   await expect(left).toHaveJSProperty("offsetWidth", 232);
   await page.keyboard.press("ControlOrMeta+b");
   await expect(left).toHaveJSProperty("offsetWidth", 52);
+  await page.reload();
+  await expect(left).toHaveJSProperty("offsetWidth", 52);
   await page.keyboard.press("ControlOrMeta+b");
   await expect(left).toHaveJSProperty("offsetWidth", 232);
 });
@@ -222,9 +290,19 @@ test.describe("on a portrait iPad", () => {
 test("client-v2-layout: The classic parameter", async ({
   seededPage: page,
 }) => {
+  // The parameter is ignored: the page is the one without it
+  const left = page.locator('[data-slot="sidebar-container"]');
+  const measure = async () => ({
+    left: await left.evaluate((el) => el.getBoundingClientRect().width),
+    assistant: await widthOf(page),
+    console: await consoleHandle(page).isVisible(),
+    sidebars: await page.locator('[data-slot="sidebar"]').count(),
+  });
+  const plain = await measure();
   await page.goto("/?classic");
   await expect(consoleHandle(page)).toBeVisible();
-  await expect(page.locator('[data-slot="sidebar"]')).toHaveCount(1);
+  await expect(assistantPanel(page)).toBeVisible();
+  expect(await measure()).toEqual(plain);
 });
 
 test("client-v2-layout: Toggling the assistant by key", async ({
@@ -309,4 +387,30 @@ test("a toast opens above the left panel", async ({ seededPage: page }) => {
     return hit !== null && el.contains(hit);
   });
   expect(onTop).toBe(true);
+});
+
+test.describe("the layout_viewport event", () => {
+  const widthClassAt = async (page: Page, width: number) => {
+    // Seeded on a desktop-sized page, as the phone test is: the project
+    // tree lives in a closed Sheet on a phone, which the fixture waits on
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.setViewportSize({ width, height: 800 });
+    const lines = linesOn(page);
+    await page.reload();
+    await expect.poll(() => lineOf(lines, "layout_viewport")).toBeTruthy();
+    return lineOf(lines, "layout_viewport");
+  };
+
+  test("reports wide at 1280 px", async ({ page }) => {
+    expect(await widthClassAt(page, 1280)).toContain("width: wide");
+  });
+
+  test("reports compact at 800 px", async ({ page }) => {
+    expect(await widthClassAt(page, 800)).toContain("width: compact");
+  });
+
+  test("reports phone at 375 px", async ({ page }) => {
+    expect(await widthClassAt(page, 375)).toContain("width: phone");
+  });
 });
