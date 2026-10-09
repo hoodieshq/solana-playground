@@ -95,6 +95,8 @@ import {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  MergeHunkBar,
+  MergeHunkBarSide,
   MergeHunkGutter,
   mergeHunkOrder,
   mergeHunkVariants,
@@ -212,16 +214,17 @@ const PROGRAM_ID = "7Hq5vRw1yJmZ9bX3cDfE8sLkT2nA4uPqWe6oGhK1Xk2P"
    from its editors. */
 
 type MergeCell = { text: string; state?: MergeHunkState; actions?: React.ReactNode } | null
-type MergeRow = { fold: number } | { left: MergeCell; result: MergeCell; right: MergeCell }
+type MergeRow = { fold: number } | { bar: true } | { left: MergeCell; result: MergeCell; right: MergeCell }
 
 const LINE = 20
 const FOLD = 24
+const BAR = 44
 const PAD = 4
 
 const same = (text: string): MergeRow => ({ left: { text }, result: { text }, right: { text } })
 
 function rowTop(rows: MergeRow[], index: number) {
-  return PAD + rows.slice(0, index).reduce((y, row) => y + ("fold" in row ? FOLD : LINE), 0)
+  return PAD + rows.slice(0, index).reduce((y, row) => y + ("fold" in row ? FOLD : "bar" in row ? BAR : LINE), 0)
 }
 
 /* A band from `lines` rows at `index` on one side to `toLines` on the other */
@@ -238,12 +241,12 @@ const TAKE_LEFT = <MergeHunkActions>{hunkPair("left")}</MergeHunkActions>
 
 const TAKE_RIGHT = <MergeHunkActions>{hunkPair("right")}</MergeHunkActions>
 
-/* At phone width the result carries both sides' controls: × » « × */
-const TAKE_BOTH = (
-  <MergeHunkActions className="absolute inset-y-0 right-1 my-auto h-fit rounded bg-surface-panel">
-    {hunkPair("left")}
-    {hunkPair("right")}
-  </MergeHunkActions>
+/* At phone width the result carries both sides' controls, in a row under the hunk */
+const HUNK_BAR = (
+  <MergeHunkBar>
+    <MergeHunkBarSide side="left">{hunkPair("left")}</MergeHunkBarSide>
+    <MergeHunkBarSide side="right">{hunkPair("right")}</MergeHunkBarSide>
+  </MergeHunkBar>
 )
 
 function conflictRows(phone = false): MergeRow[] {
@@ -263,10 +266,11 @@ function conflictRows(phone = false): MergeRow[] {
     same("    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {"),
     {
       left: { text: '        msg!("Hi");', state: "conflict", actions: TAKE_LEFT },
-      result: { text: '        msg!("Greetings");', state: "conflict", actions: phone ? TAKE_BOTH : undefined },
+      result: { text: '        msg!("Greetings");', state: "conflict" },
       right: { text: '        msg!("Hello");', state: "conflict", actions: TAKE_RIGHT },
     },
     { left: null, result: null, right: { text: '        msg!("Welcome back");', state: "conflict" } },
+    ...(phone ? [{ bar: true } as const] : []),
     same("        Ok(())"),
     same("    }"),
     same("}"),
@@ -310,12 +314,13 @@ const DELETED_RIGHT = [band(DELETED_ROWS, 0, 5, 0, "conflict")]
 
 function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" | "result" | "right"; start?: number }) {
   /* each row's line number in this pane: a fold skips its lines, a spacer has none */
-  const lines = (row: MergeRow) => ("fold" in row ? row.fold : row[side] ? 1 : 0)
+  const lines = (row: MergeRow) => ("fold" in row ? row.fold : "bar" in row ? 0 : row[side] ? 1 : 0)
   const numbers = rows.map((_, i) => start + rows.slice(0, i).reduce((n, row) => n + lines(row), 0))
   return (
     <div className="min-w-0 flex-1 py-1 font-mono text-[0.8125rem] leading-5">
       {rows.map((row, i) => {
         if ("fold" in row) return <MergeFold key={i} count={row.fold} />
+        if ("bar" in row) return side === "result" ? <div key={i}>{HUNK_BAR}</div> : null
         const cell = row[side]
         /* a spacer only aligns panes side by side; one pane at a time needs none */
         if (!cell) return <div key={i} className="h-5 @max-3xl/merge:hidden" />
@@ -324,8 +329,6 @@ function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" 
           <div key={i} className={cn("relative flex h-5 items-center", cell.state && mergeHunkVariants({ state: cell.state }))}>
             <span className="flex w-10 shrink-0 items-center justify-end pr-3 text-xs text-subtle tabular-nums select-none">{number}</span>
             <code className="min-w-0 flex-1 overflow-hidden whitespace-pre text-foreground">{highlight(cell.text, SYNTAX_BOTH)}</code>
-            {/* the sides' controls are in their gutters; the result's, at phone width, at the line's end */}
-            {side === "result" && cell.actions}
           </div>
         )
       })}
@@ -338,7 +341,7 @@ function MergeGutter({ rows, side }: { rows: MergeRow[]; side: "left" | "right" 
   return (
     <MergeHunkGutter>
       {rows.map((row, i) => {
-        const actions = "fold" in row ? undefined : row[side]?.actions
+        const actions = "fold" in row || "bar" in row ? undefined : row[side]?.actions
         if (!actions) return null
         return (
           <div key={i} className="absolute inset-x-0 flex items-center justify-center" style={{ top: rowTop(rows, i), height: LINE }}>

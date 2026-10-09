@@ -479,6 +479,41 @@ function MergeHunkAction({
   )
 }
 
+/* At phone width, where the result carries both sides' controls, a row of
+   its own under the hunk, so no control covers the lines it decides. Each
+   side's controls go in a MergeHunkBarSide, named, since a touch screen
+   shows no tooltips to tell one × from the other */
+function MergeHunkBar({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="merge-hunk-bar"
+      className={cn(
+        "flex h-11 items-center justify-between gap-2 border-y border-border bg-surface-panel px-2 font-sans",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+/* One side's controls in a MergeHunkBar, mirrored as in the gutters: this
+   device's name, then × »; then « ×, then the other device's name */
+function MergeHunkBarSide({
+  className,
+  side,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & { side: "left" | "right" }) {
+  const name = <span className="truncate text-xs font-act text-muted-foreground">{PANE_NAME[side]}</span>
+  return (
+    <div data-slot="merge-hunk-bar-side" data-side={side} className={cn("flex min-w-0 items-center gap-1", className)} {...props}>
+      {side === "left" && name}
+      <MergeHunkActions>{children}</MergeHunkActions>
+      {side === "right" && name}
+    </div>
+  )
+}
+
 /* A run of lines no hunk touches, folded. Pressing it is the app's */
 function MergeFold({
   className,
@@ -544,6 +579,8 @@ export {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  MergeHunkBar,
+  MergeHunkBarSide,
   MergeHunkGutter,
   mergeHunkOrder,
   mergeHunkVariants,
