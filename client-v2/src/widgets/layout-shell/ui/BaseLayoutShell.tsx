@@ -32,9 +32,14 @@ const SIDEBAR_STYLE = {
   "--sidebar-width-icon": "3.25rem",
 } as CSSProperties;
 
+/**
+ * Same variants as `shared/ui/sheet`'s own `data-[side=right]:w-3/4
+ * data-[side=right]:sm:max-w-sm`: an unprefixed `w-full` loses to them
+ */
 const SHEET_WIDTH: Record<Exclude<Viewport, "wide">, string> = {
-  compact: "w-[21.75rem] sm:max-w-[21.75rem]",
-  phone: "w-full sm:max-w-full",
+  compact:
+    "data-[side=right]:w-[21.75rem] data-[side=right]:sm:max-w-[21.75rem]",
+  phone: "data-[side=right]:w-full data-[side=right]:sm:max-w-full",
 };
 
 export interface BaseLayoutShellProps {
@@ -72,6 +77,17 @@ export interface BaseLayoutShellProps {
    */
   sheetFont?: CSSProperties;
 }
+
+/**
+ * The library also reports a layout on mount and when a window resize
+ * re-clamps it. Those are not choices: saving them would pin the sizes of
+ * whatever window the page last opened in.
+ */
+const savedWhenDragged =
+  (save: (layout: PanelLayout) => void) =>
+  (layout: PanelLayout, meta: { isUserInteraction: boolean }) => {
+    if (meta.isUserInteraction) save(layout);
+  };
 
 const LeftSlot = ({
   render,
@@ -154,7 +170,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       orientation="vertical"
       id="layout-vertical"
       defaultLayout={props.vertical}
-      onLayoutChanged={props.onVerticalLayout}
+      onLayoutChanged={savedWhenDragged(props.onVerticalLayout)}
     >
       <ResizablePanel id="stage" className="flex min-h-0 flex-col">
         {props.stage}
@@ -171,6 +187,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             : PANEL_SIZES.console.folded
         }
         minSize={PANEL_SIZES.console.min}
+        groupResizeBehavior="preserve-pixel-size"
         className="flex min-h-0 flex-col"
         onResize={(size) => {
           const folded = consoleRef.current?.isCollapsed();
@@ -217,7 +234,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           orientation="horizontal"
           id="layout-horizontal"
           defaultLayout={wide ? props.horizontal : undefined}
-          onLayoutChanged={wide ? props.onHorizontalLayout : undefined}
+          onLayoutChanged={
+            wide ? savedWhenDragged(props.onHorizontalLayout) : undefined
+          }
         >
           <ResizablePanel
             id="center"
@@ -240,6 +259,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               }
               minSize={PANEL_SIZES.assistant.min}
               maxSize={PANEL_SIZES.assistant.max}
+              groupResizeBehavior="preserve-pixel-size"
               className="flex min-w-0 flex-col"
               onResize={(size) => {
                 const folded = assistantRef.current?.isCollapsed();
@@ -270,6 +290,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               <SheetContent
                 side="right"
                 showCloseButton={false}
+                aria-describedby={undefined}
                 className={cn("p-0", SHEET_WIDTH[props.viewport])}
                 style={props.sheetFont}
               >
