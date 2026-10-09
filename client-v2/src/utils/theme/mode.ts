@@ -7,9 +7,9 @@
  * (Monaco, xterm) reads the new values.
  */
 export const applyThemeMode = (
-  isDark: boolean,
+  mode: "dark" | "light",
   root: HTMLElement = document.documentElement
 ) => {
-  root.classList.toggle("dark", isDark);
-  root.style.colorScheme = isDark ? "dark" : "light";
+  root.classList.toggle("dark", mode === "dark");
+  root.style.colorScheme = mode;
 };

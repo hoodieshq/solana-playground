@@ -29,7 +29,7 @@ const SRGB = new RegExp(
 
 /**
  * Hex for a colour as `getComputedStyle` reports it: `rgb()`/`rgba()`, or
- * `color(srgb …)`, which Chrome reports for `color-mix(in srgb, …)`.
+ * `color(srgb ...)`, which Chrome reports for `color-mix(in srgb, ...)`.
  * `#rrggbb` when opaque, `#rrggbbaa` otherwise; `null` for anything else.
  */
 export const toHex = (computed: string): string | null => {
@@ -67,7 +67,7 @@ const SENTINEL = "rgb(1, 2, 3)";
 const warned = new Set<string>();
 
 /**
- * Resolve any CSS colour (`var(--token)`, `color-mix(…)`, a keyword) to hex
+ * Resolve any CSS colour (`var(--token)`, `color-mix(...)`, a keyword) to hex
  * against the current `<html>`, for engines that cannot read CSS variables:
  * Monaco's `defineTheme`, the TextMate grammars and xterm's `theme`. Call it
  * after the theme's class is on `<html>`.
