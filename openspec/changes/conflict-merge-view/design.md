@@ -154,16 +154,17 @@ without locking: the stale answer can only fail.
 (`registry:ui`; depends on `playground-tokens` and `segmented`). Compound
 parts with `data-slot` names:
 
-| Part                                                                   | Draws                                                                                        |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `Merge`                                                                | root column, fits `ModalContent size="wide"`                                                 |
-| `MergeToolbar`, `MergeNav`, `MergeTitle`, `MergeCount`, `MergeShowAll` | previous/next conflict and file, path and "file n of m", "n conflicts left", the fold toggle |
-| `MergePanes`                                                           | pane, ribbon, pane, ribbon, pane; below `md` one pane, picked by `MergePaneTabs`             |
-| `MergePane side`, `MergePaneHeader`, `MergePaneBody`                   | label, lock on read-only sides, an empty slot for the app's editor                           |
-| `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`               |
-| `MergeHunkActions`, `MergeHunkAction`, `mergeHunkOrder`                | `×` `»` and `«` `×` icon buttons, mirrored about the result, with their accessible names     |
-| `MergeFold`                                                            | "⋯ n unchanged lines" button                                                                 |
-| `MergeFooter`, `MergeFooterShortcuts`, `MergeFooterActions`            | the whole-file shortcuts left, Cancel / Apply right                                          |
+| Part                                                                   | Draws                                                                                                                             |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `Merge`                                                                | root column, fits `ModalContent size="wide"`                                                                                      |
+| `MergeToolbar`, `MergeNav`, `MergeTitle`, `MergeCount`, `MergeShowAll` | previous/next conflict and file, path and "file n of m", "n conflicts left", the fold toggle                                      |
+| `MergePanes`                                                           | pane, ribbon, pane, ribbon, pane; below `md` one pane, picked by `MergePaneTabs`                                                  |
+| `MergePane side`, `MergePaneHeader`, `MergePaneBody`                   | label, lock on read-only sides, an empty slot for the app's editor                                                                |
+| `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`                                                    |
+| `MergeHunkActions`, `MergeHunkAction`, `mergeHunkOrder`                | `×` `»` and `«` `×` icon buttons, mirrored about the result, with their accessible names                                          |
+| `MergeHunkGutter`                                                      | a side's column for its controls beside the ribbon: last in the left pane, first in the right, mirrored; not drawn at phone width |
+| `MergeFold`                                                            | "⋯ n unchanged lines" button                                                                                                      |
+| `MergeFooter`, `MergeFooterShortcuts`, `MergeFooterActions`            | the whole-file shortcuts left, Cancel / Apply right                                                                               |
 
 `mergeHunkVariants` (exported `cva`) gives the state classes: `conflict` on
 `error`, `changed` on `info`, `resolved` on `success`, and `dismissed` on the
