@@ -188,6 +188,63 @@ const looksOf = (pane: Locator, text: string) =>
 const banner = (page: Page) => page.getByText("changed on another device");
 
 /**
+ * Every file this browser has stored whose text holds `marker`, read from
+ * the file system's IndexedDB store, as `workspace-migration` reads it. The
+ * store keys files by inode, so a file is found by what it holds.
+ */
+const storedWith = (page: Page, marker: string) =>
+  page.evaluate(async (marker) => {
+    const dbs: Array<{ name?: string }> = await (
+      indexedDB as unknown as {
+        databases: () => Promise<Array<{ name?: string }>>;
+      }
+    ).databases();
+    const name = dbs.map((d) => d.name).find((n) => n?.includes("solana"));
+    if (!name) return [];
+    const db: IDBDatabase = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const store = Array.from(db.objectStoreNames).find((s) =>
+      s.includes("files")
+    );
+    if (!store) return [];
+    const values: unknown[] = await new Promise((resolve) => {
+      const request = db
+        .transaction(store, "readonly")
+        .objectStore(store)
+        .getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve([]);
+    });
+    db.close();
+    return values
+      .map((value) => {
+        if (typeof value === "string") return value;
+        try {
+          return new TextDecoder().decode(value as ArrayBuffer);
+        } catch {
+          // Not a file's bytes: the superblock or another record
+          return "";
+        }
+      })
+      .filter((text) => text.includes(marker));
+  }, marker);
+
+/**
+ * The next read of the account's projects: a reconcile pass has started.
+ * Armed before the step that starts one.
+ */
+const nextProjectsRead = (page: Page) =>
+  page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/projects") &&
+      response.request().method() === "GET",
+    LONG
+  );
+
+/**
  * The conflict every scenario starts from: both devices changed line 12 of
  * `src/lib.rs`, and the other device also changed line 3.
  */
@@ -419,10 +476,14 @@ test("project-conflict-resolution: Two files in conflict", async ({ page }) => {
   await typeLine(page, 12, MINE);
   // Autosaved before the tab changes: a switch inside autosave's half second
   // is a different story (the editor's), not this one
-  await page.waitForTimeout(1500);
+  await expect
+    .poll(async () => (await storedWith(page, MINE)).length, LONG)
+    .toBeGreaterThan(0);
   await openFile(page, "tests/index.test.ts");
   await typeLine(page, 3, "  // second, here");
-  await page.waitForTimeout(1500);
+  await expect
+    .poll(async () => (await storedWith(page, "// second, here")).length, LONG)
+    .toBeGreaterThan(0);
   release();
   account.hold = null;
   await expect(banner(page)).toBeVisible(LONG);
@@ -516,12 +577,25 @@ test("project-conflict-resolution: The account's copy comes back unchanged", asy
   await settled(page, account.writes);
 
   account.writes.length = 0;
+  const read = nextProjectsRead(page);
   await page.reload();
   await expect(mainEditor(page)).toContainText(MINE, LONG);
   await expect(mainEditor(page)).toContainText(THEIRS);
-  await page.waitForTimeout(8000);
+  // The reload's reconcile pass has read the account and had its say
+  await read;
+  await settled(page, account.writes);
   await expect(banner(page)).toHaveCount(0);
-  expect(account.writes).toEqual([]);
+  // Nothing of the user's goes up. The one write a reload may make is the
+  // generated `program-info.json`, which this account never received and
+  // PgProgramInfo writes on every open -- the known sync gap that
+  // `account-sync`'s "reloading a project the account already has writes
+  // nothing" is quarantined for on CI, not something the resolution sent.
+  for (const write of account.writes) {
+    expect(Object.keys(write.changed ?? write.files ?? {})).toEqual([
+      ".workspace/program-info.json",
+    ]);
+  }
+  expect(account.files["src/lib.rs"]).toContain(MINE);
 });
 
 test("project-conflict-resolution: Cancelled after taking a side", async ({
@@ -539,9 +613,26 @@ test("project-conflict-resolution: Cancelled after taking a side", async ({
   await dialog.getByRole("button", { name: "Cancel" }).click();
 
   await expect(dialog).toBeHidden();
+  // A pass runs, so anything Cancel had left to write or send would have
+  const read = nextProjectsRead(page);
+  await refocus(page);
+  await read;
+  await settled(page, account.writes);
+
   await expect(mainEditor(page)).toContainText(MINE);
   await expect(mainEditor(page)).not.toContainText(THEIRS);
-  await page.waitForTimeout(5000);
+  // The half-built result (the other device's line 3 merged in, this
+  // device's line 12 taken) is not what this device holds: the stored file
+  // is this device's own, line 3 as both started
+  const stored = await storedWith(page, MINE);
+  expect(stored.length).toBeGreaterThan(0);
+  for (const text of stored) {
+    expect(text).toContain(LINE_3);
+    expect(text).not.toContain(THEIRS_3);
+    expect(text).not.toContain(THEIRS);
+  }
+  await expect(mainEditor(page)).toContainText(LINE_3);
+  await expect(mainEditor(page)).not.toContainText(THEIRS_3);
   expect(account.writes.length).toBe(before);
   await expect(page.getByRole("button", { name: "Resolve…" })).toBeVisible();
 });
