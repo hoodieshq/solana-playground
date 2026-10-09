@@ -147,14 +147,13 @@ Done:
   from solana.com, `Solana V2` as the fork's default), the floating-panel
   layout (anatomy and navigation built on top of it), then **Flow** —
   re-anatomizing the UI around the Write → Build → Deploy → Interact loop
-  (`decisions.md` → D10, D17). Flow is now the default layout: a header
+  (`decisions.md` → D10, D17). Flow is now the only layout: a header
   stepper (Write → Build → Deploy → Interact, state derived from real
   build/deploy events) plus a two-tab left panel (Projects | Files), a
   permanent assistant column, and the terminal moved into a console drawer
   (Cmd+J). A New Workspace gallery starts a project from 34 upstream
   programs or 16 tutorials. A gear icon opens a settings overlay embedding
-  the existing settings registry. The previous floating-panel layout stays
-  reachable at `/?classic` as a fallback.
+  the existing settings registry.
 - Deploy history is new: a client-side store in `localStorage`, keyed by
   workspace, that records each real deploy as it happens.
 - Conversations and project code are persisted. Threads are keyed by project
