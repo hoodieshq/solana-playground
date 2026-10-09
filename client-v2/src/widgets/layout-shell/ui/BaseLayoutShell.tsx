@@ -16,6 +16,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/shared/ui/sidebar";
+import { GAP } from "@/views/flow/tokens";
 import type { PanelLayout } from "../model/layout-state";
 
 /** Sizes in px; the design system gives the left panel's in rem (`SIDEBAR_STYLE`) */
@@ -185,16 +186,22 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     <SidebarProvider
       open={props.leftOpen}
       onOpenChange={props.onLeftOpenChange}
-      style={SIDEBAR_STYLE}
+      style={{ ...SIDEBAR_STYLE, padding: `0 ${GAP} ${GAP}` }}
       className="relative min-h-0 flex-1"
     >
       {/* The stock Sidebar is fixed at the window's full height; Flow's
-          header keeps the top, so it sits in the area under it instead */}
-      <Sidebar collapsible="icon" className="absolute inset-y-0 h-full">
+          header keeps the top, so it sits in the area under it instead, inset
+          by the gutter. The left panel draws its own rounded border, so the
+          container's edge line and fill are dropped. */}
+      <Sidebar
+        collapsible="icon"
+        className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"
+        style={{ left: GAP, bottom: GAP }}
+      >
         <LeftSlot render={props.left} />
       </Sidebar>
       <LeftSheetWatcher onChange={props.onLeftSheetChange} />
-      <SidebarInset className="relative min-h-0 min-w-0">
+      <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
         {/* One tree at every width, so a rotate across 1024 px does not
             remount the stage, Monaco or the console's terminal. Below 1024 px
             the group holds only the centre, so it neither takes nor saves the
@@ -212,7 +219,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           >
             {center}
           </ResizablePanel>
-          {wide && <ResizableHandle />}
+          {wide && <ResizableHandle className="w-2 bg-transparent" />}
           {wide && (
             <ResizablePanel
               id="assistant"
