@@ -66,3 +66,22 @@ no effect.
 
 - **WHEN** a user opens the product with `?classic` in the URL
 - **THEN** the same layout appears as without it
+
+### Requirement: The layout is measured
+
+The product SHALL send `layout_viewport` with the width class (`wide`,
+`compact` or `phone`) once per page load; `layout_panel_toggled` with the
+panel, whether it is now open, and whether a button, a key or the product
+itself opened it; `layout_readonly_edit_blocked` the first time in a session
+that a user tries to type in a read-only editor; and `layout_restore_failed`
+with the reason when a saved layout cannot be read.
+
+#### Scenario: Toggling the assistant by key
+
+- **WHEN** a user presses Ctrl+R with the assistant open
+- **THEN** `layout_panel_toggled` is sent with the assistant, closed, by key
+
+#### Scenario: A corrupt saved layout is reported
+
+- **WHEN** the saved layout is corrupt and the user loads the product
+- **THEN** `layout_restore_failed` is sent with the reason `corrupt`

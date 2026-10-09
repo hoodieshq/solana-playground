@@ -205,11 +205,16 @@ Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
   `?classic` and its `Side`, `Main/Secondary` and `Bottom` go, because Flow
   already reaches classic's extra pages (Interact, the gallery,
   `ProgramsTab`). `app/Panels/Main/Primary` stays: the Write stage mounts it.
+  `components/Resizable` and `re-resizable` stay: the settings sidebar uses
+  them.
   `PgView.sidebar` stays: routes and tutorials write it.
 - **The left panel is the stock `Sidebar`**, folding to an icon rail: 14.5 rem
   open, 3.25 rem as a rail, ⌘B, as the design system's migration map has it.
   The widths go through `SidebarProvider`'s `style`; `shared/ui` is not
-  edited. The panel is no longer drag-resizable (today 192 px to 30% of the
+  edited. The header keeps the full width on top (Slava, 2026-10-09): the
+  stock Sidebar is `fixed` at the window's full height, so the shell's
+  `className` makes it `absolute` inside the area under the header, and the
+  provider `flex-1` instead of `min-h-svh`. The panel is no longer drag-resizable (today 192 px to 30% of the
   window). _Rejected:_ one `ResizablePanelGroup` for all three columns, which
   keeps the drag but rebuilds the Sidebar's phone Sheet and ⌘B by hand; a
   drag handle added to the stock Sidebar, which edits `shared/ui`.
@@ -222,8 +227,12 @@ widgets/layout-shell/
   ui/LayoutShell.tsx      connected: SidebarProvider, panel groups, slots
   ui/BaseLayoutShell.tsx  markup only: slots left/header/stage/console/assistant
   model/layout-state.ts   the layout state, one localStorage key
-  model/viewport.ts       useViewport(): wide >=1024 | compact 600-1023 | phone <600
 ```
+
+`useViewport()` (wide >=1024, compact 600-1023, phone <600) lives in
+`shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
+announces a blocked edit as a `PgEditor` document event, so the editor does
+not import the widget.
 
 ```
 SidebarProvider (collapsible="icon", controlled open)
@@ -238,8 +247,8 @@ bytes: `{v: 1, leftOpen, assistantOpen, consoleOpen, h, vert}`, where `h`
 and `vert` are the two groups' layouts from `onLayoutChanged` (written when
 a drag ends, not per frame). A corrupt value, another `v` or unavailable
 storage falls back to today's defaults (left open, assistant open at 21.75
-rem, console closed, 16 rem when opened) and is reported through
-`model/diagnostics.ts`. Crossing a breakpoint writes nothing. The widget
+rem, console closed, 16 rem when opened), is logged through
+`createLogger("layout-shell:state")` and sends `layout_restore_failed`. Crossing a breakpoint writes nothing. The widget
 owns the state; the subscriptions that open panels on their own
 (`deploy.onDidStart` and a failed deploy open the console,
 `PgAssistant.onDidRequestPrompt` the assistant) move into it unchanged.
@@ -249,7 +258,7 @@ owns the state; the subscriptions that open panels on their own
 | Width | Left | Assistant | Editor |
 |---|---|---|---|
 | wide >=1024 | Sidebar or rail | resizable panel | edits |
-| compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet, header button, Ctrl+R | edits |
+| compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
 | phone <600 | the stock Sheet | full-width Sheet | read-only |
 
 The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
@@ -258,6 +267,13 @@ Monaco gets `readOnly` and a `readOnlyMessage` saying editing works from 600
 px; chat works at every width. Explorer actions are not made read-only. The
 header's own compact steps (80 and 72 rem) stay; phone screens for the header
 and stages are the Breakpoint work (5.3).
+
+**Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
+{panel, open, via: button | key | auto}`, `via: auto` when a deploy or "Fix
+with assistant" opened it; `layout_viewport {width}` once per load;
+`layout_readonly_edit_blocked` once per session, from Monaco's
+`onDidAttemptReadOnlyEdit`; `layout_restore_failed {reason: corrupt | version
+| storage-unavailable}`.
 
 Kept: every id, `aria-label`, `#tabs`, `#root-dir`, and the keys ⌘B, Ctrl+R,
 Ctrl+J. The folded rail grows from 24 px to 52 px, which
