@@ -220,6 +220,15 @@ it("should collapse the assistant panel when assistantOpen turns false", () => {
   expect(assistant.collapse).toHaveBeenCalledTimes(1);
 });
 
+it("should mount a folded assistant folded, and not report it open", () => {
+  // Without a saved horizontal layout the panel starts at its folded size, so
+  // nothing reads as the assistant having been opened
+  const folded = props("wide", { assistantOpen: false });
+  render(<BaseLayoutShell {...folded} />);
+  expect(folded.onAssistantOpenChange).not.toHaveBeenCalled();
+  expect(panelSpies.groups["layout-horizontal"].defaultLayout).toBeUndefined();
+});
+
 it("should open a collapsed assistant panel at its default width when assistantOpen turns true", () => {
   // `expand()` would open a panel that mounted folded at its minimum
   const [assistant] = panelSpies.handles;

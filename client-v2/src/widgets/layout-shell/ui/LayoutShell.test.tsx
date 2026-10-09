@@ -4,6 +4,11 @@ import type { DefaultTheme } from "styled-components";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+import {
   initTelemetry,
   memoryProvider,
   resetTelemetry,
@@ -213,16 +218,106 @@ it("should send each toggle once under StrictMode", async () => {
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "button" }]);
 });
 
-it("should leave a saved value alone on mount, and write v1 on a toggle", () => {
+it("should leave a layout saved by a newer version alone, toggles included", () => {
   const newer = JSON.stringify({ v: 2, leftOpen: true });
   localStorage.setItem(LAYOUT_STORAGE_KEY, newer);
   shell();
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(newer);
   fireEvent.click(consoleButton());
+  expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(newer);
+});
+
+it("should say once why a newer layout is not overwritten", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({ v: 2 }));
+  shell();
+  fireEvent.click(consoleButton());
+  fireEvent.click(consoleButton());
+  fireEvent.click(consoleButton());
+  const notes = logs.entries.filter((entry) =>
+    entry.message?.includes("newer version")
+  );
+  expect(notes).toHaveLength(1);
+  resetLogger();
+});
+
+const DRAGGED = {
+  v: 1,
+  leftOpen: true,
+  assistantOpen: true,
+  consoleOpen: false,
+  h: { center: 60, assistant: 40 },
+  vert: { stage: 70, console: 30 },
+};
+
+it("should drop the dragged assistant sizes when the assistant is folded or unfolded", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+  shell();
+  press({ key: "r", ctrlKey: true });
+  const folded = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
+  expect(folded.assistantOpen).toBe(false);
+  expect(folded.h).toBeUndefined();
+  // The console's drag is a different group's, and stays
+  expect(folded.vert).toEqual({ stage: 70, console: 30 });
+});
+
+it("should drop the dragged console sizes when the console is folded or unfolded", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+  shell();
+  press({ key: "j", ctrlKey: true });
+  const opened = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
+  expect(opened.consoleOpen).toBe(true);
+  expect(opened.vert).toBeUndefined();
+  expect(opened.h).toEqual({ center: 60, assistant: 40 });
+});
+
+it("should keep the dragged sizes when the project panel is folded", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+  shell();
+  press({ key: "b", ctrlKey: true });
   expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
-    v: 1,
-    consoleOpen: true,
+    leftOpen: false,
+    h: { center: 60, assistant: 40 },
+    vert: { stage: 70, console: 30 },
   });
+});
+
+it("should say once that the layout could not be saved, not on every toggle", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+  shell();
+  fireEvent.click(consoleButton());
+  fireEvent.click(consoleButton());
+  fireEvent.click(consoleButton());
+  vi.restoreAllMocks();
+  resetLogger();
+  expect(
+    logs.entries.filter((entry) =>
+      entry.message?.includes("could not be saved")
+    )
+  ).toHaveLength(1);
+});
+
+it("should report ⌘B as a key after a toggle that changed nothing", () => {
+  // On a phone the button opens the Sheet and the Sheet reports itself; the
+  // mark the button set must not outlive that
+  resizeTo(700);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Collapse project panel" })
+  );
+  act(() => resizeTo(1440));
+  const before = toggled().length;
+  press({ key: "b", metaKey: true });
+  expect(toggled().slice(before)).toEqual([
+    { panel: "left", open: false, via: "key" },
+  ]);
 });
 
 it("should report the assistant Sheet opening and closing, and save nothing", () => {
