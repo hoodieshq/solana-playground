@@ -163,6 +163,7 @@ parts with `data-slot` names:
 | `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`                                                    |
 | `MergeHunkActions`, `MergeHunkAction`, `mergeHunkOrder`                | `×` `»` and `«` `×` icon buttons, mirrored about the result, with their accessible names                                          |
 | `MergeHunkGutter`                                                      | a side's column for its controls beside the ribbon: last in the left pane, first in the right, mirrored; not drawn at phone width |
+| `MergeHunkBar`, `MergeHunkBarSide`                                     | at phone width, a row under each open hunk in the result with both sides' controls, each named, mirrored                          |
 | `MergeFold`                                                            | "⋯ n unchanged lines" button                                                                                                      |
 | `MergeFooter`, `MergeFooterShortcuts`, `MergeFooterActions`            | the whole-file shortcuts left, Cancel / Apply right                                                                               |
 
