@@ -159,7 +159,10 @@ it("should show the assistant Sheet when it is open", () => {
       viewport={open.viewport}
       leftOpen={open.leftOpen}
       onLeftOpenChange={open.onLeftOpenChange}
-      assistantState={{ ...open.assistantState, open: true }}
+      assistantState={{
+        open: true,
+        onOpenChange: open.assistantState.onOpenChange,
+      }}
       consoleState={open.consoleState}
       onHorizontalLayout={open.onHorizontalLayout}
       onVerticalLayout={open.onVerticalLayout}
@@ -229,6 +232,38 @@ it("should mount a folded assistant folded, and not report it open", () => {
   render(<BaseLayoutShell {...folded} />);
   expect(folded.assistantState.onOpenChange).not.toHaveBeenCalled();
   expect(panelSpies.groups["layout-horizontal"].defaultLayout).toBeUndefined();
+});
+
+it("should still fold the panel after a trip through the compact Sheet", () => {
+  const [assistant] = panelSpies.handles;
+  const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
+  rerender(<BaseLayoutShell {...props("compact")} />);
+  rerender(
+    <BaseLayoutShell {...props("compact", { assistantSheetOpen: true })} />
+  );
+  rerender(<BaseLayoutShell {...props("wide")} />);
+  assistant.collapse.mockClear();
+  assistant.resize.mockClear();
+  // The next real toggle on wide is a toggle, not a viewport switch
+  rerender(<BaseLayoutShell {...props("wide", { assistantOpen: false })} />);
+  expect(assistant.collapse).toHaveBeenCalledTimes(1);
+});
+
+it("should still open a folded panel after a trip through the compact Sheet", () => {
+  const [assistant] = panelSpies.handles;
+  assistant.isCollapsed.mockReturnValue(true);
+  const { rerender } = render(
+    <BaseLayoutShell {...props("wide", { assistantOpen: false })} />
+  );
+  rerender(<BaseLayoutShell {...props("compact")} />);
+  rerender(
+    <BaseLayoutShell {...props("compact", { assistantSheetOpen: true })} />
+  );
+  rerender(<BaseLayoutShell {...props("compact")} />);
+  rerender(<BaseLayoutShell {...props("wide", { assistantOpen: false })} />);
+  assistant.resize.mockClear();
+  rerender(<BaseLayoutShell {...props("wide", { assistantOpen: true })} />);
+  expect(assistant.resize).toHaveBeenCalledWith(PANEL_SIZES.assistant.default);
 });
 
 it("should open a collapsed assistant panel at its default width when assistantOpen turns true", () => {
