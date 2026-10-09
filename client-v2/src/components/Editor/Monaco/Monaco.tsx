@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import styled, { useTheme } from "styled-components";
 import * as monaco from "monaco-editor";
 
+import { applyReadOnly } from "./read-only";
 import { editorBuffersOf } from "./editor-buffers";
 import { initLanguages } from "./languages";
 import { SpinnerWithBg } from "../../Loading";
@@ -25,6 +26,7 @@ import {
   useSendAndReceiveCustomEvent,
 } from "../../../hooks";
 import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
+import { useViewport } from "@/shared/lib/hooks/use-viewport";
 
 /**
  * Monaco paints its own canvas and cannot read CSS variables, so the theme's
@@ -208,6 +210,14 @@ const Monaco = () => {
   useEffect(() => {
     if (editor) return () => editor.dispose();
   }, [editor]);
+
+  // Phones read; from 600 px the editor edits (the client-v2-layout spec)
+  const viewport = useViewport();
+  useEffect(() => {
+    if (!editor) return;
+    const { dispose } = applyReadOnly(editor, viewport === "phone");
+    return dispose;
+  }, [editor, viewport]);
 
   // Set font
   useEffect(() => {
