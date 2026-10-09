@@ -565,6 +565,48 @@ test("project-conflict-resolution: Resolved hunk by hunk and applied", async ({
   expect(chosen(account.files["src/lib.rs"])).toBe(true);
 });
 
+/**
+ * The product events the page tracks from now on, as the development build
+ * logs them (`logProvider`: `[telemetry:event] <name> <params>`), filtered to
+ * those starting with `prefix`
+ */
+const trackedEvents = (page: Page, prefix: string) => {
+  const events: Array<{ name: string; params: unknown }> = [];
+  page.on("console", async (message) => {
+    if (!message.text().startsWith("[telemetry:event]")) return;
+    const [, name, params] = await Promise.all(
+      message.args().map((arg) => arg.jsonValue())
+    );
+    if (typeof name === "string" && name.startsWith(prefix)) {
+      events.push({ name, params });
+    }
+  });
+  return events;
+};
+
+test("project-conflict-resolution: Resolving is measured", async ({ page }) => {
+  test.setTimeout(240_000);
+  const account = await lineTwelveConflict(page, "Measured");
+  const events = trackedEvents(page, "sync_resolve");
+  const { dialog } = await openResolver(page);
+
+  await takeBoth(dialog);
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden(LONG);
+  await settled(page, account.writes);
+
+  await expect
+    .poll(() => events)
+    .toEqual([
+      { name: "sync_resolve_opened", params: { files: 1, hunks: 1 } },
+      {
+        name: "sync_resolve_hunk_resolved",
+        params: { how: "take", side: "other-device" },
+      },
+      { name: "sync_resolve_applied", params: { files: 1 } },
+    ]);
+});
+
 test("project-conflict-resolution: The account's copy comes back unchanged", async ({
   page,
 }) => {

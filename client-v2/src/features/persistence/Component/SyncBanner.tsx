@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import Button from "../../../components/Button";
 import { ConflictResolver } from "../ui/ConflictResolver";
 import { PgProjectSync } from "../model/project-sync";
+import { persistenceTelemetry } from "../model/telemetry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
 
@@ -124,6 +125,12 @@ const SyncBanner = () => {
 
   const answer = async (resolution: Resolution) => {
     if (!conflict) return;
+    if (resolution === "keep-local" || resolution === "take-server") {
+      persistenceTelemetry.track("sync_whole_file_answered", {
+        answer: resolution,
+        from: "banner",
+      });
+    }
     setBusy(true);
     try {
       // A resolution that failed -- offline, or the server refused again --

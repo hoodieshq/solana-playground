@@ -7,7 +7,7 @@ import type { MergeBand } from "@/shared/ui/merge";
 import { MergeFile } from "./merge-file";
 import { MergeResult } from "./result-model";
 import type { Fold, HunkSide, MergePane } from "./merge-file";
-import type { HunkAction } from "./result-model";
+import type { HunkAction, ResultChange } from "./result-model";
 import type { Disposable } from "../../../../utils/types";
 
 /** The scheme of the resolve view's models -- see `uriOf` */
@@ -82,7 +82,7 @@ export interface MergeEditor {
   /** Scrolled, resized or re-laid out: the overlays and ribbons move */
   onDidChangeLayout(cb: () => void): Disposable;
   /** The user typed into the result, or undid or redid; the file has it */
-  onDidEditResult(cb: () => void): Disposable;
+  onDidEditResult(cb: (change: ResultChange) => void): Disposable;
   /**
    * Take or dismiss one side of a hunk, into the result, as one step of
    * undo -- see `MergeResult.decide`
@@ -127,7 +127,7 @@ class MonacoMergeEditor implements MergeEditor {
   private readonly _opened = new Set<string>();
   private readonly _disposables: monaco.IDisposable[] = [];
   private readonly _layoutListeners = new Set<() => void>();
-  private readonly _editListeners = new Set<() => void>();
+  private readonly _editListeners = new Set<(change: ResultChange) => void>();
   private readonly _result: MergeResult;
   private _syncing = false;
   private _frame: number | null = null;
@@ -211,9 +211,9 @@ class MonacoMergeEditor implements MergeEditor {
     this._result = new MergeResult(
       file,
       this._editors.result!.getModel()!,
-      () => {
+      (change) => {
         this._refresh();
-        for (const cb of this._editListeners) cb();
+        for (const cb of this._editListeners) cb(change);
       }
     );
     this._disposables.push(this._result);
@@ -231,7 +231,7 @@ class MonacoMergeEditor implements MergeEditor {
     return { dispose: () => this._layoutListeners.delete(cb) };
   }
 
-  onDidEditResult(cb: () => void): Disposable {
+  onDidEditResult(cb: (change: ResultChange) => void): Disposable {
     this._editListeners.add(cb);
     return { dispose: () => this._editListeners.delete(cb) };
   }

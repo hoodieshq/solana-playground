@@ -64,6 +64,11 @@ export interface BaseConflictResolverProps {
   onTakeServer: () => void;
   /** Closed without an answer: Cancel, the close button or Escape */
   onCancel: () => void;
+  /**
+   * A hunk went from undecided to resolved: by taking or dismissing `side`,
+   * or by typing over it (`edit`, no side). Not called for undo and redo.
+   */
+  onHunkResolved?: (how: HunkAction | "edit", side: HunkSide | null) => void;
 }
 
 /** Below this the element shows one pane at a time (`@3xl/merge`) */
@@ -102,6 +107,14 @@ const keepEditorEscape = (event: KeyboardEvent) => {
   }
 };
 
+/** The indices of a file's resolved hunks */
+const resolvedHunks = (file: MergeFile) =>
+  new Set(
+    file.hunks
+      .filter(({ hunk }) => MergeFile.isResolved(hunk))
+      .map(({ index }) => index)
+  );
+
 /** The sides whose controls a pane carries */
 const sidesIn = (pane: Pane, single: boolean): HunkSide[] => {
   if (single) return pane === "result" ? ["left", "right"] : [];
@@ -127,6 +140,7 @@ export const BaseConflictResolver = ({
   onKeepLocal,
   onTakeServer,
   onCancel,
+  onHunkResolved,
 }: BaseConflictResolverProps) => {
   // A new set of files is a new question: every choice starts over
   const merges = useMemo(() => files.map((f) => MergeFile.from(f)), [files]);
@@ -152,6 +166,12 @@ export const BaseConflictResolver = ({
     right: useRef<HTMLDivElement>(null),
   };
   const [editor, setEditor] = useState<MergeEditor | null>(null);
+  // Read by the editor's listener, which is set up once per file
+  const resolvedHook = useRef(onHunkResolved);
+  resolvedHook.current = onHunkResolved;
+  // Which of the file's hunks were resolved before the last change, to tell
+  // the ones typing has just answered
+  const resolved = useRef(new Set<number>());
   const [layout, setLayout] = useState<MergeLayout | null>(null);
 
   // The Modal mounts its content in a portal after this renders, so the
@@ -174,9 +194,19 @@ export const BaseConflictResolver = ({
     );
     setEditor(created);
     setLayout(created.layout);
+    resolved.current = resolvedHunks(file);
     const subscriptions = [
       created.onDidChangeLayout(() => setLayout(created.layout)),
-      created.onDidEditResult(rerender),
+      created.onDidEditResult((change) => {
+        const now = resolvedHunks(file);
+        if (change === "typed") {
+          for (const i of now) {
+            if (!resolved.current.has(i)) resolvedHook.current?.("edit", null);
+          }
+        }
+        resolved.current = now;
+        rerender();
+      }),
     ];
     return () => {
       for (const s of subscriptions) s.dispose();
@@ -196,7 +226,14 @@ export const BaseConflictResolver = ({
   const unresolved = merges.reduce((n, m) => n + m.unresolved, 0);
 
   const act = (hunk: number, side: HunkSide, action: HunkAction) => {
-    if (editor?.decide(hunk, side, action)) rerender();
+    const found = file?.hunks[hunk]?.hunk;
+    const before = !!found && MergeFile.isResolved(found);
+    if (!editor?.decide(hunk, side, action)) return;
+    if (found && !before && MergeFile.isResolved(found)) {
+      onHunkResolved?.(action, side);
+    }
+    if (file) resolved.current = resolvedHunks(file);
+    rerender();
   };
 
   /** Scroll to the next or previous hunk still to decide, wrapping */

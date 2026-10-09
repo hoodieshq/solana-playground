@@ -19,7 +19,14 @@ vi.mock("./merge-editor/controller", () => ({
         canFold: false,
       },
       onDidChangeLayout: () => ({ dispose: () => undefined }),
-      onDidEditResult: () => ({ dispose: () => undefined }),
+      // Kept for a test to play the user typing into the result
+      onDidEditResult: (cb: (change: "typed" | "history") => void) => {
+        (globalThis as { __typed?: () => void }).__typed = () => {
+          file.userEdit(file.result.replace("\nb\n", "\ntyped\n"));
+          cb("typed");
+        };
+        return { dispose: () => undefined };
+      },
       decide: (
         index: number,
         side: "left" | "right",
@@ -74,6 +81,7 @@ describe("BaseConflictResolver", () => {
   let root: Root;
   const onApply = vi.fn();
   const onCancel = vi.fn();
+  const onHunkResolved = vi.fn();
 
   beforeEach(async () => {
     // jsdom has none; the pane tabs' thumb measures itself with one
@@ -95,6 +103,7 @@ describe("BaseConflictResolver", () => {
           onKeepLocal={vi.fn()}
           onTakeServer={vi.fn()}
           onCancel={onCancel}
+          onHunkResolved={onHunkResolved}
         />
       )
     );
@@ -185,5 +194,20 @@ describe("BaseConflictResolver", () => {
     // Beside the ribbon: after this device's editor, before the other's
     expect(order("left")).toEqual(["editor", "merge-hunk-gutter"]);
     expect(order("right")).toEqual(["merge-hunk-gutter", "editor"]);
+  });
+
+  it("says which hunks a take, a dismissal or typing resolved, once each", async () => {
+    await press("Dismiss this device's lines");
+    expect(onHunkResolved).not.toHaveBeenCalled();
+    await press("Take the other device's lines");
+    expect(onHunkResolved).toHaveBeenLastCalledWith("take", "right");
+
+    // The second file's hunk, typed over
+    await press("Next file");
+    await act(async () =>
+      (globalThis as unknown as { __typed: () => void }).__typed()
+    );
+    expect(onHunkResolved).toHaveBeenLastCalledWith("edit", null);
+    expect(onHunkResolved).toHaveBeenCalledTimes(2);
   });
 });

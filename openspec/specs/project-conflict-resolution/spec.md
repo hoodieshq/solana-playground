@@ -184,6 +184,38 @@ do.
 - **THEN** the conflicted file keeps this device's text, every other file
   keeps its merged text, the project is uploaded and the banner is gone
 
+### Requirement: The resolve view is measured
+
+`features/persistence` SHALL track these events, with no parameters beyond
+those listed and never a path or file content:
+
+- `sync_resolve_opened`: the resolve view opened. `files`, how many files it
+  asks about; `hunks`, how many hunks they hold in all, a whole file counting
+  as one.
+- `sync_resolve_hunk_resolved`: a hunk went from undecided to resolved, not
+  by undo or redo. `how`, one of `take`, `dismiss`, `edit` (typed over);
+  `side`, one of `this-device`, `other-device`, `none` (for `edit`).
+- `sync_resolve_applied`: Apply settled the conflict. `files`, how many
+  files it answered.
+- `sync_resolve_cancelled`: the view closed without an answer, by "Cancel",
+  the close button or Escape. No parameters.
+- `sync_whole_file_answered`: "Keep this version" or "Take the other
+  version" was pressed. `answer`, one of `keep-local`, `take-server`;
+  `from`, one of `view`, `banner`.
+- `sync_resolve_stale`: Apply was refused because a file changed since the
+  view showed it. `files`, how many changed.
+- `sync_resolve_apply_failed`: Apply settled nothing for another reason.
+  `reason`, one of `refused` (the conflict stands with the same copies),
+  `error` (the answer threw, which is also logged as an error).
+
+#### Scenario: Resolving is measured
+
+- **WHEN** the user opens the view on a one-hunk conflict, takes both sides
+  and presses "Apply"
+- **THEN** `sync_resolve_opened` with `files` 1 and `hunks` 1,
+  `sync_resolve_hunk_resolved` with `how` `take` and `side` `other-device`,
+  and `sync_resolve_applied` with `files` 1 are tracked, in that order
+
 ### Requirement: The view fits a phone
 
 At phone width the view SHALL show one pane at a time, chosen with tabs
