@@ -42,6 +42,8 @@ existing code moves.
   with a registry that has no outside links; `client-v2` installs from it.
 - The new layout shell is built once, on React 19, with today's panels
   inside; then panels move one by one.
+- The classic layout (`?classic`) is removed with the shell; Flow is the only
+  layout.
 
 ## Capabilities
 
@@ -52,6 +54,8 @@ existing code moves.
 - `client-v2-themes`: which themes the product offers, the default, and what
   happens to a saved theme that no longer exists.
 - `client-v2-browser-support`: the browsers the production bundle targets.
+- `client-v2-layout`: the arrangement of the panels, what of it survives a
+  reload, how it changes with screen width, and where the editor is read-only.
 
 ### Modified Capabilities
 
@@ -71,6 +75,8 @@ capabilities it records.
 - `design-system/`: new top-level package, catalogue site, registry build.
 - CI: `client-v2.yml` gains the layer check (`eslint-plugin-boundaries`) and
   the e2e gate or its written manual equivalent.
+- `client-v2/src/app/Panels`: the classic layout (`Side`, `Main/Secondary`,
+  `Bottom`) is removed; `re-resizable` leaves with it.
 - Users: anyone on a removed theme lands on dark and is told once.
 - Out of scope: Next, merging PR #32, the undesigned parts of the design
   system (search, project list and switcher, input validation, toast progress
