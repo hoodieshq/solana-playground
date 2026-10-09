@@ -44,7 +44,7 @@ test("a prompt asked for before connecting leaves no notice behind", async ({
   await page.locator("#assistant-model").fill("mock-model");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
 
-  await expect(page.getByPlaceholder("Ask about this project…")).toHaveValue(
+  await expect(page.getByPlaceholder(/Ask about this project/)).toHaveValue(
     PROMPT,
     LONG
   );
