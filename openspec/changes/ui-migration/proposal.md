@@ -45,7 +45,7 @@ existing code moves.
 - The classic layout (`?classic`) is removed with the shell; Flow is the only
   layout.
 - The layout shell adds the telemetry events `layout_panel_toggled`,
-  `layout_viewport`, `layout_readonly_edit_blocked` and
+  `layout_viewport` (field `viewport`), `layout_readonly_edit_blocked` and
   `layout_restore_failed` (prefix `layout`), described in the
   `client-v2-layout` spec.
 

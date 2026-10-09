@@ -282,8 +282,9 @@ header's own compact steps (80 and 72 rem) stay; phone screens for the header
 and stages are the Breakpoint work (5.3).
 
 **Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
-{panel, open, via: button | key | auto}`, `via: auto` when a deploy or "Fix
-with assistant" opened it; `layout_viewport {width}` once per load;
+{panel, open, via: button | key | drag | auto}`, `via: drag` when dragging an
+edge folded or unfolded it, `via: auto` when a deploy or "Fix with assistant"
+opened it; `layout_viewport {viewport}` once per load;
 `layout_readonly_edit_blocked` once per page load, from Monaco's
 `onDidAttemptReadOnlyEdit`; `layout_restore_failed {reason: corrupt | version
 | storage-unavailable}`.
