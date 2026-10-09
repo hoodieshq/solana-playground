@@ -3,13 +3,17 @@ import { afterEach, expect, it, vi } from "vitest";
 import { applyReadOnly, READ_ONLY_MESSAGE } from "./read-only";
 import { PgEditor } from "../../../utils/editor";
 
-const fakeEditor = ({ hasMessageController = true } = {}) => {
+const fakeEditor = ({
+  hasMessageController = true,
+  firstVisibleLine = 1,
+  lineCount = 50,
+} = {}) => {
   let attempt: () => void = () => {};
   const showMessage = vi.fn();
-  const position = { lineNumber: 3, column: 7 };
   const calls: string[] = [];
   return {
     calls,
+    showMessage,
     updateOptions: vi.fn(),
     onDidAttemptReadOnlyEdit: vi.fn((fn: () => void) => {
       calls.push("onDidAttemptReadOnlyEdit");
@@ -22,10 +26,14 @@ const fakeEditor = ({ hasMessageController = true } = {}) => {
         return { dispose: vi.fn() };
       return hasMessageController ? { showMessage, dispose: vi.fn() } : null;
     }),
-    getPosition: vi.fn(() => position),
+    getVisibleRanges: vi.fn(() => [
+      {
+        startLineNumber: firstVisibleLine,
+        endLineNumber: firstVisibleLine + 20,
+      },
+    ]),
+    getModel: vi.fn(() => ({ getLineCount: () => lineCount })),
     attempt: () => attempt(),
-    showMessage,
-    position,
   };
 };
 
@@ -51,15 +59,41 @@ it("should start Monaco's built-in read-only listener before subscribing", () =>
   ]);
 });
 
-it("should show the message and announce an attempted edit", () => {
+it("should show the message two lines below the first visible line", () => {
+  const editor = fakeEditor({ firstVisibleLine: 10 });
+  applyReadOnly(editor, true);
+  editor.attempt();
+  expect(editor.showMessage).toHaveBeenCalledWith(READ_ONLY_MESSAGE, {
+    lineNumber: 12,
+    column: 1,
+  });
+});
+
+it("should cap the message at the last line", () => {
+  const editor = fakeEditor({ firstVisibleLine: 50, lineCount: 50 });
+  applyReadOnly(editor, true);
+  editor.attempt();
+  expect(editor.showMessage).toHaveBeenCalledWith(READ_ONLY_MESSAGE, {
+    lineNumber: 50,
+    column: 1,
+  });
+});
+
+it("should anchor a one-line model at line 1", () => {
+  const editor = fakeEditor({ firstVisibleLine: 1, lineCount: 1 });
+  applyReadOnly(editor, true);
+  editor.attempt();
+  expect(editor.showMessage).toHaveBeenCalledWith(READ_ONLY_MESSAGE, {
+    lineNumber: 1,
+    column: 1,
+  });
+});
+
+it("should announce an attempted edit as a document event", () => {
   const editor = fakeEditor();
   document.addEventListener(PgEditor.events.READ_ONLY_EDIT, heard);
   applyReadOnly(editor, true);
   editor.attempt();
-  expect(editor.showMessage).toHaveBeenCalledWith(
-    READ_ONLY_MESSAGE,
-    editor.position
-  );
   expect(heard).toHaveBeenCalledOnce();
 });
 

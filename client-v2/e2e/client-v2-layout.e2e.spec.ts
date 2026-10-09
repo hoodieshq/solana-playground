@@ -110,12 +110,17 @@ test.describe("on a phone", () => {
     await expect(lines).toContainText("use anchor_lang");
     const before = await lines.innerText();
     await page.locator(".monaco-editor textarea.inputarea").focus();
+    // The cursor on line 1 is the common case: the message must still land
+    // inside the editor, not above it under the tab bar
+    await page.keyboard.press("ControlOrMeta+Home");
     await page.keyboard.type("zzz");
-    await expect(
-      page
-        .locator(".monaco-editor .message")
-        .getByText("Editing works on screens 600 px and wider")
-    ).toBeVisible();
+    const message = page
+      .locator(".monaco-editor .message")
+      .getByText("Editing works on screens 600 px and wider");
+    await expect(message).toBeVisible();
+    const editorBox = (await page.locator(".monaco-editor").boundingBox())!;
+    const messageBox = (await message.boundingBox())!;
+    expect(messageBox.y).toBeGreaterThanOrEqual(editorBox.y);
     expect(await lines.innerText()).toBe(before);
     await expect
       .poll(() => events.has("layout_readonly_edit_blocked"))
