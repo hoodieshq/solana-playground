@@ -13,6 +13,7 @@ import { useLayoutState } from "../model/use-layout-state";
 import BaseLayoutShell from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
+  /** `collapsed` is never true in the Sheet below 768 px, which has no rail */
   left: (collapsed: boolean, toggle: () => void) => ReactNode;
   stage: ReactNode;
   console: (open: boolean, toggle: () => void) => ReactNode;
@@ -143,7 +144,9 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       vertical={state.vert}
       onHorizontalLayout={setHorizontal}
       onVerticalLayout={setVertical}
-      left={(stockToggle) => left(!state.leftOpen, toggleLeft(stockToggle))}
+      left={(stockToggle, isMobile) =>
+        left(isMobile ? false : !state.leftOpen, toggleLeft(stockToggle))
+      }
       onLeftSheetChange={onLeftSheetChange}
       stage={stage}
       console={console(state.consoleOpen, () =>
