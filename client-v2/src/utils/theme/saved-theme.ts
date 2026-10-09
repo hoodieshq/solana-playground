@@ -1,8 +1,10 @@
 /** The themes the product offers: the design system's dark and light */
 export const THEME_NAMES = ["Dark", "Light"] as const;
 
+/** The name of a theme the product offers */
 export type ThemeName = typeof THEME_NAMES[number];
 
+/** Whether a saved name is one of the themes the product offers */
 export const isThemeName = (name: string): name is ThemeName =>
   (THEME_NAMES as readonly string[]).includes(name);
 
@@ -13,8 +15,10 @@ export const isThemeName = (name: string): name is ThemeName =>
  */
 const REMOVED_THEMES = ["Playground", "Dracula", "Solana"] as const;
 
+/** The name of a theme a user could pick before the token bridge */
 export type RemovedTheme = typeof REMOVED_THEMES[number];
 
+/** Whether a saved name is a removed theme the user is told about */
 const isRemovedTheme = (name: string): name is RemovedTheme =>
   (REMOVED_THEMES as readonly string[]).includes(name);
 
@@ -37,9 +41,11 @@ export const resolveSavedTheme = (saved: string | null): SavedTheme => {
   return { name: "Dark" };
 };
 
+/** The notice for a user whose saved theme was removed */
 export const removedThemeMessage = (name: RemovedTheme) =>
   `The ${name} theme was removed. Playground now uses Dark; Light is in Settings.`;
 
+/** The removed theme waiting to be told about, or `null` */
 let held: RemovedTheme | null = null;
 
 /**

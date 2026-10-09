@@ -162,7 +162,7 @@ export class PgTheme {
     };
     this._font = font;
 
-    applyThemeMode(!!this._theme.isDark);
+    applyThemeMode(this._theme.isDark ? "dark" : "light");
 
     // Load font if necessary.
     //

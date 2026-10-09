@@ -1,3 +1,4 @@
+/** The part of a TextMate rule that carries colours */
 interface TextMateRule {
   settings: { foreground?: string; background?: string; fontStyle?: string };
 }

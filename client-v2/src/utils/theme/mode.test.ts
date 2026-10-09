@@ -7,15 +7,15 @@ describe("applyThemeMode", () => {
   });
 
   it("puts the dark class and colour scheme on <html>", () => {
-    applyThemeMode(true);
+    applyThemeMode("dark");
 
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(document.documentElement.style.colorScheme).toBe("dark");
   });
 
   it("takes the dark class off for light", () => {
-    applyThemeMode(true);
-    applyThemeMode(false);
+    applyThemeMode("dark");
+    applyThemeMode("light");
 
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     expect(document.documentElement.style.colorScheme).toBe("light");
@@ -23,8 +23,8 @@ describe("applyThemeMode", () => {
 
   it("leaves other classes on <html> alone", () => {
     document.documentElement.classList.add("keep-me");
-    applyThemeMode(true);
-    applyThemeMode(false);
+    applyThemeMode("dark");
+    applyThemeMode("light");
 
     expect(document.documentElement.classList.contains("keep-me")).toBe(true);
   });
