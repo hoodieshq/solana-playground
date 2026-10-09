@@ -65,7 +65,7 @@ utilities and tokens but no design-system components.
 
 ## 5. Screens
 
-- [ ] 5.1 New layout shell with today's panels inside; the editor read-only
+- [x] 5.1 New layout shell with today's panels inside; the editor read-only
       below 600 px (decided 2026-10-09); the classic layout removed
       (HOO-1854; after 3.6 and 4.3; plan: `plans/5.1-layout-shell.md`)
 - [ ] 5.2 Panels move one by one, each by the change rule in
