@@ -46,19 +46,23 @@ const SHEET_WIDTH: Record<Exclude<Viewport, "wide">, string> = {
   phone: "data-[side=right]:w-full data-[side=right]:sm:max-w-full",
 };
 
+export interface PanelState {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 export interface BaseLayoutShellProps {
   viewport: Viewport;
   leftOpen: boolean;
   onLeftOpenChange: (open: boolean) => void;
-  assistantOpen: boolean;
-  /** The assistant panel was folded or unfolded by dragging */
-  onAssistantOpenChange: (open: boolean) => void;
-  /** Below 1024 px: whether the assistant Sheet is open */
-  assistantSheetOpen: boolean;
-  onAssistantSheetChange: (open: boolean) => void;
-  consoleOpen: boolean;
-  /** The console panel was folded or unfolded by dragging */
-  onConsoleOpenChange: (open: boolean) => void;
+  /**
+   * The assistant's open state, which follows the viewport: the panel on a
+   * wide screen (`onOpenChange` is a drag folding or unfolding it), the Sheet
+   * below 1024 px
+   */
+  assistantState: PanelState;
+  /** The console is folded or unfolded by dragging */
+  consoleState: PanelState;
   horizontal?: HorizontalLayout;
   vertical?: VerticalLayout;
   onHorizontalLayout: (layout: PanelLayout) => void;
@@ -68,8 +72,13 @@ export interface BaseLayoutShellProps {
    * (which opens the Sheet below 768 px) and whether the Sidebar is in that
    * Sheet mode.
    */
-  left: (toggle: () => void, isMobile: boolean) => ReactNode;
-  /** Below 768 px: the left panel's Sheet opened or closed */
+  left: (stock: { toggle: () => void; isMobile: boolean }) => ReactNode;
+  /**
+   * Below 768 px: the left panel's Sheet opened or closed. Not folded into one
+   * open/onOpenChange pair with `leftOpen`: the stock Sidebar keeps the
+   * Sheet's state (`openMobile`) to itself and takes no prop for it, so the
+   * two modes cannot be one controlled value.
+   */
   onLeftSheetChange: (open: boolean) => void;
   stage: ReactNode;
   console: ReactNode;
@@ -97,10 +106,10 @@ const savedWhenDragged =
 const LeftSlot = ({
   render,
 }: {
-  render: (toggle: () => void, isMobile: boolean) => ReactNode;
+  render: (stock: { toggle: () => void; isMobile: boolean }) => ReactNode;
 }) => {
   const { toggleSidebar, isMobile } = useSidebar();
-  return <>{render(toggleSidebar, isMobile)}</>;
+  return <>{render({ toggle: toggleSidebar, isMobile })}</>;
 };
 
 /**
@@ -153,22 +162,32 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // `open` props drive the panels; a drag that folds one reports back
   // through `onResize`, so the two never disagree for long. A panel that
   // mounts again on a wide screen starts at its `defaultSize`, which follows
-  // `assistantOpen`, so nothing re-syncs it here: on that first run the
+  // `assistantState.open`, so nothing re-syncs it here: on that first run the
   // panel's handle is not yet registered with its group, and its
-  // `isCollapsed()` throws "Panel constraints not found".
+  // `isCollapsed()` throws "Panel constraints not found". The flag follows the
+  // viewport, so crossing 1024 px changes it too: that change is skipped.
+  const assistantSeen = useRef(props.viewport);
   useEffect(() => {
+    const sameViewport = assistantSeen.current === props.viewport;
+    assistantSeen.current = props.viewport;
     const panel = assistantRef.current;
-    if (!panel || panel.isCollapsed() === !props.assistantOpen) return;
-    if (props.assistantOpen) panel.resize(assistantOpenSize.current);
+    if (
+      !sameViewport ||
+      !panel ||
+      panel.isCollapsed() === !props.assistantState.open
+    )
+      return;
+    if (props.assistantState.open) panel.resize(assistantOpenSize.current);
     else panel.collapse();
-  }, [props.assistantOpen, assistantRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `props.viewport` is read as a change marker, not a trigger
+  }, [props.assistantState.open, assistantRef]);
 
   useEffect(() => {
     const panel = consoleRef.current;
-    if (!panel || panel.isCollapsed() === !props.consoleOpen) return;
-    if (props.consoleOpen) panel.resize(consoleOpenSize.current);
+    if (!panel || panel.isCollapsed() === !props.consoleState.open) return;
+    if (props.consoleState.open) panel.resize(consoleOpenSize.current);
     else panel.collapse();
-  }, [props.consoleOpen, consoleRef]);
+  }, [props.consoleState.open, consoleRef]);
 
   const wide = props.viewport === "wide";
 
@@ -189,7 +208,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         collapsible
         collapsedSize={PANEL_SIZES.console.folded}
         defaultSize={
-          props.consoleOpen
+          props.consoleState.open
             ? PANEL_SIZES.console.default
             : PANEL_SIZES.console.folded
         }
@@ -201,8 +220,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           if (folded === false && size.inPixels > PANEL_SIZES.console.folded) {
             consoleOpenSize.current = size.inPixels;
           }
-          if (folded !== undefined && folded === props.consoleOpen) {
-            props.onConsoleOpenChange(!folded);
+          if (folded !== undefined && folded === props.consoleState.open) {
+            props.consoleState.onOpenChange(!folded);
           }
         }}
       >
@@ -260,7 +279,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               collapsible
               collapsedSize={PANEL_SIZES.assistant.folded}
               defaultSize={
-                props.assistantOpen
+                props.assistantState.open
                   ? PANEL_SIZES.assistant.default
                   : PANEL_SIZES.assistant.folded
               }
@@ -276,8 +295,11 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                 ) {
                   assistantOpenSize.current = size.inPixels;
                 }
-                if (folded !== undefined && folded === props.assistantOpen) {
-                  props.onAssistantOpenChange(!folded);
+                if (
+                  folded !== undefined &&
+                  folded === props.assistantState.open
+                ) {
+                  props.assistantState.onOpenChange(!folded);
                 }
               }}
             >
@@ -292,8 +314,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               {props.assistantOpener}
             </div>
             <Sheet
-              open={props.assistantSheetOpen}
-              onOpenChange={props.onAssistantSheetChange}
+              open={props.assistantState.open}
+              onOpenChange={props.assistantState.onOpenChange}
             >
               <SheetContent
                 side="right"

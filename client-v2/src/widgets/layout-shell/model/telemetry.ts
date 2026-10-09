@@ -1,26 +1,20 @@
 import { createTracker } from "../../../shared/lib/telemetry";
 import type { NoParams } from "../../../shared/lib/telemetry";
 import type { Viewport } from "../../../shared/lib/hooks/use-viewport";
-import type { RestoreFailure } from "./layout-state";
+import type { LayoutPanel, RestoreFailure } from "./layout-state";
 
-export type LayoutPanel = "left" | "assistant" | "console";
-
-/** What opened or closed a panel: a click, a key, or the product itself (a deploy, "Fix with assistant") */
-export type ToggleSource = "button" | "key" | "auto";
+/** What opened or closed a panel: a click, a key, a drag of its edge, or the product itself (a deploy, "Fix with assistant") */
+export type ToggleSource = "button" | "key" | "drag" | "auto";
 
 type LayoutEvents = {
-  /**
-   * A panel opened or closed; `via` says whether a button, a key or the
-   * product did it. Folding or unfolding a panel by dragging counts as
-   * `via: "button"`: it is a pointer action, and `ToggleSource` has no "drag".
-   */
+  /** A panel opened or closed; `via` says whether a button, a key, a drag or the product did it. */
   layout_panel_toggled: {
     panel: LayoutPanel;
     open: boolean;
     via: ToggleSource;
   };
   /** The window's width class, once per page load. */
-  layout_viewport: { width: Viewport };
+  layout_viewport: { viewport: Viewport };
   /** The user tried to type in the read-only editor; the first time in a page load. */
   layout_readonly_edit_blocked: NoParams;
   /** The saved layout could not be read and the defaults were used; `reason` says why. */

@@ -20,22 +20,20 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
 
 const SAVED: LayoutState = {
   v: 1,
-  leftOpen: false,
-  assistantOpen: true,
-  consoleOpen: true,
+  open: { left: false, assistant: true, console: true },
   h: { center: 70, assistant: 30 },
   vert: { stage: 60, console: 40 },
 };
 
 it("should start from today's Flow when nothing is saved", () => {
   const restored = readLayout(() => memoryStorage());
-  expect(restored).toEqual({ kind: "none", state: DEFAULT_LAYOUT });
+  expect(restored).toEqual({ kind: "none" });
   expect(DEFAULT_LAYOUT).toEqual({
     v: 1,
-    leftOpen: true,
-    assistantOpen: true,
-    consoleOpen: false,
+    open: { left: true, assistant: true, console: false },
   });
+  expect(Object.isFrozen(DEFAULT_LAYOUT)).toBe(true);
+  expect(Object.isFrozen(DEFAULT_LAYOUT.open)).toBe(true);
 });
 
 it("should read back what it wrote, under one key", () => {
@@ -127,8 +125,9 @@ it.each([
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
   );
   expect(restored.kind).toBe("failed");
-  expect(restored.state).toEqual(DEFAULT_LAYOUT);
+  expect(restored.kind).toBe("failed");
   expect(restored.kind === "failed" && restored.reason).toBe("corrupt");
+  expect(restored.kind === "failed" && "error" in restored).toBe(true);
 });
 
 it("should fall back on another version", () => {
@@ -141,8 +140,7 @@ it("should fall back on another version", () => {
   const restored = readLayout(() =>
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
   );
-  expect(restored.kind === "failed" && restored.reason).toBe("version");
-  expect(restored.state).toEqual(DEFAULT_LAYOUT);
+  expect(restored).toEqual({ kind: "failed", reason: "version" });
 });
 
 it("should fall back when storage throws on access", () => {
@@ -152,7 +150,6 @@ it("should fall back when storage throws on access", () => {
   });
   expect(restored).toEqual({
     kind: "failed",
-    state: DEFAULT_LAYOUT,
     reason: "storage-unavailable",
     error: blocked,
   });
@@ -172,9 +169,48 @@ it("should report a write that throws, not throw", () => {
 });
 
 it("should read back only the fields of a layout, dropping others", () => {
-  const raw = JSON.stringify({ ...SAVED, extra: "x" });
+  const raw = JSON.stringify({
+    v: 1,
+    leftOpen: false,
+    assistantOpen: true,
+    consoleOpen: true,
+    h: { center: 70, assistant: 30 },
+    vert: { stage: 60, console: 40 },
+    extra: "x",
+  });
   const restored = readLayout(() =>
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
   );
   expect(restored).toEqual({ kind: "saved", state: SAVED });
+});
+
+it("should store the three booleans exactly as version 1 always has", () => {
+  const storage = memoryStorage();
+  writeLayout(() => storage, SAVED);
+  expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!)).toEqual({
+    v: 1,
+    leftOpen: false,
+    assistantOpen: true,
+    consoleOpen: true,
+    h: { center: 70, assistant: 30 },
+    vert: { stage: 60, console: 40 },
+  });
+});
+
+it("should read a value written before the flags became a record", () => {
+  const stored = JSON.stringify({
+    v: 1,
+    leftOpen: false,
+    assistantOpen: false,
+    consoleOpen: true,
+  });
+  expect(
+    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: stored }))
+  ).toEqual({
+    kind: "saved",
+    state: {
+      v: 1,
+      open: { left: false, assistant: false, console: true },
+    },
+  });
 });

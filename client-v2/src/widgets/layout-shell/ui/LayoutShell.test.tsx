@@ -107,13 +107,13 @@ const shell = () =>
   render(
     <ThemeProvider theme={theme}>
       <LayoutShell
-        left={(collapsed, toggle) => (
+        left={({ collapsed, toggle }) => (
           <button type="button" onClick={toggle}>
             {collapsed ? "Expand project panel" : "Collapse project panel"}
           </button>
         )}
         stage={<main>stage</main>}
-        console={(open, toggle) => (
+        console={({ open, toggle }) => (
           <button
             type="button"
             aria-label="Console"
@@ -121,7 +121,7 @@ const shell = () =>
             onClick={toggle}
           />
         )}
-        assistant={(open, toggle) => (
+        assistant={({ open, toggle }) => (
           <button type="button" onClick={toggle}>
             {open ? "Collapse assistant" : "Expand assistant"}
           </button>
@@ -134,7 +134,7 @@ it("should report the width class once per load", () => {
   shell();
   expect(
     sent.events.filter((event) => event.name === "layout_viewport")
-  ).toEqual([expect.objectContaining({ params: { width: "wide" } })]);
+  ).toEqual([expect.objectContaining({ params: { viewport: "wide" } })]);
 });
 
 it("should toggle the console by button and by Ctrl+J, and say which", () => {
@@ -204,7 +204,7 @@ it("should send each toggle once under StrictMode", async () => {
         <LayoutShell
           left={() => null}
           stage={<main>stage</main>}
-          console={(open, toggle) => (
+          console={({ open, toggle }) => (
             <button type="button" aria-label="Console" onClick={toggle}>
               {String(open)}
             </button>

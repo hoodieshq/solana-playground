@@ -151,7 +151,7 @@ const Flow = () => {
         <SyncBanner />
       </BannerSlot>
       <LayoutShell
-        left={(collapsed, toggle) => (
+        left={({ collapsed, toggle }) => (
           <LeftPanel
             collapsed={collapsed}
             onToggle={toggle}
@@ -190,10 +190,10 @@ const Flow = () => {
             </Stage>
           </Center>
         }
-        console={(open, toggle) => (
+        console={({ open, toggle }) => (
           <ConsoleDrawer open={open} onToggle={toggle} />
         )}
-        assistant={(open, toggle) => (
+        assistant={({ open, toggle }) => (
           <Right $open={open}>
             <Collapse
               type="button"
