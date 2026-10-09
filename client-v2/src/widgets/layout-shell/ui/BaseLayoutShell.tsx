@@ -166,21 +166,22 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // panel's handle is not yet registered with its group, and its
   // `isCollapsed()` throws "Panel constraints not found". The flag follows the
   // viewport, so crossing 1024 px changes it too: that change is skipped.
+  // `assistantSeen` is the viewport of the last render the effect below
+  // saw, renewed by its own effect after it so that every viewport change
+  // reaches it, not only the ones that also change the flag.
   const assistantSeen = useRef(props.viewport);
   useEffect(() => {
-    const sameViewport = assistantSeen.current === props.viewport;
-    assistantSeen.current = props.viewport;
     const panel = assistantRef.current;
-    if (
-      !sameViewport ||
-      !panel ||
-      panel.isCollapsed() === !props.assistantState.open
-    )
-      return;
+    if (props.viewport !== "wide" || assistantSeen.current !== "wide") return;
+    if (!panel || panel.isCollapsed() === !props.assistantState.open) return;
     if (props.assistantState.open) panel.resize(assistantOpenSize.current);
     else panel.collapse();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `props.viewport` is read as a change marker, not a trigger
+    // The viewport is read, not a trigger: its changes are the ones skipped
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.assistantState.open, assistantRef]);
+  useEffect(() => {
+    assistantSeen.current = props.viewport;
+  }, [props.viewport]);
 
   useEffect(() => {
     const panel = consoleRef.current;
