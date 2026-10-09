@@ -24,6 +24,13 @@ describe("parseBuildReport", () => {
     expect(d.excerpt).toContain('let x: u64 = "1";');
   });
 
+  it("reports a workspace path when the build server prefixes ../", () => {
+    // The build server compiles from a directory beside `src`, so rustc
+    // names the file `../src/lib.rs`
+    const stderr = STDERR.replace("--> src/lib.rs", "--> ../src/lib.rs");
+    expect(parseBuildReport(stderr).diagnostics[0].file).toBe("src/lib.rs");
+  });
+
   it("returns no diagnostics for a clean build", () => {
     expect(parseBuildReport("Compiling hello\nFinished").diagnostics).toEqual(
       []
