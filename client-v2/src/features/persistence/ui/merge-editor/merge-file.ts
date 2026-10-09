@@ -165,6 +165,8 @@ export class MergeFile {
   readonly deleted: { left: boolean; right: boolean };
   readonly segments: Segment[];
   private _lines: string[];
+  /** The result as the view opened on it, before any answer */
+  private readonly _initial: string;
 
   private constructor(conflict: FileConflict) {
     this.conflict = conflict;
@@ -233,6 +235,7 @@ export class MergeFile {
       this.right = conflict.server ?? "";
       this._lines = [...ours];
     }
+    this._initial = this.result;
   }
 
   static from(conflict: FileConflict) {
@@ -311,8 +314,9 @@ export class MergeFile {
    * Take one side's lines into the result, after this device's when both
    * are taken.
    *
-   * Where a side deleted the file, the answer is one of two files, not lines
-   * to add to each other: taking either side leaves the other out.
+   * In a file without hunks (`whole`: no copy both agreed on, or a side
+   * that deleted it), the answer is one of two files, not lines to add to
+   * each other: taking either side leaves the other out.
    *
    * @returns the edit to the result's text, or `null` when there is nothing
    * to change -- the side was decided already, or the hunk typed over
@@ -321,7 +325,7 @@ export class MergeFile {
     const hunk = this._pending(index, side);
     if (!hunk) return null;
     hunk[side] = "taken";
-    if (this.deleted.left || this.deleted.right) {
+    if (this.conflict.kind === "whole") {
       const other: HunkSide = side === "left" ? "right" : "left";
       hunk[other] = "dismissed";
     }
@@ -462,16 +466,12 @@ export class MergeFile {
 
   /**
    * The answer for this file: the result, pinned to the two copies the view
-   * was shown. An empty result where a side deleted the file deletes it.
+   * was shown. `content: null` deletes the file -- see `_deletes`.
    */
   resolved(): ResolvedFiles[string] {
     const { conflict } = this;
-    const deletes =
-      conflict.kind === "whole" &&
-      (conflict.local === undefined || conflict.server === undefined) &&
-      this.result === "";
     return {
-      content: deletes ? null : this.result,
+      content: this._deletes() ? null : this.result,
       ...(conflict.localHash !== undefined
         ? { localHash: conflict.localHash }
         : {}),
@@ -499,6 +499,30 @@ export class MergeFile {
     snapshot.segments.forEach((s, i) => {
       Object.assign(this.segments[i], { ...s, lines: { ...s.lines } });
     });
+  }
+
+  /**
+   * Whether the answer is to delete the file, decided by what was chosen
+   * rather than by the result being empty: an empty file is a file, and a
+   * side may hold one.
+   *
+   * Only where a side deleted it, and only for an empty result: the deleting
+   * side taken; neither side taken, the result still this device's copy as
+   * it started, when that copy is the delete; or the result emptied by hand
+   * from lines, or from this device's delete. Taking or keeping a side's
+   * empty file keeps it.
+   */
+  private _deletes() {
+    const { deleted } = this;
+    if (this.conflict.kind !== "whole" || !(deleted.left || deleted.right)) {
+      return false;
+    }
+    if (this.result !== "") return false;
+    const hunk = this.segments[0] as Hunk;
+    if (hunk.edited) return this._initial !== "" || deleted.left;
+    if (hunk.left === "taken") return deleted.left;
+    if (hunk.right === "taken") return deleted.right;
+    return deleted.left;
   }
 
   /** Whether a settled run's result still lines up with the sides */

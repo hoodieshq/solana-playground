@@ -204,14 +204,17 @@ other version" here: one action, one name, in the banner and the view.
 - Hunk state per side: `pending | taken | dismissed`, plus `edited` when a
   change in the result touches the hunk's range (tracked with a decoration
   that moves with edits). Taking inserts that side's lines at the hunk in
-  the result, this device's always before the other's. Where a side
-  deleted the file, taking either side dismisses the other.
+  the result, this device's always before the other's. In a `"whole"`
+  conflict (no common base, or a side that deleted the file), taking either
+  side dismisses the other: the answer is one file or the other.
 - Undo and redo restore the hunk state kept for that version of the
   result (`getAlternativeVersionId`); each take or dismissal is its own
   undo step.
 - Apply reads the result models into `ResolvedFiles` with the hashes the
-  files arrived with. An empty result on a `"whole"` conflict where a side
-  is absent becomes `content: null`.
+  files arrived with. On a `"whole"` conflict where a side is absent, an
+  empty result becomes `content: null` when it is what was chosen: the
+  deleting side taken, this device's delete kept, or a result that held
+  lines emptied by hand. Taking a side's empty file keeps it.
 
 ### Installing into `client-v2`
 

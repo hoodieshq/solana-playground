@@ -317,8 +317,9 @@ describe("MergeFile without hunks", () => {
     });
   });
 
-  it("starts from this device's copy when both have one", () => {
-    const file = MergeFile.from({
+  /** Both devices hold the file, with no copy they agreed on to split by */
+  const noBase = () =>
+    MergeFile.from({
       kind: "whole",
       path: "src/lib.rs",
       local: "mine",
@@ -326,13 +327,84 @@ describe("MergeFile without hunks", () => {
       localHash: "l",
       serverHash: "s",
     });
+
+  it("starts from this device's copy when both have one", () => {
+    const file = noBase();
     expect(file.result).toBe("mine");
-    file.take(0, "left");
     expect(file.unresolved).toBe(1);
-    file.take(0, "right");
-    expect(file.result).toBe("mine\ntheirs");
+  });
+
+  it.each([
+    ["left", "mine"],
+    ["right", "theirs"],
+  ] as const)(
+    "takes one file or the other without a base: taking %s leaves the other out",
+    (side, content) => {
+      const file = noBase();
+      const model = fakeModel(file.result);
+      model.apply(file.take(0, side));
+      expect(model.value).toBe(file.result);
+      const other = side === "left" ? "right" : "left";
+      expect(file.hunks[0].hunk[other]).toBe("dismissed");
+      expect(file.unresolved).toBe(0);
+      expect(file.take(0, other)).toBeNull();
+      expect(file.resolved()).toEqual({
+        content,
+        localHash: "l",
+        serverHash: "s",
+      });
+    }
+  );
+
+  it("keeps this device's empty file when it is taken over the other's delete", () => {
+    const file = MergeFile.from({
+      kind: "whole",
+      path: "src/empty.rs",
+      local: "",
+      localHash: "l",
+    });
+    expect(file.result).toBe("");
+    file.take(0, "left");
+    expect(file.unresolved).toBe(0);
+    expect(file.resolved()).toEqual({ content: "", localHash: "l" });
+  });
+
+  it("deletes the file when the user empties a result that started with lines", () => {
+    const file = MergeFile.from({
+      kind: "whole",
+      path: "src/old.rs",
+      local: "edited here",
+      localHash: "l",
+    });
+    file.userEdit("");
+    expect(file.unresolved).toBe(0);
+    expect(file.resolved()).toEqual({ content: null, localHash: "l" });
+  });
+
+  it("keeps this device's delete when it is taken, or both sides are dismissed", () => {
+    const deletedHere = () =>
+      MergeFile.from({
+        kind: "whole",
+        path: "src/old.rs",
+        server: "edited there",
+        serverHash: "s",
+      });
+    const taken = deletedHere();
+    taken.take(0, "left");
+    expect(taken.resolved()).toEqual({ content: null, serverHash: "s" });
+
+    const dismissed = deletedHere();
+    dismissed.dismiss(0, "right");
+    dismissed.dismiss(0, "left");
+    expect(dismissed.unresolved).toBe(0);
+    expect(dismissed.resolved()).toEqual({ content: null, serverHash: "s" });
+  });
+
+  it("keeps an emptied file where neither side deleted it", () => {
+    const file = noBase();
+    file.userEdit("");
     expect(file.resolved()).toEqual({
-      content: "mine\ntheirs",
+      content: "",
       localHash: "l",
       serverHash: "s",
     });

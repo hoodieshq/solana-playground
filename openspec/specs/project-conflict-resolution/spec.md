@@ -108,10 +108,12 @@ Apply SHALL stay disabled until every hunk of every file is resolved.
 When a conflicted file cannot be split into hunks (no copy both devices
 agreed on is known, or one device deleted it), the view SHALL show the whole
 file as one hunk, with a deleted side shown as an empty pane named as
-deleted, and the result starting from this device's copy. Applying an empty
-result where one side deleted the file SHALL delete it. Taking either side
-of such a hunk SHALL dismiss the other, since the answer is one file or the
-other, not lines from both.
+deleted, and the result starting from this device's copy. Where one side
+deleted the file, applying an empty result SHALL delete it when the deleting
+side was taken, this device's delete was kept, or the user emptied lines by
+hand; taking a side's empty file SHALL keep it as an empty file. Taking
+either side of such a hunk SHALL dismiss the other, since the answer is one
+file or the other, not lines from both.
 
 #### Scenario: Deleted on the other device, edited here
 
