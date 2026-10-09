@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
-import { readLayout, writeLayout } from "./layout-state";
+import {
+  horizontalOf,
+  readLayout,
+  verticalOf,
+  writeLayout,
+} from "./layout-state";
 import type { LayoutState, PanelLayout } from "./layout-state";
 import { layoutTelemetry } from "./telemetry";
 import type { LayoutPanel, ToggleSource } from "./telemetry";
@@ -64,11 +69,17 @@ export const useLayoutState = () => {
   );
 
   const setHorizontal = useCallback(
-    (h: PanelLayout) => update({ ...latest.current, h }),
+    (layout: PanelLayout) => {
+      const h = horizontalOf(layout);
+      if (h) update({ ...latest.current, h });
+    },
     [update]
   );
   const setVertical = useCallback(
-    (vert: PanelLayout) => update({ ...latest.current, vert }),
+    (layout: PanelLayout) => {
+      const vert = verticalOf(layout);
+      if (vert) update({ ...latest.current, vert });
+    },
     [update]
   );
 
