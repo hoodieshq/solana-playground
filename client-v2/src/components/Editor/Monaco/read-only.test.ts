@@ -7,15 +7,21 @@ const fakeEditor = ({ hasMessageController = true } = {}) => {
   let attempt: () => void = () => {};
   const showMessage = vi.fn();
   const position = { lineNumber: 3, column: 7 };
+  const calls: string[] = [];
   return {
+    calls,
     updateOptions: vi.fn(),
     onDidAttemptReadOnlyEdit: vi.fn((fn: () => void) => {
+      calls.push("onDidAttemptReadOnlyEdit");
       attempt = fn;
       return { dispose: vi.fn() };
     }),
-    getContribution: vi.fn(() =>
-      hasMessageController ? { showMessage, dispose: vi.fn() } : null
-    ),
+    getContribution: vi.fn((id: string) => {
+      calls.push(`getContribution:${id}`);
+      if (id !== "editor.contrib.messageController")
+        return { dispose: vi.fn() };
+      return hasMessageController ? { showMessage, dispose: vi.fn() } : null;
+    }),
     getPosition: vi.fn(() => position),
     attempt: () => attempt(),
     showMessage,
@@ -34,6 +40,15 @@ it("should make the editor read-only", () => {
   applyReadOnly(editor, true);
   expect(editor.updateOptions).toHaveBeenCalledWith({ readOnly: true });
   expect(READ_ONLY_MESSAGE).toBe("Editing works on screens 600 px and wider");
+});
+
+it("should start Monaco's built-in read-only listener before subscribing", () => {
+  const editor = fakeEditor();
+  applyReadOnly(editor, true);
+  expect(editor.calls).toEqual([
+    "getContribution:editor.contrib.readOnlyMessageController",
+    "onDidAttemptReadOnlyEdit",
+  ]);
 });
 
 it("should show the message and announce an attempted edit", () => {
