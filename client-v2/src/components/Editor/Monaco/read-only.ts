@@ -26,6 +26,24 @@ interface MessageController {
 /** What a phone user sees on trying to type */
 export const READ_ONLY_MESSAGE = "Editing works on screens 600 px and wider";
 
+/** The parts of the editor's layout the anchor reads, declared structurally */
+interface EditorLayout {
+  getVisibleRanges(): { startLineNumber: number }[];
+  getModel(): { getLineCount(): number } | null;
+}
+
+/**
+ * The message is anchored two lines below the first visible line, not at the
+ * cursor: the widget shows above its anchor, so a cursor on line 1 would put
+ * it above the editor, under the tab bar. Two lines because the widget is
+ * taller than one line of text. Capped at the last line.
+ */
+const anchorOf = (editor: EditorLayout): monaco.IPosition => {
+  const first = editor.getVisibleRanges()[0]?.startLineNumber ?? 1;
+  const lineCount = editor.getModel()?.getLineCount() ?? 1;
+  return { lineNumber: Math.min(first + 2, lineCount), column: 1 };
+};
+
 /**
  * Sets the editor read-only or editable, and on each attempt to type while
  * read-only shows `READ_ONLY_MESSAGE` and announces it as
@@ -35,13 +53,13 @@ export const READ_ONLY_MESSAGE = "Editing works on screens 600 px and wider";
  * `readOnlyMessage` option.
  */
 export const applyReadOnly = (
-  editor: Pick<
-    monaco.editor.IStandaloneCodeEditor,
-    "updateOptions" | "onDidAttemptReadOnlyEdit"
-  > & {
-    getContribution(id: string): monaco.editor.IEditorContribution | null;
-    getPosition(): monaco.IPosition | null;
-  },
+  editor: EditorLayout &
+    Pick<
+      monaco.editor.IStandaloneCodeEditor,
+      "updateOptions" | "onDidAttemptReadOnlyEdit"
+    > & {
+      getContribution(id: string): monaco.editor.IEditorContribution | null;
+    },
   readOnly: boolean
 ): monaco.IDisposable => {
   editor.updateOptions({ readOnly });
@@ -54,10 +72,7 @@ export const applyReadOnly = (
       MESSAGE_CONTROLLER_ID
     ) as MessageController | null;
     if (controller) {
-      controller.showMessage(
-        READ_ONLY_MESSAGE,
-        editor.getPosition() ?? { lineNumber: 1, column: 1 }
-      );
+      controller.showMessage(READ_ONLY_MESSAGE, anchorOf(editor));
     } else {
       log.debug("Message controller is missing; read-only text not shown");
     }
