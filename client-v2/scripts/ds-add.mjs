@@ -9,10 +9,10 @@
 // landed with this package's prettier, so CI's format check passes and a
 // reinstall of an unchanged component leaves no diff.
 //
-// Every item comes from the repo's registry, the stock shadcn parts ours
-// build on included (`scripts/registry.test.mjs` keeps it so); nothing from
-// the design system's public site or ui.shadcn.com. npm dependencies still
-// come from npm.
+// Nothing comes from the design system's public site or from ui.shadcn.com:
+// the stock shadcn parts are registry items too, and
+// `scripts/registry.test.mjs` fails on a dependency named outside
+// `@playground/`. npm dependencies still come from npm.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";

@@ -40,8 +40,9 @@ utilities and tokens but no design-system components.
       (HOO-1856, PR #48: the `e2e` job; the production-build walk-through
       stays manual until 3.8 writes it as scenarios)
 - [x] 3.6 First design-system components installed into `shared/ui` through
-      the reinstall script (HOO-1949; after 3.2 and 2.2, landed as PR #45 and
-      PRs #44/#50, which leave their own ticks to their owners; HOO-1949 also
+      the reinstall script (HOO-1949, PR #56; after 3.2, which landed as PR
+      #45, and 2.2, which landed as PRs #44 and #50; both leave their own
+      ticks to their owners; HOO-1949 also
       moved the last bare `button`/`spinner`/`tooltip` dependencies into
       `@playground/`, guarded by `client-v2/scripts/registry.test.mjs`; plan:
       [plans/3.6-ds-shared.md](plans/3.6-ds-shared.md))
