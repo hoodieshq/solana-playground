@@ -197,6 +197,72 @@ fallback `FAST_REFRESH=false`).
 HOO-1772 and HOO-1773 change the Monaco and language-server modules; they do
 not land in the same week as the upgrade.
 
+## The layout shell (5.1)
+
+Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
+
+- **Flow is rebuilt; classic is removed.** The shell replaces Flow's grid.
+  `?classic` and its `Side`, `Main/Secondary` and `Bottom` go, because Flow
+  already reaches classic's extra pages (Interact, the gallery,
+  `ProgramsTab`). `app/Panels/Main/Primary` stays: the Write stage mounts it.
+  `PgView.sidebar` stays: routes and tutorials write it.
+- **The left panel is the stock `Sidebar`**, folding to an icon rail: 14.5 rem
+  open, 3.25 rem as a rail, ⌘B, as the design system's migration map has it.
+  The widths go through `SidebarProvider`'s `style`; `shared/ui` is not
+  edited. The panel is no longer drag-resizable (today 192 px to 30% of the
+  window). _Rejected:_ one `ResizablePanelGroup` for all three columns, which
+  keeps the drag but rebuilds the Sidebar's phone Sheet and ⌘B by hand; a
+  drag handle added to the stock Sidebar, which edits `shared/ui`.
+- **Assistant and console become resizable** (`Resizable`, sizes in px), and
+  fold. The console folds to 0 and stays mounted so the xterm session lives;
+  the assistant unmounts when folded, as today.
+
+```
+widgets/layout-shell/
+  ui/LayoutShell.tsx      connected: SidebarProvider, panel groups, slots
+  ui/BaseLayoutShell.tsx  markup only: slots left/header/stage/console/assistant
+  model/layout-state.ts   the layout state, one localStorage key
+  model/viewport.ts       useViewport(): wide >=1024 | compact 600-1023 | phone <600
+```
+
+```
+SidebarProvider (collapsible="icon", controlled open)
+├─ Sidebar → LeftPanel (unchanged inside)
+└─ SidebarInset → Group horizontal
+   ├─ Panel center → Group vertical: stage (ObjectiveBand + StageRouter) | console
+   └─ Panel assistant (a right Sheet on compact and phone)
+```
+
+**What survives a reload.** One `localStorage` key, `layout`, under 200
+bytes: `{v: 1, leftOpen, assistantOpen, consoleOpen, h, vert}`, where `h`
+and `vert` are the two groups' layouts from `onLayoutChanged` (written when
+a drag ends, not per frame). A corrupt value, another `v` or unavailable
+storage falls back to today's defaults (left open, assistant open at 21.75
+rem, console closed, 16 rem when opened) and is reported through
+`model/diagnostics.ts`. Crossing a breakpoint writes nothing. The widget
+owns the state; the subscriptions that open panels on their own
+(`deploy.onDidStart` and a failed deploy open the console,
+`PgAssistant.onDidRequestPrompt` the assistant) move into it unchanged.
+
+**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, phone: 600 }`.
+
+| Width | Left | Assistant | Editor |
+|---|---|---|---|
+| wide >=1024 | Sidebar or rail | resizable panel | edits |
+| compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet, header button, Ctrl+R | edits |
+| phone <600 | the stock Sheet | full-width Sheet | read-only |
+
+The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
+three thresholds; that is accepted rather than editing `shared/`. On a phone
+Monaco gets `readOnly` and a `readOnlyMessage` saying editing works from 600
+px; chat works at every width. Explorer actions are not made read-only. The
+header's own compact steps (80 and 72 rem) stay; phone screens for the header
+and stages are the Breakpoint work (5.3).
+
+Kept: every id, `aria-label`, `#tabs`, `#root-dir`, and the keys ⌘B, Ctrl+R,
+Ctrl+J. The folded rail grows from 24 px to 52 px, which
+`left-panel-toggle.e2e` asserts and is updated for.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
@@ -209,5 +275,5 @@ not land in the same week as the upgrade.
 - **Removing themes** is visible to users who picked one. Dark fallback,
   said once.
 - **Two sets of primitives** if Base UI stays for the combobox.
-- **The read-only editor breakpoint**: 1024 px (HOO-1793) or 600 px (the
-  design plan). For the designer.
+- **The read-only editor breakpoint** is settled (2026-10-09): 600 px. See
+  "The layout shell".
