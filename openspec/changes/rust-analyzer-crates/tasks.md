@@ -66,8 +66,9 @@ Group 4 needs all three.
 
 - [ ] 4.1 Walk the manual scenarios of `client-v2-editor-crates` on a preview
       deployment and in the `client-v2-standalone` container, and record the
-      result of each in the PR. Walked at `86f0395c`: the preview and the
-      container serve every crate file, Rust Analyzer starts without a panic,
+      result of each in the PR. Walked at `86f0395c` and `ec6f2b0d`: the
+      Vercel build and the Docker image build place the default crates in
+      `public/crates`, the preview and the container serve every crate file, Rust Analyzer starts without a panic,
       `Vec::`, `std::array::`, and `Pubkey::find_` complete, the build logs
       show every supported crate and the default crates' cache hit, and the
       crate files are byte-identical on macOS, Vercel, and Docker. Still to

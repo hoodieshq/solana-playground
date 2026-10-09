@@ -12,7 +12,25 @@ every deployment serves, and how they are produced from pinned inputs.
 Every deployment SHALL serve the default crates `/crates/core.rs`,
 `/crates/alloc.rs`, and `/crates/std.rs` as Rust source, generated from the
 `rust-src` component of the toolchain in
-`wasm/rust-analyzer/rust-toolchain.toml`.
+`wasm/rust-analyzer/rust-toolchain.toml`. The build SHALL place them in
+`client-v2/public/crates`, from which they ship with the static assets: the
+Vercel build through `scripts/vercel-install.sh` and `yarn generate`, and the
+Docker image build through `client-v2/Dockerfile`.
+
+#### Scenario: A Vercel build places the default crates (manual)
+
+- **WHEN** a Vercel build runs
+- **THEN** its install log reports the default crates restored from a cache
+  or generated, its `yarn generate` log reports them current, and the
+  deployment's output holds `crates/core.rs`, `crates/alloc.rs`, and
+  `crates/std.rs`
+
+#### Scenario: A Docker image build places the default crates (manual)
+
+- **WHEN** `client-v2/Dockerfile` builds an image, with or without the server
+- **THEN** the image build log shows `core`, `alloc`, and `std` generated, the
+  image holds them in `client-v2/public/crates`, and `yarn start` in the
+  container reports them current
 
 #### Scenario: A preview deployment (manual)
 
