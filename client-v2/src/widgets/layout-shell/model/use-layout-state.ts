@@ -38,8 +38,10 @@ export const useLayoutState = () => {
     layoutTelemetry.track("layout_restore_failed", { reason: restored.reason });
   }, [restored]);
 
-  // Saved on a change, never on mount: a visit that changes nothing leaves
-  // what is stored alone, a value from a newer version included
+  // Saved on a toggle or a drag, never on mount: a visit that changes nothing
+  // leaves what is stored alone, a value from a newer version included. The
+  // panel groups report a layout on mount too, and the shell filters those
+  // out before they reach `setHorizontal` / `setVertical`.
   const update = useCallback((next: LayoutState) => {
     latest.current = next;
     setState(next);

@@ -59,6 +59,55 @@ test("client-v2-layout: A resized assistant and an open console", async ({
     .toBeLessThan(4);
 });
 
+const savedLayout = (page: Page) =>
+  page.evaluate(() => localStorage.getItem("layout"));
+
+test("a visit that moves nothing leaves the saved layout alone", async ({
+  seededPage: page,
+}) => {
+  // A value from a newer version is not read, and must not be replaced by
+  // the layout the panels report when they mount
+  const newer = JSON.stringify({
+    v: 2,
+    leftOpen: true,
+    assistantOpen: true,
+    consoleOpen: false,
+  });
+  await page.evaluate((value) => localStorage.setItem("layout", value), newer);
+  await page.reload();
+  await expect(assistantPanel(page)).toBeVisible();
+  await expect(page.locator(".monaco-editor")).toBeVisible();
+  expect(await savedLayout(page)).toBe(newer);
+});
+
+test("a window resize does not pin the panels' sizes", async ({
+  seededPage: page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  await expect(assistantPanel(page)).toBeVisible();
+  const first = await savedLayout(page);
+
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await expect.poll(() => widthOf(page)).toBeGreaterThan(300);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  await expect(assistantPanel(page)).toBeVisible();
+  expect(await savedLayout(page)).toBe(first);
+});
+
+test("the assistant keeps its width when the window widens", async ({
+  seededPage: page,
+}) => {
+  // Measured where the page was seeded, before the window moves
+  await expect(assistantPanel(page)).toBeVisible();
+  const before = await widthOf(page);
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await expect
+    .poll(async () => Math.abs((await widthOf(page)) - before))
+    .toBeLessThan(2);
+});
+
 test("client-v2-layout: An unreadable saved layout", async ({
   seededPage: page,
 }) => {
@@ -128,6 +177,10 @@ test.describe("on a phone", () => {
 
     await page.getByRole("button", { name: "Expand assistant" }).click();
     const sheet = page.locator('[data-slot="sheet-content"]');
+    // The Sheet fills a phone's width (the design system's own is 3/4)
+    await expect
+      .poll(async () => (await sheet.boundingBox())?.width)
+      .toBeGreaterThanOrEqual(374);
     // A fresh profile has no backend, so the assistant opens on its picker; a
     // key of any value connects, as nothing is sent until a message is.
     await sheet.getByRole("textbox", { name: "API KEY" }).fill("e2e-key");
@@ -137,6 +190,21 @@ test.describe("on a phone", () => {
     });
     await composer.fill("hello");
     await expect(composer).toHaveValue("hello");
+  });
+});
+
+test.describe("on a compact window", () => {
+  test.use({ viewport: { width: 800, height: 1000 } });
+
+  test("client-v2-layout: the assistant Sheet is the assistant's default width", async ({
+    seededPage: page,
+  }) => {
+    await page.getByRole("button", { name: "Expand assistant" }).click();
+    const sheet = page.locator('[data-slot="sheet-content"]');
+    // 21.75 rem, not the design system's 3/4 of the window (600 px)
+    await expect
+      .poll(async () => (await sheet.boundingBox())?.width)
+      .toBeCloseTo(348, -1);
   });
 });
 

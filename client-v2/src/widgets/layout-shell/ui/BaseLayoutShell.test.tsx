@@ -9,7 +9,10 @@ const panelSpies = vi.hoisted(() => ({
   created: 0,
   groups: {} as Record<
     string,
-    { defaultLayout?: unknown; onLayoutChanged?: (l: unknown) => void }
+    {
+      defaultLayout?: unknown;
+      onLayoutChanged?: (l: unknown, meta: unknown) => void;
+    }
   >,
   handles: [] as Array<{
     collapse: ReturnType<typeof vi.fn>;
@@ -25,7 +28,7 @@ vi.mock("react-resizable-panels", async (importOriginal) => {
     Group: (groupProps: {
       id?: string;
       defaultLayout?: unknown;
-      onLayoutChanged?: (l: unknown) => void;
+      onLayoutChanged?: (l: unknown, meta: unknown) => void;
     }) => {
       panelSpies.groups[groupProps.id ?? ""] = groupProps;
       return createElement(
@@ -78,19 +81,29 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+/** The fields a test sets itself; the rest are the defaults below */
+interface PropsChoice {
+  leftOpen?: boolean;
+  assistantOpen?: boolean;
+  assistantSheetOpen?: boolean;
+  consoleOpen?: boolean;
+  horizontal?: BaseLayoutShellProps["horizontal"];
+}
+
 const props = (
-  viewport: BaseLayoutShellProps["viewport"]
+  viewport: BaseLayoutShellProps["viewport"],
+  choice: PropsChoice = {}
 ): BaseLayoutShellProps => ({
   viewport,
-  leftOpen: true,
+  leftOpen: choice.leftOpen ?? true,
   onLeftOpenChange: vi.fn(),
-  assistantOpen: true,
+  assistantOpen: choice.assistantOpen ?? true,
   onAssistantOpenChange: vi.fn(),
-  assistantSheetOpen: false,
+  assistantSheetOpen: choice.assistantSheetOpen ?? false,
   onAssistantSheetChange: vi.fn(),
-  consoleOpen: false,
+  consoleOpen: choice.consoleOpen ?? false,
   onConsoleOpenChange: vi.fn(),
-  horizontal: undefined,
+  horizontal: choice.horizontal,
   vertical: undefined,
   onHorizontalLayout: vi.fn(),
   onVerticalLayout: vi.fn(),
@@ -184,14 +197,14 @@ it("should mark the sidebar expanded or collapsed from leftOpen", () => {
     document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
   ).toBe("expanded");
   open.unmount();
-  render(<BaseLayoutShell {...props("wide")} leftOpen={false} />);
+  render(<BaseLayoutShell {...props("wide", { leftOpen: false })} />);
   expect(
     document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
   ).toBe("collapsed");
 });
 
 it("should report the Sheet closing", () => {
-  const shell = { ...props("phone"), assistantSheetOpen: true };
+  const shell = props("phone", { assistantSheetOpen: true });
   render(<BaseLayoutShell {...shell} />);
   const sheet = document.querySelector('[data-slot="sheet-content"]')!;
   fireEvent.keyDown(sheet, { key: "Escape" });
@@ -203,7 +216,7 @@ it("should collapse the assistant panel when assistantOpen turns false", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   expect(assistant.collapse).not.toHaveBeenCalled();
   expect(assistant.resize).not.toHaveBeenCalled();
-  rerender(<BaseLayoutShell {...props("wide")} assistantOpen={false} />);
+  rerender(<BaseLayoutShell {...props("wide", { assistantOpen: false })} />);
   expect(assistant.collapse).toHaveBeenCalledTimes(1);
 });
 
@@ -220,7 +233,7 @@ it("should open a collapsed assistant panel at its default width when assistantO
 it("should open a folded console at its default height when consoleOpen turns true", () => {
   const consolePanel = panelSpies.handles[1];
   consolePanel.isCollapsed.mockReturnValue(true);
-  render(<BaseLayoutShell {...props("wide")} consoleOpen />);
+  render(<BaseLayoutShell {...props("wide", { consoleOpen: true })} />);
   expect(consolePanel.resize).toHaveBeenCalledWith(PANEL_SIZES.console.default);
 });
 
@@ -233,25 +246,56 @@ it("should do nothing when the console panel already matches consoleOpen", () =>
 });
 
 it("should not take or save a horizontal layout below 1024 px", () => {
-  const compact = props("compact");
-  render(
-    <BaseLayoutShell {...compact} horizontal={{ center: 70, assistant: 30 }} />
-  );
+  const compact = props("compact", {
+    horizontal: { center: 70, assistant: 30 },
+  });
+  render(<BaseLayoutShell {...compact} />);
   const group = panelSpies.groups["layout-horizontal"];
   expect(group.defaultLayout).toBeUndefined();
   expect(group.onLayoutChanged).toBeUndefined();
 });
 
 it("should take and save the horizontal layout on a wide screen", () => {
-  const wide = props("wide");
-  render(
-    <BaseLayoutShell {...wide} horizontal={{ center: 70, assistant: 30 }} />
-  );
+  const wide = props("wide", { horizontal: { center: 70, assistant: 30 } });
+  render(<BaseLayoutShell {...wide} />);
   const group = panelSpies.groups["layout-horizontal"];
   expect(group.defaultLayout).toEqual({ center: 70, assistant: 30 });
-  group.onLayoutChanged!({ center: 60, assistant: 40 });
+  group.onLayoutChanged!(
+    { center: 60, assistant: 40 },
+    { isUserInteraction: true }
+  );
   expect(wide.onHorizontalLayout).toHaveBeenCalledWith({
     center: 60,
     assistant: 40,
+  });
+});
+
+it("should not save a layout the library settled on its own", () => {
+  // On mount and on a window resize the group reports its clamped layout;
+  // saving that would pin the sizes of a window the user has since left
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  panelSpies.groups["layout-horizontal"].onLayoutChanged!(
+    { center: 60, assistant: 40 },
+    { isUserInteraction: false }
+  );
+  panelSpies.groups["layout-vertical"].onLayoutChanged!(
+    { stage: 60, console: 40 },
+    { isUserInteraction: false }
+  );
+  expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
+  expect(wide.onVerticalLayout).not.toHaveBeenCalled();
+});
+
+it("should save a vertical layout the user dragged", () => {
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  panelSpies.groups["layout-vertical"].onLayoutChanged!(
+    { stage: 60, console: 40 },
+    { isUserInteraction: true }
+  );
+  expect(wide.onVerticalLayout).toHaveBeenCalledWith({
+    stage: 60,
+    console: 40,
   });
 });
