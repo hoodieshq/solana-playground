@@ -44,6 +44,10 @@ existing code moves.
   inside; then panels move one by one.
 - The classic layout (`?classic`) is removed with the shell; Flow is the only
   layout.
+- The layout shell adds the telemetry events `layout_panel_toggled`,
+  `layout_viewport`, `layout_readonly_edit_blocked` and
+  `layout_restore_failed` (prefix `layout`), described in the
+  `client-v2-layout` spec.
 
 ## Capabilities
 
@@ -76,7 +80,7 @@ capabilities it records.
 - CI: `client-v2.yml` gains the layer check (`eslint-plugin-boundaries`) and
   the e2e gate or its written manual equivalent.
 - `client-v2/src/app/Panels`: the classic layout (`Side`, `Main/Secondary`,
-  `Bottom`) is removed; `re-resizable` leaves with it.
+  `Bottom`) is removed. `re-resizable` stays: the settings sidebar uses it.
 - Users: anyone on a removed theme lands on dark and is told once.
 - Out of scope: Next, merging PR #32, the undesigned parts of the design
   system (search, project list and switcher, input validation, toast progress
