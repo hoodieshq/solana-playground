@@ -15,10 +15,10 @@ import BaseLayoutShell from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
   /** `collapsed` is never true in the Sheet below 768 px, which has no rail */
-  left: (collapsed: boolean, toggle: () => void) => ReactNode;
+  left: (panel: { collapsed: boolean; toggle: () => void }) => ReactNode;
   stage: ReactNode;
-  console: (open: boolean, toggle: () => void) => ReactNode;
-  assistant: (open: boolean, toggle: () => void) => ReactNode;
+  console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
+  assistant: (panel: { open: boolean; toggle: () => void }) => ReactNode;
 }
 
 /**
@@ -37,7 +37,7 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const leftVia = useRef<ToggleSource | null>(null);
 
   useEffect(() => {
-    layoutTelemetry.track("layout_viewport", { width: viewport });
+    layoutTelemetry.track("layout_viewport", { viewport });
     // Once per load, with the width the page opened at
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -64,7 +64,7 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     });
   };
 
-  const assistantShown = viewport === "wide" ? state.assistantOpen : sheetOpen;
+  const assistantShown = viewport === "wide" ? state.open.assistant : sheetOpen;
   const setAssistant = (open: boolean, via: ToggleSource) => {
     if (viewport === "wide") setOpen("assistant", open, via);
     else setSheet(open, via);
@@ -75,8 +75,8 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     viewport,
     assistantShown,
   ]);
-  useKeybind("Ctrl+J", () => setOpen("console", !state.consoleOpen, "key"), [
-    state.consoleOpen,
+  useKeybind("Ctrl+J", () => setOpen("console", !state.open.console, "key"), [
+    state.open.console,
   ]);
 
   useEffect(() => {
@@ -137,20 +137,30 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   return (
     <BaseLayoutShell
       viewport={viewport}
-      leftOpen={state.leftOpen}
+      leftOpen={state.open.left}
       onLeftOpenChange={onLeftOpenChange}
-      assistantOpen={state.assistantOpen}
-      onAssistantOpenChange={(open) => setOpen("assistant", open, "button")}
-      assistantSheetOpen={sheetOpen}
-      onAssistantSheetChange={(open) => setSheet(open, "button")}
-      consoleOpen={state.consoleOpen}
-      onConsoleOpenChange={(open) => setOpen("console", open, "button")}
+      assistantState={{
+        open: assistantShown,
+        // A drag folds or unfolds the panel; the Sheet is closed by a button
+        // or Escape, never dragged
+        onOpenChange: (open) =>
+          viewport === "wide"
+            ? setOpen("assistant", open, "drag")
+            : setSheet(open, "button"),
+      }}
+      consoleState={{
+        open: state.open.console,
+        onOpenChange: (open) => setOpen("console", open, "drag"),
+      }}
       horizontal={state.h}
       vertical={state.vert}
       onHorizontalLayout={setHorizontal}
       onVerticalLayout={setVertical}
-      left={(stockToggle, isMobile) =>
-        left(isMobile ? false : !state.leftOpen, toggleLeft(stockToggle))
+      left={({ toggle, isMobile }) =>
+        left({
+          collapsed: isMobile ? false : !state.open.left,
+          toggle: toggleLeft(toggle),
+        })
       }
       onLeftSheetChange={onLeftSheetChange}
       sheetFont={{
@@ -158,12 +168,14 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
         fontSize: theme.font.code.size.medium,
       }}
       stage={stage}
-      console={console(state.consoleOpen, () =>
-        setOpen("console", !state.consoleOpen, "button")
-      )}
-      assistant={assistant(assistantShown, () =>
-        setAssistant(!assistantShown, "button")
-      )}
+      console={console({
+        open: state.open.console,
+        toggle: () => setOpen("console", !state.open.console, "button"),
+      })}
+      assistant={assistant({
+        open: assistantShown,
+        toggle: () => setAssistant(!assistantShown, "button"),
+      })}
       assistantOpener={
         <button
           type="button"

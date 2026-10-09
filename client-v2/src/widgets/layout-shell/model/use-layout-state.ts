@@ -7,27 +7,21 @@ import {
   verticalOf,
   writeLayout,
 } from "./layout-state";
-import type { LayoutState, PanelLayout } from "./layout-state";
+import { DEFAULT_LAYOUT } from "./layout-state";
+import type { LayoutPanel, LayoutState, PanelLayout } from "./layout-state";
 import { layoutTelemetry } from "./telemetry";
-import type { LayoutPanel, ToggleSource } from "./telemetry";
+import type { ToggleSource } from "./telemetry";
 
 const log = createLogger("layout-shell:state");
-
-const OPEN_FIELD: Record<
-  LayoutPanel,
-  "leftOpen" | "assistantOpen" | "consoleOpen"
-> = {
-  left: "leftOpen",
-  assistant: "assistantOpen",
-  console: "consoleOpen",
-};
 
 const storage = () => window.localStorage;
 
 /** The layout, restored once per mount, saved on a toggle or a drag */
 export const useLayoutState = () => {
   const [restored] = useState(() => readLayout(storage));
-  const [state, setState] = useState<LayoutState>(restored.state);
+  const [state, setState] = useState<LayoutState>(
+    restored.kind === "saved" ? restored.state : DEFAULT_LAYOUT
+  );
   // Mirrors `state` synchronously, so two toggles in one tick each see the
   // other, and the event is sent outside any `setState` updater
   const latest = useRef(state);
@@ -42,7 +36,10 @@ export const useLayoutState = () => {
     log.warn("The saved layout could not be read; using the defaults", {
       context: {
         reason: restored.reason,
-        error: String(restored.error ?? ""),
+        error:
+          restored.kind === "failed" && "error" in restored
+            ? String(restored.error)
+            : "",
       },
     });
     layoutTelemetry.track("layout_restore_failed", { reason: restored.reason });
@@ -79,10 +76,12 @@ export const useLayoutState = () => {
 
   const setOpen = useCallback(
     (panel: LayoutPanel, open: boolean, via: ToggleSource) => {
-      const field = OPEN_FIELD[panel];
-      if (latest.current[field] === open) return;
+      if (latest.current.open[panel] === open) return;
       layoutTelemetry.track("layout_panel_toggled", { panel, open, via });
-      const next: LayoutState = { ...latest.current, [field]: open };
+      const next: LayoutState = {
+        ...latest.current,
+        open: { ...latest.current.open, [panel]: open },
+      };
       // The sizes a drag left are of the panel as it was: after a toggle a
       // reload sizes the panel from its flag instead, so a folded panel is
       // never reopened by sizes saved while it was open

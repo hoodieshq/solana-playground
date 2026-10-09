@@ -97,12 +97,18 @@ const props = (
   viewport,
   leftOpen: choice.leftOpen ?? true,
   onLeftOpenChange: vi.fn(),
-  assistantOpen: choice.assistantOpen ?? true,
-  onAssistantOpenChange: vi.fn(),
-  assistantSheetOpen: choice.assistantSheetOpen ?? false,
-  onAssistantSheetChange: vi.fn(),
-  consoleOpen: choice.consoleOpen ?? false,
-  onConsoleOpenChange: vi.fn(),
+  // One flag that follows the viewport: the panel on wide, the Sheet below
+  assistantState: {
+    open:
+      viewport === "wide"
+        ? choice.assistantOpen ?? true
+        : choice.assistantSheetOpen ?? false,
+    onOpenChange: vi.fn(),
+  },
+  consoleState: {
+    open: choice.consoleOpen ?? false,
+    onOpenChange: vi.fn(),
+  },
   horizontal: choice.horizontal,
   vertical: undefined,
   onHorizontalLayout: vi.fn(),
@@ -153,12 +159,8 @@ it("should show the assistant Sheet when it is open", () => {
       viewport={open.viewport}
       leftOpen={open.leftOpen}
       onLeftOpenChange={open.onLeftOpenChange}
-      assistantOpen={open.assistantOpen}
-      onAssistantOpenChange={open.onAssistantOpenChange}
-      assistantSheetOpen
-      onAssistantSheetChange={open.onAssistantSheetChange}
-      consoleOpen={open.consoleOpen}
-      onConsoleOpenChange={open.onConsoleOpenChange}
+      assistantState={{ ...open.assistantState, open: true }}
+      consoleState={open.consoleState}
       onHorizontalLayout={open.onHorizontalLayout}
       onVerticalLayout={open.onVerticalLayout}
       left={open.left}
@@ -208,7 +210,7 @@ it("should report the Sheet closing", () => {
   render(<BaseLayoutShell {...shell} />);
   const sheet = document.querySelector('[data-slot="sheet-content"]')!;
   fireEvent.keyDown(sheet, { key: "Escape" });
-  expect(shell.onAssistantSheetChange).toHaveBeenCalledWith(false);
+  expect(shell.assistantState.onOpenChange).toHaveBeenCalledWith(false);
 });
 
 it("should collapse the assistant panel when assistantOpen turns false", () => {
@@ -225,7 +227,7 @@ it("should mount a folded assistant folded, and not report it open", () => {
   // nothing reads as the assistant having been opened
   const folded = props("wide", { assistantOpen: false });
   render(<BaseLayoutShell {...folded} />);
-  expect(folded.onAssistantOpenChange).not.toHaveBeenCalled();
+  expect(folded.assistantState.onOpenChange).not.toHaveBeenCalled();
   expect(panelSpies.groups["layout-horizontal"].defaultLayout).toBeUndefined();
 });
 
