@@ -59,8 +59,9 @@ utilities and tokens but no design-system components.
 - [ ] 4.2 Tailwind 4 beside styled-components and the `@/` alias; nothing on
       screen moves; the alias resolves in the build, the editor and tests
       (HOO-1861; after 4.1)
-- [ ] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
-      xterm follow the theme (HOO-1802; after 4.2 and 2.1)
+- [x] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
+      xterm follow the theme (HOO-1802; after 4.2 and 2.1;
+      plan: plans/4.3-token-bridge.md)
 
 ## 5. Screens
 
