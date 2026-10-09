@@ -328,11 +328,14 @@ const Collapse = styled.button`
   `}
 `;
 
+// Modals sit above the stock Sidebar (z-10) and the header (z-20), which the
+// layout shell put in the same stacking context; their old 3 and 4 left the
+// gallery's left edge, tabs included, under the left panel.
 const PortalAbove = styled.div`
-  z-index: 4;
+  z-index: 32;
 `;
 const StyledModalBackdrop = styled(ModalBackdrop)`
-  z-index: 3;
+  z-index: 31;
 `;
 const PortalBelow = styled.div`
   z-index: 2;
