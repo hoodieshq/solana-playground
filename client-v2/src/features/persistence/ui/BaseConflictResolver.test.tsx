@@ -73,6 +73,7 @@ describe("BaseConflictResolver", () => {
   let container: HTMLDivElement;
   let root: Root;
   const onApply = vi.fn();
+  const onCancel = vi.fn();
 
   beforeEach(async () => {
     // jsdom has none; the pane tabs' thumb measures itself with one
@@ -93,7 +94,7 @@ describe("BaseConflictResolver", () => {
           onApply={onApply}
           onKeepLocal={vi.fn()}
           onTakeServer={vi.fn()}
-          onCancel={vi.fn()}
+          onCancel={onCancel}
         />
       )
     );
@@ -139,5 +140,36 @@ describe("BaseConflictResolver", () => {
         serverHash: "tests/index.test.ts:server",
       },
     });
+  });
+
+  /** Press Escape with focus on `target`, as the browser dispatches it */
+  const escapeFrom = (target: Element) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+  it("leaves Escape inside an editor to the editor", async () => {
+    // Where Monaco's suggest, find and hint widgets take their Escape
+    const editor = document.createElement("div");
+    editor.className = "monaco-editor";
+    const input = editor.appendChild(document.createElement("textarea"));
+    document.querySelector('[data-slot="modal-content"]')!.appendChild(editor);
+
+    await escapeFrom(input);
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("closes on Escape outside an editor", async () => {
+    await escapeFrom(button("Apply"));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

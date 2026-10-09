@@ -147,7 +147,8 @@ without asking again.
 Until the user presses "Apply" or a whole-file shortcut, the view SHALL NOT
 change this device's files or upload anything. Closing the view, by "Cancel",
 the close button or Escape, SHALL leave the conflict pending and the banner
-shown.
+shown. Escape pressed inside one of the view's editors SHALL be left to the
+editor, which uses it to close its own suggestions and search.
 
 #### Scenario: Cancelled after taking a side
 

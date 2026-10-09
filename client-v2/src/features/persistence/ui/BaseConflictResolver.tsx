@@ -87,6 +87,21 @@ const useSingle = (root: HTMLElement | null) => {
   return single;
 };
 
+/**
+ * Escape pressed inside one of the editors is the editor's: it closes
+ * Monaco's suggest, find and parameter-hint widgets. Radix listens for
+ * Escape on the whole document, ahead of the editor, and would close the
+ * view instead -- and every choice made in it with the view.
+ */
+const keepEditorEscape = (event: KeyboardEvent) => {
+  if (
+    event.target instanceof Element &&
+    event.target.closest(".monaco-editor")
+  ) {
+    event.preventDefault();
+  }
+};
+
 /** The sides whose controls a pane carries */
 const sidesIn = (pane: Pane, single: boolean): HunkSide[] => {
   if (single) return pane === "result" ? ["left", "right"] : [];
@@ -298,6 +313,7 @@ export const BaseConflictResolver = ({
         size="wide"
         className="dark md:h-[min(48rem,calc(100dvh-4rem))]"
         ref={contentRef}
+        onEscapeKeyDown={keepEditorEscape}
       >
         <ModalHeader>
           <ModalTitle>Resolve conflicts</ModalTitle>
