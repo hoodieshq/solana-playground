@@ -24,13 +24,18 @@ const OPEN_FIELD: Record<
 
 const storage = () => window.localStorage;
 
-/** The layout, restored once per mount, saved on every change */
+/** The layout, restored once per mount, saved on a toggle or a drag */
 export const useLayoutState = () => {
   const [restored] = useState(() => readLayout(storage));
   const [state, setState] = useState<LayoutState>(restored.state);
   // Mirrors `state` synchronously, so two toggles in one tick each see the
   // other, and the event is sent outside any `setState` updater
   const latest = useRef(state);
+  // A layout from a newer version is kept as it is: this one cannot read it,
+  // and writing would replace it with a layout its own version cannot use
+  const keepSaved = restored.kind === "failed" && restored.reason === "version";
+  const reportedKept = useRef(false);
+  const reportedSaveFailure = useRef(false);
 
   useEffect(() => {
     if (restored.kind !== "failed") return;
@@ -44,26 +49,46 @@ export const useLayoutState = () => {
   }, [restored]);
 
   // Saved on a toggle or a drag, never on mount: a visit that changes nothing
-  // leaves what is stored alone, a value from a newer version included. The
-  // panel groups report a layout on mount too, and the shell filters those
-  // out before they reach `setHorizontal` / `setVertical`.
-  const update = useCallback((next: LayoutState) => {
-    latest.current = next;
-    setState(next);
-    const written = writeLayout(storage, next);
-    if (!written.ok) {
-      log.warn("The layout could not be saved", {
-        context: { error: String(written.error) },
-      });
-    }
-  }, []);
+  // leaves what is stored alone. The panel groups report a layout on mount
+  // too, and the shell filters those out before they reach `setHorizontal` /
+  // `setVertical`. A layout from a newer version is never written over.
+  const update = useCallback(
+    (next: LayoutState) => {
+      latest.current = next;
+      setState(next);
+      if (keepSaved) {
+        if (!reportedKept.current) {
+          reportedKept.current = true;
+          log.warn(
+            "The saved layout is from a newer version; not overwriting it"
+          );
+        }
+        return;
+      }
+      const written = writeLayout(storage, next);
+      // Once per mount: a drag reports on every tick
+      if (!written.ok && !reportedSaveFailure.current) {
+        reportedSaveFailure.current = true;
+        log.warn("The layout could not be saved", {
+          context: { error: String(written.error) },
+        });
+      }
+    },
+    [keepSaved]
+  );
 
   const setOpen = useCallback(
     (panel: LayoutPanel, open: boolean, via: ToggleSource) => {
       const field = OPEN_FIELD[panel];
       if (latest.current[field] === open) return;
       layoutTelemetry.track("layout_panel_toggled", { panel, open, via });
-      update({ ...latest.current, [field]: open });
+      const next: LayoutState = { ...latest.current, [field]: open };
+      // The sizes a drag left are of the panel as it was: after a toggle a
+      // reload sizes the panel from its flag instead, so a folded panel is
+      // never reopened by sizes saved while it was open
+      if (panel === "assistant") delete next.h;
+      if (panel === "console") delete next.vert;
+      update(next);
     },
     [update]
   );
