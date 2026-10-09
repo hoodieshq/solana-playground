@@ -64,8 +64,9 @@ export interface BaseLayoutShellProps {
   onHorizontalLayout: (layout: PanelLayout) => void;
   onVerticalLayout: (layout: PanelLayout) => void;
   /**
-   * Given the stock Sidebar's toggle (it opens the Sheet below 768 px) and
-   * whether the Sidebar is in that Sheet mode
+   * Renders the left panel's content. It is handed the stock Sidebar's toggle
+   * (which opens the Sheet below 768 px) and whether the Sidebar is in that
+   * Sheet mode.
    */
   left: (toggle: () => void, isMobile: boolean) => ReactNode;
   /** Below 768 px: the left panel's Sheet opened or closed */
@@ -107,7 +108,7 @@ const LeftSlot = ({
  * renders its opener at the left edge and reports the Sheet opening and
  * closing (not the value it starts with).
  */
-const LeftSheetWatcher = ({
+const LeftSheetOpener = ({
   onChange,
 }: {
   onChange: (open: boolean) => void;
@@ -142,17 +143,19 @@ const LeftSheetWatcher = ({
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const assistantRef = usePanelRef();
   const consoleRef = usePanelRef();
-  // The size each panel last had open, in px. `expand()` restores a size the
-  // panel had before it folded, and a panel that mounted folded never had
-  // one, so it would open at its minimum instead of its default.
+  // The size each panel last had open, in px. Opening goes through
+  // `resize(openSize)`, not `expand()`: `expand()` restores a size the panel
+  // had before it folded, and a panel that mounted folded never had one, so it
+  // would open at its minimum instead of its default.
   const assistantOpenSize = useRef<number>(PANEL_SIZES.assistant.default);
   const consoleOpenSize = useRef<number>(PANEL_SIZES.console.default);
 
   // `open` props drive the panels; a drag that folds one reports back
   // through `onResize`, so the two never disagree for long. A panel that
   // mounts again on a wide screen starts at its `defaultSize`, which follows
-  // `assistantOpen`, so nothing re-syncs it here (its handle is not yet
-  // registered with the group when this effect runs, and throws).
+  // `assistantOpen`, so nothing re-syncs it here: on that first run the
+  // panel's handle is not yet registered with its group, and its
+  // `isCollapsed()` throws "Panel constraints not found".
   useEffect(() => {
     const panel = assistantRef.current;
     if (!panel || panel.isCollapsed() === !props.assistantOpen) return;
@@ -228,7 +231,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           <LeftSlot render={props.left} />
         </div>
       </Sidebar>
-      <LeftSheetWatcher onChange={props.onLeftSheetChange} />
+      <LeftSheetOpener onChange={props.onLeftSheetChange} />
       <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
         {/* One tree at every width, so a rotate across 1024 px does not
             remount the stage, Monaco or the console's terminal. Below 1024 px
