@@ -31,8 +31,8 @@ Three facts constrain the approach:
 
 **Non-Goals:**
 
-- Matching Terser's output size. Closing the gap is the follow-up named in
-  proposal.md (Impact).
+- Matching Terser's output size. Closing the gap is a future improvement,
+  postponed in proposal.md (Impact, Out of scope).
 - Changing how chunks are split.
 
 ## Decisions
@@ -97,14 +97,16 @@ fail: the guard must fail on a build with `keepNames: false`.
 
 ## Risks / Trade-offs
 
-- [The bundle is about 16% larger gzipped] → Accepted (proposal.md, Why). The
-  follow-up ticket tracks bringing it down.
+- [The bundle is about 15% larger gzipped: 14.5% with the `browserslist`
+  target, measured at `b1bf2cf`] → Accepted (proposal.md, Why): faster builds
+  that fit the standard machine cost less per deploy. Shrinking it is
+  postponed.
 - [esbuild's minifier transforms code differently from Terser, which CRA ran
   with `comparisons: false` and `inline: 2` to avoid past Terser bugs] → The
   manual scenarios in `client-v2-build` exercise the production build; the
   name guard catches the one known production-only failure.
 - [The browser suite does not run on the minified bundle] → Manual smoke of a
-  Vercel preview before merge, listed in tasks.md.
+  Vercel preview; the testing manual's M-2 and M-3 walk it.
 - [esbuild needs its platform binary (`@esbuild/linux-x64` on Vercel)] → It is
   an optional dependency of `esbuild` that yarn installs per platform; the
   lockfile carries all of them. The first preview deployment proves it.

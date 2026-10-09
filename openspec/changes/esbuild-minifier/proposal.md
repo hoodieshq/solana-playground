@@ -88,8 +88,12 @@ None.
   are reported by `yarn run check`, the pre-push hook (opt-in per clone), and CI.
 - Vercel: preview and production builds fit the standard build machine.
 - Out of scope:
-  - Shrinking esbuild's output (dropping `keepNames` by renaming the decorator
-    lookup to an explicit key, splitting the largest chunks). Ticket to file.
+  - Shrinking esbuild's output, a future improvement: dropping `keepNames` by
+    giving the decorator lookup an explicit key instead of `Function.name`, and
+    splitting the largest chunks. Postponed on purpose: the larger bundle is
+    accepted because builds that fit the standard machine and finish faster
+    cost less per deploy. The measurements in "Why" are the baseline, and
+    Terser with a capped worker count stays the fallback.
   - Replacing webpack or Create React App with a native bundler.
   - Changing `--max-old-space-size` in `vercel.json`.
   - Enhanced Builds on Vercel.
