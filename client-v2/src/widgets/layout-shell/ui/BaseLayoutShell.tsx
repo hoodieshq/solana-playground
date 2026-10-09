@@ -280,7 +280,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         </ResizablePanelGroup>
         {props.viewport !== "wide" && (
           <>
-            <div className="absolute top-1 right-0 z-10">
+            {/* Under the settings panel (fixed, z-2) when it opens over it */}
+            <div className="absolute top-1 right-0 z-1">
               {props.assistantOpener}
             </div>
             <Sheet

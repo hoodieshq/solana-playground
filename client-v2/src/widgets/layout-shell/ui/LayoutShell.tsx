@@ -42,6 +42,9 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mirrors `sheetOpen` so the effect below, which outlives renders, sees it
+  const sheetNow = useRef(false);
+
   useEffect(() => {
     // Closed by the width, not by anyone: nothing to report
     if (viewport === "wide") {
@@ -50,8 +53,6 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     }
   }, [viewport]);
 
-  // Mirrors `sheetOpen` so the effect below, which outlives renders, sees it
-  const sheetNow = useRef(false);
   const setSheet = (open: boolean, via: ToggleSource) => {
     if (sheetNow.current === open) return;
     sheetNow.current = open;

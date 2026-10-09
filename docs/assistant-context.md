@@ -149,9 +149,11 @@ Done:
   re-anatomizing the UI around the Write → Build → Deploy → Interact loop
   (`decisions.md` → D10, D17). Flow is now the only layout: a header
   stepper (Write → Build → Deploy → Interact, state derived from real
-  build/deploy events) plus a two-tab left panel (Projects | Files), a
-  permanent assistant column, and the terminal moved into a console drawer
-  (Cmd+J). A New Workspace gallery starts a project from 34 upstream
+  build/deploy events) plus a two-tab left panel (Projects | Files), an
+  assistant column (a resizable panel on screens 1024 px and wider, a side
+  Sheet below that), and the terminal moved into a console drawer (Cmd+J).
+  The shell is responsive: below 600 px the editor is read-only and says
+  why. A New Workspace gallery starts a project from 34 upstream
   programs or 16 tutorials. A gear icon opens a settings overlay embedding
   the existing settings registry.
 - Deploy history is new: a client-side store in `localStorage`, keyed by
@@ -184,7 +186,7 @@ model connected at all. The `tools/list` and `tools/call` round trips are
 verified against the live server; what has not been exercised is a full turn
 where a *model* chooses to call one, since that needs a key.
 
-Not started: real wallet adapters; responsive/tablet layout.
+Not started: real wallet adapters.
 
 ## What is real and what is mocked
 
