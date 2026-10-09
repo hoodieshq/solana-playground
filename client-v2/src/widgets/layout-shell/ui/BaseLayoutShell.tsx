@@ -66,6 +66,11 @@ export interface BaseLayoutShellProps {
   assistant: ReactNode;
   /** Below 1024 px: what opens the assistant Sheet, on the right edge */
   assistantOpener: ReactNode;
+  /**
+   * The font a Sheet's content is set in. Sheets portal outside the app
+   * wrapper that sets it, so they would fall back to the browser's.
+   */
+  sheetFont?: CSSProperties;
 }
 
 const LeftSlot = ({
@@ -198,7 +203,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"
         style={{ left: GAP, bottom: GAP }}
       >
-        <LeftSlot render={props.left} />
+        <div className="contents" style={props.sheetFont}>
+          <LeftSlot render={props.left} />
+        </div>
       </Sidebar>
       <LeftSheetWatcher onChange={props.onLeftSheetChange} />
       <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
@@ -262,7 +269,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             >
               <SheetContent
                 side="right"
+                showCloseButton={false}
                 className={cn("p-0", SHEET_WIDTH[props.viewport])}
+                style={props.sheetFont}
               >
                 <SheetTitle className="sr-only">Assistant</SheetTitle>
                 {props.assistant}
