@@ -17,7 +17,7 @@ type LayoutEvents = {
   };
   /** The window's width class, once per page load. */
   layout_viewport: { width: Viewport };
-  /** The user tried to type in the read-only editor; once per page load. */
+  /** The user tried to type in the read-only editor; the first time in a session. */
   layout_readonly_edit_blocked: NoParams;
   /** The saved layout could not be read and the defaults were used; `reason` says why. */
   layout_restore_failed: { reason: RestoreFailure };
