@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTheme } from "styled-components";
 
@@ -20,6 +20,8 @@ import {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  MergeHunkBar,
+  MergeHunkBarSide,
   MergeHunkGutter,
   mergeHunkOrder,
   MergeNav,
@@ -193,46 +195,63 @@ export const BaseConflictResolver = ({
     editor.reveal(target.index);
   };
 
+  /** A side's take and dismiss, mirrored about the result */
+  const pair = (i: number, side: HunkSide) =>
+    mergeHunkOrder[side].map((action) => (
+      <MergeHunkAction
+        key={action}
+        action={action}
+        from={side}
+        disabled={busy}
+        onClick={() => act(i, side, action)}
+      />
+    ));
+
   /**
    * A pane's hunk controls. A side's sit in its gutter beside the ribbon, at
-   * each hunk's height (at the top where the side has no editor); the
-   * result's, at phone width, over its editor at the line's end, clear of
-   * the scrollbar.
+   * each hunk's height (at the top where the side has no editor). One pane
+   * at a time, the result carries both sides' in a bar in the room its
+   * editor keeps under each hunk, so none covers the lines it decides.
    */
   const controls = (pane: Pane): ReactNode => {
     if (!file) return null;
     const sides = sidesIn(pane, single);
     if (!sides.length) return null;
-    const inGutter = pane !== "result";
-    const overlay = inGutter ? null : layout?.overlays[pane] ?? null;
+    const overlay = pane === "result" ? layout?.overlays.result ?? null : null;
     const items = file.hunks.map(({ hunk, index: i }) => {
       const open = sides.filter((s) => !hunk.edited && hunk[s] === "pending");
       if (!open.length) return null;
-      const top = layout?.hunks[i]?.top[pane];
-      const style: CSSProperties = {
-        position: "absolute",
-        top: top ?? 4,
-        pointerEvents: "auto",
-        ...(inGutter ? { left: 0, right: 0, margin: "0 auto" } : { right: 16 }),
-      };
+      const place = layout?.hunks[i];
+      if (overlay) {
+        return (
+          <MergeHunkBar
+            key={i}
+            data-hunk={i}
+            className="absolute inset-x-0"
+            style={{ top: place?.bar ?? 0, pointerEvents: "auto" }}
+          >
+            {open.map((side) => (
+              <MergeHunkBarSide
+                key={side}
+                side={side}
+                className={side === "right" ? "ml-auto" : undefined}
+              >
+                {pair(i, side)}
+              </MergeHunkBarSide>
+            ))}
+          </MergeHunkBar>
+        );
+      }
       return (
         <MergeHunkActions
           key={i}
           data-hunk={i}
-          className={inGutter ? "w-fit" : "rounded bg-surface-panel"}
-          style={style}
+          className="absolute inset-x-0 mx-auto w-fit"
+          style={{ top: place?.top[pane] ?? 4, pointerEvents: "auto" }}
         >
           {open.map((side) => (
             <span key={side} className="contents">
-              {mergeHunkOrder[side].map((action) => (
-                <MergeHunkAction
-                  key={action}
-                  action={action}
-                  from={side}
-                  disabled={busy}
-                  onClick={() => act(i, side, action)}
-                />
-              ))}
+              {pair(i, side)}
             </span>
           ))}
         </MergeHunkActions>

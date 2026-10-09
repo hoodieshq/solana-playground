@@ -4,13 +4,8 @@ import { mergeHunkVariants } from "@/shared/ui/merge";
 import { canHideLines, setHiddenLines } from "./hidden-areas";
 import { hunkLineClass } from "./hunk-class";
 import type { MergeBand } from "@/shared/ui/merge";
-import type {
-  Fold,
-  MergeFile,
-  MergePane,
-  MergeSnapshot,
-  TextEdit,
-} from "./merge-file";
+import { MergeFile } from "./merge-file";
+import type { Fold, MergePane, MergeSnapshot, TextEdit } from "./merge-file";
 import type { Disposable } from "../../../../utils/types";
 
 /** The scheme of the resolve view's models -- see `uriOf` */
@@ -18,6 +13,8 @@ export const MERGE_SCHEME = "pg-merge";
 
 /** A fold's height, as `MergeFold` draws it */
 const FOLD_PX = 24;
+/** A hunk bar's height, as `MergeHunkBar` draws it */
+const BAR_PX = 44;
 
 const PANES: readonly MergePane[] = ["left", "result", "right"];
 
@@ -55,6 +52,8 @@ export interface MergeEditorOptions {
 export interface HunkPlace {
   index: number;
   top: Record<MergePane, number | null>;
+  /** One pane at a time: the top of the room kept under it for its bar */
+  bar: number | null;
 }
 
 /** A fold, and where its control goes in each pane, in px from the top */
@@ -375,13 +374,15 @@ class MonacoMergeEditor implements MergeEditor {
     // rebuilding them re-lays out the editor, and a keystroke in a settled
     // line changes neither
     const spacers = this._options.single ? [] : this._spacers();
+    const bars = this._bars();
     const key = JSON.stringify([
       spacers.map(({ pane, after, lines, look }) => [pane, after, lines, look]),
       folds.map((f) => [f.key, f.start, f.count]),
+      bars,
     ]);
     if (key !== this._zoneKey) {
       this._zoneKey = key;
-      this._rebuildZones(spacers, folds);
+      this._rebuildZones(spacers, folds, bars);
     }
     this._emit();
   }
@@ -420,9 +421,26 @@ class MonacoMergeEditor implements MergeEditor {
     return spacers;
   }
 
+  /**
+   * One pane at a time, the room under each hunk still to decide for its
+   * bar, as the line in the result it goes after: the result carries both
+   * sides' controls, and over the lines they would cover what they decide.
+   */
+  private _bars() {
+    if (!this._options.single) return [];
+    const { starts } = this._file.starts("result");
+    return this._file.hunks
+      .filter(({ hunk }) => !MergeFile.isResolved(hunk))
+      .map(({ hunk, segment, index }) => ({
+        index,
+        after: starts[segment] + hunk.lines.result,
+      }));
+  }
+
   private _rebuildZones(
     spacers: ReturnType<MonacoMergeEditor["_spacers"]>,
-    folds: Fold[]
+    folds: Fold[],
+    bars: ReturnType<MonacoMergeEditor["_bars"]>
   ) {
     for (const pane of PANES) {
       const editor = this._editors[pane];
@@ -454,6 +472,18 @@ class MonacoMergeEditor implements MergeEditor {
             zones.addZone({
               afterLineNumber: first === 0 ? 0 : first + fold.count,
               heightInPx: FOLD_PX,
+              domNode: node,
+            })
+          );
+        }
+        // A bar's room, drawn over like a fold's
+        for (const bar of pane === "result" ? bars : []) {
+          const node = document.createElement("div");
+          node.dataset.mergeBar = "";
+          ids.push(
+            zones.addZone({
+              afterLineNumber: bar.after,
+              heightInPx: BAR_PX,
               domNode: node,
             })
           );
@@ -520,7 +550,13 @@ class MonacoMergeEditor implements MergeEditor {
       const top = Object.fromEntries(
         PANES.map((p) => [p, this._editors[p] ? y : null])
       ) as Record<MergePane, number | null>;
-      hunks.push({ index, top });
+      const bar = this._options.single
+        ? topOf(
+            "result",
+            starts.result.starts[segment] + hunk.lines.result + 1
+          ) - BAR_PX
+        : null;
+      hunks.push({ index, top, bar });
 
       const span = (pane: MergePane) => y + hunk.lines[pane] * lineHeight;
       bands.left.push({
