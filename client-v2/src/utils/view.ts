@@ -82,13 +82,11 @@ class _PgView {
   static readonly events = {
     MAIN_PRIMARY_STATIC: "viewmainprimarystatic",
     MAIN_SECONDARY_HEIGHT_SET: "viewmainsecondaryheightset",
-    MAIN_SECONDARY_PAGE_SET: "viewmainsecondarypageset",
     MAIN_SECONDARY_PROGRESS_SET: "viewmainsecondaryprogressset",
     MODAL_SET: "viewmodalset",
     TOAST_SET: "viewtoastset",
     TOAST_CLOSE: "viewtoastclose",
     NEW_ITEM_PORTAL_SET: "viewnewitemportalset",
-    ON_DID_CHANGE_MAIN_SECONDARY_PAGE: "viewondidchangemainsecondarypage",
   };
 
   /** DOM class names */
@@ -111,7 +109,6 @@ class _PgView {
   static ids = {
     ROOT: "root",
     ROOT_DIR: "root-dir",
-    BOTTOM: "bottom",
     TABS: "tabs",
     WALLET_MAIN: "wallet-main",
     HOME: "home",
@@ -153,36 +150,9 @@ class _PgView {
     }, 100);
   }
 
-  /** Get the default height of the main secondary view. */
-  static getMainSecondaryDefaultHeight() {
-    return Math.floor(window.innerHeight / 4);
-  }
-
   /** Get the minimum height of the main secondary view. */
   static getMainSecondaryMinHeight() {
     return PgCommon.convertToPx("2.25rem");
-  }
-
-  /** Get the maximum height of the main secondary view. */
-  static getMainSecondaryMaxHeight() {
-    const bottomHeight = document
-      .getElementById(PgView.ids.BOTTOM)
-      ?.getBoundingClientRect()?.height;
-    return window.innerHeight - (bottomHeight ?? 0);
-  }
-
-  /**
-   * Set the current secondary main view page.
-   *
-   * @param page secondary main view page to set
-   */
-  static setMainSecondaryPage(
-    page: SetState<MainSecondaryPageName> = "Terminal"
-  ) {
-    PgCommon.createAndDispatchCustomEvent(
-      PgView.events.MAIN_SECONDARY_PAGE_SET,
-      page
-    );
   }
 
   /**
@@ -282,21 +252,6 @@ class _PgView {
     return PgCommon.createAndDispatchCustomEvent(
       PgView.events.NEW_ITEM_PORTAL_SET,
       Element
-    );
-  }
-
-  /**
-   * Runs after changing the secondary main view page.
-   *
-   * @param cb callback function to run after changing the secondary main view page
-   * @returns a dispose function to clear the event
-   */
-  static onDidChangeMainSecondaryPage(
-    cb: (page: MainSecondaryPageName) => unknown
-  ) {
-    return PgCommon.onDidChange(
-      PgView.events.ON_DID_CHANGE_MAIN_SECONDARY_PAGE,
-      cb
     );
   }
 

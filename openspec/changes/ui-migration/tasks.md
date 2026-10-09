@@ -39,8 +39,12 @@ utilities and tokens but no design-system components.
 - [x] 3.5 e2e in CI, or the React 19 gate written down as a manual run
       (HOO-1856, PR #48: the `e2e` job; the production-build walk-through
       stays manual until 3.8 writes it as scenarios)
-- [ ] 3.6 First design-system components installed into `shared/ui` through
-      the reinstall script (ticket to file; after 3.2 and 2.2)
+- [x] 3.6 First design-system components installed into `shared/ui` through
+      the reinstall script (HOO-1949; after 3.2 and 2.2, landed as PR #45 and
+      PRs #44/#50, which leave their own ticks to their owners; HOO-1949 also
+      moved the last bare `button`/`spinner`/`tooltip` dependencies into
+      `@playground/`, guarded by `client-v2/scripts/registry.test.mjs`; plan:
+      [plans/3.6-ds-shared.md](plans/3.6-ds-shared.md))
 - [x] 3.7 `yarn spec:coverage` reports every scenario without a test
       titled `<capability>: <scenario name>` or a `(manual)` mark
       (HOO-1856, PR #48)
@@ -55,13 +59,15 @@ utilities and tokens but no design-system components.
 - [ ] 4.2 Tailwind 4 beside styled-components and the `@/` alias; nothing on
       screen moves; the alias resolves in the build, the editor and tests
       (HOO-1861; after 4.1)
-- [ ] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
-      xterm follow the theme (HOO-1802; after 4.2 and 2.1)
+- [x] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
+      xterm follow the theme (HOO-1802; after 4.2 and 2.1;
+      plan: plans/4.3-token-bridge.md)
 
 ## 5. Screens
 
-- [ ] 5.1 New layout shell with today's panels inside; the responsive
-      breakpoint agreed (HOO-1854; after 3.6 and 4.3)
+- [x] 5.1 New layout shell with today's panels inside; the editor read-only
+      below 600 px (decided 2026-10-09); the classic layout removed
+      (HOO-1854; after 3.6 and 4.3; plan: `plans/5.1-layout-shell.md`)
 - [ ] 5.2 Panels move one by one, each by the change rule in
       `client-v2/CLAUDE.md` (one ticket per panel, to file; after 5.1)
 - [ ] 5.3 Breakpoint screens, what the cut line says, by Nov 11 (ticket to
