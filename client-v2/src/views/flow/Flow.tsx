@@ -337,6 +337,9 @@ const PortalAbove = styled.div`
 const StyledModalBackdrop = styled(ModalBackdrop)`
   z-index: 31;
 `;
+// Toasts open at the bottom left, over the left panel, whose stock Sidebar
+// container is z-10: above that, and below the modal backdrop (31) so a modal
+// still covers them.
 const PortalBelow = styled.div`
-  z-index: 2;
+  z-index: 15;
 `;

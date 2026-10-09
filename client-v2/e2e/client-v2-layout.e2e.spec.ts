@@ -274,3 +274,39 @@ test("the wallet window's close button is clickable over the header", async ({
   await wallet.getByRole("button").nth(1).click();
   await expect(wallet).toHaveCount(0);
 });
+
+// Toasts open at the bottom left, over the left panel. The stock Sidebar's
+// container is z-10, so the toast layer must sit above it.
+test("a toast opens above the left panel", async ({ seededPage: page }) => {
+  await page.evaluate(() =>
+    document.dispatchEvent(
+      new CustomEvent("viewtoastset", {
+        detail: {
+          elementable: "div",
+          props: { componentProps: { children: "layout e2e toast" } },
+        },
+      })
+    )
+  );
+  const toast = page.getByText("layout e2e toast");
+  await expect(toast).toBeVisible();
+  // It slides in from the left; measure where it comes to rest
+  await expect
+    .poll(async () => (await toast.boundingBox())?.x ?? -1)
+    .toBeGreaterThanOrEqual(0);
+  const box = (await toast.boundingBox())!;
+  const left = (await page
+    .locator('[data-slot="sidebar-container"]')
+    .boundingBox())!;
+  // The toast really is over the left panel, not beside it
+  expect(box.x).toBeLessThan(left.x + left.width);
+  const onTop = await toast.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2
+    );
+    return hit !== null && el.contains(hit);
+  });
+  expect(onTop).toBe(true);
+});
