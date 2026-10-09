@@ -240,6 +240,26 @@ it("should open the project panel Sheet below 768 px and report it", () => {
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
+it("should render the project panel open in the Sheet, whatever the saved desktop state", () => {
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      v: 1,
+      leftOpen: false,
+      assistantOpen: true,
+      consoleOpen: false,
+    })
+  );
+  resizeTo(500);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  const sheet = document.querySelector(
+    '[data-slot="sidebar"][data-mobile="true"]'
+  )!;
+  expect(sheet.textContent).toContain("Collapse project panel");
+  expect(sheet.textContent).not.toContain("Expand project panel");
+});
+
 it("should save the open state and read it back", () => {
   const first = shell();
   fireEvent.click(consoleButton());

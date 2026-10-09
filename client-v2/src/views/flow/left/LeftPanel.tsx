@@ -173,8 +173,8 @@ export default LeftPanel;
 
 // A floating panel like Center and Right: full 1px border, rounded corners,
 // the raised surface background instead of the black page ground.
-// Width comes from `Columns` in `Flow.tsx` (14.5rem open, 1.5rem collapsed)
-// so the grid and the panel can never disagree about the column size.
+// Width comes from the layout shell's Sidebar (14.5rem open, 3.25rem as a
+// rail), so the panel fills whatever it is given.
 const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 100%;

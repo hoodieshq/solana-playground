@@ -53,8 +53,11 @@ export interface BaseLayoutShellProps {
   vertical?: PanelLayout;
   onHorizontalLayout: (layout: PanelLayout) => void;
   onVerticalLayout: (layout: PanelLayout) => void;
-  /** Given the stock Sidebar's toggle: it opens the Sheet below 768 px */
-  left: (toggle: () => void) => ReactNode;
+  /**
+   * Given the stock Sidebar's toggle (it opens the Sheet below 768 px) and
+   * whether the Sidebar is in that Sheet mode
+   */
+  left: (toggle: () => void, isMobile: boolean) => ReactNode;
   /** Below 768 px: the left panel's Sheet opened or closed */
   onLeftSheetChange: (open: boolean) => void;
   stage: ReactNode;
@@ -67,10 +70,10 @@ export interface BaseLayoutShellProps {
 const LeftSlot = ({
   render,
 }: {
-  render: (toggle: () => void) => ReactNode;
+  render: (toggle: () => void, isMobile: boolean) => ReactNode;
 }) => {
-  const { toggleSidebar } = useSidebar();
-  return <>{render(toggleSidebar)}</>;
+  const { toggleSidebar, isMobile } = useSidebar();
+  return <>{render(toggleSidebar, isMobile)}</>;
 };
 
 /**
