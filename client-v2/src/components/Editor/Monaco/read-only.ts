@@ -1,5 +1,6 @@
 import type * as monaco from "monaco-editor";
 
+import { LAYOUT_BREAKPOINTS } from "../../../shared/lib/hooks/use-viewport";
 import { createLogger } from "../../../shared/lib/logger";
 import { PgEditor } from "../../../utils/editor";
 
@@ -24,7 +25,7 @@ interface MessageController {
 }
 
 /** What a phone user sees on trying to type */
-export const READ_ONLY_MESSAGE = "Editing works on screens 600 px and wider";
+export const READ_ONLY_MESSAGE = `Editing works on screens ${LAYOUT_BREAKPOINTS.phone} px and wider`;
 
 /** The parts of the editor's layout the anchor reads, declared structurally */
 interface EditorLayout {
@@ -46,11 +47,12 @@ const anchorOf = (editor: EditorLayout): monaco.IPosition => {
 
 /**
  * Sets the editor read-only or editable, and on each attempt to type while
- * read-only shows `READ_ONLY_MESSAGE` and announces it as
- * `PgEditor.events.READ_ONLY_EDIT` so the layout shell can count it.
+ * read-only announces it as `PgEditor.events.READ_ONLY_EDIT` (so the layout
+ * shell can count it) and shows `READ_ONLY_MESSAGE`.
  *
  * The message goes through Monaco's message controller because 0.37 has no
- * `readOnlyMessage` option.
+ * `readOnlyMessage` option. The returned disposable removes the listener; it
+ * does not reset `readOnly`, which the next call sets.
  */
 export const applyReadOnly = (
   editor: EditorLayout &
@@ -60,23 +62,39 @@ export const applyReadOnly = (
     > & {
       getContribution(id: string): monaco.editor.IEditorContribution | null;
     },
-  readOnly: boolean
+  { readOnly }: { readOnly: boolean }
 ): monaco.IDisposable => {
   editor.updateOptions({ readOnly });
 
   // Must come before our listener: see BUILT_IN_READ_ONLY_ID
-  editor.getContribution(BUILT_IN_READ_ONLY_ID);
+  if (!editor.getContribution(BUILT_IN_READ_ONLY_ID)) {
+    log.warn(
+      "Monaco's built-in read-only listener is missing; its text may show over ours"
+    );
+  }
+
+  let missingReported = false;
+  const warnOnce = (message: string) => {
+    if (missingReported) return;
+    missingReported = true;
+    log.warn(message);
+  };
 
   return editor.onDidAttemptReadOnlyEdit(() => {
+    // First, so the count never depends on the message showing
+    document.dispatchEvent(new CustomEvent(PgEditor.events.READ_ONLY_EDIT));
+
     const controller = editor.getContribution(
       MESSAGE_CONTROLLER_ID
-    ) as MessageController | null;
-    if (controller) {
-      controller.showMessage(READ_ONLY_MESSAGE, anchorOf(editor));
-    } else {
-      log.debug("Message controller is missing; read-only text not shown");
+    ) as Partial<MessageController> | null;
+    if (typeof controller?.showMessage !== "function") {
+      warnOnce("Message controller is missing; read-only text not shown");
+      return;
     }
-
-    document.dispatchEvent(new CustomEvent(PgEditor.events.READ_ONLY_EDIT));
+    try {
+      controller.showMessage(READ_ONLY_MESSAGE, anchorOf(editor));
+    } catch (error) {
+      log.error(error, { report: true });
+    }
   });
 };

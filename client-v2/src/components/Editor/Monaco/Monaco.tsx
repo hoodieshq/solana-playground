@@ -215,8 +215,8 @@ const Monaco = () => {
   const viewport = useViewport();
   useEffect(() => {
     if (!editor) return;
-    const { dispose } = applyReadOnly(editor, viewport === "phone");
-    return dispose;
+    const d = applyReadOnly(editor, { readOnly: viewport === "phone" });
+    return () => d.dispose();
   }, [editor, viewport]);
 
   // Set font
