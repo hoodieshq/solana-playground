@@ -292,20 +292,28 @@ export const BaseConflictResolver = ({
     );
   };
 
-  const pane = (side: Pane) => (
-    <MergePane side={side} deleted={side !== "result" && file?.deleted[side]}>
-      <MergePaneHeader />
-      <MergePaneBody>
-        <div ref={hosts[side]} className="relative min-w-0 flex-1" />
-        {folds(side)}
-        {side === "result" ? (
-          controls(side)
-        ) : (
-          <MergeHunkGutter>{controls(side)}</MergeHunkGutter>
-        )}
-      </MergePaneBody>
-    </MergePane>
-  );
+  /**
+   * A pane: its editor, and a side's gutter of controls where it shows --
+   * after the editor on the left, before it on the right -- so the tab order
+   * follows what the eye sees
+   */
+  const pane = (side: Pane) => {
+    const gutter = side !== "result" && (
+      <MergeHunkGutter>{controls(side)}</MergeHunkGutter>
+    );
+    return (
+      <MergePane side={side} deleted={side !== "result" && file?.deleted[side]}>
+        <MergePaneHeader />
+        <MergePaneBody>
+          {side === "right" && gutter}
+          <div ref={hosts[side]} className="relative min-w-0 flex-1" />
+          {folds(side)}
+          {side === "result" && controls(side)}
+          {side === "left" && gutter}
+        </MergePaneBody>
+      </MergePane>
+    );
+  };
 
   return (
     <Modal open onOpenChange={(open) => !open && onCancel()}>

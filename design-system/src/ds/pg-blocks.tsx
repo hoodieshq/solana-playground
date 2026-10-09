@@ -336,12 +336,20 @@ function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" 
   )
 }
 
-/* A side's hunk controls in its gutter, each at its row's height */
-function MergeGutter({ rows, side }: { rows: MergeRow[]; side: "left" | "right" }) {
+/* Each side's controls for one hunk */
+const TAKE = { left: TAKE_LEFT, right: TAKE_RIGHT }
+
+/* A row's controls on one side; a fold or a bar row has none */
+const rowActions = (row: MergeRow, side: "left" | "right") => ("fold" in row || "bar" in row ? undefined : row[side]?.actions)
+
+/* A side's hunk controls in its gutter, each at its row's height. A side
+   that deleted the file has no lines, but its one hunk -- the whole file --
+   is still taken or dismissed from the top of its gutter, as in the app */
+function MergeGutter({ rows, side, deleted = false }: { rows: MergeRow[]; side: "left" | "right"; deleted?: boolean }) {
   return (
     <MergeHunkGutter>
       {rows.map((row, i) => {
-        const actions = "fold" in row || "bar" in row ? undefined : row[side]?.actions
+        const actions = deleted ? i === 0 && TAKE[side] : rowActions(row, side)
         if (!actions) return null
         return (
           <div key={i} className="absolute inset-x-0 flex items-center justify-center" style={{ top: rowTop(rows, i), height: LINE }}>
@@ -403,7 +411,7 @@ function MergeSpecimen({
         <MergePane side="right" deleted={deletedRight}>
           <MergePaneHeader />
           <MergePaneBody>
-            {!deletedRight && <MergeGutter rows={rows} side="right" />}
+            <MergeGutter rows={rows} side="right" deleted={deletedRight} />
             {!deletedRight && <MergeLines rows={rows} side="right" start={start} />}
           </MergePaneBody>
         </MergePane>

@@ -172,4 +172,18 @@ describe("BaseConflictResolver", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("puts each side's controls in the tab order where they show", () => {
+    /** The slots of a side's pane body, in DOM order */
+    const order = (side: "left" | "right") =>
+      Array.from(
+        document.querySelector(
+          `[data-slot="merge-pane"][data-side="${side}"] [data-slot="merge-pane-body"]`
+        )!.children
+      ).map((child) => child.getAttribute("data-slot") ?? "editor");
+
+    // Beside the ribbon: after this device's editor, before the other's
+    expect(order("left")).toEqual(["editor", "merge-hunk-gutter"]);
+    expect(order("right")).toEqual(["merge-hunk-gutter", "editor"]);
+  });
 });

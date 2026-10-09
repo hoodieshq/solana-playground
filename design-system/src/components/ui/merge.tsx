@@ -334,7 +334,10 @@ function MergePaneBody({ className, ...props }: React.ComponentProps<"div">) {
    across: the last thing in "This device", the first in "Other device", so
    the two read as mirror images and no control covers code. The app places
    each MergeHunkActions in it at its hunk's height. At phone width, where
-   the result carries every control, it is not drawn */
+   the result carries every control, it is not drawn. Place it in the DOM
+   where it shows -- last in the left pane's body, first in the right's --
+   so the tab order follows what the eye sees; the order classes only
+   guard the look */
 function MergeHunkGutter({ className, ...props }: React.ComponentProps<"div">) {
   const { side } = React.useContext(PaneContext)
   return (
