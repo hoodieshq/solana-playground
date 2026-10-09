@@ -489,6 +489,20 @@ class MonacoMergeEditor implements MergeEditor {
     const lineHeight =
       this._editors.result?.getOption(monaco.editor.EditorOption.lineHeight) ??
       19;
+
+    /**
+     * A bar's top: the top of the room its zone keeps after 1-based line
+     * `after`, which is the bottom of that line -- or the top of the text,
+     * after line 0. Read from the line the zone follows, not the one after
+     * it: a hunk that ends the file has no line after it, and the end of
+     * the text is below the room, not above it.
+     */
+    const barTop = (after: number) => {
+      const editor = this._editors.result!;
+      const scroll = editor.getScrollTop();
+      if (after === 0) return -scroll;
+      return editor.getTopForLineNumber(after) + lineHeight - scroll;
+    };
     const hunks: HunkPlace[] = [];
     const bands: MergeLayout["bands"] = { left: [], right: [] };
 
@@ -503,10 +517,7 @@ class MonacoMergeEditor implements MergeEditor {
         PANES.map((p) => [p, this._editors[p] ? y : null])
       ) as Record<MergePane, number | null>;
       const bar = this._options.single
-        ? topOf(
-            "result",
-            starts.result.starts[segment] + hunk.lines.result + 1
-          ) - BAR_PX
+        ? barTop(starts.result.starts[segment] + hunk.lines.result)
         : null;
       hunks.push({ index, top, bar });
 

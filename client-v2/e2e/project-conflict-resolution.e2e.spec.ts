@@ -596,3 +596,77 @@ test("project-conflict-resolution: Keeping this version from the view", async ({
   expect(account.files["src/other.rs"]).toBe(other);
   await expect(page.locator("#root-dir")).toContainText("other.rs");
 });
+
+/**
+ * How far below the bottom of the last line drawn in the result the first
+ * hunk bar starts, in px: never negative, or the bar covers the lines it
+ * decides.
+ */
+const barGap = async (pane: Locator) => {
+  const bar = await pane
+    .locator('[data-slot="merge-hunk-bar"]')
+    .first()
+    .boundingBox();
+  const bottom = await pane
+    .locator(".view-lines .view-line")
+    .evaluateAll((lines) =>
+      Math.max(...lines.map((line) => line.getBoundingClientRect().bottom))
+    );
+  return bar ? bar.y - bottom : null;
+};
+
+/** The phone's width, as the spec's manual scenario has it */
+const PHONE = { width: 390, height: 844 };
+
+test("a phone's hunk bar sits under a whole-file conflict, not over its lines", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const account = await agreedProject(page, "PhoneWhole");
+  account.save({ "src/old.rs": "// an old file\n" });
+  await refocus(page);
+  await expect(page.locator("#root-dir")).toContainText("old.rs", LONG);
+  await settled(page, account.writes);
+  account.save({ "src/old.rs": null });
+  await openFile(page, "src/old.rs");
+  await typeLine(page, 1, "// edited here");
+  await expect(banner(page)).toContainText("src/old.rs", LONG);
+
+  await page.setViewportSize(PHONE);
+  const { pane } = await openResolver(page);
+
+  await expect(
+    pane.result.getByRole("button", { name: "Take this device's lines" })
+  ).toBeVisible();
+  // The whole file is the hunk: its bar goes after the file's last line
+  await expect.poll(() => barGap(pane.result)).toBeGreaterThanOrEqual(-0.5);
+  await expect.poll(() => barGap(pane.result)).toBeLessThan(2);
+});
+
+test("a phone's hunk bar sits under a conflict at the end of a file, not over it", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const account = await agreedProject(page, "PhoneEnd");
+  const three = ["fn a() {}", "fn b() {}", "fn c() {}"];
+  account.save({ "src/end.rs": three.join("\n") });
+  await refocus(page);
+  await expect(page.locator("#root-dir")).toContainText("end.rs", LONG);
+  await settled(page, account.writes);
+  // Both change the last line, which ends the file
+  account.save({
+    "src/end.rs": three
+      .map((l, i) => (i === 2 ? "fn c_there() {}" : l))
+      .join("\n"),
+  });
+  await openFile(page, "src/end.rs");
+  await typeLine(page, 3, "fn c_here() {}");
+  await expect(banner(page)).toContainText("src/end.rs", LONG);
+
+  await page.setViewportSize(PHONE);
+  const { pane } = await openResolver(page);
+
+  await expect.poll(() => linesIn(pane.result)).toContain("fn c() {}");
+  await expect.poll(() => barGap(pane.result)).toBeGreaterThanOrEqual(-0.5);
+  await expect.poll(() => barGap(pane.result)).toBeLessThan(2);
+});
