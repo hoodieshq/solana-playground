@@ -113,18 +113,20 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       document.removeEventListener(PgEditor.events.READ_ONLY_EDIT, onBlocked);
   }, []);
 
-  const onLeftOpenChange = (open: boolean) => {
+  const onLeftOpenChange = (open: boolean) =>
     setOpen("left", open, leftVia.current ?? "key");
-    leftVia.current = null;
-  };
-  // The stock toggle: on a desktop it calls `onLeftOpenChange`, below 768 px
-  // it flips the Sheet, which `onLeftSheetChange` reports
+  // The stock toggle: on a desktop it calls `onLeftOpenChange` before it
+  // returns, so the mark is cleared right after and cannot outlive the click.
+  // Below 768 px it flips the Sheet, which `onLeftSheetChange` reports.
   const toggleLeft = (stockToggle: () => void) => () => {
     leftVia.current = "button";
-    stockToggle();
+    try {
+      stockToggle();
+    } finally {
+      leftVia.current = null;
+    }
   };
   const onLeftSheetChange = (open: boolean) => {
-    leftVia.current = null;
     layoutTelemetry.track("layout_panel_toggled", {
       panel: "left",
       open,
