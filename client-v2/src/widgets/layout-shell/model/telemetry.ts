@@ -9,7 +9,11 @@ export type LayoutPanel = "left" | "assistant" | "console";
 export type ToggleSource = "button" | "key" | "auto";
 
 type LayoutEvents = {
-  /** A panel opened or closed; `via` says whether a button, a key or the product did it. */
+  /**
+   * A panel opened or closed; `via` says whether a button, a key or the
+   * product did it. Folding or unfolding a panel by dragging counts as
+   * `via: "button"`: it is a pointer action, and `ToggleSource` has no "drag".
+   */
   layout_panel_toggled: {
     panel: LayoutPanel;
     open: boolean;
@@ -17,7 +21,7 @@ type LayoutEvents = {
   };
   /** The window's width class, once per page load. */
   layout_viewport: { width: Viewport };
-  /** The user tried to type in the read-only editor; the first time in a session. */
+  /** The user tried to type in the read-only editor; the first time in a page load. */
   layout_readonly_edit_blocked: NoParams;
   /** The saved layout could not be read and the defaults were used; `reason` says why. */
   layout_restore_failed: { reason: RestoreFailure };
