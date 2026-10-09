@@ -70,7 +70,7 @@ const LeftSlot = ({
   render: (toggle: () => void) => ReactNode;
 }) => {
   const { toggleSidebar } = useSidebar();
-  return render(toggleSidebar);
+  return <>{render(toggleSidebar)}</>;
 };
 
 /**
