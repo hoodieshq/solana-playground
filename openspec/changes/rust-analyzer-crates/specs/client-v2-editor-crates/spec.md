@@ -3,8 +3,7 @@
 ## Purpose
 
 The crate files the editor's Rust Analyzer loads from `/crates/`: which files
-every deployment serves, how they are produced from pinned inputs, and how a
-missing file answers.
+every deployment serves, and how they are produced from pinned inputs.
 
 ## ADDED Requirements
 
@@ -32,6 +31,13 @@ Every deployment SHALL serve the default crates `/crates/core.rs`,
 - **WHEN** a user writes `std::array::from_fn` in `src/lib.rs`
 - **THEN** Rust Analyzer resolves the function, which Rust stabilized in 1.63
 
+#### Scenario: A standalone Docker container (manual)
+
+- **WHEN** the `client-v2-standalone` compose profile runs the client without
+  the server
+- **THEN** `/crates/std.rs` and `/crates/anchor_lang.toml` serve Rust source
+  and TOML, and the container has no `rustc`, `cargo`, or `rustup`
+
 ### Requirement: Every deployment serves every supported crate
 
 Every deployment SHALL serve `/crates/<name>.rs` and `/crates/<name>.toml` for
@@ -45,6 +51,26 @@ with each crate name in snake case. The one exception is
   `use anchor_lang::prelude::*;` in the editor
 - **THEN** `Context`, `Account`, and `Signer` resolve, and hovering one shows
   its definition
+
+#### Scenario: A Solana type from the prelude (manual)
+
+- **WHEN** a user types `Pubkey::find_` in an Anchor project and asks for
+  completion
+- **THEN** the list offers `find_program_address` with its signature and its
+  documentation from `solana_program`
+
+#### Scenario: Opening an Anchor project starts Rust Analyzer (manual)
+
+- **WHEN** a user creates an Anchor project and the editor loads its crates
+- **THEN** the console shows no Rust Analyzer panic, such as
+  `Parse(Error { … Unexpected('<') … })` from `world_state.rs`, which a crate
+  file served as `index.html` causes
+
+#### Scenario: A Vercel build (manual)
+
+- **WHEN** a Vercel build runs
+- **THEN** its log shows `generate-crates.mjs` generating every supported
+  crate, and no "not found"
 
 ### Requirement: Generation fails when a supported crate cannot be generated
 
@@ -68,6 +94,12 @@ scripts. Two runs on the same inputs SHALL produce identical bytes.
 - **WHEN** the generation runs twice on the same inputs, on one machine or two
 - **THEN** every file under `public/crates` has the same SHA-256 in both runs
 
+#### Scenario: Three environments (manual)
+
+- **WHEN** the crates are generated on macOS, on Vercel's builder, and in the
+  `client-v2` Docker image
+- **THEN** each served crate file has the same SHA-256 in all three
+
 ### Requirement: A build reuses the default crates of an unchanged input set
 
 A Vercel build SHALL restore the default crates from a cache keyed on their
@@ -80,21 +112,18 @@ from the cache. The supported crates are generated in every build.
 - **THEN** the build log reports the default crates restored from the cache,
   and the build installs no Rust toolchain for them
 
+#### Scenario: The build step after a restore (manual)
+
+- **WHEN** `yarn generate` runs in a build whose install restored the default
+  crates
+- **THEN** it logs that the default crates are current and skips their
+  generation
+
 #### Scenario: A build after an input changes (manual)
 
 - **WHEN** `wasm/rust-analyzer/rust-toolchain.toml` changes
 - **THEN** the next build generates the default crates and stores them under
   the key of the changed inputs
-
-### Requirement: A missing crate file answers 404
-
-A request for a path under `/crates/` with no file behind it SHALL answer HTTP
-404, never the app's `index.html`.
-
-#### Scenario: A crate that is not supported (manual)
-
-- **WHEN** `/crates/no_such_crate.rs` is requested from a deployment
-- **THEN** the response is HTTP 404
 
 ### Requirement: Local setup installs the wasm packages it builds
 

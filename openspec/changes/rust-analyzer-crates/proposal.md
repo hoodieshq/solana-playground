@@ -59,7 +59,6 @@ the default crates removed, it completes nothing.
   every input, and generates it only when the key is absent. The crate files
   ship as static assets of our own deployment. No file is uploaded by hand and
   no generated file is committed.
-- A request for a path under `/crates/` with no file behind it answers 404.
 - `yarn setup` copies the wasm packages it builds into `node_modules`. Yarn 1
   kept a stub Rust Analyzer after `setup` rebuilt the real one, because the
   lockfile had not changed.
@@ -71,8 +70,8 @@ the default crates removed, it completes nothing.
 ### New Capabilities
 
 - `client-v2-editor-crates`: the crate files the editor's Rust Analyzer loads
-  from `/crates/`: which files every deployment serves, how they are produced
-  from pinned inputs, and how a missing file answers.
+  from `/crates/`: which files every deployment serves, and how they are
+  produced from pinned inputs.
 
 ### Modified Capabilities
 
@@ -85,10 +84,8 @@ None.
   gains the registry fetch, the failure on a missing crate, and a key that
   skips the work when the inputs are unchanged.
 - [`client-v2/scripts/vercel-install.sh`](../../../client-v2/scripts/vercel-install.sh):
-  restores and uploads `public/crates` through Vercel Remote Cache, as it does
-  for the wasm packages.
-- [`client-v2/vercel.json`](../../../client-v2/vercel.json): 404 for a missing
-  file under `/crates/`.
+  restores and uploads the default crates through Vercel Remote Cache, as it
+  does for the wasm packages.
 - [`client-v2/package.json`](../../../client-v2/package.json): the `setup`
   script.
 - [`client-v2/README.md`](../../../client-v2/README.md): how the crate files are
@@ -106,6 +103,11 @@ None.
   - `mpl-token-metadata`, which `generate-crates` skips on purpose.
   - Moving the build server to another Solana release.
   - An editor message when the crate files fail to load.
+  - A 404 for a missing file under `/crates/`. Vercel answers a missing path
+    with `index.html` through a route outside `vercel.json`, and a 404 there
+    needs the legacy `routes` array. Every crate the editor requests is
+    generated, and `generate-crates.mjs` fails the build when a supported crate
+    is missing, so no request reaches that fallback.
   - Moving the wasm, default crates, and supported crates caches to
     Turborepo's Remote Cache, which would replace the cache code in
     `vercel-install.sh`. Deferred until `client-v2` moves to Next.

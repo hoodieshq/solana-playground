@@ -205,12 +205,16 @@ build with the Rust in Vercel's image. At `7c23f8a1`, measured on 16 cores:
   reproduce it, but 12 MB of generated text goes into a repository, and every
   input change needs a commit by hand.
 
-### 404 for a missing crate file
+### No 404 for a missing crate file
 
-A rewrite in `vercel.json`, placed before the SPA rewrite, sends `/crates/(.*)`
-to itself, so a missing file falls through to Vercel's 404. Vercel does not
-document whether a project with `framework: null` then answers 404 or still
-`index.html`. Task 2.2 checks it on a preview before this approach is kept.
+Vercel answers a missing file under `/crates/` with `index.html` and HTTP 200.
+`@vercel/routing-utils` shows that the SPA rewrite in `vercel.json` does not
+match such a path, so the fallback comes from a route outside `vercel.json`;
+the response carries no `x-matched-path`. Rewrites cannot set a status, and a
+404 would need the legacy `routes` array in place of every rewrite and header.
+The change makes every requested crate exist instead: both generators run in
+every pipeline, and `generate-crates.mjs` fails the build on a missing
+supported crate.
 
 ### `setup` installs with `--check-files`
 
@@ -243,5 +247,8 @@ yarn build-wasm && yarn install --check-files && yarn generate
 
 ## Open Questions
 
-- How long a build that misses the cache takes on Vercel's 4-core machine.
-  Task 4.1 measures it.
+None left. How long a build that misses the cache takes on Vercel's 4-core
+machine was measured on preview `dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at
+`7c23f8a1`: 4 min 19 s in all, of which generating the default crates took
+about 2 min. Builds that hit the cache took 2 min 10 s to 2 min 44 s, the
+supported crates' generation about 20 to 26 s of that.
