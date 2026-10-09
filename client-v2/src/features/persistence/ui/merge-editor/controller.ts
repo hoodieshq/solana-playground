@@ -68,8 +68,6 @@ export interface FoldPlace {
 export interface MergeLayout {
   /** Nodes laid over each editor, for the hunk controls */
   overlays: Record<MergePane, HTMLElement | null>;
-  /** Where each editor's gutter ends and its line decorations begin, in px */
-  gutters: Record<MergePane, number>;
   hunks: HunkPlace[];
   bands: { left: MergeBand[]; right: MergeBand[] };
   folds: FoldPlace[];
@@ -164,8 +162,7 @@ class MonacoMergeEditor implements MergeEditor {
         folding: false,
         glyphMargin: false,
         lineNumbersMinChars: 3,
-        // Room in the right pane's gutter for its side's controls
-        lineDecorationsWidth: pane === "right" ? 44 : 10,
+        lineDecorationsWidth: 10,
         overviewRulerLanes: 0,
         hideCursorInOverviewRuler: true,
         renderLineHighlight: pane === "result" ? "line" : "none",
@@ -577,15 +574,8 @@ class MonacoMergeEditor implements MergeEditor {
       ) as Record<MergePane, number | null>,
     }));
 
-    const gutter = (pane: MergePane) =>
-      this._editors[pane]?.getLayoutInfo().decorationsLeft ?? 0;
     return {
       overlays: { ...this._overlays },
-      gutters: {
-        left: gutter("left"),
-        result: gutter("result"),
-        right: gutter("right"),
-      },
       hunks,
       bands,
       folds,

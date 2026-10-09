@@ -10,7 +10,6 @@ vi.mock("./merge-editor/controller", () => ({
     return {
       layout: {
         overlays,
-        gutters: { left: 0, result: 0, right: 0 },
         hunks: file.hunks.map(({ index }) => ({
           index,
           top: { left: 0, result: 0, right: 0 },

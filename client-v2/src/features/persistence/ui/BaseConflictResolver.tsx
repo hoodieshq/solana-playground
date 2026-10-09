@@ -20,6 +20,7 @@ import {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  MergeHunkGutter,
   mergeHunkOrder,
   MergeNav,
   MergePane,
@@ -192,31 +193,33 @@ export const BaseConflictResolver = ({
     editor.reveal(target.index);
   };
 
-  /** A pane's hunk controls, over its editor or, with none, at its top */
+  /**
+   * A pane's hunk controls. A side's sit in its gutter beside the ribbon, at
+   * each hunk's height (at the top where the side has no editor); the
+   * result's, at phone width, over its editor at the line's end, clear of
+   * the scrollbar.
+   */
   const controls = (pane: Pane): ReactNode => {
     if (!file) return null;
     const sides = sidesIn(pane, single);
     if (!sides.length) return null;
-    const overlay = layout?.overlays[pane] ?? null;
+    const inGutter = pane !== "result";
+    const overlay = inGutter ? null : layout?.overlays[pane] ?? null;
     const items = file.hunks.map(({ hunk, index: i }) => {
       const open = sides.filter((s) => !hunk.edited && hunk[s] === "pending");
       if (!open.length) return null;
-      const top = layout?.hunks[i]?.top[pane] ?? 0;
+      const top = layout?.hunks[i]?.top[pane];
       const style: CSSProperties = {
         position: "absolute",
-        top: overlay ? top : 4,
+        top: top ?? 4,
         pointerEvents: "auto",
-        // The other device's in its gutter, as the element draws them;
-        // everything else at the line's end, clear of the scrollbar
-        ...(pane === "right" && !single
-          ? { left: layout?.gutters.right ?? 0 }
-          : { right: 16 }),
+        ...(inGutter ? { left: 0, right: 0, margin: "0 auto" } : { right: 16 }),
       };
       return (
         <MergeHunkActions
           key={i}
           data-hunk={i}
-          className="rounded bg-surface-panel"
+          className={inGutter ? "w-fit" : "rounded bg-surface-panel"}
           style={style}
         >
           {open.map((side) => (
@@ -260,9 +263,13 @@ export const BaseConflictResolver = ({
     <MergePane side={side} deleted={side !== "result" && file?.deleted[side]}>
       <MergePaneHeader />
       <MergePaneBody>
-        <div ref={hosts[side]} className="absolute inset-0" />
+        <div ref={hosts[side]} className="relative min-w-0 flex-1" />
         {folds(side)}
-        {controls(side)}
+        {side === "result" ? (
+          controls(side)
+        ) : (
+          <MergeHunkGutter>{controls(side)}</MergeHunkGutter>
+        )}
       </MergePaneBody>
     </MergePane>
   );
