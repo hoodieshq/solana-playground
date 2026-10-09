@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { ThemeProvider } from "styled-components";
+import type { DefaultTheme } from "styled-components";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -91,29 +93,36 @@ const consoleButton = () => screen.getByRole("button", { name: "Console" });
 // stock Sidebar listens on `window`, which an event on `document` reaches.
 const press = (init: KeyboardEventInit) => fireEvent.keyDown(document, init);
 
+// Only what the shell reads: the font a portaled Sheet is set in
+const theme = {
+  font: { code: { family: "monospace", size: { medium: "13px" } } },
+} as unknown as DefaultTheme;
+
 const shell = () =>
   render(
-    <LayoutShell
-      left={(collapsed, toggle) => (
-        <button type="button" onClick={toggle}>
-          {collapsed ? "Expand project panel" : "Collapse project panel"}
-        </button>
-      )}
-      stage={<main>stage</main>}
-      console={(open, toggle) => (
-        <button
-          type="button"
-          aria-label="Console"
-          aria-expanded={open}
-          onClick={toggle}
-        />
-      )}
-      assistant={(open, toggle) => (
-        <button type="button" onClick={toggle}>
-          {open ? "Collapse assistant" : "Expand assistant"}
-        </button>
-      )}
-    />
+    <ThemeProvider theme={theme}>
+      <LayoutShell
+        left={(collapsed, toggle) => (
+          <button type="button" onClick={toggle}>
+            {collapsed ? "Expand project panel" : "Collapse project panel"}
+          </button>
+        )}
+        stage={<main>stage</main>}
+        console={(open, toggle) => (
+          <button
+            type="button"
+            aria-label="Console"
+            aria-expanded={open}
+            onClick={toggle}
+          />
+        )}
+        assistant={(open, toggle) => (
+          <button type="button" onClick={toggle}>
+            {open ? "Collapse assistant" : "Expand assistant"}
+          </button>
+        )}
+      />
+    </ThemeProvider>
   );
 
 it("should report the width class once per load", () => {
@@ -186,16 +195,18 @@ it("should send each toggle once under StrictMode", async () => {
   const { StrictMode } = await import("react");
   render(
     <StrictMode>
-      <LayoutShell
-        left={() => null}
-        stage={<main>stage</main>}
-        console={(open, toggle) => (
-          <button type="button" aria-label="Console" onClick={toggle}>
-            {String(open)}
-          </button>
-        )}
-        assistant={() => null}
-      />
+      <ThemeProvider theme={theme}>
+        <LayoutShell
+          left={() => null}
+          stage={<main>stage</main>}
+          console={(open, toggle) => (
+            <button type="button" aria-label="Console" onClick={toggle}>
+              {String(open)}
+            </button>
+          )}
+          assistant={() => null}
+        />
+      </ThemeProvider>
     </StrictMode>
   );
   fireEvent.click(consoleButton());
@@ -226,6 +237,29 @@ it("should report the assistant Sheet opening and closing, and save nothing", ()
     { panel: "assistant", open: false, via: "button" },
   ]);
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+});
+
+it("should set the assistant Sheet in the theme's font and draw no stock close button over its header", () => {
+  resizeTo(800);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand assistant" }));
+  const sheet = document.querySelector<HTMLElement>(
+    '[data-slot="sheet-content"]'
+  )!;
+  expect(sheet.style.fontFamily).toBe("monospace");
+  expect(sheet.querySelector('[data-slot="sheet-close"]')).toBeNull();
+});
+
+it("should set the project panel Sheet in the theme's font", () => {
+  resizeTo(500);
+  shell();
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  const sheet = document.querySelector<HTMLElement>(
+    '[data-slot="sidebar"][data-mobile="true"]'
+  )!;
+  expect(
+    sheet.querySelector<HTMLElement>('[style*="font-family"]')?.style.fontFamily
+  ).toBe("monospace");
 });
 
 it("should open the project panel Sheet below 768 px and report it", () => {

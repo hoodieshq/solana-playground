@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useTheme } from "styled-components";
 
 import { useKeybind } from "@/hooks";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
@@ -27,6 +28,7 @@ export interface LayoutShellProps {
  */
 const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const viewport = useViewport();
+  const theme = useTheme();
   const { state, setOpen, setHorizontal, setVertical } = useLayoutState();
   // Below 1024 px the assistant is a Sheet, closed on arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -148,6 +150,10 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
         left(isMobile ? false : !state.leftOpen, toggleLeft(stockToggle))
       }
       onLeftSheetChange={onLeftSheetChange}
+      sheetFont={{
+        fontFamily: theme.font.code.family,
+        fontSize: theme.font.code.size.medium,
+      }}
       stage={stage}
       console={console(state.consoleOpen, () =>
         setOpen("console", !state.consoleOpen, "button")
