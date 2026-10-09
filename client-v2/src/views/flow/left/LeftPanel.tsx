@@ -24,9 +24,9 @@ interface LeftPanelProps {
    * Whether the rail's "+" is waiting for the tree to appear.
    *
    * Owned by `Flow` rather than held here, because this component does not
-   * survive the toggle: the open and collapsed panels sit in different
-   * branches of `Flow`'s tree -- one inside `Resizable`, one not -- so React
-   * unmounts one and mounts the other. A flag kept here went with it, and the
+   * always survive the toggle: below 768 px the shell renders it inside a
+   * Sheet that unmounts it on close, and crossing that width swaps the
+   * desktop rail for the Sheet. A flag kept here went with it, and the
    * rail's "+" expanded the panel and then did nothing at all.
    */
   pendingCreate?: boolean;

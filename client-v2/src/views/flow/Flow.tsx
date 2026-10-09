@@ -37,16 +37,16 @@ import type { Disposable } from "@/utils/types";
 /**
  * The Flow layout: header, left project/file tabs, the stage router in the
  * center with a collapsible console beneath it, and the assistant on the
- * right, all placed by `LayoutShell`. Replaces the classic `Panels` layout unless `?classic` is present.
+ * right, all placed by `LayoutShell`.
  */
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Lives here, not in `LeftPanel`: the open and collapsed panels are separate
-  // branches of its tree, so toggling unmounts one and mounts the other and
-  // anything `LeftPanel` held goes with it.
+  // Lives here, not in `LeftPanel`: below 768 px the shell puts it in a Sheet
+  // that unmounts it on close, and crossing that width swaps the rail for the
+  // Sheet, so anything `LeftPanel` held goes with it.
   const [pendingCreate, setPendingCreate] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
@@ -262,7 +262,6 @@ const Center = styled.div`
     flex: 1;
     min-width: 0;
     min-height: 0;
-    height: 100%;
     background: ${theme.colors.default.bgSecondary};
     border: 1px solid ${theme.colors.default.border};
     border-bottom: none;

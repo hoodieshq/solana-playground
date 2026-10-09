@@ -45,3 +45,13 @@ it("should show what it is told and ask to toggle", () => {
   fireEvent.click(handle);
   expect(onToggle).toHaveBeenCalledTimes(1);
 });
+
+it("should report itself expanded when open", () => {
+  render(
+    <ThemeProvider theme={theme}>
+      <ConsoleDrawer open={true} onToggle={vi.fn()} />
+    </ThemeProvider>
+  );
+  const handle = screen.getByRole("button", { name: "Console" });
+  expect(handle.getAttribute("aria-expanded")).toBe("true");
+});
