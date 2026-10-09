@@ -88,6 +88,7 @@ const Wrapper = styled.div`
 const Handle = styled.button`
   ${({ theme }) => css`
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 0.5rem;
     height: ${BOTTOM_BAR_HEIGHT};
