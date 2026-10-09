@@ -158,7 +158,7 @@ parts with `data-slot` names:
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `Merge`                                                                | root column, fits `ModalContent size="wide"`                                                                                      |
 | `MergeToolbar`, `MergeNav`, `MergeTitle`, `MergeCount`, `MergeShowAll` | previous/next conflict and file, path and "file n of m", "n conflicts left", the fold toggle                                      |
-| `MergePanes`                                                           | pane, ribbon, pane, ribbon, pane; below `md` one pane, picked by `MergePaneTabs`                                                  |
+| `MergePanes`                                                           | pane, ribbon, pane, ribbon, pane; one pane, picked by `MergePaneTabs`, while the merge box is narrower than 48rem (a container query) |
 | `MergePane side`, `MergePaneHeader`, `MergePaneBody`                   | label, lock on read-only sides, an empty slot for the app's editor                                                                |
 | `MergeRibbon`                                                          | SVG bands from pixel offsets `{fromTop, fromBottom, toTop, toBottom, state}[]`                                                    |
 | `MergeHunkActions`, `MergeHunkAction`, `mergeHunkOrder`                | `×` `»` and `«` `×` icon buttons, mirrored about the result, with their accessible names                                          |
