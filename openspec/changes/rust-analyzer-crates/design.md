@@ -71,7 +71,7 @@ fresh download with this table.
 **Non-Goals:**
 
 - Generating crates in the browser, or on the build server per request.
-- Matching upstream's hand-made default crates byte for byte.
+- Matching upstream's default crates byte for byte.
 
 ## Decisions
 
@@ -102,9 +102,9 @@ the chain of sources for that version.
 
 This departs from upstream on purpose, as of the files in section "Upstream
 reference". `beta.solpg.io` serves two versions:
-its Rust Analyzer is built with the same 1.68.0-nightly, and its hand-made
-default crates come from about Rust 1.60, the newest stabilization they
-contain. There, an API stabilized in 1.61 to 1.68, such as
+its Rust Analyzer is built with the same 1.68.0-nightly, and its default
+crates, whose making no repository records, come from about Rust 1.60, the
+newest stabilization they contain. There, an API stabilized in 1.61 to 1.68, such as
 `std::array::from_fn`, shows as unknown in the editor although it compiles.
 Here the generator produces the default crates, so both come from the
 analyzer's toolchain. A comment at the generator's toolchain lookup records

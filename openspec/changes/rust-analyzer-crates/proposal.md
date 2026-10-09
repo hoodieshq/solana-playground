@@ -14,10 +14,14 @@ Rust Analyzer parses that HTML as the standard library, and `Vec::`,
 Two gaps cause it:
 
 - **The default crates have no recipe.** `rust-analyzer.ts` calls `core`,
-  `alloc`, and `std` the default crates (`loadDefaultCrates`). Upstream
-  generated them by hand and uploaded them to the storage behind
-  `beta.solpg.io`. No script, CI step, or tracked file in either repository
-  produces them.
+  `alloc`, and `std` the default crates (`loadDefaultCrates`). No script, CI
+  step, deploy step, or tracked file in the history of `master` or
+  `master-2.0` produces them; `generate-crates` only keeps copies that already
+  exist (`withReset`). `beta.solpg.io` serves copies from Amazon S3 (design.md,
+  section "Upstream reference"). How upstream made those copies is not
+  recorded; their format is `syn-file-expand-cli` output, and their newest
+  stabilization is Rust 1.60. The generator this change adds is the first
+  recipe for them.
 - **The supported crates are never found on Vercel.** `generate-crates` copies
   each supported crate out of the local cargo registry. On Vercel that
   registry never holds the crates of `server/programs`, so every supported
