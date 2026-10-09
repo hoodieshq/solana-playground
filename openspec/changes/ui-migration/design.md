@@ -138,13 +138,13 @@ not the OS. `PgTheme.set` toggles `dark` on `<html>` next to `colorScheme`.
 - **The theme object holds references.** Every colour in the
   styled-components theme is `var(--token)`, so one object serves both themes
   and the class switches every value. Alpha is `PgTheme.alpha(color, level)`,
-  a `color-mix(in srgb, …)` at 9, 39 or 73 per cent (the weights of the old
+  a `color-mix(in srgb, ...)` at 9, 39 or 73 per cent (the weights of the old
   `16`, `64`, `bb` suffixes). _Rejected:_ values resolved at switch time (a
   second copy of the palette in JS, and hex concatenation breaks on any token
   not written `#rrggbb`); a hybrid of both (two kinds of value in one object).
 - **Monaco, xterm and shiki get plain values.** They cannot read a CSS
   variable. `shared/lib/css-color` resolves one through `getComputedStyle` on
-  a probe element and turns the `rgb()` or `color(srgb …)` it reports into
+  a probe element and turns the `rgb()` or `color(srgb ...)` it reports into
   hex; a value that does not resolve becomes transparent, with one warning.
   Monaco redefines its theme and xterm recolours in place on every change, so
   terminal output survives.
@@ -156,9 +156,11 @@ not the OS. `PgTheme.set` toggles `dark` on `<html>` next to `colorScheme`.
   The notice waits in memory for a start-up effect mounted after `Toast`,
   because a toast sent before `Toast` mounts is lost.
 - **Literals are guarded.** `scripts/check-colors.mjs` runs in
-  `yarn run check` and in CI, and fails on any colour literal outside the
-  installed token files, `shared/lib/css-color` and the third-party logo
-  colours in `languages/`. Sidebar icons colour through a CSS mask over the
+  `yarn run check` and in CI, and fails on any hex colour or colour function
+  (`rgb()`, `hsl()`, `color(srgb ...)` and the like) outside the installed
+  token files, `shared/lib/css-color` and the third-party logo colours in
+  `languages/`. Named colours (`white`, `red`) are not caught: the words are
+  too common in code to tell from a colour without parsing CSS. Sidebar icons colour through a CSS mask over the
   text colour, which reaches the rail's raster icons too.
 
 ## Tailwind inside Create React App
