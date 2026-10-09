@@ -106,3 +106,6 @@ None.
   - `mpl-token-metadata`, which `generate-crates` skips on purpose.
   - Moving the build server to another Solana release.
   - An editor message when the crate files fail to load.
+  - Moving the wasm, default crates, and supported crates caches to
+    Turborepo's Remote Cache, which would replace the cache code in
+    `vercel-install.sh`. Deferred until `client-v2` moves to Next.

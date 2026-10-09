@@ -42,7 +42,7 @@ Group 4 needs all three.
 
 ## 2. Serving on Vercel
 
-- [ ] 2.1 Generate the supported crates in every Vercel build, with no cache:
+- [x] 2.1 Generate the supported crates in every Vercel build, with no cache:
       `yarn generate` runs `generate-crates.mjs` with the Rust in Vercel's
       image (design.md, section "Remote Cache in `vercel-install.sh`").
       Verify: the preview build log shows `cargo fetch` and every supported
