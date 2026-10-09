@@ -69,8 +69,8 @@ const Chat = () => {
   // `send`, which only exists once a backend is connected below
   const sendRef = useRef<(text: string) => void>(() => {});
   // A prompt that arrived with no backend waits in the composer. Saying so is
-  // the picker's job, not the conversation's: a notice item outlived the
-  // connect and was stored with the thread
+  // the picker's job: a notice item would outlive the connect and be stored
+  // with the thread
   const [promptWaiting, setPromptWaiting] = useState(false);
 
   // "Fix with assistant" and similar callers outside the panel ask for a

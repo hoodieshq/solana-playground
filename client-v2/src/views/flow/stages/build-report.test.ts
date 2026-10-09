@@ -31,6 +31,11 @@ describe("parseBuildReport", () => {
     expect(parseBuildReport(stderr).diagnostics[0].file).toBe("src/lib.rs");
   });
 
+  it("drops a leading ./ the same way", () => {
+    const stderr = STDERR.replace("--> src/lib.rs", "--> ./src/lib.rs");
+    expect(parseBuildReport(stderr).diagnostics[0].file).toBe("src/lib.rs");
+  });
+
   it("returns no diagnostics for a clean build", () => {
     expect(parseBuildReport("Compiling hello\nFinished").diagnostics).toEqual(
       []

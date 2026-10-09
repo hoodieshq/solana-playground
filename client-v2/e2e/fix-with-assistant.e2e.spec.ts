@@ -4,9 +4,9 @@ import { expect, test } from "@playwright/test";
  * "Fix with assistant" pressed before any backend is connected.
  *
  * The prompt waits in the composer and the panel says so -- but only until a
- * backend is connected. The hint used to be a notice in the conversation,
- * which stayed there after the prompt was sent and was stored with the
- * thread, telling the user to connect a backend that was already connected.
+ * backend is connected. The hint lives beside the picker, not in the
+ * conversation: a conversation notice outlives the connect and is stored with
+ * the thread, asking for a backend that is already there.
  */
 
 const LONG = { timeout: 60_000 };
@@ -16,6 +16,7 @@ const HINT = /Connect a backend to send this to the assistant/;
 type AssistantWindow = Window & {
   __pgAssistant?: {
     requestPrompt: (text: string) => void;
+    disconnect: () => void;
     items: { kind: string }[];
   };
 };
@@ -24,16 +25,6 @@ test("a prompt asked for before connecting leaves no notice behind", async ({
   page,
 }) => {
   test.setTimeout(240_000);
-
-  // A backend that is never reached: connecting an OpenAI-compatible one with
-  // no key only lists its models
-  await page.route("http://mock-llm.test/**", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ data: [{ id: "mock-model" }] }),
-    })
-  );
 
   await page.goto("/");
   const gallery = page.locator("[data-gallery-modal]");
@@ -62,4 +53,13 @@ test("a prompt asked for before connecting leaves no notice behind", async ({
     (window as AssistantWindow).__pgAssistant!.items.map((i) => i.kind)
   );
   expect(kinds).not.toContain("notice");
+
+  // Back on the picker, the hint answered by that connect stays gone
+  await page.evaluate(() =>
+    (window as AssistantWindow).__pgAssistant!.disconnect()
+  );
+  await expect(
+    page.getByRole("button", { name: "OpenAI-compatible" })
+  ).toBeVisible(LONG);
+  await expect(page.getByText(HINT)).toBeHidden();
 });

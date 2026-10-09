@@ -9,7 +9,8 @@ export interface BuildDiagnostic {
   /**
    * Workspace path (`src/lib.rs`), or `null` if the diagnostic has no
    * location. rustc's own path is relative to the build server's working
-   * directory, which sits beside `src`, so its leading `../` is dropped.
+   * directory, which sits beside `src`, so leading `./` and `../` segments
+   * are dropped.
    */
   file: string | null;
   line: number | null;
