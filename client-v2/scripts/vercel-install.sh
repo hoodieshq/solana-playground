@@ -16,6 +16,11 @@ export PATH="$CARGO_HOME/bin:$PATH"
 WASM_CACHE="$PWD/node_modules/.cache/wasm-pkg"
 INSTALL_MARK="node_modules/.cache/install-key"
 
+DEFAULT_CRATES_CACHE="$PWD/node_modules/.cache/default-crates"
+CRATES_DIR="$PWD/public/crates"
+# What generate-default-crates writes; withReset in generate-crates.mjs keeps the same list.
+DEFAULT_CRATE_FILES=(core.rs core.rs.br alloc.rs alloc.rs.br std.rs std.rs.br .default-crates-key)
+
 # Vercel Remote Cache, shared by every build of the team (see docs/deploy-client-vercel.md,
 # "Build cache"). Outside a Vercel build the token is unset and only the local tar is used.
 REMOTE_TOKEN="${VERCEL_ARTIFACTS_TOKEN:-}"
@@ -68,12 +73,13 @@ remote_fetch() {
   remote_curl -o "$2.part" "$(remote_url "$1")" 2>/dev/null && mv "$2.part" "$2"
 }
 
-# $1: artifact key, $2: file. Never fails the build; the next build with these sources rebuilds.
+# $1: artifact key, $2: file, $3: what the file holds, for the log. Never fails the build;
+# the next build with these sources rebuilds.
 remote_upload() {
   remote_enabled || return 0
   remote_curl -X PUT -H 'Content-Type: application/octet-stream' \
     --data-binary @"$2" -o /dev/null "$(remote_url "$1")" \
-    || echo ">>> wasm packages: Remote Cache upload failed; the next build with these sources rebuilds" >&2
+    || echo ">>> $3: Remote Cache upload failed; the next build with these sources rebuilds" >&2
 }
 
 build_wasm_packages() {
@@ -109,7 +115,7 @@ restore_wasm_packages() {
   if [ -f "$archive" ]; then
     echo ">>> wasm packages: HIT in Build Cache ($key)"
     # A build restored from the build cache seeds the remote cache when it lacks the tar.
-    remote_has "$key" || remote_upload "$key" "$archive"
+    remote_has "$key" || remote_upload "$key" "$archive" "wasm packages"
   elif remote_fetch "$key" "$archive"; then
     echo ">>> wasm packages: HIT in Remote Cache ($key)"
   else
@@ -118,10 +124,47 @@ restore_wasm_packages() {
     pack_wasm_packages "$archive"
     # Uploaded before yarn install and the client build, so a build that later
     # exceeds Vercel's time limit still leaves the packages behind for the next one.
-    remote_upload "$key" "$archive"
+    remote_upload "$key" "$archive" "wasm packages"
   fi
 
   tar -xf "$archive" -C ../wasm
+}
+
+# rustup without a default toolchain: generate-default-crates installs the one it reads.
+ensure_rustup() {
+  mkdir -p "$CARGO_HOME" "$RUSTUP_HOME"
+  [ -x "$CARGO_HOME/bin/rustup" ] && return
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --default-toolchain none --profile minimal
+}
+
+# Leaves the default crates in public/crates, from the cheapest source that has them. The
+# generator's own key covers its inputs; hashed again with a prefix so it never equals a wasm key.
+restore_default_crates() {
+  local inputs key archive
+  # Its own line: set -e ignores a failure inside a command substitution used as an argument.
+  inputs=$(node scripts/generate-default-crates.mjs --key)
+  key=$(printf 'default-crates-%s' "$inputs" | sha256 | cut -d' ' -f1)
+  archive="$DEFAULT_CRATES_CACHE/$key.tar.gz"
+
+  if [ -f "$archive" ]; then
+    echo ">>> default crates: HIT in Build Cache ($key)"
+    remote_has "$key" || remote_upload "$key" "$archive" "default crates"
+  elif remote_fetch "$key" "$archive"; then
+    echo ">>> default crates: HIT in Remote Cache ($key)"
+  else
+    echo ">>> default crates: MISS in Build Cache and Remote Cache ($key), generating"
+    ensure_rustup
+    node scripts/generate-default-crates.mjs
+    rm -rf "$DEFAULT_CRATES_CACHE"
+    mkdir -p "$DEFAULT_CRATES_CACHE"
+    (cd "$CRATES_DIR" && tar -czf "$archive" "${DEFAULT_CRATE_FILES[@]}")
+    du -sh "$archive"
+    remote_upload "$key" "$archive" "default crates"
+  fi
+
+  mkdir -p "$CRATES_DIR"
+  tar -xzf "$archive" -C "$CRATES_DIR"
 }
 
 # $1: wasm key. Yarn copies the ../wasm packages into node_modules, so a restored copy is
@@ -144,6 +187,7 @@ main() {
   wasm_key=$(wasm_source_key)
   report_remote_credentials
   restore_wasm_packages "$wasm_key"
+  restore_default_crates
   install_node_modules "$wasm_key"
 }
 

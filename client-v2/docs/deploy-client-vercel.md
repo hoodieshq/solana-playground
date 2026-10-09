@@ -155,12 +155,15 @@ A Git-integration build with no cache does not finish inside Vercel's [build tim
 
 ## Build cache
 
-Two caches, one per part of the install:
+Three caches, one per part of the install:
 
 | What | Where | Why there |
 | --- | --- | --- |
 | `node_modules` | Vercel's [build cache](https://vercel.com/docs/deployments/troubleshoot-a-build) | Vercel restores it before the install. `yarn install` is skipped when the restored copy was installed from the same `yarn.lock`, `package.json`, wasm packages, and Node version (`node_modules/.cache/install-key`). |
 | The built `wasm/*/pkg` directories | Vercel [Remote Cache](https://vercel.com/docs/monorepos/remote-caching), with a copy in `node_modules/.cache/wasm-pkg` | The build cache is saved only by a successful build, and a build that compiles the crates does not finish in time. Remote Cache takes the upload mid-build. |
+| The default crates in `public/crates` (`core`, `alloc`, `std`, their `.br` copies, and `.default-crates-key`) | Vercel Remote Cache, with a copy in `node_modules/.cache/default-crates` | Generating them installs a Rust toolchain and compiles `syn-file-expand-cli`. A hit needs no Rust. |
+
+The default crates follow the same order as the wasm packages: the local copy, then Remote Cache, then `scripts/generate-default-crates.mjs`, whose upload happens before `yarn install`. Their key is the generator's own (`generate-default-crates.mjs --key`), which hashes the script, `wasm/rust-analyzer/rust-toolchain.toml`, and the brotli version bundled with Node. During the build, `yarn generate` runs the generator again; it finds `public/crates/.default-crates-key` current and skips.
 
 `scripts/vercel-install.sh` stores the wasm packages as one tar named by a hash of every file under `wasm/` except build output. Any change under `wasm/` produces a new hash and rebuilds every wasm package. The tar is looked up locally first, then in Remote Cache. On a miss the script builds, writes both, and only then runs `yarn install` and the client build, so a build that later exceeds the time limit still leaves the tar for the next one. A build that finds the tar locally uploads it when Remote Cache lacks it. An upload failure prints a warning and the build continues.
 

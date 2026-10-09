@@ -45,6 +45,15 @@ RUN yarn install --frozen-lockfile
 # `yarn start`/`yarn build` re-run this and it is idempotent.
 RUN node scripts/update-static.mjs
 
+# Bake the default crates in. Their toolchain is removed in the same layer, so it neither
+# grows the image nor shows up as Rust to `generate-crates`; `yarn start` finds the crates
+# current by their key and skips.
+RUN export CARGO_HOME=/opt/default-crates/cargo RUSTUP_HOME=/opt/default-crates/rustup \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --default-toolchain none --profile minimal \
+    && PATH="$CARGO_HOME/bin:$PATH" node scripts/generate-default-crates.mjs \
+    && rm -rf /opt/default-crates
+
 # Start client
 EXPOSE 3000
 CMD ["yarn", "start"]

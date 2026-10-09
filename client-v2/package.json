@@ -128,7 +128,7 @@
     "spec:validate": "openspec validate --all --strict --no-interactive",
     "spec:coverage": "node scripts/spec-coverage.mjs",
     "check": "yarn test-types && yarn check-format && yarn check-md && yarn lint && yarn spec:validate && yarn spec:coverage && yarn test-unit && yarn test-api",
-    "generate": "node scripts/update-static.mjs && yarn generate-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
+    "generate": "node scripts/update-static.mjs && yarn generate-crates && yarn generate-default-crates && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-fast": "node scripts/update-static.mjs && yarn generate-exports && yarn generate-packages && yarn generate-tutorials && yarn sync-assistant-context",
     "generate-crates": "node scripts/generate-crates.mjs",
     "generate-default-crates": "node scripts/generate-default-crates.mjs",

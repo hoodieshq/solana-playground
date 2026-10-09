@@ -81,9 +81,16 @@ await withReset(async () => {
  * @param {() => Promise<void>} cb callback to execute
  */
 async function withReset(cb) {
-  const paths = ["alloc", "core", "std"].map((name) => ({
-    initial: path.join(CRATES_PATH, `${name}.rs`),
-    temp: path.join(CRATES_PATH, "..", `${name}.rs`),
+  // Everything `generate-default-crates.mjs` writes, its key included, so a current copy survives
+  const paths = [
+    ...["alloc", "core", "std"].flatMap((name) => [
+      `${name}.rs`,
+      `${name}.rs.br`,
+    ]),
+    ".default-crates-key",
+  ].map((file) => ({
+    initial: path.join(CRATES_PATH, file),
+    temp: path.join(CRATES_PATH, "..", file),
   }));
 
   // Move default crates

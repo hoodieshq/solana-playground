@@ -19,19 +19,33 @@ Group 4 needs all three.
       neither works. Ticket to file.
 - [ ] 1.2 In `generate-crates.mjs`, run `cargo fetch --locked` on
       `server/programs` first, fail naming any supported crate it cannot
-      generate, call the script from task 1.1, and write and honor
-      `public/crates/.inputs`. Verify: with an empty `CARGO_HOME`,
-      `yarn generate-crates` produces every supported crate and the default
-      crates; a second run on the same inputs leaves the files untouched; two
-      runs from empty produce the same SHA-256 per file; a version in
-      `supported-crates.json` that does not exist fails the run. Depends on
-      1.1. Ticket to file.
+      generate, and write and honor `public/crates/.inputs` for the supported
+      crates. Verify: with an empty `CARGO_HOME`, `yarn generate-crates`
+      produces every supported crate; a second run on the same inputs leaves
+      the files untouched; two runs from empty produce the same SHA-256 per
+      file; a version in `supported-crates.json` that does not exist fails
+      the run. Depends on 1.3. Ticket to file.
+- [ ] 1.3 Run the default crates in every pipeline: the generator writes
+      `public/crates/.default-crates-key` (a hash of the script,
+      `wasm/rust-analyzer/rust-toolchain.toml`, and Node's brotli version),
+      skips when it matches, and prints it with `--key`; `withReset` in
+      `generate-crates.mjs` keeps the default crates, their `.br` copies, and
+      the key; `yarn generate` runs the generator after `generate-crates`;
+      `vercel-install.sh` restores them from the Build Cache, then Vercel
+      Remote Cache, and otherwise installs `rustup` and generates and
+      uploads; `client-v2/Dockerfile` generates them at image build with a
+      toolchain removed in the same layer. Verify: a second run skips;
+      `yarn generate-crates` keeps all seven files; the install path, run
+      cold against empty Rust and cache folders, generates and packs, and a
+      second run logs a hit in the Build Cache; the Docker image build
+      generates them. Depends on 1.1. Ticket to file.
 
 ## 2. Serving on Vercel
 
-- [ ] 2.1 In `vercel-install.sh`, restore `public/crates` from Vercel Remote
-      Cache under the key from task 1.2, and when the key is absent run the
-      generation and upload the tar, with log lines that name the Remote
+- [ ] 2.1 In `vercel-install.sh`, restore the supported crates in
+      `public/crates` from Vercel Remote Cache under the key from task 1.2,
+      as task 1.3 does for the default crates, and when the key is absent run
+      the generation and upload the tar, with log lines that name the Remote
       Cache. Verify: the first preview build logs the key as absent and an
       upload; a redeploy logs a hit and no `cargo fetch`. Depends on 1.2.
       Ticket to file.

@@ -1,15 +1,25 @@
+#!/usr/bin/env node
 // Generate the default crates (`core`, `alloc`, `std`) for Rust Analyzer.
+// Nothing else makes them: `generate-crates` only keeps existing copies, and upstream's copies have no recorded recipe.
+//
+// Usage: `generate-default-crates.mjs` generates, or exits early when `KEY_PATH` matches;
+// `generate-default-crates.mjs --key` prints the key and exits.
 
 import path from "path";
 import fs from "fs/promises";
 import zlib from "zlib";
+import crypto from "crypto";
 import { homedir } from "os";
+import { fileURLToPath } from "url";
 import { execFileSync, spawnSync } from "child_process";
 
 import { CLIENT_PATH, REPO_ROOT_PATH, exists } from "./utils.mjs";
 
 /** Crates output directory path */
 const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
+
+/** Key of the inputs the files in `CRATES_PATH` were generated from */
+const KEY_PATH = path.join(CRATES_PATH, ".default-crates-key");
 
 /** Toolchain file of the Rust Analyzer WASM, read the way `wasm/build.sh` reads it */
 const TOOLCHAIN_PATH = path.join(
@@ -32,6 +42,12 @@ const CRATES = {
   std: [],
 };
 
+/** Every file this script writes, the key included; `withReset` in `generate-crates.mjs` keeps the same list */
+const OUTPUT_FILES = [
+  ...Object.keys(CRATES).flatMap((name) => [`${name}.rs`, `${name}.rs.br`]),
+  path.basename(KEY_PATH),
+];
+
 // The brotli copies' bytes come from the brotli bundled with Node, so run only on the pinned Node
 const nodeVersion = (
   await fs.readFile(path.join(CLIENT_PATH, ".nvmrc"), "utf8")
@@ -43,10 +59,32 @@ if (process.versions.node.split(".")[0] !== nodeVersion.split(".")[0]) {
 }
 
 // Upstream (beta.solpg.io) serves default crates from about Rust 1.60 beside a 1.68.0-nightly analyzer; we take both from the analyzer's toolchain
-const channel = (await fs.readFile(TOOLCHAIN_PATH, "utf8")).match(
-  /^channel\s*=\s*"([^"]+)"/m
-)?.[1];
+const toolchainFile = await fs.readFile(TOOLCHAIN_PATH, "utf8");
+const channel = toolchainFile.match(/^channel\s*=\s*"([^"]+)"/m)?.[1];
 if (!channel) throw new Error(`No \`channel\` in ${TOOLCHAIN_PATH}`);
+
+// The script's own source carries the tool version and the flags
+const key = crypto
+  .createHash("sha256")
+  .update(await fs.readFile(fileURLToPath(import.meta.url)))
+  .update("\0")
+  .update(toolchainFile)
+  .update("\0")
+  .update(process.versions.brotli)
+  .digest("hex");
+
+if (process.argv.includes("--key")) {
+  console.log(key);
+  process.exit(0);
+}
+
+const outputsExist = (
+  await Promise.all(OUTPUT_FILES.map((f) => exists(path.join(CRATES_PATH, f))))
+).every(Boolean);
+if (outputsExist && (await fs.readFile(KEY_PATH, "utf8")).trim() === key) {
+  console.log(`Default crates are current (${key}). Skipping...`);
+  process.exit(0);
+}
 
 run("rustup", [
   "toolchain",
@@ -73,7 +111,9 @@ const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
 const cliRoot = path.join(cargoHome, "tools", `${CLI_NAME}-${CLI_VERSION}`);
 const cliPath = path.join(cliRoot, "bin", CLI_NAME);
 if (!(await exists(cliPath))) {
+  // `+channel`: Docker and Vercel install rustup without a default toolchain
   run("cargo", [
+    `+${channel}`,
     "install",
     CLI_NAME,
     "--version",
@@ -118,6 +158,9 @@ for (const [name, flags] of Object.entries(CRATES)) {
     brotli: process.versions.brotli,
   });
 }
+
+// Written last, so an interrupted run never looks current
+await fs.writeFile(KEY_PATH, `${key}\n`);
 
 /**
  * Run a command and throw with its output when it fails.
