@@ -2,6 +2,7 @@
 export const EVENT_PREFIXES = {
   auth: "auth",
   observability: "obs",
+  persistence: "sync",
 } as const;
 
 export type EventPrefix = typeof EVENT_PREFIXES[keyof typeof EVENT_PREFIXES];

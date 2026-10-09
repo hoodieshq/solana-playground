@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../components/Button";
+import { ConflictResolver } from "../ui/ConflictResolver";
 import { PgProjectSync } from "../model/project-sync";
+import { persistenceTelemetry } from "../model/telemetry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
 
@@ -19,7 +21,12 @@ const PROMPTS: Record<
   Conflict["kind"],
   {
     message: (conflict: Conflict) => string;
-    actions: { label: string; resolution: Resolution; primary?: boolean }[];
+    // Only the answers a button can give alone; `resolved` carries content
+    actions: {
+      label: string;
+      resolution: Extract<Resolution, string>;
+      primary?: boolean;
+    }[];
   }
 > = {
   divergent: {
@@ -93,6 +100,11 @@ const PROMPTS: Record<
 const SyncBanner = () => {
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [busy, setBusy] = useState(false);
+  // The project whose resolve view is open. Kept apart from `conflict`: an
+  // answer clears the question before it uploads, and the view decides for
+  // itself whether that means it is done
+  const [resolving, setResolving] = useState<string | null>(null);
+  const closeResolver = useCallback(() => setResolving(null), []);
 
   const refresh = useCallback(() => {
     setConflict(PgProjectSync.conflictFor(PgExplorer.currentWorkspaceId));
@@ -113,6 +125,12 @@ const SyncBanner = () => {
 
   const answer = async (resolution: Resolution) => {
     if (!conflict) return;
+    if (resolution === "keep-local" || resolution === "take-server") {
+      persistenceTelemetry.track("sync_whole_file_answered", {
+        answer: resolution,
+        from: "banner",
+      });
+    }
     setBusy(true);
     try {
       // A resolution that failed -- offline, or the server refused again --
@@ -125,55 +143,80 @@ const SyncBanner = () => {
     }
   };
 
-  if (!conflict) return null;
-
-  const prompt = PROMPTS[conflict.kind];
-  const message = prompt.message(conflict);
-
-  // The first path is the one the message names, so it is set in code style
-  const named = conflict.paths?.[0];
-  const at = named ? message.indexOf(named) : -1;
-
+  // Beside the banner rather than in it, so the view stays mounted, choices
+  // and all, while an answer briefly clears the question
   return (
-    <Wrapper role="alert">
-      <Icon viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-        <path
-          d="M12 3.5L2.5 20h19L12 3.5zM12 10v4.5M12 17.25v.01"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Icon>
-      <Body>
-        <Message>
-          {named && at >= 0 ? (
-            <>
-              {message.slice(0, at)}
-              <Path>{named}</Path>
-              {message.slice(at + named.length)}
-            </>
-          ) : (
-            message
-          )}
-        </Message>
-        <Actions>
-          {prompt.actions.map((action) => (
-            <Button
-              key={action.resolution}
-              kind={action.primary ? "primary" : "outline"}
-              size="small"
-              disabled={busy}
-              onClick={() => void answer(action.resolution)}
-            >
-              {action.label}
-            </Button>
-          ))}
-        </Actions>
-      </Body>
-    </Wrapper>
+    <>
+      {conflict && renderBanner(conflict)}
+      {resolving && (
+        <ConflictResolver projectId={resolving} onClose={closeResolver} />
+      )}
+    </>
   );
+
+  function renderBanner(conflict: Conflict) {
+    const prompt = PROMPTS[conflict.kind];
+    // Line by line needs the lines: a divergence the merge never got as far as
+    // naming files keeps the two whole-project answers only
+    const resolvable =
+      conflict.kind === "divergent" && !!conflict.files?.length;
+    const message = prompt.message(conflict);
+
+    // The first path is the one the message names, so it is set in code style
+    const named = conflict.paths?.[0];
+    const at = named ? message.indexOf(named) : -1;
+
+    return (
+      <Wrapper role="alert">
+        <Icon viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+          <path
+            d="M12 3.5L2.5 20h19L12 3.5zM12 10v4.5M12 17.25v.01"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Icon>
+        <Body>
+          <Message>
+            {named && at >= 0 ? (
+              <>
+                {message.slice(0, at)}
+                <Path>{named}</Path>
+                {message.slice(at + named.length)}
+              </>
+            ) : (
+              message
+            )}
+          </Message>
+          <Actions>
+            {resolvable && (
+              <Button
+                kind="outline"
+                size="small"
+                disabled={busy || !!resolving}
+                onClick={() => setResolving(conflict.projectId)}
+              >
+                Resolve…
+              </Button>
+            )}
+            {prompt.actions.map((action) => (
+              <Button
+                key={action.resolution}
+                kind={action.primary ? "primary" : "outline"}
+                size="small"
+                disabled={busy}
+                onClick={() => void answer(action.resolution)}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </Actions>
+        </Body>
+      </Wrapper>
+    );
+  }
 };
 
 /** A card in the layout's flow; the mount point supplies the page gutters */
