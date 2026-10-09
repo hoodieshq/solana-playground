@@ -17,7 +17,11 @@ import {
   useSidebar,
 } from "@/shared/ui/sidebar";
 import { GAP } from "@/views/flow/tokens";
-import type { PanelLayout } from "../model/layout-state";
+import type {
+  HorizontalLayout,
+  PanelLayout,
+  VerticalLayout,
+} from "../model/layout-state";
 
 /** Sizes in px; the design system gives the left panel's in rem (`SIDEBAR_STYLE`) */
 export const PANEL_SIZES = {
@@ -55,8 +59,8 @@ export interface BaseLayoutShellProps {
   consoleOpen: boolean;
   /** The console panel was folded or unfolded by dragging */
   onConsoleOpenChange: (open: boolean) => void;
-  horizontal?: PanelLayout;
-  vertical?: PanelLayout;
+  horizontal?: HorizontalLayout;
+  vertical?: VerticalLayout;
   onHorizontalLayout: (layout: PanelLayout) => void;
   onVerticalLayout: (layout: PanelLayout) => void;
   /**

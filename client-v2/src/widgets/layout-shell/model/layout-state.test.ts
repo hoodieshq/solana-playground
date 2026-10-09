@@ -69,6 +69,50 @@ it.each([
     }),
   ],
   [
+    "a size that is NaN or infinite (null in JSON)",
+    '{"v":1,"leftOpen":true,"assistantOpen":true,"consoleOpen":false,"h":{"center":null,"assistant":30}}',
+  ],
+  [
+    "a size above 100",
+    JSON.stringify({
+      v: 1,
+      leftOpen: true,
+      assistantOpen: true,
+      consoleOpen: false,
+      h: { center: 150, assistant: 30 },
+    }),
+  ],
+  [
+    "a negative size",
+    JSON.stringify({
+      v: 1,
+      leftOpen: true,
+      assistantOpen: true,
+      consoleOpen: false,
+      h: { center: -1, assistant: 30 },
+    }),
+  ],
+  [
+    "a vertical layout with unknown panel ids",
+    JSON.stringify({
+      v: 1,
+      leftOpen: true,
+      assistantOpen: true,
+      consoleOpen: false,
+      vert: { top: 60, bottom: 40 },
+    }),
+  ],
+  [
+    "a vertical size that is not a number",
+    JSON.stringify({
+      v: 1,
+      leftOpen: true,
+      assistantOpen: true,
+      consoleOpen: false,
+      vert: { stage: 60, console: "40" },
+    }),
+  ],
+  [
     "a layout with unknown panel ids",
     JSON.stringify({
       v: 1,
@@ -125,4 +169,12 @@ it("should report a write that throws, not throw", () => {
     SAVED
   );
   expect(result).toEqual({ ok: false, error: full });
+});
+
+it("should read back only the fields of a layout, dropping others", () => {
+  const raw = JSON.stringify({ ...SAVED, extra: "x" });
+  const restored = readLayout(() =>
+    memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
+  );
+  expect(restored).toEqual({ kind: "saved", state: SAVED });
 });

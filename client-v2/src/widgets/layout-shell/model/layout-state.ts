@@ -1,30 +1,33 @@
 /** A panel group's sizes by panel id, as `onLayoutChanged` reports them (percent) */
 export type PanelLayout = { [panelId: string]: number };
 
+export const HORIZONTAL_PANELS = ["center", "assistant"] as const;
+export const VERTICAL_PANELS = ["stage", "console"] as const;
+
+/** The centre and assistant group's sizes */
+export type HorizontalLayout = Record<typeof HORIZONTAL_PANELS[number], number>;
+/** The stage and console group's sizes */
+export type VerticalLayout = Record<typeof VERTICAL_PANELS[number], number>;
+
 /** What of the layout survives a reload, on this device */
 export interface LayoutState {
   v: 1;
   leftOpen: boolean;
   assistantOpen: boolean;
   consoleOpen: boolean;
-  /** The centre and assistant group */
-  h?: PanelLayout;
-  /** The stage and console group */
-  vert?: PanelLayout;
+  h?: HorizontalLayout;
+  vert?: VerticalLayout;
 }
 
 export const LAYOUT_STORAGE_KEY = "layout";
 
-/** Today's Flow: left open, assistant open, console closed */
+/** The layout a first visit gets: left open, assistant open, console closed */
 export const DEFAULT_LAYOUT: LayoutState = {
   v: 1,
   leftOpen: true,
   assistantOpen: true,
   consoleOpen: false,
 };
-
-export const HORIZONTAL_PANELS = ["center", "assistant"] as const;
-export const VERTICAL_PANELS = ["stage", "console"] as const;
 
 /** Why a saved layout was not used */
 export type RestoreFailure = "corrupt" | "version" | "storage-unavailable";
@@ -42,23 +45,42 @@ export type Restored =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** Absent, or exactly the group's panel ids, each a number */
-const isPanelLayout = (value: unknown, ids: readonly string[]) => {
-  if (value === undefined) return true;
+const isSize = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 100;
+
+/** Exactly the group's panel ids, each a size in percent */
+const isPanelLayout = <Id extends string>(
+  value: unknown,
+  ids: readonly Id[]
+): value is Record<Id, number> => {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value).sort();
   return (
     keys.join() === [...ids].sort().join() &&
-    keys.every((key) => typeof value[key] === "number")
+    keys.every((key) => isSize(value[key]))
   );
 };
 
-const isLayoutState = (value: Record<string, unknown>): boolean =>
+const isLayoutState = (
+  value: Record<string, unknown>
+): value is Record<string, unknown> & LayoutState =>
+  value.v === 1 &&
   typeof value.leftOpen === "boolean" &&
   typeof value.assistantOpen === "boolean" &&
   typeof value.consoleOpen === "boolean" &&
-  isPanelLayout(value.h, HORIZONTAL_PANELS) &&
-  isPanelLayout(value.vert, VERTICAL_PANELS);
+  (value.h === undefined || isPanelLayout(value.h, HORIZONTAL_PANELS)) &&
+  (value.vert === undefined || isPanelLayout(value.vert, VERTICAL_PANELS));
+
+/** The group's layout as the library reports it, or null if a panel is missing */
+export const horizontalOf = (layout: PanelLayout): HorizontalLayout | null =>
+  isPanelLayout(layout, HORIZONTAL_PANELS) ? layout : null;
+
+/** The group's layout as the library reports it, or null if a panel is missing */
+export const verticalOf = (layout: PanelLayout): VerticalLayout | null =>
+  isPanelLayout(layout, VERTICAL_PANELS) ? layout : null;
 
 const failed = (reason: RestoreFailure, error?: unknown): Restored =>
   error === undefined
@@ -89,7 +111,16 @@ export const readLayout = (
   if (!isRecord(parsed)) return failed("corrupt");
   if (parsed.v !== 1) return failed("version");
   if (!isLayoutState(parsed)) return failed("corrupt");
-  return { kind: "saved", state: parsed as unknown as LayoutState };
+  // Field by field, so a key this version does not know is not carried along
+  const state: LayoutState = {
+    v: 1,
+    leftOpen: parsed.leftOpen,
+    assistantOpen: parsed.assistantOpen,
+    consoleOpen: parsed.consoleOpen,
+    h: parsed.h,
+    vert: parsed.vert,
+  };
+  return { kind: "saved", state };
 };
 
 /** Saves the layout; a storage that throws is returned, never thrown */
