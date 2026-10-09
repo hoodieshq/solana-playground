@@ -227,6 +227,48 @@ describe("MergeFile hunk state", () => {
     expect(file.result.split("\n")[13]).toBe("line 12 there");
   });
 
+  it.each([
+    ["above", 11],
+    ["below", 13],
+  ])("leaves the hunk open when the line just %s it is replaced", (_, line) => {
+    const { file, model } = openFile();
+    model.value = withLine(model.value, line, `line ${line}, edited`);
+    file.userEdit(model.value);
+    const { hunk } = file.hunks[0];
+    expect(hunk.edited).toBe(false);
+    expect(file.unresolved).toBe(1);
+    expect(hunk.lines.result).toBe(1);
+    // Still the base line, and still the place a take lands
+    model.apply(file.take(0, "left"));
+    expect(model.value).toBe(file.result);
+    expect(file.result.split("\n")[11]).toBe("line 12 here");
+    expect(file.result.split("\n")[line - 1]).toBe(`line ${line}, edited`);
+  });
+
+  it("counts a change spanning a hunk of no lines as editing it", () => {
+    // Both devices added a different line after line 12, where the base had
+    // none: the hunk holds no lines in the result
+    const add = (line: string) => {
+      const lines = BASE.split("\n");
+      lines.splice(12, 0, line);
+      return lines.join("\n");
+    };
+    const file = MergeFile.from(
+      linesConflict(BASE, add("added here"), add("added there"))
+    );
+    expect(file.hunks[0].hunk.lines.result).toBe(0);
+
+    // Replacing line 12 alone, just above it, leaves it open
+    file.userEdit(withLine(file.result, 12, "line 12, edited"));
+    expect(file.hunks[0].hunk.edited).toBe(false);
+    // Typing a line where it is answers it
+    const typed = file.result.split("\n");
+    typed.splice(12, 0, "typed");
+    file.userEdit(typed.join("\n"));
+    expect(file.hunks[0].hunk.edited).toBe(true);
+    expect(file.hunks[0].hunk.lines.result).toBe(1);
+  });
+
   it("counts a line typed right after the hunk as editing it", () => {
     const { file, model } = openFile();
     const lines = model.value.split("\n");

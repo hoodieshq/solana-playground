@@ -341,9 +341,10 @@ export class MergeFile {
    *
    * Lines are matched by a line diff of the old text against the new, so a
    * change lands in the run it was made in however the editor reported it. A
-   * change that overlaps or touches a hunk's lines in the result answers the
-   * hunk (`edited`), and the lines it adds are the hunk's; elsewhere they are
-   * the settled run's they were typed into.
+   * change that replaces any of a hunk's lines in the result, or inserts
+   * lines at its edges, answers the hunk (`edited`), and the lines it adds
+   * are the hunk's; elsewhere they are the settled run's they were typed
+   * into. Replacing the line next to a hunk leaves the hunk open.
    */
   userEdit(text: string) {
     if (text === this.result) return;
@@ -352,13 +353,26 @@ export class MergeFile {
     const ends = this.segments.map((s, i) => starts[i] + s.lines.result);
     const delta = this.segments.map(() => 0);
 
+    /**
+     * Whether old lines `[a, b)` replaced by new ones touch the hunk at `i`.
+     * Ranges are half-open, so a replacement touches only lines it shares
+     * with the hunk -- the line just above or below is the settled run's,
+     * and answering the hunk for it would leave the base's lines in the
+     * result as the answer. A replacement that spans a hunk of no lines
+     * removes lines on both sides of where it is, and touches it. A pure
+     * insertion, which removes nothing, touches a hunk it lands at either
+     * edge of: lines typed right after or before it are taken as its own.
+     */
+    const touches = (i: number, a: number, b: number) =>
+      a === b ? a >= starts[i] && a <= ends[i] : a < ends[i] && b > starts[i];
+
     /** Old lines `[a, b)` became `added` new ones */
     const change = (a: number, b: number, added: number) => {
       let target = -1;
       this.segments.forEach((segment, i) => {
         // Lines removed from each run they were in
         delta[i] -= Math.max(0, Math.min(b, ends[i]) - Math.max(a, starts[i]));
-        if (segment.kind === "hunk" && a <= ends[i] && b >= starts[i]) {
+        if (segment.kind === "hunk" && touches(i, a, b)) {
           segment.edited = true;
           if (target < 0) target = i;
         }
