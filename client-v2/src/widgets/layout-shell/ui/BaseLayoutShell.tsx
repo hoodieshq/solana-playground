@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useEffect } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { usePanelRef } from "react-resizable-panels";
@@ -66,6 +67,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
 
   // `open` props drive the panels; a drag that folds one reports back
   // through `onResize`, so the two never disagree for long.
+  // `viewport` re-syncs the panel after it mounts again on a wide screen
   useEffect(() => {
     const panel = assistantRef.current;
     if (!panel || panel.isCollapsed() === !props.assistantOpen) return;
@@ -79,6 +81,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     if (props.consoleOpen) panel.expand();
     else panel.collapse();
   }, [props.consoleOpen, consoleRef]);
+
+  const wide = props.viewport === "wide";
 
   const center = (
     <ResizablePanelGroup
@@ -128,21 +132,23 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         {props.left}
       </Sidebar>
       <SidebarInset className="relative min-h-0 min-w-0">
-        {props.viewport === "wide" ? (
-          <ResizablePanelGroup
-            orientation="horizontal"
-            id="layout-horizontal"
-            defaultLayout={props.horizontal}
-            onLayoutChanged={props.onHorizontalLayout}
+        {/* One tree at every width, so a rotate across 1024 px does not
+            remount the stage, Monaco or the console's terminal */}
+        <ResizablePanelGroup
+          orientation="horizontal"
+          id="layout-horizontal"
+          defaultLayout={props.horizontal}
+          onLayoutChanged={props.onHorizontalLayout}
+        >
+          <ResizablePanel
+            id="center"
+            minSize={PANEL_SIZES.centerMin}
+            className="flex min-w-0 flex-col"
           >
-            <ResizablePanel
-              id="center"
-              minSize={PANEL_SIZES.centerMin}
-              className="flex min-w-0 flex-col"
-            >
-              {center}
-            </ResizablePanel>
-            <ResizableHandle />
+            {center}
+          </ResizablePanel>
+          {wide && <ResizableHandle />}
+          {wide && (
             <ResizablePanel
               id="assistant"
               panelRef={assistantRef}
@@ -165,10 +171,10 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             >
               {props.assistant}
             </ResizablePanel>
-          </ResizablePanelGroup>
-        ) : (
+          )}
+        </ResizablePanelGroup>
+        {props.viewport !== "wide" && (
           <>
-            {center}
             <div className="absolute top-1 right-0 z-10">
               {props.assistantOpener}
             </div>
@@ -178,7 +184,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             >
               <SheetContent
                 side="right"
-                className={`p-0 ${SHEET_WIDTH[props.viewport]}`}
+                className={cn("p-0", SHEET_WIDTH[props.viewport])}
               >
                 <SheetTitle className="sr-only">Assistant</SheetTitle>
                 {props.assistant}
