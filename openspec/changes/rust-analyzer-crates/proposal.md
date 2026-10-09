@@ -55,13 +55,12 @@ the default crates removed, it completes nothing.
 - `generate-crates` downloads the crates of `server/programs/Cargo.lock` with
   `cargo fetch --locked` before it reads the registry. It fails, naming the
   crate, when it cannot generate a supported crate.
-- The Vercel build restores `public/crates` from Vercel Remote Cache, keyed on
-  every input, and generates it only when the key is absent. The crate files
-  ship as static assets of our own deployment. No file is uploaded by hand and
-  no generated file is committed.
-- `yarn setup` copies the wasm packages it builds into `node_modules`. Yarn 1
-  kept a stub Rust Analyzer after `setup` rebuilt the real one, because the
-  lockfile had not changed.
+- The Vercel build restores the default crates from Vercel Remote Cache, keyed
+  on their inputs, and generates them only when the key is absent; it
+  generates the supported crates in every build. The Docker image build
+  generates both, and a `client-v2-standalone` compose profile runs the client
+  without the server. The crate files ship as static assets of our own
+  deployment. No file is uploaded by hand and no generated file is committed.
 - No slice under `features/` or `widgets/` changes. No telemetry event is
   added, renamed, or removed.
 
@@ -86,10 +85,14 @@ None.
 - [`client-v2/scripts/vercel-install.sh`](../../../client-v2/scripts/vercel-install.sh):
   restores and uploads the default crates through Vercel Remote Cache, as it
   does for the wasm packages.
-- [`client-v2/package.json`](../../../client-v2/package.json): the `setup`
-  script.
-- [`client-v2/README.md`](../../../client-v2/README.md): how the crate files are
-  produced.
+- [`client-v2/package.json`](../../../client-v2/package.json): the
+  `generate-default-crates` script, run by `generate`.
+- [`client-v2/Dockerfile`](../../../client-v2/Dockerfile),
+  [`compose.yaml`](../../../compose.yaml), and
+  [`.dockerignore`](../../../.dockerignore): the image bakes every crate file,
+  and the `client-v2-standalone` profile.
+- [`client-v2/docs/deploy-client-vercel.md`](../../../client-v2/docs/deploy-client-vercel.md):
+  how a Vercel build produces the crate files.
 - Users: completion, hover, and diagnostics for the standard library and the
   supported crates work in the editor. The first editor load downloads more:
   in the local test, the default crates generated from Rust 1.61 transferred
@@ -108,6 +111,11 @@ None.
     needs the legacy `routes` array. Every crate the editor requests is
     generated, and `generate-crates.mjs` fails the build when a supported crate
     is missing, so no request reaches that fallback.
+  - `yarn setup` on a checkout that started from `wasm/stub-packages.sh`: it
+    rebuilds the wasm packages, but yarn 1 keeps the stub Rust Analyzer in
+    `node_modules` because the lockfile did not change. `yarn install
+    --check-files` replaces it. This is local set-up, not serving the crate
+    files.
   - Moving the wasm, default crates, and supported crates caches to
     Turborepo's Remote Cache, which would replace the cache code in
     `vercel-install.sh`. Deferred until `client-v2` moves to Next.

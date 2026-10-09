@@ -216,16 +216,6 @@ The change makes every requested crate exist instead: both generators run in
 every pipeline, and `generate-crates.mjs` fails the build on a missing
 supported crate.
 
-### `setup` installs with `--check-files`
-
-Yarn 1 decides whether to copy a `file:` dependency from `package.json`,
-`yarn.lock`, and its integrity file, and never from the content of the
-source folder. `setup` becomes:
-
-```sh
-yarn build-wasm && yarn install --check-files && yarn generate
-```
-
 ## Risks / Trade-offs
 
 - [A cache miss on Vercel adds the toolchain download, an 800 MB fetch, and
@@ -237,8 +227,10 @@ yarn build-wasm && yarn install --check-files && yarn generate
 - [`core.rs` is 10.3 MB] → In the local test, an 8.5 MB `core.rs` from Rust
   1.61 transferred as 0.78 MB, and indexing finished within 30 s. A slow
   machine is not measured.
-- [Two runs produce different bytes] → Unverified; task 1.2 checks it. The
-  key covers the inputs either way, and the cached copy is the one that ships.
+- [Two runs produce different bytes] → Not observed: at `ec6f2b0d`, every
+  crate file compared had the same SHA-256 on macOS, Vercel's builder, and the
+  Docker image. The key covers the inputs either way, and the cached copy is
+  the one that ships.
 
 ## Migration Plan
 

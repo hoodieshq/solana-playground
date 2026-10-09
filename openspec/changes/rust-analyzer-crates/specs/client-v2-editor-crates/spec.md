@@ -142,16 +142,3 @@ from the cache. The supported crates are generated in every build.
 - **WHEN** `wasm/rust-analyzer/rust-toolchain.toml` changes
 - **THEN** the next build generates the default crates and stores them under
   the key of the changed inputs
-
-### Requirement: Local setup installs the wasm packages it builds
-
-`yarn setup` SHALL leave `node_modules` holding the wasm packages it builds,
-including on a checkout whose `node_modules` holds the stubs from
-`wasm/stub-packages.sh`.
-
-#### Scenario: Setup after the stubs (manual)
-
-- **WHEN** a developer runs `wasm/stub-packages.sh`, `yarn install`, and then
-  `yarn setup`
-- **THEN** `node_modules/@solana-playground/rust-analyzer` holds
-  `rust_analyzer_wasm_bg.wasm`
