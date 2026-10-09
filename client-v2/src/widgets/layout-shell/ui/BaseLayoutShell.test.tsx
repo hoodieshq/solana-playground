@@ -13,7 +13,7 @@ const panelSpies = vi.hoisted(() => ({
   >,
   handles: [] as Array<{
     collapse: ReturnType<typeof vi.fn>;
-    expand: ReturnType<typeof vi.fn>;
+    resize: ReturnType<typeof vi.fn>;
     isCollapsed: ReturnType<typeof vi.fn>;
   }>,
 }));
@@ -47,7 +47,7 @@ vi.mock("react-resizable-panels", async (importOriginal) => {
   };
 });
 
-import BaseLayoutShell from "./BaseLayoutShell";
+import BaseLayoutShell, { PANEL_SIZES } from "./BaseLayoutShell";
 import type { BaseLayoutShellProps } from "./BaseLayoutShell";
 
 class NoopResizeObserver {
@@ -70,7 +70,7 @@ beforeEach(() => {
   panelSpies.groups = {};
   panelSpies.handles = [0, 1].map(() => ({
     collapse: vi.fn(),
-    expand: vi.fn(),
+    resize: vi.fn(),
     isCollapsed: vi.fn(() => false),
   }));
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
@@ -202,17 +202,26 @@ it("should collapse the assistant panel when assistantOpen turns false", () => {
   const [assistant] = panelSpies.handles;
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   expect(assistant.collapse).not.toHaveBeenCalled();
-  expect(assistant.expand).not.toHaveBeenCalled();
+  expect(assistant.resize).not.toHaveBeenCalled();
   rerender(<BaseLayoutShell {...props("wide")} assistantOpen={false} />);
   expect(assistant.collapse).toHaveBeenCalledTimes(1);
 });
 
-it("should expand a collapsed assistant panel when assistantOpen turns true", () => {
+it("should open a collapsed assistant panel at its default width when assistantOpen turns true", () => {
+  // `expand()` would open a panel that mounted folded at its minimum
   const [assistant] = panelSpies.handles;
   assistant.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide")} />);
-  expect(assistant.expand).toHaveBeenCalledTimes(1);
+  expect(assistant.resize).toHaveBeenCalledTimes(1);
+  expect(assistant.resize).toHaveBeenCalledWith(PANEL_SIZES.assistant.default);
   expect(assistant.collapse).not.toHaveBeenCalled();
+});
+
+it("should open a folded console at its default height when consoleOpen turns true", () => {
+  const consolePanel = panelSpies.handles[1];
+  consolePanel.isCollapsed.mockReturnValue(true);
+  render(<BaseLayoutShell {...props("wide")} consoleOpen />);
+  expect(consolePanel.resize).toHaveBeenCalledWith(PANEL_SIZES.console.default);
 });
 
 it("should do nothing when the console panel already matches consoleOpen", () => {
@@ -220,7 +229,7 @@ it("should do nothing when the console panel already matches consoleOpen", () =>
   consolePanel.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide")} />);
   expect(consolePanel.collapse).not.toHaveBeenCalled();
-  expect(consolePanel.expand).not.toHaveBeenCalled();
+  expect(consolePanel.resize).not.toHaveBeenCalled();
 });
 
 it("should not take or save a horizontal layout below 1024 px", () => {
