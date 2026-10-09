@@ -5,7 +5,9 @@ import { canHideLines, setHiddenLines } from "./hidden-areas";
 import { hunkLineClass } from "./hunk-class";
 import type { MergeBand } from "@/shared/ui/merge";
 import { MergeFile } from "./merge-file";
-import type { Fold, MergePane, MergeSnapshot, TextEdit } from "./merge-file";
+import { MergeResult } from "./result-model";
+import type { Fold, HunkSide, MergePane } from "./merge-file";
+import type { HunkAction } from "./result-model";
 import type { Disposable } from "../../../../utils/types";
 
 /** The scheme of the resolve view's models -- see `uriOf` */
@@ -79,10 +81,13 @@ export interface MergeEditor {
   readonly layout: MergeLayout;
   /** Scrolled, resized or re-laid out: the overlays and ribbons move */
   onDidChangeLayout(cb: () => void): Disposable;
-  /** The user typed into the result; the file's state has taken it */
+  /** The user typed into the result, or undid or redid; the file has it */
   onDidEditResult(cb: () => void): Disposable;
-  /** Mirror an edit the file made (a take or a dismiss) into the result */
-  apply(edit: TextEdit | null): void;
+  /**
+   * Take or dismiss one side of a hunk, into the result, as one step of
+   * undo -- see `MergeResult.decide`
+   */
+  decide(index: number, side: HunkSide, action: HunkAction): boolean;
   update(options: Partial<MergeEditorOptions>): void;
   /** Open one fold, by its `key` */
   unfold(key: string): void;
@@ -123,10 +128,7 @@ class MonacoMergeEditor implements MergeEditor {
   private readonly _disposables: monaco.IDisposable[] = [];
   private readonly _layoutListeners = new Set<() => void>();
   private readonly _editListeners = new Set<() => void>();
-  /** Set while this writes to the result, so its own edit is not the user's */
-  private _applying = false;
-  /** The file's state at each version of the result, for undo and redo */
-  private readonly _history = new Map<number, MergeSnapshot>();
+  private readonly _result: MergeResult;
   private _syncing = false;
   private _frame: number | null = null;
   private _layout: MergeLayout;
@@ -206,29 +208,15 @@ class MonacoMergeEditor implements MergeEditor {
       );
     }
 
-    const result = this._editors.result!;
-    const model = result.getModel()!;
-    this._record();
-    this._disposables.push(
-      model.onDidChangeContent((e) => {
-        if (this._applying) return;
-        // Undo and redo return the text to a version seen before; the hunks
-        // go back with it, or an undone take would read as typing over the
-        // hunk and answer it
-        const seen =
-          e.isUndoing || e.isRedoing
-            ? this._history.get(model.getAlternativeVersionId())
-            : undefined;
-        if (seen && seen.lines.join("\n") === model.getValue()) {
-          this._file.restore(seen);
-        } else {
-          this._file.userEdit(model.getValue());
-        }
-        this._record();
+    this._result = new MergeResult(
+      file,
+      this._editors.result!.getModel()!,
+      () => {
         this._refresh();
         for (const cb of this._editListeners) cb();
-      })
+      }
     );
+    this._disposables.push(this._result);
 
     this._layout = this._measure();
     this._refresh();
@@ -248,39 +236,10 @@ class MonacoMergeEditor implements MergeEditor {
     return { dispose: () => this._editListeners.delete(cb) };
   }
 
-  apply(edit: TextEdit | null) {
-    const model = this._editors.result?.getModel();
-    if (model && edit) {
-      this._applying = true;
-      try {
-        const from = model.getPositionAt(edit.start);
-        const to = model.getPositionAt(edit.end);
-        // A take or a dismissal is one step of undo, never merged with the
-        // typing around it
-        model.pushStackElement();
-        model.pushEditOperations(
-          [],
-          [
-            {
-              range: monaco.Range.fromPositions(from, to),
-              text: edit.text,
-            },
-          ],
-          () => null
-        );
-        model.pushStackElement();
-        // The file's text is the truth. The model normalises line breaks to
-        // one kind, so a file that mixed them reads back differently: it is
-        // set whole rather than left to disagree with the hunk positions.
-        if (model.getValue() !== this._file.result) {
-          model.setValue(this._file.result);
-        }
-      } finally {
-        this._applying = false;
-      }
-      this._record();
-    }
-    this._refresh();
+  decide(index: number, side: HunkSide, action: HunkAction) {
+    const changed = this._result.decide(index, side, action);
+    if (changed) this._refresh();
+    return changed;
   }
 
   update(options: Partial<MergeEditorOptions>) {
@@ -313,13 +272,6 @@ class MonacoMergeEditor implements MergeEditor {
     for (const model of this._models) model.dispose();
     this._layoutListeners.clear();
     this._editListeners.clear();
-  }
-
-  /** Keep the file's state under the result's current version */
-  private _record() {
-    const model = this._editors.result?.getModel();
-    if (model)
-      this._history.set(model.getAlternativeVersionId(), this._file.snapshot());
   }
 
   /** The folds in force: none when showing everything or unable to hide */

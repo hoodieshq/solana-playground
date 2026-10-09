@@ -1,7 +1,10 @@
+// `@types/mocha` also declares a global `it`, without `each`
+import { describe, expect, it } from "vitest";
+
 import { merge3 } from "../../model/merge";
 import { FOLD_CONTEXT, MergeFile } from "./merge-file";
 import type { FileConflict } from "../../model/merge";
-import type { TextEdit } from "./merge-file";
+import type { Decision } from "./merge-file";
 
 /**
  * The result's editor, reduced to its text: every edit the file hands out is
@@ -11,7 +14,8 @@ import type { TextEdit } from "./merge-file";
 const fakeModel = (text: string) => {
   const model = {
     value: text,
-    apply(edit: TextEdit | null) {
+    apply(decision: Decision | null) {
+      const edit = decision?.edit;
       if (!edit) return;
       model.value =
         model.value.slice(0, edit.start) +

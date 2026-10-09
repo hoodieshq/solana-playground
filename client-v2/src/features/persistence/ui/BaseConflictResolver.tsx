@@ -45,6 +45,7 @@ import {
 import { createMergeEditor } from "./merge-editor/controller";
 import { MergeFile, resolvedFiles } from "./merge-editor/merge-file";
 import type { MergeEditor, MergeLayout } from "./merge-editor/controller";
+import type { HunkAction } from "./merge-editor/result-model";
 import type { HunkSide, MergePane as Pane } from "./merge-editor/merge-file";
 import type { FileConflict, ResolvedFiles } from "../model/merge";
 
@@ -179,10 +180,8 @@ export const BaseConflictResolver = ({
 
   const unresolved = merges.reduce((n, m) => n + m.unresolved, 0);
 
-  const act = (hunk: number, side: HunkSide, action: "take" | "dismiss") => {
-    if (!file) return;
-    editor?.apply(file[action](hunk, side));
-    rerender();
+  const act = (hunk: number, side: HunkSide, action: HunkAction) => {
+    if (editor?.decide(hunk, side, action)) rerender();
   };
 
   /** Scroll to the next or previous hunk still to decide, wrapping */

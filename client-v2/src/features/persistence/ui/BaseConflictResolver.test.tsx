@@ -20,7 +20,11 @@ vi.mock("./merge-editor/controller", () => ({
       },
       onDidChangeLayout: () => ({ dispose: () => undefined }),
       onDidEditResult: () => ({ dispose: () => undefined }),
-      apply: () => undefined,
+      decide: (
+        index: number,
+        side: "left" | "right",
+        action: "take" | "dismiss"
+      ) => !!file[action](index, side),
       update: () => undefined,
       unfold: () => undefined,
       reveal: () => undefined,

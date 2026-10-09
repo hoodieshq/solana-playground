@@ -57,6 +57,17 @@ export interface TextEdit {
   text: string;
 }
 
+/**
+ * What a take or a dismissal did to the file. `edit` is the change to the
+ * result's text, or `null` when the decision changed where the hunk stands
+ * but not a character: dismissing one side while the other is pending,
+ * taking the side that deleted the file, or taking a side the result
+ * already holds. Either way it is one step for undo.
+ */
+export interface Decision {
+  edit: TextEdit | null;
+}
+
 /** A run of settled lines folded away, as line indices in each pane */
 export interface Fold {
   /** Which fold it is, for `unfold`: one segment can hold several */
@@ -318,10 +329,10 @@ export class MergeFile {
    * that deleted it), the answer is one of two files, not lines to add to
    * each other: taking either side leaves the other out.
    *
-   * @returns the edit to the result's text, or `null` when there is nothing
-   * to change -- the side was decided already, or the hunk typed over
+   * @returns what changed, or `null` when nothing did -- the side was
+   * decided already, or the hunk typed over
    */
-  take(index: number, side: HunkSide): TextEdit | null {
+  take(index: number, side: HunkSide): Decision | null {
     const hunk = this._pending(index, side);
     if (!hunk) return null;
     hunk[side] = "taken";
@@ -332,8 +343,8 @@ export class MergeFile {
     return this._rewrite(hunk);
   }
 
-  /** Leave one side's lines out of the result */
-  dismiss(index: number, side: HunkSide): TextEdit | null {
+  /** Leave one side's lines out of the result; returns as `take` does */
+  dismiss(index: number, side: HunkSide): Decision | null {
     const hunk = this._pending(index, side);
     if (!hunk) return null;
     hunk[side] = "dismissed";
@@ -539,14 +550,14 @@ export class MergeFile {
   }
 
   /** Put the hunk's content for its sides into the result */
-  private _rewrite(hunk: Hunk): TextEdit | null {
+  private _rewrite(hunk: Hunk): Decision {
     const i = this.segments.indexOf(hunk);
     const start = this.starts("result").starts[i];
     const before = this.result;
     const content = contentOf(hunk);
     this._lines.splice(start, hunk.lines.result, ...content);
     hunk.lines.result = content.length;
-    return editBetween(before, this.result);
+    return { edit: editBetween(before, this.result) };
   }
 }
 
