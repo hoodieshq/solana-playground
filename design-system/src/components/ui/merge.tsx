@@ -311,14 +311,15 @@ function MergePaneHeader({ className, children, ...props }: React.ComponentProps
   )
 }
 
-/* An empty slot on the editor's ground. The app mounts its editor here. A
+/* An empty slot on the editor's ground, a row beside the pane's
+   MergeHunkGutter. The app mounts its editor in it as a flex-1 child. A
    deleted side is hatched */
 function MergePaneBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="merge-pane-body"
       className={cn(
-        "relative min-h-0 flex-1 overflow-hidden bg-surface-base",
+        "relative flex min-h-0 flex-1 overflow-hidden bg-surface-base",
         "in-data-deleted:bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--border)_6px_7px)]",
         className
       )}
@@ -328,6 +329,27 @@ function MergePaneBody({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 /* ── hunks ─────────────────────────────────────────────────────────────── */
+
+/* A side's column for its hunk controls, next to the ribbon they act
+   across: the last thing in "This device", the first in "Other device", so
+   the two read as mirror images and no control covers code. The app places
+   each MergeHunkActions in it at its hunk's height. At phone width, where
+   the result carries every control, it is not drawn */
+function MergeHunkGutter({ className, ...props }: React.ComponentProps<"div">) {
+  const { side } = React.useContext(PaneContext)
+  return (
+    <div
+      data-slot="merge-hunk-gutter"
+      data-side={side}
+      className={cn(
+        "relative w-11 shrink-0 overflow-hidden bg-surface-panel @max-3xl/merge:hidden",
+        side === "left" ? "order-last border-l border-border" : "order-first border-r border-border",
+        className
+      )}
+      {...props}
+    />
+  )
+}
 
 /* A hunk's colour, by how it stands. Plain classes on a line, so the app
    can hand the same names to its editor's line decorations:
@@ -522,6 +544,7 @@ export {
   MergeFooterShortcuts,
   MergeHunkAction,
   MergeHunkActions,
+  MergeHunkGutter,
   mergeHunkOrder,
   mergeHunkVariants,
   MergeNav,
