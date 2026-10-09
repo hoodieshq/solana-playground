@@ -66,14 +66,16 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const consoleRef = usePanelRef();
 
   // `open` props drive the panels; a drag that folds one reports back
-  // through `onResize`, so the two never disagree for long.
-  // `viewport` re-syncs the panel after it mounts again on a wide screen
+  // through `onResize`, so the two never disagree for long. A panel that
+  // mounts again on a wide screen starts at its `defaultSize`, which follows
+  // `assistantOpen`, so nothing re-syncs it here (its handle is not yet
+  // registered with the group when this effect runs, and throws).
   useEffect(() => {
     const panel = assistantRef.current;
     if (!panel || panel.isCollapsed() === !props.assistantOpen) return;
     if (props.assistantOpen) panel.expand();
     else panel.collapse();
-  }, [props.assistantOpen, props.viewport, assistantRef]);
+  }, [props.assistantOpen, assistantRef]);
 
   useEffect(() => {
     const panel = consoleRef.current;
@@ -133,12 +135,14 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       </Sidebar>
       <SidebarInset className="relative min-h-0 min-w-0">
         {/* One tree at every width, so a rotate across 1024 px does not
-            remount the stage, Monaco or the console's terminal */}
+            remount the stage, Monaco or the console's terminal. Below 1024 px
+            the group holds only the centre, so it neither takes nor saves the
+            horizontal layout: crossing a breakpoint writes nothing. */}
         <ResizablePanelGroup
           orientation="horizontal"
           id="layout-horizontal"
-          defaultLayout={props.horizontal}
-          onLayoutChanged={props.onHorizontalLayout}
+          defaultLayout={wide ? props.horizontal : undefined}
+          onLayoutChanged={wide ? props.onHorizontalLayout : undefined}
         >
           <ResizablePanel
             id="center"
