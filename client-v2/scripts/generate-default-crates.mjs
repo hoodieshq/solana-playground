@@ -86,10 +86,12 @@ if (outputsExist && (await fs.readFile(KEY_PATH, "utf8")).trim() === key) {
   process.exit(0);
 }
 
+// The self-update check fails when CARGO_HOME does not hold the rustup binary.
 run("rustup", [
   "toolchain",
   "install",
   channel,
+  "--no-self-update",
   "--profile",
   "minimal",
   "--component",
