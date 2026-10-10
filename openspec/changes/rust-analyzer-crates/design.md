@@ -169,6 +169,9 @@ crate exists, and `generate-crates.mjs` fails the build on a missing one.
   expansion, about 2 min] → Only when an input changes.
 - [Vercel's image has no `rustup`] → `ensure_rustup` in `vercel-install.sh`
   installs it before generating.
+- [`yarn build` runs without the install step's Rust and finds none] → Both
+  generators throw when `VERCEL` or `CI` is set (`skipWithoutTool`), so the
+  build fails instead of shipping without crates. Locally they warn and skip.
 - [`core.rs` is 10.3 MB] → An 8.5 MB `core.rs` from Rust 1.61 transferred as
   0.78 MB locally, and indexing finished within 30 s. The shipped 1.68 file and
   a slow machine are not measured.

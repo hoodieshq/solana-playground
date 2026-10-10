@@ -6,7 +6,7 @@ set -euo pipefail
 # Order matters: client/package.json has file-deps like "../wasm/anchor-cli/pkg"
 # which don't exist until wasm-pack runs, so we must compile wasm BEFORE yarn install.
 
-# Rust state exceeds the Build Cache size limit, so only the wasm packages go into node_modules.
+# Rust state exceeds the Build Cache size limit, so it lives outside node_modules and only built output is cached.
 RUST_ROOT="$PWD/.cache/rust"
 export CARGO_HOME="$RUST_ROOT/cargo"
 export RUSTUP_HOME="$RUST_ROOT/rustup"
@@ -61,16 +61,46 @@ remote_curl() {
   curl -fsS -H "Authorization: Bearer $REMOTE_TOKEN" "$@"
 }
 
+# Prints the HTTP status, 000 when no response arrived.
+remote_status() {
+  curl -sS -H "Authorization: Bearer $REMOTE_TOKEN" -w '%{http_code}' "$@" || true
+}
+
+# $1: artifact key, $2: HTTP status. A 404 is a miss; any other failure is logged, so an expired token is not read as one.
+remote_found() {
+  case "$2" in
+    2??) return 0 ;;
+    404) return 1 ;;
+    *)
+      echo ">>> Remote Cache: HTTP $2 for $1, treated as a miss" >&2
+      return 1
+      ;;
+  esac
+}
+
 # $1: artifact key. Succeeds only when Remote Cache holds it.
 remote_has() {
-  remote_enabled && remote_curl -I -o /dev/null "$(remote_url "$1")" 2>/dev/null
+  remote_enabled || return 1
+  local status
+  status=$(remote_status -I -o /dev/null "$(remote_url "$1")")
+  remote_found "$1" "$status"
 }
 
 # $1: artifact key, $2: destination. A failed download leaves no partial file to be read as a hit.
 remote_fetch() {
   remote_enabled || return 1
   mkdir -p "$(dirname "$2")"
-  remote_curl -o "$2.part" "$(remote_url "$1")" 2>/dev/null && mv "$2.part" "$2"
+  local status
+  status=$(remote_status -o "$2.part" "$(remote_url "$1")")
+  remote_found "$1" "$status" && mv "$2.part" "$2"
+}
+
+# $1: archive, $2: what it holds, for the log. A corrupt copy is deleted, so the build regenerates and re-uploads it.
+readable_archive() {
+  tar -tf "$1" >/dev/null 2>&1 && return 0
+  echo ">>> $2: cached archive $(basename "$1") is unreadable, discarding" >&2
+  rm -f "$1"
+  return 1
 }
 
 # $1: artifact key, $2: file, $3: what the file holds, for the log. Never fails the build.
@@ -111,11 +141,11 @@ pack_wasm_packages() {
 restore_wasm_packages() {
   local key="$1" archive="$WASM_CACHE/$1.tar"
 
-  if [ -f "$archive" ]; then
+  if [ -f "$archive" ] && readable_archive "$archive" "wasm packages"; then
     echo ">>> wasm packages: HIT in Build Cache ($key)"
     # A build restored from Build Cache seeds Remote Cache when it lacks the tar.
     remote_has "$key" || remote_upload "$key" "$archive" "wasm packages"
-  elif remote_fetch "$key" "$archive"; then
+  elif remote_fetch "$key" "$archive" && readable_archive "$archive" "wasm packages"; then
     echo ">>> wasm packages: HIT in Remote Cache ($key)"
   else
     echo ">>> wasm packages: MISS in Build Cache and Remote Cache ($key), building"
@@ -146,10 +176,10 @@ restore_default_crates() {
   key=$(printf 'default-crates-%s' "$inputs" | sha256 | cut -d' ' -f1)
   archive="$DEFAULT_CRATES_CACHE/$key.tar.gz"
 
-  if [ -f "$archive" ]; then
+  if [ -f "$archive" ] && readable_archive "$archive" "default crates"; then
     echo ">>> default crates: HIT in Build Cache ($key)"
     remote_has "$key" || remote_upload "$key" "$archive" "default crates"
-  elif remote_fetch "$key" "$archive"; then
+  elif remote_fetch "$key" "$archive" && readable_archive "$archive" "default crates"; then
     echo ">>> default crates: HIT in Remote Cache ($key)"
   else
     echo ">>> default crates: MISS in Build Cache and Remote Cache ($key), generating"

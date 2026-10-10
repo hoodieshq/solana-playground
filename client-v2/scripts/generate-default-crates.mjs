@@ -13,12 +13,17 @@ import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { execFileSync, spawnSync } from "child_process";
 
-import { CLIENT_PATH, REPO_ROOT_PATH, exists } from "./utils.mjs";
+import {
+  CLIENT_PATH,
+  REPO_ROOT_PATH,
+  exists,
+  skipWithoutTool,
+} from "./utils.mjs";
 
 /** Crates output directory path */
 const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
 
-/** Key of the inputs the files in `CRATES_PATH` were generated from */
+/** Key of the inputs the default crates in `CRATES_PATH` were generated from */
 const KEY_PATH = path.join(CRATES_PATH, ".default-crates-key");
 
 /** Toolchain file the Rust Analyzer wasm is built with */
@@ -85,6 +90,11 @@ if (outputsExist && (await fs.readFile(KEY_PATH, "utf8")).trim() === key) {
   console.log(`Default crates are current (${key}). Skipping...`);
   process.exit(0);
 }
+
+skipWithoutTool("rustup", "the default crates");
+
+// A run that fails halfway must not leave the old key beside new files
+await fs.rm(KEY_PATH, { force: true });
 
 // The self-update check fails when CARGO_HOME does not hold the rustup binary.
 run("rustup", [
@@ -168,9 +178,10 @@ await fs.writeFile(KEY_PATH, `${key}\n`);
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8" });
   if (result.status !== 0) {
+    const reason = result.error ?? result.signal ?? `exit ${result.status}`;
     throw new Error(
-      `\`${command} ${args.join(" ")}\` failed:\n${
-        result.stderr ?? result.error
+      `\`${command} ${args.join(" ")}\` failed (${reason}):\n${
+        result.stderr || result.stdout || ""
       }`
     );
   }

@@ -116,6 +116,7 @@ services:
 
   # client-v2 without server
   client-v2-standalone:
+    image: solana-playground-client-v2-standalone
     platform: linux/amd64
     depends_on:
       wasm:

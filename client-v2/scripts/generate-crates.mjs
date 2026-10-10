@@ -8,12 +8,13 @@ import fs from "fs/promises";
 import crypto from "crypto";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
-import { execSync, spawnSync } from "child_process";
+import { spawnSync } from "child_process";
 
 import {
   CLIENT_PATH,
   exists,
   REPO_ROOT_PATH,
+  skipWithoutTool,
   SUPPORTED_CRATES_PATH,
 } from "./utils.mjs";
 
@@ -59,13 +60,7 @@ if (
   process.exit(0);
 }
 
-// Exit early if Rust is not installed
-try {
-  execSync("rustc --help", { stdio: "ignore" });
-} catch {
-  console.log("Could not find Rust installation. Skipping crate generation...");
-  process.exit(0);
-}
+skipWithoutTool("cargo", "the supported crates");
 
 /** Cargo home the registry and the tool live in */
 const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
@@ -126,9 +121,8 @@ await fs.writeFile(
 // Written last, so an interrupted run never looks current
 await fs.writeFile(KEY_PATH, `${key}\n`);
 
-/** Empty `CRATES_PATH` except the default crates, deleting in place so a failed run cannot misplace them. */
+/** Empty `CRATES_PATH` except `OUTPUT_FILES` of `generate-default-crates.mjs` (`DEFAULT_CRATE_FILES` in `vercel-install.sh`). */
 async function clearSupportedCrates() {
-  // Everything `generate-default-crates.mjs` writes, its key included
   const keep = [
     ...["alloc", "core", "std"].flatMap((name) => [
       `${name}.rs`,
@@ -266,9 +260,10 @@ async function getRegistry() {
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8" });
   if (result.status !== 0) {
+    const reason = result.error ?? result.signal ?? `exit ${result.status}`;
     throw new Error(
-      `\`${command} ${args.join(" ")}\` failed:\n${
-        result.stderr ?? result.error
+      `\`${command} ${args.join(" ")}\` failed (${reason}):\n${
+        result.stderr || result.stdout || ""
       }`
     );
   }

@@ -117,8 +117,8 @@ deploy-client-to-vercel-production: vercel-link-production ## Build locally + de
 		npx $(VERCEL_CLI) deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
 
 # Rebuilds the bundle and functions from the working tree but skips
-# installCommand, which is vercel-install.sh -- the Rust toolchain plus
-# wasm/build.sh, about an hour of the full build. That is only safe when a
+# installCommand, which is vercel-install.sh: restoring or building the wasm
+# packages and default crates, then yarn install. That is only safe when a
 # full build has already left the real wasm packages and node_modules on disk,
 # so both are checked first: a stub package here would ship `solana`/`anchor`
 # commands that throw to production.
