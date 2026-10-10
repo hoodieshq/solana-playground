@@ -1,5 +1,7 @@
 name: "solana-playground"
 
+# Built services name their image so another `COMPOSE_PROJECT_NAME` reuses it instead of rebuilding
+
 x-client: &client
   platform: linux/amd64
   depends_on:
@@ -16,6 +18,9 @@ x-client: &client
     additional_contexts:
       solana-playground-wasm: service:wasm
       solana-playground-server: service:server
+  # The browser runs on the host, so it reaches the server through its published port
+  environment:
+    - REACT_APP_SERVER_URL=http://localhost:${PG_PORT:-8080}
   ports:
     - ${PG_CLIENT_PORT:-3000}:3000
 
@@ -35,6 +40,9 @@ x-client-v2: &client-v2
     additional_contexts:
       solana-playground-wasm: service:wasm
       solana-playground-server: service:server
+  # The browser runs on the host, so it reaches the server through its published port
+  environment:
+    - REACT_APP_SERVER_URL=http://localhost:${PG_PORT:-8080}
   ports:
     - ${PG_CLIENT_V2_PORT:-3000}:3000
 
@@ -56,6 +64,7 @@ x-server: &server
 services:
   client:
     <<: *client
+    image: solana-playground-client
     tty: true
     stdin_open: true
     profiles:
@@ -63,12 +72,14 @@ services:
 
   client-prod:
     <<: *client
+    image: solana-playground-client-prod
     command: ["sh", "-c", "yarn build && npx serve -s build"]
     profiles:
       - prod
 
   client-v2:
     <<: *client-v2
+    image: solana-playground-client-v2
     tty: true
     stdin_open: true
     profiles:
@@ -76,12 +87,14 @@ services:
 
   client-v2-prod:
     <<: *client-v2
+    image: solana-playground-client-v2-prod
     command: ["sh", "-c", "yarn build && npx serve -s build"]
     profiles:
       - v2-prod
 
   # Client without server
   client-standalone:
+    image: solana-playground-client-standalone
     platform: linux/amd64
     depends_on:
       wasm:
@@ -103,6 +116,7 @@ services:
 
   server:
     <<: *server
+    image: solana-playground-server
     depends_on:
       - db
     environment:
@@ -113,10 +127,12 @@ services:
   # shared profiles, or every profile builds and starts the server twice.
   server-standalone:
     <<: *server
+    image: solana-playground-server-standalone
     profiles:
       - server-standalone
 
   wasm:
+    image: solana-playground-wasm
     platform: linux/amd64
     build:
       context: ./wasm
