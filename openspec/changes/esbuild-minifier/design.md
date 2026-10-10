@@ -2,7 +2,7 @@
 
 ## Context
 
-Read at the base commit,
+Read at
 [`3c5308d`](https://github.com/hoodieshq/solana-playground/commit/3c5308d86330802478bcabd7aedb8667cb2400fa):
 `client-v2` builds with Create React App 5 (`react-scripts` 5.0.0) through
 craco 6.4.3. CRA configures one minimizer, a `TerserPlugin` instance
@@ -54,21 +54,19 @@ and the rest of the optimization settings stay as they are.
 
 ### `keepNames: true`
 
-esbuild has no pattern form of `keep_classnames`. `keepNames` keeps every
-class and function name. Its share of the 14.5% size increase is not
-measured. The change
-keeps this setting because the alternative, a decorator lookup that does not
-depend on `Function.name`, touches every `_Pg*` module in the runtime roots
-that `client-v2/CLAUDE.md` says are never moved along the way.
+esbuild has no pattern form of `keep_classnames`, so `keepNames` keeps every
+class and function name; its share of the 14.5% increase is not measured. The
+alternative, a decorator lookup that does not depend on `Function.name`,
+touches every `_Pg*` module in the runtime modules `client-v2/CLAUDE.md` lists
+as never moved.
 
 ### The target comes from the production `browserslist`
 
 The minifier's `target` is computed in `craco.config.js` by resolving the
 `production` `browserslist` entry of `package.json` (the `browserslist`
 package is installed through CRA) and taking the lowest version per engine in
-`ESBUILD_ENGINES`. The
-measurement in proposal.md used `es2017`; the floor is newer, so the output
-can only get smaller or stay the same.
+`ESBUILD_ENGINES`. The measurement in proposal.md used `es2017`; the floor is
+newer, so the output can only get smaller or stay the same.
 
 - Alternative: a literal list in `craco.config.js`. It duplicates the floor,
   which `client-v2-browser-support` in `ui-migration` requires to be stated in
@@ -95,8 +93,8 @@ it has not been measured, and the time saved would be a few seconds.
 A step after `yarn build-fast` in `client-v2.yml` fails unless
 `build/static/js` contains both `_PgConnection` and `_PgProgramInfo`. Per
 `client-v2/CLAUDE.md`, build configuration is guarded by its outcome, not by a
-unit test of `craco.config.js`. The task that adds the guard proves it can
-fail: the guard must fail on a build with `keepNames: false`.
+unit test of `craco.config.js`. The guard must fail on a build with
+`keepNames: false`; that run is not recorded in this change.
 
 ## Risks / Trade-offs
 
@@ -119,8 +117,9 @@ fail: the guard must fail on a build with `keepNames: false`.
 
 ## Migration Plan
 
-1. Land the change; the next preview deployment is the first build on
-   Vercel's standard machine.
+1. Land the change. Preview `solana-playground-jxgcgt42o` at `f94b845a` built
+   on Vercel's standard machine, and `kgoxgt92k` at `83224b9` built there
+   without the build cache.
 2. Rollback: restore CRA's Terser `minimizer` and keep `parallel: 2`. That
    configuration was measured at 6.3 GB, so it also fits the machine.
 

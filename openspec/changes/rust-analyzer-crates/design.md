@@ -2,32 +2,24 @@
 
 ## Context
 
-See [proposal.md](proposal.md), section "Why", for the gap. The approach
-depends on these facts, read at
+Read at
 [`b1bf2cf`](https://github.com/hoodieshq/solana-playground/commit/b1bf2cfc374b39c6bf016e638baa9b4ffc913490):
 
 - [`rust-analyzer.ts`](../../../client-v2/src/components/Editor/Monaco/languages/rust/rust-analyzer/rust-analyzer.ts)
-  fetches the default crates on every editor start (`loadDefaultCrates`), and
-  `/crates/<name>.rs` plus `/crates/<name>.toml` per dependency
-  (`loadDependency`). `PgCommon.fetchText` throws on a non-OK response, so a
-  404 stops the analyzer's start-up instead of feeding it HTML.
-- [`craco.config.js`](../../../client-v2/craco.config.js) defines `CRATES` by
-  listing `public/crates` at compile time (`defineFromPublicDir`), so the crate
-  files must exist before `craco build` runs.
+  fetches the default crates on every editor start (`loadDefaultCrates`) and a
+  `.rs` plus `.toml` per dependency (`loadDependency`). `PgCommon.fetchText`
+  throws on a non-OK response.
+- [`craco.config.js`](../../../client-v2/craco.config.js) lists
+  `public/crates` at compile time (`defineFromPublicDir`), so the files must
+  exist before `craco build`.
 - [`generate-crates.mjs`](../../../client-v2/scripts/generate-crates.mjs) runs
-  in `yarn generate`, which `yarn build` runs. `withReset` empties
-  `public/crates` except the default crates, then the script expands each
-  supported crate from `$CARGO_HOME/registry/src/index.crates.io-*`.
-- [`vercel-install.sh`](../../../client-v2/scripts/vercel-install.sh) caches the
-  wasm packages in Vercel Remote Cache (`remote_has`, `remote_fetch`,
-  `remote_upload`). Its `CARGO_HOME`, `.cache/rust/cargo`, is exported only
-  inside that script, so `yarn build` reads `~/.cargo` instead.
-- Vercel answers a missing path with `index.html` and HTTP 200. That includes
-  a path with a dot, such as `/no-such-file.xyz`, which the SPA rewrite in
-  [`vercel.json`](../../../client-v2/vercel.json) excludes. The build output has
-  no `404.html`.
+  in `yarn generate` and expands each supported crate from
+  `$CARGO_HOME/registry/src/index.crates.io-*`. `vercel-install.sh` exports its
+  `CARGO_HOME` only to itself, so `yarn build` reads `~/.cargo`.
+- Vercel answers any missing path, `/no-such-file.xyz` included, with
+  `index.html` and HTTP 200. The build output has no `404.html`.
 
-Measurements on macOS at `b1bf2cf`, one run each:
+Measured on macOS at `b1bf2cf`, one run each:
 
 | Step | Result |
 | ---------------------------------------------------------------------- | ------------------------- |
@@ -39,16 +31,14 @@ Measurements on macOS at `b1bf2cf`, one run each:
 
 ### Upstream reference
 
-Every comparison with upstream in this change is against the files below.
-`beta.solpg.io` serves them from Amazon S3, outside any repository, so a
-commit cannot pin them. The SHA-256 identifies the exact bytes; `ETag` and
-`Last-Modified` are what S3 answered. All four were uploaded within six
-seconds, so `Last-Modified` dates an upload, not a generation. At the time,
+Every comparison with upstream is against these files. `beta.solpg.io` serves
+them from Amazon S3, so no commit pins them; the SHA-256 does. Neither
 upstream's
 [`solana-playground`](https://github.com/solana-playground/solana-playground/commit/3fb888f38961738635e6b971b3fd724fc86ce198)
-was at `3fb888f`, and
+at `3fb888f` nor
 [`assets`](https://github.com/solana-playground/assets/commit/7fa9f326867f48f7e3abf47494d9a1849beff01f)
-at `7fa9f32`; neither contains these files.
+at `7fa9f32` contains them. Their format is `syn-file-expand-cli` output;
+`Last-Modified` dates the upload, not the generation.
 
 | File | Bytes | SHA-256 | `ETag` | `Last-Modified` |
 | -------------------------------------------- | --------- | ------------------------------------------------------------------ | ---------------------------------- | ----------------------------- |
@@ -57,97 +47,72 @@ at `7fa9f32`; neither contains these files.
 | `https://beta.solpg.io/crates/std.rs` | 1,509,878 | `c1c2b7cbf5f597e1bdc89fe2cd2eb916c48fc941aa00de20031c123357f8045f` | `a3de96aced38def4f40687718f6cad32` | Fri, 21 Aug 2026 18:42:23 GMT |
 | `https://beta.solpg.io/crates/versions.json` | 728 | `36a5637374859fd5ee9facab6c91666c4ef164e14048e3ff33849d35b56fcfe5` | `09d9d359d686cb3c8669de38f4edcb16` | Fri, 21 Aug 2026 18:42:24 GMT |
 
-To check whether upstream has replaced the files, compare the SHA-256 of a
-fresh download with this table.
-
 ## Goals / Non-Goals
 
 **Goals:**
 
-- One command produces all of `public/crates` from pinned inputs, on a
-  developer machine and on Vercel.
-- A build on unchanged inputs runs no Rust tool.
+- One command produces all of `public/crates` from pinned inputs, locally and
+  on Vercel.
+- A build on unchanged inputs runs no Rust tool for the default crates.
 
 **Non-Goals:**
 
-- Generating crates in the browser, or on the build server per request.
+- Generating crates in the browser or on the build server.
 - Matching upstream's default crates byte for byte.
 
 ## Decisions
 
 ### `syn-file-expand-cli` 0.2.0 for the default crates only
 
-The 0.3.0 release depends on `syn` 2, which removed the unstable `box`
-expression. Eighteen files of the 1.61 `std` use `box`, `thread/local.rs`
-among them. The 0.2.0 release depends on `syn` 1 and expands `std`, `alloc`,
-and `core` of `nightly-2022-12-12`. The supported crates keep the release
-`generate-crates.mjs` installs, which generates all 85 files. Each release is
-installed with `cargo install --locked --version <version> --root <dir>` into
-a directory of its own under the cargo home, so the two never shadow each
-other on `PATH`.
+0.3.0 depends on `syn` 2, which removed the unstable `box` expression that
+`std` uses (eighteen files of the 1.61 `std`). 0.2.0 depends on `syn` 1 and
+expands all three. The supported crates keep 0.3.0. Each release installs into
+its own `--root` under the cargo home, so neither shadows the other on `PATH`.
 
-- Alternative: 0.2.0 for every crate. One tool, but it changes the output of
-  85 files that work, and that change is not measured.
+- Alternative: 0.2.0 for every crate. It changes 85 working files, unmeasured.
 
 ### The toolchain comes from `wasm/rust-analyzer/rust-toolchain.toml`
 
-The default crates must match the analyzer that reads them. The generator
-reads `channel` from
+The default crates must match the analyzer that reads them, so the generator
+installs the `channel` of
 [`wasm/rust-analyzer/rust-toolchain.toml`](../../../wasm/rust-analyzer/rust-toolchain.toml)
-the way [`wasm/build.sh`](../../../wasm/build.sh) does, and runs
-`rustup toolchain install <channel> --profile minimal --component rust-src`.
-At `b1bf2cf` that channel is `nightly-2022-12-12`, Rust 1.68.0-nightly. User
-programs compile with Rust 1.68.0; proposal.md, section "What Changes", links
-the chain of sources for that version.
+with `rust-src`: `nightly-2022-12-12`, Rust 1.68.0-nightly. User programs
+compile with Rust 1.68.0: Solana 1.17.34's `cargo-build-sbf`
+[pins platform-tools v1.37](https://github.com/anza-xyz/agave/blob/77daab497df191ef485a7ad36ed291c1874596e5/sdk/cargo-build-sbf/src/main.rs),
+which
+[builds Solana's Rust `solana-tools-v1.37`](https://github.com/anza-xyz/platform-tools/blob/390112a3f6d25e17662e83bf73d73f3d483b556e/build.sh),
+whose [`src/version`](https://github.com/solana-labs/rust/blob/solana-tools-v1.37/src/version)
+reads `1.68.0`.
 
-This departs from upstream on purpose, as of the files in section "Upstream
-reference". `beta.solpg.io` serves two versions:
-its Rust Analyzer is built with the same 1.68.0-nightly, and its default
-crates, whose making no repository records, come from about Rust 1.60, the
-newest stabilization they contain. There, an API stabilized in 1.61 to 1.68, such as
-`std::array::from_fn`, shows as unknown in the editor although it compiles.
-Here the generator produces the default crates, so both come from the
-analyzer's toolchain. A comment at the generator's toolchain lookup records
-this difference from upstream.
+Upstream pairs the same analyzer with default crates whose newest
+stabilization is Rust 1.60, so an API stabilized in 1.61 to 1.68, such as
+`std::array::from_fn`, shows as unknown although it compiles.
 
-- Alternative: generate from Rust 1.60 to match upstream. The 0.2.0 release
-  expands it, but the output still differs from upstream's files (`std` 2.0 MB
-  against 1.5 MB, `core` 9.4 MB against 2.9 MB; upstream's flags are unknown).
-  It would reproduce neither upstream nor our compiler.
+- Alternative: generate from 1.60 to match upstream. The output still differs
+  from upstream's (`std` 2.0 MB against 1.5 MB, `core` 9.4 MB against 2.9 MB;
+  upstream's flags are unknown), so it matches neither upstream nor our
+  compiler.
 
 ### Flags
 
-All three default crates take these flags:
-
 ```sh
---loopify --cfg-true-by-default --unset-cfg test
+--loopify --cfg-true-by-default --unset-cfg test                  # all three
+--unset-cfg "all(target_arch=x86_64,target_feature=avx512f)"      # core only
 ```
 
-Without `--unset-cfg test`, `core` reaches test files that `rust-src` does not
-ship.
+Without `--unset-cfg test`, `core` reaches test files `rust-src` does not
+ship. In `core`, `core_simd::masks::mask_impl` picks one of two `#[path]` files
+through `cfg_attr`; with every cfg true both apply and the tool stops.
+Unsetting the AVX-512 variant keeps `full_masks.rs`.
 
-`core` also takes this flag:
-
-```sh
---unset-cfg "all(target_arch=x86_64,target_feature=avx512f)"
-```
-
-Its module `core_simd::masks::mask_impl` picks between two `#[path]` files
-through `cfg_attr`. With every cfg true, both paths apply and the tool stops.
-Unsetting the AVX-512 variant keeps the generic `full_masks.rs`.
-
-- Alternative: `--full-crate-tree`, which also gets past that error (9.3 MB of
-  output) but keeps duplicate modules instead of naming the variant it drops.
+- Alternative: `--full-crate-tree` (9.3 MB) also passes, but keeps both
+  modules instead of naming the dropped one.
 
 ### Brotli copies
 
-The generator also writes `<name>.rs.br` for each default crate: brotli at
-quality 11, text mode, window 24, through Node's `zlib`. Window 24 is the
-largest a browser's brotli decoder accepts. `zlib` comes with the Node version
-`.nvmrc` pins, so no other binary decides the bytes. Two runs at `e247abb5`
-produced the same SHA-256 for every `.rs` and `.rs.br`.
-
-Sizes of the generated files:
+The generator also writes `<name>.rs.br`: brotli quality 11, text mode, window
+24 (the largest browsers decode), through the `zlib` of the Node `.nvmrc`
+pins. Two runs at `e247abb5` gave the same SHA-256 for every file.
 
 | Default crate | `.rs` | gzip -9 | brotli 11 (`.rs.br`) | zstd -19 | xz -9 |
 | --- | --- | --- | --- | --- | --- |
@@ -155,93 +120,66 @@ Sizes of the generated files:
 | `std` | 2,071,630 | 333,191 | 240,668 | 249,139 | 248,772 |
 | `alloc` | 1,000,115 | 177,220 | 123,896 | 129,804 | 129,256 |
 
-A browser decodes brotli natively as an HTTP `Content-Encoding`, so a `.br`
-served with `Content-Encoding: br` reaches `fetchText` as plain text. Vercel
-compresses static files with brotli on the fly at a level it does not
-document. Serving the `.br` copies is not part of this change; until a task
-does it, `rust-analyzer.ts` fetches the `.rs` files.
+`rust-analyzer.ts` fetches the `.rs` files until a task serves the `.br`
+copies with `Content-Encoding: br`. Vercel's own on-the-fly brotli level is
+undocumented.
 
-- Alternative: zstd or xz. Neither compresses better than brotli 11 here, and
-  a browser decodes neither without a decoder shipped in the bundle.
-- Alternative: gzip, decoded in the page with `DecompressionStream`, which
-  Safari 16.4 supports. 43% larger than brotli 11 in total.
+- Alternative: zstd or xz. No smaller, and browsers need a shipped decoder.
+- Alternative: gzip through `DecompressionStream`. 43% larger than brotli 11.
 
-### The registry is fetched into the cargo home the generation reads
+### Registry fetch and key files
 
-`generate-crates` runs this command against the `CARGO_HOME` it reads
-afterwards, so the registry holds the locked version of every supported crate:
+`generate-crates` runs `cargo fetch --locked --manifest-path
+../server/programs/Cargo.toml` against the `CARGO_HOME` it reads.
 
-```sh
-cargo fetch --locked --manifest-path ../server/programs/Cargo.toml
-```
-
-### A key file lets generation skip unchanged inputs
-
-Each generator writes a key file, a SHA-256 over its inputs:
-`public/crates/.crates-key` from `generate-crates.mjs` (the script and
-`server/programs/Cargo.lock`), and `public/crates/.default-crates-key` from
-`generate-default-crates.mjs` (the script, the Rust Analyzer toolchain file,
-and Node's brotli version). When its key matches, a generator exits without
-touching `public/crates`, and `--key` prints the key. A `public/crates`
-restored from the cache survives `yarn build`, which runs both generators
-again, only because of these keys.
+Each generator writes a SHA-256 of its inputs and exits when it matches;
+`--key` prints it. `.crates-key` covers the script and
+`server/programs/Cargo.lock`; `.default-crates-key` covers the script, the
+toolchain file, and Node's brotli version. The keys are what let a restored
+`public/crates` survive `yarn build`, which runs both generators again.
 
 ### Remote Cache in `vercel-install.sh`
 
-The install script computes the default crates' key and restores them from a
-tar in Vercel Remote Cache. When the key is absent, the script runs the
-generation and uploads the tar, before `yarn install`, as it does for the wasm
-packages. The script reuses `remote_has`, `remote_fetch`, and `remote_upload`.
+The install script restores the default crates from a Remote Cache tar keyed
+on their generator's key; on a miss it generates and uploads before `yarn
+install`, reusing `remote_has`, `remote_fetch`, and `remote_upload`. The
+supported crates are generated in every build with the Rust in Vercel's image.
 
-The supported crates are not cached. `yarn generate` produces them in every
-build with the Rust in Vercel's image. At `7c23f8a1`, measured on 16 cores:
-`cargo fetch` 22.6 s, compiling `syn-file-expand-cli` 11.9 s, expansion 1.6 s.
+On Vercel's 4 cores, preview `dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at `7c23f8a1`:
+a miss took 4 min 19 s, about 2 min of it the default crates; hits took 2 min
+10 s to 2 min 44 s, the supported crates 20 to 26 s of that.
 
-Measured on Vercel's 4-core machine, preview
-`dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at `7c23f8a1`: a build that misses the
-cache took 4 min 19 s in all, of which generating the default crates took
-about 2 min. Builds that hit the cache took 2 min 10 s to 2 min 44 s, the
-supported crates' generation 20 to 26 s of that.
-
-- Alternative: cache the supported crates like the default crates. Written and
-  tested locally (a 444 KB tar), but it adds `rustup`, a pinned toolchain, and
-  about 30 lines of shell to save 20 to 26 s per build.
-
-- Alternative: commit the output to the assets submodule. The script can
-  reproduce it, but 12 MB of generated text goes into a repository, and every
-  input change needs a commit by hand.
+- Alternative: cache the supported crates too. Tested locally (a 444 KB tar),
+  but `rustup`, a pinned toolchain, and about 30 lines of shell to save 20 to
+  26 s.
+- Alternative: commit the output to the assets submodule. 12 MB of generated
+  text, and a hand commit per input change.
 
 ### No 404 for a missing crate file
 
-Vercel answers a missing file under `/crates/` with `index.html` and HTTP 200.
-`@vercel/routing-utils` shows that the SPA rewrite in `vercel.json` does not
-match such a path, so the fallback comes from a route outside `vercel.json`;
-the response carries no `x-matched-path`. Rewrites cannot set a status, and a
-404 would need the legacy `routes` array in place of every rewrite and header.
-The change makes every requested crate exist instead: both generators run in
-every pipeline, and `generate-crates.mjs` fails the build on a missing
-supported crate.
+The fallback to `index.html` comes from a route outside `vercel.json`
+(`@vercel/routing-utils` shows the SPA rewrite does not match; there is no
+`x-matched-path`). A rewrite cannot set a status, and a 404 needs the legacy
+`routes` array in place of every rewrite and header. Instead every requested
+crate exists, and `generate-crates.mjs` fails the build on a missing one.
 
 ## Risks / Trade-offs
 
-- [A cache miss on Vercel adds the toolchain download, an 800 MB fetch, and
-  the expansion to the build] → Only when an input changes. The key covers
-  every input, so the build after it restores from the cache.
-- [Vercel's build image has no `rustup`] → `vercel-install.sh` installs
-  `rustup` under `.cache/rust` when the wasm cache misses, and `ensure_rustup`
-  installs it before the default crates are generated.
-- [`core.rs` is 10.3 MB] → In the local test, an 8.5 MB `core.rs` from Rust
-  1.61 transferred as 0.78 MB, and indexing finished within 30 s. A slow
-  machine is not measured.
+- [A miss on the default crates adds the toolchain download and their
+  expansion, about 2 min] → Only when an input changes.
+- [Vercel's image has no `rustup`] → `ensure_rustup` in `vercel-install.sh`
+  installs it before generating.
+- [`core.rs` is 10.3 MB] → An 8.5 MB `core.rs` from Rust 1.61 transferred as
+  0.78 MB locally, and indexing finished within 30 s. The shipped 1.68 file and
+  a slow machine are not measured.
 - [Two runs produce different bytes] → Not observed: at `ec6f2b0d`, every
-  crate file compared had the same SHA-256 on macOS, Vercel's builder, and the
-  Docker image. The key covers the inputs either way, and the cached copy is
-  the one that ships.
+  crate file had the same SHA-256 on macOS, Vercel, and Docker.
 
 ## Migration Plan
 
-1. Land the change. The first preview build misses the cache and generates.
-2. Rollback: revert the change. Deployments return to serving no crate files.
+1. Land the change. Preview `dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at `7c23f8a1`
+   was the first to miss and generate.
+2. Rollback: revert the change.
 
 ## Open Questions
 

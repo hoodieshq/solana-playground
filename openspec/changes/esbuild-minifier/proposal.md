@@ -46,8 +46,7 @@ fallback.
   running in CI (`client-v2.yml`) and in the pre-push hook (`yarn run check`). The
   development server keeps both, so type errors still show in the overlay.
 - CI checks the built bundle for the `_Pg*` class names, so a minifier change
-  that drops them fails the build instead of reaching users as an infinite
-  loop.
+  that drops them fails CI instead of reaching users as an infinite loop.
 - No slice under `features/` or `widgets/` changes; no telemetry event is
   added, renamed, or removed.
 
