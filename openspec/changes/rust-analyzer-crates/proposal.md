@@ -95,11 +95,12 @@ None.
   how a Vercel build produces the crate files.
 - Users: completion, hover, and diagnostics for the standard library and the
   supported crates work in the editor. The first editor load downloads more:
-  in the local test, the default crates generated from Rust 1.61 transferred
-  as 1.27 MB compressed.
-- Vercel: a build whose inputs changed runs the generation: the toolchain
-  download, a `cargo fetch` of about 800 MB, and the expansion. Every other
-  build restores `public/crates` from the cache.
+  the default crates are 13.3 MB, 0.99 MB at brotli 11 (design.md, "Brotli
+  copies"). What Vercel transfers is not measured.
+- Vercel: a build whose inputs changed generates the default crates: the
+  toolchain download and the expansion. Every other build restores them from
+  the cache. The supported crates, with a `cargo fetch` of about 800 MB, are
+  generated in every build.
 - Out of scope:
   - Changing the Rust Analyzer wasm or its toolchain.
   - Shrinking `core.rs`, 10.3 MB uncompressed.

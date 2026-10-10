@@ -45,18 +45,14 @@ RUN yarn install --frozen-lockfile
 # `yarn start`/`yarn build` re-run this and it is idempotent.
 RUN node scripts/update-static.mjs
 
-# Bake every crate file in, so an image without the server has them too. The toolchains
-# and the cargo registry are removed in the same layer, so they neither grow the image nor
-# show up as Rust at start; `yarn start` finds both kinds of crates current by their keys
-# and skips. The supported crates use the toolchain the wasm packages build with.
+# Rust is deleted in the same layer: the image stays small, and `yarn start` finds both crate keys current.
 RUN export CARGO_HOME=/opt/crates/cargo RUSTUP_HOME=/opt/crates/rustup \
+    && toolchain=$(awk '/channel/{gsub(/"/, ""); print $3 }' ../wasm/rust-toolchain.toml) \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-        | sh -s -- -y --no-modify-path --default-toolchain none --profile minimal \
+        | sh -s -- -y --no-modify-path --default-toolchain "$toolchain" --profile minimal \
     && export PATH="$CARGO_HOME/bin:$PATH" \
     && node scripts/generate-default-crates.mjs \
-    && toolchain=$(awk '/channel/{gsub(/"/, ""); print $3 }' ../wasm/rust-toolchain.toml) \
-    && rustup toolchain install "$toolchain" --profile minimal \
-    && RUSTUP_TOOLCHAIN="$toolchain" node scripts/generate-crates.mjs \
+    && node scripts/generate-crates.mjs \
     && rm -rf /opt/crates
 
 # Start client

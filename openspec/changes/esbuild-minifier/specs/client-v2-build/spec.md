@@ -42,10 +42,10 @@ SHALL fail when the built bundle lacks one of those names.
 
 #### Scenario: Dependent change events in the production build (manual)
 
-- **WHEN** the production build is served and a program is built while the
-  connection's endpoint is changed in settings
-- **THEN** the program's on-chain info updates once, and the tab does not
-  freeze in a loop of change events
+- **WHEN** the production build is served and the connection's endpoint is
+  changed in settings from Devnet to Testnet
+- **THEN** the cluster label in the bottom bar changes to Testnet, and the tab
+  does not freeze in a loop of change events
 
 ### Requirement: Minified output stays within the production browser floor
 
@@ -60,7 +60,8 @@ allows, and SHALL take its target from that list, not from a list of its own.
 
 #### Scenario: A browser at the floor (manual)
 
-- **WHEN** the production build is opened in Safari 16.4
+- **WHEN** the production build is opened in the oldest Safari the production
+  `browserslist` allows
 - **THEN** every JavaScript chunk loads without a syntax error in the console
 
 ### Requirement: Type checking and linting gate the merge, not the build

@@ -104,8 +104,10 @@ produce a supported crate.
 
 The crate files SHALL depend on pinned inputs only:
 `wasm/rust-analyzer/rust-toolchain.toml`, the versions of the expansion tool,
-`server/programs/Cargo.lock`, `supported-crates.json`, and the generation
-scripts. Two runs on the same inputs SHALL produce identical bytes.
+`server/programs/Cargo.lock`, the brotli version bundled with Node, and the
+generation scripts. `supported-crates.json` is generated from
+`server/programs/Cargo.lock`, not read. Two runs on the same inputs SHALL
+produce identical bytes.
 
 #### Scenario: Two runs (manual)
 

@@ -2,17 +2,19 @@
 
 ## Context
 
+Read at the base commit,
+[`3c5308d`](https://github.com/hoodieshq/solana-playground/commit/3c5308d86330802478bcabd7aedb8667cb2400fa):
 `client-v2` builds with Create React App 5 (`react-scripts` 5.0.0) through
 craco 6.4.3. CRA configures one minimizer, a `TerserPlugin` instance
-(`terser-webpack-plugin` 5.3.1), which `craco.config.js` already reaches into
-to set `keep_classnames` and `keep_fnames` to `/^_Pg/`. See proposal.md (Why)
+(`terser-webpack-plugin` 5.3.1), which `craco.config.js` reaches into to set
+`keep_classnames` and `keep_fnames` to `/^_Pg/`. See proposal.md (Why)
 for the memory measurements.
 
 Three facts constrain the approach:
 
 - `terser-webpack-plugin` 5.3.1 ships `esbuildMinify` as an alternative
   implementation behind the same plugin; it `require`s `esbuild` at run time.
-  `esbuild` 0.25.9 is installed today only as a dependency of `tsx`.
+  `esbuild` 0.25.9 is installed only as a dependency of `tsx`.
 - `src/utils/decorators/common.ts` names each change event
   `"ondidchange" + sClass.name + accessor`. If two decorated classes are
   minified to the same name, their events collide and a derived value that
@@ -41,7 +43,7 @@ Three facts constrain the approach:
 
 Replace the `minimizer` of CRA's existing `TerserPlugin` instance with
 `{ implementation: TerserPlugin.esbuildMinify, options }`. CRA's CSS minimizer
-and the rest of the optimisation settings stay as they are.
+and the rest of the optimization settings stay as they are.
 
 - Alternative: `esbuild-loader`'s `EsbuildPlugin` in place of CRA's minimizer.
   It adds a second package for the same esbuild call and means removing CRA's
@@ -53,7 +55,8 @@ and the rest of the optimisation settings stay as they are.
 ### `keepNames: true`
 
 esbuild has no pattern form of `keep_classnames`. `keepNames` keeps every
-class and function name, which is most of the 16% size increase. The change
+class and function name. Its share of the 14.5% size increase is not
+measured. The change
 keeps this setting because the alternative, a decorator lookup that does not
 depend on `Function.name`, touches every `_Pg*` module in the runtime roots
 that `client-v2/CLAUDE.md` says are never moved along the way.
@@ -62,8 +65,8 @@ that `client-v2/CLAUDE.md` says are never moved along the way.
 
 The minifier's `target` is computed in `craco.config.js` by resolving the
 `production` `browserslist` entry of `package.json` (the `browserslist`
-package is already installed through CRA) and taking the lowest version per
-engine esbuild knows (`chrome`, `edge`, `firefox`, `opera`, `safari`). The
+package is installed through CRA) and taking the lowest version per engine in
+`ESBUILD_ENGINES`. The
 measurement in proposal.md used `es2017`; the floor is newer, so the output
 can only get smaller or stay the same.
 
@@ -106,12 +109,13 @@ fail: the guard must fail on a build with `keepNames: false`.
   manual scenarios in `client-v2-build` exercise the production build; the
   name guard catches the one known production-only failure.
 - [The browser suite does not run on the minified bundle] → Manual smoke of a
-  Vercel preview; the testing manual's M-2 and M-3 walk it.
+  Vercel preview: the `(manual)` scenarios of `client-v2-build`.
 - [esbuild needs its platform binary (`@esbuild/linux-x64` on Vercel)] → It is
   an optional dependency of `esbuild` that yarn installs per platform; the
-  lockfile carries all of them. The first preview deployment proves it.
+  lockfile carries all of them. Preview `solana-playground-jxgcgt42o` built
+  with it at `f94b845a`.
 - [`esbuild` drifts from the version `tsx` uses] → Pin it exactly, at the
-  version already installed.
+  version `tsx` installs.
 
 ## Migration Plan
 

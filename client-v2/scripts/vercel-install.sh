@@ -6,7 +6,7 @@ set -euo pipefail
 # Order matters: client/package.json has file-deps like "../wasm/anchor-cli/pkg"
 # which don't exist until wasm-pack runs, so we must compile wasm BEFORE yarn install.
 
-# Rust state exceeds Vercel's build cache limit, so only the wasm packages go into node_modules.
+# Rust state exceeds the Build Cache size limit, so only the wasm packages go into node_modules.
 RUST_ROOT="$PWD/.cache/rust"
 export CARGO_HOME="$RUST_ROOT/cargo"
 export RUSTUP_HOME="$RUST_ROOT/rustup"
@@ -18,7 +18,7 @@ INSTALL_MARK="node_modules/.cache/install-key"
 
 DEFAULT_CRATES_CACHE="$PWD/node_modules/.cache/default-crates"
 CRATES_DIR="$PWD/public/crates"
-# What generate-default-crates writes; withReset in generate-crates.mjs keeps the same list.
+# What generate-default-crates writes; clearSupportedCrates in generate-crates.mjs keeps the same list.
 DEFAULT_CRATE_FILES=(core.rs core.rs.br alloc.rs alloc.rs.br std.rs std.rs.br .default-crates-key)
 
 # Vercel Remote Cache, shared by every build of the team (see docs/deploy-client-vercel.md,
@@ -61,7 +61,7 @@ remote_curl() {
   curl -fsS -H "Authorization: Bearer $REMOTE_TOKEN" "$@"
 }
 
-# $1: artifact key. Succeeds only when the remote cache holds it.
+# $1: artifact key. Succeeds only when Remote Cache holds it.
 remote_has() {
   remote_enabled && remote_curl -I -o /dev/null "$(remote_url "$1")" 2>/dev/null
 }
@@ -73,13 +73,12 @@ remote_fetch() {
   remote_curl -o "$2.part" "$(remote_url "$1")" 2>/dev/null && mv "$2.part" "$2"
 }
 
-# $1: artifact key, $2: file, $3: what the file holds, for the log. Never fails the build;
-# the next build with these sources rebuilds.
+# $1: artifact key, $2: file, $3: what the file holds, for the log. Never fails the build.
 remote_upload() {
   remote_enabled || return 0
   remote_curl -X PUT -H 'Content-Type: application/octet-stream' \
     --data-binary @"$2" -o /dev/null "$(remote_url "$1")" \
-    || echo ">>> $3: Remote Cache upload failed; the next build with these sources rebuilds" >&2
+    || echo ">>> $3: Remote Cache upload failed; a build without the Build Cache copy rebuilds" >&2
 }
 
 build_wasm_packages() {
@@ -100,7 +99,7 @@ build_wasm_packages() {
   bash ../wasm/build.sh
 }
 
-# $1: tar to write. Older archives cannot match again and count against the cache size limit.
+# $1: tar to write. Older archives cannot match again and count against the Build Cache size limit.
 pack_wasm_packages() {
   rm -rf "$WASM_CACHE"
   mkdir -p "$WASM_CACHE"
@@ -114,7 +113,7 @@ restore_wasm_packages() {
 
   if [ -f "$archive" ]; then
     echo ">>> wasm packages: HIT in Build Cache ($key)"
-    # A build restored from the build cache seeds the remote cache when it lacks the tar.
+    # A build restored from Build Cache seeds Remote Cache when it lacks the tar.
     remote_has "$key" || remote_upload "$key" "$archive" "wasm packages"
   elif remote_fetch "$key" "$archive"; then
     echo ">>> wasm packages: HIT in Remote Cache ($key)"

@@ -21,7 +21,7 @@ const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
 /** Key of the inputs the files in `CRATES_PATH` were generated from */
 const KEY_PATH = path.join(CRATES_PATH, ".default-crates-key");
 
-/** Toolchain file of the Rust Analyzer WASM, read the way `wasm/build.sh` reads it */
+/** Toolchain file the Rust Analyzer wasm is built with */
 const TOOLCHAIN_PATH = path.join(
   REPO_ROOT_PATH,
   "wasm",
@@ -32,7 +32,7 @@ const TOOLCHAIN_PATH = path.join(
 /** `syn-file-expand-cli` name */
 const CLI_NAME = "syn-file-expand-cli";
 
-/** 0.3.0 is built on `syn` 2, which cannot parse the `box` expressions in `std` */
+/** The `generate-crates` release is built on `syn` 2, which cannot parse the `box` expressions in `std` */
 const CLI_VERSION = "0.2.0";
 
 /** Flags per crate; `core` drops the AVX-512 variant of a module with two `#[path]`s */
@@ -42,7 +42,7 @@ const CRATES = {
   std: [],
 };
 
-/** Every file this script writes, the key included; `withReset` in `generate-crates.mjs` keeps the same list */
+/** Every file this script writes, the key included; `clearSupportedCrates` in `generate-crates.mjs` keeps the same list */
 const OUTPUT_FILES = [
   ...Object.keys(CRATES).flatMap((name) => [`${name}.rs`, `${name}.rs.br`]),
   path.basename(KEY_PATH),
@@ -58,7 +58,7 @@ if (process.versions.node.split(".")[0] !== nodeVersion.split(".")[0]) {
   );
 }
 
-// Upstream (beta.solpg.io) serves default crates from about Rust 1.60 beside a 1.68.0-nightly analyzer; we take both from the analyzer's toolchain
+// Upstream pairs its analyzer with older default crates; one toolchain for both keeps APIs stabilized in between resolvable
 const toolchainFile = await fs.readFile(TOOLCHAIN_PATH, "utf8");
 const channel = toolchainFile.match(/^channel\s*=\s*"([^"]+)"/m)?.[1];
 if (!channel) throw new Error(`No \`channel\` in ${TOOLCHAIN_PATH}`);
@@ -113,7 +113,7 @@ const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
 const cliRoot = path.join(cargoHome, "tools", `${CLI_NAME}-${CLI_VERSION}`);
 const cliPath = path.join(cliRoot, "bin", CLI_NAME);
 if (!(await exists(cliPath))) {
-  // `+channel`: Docker and Vercel install rustup without a default toolchain
+  // `+channel`: the default toolchain, where one exists, is not the analyzer's
   run("cargo", [
     `+${channel}`,
     "install",
@@ -164,12 +164,7 @@ for (const [name, flags] of Object.entries(CRATES)) {
 // Written last, so an interrupted run never looks current
 await fs.writeFile(KEY_PATH, `${key}\n`);
 
-/**
- * Run a command and throw with its output when it fails.
- *
- * @param {string} command program to run
- * @param {string[]} args its arguments
- */
+/** Run a command and throw with its output when it fails. */
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8" });
   if (result.status !== 0) {

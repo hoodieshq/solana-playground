@@ -151,7 +151,13 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 `vercel-link-preview` or `vercel-link-production` runs automatically as a prerequisite of the preview and full production targets.
 
-A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state that earlier local builds left in `client-v2/.cache/rust`.
+A Git-integration build with no cache does not finish inside Vercel's [build time limit](https://vercel.com/docs/builds#limits-and-resources). A local build has no such limit, and it reuses the Rust state of earlier local builds (see [Build cache](#build-cache)).
+
+To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@<version> deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`, with the version pinned as `VERCEL_CLI` in `Makefile.vercel`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
+
+The deploy resolves this git branch's Neon branch first, before building, and passes it as `-e DATABASE_URL=<pooled url>` so the deployment overrides the project-level variable. Resolving first is deliberate: a Neon failure should not cost a full wasm build.
+
+`--archive=tgz` is not optional. The prebuilt output is about 16k files and the upload API rejects more than 15000 (`files should NOT have more than 15000 items`), so the tree goes up as a single tarball.
 
 ## Build cache
 
@@ -160,12 +166,12 @@ Three caches, one per part of the install:
 | What | Where | Why there |
 | --- | --- | --- |
 | `node_modules` | Vercel's [build cache](https://vercel.com/docs/deployments/troubleshoot-a-build) | Vercel restores it before the install. `yarn install` is skipped when the restored copy was installed from the same `yarn.lock`, `package.json`, wasm packages, and Node version (`node_modules/.cache/install-key`). |
-| The built `wasm/*/pkg` directories | Vercel [Remote Cache](https://vercel.com/docs/monorepos/remote-caching), with a copy in `node_modules/.cache/wasm-pkg` | The build cache is saved only by a successful build, and a build that compiles the crates does not finish in time. Remote Cache takes the upload mid-build. |
-| The default crates in `public/crates` (`core`, `alloc`, `std`, their `.br` copies, and `.default-crates-key`) | Vercel Remote Cache, with a copy in `node_modules/.cache/default-crates` | Generating them installs a Rust toolchain and compiles `syn-file-expand-cli`. A hit needs no Rust. |
+| The built `wasm/*/pkg` directories | Vercel [Remote Cache](https://vercel.com/docs/monorepos/remote-caching), with a copy in `node_modules/.cache/wasm-pkg` | The build cache is saved only by a successful build, and a build that compiles the wasm packages does not finish in time. Remote Cache takes the upload mid-build. |
+| The default crates in `public/crates` (`DEFAULT_CRATE_FILES` in `scripts/vercel-install.sh`) | Vercel Remote Cache, with a copy in `node_modules/.cache/default-crates` | Generating them installs a Rust toolchain and compiles `syn-file-expand-cli`. A hit needs no Rust. |
 
-The default crates follow the same order as the wasm packages: the local copy, then Remote Cache, then `scripts/generate-default-crates.mjs`, whose upload happens before `yarn install`. Their key is the generator's own (`generate-default-crates.mjs --key`), which hashes the script, `wasm/rust-analyzer/rust-toolchain.toml`, and the brotli version bundled with Node. During the build, `yarn generate` runs the generator again; it finds `public/crates/.default-crates-key` current and skips.
+The default crates follow the same order as the wasm packages: the local copy, then Remote Cache, then `scripts/generate-default-crates.mjs`; `vercel-install.sh` uploads the result before `yarn install`. Their key is derived from the generator's (`generate-default-crates.mjs --key`), which hashes the script, `wasm/rust-analyzer/rust-toolchain.toml`, and the brotli version bundled with Node. During the build, `yarn generate` runs the generator again; it finds `public/crates/.default-crates-key` current and skips.
 
-The supported crates (every other file in `public/crates`) are not cached. `yarn generate` runs `scripts/generate-crates.mjs` in every build, with the Rust in Vercel's image: `cargo fetch --locked` downloads the crates of `server/programs/Cargo.lock` (about 800 MB), the script compiles `syn-file-expand-cli`, and the expansion takes seconds. Locally on 16 cores that was 22.6 s, 11.9 s, and 1.6 s; on Vercel's 4 cores, estimated at about a minute. Without `cargo fetch`, nothing on Vercel downloads those crates, the script skipped every one, and the editor received `index.html` for them, which made Rust Analyzer panic. The script fails the build when a supported crate is missing.
+The supported crates (every other file in `public/crates`) are not cached. `yarn generate` runs `scripts/generate-crates.mjs` in every build, with the Rust in Vercel's image: `cargo fetch --locked` downloads the crates of `server/programs/Cargo.lock` (about 800 MB), the script compiles `syn-file-expand-cli`, and the expansion takes seconds. Locally on 16 cores that was 22.6 s, 11.9 s, and 1.6 s; on Vercel's 4 cores, 20 to 26 s in all (preview `dpl_DHaCX3RVDt1xfDXgffFETouqGBti`). `cargo fetch` is the only step that puts those crates on Vercel; without them the editor receives `index.html` for each crate and Rust Analyzer panics. The script fails the build when a supported crate is missing.
 
 `scripts/vercel-install.sh` stores the wasm packages as one tar named by a hash of every file under `wasm/` except build output. Any change under `wasm/` produces a new hash and rebuilds every wasm package. The tar is looked up locally first, then in Remote Cache. On a miss the script builds, writes both, and only then runs `yarn install` and the client build, so a build that later exceeds the time limit still leaves the tar for the next one. A build that finds the tar locally uploads it when Remote Cache lacks it. An upload failure prints a warning and the build continues.
 
@@ -173,22 +179,18 @@ Remote Cache is reached through its [artifacts API](https://vercel.com/docs/rest
 
 Rust state (toolchains, cargo registry, and target dir) lives in `client-v2/.cache/rust`, outside `node_modules`. It is larger than the build cache size limit, so on Vercel it is empty at the start of every build. Locally it persists.
 
-To pick up only changed **server-side** variables (anything `api/*.mjs` reads), no rebuild is needed: re-run `npx vercel@<version> deploy --prebuilt --prod --archive=tgz` on the existing `.vercel/output`, with the version pinned as `VERCEL_CLI` in `Makefile.vercel`. Variables are attached to functions when a deployment is created. `REACT_APP_*` are inlined into the bundle and do need a rebuild.
-
-The deploy resolves this git branch's Neon branch first, before building, and passes it as `-e DATABASE_URL=<pooled url>` so the deployment overrides the project-level variable. Resolving first is deliberate: a Neon failure should not cost a full wasm build.
-
-`--archive=tgz` is not optional. The prebuilt output is about 16k files and the upload API rejects more than 15000 (`files should NOT have more than 15000 items`), so the tree goes up as a single tarball.
-
 ## Tokens
 
 `Makefile.vercel` passes `--token` only when `VERCEL_TOKEN` is set. Unset, the
 CLI uses the session from `vercel login`, so local deploys need no token at all.
 
-Every target that runs the CLI first runs `vercel whoami` with the same
-credentials, and stops with the fix when they are rejected. Run
+The targets that link first (`vercel-link-preview`, `vercel-link-production`,
+and the preview and full production deploys) run `vercel whoami` with the same
+credentials, and stop with the fix when they are rejected. Run
 `make -f client-v2/Makefile.vercel vercel-auth` to run only that check.
-`vercel-bootstrap` is the exception — it calls the REST API with `curl`, and a
-raw HTTP request has no stored login to fall back on.
+
+`vercel-bootstrap` is the exception to both: it calls the REST API with `curl`,
+and a raw HTTP request has no stored login to fall back on.
 
 **A project-scoped token cannot drive the CLI.** Choosing a single project in
 Account Settings → Tokens creates one, and it denies every user-level request.

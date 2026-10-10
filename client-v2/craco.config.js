@@ -60,7 +60,7 @@ const ESBUILD_ENGINES = {
   ios_saf: "ios",
 };
 
-/** -1, 0 or 1, comparing dotted versions segment by segment */
+/** -1, 0, or 1, comparing dotted versions segment by segment */
 const compareVersions = (a, b) => {
   const [x, y] = [a, b].map((v) => v.split(".").map(Number));
   for (let i = 0; i < Math.max(x.length, y.length); i++) {
@@ -72,8 +72,8 @@ const compareVersions = (a, b) => {
 
 /**
  * The production `browserslist` floor as esbuild targets: the lowest version
- * per engine. Throws on a family esbuild cannot target, which it would
- * otherwise get syntax for that it may not parse.
+ * per engine. Throws on a family with no esbuild engine: that browser would be
+ * missing from the target and could get syntax it cannot parse.
  */
 const esbuildTarget = () => {
   const lowest = new Map();
@@ -194,7 +194,7 @@ module.exports = {
       warnAboutMissingObservabilityIds();
 
       // `test-types` and `lint` run in CI and in `check`; in a production
-      // build these plugins only add memory, which OOMs Vercel's 8 GB builder
+      // build these plugins only add memory under Vercel's 8 GB limit
       if (env === "production") {
         webpackConfig.plugins = webpackConfig.plugins.filter(
           (plugin) => !BUILD_ONLY_CHECKS.includes(plugin.constructor.name)
@@ -470,11 +470,13 @@ module.exports = {
         })
       );
 
-      // CRA's Terser plugin, minifying with esbuild: Terser's syntax trees
-      // held ~9 GB at once and OOMed the 8 GB deploy machine
+      // CRA's Terser plugin, minifying with esbuild: Terser's parallel syntax
+      // trees peaked the build at 9.6 GB, over Vercel's 8 GB limit
       const jsMinimizer = webpackConfig.optimization.minimizer[0];
       if (jsMinimizer.constructor.name !== "TerserPlugin") {
-        throw new Error("craco: CRA's first minimizer is no longer Terser");
+        throw new Error(
+          "craco: expected CRA's first minimizer to be TerserPlugin"
+        );
       }
       jsMinimizer.options.minimizer = {
         implementation: TerserPlugin.esbuildMinify,

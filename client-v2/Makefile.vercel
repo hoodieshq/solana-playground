@@ -8,8 +8,7 @@
 
 CLIENT_DIR := client-v2
 
-# Pinned: these targets are verified against this CLI version; bump deliberately,
-# together with the copy in scripts/vercel-install.sh.
+# Targets verified against this CLI version; bump only after re-running them.
 VERCEL_CLI := vercel@62.7.0
 
 # The Neon project behind the Vercel Marketplace store `neon-solana-playground`.
@@ -45,7 +44,7 @@ VERCEL_IDS = export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
 
 # Names the auth fix the CLI's "Could not retrieve Project Settings" hides; stdin is /dev/null so a missing login fails instead of prompting.
 define vercel_auth
-	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
+	@test -f .vercel/project.json || { echo "no .vercel/project.json: run 'make vercel-bootstrap'" >&2; exit 1; }
 	@out=$$($(VERCEL_IDS) && npx $(VERCEL_CLI) whoami $(VERCEL_TOKEN_ARG) </dev/null 2>&1) || { \
 		printf '%s\n' "$$out" >&2; \
 		if [ -n "$${VERCEL_TOKEN:-}" ]; then \

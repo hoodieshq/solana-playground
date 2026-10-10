@@ -23,14 +23,12 @@ the Vercel `NODE_OPTIONS`:
 | esbuild, `keepNames`, `es2017` | 47 s | 4.6 GB | 6.30 MB (+16%) |
 
 We choose esbuild. It builds fastest and with the least memory, and it moves
-the build towards a modern, native toolchain rather than tuning the JavaScript
-one. The price is a larger bundle: 16% more gzipped JavaScript in the esbuild
-measurement. We accept that price for faster builds that fit the standard
-machine without Enhanced Builds.
-
-The decision is reversible. If no way is found to bring esbuild's output close
-to Terser's size, returning to Terser with a capped worker count is the
-fallback; the measurements above are the baseline for that comparison.
+the build towards a native toolchain rather than tuning the JavaScript one.
+The price is a larger bundle: 16% more gzipped JavaScript in the `es2017`
+measurement, and 14.5% with the `browserslist` target that ships (design.md,
+Risks). We accept that price for faster builds that fit the standard machine
+without Enhanced Builds. The decision is reversible; "Out of scope" names the
+fallback.
 
 ## What Changes
 
@@ -72,9 +70,9 @@ None.
   plugins in production builds.
 - `client-v2/package.json`, `client-v2/yarn.lock`: `esbuild` as a direct
   development dependency.
-- `client-v2/src/utils/decorators/common.ts`: the comment that explains why
-  `_Pg*` names must survive names Terser; it changes to name the minifier
-  setting that keeps them.
+- `client-v2/src/utils/decorators/common.ts`: the comment on why `_Pg*` names
+  must survive minification names Terser's options; the change makes it name
+  esbuild's `keepNames`.
 - `.github/workflows/client-v2.yml`: a step that checks the built bundle for
   the `_Pg*` class names.
 - `.githooks/pre-push`, `CLAUDE.md`, `client-v2/README.md`: `yarn check`
@@ -82,8 +80,9 @@ None.
   `node_modules` with `yarn.lock`) shadows the script of the same name, so the
   hook never ran the project's checks, and failed on dependency mismatches
   whatever the code held.
-- Users: about 16% more gzipped JavaScript to download on first load (measured
-  0.87 MB more). Cached loads are unaffected.
+- Users: about 14.5% more gzipped JavaScript to download on first load
+  (measured at `b1bf2cf` with the `browserslist` target; 16%, or 0.87 MB, with
+  `es2017`). Cached loads are unaffected.
 - Developers: a production build no longer reports type or lint errors. They
   are reported by `yarn run check`, the pre-push hook (opt-in per clone), and CI.
 - Vercel: preview and production builds fit the standard build machine.

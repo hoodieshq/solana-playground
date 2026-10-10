@@ -13,9 +13,7 @@ import { execSync, spawnSync } from "child_process";
 import {
   CLIENT_PATH,
   exists,
-  readJSON,
   REPO_ROOT_PATH,
-  resetDir,
   SUPPORTED_CRATES_PATH,
 } from "./utils.mjs";
 
@@ -115,57 +113,35 @@ const cachedCrates = [];
  */
 const skippedCrates = ["mpl-token-metadata"];
 
-await withReset(async () => {
-  // Generate crates
-  const crates = await getCrates();
-  await generateDependencies(crates);
+await clearSupportedCrates();
 
-  // Save versions
-  await fs.writeFile(
-    path.join(CRATES_PATH, "versions.json"),
-    JSON.stringify(crates)
-  );
-});
+const crates = await getCrates();
+await generateDependencies(crates);
+
+await fs.writeFile(
+  path.join(CRATES_PATH, "versions.json"),
+  JSON.stringify(crates)
+);
 
 // Written last, so an interrupted run never looks current
 await fs.writeFile(KEY_PATH, `${key}\n`);
 
-/**
- * Execute the given callback after crates directory has been reset.
- *
- * @param {() => Promise<void>} cb callback to execute
- */
-async function withReset(cb) {
-  // Everything `generate-default-crates.mjs` writes, its key included, so a current copy survives
-  const paths = [
+/** Empty `CRATES_PATH` except the default crates, deleting in place so a failed run cannot misplace them. */
+async function clearSupportedCrates() {
+  // Everything `generate-default-crates.mjs` writes, its key included
+  const keep = [
     ...["alloc", "core", "std"].flatMap((name) => [
       `${name}.rs`,
       `${name}.rs.br`,
     ]),
     ".default-crates-key",
-  ].map((file) => ({
-    initial: path.join(CRATES_PATH, file),
-    temp: path.join(CRATES_PATH, "..", file),
-  }));
+  ];
 
-  // Move default crates
-  for (const { initial, temp } of paths) {
-    try {
-      await fs.rename(initial, temp);
-    } catch {}
-  }
-
-  // Reset crates directory
-  await resetDir(CRATES_PATH);
-
-  // Execute callback
-  await cb();
-
-  // Move back default crates
-  for (const { initial, temp } of paths) {
-    try {
-      await fs.rename(temp, initial);
-    } catch {}
+  await fs.mkdir(CRATES_PATH, { recursive: true });
+  for (const file of await fs.readdir(CRATES_PATH)) {
+    if (!keep.includes(file)) {
+      await fs.rm(path.join(CRATES_PATH, file), { recursive: true });
+    }
   }
 }
 
@@ -199,14 +175,13 @@ async function generateDependencies(crates, transitive) {
 
     // Generate crate
     const snakeCaseName = name.replaceAll("-", "_");
-    const result = spawnSync(cliPath, [
+    run(cliPath, [
       path.join(dirPath, "src", "lib.rs"),
       "--loopify",
       "--cfg-true-by-default",
       "--output",
       path.join(CRATES_PATH, `${snakeCaseName}.rs`),
     ]);
-    if (result.status !== 0) throw new Error(result.output?.toString());
 
     // Get `Cargo.toml`
     await fs.copyFile(
@@ -231,8 +206,6 @@ async function generateDependencies(crates, transitive) {
  * @returns the dependencies in { [name: string]: <VERSION: string> } format
  */
 function getDependencies(name, version) {
-  if (!lockFile) return {};
-
   const crate = lockFile.find(
     (crate) => crate.name === name && crate.version === version
   );
@@ -247,25 +220,23 @@ function getDependencies(name, version) {
   }, {});
 }
 
-/** Get all supported crates. */
-export async function getCrates() {
-  if (lockFile) {
-    const dependencies = lockFile
-      .find((crate) => crate.name === "solpg")
-      .dependencies.reduce((acc, dep) => {
-        acc[dep.name] =
-          dep.version ??
-          lockFile.find((crate) => crate.name === dep.name).version;
-        return acc;
-      }, {});
+/** Get all supported crates, and write them to `SUPPORTED_CRATES_PATH`. */
+async function getCrates() {
+  const dependencies = lockFile
+    .find((crate) => crate.name === "solpg")
+    .dependencies.reduce((acc, dep) => {
+      acc[dep.name] =
+        dep.version ??
+        lockFile.find((crate) => crate.name === dep.name).version;
+      return acc;
+    }, {});
 
-    await fs.writeFile(
-      SUPPORTED_CRATES_PATH,
-      JSON.stringify(dependencies, null, 2)
-    );
-  }
+  await fs.writeFile(
+    SUPPORTED_CRATES_PATH,
+    JSON.stringify(dependencies, null, 2)
+  );
 
-  return await readJSON(SUPPORTED_CRATES_PATH);
+  return dependencies;
 }
 
 /**
@@ -291,12 +262,7 @@ async function getRegistry() {
   return { root, find: (crate) => sources.get(crate) };
 }
 
-/**
- * Run a command and throw with its output when it fails.
- *
- * @param {string} command program to run
- * @param {string[]} args its arguments
- */
+/** Run a command and throw with its output when it fails. */
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8" });
   if (result.status !== 0) {
@@ -315,9 +281,6 @@ function run(command, args) {
  * @returns the parsed lock file
  */
 async function parseLockFile(lockPath) {
-  const lockFileExists = await exists(LOCK_FILE_PATH);
-  if (!lockFileExists) return null;
-
   const lockFile = await fs.readFile(lockPath, "utf8");
   return lockFile
     .split("[[package]]")

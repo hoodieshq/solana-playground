@@ -197,9 +197,15 @@ The supported crates are not cached. `yarn generate` produces them in every
 build with the Rust in Vercel's image. At `7c23f8a1`, measured on 16 cores:
 `cargo fetch` 22.6 s, compiling `syn-file-expand-cli` 11.9 s, expansion 1.6 s.
 
+Measured on Vercel's 4-core machine, preview
+`dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at `7c23f8a1`: a build that misses the
+cache took 4 min 19 s in all, of which generating the default crates took
+about 2 min. Builds that hit the cache took 2 min 10 s to 2 min 44 s, the
+supported crates' generation 20 to 26 s of that.
+
 - Alternative: cache the supported crates like the default crates. Written and
   tested locally (a 444 KB tar), but it adds `rustup`, a pinned toolchain, and
-  about 30 lines of shell to save about a minute per build.
+  about 30 lines of shell to save 20 to 26 s per build.
 
 - Alternative: commit the output to the assets submodule. The script can
   reproduce it, but 12 MB of generated text goes into a repository, and every
@@ -222,8 +228,8 @@ supported crate.
   the expansion to the build] → Only when an input changes. The key covers
   every input, so the build after it restores from the cache.
 - [Vercel's build image has no `rustup`] → `vercel-install.sh` installs
-  `rustup` under `.cache/rust` when the wasm cache misses; the generation
-  installs it the same way when it is missing.
+  `rustup` under `.cache/rust` when the wasm cache misses, and `ensure_rustup`
+  installs it before the default crates are generated.
 - [`core.rs` is 10.3 MB] → In the local test, an 8.5 MB `core.rs` from Rust
   1.61 transferred as 0.78 MB, and indexing finished within 30 s. A slow
   machine is not measured.
@@ -239,8 +245,4 @@ supported crate.
 
 ## Open Questions
 
-None left. How long a build that misses the cache takes on Vercel's 4-core
-machine was measured on preview `dpl_DHaCX3RVDt1xfDXgffFETouqGBti` at
-`7c23f8a1`: 4 min 19 s in all, of which generating the default crates took
-about 2 min. Builds that hit the cache took 2 min 10 s to 2 min 44 s, the
-supported crates' generation about 20 to 26 s of that.
+None.
