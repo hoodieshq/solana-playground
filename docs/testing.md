@@ -676,11 +676,15 @@ The bundle is about 15% larger than Terser's, accepted on purpose; shrinking it 
 
 ### M-1. the build fits Vercel's standard machine
 
-Steps: in the Vercel dashboard, redeploy a preview with "Use existing Build Cache" unticked.
+Steps: in the Vercel dashboard, redeploy a preview with "Use existing Build Cache" unticked. The redeploy is a new
+deployment with its own `dpl_` ID; check that deployment's log, not the log of the one it was started from.
 
 Expect:
 
-- [ ] the log shows `Skipping build cache` and `Build machine configuration: 4 cores, 8 GB`.
+- [ ] the log shows `Skipping build cache` and `Build machine configuration: 4 cores, 8 GB`. A log with
+      `Restored build cache from previous deployment` is not an M-1 run.
+- [ ] the install log shows `HIT in Remote Cache` for the wasm packages and the default crates, and `yarn install`
+      runs in full.
 - [ ] `Compiled successfully.` and no "Out of Memory" event in the build system report.
 
 Locally, a cold `yarn --cwd client-v2 build` with `NODE_OPTIONS='--max-old-space-size=6144'` peaked at about 4.5 GB
