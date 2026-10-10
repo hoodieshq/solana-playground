@@ -20,6 +20,15 @@ Case IDs are stable: refer to a case by ID, not by position.
 Every case states its success result under "Expect": what must be observed, not only that a command exits 0. Cases that
 test a failure on purpose (C-2, C-3, C-5, M-4) say so in their title or steps.
 
+Console messages that are expected and fail no case:
+
+| Message | Where | Why |
+| --- | --- | --- |
+| A COEP error for the preview toolbar | Vercel previews | The toolbar's frame lacks the headers the page's COEP requires |
+| A failed request for `manifest.json` | Vercel previews behind protection | The browser fetches the manifest without the bypass cookie |
+| A `503` for `/api/auth/get-session` | client-v2 with no database (C-4, D-8) | The account endpoints need Postgres |
+| `ResizeObserver loop completed with undelivered notifications` | client-v2 | Reported by the browser for the panel layout; harmless |
+
 ## 0. Prerequisites
 
 ### P-1. Docker runs amd64 images
@@ -33,7 +42,8 @@ ARM64 build of the server or program images fails.
 Darwin only (`uname -s` prints `Darwin`):
 
 - [ ] Docker Desktop, Settings, General: "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" is on. Without it
-      Docker falls back to QEMU, which is several times slower for the Rust and Solana builds.
+      Docker falls back to QEMU, which is several times slower for the Rust and Solana builds. OrbStack uses Rosetta
+      without a setting.
 - [ ] Any `docker build` or `docker run` outside compose gets the platform from the environment:
 
   ```sh
@@ -139,10 +149,13 @@ the lockfile, not from the folder's content. Install with `--check-files` after 
 yarn --cwd client-v2 install --frozen-lockfile
 yarn --cwd client-v2 run check
 yarn --cwd client-v2 build-fast
+grep -q '\.flex{display:flex}' client-v2/build/static/css/main.*.css && echo tailwind ok
+grep -q '"_PgConnection"' client-v2/build/static/js/*.js && grep -q '"_PgProgramInfo"' client-v2/build/static/js/*.js && echo names ok
 ```
 
-Expect: exit code 0; `client-v2/build/index.html` exists. Tests that need a database require `DATABASE_URL` and
-`yarn --cwd client-v2 db-migrate`.
+Expect: exit code 0; `client-v2/build/index.html` exists; the two `grep` lines print `tailwind ok` and `names ok`, as the
+post-build steps "Check Tailwind is in the built CSS" and "Check decorator class names survive minification" in
+`client-v2.yml` require. Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
 
 ### B-4. server: format, lint, release build
 
@@ -320,7 +333,7 @@ docker compose exec client-v2-standalone sh -c 'command -v rustc cargo rustup'
 Expect:
 
 - [ ] the client answers on `http://localhost:3000` (`PG_CLIENT_V2_PORT` overrides the port) with no server running.
-- [ ] the `exec` prints nothing: the image ships the generated crate files, not the Rust toolchain.
+- [ ] the `exec` prints nothing and exits 127: the image ships the generated crate files, not the Rust toolchain.
 - [ ] S-1, S-2, and S-10 pass against this container.
 
 ### D-9. the server builds a program, without a client
@@ -395,6 +408,26 @@ curl -s http://localhost:3000/crates/anchor_lang.toml | head -c 200
 Expect: Rust source and TOML, not HTML. The same holds for every crate in [supported-crates.json](../supported-crates.json)
 and its proc-macro dependencies, named in snake case, except `mpl-token-metadata`.
 
+Every supported crate at once. The list comes from the served `versions.json`; the header is ignored outside Vercel, so
+the loop runs unchanged against any `base`:
+
+```sh
+base=http://localhost:3000
+n=0
+for c in $(curl -s -H "x-vercel-protection-bypass: ${VERCEL_BYPASS:-}" "$base/crates/versions.json" \
+  | jq -r 'keys[] | select(. != "mpl-token-metadata") | gsub("-"; "_")'); do
+  for f in "$c.rs" "$c.toml"; do
+    n=$((n+1))
+    body=$(curl -s -H "x-vercel-protection-bypass: ${VERCEL_BYPASS:-}" "$base/crates/$f" | head -c 100)
+    case "$body" in ''|'<'*) echo "BAD $f";; esac
+  done
+done
+echo "checked $n"
+```
+
+Expect: no `BAD` line; `checked` counts two files per supported crate (54 at `f94b845a`). The loop does not cover the
+proc-macro dependencies, which `versions.json` does not list.
+
 ### S-3. rust-analyzer in the editor
 
 Precondition: real wasm packages (B-1), not the stubs.
@@ -417,6 +450,9 @@ Expect:
 
 While S-1 fails, steps 2 and 3 are expected to fail.
 
+Known limitation: a crate outside `supported-crates.json`, such as `clockwork_sdk` in some tutorials, has no crate
+file, so its imports stay unresolved. This is not a regression.
+
 To prove the completions come from the generated files: move `client-v2/public/crates/{core,alloc,std}.rs` aside,
 reload, and repeat steps 2 and 3. Expect only plain word suggestions from the open file, no `capacity` and no
 `from_fn`. Move the files back.
@@ -430,9 +466,15 @@ server is running.
 
 ### S-5. tutorials
 
-Steps: open `/tutorials`, pick a tutorial, open its first page.
+Steps: open `/tutorials`, open `bank-simulator` (a Markdown tutorial), open its first page.
 
-Expect: the content renders; `/tutorials/<name>/content.json` returns `200` (generated by `yarn generate`).
+```sh
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://localhost:3000/tutorials/bank-simulator/content.json
+```
+
+Expect: the content renders; the `curl` prints `200 application/json` (the file is generated by `yarn generate`). A
+`text/html` type means the single-page-app fallback answered. Custom tutorials such as `hello-anchor` have no
+`content.json`, so they always get the fallback; do not pick one here.
 
 ### S-6. crate files in a Vercel build
 
@@ -451,7 +493,9 @@ Expect:
 
 - [ ] the install log shows `default crates: HIT in Build Cache`, `HIT in Remote Cache`, or `MISS … generating`
       followed by `core`, `alloc`, and `std`.
-- [ ] the `yarn generate` log shows every supported crate generated and `Default crates are current … Skipping...`.
+- [ ] the `yarn generate` log shows `Default crates are current … Skipping...`.
+- [ ] the S-2 loop, with `base=<deployment URL>`, prints no `BAD` line. The log cannot prove every supported crate:
+      `generate-packages` prints lines that match the same `grep`.
 - [ ] no line contains `not found`: `generate-crates.mjs` fails the build on a missing supported crate.
 - [ ] both `curl`s print Rust source and TOML, not `<!doctype html>`.
 - [ ] S-3 passes on the preview (open it once with `?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true`).
@@ -516,6 +560,10 @@ Expect:
 - [ ] the `ls` lists all seven default-crate files (`core.rs`, `alloc.rs`, `std.rs`, their `.rs.br` copies, and
       `.default-crates-key`): `generate-crates` empties `public/crates` but keeps them.
 - [ ] the second runs print `Default crates are current … Skipping...` and `Crates are current … Skipping...`.
+
+If the first `generate-default-crates` stops with `rustup is not installed at …`, the branch predates
+`--no-self-update` in `generate-default-crates.mjs`: rustup's self-update check fails when `CARGO_HOME` does not hold
+rustup.
 
 A changed input regenerates. Run `yarn --cwd client-v2 generate-default-crates --key`, change `channel` in
 `wasm/rust-analyzer/rust-toolchain.toml`, and run it again: the key differs, and the generator runs instead of
@@ -651,8 +699,9 @@ Expect:
 
 - [ ] each `grep` lists a file. CI runs the same check after `build-fast` ("Check decorator class names survive
       minification" in `client-v2.yml`) and fails without them.
-- [ ] on a production build (a preview, or `serve -s client-v2/build`), change the endpoint in Settings while a program
-      builds: the program's on-chain info updates once, and the tab does not freeze. Decorators name change events after
+- [ ] on a production build (a preview, or `serve -s client-v2/build`), change the endpoint in Settings from Devnet to
+      Testnet: the cluster label in the bottom bar changes to Testnet, and the tab does not freeze (the terminal still
+      answers `help`). Decorators name change events after
       `_Pg*` classes; two classes minified to the same name loop forever, in production builds only.
 
 ### M-3. minified output stays within the browser floor
@@ -667,7 +716,8 @@ Expect:
 
 - [ ] the target lists the lowest version per browser of the `production` `browserslist` in `client-v2/package.json`
       (`chrome111`, `edge111`, `firefox128`, `opera97`, `safari16.4` at `bf729fa1`).
-- [ ] the production build opened in Safari 16.4 loads every JavaScript chunk with no syntax error in the console.
+- [ ] optional, where a Safari 16.4 device is available: the production build loads every JavaScript chunk with no
+      syntax error in the console. The target check above is the gate; this step only confirms it.
 
 ### M-4. type checks and lint run outside the build
 
