@@ -364,8 +364,8 @@ None of these come from the build server. The rust-analyzer files and tutorials 
 (`client/public`, mirrored into `client-v2/public`); framework templates are bundled into the client JavaScript.
 
 A status of `200` alone proves nothing for a crate file: the single-page-app fallback answers a missing file with
-`index.html` and `200`, and Rust Analyzer then panics with `Unexpected('<')`. Every crate check below also asserts the
-body is not HTML.
+`index.html` and `200`, and Rust Analyzer then panics with `Unexpected('<')`. Every crate check in section 4 also asserts
+the body is not HTML.
 
 The client-v2 requirements for these files are the OpenSpec change `rust-analyzer-crates`, capability
 `client-v2-editor-crates`, on `feat/vercel-wasm-cache`. S-1 to S-3 and S-6 to S-9 walk its manual scenarios; when the
@@ -444,7 +444,7 @@ Expect:
 
 - [ ] no Rust Analyzer panic in the console, such as `Parse(Error { … Unexpected('<') … })` from `world_state.rs`.
 - [ ] `Vec::` offers `capacity` and `clear`.
-- [ ] `std::array::from_fn` resolves (stabilised in Rust 1.63, so it proves the default crates are not older).
+- [ ] `std::array::from_fn` resolves (stabilized in Rust 1.63, so it proves the default crates are not older).
 - [ ] `Pubkey::find_` offers `find_program_address` with its signature and documentation.
 - [ ] each hover shows the definition.
 
@@ -571,8 +571,8 @@ skipping. Restore the file.
 
 ### S-10. static assets
 
-The assets come from the `client/public` submodule (mirrored into `client-v2/public`). The paths below are one file per
-folder; if the submodule renames one, pick another file from the same folder.
+The assets come from the `client/public` submodule (mirrored into `client-v2/public`). The paths in the S-10 command are one
+file per folder; if the submodule renames one, pick another file from the same folder.
 
 ```sh
 for p in fonts/JetBrainsMono.woff2 icons/sidebar/build.png themes/dracula.json frameworks/anchor/icon.png \
@@ -717,7 +717,7 @@ Expect:
 - [ ] the target lists the lowest version per browser of the `production` `browserslist` in `client-v2/package.json`
       (`chrome111`, `edge111`, `firefox128`, `opera97`, `safari16.4` at `bf729fa1`).
 - [ ] optional, where a Safari 16.4 device is available: the production build loads every JavaScript chunk with no
-      syntax error in the console. The target check above is the gate; this step only confirms it.
+      syntax error in the console. The `browserslist` target check is the gate; this step only confirms it.
 
 ### M-4. type checks and lint run outside the build
 
@@ -748,7 +748,7 @@ different port is a different origin.
 ### Order
 
 1. Serial: B-6 builds every image once, from one clone (P-5).
-2. Parallel: the groups below, each with `up --no-build`.
+2. Parallel: the groups listed under "Groups", each with `up --no-build`.
 3. Serial: S-8, which compares the results of S-6 and S-7.
 
 ### Groups
