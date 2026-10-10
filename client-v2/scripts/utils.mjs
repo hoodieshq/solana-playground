@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { spawnSync } from "child_process";
 
 /** Repository root directory path */
 export const REPO_ROOT_PATH = path.join(process.argv[1], "..", "..", "..");
@@ -32,6 +33,23 @@ export async function resetDir(dirPath) {
  */
 export async function exists(path) {
   return !!(await fs.stat(path).catch(() => false));
+}
+
+/**
+ * Exit 0 with a warning when `command` is not installed, so a machine without
+ * Rust still builds the client; throw on Vercel and CI, where the crates must ship.
+ *
+ * @param {string} command program the generator needs
+ * @param {string} what what goes ungenerated, for the message
+ */
+export function skipWithoutTool(command, what) {
+  const result = spawnSync(command, ["--version"], { stdio: "ignore" });
+  if (result.error?.code !== "ENOENT") return;
+
+  const message = `\`${command}\` is not installed, so ${what} are not generated`;
+  if (process.env.VERCEL || process.env.CI) throw new Error(message);
+  console.warn(`${message}. Skipping...`);
+  process.exit(0);
 }
 
 /**

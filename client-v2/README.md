@@ -47,10 +47,11 @@ package as a devDependency for CI. The rules for contributors and agents are in
 
 ### Checks
 
-`yarn check` runs what CI runs, in CI's order, minus the production build:
+`yarn run check` runs what CI runs, in CI's order, minus the production build:
 `test-types`, `check-format`, `lint`, `spec:validate`, `spec:coverage`,
-`test-unit`, `test-api`. Run it before a push, or make git
-do it:
+`test-unit`, `test-api`. The `run` is required: yarn 1's built-in `check`,
+which compares `node_modules` with `yarn.lock`, shadows the script. Run it
+before a push, or make git do it:
 
 ```sh
 git config core.hooksPath .githooks   # once per clone; runs `check` on pre-push

@@ -114,6 +114,28 @@ services:
     profiles:
       - client-standalone
 
+  # client-v2 without server
+  client-v2-standalone:
+    image: solana-playground-client-v2-standalone
+    platform: linux/amd64
+    depends_on:
+      wasm:
+        condition: service_completed_successfully
+    build:
+      context: .
+      dockerfile: ./client-v2/Dockerfile
+      args:
+        USER: solpg
+        HAS_SERVER: false
+      additional_contexts:
+        solana-playground-wasm: service:wasm
+    ports:
+      - ${PG_CLIENT_V2_PORT:-3000}:3000
+    tty: true
+    stdin_open: true
+    profiles:
+      - client-v2-standalone
+
   server:
     <<: *server
     image: solana-playground-server
@@ -140,6 +162,7 @@ services:
       - dev
       - prod
       - client-standalone
+      - client-v2-standalone
       - v2
       - v2-prod
 

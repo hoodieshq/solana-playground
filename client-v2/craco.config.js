@@ -47,6 +47,65 @@ class GoogleTagPlugin {
 
 const { sentryEnabled } = require("./scripts/sentry-gate.mjs");
 
+const browserslist = require("browserslist");
+const TerserPlugin = require("terser-webpack-plugin");
+
+/** browserslist family -> esbuild engine */
+const ESBUILD_ENGINES = {
+  chrome: "chrome",
+  edge: "edge",
+  firefox: "firefox",
+  opera: "opera",
+  safari: "safari",
+  ios_saf: "ios",
+};
+
+/** -1, 0, or 1, comparing dotted versions segment by segment */
+const compareVersions = (a, b) => {
+  const [x, y] = [a, b].map((v) => v.split(".").map(Number));
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d) return Math.sign(d);
+  }
+  return 0;
+};
+
+/**
+ * The production `browserslist` floor as esbuild targets: the lowest version
+ * per engine. Throws on a family with no esbuild engine: that browser would be
+ * missing from the target and could get syntax it cannot parse.
+ */
+const esbuildTarget = () => {
+  const lowest = new Map();
+  const entries = browserslist(undefined, {
+    path: __dirname,
+    env: "production",
+  });
+  for (const entry of entries) {
+    const [family, range] = entry.split(" ");
+    const engine = ESBUILD_ENGINES[family];
+    if (!engine) {
+      throw new Error(
+        `craco: browserslist family "${family}" has no esbuild engine; ` +
+          "map it in ESBUILD_ENGINES or drop it from the production list"
+      );
+    }
+    const version = range.split("-")[0];
+    const known = lowest.get(engine);
+    if (!known || compareVersions(version, known) < 0) {
+      lowest.set(engine, version);
+    }
+  }
+  return [...lowest].map(([engine, version]) => engine + version);
+};
+
+/** CRA's in-build type check and lint, by plugin class name */
+const BUILD_ONLY_CHECKS = [
+  "ForkTsCheckerWebpackPlugin",
+  "ForkTsCheckerWarningWebpackPlugin",
+  "ESLintWebpackPlugin",
+];
+
 /**
  * Each tracker: whether this build carries it, and the files that hold its
  * code under `src/shared/lib`, each with the `-off` stub of the same shape
@@ -130,9 +189,17 @@ module.exports = {
     // from start or build (checked: both leave the file untouched).
     alias: { "@": path.resolve(__dirname, "src") },
 
-    configure: (webpackConfig) => {
+    configure: (webpackConfig, { env }) => {
       // Here, not at the top: CRA's `config/env.js` has loaded `.env` by now
       warnAboutMissingObservabilityIds();
+
+      // `test-types` and `lint` run in CI and in `check`; in a production
+      // build these plugins only add memory under Vercel's 8 GB limit
+      if (env === "production") {
+        webpackConfig.plugins = webpackConfig.plugins.filter(
+          (plugin) => !BUILD_ONLY_CHECKS.includes(plugin.constructor.name)
+        );
+      }
 
       // A tracker this build leaves out adds no code. One it carries is not
       // swapped, so Sentry still initialises during the first render.
@@ -403,15 +470,22 @@ module.exports = {
         })
       );
 
-      // Do not mangle class names that start with "_Pg" because decorators'
-      // main change event name is derived from the class name.
-      const terserPlugin = webpackConfig.optimization.minimizer[0];
-
-      // Decarators can be transpiled to either classses or functions, exclude
-      // all class/function names that start with "_Pg".
-      // See: https://github.com/terser/terser#minify-options-structure
-      terserPlugin.options.minimizer.options.keep_classnames = /^_Pg/;
-      terserPlugin.options.minimizer.options.keep_fnames = /^_Pg/;
+      // CRA's Terser plugin, minifying with esbuild: Terser's parallel syntax
+      // trees peaked the build at 9.6 GB, over Vercel's 8 GB limit
+      const jsMinimizer = webpackConfig.optimization.minimizer[0];
+      if (jsMinimizer.constructor.name !== "TerserPlugin") {
+        throw new Error(
+          "craco: expected CRA's first minimizer to be TerserPlugin"
+        );
+      }
+      jsMinimizer.options.minimizer = {
+        implementation: TerserPlugin.esbuildMinify,
+        // Decorators name change events after `_Pg*` classes, and esbuild
+        // keeps names only all or none
+        options: { keepNames: true, target: esbuildTarget() },
+      };
+      // Workers are threads in this process, outside `--max-old-space-size`
+      jsMinimizer.options.parallel = 2;
 
       // Ignore useless warnings
       webpackConfig.ignoreWarnings = [

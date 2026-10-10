@@ -1,29 +1,28 @@
 // Generate crates for Rust Analyzer.
+//
+// Usage: `generate-crates.mjs` generates, or exits early when `KEY_PATH` matches;
+// `generate-crates.mjs --key` prints the key and exits.
 
 import path from "path";
 import fs from "fs/promises";
+import crypto from "crypto";
 import { homedir } from "os";
-import { execSync, spawnSync } from "child_process";
+import { fileURLToPath } from "url";
+import { spawnSync } from "child_process";
 
 import {
   CLIENT_PATH,
   exists,
-  readJSON,
   REPO_ROOT_PATH,
-  resetDir,
+  skipWithoutTool,
   SUPPORTED_CRATES_PATH,
 } from "./utils.mjs";
 
-// Exit early if Rust is not installed
-try {
-  execSync("rustc --help", { stdio: "ignore" });
-} catch {
-  console.log("Could not find Rust installation. Skipping crate generation...");
-  process.exit(0);
-}
-
 /** Crates output directory path */
 const CRATES_PATH = path.join(CLIENT_PATH, "public", "crates");
+
+/** Key of the inputs the supported crates in `CRATES_PATH` were generated from */
+const KEY_PATH = path.join(CRATES_PATH, ".crates-key");
 
 /** Path to the `Cargo.lock` */
 const LOCK_FILE_PATH = path.join(
@@ -36,11 +35,57 @@ const LOCK_FILE_PATH = path.join(
 /** `syn-file-expand-cli` name */
 const CLI_NAME = "syn-file-expand-cli";
 
-// Install `syn-file-expand-cli` if it's not installed
-try {
-  execSync(`${CLI_NAME} --help`, { stdio: "ignore" });
-} catch {
-  spawnSync("cargo", ["install", CLI_NAME, "--version", "0.3.0", "--locked"]);
+/** `syn-file-expand-cli` version for the supported crates */
+const CLI_VERSION = "0.3.0";
+
+// The script's own source carries the tool version and the flags
+const key = crypto
+  .createHash("sha256")
+  .update(await fs.readFile(fileURLToPath(import.meta.url)))
+  .update("\0")
+  .update(await fs.readFile(LOCK_FILE_PATH))
+  .digest("hex");
+
+if (process.argv.includes("--key")) {
+  console.log(key);
+  process.exit(0);
+}
+
+if (
+  (await exists(path.join(CRATES_PATH, "versions.json"))) &&
+  (await exists(KEY_PATH)) &&
+  (await fs.readFile(KEY_PATH, "utf8")).trim() === key
+) {
+  console.log(`Crates are current (${key}). Skipping...`);
+  process.exit(0);
+}
+
+skipWithoutTool("cargo", "the supported crates");
+
+/** Cargo home the registry and the tool live in */
+const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
+
+// The registry holds only what something downloaded; fetch every locked crate first
+run("cargo", [
+  "fetch",
+  "--locked",
+  "--manifest-path",
+  path.join(path.dirname(LOCK_FILE_PATH), "Cargo.toml"),
+]);
+
+// A root of its own, so a different release on `PATH` never decides the output
+const cliRoot = path.join(cargoHome, "tools", `${CLI_NAME}-${CLI_VERSION}`);
+const cliPath = path.join(cliRoot, "bin", CLI_NAME);
+if (!(await exists(cliPath))) {
+  run("cargo", [
+    "install",
+    CLI_NAME,
+    "--version",
+    CLI_VERSION,
+    "--locked",
+    "--root",
+    cliRoot,
+  ]);
 }
 
 /** Local crates.io registry */
@@ -63,47 +108,34 @@ const cachedCrates = [];
  */
 const skippedCrates = ["mpl-token-metadata"];
 
-await withReset(async () => {
-  // Generate crates
-  const crates = await getCrates();
-  await generateDependencies(crates);
+await clearSupportedCrates();
 
-  // Save versions
-  await fs.writeFile(
-    path.join(CRATES_PATH, "versions.json"),
-    JSON.stringify(crates)
-  );
-});
+const crates = await getCrates();
+await generateDependencies(crates);
 
-/**
- * Execute the given callback after crates directory has been reset.
- *
- * @param {() => Promise<void>} cb callback to execute
- */
-async function withReset(cb) {
-  const paths = ["alloc", "core", "std"].map((name) => ({
-    initial: path.join(CRATES_PATH, `${name}.rs`),
-    temp: path.join(CRATES_PATH, "..", `${name}.rs`),
-  }));
+await fs.writeFile(
+  path.join(CRATES_PATH, "versions.json"),
+  JSON.stringify(crates)
+);
 
-  // Move default crates
-  for (const { initial, temp } of paths) {
-    try {
-      await fs.rename(initial, temp);
-    } catch {}
-  }
+// Written last, so an interrupted run never looks current
+await fs.writeFile(KEY_PATH, `${key}\n`);
 
-  // Reset crates directory
-  await resetDir(CRATES_PATH);
+/** Empty `CRATES_PATH` except `OUTPUT_FILES` of `generate-default-crates.mjs` (`DEFAULT_CRATE_FILES` in `vercel-install.sh`). */
+async function clearSupportedCrates() {
+  const keep = [
+    ...["alloc", "core", "std"].flatMap((name) => [
+      `${name}.rs`,
+      `${name}.rs.br`,
+    ]),
+    ".default-crates-key",
+  ];
 
-  // Execute callback
-  await cb();
-
-  // Move back default crates
-  for (const { initial, temp } of paths) {
-    try {
-      await fs.rename(temp, initial);
-    } catch {}
+  await fs.mkdir(CRATES_PATH, { recursive: true });
+  for (const file of await fs.readdir(CRATES_PATH)) {
+    if (!keep.includes(file)) {
+      await fs.rm(path.join(CRATES_PATH, file), { recursive: true });
+    }
   }
 }
 
@@ -120,15 +152,13 @@ async function generateDependencies(crates, transitive) {
     if (cachedCrates.includes(name) || skippedCrates.includes(name)) continue;
 
     const version = crates[name];
-    const dirName = registry.crates.find(
-      (crate) => crate === `${name}-${version}`
-    );
-    if (!dirName) {
-      console.log(`Crate \`${name}(v${version})\` not found. Skipping...`);
-      continue;
+    const dirPath = registry.find(`${name}-${version}`);
+    if (!dirPath) {
+      // `cargo fetch` downloaded every locked crate, so a miss is a broken setup
+      throw new Error(
+        `Crate \`${name}(v${version})\` not found in ${registry.root}`
+      );
     }
-
-    const dirPath = path.join(registry.path, dirName);
 
     // Get transitive deps
     if (transitive) {
@@ -139,14 +169,13 @@ async function generateDependencies(crates, transitive) {
 
     // Generate crate
     const snakeCaseName = name.replaceAll("-", "_");
-    const result = spawnSync(CLI_NAME, [
+    run(cliPath, [
       path.join(dirPath, "src", "lib.rs"),
       "--loopify",
       "--cfg-true-by-default",
       "--output",
       path.join(CRATES_PATH, `${snakeCaseName}.rs`),
     ]);
-    if (result.status !== 0) throw new Error(result.output?.toString());
 
     // Get `Cargo.toml`
     await fs.copyFile(
@@ -171,8 +200,6 @@ async function generateDependencies(crates, transitive) {
  * @returns the dependencies in { [name: string]: <VERSION: string> } format
  */
 function getDependencies(name, version) {
-  if (!lockFile) return {};
-
   const crate = lockFile.find(
     (crate) => crate.name === name && crate.version === version
   );
@@ -187,45 +214,59 @@ function getDependencies(name, version) {
   }, {});
 }
 
-/** Get all supported crates. */
-export async function getCrates() {
-  if (lockFile) {
-    const dependencies = lockFile
-      .find((crate) => crate.name === "solpg")
-      .dependencies.reduce((acc, dep) => {
-        acc[dep.name] =
-          dep.version ??
-          lockFile.find((crate) => crate.name === dep.name).version;
-        return acc;
-      }, {});
+/** Get all supported crates, and write them to `SUPPORTED_CRATES_PATH`. */
+async function getCrates() {
+  const dependencies = lockFile
+    .find((crate) => crate.name === "solpg")
+    .dependencies.reduce((acc, dep) => {
+      acc[dep.name] =
+        dep.version ??
+        lockFile.find((crate) => crate.name === dep.name).version;
+      return acc;
+    }, {});
 
-    await fs.writeFile(
-      SUPPORTED_CRATES_PATH,
-      JSON.stringify(dependencies, null, 2)
-    );
-  }
+  await fs.writeFile(
+    SUPPORTED_CRATES_PATH,
+    JSON.stringify(dependencies, null, 2)
+  );
 
-  return await readJSON(SUPPORTED_CRATES_PATH);
+  return dependencies;
 }
 
 /**
- * Get the local crates.io registry data.
+ * Get the local crates.io registries. Cargo releases name the directory
+ * differently, so a cargo home can hold several; each crate is looked up in all.
  *
- * @returns the registry path and crates
+ * @returns the registry root and a lookup from `<name>-<version>` to its source directory
  */
 async function getRegistry() {
-  const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), ".cargo");
-  const registryPath = path.join(cargoHome, "registry", "src");
-  const registries = await fs.readdir(registryPath);
-  const cratesIoRegistry = registries.find((registry) => {
-    return registry.startsWith("index.crates.io");
-  });
-  if (!cratesIoRegistry) throw new Error("crates.io registry not found");
+  const root = path.join(cargoHome, "registry", "src");
+  const dirs = (await fs.readdir(root))
+    .filter((dir) => dir.startsWith("index.crates.io"))
+    .map((dir) => path.join(root, dir));
+  if (!dirs.length) throw new Error(`No crates.io registry in ${root}`);
 
-  const cratesIoRegistryPath = path.join(registryPath, cratesIoRegistry);
-  const registryCrates = await fs.readdir(cratesIoRegistryPath);
+  const sources = new Map();
+  for (const dir of dirs) {
+    for (const crate of await fs.readdir(dir)) {
+      if (!sources.has(crate)) sources.set(crate, path.join(dir, crate));
+    }
+  }
 
-  return { path: cratesIoRegistryPath, crates: registryCrates };
+  return { root, find: (crate) => sources.get(crate) };
+}
+
+/** Run a command and throw with its output when it fails. */
+function run(command, args) {
+  const result = spawnSync(command, args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    const reason = result.error ?? result.signal ?? `exit ${result.status}`;
+    throw new Error(
+      `\`${command} ${args.join(" ")}\` failed (${reason}):\n${
+        result.stderr || result.stdout || ""
+      }`
+    );
+  }
 }
 
 /**
@@ -235,9 +276,6 @@ async function getRegistry() {
  * @returns the parsed lock file
  */
 async function parseLockFile(lockPath) {
-  const lockFileExists = await exists(LOCK_FILE_PATH);
-  if (!lockFileExists) return null;
-
   const lockFile = await fs.readFile(lockPath, "utf8");
   return lockFile
     .split("[[package]]")
