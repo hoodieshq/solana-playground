@@ -12,8 +12,13 @@ steps, and the expected result, so it can be run by hand and later scripted.
 | [Static assets](#4-static-assets-default-rs-files-and-templates) | rust-analyzer `.rs` files in local, Vercel, and Docker builds; templates, tutorials |
 | [Release gate](#5-release-gate-unstable-stays-out-of-production) | unstable stays out of production |
 | [Optional: unstable server](#6-optional-unstable-server) | the server's unstable functionality, tested on purpose |
+| [Parallel runs](#8-parallel-runs) | groups of cases run at once, on rotated ports |
+| [client-v2 production build](#7-client-v2-production-build) | memory, the esbuild minifier, browser floor, type checks outside the build |
 
 Case IDs are stable: refer to a case by ID, not by position.
+
+Every case states its success result under "Expect": what must be observed, not only that a command exits 0. Cases that
+test a failure on purpose (C-2, C-3, C-5, M-4) say so in their title or steps.
 
 ## 0. Prerequisites
 
@@ -64,7 +69,7 @@ scenario adds a service or a profile to that file; it never adds a second compos
 
 | Case | Profile |
 | --- | --- |
-| B-6, D-1, D-4, D-5 | `dev` |
+| B-6, D-1, D-4, D-5, D-9 | `dev` |
 | D-2, D-3 | `prod` |
 | D-6 | `v2` |
 | D-8, S-7 | `client-v2-standalone` |
@@ -102,7 +107,7 @@ The client depends on `wasm/*/pkg` as file dependencies, so this runs before any
 yarn --cwd client build-wasm
 ```
 
-Expect: exit code 0; a `pkg/` directory in each wasm package.
+Expect: exit code 0; `ls wasm/*/pkg/*_bg.wasm` lists a compiled module for each wasm package.
 
 ### B-2. client: CI parity
 
@@ -116,7 +121,8 @@ yarn --cwd client test-unit
 yarn --cwd client build
 ```
 
-Expect: every command exits 0; `git status --porcelain` prints nothing (generated files are committed or ignored).
+Expect: every command exits 0; `git status --porcelain` prints nothing (generated files are committed or ignored);
+`client/build/index.html` exists.
 
 ### B-3. client-v2: CI parity
 
@@ -135,7 +141,8 @@ yarn --cwd client-v2 run check
 yarn --cwd client-v2 build-fast
 ```
 
-Expect: exit code 0. Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
+Expect: exit code 0; `client-v2/build/index.html` exists. Tests that need a database require `DATABASE_URL` and
+`yarn --cwd client-v2 db-migrate`.
 
 ### B-4. server: format, lint, release build
 
@@ -145,7 +152,7 @@ cargo clippy --manifest-path server/Cargo.toml --all-targets -- -D warnings
 cargo build --manifest-path server/Cargo.toml --release
 ```
 
-Expect: exit code 0 for each.
+Expect: exit code 0 for each; `server/target/release/solpg-server` exists.
 
 ### B-6. compose images
 
@@ -175,9 +182,13 @@ curl -sI http://localhost:3000
 Expect:
 
 - [ ] the page loads at `http://localhost:3000` with no console errors on load.
+- [ ] the IDE renders: file explorer, editor, and terminal. Typing `help` in the terminal lists the commands, which
+      proves the wasm packages loaded.
+- [ ] the network tab shows no failed request on load (no 4xx, 5xx, or HTML served for a non-HTML file), apart from
+      the S-1 known gap.
 - [ ] response headers include `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin`.
       The wasm packages need both.
-- [ ] the editor opens a project; rust-analyzer completions work (see S-3).
+- [ ] the editor opens a project; rust-analyzer completions work (see S-3); static assets are served (see S-10).
 
 ### C-2. client: actions that need the server fail cleanly
 
@@ -210,9 +221,11 @@ curl -s http://localhost:3000/api/health
 
 Expect:
 
-- [ ] the page loads at `http://localhost:3000`.
-- [ ] `/api/health` answers (it is served by the client-v2 dev server, not the build server).
+- [ ] the page loads at `http://localhost:3000`, and the C-1 checks for the IDE, the terminal `help`, and the network
+      tab pass.
+- [ ] `/api/health` returns `200` (it is served by the client-v2 dev server, not the build server).
 - [ ] the COEP and COOP headers from C-1 are present.
+- [ ] S-10 passes against this server.
 
 ### C-5. client-v2: actions that need the server fail cleanly
 
@@ -237,7 +250,9 @@ Expect:
 
 - [ ] `wasm` exits 0; `db`, `server`, and `client` stay running.
 - [ ] the server log shows it listening on 8080 with no MongoDB connection error.
-- [ ] the client answers on `http://localhost:3000` (`PG_CLIENT_PORT` overrides the port).
+- [ ] the client answers on `http://localhost:3000` (`PG_CLIENT_PORT` overrides the port), and the C-1 checks for
+      the IDE, the terminal `help`, and the network tab pass.
+- [ ] D-9 passes: the server builds a program.
 
 ### D-2. build a program
 
@@ -257,7 +272,8 @@ Precondition: D-2 session; a wallet connected and funded on the selected cluster
 
 Steps: click Deploy.
 
-Expect: `GET http://localhost:8080/deploy/{uuid}` returns 200; the terminal prints the program ID.
+Expect: `GET http://localhost:8080/deploy/{uuid}` returns 200; the terminal prints the program ID; `solana program show
+<program ID>` in the playground terminal shows the program on the selected cluster.
 
 ### D-4. share round trip
 
@@ -305,7 +321,29 @@ Expect:
 
 - [ ] the client answers on `http://localhost:3000` (`PG_CLIENT_V2_PORT` overrides the port) with no server running.
 - [ ] the `exec` prints nothing: the image ships the generated crate files, not the Rust toolchain.
-- [ ] S-1 and S-2 pass against this container.
+- [ ] S-1, S-2, and S-10 pass against this container.
+
+### D-9. the server builds a program, without a client
+
+Precondition: D-1 session, or any profile that runs `server`. The request body is what `buildRust` in
+`client/src/commands/build/build.ts` sends: `files` is a list of `[path, content]` pairs (`Files` in
+`server/src/utils.rs`). The `/src/lib.rs` path form is taken from the client and is unverified.
+
+```sh
+jq -n --rawfile lib <path to a native program's lib.rs> '{files: [["/src/lib.rs", $lib]]}' > <run folder>/build.json
+curl -s -X POST http://localhost:8080/build -H 'Content-Type: application/json' -d @<run folder>/build.json \
+  > <run folder>/build-response.json
+jq -r '.uuid' <run folder>/build-response.json
+curl -s http://localhost:8080/deploy/<uuid> | head -c 4 | od -c
+```
+
+Use a minimal native program for `lib.rs`: `solana_program::entrypoint!` with a handler that returns `Ok(())`.
+
+Expect:
+
+- [ ] the build returns `200` with JSON: `uuid` is a string, `idl` is `null` (a native program), and `stderr` holds no
+      `error`.
+- [ ] `/deploy/<uuid>` returns the program binary: its first bytes print as `177   E   L   F`.
 
 ## 4. Static assets: default `.rs` files and templates
 
@@ -483,6 +521,21 @@ A changed input regenerates. Run `yarn --cwd client-v2 generate-default-crates -
 `wasm/rust-analyzer/rust-toolchain.toml`, and run it again: the key differs, and the generator runs instead of
 skipping. Restore the file.
 
+### S-10. static assets
+
+The assets come from the `client/public` submodule (mirrored into `client-v2/public`). The paths below are one file per
+folder; if the submodule renames one, pick another file from the same folder.
+
+```sh
+for p in fonts/JetBrainsMono.woff2 icons/sidebar/build.png themes/dracula.json frameworks/anchor/icon.png \
+  languages/rust/grammar.tmLanguage.json packages/versions.json manifest.json; do
+  curl -s -o /dev/null -w "%{http_code} %{content_type} $p\n" "http://localhost:3000/$p"
+done
+```
+
+Expect: `200` and a content type other than `text/html` for every path. `/packages/versions.json` is generated by
+`yarn generate`; an HTML response for it means the generate step did not run.
+
 ## 5. Release gate: unstable stays out of production
 
 The server's unstable functionality must not reach production until it is tested on its own. Run these before every
@@ -565,3 +618,122 @@ docker images --format '{{.Repository}}' --filter 'reference=program-*'
 ```
 
 Expect: one image per directory in `server/templates/`.
+
+## 7. client-v2 production build
+
+The production build minifies with esbuild through `terser-webpack-plugin`'s `esbuildMinify`; the Terser library does
+not run. It also leaves the type check and ESLint to CI and `yarn run check`. The requirements are the OpenSpec change
+`esbuild-minifier`, capability `client-v2-build`, on `feat/vercel-wasm-cache`; M-1 to M-4 walk its manual scenarios.
+The bundle is about 15% larger than Terser's, accepted on purpose; shrinking it is a postponed improvement.
+
+### M-1. the build fits Vercel's standard machine
+
+Steps: in the Vercel dashboard, redeploy a preview with "Use existing Build Cache" unticked.
+
+Expect:
+
+- [ ] the log shows `Skipping build cache` and `Build machine configuration: 4 cores, 8 GB`.
+- [ ] `Compiled successfully.` and no "Out of Memory" event in the build system report.
+
+Locally, a cold `yarn --cwd client-v2 build` with `NODE_OPTIONS='--max-old-space-size=6144'` peaked at about 4.5 GB
+summed over its processes (Terser had peaked at 9.6 GB). `/usr/bin/time -l` reports one process only, so sample the
+sum to compare.
+
+### M-2. decorator class names survive minification
+
+```sh
+yarn --cwd client-v2 build-fast
+grep -l '"_PgConnection"' client-v2/build/static/js/*.js
+grep -l '"_PgProgramInfo"' client-v2/build/static/js/*.js
+```
+
+Expect:
+
+- [ ] each `grep` lists a file. CI runs the same check after `build-fast` ("Check decorator class names survive
+      minification" in `client-v2.yml`) and fails without them.
+- [ ] on a production build (a preview, or `serve -s client-v2/build`), change the endpoint in Settings while a program
+      builds: the program's on-chain info updates once, and the tab does not freeze. Decorators name change events after
+      `_Pg*` classes; two classes minified to the same name loop forever, in production builds only.
+
+### M-3. minified output stays within the browser floor
+
+```sh
+NODE_ENV=production node -e 'const {createWebpackProdConfig}=require("@craco/craco"); console.log(createWebpackProdConfig(require("./craco.config.js")).optimization.minimizer[0].options.minimizer.options.target)'
+```
+
+Run from `client-v2/`.
+
+Expect:
+
+- [ ] the target lists the lowest version per browser of the `production` `browserslist` in `client-v2/package.json`
+      (`chrome111`, `edge111`, `firefox128`, `opera97`, `safari16.4` at `bf729fa1`).
+- [ ] the production build opened in Safari 16.4 loads every JavaScript chunk with no syntax error in the console.
+
+### M-4. type checks and lint run outside the build
+
+Steps: add a type error to a bundled file, for example `export const probe: number = "x";` at the end of
+`client-v2/src/utils/connection.ts`.
+
+Expect:
+
+- [ ] `yarn --cwd client-v2 build-fast` still completes.
+- [ ] `yarn --cwd client-v2 test-types` and `yarn --cwd client-v2 run check` fail at `tsc --noEmit`. Use `run`: yarn
+      1's built-in `check` shadows the script.
+- [ ] with `git config core.hooksPath .githooks`, a push stops at the pre-push hook.
+- [ ] `yarn --cwd client-v2 dev` shows the error in the overlay.
+
+Remove the type error.
+
+## 8. Parallel runs
+
+Precondition: `compose.yaml` from branch `chore/compose-parallel-runs`. It names every built image, so a run under
+another `COMPOSE_PROJECT_NAME` reuses the images instead of rebuilding them, and it passes
+`REACT_APP_SERVER_URL=http://localhost:${PG_PORT}` to the clients that run with a server, so a client follows its
+server's port. Without it, every client calls port 8080, and D-2 and D-6 need the server set to Local by hand.
+
+A run is a group of cases that share one stack. Each group gets its own project name and its own ports; containers,
+networks, and volumes, including the databases, are separate per project. Browser storage is separate too, because a
+different port is a different origin.
+
+### Order
+
+1. Serial: B-6 builds every image once, from one clone (P-5).
+2. Parallel: the groups below, each with `up --no-build`.
+3. Serial: S-8, which compares the results of S-6 and S-7.
+
+### Groups
+
+| Group | Cases | Profile | Slot |
+| --- | --- | --- | --- |
+| upstream dev | D-1, D-4, D-5, D-9, C-3 | `dev` | 1 |
+| upstream prod | D-2, then D-3 | `prod` | 2 |
+| v2 stack | D-6 | `v2` | 3 |
+| v2 standalone | D-8, S-7, S-1 to S-3, S-10 | `client-v2-standalone` | 4 |
+| local, no Docker | C-1, C-2, C-4, C-5, S-9 | none | `PORT` per dev server, from slot 5 |
+| remote | S-6, R-2 | none | none |
+
+### Slots
+
+Slot `k` publishes the client on `13000 + 10k`, the server on `13001 + 10k`, and Postgres on `13002 + 10k`. The range
+leaves the default ports (3000, 8080, and 5432) free for a developer's own stack.
+
+```sh
+k=1
+COMPOSE_PROJECT_NAME=pg-slot$k PG_CLIENT_PORT=$((13000 + 10 * k)) PG_CLIENT_V2_PORT=$((13000 + 10 * k)) \
+  PG_PORT=$((13001 + 10 * k)) PG_POSTGRES_PORT=$((13002 + 10 * k)) \
+  docker compose --profile dev up --no-build -d
+```
+
+In each case of a group, read `http://localhost:3000` and `http://localhost:8080` as the slot's client and server ports.
+
+### Limits
+
+- [ ] Every group runs from its own clone: B-1 to B-4, the C cases, and S-9 write to `node_modules`, `public/`,
+      `target/`, and `public/crates`. A worktree does not work for Docker builds (P-5).
+- [ ] Images are shared by name, so all groups test the commit B-6 built. Testing two commits at once needs two
+      separate image builds, one after the other.
+- [ ] Run serially what shares global state: U-1 to U-3 (globally named `program-*` images) and D-3 (one funded
+      wallet).
+- [ ] Start no more groups than Docker's memory allows: each client container runs a CRA dev server or build of
+      several GB, and emulation adds to it.
+- [ ] Stop each group with `docker compose -p pg-slot<k> down -v` so its volumes go with it.
