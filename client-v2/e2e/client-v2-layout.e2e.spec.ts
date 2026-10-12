@@ -296,7 +296,16 @@ test.describe("on a phone", () => {
     const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
     const file = sheet.getByText("lib.rs", { exact: true });
     await file.click({ button: "right" });
-    await page.getByText("Rename", { exact: true }).click();
+    const rename = page.getByText("Rename", { exact: true });
+    // Clicked once the menu's own fade has ended: while it plays, the menu is
+    // drawn on a layer of its own and sits on top whatever the stacking says,
+    // which is how a menu under the Sheet passed half the time
+    await rename.evaluate(async (el) => {
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        await Promise.all(e.getAnimations().map((a) => a.finished));
+      }
+    });
+    await rename.click();
     // Tapped, as on a phone: the modal Sheet, closing, keeps the modal's
     // field from taking focus itself. Left to the adaptive design, which
     // decides how the project panel behaves on a phone.
