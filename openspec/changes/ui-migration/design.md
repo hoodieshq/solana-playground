@@ -233,8 +233,8 @@ Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
   `?classic` and its `Side`, `Main/Secondary` and `Bottom` go, because Flow
   already reaches classic's extra pages (Interact, the gallery,
   `ProgramsTab`). `app/Panels/Main/Primary` stays: the Write stage mounts it.
-  `components/Resizable` and `re-resizable` stay: the settings sidebar uses
-  them.
+  `components/Resizable` and `re-resizable` stay: the tutorial view
+  (`components/Tutorial/views/Main.tsx`) uses them.
   `PgView.sidebar` stays: routes and tutorials write it.
 - **The left panel is the stock `Sidebar`**, folding to an icon rail: 14.5 rem
   open, 3.25 rem as a rail, ⌘B, as the design system's migration map has it.
@@ -279,11 +279,14 @@ SidebarProvider (collapsible="icon", controlled open)
 ```
 
 **What survives a reload.** One `localStorage` key, `layout`, under 200
-bytes: `{v: 1, leftOpen, assistantOpen, consoleOpen, h, vert}`, where `h`
-and `vert` are the two groups' layouts from `onLayoutChanged`, in percent,
-saved only when the user drags (not on mount, not per frame, not when the
-window resizes) and dropped when a toggle folds or unfolds their panel
-(assistant: `h`, console: `vert`), so a reload sizes that panel from its flag.
+bytes, stored as the state is: `{v: 1, open: {left, assistant, console},
+h?, vert?}`, where `h` and `vert` are the two groups' layouts from
+`onLayoutChanged`, in percent and summing to 100, saved only when the user
+drags (not on mount, not per frame, not when the window resizes) and never
+kept for a folded panel (assistant: `h`, console: `vert`), so a reload sizes
+that panel from its flag. A size map that does not read is dropped alone; the
+open flags are kept. A restored size that the library folds on mount does not
+rewrite the flag: the panel is put back to its open size.
 The panel constraints are in px (assistant 280 to 560, console 120 minimum).
 A layout saved by a newer version is read as the defaults and never
 overwritten. A corrupt value, another `v` or unavailable
@@ -294,7 +297,9 @@ owns the state; the subscriptions that open panels on their own
 (`deploy.onDidStart` and a failed deploy open the console,
 `PgAssistant.onDidRequestPrompt` the assistant) move into it unchanged.
 
-**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, phone: 600 }`.
+**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, left: 768, phone: 600 }`.
+`left` is not a viewport class: it names the stock Sidebar's own threshold,
+and a unit test holds it to `use-mobile`.
 
 | Width | Left | Assistant | Editor |
 |---|---|---|---|

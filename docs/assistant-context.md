@@ -148,14 +148,14 @@ Done:
   layout (anatomy and navigation built on top of it; the classic layout, since
   removed), then **Flow** —
   re-anatomizing the UI around the Write → Build → Deploy → Interact loop
-  (`decisions.md` → D10, D17). Flow is now the only layout: a header
+  (`decisions.md` → D10, D17). Flow is the only layout: a header
   stepper (Write → Build → Deploy → Interact, state derived from real
   build/deploy events) plus a two-tab left panel (Projects | Files), an
-  assistant column (a resizable panel on screens 1024 px and wider, a side
-  Sheet below that), and the terminal moved into a console drawer (Cmd+J).
-  Below 1024 px the assistant is a Sheet, below 768 px the left panel is a
-  Sheet, and below 600 px the editor is read-only and says why; the header and
-  the stages are not yet phone-ready. A New Workspace gallery starts a project from 34 upstream
+  assistant column, and the terminal in a console drawer (Cmd+J). The
+  assistant is a resizable panel on screens 1024 px and wider and a side
+  Sheet below that; below 768 px the left panel is a Sheet too, and below
+  600 px the editor is read-only and says why. The header and the stages
+  have no phone layout. A New Workspace gallery starts a project from 34 upstream
   programs or 16 tutorials. A gear icon opens a settings overlay embedding
   the existing settings registry.
 - Deploy history is new: a client-side store in `localStorage`, keyed by

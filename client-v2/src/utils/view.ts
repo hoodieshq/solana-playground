@@ -150,7 +150,12 @@ class _PgView {
     }, 100);
   }
 
-  /** Get the minimum height of the main secondary view. */
+  /**
+   * Get the minimum height of the main secondary view.
+   *
+   * @deprecated Read only by the tutorials route, for
+   * `setMainSecondaryHeight`, which nothing listens to.
+   */
   static getMainSecondaryMinHeight() {
     return PgCommon.convertToPx("2.25rem");
   }
@@ -177,8 +182,10 @@ class _PgView {
   /**
    * Set the secondary main view's height.
    *
-   * @deprecated Nothing listens since the classic layout went; see
-   * `setMainSecondaryProgress`.
+   * @deprecated Nothing listens since the classic layout went: Flow has no
+   * secondary view to resize. Called by `routes/common.tsx` (the
+   * `minimizeSecondaryMainView` option) and `routes/tutorials/tutorials.tsx`;
+   * removing it means removing those calls.
    *
    * @param height height to set in px
    */

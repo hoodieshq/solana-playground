@@ -80,7 +80,7 @@ capabilities it records.
 - CI: `client-v2.yml` gains the layer check (`eslint-plugin-boundaries`) and
   the e2e gate or its written manual equivalent.
 - `client-v2/src/app/Panels`: the classic layout (`Side`, `Main/Secondary`,
-  `Bottom`) is removed. `re-resizable` stays: the settings sidebar uses it.
+  `Bottom`) is removed. `re-resizable` stays: the tutorial view uses it.
 - Users: anyone on a removed theme lands on dark and is told once.
 - Out of scope: Next, merging PR #32, the undesigned parts of the design
   system (search, project list and switcher, input validation, toast progress
