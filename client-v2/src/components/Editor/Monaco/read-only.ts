@@ -24,6 +24,20 @@ interface MessageController {
   showMessage(message: string, position: monaco.IPosition): void;
 }
 
+/**
+ * What was already reported, per editor: `applyReadOnly` runs again on every
+ * viewport change and its listener on every keystroke, and a Monaco upgrade
+ * that breaks one of these would otherwise send an entry each time
+ */
+const reported = new WeakMap<object, Set<string>>();
+const reportOnce = (editor: object, key: string, report: () => void) => {
+  const keys = reported.get(editor) ?? new Set<string>();
+  reported.set(editor, keys);
+  if (keys.has(key)) return;
+  keys.add(key);
+  report();
+};
+
 /** What a phone user sees on trying to type */
 export const READ_ONLY_MESSAGE = `Editing works on screens ${LAYOUT_BREAKPOINTS.phone} px and wider`;
 
@@ -68,17 +82,13 @@ export const applyReadOnly = (
 
   // Must come before our listener: see BUILT_IN_READ_ONLY_ID
   if (!editor.getContribution(BUILT_IN_READ_ONLY_ID)) {
-    log.warn(
-      "Monaco's built-in read-only listener is missing; its text may show over ours"
+    reportOnce(editor, "built-in", () =>
+      log.warn(
+        "Monaco's built-in read-only listener is missing; its text may show over ours",
+        { report: true }
+      )
     );
   }
-
-  let missingReported = false;
-  const warnOnce = (message: string) => {
-    if (missingReported) return;
-    missingReported = true;
-    log.warn(message);
-  };
 
   return editor.onDidAttemptReadOnlyEdit(() => {
     // First, so the count never depends on the message showing
@@ -88,13 +98,47 @@ export const applyReadOnly = (
       MESSAGE_CONTROLLER_ID
     ) as Partial<MessageController> | null;
     if (typeof controller?.showMessage !== "function") {
-      warnOnce("Message controller is missing; read-only text not shown");
+      reportOnce(editor, "controller", () =>
+        log.warn("Message controller is missing; read-only text not shown", {
+          report: true,
+        })
+      );
       return;
     }
+    const anchor = anchorOf(editor);
     try {
-      controller.showMessage(READ_ONLY_MESSAGE, anchorOf(editor));
+      controller.showMessage(READ_ONLY_MESSAGE, anchor);
     } catch (error) {
-      log.error(error, { report: true });
+      reportOnce(editor, "show-message", () =>
+        log.error(error, {
+          report: true,
+          context: { anchor, viewportWidth: window.innerWidth },
+        })
+      );
     }
   });
+};
+
+/**
+ * `executeEdits` for an edit the product makes, not the user's typing: a
+ * format, the program id a build writes. Monaco refuses every edit to a
+ * read-only editor and says so only by returning `false`, and below 600 px the
+ * editor is read-only only to keep a phone keyboard from typing into it.
+ *
+ * @returns whether the edits were applied
+ */
+export const executeProductEdits = (
+  editor: Pick<
+    monaco.editor.IStandaloneCodeEditor,
+    "executeEdits" | "getRawOptions" | "updateOptions"
+  >,
+  edits: monaco.editor.IIdentifiedSingleEditOperation[]
+): boolean => {
+  const readOnly = editor.getRawOptions().readOnly === true;
+  if (readOnly) editor.updateOptions({ readOnly: false });
+  try {
+    return editor.executeEdits(null, edits);
+  } finally {
+    if (readOnly) editor.updateOptions({ readOnly: true });
+  }
 };

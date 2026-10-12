@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import styled, { useTheme } from "styled-components";
 import * as monaco from "monaco-editor";
 
-import { applyReadOnly } from "./read-only";
+import { applyReadOnly, executeProductEdits } from "./read-only";
 import { editorBuffersOf } from "./editor-buffers";
 import { initLanguages } from "./languages";
 import { SpinnerWithBg } from "../../Loading";
@@ -532,7 +532,7 @@ const Monaco = () => {
           const endColumn = model.getLineContent(endLineNumber).length + 1;
 
           // Execute edits pushes the changes to the undo stack
-          editor.executeEdits(null, [
+          const applied = executeProductEdits(editor, [
             {
               text: formattedCode,
               range: {
@@ -543,6 +543,12 @@ const Monaco = () => {
               },
             },
           ]);
+          if (!applied) {
+            if (ev?.fromTerminal) {
+              PgTerminal.println(PgTerminal.error("Format failed."));
+            }
+            return;
+          }
 
           const resultPos = model.getPositionAt(cursorOffset);
           editor.setPosition(resultPos);
@@ -579,7 +585,7 @@ const Monaco = () => {
           const endColumn = model.getLineContent(endLineNumber).length + 1;
 
           // Execute edits pushes the changes to the undo stack
-          editor.executeEdits(null, [
+          const applied = executeProductEdits(editor, [
             {
               text: result.formatted,
               range: {
@@ -590,6 +596,12 @@ const Monaco = () => {
               },
             },
           ]);
+          if (!applied) {
+            if (ev?.fromTerminal) {
+              PgTerminal.println(PgTerminal.error("Format failed."));
+            }
+            return;
+          }
 
           const resultPos = model.getPositionAt(result.cursorOffset);
           editor.setPosition(resultPos);
@@ -643,7 +655,7 @@ const Monaco = () => {
           const endColumn = model.getLineContent(endLineNumber).length + 1;
 
           // Execute edits pushes the changes to the undo stack
-          editor.executeEdits(null, [
+          const applied = executeProductEdits(editor, [
             {
               text: formattedCode,
               range: {
@@ -654,6 +666,12 @@ const Monaco = () => {
               },
             },
           ]);
+          if (!applied) {
+            if (ev?.fromTerminal) {
+              PgTerminal.println(PgTerminal.error("Format failed."));
+            }
+            return;
+          }
 
           const resultPos = model.getPositionAt(cursorOffset);
           editor.setPosition(resultPos);
@@ -774,7 +792,9 @@ const Monaco = () => {
       const range = monaco.Range.fromPositions(startPos, endPos);
 
       try {
-        editor.executeEdits(null, [{ range, text: programPkStr }]);
+        if (!executeProductEdits(editor, [{ range, text: programPkStr }])) {
+          console.log("Program ID update error: the editor refused the edit");
+        }
       } catch (e: any) {
         console.log("Program ID update error:", e.message);
       }

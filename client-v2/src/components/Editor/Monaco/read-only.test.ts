@@ -6,7 +6,11 @@ import {
   resetLogger,
 } from "../../../shared/lib/logger";
 
-import { applyReadOnly, READ_ONLY_MESSAGE } from "./read-only";
+import {
+  applyReadOnly,
+  executeProductEdits,
+  READ_ONLY_MESSAGE,
+} from "./read-only";
 import { PgEditor } from "../../../utils/editor";
 import { LAYOUT_BREAKPOINTS } from "../../../shared/lib/hooks/use-viewport";
 
@@ -210,4 +214,67 @@ it("should announce the edit before it shows the message", () => {
   editor.attempt();
   document.removeEventListener(PgEditor.events.READ_ONLY_EDIT, onEdit);
   expect(order).toEqual(["event", "message"]);
+});
+
+it("should report a showMessage that throws once per editor, not per keystroke", () => {
+  const editor = fakeEditor({
+    messageController: {
+      showMessage: () => {
+        throw new Error("boom");
+      },
+    },
+  });
+  applyReadOnly(editor, { readOnly: true });
+  editor.attempt();
+  editor.attempt();
+  // A viewport change applies it again to the same editor
+  applyReadOnly(editor, { readOnly: true });
+  editor.attempt();
+  expect(logs.entries.filter((entry) => entry.level === "error")).toHaveLength(
+    1
+  );
+});
+
+it("should report a missing built-in listener once per editor, across viewport changes", () => {
+  const editor = fakeEditor({ hasBuiltIn: false });
+  applyReadOnly(editor, { readOnly: true });
+  applyReadOnly(editor, { readOnly: false });
+  applyReadOnly(editor, { readOnly: true });
+  const warns = logs.entries.filter((entry) => entry.level === "warn");
+  expect(warns).toHaveLength(1);
+  expect(warns[0].report).toBe(true);
+});
+
+/** An editor that applies an edit only while editable, as Monaco does */
+const editableEditor = (readOnly: boolean) => {
+  const options = { readOnly };
+  return {
+    options,
+    getRawOptions: () => options,
+    updateOptions: vi.fn((next: { readOnly?: boolean }) => {
+      if (next.readOnly !== undefined) options.readOnly = next.readOnly;
+    }),
+    executeEdits: vi.fn(() => !options.readOnly),
+  };
+};
+
+it("should apply a product edit to a read-only editor and leave it read-only", () => {
+  const editor = editableEditor(true);
+  expect(executeProductEdits(editor, [])).toBe(true);
+  expect(editor.options.readOnly).toBe(true);
+});
+
+it("should apply a product edit to an editable editor without touching readOnly", () => {
+  const editor = editableEditor(false);
+  expect(executeProductEdits(editor, [])).toBe(true);
+  expect(editor.updateOptions).not.toHaveBeenCalled();
+});
+
+it("should leave the editor read-only when the edit throws", () => {
+  const editor = editableEditor(true);
+  editor.executeEdits.mockImplementation(() => {
+    throw new Error("boom");
+  });
+  expect(() => executeProductEdits(editor, [])).toThrow("boom");
+  expect(editor.options.readOnly).toBe(true);
 });
