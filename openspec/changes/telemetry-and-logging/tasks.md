@@ -46,9 +46,9 @@ the same time; section 3 follows both.
       `createLogger("persistence:diagnostics")` with `report: true`; the
       in-memory failure list and `__pgSyncDiagnostics` stay (ticket to file;
       after 2.1)
-- [ ] 2.5 ESLint inside the layers: `no-console` except the console provider,
-      `no-restricted-imports` for `@sentry/*` except the Sentry provider
-      (HOO-1897; after 2.2)
+- [ ] 2.5 ESLint inside the layers: `no-console` except the console provider;
+      `no-restricted-imports` for `@sentry/*` in the logger's providers
+      except the Sentry provider (HOO-1897; after 2.2)
 
 ## 3. Rules
 

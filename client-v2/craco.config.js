@@ -114,7 +114,7 @@ const BUILD_ONLY_CHECKS = [
 const TRACKERS = [
   {
     enabled: sentryEnabled,
-    files: [["logger/providers/sentry.ts", "logger/providers/sentry-off.ts"]],
+    files: [["reporter/sentry.ts", "reporter/sentry-off.ts"]],
   },
   {
     enabled: (env) => !!env.REACT_APP_GA_MEASUREMENT_ID,
