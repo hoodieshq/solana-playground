@@ -140,12 +140,19 @@ const divergentOf = (projectId: string, plan: MergePlan): Conflict => ({
  * copies that are gone, so the view shows them as they stand rather than
  * settling them behind the user's back. In path order, as the plan's.
  */
-const refusedOf = (
-  projectId: string,
-  plan: MergePlan,
-  answer: ResolvedFiles,
-  hashes: { local: FileHashes; server: FileHashes }
-): Conflict => {
+const refusedOf = ({
+  projectId,
+  plan,
+  answer,
+  hashes,
+}: {
+  projectId: string;
+  plan: MergePlan;
+  /** The refused answer: which files it was about */
+  answer: ResolvedFiles;
+  /** Both copies' hashes as they stand now, which the files are pinned to */
+  hashes: { local: FileHashes; server: FileHashes };
+}): Conflict => {
   const conflicted = new Set(plan.conflicts.map(({ path }) => path));
   const settled = Object.keys(answer)
     .filter((path) => !conflicted.has(path))
@@ -1128,7 +1135,9 @@ export class PgProjectSync {
           !carried &&
           !pinsHold(prefer, hashes)
         ) {
-          PgProjectSync._raise(refusedOf(projectId, plan, prefer, hashes));
+          PgProjectSync._raise(
+            refusedOf({ projectId, plan, answer: prefer, hashes })
+          );
           return "conflict";
         }
         const answer =

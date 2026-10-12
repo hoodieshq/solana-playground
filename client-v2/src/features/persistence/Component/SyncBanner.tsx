@@ -16,6 +16,49 @@ const describePaths = (paths: string[]) =>
         paths.length > 2 ? "s" : ""
       }`;
 
+/**
+ * A divergent conflict's files, by whether they still conflict (`open`) or
+ * were raised again only because a refused answer was about them, and now
+ * merge on their own (`settled`; see `refusedOf` in `project-sync.ts`). A
+ * conflict that names no files counts every path as open.
+ */
+const splitPaths = ({ paths = [], files }: Conflict) => {
+  if (!files) return { open: paths, settled: [] };
+  const settled = files.filter((f) => f.kind === "settled").map((f) => f.path);
+  const open = files.filter((f) => f.kind !== "settled").map((f) => f.path);
+  return { open, settled };
+};
+
+/** The path a message names first, set in code style */
+const namedPath = (conflict: Conflict) => {
+  const { open, settled } = splitPaths(conflict);
+  return open[0] ?? settled[0];
+};
+
+/**
+ * What a divergent conflict says. Everything else has already been merged by
+ * the time this shows, so it names what is left rather than offering to
+ * replace the whole project -- unless an answer was refused, in which case
+ * files it was about wait, unmerged, for the user to look again.
+ */
+const divergentMessage = (conflict: Conflict) => {
+  const { open, settled } = splitPaths(conflict);
+  if (open.length) {
+    const same = `${describePaths(
+      open
+    )} changed on another device and on this one, in the same place.`;
+    return settled.length
+      ? `${same} Other files changed again while you were resolving; review them before applying.`
+      : `${same} Everything else was merged.`;
+  }
+  if (settled.length) {
+    return `${describePaths(
+      settled
+    )} changed on another device while you were resolving. Review before applying.`;
+  }
+  return "This project changed on another device, and this one has unsaved changes.";
+};
+
 /** What the user is shown, and what each answer does */
 const PROMPTS: Record<
   Conflict["kind"],
@@ -30,14 +73,7 @@ const PROMPTS: Record<
   }
 > = {
   divergent: {
-    // Everything else has already been merged by the time this shows, so it
-    // names what is left rather than offering to replace the whole project
-    message: ({ paths }) =>
-      paths?.length
-        ? `${describePaths(
-            paths
-          )} changed on another device and on this one, in the same place. Everything else was merged.`
-        : "This project changed on another device, and this one has unsaved changes.",
+    message: divergentMessage,
     actions: [
       { label: "Keep this version", resolution: "keep-local", primary: true },
       { label: "Take the other version", resolution: "take-server" },
@@ -143,18 +179,7 @@ const SyncBanner = () => {
     }
   };
 
-  // Beside the banner rather than in it, so the view stays mounted, choices
-  // and all, while an answer briefly clears the question
-  return (
-    <>
-      {conflict && renderBanner(conflict)}
-      {resolving && (
-        <ConflictResolver projectId={resolving} onClose={closeResolver} />
-      )}
-    </>
-  );
-
-  function renderBanner(conflict: Conflict) {
+  const renderBanner = (conflict: Conflict) => {
     const prompt = PROMPTS[conflict.kind];
     // Line by line needs the lines: a divergence the merge never got as far as
     // naming files keeps the two whole-project answers only
@@ -162,8 +187,7 @@ const SyncBanner = () => {
       conflict.kind === "divergent" && !!conflict.files?.length;
     const message = prompt.message(conflict);
 
-    // The first path is the one the message names, so it is set in code style
-    const named = conflict.paths?.[0];
+    const named = namedPath(conflict);
     const at = named ? message.indexOf(named) : -1;
 
     return (
@@ -216,7 +240,18 @@ const SyncBanner = () => {
         </Body>
       </Wrapper>
     );
-  }
+  };
+
+  // Beside the banner rather than in it, so the view stays mounted, choices
+  // and all, while an answer briefly clears the question
+  return (
+    <>
+      {conflict && renderBanner(conflict)}
+      {resolving && (
+        <ConflictResolver projectId={resolving} onClose={closeResolver} />
+      )}
+    </>
+  );
 };
 
 /** A card in the layout's flow; the mount point supplies the page gutters */

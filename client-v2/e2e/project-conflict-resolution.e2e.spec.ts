@@ -653,6 +653,9 @@ test("project-conflict-resolution: Cancelled after taking a side", async ({
     .getByRole("button", { name: "Take this device's lines" })
     .click();
   await dialog.getByRole("button", { name: "Cancel" }).click();
+  // A side was taken, so closing asks first
+  await expect(dialog.getByRole("alert")).toHaveText("Discard your choices?");
+  await dialog.getByRole("button", { name: "Discard" }).click();
 
   await expect(dialog).toBeHidden();
   // A pass runs, so anything Cancel had left to write or send would have

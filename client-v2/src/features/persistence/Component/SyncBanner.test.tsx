@@ -28,6 +28,7 @@ import {
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
 import { PgProjectSync } from "../model/project-sync";
+import type { FileConflict } from "../model/merge";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 
 (
@@ -101,5 +102,80 @@ describe("SyncBanner telemetry", () => {
       { name: "sync_whole_file_answered", params: { answer, from: "banner" } },
     ]);
     expect(PgProjectSync.resolve).toHaveBeenCalledWith("p1", answer);
+  });
+});
+
+describe("SyncBanner wording", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  /** The banner's text for a divergent conflict over `files` */
+  const messageFor = async (files: FileConflict[]) => {
+    vi.spyOn(PgProjectSync, "conflictFor").mockReturnValue({
+      projectId: "p1",
+      kind: "divergent",
+      paths: files.map(({ path }) => path),
+      files,
+    });
+    // The banner reads the conflict as it mounts, so each question is a mount
+    act(() => root.unmount());
+    root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <ThemeProvider theme={anyTheme}>
+          <SyncBanner />
+        </ThemeProvider>
+      )
+    );
+    return container.querySelector('[role="alert"] p')!.textContent;
+  };
+
+  /** A file still in conflict */
+  const open = (path: string): FileConflict => ({
+    kind: "whole",
+    path,
+    local: "mine",
+    server: "theirs",
+    localHash: "l",
+    serverHash: "s",
+  });
+  /** A file a refused answer was about, which now merges on its own */
+  const settled = (path: string): FileConflict => ({
+    kind: "settled",
+    path,
+    content: "merged",
+  });
+
+  beforeEach(() => {
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "onDidSwitchWorkspace").mockReturnValue({
+      dispose: () => undefined,
+    });
+    vi.spyOn(PgProjectSync, "onDidChangeConflicts").mockReturnValue({
+      dispose: () => undefined,
+    });
+    container = document.body.appendChild(document.createElement("div"));
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+  });
+
+  it("names only the files still in conflict as changed in the same place", async () => {
+    expect(await messageFor([open("src/lib.rs"), open("Cargo.toml")])).toBe(
+      "src/lib.rs and 1 other file changed on another device and on this one, in the same place. Everything else was merged."
+    );
+    expect(await messageFor([settled("Cargo.toml"), open("src/lib.rs")])).toBe(
+      "src/lib.rs changed on another device and on this one, in the same place. Other files changed again while you were resolving; review them before applying."
+    );
+  });
+
+  it("does not call a refused answer's merged files a same-place change", async () => {
+    expect(await messageFor([settled("src/lib.rs")])).toBe(
+      "src/lib.rs changed on another device while you were resolving. Review before applying."
+    );
   });
 });

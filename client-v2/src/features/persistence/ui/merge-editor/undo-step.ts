@@ -16,7 +16,9 @@ import type * as monaco from "monaco-editor";
  * reached through this local type and nowhere else, and a missing service
  * means the step is not pushed rather than an error: the decision then
  * shares an undo step with the edit before it, as it did before.
- * `undo-step.test.ts` fails if the pinned version loses it.
+ * `result-model.test.ts` fails if the pinned version loses it: it checks
+ * the service is found, and undoes a dismissal that changed no text on the
+ * real text model.
  */
 interface UndoRedoService {
   pushElement(element: {

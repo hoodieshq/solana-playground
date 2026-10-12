@@ -88,15 +88,32 @@ type FileConflict =
       server?: string;
       localHash?: string;
       serverHash?: string;
+    }
+  | {
+      kind: "settled";
+      path: string;
+      content?: string;
+      localHash?: string;
+      serverHash?: string;
     };
 ```
 
 `"whole"` is every conflicted user file that `merge3` never ran on: no base
-captured, a base whose hash does not match the mark, or a side that deleted
-the file (absent `local` or `server`). The view shows it as one hunk; the
+captured, a base whose hash does not match the mark, a side that deleted
+the file (absent `local` or `server`), or copies that break lines in ways
+the view cannot show line by line -- `mixesLineBreaks`: more than one kind
+of line break across the copies, or a lone `\r`, which Monaco would show as
+a line break of its own, so hunks would differ by bytes no pane shows. The view shows it as one hunk; the
 result starts from this device's copy, or empty when this device deleted it.
 `MergePlan.conflicts` becomes `FileConflict[]`; callers that wanted paths
 read `.path`.
+
+`"settled"` is never in a plan. It is a file a refused answer was about
+(see "An answer is resolved content, pinned to hashes") that now merges on
+its own, raised again beside the files still in conflict; `content` is what
+it merges to, absent when the merge leaves no file. The view shows it in
+every pane with nothing to decide, and Apply answers it with that content
+against the new pins.
 
 ### The divergent conflict holds the files, in memory
 
@@ -123,7 +140,13 @@ type Answer = "local" | "server" | ResolvedFiles;
 attempt, after `planMerge`, every conflict path must be in `asked` (as
 today) and, for a `ResolvedFiles` answer, have an entry whose hashes equal
 this attempt's `localHashes[path]` and `serverHashes[path]`. Any miss raises
-the divergent conflict again with this attempt's files and writes nothing.
+the divergent conflict again with this attempt's files and writes nothing --
+including the answered files that would now merge on their own, raised as
+`"settled"` (`refusedOf`): the user answered about copies that are gone, so
+the view shows where those files stand rather than settling them behind
+the user's back, and pushes for the project stay stopped until Apply. The
+banner names only the files still in conflict as changed "in the same
+place".
 On a match, `settleConflicts` takes the entry's content. The name follows
 `mergeName` as for `"local"`. Everything after -- `replaceWorkspaceFiles`,
 `PgSyncMark.write`, `baseAfterMerge`, the push, the 409 retry loop -- is

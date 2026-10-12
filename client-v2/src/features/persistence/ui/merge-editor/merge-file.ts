@@ -293,6 +293,21 @@ export class MergeFile {
     return this.hunks.filter(({ hunk }) => !MergeFile.isResolved(hunk)).length;
   }
 
+  /**
+   * Whether closing now would lose something the user did: a side taken or
+   * dismissed (which may change no text), or the result typed into. Undoing
+   * everything back to the start counts as nothing done.
+   */
+  get touched() {
+    return (
+      this.result !== this._initial ||
+      this.hunks.some(
+        ({ hunk }) =>
+          hunk.edited || hunk.left !== "pending" || hunk.right !== "pending"
+      )
+    );
+  }
+
   /** The first line of each segment in a pane, 0-based, and the line count */
   starts(pane: MergePane) {
     const starts: number[] = [];

@@ -235,15 +235,25 @@ function band(rows: MergeRow[], index: number, lines: number, toLines: number, s
 
 /* A side's pair, mirrored about the result: × » on the left, « × on the right */
 const hunkPair = (from: "left" | "right") =>
-  mergeHunkOrder[from].map((action) => <MergeHunkAction key={`${from}-${action}`} action={action} from={from} />)
+  mergeHunkOrder[from].map((action) => (
+    <MergeHunkAction key={`${from}-${action}`} action={action} from={from} hunk="conflict 1 of 1" />
+  ))
 
-const TAKE_LEFT = <MergeHunkActions>{hunkPair("left")}</MergeHunkActions>
+const TAKE_LEFT = (
+  <MergeHunkActions hunk="conflict 1 of 1" state="conflict">
+    {hunkPair("left")}
+  </MergeHunkActions>
+)
 
-const TAKE_RIGHT = <MergeHunkActions>{hunkPair("right")}</MergeHunkActions>
+const TAKE_RIGHT = (
+  <MergeHunkActions hunk="conflict 1 of 1" state="conflict">
+    {hunkPair("right")}
+  </MergeHunkActions>
+)
 
 /* At phone width the result carries both sides' controls, in a row under the hunk */
 const HUNK_BAR = (
-  <MergeHunkBar>
+  <MergeHunkBar hunk="conflict 1 of 1" state="conflict">
     <MergeHunkBarSide side="left">{hunkPair("left")}</MergeHunkBarSide>
     <MergeHunkBarSide side="right">{hunkPair("right")}</MergeHunkBarSide>
   </MergeHunkBar>

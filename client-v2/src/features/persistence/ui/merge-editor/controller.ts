@@ -8,10 +8,8 @@ import { MergeFile } from "./merge-file";
 import { MergeResult } from "./result-model";
 import type { Fold, HunkSide, MergePane } from "./merge-file";
 import type { HunkAction, ResultChange } from "./result-model";
+import { MERGE_SCHEME } from "./scheme";
 import type { Disposable } from "../../../../utils/types";
-
-/** The scheme of the resolve view's models -- see `uriOf` */
-export const MERGE_SCHEME = "pg-merge";
 
 /** A fold's height, as `MergeFold` draws it */
 const FOLD_PX = 24;
@@ -136,7 +134,22 @@ class MonacoMergeEditor implements MergeEditor {
   constructor(file: MergeFile, hosts: MergeHosts, options: MergeEditorOptions) {
     this._file = file;
     this._options = options;
+    // A throw partway through (a second pane's editor failing to create)
+    // would leave the first pane's model registered at its address, and
+    // every editor made so far alive in its host, with nothing to dispose them
+    try {
+      this._result = this._build(hosts);
+      this._layout = this._measure();
+      this._refresh();
+    } catch (error) {
+      this.dispose();
+      throw error;
+    }
+  }
 
+  /** The panes' models and editors, and the result's model over them */
+  private _build(hosts: MergeHosts): MergeResult {
+    const file = this._file;
     const text: Record<MergePane, string> = {
       left: file.left,
       result: file.result,
@@ -158,7 +171,7 @@ class MonacoMergeEditor implements MergeEditor {
         domReadOnly: pane !== "result",
         automaticLayout: true,
         fontLigatures: true,
-        fontFamily: options.fontFamily,
+        fontFamily: this._options.fontFamily,
         minimap: { enabled: false },
         folding: false,
         glyphMargin: false,
@@ -208,7 +221,7 @@ class MonacoMergeEditor implements MergeEditor {
       );
     }
 
-    this._result = new MergeResult(
+    const result = new MergeResult(
       file,
       this._editors.result!.getModel()!,
       (change) => {
@@ -216,10 +229,8 @@ class MonacoMergeEditor implements MergeEditor {
         for (const cb of this._editListeners) cb(change);
       }
     );
-    this._disposables.push(this._result);
-
-    this._layout = this._measure();
-    this._refresh();
+    this._disposables.push(result);
+    return result;
   }
 
   get layout() {

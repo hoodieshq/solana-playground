@@ -81,7 +81,11 @@ const LIB = conflictIn("src/lib.rs");
 
 const button = (name: string) => {
   const found = Array.from(document.querySelectorAll("button")).filter(
-    (b) => (b.getAttribute("aria-label") ?? b.textContent?.trim()) === name
+    // A hunk's control is named by its tooltip; its label adds which hunk
+    (b) =>
+      (b.getAttribute("title") ??
+        b.getAttribute("aria-label") ??
+        b.textContent?.trim()) === name
   );
   expect(found).toHaveLength(1);
   return found[0];

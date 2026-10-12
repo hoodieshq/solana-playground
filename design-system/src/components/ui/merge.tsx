@@ -195,7 +195,10 @@ function MergeShowAll({
 
 /* ── the panes ─────────────────────────────────────────────────────────── */
 
-/* At phone width, which pane shows. Tabs, built on Segmented */
+/* At phone width, which pane shows: one toggle button per pane, the shown
+   one pressed, in a named group. Not tabs: the panes are not tabpanels and
+   the group does not rove with the arrow keys, so each button is its own tab
+   stop. Built on Segmented, with its radio roles and roving focus turned off */
 function MergePaneTabs({ className, ...props }: Omit<React.ComponentProps<"div">, "children">) {
   const { pane, setPane, id } = React.useContext(MergeContext)
   return (
@@ -205,8 +208,9 @@ function MergePaneTabs({ className, ...props }: Omit<React.ComponentProps<"div">
       {...props}
     >
       <Segmented
-        role="tablist"
+        role="group"
         aria-label="Panes"
+        rovingFocus={false}
         value={pane}
         onValueChange={(v) => setPane(v as MergeSide)}
         className="w-full"
@@ -215,9 +219,9 @@ function MergePaneTabs({ className, ...props }: Omit<React.ComponentProps<"div">
           <SegmentedItem
             key={side}
             value={side}
-            role="tab"
-            aria-selected={pane === side}
+            role={undefined}
             aria-checked={undefined}
+            aria-pressed={pane === side}
             aria-controls={`${id}-${side}`}
             className="flex-1"
           >
@@ -376,6 +380,23 @@ const mergeHunkVariants = cva("", {
 
 type MergeHunkState = NonNullable<VariantProps<typeof mergeHunkVariants>["state"]>
 
+/* The same states in words, for whatever the colour alone cannot tell: a
+   screen reader, a tooltip, a hover on the app's line decorations */
+const mergeHunkStateText: Record<MergeHunkState, string> = {
+  conflict: "both devices changed these lines, not yet decided",
+  changed: "changed on one device, merged on its own",
+  resolved: "taken into the result",
+  dismissed: "left out of the result",
+}
+
+/* A hunk's controls as a named group, when the app says which hunk and how it
+   stands: "Conflict 2 of 5: both devices changed these lines, not yet decided" */
+function hunkGroup(hunk: string | undefined, state: MergeHunkState | undefined) {
+  if (!hunk && !state) return {}
+  const words = [hunk, state && mergeHunkStateText[state]].filter(Boolean).join(": ")
+  return { role: "group", "aria-label": words.charAt(0).toUpperCase() + words.slice(1), "data-state": state }
+}
+
 /* The ribbon's bands, in the same palette */
 const BAND: Record<MergeHunkState, string> = {
   conflict: "fill-error/15 stroke-error/70",
@@ -432,9 +453,22 @@ function MergeRibbon({
   )
 }
 
-/* The controls on a hunk, small enough for an editor's gutter */
-function MergeHunkActions({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="merge-hunk-actions" className={cn("inline-flex items-center gap-px", className)} {...props} />
+/* The controls on a hunk, small enough for an editor's gutter. Given the
+   hunk ("conflict 2 of 5") or its state, they are a group named by both */
+function MergeHunkActions({
+  className,
+  hunk,
+  state,
+  ...props
+}: React.ComponentProps<"div"> & { hunk?: string; state?: MergeHunkState }) {
+  return (
+    <div
+      data-slot="merge-hunk-actions"
+      {...hunkGroup(hunk, state)}
+      className={cn("inline-flex items-center gap-px", className)}
+      {...props}
+    />
+  )
 }
 
 const HUNK_ACTION = {
@@ -453,13 +487,22 @@ const mergeHunkOrder: Record<"left" | "right", readonly ["take" | "dismiss", "ta
 }
 
 /* » takes this device's lines, « the other device's; × dismisses either.
-   Lay a side's pair out by mergeHunkOrder */
+   Lay a side's pair out by mergeHunkOrder. The name says the action and the
+   side; given the hunk ("conflict 2 of 5") it says which, so a list of the
+   page's buttons does not read the same name once per hunk. The tooltip
+   stays short */
 function MergeHunkAction({
   className,
   action,
   from,
+  hunk,
   ...props
-}: Omit<React.ComponentProps<"button">, "children"> & { action: "take" | "dismiss"; from: "left" | "right" }) {
+}: Omit<React.ComponentProps<"button">, "children"> & {
+  action: "take" | "dismiss"
+  from: "left" | "right"
+  /** which hunk, in words: "conflict 2 of 5" */
+  hunk?: string
+}) {
   const label = HUNK_ACTION[action][from]
   const Icon = action === "dismiss" ? XIcon : TAKE_ICON[from]
   return (
@@ -468,7 +511,7 @@ function MergeHunkAction({
       data-slot="merge-hunk-action"
       data-action={action}
       data-from={from}
-      aria-label={label}
+      aria-label={hunk ? `${label}, ${hunk}` : label}
       title={label}
       className={cn(
         "grid size-4.5 shrink-0 place-items-center rounded-sm text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [@media(hover:none)]:size-8",
@@ -477,7 +520,7 @@ function MergeHunkAction({
       )}
       {...props}
     >
-      <Icon className="size-3.5" />
+      <Icon aria-hidden className="size-3.5" />
     </button>
   )
 }
@@ -485,11 +528,18 @@ function MergeHunkAction({
 /* At phone width, where the result carries both sides' controls, a row of
    its own under the hunk, so no control covers the lines it decides. Each
    side's controls go in a MergeHunkBarSide, named, since a touch screen
-   shows no tooltips to tell one × from the other */
-function MergeHunkBar({ className, ...props }: React.ComponentProps<"div">) {
+   shows no tooltips to tell one × from the other. Given the hunk or its
+   state, it is a group named by both, as MergeHunkActions */
+function MergeHunkBar({
+  className,
+  hunk,
+  state,
+  ...props
+}: React.ComponentProps<"div"> & { hunk?: string; state?: MergeHunkState }) {
   return (
     <div
       data-slot="merge-hunk-bar"
+      {...hunkGroup(hunk, state)}
       className={cn(
         "flex h-11 items-center justify-between gap-2 border-y border-border bg-surface-panel px-2 font-sans",
         className
@@ -586,6 +636,7 @@ export {
   MergeHunkBarSide,
   MergeHunkGutter,
   mergeHunkOrder,
+  mergeHunkStateText,
   mergeHunkVariants,
   MergeNav,
   MergePane,

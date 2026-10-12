@@ -221,6 +221,26 @@ describe("MergeFile hunk state", () => {
     expect(file.result.split("\n")[11]).toBe("line 12 here");
   });
 
+  it("is touched by a dismissal, typing anywhere, and not by undoing them", () => {
+    const { file, model } = openFile();
+    const start = file.snapshot();
+    expect(file.touched).toBe(false);
+
+    // Dismissing one side changes no text, but is still a choice
+    file.dismiss(0, "left");
+    expect(file.result).toBe(model.value);
+    expect(file.touched).toBe(true);
+    file.restore(start);
+    expect(file.touched).toBe(false);
+
+    // Typing outside every hunk answers none, but is still work
+    file.userEdit(withLine(model.value, 1, "line 1, edited"));
+    expect(file.unresolved).toBe(1);
+    expect(file.touched).toBe(true);
+    file.userEdit(model.value);
+    expect(file.touched).toBe(false);
+  });
+
   it("follows lines added above a hunk", () => {
     const { file, model } = openFile();
     model.value = `added 1\nadded 2\n${model.value}`;

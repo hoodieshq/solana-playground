@@ -1,8 +1,11 @@
 # Tasks
 
 Each task is its own stream: its own worktree, ticket and small PRs. Tick a
-task in the PR that lands it. Until 3.2 lands, new code may use Tailwind
-utilities and tokens but no design-system components.
+task in the PR that lands it. Until React 19 (3.2's PR #45) and the
+in-repository registry (2.2's PR #44) are on `master-2.0`, new code may use
+Tailwind utilities and tokens but no design-system components. Both merged on
+2026-10-05. Ticking 3.2 and 2.2 is their own streams' call, and does not
+hold the components back.
 
 ## 1. Rules
 
@@ -40,8 +43,9 @@ utilities and tokens but no design-system components.
       (HOO-1856, PR #48: the `e2e` job; the production-build walk-through
       stays manual until 3.8 writes it as scenarios)
 - [x] 3.6 First design-system components installed into `shared/ui` through
-      the reinstall script (HOO-1837, PR #57: landed ahead of 3.2 and 2.2,
-      since the registry and React 19 it needs were already in place)
+      the reinstall script (HOO-1837, PR #57; after PRs #44 and #45, the
+      registry and React 19 it installs with, not after 3.2's and 2.2's
+      ticks)
 - [x] 3.7 `yarn spec:coverage` reports every scenario without a test
       titled `<capability>: <scenario name>` or a `(manual)` mark
       (HOO-1856, PR #48)

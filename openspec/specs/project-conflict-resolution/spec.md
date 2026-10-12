@@ -139,22 +139,41 @@ without asking again.
 
 - **WHEN** the user has applied a resolution, and the page is reloaded with
   the account holding exactly what was uploaded
-- **THEN** no banner appears, nothing is uploaded, and `src/lib.rs` holds the
-  chosen text
+- **THEN** no banner appears, no file the user resolved is uploaded again,
+  and `src/lib.rs` holds the chosen text. (A reload may still upload the
+  generated `.workspace/program-info.json`, which the account never
+  received: a known sync gap, not part of the resolution -- see
+  `account-sync`'s "reloading a project the account already has writes
+  nothing".)
 
 ### Requirement: Nothing is written before Apply
 
 Until the user presses "Apply" or a whole-file shortcut, the view SHALL NOT
 change this device's files or upload anything. Closing the view, by "Cancel",
 the close button or Escape, SHALL leave the conflict pending and the banner
-shown. Escape pressed inside one of the view's editors SHALL be left to the
-editor, which uses it to close its own suggestions and search.
+shown.
 
 #### Scenario: Cancelled after taking a side
 
-- **WHEN** the user takes this device's lines and presses "Cancel"
+- **WHEN** the user takes this device's lines, presses "Cancel", and then
+  "Discard"
 - **THEN** the dialog closes, `src/lib.rs` is unchanged, nothing was
   uploaded, and the banner still offers "Resolve…"
+
+### Requirement: Choices are not lost by accident
+
+A click outside the view SHALL NOT close it. Once the user has taken,
+dismissed or typed anything, closing SHALL first ask "Discard your choices?"
+with "Keep resolving" and "Discard"; Escape while it asks SHALL keep
+resolving. Escape pressed inside one of the view's editors while that
+editor's suggestions, search or parameter hints are open SHALL be left to the
+editor, which closes them; otherwise it SHALL close the view as anywhere
+else.
+
+#### Scenario: A stray click beside the view (manual)
+
+- **WHEN** the user has taken a side and clicks outside the dialog
+- **THEN** the dialog stays open with the side still taken
 
 ### Requirement: An answer applies only to what the user saw
 
@@ -171,6 +190,24 @@ file changed on the other device.
 - **THEN** nothing is uploaded, the view shows the other device's newer
   lines with "Apply" disabled, and a note says `src/lib.rs` changed on the
   other device
+
+### Requirement: A refused answer's merged files wait for Apply
+
+A file a refused answer was about that now merges on its own SHALL still be
+shown, as it now merges, with nothing to decide, and SHALL NOT be written or
+uploaded until the user applies again: the user answered about copies that
+are gone. The banner SHALL name only the files still in conflict as changed
+"in the same place", and say of the others that they changed while the user
+was resolving.
+
+#### Scenario: A refused answer's file now merges on its own (manual)
+
+- **WHEN** the view is open on `src/lib.rs`, the other device saves a change
+  to different lines of it, and the user resolves the hunk and presses
+  "Apply"
+- **THEN** nothing is uploaded, the view shows `src/lib.rs` as it now merges
+  with nothing to decide and "Apply" enabled, and the banner says it changed
+  on another device while the user was resolving
 
 ### Requirement: Whole-file answers stay as shortcuts
 
@@ -218,14 +255,15 @@ those listed and never a path or file content:
 
 ### Requirement: The view fits a phone
 
-At phone width the view SHALL show one pane at a time, chosen with tabs
-named "This device", "Result" and "Other device", with the hunk controls
-reachable from "Result".
+At phone width the view SHALL show one pane at a time, chosen with toggle
+buttons named "This device", "Result" and "Other device" in a group named
+"Panes", the shown pane's pressed, with the hunk controls reachable from
+"Result".
 
 #### Scenario: Resolving on a phone (manual)
 
 - **WHEN** a user on a 390px-wide screen opens the view
-- **THEN** one pane fills the screen, the tabs switch between the three, and
+- **THEN** one pane fills the screen, the buttons switch between the three, and
   a hunk can be taken from either side and applied without leaving "Result"
 
 ### Requirement: The design system shows the merge element

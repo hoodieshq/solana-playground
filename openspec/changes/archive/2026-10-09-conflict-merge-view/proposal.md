@@ -35,6 +35,19 @@ exactly which lines were in question (HOO-1837).
   over three Monaco editors kept aligned and scrolled together. "Keep this
   version" and "Take the other version" stay, in the banner and under the
   same names in the view's footer (IDEA's "Accept Left" and "Accept Right").
+- An answer whose pins no longer hold uploads nothing. The question is
+  raised again with every file it was about: the ones still in conflict, and
+  the ones that now merge on their own, shown as they merge with nothing to
+  decide (`FileConflict` kind `settled`), so nothing is written behind the
+  user's back. The banner names only the first as changed in the same place.
+- The view does not close on a click outside it, and asks before closing
+  once a choice was made. Escape in an editor is the editor's only while its
+  suggestions, search or parameter hints are open.
+- Telemetry: `features/persistence` adds `sync_resolve_opened`,
+  `sync_resolve_hunk_resolved`, `sync_resolve_applied`,
+  `sync_resolve_cancelled`, `sync_whole_file_answered`, `sync_resolve_stale`
+  and `sync_resolve_apply_failed`, described in the spec's "The resolve view
+  is measured". None is renamed or removed.
 
 ## Capabilities
 

@@ -62,7 +62,10 @@ export interface BaseConflictResolverProps {
   onKeepLocal: () => void;
   /** "Take the other version", as the banner's */
   onTakeServer: () => void;
-  /** Closed without an answer: Cancel, the close button or Escape */
+  /**
+   * Closed without an answer: Cancel, the close button or Escape -- once
+   * confirmed, where a choice had been made. A click outside never closes.
+   */
   onCancel: () => void;
   /**
    * A hunk went from undecided to resolved: by taking or dismissing `side`,
@@ -92,19 +95,24 @@ const useSingle = (root: HTMLElement | null) => {
   return single;
 };
 
+/** Monaco's widgets that Escape closes, as they are marked while shown */
+const EDITOR_WIDGETS = [
+  ".suggest-widget.visible",
+  ".find-widget.visible",
+  ".parameter-hints-widget.visible",
+].join(",");
+
 /**
- * Escape pressed inside one of the editors is the editor's: it closes
- * Monaco's suggest, find and parameter-hint widgets. Radix listens for
- * Escape on the whole document, ahead of the editor, and would close the
- * view instead -- and every choice made in it with the view.
+ * Whether an Escape belongs to the editor it was pressed in: one of its
+ * suggest, find or parameter-hint widgets is open, and Escape closes that.
+ * Radix listens for Escape on the whole document, ahead of the editor, and
+ * would close the view instead. With no widget open, Escape is the view's,
+ * so a keyboard user can leave from the result.
  */
-const keepEditorEscape = (event: KeyboardEvent) => {
-  if (
-    event.target instanceof Element &&
-    event.target.closest(".monaco-editor")
-  ) {
-    event.preventDefault();
-  }
+const isEditorEscape = (event: KeyboardEvent) => {
+  const editor =
+    event.target instanceof Element && event.target.closest(".monaco-editor");
+  return !!editor && !!editor.querySelector(EDITOR_WIDGETS);
 };
 
 /** The indices of a file's resolved hunks */
@@ -172,7 +180,12 @@ export const BaseConflictResolver = ({
   // Which of the file's hunks were resolved before the last change, to tell
   // the ones typing has just answered
   const resolved = useRef(new Set<number>());
+  // The hunk last revealed or decided in this file, where Next and Previous
+  // count from
+  const current = useRef<number | null>(null);
   const [layout, setLayout] = useState<MergeLayout | null>(null);
+  // Closing was asked for with work done: the footer asks to confirm
+  const [confirming, setConfirming] = useState(false);
 
   // The Modal mounts its content in a portal after this renders, so the
   // editors are created once the hosts are there
@@ -195,6 +208,7 @@ export const BaseConflictResolver = ({
     setEditor(created);
     setLayout(created.layout);
     resolved.current = resolvedHunks(file);
+    current.current = null;
     const subscriptions = [
       created.onDidChangeLayout(() => setLayout(created.layout)),
       created.onDidEditResult((change) => {
@@ -225,10 +239,30 @@ export const BaseConflictResolver = ({
 
   const unresolved = merges.reduce((n, m) => n + m.unresolved, 0);
 
+  /**
+   * Cancel, the close button or Escape: closes at once when nothing was done
+   * yet, and otherwise asks first, since closing drops every choice made
+   */
+  const requestClose = () => {
+    if (merges.some((m) => m.touched)) setConfirming(true);
+    else onCancel();
+  };
+
+  /** Escape is an open editor widget's first, then backs out of the question */
+  const onEscape = (event: KeyboardEvent) => {
+    if (isEditorEscape(event)) {
+      event.preventDefault();
+    } else if (confirming) {
+      event.preventDefault();
+      setConfirming(false);
+    }
+  };
+
   const act = (hunk: number, side: HunkSide, action: HunkAction) => {
     const found = file?.hunks[hunk]?.hunk;
     const before = !!found && MergeFile.isResolved(found);
     if (!editor?.decide(hunk, side, action)) return;
+    current.current = hunk;
     if (found && !before && MergeFile.isResolved(found)) {
       onHunkResolved?.(action, side);
     }
@@ -236,15 +270,30 @@ export const BaseConflictResolver = ({
     rerender();
   };
 
-  /** Scroll to the next or previous hunk still to decide, wrapping */
+  /**
+   * Scroll to the next or previous hunk still to decide, counted from the
+   * last one revealed or decided, wrapping. Before either, forward starts at
+   * the first and back at the last.
+   */
   const goTo = (step: 1 | -1) => {
     if (!file || !editor) return;
-    const open = file.hunks.filter(({ hunk }) => !MergeFile.isResolved(hunk));
+    const open = file.hunks
+      .filter(({ hunk }) => !MergeFile.isResolved(hunk))
+      .map(({ index: i }) => i);
     if (!open.length) return;
-    // Without a notion of "current", forward starts at the first
-    const target = step > 0 ? open[0] : open[open.length - 1];
-    editor.reveal(target.index);
+    const from = current.current;
+    const target =
+      step > 0
+        ? open.find((i) => from === null || i > from) ?? open[0]
+        : [...open].reverse().find((i) => from === null || i < from) ??
+          open[open.length - 1];
+    current.current = target;
+    editor.reveal(target);
   };
+
+  /** Which hunk, in words, so no two hunks' controls share a name */
+  const hunkName = (i: number) =>
+    `conflict ${i + 1} of ${file?.hunks.length ?? 0}`;
 
   /** A side's take and dismiss, mirrored about the result */
   const pair = (i: number, side: HunkSide) =>
@@ -253,6 +302,7 @@ export const BaseConflictResolver = ({
         key={action}
         action={action}
         from={side}
+        hunk={hunkName(i)}
         disabled={busy}
         onClick={() => act(i, side, action)}
       />
@@ -278,6 +328,8 @@ export const BaseConflictResolver = ({
           <MergeHunkBar
             key={i}
             data-hunk={i}
+            hunk={hunkName(i)}
+            state="conflict"
             className="absolute inset-x-0"
             style={{ top: place?.bar ?? 0, pointerEvents: "auto" }}
           >
@@ -294,9 +346,12 @@ export const BaseConflictResolver = ({
         );
       }
       return (
+        // Only a hunk with a side still open has controls, so it is a conflict
         <MergeHunkActions
           key={i}
           data-hunk={i}
+          hunk={hunkName(i)}
+          state="conflict"
           className="absolute inset-x-0 mx-auto w-fit"
           style={{ top: place?.top[pane] ?? 4, pointerEvents: "auto" }}
         >
@@ -353,12 +408,14 @@ export const BaseConflictResolver = ({
   };
 
   return (
-    <Modal open onOpenChange={(open) => !open && onCancel()}>
+    <Modal open onOpenChange={(open) => !open && requestClose()}>
       <ModalContent
         size="wide"
         className="dark md:h-[min(48rem,calc(100dvh-4rem))]"
         ref={contentRef}
-        onEscapeKeyDown={keepEditorEscape}
+        onEscapeKeyDown={onEscape}
+        // A stray click beside the view must not close it
+        onInteractOutside={(event) => event.preventDefault()}
       >
         <ModalHeader>
           <ModalTitle>Resolve conflicts</ModalTitle>
@@ -438,18 +495,37 @@ export const BaseConflictResolver = ({
                 Take the other version
               </Button>
             </MergeFooterShortcuts>
-            <MergeFooterActions>
-              <Button size="sm" variant="ghost" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={busy || unresolved > 0}
-                onClick={() => onApply(resolvedFiles(merges))}
-              >
-                Apply
-              </Button>
-            </MergeFooterActions>
+            {confirming ? (
+              <MergeFooterActions>
+                <p role="alert" className="text-caption">
+                  Discard your choices?
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  autoFocus
+                  onClick={() => setConfirming(false)}
+                >
+                  Keep resolving
+                </Button>
+                <Button size="sm" variant="destructive" onClick={onCancel}>
+                  Discard
+                </Button>
+              </MergeFooterActions>
+            ) : (
+              <MergeFooterActions>
+                <Button size="sm" variant="ghost" onClick={requestClose}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy || unresolved > 0}
+                  onClick={() => onApply(resolvedFiles(merges))}
+                >
+                  Apply
+                </Button>
+              </MergeFooterActions>
+            )}
           </MergeFooter>
         </Merge>
       </ModalContent>
