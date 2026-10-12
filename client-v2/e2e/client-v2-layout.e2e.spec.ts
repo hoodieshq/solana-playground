@@ -27,6 +27,21 @@ const eventsOn = (page: Page) => {
 const lineOf = (lines: string[], name: string) =>
   lines.find((line) => line.startsWith(`[telemetry:event] ${name} `));
 
+/**
+ * The one event line with this name: waits for it, then a moment more, so a
+ * second copy sent by the same gesture (a key, then the drag it causes) fails
+ * the test instead of passing unread
+ */
+const onlyLineOf = async (page: Page, lines: string[], name: string) => {
+  await expect.poll(() => lineOf(lines, name)).toBeTruthy();
+  await page.waitForTimeout(300);
+  const all = lines.filter((line) =>
+    line.startsWith(`[telemetry:event] ${name} `)
+  );
+  expect(all).toHaveLength(1);
+  return all[0];
+};
+
 const assistantPanel = (page: Page) => page.locator("#assistant[data-panel]");
 const consoleHandle = (page: Page) =>
   page.getByRole("button", { name: "Console" });
@@ -135,9 +150,7 @@ test("a visit that moves nothing leaves the saved layout alone", async ({
   // the layout the panels report when they mount
   const newer = JSON.stringify({
     v: 2,
-    leftOpen: true,
-    assistantOpen: true,
-    consoleOpen: false,
+    open: { left: true, assistant: true, console: false },
   });
   await page.evaluate((value) => localStorage.setItem("layout", value), newer);
   await page.reload();
@@ -259,17 +272,52 @@ test.describe("on a phone", () => {
     await composer.fill("hello");
     await expect(composer).toHaveValue("hello");
   });
+
+  test("the editor takes typing again once the window widens", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    const lines = page.locator(".monaco-editor .view-lines");
+    await expect(lines).toContainText("use anchor_lang");
+    await page.setViewportSize({ width: 768, height: 812 });
+    await page.locator(".monaco-editor textarea.inputarea").focus();
+    await page.keyboard.press("ControlOrMeta+Home");
+    await page.keyboard.type("zzz");
+    await expect(lines).toContainText("zzzuse anchor_lang");
+  });
+
+  test("a file can be renamed from the project Sheet", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.getByRole("button", { name: "Expand project panel" }).click();
+    const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
+    const file = sheet.getByText("lib.rs", { exact: true });
+    await file.click({ button: "right" });
+    await page.getByText("Rename", { exact: true }).click();
+    // Tapped, as on a phone: the modal Sheet, closing, keeps the modal's
+    // field from taking focus itself. Left to the adaptive design, which
+    // decides how the project panel behaves on a phone.
+    const input = page.locator('input[value="lib.rs"]');
+    await input.click();
+    await input.fill("renamed.rs");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("renamed.rs", { exact: true })).toBeVisible();
+  });
 });
 
 test.describe("on a compact window", () => {
   test.use({ viewport: { width: 800, height: 1000 } });
 
-  test("client-v2-layout: the assistant Sheet is the assistant's default width", async ({
+  test("the assistant Sheet is the assistant's default width", async ({
     seededPage: page,
   }) => {
     await page.getByRole("button", { name: "Expand assistant" }).click();
     const sheet = page.locator('[data-slot="sheet-content"]');
-    // 21.75 rem, not the design system's 3/4 of the window (600 px)
+    // 21.75 rem, not the design system's 3/4 of the window capped at 24 rem
+    // (384 px)
     await expect
       .poll(async () => (await sheet.boundingBox())?.width)
       .toBeCloseTo(348, -1);
@@ -313,8 +361,7 @@ test("client-v2-layout: Toggling the assistant by key", async ({
   await expect(
     page.getByRole("button", { name: "Expand assistant" })
   ).toBeVisible();
-  await expect.poll(() => lineOf(lines, "layout_panel_toggled")).toBeTruthy();
-  const line = lineOf(lines, "layout_panel_toggled");
+  const line = await onlyLineOf(page, lines, "layout_panel_toggled");
   expect(line).toContain("panel: assistant");
   expect(line).toContain("open: false");
   expect(line).toContain("via: key");
@@ -421,8 +468,7 @@ test("dragging the assistant shut is reported as a drag", async ({
   const lines = linesOn(page);
   await drag(page, assistantHandle(page), 600, 0);
   await expect.poll(() => widthOf(page)).toBeLessThan(40);
-  await expect.poll(() => lineOf(lines, "layout_panel_toggled")).toBeTruthy();
-  const line = lineOf(lines, "layout_panel_toggled");
+  const line = await onlyLineOf(page, lines, "layout_panel_toggled");
   expect(line).toContain("panel: assistant");
   expect(line).toContain("open: false");
   expect(line).toContain("via: drag");

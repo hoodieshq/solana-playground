@@ -328,18 +328,23 @@ const Collapse = styled.button`
   `}
 `;
 
-// Modals sit above the stock Sidebar (z-10) and the header (z-20), which the
-// layout shell put in the same stacking context; their old 3 and 4 left the
-// gallery's left edge, tabs included, under the left panel.
+// Above everything the shell draws: the stock Sidebar (z-10), the header
+// (z-20) and the Sheets (z-50), which portal to `body` beside these. The
+// explorer's context menu opens here from inside the project Sheet, so it
+// must sit over that Sheet; a modal closes the Sheet as it opens
+// (`LayoutShell`), since the Sheet traps focus. A modal Sheet also turns off
+// pointer events on `body`, so each portal turns them back on for itself.
 const PortalAbove = styled.div`
-  z-index: 32;
+  z-index: 62;
+  pointer-events: auto;
 `;
 const StyledModalBackdrop = styled(ModalBackdrop)`
-  z-index: 31;
+  z-index: 61;
+  pointer-events: auto;
 `;
-// Toasts open at the bottom left, over the left panel, whose stock Sidebar
-// container is z-10: above that, and below the modal backdrop (31) so a modal
-// still covers them.
+// Toasts open at the bottom left, over the left panel and its Sheet, and
+// below the modal backdrop so a modal still covers them.
 const PortalBelow = styled.div`
-  z-index: 15;
+  z-index: 60;
+  pointer-events: auto;
 `;

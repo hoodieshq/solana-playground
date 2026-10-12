@@ -9,22 +9,13 @@ export type HorizontalLayout = Record<typeof HORIZONTAL_PANELS[number], number>;
 /** The stage and console group's sizes */
 export type VerticalLayout = Record<typeof VERTICAL_PANELS[number], number>;
 
-export type LayoutPanel = "left" | "assistant" | "console";
+export const LAYOUT_PANELS = ["left", "assistant", "console"] as const;
+export type LayoutPanel = typeof LAYOUT_PANELS[number];
 
-/** What of the layout survives a reload, on this device */
+/** What of the layout survives a reload, on this device; stored as it is */
 export interface LayoutState {
   v: 1;
   open: Record<LayoutPanel, boolean>;
-  h?: HorizontalLayout;
-  vert?: VerticalLayout;
-}
-
-/** What is stored: version 1's three flags, unchanged since it first shipped */
-interface StoredLayout {
-  v: 1;
-  leftOpen: boolean;
-  assistantOpen: boolean;
-  consoleOpen: boolean;
   h?: HorizontalLayout;
   vert?: VerticalLayout;
 }
@@ -60,28 +51,58 @@ const isSize = (value: unknown): value is number =>
   value >= 0 &&
   value <= 100;
 
-/** Exactly the group's panel ids, each a size in percent */
-const isPanelLayout = <Id extends string>(
+/** Exactly these keys, each value passing `isValue` */
+const hasExactly = <Id extends string, V>(
   value: unknown,
-  ids: readonly Id[]
-): value is Record<Id, number> => {
+  ids: readonly Id[],
+  isValue: (item: unknown) => item is V
+): value is Record<Id, V> => {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value).sort();
   return (
     keys.join() === [...ids].sort().join() &&
-    keys.every((key) => isSize(value[key]))
+    keys.every((key) => isValue(value[key]))
   );
 };
 
-const isStoredLayout = (
+const isBoolean = (value: unknown): value is boolean =>
+  typeof value === "boolean";
+
+/**
+ * The library reports sizes that sum to 100, rounded, so anything further
+ * off was not written by it
+ */
+const SUM_TOLERANCE = 1;
+
+/**
+ * Exactly the group's panel ids, each a size in percent, together the whole
+ * group. Whether a size agrees with the panel's fold flag is not checked: a
+ * folded panel is a fixed width in px, which is a different percent on every
+ * window.
+ */
+const isPanelLayout = <Id extends string>(
+  value: unknown,
+  ids: readonly Id[]
+): value is Record<Id, number> =>
+  hasExactly(value, ids, isSize) &&
+  Math.abs(Object.values<number>(value).reduce((a, b) => a + b, 0) - 100) <=
+    SUM_TOLERANCE;
+
+const isLayoutState = (
   value: Record<string, unknown>
-): value is Record<string, unknown> & StoredLayout =>
+): value is Record<string, unknown> & LayoutState =>
   value.v === 1 &&
-  typeof value.leftOpen === "boolean" &&
-  typeof value.assistantOpen === "boolean" &&
-  typeof value.consoleOpen === "boolean" &&
+  hasExactly(value.open, LAYOUT_PANELS, isBoolean) &&
   (value.h === undefined || isPanelLayout(value.h, HORIZONTAL_PANELS)) &&
   (value.vert === undefined || isPanelLayout(value.vert, VERTICAL_PANELS));
+
+/**
+ * Only a whole number above this version's says a newer build wrote the
+ * value; any other `v` is a value nobody's build wrote, so it is corrupt and
+ * the next save repairs it
+ */
+const isNewerVersion = (v: unknown) =>
+  typeof v === "number" && Number.isInteger(v) && v > 1;
 
 /** The group's layout as the library reports it, or null if a panel is missing */
 export const horizontalOf = (layout: PanelLayout): HorizontalLayout | null =>
@@ -119,8 +140,8 @@ export const readLayout = (
       error: new Error("Not an object"),
     };
   }
-  if (parsed.v !== 1) return { kind: "failed", reason: "version" };
-  if (!isStoredLayout(parsed)) {
+  if (isNewerVersion(parsed.v)) return { kind: "failed", reason: "version" };
+  if (!isLayoutState(parsed)) {
     return {
       kind: "failed",
       reason: "corrupt",
@@ -131,9 +152,9 @@ export const readLayout = (
   const state: LayoutState = {
     v: 1,
     open: {
-      left: parsed.leftOpen,
-      assistant: parsed.assistantOpen,
-      console: parsed.consoleOpen,
+      left: parsed.open.left,
+      assistant: parsed.open.assistant,
+      console: parsed.open.console,
     },
     h: parsed.h,
     vert: parsed.vert,
@@ -147,15 +168,7 @@ export const writeLayout = (
   state: LayoutState
 ): { ok: true } | { ok: false; error: unknown } => {
   try {
-    const stored: StoredLayout = {
-      v: 1,
-      leftOpen: state.open.left,
-      assistantOpen: state.open.assistant,
-      consoleOpen: state.open.console,
-      h: state.h,
-      vert: state.vert,
-    };
-    storage().setItem(LAYOUT_STORAGE_KEY, JSON.stringify(stored));
+    storage().setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state));
     return { ok: true };
   } catch (error) {
     return { ok: false, error };

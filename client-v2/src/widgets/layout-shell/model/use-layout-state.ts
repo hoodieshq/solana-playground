@@ -28,20 +28,20 @@ export const useLayoutState = () => {
   // A layout from a newer version is kept as it is: this one cannot read it,
   // and writing would replace it with a layout its own version cannot use
   const keepSaved = restored.kind === "failed" && restored.reason === "version";
-  const reportedKept = useRef(false);
   const reportedSaveFailure = useRef(false);
 
   useEffect(() => {
     if (restored.kind !== "failed") return;
-    log.warn("The saved layout could not be read; using the defaults", {
-      context: {
-        reason: restored.reason,
-        error:
-          restored.kind === "failed" && "error" in restored
-            ? String(restored.error)
-            : "",
-      },
-    });
+    if (restored.reason === "version") {
+      log.warn(
+        "The saved layout is from a newer version; using the defaults and not overwriting it"
+      );
+    } else {
+      // Counted by `layout_restore_failed`; the log keeps the stack
+      log.error(restored.error, {
+        context: { reason: restored.reason, using: "defaults" },
+      });
+    }
     layoutTelemetry.track("layout_restore_failed", { reason: restored.reason });
   }, [restored]);
 
@@ -53,29 +53,27 @@ export const useLayoutState = () => {
     (next: LayoutState) => {
       latest.current = next;
       setState(next);
-      if (keepSaved) {
-        if (!reportedKept.current) {
-          reportedKept.current = true;
-          log.warn(
-            "The saved layout is from a newer version; not overwriting it"
-          );
-        }
-        return;
-      }
+      if (keepSaved) return;
       const written = writeLayout(storage, next);
-      // Once per mount: a drag reports on every tick
+      // Reported once per mount: a full storage fails every save after the
+      // first the same way, and `localStorage` is shared with `settings` and
+      // `wallet`, so the team must hear that it is full
       if (!written.ok && !reportedSaveFailure.current) {
         reportedSaveFailure.current = true;
-        log.warn("The layout could not be saved", {
-          context: { error: String(written.error) },
-        });
+        log.error(
+          new Error("The layout could not be saved", { cause: written.error }),
+          { report: true }
+        );
       }
     },
     [keepSaved]
   );
 
   const setOpen = useCallback(
-    (panel: LayoutPanel, open: boolean, via: ToggleSource) => {
+    (
+      panel: LayoutPanel,
+      { open, via }: { open: boolean; via: ToggleSource }
+    ) => {
       if (latest.current.open[panel] === open) return;
       layoutTelemetry.track("layout_panel_toggled", { panel, open, via });
       const next: LayoutState = {

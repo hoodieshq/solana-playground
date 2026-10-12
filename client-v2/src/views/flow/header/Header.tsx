@@ -84,7 +84,7 @@ export default Header;
 // Transparent on the black page ground -- the floating panels below carry
 // their own edges, so the header needs none of its own.
 //
-// Raised above the stock Sidebar's fixed container (z-10): the switcher's and
+// Raised above the stock Sidebar's container (z-10, absolute in the shell): the switcher's and
 // the status chips' menus drop down over the left panel, and beneath it they
 // are drawn but cannot be clicked.
 const Bar = styled.header`

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { useIsMobile } from "./use-mobile";
 import { LAYOUT_BREAKPOINTS, useViewport, viewportOf } from "./use-viewport";
 
 /** A `matchMedia` that answers `max-width` queries against `width` and fires `change` when it moves */
@@ -36,8 +37,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("should draw the lines at 1024 and 600", () => {
-  expect(LAYOUT_BREAKPOINTS).toEqual({ compact: 1024, phone: 600 });
+it("should draw the lines at 1024, 768 and 600", () => {
+  expect(LAYOUT_BREAKPOINTS).toEqual({ compact: 1024, left: 768, phone: 600 });
 });
 
 it.each([
@@ -63,3 +64,17 @@ it("should re-render when the window crosses a line", () => {
   act(() => screen.resize(375));
   expect(result.current).toBe("phone");
 });
+
+it.each([
+  [LAYOUT_BREAKPOINTS.left - 1, true],
+  [LAYOUT_BREAKPOINTS.left, false],
+])(
+  "should agree with the stock Sidebar's own hook on the left panel's line (%i px)",
+  (width, sheet) => {
+    const innerWidth = window.innerWidth;
+    window.innerWidth = width;
+    const { result } = renderHook(() => useIsMobile());
+    expect(result.current).toBe(sheet);
+    window.innerWidth = innerWidth;
+  }
+);

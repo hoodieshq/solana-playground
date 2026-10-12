@@ -1,9 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createElement, useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-// Partial mock: only `usePanelRef` is replaced, so the tests can see which
-// imperative calls the shell makes. The refs ignore the library's own
+// `usePanelRef` is replaced, so the tests can see which imperative calls the
+// shell makes, and `Group` records its props; `Panel` and `Separator` are the
+// library's own. Named one by one, so a new export of the library changes
+// nothing here unseen. The refs ignore the library's own
 // assignment to `current`, which would replace the spies.
 const panelSpies = vi.hoisted(() => ({
   created: 0,
@@ -23,7 +25,8 @@ const panelSpies = vi.hoisted(() => ({
 vi.mock("react-resizable-panels", async (importOriginal) => {
   const real = await importOriginal<typeof import("react-resizable-panels")>();
   return {
-    ...real,
+    Panel: real.Panel,
+    Separator: real.Separator,
     // Records each group's layout props by id, then renders the real group
     Group: (groupProps: {
       id?: string;
@@ -115,6 +118,7 @@ const props = (
   onVerticalLayout: vi.fn(),
   left: () => <nav>left slot</nav>,
   onLeftSheetChange: vi.fn(),
+  closeLeftSheetOn: () => ({ dispose: () => {} }),
   stage: <main>stage slot</main>,
   console: <div className="xterm">console slot</div>,
   assistant: <section>assistant slot</section>,
@@ -168,6 +172,7 @@ it("should show the assistant Sheet when it is open", () => {
       onVerticalLayout={open.onVerticalLayout}
       left={open.left}
       onLeftSheetChange={open.onLeftSheetChange}
+      closeLeftSheetOn={open.closeLeftSheetOn}
       stage={open.stage}
       console={open.console}
       assistant={open.assistant}
@@ -343,5 +348,56 @@ it("should save a vertical layout the user dragged", () => {
   expect(wide.onVerticalLayout).toHaveBeenCalledWith({
     stage: 60,
     console: 40,
+  });
+});
+
+it("should close the project panel Sheet when it is asked to", () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
+  const innerWidth = window.innerWidth;
+  window.innerWidth = 500;
+  let close = () => {};
+  const dispose = vi.fn();
+  const shell = props("phone");
+  render(
+    <BaseLayoutShell
+      {...shell}
+      closeLeftSheetOn={(fn) => {
+        close = fn;
+        return { dispose };
+      }}
+    />
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  const sheet = () =>
+    document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
+  expect(sheet()).not.toBeNull();
+  act(() => close());
+  expect(sheet()).toBeNull();
+  expect(shell.onLeftSheetChange).toHaveBeenLastCalledWith(false);
+  window.innerWidth = innerWidth;
+});
+
+it("should not throw when a panel cannot yet say whether it is folded", () => {
+  panelSpies.handles.forEach((handle) =>
+    handle.isCollapsed.mockImplementation(() => {
+      throw new Error("Panel constraints not found");
+    })
+  );
+  const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
+  expect(() =>
+    rerender(<BaseLayoutShell {...props("wide", { consoleOpen: true })} />)
+  ).not.toThrow();
+  panelSpies.handles.forEach((handle) => {
+    expect(handle.resize).not.toHaveBeenCalled();
+    expect(handle.collapse).not.toHaveBeenCalled();
   });
 });

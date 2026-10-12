@@ -4,6 +4,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { usePanelRef } from "react-resizable-panels";
 
 import type { Viewport } from "@/shared/lib/hooks/use-viewport";
+import { createLogger } from "@/shared/lib/logger";
+import type { Disposable } from "@/utils/types";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -80,6 +82,13 @@ export interface BaseLayoutShellProps {
    * two modes cannot be one controlled value.
    */
   onLeftSheetChange: (open: boolean) => void;
+  /**
+   * Below 768 px: closes the left panel's Sheet each time `close` is called,
+   * for as long as the returned disposable lives. The Sheet is a modal dialog
+   * that traps focus, so a modal opened from the file tree (rename, delete)
+   * could not be typed into while it stays open.
+   */
+  closeLeftSheetOn: (close: () => void) => Disposable;
   stage: ReactNode;
   console: ReactNode;
   assistant: ReactNode;
@@ -91,6 +100,27 @@ export interface BaseLayoutShellProps {
    */
   sheetFont?: CSSProperties;
 }
+
+const log = createLogger("layout-shell:panels");
+
+/**
+ * Whether the panel is folded, or `undefined` while it cannot say: the
+ * library's `isCollapsed()` throws until the panel is registered with its
+ * group, and a throw here would reach only the app-wide error boundary.
+ */
+const foldedOf = (
+  panel: { isCollapsed(): boolean } | null | undefined
+): boolean | undefined => {
+  if (!panel) return undefined;
+  try {
+    return panel.isCollapsed();
+  } catch (error) {
+    log.warn("A panel was asked whether it is folded before it registered", {
+      context: { error: String(error) },
+    });
+    return undefined;
+  }
+};
 
 /**
  * The library also reports a layout on mount and when a window resize
@@ -119,8 +149,10 @@ const LeftSlot = ({
  */
 const LeftSheetOpener = ({
   onChange,
+  closeOn,
 }: {
   onChange: (open: boolean) => void;
+  closeOn: (close: () => void) => Disposable;
 }) => {
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const previous = useRef(openMobile);
@@ -129,6 +161,10 @@ const LeftSheetOpener = ({
     previous.current = openMobile;
     onChange(openMobile);
   }, [openMobile, onChange]);
+  useEffect(() => {
+    const sub = closeOn(() => setOpenMobile(false));
+    return () => sub.dispose();
+  }, [closeOn, setOpenMobile]);
   if (!isMobile) return null;
   return (
     <div className="absolute top-1 left-0 z-10">
@@ -138,7 +174,7 @@ const LeftSheetOpener = ({
         className="rounded-r-md border border-l-0 border-border bg-card px-1.5 py-2 text-muted-foreground hover:text-foreground"
         onClick={() => setOpenMobile(true)}
       >
-        ›
+        &#8250;
       </button>
     </div>
   );
@@ -173,7 +209,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   useEffect(() => {
     const panel = assistantRef.current;
     if (props.viewport !== "wide" || assistantSeen.current !== "wide") return;
-    if (!panel || panel.isCollapsed() === !props.assistantState.open) return;
+    const folded = foldedOf(panel);
+    if (!panel || folded === undefined) return;
+    if (folded === !props.assistantState.open) return;
     if (props.assistantState.open) panel.resize(assistantOpenSize.current);
     else panel.collapse();
     // The viewport is read, not a trigger: its changes are the ones skipped
@@ -185,7 +223,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
 
   useEffect(() => {
     const panel = consoleRef.current;
-    if (!panel || panel.isCollapsed() === !props.consoleState.open) return;
+    const folded = foldedOf(panel);
+    if (!panel || folded === undefined) return;
+    if (folded === !props.consoleState.open) return;
     if (props.consoleState.open) panel.resize(consoleOpenSize.current);
     else panel.collapse();
   }, [props.consoleState.open, consoleRef]);
@@ -217,7 +257,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         groupResizeBehavior="preserve-pixel-size"
         className="flex min-h-0 flex-col"
         onResize={(size) => {
-          const folded = consoleRef.current?.isCollapsed();
+          const folded = foldedOf(consoleRef.current);
           if (folded === false && size.inPixels > PANEL_SIZES.console.folded) {
             consoleOpenSize.current = size.inPixels;
           }
@@ -251,7 +291,10 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           <LeftSlot render={props.left} />
         </div>
       </Sidebar>
-      <LeftSheetOpener onChange={props.onLeftSheetChange} />
+      <LeftSheetOpener
+        onChange={props.onLeftSheetChange}
+        closeOn={props.closeLeftSheetOn}
+      />
       <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
         {/* One tree at every width, so a rotate across 1024 px does not
             remount the stage, Monaco or the console's terminal. Below 1024 px
@@ -289,7 +332,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               groupResizeBehavior="preserve-pixel-size"
               className="flex min-w-0 flex-col"
               onResize={(size) => {
-                const folded = assistantRef.current?.isCollapsed();
+                const folded = foldedOf(assistantRef.current);
                 if (
                   folded === false &&
                   size.inPixels > PANEL_SIZES.assistant.folded

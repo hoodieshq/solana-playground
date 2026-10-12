@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTheme } from "styled-components";
 
 import { useKeybind } from "@/hooks";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
-import { PgCommand, PgEditor } from "@/utils";
+import { PgCommand, PgEditor, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
@@ -32,9 +32,23 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const { state, setOpen, setHorizontal, setVertical } = useLayoutState();
   // Below 1024 px the assistant is a Sheet, closed on arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
-  // The stock Sidebar handles ⌘B itself and reports only the new state, so a
-  // click marks itself here first; anything unmarked was the key.
+  // The stock Sidebar handles Cmd+B itself and reports only the new state, so
+  // a click on one of our buttons marks itself here first
   const leftVia = useRef<ToggleSource | null>(null);
+  // What a change nobody marked came from: a Sheet closed by Escape is a key,
+  // one closed by a tap on its overlay a button
+  const lastInput = useRef<ToggleSource>("key");
+
+  useEffect(() => {
+    const onPointer = () => (lastInput.current = "button");
+    const onKey = () => (lastInput.current = "key");
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, []);
 
   useEffect(() => {
     layoutTelemetry.track("layout_viewport", { viewport });
@@ -66,7 +80,7 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
 
   const assistantShown = viewport === "wide" ? state.open.assistant : sheetOpen;
   const setAssistant = (open: boolean, via: ToggleSource) => {
-    if (viewport === "wide") setOpen("assistant", open, via);
+    if (viewport === "wide") setOpen("assistant", { open, via });
     else setSheet(open, via);
   };
 
@@ -75,22 +89,26 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     viewport,
     assistantShown,
   ]);
-  useKeybind("Ctrl+J", () => setOpen("console", !state.open.console, "key"), [
-    state.open.console,
-  ]);
+  useKeybind(
+    "Ctrl+J",
+    () => setOpen("console", { open: !state.open.console, via: "key" }),
+    [state.open.console]
+  );
 
   useEffect(() => {
     // `onDidChange` replays the current state first; that one is the baseline
     let prevDeploy: StageStatus | undefined;
     const subs = [
-      PgCommand.deploy.onDidStart(() => setOpen("console", true, "auto")),
+      PgCommand.deploy.onDidStart(() =>
+        setOpen("console", { open: true, via: "auto" })
+      ),
       PgFlow.onDidChange((flow) => {
         if (
           prevDeploy !== undefined &&
           flow.deploy === "failed" &&
           prevDeploy !== "failed"
         ) {
-          setOpen("console", true, "auto");
+          setOpen("console", { open: true, via: "auto" });
         }
         prevDeploy = flow.deploy;
       }),
@@ -113,26 +131,48 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       document.removeEventListener(PgEditor.events.READ_ONLY_EDIT, onBlocked);
   }, []);
 
+  /** The mark a button left, else the last input; the mark is used once */
+  const takeLeftVia = (): ToggleSource => {
+    const via = leftVia.current ?? lastInput.current;
+    leftVia.current = null;
+    return via;
+  };
   const onLeftOpenChange = (open: boolean) =>
-    setOpen("left", open, leftVia.current ?? "key");
-  // The stock toggle: on a desktop it calls `onLeftOpenChange` before it
-  // returns, so the mark is cleared right after and cannot outlive the click.
-  // Below 768 px it flips the Sheet, which `onLeftSheetChange` reports.
-  const toggleLeft = (stockToggle: () => void) => () => {
+    setOpen("left", { open, via: takeLeftVia() });
+  // The stock toggle. On a desktop it calls `onLeftOpenChange` before it
+  // returns, or not at all when nothing changes, so the mark is cleared right
+  // after and cannot outlive the click. Below 768 px it always flips the
+  // Sheet, which `onLeftSheetChange` reports a render later and so takes the
+  // mark itself.
+  const toggleLeft = (stockToggle: () => void, isMobile: boolean) => () => {
     leftVia.current = "button";
     try {
       stockToggle();
     } finally {
-      leftVia.current = null;
+      if (!isMobile) leftVia.current = null;
     }
   };
+  const leftSheetOpen = useRef(false);
   const onLeftSheetChange = (open: boolean) => {
+    leftSheetOpen.current = open;
     layoutTelemetry.track("layout_panel_toggled", {
       panel: "left",
       open,
-      via: "button",
+      via: takeLeftVia(),
     });
   };
+
+  // A modal closes the Sheet, which traps focus away from it: the product's
+  // doing, not the user's, so it is reported as such
+  const closeLeftSheetOnModal = useCallback(
+    (close: () => void) =>
+      PgView.onDidOpenModal(() => {
+        if (!leftSheetOpen.current) return;
+        leftVia.current = "auto";
+        close();
+      }),
+    []
+  );
 
   return (
     <BaseLayoutShell
@@ -141,16 +181,16 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       onLeftOpenChange={onLeftOpenChange}
       assistantState={{
         open: assistantShown,
-        // A drag folds or unfolds the panel; the Sheet is closed by a button
-        // or Escape, never dragged
+        // A drag folds or unfolds the panel; the Sheet is closed by Escape or
+        // a tap on its overlay, never dragged
         onOpenChange: (open) =>
           viewport === "wide"
-            ? setOpen("assistant", open, "drag")
-            : setSheet(open, "button"),
+            ? setOpen("assistant", { open, via: "drag" })
+            : setSheet(open, lastInput.current),
       }}
       consoleState={{
         open: state.open.console,
-        onOpenChange: (open) => setOpen("console", open, "drag"),
+        onOpenChange: (open) => setOpen("console", { open, via: "drag" }),
       }}
       horizontal={state.h}
       vertical={state.vert}
@@ -159,10 +199,11 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       left={({ toggle, isMobile }) =>
         left({
           collapsed: isMobile ? false : !state.open.left,
-          toggle: toggleLeft(toggle),
+          toggle: toggleLeft(toggle, isMobile),
         })
       }
       onLeftSheetChange={onLeftSheetChange}
+      closeLeftSheetOn={closeLeftSheetOnModal}
       sheetFont={{
         fontFamily: theme.font.code.family,
         fontSize: theme.font.code.size.medium,
@@ -170,7 +211,8 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       stage={stage}
       console={console({
         open: state.open.console,
-        toggle: () => setOpen("console", !state.open.console, "button"),
+        toggle: () =>
+          setOpen("console", { open: !state.open.console, via: "button" }),
       })}
       assistant={assistant({
         open: assistantShown,
@@ -183,7 +225,7 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
           className="rounded-l-md border border-r-0 border-border bg-card px-1.5 py-2 text-muted-foreground hover:text-foreground"
           onClick={() => setAssistant(true, "button")}
         >
-          ‹
+          &#8249;
         </button>
       }
     />

@@ -44,6 +44,9 @@ it("should read back what it wrote, under one key", () => {
   expect(readLayout(() => storage)).toEqual({ kind: "saved", state: SAVED });
 });
 
+/** The open flags most cases share: left and assistant open, console closed */
+const OPEN = { left: true, assistant: true, console: false };
+
 it.each([
   ["not JSON", "{"],
   ["not an object", "[]"],
@@ -51,91 +54,85 @@ it.each([
     "a flag of the wrong type",
     JSON.stringify({
       v: 1,
-      leftOpen: "yes",
+      open: { left: "yes", assistant: true, console: false },
+    }),
+  ],
+  [
+    "a missing flag",
+    JSON.stringify({ v: 1, open: { left: true, assistant: true } }),
+  ],
+  [
+    "the flat shape of an earlier draft",
+    JSON.stringify({
+      v: 1,
+      leftOpen: true,
       assistantOpen: true,
       consoleOpen: false,
     }),
   ],
   [
     "a size that is not a number",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      h: { center: "70", assistant: 30 },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, h: { center: "70", assistant: 30 } }),
   ],
   [
     "a size that is NaN or infinite (null in JSON)",
-    '{"v":1,"leftOpen":true,"assistantOpen":true,"consoleOpen":false,"h":{"center":null,"assistant":30}}',
+    '{"v":1,"open":{"left":true,"assistant":true,"console":false},"h":{"center":null,"assistant":30}}',
   ],
   [
     "a size above 100",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      h: { center: 150, assistant: 30 },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, h: { center: 150, assistant: 30 } }),
   ],
   [
     "a negative size",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      h: { center: -1, assistant: 30 },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, h: { center: -1, assistant: 30 } }),
+  ],
+  [
+    "sizes that do not add up to the group",
+    JSON.stringify({ v: 1, open: OPEN, h: { center: 50, assistant: 30 } }),
   ],
   [
     "a vertical layout with unknown panel ids",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      vert: { top: 60, bottom: 40 },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, vert: { top: 60, bottom: 40 } }),
   ],
   [
     "a vertical size that is not a number",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      vert: { stage: 60, console: "40" },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, vert: { stage: 60, console: "40" } }),
   ],
   [
     "a layout with unknown panel ids",
-    JSON.stringify({
-      v: 1,
-      leftOpen: true,
-      assistantOpen: true,
-      consoleOpen: false,
-      h: { main: 70, side: 30 },
-    }),
+    JSON.stringify({ v: 1, open: OPEN, h: { main: 70, side: 30 } }),
   ],
+  ["no version", JSON.stringify({})],
+  ["a version as a string", JSON.stringify({ v: "1", open: OPEN })],
+  ["version 0", JSON.stringify({ v: 0, open: OPEN })],
+  ["a fractional version", JSON.stringify({ v: 1.5, open: OPEN })],
 ])("should fall back on %s, as corrupt", (_, raw) => {
   const restored = readLayout(() =>
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
   );
   expect(restored.kind).toBe("failed");
-  expect(restored.kind).toBe("failed");
   expect(restored.kind === "failed" && restored.reason).toBe("corrupt");
   expect(restored.kind === "failed" && "error" in restored).toBe(true);
 });
 
-it("should fall back on another version", () => {
+it("should accept sizes the library rounded", () => {
+  const raw = JSON.stringify({
+    v: 1,
+    open: OPEN,
+    h: { center: 66.67, assistant: 33.34 },
+  });
+  expect(
+    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: raw }))
+  ).toEqual({
+    kind: "saved",
+    state: { v: 1, open: OPEN, h: { center: 66.67, assistant: 33.34 } },
+  });
+});
+
+it("should fall back on a newer version", () => {
   const raw = JSON.stringify({
     v: 2,
-    leftOpen: true,
-    assistantOpen: true,
-    consoleOpen: false,
+    layout: "a shape this build cannot read",
   });
   const restored = readLayout(() =>
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
@@ -171,9 +168,7 @@ it("should report a write that throws, not throw", () => {
 it("should read back only the fields of a layout, dropping others", () => {
   const raw = JSON.stringify({
     v: 1,
-    leftOpen: false,
-    assistantOpen: true,
-    consoleOpen: true,
+    open: { left: false, assistant: true, console: true },
     h: { center: 70, assistant: 30 },
     vert: { stage: 60, console: 40 },
     extra: "x",
@@ -184,33 +179,8 @@ it("should read back only the fields of a layout, dropping others", () => {
   expect(restored).toEqual({ kind: "saved", state: SAVED });
 });
 
-it("should store the three booleans exactly as version 1 always has", () => {
+it("should store the layout as it is", () => {
   const storage = memoryStorage();
   writeLayout(() => storage, SAVED);
-  expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!)).toEqual({
-    v: 1,
-    leftOpen: false,
-    assistantOpen: true,
-    consoleOpen: true,
-    h: { center: 70, assistant: 30 },
-    vert: { stage: 60, console: 40 },
-  });
-});
-
-it("should read a value written before the flags became a record", () => {
-  const stored = JSON.stringify({
-    v: 1,
-    leftOpen: false,
-    assistantOpen: false,
-    consoleOpen: true,
-  });
-  expect(
-    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: stored }))
-  ).toEqual({
-    kind: "saved",
-    state: {
-      v: 1,
-      open: { left: false, assistant: false, console: true },
-    },
-  });
+  expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!)).toEqual(SAVED);
 });

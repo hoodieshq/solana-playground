@@ -160,6 +160,11 @@ class _PgView {
    *
    * Progress bar will be hidden if `progress` is set to 0.
    *
+   * @deprecated Nothing listens since the classic layout went: Flow draws no
+   * secondary view. Kept so the deploy and sugar commands, runtime modules
+   * this change does not touch, still compile; a progress display for Flow
+   * would listen here.
+   *
    * @param progress progress percentage in 0-100
    */
   static setMainSecondaryProgress(progress: number) {
@@ -171,6 +176,9 @@ class _PgView {
 
   /**
    * Set the secondary main view's height.
+   *
+   * @deprecated Nothing listens since the classic layout went; see
+   * `setMainSecondaryProgress`.
    *
    * @param height height to set in px
    */
@@ -196,6 +204,21 @@ class _PgView {
       elementable,
       props,
     });
+  }
+
+  /**
+   * Run `cb` whenever a modal opens, a stacked one included; not on close.
+   *
+   * @param cb callback to run
+   * @returns a disposable to stop listening
+   */
+  static onDidOpenModal(cb: () => void): Disposable {
+    return PgCommon.onDidChange<{ elementable: unknown } | null>(
+      PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
+      (detail) => {
+        if (detail?.elementable) cb();
+      }
+    );
   }
 
   /**
