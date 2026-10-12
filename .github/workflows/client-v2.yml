@@ -181,7 +181,7 @@ jobs:
   # no secret: every spec stubs the account endpoints with `page.route`, and
   # the dev server serves `api/*.mjs` itself. The skips the job expects are
   # listed in `e2e/known-skips.txt`; `playwright.config.ts` says what `CI`
-  # changes. D61 (decisions.md on `context-archive`) has the reasoning.
+  # changes.
   e2e:
     name: e2e
     runs-on: ubuntu-latest
