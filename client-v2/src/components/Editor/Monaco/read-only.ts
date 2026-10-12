@@ -105,8 +105,10 @@ export const applyReadOnly = (
       );
       return;
     }
-    const anchor = anchorOf(editor);
+    // The anchor reads the editor's layout, so it is inside the `try` too
+    let anchor: monaco.IPosition | undefined;
     try {
+      anchor = anchorOf(editor);
       controller.showMessage(READ_ONLY_MESSAGE, anchor);
     } catch (error) {
       reportOnce(editor, "show-message", () =>
@@ -122,8 +124,9 @@ export const applyReadOnly = (
 /**
  * `executeEdits` for an edit the product makes, not the user's typing: a
  * format, the program id a build writes. Monaco refuses every edit to a
- * read-only editor and says so only by returning `false`, and below 600 px the
- * editor is read-only only to keep a phone keyboard from typing into it.
+ * read-only editor and says so only by returning `false`, and below
+ * `LAYOUT_BREAKPOINTS.phone` the editor is read-only only to keep a phone
+ * keyboard from typing into it.
  *
  * @returns whether the edits were applied
  */

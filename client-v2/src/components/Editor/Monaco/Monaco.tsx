@@ -27,6 +27,21 @@ import {
 } from "../../../hooks";
 import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("editor:monaco");
+
+/**
+ * A format the editor refused. Said whatever started it: a format from
+ * Ctrl+S that does nothing otherwise leaves the user no sign of why.
+ */
+const reportRefusedFormat = (lang: string) => {
+  log.error(new Error("The editor refused a format"), {
+    report: true,
+    context: { lang },
+  });
+  PgTerminal.println(PgTerminal.error("Format failed."));
+};
 
 /**
  * Monaco paints its own canvas and cannot read CSS variables, so the theme's
@@ -544,9 +559,7 @@ const Monaco = () => {
             },
           ]);
           if (!applied) {
-            if (ev?.fromTerminal) {
-              PgTerminal.println(PgTerminal.error("Format failed."));
-            }
+            reportRefusedFormat(lang.name);
             return;
           }
 
@@ -597,9 +610,7 @@ const Monaco = () => {
             },
           ]);
           if (!applied) {
-            if (ev?.fromTerminal) {
-              PgTerminal.println(PgTerminal.error("Format failed."));
-            }
+            reportRefusedFormat(lang.name);
             return;
           }
 
@@ -667,9 +678,7 @@ const Monaco = () => {
             },
           ]);
           if (!applied) {
-            if (ev?.fromTerminal) {
-              PgTerminal.println(PgTerminal.error("Format failed."));
-            }
+            reportRefusedFormat(lang.name);
             return;
           }
 
@@ -791,12 +800,16 @@ const Monaco = () => {
       const endPos = model.getPositionAt(quoteEndIndex);
       const range = monaco.Range.fromPositions(startPos, endPos);
 
+      // Reported: a program id left unwritten builds the old id, and the
+      // deploy that then fails has no other clue
       try {
         if (!executeProductEdits(editor, [{ range, text: programPkStr }])) {
-          console.log("Program ID update error: the editor refused the edit");
+          log.error(new Error("The editor refused the program id edit"), {
+            report: true,
+          });
         }
-      } catch (e: any) {
-        console.log("Program ID update error:", e.message);
+      } catch (error) {
+        log.error(error, { report: true, context: { edit: "program id" } });
       }
     };
 
