@@ -3,7 +3,11 @@ import type { NoParams } from "../../../shared/lib/telemetry";
 import type { Viewport } from "../../../shared/lib/hooks/use-viewport";
 import type { LayoutPanel, RestoreFailure } from "./layout-state";
 
-/** What opened or closed a panel: a click, a key, a drag of its edge, or the product itself (a deploy, "Fix with assistant") */
+/**
+ * What opened or closed a panel: a click, a key, a drag of its edge, or the
+ * product itself (`auto`): a deploy or "Fix with assistant" opening one, or a
+ * modal closing the project Sheet, which would keep focus from the modal
+ */
 export type ToggleSource = "button" | "key" | "drag" | "auto";
 
 type LayoutEvents = {

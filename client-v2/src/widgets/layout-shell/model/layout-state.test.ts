@@ -41,7 +41,11 @@ it("should read back what it wrote, under one key", () => {
   expect(writeLayout(() => storage, SAVED)).toEqual({ ok: true });
   expect([...storage.items.keys()]).toEqual([LAYOUT_STORAGE_KEY]);
   expect(storage.items.get(LAYOUT_STORAGE_KEY)!.length).toBeLessThan(200);
-  expect(readLayout(() => storage)).toEqual({ kind: "saved", state: SAVED });
+  expect(readLayout(() => storage)).toEqual({
+    kind: "saved",
+    state: SAVED,
+    dropped: [],
+  });
 });
 
 /** The open flags most cases share: left and assistant open, console closed */
@@ -70,38 +74,6 @@ it.each([
       consoleOpen: false,
     }),
   ],
-  [
-    "a size that is not a number",
-    JSON.stringify({ v: 1, open: OPEN, h: { center: "70", assistant: 30 } }),
-  ],
-  [
-    "a size that is NaN or infinite (null in JSON)",
-    '{"v":1,"open":{"left":true,"assistant":true,"console":false},"h":{"center":null,"assistant":30}}',
-  ],
-  [
-    "a size above 100",
-    JSON.stringify({ v: 1, open: OPEN, h: { center: 150, assistant: 30 } }),
-  ],
-  [
-    "a negative size",
-    JSON.stringify({ v: 1, open: OPEN, h: { center: -1, assistant: 30 } }),
-  ],
-  [
-    "sizes that do not add up to the group",
-    JSON.stringify({ v: 1, open: OPEN, h: { center: 50, assistant: 30 } }),
-  ],
-  [
-    "a vertical layout with unknown panel ids",
-    JSON.stringify({ v: 1, open: OPEN, vert: { top: 60, bottom: 40 } }),
-  ],
-  [
-    "a vertical size that is not a number",
-    JSON.stringify({ v: 1, open: OPEN, vert: { stage: 60, console: "40" } }),
-  ],
-  [
-    "a layout with unknown panel ids",
-    JSON.stringify({ v: 1, open: OPEN, h: { main: 70, side: 30 } }),
-  ],
   ["no version", JSON.stringify({})],
   ["a version as a string", JSON.stringify({ v: "1", open: OPEN })],
   ["version 0", JSON.stringify({ v: 0, open: OPEN })],
@@ -115,6 +87,65 @@ it.each([
   expect(restored.kind === "failed" && "error" in restored).toBe(true);
 });
 
+/** Open flags with every panel open, so no size map is dropped as folded */
+const ALL_OPEN = { left: true, assistant: true, console: true };
+
+it.each([
+  ["a size that is not a number", { h: { center: "70", assistant: 30 } }],
+  // JSON has no NaN or Infinity: `JSON.stringify` writes both as null
+  ["a null size, as NaN is stored", { h: { center: null, assistant: 30 } }],
+  ["a size above 100", { h: { center: 150, assistant: 30 } }],
+  ["a negative size", { h: { center: -1, assistant: 30 } }],
+  ["sizes 20 short of the group", { h: { center: 50, assistant: 30 } }],
+  ["sizes just past the tolerance", { h: { center: 70, assistant: 31.01 } }],
+  ["unknown panel ids", { h: { main: 70, side: 30 } }],
+])("should drop only the size map on %s, keeping the flags", (_, sizes) => {
+  const raw = JSON.stringify({
+    v: 1,
+    open: ALL_OPEN,
+    h: sizes.h,
+    vert: { stage: 60, console: 40 },
+  });
+  expect(
+    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: raw }))
+  ).toEqual({
+    kind: "saved",
+    state: { v: 1, open: ALL_OPEN, vert: { stage: 60, console: 40 } },
+    dropped: ["h"],
+  });
+});
+
+it("should drop a vertical size map that does not read, keeping the flags", () => {
+  const raw = JSON.stringify({
+    v: 1,
+    open: ALL_OPEN,
+    vert: { top: 60, bottom: 40 },
+  });
+  expect(
+    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: raw }))
+  ).toEqual({
+    kind: "saved",
+    state: { v: 1, open: ALL_OPEN },
+    dropped: ["vert"],
+  });
+});
+
+it("should not restore a folded panel's sizes", () => {
+  const raw = JSON.stringify({
+    v: 1,
+    open: { left: true, assistant: false, console: false },
+    h: { center: 70, assistant: 30 },
+    vert: { stage: 60, console: 40 },
+  });
+  expect(
+    readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: raw }))
+  ).toEqual({
+    kind: "saved",
+    state: { v: 1, open: { left: true, assistant: false, console: false } },
+    dropped: [],
+  });
+});
+
 it("should accept sizes the library rounded", () => {
   const raw = JSON.stringify({
     v: 1,
@@ -126,6 +157,7 @@ it("should accept sizes the library rounded", () => {
   ).toEqual({
     kind: "saved",
     state: { v: 1, open: OPEN, h: { center: 66.67, assistant: 33.34 } },
+    dropped: [],
   });
 });
 
@@ -176,7 +208,7 @@ it("should read back only the fields of a layout, dropping others", () => {
   const restored = readLayout(() =>
     memoryStorage({ [LAYOUT_STORAGE_KEY]: raw })
   );
-  expect(restored).toEqual({ kind: "saved", state: SAVED });
+  expect(restored).toEqual({ kind: "saved", state: SAVED, dropped: [] });
 });
 
 it("should store the layout as it is", () => {

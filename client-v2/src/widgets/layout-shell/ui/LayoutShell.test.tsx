@@ -263,12 +263,12 @@ it("should say once why a newer layout is not overwritten", () => {
 
 const DRAGGED = {
   v: 1,
-  open: { left: true, assistant: true, console: false },
+  open: { left: true, assistant: true, console: true },
   h: { center: 60, assistant: 40 },
   vert: { stage: 70, console: 30 },
 };
 
-it("should drop the dragged assistant sizes when the assistant is folded or unfolded", () => {
+it("should drop the dragged assistant sizes when the assistant is folded", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
   shell();
   press({ key: "r", ctrlKey: true });
@@ -279,14 +279,63 @@ it("should drop the dragged assistant sizes when the assistant is folded or unfo
   expect(folded.vert).toEqual({ stage: 70, console: 30 });
 });
 
-it("should drop the dragged console sizes when the console is folded or unfolded", () => {
+it("should drop the dragged console sizes when the console is folded", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
   shell();
   press({ key: "j", ctrlKey: true });
-  const opened = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
-  expect(opened.open.console).toBe(true);
-  expect(opened.vert).toBeUndefined();
-  expect(opened.h).toEqual({ center: 60, assistant: 40 });
+  const folded = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
+  expect(folded.open.console).toBe(false);
+  expect(folded.vert).toBeUndefined();
+  expect(folded.h).toEqual({ center: 60, assistant: 40 });
+});
+
+it("should report a corrupt saved layout to error tracking", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(LAYOUT_STORAGE_KEY, "{");
+  shell();
+  const errors = logs.entries.filter((entry) => entry.level === "error");
+  expect(errors).toHaveLength(1);
+  expect(errors[0].report).toBe(true);
+  expect(errors[0].context).toMatchObject({ reason: "corrupt" });
+});
+
+it("should keep the saved open flags when a size map does not read, and report it", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      v: 1,
+      open: { left: true, assistant: true, console: true },
+      vert: { stage: 70, terminal: 30 },
+    })
+  );
+  shell();
+  expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
+  const dropped = logs.entries.filter((entry) =>
+    entry.message?.includes("dropped")
+  );
+  expect(dropped).toHaveLength(1);
+  expect(dropped[0].report).toBe(true);
+  expect(dropped[0].context).toEqual({ dropped: ["vert"] });
+});
+
+it("should report unreachable storage once, from the read, not again from a save", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  const blocked = new DOMException("blocked", "SecurityError");
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw blocked;
+  });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw blocked;
+  });
+  shell();
+  fireEvent.click(consoleButton());
+  const reported = logs.entries.filter((entry) => entry.report);
+  expect(reported).toHaveLength(1);
+  expect(reported[0].error?.cause).toBe(blocked);
 });
 
 it("should keep the dragged sizes when the project panel is folded", () => {
@@ -533,6 +582,23 @@ it("should open the console once when a deploy fails, not for one already failed
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "auto" }]);
 });
 
+it("should not reopen the console for a change that leaves a deploy failed", () => {
+  const dispatch = (ev: Parameters<typeof PgFlow.reduce>[1]) =>
+    PgFlow["_dispatch"](ev);
+  shell();
+  dispatch({ type: "deploy-start" });
+  act(() => dispatch({ type: "deploy-finish", ok: false }));
+  press({ key: "j", ctrlKey: true });
+  expect(consoleButton().getAttribute("aria-expanded")).toBe("false");
+  act(() => dispatch({ type: "set-stage", stage: "build" }));
+  expect(PgFlow.state.deploy).toBe("failed");
+  expect(consoleButton().getAttribute("aria-expanded")).toBe("false");
+  expect(toggled()).toEqual([
+    { panel: "console", open: true, via: "auto" },
+    { panel: "console", open: false, via: "key" },
+  ]);
+});
+
 it("should close the project panel Sheet when a modal opens", () => {
   resizeTo(500);
   shell();
@@ -550,4 +616,18 @@ it("should close the project panel Sheet when a modal opens", () => {
     open: true,
     via: "button",
   });
+});
+
+it("should report nothing for a modal on a desktop when the Sheet was left open on a phone", () => {
+  // The stock Sidebar keeps the Sheet open across 768 px, where it shows none
+  resizeTo(500);
+  shell();
+  tap(screen.getByRole("button", { name: "Expand project panel" }));
+  act(() => resizeTo(1440));
+  const before = toggled().length;
+  act(() => deploy.modals.forEach((open) => open()));
+  expect(toggled()).toHaveLength(before);
+  // And no `auto` mark is left for the next toggle
+  press({ key: "b", metaKey: true });
+  expect(toggled().at(-1)).toEqual({ panel: "left", open: false, via: "key" });
 });

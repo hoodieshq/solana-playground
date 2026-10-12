@@ -14,7 +14,10 @@ import { useLayoutState } from "../model/use-layout-state";
 import BaseLayoutShell from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
-  /** `collapsed` is never true in the Sheet below 768 px, which has no rail */
+  /**
+   * `collapsed` is never true in the Sheet below `LAYOUT_BREAKPOINTS.left`,
+   * which has no rail
+   */
   left: (panel: { collapsed: boolean; toggle: () => void }) => ReactNode;
   stage: ReactNode;
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
@@ -30,7 +33,8 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const viewport = useViewport();
   const theme = useTheme();
   const { state, setOpen, setHorizontal, setVertical } = useLayoutState();
-  // Below 1024 px the assistant is a Sheet, closed on arrival and never saved
+  // Below `LAYOUT_BREAKPOINTS.compact` the assistant is a Sheet, closed on
+  // arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
   // The stock Sidebar handles Cmd+B itself and reports only the new state, so
   // a click on one of our buttons marks itself here first
@@ -140,10 +144,9 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const onLeftOpenChange = (open: boolean) =>
     setOpen("left", { open, via: takeLeftVia() });
   // The stock toggle. On a desktop it calls `onLeftOpenChange` before it
-  // returns, or not at all when nothing changes, so the mark is cleared right
-  // after and cannot outlive the click. Below 768 px it always flips the
-  // Sheet, which `onLeftSheetChange` reports a render later and so takes the
-  // mark itself.
+  // returns, so the mark is cleared right after and cannot outlive the click.
+  // Below `LAYOUT_BREAKPOINTS.left` it flips the Sheet, which
+  // `onLeftSheetChange` reports a render later and so takes the mark itself.
   const toggleLeft = (stockToggle: () => void, isMobile: boolean) => () => {
     leftVia.current = "button";
     try {
@@ -152,24 +155,21 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
       if (!isMobile) leftVia.current = null;
     }
   };
-  const leftSheetOpen = useRef(false);
-  const onLeftSheetChange = (open: boolean) => {
-    leftSheetOpen.current = open;
+  const onLeftSheetChange = (open: boolean) =>
     layoutTelemetry.track("layout_panel_toggled", {
       panel: "left",
       open,
       via: takeLeftVia(),
     });
-  };
 
   // A modal closes the Sheet, which traps focus away from it: the product's
-  // doing, not the user's, so it is reported as such
+  // doing, not the user's, so it is reported as `auto`. The mark is dropped
+  // when there was no Sheet to close, so it cannot label a later toggle.
   const closeLeftSheetOnModal = useCallback(
-    (close: () => void) =>
+    (close: () => boolean) =>
       PgView.onDidOpenModal(() => {
-        if (!leftSheetOpen.current) return;
         leftVia.current = "auto";
-        close();
+        if (!close()) leftVia.current = null;
       }),
     []
   );

@@ -41,6 +41,12 @@ it("should draw the lines at 1024, 768 and 600", () => {
   expect(LAYOUT_BREAKPOINTS).toEqual({ compact: 1024, left: 768, phone: 600 });
 });
 
+it("should keep the lines in order, which viewportOf's checks rely on", () => {
+  // `viewportOf` tests phone before compact, and `left` sits between them
+  expect(LAYOUT_BREAKPOINTS.phone).toBeLessThan(LAYOUT_BREAKPOINTS.left);
+  expect(LAYOUT_BREAKPOINTS.left).toBeLessThan(LAYOUT_BREAKPOINTS.compact);
+});
+
 it.each([
   [1440, "wide"],
   [1024, "wide"],

@@ -146,17 +146,20 @@ const savedLayout = (page: Page) =>
 test("a visit that moves nothing leaves the saved layout alone", async ({
   seededPage: page,
 }) => {
-  // A value from a newer version is not read, and must not be replaced by
-  // the layout the panels report when they mount
-  const newer = JSON.stringify({
-    v: 2,
-    open: { left: true, assistant: true, console: false },
+  // A layout this version reads and uses, with sizes the panels' own mount
+  // would report differently, so a write on mount would change the string
+  const saved = JSON.stringify({
+    v: 1,
+    open: { left: true, assistant: true, console: true },
+    h: { center: 66, assistant: 34 },
+    vert: { stage: 61, console: 39 },
   });
-  await page.evaluate((value) => localStorage.setItem("layout", value), newer);
+  await page.evaluate((value) => localStorage.setItem("layout", value), saved);
   await page.reload();
   await expect(assistantPanel(page)).toBeVisible();
-  await expect(page.locator(".monaco-editor")).toBeVisible();
-  expect(await savedLayout(page)).toBe(newer);
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
+  await page.waitForTimeout(300);
+  expect(await savedLayout(page)).toBe(saved);
 });
 
 test("a window resize does not pin the panels' sizes", async ({
@@ -165,14 +168,36 @@ test("a window resize does not pin the panels' sizes", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
   await expect(assistantPanel(page)).toBeVisible();
-  const first = await savedLayout(page);
+  expect(await savedLayout(page)).toBeNull();
 
   await page.setViewportSize({ width: 1920, height: 900 });
   await expect.poll(() => widthOf(page)).toBeGreaterThan(300);
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
+  expect(await savedLayout(page)).toBeNull();
+});
+
+test("a restored width the library would fold opens the assistant, and changes nothing", async ({
+  seededPage: page,
+}) => {
+  // 10% of a 1440 px window's group is below the assistant's fold point, so
+  // the library mounts it folded; the saved flag says open, and decides
+  const lines = linesOn(page);
+  const saved = JSON.stringify({
+    v: 1,
+    open: { left: true, assistant: true, console: false },
+    h: { center: 90, assistant: 10 },
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate((value) => localStorage.setItem("layout", value), saved);
   await page.reload();
-  await expect(assistantPanel(page)).toBeVisible();
-  expect(await savedLayout(page)).toBe(first);
+  await expect(
+    page.getByRole("button", { name: "Collapse assistant" })
+  ).toBeVisible();
+  await expect.poll(() => widthOf(page)).toBeGreaterThan(270);
+  await page.waitForTimeout(300);
+  expect(lineOf(lines, "layout_panel_toggled")).toBeUndefined();
+  expect(await savedLayout(page)).toBe(saved);
 });
 
 test("the assistant keeps its width when the window widens", async ({
@@ -286,6 +311,24 @@ test.describe("on a phone", () => {
     await page.keyboard.press("ControlOrMeta+Home");
     await page.keyboard.type("zzz");
     await expect(lines).toContainText("zzzuse anchor_lang");
+  });
+
+  test("a format still applies to the read-only editor", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.getByRole("button", { name: "New file" }).click();
+    await page.locator("#root-dir input").fill("fmt.ts");
+    await page.keyboard.press("Enter");
+    const lines = page.locator(".monaco-editor .view-lines");
+    await expect(page.locator("#tabs")).toContainText("fmt.ts");
+    await page.locator(".monaco-editor textarea.inputarea").focus();
+    await page.keyboard.type("const  a=1");
+    await expect(lines).toContainText("const  a=1");
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.locator(".monaco-editor textarea.inputarea").focus();
+    await page.keyboard.press("ControlOrMeta+s");
+    await expect(lines).toContainText("const a = 1;");
   });
 
   test("a file can be renamed from the project Sheet", async ({ page }) => {

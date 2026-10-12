@@ -5,6 +5,7 @@ import {
   horizontalOf,
   readLayout,
   verticalOf,
+  withoutFoldedSizes,
   writeLayout,
 } from "./layout-state";
 import { DEFAULT_LAYOUT } from "./layout-state";
@@ -28,17 +29,34 @@ export const useLayoutState = () => {
   // A layout from a newer version is kept as it is: this one cannot read it,
   // and writing would replace it with a layout its own version cannot use
   const keepSaved = restored.kind === "failed" && restored.reason === "version";
-  const reportedSaveFailure = useRef(false);
+  // Storage the read could not reach fails the save the same way, and the
+  // read has reported it already
+  const reportedSaveFailure = useRef(
+    restored.kind === "failed" && restored.reason === "storage-unavailable"
+  );
 
   useEffect(() => {
+    if (restored.kind === "saved") {
+      if (restored.dropped.length === 0) return;
+      // Reported: a library upgrade that changes how sizes are reported
+      // would reset every returning user's sizes, and only this would say so
+      log.warn("Saved panel sizes were unreadable and were dropped", {
+        report: true,
+        context: { dropped: restored.dropped },
+      });
+      return;
+    }
     if (restored.kind !== "failed") return;
     if (restored.reason === "version") {
+      // Reported: version skew leaves this build unable to save the layout
+      // for the whole visit
       log.warn(
-        "The saved layout is from a newer version; using the defaults and not overwriting it"
+        "The saved layout is from a newer version; using the defaults and not overwriting it",
+        { report: true }
       );
     } else {
-      // Counted by `layout_restore_failed`; the log keeps the stack
       log.error(restored.error, {
+        report: true,
         context: { reason: restored.reason, using: "defaults" },
       });
     }
@@ -48,9 +66,12 @@ export const useLayoutState = () => {
   // Saved on a toggle or a drag, never on mount: a visit that changes nothing
   // leaves what is stored alone. The panel groups report a layout on mount
   // too, and the shell filters those out before they reach `setHorizontal` /
-  // `setVertical`. A layout from a newer version is never written over.
+  // `setVertical`. A layout from a newer version is never written over. A
+  // folded panel's sizes are dropped here (`withoutFoldedSizes`), so the rule
+  // does not depend on the order of the calls that led to the fold.
   const update = useCallback(
-    (next: LayoutState) => {
+    (proposed: LayoutState) => {
+      const next = withoutFoldedSizes(proposed);
       latest.current = next;
       setState(next);
       if (keepSaved) return;
@@ -76,16 +97,10 @@ export const useLayoutState = () => {
     ) => {
       if (latest.current.open[panel] === open) return;
       layoutTelemetry.track("layout_panel_toggled", { panel, open, via });
-      const next: LayoutState = {
+      update({
         ...latest.current,
         open: { ...latest.current.open, [panel]: open },
-      };
-      // The sizes a drag left are of the panel as it was: after a toggle a
-      // reload sizes the panel from its flag instead, so a folded panel is
-      // never reopened by sizes saved while it was open
-      if (panel === "assistant") delete next.h;
-      if (panel === "console") delete next.vert;
-      update(next);
+      });
     },
     [update]
   );
@@ -94,6 +109,7 @@ export const useLayoutState = () => {
     (layout: PanelLayout) => {
       const h = horizontalOf(layout);
       if (h) update({ ...latest.current, h });
+      else log.warn("A dragged layout was not saved", { context: { layout } });
     },
     [update]
   );
@@ -101,6 +117,7 @@ export const useLayoutState = () => {
     (layout: PanelLayout) => {
       const vert = verticalOf(layout);
       if (vert) update({ ...latest.current, vert });
+      else log.warn("A dragged layout was not saved", { context: { layout } });
     },
     [update]
   );

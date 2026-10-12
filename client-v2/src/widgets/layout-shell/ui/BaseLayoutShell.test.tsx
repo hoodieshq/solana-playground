@@ -2,6 +2,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createElement, useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+
 // `usePanelRef` is replaced, so the tests can see which imperative calls the
 // shell makes, and `Group` records its props; `Panel` and `Separator` are the
 // library's own. Named one by one, so a new export of the library changes
@@ -82,7 +88,10 @@ beforeEach(() => {
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
   vi.stubGlobal("matchMedia", desktopMatchMedia);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetLogger();
+});
 
 /** The fields a test sets itself; the rest are the defaults below */
 interface PropsChoice {
@@ -271,7 +280,7 @@ it("should still open a folded panel after a trip through the compact Sheet", ()
   expect(assistant.resize).toHaveBeenCalledWith(PANEL_SIZES.assistant.default);
 });
 
-it("should open a collapsed assistant panel at its default width when assistantOpen turns true", () => {
+it("should open an assistant panel that mounts folded with assistantOpen true, at its default width", () => {
   // `expand()` would open a panel that mounted folded at its minimum
   const [assistant] = panelSpies.handles;
   assistant.isCollapsed.mockReturnValue(true);
@@ -281,7 +290,7 @@ it("should open a collapsed assistant panel at its default width when assistantO
   expect(assistant.collapse).not.toHaveBeenCalled();
 });
 
-it("should open a folded console at its default height when consoleOpen turns true", () => {
+it("should open a console that mounts folded with consoleOpen true, at its default height", () => {
   const consolePanel = panelSpies.handles[1];
   consolePanel.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide", { consoleOpen: true })} />);
@@ -364,32 +373,45 @@ it("should close the project panel Sheet when it is asked to", () => {
   }));
   const innerWidth = window.innerWidth;
   window.innerWidth = 500;
-  let close = () => {};
-  const dispose = vi.fn();
-  const shell = props("phone");
-  render(
-    <BaseLayoutShell
-      {...shell}
-      closeLeftSheetOn={(fn) => {
-        close = fn;
-        return { dispose };
-      }}
-    />
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
-  const sheet = () =>
-    document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
-  expect(sheet()).not.toBeNull();
-  act(() => close());
-  expect(sheet()).toBeNull();
-  expect(shell.onLeftSheetChange).toHaveBeenLastCalledWith(false);
-  window.innerWidth = innerWidth;
+  try {
+    let close = () => false;
+    const dispose = vi.fn();
+    const shell = props("phone");
+    render(
+      <BaseLayoutShell
+        {...shell}
+        closeLeftSheetOn={(fn) => {
+          close = fn;
+          return { dispose };
+        }}
+      />
+    );
+    const sheet = () =>
+      document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
+    // Nothing to close yet
+    expect(close()).toBe(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand project panel" })
+    );
+    expect(sheet()).not.toBeNull();
+    let closed = false;
+    act(() => {
+      closed = close();
+    });
+    expect(closed).toBe(true);
+    expect(sheet()).toBeNull();
+    expect(shell.onLeftSheetChange).toHaveBeenLastCalledWith(false);
+  } finally {
+    window.innerWidth = innerWidth;
+  }
 });
 
-it("should not throw when a panel cannot yet say whether it is folded", () => {
+it("should not throw or report when a panel cannot yet say whether it is folded", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
   panelSpies.handles.forEach((handle) =>
     handle.isCollapsed.mockImplementation(() => {
-      throw new Error("Panel constraints not found");
+      throw new Error("Panel constraints not found for Panel console");
     })
   );
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
@@ -400,4 +422,68 @@ it("should not throw when a panel cannot yet say whether it is folded", () => {
     expect(handle.resize).not.toHaveBeenCalled();
     expect(handle.collapse).not.toHaveBeenCalled();
   });
+  expect(logs.entries.filter((entry) => entry.report)).toHaveLength(0);
+});
+
+/** The two groups' `onLayoutChanged`, as the library calls them */
+const settled = (
+  id: "layout-horizontal" | "layout-vertical",
+  layout: Record<string, number>,
+  isUserInteraction: boolean
+) =>
+  act(() =>
+    panelSpies.groups[id].onLayoutChanged!(layout, { isUserInteraction })
+  );
+
+it("should report a drag that folds the assistant, and save its layout", () => {
+  const [assistant] = panelSpies.handles;
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  assistant.isCollapsed.mockReturnValue(true);
+  settled("layout-horizontal", { center: 98, assistant: 2 }, true);
+  expect(wide.assistantState.onOpenChange).toHaveBeenCalledWith(false);
+  expect(wide.onHorizontalLayout).toHaveBeenCalledTimes(1);
+});
+
+it("should report a drag that unfolds the console", () => {
+  const consolePanel = panelSpies.handles[1];
+  consolePanel.isCollapsed.mockReturnValue(true);
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  consolePanel.isCollapsed.mockReturnValue(false);
+  settled("layout-vertical", { stage: 70, console: 30 }, true);
+  expect(wide.consoleState.onOpenChange).toHaveBeenCalledWith(true);
+});
+
+it("should put back, not report, an open panel the library folded on its own", () => {
+  // A restored size below the library's fold point mounts the panel folded
+  const [assistant] = panelSpies.handles;
+  const wide = props("wide", { horizontal: { center: 88, assistant: 12 } });
+  render(<BaseLayoutShell {...wide} />);
+  assistant.isCollapsed.mockReturnValue(true);
+  settled("layout-horizontal", { center: 98, assistant: 2 }, false);
+  expect(wide.assistantState.onOpenChange).not.toHaveBeenCalled();
+  expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
+  expect(assistant.resize).toHaveBeenCalledWith(PANEL_SIZES.assistant.default);
+  // Only the first layout it settles: a later one is a window resize
+  assistant.resize.mockClear();
+  settled("layout-horizontal", { center: 98, assistant: 2 }, false);
+  expect(assistant.resize).not.toHaveBeenCalled();
+});
+
+it("should report an error from isCollapsed other than the expected one, once", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  const consolePanel = panelSpies.handles[1];
+  consolePanel.isCollapsed.mockImplementation(() => {
+    throw new TypeError("broken");
+  });
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  settled("layout-vertical", { stage: 70, console: 30 }, true);
+  settled("layout-vertical", { stage: 60, console: 40 }, true);
+  const errors = logs.entries.filter((entry) => entry.level === "error");
+  expect(errors).toHaveLength(1);
+  expect(errors[0].report).toBe(true);
+  expect(errors[0].error?.message).toBe("broken");
 });

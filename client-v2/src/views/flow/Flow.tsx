@@ -44,9 +44,9 @@ const Flow = () => {
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Lives here, not in `LeftPanel`: below 768 px the shell puts it in a Sheet
-  // that unmounts it on close, and crossing that width swaps the rail for the
-  // Sheet, so anything `LeftPanel` held goes with it.
+  // Lives here, not in `LeftPanel`: below `LAYOUT_BREAKPOINTS.left` the shell
+  // puts it in a Sheet that unmounts it on close, and crossing that width swaps
+  // the rail for the Sheet, so anything `LeftPanel` held goes with it.
   const [pendingCreate, setPendingCreate] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
