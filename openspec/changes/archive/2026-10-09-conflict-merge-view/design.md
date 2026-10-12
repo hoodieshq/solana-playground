@@ -241,12 +241,10 @@ other version" here: one action, one name, in the banner and the view.
 
 ### Installing into `client-v2`
 
-`yarn ds-add modal merge` lands them (and `segmented`) in `shared/ui` with
-the tokens in `src/styles/playground-*.css`; this is `ui-migration` task 3.6,
-ticked in the same PR. The registry publishes only Playground items, so the
-stock `button` comes through the same pinned shadcn CLI from
-`ui.shadcn.com`, as `client-v2/CLAUDE.md` notes; it is the design system's
-copy.
+`yarn ds-add modal merge` lands them (and `segmented`) in `shared/ui`,
+beside the components and the tokens in `src/app/styles/playground-*.css`
+that `ui-migration` task 3.6 installed (PR #56). The stock `button` they
+build on is a registry item too, so nothing comes from `ui.shadcn.com`.
 
 ## Risks / Trade-offs
 

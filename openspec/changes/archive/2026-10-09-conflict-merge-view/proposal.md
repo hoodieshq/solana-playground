@@ -29,8 +29,8 @@ exactly which lines were in question (HOO-1837).
   take and dismiss controls, folded unchanged regions, a file switcher, and
   a one-pane-at-a-time layout at phone width. It draws what it is given;
   the editors inside the panes are the app's.
-- `client-v2` installs `modal`, `merge` and `button` from the design system,
-  the first components in `shared/ui` (`ui-migration` task 3.6).
+- `client-v2` installs `modal`, `merge` and `segmented` from the design
+  system into `shared/ui`, beside what `ui-migration` task 3.6 installed.
 - The sync banner's divergent prompt gains "Resolve…", which opens the view
   over three Monaco editors kept aligned and scrolled together. "Keep this
   version" and "Take the other version" stay, in the banner and under the
@@ -72,10 +72,10 @@ None. `openspec/specs/` holds no capability for project sync yet.
   "Resolve…" button.
 - `client-v2/src/features/persistence/ui/`: new, the resolve view and its
   Monaco controller.
-- `client-v2/src/shared/ui/`, `client-v2/src/styles/playground-*.css`,
-  `client-v2/package.json`: the installed components, their tokens and npm
-  dependencies (`radix-ui`, `lucide-react`, `class-variance-authority`,
-  `tw-animate-css`, `cn`).
+- `client-v2/src/shared/ui/`, `client-v2/src/index.css`,
+  `client-v2/package.json`: the installed components, the animations and
+  variants they need, and their npm dependencies (`lucide-react`, `shadcn`,
+  for its stylesheet).
 - `design-system/src/components/ui/merge.tsx`, `registry.json`,
   `src/ds/pg-blocks.tsx`: the new element and its catalogue block.
 - Users: a same-line conflict can be settled line by line instead of losing

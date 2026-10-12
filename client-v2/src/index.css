@@ -14,15 +14,21 @@
 
 /*
  * The design system's components in `shared/ui` (`yarn ds-add`): the
- * enter/exit animations, shadcn's `data-open`/`data-closed` variants that
- * Radix's `data-state` needs, and the tokens with their Tailwind theme. The
- * tokens are the design system's palette, not the legacy themes', until the
- * token bridge (HOO-1802); `.dark` is the product's ground.
+ * enter/exit animations, and shadcn's `data-open`/`data-closed` variants
+ * that Radix's `data-state` needs.
  */
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "./styles/playground-tokens.css";
-@import "./styles/playground-theme.css";
+
+/*
+ * The design system's tokens (`yarn ds-add playground-tokens`, never edited
+ * here). `:root` is light; `.dark` on <html> is the product default, set by
+ * `applyThemeMode`. The variant makes shadcn's `dark:` follow that class, not
+ * the OS setting.
+ */
+@import "./app/styles/playground-tokens.css";
+@import "./app/styles/playground-theme.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /*

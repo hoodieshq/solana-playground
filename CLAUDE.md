@@ -51,7 +51,8 @@ yarn test-api              # node --test, for api/ and **/server/*.mjs
 yarn check-format          # prettier; CI enforces this
 yarn lint                  # eslint over src/, api/, e2e/; CI enforces this
 yarn spec:validate         # openspec validate --all --strict; CI enforces this
-yarn check                 # everything CI runs, minus the production build
+yarn run check             # everything CI runs, minus the production build;
+                           # `run` is required: yarn 1's built-in `check` shadows the script
 yarn db-migrate            # dbmate up; reads client-v2/.env
 yarn db-status             # which migrations are applied
 yarn db-dump               # regenerate db/schema.sql after a migration

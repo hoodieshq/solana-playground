@@ -8,6 +8,9 @@
 
 CLIENT_DIR := client-v2
 
+# Targets verified against this CLI version; bump only after re-running them.
+VERCEL_CLI := vercel@62.7.0
+
 # The Neon project behind the Vercel Marketplace store `neon-solana-playground`.
 NEON_PROJECT_ID := spring-cake-75618686
 NEON_BRANCH_URL := NEON_PROJECT_ID=$(NEON_PROJECT_ID) $(CLIENT_DIR)/scripts/neon-preview-branch.sh
@@ -30,7 +33,7 @@ export NEON_API_KEY
 # the value.
 VERCEL_TOKEN_ARG = $${VERCEL_TOKEN:+--token=$$VERCEL_TOKEN}
 
-.PHONY: vercel-bootstrap vercel-link-preview vercel-link-production \
+.PHONY: vercel-bootstrap vercel-auth vercel-link-preview vercel-link-production \
 	deploy-client-to-vercel-preview deploy-client-to-vercel-production deploy-client-to-vercel-prod-fast \
 	neon-preview-base preview-db-branch migrate-preview-db migrate-production-db
 
@@ -39,10 +42,24 @@ VERCEL_TOKEN_ARG = $${VERCEL_TOKEN:+--token=$$VERCEL_TOKEN}
 VERCEL_IDS = export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
 	export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json)
 
+# Names the auth fix the CLI's "Could not retrieve Project Settings" hides; stdin is /dev/null so a missing login fails instead of prompting.
+define vercel_auth
+	@test -f .vercel/project.json || { echo "no .vercel/project.json: run 'make vercel-bootstrap'" >&2; exit 1; }
+	@out=$$($(VERCEL_IDS) && npx $(VERCEL_CLI) whoami $(VERCEL_TOKEN_ARG) </dev/null 2>&1) || { \
+		printf '%s\n' "$$out" >&2; \
+		if [ -n "$${VERCEL_TOKEN:-}" ]; then \
+			echo "VERCEL_TOKEN was rejected. A project-scoped token cannot drive the CLI: run 'unset VERCEL_TOKEN' to use your 'vercel login' session, or use an All Projects token." >&2; \
+		else \
+			echo "No working Vercel CLI login: run 'npx $(VERCEL_CLI) login' with an account in team $$(jq -r .orgId .vercel/project.json)." >&2; \
+		fi; \
+		exit 1; }; \
+		echo "Vercel CLI user: $$(printf '%s\n' "$$out" | tail -1)"
+endef
+
 # $(1): Vercel environment to pull (preview | production).
 define vercel_link
-	@test -f .vercel/project.json || { echo "no .vercel/project.json — run 'make vercel-bootstrap'" >&2; exit 1; }
-	$(VERCEL_IDS) && npx vercel@latest pull --yes --environment=$(1) $(VERCEL_TOKEN_ARG)
+	$(call vercel_auth)
+	$(VERCEL_IDS) && npx $(VERCEL_CLI) pull --yes --environment=$(1) $(VERCEL_TOKEN_ARG)
 	@# pull overwrites the cached settings with the dashboard's Root Directory; force ours back.
 	@jq --arg dir '$(CLIENT_DIR)' '.settings.rootDirectory = $$dir' \
 		.vercel/project.json > .vercel/project.json.next
@@ -69,6 +86,9 @@ vercel-bootstrap: ## Link the local checkout to the dashboard project (run once;
 		jq -n --arg org "$$org_id" --arg proj "$${VERCEL_PROJECT_ID}" '{orgId: $$org, projectId: $$proj}' > .vercel/project.json; \
 		echo "Wrote .vercel/project.json"
 
+vercel-auth: ## Check that the Vercel CLI is logged in to the linked team
+	$(call vercel_auth)
+
 vercel-link-preview: ## Pull preview env vars from Vercel
 	$(call vercel_link,preview)
 
@@ -79,8 +99,8 @@ deploy-client-to-vercel-preview: vercel-link-preview ## Build + deploy a unique 
 	$(VERCEL_IDS) && \
 		set -a && . ./.vercel/.env.preview.local && set +a && \
 		db=$$($(NEON_BRANCH_URL) --pooled) && \
-		npx vercel@latest build $(VERCEL_TOKEN_ARG) && \
-		npx vercel@latest deploy --prebuilt --archive=tgz \
+		npx $(VERCEL_CLI) build $(VERCEL_TOKEN_ARG) && \
+		npx $(VERCEL_CLI) deploy --prebuilt --archive=tgz \
 		-e DATABASE_URL="$$db" $(VERCEL_TOKEN_ARG)
 
 # Builds locally because a Vercel build with no cache exceeds the build time limit.
@@ -93,12 +113,12 @@ deploy-client-to-vercel-production: vercel-link-production ## Build locally + de
 		[ "$$reply" = yes ] || { echo "aborted" >&2; exit 1; }
 	$(VERCEL_IDS) && \
 		set -a && . ./.vercel/.env.production.local && set +a && \
-		npx vercel@latest build --prod $(VERCEL_TOKEN_ARG) && \
-		npx vercel@latest deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
+		npx $(VERCEL_CLI) build --prod $(VERCEL_TOKEN_ARG) && \
+		npx $(VERCEL_CLI) deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
 
 # Rebuilds the bundle and functions from the working tree but skips
-# installCommand, which is vercel-install.sh -- the Rust toolchain plus
-# wasm/build.sh, about an hour of the full build. That is only safe when a
+# installCommand, which is vercel-install.sh: restoring or building the wasm
+# packages and default crates, then yarn install. That is only safe when a
 # full build has already left the real wasm packages and node_modules on disk,
 # so both are checked first: a stub package here would ship `solana`/`anchor`
 # commands that throw to production.
@@ -126,9 +146,9 @@ deploy-client-to-vercel-prod-fast: ## Rebuild without the wasm/install step and 
 	@mv .vercel/project.json.next .vercel/project.json
 	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
 		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
-		npx vercel@latest env pull .vercel/.env.production.local --environment=production --yes $(VERCEL_TOKEN_ARG) && \
-		npx vercel@latest build --prod --local-config $(FAST_BUILD_CONFIG) $(VERCEL_TOKEN_ARG) && \
-		npx vercel@latest deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
+		npx $(VERCEL_CLI) env pull .vercel/.env.production.local --environment=production --yes $(VERCEL_TOKEN_ARG) && \
+		npx $(VERCEL_CLI) build --prod --local-config $(FAST_BUILD_CONFIG) $(VERCEL_TOKEN_ARG) && \
+		npx $(VERCEL_CLI) deploy --prebuilt --prod --archive=tgz $(VERCEL_TOKEN_ARG)
 
 # Reads the Production environment's DATABASE_URL_UNPOOLED -- the database
 # production actually uses -- and never the preview pull. The preview pull is
@@ -144,7 +164,7 @@ migrate-production-db: ## Apply pending migrations to the production database (S
 	@# project settings (and the pinned Root Directory) alone.
 	export VERCEL_ORG_ID=$$(jq -r .orgId .vercel/project.json) && \
 		export VERCEL_PROJECT_ID=$$(jq -r .projectId .vercel/project.json) && \
-		npx vercel@latest env pull .vercel/.env.production.local --environment=production --yes $(VERCEL_TOKEN_ARG)
+		npx $(VERCEL_CLI) env pull .vercel/.env.production.local --environment=production --yes $(VERCEL_TOKEN_ARG)
 	@# DATABASE_URL is the PgBouncer endpoint and carries `channel_binding`, which
 	@# dbmate's driver cannot parse. The unpooled URL is direct and still carries
 	@# the `sslmode` that both dbmate and src/features/persistence/model/db.mjs
