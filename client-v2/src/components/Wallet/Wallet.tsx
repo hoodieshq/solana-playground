@@ -11,7 +11,6 @@ import FadeIn from "../FadeIn";
 import ErrorBoundary from "../ErrorBoundary";
 import Img from "../Img";
 import Input from "../Input";
-import Tooltip from "../Tooltip";
 import { Close, ShortArrow } from "../Icons";
 import {
   Wallet as WalletType,
@@ -28,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { MenuItemText } from "@/shared/ui/menu-extras";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useDarken } from "./hooks";
 import {
   useKeybind,
@@ -142,10 +142,11 @@ const WalletName = () => {
 
   return (
     <DropdownMenu onOpenChange={(open) => (open ? darken() : lighten())}>
-      {/* The trigger is a plain element: `Tooltip` does not forward a ref */}
-      <DropdownMenuTrigger asChild>
-        <div>
-          <Tooltip element="Accounts">
+      {/* One element carries both triggers: each `asChild` passes its props
+          and ref on to `WalletTitleWrapper` */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
             <WalletTitleWrapper>
               {!wallet.isPg && (
                 <WalletTitleIcon src={wallet.icon} alt={wallet.name} />
@@ -153,9 +154,10 @@ const WalletName = () => {
               <WalletTitleText>{getAccountDisplayName(wallet)}</WalletTitleText>
               <ShortArrow rotate="90deg" />
             </WalletTitleWrapper>
-          </Tooltip>
-        </div>
-      </DropdownMenuTrigger>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Accounts</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent>
         {/* All of the Playground Wallet accounts */}
         {PgWallet.accounts.map((acc, i) => (
