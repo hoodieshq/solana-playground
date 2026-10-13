@@ -590,6 +590,11 @@ test.describe("a select inside the assistant Sheet", () => {
   test.use({ viewport: { width: 800, height: 1000 } });
 
   test("opens its options above the Sheet", async ({ seededPage: page }) => {
+    // The editor focuses itself when it opens the first file; landing after
+    // the select opened, it closes the select
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
     await page.getByRole("button", { name: "Expand assistant" }).click();
     const sheet = page.locator('[data-slot="sheet-content"]');
     await expect(sheet).toBeVisible();
