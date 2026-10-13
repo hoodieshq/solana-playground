@@ -223,6 +223,16 @@ it("should start the navigation as a rail between 768 and 1023 px, and save noth
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
+it("should fold the files column by Cmd+E between 768 and 1023 px, and save it", () => {
+  resizeTo(800);
+  shell();
+  press({ key: "e", metaKey: true });
+  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+  expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!).open.files).toBe(
+    false
+  );
+});
+
 it("should go back to the saved navigation on a wide screen", () => {
   resizeTo(800);
   shell();
@@ -502,7 +512,7 @@ it("should set the assistant Sheet in the theme's font and draw no stock close b
   expect(sheet.querySelector('[data-slot="sheet-close"]')).toBeNull();
 });
 
-it("should set the project panel Sheet in the theme's font", () => {
+it("should set the navigation Sheet in the theme's font", () => {
   resizeTo(500);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
@@ -514,7 +524,7 @@ it("should set the project panel Sheet in the theme's font", () => {
   ).toBe("monospace");
 });
 
-it("should open the project panel Sheet below 768 px and report it as the navigation", () => {
+it("should open the navigation Sheet below 768 px and report it as the navigation", () => {
   resizeTo(500);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
@@ -529,7 +539,7 @@ it("should open the project panel Sheet below 768 px and report it as the naviga
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
-it("should report the project panel Sheet toggled by Cmd+B below 768 px as a key", () => {
+it("should report the navigation Sheet toggled by Cmd+B below 768 px as a key", () => {
   resizeTo(500);
   shell();
   press({ key: "b", metaKey: true });
@@ -540,7 +550,7 @@ it("should report the project panel Sheet toggled by Cmd+B below 768 px as a key
   ]);
 });
 
-it("should report the project panel Sheet closed by Escape as a key and by its own button as a button", () => {
+it("should report the navigation Sheet closed by Escape as a key and by its own button as a button", () => {
   resizeTo(500);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
@@ -708,7 +718,7 @@ it("should not reopen the console for a change that leaves a deploy failed", () 
   ]);
 });
 
-it("should close the project panel Sheet when a modal opens", () => {
+it("should close the navigation Sheet when a modal opens", () => {
   resizeTo(500);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));

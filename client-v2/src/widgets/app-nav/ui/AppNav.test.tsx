@@ -76,7 +76,7 @@ const opened = () =>
     .filter((event) => event.name === "nav_item_opened")
     .map((event) => event.params);
 
-it("client-v2-layout: Picking Tutorials", () => {
+it("sends nav_item_opened and opens the tutorials tab for Tutorials", () => {
   draw();
   fireEvent.click(screen.getByRole("button", { name: "Tutorials" }));
   expect(opened()).toEqual([{ item: "tutorials" }]);
