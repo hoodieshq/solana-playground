@@ -8,6 +8,7 @@ import { ExplorerContextMenu } from "./ExplorerContextMenu";
 // The utils barrel needs build-time globals the unit runner does not define.
 vi.mock("../../../../utils", () => ({
   PgExplorer: { removeCtxSelectedEl: vi.fn() },
+  PgView: { ids: { ROOT_DIR: "root-dir" } },
 }));
 
 // The icons are styled-components that read the app theme; they are not what

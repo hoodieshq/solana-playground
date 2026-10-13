@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useRef } from "react";
 
 import {
   ContextMenu,
@@ -20,7 +20,7 @@ import {
   Triangle,
   Wrench,
 } from "../../../../components/Icons";
-import { PgExplorer } from "../../../../utils";
+import { PgExplorer, PgView } from "../../../../utils";
 import type { useExplorerContextMenu } from "./useExplorerContextMenu";
 
 type ExplorerContextMenuProps = Pick<
@@ -54,10 +54,17 @@ export const ExplorerContextMenu: FC<
   handleMenu,
   children,
 }) => {
+  // An item that opens the new-item input or a dialog moves the focus there
+  // itself. Radix would return it to the trigger on close, and its focus trap
+  // keeps the input from taking it while the menu is still open, so the input
+  // is focused here, once the menu has let go.
+  const choseItem = useRef(false);
+
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (!open) PgExplorer.removeCtxSelectedEl();
+        if (open) choseItem.current = false;
+        else PgExplorer.removeCtxSelectedEl();
       }}
     >
       <ContextMenuTrigger
@@ -70,7 +77,16 @@ export const ExplorerContextMenu: FC<
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent>
+      <ContextMenuContent
+        onClickCapture={() => (choseItem.current = true)}
+        onCloseAutoFocus={(ev) => {
+          if (!choseItem.current) return;
+          ev.preventDefault();
+          document
+            .querySelector<HTMLInputElement>(`#${PgView.ids.ROOT_DIR} input`)
+            ?.focus();
+        }}
+      >
         {itemData.isFolder && (
           <>
             <ContextMenuItem onSelect={ctxNewItem}>

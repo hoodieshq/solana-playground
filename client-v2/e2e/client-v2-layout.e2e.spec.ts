@@ -1,31 +1,13 @@
 import type { Page } from "@playwright/test";
 
 import { expect, json, leaveEditor, seedWorkspace, test } from "./fixtures";
-
-/**
- * The telemetry event lines the page logs from now on.
- *
- * The dev server logs each event at `debug` from the `telemetry:event`
- * namespace, as `[telemetry:event] <name> {<params>}`.
- */
-const linesOn = (page: Page) => {
-  const lines: string[] = [];
-  page.on("console", (message) => {
-    const text = message.text();
-    if (text.startsWith("[telemetry:event]")) lines.push(text);
-  });
-  return lines;
-};
+import { lineOf, linesOn } from "./telemetry";
 
 /** Names of the telemetry events the page has logged so far */
 const eventsOn = (page: Page) => {
   const lines = linesOn(page);
   return { has: (name: string) => lines.some((l) => l.split(" ")[1] === name) };
 };
-
-/** The first event line with this name, params included */
-const lineOf = (lines: string[], name: string) =>
-  lines.find((line) => line.startsWith(`[telemetry:event] ${name} `));
 
 /**
  * The one event line with this name: waits for it, then a moment more, so a
