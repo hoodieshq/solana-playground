@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { expect, leaveEditor, seedWorkspace, test } from "./fixtures";
+import { expect, json, leaveEditor, seedWorkspace, test } from "./fixtures";
 
 /**
  * The telemetry event lines the page logs from now on.
@@ -779,4 +779,105 @@ test("client-v2-layout: Picking Tutorials", async ({ seededPage: page }) => {
   );
   const line = await onlyLineOf(page, lines, "nav_item_opened");
   expect(line).toContain("item: tutorials");
+});
+
+test.describe("on a 1024 px window", () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  // The narrowest window with all four columns: the work area's minimum
+  // (the files column's 12 rem, a handle and the stage's 240 px) fits only
+  // because the assistant gives way below its default width
+  test("the four columns fit side by side, none below its minimum", async ({
+    seededPage: page,
+  }) => {
+    await expect(
+      nav(page).getByRole("button", { name: "Collapse navigation" })
+    ).toBeVisible();
+    await expect(filesPanel(page).locator("#root-dir")).toBeVisible();
+    await expect(stagePanel(page)).toBeVisible();
+    await expect(assistantPanel(page)).toBeVisible();
+
+    const navBox = await boxOf(navColumn(page));
+    const assistantBox = await boxOf(assistantPanel(page));
+    const filesBox = await boxOf(filesPanel(page));
+    const stageBox = await boxOf(stagePanel(page));
+
+    expect(navBox.x + navBox.width).toBeLessThanOrEqual(assistantBox.x);
+    expect(assistantBox.x + assistantBox.width).toBeLessThanOrEqual(filesBox.x);
+    expect(filesBox.x + filesBox.width).toBeLessThanOrEqual(stageBox.x);
+    expect(filesBox.width).toBeGreaterThanOrEqual(192);
+    expect(stageBox.width).toBeGreaterThanOrEqual(240);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(1024);
+  });
+});
+
+// A separator controls the panel before it: the files column's is right of it
+const filesHandle = (page: Page) =>
+  page.locator('[data-slot="resizable-handle"][aria-controls="files"]');
+const filesWidthOf = (page: Page) =>
+  filesPanel(page).evaluate((el) => el.getBoundingClientRect().width);
+
+test("a dragged files column keeps its width over a reload", async ({
+  seededPage: page,
+}) => {
+  await expect(filesPanel(page).locator("#root-dir")).toBeVisible();
+  const before = await filesWidthOf(page);
+  await drag(page, filesHandle(page), 80, 0);
+  const widened = await filesWidthOf(page);
+  expect(widened).toBeGreaterThan(before + 60);
+
+  await page.reload();
+  await expect(filesPanel(page).locator("#root-dir")).toBeVisible();
+  await expect
+    .poll(async () => Math.abs((await filesWidthOf(page)) - widened))
+    .toBeLessThan(4);
+});
+
+// The profile chip sits in the navigation's footer at the bottom left of the
+// window, so its menu opens upward and is anchored to the chips' row: one
+// opening downward, or hung off the chip's right edge, would run off the window
+test("the GitHub profile menu opens inside the window, its Sign out on top", async ({
+  page,
+}) => {
+  // Signing in for real needs a live GitHub round trip, so the account
+  // endpoints are stubbed, as `account-sync.e2e.spec.ts` does, for an
+  // account that holds nothing yet
+  await page.route("**/api/auth/get-session", (r) =>
+    json(r, { user: { id: "u1", name: "Tester", image: null, login: "t" } })
+  );
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await page.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await page.route("**/api/projects*", (r) =>
+    r.request().method() === "PUT"
+      ? json(r, { updatedAt: new Date().toISOString() })
+      : json(r, { projects: [] })
+  );
+  await seedWorkspace(page);
+
+  await page
+    .locator('[data-slot="sidebar-footer"]')
+    .getByRole("button", { name: "GitHub profile: t" })
+    .click();
+  const menu = page.locator('div[aria-label="GitHub profile"]');
+  await expect(menu).toBeVisible();
+
+  const box = await boxOf(menu);
+  const viewport = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+
+  const signOut = menu.getByRole("button", { name: "Sign out" });
+  const onTop = await signOut.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2
+    );
+    return hit !== null && el.contains(hit);
+  });
+  expect(onTop).toBe(true);
 });
