@@ -29,8 +29,9 @@ import {
 import { PgCommon, PgExplorer, PgView, PgTheme } from "../../../../utils";
 import { useCreateItem } from "./useCreateItem";
 import { useExplorerContextMenu } from "./useExplorerContextMenu";
+import { useResetCtxSelected } from "./useResetCtxSelected";
 import { useHandleItemState } from "./useHandleItemState";
-import { useKeybind, useOnClickOutside } from "../../../../hooks";
+import { useKeybind } from "../../../../hooks";
 
 const Folders = () => {
   useHandleItemState();
@@ -47,16 +48,8 @@ const Folders = () => {
     []
   );
 
-  // Reset ctx selected on outside clicks. The context menu is portaled to the
-  // body, so a click on its items must not count: it would clear the selection
-  // that `renameItem` and `deleteItem` read before the item's `onSelect` runs.
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useOnClickOutside(
-    wrapperRef,
-    PgExplorer.removeCtxSelectedEl,
-    true,
-    '[data-slot="context-menu-content"]'
-  );
+  useResetCtxSelected(wrapperRef);
 
   // No need to memoize here
   const relativeRootPath = PgExplorer.getProjectRootPath();

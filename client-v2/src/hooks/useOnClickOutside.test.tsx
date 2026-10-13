@@ -12,7 +12,7 @@ vi.mock("../utils", () => ({
   },
 }));
 
-const IGNORED = '[data-slot="context-menu-content"]';
+const IGNORED = ".ignored";
 
 const Probe = ({ cb }: { cb: () => void }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -21,12 +21,12 @@ const Probe = ({ cb }: { cb: () => void }) => {
 };
 
 describe("useOnClickOutside with an ignore selector", () => {
-  it("does not fire for a press inside the ignored element (the portaled context menu)", () => {
+  it("does not fire for a press inside the ignored element ", () => {
     const cb = vi.fn();
     render(
       <>
         <Probe cb={cb} />
-        <div data-slot="context-menu-content">
+        <div className="ignored">
           <span data-testid="item">Rename</span>
         </div>
         <span data-testid="elsewhere">elsewhere</span>
