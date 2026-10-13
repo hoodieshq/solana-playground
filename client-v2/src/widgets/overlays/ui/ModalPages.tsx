@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { FC } from "react";
 
+import { overlayTelemetry } from "../model/telemetry";
 import { ModalOpenReportContext } from "./modal-layer";
 
 export type ModalPageProps = { setPage: <P>(page: ModalPage<P>) => void };
@@ -16,9 +17,14 @@ export type ModalPage<P = any> = {
  */
 export const ModalPages = ({ defaultPage }: { defaultPage: ModalPage }) => {
   const [page, setPage] = useState<ModalPage>(defaultPage);
-  const openReport = useRef({ sent: false });
+  const reported = useRef(false);
+  const reportOpened = useCallback((name: string) => {
+    if (reported.current) return;
+    reported.current = true;
+    overlayTelemetry.track("overlay_modal_opened", { name });
+  }, []);
   return (
-    <ModalOpenReportContext.Provider value={openReport.current}>
+    <ModalOpenReportContext.Provider value={reportOpened}>
       <page.Component {...page.props} setPage={setPage} />
     </ModalOpenReportContext.Provider>
   );

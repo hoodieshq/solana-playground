@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useRef } from "react";
 import styled from "styled-components";
 
 import Button from "../Button";
@@ -38,15 +38,45 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
   const isPg = wallet.isPg;
   const [, copyAddress] = useCopy(wallet.publicKey.toBase58());
 
+  // Choosing Rename mounts the rename input. Radix would return focus to the
+  // trigger on close, so typing would go nowhere, and the input is focused
+  // here once the menu has let go. Every other item keeps Radix's return.
+  const choseRename = useRef(false);
+  const rename = () => {
+    choseRename.current = true;
+    showRename();
+  };
+
   return (
     <Wrapper>
-      <DropdownMenu onOpenChange={(open) => (open ? darken() : lighten())}>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) {
+            choseRename.current = false;
+            darken();
+          } else {
+            lighten();
+          }
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button kind="icon" title="More">
             <ThreeDots />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent
+          // Wide enough for "Disconnect from <wallet>" on one line
+          className="min-w-56"
+          onCloseAutoFocus={(ev) => {
+            if (!choseRename.current) return;
+            const input = document.getElementById(
+              PgView.ids.WALLET_RENAME_INPUT
+            );
+            if (!input) return;
+            ev.preventDefault();
+            input.focus();
+          }}
+        >
           <DropdownMenuItem onSelect={copyAddress}>
             <Copy />
             <MenuItemText>Copy address</MenuItemText>
@@ -67,7 +97,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             <MenuItemText>Add</MenuItemText>
           </DropdownMenuItem>
           {isPg && (
-            <DropdownMenuItem onSelect={showRename}>
+            <DropdownMenuItem onSelect={rename}>
               <Edit />
               <MenuItemText>Rename</MenuItemText>
             </DropdownMenuItem>

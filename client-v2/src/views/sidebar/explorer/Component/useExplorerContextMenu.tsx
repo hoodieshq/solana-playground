@@ -1,5 +1,6 @@
 import { MouseEvent, useCallback, useState } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
 import { DeleteItem, RenameItem } from "./Modals";
 import {
   PgCommand,
@@ -10,6 +11,8 @@ import {
   PgView,
 } from "../../../../utils";
 import { useRenderOnChange } from "../../../../hooks";
+
+const log = createLogger("explorer:context-menu");
 
 export type ItemData = {
   [K in
@@ -28,21 +31,33 @@ export const useExplorerContextMenu = () => {
   const [itemData, setItemData] = useState<ItemData>({});
   const [ctxSelectedPath, setCtxSelectedPath] = useState("");
 
-  // Returns `false` when the target has no menu (the root folder, or an
-  // element that is not an explorer item).
+  /**
+   * Prepare the menu for the right-clicked element.
+   *
+   * @returns `false` when the target has no menu: the root folder, or an
+   * element that is not an explorer item. The caller then prevents the
+   * default, so the browser's own menu stays shut too.
+   */
   const handleMenu = useCallback((ev: MouseEvent<HTMLElement>): boolean => {
     // Add selected style to the item
-    let itemEl = ev.target as Node;
-    while (itemEl.nodeName !== "DIV") {
-      itemEl = itemEl.parentNode!;
+    let itemEl: Node | null = ev.target as Node;
+    while (itemEl && itemEl.nodeName !== "DIV") {
+      itemEl = itemEl.parentNode;
     }
+    if (!itemEl) return false;
     const selectedEl = itemEl as HTMLDivElement;
 
-    // Root dir is not allowed to be selected as it cannot be renamed or deleted
+    // Root dir is not allowed to be selected as it cannot be renamed or deleted.
+    // Right-clicking it is ordinary, so it is not logged.
     if (selectedEl.id === PgView.ids.ROOT_DIR) return false;
 
     const itemType = PgExplorer.getItemTypeFromEl(selectedEl);
-    if (!itemType) return false;
+    if (!itemType) {
+      log.warn("context menu on an element that is not an explorer item", {
+        context: { id: selectedEl.id },
+      });
+      return false;
+    }
 
     const itemPath = PgExplorer.getItemPathFromEl(selectedEl)!;
     const itemName = PgExplorer.getItemNameFromPath(itemPath);

@@ -16,17 +16,23 @@ import type {
   Promisable,
 } from "./types";
 
+/** How long a toast stays, in milliseconds, when its options give no duration */
+export const DEFAULT_TOAST_DURATION = 5000;
+
+/** A toast's id: what to reuse to replace it, or to close it */
+export type ToastId = string | number;
+
 /** How a toast behaves; `name` is its telemetry name, kebab-case */
 export type ToastOptions = {
   name: string;
   /** Reuse to replace a toast; generated when absent */
-  id?: string | number;
-  /** Milliseconds, or "persistent" to stay until closed; 5000 by default */
+  id?: ToastId;
+  /** Milliseconds, or "persistent" to stay until closed; `DEFAULT_TOAST_DURATION` by default */
   duration?: number | "persistent";
 };
 
 /** Props a toast's component receives */
-export type ToastChildProps = { id: string | number };
+export type ToastChildProps = { id: ToastId };
 
 /** Sidebar page param */
 export type SidebarPageParam<N extends string> = {
@@ -122,6 +128,7 @@ class _PgView {
     ROOT_DIR: "root-dir",
     TABS: "tabs",
     WALLET_MAIN: "wallet-main",
+    WALLET_RENAME_INPUT: "wallet-rename-input",
     HOME: "home",
     PORTAL_ABOVE: "portal-above",
   };
@@ -277,7 +284,7 @@ class _PgView {
    *
    * @param id toast id
    */
-  static closeToast(id?: string | number) {
+  static closeToast(id?: ToastId) {
     return PgCommon.createAndDispatchCustomEvent(PgView.events.TOAST_CLOSE, id);
   }
 

@@ -1,21 +1,20 @@
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import { toast } from "sonner";
 
 import { useSetStatic } from "@/hooks/useSetStatic";
 import { useIsMobile } from "@/shared/lib/hooks/use-mobile";
 import { RAIL_WIDTH } from "@/shared/lib/hooks/use-viewport";
+import { uuid } from "@/shared/lib/ids";
 import { createLogger } from "@/shared/lib/logger";
 import { Toaster } from "@/shared/ui/sonner";
-import { PgCommon } from "@/utils/common";
 import type { Elementable } from "@/utils/types";
 import { PgView } from "@/utils/view";
-import type { ToastOptions } from "@/utils/view";
+import { DEFAULT_TOAST_DURATION } from "@/utils/view";
+import type { ToastId, ToastOptions } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
 
 const log = createLogger("overlays:toast-host");
-
-const DEFAULT_DURATION = 5000;
 
 type ToastEvent = {
   elementable: Elementable;
@@ -28,8 +27,23 @@ type ToastEvent = {
 
 const durationOf = (duration: ToastOptions["duration"]) => {
   if (duration === "persistent") return Infinity;
-  return duration ?? DEFAULT_DURATION;
+  return duration ?? DEFAULT_TOAST_DURATION;
 };
+
+/**
+ * The app's theme mode, read from the `dark` class that `applyThemeMode` puts
+ * on `<html>`, so the toaster follows a theme change without being told.
+ */
+const subscribeToMode = (onChange: () => void) => {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
+};
+const modeNow = () =>
+  document.documentElement.classList.contains("dark") ? "dark" : "light";
 
 /**
  * Renders the toasts sent with `PgView.setToast` in Sonner, at the bottom
@@ -47,6 +61,7 @@ const durationOf = (duration: ToastOptions["duration"]) => {
 export const ToastHost = () => {
   // Below this width the left panel is a Sheet and there is no rail to clear
   const noRail = useIsMobile();
+  const mode = useSyncExternalStore(subscribeToMode, modeNow);
   const show = useCallback(({ elementable, props }: ToastEvent) => {
     const options = props?.options;
     if (!options?.name) {
@@ -55,27 +70,36 @@ export const ToastHost = () => {
       });
     }
     const name = options?.name ?? "unnamed";
-    const id = options?.id ?? PgCommon.generateRandomInt(0, 2 ** 12);
+    // A random small int could repeat and silently replace a live toast
+    const id = options?.id ?? uuid();
 
-    // The component gets the toast's id, so it can close itself (NonLocal does)
-    toast(
-      PgView.normalizeElement(elementable, { ...props?.componentProps, id }),
-      {
-        id,
-        duration: durationOf(options?.duration),
-      }
-    );
+    try {
+      // The component gets the toast's id, so it can close itself (NonLocal
+      // does)
+      toast(
+        PgView.normalizeElement(elementable, { ...props?.componentProps, id }),
+        {
+          id,
+          duration: durationOf(options?.duration),
+        }
+      );
+    } catch (e) {
+      // The event's sender cannot handle this; the team hears of it
+      log.error(e, { report: true, context: { name } });
+      return;
+    }
     overlayTelemetry.track("overlay_toast_shown", { name });
   }, []);
 
   useSetStatic(PgView.events.TOAST_SET, show);
-  useSetStatic(PgView.events.TOAST_CLOSE, (id?: string | number) => {
+  useSetStatic(PgView.events.TOAST_CLOSE, (id?: ToastId) => {
     toast.dismiss(id);
   });
 
   return (
     <Toaster
       className="toaster group z-[60]! pointer-events-auto"
+      theme={mode}
       position="bottom-left"
       closeButton
       // The rail is a desktop part; on a phone the Sheet replaces it

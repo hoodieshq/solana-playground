@@ -243,6 +243,7 @@ const WalletRename: FC<React.PropsWithChildren<WalletRenameProps>> = ({
     <div>
       <Input
         ref={inputRef}
+        id={PgView.ids.WALLET_RENAME_INPUT}
         value={name}
         onChange={(ev) => setName(ev.target.value)}
         validator={PgWallet.validateAccountName}

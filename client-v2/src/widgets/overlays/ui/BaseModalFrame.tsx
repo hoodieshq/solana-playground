@@ -13,6 +13,9 @@ import {
 import { Spinner } from "@/shared/ui/spinner";
 import { isInsideToast } from "../model/toast-layer";
 
+/** `wide` is for dialogs with a code or a table in the body */
+export type ModalSize = "default" | "wide";
+
 export type BaseModalFrameProps = {
   title: string;
   /** Visually hidden when the dialog shows no heading */
@@ -28,7 +31,7 @@ export type BaseModalFrameProps = {
   /** Shown as a Cancel button beside the submit when the submit does something */
   onCancel?: () => void;
   onSubmit: () => void;
-  size: "default" | "wide";
+  size: ModalSize;
   children?: ReactNode;
 };
 
@@ -41,7 +44,8 @@ const FIRST_FIELD = [
 
 /**
  * A dialog's content: its heading, the last error, the body and the buttons.
- * Render it inside a `Modal`. Enter in an input of the body submits, and so
+ * Render it inside the `Modal` root that `ModalHost` renders (it
+ * draws the content, and the root the overlay). Enter in an input of the body submits, and so
  * does the footer's `type="submit"` button, which has the focus on open when
  * the body has no field.
  */

@@ -6,6 +6,7 @@ import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
 import { BaseModalFrame } from "./BaseModalFrame";
+import type { ModalSize } from "./BaseModalFrame";
 import { useIsTopModal, useOpenReport } from "./modal-layer";
 
 const log = createLogger("overlays:modal-frame");
@@ -27,7 +28,7 @@ export type ModalFrameProps = {
   /** The heading; `true` is the product's name */
   title?: string | true;
   buttonProps?: ModalSubmit;
-  size?: "default" | "wide";
+  size?: ModalSize;
   children?: ReactNode;
 };
 
@@ -67,33 +68,49 @@ export const ModalFrame = ({
   const isTop = useIsTopModal();
   const openReport = useOpenReport();
 
+  // StrictMode runs an effect twice on mount and keeps refs across the pair,
+  // so the name last reported here is what keeps the dev server's count at one
+  const reportedName = useRef<string | null>(null);
   useEffect(() => {
-    if (openReport?.sent) return;
+    // Inside `ModalPages` the dialog is reported once for all its pages
+    if (openReport) {
+      openReport(name);
+      return;
+    }
+    if (reportedName.current === name) return;
+    reportedName.current = name;
     overlayTelemetry.track("overlay_modal_opened", { name });
-    if (openReport) openReport.sent = true;
   }, [name, openReport]);
 
   const submit = async () => {
     if (!buttonProps || buttonProps.disabled || submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    // A retry that succeeds must not keep the last attempt's message
+    setError("");
     try {
       const data = await buttonProps.onSubmit?.();
       if (!buttonProps.noCloseOnSubmit) PgView.closeModal(data);
     } catch (e) {
       // The user reads the message in the dialog; the team hears of it so a
-      // pattern of failing dialogs shows up
+      // pattern of failing dialogs shows up. Logged before the event is sent,
+      // so a tracker that throws cannot lose the report.
       setError(messageOf(e));
-      overlayTelemetry.track("overlay_modal_submit_failed", { name });
       log.error(e, { report: true, context: { name } });
+      try {
+        overlayTelemetry.track("overlay_modal_submit_failed", { name });
+      } catch (trackError) {
+        log.error(trackError, { report: true, context: { name } });
+      }
     } finally {
       submitting.current = false;
       setBusy(false);
     }
   };
 
-  // Under another dialog: keep the body mounted, so it keeps its state, but
-  // draw no second dialog content
+  // Under another dialog: draw no second dialog content. Only the state held
+  // above this frame survives; the frame's subtree remounts when it is on
+  // top again (see `ModalLayerContext`)
   if (!isTop) return <div hidden>{children}</div>;
 
   return (

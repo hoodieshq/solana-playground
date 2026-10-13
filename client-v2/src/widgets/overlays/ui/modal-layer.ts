@@ -11,11 +11,12 @@ export const ModalLayerContext = createContext(true);
 export const useIsTopModal = () => useContext(ModalLayerContext);
 
 /**
- * Set by `ModalPages`: whether one of its pages already reported the dialog
- * as opened, so a dialog of several pages is counted once.
+ * Set by `ModalPages`: reports the dialog as opened, and only the first call
+ * counts, so a dialog of several pages is counted once. A `ModalFrame`
+ * outside `ModalPages` has none and reports itself.
  */
-export const ModalOpenReportContext = createContext<{ sent: boolean } | null>(
-  null
-);
+export const ModalOpenReportContext = createContext<
+  ((name: string) => void) | null
+>(null);
 
 export const useOpenReport = () => useContext(ModalOpenReportContext);
