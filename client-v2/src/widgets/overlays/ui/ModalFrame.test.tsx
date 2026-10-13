@@ -177,10 +177,9 @@ it("should not submit while the button is disabled", async () => {
   });
 
   await act(async () => {
-    screen
-      .getByRole("textbox", { name: "Name" })
-      .closest("form")!
-      .requestSubmit();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+      key: "Enter",
+    });
   });
 
   expect(onSubmit).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import Button from "../../../../../components/Button";
 import Img from "../../../../../components/Img";
 import Input from "../../../../../components/Input";
 import Link from "../../../../../components/Link";
-import Modal from "../../../../../components/Modal";
+import { ModalFrame } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import {
   Eye,
@@ -28,14 +28,13 @@ export const ImportGithub = () => {
   const [error, setError] = useState("");
 
   return (
-    <Modal
+    <ModalFrame
+      name="import-github"
       title
       buttonProps={{
         text: "Import",
         onSubmit: () => PgCommon.transition(PgGithub.import(url)),
         disabled: !!error,
-        loading: { text: "Importing..." },
-        rightIcon: <ImportWorkspace />,
       }}
     >
       <Wrapper>
@@ -77,7 +76,7 @@ export const ImportGithub = () => {
           </p>
         </Text>
       </Wrapper>
-    </Modal>
+    </ModalFrame>
   );
 };
 

@@ -74,9 +74,9 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
   // Modals opened from this panel (Import from GitHub/files, and the
-  // upstream Settings' own "Custom" value modal) render into `ModalBackdrop`
-  // -- a sibling of this panel, not a descendant of it, and not one of the
-  // portal ids `useOnClickOutside` already excludes. Without this, the very
+  // upstream Settings' own "Custom" value modal) render in `ModalHost`'s
+  // dialog, which portals to `body` -- not a descendant of this panel, and
+  // not one of the portal ids `useOnClickOutside` already excludes. Without this, the very
   // first click inside such a modal (e.g. focusing its input) reads as an
   // "outside" click and slides this panel shut behind the modal's
   // translucent backdrop.

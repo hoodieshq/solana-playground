@@ -2,7 +2,7 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../Button";
-import Modal from "../../Modal";
+import { ModalFrame } from "@/widgets/overlays";
 import Text from "../../Text";
 import { Warning } from "../../Icons";
 import { PgWallet, PgWeb3 } from "../../../utils";
@@ -38,7 +38,8 @@ export const Setup = () => {
   };
 
   return (
-    <Modal
+    <ModalFrame
+      name="wallet-setup"
       title="Playground Wallet"
       buttonProps={{
         text: "Continue",
@@ -73,7 +74,7 @@ export const Setup = () => {
         </WalletButtonsWrapper>
         {text && <KeypairText>{text}</KeypairText>}
       </Content>
-    </Modal>
+    </ModalFrame>
   );
 };
 

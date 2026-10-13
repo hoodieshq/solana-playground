@@ -164,9 +164,6 @@ export interface ThemeParam {
     /** Markdown component */
     markdown?: DefaultComponent & { subtleBg?: Bg };
 
-    /** Modal component */
-    modal?: ExtendibleComponent<"backdrop" | "top" | "content" | "bottom">;
-
     /** Progress bar component */
     progressbar?: ExtendibleComponent<"indicator">;
 
@@ -444,7 +441,6 @@ type DefaultComponents =
 type ExtendibleComponents =
   | "editor"
   | "markdown"
-  | "modal"
   | "progressbar"
   | "select"
   | "tabs"

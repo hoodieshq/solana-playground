@@ -32,12 +32,12 @@ import { GAP } from "./tokens";
 import { FeedbackHost, FeedbackTrigger } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Assistant from "@/views/sidebar/assistant/Component";
-import ModalBackdrop from "@/components/ModalBackdrop";
 import Toast from "@/components/Toast";
 import Wallet from "@/components/Wallet";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav } from "@/widgets/app-nav";
 import { LayoutShell } from "@/widgets/layout-shell";
+import { ModalHost } from "@/widgets/overlays";
 import type { Disposable } from "@/utils/types";
 
 /**
@@ -266,7 +266,7 @@ const FlowFrame = () => {
 
       <Wallet />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
-      <StyledModalBackdrop />
+      <ModalHost />
       <PortalBelow id={PgView.ids.PORTAL_BELOW}>
         <Toast />
       </PortalBelow>
@@ -380,21 +380,19 @@ const Collapse = styled.button`
 `;
 
 // Above everything the shell draws: the stock Sidebar (z-10) and the Sheets
-// (z-50), which portal to `body` beside these. The
-// explorer's context menu opens here from inside the navigation's Sheet, so it
-// must sit over that Sheet; a modal closes the Sheet as it opens
-// (`LayoutShell`), since the Sheet traps focus. A modal Sheet also turns off
-// pointer events on `body`, so each portal turns them back on for itself.
+// (z-50), which portal to `body` beside these. The explorer's menu and the
+// dialogs no longer open here: they are Radix parts and portal to `body`
+// themselves, and a dialog closes the navigation's Sheet as it opens
+// (`LayoutShell`), since the Sheet traps focus. The element stays
+// for legacy code that portals by `PgView.ids.PORTAL_ABOVE` and for
+// `useOnClickOutside`, which counts a click inside it as inside. A modal
+// Sheet turns off pointer events on `body`, so each portal turns them back
+// on for itself.
 const PortalAbove = styled.div`
   z-index: 62;
   pointer-events: auto;
 `;
-const StyledModalBackdrop = styled(ModalBackdrop)`
-  z-index: 61;
-  pointer-events: auto;
-`;
-// Toasts open at the bottom left, over the navigation and its Sheet, and
-// below the modal backdrop so a modal still covers them.
+// Toasts open at the bottom left, over the navigation and its Sheet.
 const PortalBelow = styled.div`
   z-index: 60;
   pointer-events: auto;

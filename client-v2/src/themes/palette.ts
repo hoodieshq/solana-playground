@@ -122,13 +122,6 @@ const PALETTE: ThemeParam = {
       borderColor: BORDER,
       padding: "0.4375rem 0.75rem",
     },
-    modal: {
-      default: {
-        bg: "color-mix(in srgb, var(--surface-raised) 90%, transparent)",
-        border: `1px solid ${BORDER}`,
-        boxShadow: "var(--shadow-modal-value)",
-      },
-    },
     progressbar: {
       indicator: { bg: GRADIENT },
     },

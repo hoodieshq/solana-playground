@@ -46,17 +46,68 @@ it("should submit once when Enter is pressed in an input", () => {
   const onSubmit = vi.fn();
   renderFrame({ submit, onSubmit, children: <input aria-label="Name" /> });
 
-  // jsdom has no implicit submission on Enter; a browser submits the input's
-  // form when that form holds a submit button, which `requestSubmit` does here
-  const input = screen.getByRole("textbox", { name: "Name" });
   const button = screen.getByRole("button", {
     name: "Rename",
   }) as HTMLButtonElement;
   expect(button.getAttribute("type")).toBe("submit");
-  expect(button.form).toBe(input.closest("form"));
-  input.closest("form")!.requestSubmit();
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+    key: "Enter",
+  });
 
   expect(onSubmit).toHaveBeenCalledTimes(1);
+});
+
+it("should not submit on Enter while the submit is disabled", () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    submit: {
+      text: submit.text,
+      disabled: true,
+      busy: false,
+      variant: submit.variant,
+    },
+    onSubmit,
+    children: <input aria-label="Name" />,
+  });
+
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+    key: "Enter",
+  });
+
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+it("should leave an Enter its input handled alone", () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    submit,
+    onSubmit,
+    children: (
+      <input aria-label="Name" onKeyDown={(ev) => ev.preventDefault()} />
+    ),
+  });
+
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+    key: "Enter",
+  });
+
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+it("should not submit when a button in the body without a type is clicked", () => {
+  const onSubmit = vi.fn();
+  const onClick = vi.fn();
+  renderFrame({
+    submit,
+    onSubmit,
+    // Legacy buttons render a bare `<button>`, which submits its form
+    children: <button onClick={onClick}>Copy</button>,
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+  expect(onClick).toHaveBeenCalledTimes(1);
+  expect(onSubmit).not.toHaveBeenCalled();
 });
 
 it("should submit once when the button is clicked", () => {

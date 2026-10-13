@@ -831,7 +831,6 @@ export class PgTheme {
       ._uploadArea()
       ._toast()
       ._topbar()
-      ._modal()
       ._markdown()
       ._terminal()
       ._wallet()
@@ -1257,49 +1256,6 @@ export class PgTheme {
     const theme = this._themeReady;
 
     topbar.bg ??= PgTheme.getDifferentBackground(theme.views.main.default.bg);
-
-    return this;
-  }
-
-  /** Set default modal component */
-  private static _modal() {
-    const modal = this._getComponent("modal");
-    const theme = this._themeReady;
-
-    // Default
-    modal.default ??= {};
-    modal.default.display ??= "flex";
-    modal.default.flexDirection ??= "column";
-    modal.default.bg ??= theme.colors.default.bgPrimary;
-    modal.default.border ??= `1px solid ${theme.colors.default.border}`;
-    modal.default.borderRadius ??= theme.default.borderRadius;
-    modal.default.maxWidth ??= "max(40%, 40rem)";
-    modal.default.maxHeight ??= "max(80%, 40rem)";
-
-    // Backdrop
-    modal.backdrop ??= theme.default.backdrop;
-
-    // Top
-    modal.top ??= {};
-    modal.top.position ??= "relative";
-    modal.top.display ??= "flex";
-    modal.top.justifyContent ??= "center";
-    modal.top.alignItems ??= "center";
-    modal.top.padding ??= "0 1.5rem";
-    modal.top.fontWeight ??= "bold";
-
-    // Content
-    modal.content ??= {};
-    modal.content.padding ??= "1rem 1.5rem";
-    modal.content.minWidth ??= "23rem";
-    modal.content.minHeight ??= "3rem";
-
-    // Bottom
-    modal.bottom ??= {};
-    modal.bottom.display ??= "flex";
-    modal.bottom.justifyContent ??= "flex-end";
-    modal.bottom.padding ??= "0.25rem 1.5rem 0.75rem";
-    modal.bottom.marginBottom ??= "0.25rem";
 
     return this;
   }

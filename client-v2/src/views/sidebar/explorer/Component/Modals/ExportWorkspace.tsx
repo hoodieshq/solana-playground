@@ -3,16 +3,17 @@ import styled, { css } from "styled-components";
 
 import Button from "../../../../../components/Button";
 import Markdown from "../../../../../components/Markdown";
-import Modal, { CommonModalPageProps } from "../../../../../components/Modal";
+import { ModalFrame, ModalPages } from "@/widgets/overlays";
+import type { ModalPageProps } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import { ExportFile, Info } from "../../../../../components/Icons";
 import { PgFramework, PgView } from "../../../../../utils";
 
 export const ExportWorkspace = () => (
-  <Modal multiple defaultPage={{ Component: Default }} />
+  <ModalPages defaultPage={{ Component: Default }} />
 );
 
-type DefaultProps = CommonModalPageProps;
+type DefaultProps = ModalPageProps;
 
 const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   const convertAndExport = async () => {
@@ -31,7 +32,7 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   };
 
   return (
-    <Modal title="Export project">
+    <ModalFrame name="export-workspace" title="Export project">
       <Content>
         <Question>Convert the project layout?</Question>
 
@@ -63,7 +64,7 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
           </Button>
         </ButtonsWrapper>
       </Content>
-    </Modal>
+    </ModalFrame>
   );
 };
 
@@ -96,13 +97,13 @@ const ButtonsWrapper = styled.div`
   }
 `;
 
-type ReadmeProps = CommonModalPageProps & {
+type ReadmeProps = ModalPageProps & {
   /** Markdown text */
   readme: string;
 };
 
 const Readme: FC<React.PropsWithChildren<ReadmeProps>> = ({ readme }) => (
-  <Modal title buttonProps={{ text: "Continue" }}>
+  <ModalFrame name="export-workspace" title buttonProps={{ text: "Continue" }}>
     <Markdown>{readme}</Markdown>
-  </Modal>
+  </ModalFrame>
 );
