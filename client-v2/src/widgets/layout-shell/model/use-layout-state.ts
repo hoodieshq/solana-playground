@@ -125,29 +125,46 @@ export const useLayoutState = () => {
     [update]
   );
 
+  // Reported once per mount: a refused drag means the panel library reported
+  // a layout `horizontalOf` / `workOf` / `verticalOf` do not recognise (a
+  // renamed or missing panel id), so every drag of the visit is lost the same
+  // way; the team hears of it once, and later refusals only warn
+  const reportedRefusedLayout = useRef(false);
+  const refuse = useCallback(
+    (group: "h" | "w" | "vert", layout: PanelLayout) => {
+      const report = !reportedRefusedLayout.current;
+      reportedRefusedLayout.current = true;
+      log.warn("A dragged layout was not saved", {
+        report,
+        context: { group, layout },
+      });
+    },
+    []
+  );
+
   const setHorizontal = useCallback(
     (layout: PanelLayout) => {
       const h = horizontalOf(layout);
       if (h) update({ ...latest.current, h });
-      else log.warn("A dragged layout was not saved", { context: { layout } });
+      else refuse("h", layout);
     },
-    [update]
+    [update, refuse]
   );
   const setWork = useCallback(
     (layout: PanelLayout) => {
       const w = workOf(layout);
       if (w) update({ ...latest.current, w });
-      else log.warn("A dragged layout was not saved", { context: { layout } });
+      else refuse("w", layout);
     },
-    [update]
+    [update, refuse]
   );
   const setVertical = useCallback(
     (layout: PanelLayout) => {
       const vert = verticalOf(layout);
       if (vert) update({ ...latest.current, vert });
-      else log.warn("A dragged layout was not saved", { context: { layout } });
+      else refuse("vert", layout);
     },
-    [update]
+    [update, refuse]
   );
 
   return { state, setOpen, setHorizontal, setWork, setVertical };

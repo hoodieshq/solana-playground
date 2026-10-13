@@ -114,6 +114,20 @@ it("should save no layout that is missing a panel, and log it", () => {
   ).toHaveLength(3);
 });
 
+it("should report the first refused drag of a mount and only warn after it", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  const { result } = renderHook(() => useLayoutState());
+  act(() => result.current.setWork({ center: 100 }));
+  act(() => result.current.setVertical({ stage: 100 }));
+  const reported = logs.entries.filter((entry) => entry.report);
+  expect(reported).toHaveLength(1);
+  expect(reported[0].context).toEqual({
+    group: "w",
+    layout: { center: 100 },
+  });
+});
+
 it("should write nothing on mount", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
   const setItem = vi.spyOn(Storage.prototype, "setItem");
