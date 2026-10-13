@@ -2,6 +2,7 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import Logomark from "./Logomark";
 import ProjectSwitcher from "./ProjectSwitcher";
 import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
@@ -16,7 +17,6 @@ import type { LessonState } from "../lessons";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { GRADIENT } from "../tokens";
 import { useKeybind } from "../../../hooks";
 
 interface HeaderProps {
@@ -108,12 +108,4 @@ const Zone = styled.div<{ $center?: boolean; $end?: boolean }>`
   min-width: 0;
   justify-content: ${({ $center, $end }) =>
     $center ? "center" : $end ? "flex-end" : "flex-start"};
-`;
-
-const Logomark = styled.div`
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: ${GRADIENT};
 `;

@@ -4,7 +4,7 @@ import styled, { css } from "styled-components";
 import Chevron from "./Chevron";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
-import Header from "./header/Header";
+import Header from "./header/StageBar";
 import LeftPanel from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
