@@ -20,6 +20,14 @@ let sent: ReturnType<typeof memoryProvider>;
 let logs: ReturnType<typeof logMemory>;
 beforeEach(() => {
   vi.useFakeTimers();
+  // jsdom has no matchMedia, which the host's width check listens on
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: () => ({
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  });
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   logs = logMemory();
@@ -137,4 +145,27 @@ it("should still show a raw event with no options, and warn", () => {
   expect(
     sent.events.filter((event) => event.name === "overlay_toast_shown")
   ).toHaveLength(1);
+});
+
+const offsetLeft = () =>
+  document
+    .querySelector<HTMLElement>("[data-sonner-toaster]")!
+    .style.getPropertyValue("--offset-left");
+
+it("should keep clear of the rail on a wide window", () => {
+  vi.spyOn(window, "innerWidth", "get").mockReturnValue(1280);
+  render(<ToastHost />);
+  // Sonner draws its list once there is a toast
+  show({ name: "demo", id: "o", duration: "persistent" });
+
+  expect(offsetLeft()).toBe("calc(3.25rem + 1rem)");
+});
+
+it("should not reserve the rail below 768 px, where the panel is a Sheet", () => {
+  vi.spyOn(window, "innerWidth", "get").mockReturnValue(700);
+  render(<ToastHost />);
+  // Sonner draws its list once there is a toast
+  show({ name: "demo", id: "o", duration: "persistent" });
+
+  expect(offsetLeft()).toBe("1rem");
 });

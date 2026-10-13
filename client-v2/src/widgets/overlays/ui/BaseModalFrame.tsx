@@ -11,6 +11,7 @@ import {
   ModalTitle,
 } from "@/shared/ui/modal";
 import { Spinner } from "@/shared/ui/spinner";
+import { isInsideToast } from "../model/toast-layer";
 
 export type BaseModalFrameProps = {
   title: string;
@@ -67,6 +68,14 @@ export const BaseModalFrame = ({
     }
   };
 
+  // Toasts sit over dialogs; using one is not a click away from the dialog
+  const keepOpenForToast = (ev: {
+    target: EventTarget | null;
+    preventDefault: () => void;
+  }) => {
+    if (isInsideToast(ev.target)) ev.preventDefault();
+  };
+
   const handleKeyDown = (ev: KeyboardEvent<HTMLFormElement>) => {
     if (ev.key !== "Enter" || ev.defaultPrevented) return;
     if (ev.nativeEvent.isComposing) return;
@@ -93,6 +102,8 @@ export const BaseModalFrame = ({
       size={size}
       aria-describedby={undefined}
       onOpenAutoFocus={handleOpenAutoFocus}
+      onPointerDownOutside={keepOpenForToast}
+      onInteractOutside={keepOpenForToast}
     >
       <form
         ref={formRef}

@@ -186,3 +186,50 @@ it("should focus the body's first input on open", () => {
     screen.getByRole("textbox", { name: "Name" })
   );
 });
+
+/** A press: Radix settles an outside press on the click that follows it */
+const pressOutside = (el: HTMLElement) => {
+  fireEvent.pointerDown(el);
+  fireEvent.click(el);
+};
+
+const renderOpen = (onOpenChange: (open: boolean) => void) =>
+  render(
+    <>
+      <div data-sonner-toaster="true">
+        <button type="button">toast close</button>
+      </div>
+      <button type="button">page</button>
+      <Modal open onOpenChange={onOpenChange}>
+        <BaseModalFrame
+          title="Rename"
+          hideTitle={false}
+          error=""
+          onSubmit={vi.fn()}
+          size="default"
+        />
+      </Modal>
+    </>
+  );
+
+it("should stay open when a toast is clicked", async () => {
+  const onOpenChange = vi.fn();
+  renderOpen(onOpenChange);
+  // Radix listens for outside clicks from the next tick
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  pressOutside(screen.getByText("toast close"));
+
+  expect(onOpenChange).not.toHaveBeenCalled();
+});
+
+it("should close when the page outside is clicked", async () => {
+  const onOpenChange = vi.fn();
+  renderOpen(onOpenChange);
+  // Radix listens for outside clicks from the next tick
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  pressOutside(screen.getByText("page"));
+
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+});

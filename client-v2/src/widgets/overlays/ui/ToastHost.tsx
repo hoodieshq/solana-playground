@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 
 import { useSetStatic } from "@/hooks/useSetStatic";
+import { useIsMobile } from "@/shared/lib/hooks/use-mobile";
 import { RAIL_WIDTH } from "@/shared/lib/hooks/use-viewport";
 import { createLogger } from "@/shared/lib/logger";
 import { Toaster } from "@/shared/ui/sonner";
@@ -34,13 +35,18 @@ const durationOf = (duration: ToastOptions["duration"]) => {
  * Renders the toasts sent with `PgView.setToast` in Sonner, at the bottom
  * left and clear of the rail.
  *
- * Sonner's layer is forced below the dialogs (`z-40`, under the dialog's
- * `z-50`) rather than left at its default, which is above everything: a
- * dialog's backdrop must catch every click, and a click on a toast would
- * otherwise count as outside the dialog and close it. It still clears the
- * left panel's container (`z-10`), so a toast opens over the panel.
+ * The toaster sits above the dialogs and the left panel's Sheet (`z-[60]`,
+ * over their `z-50`), as the legacy toast layer did: a toast must stay
+ * visible and usable whatever is open, a persistent one included. A modal
+ * layer sets `pointer-events: none` on the body, so the toaster turns it back
+ * on. A click on a toast over a dialog would count as outside it, so
+ * `BaseModalFrame` ignores one (`isInsideToast`). The stock Sheet is rendered
+ * by `LayoutShell` and has no such guard: a click on a toast over the open
+ * left-panel Sheet closes it.
  */
 export const ToastHost = () => {
+  // Below this width the left panel is a Sheet and there is no rail to clear
+  const noRail = useIsMobile();
   const show = useCallback(({ elementable, props }: ToastEvent) => {
     const options = props?.options;
     if (!options?.name) {
@@ -69,11 +75,14 @@ export const ToastHost = () => {
 
   return (
     <Toaster
-      className="toaster group z-40!"
+      className="toaster group z-[60]! pointer-events-auto"
       position="bottom-left"
       closeButton
       // The rail is a desktop part; on a phone the Sheet replaces it
-      offset={{ left: `calc(${RAIL_WIDTH} + 1rem)`, bottom: "1rem" }}
+      offset={{
+        left: noRail ? "1rem" : `calc(${RAIL_WIDTH} + 1rem)`,
+        bottom: "1rem",
+      }}
       mobileOffset={{ left: "1rem", bottom: "1rem" }}
     />
   );
