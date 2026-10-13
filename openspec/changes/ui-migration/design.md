@@ -313,9 +313,11 @@ The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
 three thresholds; that is accepted rather than editing `shared/`. On a phone
 Monaco gets `readOnly`, and the message that editing works from 600 px is
 shown through Monaco's message controller (0.37 has no `readOnlyMessage`
-option); chat works at every width. Explorer actions are not made read-only. The
-header's own compact steps (80 and 72 rem) stay; the phone's own structure is
-5.7 (HOO-2062).
+option); chat works at every width. Explorer actions are not made read-only.
+The header is gone since 5.2; its compact steps, `STEPPER_COMPACT_AT` (80 rem)
+and `CHIPS_COMPACT_AT` (72 rem), are kept as they are until 5.10 and 5.15
+restyle the stage bar and the footer. The phone's own structure is 5.7
+(HOO-2062).
 
 **Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
 {panel, open, via: button | key | drag | auto}`, `via: drag` when dragging an
@@ -347,8 +349,9 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
       ├─ stage bar: Stepper (as is, with Ctrl+1..4)
       └─ Group horizontal (id layout-work)
          ├─ Panel files: LeftPanel (as is; folds to its 52 px rail, ⌘E)
-         └─ Group vertical (id layout-vertical): stage (ObjectiveBand +
-            StageRouter) | console (Ctrl+J)
+         └─ Panel center
+            └─ Group vertical (id layout-vertical): stage (ObjectiveBand +
+               StageRouter) | console (Ctrl+J)
 ```
 
 - **The header is removed.** The logo and `ProjectSwitcher` go to the top of
@@ -368,24 +371,31 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
 - **Keys.** ⌘B folds the navigation (the stock Sidebar's own key), ⌘E the
   files column, Ctrl+R the assistant, Ctrl+J the console. The files toggle
   keeps "Collapse project panel" / "Expand project panel" and the rail's "New
-  file"; its hint reads ⌘E. Monaco binds ⌘E on a Mac (find with selection)
-  while it has focus; the shell's key is global and wins only outside it.
+  file"; its hint reads ⌘E. Below 768 ⌘E opens and closes the Sheet that
+  holds the files column. Monaco keeps ⌘E (find with selection) while the
+  editor has focus; the shell's ⌘E works outside the editor.
   _Rejected:_ ⌘B staying on the files column, leaving the navigation to its
   button alone.
 - **Width.** From `LAYOUT_BREAKPOINTS.compact` (1024) every column is in
-  place. Between `left` (768) and 1024 the navigation is a rail, the files
-  column stays, and the assistant is the right Sheet, as in 5.1. Below 768
-  the navigation and the files column share the stock Sidebar's Sheet, opened
-  by "Expand project panel" at the left edge, as the project Sheet is today:
-  a phone has no room for a files column, and its own structure is 5.7.
+  place. Between `left` (768) and 1024 the navigation starts as a rail on
+  every load; ⌘B or its button unfold it for the visit, and that is not
+  saved. The files column stays, and the assistant is the right Sheet, as in
+  5.1. Below 768 the navigation and the files column share the stock
+  Sidebar's Sheet, opened by "Expand project panel" at the left edge, as the
+  project Sheet is today; the files toggle and ⌘E open and close that Sheet.
+  A phone has no room for a files column, and its own structure is 5.7.
 - **Panels.** The assistant is 280 to 560 px as in 5.1; the files column
-  opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem to 30% of the
-  work area; the stage keeps at least 320 px. Opening goes through
+  opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem, with no
+  maximum of its own (a 30% cap fell below its own minimum on a 1024 px
+  window); the stage keeps at least 240 px. The work area's minimum is the
+  files column's minimum, a handle and the stage's minimum (440 px), so on a
+  1024 px window the assistant gives way below its 348 px default. Opening goes through
   `resize(openSize)`, never `expand()`, and only `onLayoutChanged` with
   `isUserInteraction` saves, as 5.1 learned.
 - **What survives a reload** moves to `{v: 2, open: {nav, files, assistant,
   console}, h?, w?, vert?}` under the same `layout` key, where `h` is the
-  assistant and work group, `w` the files and stage group, `vert` as before.
+  assistant and work group, `w` the files and center group (`{files,
+  center}`), `vert` as before.
   A `v: 1` value is migrated, not dropped: `left` becomes `files`, the
   navigation opens, `assistant`, `console` and `vert` are kept, and `h` is
   dropped, since its panel ids changed. Folded panels keep no sizes, as in

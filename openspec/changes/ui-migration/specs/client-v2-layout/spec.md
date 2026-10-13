@@ -79,7 +79,8 @@ assistant, the files column, and the stage over the console, with the stage
 bar (`flow-stage-tab-*`: Write, Build, Deploy, Interact) across the files
 column and the stage. There SHALL be no top header: the project switcher
 SHALL be in the navigation and the cluster, wallet and settings controls in
-its footer. Between 768 and 1023 px the navigation SHALL be a rail and the
+its footer. Between 768 and 1023 px the navigation SHALL start as a rail on
+every load and the
 assistant a Sheet opened by "Expand assistant". Below 768 px the navigation
 and the files column SHALL share one Sheet opened by "Expand project panel".
 
