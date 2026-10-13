@@ -35,6 +35,14 @@ export const BaseFeedbackWidget = ({
 }: BaseFeedbackWidgetProps) => (
   // Above "+ New file" in the project panel: over the panel (z-10), under the toasts that open in this corner (z-15) and every modal
   <div className="fixed bottom-12 left-4 z-[12] rounded-full gradient-stroke shadow-lg [--stroke-fill:var(--surface-panel)]">
+    {sending && (
+      // A halo behind the button, so a send behind a closed form is seen without looking for the spinner
+      <span
+        aria-hidden="true"
+        data-slot="feedback-pulse"
+        className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-primary/40 motion-safe:animate-ping"
+      />
+    )}
     <DropdownMenu>
       <DropdownMenuTrigger asChild ref={triggerRef}>
         <Button

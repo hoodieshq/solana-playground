@@ -71,7 +71,8 @@ page of its own on a phone. What the user typed and the stars they chose
 SHALL be kept, across closing and opening the form, until a send succeeds.
 While a send is in progress, Submit SHALL be disabled and the fields SHALL
 be read-only; the form MAY be closed, and the "Feedback" button SHALL then
-show a spinner labelled "Sending feedback" until the send ends.
+show a spinner labelled "Sending feedback", inside a halo that pulses where
+the user allows motion, until the send ends.
 
 - Rating: a `radiogroup` with the `aria-label` "Rating" of five radios, each
   labelled "N of 5 stars"; optional; the chosen star and those before it are
@@ -86,7 +87,7 @@ show a spinner labelled "Sending feedback" until the send ends.
 - **WHEN** the user presses Escape or the close button while a send is in
   progress
 - **THEN** the form closes, focus returns to the "Feedback" button, and the
-  button shows the spinner until the send ends
+  button shows the spinner and the pulsing halo until the send ends
 
 #### Scenario: An empty message (manual)
 

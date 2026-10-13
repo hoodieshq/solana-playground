@@ -48,11 +48,11 @@ describe("BaseFeedbackWidget", () => {
   });
 
   it.each([
-    [false, []],
-    [true, ["Sending feedback"]],
+    [false, [], 0],
+    [true, ["Sending feedback"], 1],
   ])(
     "should show on the trigger whether a send is in flight: %s",
-    (sending, statuses) => {
+    (sending, statuses, pulses) => {
       renderWidget(true, sending);
 
       expect(
@@ -60,6 +60,9 @@ describe("BaseFeedbackWidget", () => {
           .queryAllByRole("status")
           .map((status) => status.getAttribute("aria-label"))
       ).toEqual(statuses);
+      expect(
+        document.querySelectorAll('[data-slot="feedback-pulse"]')
+      ).toHaveLength(pulses);
     }
   );
 

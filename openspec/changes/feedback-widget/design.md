@@ -153,8 +153,9 @@ carries none of the tags. A second case answers `500` and asserts that
 All four live in `features/feedback/ui`:
 
 - `BaseFeedbackWidget`: `dropdown-menu`, an icon `button` (ghost) that
-  shows `spinner` while a send is in flight, and `gradient-stroke` with
-  `--stroke-fill: var(--surface-panel)`.
+  shows `spinner` while a send is in flight, a `primary` halo behind it
+  that pulses (`motion-safe:animate-ping`) meanwhile, and `gradient-stroke`
+  with `--stroke-fill: var(--surface-panel)`.
 - `BaseFeedbackForm`: `modal`, `label`, `textarea`, `input`, and
   `async-button` with the `accent` look of `brand-button`.
 - `BaseStarRating`, private to the form: native radios, the `lucide-react`
@@ -174,7 +175,8 @@ two are independent on purpose: the user may close a sending form, and a
 send that refused to close would trap the user until the SDK's 30 s timeout
 whenever Sentry never answers. Every combination is valid:
 
-- `sending` behind a closed form: the trigger shows a spinner.
+- `sending` behind a closed form: the trigger shows a spinner in a pulsing
+  halo.
 - `failed` behind a closed form: a toast says so, and the alert shows when
   the form opens again.
 - A success closes the form, whichever state it was in, and clears the
