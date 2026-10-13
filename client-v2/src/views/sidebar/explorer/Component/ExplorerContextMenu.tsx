@@ -54,16 +54,21 @@ export const ExplorerContextMenu: FC<
   handleMenu,
   children,
 }) => {
-  // An item that opens the new-item input or a dialog moves the focus there
-  // itself. Radix would return it to the trigger on close, and its focus trap
-  // keeps the input from taking it while the menu is still open, so the input
-  // is focused here, once the menu has let go.
-  const choseItem = useRef(false);
+  // Choosing New File or New Folder opens the inline input. Radix's focus trap
+  // keeps the input from taking focus while the menu is open, and Radix would
+  // then return focus to the trigger on close, so the input is focused once
+  // the menu has let go. Every other item keeps Radix's return to the trigger
+  // (a dialog moves the focus itself).
+  const openedInput = useRef(false);
+  const newItem = () => {
+    openedInput.current = true;
+    ctxNewItem();
+  };
 
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (open) choseItem.current = false;
+        if (open) openedInput.current = false;
         else PgExplorer.removeCtxSelectedEl();
       }}
     >
@@ -78,23 +83,24 @@ export const ExplorerContextMenu: FC<
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent
-        onClickCapture={() => (choseItem.current = true)}
         onCloseAutoFocus={(ev) => {
-          if (!choseItem.current) return;
+          if (!openedInput.current) return;
+          const input = document.querySelector<HTMLInputElement>(
+            `#${PgView.ids.ROOT_DIR} input`
+          );
+          if (!input) return;
           ev.preventDefault();
-          document
-            .querySelector<HTMLInputElement>(`#${PgView.ids.ROOT_DIR} input`)
-            ?.focus();
+          input.focus();
         }}
       >
         {itemData.isFolder && (
           <>
-            <ContextMenuItem onSelect={ctxNewItem}>
+            <ContextMenuItem onSelect={newItem}>
               <NewFile />
               <MenuItemText>New File</MenuItemText>
               <ContextMenuShortcut>ALT+N</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuItem onSelect={ctxNewItem}>
+            <ContextMenuItem onSelect={newItem}>
               <NewFolder />
               <MenuItemText>New Folder</MenuItemText>
               <ContextMenuShortcut>ALT+N</ContextMenuShortcut>

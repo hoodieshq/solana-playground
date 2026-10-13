@@ -120,4 +120,39 @@ describe("ExplorerContextMenu", () => {
     expect(props.deleteItem).not.toHaveBeenCalled();
     expect(clear).toHaveBeenCalled();
   });
+
+  it("focuses the new-item input after New File, not the trigger", async () => {
+    const props = makeProps(() => true);
+    props.itemData = { isFolder: true };
+    // What the explorer's portal puts in the tree
+    const root = document.createElement("div");
+    root.id = "root-dir";
+    const input = document.createElement("input");
+    root.appendChild(input);
+    document.body.appendChild(root);
+    renderMenu(props);
+
+    fireEvent.contextMenu(screen.getByTestId("target"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /New File/ }));
+
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    root.remove();
+  });
+
+  it("leaves focus to Radix's return to the trigger after Rename and Delete", async () => {
+    for (const name of [/Rename/, /Delete/]) {
+      const props = makeProps(() => true);
+      const { unmount } = renderMenu(props);
+      const target = screen.getByTestId("target");
+      // A right-click focuses the item first, as a browser does
+      target.tabIndex = 0;
+      target.focus();
+
+      fireEvent.contextMenu(target);
+      fireEvent.click(await screen.findByRole("menuitem", { name }));
+
+      await waitFor(() => expect(document.activeElement).toBe(target));
+      unmount();
+    }
+  });
 });

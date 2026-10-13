@@ -43,6 +43,7 @@ test("client-v2-overlays: Choosing an item from the explorer's menu", async ({
   seededPage: page,
 }) => {
   await openRename(page);
+  await expect(page.getByRole("menu")).toHaveCount(0);
 });
 
 test("client-v2-overlays: Escape closes a menu", async ({
@@ -53,6 +54,9 @@ test("client-v2-overlays: Escape closes a menu", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "lib.rs" }).first()
+  ).toBeFocused();
 });
 
 test("client-v2-overlays: Renaming a file through its dialog", async ({
@@ -70,7 +74,7 @@ test("client-v2-overlays: A failing submit keeps the dialog", async ({
   seededPage: page,
 }) => {
   const dialog = await renameToExisting(page);
-  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByRole("alert")).toHaveText(/already exists/i);
   await expect(dialog).toBeVisible();
 });
 
@@ -121,13 +125,25 @@ test("client-v2-overlays: A toast clear of the rail", async ({
   );
   const toast = page.getByText("overlays e2e toast");
   await expect(toast).toBeVisible();
-  // It slides in from the left; measure where it comes to rest
-  await expect
-    .poll(async () => (await toast.boundingBox())?.x ?? -1)
-    .toBeGreaterThanOrEqual(0);
-  const box = (await toast.boundingBox())!;
   const railBox = (await rail.boundingBox())!;
+  // It rises into place from below the window; wait for it to be the topmost
+  // thing at its own centre, which it only is once it is on screen
+  await expect
+    .poll(() =>
+      toast.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2
+        );
+        return hit !== null && el.contains(hit);
+      })
+    )
+    .toBe(true);
+  const box = (await toast.boundingBox())!;
+  const viewport = page.viewportSize()!;
   expect(box.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
+  expect(box.y).toBeGreaterThan(viewport.height / 2);
 });
 
 test("client-v2-overlays: Events of a failing dialog", async ({
