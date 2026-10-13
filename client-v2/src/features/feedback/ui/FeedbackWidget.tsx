@@ -10,7 +10,6 @@ import { useFeedbackForm } from "../model/use-feedback-form";
 import { BaseFeedbackForm } from "./BaseFeedbackForm";
 import { BaseFeedbackWidget } from "./BaseFeedbackWidget";
 
-// A toast is drawn under an open modal's overlay, so the open form shows its outcome itself
 const thank = () =>
   PgView.setToast(() => (
     <span>
@@ -19,6 +18,7 @@ const thank = () =>
     </span>
   ));
 
+// Only for a form the user closed: an open form shows the failure inside itself, where they are reading
 const warn = () =>
   PgView.setToast(() => (
     <span>

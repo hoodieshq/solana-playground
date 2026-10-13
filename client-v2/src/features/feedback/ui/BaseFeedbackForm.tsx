@@ -32,7 +32,7 @@ export const CONTACT_MAX_LENGTH = 16;
 
 export interface BaseFeedbackFormProps {
   open: boolean;
-  /** `failed` shows its alert inside the modal: toasts are drawn under the modal's overlay */
+  /** `failed` shows its alert inside the modal, where the user is reading, not in a toast that times out */
   send: SendStatus;
   /** Held outside, so a closed form gets it back */
   draft: FeedbackDraft;
@@ -63,6 +63,12 @@ export const BaseFeedbackForm = ({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // `required` accepts a message of only spaces; refuse it as the browser refuses an empty one
+    if (!draft.message.trim()) {
+      message.current?.setCustomValidity("Write your feedback first");
+      message.current?.reportValidity();
+      return;
+    }
     onSubmit();
   };
 
@@ -104,9 +110,10 @@ export const BaseFeedbackForm = ({
                 maxLength={MESSAGE_MAX_LENGTH}
                 rows={5}
                 value={draft.message}
-                onChange={(event) =>
-                  onDraftChange({ ...draft, message: event.target.value })
-                }
+                onChange={(event) => {
+                  event.target.setCustomValidity("");
+                  onDraftChange({ ...draft, message: event.target.value });
+                }}
                 // A send clears the draft when it succeeds, so text typed meanwhile would be lost
                 readOnly={sending}
                 className={cn("resize-none", INHERIT_FONT)}

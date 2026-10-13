@@ -60,9 +60,16 @@ logger provider imports it.
   provider delegates to it; what the logger sends to Sentry does not change.
 - `client-v2/craco.config.js`: the Sentry tracker swaps the new pair instead
   of the logger's provider, so a build without Sentry still bundles no SDK
-  code.
-- `client-v2/package.json`: `@testing-library/user-event` as a development
-  dependency, for the components' interaction tests.
+  code; production builds, and opted-in previews, emit hidden source maps
+  (`scripts/sourcemap-gate.mjs`).
+- `client-v2/package.json`: `@testing-library/user-event` and `@sentry/cli`
+  as development dependencies. `yarn build` becomes the whole production
+  build (`wasm/build.sh`, a reinstall, `build:bundle`); `build:bundle` is the
+  former `build` plus `scripts/upload-sourcemaps.mjs`, which uploads the maps
+  to Sentry and deletes them before deploy. This lands `telemetry-and-logging`
+  task 2.3.
+- `client-v2/vercel.json` and `compose.yaml`'s `client-v2-prod`: run
+  `build:bundle`, since both already have the wasm packages built.
 - `client-v2/src/shared/lib/telemetry/prefixes.ts`: the `feedback` prefix.
 - `client-v2/src/shared/ui/`: `modal`, `dropdown-menu`, `textarea`, `label`,
   `async-button` and `brand-button` installed with `yarn ds-add`.
@@ -72,8 +79,8 @@ logger provider imports it.
   What they type and the handle they give reach Sentry, which the team can
   read. In a build without Sentry they
   see the button with the two GitHub links.
-- Depends on #60 for the design tokens and `shared/ui`; the branch is stacked
-  on it and is rebased whenever it moves.
+- Builds on #60, merged into `master-2.0`, for the design tokens and
+  `shared/ui`.
 - Out of scope:
   - Issue templates or labels on `solana-foundation/solana-playground`; a
     label in a new-issue link applies only for people with triage rights, so

@@ -91,7 +91,7 @@ the user allows motion, until the send ends.
 
 #### Scenario: An empty message (manual)
 
-- **WHEN** the user presses Submit with no message
+- **WHEN** the user presses Submit with no message, or a message of only spaces
 - **THEN** the browser refuses the form and nothing is sent
 
 #### Scenario: Arrow keys move the rating (manual)
@@ -104,6 +104,19 @@ the user allows motion, until the send ends.
 - **WHEN** the user picks three stars, types a message, closes the form and
   opens it again
 - **THEN** the three stars and the message are as the user left them
+
+### Requirement: One browser module imports the Sentry SDK
+
+Only `shared/lib/reporter/sentry.ts` SHALL import `@sentry/react` among the
+non-test files under `client-v2/src`; the feedback slice and the logger reach
+Sentry through `shared/lib/reporter`. A build that does not report SHALL
+bundle no Sentry SDK code, because craco swaps that one module for its stub.
+
+#### Scenario: A second importer (manual)
+
+- **WHEN** a non-test file under `client-v2/src` other than the reporter
+  imports `@sentry/react`
+- **THEN** `src/app/slice-structure.test.ts` fails and names the file
 
 ### Requirement: A sent form reaches Sentry as user feedback
 
@@ -130,8 +143,8 @@ on events sent after it.
 A send that Sentry accepts SHALL close the form, clear what was typed, and
 show a success toast "Feedback sent!". A send that fails SHALL keep what was
 typed. While the form is open it SHALL show, inside the form, an alert
-"Could not send feedback" that points at the GitHub links; toasts are drawn
-under an open modal's overlay. While the form is closed it SHALL show a
+"Could not send feedback" that points at the GitHub links, not a toast in the
+corner, away from the form. While the form is closed it SHALL show a
 toast "Could not send feedback." that points the user back at the form, and
 the alert SHALL show when the form opens again.
 

@@ -1,7 +1,6 @@
 # Tasks
 
-Tasks 1.1 and 2.1 may run at the same time. The branch is stacked on #60
-and is rebased whenever #60 moves.
+Tasks 1.1 and 2.1 may run at the same time.
 
 ## 1. Design-system parts
 
@@ -26,7 +25,7 @@ and is rebased whenever #60 moves.
   asserts the feedback envelope (message, name, source, URL, tags), that a
   message captured afterwards carries none of the feedback tags, and that
   a `500` from the transport makes `sendFeedback` reject; and by grepping a
-  `yarn build` without `VERCEL_ENV` for no Sentry SDK code. Ticket to file.
+  `yarn build:bundle` without `VERCEL_ENV` for no Sentry SDK code. Ticket to file.
 
 ## 3. The feedback slice
 
@@ -47,13 +46,15 @@ and is rebased whenever #60 moves.
 - [x] 3.2 Add `BaseStarRating`, `BaseFeedbackForm` and
   `BaseFeedbackWidget`, styled only with design-system tokens (`primary`,
   `surface-panel`, `gradient-stroke`). Verify with interaction tests that
-  drive each by role, label and key with `user-event`: every `(manual)`
-  form scenario of `client-v2-feedback` (empty message refused, arrow keys
-  move the rating, a closed form keeps its draft, report a bug from the
-  form, closing mid-send), the menu with and without "Share feedback", the
-  trigger's spinner, Submit disabled and the fields read-only while sending,
-  focus back on the trigger after Escape, and the ids and `aria-label`s the
-  spec names. Depends on 1.1.
+  drive each by role, label and key with `user-event`: the form scenarios
+  of `client-v2-feedback` a component can show alone (an empty or
+  spaces-only message refused, arrow keys move the rating, the draft it is
+  given shown, report a bug from the form), the menu with and without
+  "Share feedback", the trigger's spinner and pulse, Submit disabled and the
+  fields read-only while sending, focus back on the trigger after Escape,
+  and the ids and `aria-label`s the spec names. A closed form keeping its
+  draft is tested in 3.1's hook tests, and closing mid-send in 3.1's and
+  3.3's. Depends on 1.1.
   May run beside 3.1. Ticket to file.
 - [x] 3.3 Add the connected `FeedbackWidget` with the provider context.
   Verify with an integration test that renders it over the real

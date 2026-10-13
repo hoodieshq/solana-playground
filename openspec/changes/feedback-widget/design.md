@@ -9,7 +9,7 @@
   in every build where `sentryEnabled` (`scripts/sentry-gate.mjs`) is false.
   `REACT_APP_SENTRY_DSN` is still inlined in those builds, so "a DSN is set"
   does not mean "Sentry is initialised".
-- The design tokens and `shared/ui` arrive with #60. `modal`,
+- The design tokens and `shared/ui` came with #60. `modal`,
   `async-button` and `brand-button` are registry items
   (`design-system/registry.json`); the stock `dropdown-menu`, `textarea`
   and `label` have sources in `design-system/src/components/ui` and no
@@ -213,9 +213,10 @@ spec (ticket to file).
 A sent form, which has closed, is thanked with `PgView.setToast`. Installing
 `sonner` would mount a second toast container with its own position and
 stacking. A failed send behind an open form is shown in the form as an
-alert instead: the legacy toasts (z-15) are drawn under the modal's overlay
-(z-50), where the walk-through found the message unreadable. Behind a closed
-form no overlay covers the toast, so the failure is a toast there.
+alert instead: a toast opens in the bottom-left corner, away from the form the
+user is reading, and closes on a timer, so the walk-through found the form
+saying nothing while the outcome showed elsewhere. Behind a closed form there
+is nothing to read but the toast, so the failure is a toast there.
 
 ## Risks / Trade-offs
 
@@ -225,11 +226,9 @@ form no overlay covers the toast, so the failure is a toast there.
 - [The trigger covers what is under it] → it sits at the bottom left, above
   the project panel's "+ New file", where the panel's file tree ends; at the
   bottom right it covered the assistant's key field. It is z-12: over the
-  panel (z-10), under the toasts that open in that corner (z-15) and every
-  modal. Its offset is one place to change; the walk-through checks the
-  panel open, folded to its rail, and as a phone Sheet.
-- [The branch is stacked on #60] → rebased whenever #60 moves; a rebase is a
-  review verdict here.
+  panel (z-10), under the toasts that open in that corner and every modal.
+  Its offset is one place to change; the walk-through checks the panel open,
+  folded to its rail, and as a phone Sheet.
 - [The feedback text reaches Sentry, which the team reads] → the message is
   never put in telemetry; the spec forbids it.
 

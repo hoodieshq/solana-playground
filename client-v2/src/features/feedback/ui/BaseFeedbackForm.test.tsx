@@ -112,13 +112,31 @@ describe("BaseFeedbackForm", () => {
     expect(star(3).checked).toBe(true);
   });
 
-  it("should refuse an empty message", async () => {
+  it.each([
+    ["empty", ""],
+    ["only spaces", "   "],
+  ])("should refuse a message that is %s", async (_, text) => {
     const onSubmit = vi.fn();
-    render(<Harness onSubmit={onSubmit} />);
+    render(
+      <Harness onSubmit={onSubmit} initial={{ message: text, contact: "" }} />
+    );
 
     await submit();
 
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("should send once a refused message gets real text", async () => {
+    const onSubmit = vi.fn();
+    render(
+      <Harness onSubmit={onSubmit} initial={{ message: "   ", contact: "" }} />
+    );
+    await submit();
+
+    await userEvent.type(message(), "Deploy is slow");
+    await submit();
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it("should move the rating with the arrow keys", async () => {

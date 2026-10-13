@@ -44,9 +44,9 @@ All commands run from `client-v2/`.
 ../wasm/stub-packages.sh   # REQUIRED before first install (see below)
 yarn install --frozen-lockfile
 yarn dev                   # generate-fast + craco start
-yarn build                 # the whole production build: wasm/build.sh, install, build:slim (~1h first run)
-yarn build:slim            # generate + craco build over whatever wasm/*/pkg holds; Vercel runs this
-yarn test                  # test-types + test-unit + build:slim
+yarn build                 # the whole production build: wasm/build.sh, install, build:bundle (~1h first run)
+yarn build:bundle          # generate + craco build + source-map upload, over whatever wasm/*/pkg holds; Vercel runs this
+yarn test                  # test-types + test-unit + build:bundle
 yarn test-types            # tsc --noEmit
 yarn test-e2e              # playwright
 yarn test-api              # node --test, for api/ and **/server/*.mjs

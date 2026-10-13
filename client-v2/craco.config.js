@@ -202,7 +202,7 @@ module.exports = {
         );
       }
 
-      // `build` passes GENERATE_SOURCEMAP=false, so CRA emits none; hidden maps
+      // `build:bundle` passes GENERATE_SOURCEMAP=false, so CRA emits none; hidden maps
       // carry no `sourceMappingURL`, so browsers never fetch them
       if (env === "production" && sourcemapsEnabled(process.env)) {
         webpackConfig.devtool = "hidden-source-map";
