@@ -85,7 +85,8 @@ Tablet keeps 5.1's behaviour until the designer delivers a tablet layout
       (HOO-1854; after 3.6 and 4.3; plan: `plans/5.1-layout-shell.md`)
 - [ ] 5.2 Frame: the four-column frame, the header removed, today's pieces
       moved unchanged (HOO-2055; after 5.1; design.md, "The four-column
-      frame (5.2)")
+      frame (5.2)"; plan:
+      [plans/5.2-four-column-frame.md](plans/5.2-four-column-frame.md))
 - [ ] 5.3 Elements: leaves (Tag, Callout, Badge, Checkbox, Switch, Progress,
       Collapsible and the like) swapped app-wide (HOO-2058; parallel)
 - [ ] 5.4 Elements: buttons (BrandButton, AsyncButton, CopyButton, HelpTip)
