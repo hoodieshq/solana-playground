@@ -38,6 +38,9 @@ const runHelp = async (page: Page) => {
   if ((await drawer.getAttribute("aria-expanded")) !== "true") {
     await drawer.click();
   }
+  // The editor focuses itself when it opens the first file; landing after the
+  // click below, it takes the typing and the terminal never sees `help`
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
   await page.getByLabel("Terminal input").first().click();
   await page.keyboard.type("help");
   await page.keyboard.press("Enter");
