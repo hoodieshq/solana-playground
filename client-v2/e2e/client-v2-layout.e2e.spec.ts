@@ -567,23 +567,25 @@ test("a toast opens above the navigation", async ({ seededPage: page }) => {
   );
   const toast = page.getByText("layout e2e toast");
   await expect(toast).toBeVisible();
-  // It slides in from the left; measure where it comes to rest
-  await expect
-    .poll(async () => (await toast.boundingBox())?.x ?? -1)
-    .toBeGreaterThanOrEqual(0);
-  const box = (await toast.boundingBox())!;
   const left = (await navColumn(page).boundingBox())!;
+  // It rises into place from below the window, so the first frames sit off
+  // screen where nothing is hit; wait for it to be the topmost thing at its
+  // own centre
+  await expect
+    .poll(() =>
+      toast.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2
+        );
+        return hit !== null && el.contains(hit);
+      })
+    )
+    .toBe(true);
   // The toast really is over the navigation, not beside it
+  const box = (await toast.boundingBox())!;
   expect(box.x).toBeLessThan(left.x + left.width);
-  const onTop = await toast.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(
-      rect.x + rect.width / 2,
-      rect.y + rect.height / 2
-    );
-    return hit !== null && el.contains(hit);
-  });
-  expect(onTop).toBe(true);
 });
 
 test.describe("the layout_viewport event", () => {
