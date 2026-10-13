@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -14,6 +15,7 @@ import {
 import { Modal } from "@/shared/ui/modal";
 import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
+import { overlayTelemetry } from "../model/telemetry";
 import { ModalFrame } from "./ModalFrame";
 import { ModalPages } from "./ModalPages";
 import type { ModalPageProps } from "./ModalPages";
@@ -257,4 +259,66 @@ it("should report a dialog of several pages as opened once", () => {
 
   expect(screen.getByRole("dialog", { name: "Done" })).toBeTruthy();
   expect(events("overlay_modal_opened")).toEqual([{ name: "share" }]);
+});
+
+it("should clear the last error when a retry succeeds", async () => {
+  const onSubmit = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("exists"))
+    .mockResolvedValueOnce(undefined);
+  renderFrame({
+    title: "Rename",
+    buttonProps: { text: "Rename", onSubmit, noCloseOnSubmit: true },
+  });
+
+  await submit("Rename");
+  expect(screen.getByRole("alert").textContent).toBe("exists");
+  await submit("Rename");
+
+  expect(onSubmit).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("should log the failure even when the tracker throws, and not let it escape", async () => {
+  vi.spyOn(overlayTelemetry, "track").mockImplementation((event) => {
+    if (event === "overlay_modal_submit_failed")
+      throw new Error("tracker down");
+  });
+  renderFrame({
+    title: "Rename",
+    buttonProps: {
+      text: "Rename",
+      onSubmit: async () => {
+        throw new Error("exists");
+      },
+    },
+  });
+
+  await submit("Rename");
+
+  expect(screen.getByRole("alert").textContent).toBe("exists");
+  // The submit's failure first, then the tracker's own
+  expect(
+    logs.entries.map((entry) => ({
+      ns: entry.ns,
+      report: entry.report,
+      message: entry.error?.message,
+    }))
+  ).toEqual([
+    { ns: "overlays:modal-frame", report: true, message: "exists" },
+    { ns: "overlays:modal-frame", report: true, message: "tracker down" },
+  ]);
+});
+
+it("should send overlay_modal_opened once under StrictMode", () => {
+  // StrictMode runs every effect twice on mount, as the dev server does
+  render(
+    <StrictMode>
+      <Modal open>
+        <ModalFrame name="rename-item" title="Rename" />
+      </Modal>
+    </StrictMode>
+  );
+
+  expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
 });

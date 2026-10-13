@@ -10,9 +10,9 @@ import { ModalLayerContext } from "./modal-layer";
 
 /**
  * Renders the dialogs opened with `PgView.setModal` in the design system's
- * `Modal`. A dialog opened from another stacks on it; the one below stays
- * mounted, hidden, and shows again with its state when the top one closes.
- * Escape and a click outside close the top dialog with no answer.
+ * `Modal`. A dialog opened from another stacks on it. The one below stays
+ * mounted but draws nothing: state held above its `ModalFrame` survives, the
+ * frame's own subtree remounts when it is on top again. Escape and a click outside close the top dialog with no answer.
  */
 export const ModalHost = () => {
   const [modals, setModals] = useState<ReactElement[]>([]);

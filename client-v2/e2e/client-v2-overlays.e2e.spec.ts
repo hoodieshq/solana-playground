@@ -68,6 +68,7 @@ test("client-v2-overlays: Renaming a file through its dialog", async ({
   await page.keyboard.press("Enter");
   await expect(dialog).toBeHidden();
   await expect(file(page, "renamed.rs")).toBeVisible();
+  await expect(file(page, "lib.rs")).toHaveCount(0);
 });
 
 test("client-v2-overlays: A failing submit keeps the dialog", async ({
@@ -158,4 +159,14 @@ test("client-v2-overlays: Events of a failing dialog", async ({
   expect(lineOf(lines, "overlay_modal_submit_failed")).toContain(
     "name: rename-item"
   );
+  // The dialog is reported once, and no event carries what the user typed
+  const overlayLines = lines.filter((line) =>
+    line.startsWith("[telemetry:event] overlay_")
+  );
+  expect(
+    overlayLines.filter((line) =>
+      line.startsWith("[telemetry:event] overlay_modal_opened ")
+    )
+  ).toHaveLength(1);
+  expect(overlayLines.filter((line) => line.includes("b.rs"))).toEqual([]);
 });
