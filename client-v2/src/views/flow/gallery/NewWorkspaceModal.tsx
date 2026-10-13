@@ -20,10 +20,14 @@ const PROGRAMS_URL = "/programs/programs.json";
  * (`PgTutorial.open`, `PgGithub.import`) so nothing about how a project gets
  * created is reinvented here.
  */
-const NewWorkspaceModal = () => {
+const NewWorkspaceModal = ({
+  initialTab = "tutorials",
+}: {
+  initialTab?: Tab;
+}) => {
   // Tutorials lead: a verified path is what this fork is for, and a gallery
   // opening on the program list buries it behind a tab nobody clicks
-  const [tab, setTab] = useState<Tab>("tutorials");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramListing[] | null>(null);
 
