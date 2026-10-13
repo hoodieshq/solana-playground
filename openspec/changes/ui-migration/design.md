@@ -423,6 +423,63 @@ Kept: every id, `aria-label` and test id (`flow-console-drawer-body`,
 assistant", "Console", "New file"). `left-panel-toggle.e2e` moves to ⌘E and
 the files column; a new e2e covers ⌘B on the navigation.
 
+## Menus, dialogs, tooltips and toasts (5.2.1)
+
+Decided with Slava on 2026-10-13 (HOO-2061). The first element move of 5.2;
+the account footer, project list, New project and Settings (HOO-2068 to
+HOO-2071) build on it. One PR.
+
+- **The registry first.** `dialog`, `dropdown-menu`, `context-menu`,
+  `popover`, `hover-card`, `drawer` and `sonner` exist as files in
+  `design-system/src/components/ui/` but not as registry items; they are
+  added to `registry.json` and installed with `yarn ds-add`. `sonner` takes
+  its theme from our tokens instead of `next-themes`, which client-v2 does
+  not have; that edit is made in the design system.
+- **The four menus use the stock parts directly**, with Menu extras for the
+  line under a name and the key hint: the editor tab's and the explorer's
+  context menus, and the wallet's two dropdowns (only their menus; the rest of
+  the wallet is HOO-2074). No wrapper of ours. `components/Menu` is deleted.
+- **Drawer is installed, not used yet.** None of the four menus is reached on
+  a phone today (two open on right-click, the wallet moves in HOO-2074). The
+  phone Drawer arrives with the first phone menu (HOO-2069/HOO-2070) or in 5.3.
+- **Tooltip.** Its four call sites move to the stock `Tooltip` with a 500 ms
+  delay; `help` becomes `HelpTip`. `components/Tooltip` and
+  `components/Popover` (used only by Tooltip) are deleted.
+- **Dialogs keep `PgView.setModal`.** The stack, the promise of an answer and
+  `onDidOpenModal` (which closes the left Sheet) stay in `PgView`; only the
+  renderer changes. The 21 dialog bodies keep the old `<Modal>` props (`title`,
+  `buttonProps` with `onSubmit`/`noCloseOnSubmit`, `closeButton`) on
+  `ModalFrame`, so each changes an import and gains a `name`. A submit that
+  throws shows its message in the frame and keeps it open, as today. Enter
+  submits through a `<form>`. `size="wide"` is the gallery's.
+- **Toasts keep `PgView.setToast` and `closeToast`.** The options become our
+  own type, `{name, id?, duration?: number | "persistent"}`, instead of
+  react-toastify's `ToastOptions`; `id` replaces `toastId`, `"persistent"`
+  replaces `autoClose: false`. Sonner sits bottom left, offset past the rail.
+  react-toastify and its overrides in `themes/palette.ts` go.
+- **Names are explicit.** Component names do not survive minification, so
+  every dialog's `ModalFrame` and every `setToast` call declares a kebab-case
+  `name` for telemetry.
+
+```
+widgets/overlays/
+  ui/ModalHost.tsx        connected: the PgView.setModal stack in the stock
+                          Modal; Escape and a click outside close it
+  ui/BaseModalFrame.tsx   markup only: header, error, body, Cancel/submit
+  ui/ModalFrame.tsx       connected: submit, the error, PgView.closeModal
+  ui/ToastHost.tsx        connected: PgView.setToast/closeToast on Sonner
+  model/telemetry.ts      the `overlay_*` events
+```
+
+**Telemetry** (prefix `overlay`): `overlay_modal_opened {name}` when a frame
+mounts, `overlay_modal_submit_failed {name}` when a submit throws,
+`overlay_toast_shown {name}`. Logs go through `overlays:modal-host` and
+`overlays:toast-host`; a submit failure is logged with `report: true`.
+
+Kept: every `aria-label` and test id inside the dialogs and menus, the key
+hints, Escape, the 500 ms tooltip delay, and the phone dialog as a page of
+its own (the stock `Modal` does it below `md`).
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
