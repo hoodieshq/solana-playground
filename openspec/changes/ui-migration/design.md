@@ -239,7 +239,9 @@ Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
 - **The left panel is the stock `Sidebar`**, folding to an icon rail: 14.5 rem
   open, 3.25 rem as a rail, ⌘B, as the design system's migration map has it.
   The widths go through `SidebarProvider`'s `style`; `shared/ui` is not
-  edited. The header keeps the full width on top (Slava, 2026-10-09): the
+  edited. (5.2 replaces what follows: the header is removed and the Sidebar
+  holds the navigation; see "The four-column frame (5.2)".) The header keeps
+  the full width on top (Slava, 2026-10-09): the
   stock Sidebar is `fixed` at the window's full height, so the shell's
   `className` makes it `absolute` inside the area under the header, and the
   provider `flex-1` instead of `min-h-svh`. The panel is no longer drag-resizable (today 192 px to 30% of the
@@ -312,8 +314,8 @@ three thresholds; that is accepted rather than editing `shared/`. On a phone
 Monaco gets `readOnly`, and the message that editing works from 600 px is
 shown through Monaco's message controller (0.37 has no `readOnlyMessage`
 option); chat works at every width. Explorer actions are not made read-only. The
-header's own compact steps (80 and 72 rem) stay; phone screens for the header
-and stages are the Breakpoint work (5.3).
+header's own compact steps (80 and 72 rem) stay; the phone's own structure is
+5.7 (HOO-2062).
 
 **Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
 {panel, open, via: button | key | drag | auto}`, `via: drag` when dragging an
@@ -327,12 +329,85 @@ Kept: every id, `aria-label`, `#tabs`, `#root-dir`, and the keys ⌘B, Ctrl+R,
 Ctrl+J. The folded rail grows from 24 px to 52 px, which
 `left-panel-toggle.e2e` asserts and is updated for.
 
+## The four-column frame (5.2)
+
+Decided with Slava on 2026-10-13 (HOO-2055), the first step of the plan in
+`tasks.md` section 5. The app takes the prototype's frame; every piece inside
+it moves unchanged, so later tasks restyle inside a column that already
+exists.
+
+```
+SidebarProvider (collapsible="icon", controlled open, ⌘B)
+├─ Sidebar → AppNav: logo, Home, New project, Tutorials, Programs,
+│            ProjectSwitcher (as is), footer: StatusChips (as is)
+└─ SidebarInset → Group horizontal (id layout-horizontal)
+   ├─ Panel assistant (left; folds to its 24 px strip; a right Sheet below
+   │                   LAYOUT_BREAKPOINTS.compact, as in 5.1)
+   └─ Panel work
+      ├─ stage bar: Stepper (as is, with Ctrl+1..4)
+      └─ Group horizontal (id layout-work)
+         ├─ Panel files: LeftPanel (as is; folds to its 52 px rail, ⌘E)
+         └─ Group vertical (id layout-vertical): stage (ObjectiveBand +
+            StageRouter) | console (Ctrl+J)
+```
+
+- **The header is removed.** The logo and `ProjectSwitcher` go to the top of
+  the navigation, `StatusChips` (cluster, wallet, settings) to its footer, the
+  `Stepper` and its Ctrl+1..4 keys to the stage bar. In the rail the switcher
+  and the chips are hidden; the four items keep their icons, with a tooltip.
+  The sync banner stays above everything, full width.
+- **The stage bar spans the files column and the stage**, as the prototype
+  draws it, not the files column alone.
+- **The navigation is a widget, `widgets/app-nav`**: `BaseAppNav` built from
+  the installed `Sidebar*` parts and `lucide-react` icons, slots for the
+  switcher and the footer; `AppNav` connected. Until Home (5.8) and the
+  Tutorials and Programs pages (5.9) exist, every item opens today's gallery
+  (`NewWorkspaceModal`): Home and New project on its default tab, Tutorials
+  and Programs on theirs, through a new `initialTab` prop. _Rejected:_
+  hiding Home until 5.8; disabled items saying "soon".
+- **Keys.** ⌘B folds the navigation (the stock Sidebar's own key), ⌘E the
+  files column, Ctrl+R the assistant, Ctrl+J the console. The files toggle
+  keeps "Collapse project panel" / "Expand project panel" and the rail's "New
+  file"; its hint reads ⌘E. Monaco binds ⌘E on a Mac (find with selection)
+  while it has focus; the shell's key is global and wins only outside it.
+  _Rejected:_ ⌘B staying on the files column, leaving the navigation to its
+  button alone.
+- **Width.** From `LAYOUT_BREAKPOINTS.compact` (1024) every column is in
+  place. Between `left` (768) and 1024 the navigation is a rail, the files
+  column stays, and the assistant is the right Sheet, as in 5.1. Below 768
+  the navigation and the files column share the stock Sidebar's Sheet, opened
+  by "Expand project panel" at the left edge, as the project Sheet is today:
+  a phone has no room for a files column, and its own structure is 5.7.
+- **Panels.** The assistant is 280 to 560 px as in 5.1; the files column
+  opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem to 30% of the
+  work area; the stage keeps at least 320 px. Opening goes through
+  `resize(openSize)`, never `expand()`, and only `onLayoutChanged` with
+  `isUserInteraction` saves, as 5.1 learned.
+- **What survives a reload** moves to `{v: 2, open: {nav, files, assistant,
+  console}, h?, w?, vert?}` under the same `layout` key, where `h` is the
+  assistant and work group, `w` the files and stage group, `vert` as before.
+  A `v: 1` value is migrated, not dropped: `left` becomes `files`, the
+  navigation opens, `assistant`, `console` and `vert` are kept, and `h` is
+  dropped, since its panel ids changed. Folded panels keep no sizes, as in
+  5.1. A value from a newer version is still read as the defaults and never
+  overwritten.
+- **Telemetry.** `layout_panel_toggled`'s `panel` becomes `nav | files |
+  assistant | console` (`left` is gone: the files column is what it named).
+  The navigation sends `nav_item_opened {item: home | new-project |
+  tutorials | programs}` (prefix `nav`) when a user picks an item.
+
+Kept: every id, `aria-label` and test id (`flow-console-drawer-body`,
+`flow-left-tab-*`, `flow-stage-*`, `#tabs`, `#root-dir`, "Collapse/Expand
+assistant", "Console", "New file"). `left-panel-toggle.e2e` moves to ⌘E and
+the files column; a new e2e covers ⌘B on the navigation.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
   11 too, so Breakpoint screens are built on a library still being finished.
-  The cut line is open: new tokens on today's layout, or features cut to
-  protect the upgrade.
+  Breakpoint is conditional while deadlines are reworked; which steps of
+  section 5 make the demo is tentative, and the frame (5.2) comes first in
+  any cut.
 - **styled-components types.** If version 5's types cannot live with React
   19's, the upgrade grows to version 6 across 154 files. The spike says they
   can.
