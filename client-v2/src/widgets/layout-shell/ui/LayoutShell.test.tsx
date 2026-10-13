@@ -315,7 +315,7 @@ const DRAGGED = {
   v: 2,
   open: { nav: true, files: true, assistant: true, console: true },
   h: { assistant: 40, work: 60 },
-  w: { files: 25, stage: 75 },
+  w: { files: 25, center: 75 },
   vert: { stage: 70, console: 30 },
 };
 
@@ -327,7 +327,7 @@ it("should drop the dragged assistant sizes when the assistant is folded", () =>
   expect(folded.open.assistant).toBe(false);
   expect(folded.h).toBeUndefined();
   // The other groups' drags stay
-  expect(folded.w).toEqual({ files: 25, stage: 75 });
+  expect(folded.w).toEqual({ files: 25, center: 75 });
   expect(folded.vert).toEqual({ stage: 70, console: 30 });
 });
 
@@ -408,7 +408,7 @@ it("should keep the dragged sizes when the navigation is folded", () => {
   expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
     open: { nav: false },
     h: { assistant: 40, work: 60 },
-    w: { files: 25, stage: 75 },
+    w: { files: 25, center: 75 },
     vert: { stage: 70, console: 30 },
   });
 });
@@ -556,6 +556,40 @@ it("should report the project panel Sheet closed by Escape as a key and by its o
     { panel: "nav", open: true, via: "button" },
     { panel: "nav", open: false, via: "button" },
   ]);
+});
+
+it("should open and close the Sheet by Cmd+E below 768 px, as the navigation", () => {
+  resizeTo(500);
+  shell();
+  const sheet = () =>
+    document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
+  press({ key: "e", metaKey: true });
+  expect(sheet()).not.toBeNull();
+  press({ key: "e", metaKey: true });
+  expect(sheet()).toBeNull();
+  expect(toggled()).toEqual([
+    { panel: "nav", open: true, via: "key" },
+    { panel: "nav", open: false, via: "key" },
+  ]);
+  // The files column's desktop flag is not touched
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+});
+
+it("should close the Sheet by the files column's button below 768 px", () => {
+  resizeTo(500);
+  shell();
+  tap(screen.getByRole("button", { name: "Expand project panel" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Collapse project panel" })
+  );
+  expect(
+    document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
+  ).toBeNull();
+  expect(toggled()).toEqual([
+    { panel: "nav", open: true, via: "button" },
+    { panel: "nav", open: false, via: "button" },
+  ]);
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
 it("should render the navigation and the files open in the Sheet, whatever the saved desktop state", () => {

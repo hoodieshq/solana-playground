@@ -9,7 +9,7 @@ import {
 } from "@/shared/lib/logger";
 
 // `usePanelRef` is replaced, so the tests can see which imperative calls the
-// shell makes, and `Group` records its props; `Panel` and `Separator` are the
+// shell makes, and `Group` and `Panel` record their props; `Separator` is the
 // library's own. Named one by one, so a new export of the library changes
 // nothing here unseen. The refs ignore the library's own
 // assignment to `current`, which would replace the spies.
@@ -22,6 +22,7 @@ const panelSpies = vi.hoisted(() => ({
       onLayoutChanged?: (l: unknown, meta: unknown) => void;
     }
   >,
+  panels: {} as Record<string, { minSize?: unknown }>,
   handles: [] as Array<{
     collapse: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
@@ -31,7 +32,14 @@ const panelSpies = vi.hoisted(() => ({
 vi.mock("react-resizable-panels", async (importOriginal) => {
   const real = await importOriginal<typeof import("react-resizable-panels")>();
   return {
-    Panel: real.Panel,
+    // Records each panel's props by id, then renders the real panel
+    Panel: (panelProps: { id?: string; minSize?: unknown }) => {
+      panelSpies.panels[panelProps.id ?? ""] = panelProps;
+      return createElement(
+        real.Panel,
+        panelProps as React.ComponentProps<typeof real.Panel>
+      );
+    },
     Separator: real.Separator,
     // Records each group's layout props by id, then renders the real group
     Group: (groupProps: {
@@ -80,6 +88,7 @@ const desktopMatchMedia = (query: string) => ({
 beforeEach(() => {
   panelSpies.created = 0;
   panelSpies.groups = {};
+  panelSpies.panels = {};
   // In the order the shell creates its panel refs: assistant, files, console
   panelSpies.handles = [0, 1, 2].map(() => ({
     collapse: vi.fn(),
@@ -144,6 +153,7 @@ const props = (
   files: () => <aside>files slot</aside>,
   onLeftSheetChange: vi.fn(),
   closeLeftSheetOn: () => ({ dispose: () => {} }),
+  toggleLeftSheetOn: () => ({ dispose: () => {} }),
   stageBar: <header>stage bar</header>,
   stage: <main>stage slot</main>,
   console: <div className="xterm">console slot</div>,
@@ -232,6 +242,7 @@ it("should hand the navigation the stock toggle and whether it is a rail", () =>
       files={shell.files}
       onLeftSheetChange={shell.onLeftSheetChange}
       closeLeftSheetOn={shell.closeLeftSheetOn}
+      toggleLeftSheetOn={shell.toggleLeftSheetOn}
       stageBar={shell.stageBar}
       stage={shell.stage}
       console={shell.console}
@@ -296,6 +307,7 @@ it("should show the assistant Sheet when it is open", () => {
       files={open.files}
       onLeftSheetChange={open.onLeftSheetChange}
       closeLeftSheetOn={open.closeLeftSheetOn}
+      toggleLeftSheetOn={open.toggleLeftSheetOn}
       stageBar={open.stageBar}
       stage={open.stage}
       console={open.console}
@@ -455,7 +467,7 @@ it("should not save a layout the library settled on its own", () => {
     { isUserInteraction: false }
   );
   panelSpies.groups["layout-work"].onLayoutChanged!(
-    { files: 20, stage: 80 },
+    { files: 20, center: 80 },
     { isUserInteraction: false }
   );
   panelSpies.groups["layout-vertical"].onLayoutChanged!(
@@ -615,14 +627,14 @@ it("should open a files column that mounts folded at its default width", () => {
 });
 
 it("should take and save the work layout the user dragged", () => {
-  const wide = props("wide", { work: { files: 25, stage: 75 } });
+  const wide = props("wide", { work: { files: 25, center: 75 } });
   render(<BaseLayoutShell {...wide} />);
   expect(panelSpies.groups["layout-work"].defaultLayout).toEqual({
     files: 25,
-    stage: 75,
+    center: 75,
   });
-  settled("layout-work", { files: 30, stage: 70 }, true);
-  expect(wide.onWorkLayout).toHaveBeenCalledWith({ files: 30, stage: 70 });
+  settled("layout-work", { files: 30, center: 70 }, true);
+  expect(wide.onWorkLayout).toHaveBeenCalledWith({ files: 30, center: 70 });
 });
 
 it("should report a drag that folds the files column", () => {
@@ -630,7 +642,7 @@ it("should report a drag that folds the files column", () => {
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
   files.isCollapsed.mockReturnValue(true);
-  settled("layout-work", { files: 5, stage: 95 }, true);
+  settled("layout-work", { files: 5, center: 95 }, true);
   expect(wide.filesState.onOpenChange).toHaveBeenCalledWith(false);
   expect(wide.onWorkLayout).toHaveBeenCalledTimes(1);
 });
@@ -640,7 +652,7 @@ it("should neither take nor save a work layout below 768 px", () => {
   try {
     render(
       <BaseLayoutShell
-        {...props("phone", { work: { files: 25, stage: 75 } })}
+        {...props("phone", { work: { files: 25, center: 75 } })}
       />
     );
     const group = panelSpies.groups["layout-work"];
@@ -649,4 +661,24 @@ it("should neither take nor save a work layout below 768 px", () => {
   } finally {
     restore();
   }
+});
+
+it("should size the work area to hold an open files column beside the stage", () => {
+  // A 1024 px window with the navigation and the assistant open leaves the
+  // work area about 412 px; the files column and the stage must still fit
+  render(<BaseLayoutShell {...props("wide")} />);
+  expect(PANEL_SIZES.stage.min).toBe(240);
+  expect(panelSpies.panels["center"].minSize).toBe(PANEL_SIZES.stage.min);
+  expect(panelSpies.panels["work"].minSize).toBe(
+    PANEL_SIZES.files.min + PANEL_SIZES.handle + PANEL_SIZES.stage.min
+  );
+  expect(panelSpies.panels["work"].minSize).toBe(440);
+});
+
+it("should give each panel its own id", () => {
+  render(<BaseLayoutShell {...props("wide")} />);
+  const ids = [...document.querySelectorAll("[data-panel]")].map(
+    (panel) => panel.id
+  );
+  expect(new Set(ids).size).toBe(ids.length);
 });

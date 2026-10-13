@@ -2,12 +2,12 @@
 export type PanelLayout = { [panelId: string]: number };
 
 export const HORIZONTAL_PANELS = ["assistant", "work"] as const;
-export const WORK_PANELS = ["files", "stage"] as const;
+export const WORK_PANELS = ["files", "center"] as const;
 export const VERTICAL_PANELS = ["stage", "console"] as const;
 
-/** The assistant and work group's sizes; `work` holds the files and the stage */
+/** The assistant and work group's sizes; `work` holds the files and `center` */
 export type HorizontalLayout = Record<typeof HORIZONTAL_PANELS[number], number>;
-/** The files and stage group's sizes, inside `work` */
+/** The files and `center` group's sizes, inside `work`; `center` holds the stage over the console */
 export type WorkLayout = Record<typeof WORK_PANELS[number], number>;
 /** The stage and console group's sizes */
 export type VerticalLayout = Record<typeof VERTICAL_PANELS[number], number>;

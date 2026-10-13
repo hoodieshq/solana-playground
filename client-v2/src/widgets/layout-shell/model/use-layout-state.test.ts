@@ -39,7 +39,7 @@ const DRAGGED = {
   v: 2,
   open: { nav: true, files: true, assistant: true, console: true },
   h: { assistant: 40, work: 60 },
-  w: { files: 25, stage: 75 },
+  w: { files: 25, center: 75 },
   vert: { stage: 70, console: 30 },
 };
 
@@ -95,7 +95,7 @@ it.each([
     });
     expect(stored().vert).toBeUndefined();
     expect(stored().h).toEqual({ assistant: 40, work: 60 });
-    expect(stored().w).toEqual({ files: 25, stage: 75 });
+    expect(stored().w).toEqual({ files: 25, center: 75 });
   }
 );
 
@@ -104,7 +104,7 @@ it("should save no layout that is missing a panel, and log it", () => {
   initLogger({ providers: [logs] });
   const { result } = renderHook(() => useLayoutState());
   act(() => result.current.setHorizontal({ work: 100 }));
-  act(() => result.current.setWork({ stage: 100 }));
+  act(() => result.current.setWork({ center: 100 }));
   act(() => result.current.setVertical({ stage: 100 }));
   expect(stored()).toBeNull();
   expect(result.current.state.h).toBeUndefined();
@@ -121,11 +121,11 @@ it("should write nothing on mount", () => {
   expect(setItem).not.toHaveBeenCalled();
 });
 
-it("should save the files and stage sizes", () => {
+it("should save the files and center sizes", () => {
   const { result } = renderHook(() => useLayoutState());
-  act(() => result.current.setWork({ files: 30, stage: 70 }));
-  expect(result.current.state.w).toEqual({ files: 30, stage: 70 });
-  expect(stored().w).toEqual({ files: 30, stage: 70 });
+  act(() => result.current.setWork({ files: 30, center: 70 }));
+  expect(result.current.state.w).toEqual({ files: 30, center: 70 });
+  expect(stored().w).toEqual({ files: 30, center: 70 });
 });
 
 it("should write a migrated layout back once on mount, as version 2", () => {

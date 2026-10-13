@@ -64,6 +64,9 @@ const LayoutShell = ({
   // The stock Sidebar handles Cmd+B itself and reports only the new state, so
   // a click on one of our buttons marks itself here first
   const navVia = useRef<ToggleSource | null>(null);
+  // What toggles the navigation's Sheet below `LAYOUT_BREAKPOINTS.left`, from
+  // `toggleLeftSheetOn`; it says whether there was a Sheet to toggle
+  const sheetToggle = useRef<(() => boolean) | null>(null);
   // What a change nobody marked came from: a Sheet closed by Escape is a key,
   // one closed by a tap on its overlay a button
   const lastInput = useRef<ToggleSource>("key");
@@ -125,9 +128,18 @@ const LayoutShell = ({
   );
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘E on a Mac. Monaco binds ⌘E
   // (find with selection) while it has focus; this one wins only outside it.
+  // Below `LAYOUT_BREAKPOINTS.left` the files column is in the navigation's
+  // Sheet, so the key opens and closes that Sheet, which reports itself as
+  // `nav` a render later and takes the mark; the column's desktop flag, which
+  // nothing there shows, is left alone.
   useKeybind(
     "Ctrl+E",
-    () => setOpen("files", { open: !state.open.files, via: "key" }),
+    () => {
+      navVia.current = "key";
+      if (sheetToggle.current?.()) return;
+      navVia.current = null;
+      setOpen("files", { open: !state.open.files, via: "key" });
+    },
     [state.open.files]
   );
 
@@ -208,6 +220,16 @@ const LayoutShell = ({
       via: takeNavVia(),
     });
 
+  // Keeps the base's Sheet toggle for ⌘E; the one in place is the live one
+  const toggleLeftSheetOn = useCallback((toggle: () => boolean) => {
+    sheetToggle.current = toggle;
+    return {
+      dispose: () => {
+        if (sheetToggle.current === toggle) sheetToggle.current = null;
+      },
+    };
+  }, []);
+
   // A modal closes the Sheet, which traps focus away from it: the product's
   // doing, not the user's, so it is reported as `auto`. The mark is dropped
   // when there was no Sheet to close, so it cannot label a later toggle.
@@ -251,15 +273,20 @@ const LayoutShell = ({
       nav={({ toggle, isMobile, collapsed }) =>
         nav({ collapsed, isMobile, toggle: toggleNav(toggle, isMobile) })
       }
-      files={({ isMobile }) =>
+      files={({ isMobile, toggle }) =>
         files({
           collapsed: isMobile ? false : !state.open.files,
-          toggle: () =>
-            setOpen("files", { open: !state.open.files, via: "button" }),
+          // In the Sheet the column is always open, so its button closes the
+          // Sheet, as ⌘E does there
+          toggle: isMobile
+            ? toggleNav(toggle, true)
+            : () =>
+                setOpen("files", { open: !state.open.files, via: "button" }),
         })
       }
       onLeftSheetChange={onLeftSheetChange}
       closeLeftSheetOn={closeLeftSheetOnModal}
+      toggleLeftSheetOn={toggleLeftSheetOn}
       sheetFont={{
         fontFamily: theme.font.code.family,
         fontSize: theme.font.code.size.medium,

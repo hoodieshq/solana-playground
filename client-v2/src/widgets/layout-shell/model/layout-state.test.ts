@@ -22,7 +22,7 @@ const SAVED: LayoutState = {
   v: 2,
   open: { nav: true, files: true, assistant: true, console: true },
   h: { assistant: 30, work: 70 },
-  w: { files: 25, stage: 75 },
+  w: { files: 25, center: 75 },
   vert: { stage: 60, console: 40 },
 };
 
@@ -123,7 +123,7 @@ it.each([
     v: 2,
     open: ALL_OPEN,
     h: sizes,
-    w: { files: 25, stage: 75 },
+    w: { files: 25, center: 75 },
     vert: { stage: 60, console: 40 },
   });
   expect(
@@ -133,7 +133,7 @@ it.each([
     state: {
       v: 2,
       open: ALL_OPEN,
-      w: { files: 25, stage: 75 },
+      w: { files: 25, center: 75 },
       vert: { stage: 60, console: 40 },
     },
     dropped: ["h"],
@@ -145,7 +145,7 @@ it("should drop a work size map that does not read, keeping the flags", () => {
   const raw = JSON.stringify({
     v: 2,
     open: ALL_OPEN,
-    w: { files: 25, stage: 50 },
+    w: { files: 25, center: 50 },
   });
   expect(
     readLayout(() => memoryStorage({ [LAYOUT_STORAGE_KEY]: raw }))
@@ -178,7 +178,7 @@ it("should not restore a folded panel's sizes", () => {
     v: 2,
     open: { nav: true, files: false, assistant: false, console: false },
     h: { assistant: 30, work: 70 },
-    w: { files: 25, stage: 75 },
+    w: { files: 25, center: 75 },
     vert: { stage: 60, console: 40 },
   });
   expect(
@@ -199,7 +199,7 @@ it("should not restore the work sizes of a folded files column", () => {
     [LAYOUT_STORAGE_KEY]: JSON.stringify({
       v: 2,
       open: { nav: true, files: false, assistant: true, console: false },
-      w: { files: 30, stage: 70 },
+      w: { files: 30, center: 70 },
     }),
   });
   const restored = readLayout(() => storage);
@@ -302,7 +302,7 @@ it("should read back only the fields of a layout, dropping others", () => {
     v: 2,
     open: { nav: true, files: true, assistant: true, console: true },
     h: { assistant: 30, work: 70 },
-    w: { files: 25, stage: 75 },
+    w: { files: 25, center: 75 },
     vert: { stage: 60, console: 40 },
     extra: "x",
   });

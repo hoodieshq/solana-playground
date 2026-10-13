@@ -28,20 +28,30 @@ import type {
   WorkLayout,
 } from "../model/layout-state";
 
+const FILES = { default: 232, min: 192, folded: 52 } as const;
+/** The stage over the console, beside the files column inside `work` */
+const STAGE = { min: 240 } as const;
+/** The handles between the columns: `w-2` */
+const HANDLE_PX = 8;
+
 /**
  * Sizes in px; the design system gives the navigation's in rem
  * (`SIDEBAR_STYLE`). The files column opens and folds at the navigation's
  * widths (14.5 and 3.25 rem) and resizes from 12 rem. It has no maximum of
- * its own: the stage's `work.min` stops it, since 30% of the work area is
- * below the files column's minimum on a 1024 px window with every column open.
- * The console folds to its handle, the bar `ConsoleDrawer` draws at
- * `BOTTOM_BAR_PX`.
+ * its own: 30% of the work area is below its minimum on a 1024 px window with
+ * every column open, so what stops it growing is the stage's `stage.min`
+ * beside it. `work.min` is an open files column at its minimum, the handle
+ * and the stage at its minimum, so the work area never takes less than both
+ * need: on that 1024 px window the assistant gives way instead. The console
+ * folds to its handle, the bar `ConsoleDrawer` draws at `BOTTOM_BAR_PX`.
  */
 export const PANEL_SIZES = {
   assistant: { default: 348, min: 280, max: 560, folded: 24 },
-  files: { default: 232, min: 192, folded: 52 },
+  files: FILES,
+  stage: STAGE,
   console: { default: 256, min: 120, folded: BOTTOM_BAR_PX },
-  work: { min: 320 },
+  handle: HANDLE_PX,
+  work: { min: FILES.min + HANDLE_PX + STAGE.min },
 } as const;
 
 /** 14.5 rem open and 3.25 rem as a rail, as the design system's migration map has it */
@@ -106,9 +116,10 @@ export interface BaseLayoutShellProps {
   /**
    * Renders the files column: in the work group from
    * `LAYOUT_BREAKPOINTS.left`, under the navigation in the stock Sidebar's
-   * Sheet below it, where a phone has no room for a column of its own
+   * Sheet below it, where a phone has no room for a column of its own. It is
+   * handed the stock toggle, which there opens and closes that Sheet.
    */
-  files: (stock: { isMobile: boolean }) => ReactNode;
+  files: (stock: { isMobile: boolean; toggle: () => void }) => ReactNode;
   /**
    * Below `LAYOUT_BREAKPOINTS.left`: the navigation's Sheet opened or closed.
    * Not folded into one open/onOpenChange pair with `navOpen`: the stock
@@ -126,6 +137,15 @@ export interface BaseLayoutShellProps {
    * Pass a stable function: a new one each render resubscribes each render.
    */
   closeLeftSheetOn: (close: () => boolean) => Disposable;
+  /**
+   * Below `LAYOUT_BREAKPOINTS.left`: opens or closes the navigation's Sheet
+   * each time `toggle` is called, for as long as the returned disposable
+   * lives, so a key outside the Sidebar (⌘E) reaches the Sheet that holds the
+   * files column. `toggle` returns whether it did: from that width up there
+   * is no Sheet, and the caller toggles the column instead. Pass a stable
+   * function, as for `closeLeftSheetOn`.
+   */
+  toggleLeftSheetOn: (toggle: () => boolean) => Disposable;
   /** Across the top of the work area, over the files column and the stage */
   stageBar: ReactNode;
   stage: ReactNode;
@@ -195,7 +215,7 @@ const NavSlot = ({
   return (
     <>
       {nav({ toggle: toggleSidebar, isMobile, collapsed: !isMobile && !open })}
-      {isMobile && files({ isMobile })}
+      {isMobile && files({ isMobile, toggle: toggleSidebar })}
     </>
   );
 };
@@ -209,14 +229,19 @@ const NavSlot = ({
 const NavSheetOpener = ({
   onChange,
   closeOn,
+  toggleOn,
 }: {
   onChange: (open: boolean) => void;
   closeOn: (close: () => boolean) => Disposable;
+  toggleOn: (toggle: () => boolean) => Disposable;
 }) => {
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const previous = useRef(openMobile);
   const shown = useRef(false);
   shown.current = isMobile && openMobile;
+  // Read by the subscribers below, which outlive renders
+  const mobile = useRef(isMobile);
+  mobile.current = isMobile;
   useEffect(() => {
     if (previous.current === openMobile) return;
     previous.current = openMobile;
@@ -230,6 +255,16 @@ const NavSheetOpener = ({
     });
     return () => sub.dispose();
   }, [closeOn, setOpenMobile]);
+  useEffect(() => {
+    const sub = toggleOn(() => {
+      if (!mobile.current) return false;
+      // The stock setter takes a value, not an updater; below the width
+      // `shown` is the Sheet's own state
+      setOpenMobile(!shown.current);
+      return true;
+    });
+    return () => sub.dispose();
+  }, [toggleOn, setOpenMobile]);
   if (!isMobile) return null;
   return (
     <div className="absolute top-1 left-0 z-10">
@@ -244,6 +279,12 @@ const NavSheetOpener = ({
     </div>
   );
 };
+
+/**
+ * The files column's stock toggle in the work group: the Sheet it would open
+ * exists only below `LAYOUT_BREAKPOINTS.left`, where the column is not here
+ */
+const noSheet = () => {};
 
 /**
  * The four-column frame: the navigation as the stock Sidebar, then the
@@ -443,6 +484,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       <NavSheetOpener
         onChange={props.onLeftSheetChange}
         closeOn={props.closeLeftSheetOn}
+        toggleOn={props.toggleLeftSheetOn}
       />
       <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
         {/* One tree at every width, so a rotate across
@@ -556,13 +598,13 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                     }
                   }}
                 >
-                  {props.files({ isMobile })}
+                  {props.files({ isMobile, toggle: noSheet })}
                 </ResizablePanel>
               )}
               {!isMobile && <ResizableHandle className="w-2 bg-transparent" />}
               <ResizablePanel
-                id="stage"
-                minSize={PANEL_SIZES.work.min}
+                id="center"
+                minSize={PANEL_SIZES.stage.min}
                 className="flex min-w-0 flex-col"
               >
                 {center}
