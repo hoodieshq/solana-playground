@@ -10,8 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
-
-export type NavItem = "home" | "new-project" | "tutorials" | "programs";
+import type { NavItem } from "../model/nav-item";
 
 const ITEMS: { item: NavItem; label: string; Icon: ComponentType }[] = [
   { item: "home", label: "Home", Icon: House },

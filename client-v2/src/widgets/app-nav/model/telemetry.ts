@@ -1,5 +1,5 @@
 import { createTracker } from "../../../shared/lib/telemetry";
-import type { NavItem } from "../ui/BaseAppNav";
+import type { NavItem } from "./nav-item";
 
 type NavEvents = {
   /** A user picked one of the navigation's items; `item` says which. */

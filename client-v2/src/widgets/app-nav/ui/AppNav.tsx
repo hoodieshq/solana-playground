@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 
 import { PgView } from "@/utils";
 import NewWorkspaceModal from "@/views/flow/gallery/NewWorkspaceModal";
+import type { NavItem } from "../model/nav-item";
 import { navTelemetry } from "../model/telemetry";
 import BaseAppNav from "./BaseAppNav";
-import type { NavItem } from "./BaseAppNav";
 
 type GalleryTab = "tutorials" | "programs";
 
