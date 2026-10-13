@@ -126,7 +126,13 @@ const shell = () =>
   render(
     <ThemeProvider theme={theme}>
       <LayoutShell
-        left={({ collapsed, toggle }) => (
+        nav={({ collapsed, toggle }) => (
+          <button type="button" onClick={toggle}>
+            {collapsed ? "Expand navigation" : "Collapse navigation"}
+          </button>
+        )}
+        stageBar={<div>stage bar</div>}
+        files={({ collapsed, toggle }) => (
           <button type="button" onClick={toggle}>
             {collapsed ? "Expand project panel" : "Collapse project panel"}
           </button>
@@ -172,17 +178,59 @@ it("should report Cmd+B once, via key", () => {
   shell();
   press({ key: "b", metaKey: true });
   expect(
-    screen.getByRole("button", { name: "Expand project panel" })
+    screen.getByRole("button", { name: "Expand navigation" })
   ).toBeTruthy();
-  expect(toggled()).toEqual([{ panel: "left", open: false, via: "key" }]);
+  expect(toggled()).toEqual([{ panel: "nav", open: false, via: "key" }]);
 });
 
-it("should report the project panel's own button as a button", () => {
+it("should report the navigation's own button as a button", () => {
   shell();
-  fireEvent.click(
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+  expect(toggled()).toEqual([{ panel: "nav", open: false, via: "button" }]);
+});
+
+it("should toggle the files column by Cmd+E and by its button, and say which", () => {
+  shell();
+  press({ key: "e", metaKey: true });
+  expect(
+    screen.getByRole("button", { name: "Expand project panel" })
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
+  expect(
     screen.getByRole("button", { name: "Collapse project panel" })
-  );
-  expect(toggled()).toEqual([{ panel: "left", open: false, via: "button" }]);
+  ).toBeTruthy();
+  expect(toggled()).toEqual([
+    { panel: "files", open: false, via: "key" },
+    { panel: "files", open: true, via: "button" },
+  ]);
+});
+
+it("should start the navigation as a rail between 768 and 1023 px, and save nothing", () => {
+  resizeTo(800);
+  shell();
+  expect(
+    screen.getByRole("button", { name: "Expand navigation" })
+  ).toBeTruthy();
+  press({ key: "b", metaKey: true });
+  expect(
+    screen.getByRole("button", { name: "Collapse navigation" })
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+  expect(toggled()).toEqual([
+    { panel: "nav", open: true, via: "key" },
+    { panel: "nav", open: false, via: "button" },
+  ]);
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+});
+
+it("should go back to the saved navigation on a wide screen", () => {
+  resizeTo(800);
+  shell();
+  act(() => resizeTo(1440));
+  expect(
+    screen.getByRole("button", { name: "Collapse navigation" })
+  ).toBeTruthy();
+  expect(toggled()).toEqual([]);
 });
 
 it("should toggle the assistant by Ctrl+R", () => {
@@ -221,7 +269,9 @@ it("should send each toggle once under StrictMode", async () => {
     <StrictMode>
       <ThemeProvider theme={theme}>
         <LayoutShell
-          left={() => null}
+          nav={() => null}
+          stageBar={null}
+          files={() => null}
           stage={<main>stage</main>}
           console={({ open, toggle }) => (
             <button type="button" aria-label="Console" onClick={toggle}>
@@ -238,7 +288,7 @@ it("should send each toggle once under StrictMode", async () => {
 });
 
 it("should leave a layout saved by a newer version alone, toggles included", () => {
-  const newer = JSON.stringify({ v: 2, open: { left: true } });
+  const newer = JSON.stringify({ v: 3, open: { nav: true } });
   localStorage.setItem(LAYOUT_STORAGE_KEY, newer);
   shell();
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(newer);
@@ -250,7 +300,7 @@ it("should leave a layout saved by a newer version alone, toggles included", () 
 it("should say once why a newer layout is not overwritten", () => {
   const logs = logMemory();
   initLogger({ providers: [logs] });
-  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({ v: 2 }));
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({ v: 3 }));
   shell();
   fireEvent.click(consoleButton());
   fireEvent.click(consoleButton());
@@ -262,9 +312,10 @@ it("should say once why a newer layout is not overwritten", () => {
 });
 
 const DRAGGED = {
-  v: 1,
-  open: { left: true, assistant: true, console: true },
-  h: { center: 60, assistant: 40 },
+  v: 2,
+  open: { nav: true, files: true, assistant: true, console: true },
+  h: { assistant: 40, work: 60 },
+  w: { files: 25, stage: 75 },
   vert: { stage: 70, console: 30 },
 };
 
@@ -275,7 +326,8 @@ it("should drop the dragged assistant sizes when the assistant is folded", () =>
   const folded = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
   expect(folded.open.assistant).toBe(false);
   expect(folded.h).toBeUndefined();
-  // The console's drag is a different group's, and stays
+  // The other groups' drags stay
+  expect(folded.w).toEqual({ files: 25, stage: 75 });
   expect(folded.vert).toEqual({ stage: 70, console: 30 });
 });
 
@@ -286,7 +338,18 @@ it("should drop the dragged console sizes when the console is folded", () => {
   const folded = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
   expect(folded.open.console).toBe(false);
   expect(folded.vert).toBeUndefined();
-  expect(folded.h).toEqual({ center: 60, assistant: 40 });
+  expect(folded.h).toEqual({ assistant: 40, work: 60 });
+});
+
+it("should drop the dragged work sizes when the files column is folded by Cmd+E", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+  shell();
+  press({ key: "e", metaKey: true });
+  const folded = JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!);
+  expect(folded.open.files).toBe(false);
+  expect(folded.w).toBeUndefined();
+  expect(folded.h).toEqual({ assistant: 40, work: 60 });
+  expect(folded.vert).toEqual({ stage: 70, console: 30 });
 });
 
 it("should report a corrupt saved layout to error tracking", () => {
@@ -338,13 +401,14 @@ it("should report unreachable storage once, from the read, not again from a save
   expect(reported[0].error?.cause).toBe(blocked);
 });
 
-it("should keep the dragged sizes when the project panel is folded", () => {
+it("should keep the dragged sizes when the navigation is folded", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
   shell();
   press({ key: "b", ctrlKey: true });
   expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
-    open: { left: false },
-    h: { center: 60, assistant: 40 },
+    open: { nav: false },
+    h: { assistant: 40, work: 60 },
+    w: { files: 25, stage: 75 },
     vert: { stage: 70, console: 30 },
   });
 });
@@ -373,14 +437,12 @@ it("should report Cmd+B as a key after a toggle that changed nothing", () => {
   resizeTo(700);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
   act(() => resizeTo(1440));
   const before = toggled().length;
   press({ key: "b", metaKey: true });
   expect(toggled().slice(before)).toEqual([
-    { panel: "left", open: false, via: "key" },
+    { panel: "nav", open: false, via: "key" },
   ]);
 });
 
@@ -452,7 +514,7 @@ it("should set the project panel Sheet in the theme's font", () => {
   ).toBe("monospace");
 });
 
-it("should open the project panel Sheet below 768 px and report it", () => {
+it("should open the project panel Sheet below 768 px and report it as the navigation", () => {
   resizeTo(500);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
@@ -460,7 +522,10 @@ it("should open the project panel Sheet below 768 px and report it", () => {
     '[data-slot="sidebar"][data-mobile="true"]'
   );
   expect(sheet).not.toBeNull();
-  expect(toggled()).toEqual([{ panel: "left", open: true, via: "button" }]);
+  // The navigation and the files column share it
+  expect(sheet!.textContent).toContain("Collapse navigation");
+  expect(sheet!.textContent).toContain("Collapse project panel");
+  expect(toggled()).toEqual([{ panel: "nav", open: true, via: "button" }]);
   expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
@@ -470,8 +535,8 @@ it("should report the project panel Sheet toggled by Cmd+B below 768 px as a key
   press({ key: "b", metaKey: true });
   press({ key: "b", metaKey: true });
   expect(toggled()).toEqual([
-    { panel: "left", open: true, via: "key" },
-    { panel: "left", open: false, via: "key" },
+    { panel: "nav", open: true, via: "key" },
+    { panel: "nav", open: false, via: "key" },
   ]);
 });
 
@@ -484,23 +549,21 @@ it("should report the project panel Sheet closed by Escape as a key and by its o
     { key: "Escape" }
   );
   tap(screen.getByRole("button", { name: "Expand project panel" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
   expect(toggled()).toEqual([
-    { panel: "left", open: true, via: "button" },
-    { panel: "left", open: false, via: "key" },
-    { panel: "left", open: true, via: "button" },
-    { panel: "left", open: false, via: "button" },
+    { panel: "nav", open: true, via: "button" },
+    { panel: "nav", open: false, via: "key" },
+    { panel: "nav", open: true, via: "button" },
+    { panel: "nav", open: false, via: "button" },
   ]);
 });
 
-it("should render the project panel open in the Sheet, whatever the saved desktop state", () => {
+it("should render the navigation and the files open in the Sheet, whatever the saved desktop state", () => {
   localStorage.setItem(
     LAYOUT_STORAGE_KEY,
     JSON.stringify({
-      v: 1,
-      open: { left: false, assistant: true, console: false },
+      v: 2,
+      open: { nav: false, files: false, assistant: true, console: false },
     })
   );
   resizeTo(500);
@@ -509,6 +572,7 @@ it("should render the project panel open in the Sheet, whatever the saved deskto
   const sheet = document.querySelector(
     '[data-slot="sidebar"][data-mobile="true"]'
   )!;
+  expect(sheet.textContent).toContain("Collapse navigation");
   expect(sheet.textContent).toContain("Collapse project panel");
   expect(sheet.textContent).not.toContain("Expand project panel");
 });
@@ -516,13 +580,24 @@ it("should render the project panel open in the Sheet, whatever the saved deskto
 it("should save the open state and read it back", () => {
   const first = shell();
   fireEvent.click(consoleButton());
+  press({ key: "b", metaKey: true });
+  press({ key: "e", metaKey: true });
+  press({ key: "r", ctrlKey: true });
   first.unmount();
-  expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({
-    open: { console: true },
+  expect(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)!)).toEqual({
+    v: 2,
+    open: { nav: false, files: false, assistant: false, console: true },
   });
 
   shell();
   expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
+  expect(
+    screen.getByRole("button", { name: "Expand navigation" })
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Expand project panel" })
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
 });
 
 it("should fall back on a corrupt saved layout and report it", () => {
@@ -607,12 +682,12 @@ it("should close the project panel Sheet when a modal opens", () => {
   expect(
     document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
   ).toBeNull();
-  expect(toggled().at(-1)).toEqual({ panel: "left", open: false, via: "auto" });
+  expect(toggled().at(-1)).toEqual({ panel: "nav", open: false, via: "auto" });
   // A modal with the Sheet already closed leaves no mark behind
   act(() => deploy.modals.forEach((open) => open()));
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   expect(toggled().at(-1)).toEqual({
-    panel: "left",
+    panel: "nav",
     open: true,
     via: "button",
   });
@@ -629,5 +704,5 @@ it("should report nothing for a modal on a desktop when the Sheet was left open 
   expect(toggled()).toHaveLength(before);
   // And no `auto` mark is left for the next toggle
   press({ key: "b", metaKey: true });
-  expect(toggled().at(-1)).toEqual({ panel: "left", open: false, via: "key" });
+  expect(toggled().at(-1)).toEqual({ panel: "nav", open: false, via: "key" });
 });

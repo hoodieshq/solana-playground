@@ -15,30 +15,55 @@ import BaseLayoutShell from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
   /**
-   * `collapsed` is never true in the Sheet below `LAYOUT_BREAKPOINTS.left`,
-   * which has no rail
+   * The navigation. `collapsed` is never true in the Sheet below
+   * `LAYOUT_BREAKPOINTS.left`, which has no rail; `toggle` folds the rail
+   * from there up and opens or closes the Sheet below it.
    */
-  left: (panel: { collapsed: boolean; toggle: () => void }) => ReactNode;
+  nav: (panel: {
+    collapsed: boolean;
+    isMobile: boolean;
+    toggle: () => void;
+  }) => ReactNode;
+  /** Across the top of the files column and the stage */
+  stageBar: ReactNode;
+  /**
+   * The files column. `collapsed` is never true in the Sheet below
+   * `LAYOUT_BREAKPOINTS.left`, where it sits open under the navigation.
+   */
+  files: (panel: { collapsed: boolean; toggle: () => void }) => ReactNode;
   stage: ReactNode;
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
   assistant: (panel: { open: boolean; toggle: () => void }) => ReactNode;
 }
 
 /**
- * The area under Flow's header, connected: the layout state and its storage,
- * the keys, the panels the product opens on its own, and the `layout_*`
- * events.
+ * The four-column frame, connected: the layout state and its storage, the
+ * keys, the panels the product opens on its own, and the `layout_*` events.
  */
-const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
+const LayoutShell = ({
+  nav,
+  stageBar,
+  files,
+  stage,
+  console,
+  assistant,
+}: LayoutShellProps) => {
   const viewport = useViewport();
   const theme = useTheme();
-  const { state, setOpen, setHorizontal, setVertical } = useLayoutState();
+  const { state, setOpen, setHorizontal, setWork, setVertical } =
+    useLayoutState();
   // Below `LAYOUT_BREAKPOINTS.compact` the assistant is a Sheet, closed on
   // arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Below `LAYOUT_BREAKPOINTS.compact` the navigation starts as a rail on
+  // every load, whatever a wide window saved: there is no room for it beside
+  // the files column and the stage. Unfolding it there is for the visit.
+  const [railOpen, setRailOpen] = useState(false);
+  // Mirrors `railOpen` for the handler, which a key can call twice in a tick
+  const railNow = useRef(false);
   // The stock Sidebar handles Cmd+B itself and reports only the new state, so
   // a click on one of our buttons marks itself here first
-  const leftVia = useRef<ToggleSource | null>(null);
+  const navVia = useRef<ToggleSource | null>(null);
   // What a change nobody marked came from: a Sheet closed by Escape is a key,
   // one closed by a tap on its overlay a button
   const lastInput = useRef<ToggleSource>("key");
@@ -98,6 +123,13 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
     () => setOpen("console", { open: !state.open.console, via: "key" }),
     [state.open.console]
   );
+  // `PgKeybind` reads Meta as Ctrl, so this is ⌘E on a Mac. Monaco binds ⌘E
+  // (find with selection) while it has focus; this one wins only outside it.
+  useKeybind(
+    "Ctrl+E",
+    () => setOpen("files", { open: !state.open.files, via: "key" }),
+    [state.open.files]
+  );
 
   useEffect(() => {
     // `onDidChange` replays the current state first; that one is the baseline
@@ -136,30 +168,44 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   }, []);
 
   /** The mark a button left, else the last input; the mark is used once */
-  const takeLeftVia = (): ToggleSource => {
-    const via = leftVia.current ?? lastInput.current;
-    leftVia.current = null;
+  const takeNavVia = (): ToggleSource => {
+    const via = navVia.current ?? lastInput.current;
+    navVia.current = null;
     return via;
   };
-  const onLeftOpenChange = (open: boolean) =>
-    setOpen("left", { open, via: takeLeftVia() });
-  // The stock toggle. On a desktop it calls `onLeftOpenChange` before it
-  // returns, so the mark is cleared right after and cannot outlive the click.
-  // Below `LAYOUT_BREAKPOINTS.left` it flips the Sheet, which
+  const navOpen = viewport === "wide" ? state.open.nav : railOpen;
+  // On a wide screen the change is saved; below it the rail's unfolding is
+  // the visit's alone, so it is reported here and not saved
+  const onNavOpenChange = (open: boolean) => {
+    const via = takeNavVia();
+    if (viewport === "wide") {
+      setOpen("nav", { open, via });
+      return;
+    }
+    if (railNow.current === open) return;
+    railNow.current = open;
+    setRailOpen(open);
+    layoutTelemetry.track("layout_panel_toggled", { panel: "nav", open, via });
+  };
+  // The stock toggle. From `LAYOUT_BREAKPOINTS.left` up it calls
+  // `onNavOpenChange` before it returns, so the mark is cleared right after
+  // and cannot outlive the click. Below it it flips the Sheet, which
   // `onLeftSheetChange` reports a render later and so takes the mark itself.
-  const toggleLeft = (stockToggle: () => void, isMobile: boolean) => () => {
-    leftVia.current = "button";
+  const toggleNav = (stockToggle: () => void, isMobile: boolean) => () => {
+    navVia.current = "button";
     try {
       stockToggle();
     } finally {
-      if (!isMobile) leftVia.current = null;
+      if (!isMobile) navVia.current = null;
     }
   };
+  // The stock Sidebar's Sheet holds the navigation and the files column; it
+  // is the navigation's Sheet, so it is reported as `nav`
   const onLeftSheetChange = (open: boolean) =>
     layoutTelemetry.track("layout_panel_toggled", {
-      panel: "left",
+      panel: "nav",
       open,
-      via: takeLeftVia(),
+      via: takeNavVia(),
     });
 
   // A modal closes the Sheet, which traps focus away from it: the product's
@@ -168,8 +214,8 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   const closeLeftSheetOnModal = useCallback(
     (close: () => boolean) =>
       PgView.onDidOpenModal(() => {
-        leftVia.current = "auto";
-        if (!close()) leftVia.current = null;
+        navVia.current = "auto";
+        if (!close()) navVia.current = null;
       }),
     []
   );
@@ -177,8 +223,8 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
   return (
     <BaseLayoutShell
       viewport={viewport}
-      leftOpen={state.open.left}
-      onLeftOpenChange={onLeftOpenChange}
+      navOpen={navOpen}
+      onNavOpenChange={onNavOpenChange}
       assistantState={{
         open: assistantShown,
         // A drag folds or unfolds the panel; the Sheet is closed by Escape or
@@ -188,18 +234,28 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
             ? setOpen("assistant", { open, via: "drag" })
             : setSheet(open, lastInput.current),
       }}
+      filesState={{
+        open: state.open.files,
+        onOpenChange: (open) => setOpen("files", { open, via: "drag" }),
+      }}
       consoleState={{
         open: state.open.console,
         onOpenChange: (open) => setOpen("console", { open, via: "drag" }),
       }}
       horizontal={state.h}
+      work={state.w}
       vertical={state.vert}
       onHorizontalLayout={setHorizontal}
+      onWorkLayout={setWork}
       onVerticalLayout={setVertical}
-      left={({ toggle, isMobile }) =>
-        left({
-          collapsed: isMobile ? false : !state.open.left,
-          toggle: toggleLeft(toggle, isMobile),
+      nav={({ toggle, isMobile, collapsed }) =>
+        nav({ collapsed, isMobile, toggle: toggleNav(toggle, isMobile) })
+      }
+      files={({ isMobile }) =>
+        files({
+          collapsed: isMobile ? false : !state.open.files,
+          toggle: () =>
+            setOpen("files", { open: !state.open.files, via: "button" }),
         })
       }
       onLeftSheetChange={onLeftSheetChange}
@@ -208,6 +264,7 @@ const LayoutShell = ({ left, stage, console, assistant }: LayoutShellProps) => {
         fontFamily: theme.font.code.family,
         fontSize: theme.font.code.size.medium,
       }}
+      stageBar={stageBar}
       stage={stage}
       console={console({
         open: state.open.console,
