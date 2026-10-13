@@ -35,19 +35,6 @@ import { PgExplorer, PgView } from "@/utils";
 import { LayoutShell } from "@/widgets/layout-shell";
 import type { Disposable } from "@/utils/types";
 
-// TEMPORARY: throws an uncaught error to check Sentry on the preview; revert before merge
-const ErrorButton = () => (
-  <button
-    type="button"
-    onClick={() => {
-      throw new Error("This is your first error!");
-    }}
-    className="fixed top-16 left-1/2 z-[12] -translate-x-1/2 cursor-pointer rounded-md border-0 bg-destructive px-3 py-1.5 text-sm text-white"
-  >
-    Break the world
-  </button>
-);
-
 /**
  * The Flow layout: header, left project/file tabs, the stage router in the
  * center with a collapsible console beneath it, and the assistant on the
@@ -229,7 +216,6 @@ const Flow = () => {
 
       <Wallet />
       <FeedbackWidget />
-      <ErrorButton />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
       <StyledModalBackdrop />
       <PortalBelow id={PgView.ids.PORTAL_BELOW}>
