@@ -1,6 +1,6 @@
 import { RefObject, useEffect } from "react";
 
-import { PgCommon, PgView } from "../utils";
+import { PgView } from "../utils";
 
 /**
  * Run the given callback when the user clicks outside of the given element.
@@ -30,14 +30,11 @@ export const useOnClickOutside = (
       if (el.contains(targetEl)) return;
       if (ignoreSelector && targetEl.closest(ignoreSelector)) return;
 
-      // Account for portals (they're not actually inside current ref)
-      const isPortalChild = [PgView.ids.PORTAL_ABOVE]
-        .map((id) => document.getElementById(id))
-        .filter(PgCommon.isNonNullish)
-        .some((el) => el.contains(targetEl));
-
-      // TODO: Make this more robust (portal children don't have to be inside)
-      if (isPortalChild) return;
+      // `PORTAL_ABOVE` is the one portal container left: Radix menus and
+      // dialogs portal to `body` and guard their own outside clicks. A click
+      // inside it is not inside `ref` in the DOM, but counts as inside.
+      const portalAbove = document.getElementById(PgView.ids.PORTAL_ABOVE);
+      if (portalAbove?.contains(targetEl)) return;
 
       cb();
     };

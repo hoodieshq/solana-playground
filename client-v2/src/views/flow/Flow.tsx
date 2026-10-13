@@ -376,9 +376,11 @@ const Collapse = styled.button`
   `}
 `;
 
-// Nothing opens here any more: menus and dialogs are Radix parts and portal
-// to `body`. The element stays because `useOnClickOutside` counts a click
-// inside `PgView.ids.PORTAL_ABOVE` as inside.
+// Nothing renders into it any more: menus and dialogs are Radix parts and
+// portal to `body`. The element stays for what still depends on it:
+// `useOnClickOutside` counts a click inside `PgView.ids.PORTAL_ABOVE` as
+// inside, and its `z-index` and `pointer-events` keep whatever is still
+// mounted there above the panels and clickable.
 const PortalAbove = styled.div`
   z-index: 62;
   pointer-events: auto;
