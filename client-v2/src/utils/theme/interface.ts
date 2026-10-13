@@ -2,7 +2,6 @@ import { StandardProperties } from "csstype";
 import { ITerminalOptions as XtermOptions } from "xterm";
 
 import { ButtonKind } from "../../components/Button";
-import { MenuKind } from "../../components/Menu";
 import { TextKind } from "../../components/Text";
 import { AllRequired, ChildRequired, NestedRequired } from "../types";
 
@@ -164,9 +163,6 @@ export interface ThemeParam {
 
     /** Markdown component */
     markdown?: DefaultComponent & { subtleBg?: Bg };
-
-    /** Menu component */
-    menu?: OverridableComponent<MenuKind>;
 
     /** Modal component */
     modal?: ExtendibleComponent<"backdrop" | "top" | "content" | "bottom">;
@@ -459,7 +455,7 @@ type ExtendibleComponents =
   | "wallet";
 
 /** Components that use `OverridableComponent` type */
-type OverridableComponents = "button" | "menu" | "text";
+type OverridableComponents = "button" | "text";
 
 /** Theme to be used while setting the defaults internally */
 export type ThemeInternal = Omit<ImportableTheme, "import"> &

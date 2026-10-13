@@ -3,7 +3,12 @@ import styled from "styled-components";
 
 import Button from "../Button";
 import Img from "../Img";
-import Menu, { MenuItemProps } from "../Menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import {
   Airdrop,
   Copy,
@@ -32,79 +37,84 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
   const isPg = wallet.isPg;
   const [copied, copyAddress] = useCopy(wallet.publicKey.toBase58());
 
-  const defaultSettings: MenuItemProps[] = [
-    {
-      name: copied ? "Copied address" : "Copy address",
-      onClick: copyAddress,
-      color: copied ? "success" : undefined,
-      icon: <Copy />,
-    },
-    {
-      name: "Airdrop",
-      onClick: airdrop,
-      hoverColor: "success",
-      showCondition: airdropCondition,
-      icon: <Airdrop />,
-    },
-    {
-      name: "Add",
-      onClick: async () => {
-        const { Add } = await import("./Modals/Add");
-        await PgView.setModal(Add);
-      },
-      icon: <Plus />,
-    },
-    {
-      name: "Rename",
-      onClick: showRename,
-      icon: <Edit />,
-      showCondition: isPg,
-    },
-    {
-      name: "Remove",
-      onClick: async () => {
-        const { Remove } = await import("./Modals/Remove");
-        await PgView.setModal(Remove);
-      },
-      hoverColor: "error",
-      icon: <Trash />,
-      showCondition: isPg,
-    },
-    {
-      name: "Import",
-      onClick: PgWallet.import,
-      icon: <ImportFile />,
-    },
-    {
-      name: "Export",
-      onClick: PgWallet.export,
-      icon: <ExportFile />,
-      showCondition: isPg,
-    },
-  ];
-
-  const standardWalletSettings: MenuItemProps[] = PgWallet.standardWallets.map(
-    (wallet) => ({
-      name: wallet.connected
-        ? `Disconnect from ${wallet.name}`
-        : `Connect to ${wallet.name}`,
-      onClick: () => PgCommand.connect.execute(wallet.name.toLowerCase()),
-      hoverColor: wallet.connected ? "error" : "secondary",
-      icon: <Img src={wallet.icon} alt={wallet.name} />,
-    })
-  );
-
   return (
     <Wrapper>
-      <Menu.Dropdown
-        items={defaultSettings.concat(standardWalletSettings)}
-        onShow={darken}
-        onHide={lighten}
-      >
-        <Button kind="icon" title="More">
-          <ThreeDots />
-        </Button>
-      </Menu.Dropdown>
+      <DropdownMenu onOpenChange={(open) => (open ? darken() : lighten())}>
+        <DropdownMenuTrigger asChild>
+          <Button kind="icon" title="More">
+            <ThreeDots />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {/* Keep the menu open so the label can flip to "Copied address" */}
+          <DropdownMenuItem
+            onSelect={(ev) => {
+              ev.preventDefault();
+              copyAddress();
+            }}
+          >
+            <Copy />
+            {copied ? "Copied address" : "Copy address"}
+          </DropdownMenuItem>
+          {airdropCondition && (
+            <DropdownMenuItem onSelect={airdrop}>
+              <Airdrop />
+              Airdrop
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onSelect={async () => {
+              const { Add } = await import("./Modals/Add");
+              await PgView.setModal(Add);
+            }}
+          >
+            <Plus />
+            Add
+          </DropdownMenuItem>
+          {isPg && (
+            <DropdownMenuItem onSelect={showRename}>
+              <Edit />
+              Rename
+            </DropdownMenuItem>
+          )}
+          {isPg && (
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={async () => {
+                const { Remove } = await import("./Modals/Remove");
+                await PgView.setModal(Remove);
+              }}
+            >
+              <Trash />
+              Remove
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => PgWallet.import()}>
+            <ImportFile />
+            Import
+          </DropdownMenuItem>
+          {isPg && (
+            <DropdownMenuItem onSelect={() => PgWallet.export()}>
+              <ExportFile />
+              Export
+            </DropdownMenuItem>
+          )}
+          {PgWallet.standardWallets.map((standardWallet) => (
+            <DropdownMenuItem
+              key={standardWallet.name}
+              variant={standardWallet.connected ? "destructive" : "default"}
+              onSelect={() =>
+                PgCommand.connect.execute(standardWallet.name.toLowerCase())
+              }
+            >
+              <Img src={standardWallet.icon} alt={standardWallet.name} />
+              {standardWallet.connected
+                ? `Disconnect from ${standardWallet.name}`
+                : `Connect to ${standardWallet.name}`}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </Wrapper>
   );
 };

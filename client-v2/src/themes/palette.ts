@@ -122,12 +122,6 @@ const PALETTE: ThemeParam = {
       borderColor: BORDER,
       padding: "0.4375rem 0.75rem",
     },
-    menu: {
-      default: {
-        bg: BG_RAISED,
-        border: `1px solid ${BORDER}`,
-      },
-    },
     modal: {
       default: {
         bg: "color-mix(in srgb, var(--surface-raised) 90%, transparent)",

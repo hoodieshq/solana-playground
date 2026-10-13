@@ -822,7 +822,6 @@ export class PgTheme {
     return this._skeleton()
       ._button()
       ._card()
-      ._menu()
       ._text()
       ._svg()
       ._input()
@@ -1006,23 +1005,6 @@ export class PgTheme {
   /** Set default card component */
   private static _card() {
     this._getComponent("card");
-    return this;
-  }
-
-  /** Set default menu component */
-  private static _menu() {
-    const menu = this._getComponent("menu");
-    const theme = this._themeReady;
-
-    // Default
-    menu.default ??= {};
-    menu.default.position ??= "absolute";
-    menu.default.zIndex ??= 2;
-    menu.default.bg ??= theme.colors.default.bgPrimary;
-    menu.default.borderRadius ??= theme.default.borderRadius;
-    menu.default.padding ??= "0.25rem 0";
-    menu.default.boxShadow ??= theme.default.boxShadow;
-
     return this;
   }
 
