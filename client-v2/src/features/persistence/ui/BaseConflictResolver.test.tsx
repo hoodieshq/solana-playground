@@ -203,6 +203,14 @@ describe("BaseConflictResolver", () => {
     expect(onCancel).toHaveBeenCalledTimes(2);
   });
 
+  it("takes the app's theme rather than forcing dark", () => {
+    // `applyThemeMode` sets `.dark` on <html> for a dark theme only; a `.dark`
+    // inside the view would switch its tokens dark under the Light theme too
+    expect(
+      document.querySelector('[role="dialog"] .dark, .dark[role="dialog"]')
+    ).toBeNull();
+  });
+
   it("stays open on a click outside it", async () => {
     const outside = document.querySelector('[data-slot="modal-overlay"]')!;
     // Radix starts listening for outside presses a task after it opens

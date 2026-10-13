@@ -251,9 +251,11 @@ build on is a registry item too, so nothing comes from `ui.shadcn.com`.
 - [`setHiddenAreas` is not public API and could change on a Monaco
   upgrade] → one wrapper, a fallback to "show everything", and a unit test
   that fails if the method disappears from the pinned version.
-- [The design system's palette does not follow legacy themes until the
-  token bridge, HOO-1802] → accepted; the view is a modal over the IDE, and
-  the proposal names it as a user-visible consequence.
+- [The view is drawn in the design system's tokens, not the app's theme
+  objects] → the token bridge (HOO-1802, #58) switches those tokens with the
+  theme through `.dark` on `<html>`. The view sets no mode class of its own:
+  pinning `.dark` on it left its surfaces dark under the Light theme while
+  Monaco drew light-theme text on them.
 - [Three Monaco editors are heavy] → created on open, disposed on close;
   one file's models at a time.
 - [A pinned answer can be refused repeatedly if the other device keeps

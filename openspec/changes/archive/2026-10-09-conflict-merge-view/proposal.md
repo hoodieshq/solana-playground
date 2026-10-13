@@ -79,9 +79,9 @@ None. `openspec/specs/` holds no capability for project sync yet.
 - `design-system/src/components/ui/merge.tsx`, `registry.json`,
   `src/ds/pg-blocks.tsx`: the new element and its catalogue block.
 - Users: a same-line conflict can be settled line by line instead of losing
-  one device's side of the file. Until the token bridge (HOO-1802) lands,
-  the view is drawn in the design system's palette, which may not match a
-  legacy theme around it.
+  one device's side of the file. The view takes its palette from the app's
+  theme: the token bridge (HOO-1802, #58) maps the Dark and Light themes to
+  the design system's tokens, so it reads in either.
 - Out of scope: the assistant performing the merge (a follow-up change; the
   resolved-content answer is what it would fill in); IDEA's whitespace,
   word-highlight and settings controls; keeping per-hunk choices across a

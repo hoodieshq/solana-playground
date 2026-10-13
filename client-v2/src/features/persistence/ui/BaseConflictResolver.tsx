@@ -411,7 +411,7 @@ export const BaseConflictResolver = ({
     <Modal open onOpenChange={(open) => !open && requestClose()}>
       <ModalContent
         size="wide"
-        className="dark md:h-[min(48rem,calc(100dvh-4rem))]"
+        className="md:h-[min(48rem,calc(100dvh-4rem))]"
         ref={contentRef}
         onEscapeKeyDown={onEscape}
         // A stray click beside the view must not close it
