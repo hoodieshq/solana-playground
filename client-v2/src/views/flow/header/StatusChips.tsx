@@ -14,9 +14,17 @@ import { PgCommand, PgConnection } from "../../../utils";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
 
+/** Which side of its chip a menu opens on */
+type Placement = "below" | "above";
+
 interface StatusChipsProps {
   onToggleSettings: (focus?: SettingsFocus) => void;
   settingsOpen: boolean;
+  /**
+   * `"above"` at the foot of the navigation, where a menu opening downward
+   * would run off the bottom of the window
+   */
+  placement?: Placement;
 }
 
 const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
@@ -25,6 +33,7 @@ const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
 const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
   onToggleSettings,
   settingsOpen,
+  placement = "below",
 }) => {
   const connection = useConnection();
   const wallet = useWallet();
@@ -83,7 +92,7 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
   };
 
   return (
-    <Wrapper>
+    <Wrapper $placement={placement}>
       <ChipButton
         type="button"
         title={connection?.rpcEndpoint}
@@ -114,7 +123,7 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
         )}
       </ChipButton>
       {github ? (
-        <ProfileWrapper ref={profileWrapperRef}>
+        <ProfileWrapper ref={profileWrapperRef} $placement={placement}>
           <GithubChip
             ref={profileChipRef}
             type="button"
@@ -129,7 +138,7 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
             <span>{github.login ?? github.name ?? "Account"}</span>
           </GithubChip>
           {profileOpen && (
-            <Popover aria-label="GitHub profile">
+            <Popover aria-label="GitHub profile" $placement={placement}>
               {confirmingSignOut ? (
                 <ConfirmBody>
                   <ConfirmText>Sign out of GitHub?</ConfirmText>
@@ -257,10 +266,19 @@ const GithubMark: FC<React.PropsWithChildren<unknown>> = () => (
   </svg>
 );
 
-const Wrapper = styled.div`
+// Above, at the foot of the navigation, the row is the navigation's width
+// (14.5 rem), narrower than the chips side by side, so it wraps, and it is
+// what the profile menu is anchored to (see `ProfileWrapper`).
+const Wrapper = styled.div<{ $placement: Placement }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  ${({ $placement }) =>
+    $placement === "above" &&
+    css`
+      position: relative;
+      flex-wrap: wrap;
+    `}
 `;
 
 // Non-interactive: the "Signing in..." status wraps a live message and its
@@ -322,19 +340,24 @@ const Avatar = styled.img`
   border-radius: 50%;
 `;
 
-// Anchors the popover under the chip; `position: relative` is the only
+// Below, anchors the popover under the chip; `position: relative` is the only
 // layout role this plays, so it doesn't disturb the flex row it sits in.
-const ProfileWrapper = styled.div`
-  position: relative;
+// Above, the chip can land anywhere in the wrapped row, and a menu as wide as
+// the navigation hung off its right edge would run off the window's left, so
+// the menu is anchored to the row (`Wrapper`) instead.
+const ProfileWrapper = styled.div<{ $placement: Placement }>`
+  position: ${({ $placement }) =>
+    $placement === "above" ? "static" : "relative"};
   display: inline-flex;
   align-items: center;
 `;
 
-const Popover = styled.div`
-  ${({ theme }) => css`
+const Popover = styled.div<{ $placement: Placement }>`
+  ${({ theme, $placement }) => css`
     position: absolute;
-    top: calc(100% + 0.375rem);
-    right: 0;
+    ${$placement === "above"
+      ? "bottom: calc(100% + 0.375rem); left: 0;"
+      : "top: calc(100% + 0.375rem); right: 0;"}
     z-index: 5;
     width: 14rem;
     padding: 0.375rem;
@@ -520,10 +543,9 @@ const AuthError = styled.span`
 /**
  * Where the chips give way.
  *
- * The header centres the stepper by giving both side zones an equal `1fr`
- * track, so the narrow left zone reserves as much width as this one needs.
- * Rather than move the stepper off centre, the two least load-bearing pieces
- * here — the balance and the "Sign in" wording — drop out on a narrow window.
+ * The chips sit in the navigation's footer, 14.5 rem wide, and wrap there;
+ * on a narrow window the two least load-bearing pieces here — the balance and
+ * the "Sign in" wording — drop out to keep that wrap short.
  * Both remain reachable: the balance in the wallet panel, the wording in the
  * button's `aria-label`.
  */

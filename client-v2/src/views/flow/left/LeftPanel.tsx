@@ -36,7 +36,7 @@ interface LeftPanelProps {
 
 /**
  * Where you are inside the current project. Which project you are in is
- * the header switcher's job -- the rail used to answer that too, and two
+ * the navigation switcher's job -- the rail used to answer that too, and two
  * controls for one question is what this change removed.
  */
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
@@ -79,7 +79,7 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
           panel back, so the rail stacks it under the chevron rather than
           dropping it. */}
       {collapsed && <Chevron $flip={false} />}
-      <Hint>&#8984;B</Hint>
+      <Hint>&#8984;E</Hint>
       {!collapsed && <Chevron $flip />}
     </Collapse>
   );
@@ -205,7 +205,7 @@ const Collapse = styled.button<{ $collapsed: boolean }>`
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-    /* The rail has 1.5rem of width to spend, so "⌘B" only fits below the
+    /* The rail has 1.5rem of width to spend, so "⌘E" only fits below the
        chevron and only at a smaller size than the expanded panel uses. */
     font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};
     border: none;
@@ -345,7 +345,7 @@ const SkipFooter = styled(Footer)`
 /**
  * Quiets the upstream explorer down to the bare tree the board shows
  * (`src`, `client`, `tests` -- no workspace picker, no icon toolbar, no
- * per-section action buttons or labels): the Flow header's stepper already
+ * per-section action buttons or labels): the stage bar's stepper already
  * owns Build/Deploy/Run/Test, and the footer `Footer` button above already
  * owns "new file".
  *

@@ -2,9 +2,6 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Logomark from "./Logomark";
-import ProjectSwitcher from "./ProjectSwitcher";
-import StatusChips from "./StatusChips";
 import Stepper from "./Stepper";
 import {
   cursorStep,
@@ -14,26 +11,18 @@ import {
   targetStage,
 } from "../lessons";
 import type { LessonState } from "../lessons";
-import type { SettingsFocus } from "../settings/GearSidebar";
 import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { useKeybind } from "../../../hooks";
 
-interface HeaderProps {
-  onOpenGallery: () => void;
-  onToggleSettings: (focus?: SettingsFocus) => void;
-  settingsOpen: boolean;
-}
-
 /**
- * The Flow layout's top bar: project switcher on the left, the dev-loop
- * stepper centered, cluster/wallet/settings on the right.
+ * The dev-loop stepper, centred across the top of the files column and the
+ * stage (`LayoutShell`'s `stageBar`). It owns the Ctrl+1..4 stage keys and
+ * points the stepper at the stage the current lesson step is graded on. The
+ * project switcher and the status chips that shared the old header with it
+ * live in the navigation (`AppNav`) now.
  */
-const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
-  onOpenGallery,
-  onToggleSettings,
-  settingsOpen,
-}) => {
+const StageBar: FC = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
 
@@ -62,50 +51,24 @@ const Header: FC<React.PropsWithChildren<HeaderProps>> = ({
 
   return (
     <Bar>
-      <Zone>
-        <Logomark aria-hidden="true" />
-        <ProjectSwitcher onOpenGallery={onOpenGallery} />
-      </Zone>
-      <Zone $center>
-        <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
-      </Zone>
-      <Zone $end>
-        <StatusChips
-          onToggleSettings={onToggleSettings}
-          settingsOpen={settingsOpen}
-        />
-      </Zone>
+      <Stepper state={state} onSelect={PgFlow.setStage} target={target} />
     </Bar>
   );
 };
 
-export default Header;
+export default StageBar;
 
 // Transparent on the black page ground -- the floating panels below carry
-// their own edges, so the header needs none of its own.
-//
-// Raised above the stock Sidebar's container (z-10, absolute in the shell): the switcher's and
-// the status chips' menus drop down over the left panel, and beneath it they
-// are drawn but cannot be clicked.
-const Bar = styled.header`
+// their own edges, so the bar needs none of its own.
+const Bar = styled.div`
   ${({ theme }) => css`
-    position: relative;
-    z-index: 20;
-    height: 3.5rem;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    flex-shrink: 0;
+    display: flex;
     align-items: center;
-    padding: 0 0.75rem;
+    justify-content: center;
+    min-width: 0;
+    padding-bottom: 0.5rem;
     background: transparent;
     font-family: ${theme.font.other.family};
   `}
-`;
-
-const Zone = styled.div<{ $center?: boolean; $end?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  justify-content: ${({ $center, $end }) =>
-    $center ? "center" : $end ? "flex-end" : "flex-start"};
 `;

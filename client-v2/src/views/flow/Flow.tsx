@@ -4,7 +4,10 @@ import styled, { css } from "styled-components";
 import Chevron from "./Chevron";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
-import Header from "./header/StageBar";
+import Logomark from "./header/Logomark";
+import ProjectSwitcher from "./header/ProjectSwitcher";
+import StageBar from "./header/StageBar";
+import StatusChips from "./header/StatusChips";
 import LeftPanel from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
@@ -32,13 +35,16 @@ import ModalBackdrop from "@/components/ModalBackdrop";
 import Toast from "@/components/Toast";
 import Wallet from "@/components/Wallet";
 import { PgExplorer, PgView } from "@/utils";
+import { AppNav } from "@/widgets/app-nav";
 import { LayoutShell } from "@/widgets/layout-shell";
 import type { Disposable } from "@/utils/types";
 
 /**
- * The Flow layout: header, left project/file tabs, the stage router in the
- * center with a collapsible console beneath it, and the assistant on the
- * right, all placed by `LayoutShell`.
+ * The Flow layout, with no header: `LayoutShell` places four columns, the
+ * navigation (`AppNav`, holding the logo, the project switcher and the status
+ * chips), the assistant, the files column, and the stage router over its
+ * collapsible console, with the `StageBar` stepper across the last two. The
+ * sync banner sits above all four, full width.
  */
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
@@ -63,8 +69,8 @@ const Flow = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  // Toggles rather than opens: the header controls are the only way in, so a
-  // second click on one has to be the way out.
+  // Toggles rather than opens: the navigation footer's chips are the only way
+  // in, so a second click on one has to be the way out.
   const toggleSettings = (focus: SettingsFocus = "panel") => {
     setSettingsFocus(focus);
     setSettingsOpen((open) => !open);
@@ -141,18 +147,29 @@ const Flow = () => {
 
   return (
     <Wrapper>
-      <Header
-        onOpenGallery={openGallery}
-        onToggleSettings={toggleSettings}
-        settingsOpen={settingsOpen}
-      />
       {/* In flow, not floating: it is a blocking question, and the file it
           names has to stay visible beneath it */}
       <BannerSlot>
         <SyncBanner />
       </BannerSlot>
       <LayoutShell
-        left={({ collapsed, toggle }) => (
+        nav={({ collapsed, toggle }) => (
+          <AppNav
+            collapsed={collapsed}
+            onToggle={toggle}
+            logo={<Logomark aria-hidden="true" />}
+            switcher={<ProjectSwitcher onOpenGallery={openGallery} />}
+            footer={
+              <StatusChips
+                placement="above"
+                onToggleSettings={toggleSettings}
+                settingsOpen={settingsOpen}
+              />
+            }
+          />
+        )}
+        stageBar={<StageBar />}
+        files={({ collapsed, toggle }) => (
           <LeftPanel
             collapsed={collapsed}
             onToggle={toggle}
@@ -201,7 +218,9 @@ const Flow = () => {
               aria-label={open ? "Collapse assistant" : "Expand assistant"}
               onClick={toggle}
             >
-              <Chevron $flip={!open} />
+              {/* The assistant folds toward the left edge: open, the chevron
+                  points left (fold); folded, right (open) */}
+              <Chevron $flip={open} />
             </Collapse>
             {open && <Assistant />}
           </Right>
@@ -330,8 +349,8 @@ const Collapse = styled.button`
   `}
 `;
 
-// Above everything the shell draws: the stock Sidebar (z-10), the header
-// (z-20) and the Sheets (z-50), which portal to `body` beside these. The
+// Above everything the shell draws: the stock Sidebar (z-10) and the Sheets
+// (z-50), which portal to `body` beside these. The
 // explorer's context menu opens here from inside the project Sheet, so it
 // must sit over that Sheet; a modal closes the Sheet as it opens
 // (`LayoutShell`), since the Sheet traps focus. A modal Sheet also turns off
