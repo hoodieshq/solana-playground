@@ -473,8 +473,8 @@ widgets/overlays/
 
 **Telemetry** (prefix `overlay`): `overlay_modal_opened {name}` when a frame
 mounts, `overlay_modal_submit_failed {name}` when a submit throws,
-`overlay_toast_shown {name}`. Logs go through `overlays:modal-host` and
-`overlays:toast-host`; a submit failure is logged with `report: true`.
+`overlay_toast_shown {name}`. Logs go through `overlays:modal-host`,
+`overlays:modal-frame` and `overlays:toast-host`; a submit failure is logged with `report: true`.
 
 Kept: every `aria-label` and test id inside the dialogs and menus, the key
 hints, Escape, the 500 ms tooltip delay, and the phone dialog as a page of
