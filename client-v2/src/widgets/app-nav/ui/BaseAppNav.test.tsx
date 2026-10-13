@@ -66,7 +66,11 @@ it("shows the logo, switcher and footer when open", () => {
 it("hides the switcher and footer when collapsed, keeping the items", () => {
   draw(true);
   expect(screen.queryByText("switcher")).toBeNull();
-  expect(screen.queryByText("footer")).toBeNull();
+  // Hidden, not unmounted: the feedback form in the footer keeps its draft
+  const footer = screen
+    .getByText("footer")
+    .closest<HTMLElement>('[data-slot="sidebar-footer"]');
+  expect(footer?.style.display).toBe("none");
   for (const label of ["Home", "New project", "Tutorials", "Programs"]) {
     expect(screen.getByRole("button", { name: label })).toBeTruthy();
   }

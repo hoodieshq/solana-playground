@@ -8,11 +8,12 @@ the events `features/feedback` sends.
 
 ## ADDED Requirements
 
-### Requirement: A floating trigger opens the feedback menu
+### Requirement: A trigger in the navigation opens the feedback menu
 
-The page SHALL show a round button with the `aria-label` "Feedback", fixed at
-the bottom left just above the project panel's "+ New file" control, with a
-1px ring of the product gradient. Pressing it SHALL open a menu above it,
+The page SHALL show a round button with the `aria-label` "Feedback" in the
+navigation's footer, under the status chips, with a 1px ring of the product
+gradient. Where the navigation is folded to its rail the trigger is hidden
+with the rest of the footer, and kept mounted so an open form keeps its draft. Pressing it SHALL open a menu above it,
 aligned to its start. An open modal, and a toast, SHALL cover the trigger.
 
 #### Scenario: The menu opens

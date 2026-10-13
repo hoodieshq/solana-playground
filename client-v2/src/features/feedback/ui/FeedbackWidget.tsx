@@ -27,7 +27,7 @@ const warn = () =>
     </span>
   ));
 
-/** The floating feedback trigger, its menu and the form, sending through `FeedbackProviderContext` */
+/** The feedback trigger, its menu and the form, sending through `FeedbackProviderContext` */
 export const FeedbackWidget = () => {
   const provider = useFeedbackProvider();
   const theme = useTheme();

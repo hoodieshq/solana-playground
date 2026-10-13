@@ -20,7 +20,7 @@ const ITEMS: { item: NavItem; label: string; Icon: ComponentType }[] = [
 ];
 
 export interface BaseAppNavProps {
-  /** The rail: icons only, no logo, switcher or footer */
+  /** The rail: icons only, no logo or switcher, the footer hidden */
   collapsed: boolean;
   onToggle: () => void;
   logo: ReactNode;
@@ -64,11 +64,11 @@ const BaseAppNav = ({
         ))}
       </SidebarMenu>
     </SidebarContent>
-    {!collapsed && (
-      <SidebarFooter>
-        <div className="flex flex-wrap gap-2">{footer}</div>
-      </SidebarFooter>
-    )}
+    {/* Hidden on the rail, never unmounted: the feedback form it holds would
+        lose its draft. Inline, because the footer's own `flex` beats `hidden` */}
+    <SidebarFooter style={collapsed ? { display: "none" } : undefined}>
+      <div className="flex flex-wrap items-center gap-2">{footer}</div>
+    </SidebarFooter>
   </>
 );
 

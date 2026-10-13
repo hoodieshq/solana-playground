@@ -160,11 +160,14 @@ const Flow = () => {
             logo={<Logomark aria-hidden="true" />}
             switcher={<ProjectSwitcher onOpenGallery={openGallery} />}
             footer={
-              <StatusChips
-                placement="above"
-                onToggleSettings={toggleSettings}
-                settingsOpen={settingsOpen}
-              />
+              <>
+                <StatusChips
+                  placement="above"
+                  onToggleSettings={toggleSettings}
+                  settingsOpen={settingsOpen}
+                />
+                <FeedbackWidget />
+              </>
             }
           />
         )}
@@ -234,7 +237,6 @@ const Flow = () => {
       />
 
       <Wallet />
-      <FeedbackWidget />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
       <StyledModalBackdrop />
       <PortalBelow id={PgView.ids.PORTAL_BELOW}>

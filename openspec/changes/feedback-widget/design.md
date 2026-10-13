@@ -223,12 +223,13 @@ is nothing to read but the toast, so the failure is a toast there.
 - [Moving the logger's SDK calls into the reporter can change what the
   logger sends] → the move keeps `logger/providers/sentry.test.ts` and
   `widgets/observability` tests unchanged and passing.
-- [The trigger covers what is under it] → it sits at the bottom left, above
-  the project panel's "+ New file", where the panel's file tree ends; at the
-  bottom right it covered the assistant's key field. It is z-12: over the
-  panel (z-10), under the toasts that open in that corner and every modal.
-  Its offset is one place to change; the walk-through checks the panel open,
-  folded to its rail, and as a phone Sheet.
+- [The trigger covers what is under it] → it no longer floats. Fixed at the
+  bottom left it sat over the project panel's "+ New file"; the four-column
+  frame (`ui-migration` 5.2) put the navigation's footer in that corner, and
+  the trigger covered the cluster chip and the avatar. It now sits in that
+  footer, under the status chips, where the prototype keeps "Report a bug".
+  The footer is hidden, not unmounted, on the rail, so an open form keeps
+  its draft.
 - [The feedback text reaches Sentry, which the team reads] → the message is
   never put in telemetry; the spec forbids it.
 
