@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { createElement, useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -80,7 +80,8 @@ const desktopMatchMedia = (query: string) => ({
 beforeEach(() => {
   panelSpies.created = 0;
   panelSpies.groups = {};
-  panelSpies.handles = [0, 1].map(() => ({
+  // In the order the shell creates its panel refs: assistant, files, console
+  panelSpies.handles = [0, 1, 2].map(() => ({
     collapse: vi.fn(),
     resize: vi.fn(),
     isCollapsed: vi.fn(() => false),
@@ -93,13 +94,21 @@ afterEach(() => {
   resetLogger();
 });
 
+/** The panel handles by name, in the order the shell creates them */
+const handles = () => {
+  const [assistant, files, consolePanel] = panelSpies.handles;
+  return { assistant, files, consolePanel };
+};
+
 /** The fields a test sets itself; the rest are the defaults below */
 interface PropsChoice {
-  leftOpen?: boolean;
+  navOpen?: boolean;
   assistantOpen?: boolean;
   assistantSheetOpen?: boolean;
+  filesOpen?: boolean;
   consoleOpen?: boolean;
   horizontal?: BaseLayoutShellProps["horizontal"];
+  work?: BaseLayoutShellProps["work"];
 }
 
 const props = (
@@ -107,8 +116,8 @@ const props = (
   choice: PropsChoice = {}
 ): BaseLayoutShellProps => ({
   viewport,
-  leftOpen: choice.leftOpen ?? true,
-  onLeftOpenChange: vi.fn(),
+  navOpen: choice.navOpen ?? true,
+  onNavOpenChange: vi.fn(),
   // One flag that follows the viewport: the panel on wide, the Sheet below
   assistantState: {
     open:
@@ -117,27 +126,132 @@ const props = (
         : choice.assistantSheetOpen ?? false,
     onOpenChange: vi.fn(),
   },
+  filesState: {
+    open: choice.filesOpen ?? true,
+    onOpenChange: vi.fn(),
+  },
   consoleState: {
     open: choice.consoleOpen ?? false,
     onOpenChange: vi.fn(),
   },
   horizontal: choice.horizontal,
+  work: choice.work,
   vertical: undefined,
   onHorizontalLayout: vi.fn(),
+  onWorkLayout: vi.fn(),
   onVerticalLayout: vi.fn(),
-  left: () => <nav>left slot</nav>,
+  nav: () => <nav>nav slot</nav>,
+  files: () => <aside>files slot</aside>,
   onLeftSheetChange: vi.fn(),
   closeLeftSheetOn: () => ({ dispose: () => {} }),
+  stageBar: <header>stage bar</header>,
   stage: <main>stage slot</main>,
   console: <div className="xterm">console slot</div>,
   assistant: <section>assistant slot</section>,
   assistantOpener: <button type="button">Expand assistant</button>,
 });
 
+/** A window narrower than the stock Sidebar's 768 px, for the test's length */
+const narrowWindow = () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
+  const innerWidth = window.innerWidth;
+  window.innerWidth = 500;
+  return () => {
+    window.innerWidth = innerWidth;
+  };
+};
+
+it("should lay out the navigation, the assistant, then the work area on a wide screen", () => {
+  render(<BaseLayoutShell {...props("wide")} />);
+  const order = [
+    "nav slot",
+    "assistant slot",
+    "stage bar",
+    "files slot",
+    "stage slot",
+    "console slot",
+  ].map((slot) => screen.getByText(slot));
+  order.slice(1).forEach((element, index) => {
+    expect(
+      order[index].compareDocumentPosition(element) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+  expect(
+    document.querySelectorAll('[data-slot="resizable-panel-group"]')
+  ).toHaveLength(3);
+});
+
+it("should put the files column in the navigation's Sheet below 768 px", () => {
+  const restore = narrowWindow();
+  try {
+    render(<BaseLayoutShell {...props("phone")} />);
+    // Not in the work group, and the Sheet is closed
+    expect(screen.queryByText("files slot")).toBeNull();
+    expect(screen.getByText("stage slot")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand project panel" })
+    );
+    const sheet = document.querySelector(
+      '[data-slot="sidebar"][data-mobile="true"]'
+    )!;
+    const nav = within(sheet as HTMLElement).getByText("nav slot");
+    const files = within(sheet as HTMLElement).getByText("files slot");
+    expect(
+      nav.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  } finally {
+    restore();
+  }
+});
+
+it("should hand the navigation the stock toggle and whether it is a rail", () => {
+  const nav = vi.fn(() => null);
+  const shell = props("wide", { navOpen: false });
+  render(
+    <BaseLayoutShell
+      viewport={shell.viewport}
+      navOpen={shell.navOpen}
+      onNavOpenChange={shell.onNavOpenChange}
+      assistantState={shell.assistantState}
+      filesState={shell.filesState}
+      consoleState={shell.consoleState}
+      onHorizontalLayout={shell.onHorizontalLayout}
+      onWorkLayout={shell.onWorkLayout}
+      onVerticalLayout={shell.onVerticalLayout}
+      nav={nav}
+      files={shell.files}
+      onLeftSheetChange={shell.onLeftSheetChange}
+      closeLeftSheetOn={shell.closeLeftSheetOn}
+      stageBar={shell.stageBar}
+      stage={shell.stage}
+      console={shell.console}
+      assistant={shell.assistant}
+      assistantOpener={shell.assistantOpener}
+    />
+  );
+  expect(nav).toHaveBeenLastCalledWith({
+    collapsed: true,
+    isMobile: false,
+    toggle: expect.any(Function),
+  });
+});
+
 it("should lay out every slot on a wide screen", () => {
   render(<BaseLayoutShell {...props("wide")} />);
   for (const slot of [
-    "left slot",
+    "nav slot",
+    "stage bar",
+    "files slot",
     "stage slot",
     "console slot",
     "assistant slot",
@@ -145,9 +259,6 @@ it("should lay out every slot on a wide screen", () => {
     expect(screen.getByText(slot)).toBeTruthy();
   }
   expect(document.querySelector('[data-slot="sidebar"]')).not.toBeNull();
-  expect(
-    document.querySelectorAll('[data-slot="resizable-panel-group"]')
-  ).toHaveLength(2);
   expect(screen.queryByRole("button", { name: "Expand assistant" })).toBeNull();
 });
 
@@ -162,7 +273,7 @@ it("should put the assistant in a closed Sheet below 1024 px, with its opener", 
   expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
   expect(
     document.querySelectorAll('[data-slot="resizable-panel-group"]')
-  ).toHaveLength(2);
+  ).toHaveLength(3);
 });
 
 it("should show the assistant Sheet when it is open", () => {
@@ -170,18 +281,22 @@ it("should show the assistant Sheet when it is open", () => {
   render(
     <BaseLayoutShell
       viewport={open.viewport}
-      leftOpen={open.leftOpen}
-      onLeftOpenChange={open.onLeftOpenChange}
+      navOpen={open.navOpen}
+      onNavOpenChange={open.onNavOpenChange}
       assistantState={{
         open: true,
         onOpenChange: open.assistantState.onOpenChange,
       }}
+      filesState={open.filesState}
       consoleState={open.consoleState}
       onHorizontalLayout={open.onHorizontalLayout}
+      onWorkLayout={open.onWorkLayout}
       onVerticalLayout={open.onVerticalLayout}
-      left={open.left}
+      nav={open.nav}
+      files={open.files}
       onLeftSheetChange={open.onLeftSheetChange}
       closeLeftSheetOn={open.closeLeftSheetOn}
+      stageBar={open.stageBar}
       stage={open.stage}
       console={open.console}
       assistant={open.assistant}
@@ -210,13 +325,13 @@ it("should keep the console mounted when the window crosses 1024 px", () => {
   expect(screen.queryByText("assistant slot")).toBeNull();
 });
 
-it("should mark the sidebar expanded or collapsed from leftOpen", () => {
+it("should mark the sidebar expanded or collapsed from navOpen", () => {
   const open = render(<BaseLayoutShell {...props("wide")} />);
   expect(
     document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
   ).toBe("expanded");
   open.unmount();
-  render(<BaseLayoutShell {...props("wide", { leftOpen: false })} />);
+  render(<BaseLayoutShell {...props("wide", { navOpen: false })} />);
   expect(
     document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
   ).toBe("collapsed");
@@ -231,7 +346,7 @@ it("should report the Sheet closing", () => {
 });
 
 it("should collapse the assistant panel when assistantOpen turns false", () => {
-  const [assistant] = panelSpies.handles;
+  const { assistant } = handles();
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   expect(assistant.collapse).not.toHaveBeenCalled();
   expect(assistant.resize).not.toHaveBeenCalled();
@@ -249,7 +364,7 @@ it("should mount a folded assistant folded, and not report it open", () => {
 });
 
 it("should still fold the panel after a trip through the compact Sheet", () => {
-  const [assistant] = panelSpies.handles;
+  const { assistant } = handles();
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   rerender(<BaseLayoutShell {...props("compact")} />);
   rerender(
@@ -264,7 +379,7 @@ it("should still fold the panel after a trip through the compact Sheet", () => {
 });
 
 it("should still open a folded panel after a trip through the compact Sheet", () => {
-  const [assistant] = panelSpies.handles;
+  const { assistant } = handles();
   assistant.isCollapsed.mockReturnValue(true);
   const { rerender } = render(
     <BaseLayoutShell {...props("wide", { assistantOpen: false })} />
@@ -282,7 +397,7 @@ it("should still open a folded panel after a trip through the compact Sheet", ()
 
 it("should open an assistant panel that mounts folded with assistantOpen true, at its default width", () => {
   // `expand()` would open a panel that mounted folded at its minimum
-  const [assistant] = panelSpies.handles;
+  const { assistant } = handles();
   assistant.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide")} />);
   expect(assistant.resize).toHaveBeenCalledTimes(1);
@@ -291,14 +406,14 @@ it("should open an assistant panel that mounts folded with assistantOpen true, a
 });
 
 it("should open a console that mounts folded with consoleOpen true, at its default height", () => {
-  const consolePanel = panelSpies.handles[1];
+  const { consolePanel } = handles();
   consolePanel.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide", { consoleOpen: true })} />);
   expect(consolePanel.resize).toHaveBeenCalledWith(PANEL_SIZES.console.default);
 });
 
 it("should do nothing when the console panel already matches consoleOpen", () => {
-  const consolePanel = panelSpies.handles[1];
+  const { consolePanel } = handles();
   consolePanel.isCollapsed.mockReturnValue(true);
   render(<BaseLayoutShell {...props("wide")} />);
   expect(consolePanel.collapse).not.toHaveBeenCalled();
@@ -307,7 +422,7 @@ it("should do nothing when the console panel already matches consoleOpen", () =>
 
 it("should not take or save a horizontal layout below 1024 px", () => {
   const compact = props("compact", {
-    horizontal: { center: 70, assistant: 30 },
+    horizontal: { assistant: 30, work: 70 },
   });
   render(<BaseLayoutShell {...compact} />);
   const group = panelSpies.groups["layout-horizontal"];
@@ -316,17 +431,17 @@ it("should not take or save a horizontal layout below 1024 px", () => {
 });
 
 it("should take and save the horizontal layout on a wide screen", () => {
-  const wide = props("wide", { horizontal: { center: 70, assistant: 30 } });
+  const wide = props("wide", { horizontal: { assistant: 30, work: 70 } });
   render(<BaseLayoutShell {...wide} />);
   const group = panelSpies.groups["layout-horizontal"];
-  expect(group.defaultLayout).toEqual({ center: 70, assistant: 30 });
+  expect(group.defaultLayout).toEqual({ assistant: 30, work: 70 });
   group.onLayoutChanged!(
-    { center: 60, assistant: 40 },
+    { assistant: 40, work: 60 },
     { isUserInteraction: true }
   );
   expect(wide.onHorizontalLayout).toHaveBeenCalledWith({
-    center: 60,
     assistant: 40,
+    work: 60,
   });
 });
 
@@ -336,7 +451,11 @@ it("should not save a layout the library settled on its own", () => {
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
   panelSpies.groups["layout-horizontal"].onLayoutChanged!(
-    { center: 60, assistant: 40 },
+    { assistant: 40, work: 60 },
+    { isUserInteraction: false }
+  );
+  panelSpies.groups["layout-work"].onLayoutChanged!(
+    { files: 20, stage: 80 },
     { isUserInteraction: false }
   );
   panelSpies.groups["layout-vertical"].onLayoutChanged!(
@@ -344,6 +463,7 @@ it("should not save a layout the library settled on its own", () => {
     { isUserInteraction: false }
   );
   expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
+  expect(wide.onWorkLayout).not.toHaveBeenCalled();
   expect(wide.onVerticalLayout).not.toHaveBeenCalled();
 });
 
@@ -361,18 +481,7 @@ it("should save a vertical layout the user dragged", () => {
 });
 
 it("should close the project panel Sheet when it is asked to", () => {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: true,
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }));
-  const innerWidth = window.innerWidth;
-  window.innerWidth = 500;
+  const restore = narrowWindow();
   try {
     let close = () => false;
     const dispose = vi.fn();
@@ -402,7 +511,7 @@ it("should close the project panel Sheet when it is asked to", () => {
     expect(sheet()).toBeNull();
     expect(shell.onLeftSheetChange).toHaveBeenLastCalledWith(false);
   } finally {
-    window.innerWidth = innerWidth;
+    restore();
   }
 });
 
@@ -427,7 +536,7 @@ it("should not throw or report when a panel cannot yet say whether it is folded"
 
 /** The two groups' `onLayoutChanged`, as the library calls them */
 const settled = (
-  id: "layout-horizontal" | "layout-vertical",
+  id: "layout-horizontal" | "layout-work" | "layout-vertical",
   layout: Record<string, number>,
   isUserInteraction: boolean
 ) =>
@@ -436,17 +545,17 @@ const settled = (
   );
 
 it("should report a drag that folds the assistant, and save its layout", () => {
-  const [assistant] = panelSpies.handles;
+  const { assistant } = handles();
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
   assistant.isCollapsed.mockReturnValue(true);
-  settled("layout-horizontal", { center: 98, assistant: 2 }, true);
+  settled("layout-horizontal", { assistant: 2, work: 98 }, true);
   expect(wide.assistantState.onOpenChange).toHaveBeenCalledWith(false);
   expect(wide.onHorizontalLayout).toHaveBeenCalledTimes(1);
 });
 
 it("should report a drag that unfolds the console", () => {
-  const consolePanel = panelSpies.handles[1];
+  const { consolePanel } = handles();
   consolePanel.isCollapsed.mockReturnValue(true);
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
@@ -457,24 +566,24 @@ it("should report a drag that unfolds the console", () => {
 
 it("should put back, not report, an open panel the library folded on its own", () => {
   // A restored size below the library's fold point mounts the panel folded
-  const [assistant] = panelSpies.handles;
-  const wide = props("wide", { horizontal: { center: 88, assistant: 12 } });
+  const { assistant } = handles();
+  const wide = props("wide", { horizontal: { assistant: 12, work: 88 } });
   render(<BaseLayoutShell {...wide} />);
   assistant.isCollapsed.mockReturnValue(true);
-  settled("layout-horizontal", { center: 98, assistant: 2 }, false);
+  settled("layout-horizontal", { assistant: 2, work: 98 }, false);
   expect(wide.assistantState.onOpenChange).not.toHaveBeenCalled();
   expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
   expect(assistant.resize).toHaveBeenCalledWith(PANEL_SIZES.assistant.default);
   // Only the first layout it settles: a later one is a window resize
   assistant.resize.mockClear();
-  settled("layout-horizontal", { center: 98, assistant: 2 }, false);
+  settled("layout-horizontal", { assistant: 2, work: 98 }, false);
   expect(assistant.resize).not.toHaveBeenCalled();
 });
 
 it("should report an error from isCollapsed other than the expected one, once", () => {
   const logs = logMemory();
   initLogger({ providers: [logs] });
-  const consolePanel = panelSpies.handles[1];
+  const { consolePanel } = handles();
   consolePanel.isCollapsed.mockImplementation(() => {
     throw new TypeError("broken");
   });
@@ -486,4 +595,58 @@ it("should report an error from isCollapsed other than the expected one, once", 
   expect(errors).toHaveLength(1);
   expect(errors[0].report).toBe(true);
   expect(errors[0].error?.message).toBe("broken");
+});
+
+it("should collapse the files column when filesState turns false", () => {
+  const { files } = handles();
+  const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
+  expect(files.collapse).not.toHaveBeenCalled();
+  rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
+  expect(files.collapse).toHaveBeenCalledTimes(1);
+});
+
+it("should open a files column that mounts folded at its default width", () => {
+  // `expand()` would open a panel that mounted folded at its minimum
+  const { files } = handles();
+  files.isCollapsed.mockReturnValue(true);
+  render(<BaseLayoutShell {...props("compact")} />);
+  expect(files.resize).toHaveBeenCalledWith(PANEL_SIZES.files.default);
+  expect(PANEL_SIZES.files.default).toBe(232);
+});
+
+it("should take and save the work layout the user dragged", () => {
+  const wide = props("wide", { work: { files: 25, stage: 75 } });
+  render(<BaseLayoutShell {...wide} />);
+  expect(panelSpies.groups["layout-work"].defaultLayout).toEqual({
+    files: 25,
+    stage: 75,
+  });
+  settled("layout-work", { files: 30, stage: 70 }, true);
+  expect(wide.onWorkLayout).toHaveBeenCalledWith({ files: 30, stage: 70 });
+});
+
+it("should report a drag that folds the files column", () => {
+  const { files } = handles();
+  const wide = props("wide");
+  render(<BaseLayoutShell {...wide} />);
+  files.isCollapsed.mockReturnValue(true);
+  settled("layout-work", { files: 5, stage: 95 }, true);
+  expect(wide.filesState.onOpenChange).toHaveBeenCalledWith(false);
+  expect(wide.onWorkLayout).toHaveBeenCalledTimes(1);
+});
+
+it("should neither take nor save a work layout below 768 px", () => {
+  const restore = narrowWindow();
+  try {
+    render(
+      <BaseLayoutShell
+        {...props("phone", { work: { files: 25, stage: 75 } })}
+      />
+    );
+    const group = panelSpies.groups["layout-work"];
+    expect(group.defaultLayout).toBeUndefined();
+    expect(group.onLayoutChanged).toBeUndefined();
+  } finally {
+    restore();
+  }
 });
