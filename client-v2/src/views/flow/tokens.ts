@@ -8,12 +8,15 @@ export const GAP = "8px";
  * the left panel's new-file action. Shared so their top borders read as one
  * line across the canvas.
  */
-export const BOTTOM_BAR_HEIGHT = "1.75rem";
+export const BOTTOM_BAR_PX = 28;
+/**
+ * In px, not rem: the layout shell folds the console's panel to exactly this
+ * height (`PANEL_SIZES.console.folded`), and the panel library sizes in px.
+ */
+export const BOTTOM_BAR_HEIGHT = `${BOTTOM_BAR_PX}px`;
 
 /**
- * The brand gradient, verbatim from
- * `components/GradientButton/GradientButton.tsx` -- that component
- * is the existing precedent for this literal (logomark, stepper active dot,
- * the one decisive CTA per view).
+ * The product's gradient token, the same one `GradientButton` paints with
+ * (logomark, stepper active dot, the one decisive CTA per view).
  */
-export const GRADIENT = "linear-gradient(135deg, #9945ff 10%, #14f195 90%)";
+export const GRADIENT = "var(--gradient-product)";

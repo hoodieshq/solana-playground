@@ -1,4 +1,6 @@
-Linear: HOO-
+Linear: [HOO-](https://linear.app/solana-fndn/issue/HOO-)
+
+<!-- The issue number goes in both places: [HOO-123](https://linear.app/solana-fndn/issue/HOO-123). Use only this short form; never the long URL with the title after the ID. -->
 
 ## TLDR
 

@@ -188,11 +188,8 @@ export const addOnDidChange = (
     // See: https://github.com/webpack/webpack/issues/8132
     // https://github.com/mishoo/UglifyJS/issues/3263
     //
-    // The solution is to avoid minimizing the decorator class names in production
-    // by overriding the Terser plugin's `keep_classnames` and `keep_fnames` option
-    // to include only the class/function names(decorator classes can be transpiled
-    // to either classes or functions depending on the browser version) that start
-    // with "_Pg".
+    // The solution is to keep class and function names in production builds:
+    // the minifier runs with esbuild's `keepNames` (see `craco.config.js`).
     return (
       "ondidchange" +
       sClass.name +

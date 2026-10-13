@@ -128,6 +128,11 @@ jobs:
       - name: Lint
         run: yarn lint
 
+      # Every colour comes from the design system's tokens; a hex or a
+      # colour function anywhere else in `src/` fails the job.
+      - name: Colour literals
+        run: yarn check-colors
+
       # `openspec validate --all` over ../openspec: every active change has
       # its proposal, delta specs, design and tasks in the schema's shape.
       - name: Validate specs
@@ -160,6 +165,16 @@ jobs:
             echo "::error::Tailwind utilities are missing from build/static/css -- craco's PostCSS override is not applying"
             exit 1
           }
+
+      # Change events are named after `_Pg*` classes; a minifier that drops the names passes the build and loops at runtime.
+      - name: Check decorator class names survive minification
+        run: |
+          for name in _PgConnection _PgProgramInfo; do
+            grep -q "\"$name\"" build/static/js/*.js || {
+              echo "::error::$name is missing from build/static/js: the minifier drops class names (keepNames in craco.config.js)"
+              exit 1
+            }
+          done
 
   # The browser suite (`client-v2/e2e/`, Playwright) in its own job, so
   # `checks` stays short and a browser failure reads as one. No Postgres and

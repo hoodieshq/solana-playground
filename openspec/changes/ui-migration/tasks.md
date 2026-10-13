@@ -1,8 +1,11 @@
 # Tasks
 
 Each task is its own stream: its own worktree, ticket and small PRs. Tick a
-task in the PR that lands it. Until 3.2 lands, new code may use Tailwind
-utilities and tokens but no design-system components.
+task in the PR that lands it. Until React 19 (3.2's PR #45) and the
+in-repository registry (2.2's PRs #44 and #50) are on `master-2.0`, new code
+may use Tailwind utilities and tokens but no design-system components. Both
+are, since 2026-10-07. Ticking 3.2 is its own stream's call, and does not
+hold the components back.
 
 ## 1. Rules
 
@@ -21,9 +24,9 @@ utilities and tokens but no design-system components.
 
 ## 2. Design system
 
-- [ ] 2.1 `design-system/` on `master-2.0` as its own package; builds and
+- [x] 2.1 `design-system/` on `master-2.0` as its own package; builds and
       serves its catalogue (HOO-1852, PR #44)
-- [ ] 2.2 Registry built from the repository with no outside URLs (HOO-1852,
+- [x] 2.2 Registry built from the repository with no outside URLs (HOO-1852,
       PR #44)
 
 ## 3. Tools
@@ -39,8 +42,13 @@ utilities and tokens but no design-system components.
 - [x] 3.5 e2e in CI, or the React 19 gate written down as a manual run
       (HOO-1856, PR #48: the `e2e` job; the production-build walk-through
       stays manual until 3.8 writes it as scenarios)
-- [ ] 3.6 First design-system components installed into `shared/ui` through
-      the reinstall script (ticket to file; after 3.2 and 2.2)
+- [x] 3.6 First design-system components installed into `shared/ui` through
+      the reinstall script (HOO-1949, PR #56; after 3.2, which landed as PR
+      #45, and 2.2, which landed as PRs #44 and #50; both leave their own
+      ticks to their owners; HOO-1949 also
+      moved the last bare `button`/`spinner`/`tooltip` dependencies into
+      `@playground/`, guarded by `client-v2/scripts/registry.test.mjs`; plan:
+      [plans/3.6-ds-shared.md](plans/3.6-ds-shared.md))
 - [x] 3.7 `yarn spec:coverage` reports every scenario without a test
       titled `<capability>: <scenario name>` or a `(manual)` mark
       (HOO-1856, PR #48)
@@ -50,18 +58,20 @@ utilities and tokens but no design-system components.
 
 ## 4. Foundation
 
-- [ ] 4.1 Raise the browser floor: `browserslist` updated, build and bundle
+- [x] 4.1 Raise the browser floor: `browserslist` updated, build and bundle
       checked (HOO-1860)
-- [ ] 4.2 Tailwind 4 beside styled-components and the `@/` alias; nothing on
+- [x] 4.2 Tailwind 4 beside styled-components and the `@/` alias; nothing on
       screen moves; the alias resolves in the build, the editor and tests
       (HOO-1861; after 4.1)
-- [ ] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
-      xterm follow the theme (HOO-1802; after 4.2 and 2.1)
+- [x] 4.3 Token bridge: one palette for both systems, two themes, Monaco and
+      xterm follow the theme (HOO-1802; after 4.2 and 2.1;
+      plan: plans/4.3-token-bridge.md)
 
 ## 5. Screens
 
-- [ ] 5.1 New layout shell with today's panels inside; the responsive
-      breakpoint agreed (HOO-1854; after 3.6 and 4.3)
+- [x] 5.1 New layout shell with today's panels inside; the editor read-only
+      below 600 px (decided 2026-10-09); the classic layout removed
+      (HOO-1854; after 3.6 and 4.3; plan: `plans/5.1-layout-shell.md`)
 - [ ] 5.2 Panels move one by one, each by the change rule in
       `client-v2/CLAUDE.md` (one ticket per panel, to file; after 5.1)
 - [ ] 5.3 Breakpoint screens, what the cut line says, by Nov 11 (ticket to

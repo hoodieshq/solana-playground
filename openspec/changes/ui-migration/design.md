@@ -127,13 +127,41 @@ that owns the data.
 ## Tokens and themes
 
 `tokens.css` is the source of colour, type, radius, elevation and motion.
-`:root` is light (paper); `.dark` is the product. The `dark` class goes on
-`<html>` and follows the theme setting (today only `colorScheme` is set, in
-`PgTheme.set`). The styled-components theme object is rebuilt from the same
-values so legacy and new components read one palette; HOO-1802's literal
-colours move onto them. Monaco (`monaco.editor.defineTheme`) and xterm
-(`theme` in `Terminal.tsx`) need resolved values and read them through
-`getComputedStyle(document.documentElement)` when the theme changes.
+`:root` is light (paper); `.dark` is the product. It reaches the code only
+through `yarn ds-add playground-tokens`, which installs
+`src/app/styles/playground-tokens.css` and `playground-theme.css`; neither is
+edited by hand, and no token is added for the playground's sake (a legacy
+role without one maps to the nearest). `src/index.css` imports both and
+declares `@custom-variant dark (&:is(.dark *))`, so `dark:` follows the class,
+not the OS. `PgTheme.set` toggles `dark` on `<html>` next to `colorScheme`.
+
+- **The theme object holds references.** Every colour in the
+  styled-components theme is `var(--token)`, so one object serves both themes
+  and the class switches every value. Alpha is `PgTheme.alpha(color, level)`,
+  a `color-mix(in srgb, ...)` at 9, 39 or 73 per cent (the weights of the old
+  `16`, `64`, `bb` suffixes). _Rejected:_ values resolved at switch time (a
+  second copy of the palette in JS, and hex concatenation breaks on any token
+  not written `#rrggbb`); a hybrid of both (two kinds of value in one object).
+- **Monaco, xterm and shiki get plain values.** They cannot read a CSS
+  variable. `shared/lib/css-color` resolves one through `getComputedStyle` on
+  a probe element and turns the `rgb()` or `color(srgb ...)` it reports into
+  hex; a value that does not resolve becomes transparent, with one warning.
+  Monaco redefines its theme and xterm recolours in place on every change, so
+  terminal output survives.
+- **Two names.** `Dark` (the default) and `Light`. A saved `Playground`,
+  `Dracula` or `Solana` falls back to Dark and is told once; `Solana V2`,
+  written on every first load and so nobody's choice, and any unknown name
+  fall back silently. The fallback rewrites the existing `theme` key at once,
+  so there is no new storage key; the `theme-migration-solana-v2*` flags go.
+  The notice waits in memory for a start-up effect mounted after `Toast`,
+  because a toast sent before `Toast` mounts is lost.
+- **Literals are guarded.** `scripts/check-colors.mjs` runs in
+  `yarn run check` and in CI, and fails on any hex colour or colour function
+  (`rgb()`, `hsl()`, `color(srgb ...)` and the like) outside the installed
+  token files, `shared/lib/css-color` and the third-party logo colours in
+  `languages/`. Named colours (`white`, `red`) are not caught: the words are
+  too common in code to tell from a colour without parsing CSS. Sidebar icons colour through a CSS mask over the
+  text colour, which reaches the rail's raster icons too.
 
 ## Tailwind inside Create React App
 
@@ -197,6 +225,108 @@ fallback `FAST_REFRESH=false`).
 HOO-1772 and HOO-1773 change the Monaco and language-server modules; they do
 not land in the same week as the upgrade.
 
+## The layout shell (5.1)
+
+Decided with Slava on 2026-10-09 (HOO-1854, folding in HOO-1793).
+
+- **Flow is rebuilt; classic is removed.** The shell replaces Flow's grid.
+  `?classic` and its `Side`, `Main/Secondary` and `Bottom` go, because Flow
+  already reaches classic's extra pages (Interact, the gallery,
+  `ProgramsTab`). `app/Panels/Main/Primary` stays: the Write stage mounts it.
+  `components/Resizable` and `re-resizable` stay: the tutorial view
+  (`components/Tutorial/views/Main.tsx`) uses them.
+  `PgView.sidebar` stays: routes and tutorials write it.
+- **The left panel is the stock `Sidebar`**, folding to an icon rail: 14.5 rem
+  open, 3.25 rem as a rail, ⌘B, as the design system's migration map has it.
+  The widths go through `SidebarProvider`'s `style`; `shared/ui` is not
+  edited. The header keeps the full width on top (Slava, 2026-10-09): the
+  stock Sidebar is `fixed` at the window's full height, so the shell's
+  `className` makes it `absolute` inside the area under the header, and the
+  provider `flex-1` instead of `min-h-svh`. The panel is no longer drag-resizable (today 192 px to 30% of the
+  window). _Rejected:_ one `ResizablePanelGroup` for all three columns, which
+  keeps the drag but rebuilds the Sidebar's phone Sheet and ⌘B by hand; a
+  drag handle added to the stock Sidebar, which edits `shared/ui`.
+- **Assistant and console become resizable** (through `shared/ui/resizable`,
+  sizes in px), and fold. The console folds to a 28 px handle (not 0) and stays
+  mounted so the xterm session lives; the assistant folds to a 24 px strip and
+  unmounts its content, as today.
+
+```
+widgets/layout-shell/
+  ui/LayoutShell.tsx      connected: the state, the keys, the panels the
+                          product opens on its own, telemetry
+  ui/BaseLayoutShell.tsx  markup only: SidebarProvider, the two panel groups,
+                          the Sheets; slots left/stage/console/assistant
+  model/layout-state.ts   the saved layout, one localStorage key
+  model/use-layout-state.ts  the state hook: restore, toggle, save
+  model/telemetry.ts      the `layout_*` events
+```
+
+`app/Panels/Side/Left/Settings.tsx` (and `CustomSetting.tsx`) stay with the
+classic panels' removal: `GearSidebar` uses them.
+
+`useViewport()` (wide >=1024, compact 600-1023, phone <600) lives in
+`shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
+announces a blocked edit as a `PgEditor` document event, so the editor does
+not import the widget.
+
+```
+SidebarProvider (collapsible="icon", controlled open)
+├─ Sidebar → LeftPanel (unchanged inside)
+└─ SidebarInset → Group horizontal
+   ├─ Panel center → Group vertical: stage (ObjectiveBand + StageRouter) | console
+   └─ Panel assistant (a right Sheet on compact and phone)
+```
+
+**What survives a reload.** One `localStorage` key, `layout`, under 200
+bytes, stored as the state is: `{v: 1, open: {left, assistant, console},
+h?, vert?}`, where `h` and `vert` are the two groups' layouts from
+`onLayoutChanged`, in percent and summing to 100, saved only when the user
+drags (not on mount, not per frame, not when the window resizes) and never
+kept for a folded panel (assistant: `h`, console: `vert`), so a reload sizes
+that panel from its flag. A size map that does not read is dropped alone; the
+open flags are kept. A restored size that the library folds on mount does not
+rewrite the flag: the panel is put back to its open size.
+The panel constraints are in px (assistant 280 to 560, console 120 minimum).
+A layout saved by a newer version is read as the defaults and never
+overwritten. A corrupt value, another `v` or unavailable
+storage falls back to today's defaults (left open, assistant open at 21.75
+rem, console closed, 16 rem when opened), is logged through
+`createLogger("layout-shell:state")` and sends `layout_restore_failed`. Crossing a breakpoint writes nothing. The widget
+owns the state; the subscriptions that open panels on their own
+(`deploy.onDidStart` and a failed deploy open the console,
+`PgAssistant.onDidRequestPrompt` the assistant) move into it unchanged.
+
+**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, left: 768, phone: 600 }`.
+`left` is not a viewport class: it names the stock Sidebar's own threshold,
+and a unit test holds it to `use-mobile`.
+
+| Width | Left | Assistant | Editor |
+|---|---|---|---|
+| wide >=1024 | Sidebar or rail | resizable panel | edits |
+| compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
+| phone <600 | the stock Sheet | full-width Sheet | read-only |
+
+The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
+three thresholds; that is accepted rather than editing `shared/`. On a phone
+Monaco gets `readOnly`, and the message that editing works from 600 px is
+shown through Monaco's message controller (0.37 has no `readOnlyMessage`
+option); chat works at every width. Explorer actions are not made read-only. The
+header's own compact steps (80 and 72 rem) stay; phone screens for the header
+and stages are the Breakpoint work (5.3).
+
+**Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
+{panel, open, via: button | key | drag | auto}`, `via: drag` when dragging an
+edge folded or unfolded it, `via: auto` when a deploy or "Fix with assistant"
+opened it; `layout_viewport {viewport}` once per load;
+`layout_readonly_edit_blocked` once per page load, from Monaco's
+`onDidAttemptReadOnlyEdit`; `layout_restore_failed {reason: corrupt | version
+| storage-unavailable}`.
+
+Kept: every id, `aria-label`, `#tabs`, `#root-dir`, and the keys ⌘B, Ctrl+R,
+Ctrl+J. The folded rail grows from 24 px to 52 px, which
+`left-panel-toggle.e2e` asserts and is updated for.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
@@ -209,5 +339,5 @@ not land in the same week as the upgrade.
 - **Removing themes** is visible to users who picked one. Dark fallback,
   said once.
 - **Two sets of primitives** if Base UI stays for the combobox.
-- **The read-only editor breakpoint**: 1024 px (HOO-1793) or 600 px (the
-  design plan). For the designer.
+- **The read-only editor breakpoint** is settled (2026-10-09): 600 px. See
+  "The layout shell".
