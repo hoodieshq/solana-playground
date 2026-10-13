@@ -46,6 +46,7 @@ class GoogleTagPlugin {
 }
 
 const { sentryEnabled } = require("./scripts/sentry-gate.mjs");
+const { sourcemapsEnabled } = require("./scripts/sourcemap-gate.mjs");
 
 const browserslist = require("browserslist");
 const TerserPlugin = require("terser-webpack-plugin");
@@ -199,6 +200,12 @@ module.exports = {
         webpackConfig.plugins = webpackConfig.plugins.filter(
           (plugin) => !BUILD_ONLY_CHECKS.includes(plugin.constructor.name)
         );
+      }
+
+      // `build` passes GENERATE_SOURCEMAP=false, so CRA emits none; hidden maps
+      // carry no `sourceMappingURL`, so browsers never fetch them
+      if (env === "production" && sourcemapsEnabled(process.env)) {
+        webpackConfig.devtool = "hidden-source-map";
       }
 
       // A tracker this build leaves out adds no code. One it carries is not

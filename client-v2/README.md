@@ -31,6 +31,29 @@ yarn start
 `yarn setup` rebuilds `wasm/*/pkg` unconditionally, so running it after
 `stub-packages.sh` replaces the stubs with the real packages.
 
+**Production build.** `yarn build` is the whole build in one command: it
+compiles `wasm/*/pkg` from Rust, reinstalls with `--check-files` so
+`node_modules` takes the new packages (yarn copies the local `file:` packages,
+and a plain install skips them when the lockfile is unchanged), copies `public/` from the assets submodule, generates the crate,
+package and tutorial data, and bundles the app into `build/`. A first run takes
+about an hour; cargo reuses its output after that.
+
+`yarn build:slim` skips the Rust step and the reinstall, and bundles whatever
+`wasm/*/pkg` holds, stubs included. Vercel calls it, because its install step
+(`scripts/vercel-install.sh`) has already built or restored the packages.
+`yarn build-fast` also skips the crate data, for a quicker check that the
+bundle compiles.
+
+**Source maps.** A production build emits hidden source maps (no
+`sourceMappingURL`, so browsers never fetch them); a preview emits them only
+with `SOURCEMAPS_PREVIEW_ENABLED=true`, and a local or CI build never does
+(`scripts/sourcemap-gate.mjs`). The last step of `build:slim`,
+`scripts/upload-sourcemaps.mjs`, uploads them to Sentry with `sentry-cli` when
+`SENTRY_AUTH_TOKEN` is set, then deletes every map from `build/` whether or not
+it uploaded, so none is deployed. Set the token in the Vercel project's
+environment variables; to try the gate locally, run
+`VERCEL_ENV=production yarn build:slim` without it.
+
 **Planning tools (once per machine).** Specs and change proposals are
 managed with [OpenSpec](https://openspec.dev). The CLI is global, not a
 project dependency:
