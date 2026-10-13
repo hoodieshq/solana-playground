@@ -23,7 +23,7 @@ export const connection = () => {
       executeOnce("nonLocal", async () => {
         const { NonLocal } = await import("./NonLocal");
         PgView.setToast<never>(NonLocal, {
-          options: { autoClose: false, closeOnClick: true },
+          options: { name: "cluster-unreachable", duration: "persistent" },
         });
       });
     }

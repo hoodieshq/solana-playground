@@ -1,5 +1,4 @@
 import { createElement, FC } from "react";
-import type { ToastOptions } from "react-toastify";
 
 import { PgCommon } from "./common";
 import {
@@ -16,6 +15,18 @@ import type {
   Elementable,
   Promisable,
 } from "./types";
+
+/** How a toast behaves; `name` is its telemetry name, kebab-case */
+export type ToastOptions = {
+  name: string;
+  /** Reuse to replace a toast; generated when absent */
+  id?: string | number;
+  /** Milliseconds, or "persistent" to stay until closed; 5000 by default */
+  duration?: number | "persistent";
+};
+
+/** Props a toast's component receives */
+export type ToastChildProps = { id: string | number };
 
 /** Sidebar page param */
 export type SidebarPageParam<N extends string> = {
@@ -113,7 +124,6 @@ class _PgView {
     WALLET_MAIN: "wallet-main",
     HOME: "home",
     PORTAL_ABOVE: "portal-above",
-    PORTAL_BELOW: "portal-below",
   };
 
   /**
@@ -254,7 +264,7 @@ class _PgView {
    */
   static setToast<P extends Record<string, unknown>>(
     elementable: Elementable<P>,
-    props?: { componentProps?: P; options?: ToastOptions }
+    props: { componentProps?: P; options: ToastOptions }
   ) {
     return PgCommon.createAndDispatchCustomEvent(PgView.events.TOAST_SET, {
       elementable,
@@ -267,7 +277,7 @@ class _PgView {
    *
    * @param id toast id
    */
-  static closeToast(id?: number) {
+  static closeToast(id?: string | number) {
     return PgCommon.createAndDispatchCustomEvent(PgView.events.TOAST_CLOSE, id);
   }
 

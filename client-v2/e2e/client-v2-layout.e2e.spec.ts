@@ -575,7 +575,10 @@ test("a toast opens above the navigation", async ({ seededPage: page }) => {
       new CustomEvent("viewtoastset", {
         detail: {
           elementable: "div",
-          props: { componentProps: { children: "layout e2e toast" } },
+          props: {
+            componentProps: { children: "layout e2e toast" },
+            options: { name: "layout-e2e" },
+          },
         },
       })
     )

@@ -153,16 +153,6 @@ const PALETTE: ThemeParam = {
     terminal: {
       default: { bg: BG_BASE },
     },
-    toast: {
-      default: {
-        bg: BG_RAISED,
-        border: `1px solid ${BORDER}`,
-        // react-toastify's 64px min-height inflates a single-line toast
-        minHeight: "3rem",
-        padding: "0.5rem 0.75rem",
-      },
-      progress: { bg: GRADIENT },
-    },
     topbar: {
       bg: BG_BASE,
       boxShadow: "none",

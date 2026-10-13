@@ -10,7 +10,7 @@ export const themeNotice = () => {
     // Shown once ever, and a gallery opened over it on a visit with no
     // project would let a self-closing toast vanish unseen
     PgView.setToast(() => <span>{removedThemeMessage(removed)}</span>, {
-      options: { autoClose: false },
+      options: { name: "theme-removed", duration: "persistent" },
     });
   }
   return { dispose: () => {} };

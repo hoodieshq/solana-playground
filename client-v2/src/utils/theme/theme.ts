@@ -829,7 +829,6 @@ export class PgTheme {
       ._tooltip()
       ._progressBar()
       ._uploadArea()
-      ._toast()
       ._topbar()
       ._markdown()
       ._terminal()
@@ -1221,31 +1220,6 @@ export class PgTheme {
     // Text success
     uploadArea.text.success ??= {};
     uploadArea.text.success.color ??= theme.colors.default.primary;
-
-    return this;
-  }
-
-  /** Set default toast component */
-  private static _toast() {
-    const toast = this._getComponent("toast");
-    const theme = this._themeReady;
-
-    // Default
-    toast.default ??= {};
-    toast.default.bg ??= theme.colors.default.bgPrimary;
-    toast.default.color ??= theme.colors.default.textPrimary;
-    toast.default.borderRadius ??= theme.default.borderRadius;
-    toast.default.fontFamily ??= theme.font.code.family;
-    toast.default.fontSize ??= theme.font.code.size.medium;
-    toast.default.cursor ??= "default";
-
-    // Progress bar
-    toast.progress ??= {};
-    toast.progress.bg ??= theme.colors.default.primary;
-
-    // Close button
-    toast.closeButton ??= {};
-    toast.closeButton.color ??= theme.colors.default.textSecondary;
 
     return this;
   }

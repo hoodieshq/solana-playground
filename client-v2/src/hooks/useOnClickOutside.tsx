@@ -31,7 +31,7 @@ export const useOnClickOutside = (
       if (ignoreSelector && targetEl.closest(ignoreSelector)) return;
 
       // Account for portals (they're not actually inside current ref)
-      const isPortalChild = [PgView.ids.PORTAL_ABOVE, PgView.ids.PORTAL_BELOW]
+      const isPortalChild = [PgView.ids.PORTAL_ABOVE]
         .map((id) => document.getElementById(id))
         .filter(PgCommon.isNonNullish)
         .some((el) => el.contains(targetEl));

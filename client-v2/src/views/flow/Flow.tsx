@@ -32,12 +32,11 @@ import { GAP } from "./tokens";
 import { FeedbackHost, FeedbackTrigger } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Assistant from "@/views/sidebar/assistant/Component";
-import Toast from "@/components/Toast";
 import Wallet from "@/components/Wallet";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav } from "@/widgets/app-nav";
 import { LayoutShell } from "@/widgets/layout-shell";
-import { ModalHost } from "@/widgets/overlays";
+import { ModalHost, ToastHost } from "@/widgets/overlays";
 import type { Disposable } from "@/utils/types";
 
 /**
@@ -267,9 +266,7 @@ const FlowFrame = () => {
       <Wallet />
       <PortalAbove id={PgView.ids.PORTAL_ABOVE} />
       <ModalHost />
-      <PortalBelow id={PgView.ids.PORTAL_BELOW}>
-        <Toast />
-      </PortalBelow>
+      <ToastHost />
     </Wrapper>
   );
 };
@@ -384,12 +381,5 @@ const Collapse = styled.button`
 // inside `PgView.ids.PORTAL_ABOVE` as inside.
 const PortalAbove = styled.div`
   z-index: 62;
-  pointer-events: auto;
-`;
-// Toasts open at the bottom left, over the navigation and its Sheet. They
-// also sit above the dialogs, which portal to `body` below this, until Sonner
-// replaces this portal (HOO-2061, task 5).
-const PortalBelow = styled.div`
-  z-index: 60;
   pointer-events: auto;
 `;

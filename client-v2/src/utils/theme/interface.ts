@@ -220,9 +220,6 @@ export interface ThemeParam {
     /** Text component */
     text?: OverridableComponent<TextKind>;
 
-    /** Notification toast component */
-    toast?: ExtendibleComponent<"progress" | "closeButton">;
-
     /** Topbar component (e.g. top section of primary main view) */
     topbar?: DefaultComponent;
 
@@ -445,7 +442,6 @@ type ExtendibleComponents =
   | "select"
   | "tabs"
   | "terminal"
-  | "toast"
   | "tutorial"
   | "uploadArea"
   | "wallet";

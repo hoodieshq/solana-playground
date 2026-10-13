@@ -8,7 +8,7 @@ import { useOnClickOutside } from "./useOnClickOutside";
 vi.mock("../utils", () => ({
   PgCommon: { isNonNullish: (v: unknown) => v != null },
   PgView: {
-    ids: { PORTAL_ABOVE: "portal-above", PORTAL_BELOW: "portal-below" },
+    ids: { PORTAL_ABOVE: "portal-above" },
   },
 }));
 
