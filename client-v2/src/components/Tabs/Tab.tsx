@@ -91,6 +91,7 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
             </Button>
           </Wrapper>
         </ContextMenuTrigger>
+        {/* Every label is a MenuItemText: one element to match, and the shortcut stays at the far edge */}
         <ContextMenuContent>
           <ContextMenuItem onSelect={closeFile}>
             <MenuItemText>Close</MenuItemText>
@@ -98,15 +99,17 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
           </ContextMenuItem>
           {PgExplorer.tabs.length > 1 && (
             <ContextMenuItem onSelect={closeOthers}>
-              Close Others
+              <MenuItemText>Close Others</MenuItemText>
             </ContextMenuItem>
           )}
           {PgExplorer.tabs.length - 1 > index && (
             <ContextMenuItem onSelect={closeToTheRight}>
-              Close To The Right
+              <MenuItemText>Close To The Right</MenuItemText>
             </ContextMenuItem>
           )}
-          <ContextMenuItem onSelect={closeAll}>Close All</ContextMenuItem>
+          <ContextMenuItem onSelect={closeAll}>
+            <MenuItemText>Close All</MenuItemText>
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
     );

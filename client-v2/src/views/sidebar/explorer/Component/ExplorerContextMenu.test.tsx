@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { PgExplorer } from "../../../../utils";
 
 import { ExplorerContextMenu } from "./ExplorerContextMenu";
 
@@ -84,5 +86,37 @@ describe("ExplorerContextMenu", () => {
 
     expect(screen.queryByRole("menu")).toBeNull();
     expect(notPrevented).toBe(false);
+  });
+
+  it("closes on Escape without running a handler and clears the selection", async () => {
+    const props = makeProps(() => true);
+    const clear = vi.mocked(PgExplorer.removeCtxSelectedEl);
+    clear.mockClear();
+    renderMenu(props);
+
+    fireEvent.contextMenu(screen.getByTestId("target"));
+    await screen.findByRole("menu");
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(props.renameItem).not.toHaveBeenCalled();
+    expect(props.deleteItem).not.toHaveBeenCalled();
+    expect(clear).toHaveBeenCalled();
+  });
+
+  it("closes on an outside press without running a handler and clears the selection", async () => {
+    const props = makeProps(() => true);
+    const clear = vi.mocked(PgExplorer.removeCtxSelectedEl);
+    clear.mockClear();
+    renderMenu(props);
+
+    fireEvent.contextMenu(screen.getByTestId("target"));
+    await screen.findByRole("menu");
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(props.renameItem).not.toHaveBeenCalled();
+    expect(props.deleteItem).not.toHaveBeenCalled();
+    expect(clear).toHaveBeenCalled();
   });
 });

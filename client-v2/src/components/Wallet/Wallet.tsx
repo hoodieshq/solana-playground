@@ -27,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { MenuItemText } from "@/shared/ui/menu-extras";
 import { useDarken } from "./hooks";
 import {
   useKeybind,
@@ -159,7 +160,9 @@ const WalletName = () => {
         {/* All of the Playground Wallet accounts */}
         {PgWallet.accounts.map((acc, i) => (
           <DropdownMenuItem key={"pg-" + i} onSelect={() => PgWallet.switch(i)}>
-            {getAccountDisplayName(PgWallet.create(acc))}
+            <MenuItemText>
+              {getAccountDisplayName(PgWallet.create(acc))}
+            </MenuItemText>
           </DropdownMenuItem>
         ))}
         {/* All of the connected Wallet Standard accounts */}
@@ -174,7 +177,7 @@ const WalletName = () => {
             }}
           >
             <Img src={standardWallet.icon} alt={standardWallet.name} />
-            {getAccountDisplayName(standardWallet)}
+            <MenuItemText>{getAccountDisplayName(standardWallet)}</MenuItemText>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

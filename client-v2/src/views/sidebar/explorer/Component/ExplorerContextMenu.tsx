@@ -99,36 +99,36 @@ export const ExplorerContextMenu: FC<
           <>
             <ContextMenuItem onSelect={runBuild}>
               <Wrench />
-              Build
+              <MenuItemText>Build</MenuItemText>
             </ContextMenuItem>
             <ContextMenuItem onSelect={runDeploy}>
               <Rocket />
-              Deploy
+              <MenuItemText>Deploy</MenuItemText>
             </ContextMenuItem>
           </>
         )}
         {itemData.isClient && (
           <ContextMenuItem onSelect={runClient}>
             <Triangle rotate="90deg" />
-            Run
+            <MenuItemText>Run</MenuItemText>
           </ContextMenuItem>
         )}
         {itemData.isClientFolder && (
           <ContextMenuItem onSelect={runClientFolder}>
             <RunAll />
-            Run All
+            <MenuItemText>Run All</MenuItemText>
           </ContextMenuItem>
         )}
         {itemData.isTest && (
           <ContextMenuItem onSelect={runTest}>
             <TestTube />
-            Test
+            <MenuItemText>Test</MenuItemText>
           </ContextMenuItem>
         )}
         {itemData.isTestFolder && (
           <ContextMenuItem onSelect={runTestFolder}>
             <TestPaper />
-            Test All
+            <MenuItemText>Test All</MenuItemText>
           </ContextMenuItem>
         )}
       </ContextMenuContent>

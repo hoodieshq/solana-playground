@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { MenuItemText } from "@/shared/ui/menu-extras";
 import {
   Airdrop,
   Copy,
@@ -35,7 +36,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
 
   const wallet = PgWallet.current!;
   const isPg = wallet.isPg;
-  const [copied, copyAddress] = useCopy(wallet.publicKey.toBase58());
+  const [, copyAddress] = useCopy(wallet.publicKey.toBase58());
 
   return (
     <Wrapper>
@@ -46,20 +47,14 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {/* Keep the menu open so the label can flip to "Copied address" */}
-          <DropdownMenuItem
-            onSelect={(ev) => {
-              ev.preventDefault();
-              copyAddress();
-            }}
-          >
+          <DropdownMenuItem onSelect={copyAddress}>
             <Copy />
-            {copied ? "Copied address" : "Copy address"}
+            <MenuItemText>Copy address</MenuItemText>
           </DropdownMenuItem>
           {airdropCondition && (
             <DropdownMenuItem onSelect={airdrop}>
               <Airdrop />
-              Airdrop
+              <MenuItemText>Airdrop</MenuItemText>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
@@ -69,12 +64,12 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             }}
           >
             <Plus />
-            Add
+            <MenuItemText>Add</MenuItemText>
           </DropdownMenuItem>
           {isPg && (
             <DropdownMenuItem onSelect={showRename}>
               <Edit />
-              Rename
+              <MenuItemText>Rename</MenuItemText>
             </DropdownMenuItem>
           )}
           {isPg && (
@@ -86,17 +81,17 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
               }}
             >
               <Trash />
-              Remove
+              <MenuItemText>Remove</MenuItemText>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={() => PgWallet.import()}>
             <ImportFile />
-            Import
+            <MenuItemText>Import</MenuItemText>
           </DropdownMenuItem>
           {isPg && (
             <DropdownMenuItem onSelect={() => PgWallet.export()}>
               <ExportFile />
-              Export
+              <MenuItemText>Export</MenuItemText>
             </DropdownMenuItem>
           )}
           {PgWallet.standardWallets.map((standardWallet) => (
@@ -108,9 +103,11 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
               }
             >
               <Img src={standardWallet.icon} alt={standardWallet.name} />
-              {standardWallet.connected
-                ? `Disconnect from ${standardWallet.name}`
-                : `Connect to ${standardWallet.name}`}
+              <MenuItemText>
+                {standardWallet.connected
+                  ? `Disconnect from ${standardWallet.name}`
+                  : `Connect to ${standardWallet.name}`}
+              </MenuItemText>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
