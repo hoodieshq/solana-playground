@@ -96,7 +96,7 @@ regression against 5.1 has misread this rule.
       (HOO-2059; parallel)
 - [ ] 5.5 Elements: controls (Stepper, Segmented, Select, NativeSelect,
       RadioGroup, Field, InputGroup) (HOO-2060; parallel)
-- [ ] 5.6 Elements: menus and overlays (Dialog, Modal, DropdownMenu,
+- [x] 5.6 Elements: menus and overlays (Dialog, Modal, DropdownMenu,
       ContextMenu, Popover, Drawer, Sonner) from the design system;
       react-toastify and the legacy `Menu`, `Modal`, `ModalBackdrop`,
       `Popover`, `Toast` and `Tooltip` removed (HOO-2061; parallel; plan:
