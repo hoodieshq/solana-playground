@@ -1,0 +1,202 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+import {
+  initTelemetry,
+  memoryProvider,
+  resetTelemetry,
+} from "@/shared/lib/telemetry";
+import { Modal } from "@/shared/ui/modal";
+import { PROJECT_NAME } from "@/constants";
+import { PgView } from "@/utils/view";
+import { ModalFrame } from "./ModalFrame";
+import type { ModalFrameProps } from "./ModalFrame";
+
+let sent: ReturnType<typeof memoryProvider>;
+let logs: ReturnType<typeof logMemory>;
+let closeModal: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+  sent = memoryProvider();
+  initTelemetry({ providers: [sent] });
+  logs = logMemory();
+  initLogger({ providers: [logs] });
+  closeModal = vi.spyOn(PgView, "closeModal").mockImplementation(() => {});
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  resetTelemetry();
+  resetLogger();
+});
+
+const events = (name: string) =>
+  sent.events
+    .filter((event) => event.name === name)
+    .map((event) => event.params);
+
+const renderFrame = (props: Omit<ModalFrameProps, "name">) =>
+  render(
+    <Modal open>
+      <ModalFrame
+        name="rename-item"
+        title={props.title}
+        buttonProps={props.buttonProps}
+        size={props.size}
+      >
+        <input aria-label="Name" />
+      </ModalFrame>
+    </Modal>
+  );
+
+/** Clicks the submit and lets its promise settle */
+const submit = async (text: string) => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: text }));
+  });
+};
+
+it("should send overlay_modal_opened once on mount", () => {
+  const { rerender } = renderFrame({ title: "Rename" });
+  rerender(
+    <Modal open>
+      <ModalFrame name="rename-item" title="Rename" />
+    </Modal>
+  );
+
+  expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
+});
+
+it("should close with what the submit resolved", async () => {
+  renderFrame({
+    title: "Rename",
+    buttonProps: { text: "Rename", onSubmit: async () => 42 },
+  });
+
+  await submit("Rename");
+
+  expect(closeModal).toHaveBeenCalledTimes(1);
+  expect(closeModal).toHaveBeenCalledWith(42);
+});
+
+it("should stay open after a submit with noCloseOnSubmit", async () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    title: "Rename",
+    buttonProps: { text: "Rename", onSubmit, noCloseOnSubmit: true },
+  });
+
+  await submit("Rename");
+
+  expect(onSubmit).toHaveBeenCalledTimes(1);
+  expect(closeModal).not.toHaveBeenCalled();
+});
+
+it("should show a thrown error, stay open and report the failure", async () => {
+  renderFrame({
+    title: "Rename",
+    buttonProps: {
+      text: "Rename",
+      onSubmit: async () => {
+        throw new Error("exists");
+      },
+    },
+  });
+
+  await submit("Rename");
+
+  expect(screen.getByRole("alert").textContent).toBe("exists");
+  expect(closeModal).not.toHaveBeenCalled();
+  expect(events("overlay_modal_submit_failed")).toEqual([
+    { name: "rename-item" },
+  ]);
+  expect(
+    logs.entries.map((entry) => ({
+      ns: entry.ns,
+      report: entry.report,
+      context: entry.context,
+    }))
+  ).toEqual([
+    {
+      ns: "overlays:modal-host",
+      report: true,
+      context: { name: "rename-item" },
+    },
+  ]);
+});
+
+it("should show a thrown string as the message", async () => {
+  renderFrame({
+    title: "Rename",
+    buttonProps: {
+      text: "Rename",
+      onSubmit: () => {
+        // Legacy dialog bodies throw strings; the frame must still show them
+        // eslint-disable-next-line no-throw-literal
+        throw "nope";
+      },
+    },
+  });
+
+  await submit("Rename");
+
+  expect(screen.getByRole("alert").textContent).toBe("nope");
+  expect(closeModal).not.toHaveBeenCalled();
+});
+
+it("should close with nothing when the button has no onSubmit", async () => {
+  renderFrame({ title: "Info", buttonProps: { text: "Done" } });
+
+  await submit("Done");
+
+  expect(closeModal).toHaveBeenCalledTimes(1);
+  expect(closeModal).toHaveBeenCalledWith(undefined);
+  expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+});
+
+it("should close with null on Cancel", () => {
+  renderFrame({
+    title: "Rename",
+    buttonProps: { text: "Rename", onSubmit: vi.fn() },
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  expect(closeModal).toHaveBeenCalledTimes(1);
+  expect(closeModal).toHaveBeenCalledWith(null);
+});
+
+it("should not submit while the button is disabled", async () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    title: "Rename",
+    buttonProps: { text: "Rename", onSubmit, disabled: true },
+  });
+
+  await act(async () => {
+    screen
+      .getByRole("textbox", { name: "Name" })
+      .closest("form")!
+      .requestSubmit();
+  });
+
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+it("should show the product's name for title true", () => {
+  renderFrame({ title: true });
+
+  const heading = screen.getByRole("heading", { name: PROJECT_NAME });
+  expect(heading.classList.contains("sr-only")).toBe(false);
+});
+
+it("should name the dialog after the product, hidden, without a title", () => {
+  renderFrame({});
+
+  expect(screen.getByRole("dialog", { name: PROJECT_NAME })).toBeTruthy();
+  const heading = screen.getByRole("heading", { name: PROJECT_NAME });
+  expect(heading.classList.contains("sr-only")).toBe(true);
+});
