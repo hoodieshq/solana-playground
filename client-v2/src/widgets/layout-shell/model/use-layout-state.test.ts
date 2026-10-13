@@ -34,8 +34,17 @@ const stored = () => {
 const toggles = () =>
   sent.events.filter((event) => event.name === "layout_panel_toggled");
 
-/** Every panel open, with both groups dragged */
+/** Every panel open, with all three groups dragged */
 const DRAGGED = {
+  v: 2,
+  open: { nav: true, files: true, assistant: true, console: true },
+  h: { assistant: 40, work: 60 },
+  w: { files: 25, stage: 75 },
+  vert: { stage: 70, console: 30 },
+};
+
+/** What version 1 stored, before the files and nav panels */
+const V1 = {
   v: 1,
   open: { left: true, assistant: true, console: true },
   h: { center: 60, assistant: 40 },
@@ -85,7 +94,8 @@ it.each([
       }
     });
     expect(stored().vert).toBeUndefined();
-    expect(stored().h).toEqual({ center: 60, assistant: 40 });
+    expect(stored().h).toEqual({ assistant: 40, work: 60 });
+    expect(stored().w).toEqual({ files: 25, stage: 75 });
   }
 );
 
@@ -93,17 +103,64 @@ it("should save no layout that is missing a panel, and log it", () => {
   const logs = logMemory();
   initLogger({ providers: [logs] });
   const { result } = renderHook(() => useLayoutState());
-  act(() => result.current.setHorizontal({ center: 100 }));
+  act(() => result.current.setHorizontal({ work: 100 }));
+  act(() => result.current.setWork({ stage: 100 }));
   act(() => result.current.setVertical({ stage: 100 }));
   expect(stored()).toBeNull();
   expect(result.current.state.h).toBeUndefined();
+  expect(result.current.state.w).toBeUndefined();
   expect(
     logs.entries.filter((entry) => entry.message?.includes("not saved"))
-  ).toHaveLength(2);
+  ).toHaveLength(3);
 });
 
 it("should write nothing on mount", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+  const setItem = vi.spyOn(Storage.prototype, "setItem");
+  renderHook(() => useLayoutState());
+  expect(setItem).not.toHaveBeenCalled();
+});
+
+it("should save the files and stage sizes", () => {
+  const { result } = renderHook(() => useLayoutState());
+  act(() => result.current.setWork({ files: 30, stage: 70 }));
+  expect(result.current.state.w).toEqual({ files: 30, stage: 70 });
+  expect(stored().w).toEqual({ files: 30, stage: 70 });
+});
+
+it("should write a migrated layout back once on mount, as version 2", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
+  const setItem = vi.spyOn(Storage.prototype, "setItem");
+  renderHook(() => useLayoutState());
+  expect(setItem).toHaveBeenCalledTimes(1);
+  expect(stored()).toEqual({
+    v: 2,
+    open: { nav: true, files: true, assistant: true, console: true },
+    vert: { stage: 70, console: 30 },
+  });
+});
+
+it("should write a migrated layout once under StrictMode", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
+  const setItem = vi.spyOn(Storage.prototype, "setItem");
+  renderHook(() => useLayoutState(), { reactStrictMode: true });
+  expect(setItem).toHaveBeenCalledTimes(1);
+});
+
+it("should report a failed write of a migrated layout once", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("full");
+  });
+  const { result } = renderHook(() => useLayoutState());
+  act(() => result.current.setOpen("console", { open: false, via: "button" }));
+  expect(logs.entries.filter((entry) => entry.report)).toHaveLength(1);
+});
+
+it("should not write a layout from a newer version on mount", () => {
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({ v: 3 }));
   const setItem = vi.spyOn(Storage.prototype, "setItem");
   renderHook(() => useLayoutState());
   expect(setItem).not.toHaveBeenCalled();

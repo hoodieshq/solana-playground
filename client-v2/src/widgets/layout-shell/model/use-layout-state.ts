@@ -6,6 +6,7 @@ import {
   readLayout,
   verticalOf,
   withoutFoldedSizes,
+  workOf,
   writeLayout,
 } from "./layout-state";
 import { DEFAULT_LAYOUT } from "./layout-state";
@@ -17,7 +18,10 @@ const log = createLogger("layout-shell:state");
 
 const storage = () => window.localStorage;
 
-/** The layout, restored once per mount, saved on a toggle or a drag */
+/**
+ * The layout, restored once per mount, saved on a toggle or a drag, and once
+ * on mount when a version 1 value was converted
+ */
 export const useLayoutState = () => {
   const [restored] = useState(() => readLayout(storage));
   const [state, setState] = useState<LayoutState>(
@@ -63,31 +67,47 @@ export const useLayoutState = () => {
     layoutTelemetry.track("layout_restore_failed", { reason: restored.reason });
   }, [restored]);
 
-  // Saved on a toggle or a drag, never on mount: a visit that changes nothing
-  // leaves what is stored alone. The panel groups report a layout on mount
-  // too, and the shell filters those out before they reach `setHorizontal` /
-  // `setVertical`. A layout from a newer version is never written over. A
-  // folded panel's sizes are dropped here (`withoutFoldedSizes`), so the rule
-  // does not depend on the order of the calls that led to the fold.
+  // Reported once per mount: a full storage fails every save after the
+  // first the same way, and `localStorage` is shared with `settings` and
+  // `wallet`, so the team must hear that it is full
+  const save = useCallback((next: LayoutState) => {
+    const written = writeLayout(storage, next);
+    if (!written.ok && !reportedSaveFailure.current) {
+      reportedSaveFailure.current = true;
+      log.error(
+        new Error("The layout could not be saved", { cause: written.error }),
+        { report: true }
+      );
+    }
+  }, []);
+
+  // A version 1 value is rewritten as version 2 once, so the next visit reads
+  // the current shape. The ref keeps StrictMode's second run of the effect
+  // from writing it again.
+  const migrationSaved = useRef(false);
+  useEffect(() => {
+    if (restored.kind !== "saved" || !restored.migrated) return;
+    if (migrationSaved.current) return;
+    migrationSaved.current = true;
+    save(restored.state);
+  }, [restored, save]);
+
+  // Saved on a toggle or a drag, never on mount (a migrated layout aside): a
+  // visit that changes nothing leaves what is stored alone. The panel groups
+  // report a layout on mount too, and the shell filters those out before they
+  // reach `setHorizontal` / `setWork` / `setVertical`. A layout from a newer
+  // version is never written over. A folded panel's sizes are dropped here
+  // (`withoutFoldedSizes`), so the rule does not depend on the order of the
+  // calls that led to the fold.
   const update = useCallback(
     (proposed: LayoutState) => {
       const next = withoutFoldedSizes(proposed);
       latest.current = next;
       setState(next);
       if (keepSaved) return;
-      const written = writeLayout(storage, next);
-      // Reported once per mount: a full storage fails every save after the
-      // first the same way, and `localStorage` is shared with `settings` and
-      // `wallet`, so the team must hear that it is full
-      if (!written.ok && !reportedSaveFailure.current) {
-        reportedSaveFailure.current = true;
-        log.error(
-          new Error("The layout could not be saved", { cause: written.error }),
-          { report: true }
-        );
-      }
+      save(next);
     },
-    [keepSaved]
+    [keepSaved, save]
   );
 
   const setOpen = useCallback(
@@ -113,6 +133,14 @@ export const useLayoutState = () => {
     },
     [update]
   );
+  const setWork = useCallback(
+    (layout: PanelLayout) => {
+      const w = workOf(layout);
+      if (w) update({ ...latest.current, w });
+      else log.warn("A dragged layout was not saved", { context: { layout } });
+    },
+    [update]
+  );
   const setVertical = useCallback(
     (layout: PanelLayout) => {
       const vert = verticalOf(layout);
@@ -122,5 +150,5 @@ export const useLayoutState = () => {
     [update]
   );
 
-  return { state, setOpen, setHorizontal, setVertical };
+  return { state, setOpen, setHorizontal, setWork, setVertical };
 };
