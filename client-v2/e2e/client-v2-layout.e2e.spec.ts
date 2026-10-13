@@ -483,29 +483,40 @@ test("client-v2-layout: A corrupt saved layout is reported", async ({
   expect(lineOf(lines, "layout_restore_failed")).toContain("reason: corrupt");
 });
 
-// The wallet window opens at the top right, over the stage bar; nothing in
-// the frame may sit above it and take its clicks.
-test("the wallet window's close button is clickable over the stage bar", async ({
+// The wallet window opens at the top right of the work area, just under the
+// stage tabs; nothing in the frame (the stage bar, the panels) may sit above
+// it and take its clicks.
+test("the wallet window's close button is clickable at the top of the work area", async ({
   seededPage: page,
 }) => {
-  await page.getByRole("button", { name: "Connect wallet" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await nav(page).getByRole("button", { name: "Toggle wallet" }).waitFor();
+  // Connected from the navigation's footer chip, which then reads "Toggle
+  // wallet" (and would disconnect, so it is not what opens the window)
+  await nav(page)
+    .getByRole("button", { name: "Connect wallet", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    nav(page).getByRole("button", { name: "Toggle wallet", exact: true })
+  ).toBeVisible();
+  // The window is opened by the editor tab bar's "Wallet" button. Its icon's
+  // alt text joins its accessible name ("Wallet Wallet"), so it is found by
+  // its text, which is the label alone.
   await page
-    .getByRole("main")
-    .getByRole("button", { name: /Wallet/ })
+    .locator("#tabs")
+    .getByRole("button")
+    .filter({ hasText: /^Wallet$/ })
     .click();
 
   const wallet = page.locator(".react-draggable");
   await expect(wallet).toBeVisible();
-  // The top bar's buttons are, in order, settings and close
-  await wallet.getByRole("button").nth(1).click();
+  const close = wallet.getByRole("button", { name: "Close", exact: true });
+  await close.click();
   await expect(wallet).toHaveCount(0);
 });
 
 // Toasts open at the bottom left, over the navigation. The stock Sidebar's
 // container is z-10, so the toast layer must sit above it.
-test("a toast opens above the left panel", async ({ seededPage: page }) => {
+test("a toast opens above the navigation", async ({ seededPage: page }) => {
   await page.evaluate(() =>
     document.dispatchEvent(
       new CustomEvent("viewtoastset", {

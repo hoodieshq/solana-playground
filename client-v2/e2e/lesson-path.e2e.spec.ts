@@ -32,7 +32,9 @@ test("opens an unstarted tutorial from an active project", async ({ page }) => {
   // The switcher opens a popover of plain buttons (no `role="menu"`, same
   // pattern as `StatusChips.tsx`'s profile popover); `Browse gallery` is
   // the item that opens the gallery itself.
-  await page.locator('button[aria-haspopup="true"]').click();
+  await page
+    .locator('[data-slot="sidebar"] button[aria-haspopup="true"]')
+    .click();
   await page.getByRole("button", { name: "Browse gallery" }).click();
   await expect(gallery).toBeVisible();
 
