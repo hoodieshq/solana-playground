@@ -83,7 +83,7 @@ Tablet keeps 5.1's behaviour until the designer delivers a tablet layout
 - [x] 5.1 New layout shell with today's panels inside; the editor read-only
       below 600 px (decided 2026-10-09); the classic layout removed
       (HOO-1854; after 3.6 and 4.3; plan: `plans/5.1-layout-shell.md`)
-- [ ] 5.2 Frame: the four-column frame, the header removed, today's pieces
+- [x] 5.2 Frame: the four-column frame, the header removed, today's pieces
       moved unchanged (HOO-2055; after 5.1; design.md, "The four-column
       frame (5.2)"; plan:
       [plans/5.2-four-column-frame.md](plans/5.2-four-column-frame.md))
