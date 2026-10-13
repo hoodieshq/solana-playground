@@ -546,7 +546,7 @@ it("should not throw or report when a panel cannot yet say whether it is folded"
   expect(logs.entries.filter((entry) => entry.report)).toHaveLength(0);
 });
 
-/** The two groups' `onLayoutChanged`, as the library calls them */
+/** The three groups' `onLayoutChanged`, as the library calls them */
 const settled = (
   id: "layout-horizontal" | "layout-work" | "layout-vertical",
   layout: Record<string, number>,

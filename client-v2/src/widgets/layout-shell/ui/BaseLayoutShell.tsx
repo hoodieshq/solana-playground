@@ -221,8 +221,9 @@ const NavSlot = ({
 };
 
 /**
- * Below `LAYOUT_BREAKPOINTS.left` the stock Sidebar is a Sheet nothing else
- * opens, so this renders its opener at the left edge and reports the Sheet
+ * Below `LAYOUT_BREAKPOINTS.left` the stock Sidebar is a Sheet with no
+ * visible opener (⌘B, ⌘E and the files column's button inside it open and
+ * close it too), so this renders one at the left edge and reports the Sheet
  * opening and closing (not the value it starts with). Its label names the
  * project, whose files the Sheet holds.
  */
@@ -345,8 +346,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
 
   // The files flag does not follow the viewport, so there is no crossing to
   // skip: below `LAYOUT_BREAKPOINTS.left` the column is not in the group, and
-  // a flag changed there (⌘E) is the `defaultSize` it mounts at on the way
-  // back.
+  // nothing there changes its flag (⌘E and its button work the Sheet), so on
+  // the way back it mounts at the size its saved flag gives.
   useEffect(() => {
     if (isMobile) return;
     const panel = filesRef.current;
@@ -469,9 +470,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       {/* The stock Sidebar's container is fixed at the window's full height.
           Flow draws the sync banner above the provider, so the Sidebar sits
           inside the provider instead, inset by the gutter, where the banner
-          pushes it down rather than being covered by it. The navigation
-          draws its own rounded border, so the container's edge line and
-          fill are dropped. */}
+          pushes it down rather than being covered by it. The container's
+          edge line and fill are dropped, so the navigation sits on the
+          page's ground like the other columns. */}
       <Sidebar
         collapsible="icon"
         className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"

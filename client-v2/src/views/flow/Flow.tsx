@@ -363,7 +363,7 @@ const StyledModalBackdrop = styled(ModalBackdrop)`
   z-index: 61;
   pointer-events: auto;
 `;
-// Toasts open at the bottom left, over the left panel and its Sheet, and
+// Toasts open at the bottom left, over the navigation and its Sheet, and
 // below the modal backdrop so a modal still covers them.
 const PortalBelow = styled.div`
   z-index: 60;

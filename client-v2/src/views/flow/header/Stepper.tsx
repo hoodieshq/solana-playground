@@ -208,10 +208,12 @@ const DotCircle = styled.span<{ $status: StageStatus }>`
 `;
 
 /**
- * Below `STEPPER_COMPACT_AT` the four labels collapse to their initials, which
- * is what stops the status chips overlapping the stepper on a narrow window.
- * The full name stays in each button's `aria-label` either way, so nothing is
- * lost to a screen reader.
+ * Below `STEPPER_COMPACT_AT` the four labels collapse to their initials. The
+ * breakpoint is kept from the header layout, where the status chips shared
+ * the stepper's row; the chips have moved to the navigation's footer, so it
+ * follows the window, not the stage bar's own width, until the stage bar is
+ * restyled (HOO-2065). The full name stays in each button's `aria-label`
+ * either way, so nothing is lost to a screen reader.
  */
 const STEPPER_COMPACT_AT = "80rem";
 

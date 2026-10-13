@@ -57,7 +57,7 @@ const Assistant = () => {
   const fileName = currentFilePath
     ? PgExplorer.getItemNameFromPath(currentFilePath)
     : null;
-  // The cluster lives in the app header; only the build state is worth
+  // The cluster lives in the navigation's footer; only the build state is worth
   // repeating here.
   const statusLabel = buildFailed ? "build error" : null;
 

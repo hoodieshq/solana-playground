@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Below `compact` the assistant is a Sheet; below `left` the project panel is
- * one; below `phone` the editor is read-only. `left` is not a `Viewport`
+ * Below `compact` the assistant is a Sheet; below `left` the navigation is
+ * one, holding the files column too; below `phone` the editor is read-only. `left` is not a `Viewport`
  * class: the stock Sidebar decides it with its own hook (`use-mobile.ts`,
  * installed from the design system), and `use-viewport.test.ts` holds the two
  * to the same width.
