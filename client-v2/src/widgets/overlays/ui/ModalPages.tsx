@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FC } from "react";
+
+import { ModalOpenReportContext } from "./modal-layer";
 
 export type ModalPageProps = { setPage: <P>(page: ModalPage<P>) => void };
 
@@ -14,5 +16,10 @@ export type ModalPage<P = any> = {
  */
 export const ModalPages = ({ defaultPage }: { defaultPage: ModalPage }) => {
   const [page, setPage] = useState<ModalPage>(defaultPage);
-  return <page.Component {...page.props} setPage={setPage} />;
+  const openReport = useRef({ sent: false });
+  return (
+    <ModalOpenReportContext.Provider value={openReport.current}>
+      <page.Component {...page.props} setPage={setPage} />
+    </ModalOpenReportContext.Provider>
+  );
 };

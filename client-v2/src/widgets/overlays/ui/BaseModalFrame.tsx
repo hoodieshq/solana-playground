@@ -31,10 +31,18 @@ export type BaseModalFrameProps = {
   children?: ReactNode;
 };
 
+/** A field of the body that takes focus when the dialog opens */
+const FIRST_FIELD = [
+  '[data-slot="modal-body"] input:not([type="hidden"]):not([type="file"]):not(:disabled)',
+  '[data-slot="modal-body"] textarea:not(:disabled)',
+  '[data-slot="modal-body"] select:not(:disabled)',
+].join(", ");
+
 /**
  * A dialog's content: its heading, the last error, the body and the buttons.
  * Render it inside a `Modal`. Enter in an input of the body submits, and so
- * does the footer's `type="submit"` button.
+ * does the footer's `type="submit"` button, which has the focus on open when
+ * the body has no field.
  */
 export const BaseModalFrame = ({
   title,
@@ -46,6 +54,7 @@ export const BaseModalFrame = ({
   size,
   children,
 }: BaseModalFrameProps) => {
+  const formRef = useRef<HTMLFormElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const canSubmit = !!submit && !submit.disabled && !submit.busy;
 
@@ -68,9 +77,25 @@ export const BaseModalFrame = ({
     if (canSubmit) onSubmit();
   };
 
+  // Radix focuses the header's Close first, where Enter would close the
+  // dialog; Enter must submit, so focus the body's first field or the submit
+  const handleOpenAutoFocus = (ev: Event) => {
+    const target =
+      formRef.current?.querySelector<HTMLElement>(FIRST_FIELD) ??
+      submitRef.current;
+    if (!target || (target as HTMLButtonElement).disabled) return;
+    ev.preventDefault();
+    target.focus();
+  };
+
   return (
-    <ModalContent size={size} aria-describedby={undefined}>
+    <ModalContent
+      size={size}
+      aria-describedby={undefined}
+      onOpenAutoFocus={handleOpenAutoFocus}
+    >
       <form
+        ref={formRef}
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit}
         onKeyDown={handleKeyDown}

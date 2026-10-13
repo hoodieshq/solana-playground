@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
@@ -6,9 +6,9 @@ import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
 import { BaseModalFrame } from "./BaseModalFrame";
-import { useIsTopModal } from "./modal-layer";
+import { useIsTopModal, useOpenReport } from "./modal-layer";
 
-const log = createLogger("overlays:modal-host");
+const log = createLogger("overlays:modal-frame");
 
 export type ModalSubmit = {
   /** Button label */
@@ -35,6 +35,16 @@ export type ModalFrameProps = {
 const messageOf = (error: unknown) => {
   if (error instanceof Error) return error.message;
   if (typeof error === "string" && error) return error;
+  // `PgCommon.sendAndReceiveCustomEvent` rejects with a bare `{ message }`
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message
+  ) {
+    return error.message;
+  }
   return "Unknown error";
 };
 
@@ -52,14 +62,20 @@ export const ModalFrame = ({
 }: ModalFrameProps) => {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // `busy` lags a render behind, so two Enters in one tick both saw it false
+  const submitting = useRef(false);
   const isTop = useIsTopModal();
+  const openReport = useOpenReport();
 
   useEffect(() => {
+    if (openReport?.sent) return;
     overlayTelemetry.track("overlay_modal_opened", { name });
-  }, [name]);
+    if (openReport) openReport.sent = true;
+  }, [name, openReport]);
 
   const submit = async () => {
-    if (!buttonProps || buttonProps.disabled || busy) return;
+    if (!buttonProps || buttonProps.disabled || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     try {
       const data = await buttonProps.onSubmit?.();
@@ -71,6 +87,7 @@ export const ModalFrame = ({
       overlayTelemetry.track("overlay_modal_submit_failed", { name });
       log.error(e, { report: true, context: { name } });
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };

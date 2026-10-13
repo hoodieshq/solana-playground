@@ -162,3 +162,27 @@ it("should keep an accessible name and show no heading when the title is hidden"
       .classList.contains("sr-only")
   ).toBe(true);
 });
+
+it("should focus the submit on open when the body has no input, so Enter presses it", () => {
+  renderFrame({ submit, children: <p>Delete the file?</p> });
+
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Rename" })
+  );
+});
+
+it("should focus the body's first input on open", () => {
+  renderFrame({
+    submit,
+    children: (
+      <>
+        <input type="hidden" />
+        <input aria-label="Name" />
+      </>
+    ),
+  });
+
+  expect(document.activeElement).toBe(
+    screen.getByRole("textbox", { name: "Name" })
+  );
+});

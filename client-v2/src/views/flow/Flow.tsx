@@ -379,20 +379,16 @@ const Collapse = styled.button`
   `}
 `;
 
-// Above everything the shell draws: the stock Sidebar (z-10) and the Sheets
-// (z-50), which portal to `body` beside these. The explorer's menu and the
-// dialogs no longer open here: they are Radix parts and portal to `body`
-// themselves, and a dialog closes the navigation's Sheet as it opens
-// (`LayoutShell`), since the Sheet traps focus. The element stays
-// for legacy code that portals by `PgView.ids.PORTAL_ABOVE` and for
-// `useOnClickOutside`, which counts a click inside it as inside. A modal
-// Sheet turns off pointer events on `body`, so each portal turns them back
-// on for itself.
+// Nothing opens here any more: menus and dialogs are Radix parts and portal
+// to `body`. The element stays because `useOnClickOutside` counts a click
+// inside `PgView.ids.PORTAL_ABOVE` as inside.
 const PortalAbove = styled.div`
   z-index: 62;
   pointer-events: auto;
 `;
-// Toasts open at the bottom left, over the navigation and its Sheet.
+// Toasts open at the bottom left, over the navigation and its Sheet. They
+// also sit above the dialogs, which portal to `body` below this, until Sonner
+// replaces this portal (HOO-2061, task 5).
 const PortalBelow = styled.div`
   z-index: 60;
   pointer-events: auto;

@@ -15,6 +15,8 @@ import { Modal } from "@/shared/ui/modal";
 import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
 import { ModalFrame } from "./ModalFrame";
+import { ModalPages } from "./ModalPages";
+import type { ModalPageProps } from "./ModalPages";
 import type { ModalFrameProps } from "./ModalFrame";
 
 let sent: ReturnType<typeof memoryProvider>;
@@ -121,7 +123,7 @@ it("should show a thrown error, stay open and report the failure", async () => {
     }))
   ).toEqual([
     {
-      ns: "overlays:modal-host",
+      ns: "overlays:modal-frame",
       report: true,
       context: { name: "rename-item" },
     },
@@ -198,4 +200,61 @@ it("should name the dialog after the product, hidden, without a title", () => {
   expect(screen.getByRole("dialog", { name: PROJECT_NAME })).toBeTruthy();
   const heading = screen.getByRole("heading", { name: PROJECT_NAME });
   expect(heading.classList.contains("sr-only")).toBe(true);
+});
+
+it("should show the message of a rejected { message } object", async () => {
+  renderFrame({
+    title: "Rename",
+    buttonProps: {
+      text: "Rename",
+      // `PgCommon.sendAndReceiveCustomEvent` rejects with this shape
+      onSubmit: () => Promise.reject({ message: "no wallet" }),
+    },
+  });
+
+  await submit("Rename");
+
+  expect(screen.getByRole("alert").textContent).toBe("no wallet");
+});
+
+it("should run the submit once for two quick submits", async () => {
+  let finish!: () => void;
+  const onSubmit = vi.fn(
+    () => new Promise<void>((resolve) => (finish = resolve))
+  );
+  renderFrame({ title: "Rename", buttonProps: { text: "Rename", onSubmit } });
+
+  const input = screen.getByRole("textbox", { name: "Name" });
+  await act(async () => {
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter" });
+  });
+  await act(async () => finish());
+
+  expect(onSubmit).toHaveBeenCalledTimes(1);
+});
+
+it("should report a dialog of several pages as opened once", () => {
+  const Second = () => <ModalFrame name="share" title="Done" />;
+  const First = ({ setPage }: ModalPageProps) => (
+    <ModalFrame
+      name="share"
+      title="Share"
+      buttonProps={{
+        text: "Next",
+        onSubmit: () => setPage({ Component: Second }),
+        noCloseOnSubmit: true,
+      }}
+    />
+  );
+  render(
+    <Modal open>
+      <ModalPages defaultPage={{ Component: First }} />
+    </Modal>
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+  expect(screen.getByRole("dialog", { name: "Done" })).toBeTruthy();
+  expect(events("overlay_modal_opened")).toEqual([{ name: "share" }]);
 });
