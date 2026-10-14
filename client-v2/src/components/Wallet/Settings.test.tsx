@@ -50,15 +50,6 @@ vi.mock("../Icons", () => {
     Trash: Icon,
   };
 });
-vi.mock("../Button", async () => {
-  const { forwardRef } = await import("react");
-  return {
-    // Radix's `asChild` hands its props and ref to this element
-    default: forwardRef<HTMLButtonElement>((props, ref) => (
-      <button type="button" ref={ref} {...props} />
-    )),
-  };
-});
 vi.mock("../Img", () => ({ default: () => null }));
 vi.mock("./Modals/Add", () => ({ Add: () => null }));
 
