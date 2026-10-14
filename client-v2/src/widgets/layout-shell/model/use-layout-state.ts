@@ -10,7 +10,12 @@ import {
   writeLayout,
 } from "./layout-state";
 import { DEFAULT_LAYOUT } from "./layout-state";
-import type { LayoutPanel, LayoutState, PanelLayout } from "./layout-state";
+import type {
+  LayoutPanel,
+  LayoutState,
+  PanelLayout,
+  SizeKey,
+} from "./layout-state";
 import { layoutTelemetry } from "./telemetry";
 import type { ToggleSource } from "./telemetry";
 
@@ -70,16 +75,21 @@ export const useLayoutState = () => {
   // Reported once per mount: a full storage fails every save after the
   // first the same way, and `localStorage` is shared with `settings` and
   // `wallet`, so the team must hear that it is full
-  const save = useCallback((next: LayoutState) => {
-    const written = writeLayout(storage, next);
-    if (!written.ok && !reportedSaveFailure.current) {
-      reportedSaveFailure.current = true;
-      log.error(
-        new Error("The layout could not be saved", { cause: written.error }),
-        { report: true }
-      );
-    }
-  }, []);
+  // `during` tells the report which write failed: the first failure of a
+  // visit is the migration's when a version 1 value was converted on mount
+  const save = useCallback(
+    (next: LayoutState, during: "save" | "migration" = "save") => {
+      const written = writeLayout(storage, next);
+      if (!written.ok && !reportedSaveFailure.current) {
+        reportedSaveFailure.current = true;
+        log.error(
+          new Error("The layout could not be saved", { cause: written.error }),
+          { report: true, context: { during } }
+        );
+      }
+    },
+    []
+  );
 
   // A version 1 value is rewritten as version 2 once, so the next visit reads
   // the current shape. The ref keeps StrictMode's second run of the effect
@@ -89,7 +99,14 @@ export const useLayoutState = () => {
     if (restored.kind !== "saved" || !restored.migrated) return;
     if (migrationSaved.current) return;
     migrationSaved.current = true;
-    save(restored.state);
+    // Version 1's `h` sized panels that the horizontal group no longer has, so
+    // `migrateV1` drops it by design: said here, not reported, so a reader of
+    // the logs does not take the missing sizes for a loss
+    log.info(
+      "A version 1 layout was migrated; its horizontal sizes were dropped because their panels changed",
+      { context: { from: 1 } }
+    );
+    save(restored.state, "migration");
   }, [restored, save]);
 
   // Saved on a toggle or a drag, never on mount (a migrated layout aside): a
@@ -130,17 +147,14 @@ export const useLayoutState = () => {
   // renamed or missing panel id), so every drag of the visit is lost the same
   // way; the team hears of it once, and later refusals only warn
   const reportedRefusedLayout = useRef(false);
-  const refuse = useCallback(
-    (group: "h" | "w" | "vert", layout: PanelLayout) => {
-      const report = !reportedRefusedLayout.current;
-      reportedRefusedLayout.current = true;
-      log.warn("A dragged layout was not saved", {
-        report,
-        context: { group, layout },
-      });
-    },
-    []
-  );
+  const refuse = useCallback((group: SizeKey, layout: PanelLayout) => {
+    const report = !reportedRefusedLayout.current;
+    reportedRefusedLayout.current = true;
+    log.warn("A dragged layout was not saved", {
+      report,
+      context: { group, layout },
+    });
+  }, []);
 
   const setHorizontal = useCallback(
     (layout: PanelLayout) => {

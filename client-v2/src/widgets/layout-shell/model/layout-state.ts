@@ -16,12 +16,19 @@ export const LAYOUT_PANELS = ["nav", "files", "assistant", "console"] as const;
 export type LayoutPanel = typeof LAYOUT_PANELS[number];
 
 /**
+ * The stored layout's version. The one place it is written: the field, the
+ * defaults, the reads and the newer-version check all follow it, so the next
+ * format change bumps this and finds every site.
+ */
+export const LAYOUT_VERSION = 2;
+
+/**
  * What of the layout survives a reload, on this device; stored as it is.
  * Read-only throughout, so `DEFAULT_LAYOUT`, which is frozen, cannot be
  * written in place by code that compiles.
  */
 export interface LayoutState {
-  readonly v: 2;
+  readonly v: typeof LAYOUT_VERSION;
   readonly open: Readonly<Record<LayoutPanel, boolean>>;
   readonly h?: Readonly<HorizontalLayout>;
   readonly w?: Readonly<WorkLayout>;
@@ -38,7 +45,7 @@ export const LAYOUT_STORAGE_KEY = "layout";
  * console closed
  */
 export const DEFAULT_LAYOUT: LayoutState = Object.freeze({
-  v: 2,
+  v: LAYOUT_VERSION,
   open: Object.freeze({
     nav: true,
     files: true,
@@ -121,7 +128,8 @@ const isPanelLayout = <Id extends string>(
 const isLayoutCore = (
   value: Record<string, unknown>
 ): value is Record<string, unknown> & Pick<LayoutState, "v" | "open"> =>
-  value.v === 2 && hasExactly(value.open, LAYOUT_PANELS, isBoolean);
+  value.v === LAYOUT_VERSION &&
+  hasExactly(value.open, LAYOUT_PANELS, isBoolean);
 
 /** The open flags version 1 stored, before the files and nav panels */
 const LAYOUT_PANELS_V1 = ["left", "assistant", "console"] as const;
@@ -143,7 +151,7 @@ const isLayoutCoreV1 = (
  * the next save repairs it
  */
 const isNewerVersion = (v: unknown) =>
-  typeof v === "number" && Number.isInteger(v) && v > 2;
+  typeof v === "number" && Number.isInteger(v) && v > LAYOUT_VERSION;
 
 /**
  * The layout without a folded panel's sizes. The sizes are of the panel as it
@@ -171,10 +179,13 @@ export const verticalOf = (layout: PanelLayout): VerticalLayout | null =>
   isPanelLayout(layout, VERTICAL_PANELS) ? layout : null;
 
 /**
- * A version 1 value as version 2: its left column is the files column, and
- * the navigation opens, since version 1 had none to fold. Its `h` sized the
- * old centre against the assistant, a group that no longer exists, so it is
- * dropped without being reported: the assistant opens at its default size.
+ * A version 1 value as the current version: its left column is the files
+ * column, and the navigation opens, since version 1 had none to fold. Its `h`
+ * sized the `center` and `assistant` panels of `layout-horizontal`; that group
+ * still exists, but its panels are now `assistant` and `work`, so the sizes
+ * name panels that are gone and mean something else. They are dropped without
+ * being reported (the hook logs it at debug): the assistant opens at its
+ * default size.
  */
 const migrateV1 = (
   parsed: Record<string, unknown> & { open: OpenV1 }
@@ -184,7 +195,7 @@ const migrateV1 = (
       ? parsed.vert
       : null;
   const state = withoutFoldedSizes({
-    v: 2,
+    v: LAYOUT_VERSION,
     open: {
       nav: true,
       files: parsed.open.left,
@@ -260,7 +271,7 @@ export const readLayout = (
   if (vert === null) dropped.push("vert");
   // Field by field, so a key this version does not know is not carried along
   const state = withoutFoldedSizes({
-    v: 2,
+    v: LAYOUT_VERSION,
     open: {
       nav: parsed.open.nav,
       files: parsed.open.files,
@@ -274,13 +285,19 @@ export const readLayout = (
   return { kind: "saved", state, dropped, migrated: false };
 };
 
-/** Saves the layout; a storage that throws is returned, never thrown */
+/**
+ * Saves the layout without a folded panel's sizes, whoever calls; a storage
+ * that throws is returned, never thrown
+ */
 export const writeLayout = (
   storage: () => Pick<Storage, "setItem">,
   state: LayoutState
 ): { ok: true } | { ok: false; error: unknown } => {
   try {
-    storage().setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state));
+    storage().setItem(
+      LAYOUT_STORAGE_KEY,
+      JSON.stringify(withoutFoldedSizes(state))
+    );
     return { ok: true };
   } catch (error) {
     return { ok: false, error };

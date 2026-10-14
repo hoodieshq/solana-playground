@@ -161,7 +161,7 @@ it("should write a migrated layout once under StrictMode", () => {
   expect(setItem).toHaveBeenCalledTimes(1);
 });
 
-it("should report a failed write of a migrated layout once", () => {
+it("should report a failed write of a migrated layout once, as the migration's", () => {
   const logs = logMemory();
   initLogger({ providers: [logs] });
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
@@ -169,8 +169,40 @@ it("should report a failed write of a migrated layout once", () => {
     throw new Error("full");
   });
   const { result } = renderHook(() => useLayoutState());
+  // The migration's own write failed, before any toggle
+  const reports = () => logs.entries.filter((entry) => entry.report);
+  expect(reports()).toHaveLength(1);
+  expect(reports()[0].context).toEqual({ during: "migration" });
+  // A later write fails the same way and is not reported again
   act(() => result.current.setOpen("console", { open: false, via: "button" }));
-  expect(logs.entries.filter((entry) => entry.report)).toHaveLength(1);
+  expect(reports()).toHaveLength(1);
+});
+
+it("should tag a failed save that is not the migration's as a save", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("full");
+  });
+  const { result } = renderHook(() => useLayoutState());
+  act(() => result.current.setOpen("console", { open: true, via: "button" }));
+  const reported = logs.entries.filter((entry) => entry.report);
+  expect(reported).toHaveLength(1);
+  expect(reported[0].context).toEqual({ during: "save" });
+});
+
+it("should say, without reporting, that a migrated layout's horizontal sizes were dropped on purpose", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
+  renderHook(() => useLayoutState());
+  const said = logs.entries.filter((entry) =>
+    entry.message?.includes("dropped")
+  );
+  expect(said).toHaveLength(1);
+  expect(said[0].level).toBe("info");
+  expect(said[0].report).toBeFalsy();
+  expect(logs.entries.filter((entry) => entry.report)).toHaveLength(0);
 });
 
 it("should not write a layout from a newer version on mount", () => {

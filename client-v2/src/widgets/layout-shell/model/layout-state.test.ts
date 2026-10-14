@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   DEFAULT_LAYOUT,
   LAYOUT_STORAGE_KEY,
+  LAYOUT_VERSION,
   readLayout,
   writeLayout,
 } from "./layout-state";
@@ -194,18 +195,6 @@ it("should not restore a folded panel's sizes", () => {
   });
 });
 
-it("should not restore the work sizes of a folded files column", () => {
-  const storage = memoryStorage({
-    [LAYOUT_STORAGE_KEY]: JSON.stringify({
-      v: 2,
-      open: { nav: true, files: false, assistant: true, console: false },
-      w: { files: 30, center: 70 },
-    }),
-  });
-  const restored = readLayout(() => storage);
-  expect(restored.kind === "saved" && restored.state.w).toBeUndefined();
-});
-
 it("should migrate a layout saved before the four columns", () => {
   const storage = memoryStorage({
     [LAYOUT_STORAGE_KEY]: JSON.stringify({
@@ -243,6 +232,27 @@ it("should drop a v1 vertical size map that does not read, when migrating", () =
     dropped: ["vert"],
     migrated: true,
   });
+});
+
+it("should drop a v1 vertical size map of a folded console, when migrating", () => {
+  const storage = memoryStorage({
+    [LAYOUT_STORAGE_KEY]: JSON.stringify({
+      v: 1,
+      open: { left: true, assistant: true, console: false },
+      vert: { stage: 96, console: 4 },
+    }),
+  });
+  const restored = readLayout(() => storage);
+  expect(restored).toEqual({
+    kind: "saved",
+    state: {
+      v: 2,
+      open: { nav: true, files: true, assistant: true, console: false },
+    },
+    dropped: [],
+    migrated: true,
+  });
+  expect(restored.kind === "saved" && restored.state.vert).toBeUndefined();
 });
 
 it("should accept sizes the library rounded", () => {
@@ -321,4 +331,36 @@ it("should store the layout as it is", () => {
   const storage = memoryStorage();
   writeLayout(() => storage, SAVED);
   expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!)).toEqual(SAVED);
+});
+
+it("should store no sizes for a folded panel, whatever the caller passes", () => {
+  const storage = memoryStorage();
+  writeLayout(() => storage, {
+    v: 2,
+    open: { nav: true, files: false, assistant: false, console: true },
+    h: { assistant: 30, work: 70 },
+    w: { files: 25, center: 75 },
+    vert: { stage: 60, console: 40 },
+  });
+  expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!)).toEqual({
+    v: 2,
+    open: { nav: true, files: false, assistant: false, console: true },
+    vert: { stage: 60, console: 40 },
+  });
+});
+
+it("should tie the stored version to LAYOUT_VERSION, reading it and refusing a newer one", () => {
+  const storage = memoryStorage();
+  writeLayout(() => storage, DEFAULT_LAYOUT);
+  expect(JSON.parse(storage.items.get(LAYOUT_STORAGE_KEY)!).v).toBe(
+    LAYOUT_VERSION
+  );
+  expect(readLayout(() => storage).kind).toBe("saved");
+  const newer = memoryStorage({
+    [LAYOUT_STORAGE_KEY]: JSON.stringify({ v: LAYOUT_VERSION + 1 }),
+  });
+  expect(readLayout(() => newer)).toEqual({
+    kind: "failed",
+    reason: "version",
+  });
 });
