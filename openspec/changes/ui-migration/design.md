@@ -564,6 +564,54 @@ react-select showed the last option. A setting with Custom shows "Custom".
   radios. The gallery is restyled by HOO-2068.
 - Checkbox and Switch: the leaves task (HOO-2058).
 
+## Buttons (5.4)
+
+Decided with Slava on 2026-10-14 (HOO-2059). Every button comes from the
+design system: `Button`, `BrandButton`, `AsyncButton` and `CopyButton`, all
+installed with `yarn ds-add`. `HelpTip` arrived with 5.6 and is not touched
+here. One PR, stacked on 5.6's.
+
+| Today | Becomes |
+|---|---|
+| `GradientButton`, the one call to action of a view | `BrandButton`, `ring` |
+| `kind="primary"` | `Button`, `default`; `BrandButton` `accent` where it is a call to action and the ring would be too loud |
+| `secondary`, `outline`, `primary-outline`, `secondary-outline` | `Button`, `secondary` or `outline` |
+| `transparent`, `no-border`, `primary-transparent`, `secondary-transparent` | `Button`, `ghost` |
+| `kind="icon"` | `Button`, `ghost`, `size="icon-sm"` |
+| `kind="error"` | `Button`, `destructive` |
+| `Button.Copy` | `CopyButton` |
+| `Button.Export` | `Button asChild` around the `<a download>` |
+| `Button.Import` | `components/ImportButton`, the same hidden file input on `Button` |
+| `leftIcon`, `rightIcon` | children with `data-icon="inline-start"` / `"inline-end"` |
+| `color`, `bg`, `hoverColor`, `fontWeight`, `fullWidth`, `size` | a variant, or a class |
+
+The brand buttons today: the Build stage's four (Deploy twice, Fix, Build),
+Deploy, the assistant's "Allow", Connect and Start from scratch.
+
+**Waiting is opted into.** The legacy `Button` disabled itself and spun on
+every click whose handler returned a promise, `icon` excepted. `AsyncButton`
+does the same, so it goes only where the handler returns a promise or the
+caller passes `loading` (the sidebar's Build, the IDL's init/upgrade, the
+wallet's Send with `loadingText="Sending..."`). Every other button is a plain
+`Button`.
+
+**A click that fails is reported.** The design system's `AsyncButton` awaited
+the promise in a `try`/`finally`, so a rejection escaped as an unhandled
+rejection; `CopyButton` ignored a refused `clipboard.writeText`. Both gain
+`onError(error)`, changed in `design-system/` and reinstalled. Without it,
+`AsyncButton` rethrows as before and `CopyButton` shows no "Copied". In
+client-v2 every `AsyncButton` and `CopyButton` passes `reportButtonFailure`,
+which logs through `createLogger("ui:button")` with `report: true`. It
+replaces the legacy `Button`'s `console.error`.
+
+Removed: `components/Button`, `components/GradientButton`, and the theme's
+`components.button` override type. `client-v2/CLAUDE.md` loses its paragraph
+on `GradientButton`; comments that cite it (`views/flow/tokens.ts`, the
+stepper) cite `BrandButton`.
+
+Kept: every id, `aria-label` and test id on a button. The design system's
+`data-slot` names (`button`, `brand-button`, `copy-button`) come with it.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
