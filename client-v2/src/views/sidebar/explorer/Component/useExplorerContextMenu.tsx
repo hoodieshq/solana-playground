@@ -14,6 +14,16 @@ import { useRenderOnChange } from "../../../../hooks";
 
 const log = createLogger("explorer:context-menu");
 
+const reportMenuActionFailure = (action: string, err: unknown) => {
+  log.error(err, { report: true, context: { action } });
+  PgView.setToast(
+    () => <span>Could not open that. Reload and try again.</span>,
+    {
+      options: { name: "menu-action-failed" },
+    }
+  );
+};
+
 export type ItemData = {
   [K in
     | "isFolder"
@@ -50,6 +60,10 @@ export const useExplorerContextMenu = () => {
     // Root dir is not allowed to be selected as it cannot be renamed or deleted.
     // Right-clicking it is ordinary, so it is not logged.
     if (selectedEl.id === PgView.ids.ROOT_DIR) return false;
+
+    // A section header ("Program", "Client") and its buttons are as ordinary a
+    // right-click as the root folder: no menu, and nothing to log.
+    if (selectedEl.closest("[data-section]")) return false;
 
     const itemType = PgExplorer.getItemTypeFromEl(selectedEl);
     if (!itemType) {
@@ -115,15 +129,24 @@ export const useExplorerContextMenu = () => {
     setTimeout(() => PgExplorer.setCtxSelectedEl(ctxSelected));
   }, [getPath]);
 
+  // Radix ignores the promise an `onSelect` returns, so a rejection (a dialog
+  // chunk that failed to load) would be unhandled and the click would seem to
+  // do nothing. Catch it here, log it for the team and tell the user.
   const renameItem = useCallback(async () => {
-    if (PgExplorer.getCtxSelectedEl()) {
+    if (!PgExplorer.getCtxSelectedEl()) return;
+    try {
       await PgView.setModal(<RenameItem path={getPath()} />);
+    } catch (err) {
+      reportMenuActionFailure("rename", err);
     }
   }, [getPath]);
 
   const deleteItem = useCallback(async () => {
-    if (PgExplorer.getCtxSelectedEl()) {
+    if (!PgExplorer.getCtxSelectedEl()) return;
+    try {
       await PgView.setModal(<DeleteItem path={getPath()} />);
+    } catch (err) {
+      reportMenuActionFailure("delete", err);
     }
   }, [getPath]);
 

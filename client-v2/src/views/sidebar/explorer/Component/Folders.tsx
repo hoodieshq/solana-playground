@@ -73,7 +73,7 @@ const Folders = () => {
             data-path={relativeRootPath}
           >
             {/* Program */}
-            <SectionTopWrapper>
+            <SectionTopWrapper data-section>
               <SectionHeader>Program</SectionHeader>
               {folders.includes(PgExplorer.PATHS.SRC_DIRNAME) ? (
                 <>
@@ -108,7 +108,7 @@ const Folders = () => {
             />
 
             {/* Client and tests */}
-            <SectionTopWrapper>
+            <SectionTopWrapper data-section>
               <SectionHeader>Client</SectionHeader>
               {folders.includes(PgExplorer.PATHS.CLIENT_DIRNAME) ? (
                 <SectionButton
@@ -150,7 +150,7 @@ const Folders = () => {
 
             {/* Other */}
             {otherFolders.length > 0 && (
-              <SectionTopWrapper>
+              <SectionTopWrapper data-section>
                 <SectionHeader>Other</SectionHeader>
               </SectionTopWrapper>
             )}

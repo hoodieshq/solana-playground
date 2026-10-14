@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+import { PgView } from "../../utils";
 import Settings from "./Settings";
 
 // The utils barrel needs build-time globals the unit runner does not define.
@@ -10,6 +16,7 @@ vi.mock("../../utils", () => ({
   PgView: {
     ids: { WALLET_RENAME_INPUT: "wallet-rename-input" },
     setModal: vi.fn(),
+    setToast: vi.fn(),
   },
   PgWallet: {
     current: {
@@ -53,8 +60,17 @@ vi.mock("../Button", async () => {
   };
 });
 vi.mock("../Img", () => ({ default: () => null }));
+vi.mock("./Modals/Add", () => ({ Add: () => null }));
 
-afterEach(() => vi.restoreAllMocks());
+let logs: ReturnType<typeof logMemory>;
+beforeEach(() => {
+  logs = logMemory();
+  initLogger({ providers: [logs] });
+});
+afterEach(() => {
+  vi.clearAllMocks();
+  resetLogger();
+});
 
 /** What `Wallet.tsx` does: the rename input appears once `showRename` ran */
 const Host = () => {
@@ -85,13 +101,40 @@ describe("wallet Settings menu", () => {
     await waitFor(() => expect(document.activeElement).toBe(input));
   });
 
-  it("leaves focus to Radix's return to the trigger after Copy address", async () => {
-    render(<Host />);
+  it("leaves focus to Radix's return to the trigger after Copy address, even with the rename input mounted", async () => {
+    // The input is there from the start, so only the `choseRename` guard
+    // keeps focus off it
+    render(
+      <>
+        <Settings showRename={vi.fn()} />
+        <input id="wallet-rename-input" aria-label="Rename" />
+      </>
+    );
     const trigger = screen.getByTitle("More");
     await openMenu();
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Copy address/ }));
 
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Rename"));
+  });
+
+  it("reports a modal that fails to open and tells the user", async () => {
+    const failure = new Error("chunk failed");
+    vi.mocked(PgView.setModal).mockRejectedValueOnce(failure);
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Add/ }));
+
+    await waitFor(() => expect(PgView.setToast).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(PgView.setToast).mock.calls[0][1]).toEqual({
+      options: { name: "menu-action-failed" },
+    });
+    expect(logs.entries).toHaveLength(1);
+    expect(logs.entries[0].ns).toBe("wallet:settings");
+    expect(logs.entries[0].level).toBe("error");
+    expect(logs.entries[0].report).toBe(true);
+    expect(logs.entries[0].error).toBe(failure);
   });
 });

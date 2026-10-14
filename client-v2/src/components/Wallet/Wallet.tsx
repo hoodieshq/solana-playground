@@ -123,7 +123,7 @@ const WalletTopWrapper = styled.div`
   `}
 `;
 
-const WalletName = () => {
+export const WalletName = () => {
   const wallet = useWallet();
   const { darken, lighten } = useDarken();
 

@@ -20,9 +20,27 @@ import {
   ThreeDots,
   Trash,
 } from "../Icons";
+import { createLogger } from "@/shared/lib/logger";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { useAirdrop, useDarken } from "./hooks";
 import { useCopy } from "../../hooks";
+
+const log = createLogger("wallet:settings");
+
+// Radix ignores the promise an `onSelect` returns, so a rejection (a dialog
+// chunk that failed to load) would be unhandled and the click would seem to do
+// nothing. Log it for the team and tell the user.
+const openModal = async (action: string, load: () => Promise<unknown>) => {
+  try {
+    await load();
+  } catch (err) {
+    log.error(err, { report: true, context: { action } });
+    PgView.setToast(
+      () => <span>Could not open that. Reload and try again.</span>,
+      { options: { name: "menu-action-failed" } }
+    );
+  }
+};
 
 interface SettingsProps {
   showRename: Fn;
@@ -88,10 +106,12 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onSelect={async () => {
-              const { Add } = await import("./Modals/Add");
-              await PgView.setModal(Add);
-            }}
+            onSelect={() =>
+              openModal("add", async () => {
+                const { Add } = await import("./Modals/Add");
+                await PgView.setModal(Add);
+              })
+            }
           >
             <Plus />
             <MenuItemText>Add</MenuItemText>
@@ -105,10 +125,12 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
           {isPg && (
             <DropdownMenuItem
               variant="destructive"
-              onSelect={async () => {
-                const { Remove } = await import("./Modals/Remove");
-                await PgView.setModal(Remove);
-              }}
+              onSelect={() =>
+                openModal("remove", async () => {
+                  const { Remove } = await import("./Modals/Remove");
+                  await PgView.setModal(Remove);
+                })
+              }
             >
               <Trash />
               <MenuItemText>Remove</MenuItemText>
