@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Button from "../../Button";
+import { Button } from "@/shared/ui/button";
 import Card from "../../Card";
 import Img from "../../Img";
 import Link from "../../Link";
@@ -49,10 +49,10 @@ const Home = () => {
           </TutorialCardsWrapper>
 
           <Link href="/tutorials">
-            <PlaygroundTutorialsButton kind="icon">
+            <Button variant="ghost" size="sm" className="mt-4 text-primary">
               Playground tutorials
-              <ShortArrow />
-            </PlaygroundTutorialsButton>
+              <ShortArrow data-icon="inline-end" />
+            </Button>
           </Link>
         </TutorialsWrapper>
       </ContentWrapper>
@@ -111,7 +111,10 @@ const Resource: FC<React.PropsWithChildren<ResourceProps>> = ({
     <ResourceDescription>{description}</ResourceDescription>
     <ResourceButtonWrapper>
       <Link href={url}>
-        <ResourceButton rightIcon={<External />}>Learn more</ResourceButton>
+        <Button variant="outline" className="w-full">
+          Learn more
+          <External data-icon="inline-end" />
+        </Button>
       </Link>
     </ResourceButtonWrapper>
   </ResourceCard>
@@ -150,14 +153,6 @@ const ResourceDescription = styled.div`
 const ResourceButtonWrapper = styled.div`
   width: 100%;
   height: 20%;
-`;
-
-const ResourceButton = styled(Button)`
-  ${({ theme }) => css`
-    ${PgTheme.convertToCSS(
-      theme.views.main.primary.home.resources.card.button
-    )};
-  `}
 `;
 
 const TutorialsWrapper = styled.div`
@@ -215,22 +210,5 @@ const TutorialIcon = styled(Img)`
 `;
 
 const TutorialTitle = styled.span``;
-
-const PlaygroundTutorialsButton = styled(Button)`
-  ${({ theme }) => css`
-    margin-top: 1rem;
-
-    color: ${theme.colors.default.primary};
-    padding: 0.25rem 0.5rem;
-
-    svg {
-      margin-left: 0.25rem;
-    }
-
-    &::hover {
-      text-decoration: underline;
-    }
-  `}
-`;
 
 export default Home;

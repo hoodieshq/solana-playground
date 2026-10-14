@@ -2,7 +2,7 @@ import { SetStateAction, useCallback } from "react";
 import styled, { css } from "styled-components";
 
 import Tab from "./Tab";
-import Button from "../Button";
+import { Button } from "@/shared/ui/button";
 import Dnd from "../Dnd";
 import Img from "../Img";
 import { PgExplorer, PgTheme, PgView, PgWallet } from "../../utils";
@@ -80,8 +80,8 @@ const Wallet = () => {
     <WalletWrapper>
       <Button
         onClick={() => (PgWallet.show = !PgWallet.show)}
-        kind="icon"
-        fontWeight="bold"
+        variant="ghost"
+        size="sm"
       >
         <Img src="/icons/sidebar/wallet.png" alt="Wallet" />
         Wallet

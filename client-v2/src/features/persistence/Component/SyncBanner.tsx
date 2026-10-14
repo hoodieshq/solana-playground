@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Button from "../../../components/Button";
+import { Button } from "@/shared/ui/button";
 import { ConflictResolver } from "../ui/ConflictResolver";
 import { PgProjectSync } from "../model/project-sync";
 import { persistenceTelemetry } from "../model/telemetry";
@@ -217,8 +217,8 @@ const SyncBanner = () => {
           <Actions>
             {resolvable && (
               <Button
-                kind="outline"
-                size="small"
+                variant="outline"
+                size="sm"
                 disabled={busy || !!resolving}
                 onClick={() => setResolving(conflict.projectId)}
               >
@@ -228,8 +228,8 @@ const SyncBanner = () => {
             {prompt.actions.map((action) => (
               <Button
                 key={action.resolution}
-                kind={action.primary ? "primary" : "outline"}
-                size="small"
+                variant={action.primary ? "default" : "outline"}
+                size="sm"
                 disabled={busy}
                 onClick={() => void answer(action.resolution)}
               >
