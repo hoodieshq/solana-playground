@@ -146,4 +146,40 @@ describe("remembered backend", () => {
     ]);
     expect(JSON.stringify(logged.entries)).not.toContain(KEY);
   });
+
+  /** Make one Storage method throw for `sessionStorage` only */
+  const failOnSession = (method: "setItem" | "removeItem") => {
+    const original = Storage.prototype[method];
+    vi.spyOn(Storage.prototype, method).mockImplementation(function (
+      this: Storage,
+      ...args: [string, string]
+    ) {
+      if (this === sessionStorage) throw new Error("blocked");
+      return original.apply(this, args);
+    });
+  };
+
+  it("does not leave an earlier key behind when the new one cannot be kept", () => {
+    rememberBackend(openai);
+    failOnSession("setItem");
+
+    rememberBackend(anthropic);
+
+    expect(rememberedConnection()).toBeNull();
+  });
+
+  it("reports a key that survives a disconnect, without the key", () => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    rememberBackend(openai);
+    failOnSession("removeItem");
+
+    forgetBackend();
+
+    expect(rememberedConnection()).toBeNull();
+    const failures = logged.entries.filter((e) => e.report);
+    expect(failures).toHaveLength(1);
+    expect(failures[0].ns).toBe("assistant:remembered-backend");
+    expect(JSON.stringify(logged.entries)).not.toContain(KEY);
+  });
 });

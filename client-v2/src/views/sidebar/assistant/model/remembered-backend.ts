@@ -38,7 +38,16 @@ const read = <T>(what: string, run: () => T, fallback: T): T => {
   }
 };
 
-const attempt = (what: string, run: () => void) => read(what, run, undefined);
+/** Run a storage write, answering whether it went through */
+const attempt = (what: string, run: () => void) =>
+  read(
+    what,
+    () => {
+      run();
+      return true;
+    },
+    false
+  );
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -106,15 +115,35 @@ export const rememberBackend = (connection: Connection) => {
   const stored: Connection = { id: connection.id, apiKey: connection.apiKey };
   if (connection.endpoint) stored.endpoint = connection.endpoint;
   if (connection.settings) stored.settings = connection.settings;
-  attempt("keep the connection for this tab", () =>
+  const kept = attempt("keep the connection for this tab", () =>
     sessionStorage.setItem(CONNECTION_KEY, JSON.stringify(stored))
+  );
+  if (kept) return;
+
+  // The write failed, so an earlier backend's key may still be there and a
+  // reload would reconnect to it instead of the one just chosen. Dropping it
+  // makes the next load ask.
+  attempt("drop the previous connection", () =>
+    sessionStorage.removeItem(CONNECTION_KEY)
   );
 };
 
 /** Drop both. Disconnecting is the user saying not to reconnect. */
 export const forgetBackend = () => {
   attempt("forget the backend", () => localStorage.removeItem(BACKEND_KEY));
-  attempt("forget the key", () => sessionStorage.removeItem(CONNECTION_KEY));
+  const forgotten = attempt("forget the key", () =>
+    sessionStorage.removeItem(CONNECTION_KEY)
+  );
+  if (forgotten) return;
+
+  // A key that outlives its disconnect is a privacy failure, so it is
+  // reported (by what failed, never with the value). Overwriting with an
+  // empty string is the fallback: `parseConnection` rejects it, so the next
+  // read drops the entry and the key is gone either way.
+  log.error(new Error("could not forget the key kept for this tab"), {
+    report: true,
+  });
+  attempt("blank the key", () => sessionStorage.setItem(CONNECTION_KEY, ""));
 };
 
 /** Whether this browser should reconnect to the default backend by itself */

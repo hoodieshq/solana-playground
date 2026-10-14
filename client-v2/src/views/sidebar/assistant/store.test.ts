@@ -699,6 +699,19 @@ describe("the user's own key", () => {
     );
   });
 
+  it("is left alone in an error when it is too short to be a secret", () => {
+    PgAssistant.connect({
+      id: "openai",
+      apiKey: "x",
+      endpoint: openai.endpoint,
+    });
+    PgAssistant.addError("x marks the spot: 502 from the proxy");
+
+    expect(JSON.stringify(PgAssistant.items)).toContain(
+      "x marks the spot: 502 from the proxy"
+    );
+  });
+
   it("is forgotten on disconnect", () => {
     PgAssistant.connect(openai);
     PgAssistant.disconnect();
