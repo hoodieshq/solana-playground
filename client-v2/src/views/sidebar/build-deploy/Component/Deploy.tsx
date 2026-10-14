@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactElement } from "react";
 import styled from "styled-components";
 
 import Text from "../../../../components/Text";
@@ -11,6 +11,14 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../../hooks";
+
+/** What the deploy button shows for each state of a deploy */
+const DEPLOY_ICONS: Record<typeof PgGlobal.deployState, ReactElement> = {
+  ready: <Rocket data-icon="inline-start" />,
+  cancelled: <Rocket data-icon="inline-start" />,
+  loading: <Pause data-icon="inline-start" />,
+  paused: <Triangle rotate="90deg" data-icon="inline-start" />,
+};
 
 const Deploy = () => {
   const buildLoading = useRenderOnChange(PgGlobal.onDidChangeBuildLoading);
@@ -51,13 +59,7 @@ const Deploy = () => {
       loading={deployState === "cancelled"}
       onError={reportButtonFailure}
     >
-      {deployState === "loading" ? (
-        <Pause data-icon="inline-start" />
-      ) : deployState === "paused" ? (
-        <Triangle rotate="90deg" data-icon="inline-start" />
-      ) : (
-        <Rocket data-icon="inline-start" />
-      )}
+      {DEPLOY_ICONS[deployState]}
       {deployButtonText}
     </AsyncButton>
   );

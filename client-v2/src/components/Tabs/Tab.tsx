@@ -124,11 +124,6 @@ const Wrapper = styled.div<
     & button {
       ${!isCurrent && "opacity: 0;"}
       margin: 0 0.25rem 0 0.5rem;
-
-      & svg {
-        width: 0.875rem;
-        height: 0.875rem;
-      }
     }
 
     &:hover button {

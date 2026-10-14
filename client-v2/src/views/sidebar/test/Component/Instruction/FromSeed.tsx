@@ -113,6 +113,7 @@ const FromSeed = ({ name, search }: FromSeedProps) => {
                         }}
                         variant="ghost"
                         size="icon-sm"
+                        aria-label="Edit seed"
                       >
                         <Edit />
                       </Button>
@@ -131,6 +132,7 @@ const FromSeed = ({ name, search }: FromSeedProps) => {
                       variant="ghost"
                       size="icon-sm"
                       className="hover:text-destructive"
+                      aria-label="Delete seed"
                     >
                       <Trash />
                     </Button>

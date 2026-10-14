@@ -25,6 +25,13 @@ import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
 
+/** Why the Deploy button is off, for its tooltip; undefined when it is on */
+const deployBlockedReason = (built: boolean, deploying: boolean) => {
+  if (!built) return "Build successfully first";
+  if (deploying) return "A deploy is already running";
+  return undefined;
+};
+
 const Deploy = () => {
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
   const [history, setHistory] = useState<DeployRecord[]>([]);
@@ -98,13 +105,7 @@ const Deploy = () => {
       <Actions>
         <BrandButton
           disabled={!built || deploying}
-          title={
-            !built
-              ? "Build successfully first"
-              : deploying
-              ? "A deploy is already running"
-              : undefined
-          }
+          title={deployBlockedReason(built, deploying)}
           onClick={() => {
             // Interact's deployment switcher may have pointed the project
             // at an imported id; redeploying always targets the project's

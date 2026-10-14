@@ -111,11 +111,6 @@ const GoBackButtonWrapper = styled.div`
   align-items: center;
   height: ${({ theme }) => theme.components.tabs.tab.default.height};
   padding-left: 1rem;
-
-  & svg {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
 `;
 
 const TutorialAboutPage = styled.div`

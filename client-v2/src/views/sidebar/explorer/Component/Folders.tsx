@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { cn } from "cn";
 import styled, { css, useTheme } from "styled-components";
 
 import ExplorerButtons from "./ExplorerButtons";
@@ -252,10 +253,12 @@ const SectionButton: FC<SectionButtonProps> = ({
   <AsyncButton
     variant="ghost"
     size="xs"
-    className={`text-muted-foreground hover:text-foreground ${className ?? ""}`}
+    className={cn("text-muted-foreground hover:text-foreground", className)}
     onError={reportButtonFailure}
     {...props}
   >
+    {/* Each icon spreads its props onto its <svg>, which is how the data-icon
+        reaches the element the button sizes */}
     {cloneElement(icon, { "data-icon": "inline-start" })}
     {children}
   </AsyncButton>
