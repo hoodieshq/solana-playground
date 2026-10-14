@@ -27,8 +27,11 @@ const log = createLogger("assistant:remembered-backend");
 const reasonOf = (error: unknown) =>
   error instanceof Error ? error.name : "unknown";
 
-/** Run a storage access, answering `fallback` (and logging why) if it throws */
-const read = <T>(what: string, run: () => T, fallback: T): T => {
+/**
+ * Run a storage access, read or write, answering `fallback` (and logging why)
+ * if it throws
+ */
+const guarded = <T>(what: string, run: () => T, fallback: T): T => {
   try {
     return run();
   } catch (error) {
@@ -40,7 +43,7 @@ const read = <T>(what: string, run: () => T, fallback: T): T => {
 
 /** Run a storage write, answering whether it went through */
 const attempt = (what: string, run: () => void) =>
-  read(
+  guarded(
     what,
     () => {
       run();
@@ -52,8 +55,33 @@ const attempt = (what: string, run: () => void) =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+/**
+ * Every field of a `Connection`, none optional, so the copies below must name
+ * each one: a field added to `Connection` fails the build here until it is
+ * written and read back, instead of being dropped on a reload.
+ */
+type StoredConnection = { [K in keyof Required<Connection>]: Connection[K] };
+
+/** The connection as it is written to `sessionStorage` */
+const toStored = (connection: Connection): string => {
+  const stored: StoredConnection = {
+    id: connection.id,
+    apiKey: connection.apiKey,
+    endpoint: connection.endpoint && {
+      baseUrl: connection.endpoint.baseUrl,
+      model: connection.endpoint.model,
+    },
+    settings: connection.settings && {
+      model: connection.settings.model,
+      effort: connection.settings.effort,
+    },
+  };
+  // `JSON.stringify` leaves out the fields that are `undefined`
+  return JSON.stringify(stored);
+};
+
 /** A stored connection, rebuilt field by field so nothing unknown rides along */
-const parseConnection = (raw: string): Connection | null => {
+const fromStored = (raw: string): Connection | null => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -67,33 +95,39 @@ const parseConnection = (raw: string): Connection | null => {
   const provider = PROVIDERS.find((p) => p.id === id);
   if (!provider || provider.id === DEFAULT_ID) return null;
 
-  const connection: Connection = { id: provider.id, apiKey };
-
   // An OpenAI-compatible provider cannot talk without its base URL and model
   if (provider.endpoint && parsed.endpoint === undefined) return null;
 
+  let endpoint: Connection["endpoint"];
   if (parsed.endpoint !== undefined) {
-    const { endpoint } = parsed;
+    const stored = parsed.endpoint;
     if (
-      !isRecord(endpoint) ||
-      typeof endpoint.baseUrl !== "string" ||
-      typeof endpoint.model !== "string"
+      !isRecord(stored) ||
+      typeof stored.baseUrl !== "string" ||
+      typeof stored.model !== "string"
     ) {
       return null;
     }
-    connection.endpoint = { baseUrl: endpoint.baseUrl, model: endpoint.model };
+    endpoint = { baseUrl: stored.baseUrl, model: stored.model };
   }
 
+  let settings: Connection["settings"];
   if (parsed.settings !== undefined) {
-    const { settings } = parsed;
-    if (!isRecord(settings) || typeof settings.model !== "string") return null;
+    const stored = parsed.settings;
+    if (!isRecord(stored) || typeof stored.model !== "string") return null;
     const effort = provider.modelSettings?.efforts.find(
-      (e) => e === settings.effort
+      (e) => e === stored.effort
     );
     if (!effort) return null;
-    connection.settings = { model: settings.model, effort };
+    settings = { model: stored.model, effort };
   }
 
+  const connection: StoredConnection = {
+    id: provider.id,
+    apiKey,
+    endpoint,
+    settings,
+  };
   return connection;
 };
 
@@ -112,11 +146,8 @@ export const rememberBackend = (connection: Connection) => {
     return;
   }
 
-  const stored: Connection = { id: connection.id, apiKey: connection.apiKey };
-  if (connection.endpoint) stored.endpoint = connection.endpoint;
-  if (connection.settings) stored.settings = connection.settings;
   const kept = attempt("keep the connection for this tab", () =>
-    sessionStorage.setItem(CONNECTION_KEY, JSON.stringify(stored))
+    sessionStorage.setItem(CONNECTION_KEY, toStored(connection))
   );
   if (kept) return;
 
@@ -138,7 +169,7 @@ export const forgetBackend = () => {
 
   // A key that outlives its disconnect is a privacy failure, so it is
   // reported (by what failed, never with the value). Overwriting with an
-  // empty string is the fallback: `parseConnection` rejects it, so the next
+  // empty string is the fallback: `fromStored` rejects it, so the next
   // read drops the entry and the key is gone either way.
   log.error(new Error("could not forget the key kept for this tab"), {
     report: true,
@@ -148,7 +179,7 @@ export const forgetBackend = () => {
 
 /** Whether this browser should reconnect to the default backend by itself */
 export const isDefaultBackendRemembered = () =>
-  read(
+  guarded(
     "read the remembered backend",
     () => localStorage.getItem(BACKEND_KEY) === DEFAULT_ID,
     false
@@ -156,14 +187,14 @@ export const isDefaultBackendRemembered = () =>
 
 /** The key-based connection this tab was using before a reload, if any */
 export const rememberedConnection = (): Connection | null => {
-  const raw = read(
+  const raw = guarded(
     "read the connection kept for this tab",
     () => sessionStorage.getItem(CONNECTION_KEY),
     null
   );
   if (raw === null) return null;
 
-  const connection = parseConnection(raw);
+  const connection = fromStored(raw);
   if (!connection) {
     log.warn("dropped a kept connection this build cannot use");
     attempt("drop the unusable connection", () =>
