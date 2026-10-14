@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import Connect from "./Connect";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
+import { PgSession } from "../../../../features/auth";
 import { PgAssistant, type Connection } from "../store";
 
 /**
@@ -67,6 +68,7 @@ describe("Connect", () => {
     PgAssistant.disconnect();
     localStorage.clear();
     sessionStorage.clear();
+    void PgSession.refreshWith(null);
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -76,6 +78,13 @@ describe("Connect", () => {
   it("reconnects this tab's key-based backend over a remembered default", async () => {
     sessionStorage.setItem("assistant.connection", JSON.stringify(OWN));
     localStorage.setItem("assistant.backend", "default");
+    // Signed in, or the default could never reconnect and the test proves nothing
+    void PgSession.refreshWith({
+      id: "u1",
+      name: null,
+      image: null,
+      login: null,
+    });
     const probe = probeAnswers(JSON.stringify({ configured: true }));
 
     renderConnect();

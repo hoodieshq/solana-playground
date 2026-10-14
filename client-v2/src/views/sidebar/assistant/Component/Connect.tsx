@@ -6,6 +6,8 @@ import GradientButton from "../../../../components/GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";
+import { PgSession } from "../../../../features/auth";
+import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
 import { PgAssistant } from "../store";
 import {
   isDefaultBackendRemembered,
@@ -99,6 +101,9 @@ const Connect = () => {
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
   const defaultBackend = useDefaultBackend();
+  // `/api/agent` spends the deployment's key only for a signed-in caller
+  useRenderOnChange(PgSession.onDidChange);
+  const signedIn = !!PgSession.get();
 
   const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
 
@@ -117,6 +122,10 @@ const Connect = () => {
 
   /** The probe is still out: the default is neither offered nor ruled out yet */
   const pending = defaultBackend === undefined;
+  /** The probe confirmed this deployment serves a default backend */
+  const isDefaultBackendConfigured = defaultBackend === true;
+  /** Served here, and `/api/agent` answers this user because they are signed in */
+  const canUseDefaultBackend = isDefaultBackendConfigured && signedIn;
 
   /**
    * Reconnect to the key-based backend this tab was using before a reload.
@@ -154,12 +163,12 @@ const Connect = () => {
    * throw the choice away mid-edit.
    */
   useEffect(() => {
-    if (defaultBackend !== true) return;
+    if (!canUseDefaultBackend) return;
     if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
     if (!isDefaultBackendRemembered()) return;
 
     PgAssistant.connect({ id: "default", apiKey: "" });
-  }, [defaultBackend]);
+  }, [canUseDefaultBackend]);
 
   /**
    * Declared unavailable, or a default backend this deployment has not
@@ -167,7 +176,7 @@ const Connect = () => {
    * ready and then withdrawn a moment later.
    */
   const isUnavailable = (p: ProviderInfo) =>
-    !!p.unavailable || (p.id === "default" && defaultBackend !== true);
+    !!p.unavailable || (p.id === "default" && !isDefaultBackendConfigured);
 
   // The probe can rule out the preselected default after the fact; fall back
   // rather than leaving a dead option selected
@@ -197,7 +206,11 @@ const Connect = () => {
   const endpointReady =
     !provider.endpoint ||
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
-  const ready = keyReady && endpointReady && !isUnavailable(provider);
+  /** The default is served here but refuses a signed-out turn; the button signs in instead */
+  const needsSignIn =
+    provider.id === "default" && isDefaultBackendConfigured && !signedIn;
+  const ready =
+    keyReady && endpointReady && !isUnavailable(provider) && !needsSignIn;
 
   const trimmedEndpoint = endpoint
     ? { baseUrl: endpoint.baseUrl.trim(), model: endpoint.model.trim() }
@@ -225,11 +238,25 @@ const Connect = () => {
 
   const defaultDescription = (p: ProviderInfo) => {
     if (pending) return "Checking this deployment for a default backend…";
-    return defaultBackend
+    if (!isDefaultBackendConfigured) {
+      return (
+        "Not configured on this deployment — pick a backend below and supply " +
+        "your own key."
+      );
+    }
+    return signedIn
       ? p.description
-      : "Not configured on this deployment — pick a backend below and supply " +
-          "your own key.";
+      : "Sign in with GitHub to use it, or bring your own key below.";
   };
+
+  const signIn = () =>
+    PgSession.signIn().catch((error: unknown) =>
+      // `PgSession.signInState` holds the failure and the header chip shows it;
+      // `info`, as the chip logs the same failure
+      log.info("sign-in from the assistant panel failed", {
+        context: { error: String(error) },
+      })
+    );
 
   /**
    * @param compact drop the description, so the open list stays short enough
@@ -274,7 +301,7 @@ const Connect = () => {
             patches you apply yourself.
           </Lead>
         )}
-        {!current && defaultBackend && (
+        {!current && isDefaultBackendConfigured && (
           <Lead>
             Out of the box it runs on this deployment's own backend, with the
             capabilities listed below. Bring your own key to run it on something
@@ -405,14 +432,20 @@ const Connect = () => {
         </>
       )}
 
-      <ConnectButton
-        kind="primary"
-        fullWidth
-        disabled={!ready}
-        onClick={connect}
-      >
-        {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
-      </ConnectButton>
+      {needsSignIn ? (
+        <ConnectButton kind="primary" fullWidth onClick={signIn}>
+          Sign in with GitHub
+        </ConnectButton>
+      ) : (
+        <ConnectButton
+          kind="primary"
+          fullWidth
+          disabled={!ready}
+          onClick={connect}
+        >
+          {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
+        </ConnectButton>
+      )}
 
       {switching && (
         <Note>
