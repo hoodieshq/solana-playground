@@ -374,4 +374,3 @@ const Collapse = styled.button`
     }
   `}
 `;
-
