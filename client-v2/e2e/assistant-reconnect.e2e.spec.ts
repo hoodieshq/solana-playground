@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { hasDefaultBackend, NO_DEFAULT_BACKEND } from "./fixtures";
+import {
+  hasDefaultBackend,
+  NO_DEFAULT_BACKEND,
+  seedWorkspace,
+} from "./fixtures";
 
 /**
  * The panel comes back usable after a reload, without being asked twice.
@@ -82,4 +86,173 @@ test("disconnecting is not undone by the next reload", async ({ page }) => {
 
   await expect(start(page)).toBeVisible(LONG);
   expect(await isConnected(page)).toBe(false);
+});
+
+const KEY = "sk-e2e-own-key-0123456789";
+const OWN = {
+  id: "openai",
+  apiKey: KEY,
+  endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+};
+
+type OwnWindow = Window & {
+  __pgAssistant?: {
+    isConnected: boolean;
+    connection: { id: string; apiKey: string } | null;
+    connect: (c: unknown) => void;
+    disconnect: () => void;
+  };
+};
+
+const connectOwn = (page: Page, connection: unknown = OWN) =>
+  page.evaluate(
+    (c) => (window as OwnWindow).__pgAssistant!.connect(c),
+    connection
+  );
+
+const connected = (page: Page) =>
+  page.evaluate(() => (window as OwnWindow).__pgAssistant?.connection ?? null);
+
+/** The picker's heading when nothing is connected */
+const picker = (page: Page) =>
+  page.getByText("An assistant that can see your project");
+
+/** Every value the origin's IndexedDB holds, as one string */
+const indexedDbDump = (page: Page) =>
+  page.evaluate(async () => {
+    const out: unknown[] = [];
+    for (const { name } of await indexedDB.databases()) {
+      if (!name) continue;
+      const db = await new Promise<IDBDatabase>((ok, fail) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = () => ok(req.result);
+        req.onerror = () => fail(req.error);
+      });
+      for (const store of Array.from(db.objectStoreNames)) {
+        const all = await new Promise<unknown[]>((ok, fail) => {
+          const req = db.transaction(store).objectStore(store).getAll();
+          req.onsuccess = () => ok(req.result);
+          req.onerror = () => fail(req.error);
+        });
+        out.push(all);
+      }
+      db.close();
+    }
+    // Binary values (lightning-fs chunks) stringify as {} and hide nothing
+    // text-shaped; decode them so the key cannot hide in a file's bytes
+    return JSON.stringify(out, (_, v) =>
+      v instanceof Uint8Array || v instanceof ArrayBuffer
+        ? new TextDecoder().decode(v)
+        : v
+    );
+  });
+
+test.describe("assistant-own-key", () => {
+  test.setTimeout(240_000);
+
+  test("assistant-own-key: Reloading the tab keeps the connection", async ({
+    page,
+  }) => {
+    await seedWorkspace(page, "own-key-reload");
+    await connectOwn(page);
+    await page.reload();
+
+    await expect
+      .poll(() => connected(page), LONG)
+      .toMatchObject({ id: "openai", apiKey: KEY });
+    await expect(page.locator("#assistant-api-key")).toBeHidden();
+  });
+
+  test("assistant-own-key: Storage that refuses access", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "sessionStorage", {
+        get() {
+          throw new DOMException("blocked", "SecurityError");
+        },
+      });
+    });
+    await seedWorkspace(page, "own-key-blocked");
+    await connectOwn(page);
+    await expect
+      .poll(() => connected(page), LONG)
+      .toMatchObject({ id: "openai" });
+
+    await page.reload();
+    await expect(picker(page)).toBeVisible(LONG);
+    expect(await connected(page)).toBeNull();
+  });
+
+  test("assistant-own-key: A new tab asks again", async ({ page, context }) => {
+    await seedWorkspace(page, "own-key-tab");
+    await connectOwn(page);
+
+    const second = await context.newPage();
+    await second.goto("/");
+    await expect(picker(second)).toBeVisible(LONG);
+    expect(await connected(second)).toBeNull();
+  });
+
+  test("assistant-own-key: Disconnect, then reload", async ({ page }) => {
+    await seedWorkspace(page, "own-key-disconnect");
+    await connectOwn(page);
+    await page.evaluate(() =>
+      (window as OwnWindow).__pgAssistant!.disconnect()
+    );
+    await page.reload();
+
+    await expect(picker(page)).toBeVisible(LONG);
+    expect(
+      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    ).not.toContain(KEY);
+  });
+
+  test("assistant-own-key: Switching to the default backend", async ({
+    page,
+  }) => {
+    await seedWorkspace(page, "own-key-switch");
+    await connectOwn(page);
+    await connectOwn(page, { id: "default", apiKey: "" });
+
+    expect(
+      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    ).not.toContain(KEY);
+  });
+
+  test("assistant-own-key: Nothing durable holds the key", async ({ page }) => {
+    await seedWorkspace(page, "own-key-durable");
+    await connectOwn(page);
+    await page.reload();
+    await expect
+      .poll(() => connected(page), LONG)
+      .toMatchObject({ apiKey: KEY });
+
+    expect(
+      await page.evaluate(() => JSON.stringify({ ...localStorage }))
+    ).not.toContain(KEY);
+    expect(await indexedDbDump(page)).not.toContain(KEY);
+  });
+
+  test("assistant-own-key: Requests to our origin carry no key", async ({
+    page,
+    baseURL,
+  }) => {
+    const leaks: string[] = [];
+    page.on("request", (req) => {
+      if (!req.url().startsWith(baseURL!)) return;
+      const carried = JSON.stringify(req.headers()) + (req.postData() ?? "");
+      if (carried.includes(KEY)) leaks.push(req.url());
+    });
+
+    await seedWorkspace(page, "own-key-requests");
+    await connectOwn(page);
+    await page.reload();
+    await expect
+      .poll(() => connected(page), LONG)
+      .toMatchObject({ apiKey: KEY });
+    // `networkidle` never arrives under the dev server (HMR socket, polling),
+    // so give the post-connect requests a fixed window to show up instead
+    await page.waitForTimeout(3_000);
+
+    expect(leaks).toEqual([]);
+  });
 });

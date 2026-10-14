@@ -6,7 +6,10 @@ import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
 import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
-import { isDefaultBackendRemembered } from "../model/remembered-backend";
+import {
+  isDefaultBackendRemembered,
+  rememberedConnection,
+} from "../model/remembered-backend";
 import {
   DEFAULT_BACKEND_URL,
   PROVIDERS,
@@ -96,10 +99,24 @@ const Connect = () => {
   const pending = defaultBackend === undefined;
 
   /**
+   * Reconnect to the key-based backend this tab was using before a reload.
+   *
+   * Kept in `sessionStorage` by `rememberBackend`, so a new tab never gets
+   * here with one. Needs no probe: the probe only says whether this
+   * deployment serves the default backend. The same guards as the default's
+   * reconnect below: nothing connected, and the picker not opened on purpose.
+   */
+  useEffect(() => {
+    if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
+    const remembered = rememberedConnection();
+    if (remembered) PgAssistant.connect(remembered);
+  }, []);
+
+  /**
    * Reconnect to the default backend without making the user ask twice.
    *
-   * The connection is in memory only, so every reload lands here with nothing
-   * connected -- and for the keyless default that meant clicking the same
+   * A reload lands here with nothing connected unless this tab kept a
+   * key-based connection (the effect above) -- and for the keyless default that meant clicking the same
    * button again before the panel could be used at all. Only a backend the
    * user has already chosen is reconnected, and only once the probe confirms
    * this deployment still serves it.
