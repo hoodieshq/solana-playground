@@ -2,6 +2,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../../../components/Button";
+import ImportButton from "../../../../../components/ImportButton";
 import Input from "../../../../../components/Input";
 import { ModalFrame } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
@@ -96,9 +97,9 @@ const Import = () => {
   };
 
   return (
-    <Button.Import accept=".json" onImport={handleImport}>
+    <ImportButton accept=".json" onImport={handleImport}>
       Import
-    </Button.Import>
+    </ImportButton>
   );
 };
 

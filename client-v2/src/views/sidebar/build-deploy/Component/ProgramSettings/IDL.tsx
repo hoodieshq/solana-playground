@@ -2,6 +2,7 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 
 import Button from "../../../../../components/Button";
+import ImportButton from "../../../../../components/ImportButton";
 import {
   PgCommand,
   PgCommon,
@@ -34,9 +35,9 @@ const Import = () => {
   };
 
   return (
-    <Button.Import accept=".json" onImport={handleImport} showImportText>
+    <ImportButton accept=".json" onImport={handleImport} showImportText>
       Import
-    </Button.Import>
+    </ImportButton>
   );
 };
 

@@ -1,13 +1,13 @@
 import { ChangeEvent, FC, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Button, { ButtonKind } from "./Default";
+import { Button } from "@/shared/ui/button";
 
 interface ImportButtonProps {
   onImport: (ev: ChangeEvent<HTMLInputElement>) => Promise<void>;
   accept?: string;
   showImportText?: boolean;
-  buttonKind?: ButtonKind;
+  variant?: React.ComponentProps<typeof Button>["variant"];
   noButton?: boolean;
   dir?: boolean;
   title?: string;
@@ -16,7 +16,7 @@ interface ImportButtonProps {
 const ImportButton: FC<React.PropsWithChildren<ImportButtonProps>> = ({
   onImport,
   accept,
-  buttonKind = "outline",
+  variant = "outline",
   showImportText,
   noButton,
   dir,
@@ -54,7 +54,7 @@ const ImportButton: FC<React.PropsWithChildren<ImportButtonProps>> = ({
       {noButton ? (
         <div onClick={handleClick}>{children}</div>
       ) : (
-        <Button kind={buttonKind} title={title} onClick={handleClick}>
+        <Button variant={variant} title={title} onClick={handleClick}>
           {children}
         </Button>
       )}

@@ -2,6 +2,7 @@ import { ChangeEvent, FC, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../components/Button";
+import ImportButton from "../../../components/ImportButton";
 import { useRenderOnChange } from "../../../hooks";
 import { PgProgramInfo } from "../../../utils";
 
@@ -56,13 +57,13 @@ const IdlActions: FC<React.PropsWithChildren<IdlActionsProps>> = ({
       )}
       {showUpload && (
         <>
-          <Button.Import
+          <ImportButton
             accept=".json"
             title="Replaces the IDL this browser uses in Interact -- nothing is written on-chain"
             onImport={handleUpload}
           >
             Load IDL file
-          </Button.Import>
+          </ImportButton>
           {note && <Note $error={note.error}>{note.text}</Note>}
         </>
       )}

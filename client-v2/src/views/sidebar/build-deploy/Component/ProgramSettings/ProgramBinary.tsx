@@ -1,6 +1,7 @@
 import styled from "styled-components";
 
 import Button from "../../../../../components/Button";
+import ImportButton from "../../../../../components/ImportButton";
 import {
   PgCommon,
   PgExplorer,
@@ -22,7 +23,7 @@ const Wrapper = styled.div`
 `;
 
 const Import = () => (
-  <Button.Import
+  <ImportButton
     accept=".so"
     onImport={async (ev) => {
       const files = ev.target.files;
@@ -44,7 +45,7 @@ const Import = () => (
     showImportText
   >
     Import
-  </Button.Import>
+  </ImportButton>
 );
 
 const Export = () => {
