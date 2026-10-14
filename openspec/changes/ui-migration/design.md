@@ -217,7 +217,7 @@ fallback `FAST_REFRESH=false`).
 | `typescript` `=5.0.4`   | `@types/react` 19 declares TS 5.6                     | Lift the pin (HOO-1855), not first |
 | `styled-components` 5.3 | Runs; 5.1.36 types accept React 19                    | Keep 5                             |
 | `react-use-clipboard`   | No release supports React 19                          | Replace in `hooks/useCopy.tsx`     |
-| `react-select` 5.5      | Peer range excludes 19                                | 5.10 or newer                      |
+| `react-select` 5.5      | Peer range excludes 19                                | Removed by 5.5                     |
 | `re-resizable` 6.9      | Peer range excludes 19                                | 6.11 or newer                      |
 | `react-rnd` 10.3        | Works (passes `nodeRef`, so `findDOMNode` is skipped) | Bump anyway                        |
 | Our code                | 20+ `FC` with implicit `children`; 9 global `JSX.`    | Mechanical fixes                   |
@@ -505,8 +505,8 @@ its own (the stock `Modal` does it below `md`).
 
 The controls the user picks with come from the design system, app-wide,
 before the screen tickets that place them (HOO-2068 New project, HOO-2071
-Settings). Installed with `yarn ds-add`: `stepper`, `segmented`, `select`,
-`native-select`, `radio-group`, `field`. The last four have sources in
+Settings). Installed: `stepper`, `select`, `native-select`, `radio-group`,
+`field` (`segmented` was already there). The last four have sources in
 `design-system/src/components/ui` and no registry item, so this task registers
 them, as `feedback-widget` did for its parts. `toggle-group` and `input-group`
 wait for their first use (a multi-toggle, a field with an addon); none exists
@@ -521,7 +521,7 @@ yet.
 | framework buttons | `Segmented`, `gradient` | `gallery/StartFromScratch.tsx` |
 | model presets, `aria-pressed` | `Segmented`, `chips` | `Connect.tsx` |
 | provider cards, `aria-pressed` | `RadioGroup` (each card has a description and can be disabled) | `Connect.tsx` |
-| model and key fields | `Field`, `FieldLabel`, `Input`, `InputGroup` | `Connect.tsx` |
+| model and key fields | `Field`, `FieldLabel`, `Input` | `Connect.tsx` |
 
 `react-select`, `components/Select` and the theme's `components.select`
 (once nothing reads it) are removed.
@@ -538,6 +538,16 @@ replaces them, as in the prototype.
 group keeps `role="radiogroup"` and `aria-label="Network"`. In `Connect`,
 `aria-pressed` buttons become radios with the same names, which states
 "one of a few" more precisely.
+
+**In `Segmented`, selection follows focus on the arrow keys only.** A radio
+group's arrow keys move the choice, so the design system's `Segmented` picks
+the item an arrow, Home or End key moves focus to. Tab, Shift+Tab, a click's
+focus and a programmatic `.focus()` pick nothing by themselves: Radix keeps
+the last focused item as the group's tab stop, not the checked one, so
+picking on any focus switched the network on a Shift+Tab. A group with
+`rovingFocus={false}` (the merge view's pane tabs) never follows focus.
+In the backend list (a `RadioGroup`) the arrow keys walk the providers
+without folding the list; only a click folds it.
 
 **Not in this task:**
 
