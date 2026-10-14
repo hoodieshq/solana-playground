@@ -93,6 +93,9 @@ const OWN = {
   apiKey: KEY,
   endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
 };
+/** Where the openai provider posts a turn, as `model/openai.ts` builds it */
+const COMPLETIONS_URL = `${OWN.endpoint.baseUrl}/chat/completions`;
+const REPLY = "stubbed provider reply";
 
 type OwnWindow = Window & {
   __pgAssistant?: {
@@ -102,8 +105,10 @@ type OwnWindow = Window & {
       apiKey: string;
       endpoint?: { baseUrl: string; model: string };
     } | null;
+    isPickingBackend: boolean;
     connect: (c: unknown) => void;
     disconnect: () => void;
+    pickBackend: () => void;
   };
 };
 
@@ -186,6 +191,28 @@ test.describe("assistant-own-key", () => {
     await page.reload();
     await expect(picker(page)).toBeVisible(LONG);
     expect(await connected(page)).toBeNull();
+  });
+
+  test("assistant-own-key: Changing the backend is not undone", async ({
+    page,
+  }) => {
+    await seedWorkspace(page, "own-key-change");
+    await connectOwn(page);
+    await page.evaluate(() =>
+      (window as OwnWindow).__pgAssistant!.pickBackend()
+    );
+    await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
+
+    // A reconnect would be asynchronous, so give one a window to show itself
+    await page.waitForTimeout(2_000);
+
+    expect(await connected(page)).toMatchObject({ id: "openai", apiKey: KEY });
+    expect(
+      await page.evaluate(
+        () => (window as OwnWindow).__pgAssistant!.isPickingBackend
+      )
+    ).toBe(true);
+    await expect(page.locator("#assistant-api-key")).toBeVisible();
   });
 
   test("assistant-own-key: A new tab asks again", async ({ page, context }) => {
@@ -277,5 +304,48 @@ test.describe("assistant-own-key", () => {
     await page.waitForTimeout(3_000);
 
     expect(leaks).toEqual([]);
+  });
+
+  test("assistant-own-key: Sending a message sends the key to the provider only", async ({
+    page,
+    baseURL,
+  }) => {
+    const providerAuth: (string | undefined)[] = [];
+    await page.route(COMPLETIONS_URL, (route) => {
+      providerAuth.push(route.request().headers()["authorization"]);
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body:
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: REPLY } }],
+          })}\n\n` + "data: [DONE]\n\n",
+      });
+    });
+    const leaks: string[] = [];
+    page.on("request", (req) => {
+      if (new URL(req.url()).origin !== new URL(baseURL!).origin) return;
+      const carried = JSON.stringify(req.headers()) + (req.postData() ?? "");
+      if (carried.includes(KEY)) leaks.push(req.url());
+    });
+
+    await seedWorkspace(page, "own-key-send");
+    await connectOwn(page);
+    const composer = page.getByRole("textbox", {
+      name: "Message the assistant",
+    });
+    await composer.fill("hello");
+    await composer.press("Enter");
+
+    await expect(page.getByText(REPLY)).toBeVisible(LONG);
+    expect(providerAuth).toEqual([`Bearer ${KEY}`]);
+    expect(leaks).toEqual([]);
+
+    // The thread is written shortly after the reply lands; wait for it, so a
+    // dump taken before the write cannot pass for a clean one
+    await expect
+      .poll(async () => (await indexedDbDump(page)).text, LONG)
+      .toContain(REPLY);
+    expect((await indexedDbDump(page)).text).not.toContain(KEY);
   });
 });

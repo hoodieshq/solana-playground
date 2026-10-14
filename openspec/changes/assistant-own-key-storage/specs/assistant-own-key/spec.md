@@ -21,6 +21,13 @@ without showing the picker or asking for the key.
 - **THEN** the panel is connected to the same backend with the same key, model
   and base URL, and the key field `#assistant-api-key` is not shown
 
+#### Scenario: Changing the backend is not undone
+
+- **WHEN** the user is connected with a key and opens the picker to change
+  backend
+- **THEN** the panel stays on the picker with the current connection
+  unchanged, and does not reconnect by itself
+
 #### Scenario: Storage that refuses access
 
 - **WHEN** `sessionStorage` throws on read or write (a private window, blocked
@@ -72,3 +79,10 @@ an error report.
 - **WHEN** the user connects to a key-based backend and reloads the tab
 - **THEN** no request to the app's own origin carries the key in a header or
   body
+
+#### Scenario: Sending a message sends the key to the provider only
+
+- **WHEN** the user is connected to a key-based backend and sends a message
+- **THEN** the provider's request carries the key as `Authorization: Bearer`,
+  no request to the app's own origin carries it, and the stored conversation
+  does not contain it
