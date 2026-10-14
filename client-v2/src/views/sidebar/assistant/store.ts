@@ -4,6 +4,7 @@ import {
   listTools,
   LOCAL_MCP_SERVERS,
 } from "./grounding";
+import { redactKey } from "./model/redact-key";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
 import {
   mergeThreads,
@@ -88,25 +89,6 @@ export interface BackendParams {
   baseUrl?: string;
   effort?: Effort;
 }
-
-/** Stands in for the user's own key wherever provider text would echo it */
-const REDACTED_KEY = "[your key]";
-
-/**
- * A shorter key is a placeholder (a local proxy that checks none), and
- * replacing it would mangle ordinary words in the error text.
- */
-const MIN_REDACTED_KEY_LENGTH = 8;
-
-/**
- * A provider's error can quote the key it rejected. The thread is persisted
- * and synced, and the key must reach neither, so the exact key is replaced
- * before the text becomes an item.
- */
-const redactKey = (text: string, apiKey: string | undefined) =>
-  apiKey && apiKey.length >= MIN_REDACTED_KEY_LENGTH
-    ? text.split(apiKey).join(REDACTED_KEY)
-    : text;
 
 /** The parameters a connection is identified by, with the key left behind */
 export const paramsOf = (

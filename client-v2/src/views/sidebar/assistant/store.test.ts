@@ -1,4 +1,5 @@
 import { PgAssistant, turnProducedApproval, type ChatItem } from "./store";
+import { MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } from "./model/redact-key";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
 import {
   MAX_MESSAGES_PER_THREAD,
@@ -675,6 +676,11 @@ describe("the user's own key", () => {
     await PgAssistant.loadThread("own-key");
   });
 
+  const errorTexts = () =>
+    PgAssistant.items.flatMap((item) =>
+      item.kind === "error" ? [item.text] : []
+    );
+
   it("is kept for this tab and nowhere durable", async () => {
     PgAssistant.connect(openai);
     PgAssistant.addUserMessage("hello");
@@ -693,23 +699,26 @@ describe("the user's own key", () => {
     await settled();
 
     expect(JSON.stringify(PgAssistant.items)).not.toContain(KEY);
-    expect(JSON.stringify(PgAssistant.items)).toContain("[your key]");
+    expect(JSON.stringify(PgAssistant.items)).toContain(REDACTED_KEY);
     expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
       KEY
     );
   });
 
-  it("is left alone in an error when it is too short to be a secret", () => {
-    PgAssistant.connect({
-      id: "openai",
-      apiKey: "x",
-      endpoint: openai.endpoint,
-    });
-    PgAssistant.addError("x marks the spot: 502 from the proxy");
+  it("is redacted from an error at exactly the minimum length", () => {
+    const apiKey = "a".repeat(MIN_REDACTED_KEY_LENGTH);
+    PgAssistant.connect({ id: "openai", apiKey, endpoint: openai.endpoint });
+    PgAssistant.addError(`rejected ${apiKey} here`);
 
-    expect(JSON.stringify(PgAssistant.items)).toContain(
-      "x marks the spot: 502 from the proxy"
-    );
+    expect(errorTexts()).toEqual([`rejected ${REDACTED_KEY} here`]);
+  });
+
+  it("is left alone in an error when it is one short of the minimum", () => {
+    const apiKey = "a".repeat(MIN_REDACTED_KEY_LENGTH - 1);
+    PgAssistant.connect({ id: "openai", apiKey, endpoint: openai.endpoint });
+    PgAssistant.addError(`rejected ${apiKey} here`);
+
+    expect(errorTexts()).toEqual([`rejected ${apiKey} here`]);
   });
 
   it("is forgotten on disconnect", () => {
