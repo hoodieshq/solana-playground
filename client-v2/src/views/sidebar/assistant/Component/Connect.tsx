@@ -62,15 +62,26 @@ const useDefaultBackend = () => {
   useEffect(() => {
     let live = true;
     fetch(DEFAULT_BACKEND_URL)
-      .then((r) => (r.ok ? r.json() : { configured: false }))
+      .then((r) => {
+        if (r.ok) return r.json();
+        // A deployment without `/api/agent` answers 404, and one whose agent
+        // is down a 5xx; either way there is no default to offer. Not
+        // reported: the picker still works on the user's own key.
+        log.warn("the default backend probe was refused", {
+          context: { status: r.status },
+        });
+        return { configured: false };
+      })
       .catch((error) => {
-        // Expected on a deployment without `/api/agent`, so not reported
+        // No answer at all (a network failure) or one that is not JSON.
+        // Expected off a full deployment, so not reported.
         log.warn("could not probe the default backend", {
           context: { reason: error instanceof Error ? error.name : "unknown" },
         });
         return { configured: false };
       })
-      .then((body) => live && setConfigured(!!body.configured));
+      // `null` is valid JSON, so the body is not assumed to be an object
+      .then((body) => live && setConfigured(!!body?.configured));
     return () => {
       live = false;
     };
@@ -111,11 +122,16 @@ const Connect = () => {
    * Reconnect to the key-based backend this tab was using before a reload.
    *
    * Kept in `sessionStorage` by `rememberBackend`, so a freshly opened tab
-   * never gets here with one (a duplicated tab copies it, and reconnects).
-   * Needs no probe: the probe only says whether this deployment serves the
-   * default backend. Guarded like the `isDefaultBackendRemembered` reconnect
-   * -- nothing connected, picker not opened on purpose -- so the user's own
-   * Disconnect or Change backend is not undone.
+   * never gets here with one; a tab the browser duplicates or restores
+   * carries it, and reconnects as after a reload. Needs no probe: the probe
+   * only says whether this deployment serves the default backend. Guarded
+   * like the `isDefaultBackendRemembered` reconnect -- nothing connected,
+   * picker not opened on purpose -- so the user's own Forget key or Change
+   * backend is not undone.
+   *
+   * Runs on mount, before the probe can answer, which is what makes it win
+   * over a remembered default: the default's reconnect then finds a
+   * connection and stands down. `Connect.test.tsx` pins that order.
    */
   useEffect(() => {
     if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
@@ -407,8 +423,8 @@ const Connect = () => {
 
       {provider.needsKey && (
         <Note>
-          Kept for this tab only and forgotten when you disconnect or close the
-          tab. Sent only to{" "}
+          Kept in this tab until you press Forget key or close it; a copy of
+          this tab keeps it too. Sent only to{" "}
           {provider.endpoint ? "the endpoint above" : provider.name}, never to
           our server.
         </Note>
