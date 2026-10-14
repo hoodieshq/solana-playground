@@ -100,7 +100,16 @@ test.describe("client-v2-controls", () => {
     });
     expect(onTop).toBe(true);
 
-    await light.click();
+    // Walk to Light from the keyboard; the open list moves focus with the keys
+    for (
+      let i = 0;
+      i < 4 && !(await light.evaluate((el) => el === document.activeElement));
+      i++
+    ) {
+      await page.keyboard.press("ArrowDown");
+    }
+    await expect(light).toBeFocused();
+    await page.keyboard.press("Enter");
     await expect
       .poll(() =>
         page.evaluate(() => document.documentElement.classList.contains("dark"))
@@ -108,9 +117,7 @@ test.describe("client-v2-controls", () => {
       .toBe(false);
   });
 
-  test("the backend list can be walked with the arrow keys", async ({
-    page,
-  }) => {
+  test("client-v2-controls: The backend list by keyboard", async ({ page }) => {
     // The toggle only exists while a default backend is offered, and CI
     // configures none: answer the probe here
     await page.route("**/api/agent", (route) =>

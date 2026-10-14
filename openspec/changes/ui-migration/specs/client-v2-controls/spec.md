@@ -38,6 +38,13 @@ one stop for the Tab key, and the arrow keys move the choice within it.
   right arrow key
 - **THEN** the next network is chosen and focused
 
+#### Scenario: The backend list by keyboard
+
+- **WHEN** a user opens the other backends and presses the down arrow key
+  twice on the chosen backend
+- **THEN** the list stays open and the backend two below is chosen and
+  focused
+
 ### Requirement: Selects open above every panel
 
 A select SHALL open its options above whatever panel or sheet it sits in,
