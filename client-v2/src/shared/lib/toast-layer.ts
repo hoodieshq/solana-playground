@@ -1,4 +1,7 @@
-/** The element Sonner renders its toasts into; the host and the dialogs agree on it */
+/**
+ * The element Sonner renders its toasts into (its own attribute). The dialogs
+ * and `useOnClickOutside` read it, so a press on a toast is not "outside".
+ */
 export const TOASTER_SELECTOR = "[data-sonner-toaster]";
 
 /**

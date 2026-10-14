@@ -4,14 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { useOnClickOutside } from "./useOnClickOutside";
 
-// The utils barrel needs build-time globals the unit runner does not define.
-vi.mock("../utils", () => ({
-  PgCommon: { isNonNullish: (v: unknown) => v != null },
-  PgView: {
-    ids: { PORTAL_ABOVE: "portal-above" },
-  },
-}));
-
 const IGNORED = ".ignored";
 
 const Probe = ({ cb }: { cb: () => void }) => {
@@ -38,5 +30,24 @@ describe("useOnClickOutside with an ignore selector", () => {
 
     fireEvent.mouseDown(screen.getByTestId("elsewhere"));
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useOnClickOutside and toasts", () => {
+  it("does not fire for a press on a toast", () => {
+    const cb = vi.fn();
+    render(
+      <>
+        <Probe cb={cb} />
+        <section data-sonner-toaster="">
+          <button>Change endpoint</button>
+        </section>
+      </>
+    );
+
+    fireEvent.mouseDown(
+      screen.getByRole("button", { name: "Change endpoint" })
+    );
+    expect(cb).not.toHaveBeenCalled();
   });
 });

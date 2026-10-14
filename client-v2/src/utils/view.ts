@@ -130,7 +130,6 @@ class _PgView {
     WALLET_MAIN: "wallet-main",
     WALLET_RENAME_INPUT: "wallet-rename-input",
     HOME: "home",
-    PORTAL_ABOVE: "portal-above",
   };
 
   /**

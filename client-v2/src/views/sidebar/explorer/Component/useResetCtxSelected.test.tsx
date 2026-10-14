@@ -9,9 +9,6 @@ import { useResetCtxSelected } from "./useResetCtxSelected";
 vi.mock("../../../../utils", () => ({
   PgExplorer: { removeCtxSelectedEl: vi.fn() },
   PgCommon: { isNonNullish: (v: unknown) => v != null },
-  PgView: {
-    ids: { PORTAL_ABOVE: "portal-above" },
-  },
 }));
 
 const Probe = () => {

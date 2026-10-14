@@ -11,7 +11,7 @@ import {
   ModalTitle,
 } from "@/shared/ui/modal";
 import { Spinner } from "@/shared/ui/spinner";
-import { isInsideToast } from "../model/toast-layer";
+import { isInsideToast } from "@/shared/lib/toast-layer";
 
 /** `wide` is for dialogs with a code or a table in the body */
 export type ModalSize = "default" | "wide";
