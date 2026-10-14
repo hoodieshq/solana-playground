@@ -1,5 +1,6 @@
-// The design system's AsyncButton and CopyButton as installed: they report a
-// failure through onError instead of losing it.
+// The design system's AsyncButton and CopyButton as installed: how each waits
+// for its work, what it says meanwhile, and that a failure goes to onError
+// instead of being lost.
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

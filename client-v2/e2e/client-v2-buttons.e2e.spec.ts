@@ -51,7 +51,9 @@ test.describe("client-v2-buttons", () => {
     page,
   }) => {
     test.setTimeout(120_000);
-    // Before the page loads, so nothing can have captured the real method
+    // An init script runs only in documents loaded after it is added, so it
+    // goes in before seedWorkspace's navigation; that is why this test seeds
+    // its own page instead of taking seededPage
     await page.addInitScript(() => {
       navigator.clipboard.writeText = () =>
         Promise.reject(new DOMException("denied", "NotAllowedError"));
@@ -76,11 +78,12 @@ test.describe("client-v2-buttons", () => {
     await copy.click();
 
     // The refusal is reported under ui:button, and the button never claims
-    // the copy happened
+    // the copy happened. The label is read once, right after the report: a
+    // retrying matcher would wait out the Copied timer and pass anyway
     await expect
       .poll(() => logged.some((l) => l.includes("[ui:button]")))
       .toBe(true);
-    await expect(copy).toHaveAccessibleName("Copy");
+    expect(await copy.getAttribute("aria-label")).toBe("Copy");
   });
 
   test("client-v2-buttons: Build cannot be started twice", async ({

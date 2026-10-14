@@ -1,5 +1,9 @@
 // The resolve view loads Monaco, which jsdom cannot run; it is not opened
 vi.mock("../ui/ConflictResolver", () => ({ ConflictResolver: () => null }));
+// The banner binds its onError at render, before a test could spy on it
+vi.mock("@/shared/lib/report-button-failure", () => ({
+  reportButtonFailure: vi.fn(),
+}));
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -7,11 +11,7 @@ import { ThemeProvider, type DefaultTheme } from "styled-components";
 // `@types/mocha` also declares a global `it`, without `each`
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  initLogger,
-  memoryProvider as logMemory,
-  resetLogger,
-} from "@/shared/lib/logger";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 import SyncBanner from "./SyncBanner";
 import {
@@ -79,7 +79,6 @@ describe("SyncBanner telemetry", () => {
     container.remove();
     vi.restoreAllMocks();
     resetTelemetry();
-    resetLogger();
   });
 
   it.each([
@@ -98,8 +97,6 @@ describe("SyncBanner telemetry", () => {
   });
 
   it("reports an answer that fails and leaves the prompt up", async () => {
-    const logged = logMemory();
-    initLogger({ providers: [logged] });
     const failure = new Error("offline");
     vi.spyOn(PgProjectSync, "resolve").mockRejectedValue(failure);
     const found = Array.from(container.querySelectorAll("button")).find(
@@ -107,13 +104,7 @@ describe("SyncBanner telemetry", () => {
     );
     await act(async () => found!.click());
 
-    expect(logged.entries).toEqual([
-      expect.objectContaining({
-        ns: "ui:button",
-        error: failure,
-        report: true,
-      }),
-    ]);
+    expect(reportButtonFailure).toHaveBeenCalledWith(failure);
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(found!.disabled).toBe(false);
   });
