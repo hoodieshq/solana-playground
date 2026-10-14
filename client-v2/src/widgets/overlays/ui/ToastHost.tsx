@@ -49,17 +49,17 @@ const modeNow = () =>
  * Renders the toasts sent with `PgView.setToast` in Sonner, at the bottom
  * left and clear of the rail.
  *
- * The toaster sits above the dialogs and the left panel's Sheet (`z-[60]`,
+ * The toaster sits above the dialogs and the navigation's Sheet (`z-[60]`,
  * over their `z-50`), as the legacy toast layer did: a toast must stay
  * visible and usable whatever is open, a persistent one included. A modal
  * layer sets `pointer-events: none` on the body, so the toaster turns it back
  * on. A click on a toast over a dialog would count as outside it, so
  * `BaseModalFrame` ignores one (`isInsideToast`). The stock Sheet is rendered
  * by `LayoutShell` and has no such guard: a click on a toast over the open
- * left-panel Sheet closes it.
+ * navigation Sheet closes it.
  */
 export const ToastHost = () => {
-  // Below this width the left panel is a Sheet and there is no rail to clear
+  // Below this width the navigation is a Sheet and there is no rail to clear
   const noRail = useIsMobile();
   const mode = useSyncExternalStore(subscribeToMode, modeNow);
   const show = useCallback(({ elementable, props }: ToastEvent) => {

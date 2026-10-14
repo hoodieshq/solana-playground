@@ -108,7 +108,8 @@ test.describe("on a phone", () => {
 test("client-v2-overlays: A toast clear of the rail", async ({
   seededPage: page,
 }) => {
-  await page.getByRole("button", { name: "Collapse project panel" }).click();
+  // The navigation is the leftmost column; folded, it is the rail
+  await page.getByRole("button", { name: "Collapse navigation" }).click();
   const rail = page.locator('[data-slot="sidebar-container"]');
   await expect(rail).toHaveJSProperty("offsetWidth", 52);
   await page.evaluate(() =>

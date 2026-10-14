@@ -29,7 +29,7 @@ ids.
 A dialog SHALL return what its submit produced to the code that opened it, or
 nothing when it is closed. A submit that fails SHALL keep the dialog open and
 show the error inside it. Enter SHALL submit. Opening a dialog SHALL close the
-left panel's sheet on a narrow screen. On a phone a dialog SHALL be a page of
+navigation's sheet on a narrow screen. On a phone a dialog SHALL be a page of
 its own, with its buttons pinned to the foot.
 
 #### Scenario: Renaming a file through its dialog
@@ -49,7 +49,7 @@ its own, with its buttons pinned to the foot.
 
 #### Scenario: A dialog closes the left sheet
 
-- **WHEN** the left panel is open as a sheet on a narrow screen and a dialog opens
+- **WHEN** the navigation is open as a sheet on a narrow screen and a dialog opens
 - **THEN** the sheet closes and the dialog has the focus
 
 #### Scenario: A dialog on a phone (manual)
@@ -60,11 +60,11 @@ its own, with its buttons pinned to the foot.
 ### Requirement: Toasts sit bottom left, clear of the rail
 
 A toast SHALL appear at the bottom left of the window without covering the
-left panel's rail. A toast opened as persistent SHALL stay until it is closed.
+navigation's rail. A toast opened as persistent SHALL stay until it is closed.
 
 #### Scenario: A toast clear of the rail
 
-- **WHEN** the product shows a toast with the left panel folded to its rail
+- **WHEN** the product shows a toast with the navigation folded to its rail
 - **THEN** the toast sits at the bottom left and does not overlap the rail
 
 #### Scenario: A persistent toast (manual)
