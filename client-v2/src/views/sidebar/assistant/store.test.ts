@@ -687,6 +687,18 @@ describe("the user's own key", () => {
     );
   });
 
+  it("is redacted from a provider error before it is stored", async () => {
+    PgAssistant.connect(openai);
+    PgAssistant.addError(`401: Incorrect API key provided: ${KEY}. Retry.`);
+    await settled();
+
+    expect(JSON.stringify(PgAssistant.items)).not.toContain(KEY);
+    expect(JSON.stringify(PgAssistant.items)).toContain("[your key]");
+    expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
+      KEY
+    );
+  });
+
   it("is forgotten on disconnect", () => {
     PgAssistant.connect(openai);
     PgAssistant.disconnect();

@@ -27,14 +27,18 @@ const log = createLogger("assistant:remembered-backend");
 const reasonOf = (error: unknown) =>
   error instanceof Error ? error.name : "unknown";
 
-const attempt = (what: string, run: () => void) => {
+/** Run a storage access, answering `fallback` (and logging why) if it throws */
+const read = <T>(what: string, run: () => T, fallback: T): T => {
   try {
-    run();
+    return run();
   } catch (error) {
     // Expected in a private window, so not reported; the panel asks again
     log.warn(`could not ${what}`, { context: { reason: reasonOf(error) } });
+    return fallback;
   }
 };
+
+const attempt = (what: string, run: () => void) => read(what, run, undefined);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -55,6 +59,9 @@ const parseConnection = (raw: string): Connection | null => {
   if (!provider || provider.id === DEFAULT_ID) return null;
 
   const connection: Connection = { id: provider.id, apiKey };
+
+  // An OpenAI-compatible provider cannot talk without its base URL and model
+  if (provider.endpoint && parsed.endpoint === undefined) return null;
 
   if (parsed.endpoint !== undefined) {
     const { endpoint } = parsed;
@@ -111,23 +118,20 @@ export const forgetBackend = () => {
 };
 
 /** Whether this browser should reconnect to the default backend by itself */
-export const isDefaultBackendRemembered = () => {
-  try {
-    return localStorage.getItem(BACKEND_KEY) === DEFAULT_ID;
-  } catch (error) {
-    log.warn("could not read the remembered backend", {
-      context: { reason: reasonOf(error) },
-    });
-    return false;
-  }
-};
+export const isDefaultBackendRemembered = () =>
+  read(
+    "read the remembered backend",
+    () => localStorage.getItem(BACKEND_KEY) === DEFAULT_ID,
+    false
+  );
 
 /** The key-based connection this tab was using before a reload, if any */
 export const rememberedConnection = (): Connection | null => {
-  let raw: string | null = null;
-  attempt("read the connection kept for this tab", () => {
-    raw = sessionStorage.getItem(CONNECTION_KEY);
-  });
+  const raw = read(
+    "read the connection kept for this tab",
+    () => sessionStorage.getItem(CONNECTION_KEY),
+    null
+  );
   if (raw === null) return null;
 
   const connection = parseConnection(raw);

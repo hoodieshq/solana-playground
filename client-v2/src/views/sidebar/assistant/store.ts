@@ -89,6 +89,17 @@ export interface BackendParams {
   effort?: Effort;
 }
 
+/** Stands in for the user's own key wherever provider text would echo it */
+const REDACTED_KEY = "[your key]";
+
+/**
+ * A provider's error can quote the key it rejected. The thread is persisted
+ * and synced, and the key must reach neither, so the exact key is replaced
+ * before the text becomes an item.
+ */
+const redactKey = (text: string, apiKey: string | undefined) =>
+  apiKey ? text.split(apiKey).join(REDACTED_KEY) : text;
+
 /** The parameters a connection is identified by, with the key left behind */
 export const paramsOf = (
   connection: Connection | null
@@ -561,7 +572,7 @@ export class PgAssistant {
       kind: "error",
       id: makeId(),
       createdAt: now(),
-      text,
+      text: redactKey(text, PgAssistant._connection?.apiKey),
     });
     PgAssistant._emit();
   }

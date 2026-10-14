@@ -83,6 +83,10 @@ describe("remembered backend", () => {
     ["the default backend", JSON.stringify({ id: "default", apiKey: "" })],
     ["no key", JSON.stringify({ id: "openai" })],
     [
+      "an OpenAI-compatible provider with no endpoint",
+      JSON.stringify({ id: "openai", apiKey: KEY }),
+    ],
+    [
       "a half endpoint",
       JSON.stringify({ id: "openai", apiKey: KEY, endpoint: { baseUrl: "x" } }),
     ],
