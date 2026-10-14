@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useTheme } from "styled-components";
 
 import { useKeybind } from "@/hooks";
-import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { useIsLeftSheet, useViewport } from "@/shared/lib/hooks/use-viewport";
 import { PgCommand, PgEditor, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
@@ -25,7 +25,6 @@ export interface LayoutShellProps {
    */
   nav: (panel: {
     collapsed: boolean;
-    isMobile: boolean;
     toggle: () => void;
     closeSheet: () => void;
   }) => ReactNode;
@@ -41,6 +40,13 @@ export interface LayoutShellProps {
   assistant: (panel: { open: boolean; toggle: () => void }) => ReactNode;
 }
 
+/** Whether a key pressed on `target` is typed into something */
+const isEditable = (target: EventTarget | null) =>
+  target instanceof Element &&
+  target.closest(
+    'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+  ) !== null;
+
 /**
  * The four-column frame, connected: the layout state and its storage, the
  * keys, the panels the product opens on its own, and the `layout_*` events.
@@ -54,6 +60,7 @@ const LayoutShell = ({
   assistant,
 }: LayoutShellProps) => {
   const viewport = useViewport();
+  const isMobile = useIsLeftSheet();
   const theme = useTheme();
   const { state, setOpen, setHorizontal, setWork, setVertical } =
     useLayoutState();
@@ -77,8 +84,17 @@ const LayoutShell = ({
   const lastInput = useRef<ToggleSource>("key");
 
   useEffect(() => {
-    const onPointer = () => (lastInput.current = "button");
-    const onKey = () => (lastInput.current = "key");
+    // A mark outlives its input only when the Sheet it toggled ended the tick
+    // as it began (two toggles in one tick) and so reported nothing; the next
+    // input drops it, in the capture phase, before its own handler marks
+    const onPointer = () => {
+      lastInput.current = "button";
+      navVia.current = null;
+    };
+    const onKey = () => {
+      lastInput.current = "key";
+      navVia.current = null;
+    };
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("keydown", onKey, true);
     return () => {
@@ -133,17 +149,29 @@ const LayoutShell = ({
   );
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘E on a Mac. Monaco binds ⌘E
   // (find with selection) while it has focus; this one wins only outside it.
+  // A text field keeps Control+E, which means "end of line" there (the
+  // assistant's composer, the editor): a Control without a Meta in an editable
+  // target is left to the field, unprevented. ⌘E has no native meaning in one,
+  // so it still folds the column. On Windows and Linux Control is the only
+  // modifier, so there the key folds the column outside text fields only.
   // Below `LAYOUT_BREAKPOINTS.left` the files column is in the navigation's
   // Sheet, so the key opens and closes that Sheet, which reports itself as
   // `nav` a render later and takes the mark; the column's desktop flag, which
   // nothing there shows, is left alone.
   useKeybind(
     "Ctrl+E",
-    () => {
-      navVia.current = "key";
-      if (sheetToggle.current?.()) return;
-      navVia.current = null;
-      setOpen("files", { open: !state.open.files, via: "key" });
+    {
+      handle: (ev) => {
+        if (ev.ctrlKey && !ev.metaKey && isEditable(ev.target)) return;
+        // `PgKeybind` prevents the default itself unless told not to, which
+        // would also swallow the keys left to a field above
+        ev.preventDefault();
+        navVia.current = "key";
+        if (sheetToggle.current?.()) return;
+        navVia.current = null;
+        setOpen("files", { open: !state.open.files, via: "key" });
+      },
+      opts: { noPreventDefault: true },
     },
     [state.open.files]
   );
@@ -263,6 +291,7 @@ const LayoutShell = ({
   return (
     <BaseLayoutShell
       viewport={viewport}
+      isMobile={isMobile}
       navOpen={navOpen}
       onNavOpenChange={onNavOpenChange}
       assistantState={{
@@ -288,25 +317,28 @@ const LayoutShell = ({
       onHorizontalLayout={setHorizontal}
       onWorkLayout={setWork}
       onVerticalLayout={setVertical}
-      nav={({ toggle, isMobile, collapsed }) =>
+      nav={(stock) =>
         nav({
-          collapsed,
-          isMobile,
-          toggle: toggleNav(toggle, isMobile),
+          collapsed: stock.collapsed,
+          toggle: toggleNav(stock.toggle, stock.isMobile),
           closeSheet: closeSheetAuto,
         })
       }
-      files={({ isMobile, toggle }) =>
-        files({
-          collapsed: isMobile ? false : !state.open.files,
-          // In the Sheet the column is always open, so its button closes the
-          // Sheet, as ⌘E does there
-          toggle: isMobile
-            ? toggleNav(toggle, true)
-            : () =>
-                setOpen("files", { open: !state.open.files, via: "button" }),
-        })
-      }
+      files={(stock) => {
+        // In the Sheet the column is always open, so its button closes the
+        // Sheet, as ⌘E does there
+        if (stock.isMobile) {
+          return files({
+            collapsed: false,
+            toggle: toggleNav(stock.toggle, true),
+          });
+        }
+        return files({
+          collapsed: !state.open.files,
+          toggle: () =>
+            setOpen("files", { open: !state.open.files, via: "button" }),
+        });
+      }}
       onLeftSheetChange={onLeftSheetChange}
       closeLeftSheetOn={closeLeftSheetOn}
       toggleLeftSheetOn={toggleLeftSheetOn}

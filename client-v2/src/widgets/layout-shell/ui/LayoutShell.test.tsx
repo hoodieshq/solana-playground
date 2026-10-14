@@ -778,3 +778,118 @@ it("should report nothing for a modal on a desktop when the Sheet was left open 
   press({ key: "b", metaKey: true });
   expect(toggled().at(-1)).toEqual({ panel: "nav", open: false, via: "key" });
 });
+
+/** A text field in the page, as the assistant's composer is, for the test's length */
+const textField = () => {
+  const input = document.createElement("input");
+  document.body.appendChild(input);
+  return input;
+};
+
+const filesOpen = () =>
+  JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY) ?? "null")?.open?.files;
+
+it("should leave Control+E in a text field its native meaning, end of line, and not fold the files column", () => {
+  shell();
+  const field = textField();
+  const proceeded = fireEvent.keyDown(field, { key: "e", ctrlKey: true });
+  // Not prevented: the field still moves its caret
+  expect(proceeded).toBe(true);
+  expect(toggled()).toEqual([]);
+  expect(filesOpen()).toBeUndefined();
+  field.remove();
+});
+
+it("should leave Control+E in a contenteditable alone too", () => {
+  shell();
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  const inner = document.createElement("span");
+  editable.appendChild(inner);
+  document.body.appendChild(editable);
+  expect(fireEvent.keyDown(inner, { key: "e", ctrlKey: true })).toBe(true);
+  expect(toggled()).toEqual([]);
+  editable.remove();
+});
+
+it("should still fold the files column by Cmd+E from a text field, which has no native meaning there", () => {
+  shell();
+  const field = textField();
+  const proceeded = fireEvent.keyDown(field, { key: "e", metaKey: true });
+  expect(proceeded).toBe(false);
+  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+  field.remove();
+});
+
+it("should fold the files column by Control+E outside a text field, and keep it from the page", () => {
+  shell();
+  const proceeded = fireEvent.keyDown(document.body, {
+    key: "e",
+    ctrlKey: true,
+  });
+  expect(proceeded).toBe(false);
+  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+});
+
+it("should report the Sheet's next tap as a button after a desktop Cmd+E changed no Sheet", () => {
+  // The mark Cmd+E sets is dropped when there is no Sheet to toggle, so it
+  // cannot label a tap after the window narrows
+  shell();
+  press({ key: "e", metaKey: true });
+  act(() => resizeTo(500));
+  tap(screen.getByRole("button", { name: "Expand project panel" }));
+  expect(toggled().at(-1)).toEqual({
+    panel: "nav",
+    open: true,
+    via: "button",
+  });
+});
+
+it("should toggle the files column by Cmd+E again after a trip through the phone's Sheet", () => {
+  resizeTo(500);
+  shell();
+  press({ key: "e", metaKey: true });
+  press({ key: "e", metaKey: true });
+  act(() => resizeTo(1440));
+  press({ key: "e", metaKey: true });
+  expect(toggled()).toEqual([
+    { panel: "nav", open: true, via: "key" },
+    { panel: "nav", open: false, via: "key" },
+    { panel: "files", open: false, via: "key" },
+  ]);
+  expect(filesOpen()).toBe(false);
+});
+
+it("should not label a tap on the Sheet's overlay a key because a Cmd+E left no change", async () => {
+  resizeTo(500);
+  shell();
+  tap(screen.getByRole("button", { name: "Expand project panel" }));
+  // Radix starts listening for an outside tap a tick after the Sheet opens
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  // Cmd+E closes the Sheet and a tap on the opener opens it again in the same
+  // tick: the Sheet ends as it began, reports nothing, and the key's mark
+  // would be waiting for the next change
+  act(() => {
+    press({ key: "e", metaKey: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand project panel", hidden: true })
+    );
+  });
+  const before = toggled().length;
+  tap(sheetOverlay());
+  expect(toggled().slice(before)).toEqual([
+    { panel: "nav", open: false, via: "button" },
+  ]);
+});
+
+it("should report the rail's unfolding once when it is asked twice in one tick", () => {
+  resizeTo(800);
+  shell();
+  // The stock Sidebar toggles from the value it last rendered, so both ask for
+  // the same change
+  act(() => {
+    press({ key: "b", metaKey: true });
+    press({ key: "b", metaKey: true });
+  });
+  expect(toggled()).toEqual([{ panel: "nav", open: true, via: "key" }]);
+});
