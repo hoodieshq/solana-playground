@@ -116,10 +116,11 @@ const Connect = () => {
    * Reconnect to the default backend without making the user ask twice.
    *
    * A reload lands here with nothing connected unless this tab kept a
-   * key-based connection (the effect above) -- and for the keyless default that meant clicking the same
-   * button again before the panel could be used at all. Only a backend the
-   * user has already chosen is reconnected, and only once the probe confirms
-   * this deployment still serves it.
+   * key-based connection (the `rememberedConnection` reconnect) -- and for
+   * the keyless default that meant clicking the same button again before the
+   * panel could be used at all. Only a backend the user has already chosen is
+   * reconnected, and only once the probe confirms this deployment still
+   * serves it.
    *
    * Deliberately not run when `isPickingBackend`: the user opened this on
    * purpose to change something, and connecting out from under them would

@@ -98,7 +98,11 @@ const OWN = {
 type OwnWindow = Window & {
   __pgAssistant?: {
     isConnected: boolean;
-    connection: { id: string; apiKey: string } | null;
+    connection: {
+      id: string;
+      apiKey: string;
+      endpoint?: { baseUrl: string; model: string };
+    } | null;
     connect: (c: unknown) => void;
     disconnect: () => void;
   };
@@ -159,7 +163,7 @@ test.describe("assistant-own-key", () => {
 
     await expect
       .poll(() => connected(page), LONG)
-      .toMatchObject({ id: "openai", apiKey: KEY });
+      .toMatchObject({ id: "openai", apiKey: KEY, endpoint: OWN.endpoint });
     await expect(page.locator("#assistant-api-key")).toBeHidden();
   });
 
@@ -195,6 +199,9 @@ test.describe("assistant-own-key", () => {
   test("assistant-own-key: Disconnect, then reload", async ({ page }) => {
     await seedWorkspace(page, "own-key-disconnect");
     await connectOwn(page);
+    expect(
+      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    ).toContain(KEY);
     await page.evaluate(() =>
       (window as OwnWindow).__pgAssistant!.disconnect()
     );
@@ -211,6 +218,9 @@ test.describe("assistant-own-key", () => {
   }) => {
     await seedWorkspace(page, "own-key-switch");
     await connectOwn(page);
+    expect(
+      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    ).toContain(KEY);
     await connectOwn(page, { id: "default", apiKey: "" });
 
     expect(
@@ -229,16 +239,23 @@ test.describe("assistant-own-key", () => {
     expect(
       await page.evaluate(() => JSON.stringify({ ...localStorage }))
     ).not.toContain(KEY);
-    expect(await indexedDbDump(page)).not.toContain(KEY);
+    // The seeded workspace's files live here, so an empty dump means the
+    // read found nothing and the check below would pass for no reason
+    const dump = await indexedDbDump(page);
+    expect(dump.length).toBeGreaterThan(2);
+    expect(dump).not.toContain(KEY);
   });
 
   test("assistant-own-key: Requests to our origin carry no key", async ({
     page,
     baseURL,
   }) => {
+    // Connecting and reloading send no provider request, so this guards a
+    // regression that would send the key to our own origin on load or
+    // reconnect, not a request that exists today
     const leaks: string[] = [];
     page.on("request", (req) => {
-      if (!req.url().startsWith(baseURL!)) return;
+      if (new URL(req.url()).origin !== new URL(baseURL!).origin) return;
       const carried = JSON.stringify(req.headers()) + (req.postData() ?? "");
       if (carried.includes(KEY)) leaks.push(req.url());
     });
