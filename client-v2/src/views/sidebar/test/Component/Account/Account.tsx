@@ -4,7 +4,12 @@ import styled from "styled-components";
 import CodeResult from "../CodeResult";
 import InputLabel from "../InputLabel";
 import Interaction from "../Interaction";
-import Foldable from "../../../../../components/Foldable";
+import {
+  Collapsible,
+  CollapsibleChevron,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/shared/ui/collapsible";
 import SearchBar from "../../../../../components/SearchBar";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { SpinnerWithBg } from "../../../../../components/Loading";
@@ -104,23 +109,25 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
 
       {(fetchedData || fetchError) && (
         <ResultWrapper>
-          <Foldable
-            element="Result"
-            isOpen={resultOpen}
-            setIsOpen={setResultOpen}
-          >
-            <SpinnerWithBg loading={fetchOneLoading || fetchAllLoading}>
-              {fetchError ? (
-                <Callout variant="error">
-                  <CalloutDescription>{fetchError}</CalloutDescription>
-                </Callout>
-              ) : (
-                <CodeResult index={index}>
-                  {PgCommon.prettyJSON(fetchedData!)}
-                </CodeResult>
-              )}
-            </SpinnerWithBg>
-          </Foldable>
+          <Collapsible open={resultOpen} onOpenChange={setResultOpen}>
+            <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+              <CollapsibleChevron />
+              Result
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <SpinnerWithBg loading={fetchOneLoading || fetchAllLoading}>
+                {fetchError ? (
+                  <Callout variant="error">
+                    <CalloutDescription>{fetchError}</CalloutDescription>
+                  </Callout>
+                ) : (
+                  <CodeResult index={index}>
+                    {PgCommon.prettyJSON(fetchedData!)}
+                  </CodeResult>
+                )}
+              </SpinnerWithBg>
+            </CollapsibleContent>
+          </Collapsible>
         </ResultWrapper>
       )}
     </Interaction>

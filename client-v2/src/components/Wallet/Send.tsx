@@ -4,7 +4,12 @@ import styled, { css } from "styled-components";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import Input from "../Input";
-import Foldable from "../Foldable";
+import {
+  Collapsible,
+  CollapsibleChevron,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/shared/ui/collapsible";
 import {
   PgCommon,
   PgTerminal,
@@ -17,9 +22,15 @@ import { useBalance, useKeybind } from "../../hooks";
 
 const Send = () => (
   <Wrapper>
-    <Foldable element={<Title>Send</Title>}>
-      <SendExpanded />
-    </Foldable>
+    <Collapsible>
+      <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+        <CollapsibleChevron />
+        <Title>Send</Title>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2">
+        <SendExpanded />
+      </CollapsibleContent>
+    </Collapsible>
   </Wrapper>
 );
 
