@@ -7,8 +7,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 /* Copies one value: a program id, a signature, a command. Its tooltip turns
    from Copy to Copied, in green, and back. A clipboard that refuses (or a
-   browser with none) goes to onError, rethrown without one, and never
-   shows Copied. */
+   browser with none) goes to onError, rethrown without one so it surfaces
+   as an unhandled rejection, and never shows Copied. */
 function CopyButton({
   value,
   label = "Copy",

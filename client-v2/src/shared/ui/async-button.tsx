@@ -7,7 +7,8 @@ import { Spinner } from "@/shared/ui/spinner";
    promise and it disables itself and shows a spinner until the promise
    settles, so a slow build cannot be started twice. loading takes over when
    the wait is known elsewhere. A rejection or a throw goes to onError; with
-   no onError it is rethrown, so it is never lost. It stays a Button: same
+   no onError it is rethrown, so it surfaces as an unhandled
+   rejection. It stays a Button: same
    variants, same slot. */
 function AsyncButton({
   onClick,
@@ -36,9 +37,12 @@ function AsyncButton({
       onClick={async (event) => {
         try {
           const result = onClick?.(event);
-          if (result instanceof Promise) {
+          if (
+            typeof (result as PromiseLike<unknown> | undefined)?.then ===
+            "function"
+          ) {
             setPending(true);
-            await result;
+            await (result as PromiseLike<unknown>);
           }
         } catch (error) {
           if (!onError) throw error;

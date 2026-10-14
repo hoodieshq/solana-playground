@@ -22,10 +22,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  expect(consoleError).not.toHaveBeenCalled();
-  consoleError.mockRestore();
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+  try {
+    expect(consoleError).not.toHaveBeenCalled();
+  } finally {
+    consoleError.mockRestore();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
 });
 
 describe("AsyncButton", () => {
@@ -80,16 +83,22 @@ describe("AsyncButton", () => {
     );
   });
 
-  it("sets no state after it unmounts mid-wait", async () => {
+  it("waits for a thenable that is not a native Promise", async () => {
     let resolve!: () => void;
-    const work = new Promise<void>((r) => (resolve = r));
-    const { unmount } = render(
-      <AsyncButton onClick={() => work}>Save</AsyncButton>
-    );
-    fireEvent.click(screen.getByRole("button"));
-    unmount();
+    const thenable = {
+      then: (done: () => void) => {
+        resolve = done;
+      },
+    };
+    render(<AsyncButton onClick={() => thenable}>Build</AsyncButton>);
+    const button = screen.getByRole("button", { name: /build/i });
+
+    // `await` calls `then` a microtask later, so let it run
+    await act(async () => fireEvent.click(button));
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+
     await act(async () => resolve());
-    // The afterEach guard asserts that no console.error fired.
+    expect((button as HTMLButtonElement).disabled).toBe(false);
   });
 });
 
