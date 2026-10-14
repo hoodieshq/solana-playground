@@ -1,5 +1,6 @@
 // The program settings' imports and the IDL's init button: a failure is
 // reported and leaves the control usable.
+import type { ReactElement } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -60,7 +61,7 @@ const anyTheme: DefaultTheme = new Proxy(
   }
 ) as unknown as DefaultTheme;
 
-const renderIn = (ui: JSX.Element) =>
+const renderIn = (ui: ReactElement) =>
   render(<ThemeProvider theme={anyTheme}>{ui}</ThemeProvider>);
 
 /** Picks a file through the hidden input of the import button */
