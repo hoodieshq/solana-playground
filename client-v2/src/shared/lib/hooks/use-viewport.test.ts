@@ -2,7 +2,12 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useIsMobile } from "./use-mobile";
-import { LAYOUT_BREAKPOINTS, useViewport, viewportOf } from "./use-viewport";
+import {
+  LAYOUT_BREAKPOINTS,
+  useIsLeftSheet,
+  useViewport,
+  viewportOf,
+} from "./use-viewport";
 
 /** A `matchMedia` that answers `max-width` queries against `width` and fires `change` when it moves */
 const fakeScreen = (initial: number) => {
@@ -84,3 +89,22 @@ it.each([
     window.innerWidth = innerWidth;
   }
 );
+
+it("should say on the first render that the window is below the left panel's line, and follow it", () => {
+  screen.resize(500);
+  const rendered: boolean[] = [];
+  const { result } = renderHook(() => {
+    const sheet = useIsLeftSheet();
+    rendered.push(sheet);
+    return sheet;
+  });
+  // The stock hook's first render says false and its effect corrects it; this
+  // one is right in the render that mounts the column
+  expect(rendered[0]).toBe(true);
+
+  act(() => screen.resize(LAYOUT_BREAKPOINTS.left));
+  expect(result.current).toBe(false);
+
+  act(() => screen.resize(LAYOUT_BREAKPOINTS.left - 1));
+  expect(result.current).toBe(true);
+});
