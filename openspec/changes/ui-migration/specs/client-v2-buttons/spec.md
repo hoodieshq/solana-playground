@@ -37,10 +37,10 @@ A copy button SHALL put its value on the clipboard and say "Copied" until the
 message times out, then "Copy" again. If the clipboard refuses the value, it
 SHALL NOT say "Copied".
 
-#### Scenario: Copying a share link
+#### Scenario: Copying a code block
 
-- **WHEN** a user presses the copy button beside a value
-- **THEN** the clipboard holds that value and the button says "Copied"
+- **WHEN** a user presses the copy button on a code block in a lesson or an assistant reply
+- **THEN** the clipboard holds the block's code and the button says "Copied"
 
 #### Scenario: A refused clipboard is not reported as copied
 
