@@ -786,10 +786,15 @@ const textField = () => {
   return input;
 };
 
+/** The platform `navigator` reports; jsdom reports none, which is not a Mac */
+const onPlatform = (platform: string) =>
+  vi.spyOn(window.navigator, "platform", "get").mockReturnValue(platform);
+
 const filesOpen = () =>
   JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY) ?? "null")?.open?.files;
 
-it("should leave Control+E in a text field its native meaning, end of line, and not fold the files column", () => {
+it("should leave Control+E in a text field its native meaning on a Mac, end of line, and not fold the files column", () => {
+  onPlatform("MacIntel");
   shell();
   const field = textField();
   const proceeded = fireEvent.keyDown(field, { key: "e", ctrlKey: true });
@@ -800,7 +805,8 @@ it("should leave Control+E in a text field its native meaning, end of line, and 
   field.remove();
 });
 
-it("should leave Control+E in a contenteditable alone too", () => {
+it("should leave Control+E in a contenteditable alone too, on a Mac", () => {
+  onPlatform("MacIntel");
   shell();
   const editable = document.createElement("div");
   editable.setAttribute("contenteditable", "true");
@@ -810,6 +816,16 @@ it("should leave Control+E in a contenteditable alone too", () => {
   expect(fireEvent.keyDown(inner, { key: "e", ctrlKey: true })).toBe(true);
   expect(toggled()).toEqual([]);
   editable.remove();
+});
+
+it("should fold the files column by Ctrl+E from a text field on Windows and Linux, where Ctrl has no meaning there", () => {
+  onPlatform("Win32");
+  shell();
+  const field = textField();
+  const proceeded = fireEvent.keyDown(field, { key: "e", ctrlKey: true });
+  expect(proceeded).toBe(false);
+  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+  field.remove();
 });
 
 it("should still fold the files column by Cmd+E from a text field, which has no native meaning there", () => {

@@ -40,6 +40,9 @@ export interface LayoutShellProps {
   assistant: (panel: { open: boolean; toggle: () => void }) => ReactNode;
 }
 
+/** Whether this is macOS; the repo has no platform check of its own */
+const isMac = () => /^Mac/.test(window.navigator.platform);
+
 /** Whether a key pressed on `target` is typed into something */
 const isEditable = (target: EventTarget | null) =>
   target instanceof Element &&
@@ -149,11 +152,12 @@ const LayoutShell = ({
   );
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘E on a Mac. Monaco binds ⌘E
   // (find with selection) while it has focus; this one wins only outside it.
-  // A text field keeps Control+E, which means "end of line" there (the
-  // assistant's composer, the editor): a Control without a Meta in an editable
-  // target is left to the field, unprevented. ⌘E has no native meaning in one,
-  // so it still folds the column. On Windows and Linux Control is the only
-  // modifier, so there the key folds the column outside text fields only.
+  // On macOS a text field keeps Control+E, which Cocoa's text bindings make
+  // "end of line" (the assistant's composer): a Control without a Meta in an
+  // editable target is left to the field, unprevented. ⌘E has no native
+  // meaning in one, so it still folds the column. On Windows and Linux Ctrl is
+  // the primary modifier and means nothing in a field, so the key works
+  // everywhere there, Monaco included.
   // Below `LAYOUT_BREAKPOINTS.left` the files column is in the navigation's
   // Sheet, so the key opens and closes that Sheet, which reports itself as
   // `nav` a render later and takes the mark; the column's desktop flag, which
@@ -162,7 +166,9 @@ const LayoutShell = ({
     "Ctrl+E",
     {
       handle: (ev) => {
-        if (ev.ctrlKey && !ev.metaKey && isEditable(ev.target)) return;
+        if (isMac() && ev.ctrlKey && !ev.metaKey && isEditable(ev.target)) {
+          return;
+        }
         // `PgKeybind` prevents the default itself unless told not to, which
         // would also swallow the keys left to a field above
         ev.preventDefault();
