@@ -52,7 +52,9 @@ SHALL NOT say "Copied".
 A click whose action fails SHALL be reported to the team (a log entry marked
 for reporting) and SHALL leave the button usable.
 
-#### Scenario: A rejected action is logged for reporting
+#### Scenario: A rejected action is logged for reporting (manual)
 
 - **WHEN** a button's action rejects
 - **THEN** the failure is logged under `ui:button`, marked for reporting, and the button is enabled again
+
+Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`.
