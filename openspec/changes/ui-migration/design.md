@@ -599,15 +599,19 @@ with `loadingText="Sending..."`). `loading` adds to the button's own wait and
 never replaces it, so the sidebar's Deploy does not return its deploy: a
 second press while it runs pauses it. Every other button is a plain `Button`.
 
-**A click that fails is reported.** The design system's `AsyncButton` awaited
+**A click that fails is logged.** The design system's `AsyncButton` awaited
 the promise in a `try`/`finally`, so a rejection escaped as an unhandled
 rejection; with `CopyButton`, a refused `writeText` was an unhandled
 rejection too. Both gain
 `onError(error)`, changed in `design-system/` and reinstalled. Without it,
 `AsyncButton` rethrows as before and `CopyButton` shows no "Copied". In
 client-v2 every `AsyncButton` and `CopyButton` passes `reportButtonFailure`,
-which logs through `createLogger("ui:button")` with `report: true`. It
-replaces the legacy `Button`'s `console.error`.
+which logs through `createLogger("ui:button")` without `report: true`. It
+replaces the legacy `Button`'s `console.error`, which only wrote to the
+console: many of these failures are caused by the user (a cancelled deploy, a
+wallet refusal) or already printed by the terminal command, so they must not
+page the team. What reaches Sentry is HOO-1800's call. Decided with Slava
+2026-10-14.
 
 Removed: `components/Button`, `components/GradientButton`, and the theme's
 `components.button` override type. `client-v2/CLAUDE.md` loses its paragraph

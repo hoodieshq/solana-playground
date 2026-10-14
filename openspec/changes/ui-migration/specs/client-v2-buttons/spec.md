@@ -45,16 +45,17 @@ SHALL NOT say "Copied".
 #### Scenario: A refused clipboard is not reported as copied
 
 - **WHEN** the browser refuses to write to the clipboard
-- **THEN** the button does not say "Copied" and the failure is reported
+- **THEN** the button does not say "Copied" and the failure is logged
 
-### Requirement: A failing click is reported, not swallowed
+### Requirement: A failing click is logged, not swallowed
 
-A click whose action fails SHALL be reported to the team (a log entry marked
-for reporting) and SHALL leave the button usable.
+A click whose action fails SHALL be logged under `ui:button`, not marked for
+reporting (a user-caused or already-shown failure must not reach error
+tracking), and the button SHALL stay usable.
 
-#### Scenario: A rejected action is logged for reporting (manual)
+#### Scenario: A rejected action is logged (manual)
 
 - **WHEN** a button's action rejects
-- **THEN** the failure is logged under `ui:button`, marked for reporting, and the button is enabled again
+- **THEN** the failure is logged under `ui:button`, not marked for reporting, and the button is enabled again
 
 Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`.
