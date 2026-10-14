@@ -8,14 +8,16 @@ import { PROVIDERS, type ProviderId } from "./types";
  * Two answers in two stores. The keyless default backend is remembered by id
  * in `localStorage`, across tabs and restarts: nothing secret is written.
  * A backend that needs the user's own key is remembered whole, key included,
- * in `sessionStorage`, which lives as long as this tab and no longer. Project
+ * in `sessionStorage`, which is kept per tab: a new tab starts without it,
+ * while a tab the browser duplicates or restores (a reopened closed tab, a
+ * restored session) carries it and reconnects, as after a reload. Project
  * code runs in this origin and can read either store; `sessionStorage` bounds
  * that to the tab the user is already working in. See the design of the
  * OpenSpec change `assistant-own-key-storage` (HOO-1748).
  *
- * Every access is guarded. Storage throws rather than returning `null` in a
- * private window or with site data blocked, and the panel has to open either
- * way. A failure is logged by what was attempted, never with the value.
+ * Every access is guarded. Storage throws rather than returning `null` with
+ * site data blocked, and the panel has to open either way. A failure is
+ * logged by what was attempted, never with the value.
  */
 const BACKEND_KEY = "assistant.backend";
 const CONNECTION_KEY = "assistant.connection";
@@ -35,7 +37,7 @@ const guarded = <T>(what: string, run: () => T, fallback: T): T => {
   try {
     return run();
   } catch (error) {
-    // Expected in a private window, so not reported; the panel asks again
+    // Expected with site data blocked, so not reported; the panel asks again
     log.warn(`could not ${what}`, { context: { reason: reasonOf(error) } });
     return fallback;
   }
@@ -85,7 +87,7 @@ const toStored = (connection: Connection): string => {
  * itself carries the key.
  */
 type DropReason =
-  /** The entry `dropKept` blanks when it cannot remove one */
+  /** The entry `dropKept` leaves when it cannot remove one */
   | "blank"
   | "not-json"
   | "not-an-object"
@@ -165,7 +167,41 @@ const fromStored = (raw: string): ReadBack => {
   return { connection };
 };
 
-/** Record the user's choice, so the next load of this tab can act on it */
+/**
+ * Remove the kept connection, the one way every path that must lose the key
+ * does it. If the removal throws, the entry is blanked instead: `fromStored`
+ * drops a blank one, so the next read forgets it.
+ *
+ * Reported only when the key verifiably survived both, which is a privacy
+ * failure the team must hear about. Storage that refuses everything (site
+ * data blocked) fails the read-back too; then nothing was ever written, and
+ * it is only logged.
+ *
+ * @returns whether the key is gone from this tab's storage
+ */
+const dropKept = (what: string) => {
+  if (attempt(what, () => sessionStorage.removeItem(CONNECTION_KEY))) {
+    return true;
+  }
+  attempt("blank the key", () => sessionStorage.setItem(CONNECTION_KEY, ""));
+
+  const left = guarded(
+    "check the key is gone",
+    () => sessionStorage.getItem(CONNECTION_KEY),
+    null
+  );
+  if (!left) return true;
+
+  log.error(new Error("could not forget the key kept for this tab"), {
+    report: true,
+  });
+  return false;
+};
+
+/**
+ * Record the user's choice, so a later load can reconnect to it: the default
+ * in any tab of this browser, a key-based backend only in this tab.
+ */
 export const rememberBackend = (connection: Connection) => {
   // Written down as a whole id rather than a flag, so switching to a
   // key-based backend overwrites it instead of leaving a stale `true` behind
@@ -174,9 +210,7 @@ export const rememberBackend = (connection: Connection) => {
   );
 
   if (connection.id === DEFAULT_ID) {
-    attempt("forget the previous key", () =>
-      sessionStorage.removeItem(CONNECTION_KEY)
-    );
+    dropKept("forget the previous key");
     return;
   }
 
@@ -188,27 +222,18 @@ export const rememberBackend = (connection: Connection) => {
   // The write failed, so an earlier backend's key may still be there and a
   // reload would reconnect to it instead of the one just chosen. Dropping it
   // makes the next load ask.
-  attempt("drop the previous connection", () =>
-    sessionStorage.removeItem(CONNECTION_KEY)
-  );
+  dropKept("drop the previous connection");
 };
 
-/** Drop both. Disconnecting is the user saying not to reconnect. */
+/**
+ * Drop both. Disconnecting is the user saying not to reconnect.
+ *
+ * @returns whether the key is gone, so the caller can tell the user when it
+ * is not
+ */
 export const forgetBackend = () => {
   attempt("forget the backend", () => localStorage.removeItem(BACKEND_KEY));
-  const forgotten = attempt("forget the key", () =>
-    sessionStorage.removeItem(CONNECTION_KEY)
-  );
-  if (forgotten) return;
-
-  // A key that outlives its disconnect is a privacy failure, so it is
-  // reported (by what failed, never with the value). Overwriting with an
-  // empty string is the fallback: `fromStored` rejects it, so the next
-  // read drops the entry and the key is gone either way.
-  log.error(new Error("could not forget the key kept for this tab"), {
-    report: true,
-  });
-  attempt("blank the key", () => sessionStorage.setItem(CONNECTION_KEY, ""));
+  return dropKept("forget the key");
 };
 
 /** Whether this browser should reconnect to the default backend by itself */
@@ -234,8 +259,6 @@ export const rememberedConnection = (): Connection | null => {
   log.warn("dropped a kept connection this build cannot use", {
     context: { reason },
   });
-  attempt("drop the unusable connection", () =>
-    sessionStorage.removeItem(CONNECTION_KEY)
-  );
+  dropKept("drop the unusable connection");
   return null;
 };
