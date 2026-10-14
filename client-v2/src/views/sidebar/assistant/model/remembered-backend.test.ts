@@ -78,17 +78,58 @@ describe("remembered backend", () => {
   });
 
   it.each([
-    ["not JSON", "{"],
-    ["an unknown provider", JSON.stringify({ id: "nope", apiKey: KEY })],
-    ["the default backend", JSON.stringify({ id: "default", apiKey: "" })],
-    ["no key", JSON.stringify({ id: "openai" })],
+    ["not JSON", "{", "not-json"],
+    ["a blanked entry", "", "blank"],
+    ["a JSON value that is not an object", "42", "not-an-object"],
+    ["JSON null", "null", "not-an-object"],
+    [
+      "an unknown provider",
+      JSON.stringify({ id: "nope", apiKey: KEY }),
+      "unknown-provider",
+    ],
+    [
+      "the default backend",
+      JSON.stringify({ id: "default", apiKey: "" }),
+      "default-backend",
+    ],
+    ["no key", JSON.stringify({ id: "openai" }), "no-key"],
+    [
+      "a blank key for a provider that needs one",
+      JSON.stringify({
+        id: "anthropic",
+        apiKey: " ",
+        settings: anthropic.settings,
+      }),
+      "no-key",
+    ],
     [
       "an OpenAI-compatible provider with no endpoint",
       JSON.stringify({ id: "openai", apiKey: KEY }),
+      "bad-endpoint",
     ],
     [
       "a half endpoint",
       JSON.stringify({ id: "openai", apiKey: KEY, endpoint: { baseUrl: "x" } }),
+      "bad-endpoint",
+    ],
+    [
+      "an endpoint for a provider that has none",
+      JSON.stringify({
+        id: "anthropic",
+        apiKey: KEY,
+        endpoint: openai.endpoint,
+        settings: anthropic.settings,
+      }),
+      "bad-endpoint",
+    ],
+    [
+      "settings without a string model",
+      JSON.stringify({
+        id: "anthropic",
+        apiKey: KEY,
+        settings: { model: 5, effort: "high" },
+      }),
+      "bad-settings",
     ],
     [
       "an effort the provider does not offer",
@@ -97,11 +138,30 @@ describe("remembered backend", () => {
         apiKey: KEY,
         settings: { model: "m", effort: "turbo" },
       }),
+      "bad-settings",
     ],
-  ])("drops a stored value with %s", (_, raw) => {
+  ])("drops a stored value with %s", (_, raw, reason) => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
     sessionStorage.setItem("assistant.connection", raw);
+
     expect(rememberedConnection()).toBeNull();
     expect(sessionStorage.getItem("assistant.connection")).toBeNull();
+    // Why it was dropped, and never the value it was dropped for
+    expect(logged.entries).toContainEqual(
+      expect.objectContaining({ context: { reason } })
+    );
+    expect(JSON.stringify(logged.entries)).not.toContain(KEY);
+  });
+
+  it("keeps a blank key for a provider whose key is optional", () => {
+    const proxy: Connection = {
+      id: "openai",
+      apiKey: "",
+      endpoint: { baseUrl: "http://localhost:4000/v1", model: "local" },
+    };
+    rememberBackend(proxy);
+    expect(rememberedConnection()).toEqual(proxy);
   });
 
   it("carries no field it does not know", () => {

@@ -80,45 +80,79 @@ const toStored = (connection: Connection): string => {
   return JSON.stringify(stored);
 };
 
+/**
+ * Why a kept connection was dropped. Logged in its place, since the value
+ * itself carries the key.
+ */
+type DropReason =
+  /** The entry `dropKept` blanks when it cannot remove one */
+  | "blank"
+  | "not-json"
+  | "not-an-object"
+  /** A provider this build no longer has */
+  | "unknown-provider"
+  /** The keyless default, which is remembered in `localStorage` instead */
+  | "default-backend"
+  /** Missing, or blank for a provider whose key is not optional */
+  | "no-key"
+  /** Missing or malformed where needed, or present where there is none */
+  | "bad-endpoint"
+  /** Malformed, or an effort the provider does not offer */
+  | "bad-settings";
+
+type ReadBack =
+  | { connection: Connection; reason?: never }
+  | { connection?: never; reason: DropReason };
+
+const dropped = (reason: DropReason): ReadBack => ({ reason });
+
 /** A stored connection, rebuilt field by field so nothing unknown rides along */
-const fromStored = (raw: string): Connection | null => {
+const fromStored = (raw: string): ReadBack => {
+  if (raw === "") return dropped("blank");
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    // Malformed is handled by the caller, which drops the entry and logs it
-    return null;
+    // Not rethrown: the caller drops the entry and logs this reason
+    return dropped("not-json");
   }
-  if (!isRecord(parsed) || typeof parsed.apiKey !== "string") return null;
+  if (!isRecord(parsed)) return dropped("not-an-object");
 
   const { id, apiKey } = parsed;
   const provider = PROVIDERS.find((p) => p.id === id);
-  if (!provider || provider.id === DEFAULT_ID) return null;
+  if (!provider) return dropped("unknown-provider");
+  if (provider.id === DEFAULT_ID) return dropped("default-backend");
 
-  // An OpenAI-compatible provider cannot talk without its base URL and model
-  if (provider.endpoint && parsed.endpoint === undefined) return null;
+  if (typeof apiKey !== "string") return dropped("no-key");
+  if (!apiKey.trim() && !provider.keyOptional) return dropped("no-key");
 
   let endpoint: Connection["endpoint"];
-  if (parsed.endpoint !== undefined) {
+  if (provider.endpoint) {
+    // An OpenAI-compatible provider cannot talk without its base URL and model
     const stored = parsed.endpoint;
     if (
       !isRecord(stored) ||
       typeof stored.baseUrl !== "string" ||
       typeof stored.model !== "string"
     ) {
-      return null;
+      return dropped("bad-endpoint");
     }
     endpoint = { baseUrl: stored.baseUrl, model: stored.model };
+  } else if (parsed.endpoint !== undefined) {
+    return dropped("bad-endpoint");
   }
 
   let settings: Connection["settings"];
   if (parsed.settings !== undefined) {
     const stored = parsed.settings;
-    if (!isRecord(stored) || typeof stored.model !== "string") return null;
+    if (!isRecord(stored) || typeof stored.model !== "string") {
+      return dropped("bad-settings");
+    }
     const effort = provider.modelSettings?.efforts.find(
       (e) => e === stored.effort
     );
-    if (!effort) return null;
+    if (!effort) return dropped("bad-settings");
     settings = { model: stored.model, effort };
   }
 
@@ -128,7 +162,7 @@ const fromStored = (raw: string): Connection | null => {
     endpoint,
     settings,
   };
-  return connection;
+  return { connection };
 };
 
 /** Record the user's choice, so the next load of this tab can act on it */
@@ -194,12 +228,14 @@ export const rememberedConnection = (): Connection | null => {
   );
   if (raw === null) return null;
 
-  const connection = fromStored(raw);
-  if (!connection) {
-    log.warn("dropped a kept connection this build cannot use");
-    attempt("drop the unusable connection", () =>
-      sessionStorage.removeItem(CONNECTION_KEY)
-    );
-  }
-  return connection;
+  const { connection, reason } = fromStored(raw);
+  if (connection) return connection;
+
+  log.warn("dropped a kept connection this build cannot use", {
+    context: { reason },
+  });
+  attempt("drop the unusable connection", () =>
+    sessionStorage.removeItem(CONNECTION_KEY)
+  );
+  return null;
 };
