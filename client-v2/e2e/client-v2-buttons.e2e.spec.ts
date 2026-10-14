@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, seedWorkspace, test } from "./fixtures";
 
 type AssistantWindow = Window & {
   __pgAssistant?: {
@@ -45,5 +45,41 @@ test.describe("client-v2-buttons", () => {
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     // Markdown hands the block its code with the fence's closing newline
     expect(copied.trimEnd()).toBe(CODE);
+  });
+
+  test("client-v2-buttons: A refused clipboard is not reported as copied", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    // Before the page loads, so nothing can have captured the real method
+    await page.addInitScript(() => {
+      navigator.clipboard.writeText = () =>
+        Promise.reject(new DOMException("denied", "NotAllowedError"));
+    });
+    const logged: string[] = [];
+    page.on("console", (message) => logged.push(message.text()));
+
+    await seedWorkspace(page);
+    await page.waitForFunction(
+      () => !!(window as AssistantWindow).__pgAssistant
+    );
+    await page.evaluate(() => {
+      const store = (window as AssistantWindow).__pgAssistant!;
+      const id = store.startAssistantMessage();
+      store.appendToAssistantMessage(id, "Run:\n\n```sh\nanchor build\n```\n");
+    });
+
+    const block = page.locator("pre", { hasText: "anchor build" }).first();
+    await expect(block).toBeVisible();
+    const copy = page.locator('[data-slot="copy-button"]').first();
+    await block.hover();
+    await copy.click();
+
+    // The refusal is reported under ui:button, and the button never claims
+    // the copy happened
+    await expect
+      .poll(() => logged.some((l) => l.includes("[ui:button]")))
+      .toBe(true);
+    await expect(copy).toHaveAccessibleName("Copy");
   });
 });
