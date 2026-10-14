@@ -54,7 +54,7 @@ its own, with its buttons pinned to the foot.
 
 #### Scenario: A dialog on a phone (manual)
 
-- **WHEN** a dialog opens on a screen narrower than 600 px
+- **WHEN** a dialog opens on a screen narrower than 768 px
 - **THEN** it fills the screen and its buttons stay at the foot while its body scrolls
 
 ### Requirement: Toasts sit bottom left, clear of the rail

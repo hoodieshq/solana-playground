@@ -27,8 +27,9 @@ const AppLazy = lazy(() => import("./AppLazy"));
 // navigation's rail items (`SidebarMenuButton`'s `tooltip`) throw without it.
 const TOOLTIP_DELAY_MS = 500;
 
-// Providers that need no theme and render at once, kept apart from
-// `ThemeProvider`, which renders nothing until its theme is created.
+// The providers inside `ThemeProvider` that need no theme of their own, apart
+// so a test can render a component under exactly what the app gives it
+// (`shared-ui.test.tsx`) without creating a theme.
 export const AppProviders = ({ children }: { children: ReactNode }) => (
   <TooltipProvider delayDuration={TOOLTIP_DELAY_MS}>{children}</TooltipProvider>
 );

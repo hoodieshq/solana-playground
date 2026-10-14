@@ -228,8 +228,9 @@ export interface ThemeParam {
 
     /**
      * Tooltip component. The design system's tooltip no longer reads it, but
-     * screens that are not tooltips still read `tooltip.bg` (Ruling C), so
-     * the section stays.
+     * `Settings`, `Build`, `Deploy` and `Stepper` still read `tooltip.bg` for
+     * parts that are not tooltips, so the section stays until the global
+     * reset (ui-migration 5.24).
      */
     tooltip?: DefaultStyles & { bgSecondary?: Bg };
 
