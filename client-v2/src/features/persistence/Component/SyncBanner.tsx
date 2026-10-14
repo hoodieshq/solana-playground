@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { ConflictResolver } from "../ui/ConflictResolver";
 import { PgProjectSync } from "../model/project-sync";
@@ -226,15 +228,16 @@ const SyncBanner = () => {
               </Button>
             )}
             {prompt.actions.map((action) => (
-              <Button
+              <AsyncButton
                 key={action.resolution}
                 variant={action.primary ? "default" : "outline"}
                 size="sm"
                 disabled={busy}
-                onClick={() => void answer(action.resolution)}
+                onClick={() => answer(action.resolution)}
+                onError={reportButtonFailure}
               >
                 {action.label}
-              </Button>
+              </AsyncButton>
             ))}
           </Actions>
         </Body>

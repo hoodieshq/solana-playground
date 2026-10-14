@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 import ChatItem from "./ChatItem";
 import Connect from "./Connect";
 import { Button } from "@/shared/ui/button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import {
   PgAssistant,
@@ -197,7 +198,13 @@ const Chat = () => {
       }
     }
   };
-  sendRef.current = send;
+  // `send` answers its own failures once a turn runs; one that happens before
+  // that (the store throwing on the new message) would be an unhandled
+  // rejection with nothing on screen
+  const sendAndReport = (text: string) => {
+    send(text).catch(reportButtonFailure);
+  };
+  sendRef.current = sendAndReport;
 
   /**
    * Aborting the request is not enough on its own: a tool waiting on an
@@ -320,7 +327,10 @@ const Chat = () => {
           <Empty>
             <EmptyLabel>TRY ASKING</EmptyLabel>
             {SUGGESTIONS.map((suggestion) => (
-              <Suggestion key={suggestion} onClick={() => send(suggestion)}>
+              <Suggestion
+                key={suggestion}
+                onClick={() => sendAndReport(suggestion)}
+              >
                 {suggestion}
               </Suggestion>
             ))}
@@ -331,7 +341,9 @@ const Chat = () => {
               key={item.id}
               item={item}
               onMakeChange={
-                item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
+                item.id === changeableId
+                  ? () => sendAndReport(MAKE_CHANGE)
+                  : undefined
               }
               // Inside a lesson the same click skips the hint ladder, so it is
               // offered as a way out rather than as the obvious next step
@@ -400,12 +412,15 @@ const Chat = () => {
                 !ev.nativeEvent.isComposing
               ) {
                 ev.preventDefault();
-                send(input);
+                sendAndReport(input);
               }
             }}
           />
           {/* Distinct keys: Stop and Send are different actions, so one's
-              focus and press state must not carry over to the other. */}
+              focus and press state must not carry over to the other. Send is
+              a plain Button, not an AsyncButton: `busy` already swaps it for
+              Stop while a turn runs, and its own spinner would bring the
+              disabled wait back. */}
           {busy ? (
             <Button
               key="stop"
@@ -421,7 +436,7 @@ const Chat = () => {
               key="send"
               size="sm"
               disabled={!input.trim()}
-              onClick={() => send(input)}
+              onClick={() => sendAndReport(input)}
             >
               Send
             </Button>

@@ -1,17 +1,3 @@
-// The legacy button pulls in the utils barrel, whose generated globals exist
-// only once the app has booted; what the banner does on a press is all
-// that is under test, so a plain button stands in.
-vi.mock("../../../components/Button", () => ({
-  default: (props: {
-    children: React.ReactNode;
-    disabled?: boolean;
-    onClick?: () => void;
-  }) => (
-    <button disabled={props.disabled} onClick={props.onClick}>
-      {props.children}
-    </button>
-  ),
-}));
 // The resolve view loads Monaco, which jsdom cannot run; it is not opened
 vi.mock("../ui/ConflictResolver", () => ({ ConflictResolver: () => null }));
 
@@ -20,6 +6,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 // `@types/mocha` also declares a global `it`, without `each`
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
 
 import SyncBanner from "./SyncBanner";
 import {
@@ -87,6 +79,7 @@ describe("SyncBanner telemetry", () => {
     container.remove();
     vi.restoreAllMocks();
     resetTelemetry();
+    resetLogger();
   });
 
   it.each([
@@ -102,6 +95,27 @@ describe("SyncBanner telemetry", () => {
       { name: "sync_whole_file_answered", params: { answer, from: "banner" } },
     ]);
     expect(PgProjectSync.resolve).toHaveBeenCalledWith("p1", answer);
+  });
+
+  it("reports an answer that fails and leaves the prompt up", async () => {
+    const logged = logMemory();
+    initLogger({ providers: [logged] });
+    const failure = new Error("offline");
+    vi.spyOn(PgProjectSync, "resolve").mockRejectedValue(failure);
+    const found = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === "Keep this version"
+    );
+    await act(async () => found!.click());
+
+    expect(logged.entries).toEqual([
+      expect.objectContaining({
+        ns: "ui:button",
+        error: failure,
+        report: true,
+      }),
+    ]);
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(found!.disabled).toBe(false);
   });
 });
 

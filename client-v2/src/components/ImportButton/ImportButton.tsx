@@ -1,19 +1,27 @@
-import { ChangeEvent, FC, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  ComponentProps,
+  FC,
+  PropsWithChildren,
+  useRef,
+  useState,
+} from "react";
 import styled, { css } from "styled-components";
 
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Button } from "@/shared/ui/button";
 
 interface ImportButtonProps {
   onImport: (ev: ChangeEvent<HTMLInputElement>) => Promise<void>;
   accept?: string;
   showImportText?: boolean;
-  variant?: React.ComponentProps<typeof Button>["variant"];
+  variant?: ComponentProps<typeof Button>["variant"];
   noButton?: boolean;
   dir?: boolean;
   title?: string;
 }
 
-const ImportButton: FC<React.PropsWithChildren<ImportButtonProps>> = ({
+const ImportButton: FC<PropsWithChildren<ImportButtonProps>> = ({
   onImport,
   accept,
   variant = "outline",
@@ -32,7 +40,15 @@ const ImportButton: FC<React.PropsWithChildren<ImportButtonProps>> = ({
   };
 
   const handleChange = async (ev: ChangeEvent<HTMLInputElement>) => {
-    await onImport(ev);
+    try {
+      await onImport(ev);
+    } catch (error) {
+      // The picker has no other way to say it failed, and the file name
+      // below would claim it was imported
+      reportButtonFailure(error);
+      setImportText("");
+      return;
+    }
     const files = ev.target.files;
     if (!files?.length) setImportText("");
     else setImportText(files[0].name);
