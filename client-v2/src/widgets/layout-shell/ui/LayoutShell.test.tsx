@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import type { DefaultTheme } from "styled-components";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   initLogger,
@@ -24,9 +24,11 @@ const deploy = vi.hoisted(() => ({
 vi.mock("@/utils", async () => {
   const { PgKeybind } = await import("@/utils/keybind");
   const { PgEditor } = await import("@/utils/editor");
+  const { PgCommon } = await import("@/utils/common");
   return {
     PgKeybind,
     PgEditor,
+    PgCommon,
     PgCommand: {
       deploy: {
         onDidStart: (cb: (input: string | null) => void) => {
@@ -786,15 +788,22 @@ const textField = () => {
   return input;
 };
 
-/** The platform `navigator` reports; jsdom reports none, which is not a Mac */
-const onPlatform = (platform: string) =>
-  vi.spyOn(window.navigator, "platform", "get").mockReturnValue(platform);
+const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
+const WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+
+/**
+ * The user agent `PgCommon.getOS` reads. Each test sets its own: jsdom's
+ * default carries the host's `process.platform`, so it reads as a different
+ * system on a Mac laptop and on CI.
+ */
+const onUserAgent = (userAgent: string) =>
+  vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(userAgent);
 
 const filesOpen = () =>
   JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY) ?? "null")?.open?.files;
 
 it("should leave Control+E in a text field its native meaning on a Mac, end of line, and not fold the files column", () => {
-  onPlatform("MacIntel");
+  onUserAgent(MAC);
   shell();
   const field = textField();
   const proceeded = fireEvent.keyDown(field, { key: "e", ctrlKey: true });
@@ -806,7 +815,7 @@ it("should leave Control+E in a text field its native meaning on a Mac, end of l
 });
 
 it("should leave Control+E in a contenteditable alone too, on a Mac", () => {
-  onPlatform("MacIntel");
+  onUserAgent(MAC);
   shell();
   const editable = document.createElement("div");
   editable.setAttribute("contenteditable", "true");
@@ -819,7 +828,7 @@ it("should leave Control+E in a contenteditable alone too, on a Mac", () => {
 });
 
 it("should fold the files column by Ctrl+E from a text field on Windows and Linux, where Ctrl has no meaning there", () => {
-  onPlatform("Win32");
+  onUserAgent(WINDOWS);
   shell();
   const field = textField();
   const proceeded = fireEvent.keyDown(field, { key: "e", ctrlKey: true });
@@ -828,23 +837,45 @@ it("should fold the files column by Ctrl+E from a text field on Windows and Linu
   field.remove();
 });
 
-it("should still fold the files column by Cmd+E from a text field, which has no native meaning there", () => {
+it("should fold the files column when Control is held with Cmd in a text field on a Mac", () => {
+  // The Meta makes it the shortcut, not the caret movement
+  onUserAgent(MAC);
   shell();
   const field = textField();
-  const proceeded = fireEvent.keyDown(field, { key: "e", metaKey: true });
+  const proceeded = fireEvent.keyDown(field, {
+    key: "e",
+    ctrlKey: true,
+    metaKey: true,
+  });
   expect(proceeded).toBe(false);
   expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
   field.remove();
 });
 
-it("should fold the files column by Control+E outside a text field, and keep it from the page", () => {
-  shell();
-  const proceeded = fireEvent.keyDown(document.body, {
-    key: "e",
-    ctrlKey: true,
+describe.each([
+  ["a Mac", MAC],
+  ["Windows", WINDOWS],
+])("on %s", (_, userAgent) => {
+  it("should still fold the files column by Cmd+E from a text field, which has no native meaning there", () => {
+    onUserAgent(userAgent);
+    shell();
+    const field = textField();
+    const proceeded = fireEvent.keyDown(field, { key: "e", metaKey: true });
+    expect(proceeded).toBe(false);
+    expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+    field.remove();
   });
-  expect(proceeded).toBe(false);
-  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+
+  it("should fold the files column by Control+E outside a text field, and keep it from the page", () => {
+    onUserAgent(userAgent);
+    shell();
+    const proceeded = fireEvent.keyDown(document.body, {
+      key: "e",
+      ctrlKey: true,
+    });
+    expect(proceeded).toBe(false);
+    expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+  });
 });
 
 it("should report the Sheet's next tap as a button after a desktop Cmd+E changed no Sheet", () => {

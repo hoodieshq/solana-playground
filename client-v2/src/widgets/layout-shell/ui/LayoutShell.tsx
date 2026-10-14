@@ -4,7 +4,7 @@ import { useTheme } from "styled-components";
 
 import { useKeybind } from "@/hooks";
 import { useIsLeftSheet, useViewport } from "@/shared/lib/hooks/use-viewport";
-import { PgCommand, PgEditor, PgView } from "@/utils";
+import { PgCommand, PgCommon, PgEditor, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
@@ -39,9 +39,6 @@ export interface LayoutShellProps {
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
   assistant: (panel: { open: boolean; toggle: () => void }) => ReactNode;
 }
-
-/** Whether this is macOS; the repo has no platform check of its own */
-const isMac = () => /^Mac/.test(window.navigator.platform);
 
 /** Whether a key pressed on `target` is typed into something */
 const isEditable = (target: EventTarget | null) =>
@@ -166,7 +163,12 @@ const LayoutShell = ({
     "Ctrl+E",
     {
       handle: (ev) => {
-        if (isMac() && ev.ctrlKey && !ev.metaKey && isEditable(ev.target)) {
+        if (
+          PgCommon.getOS() === "MacOS" &&
+          ev.ctrlKey &&
+          !ev.metaKey &&
+          isEditable(ev.target)
+        ) {
           return;
         }
         // `PgKeybind` prevents the default itself unless told not to, which
@@ -174,6 +176,8 @@ const LayoutShell = ({
         ev.preventDefault();
         navVia.current = "key";
         if (sheetToggle.current?.()) return;
+        // A defence: the next pointer or key input clears the mark in the
+        // capture phase anyway, so no test can tell this line from its absence
         navVia.current = null;
         setOpen("files", { open: !state.open.files, via: "key" });
       },
