@@ -34,3 +34,17 @@ it("renders a plain neutral tag without an icon", () => {
   expect(tag?.getAttribute("data-variant")).toBe("neutral");
   expect(tag?.children.length).toBe(0);
 });
+
+it("lets a round icon override the design system's icon rounding", () => {
+  render(
+    <BaseDetailTag
+      kind="framework"
+      label="Seahorse"
+      icon={<img alt="" />}
+      className="[&>img]:rounded-full"
+    />
+  );
+  const classes = tagOf("Seahorse")?.className ?? "";
+  expect(classes).toContain("[&>img]:rounded-full");
+  expect(classes).not.toContain("[&>img]:rounded-sm");
+});

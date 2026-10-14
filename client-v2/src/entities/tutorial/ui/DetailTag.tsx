@@ -12,12 +12,16 @@ type DetailTagProps = {
 };
 
 function DetailTag({ kind, value, className }: DetailTagProps) {
+  // The design system's Tag rounds its icons to `rounded-sm`
+  const round =
+    kind === "framework" &&
+    PgFramework.get(value as FrameworkName)?.circleImage;
   return (
     <BaseDetailTag
       kind={kind}
       label={value}
       icon={iconOf(kind, value)}
-      className={className}
+      className={cn(round && "[&>img]:rounded-full", className)}
     />
   );
 }
@@ -27,12 +31,7 @@ function iconOf(kind: string, value: string) {
     // An unknown framework shows its name alone
     const framework = PgFramework.get(value as FrameworkName);
     if (!framework) return null;
-    return (
-      <Img
-        src={framework.icon}
-        className={cn(framework.circleImage && "rounded-full")}
-      />
-    );
+    return <Img src={framework.icon} />;
   }
   if (kind === "languages") {
     const extension = PgLanguage.all.find((l) => l.name === value)
