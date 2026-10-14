@@ -100,14 +100,8 @@ test.describe("client-v2-controls", () => {
     });
     expect(onTop).toBe(true);
 
-    // Walk to Light from the keyboard; the open list moves focus with the keys
-    for (
-      let i = 0;
-      i < 4 && !(await light.evaluate((el) => el === document.activeElement));
-      i++
-    ) {
-      await page.keyboard.press("ArrowDown");
-    }
+    // The list opens on the chosen theme, Dark; Light is the next option
+    await page.keyboard.press("ArrowDown");
     await expect(light).toBeFocused();
     await page.keyboard.press("Enter");
     await expect
