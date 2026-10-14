@@ -81,13 +81,6 @@ const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
 /** Everything behind the accordion: each of these needs a key of your own */
 const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
 
-/** The group can only produce an id it was given, so a miss is a bug */
-const byId = (id: string) => {
-  const found = [DEFAULT_PROVIDER, ...ALTERNATIVES].find((p) => p.id === id);
-  if (!found) throw new Error(`Unknown provider: ${id}`);
-  return found;
-};
-
 const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
 
 const Connect = () => {
@@ -281,7 +274,12 @@ const Connect = () => {
           aria-label="Backend"
           value={selectedBar ?? ""}
           onValueChange={(id) => {
-            pickProvider(byId(id));
+            // The group can only produce an id it was given, so a miss is a bug
+            const found = [DEFAULT_PROVIDER, ...ALTERNATIVES].find(
+              (p) => p.id === id
+            );
+            if (!found) throw new Error(`Unknown provider: ${id}`);
+            pickProvider(found);
             // A click is the end of browsing: fold the list back to the two
             // bars. The arrow keys are still browsing.
             if (pointerPick.current) setExpanded(false);
