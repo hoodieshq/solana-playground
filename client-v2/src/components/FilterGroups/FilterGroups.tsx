@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import styled, { css } from "styled-components";
 
 import Checkbox from "../Checkbox";
-import Tag from "../Tag";
+import { DetailTag } from "@/entities/tutorial";
 import type { Filter } from "../../hooks";
 
 interface FilterGroupsProps<P extends string> {
@@ -107,7 +107,7 @@ const FilterGroupTitle = styled.div`
   `}
 `;
 
-type FilterLabelProps = ComponentProps<typeof Tag> & {
+type FilterLabelProps = ComponentProps<typeof DetailTag> & {
   count: number | undefined;
 };
 
@@ -116,7 +116,11 @@ const FilterLabel: FC<React.PropsWithChildren<FilterLabelProps>> = ({
   ...props
 }) => (
   <FilterLabelWrapper>
-    <StyledTag {...props} />
+    <DetailTag
+      {...props}
+      // Reset the default box styles except `level`
+      className={props.kind === "level" ? undefined : "bg-transparent px-1"}
+    />
     {count ? <FilterCount>({count})</FilterCount> : null}
   </FilterLabelWrapper>
 );
@@ -125,19 +129,6 @@ const FilterLabelWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 0.125rem;
-`;
-
-const StyledTag = styled(Tag)`
-  ${({ kind }) => {
-    // Reset the default box styles except `level`
-    if (kind !== "level") {
-      return css`
-        padding: 0 0.25rem;
-        background: none !important;
-        box-shadow: none;
-      `;
-    }
-  }}
 `;
 
 const FilterCount = styled.span`
