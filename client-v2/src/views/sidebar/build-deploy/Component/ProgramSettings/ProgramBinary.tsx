@@ -1,6 +1,5 @@
 import styled from "styled-components";
 
-import Button from "../../../../../components/Button";
 import ImportButton from "../../../../../components/ImportButton";
 import {
   PgCommon,
@@ -9,6 +8,8 @@ import {
   PgServer,
 } from "../../../../../utils";
 import { useRenderOnChange } from "../../../../../hooks";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const ProgramBinary = () => (
   <Wrapper>
@@ -53,15 +54,17 @@ const Export = () => {
   if (!uuid) return null;
 
   return (
-    <Button
+    <AsyncButton
+      variant="outline"
       onClick={async () => {
         const programBuffer = await PgServer.deploy(uuid);
         const programName = PgExplorer.currentWorkspaceName ?? "program";
         PgCommon.export(`${programName}.so`, programBuffer);
       }}
+      onError={reportButtonFailure}
     >
       Export
-    </Button>
+    </AsyncButton>
   );
 };
 

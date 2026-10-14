@@ -1,11 +1,13 @@
 import { FC } from "react";
 import styled from "styled-components";
 
-import Button from "../../../../components/Button";
 import Img from "../../../../components/Img";
 import { PgExplorer, PgRouter } from "../../../../utils";
 import { CreateItem } from "./Modals";
 import { useCreateItem } from "./useCreateItem";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { Button } from "@/shared/ui/button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const ExplorerButtons = () => (
   <ButtonsWrapper>
@@ -24,20 +26,14 @@ const ButtonsWrapper = styled.div`
 
   & button {
     margin: 0.5rem 0;
-    padding: 0 0.5rem;
   }
 
   & button img {
     filter: invert(0.5);
   }
 
-  & button:hover {
-    color: initial;
-    background: initial;
-
-    & img {
-      filter: invert(${({ theme }) => (theme.isDark ? 1 : 0)});
-    }
+  & button:hover img {
+    filter: invert(${({ theme }) => (theme.isDark ? 1 : 0)});
   }
 `;
 
@@ -53,16 +49,23 @@ const NewItemButton: FC<React.PropsWithChildren<ButtonProps>> = ({
   const { createItem } = useCreateItem();
 
   return (
-    <Button onClick={createItem} kind="icon" title={title}>
+    <AsyncButton
+      onClick={createItem}
+      onError={reportButtonFailure}
+      variant="ghost"
+      size="icon-sm"
+      title={title}
+    >
       <Img src={getExplorerIconsPath(imageName)} alt={title} />
-    </Button>
+    </AsyncButton>
   );
 };
 
 const CollapseAllButton = () => (
   <Button
     onClick={() => PgExplorer.collapseAllFolders()}
-    kind="icon"
+    variant="ghost"
+    size="icon-sm"
     title="Collapse folders"
   >
     <Img src={getExplorerIconsPath("collapse.png")} alt="Collapse folders" />
@@ -70,9 +73,11 @@ const CollapseAllButton = () => (
 );
 
 const GoBackButton = () => (
-  <Button
+  <AsyncButton
     onClick={() => PgRouter.navigate()}
-    kind="icon"
+    onError={reportButtonFailure}
+    variant="ghost"
+    size="icon-sm"
     title="Go back to projects"
   >
     <Img
@@ -80,7 +85,7 @@ const GoBackButton = () => (
       alt="Go back to your project"
       style={{ height: "0.875rem", width: "0.875rem" }}
     />
-  </Button>
+  </AsyncButton>
 );
 
 const getExplorerIconsPath = (name: string) => "/icons/explorer/" + name;

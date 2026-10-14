@@ -1,7 +1,6 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 
-import Button from "../../../../../components/Button";
 import ImportButton from "../../../../../components/ImportButton";
 import {
   PgCommand,
@@ -10,6 +9,9 @@ import {
   PgWallet,
 } from "../../../../../utils";
 import { useRenderOnChange } from "../../../../../hooks";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { Button } from "@/shared/ui/button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const IDL = () => (
   <Wrapper>
@@ -46,9 +48,11 @@ const Export = () => {
   if (!idl) return null;
 
   return (
-    <Button.Export href={idl} fileName="idl.json">
-      Export
-    </Button.Export>
+    <Button asChild variant="outline" className="w-fit">
+      <a href={PgCommon.getDataUrl(idl)} download="idl.json">
+        Export
+      </a>
+    </Button>
   );
 };
 
@@ -154,9 +158,15 @@ const InitOrUpgrade = () => {
   if (state === InitOrUpgradeState.HIDDEN) return null;
 
   return (
-    <Button disabled={disabled} loading={loading} onClick={handleInitOrUpgrade}>
+    <AsyncButton
+      variant="outline"
+      disabled={disabled}
+      loading={loading}
+      onClick={handleInitOrUpgrade}
+      onError={reportButtonFailure}
+    >
       {buttonText}
-    </Button>
+    </AsyncButton>
   );
 };
 

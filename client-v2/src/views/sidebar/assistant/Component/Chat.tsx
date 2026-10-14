@@ -3,7 +3,7 @@ import styled, { css } from "styled-components";
 
 import ChatItem from "./ChatItem";
 import Connect from "./Connect";
-import Button from "../../../../components/Button";
+import { Button } from "@/shared/ui/button";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import {
   PgAssistant,
@@ -404,15 +404,13 @@ const Chat = () => {
               }
             }}
           />
-          {/**
-           * Distinct keys: without them React reuses one `Button` instance for
-           * both, and its internal loading state carries across the swap.
-           */}
+          {/* Distinct keys: Stop and Send are different actions, so one's
+              focus and press state must not carry over to the other. */}
           {busy ? (
             <Button
               key="stop"
-              kind="secondary"
-              size="small"
+              variant="secondary"
+              size="sm"
               title="Stop this turn"
               onClick={stop}
             >
@@ -421,14 +419,9 @@ const Chat = () => {
           ) : (
             <Button
               key="send"
-              kind="primary"
-              size="small"
+              size="sm"
               disabled={!input.trim()}
-              // Deliberately not returned: `Button` awaits its handler and
-              // would sit disabled for the whole turn, Stop included
-              onClick={() => {
-                send(input);
-              }}
+              onClick={() => send(input)}
             >
               Send
             </Button>

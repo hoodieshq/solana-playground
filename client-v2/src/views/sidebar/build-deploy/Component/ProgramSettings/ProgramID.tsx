@@ -1,7 +1,6 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Button from "../../../../../components/Button";
 import ImportButton from "../../../../../components/ImportButton";
 import Input from "../../../../../components/Input";
 import { ModalFrame } from "@/widgets/overlays";
@@ -9,6 +8,10 @@ import Text from "../../../../../components/Text";
 import { Warning } from "../../../../../components/Icons";
 import { PgProgramInfo, PgCommon, PgView, PgWeb3 } from "../../../../../utils";
 import { useRenderOnChange } from "../../../../../hooks";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { Button } from "@/shared/ui/button";
+import { CopyButton } from "@/shared/ui/copy-button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const ProgramID = () => (
   <Wrapper>
@@ -30,7 +33,15 @@ const New = () => {
     }
   };
 
-  return <Button onClick={handleNew}>New</Button>;
+  return (
+    <AsyncButton
+      variant="outline"
+      onClick={handleNew}
+      onError={reportButtonFailure}
+    >
+      New
+    </AsyncButton>
+  );
 };
 
 const NewKeypairModal = () => {
@@ -60,13 +71,14 @@ const NewKeypairModal = () => {
             The old keypair will be lost if you don't save it.
           </Text>
         </WarningTextWrapper>
-        <Button.Export
-          href={Array.from(PgProgramInfo.kp!.secretKey)}
-          fileName="program-keypair.json"
-          buttonKind="outline"
-        >
-          Save keypair
-        </Button.Export>
+        <Button asChild variant="outline" className="w-fit">
+          <a
+            href={PgCommon.getDataUrl(Array.from(PgProgramInfo.kp!.secretKey))}
+            download="program-keypair.json"
+          >
+            Save keypair
+          </a>
+        </Button>
       </MainContent>
     </ModalFrame>
   );
@@ -109,12 +121,14 @@ const Export = () => {
   if (!kp || customPk) return null;
 
   return (
-    <Button.Export
-      href={Array.from(kp.secretKey)}
-      fileName="program-keypair.json"
-    >
-      Export
-    </Button.Export>
+    <Button asChild variant="outline" className="w-fit">
+      <a
+        href={PgCommon.getDataUrl(Array.from(kp.secretKey))}
+        download="program-keypair.json"
+      >
+        Export
+      </a>
+    </Button>
   );
 };
 
@@ -170,18 +184,20 @@ const InputPk = () => {
           validator={PgCommon.isPk}
           placeholder="Your program's public key"
         />
-        <Button.Copy copyText={val} />
+        <CopyButton value={val} onError={reportButtonFailure} />
       </InputWrapper>
       <InputWarning>
         <Warning color="warning" />
         Only the authority can upgrade.
       </InputWarning>
       {updateInfo.changed && (
-        <Button onClick={handleClick}>Change program ID</Button>
+        <Button variant="outline" onClick={handleClick}>
+          Change program ID
+        </Button>
       )}
 
       {!!PgProgramInfo.customPk && (
-        <Button onClick={handleRemoveCustomProgramId}>
+        <Button variant="outline" onClick={handleRemoveCustomProgramId}>
           Remove custom program ID
         </Button>
       )}
