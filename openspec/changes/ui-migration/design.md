@@ -585,19 +585,24 @@ here. One PR, stacked on 5.6's.
 | `leftIcon`, `rightIcon` | children with `data-icon="inline-start"` / `"inline-end"` |
 | `color`, `bg`, `hoverColor`, `fontWeight`, `fullWidth`, `size` | a variant, or a class |
 
-The brand buttons today: the Build stage's four (Deploy twice, Fix, Build),
-Deploy, the assistant's "Allow", Connect and Start from scratch.
+The brand buttons: the Build stage's four ("Continue to Deploy" twice and
+"Fix with assistant" twice; its Build, Retry build and Rebuild are
+`AsyncButton`s), Deploy, the assistant's "Allow", Connect and Start from
+scratch.
 
 **Waiting is opted into.** The legacy `Button` disabled itself and spun on
-every click whose handler returned a promise, `icon` excepted. `AsyncButton`
-does the same, so it goes only where the handler returns a promise or the
-caller passes `loading` (the sidebar's Build, the IDL's init/upgrade, the
-wallet's Send with `loadingText="Sending..."`). Every other button is a plain
-`Button`.
+every click (icon buttons excepted), awaiting the handler's result.
+`AsyncButton` does the same for a handler that returns a promise or any
+thenable, so it goes only where the handler returns one or the caller passes
+`loading` (the sidebar's Build, the IDL's init/upgrade, the wallet's Send
+with `loadingText="Sending..."`). `loading` adds to the button's own wait and
+never replaces it, so the sidebar's Deploy does not return its deploy: a
+second press while it runs pauses it. Every other button is a plain `Button`.
 
 **A click that fails is reported.** The design system's `AsyncButton` awaited
 the promise in a `try`/`finally`, so a rejection escaped as an unhandled
-rejection; `CopyButton` ignored a refused `clipboard.writeText`. Both gain
+rejection; with `CopyButton`, a refused `writeText` was an unhandled
+rejection too. Both gain
 `onError(error)`, changed in `design-system/` and reinstalled. Without it,
 `AsyncButton` rethrows as before and `CopyButton` shows no "Copied". In
 client-v2 every `AsyncButton` and `CopyButton` passes `reportButtonFailure`,
