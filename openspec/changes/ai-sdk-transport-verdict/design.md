@@ -2,17 +2,18 @@
 
 ## Context
 
-See proposal.md, "Why". The assistant has two hand-written loops: the
+See proposal.md, "Why". The assistant has two loops: the hand-written
 chat-completions loop in `model/openai.ts`, which serves the default backend
-through `api/agent.mjs` and every OpenAI-compatible provider, and the
-Anthropic Tool Runner in `model/anthropic.ts`. Both share the tool registry
+through `api/agent.mjs` and every OpenAI-compatible provider, and
+`model/anthropic.ts`, which drives the Anthropic SDK's Tool Runner and
+resumes `pause_turn` itself. Both share the tool registry
 (`createTools` in `model/tools.ts`), the approval gate inside each tool's
 `run`, and the stored thread shape settled in HOO-1737.
 
 HOO-1753 rebuilt the `openai.ts` loop on `streamText` from `ai@7.0.138` with
 `@ai-sdk/openai-compatible@3.0.68`, keeping the same registry, gate and store
-calls, behind a query flag on a throwaway branch off `master-2.0` at
-`73b9f506`. Nothing of it is pushed.
+calls, behind a query flag on a local throwaway branch off `master-2.0`. Nothing of
+it is pushed. `anthropic.ts` was not rebuilt; its provider package was read.
 
 ## Goals / Non-Goals
 
@@ -20,7 +21,7 @@ calls, behind a query flag on a throwaway branch off `master-2.0` at
 
 - Answer three questions: does the SDK run in `client-v2` now; what it costs
   in tools, approvals and the stored transcript; what it gives against the C
-  rail's needs.
+  rail's needs (the cost gate, HOO-1751, and the session token, HOO-1788).
 - Leave a verdict the team can approve or overturn, with the evidence behind
   it.
 
@@ -36,7 +37,7 @@ calls, behind a query flag on a throwaway branch off `master-2.0` at
 
 | Question | Result | How |
 | --- | --- | --- |
-| Peer React | `@ai-sdk/react@4` accepts `^18 \|\| ^19.2.1`; we run 19.3.0 | `npm view` |
+| Peer React | `@ai-sdk/react@4` accepts `^18 \|\| ^19.2.1`; we resolve 19.3.0 (`package.json` `^19.2.0`) | `npm view` |
 | Node-only core? | No. `engines.node >=22` is a tooling floor. Node built-ins are reached only through `process.getBuiltinModule` behind a Node-runtime check | read `dist/` of `ai`, `@ai-sdk/provider-utils` |
 | Builds under CRA 5 | `Compiled successfully` | `craco build` |
 | Types on TS 5.0.4 | `tsc --noEmit`: 0 errors, but only through `skipLibCheck`; SDK types that use `NoInfer` (TS 5.4) degrade to `any` | `yarn test-types` |
@@ -53,18 +54,20 @@ calls, behind a query flag on a throwaway branch off `master-2.0` at
 
 ### Keep our own loops; do not adopt the `ai` SDK
 
-The SDK runs in `client-v2` now: both reasons it was first rejected are gone.
+The SDK runs in `client-v2` now. Neither reason it was first rejected holds:
+React 19 removed one, and the other was a misreading of the core.
 It is rejected because it does not pay for itself.
 
 - **It gives the C rail nothing.** Streaming, tool calls and the provider set
   already work. The cost gate (HOO-1751) and the session token (HOO-1788)
   belong in `api/agent.mjs`, which pipes the upstream's stream: a client
-  library cannot enforce a cap, and the pipe can read per-turn usage from the
-  upstream's `usage` chunk (`stream_options.include_usage`) without it.
+  library cannot enforce a cap. Once the pipe sets `stream_options: {
+  include_usage: true }` on its upstream request (it does not today), it
+  reads per-turn usage from the final `usage` chunk without the SDK.
 - **Its default retries work against the cost gate.** The gate answers 429,
   and `maxRetries: 2` sends that request three times unless every call sets
   retries to 0.
-- **The Anthropic path would regress.** `@ai-sdk/anthropic@4` treats
+- **The Anthropic path would regress if it moved too.** `@ai-sdk/anthropic@4` treats
   `pause_turn` as an ordinary stop, which is exactly the cut-off answer
   `anthropic.ts` resumes today, and it drives the MCP connector on an older
   beta.
@@ -76,8 +79,13 @@ It is rejected because it does not pay for itself.
 
 Alternatives considered:
 
-- **Core only (`streamText`) under our store.** What the probe built. It
-  works, and is what a migration would be; rejected for the reasons above.
+- **Core only (`streamText`) under our store, on both paths.** What
+  HOO-1754 describes; rejected for all the reasons above.
+- **The SDK on the OpenAI-compatible path only, `anthropic.ts` kept.** What
+  the probe built, and the cheapest form of a migration: no Anthropic
+  regression. Rejected all the same: it gives the C rail nothing, costs the
+  205 KB on boot, needs retries switched off on every call, and leaves two
+  transport styles where there are two loops today.
 - **The full SDK (`useChat`, UI messages, `needsApproval`).** Rejected
   without a probe: it replaces the stored thread shape HOO-1737 settled and
   the approval cards with the SDK's own.

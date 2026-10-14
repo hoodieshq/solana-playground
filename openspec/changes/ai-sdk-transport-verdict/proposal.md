@@ -2,14 +2,14 @@
 
 ## Why
 
-HOO-1754 plans to move the assistant's transport to the Vercel `ai` SDK. It
-was rejected once, when `client-v2` ran React 17 and the SDK's core looked
+HOO-1754 plans to move the assistant's transport to the Vercel `ai` SDK. The
+SDK was rejected once, when `client-v2` ran React 17 and the SDK's core looked
 Node-only. React 19 (HOO-1850) removed the first reason, so HOO-1753 probed
 the SDK again before anyone builds the migration. The probe found that the
 SDK now runs in `client-v2`, but that it gives the C rail (the cost gate,
-HOO-1751, and the session token, HOO-1788) nothing it needs, and costs a
-regression on the Anthropic path. This change records that verdict for
-review, so the team agrees on it before HOO-1754 is cancelled.
+HOO-1751, and the session token, HOO-1788) nothing it needs, and would
+regress the Anthropic path if that moved too. This change records that
+verdict for review, so the team agrees on it before HOO-1754 is cancelled.
 
 ## What Changes
 
@@ -37,13 +37,14 @@ requirement changes; `.openspec.yaml` sets `skip_specs`.
 
 ## Impact
 
-- Code: none. The probe lived on an unpushed throwaway branch and none of it
+- Code: none. The probe lived on a local throwaway branch and none of it
   lands.
 - Planning: HOO-1754 leaves the C rail milestone. HOO-1751 and HOO-1788 are
   built in `client-v2/api/agent.mjs` without waiting on a transport change.
 - Users: nothing changes. Had the migration gone ahead, every first load
-  would download about 205 KB more gzipped JavaScript, and Anthropic answers
-  that pause mid-turn would end silently instead of resuming.
+  would download about 205 KB more gzipped JavaScript, and, had the Anthropic
+  path moved as well, answers that pause mid-turn would end silently instead
+  of resuming.
 - Out of scope:
   - Moving the agent loop to a server. If that happens, the SDK is weighed
     again there (see design.md, "Reopen when").
