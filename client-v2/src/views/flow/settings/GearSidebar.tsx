@@ -10,6 +10,7 @@ import {
   ImportFile,
 } from "../../../components/Icons";
 import Link from "../../../components/Link";
+import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { Endpoint, PLATFORM_ENDPOINTS } from "../../../constants";
 import {
   useBlockExplorer,
@@ -25,7 +26,6 @@ import {
   PgProgramInfo,
   PgSettings,
   PgView,
-  PgTheme,
 } from "../../../utils";
 import {
   ImportFs,
@@ -58,6 +58,41 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
     endpoint: value,
   })),
 ];
+
+export const NetworkChoice: FC<{
+  endpoint: string;
+  onPick: (endpoint: string) => void;
+  groupRef?: React.Ref<HTMLDivElement>;
+}> = ({ endpoint, onPick, groupRef }) => {
+  const listed = NETWORKS.some((n) => n.endpoint === endpoint);
+  return (
+    <Segmented
+      ref={groupRef}
+      variant="chips"
+      aria-label="Network"
+      value={listed ? endpoint : ""}
+      onValueChange={onPick}
+    >
+      {NETWORKS.map((n) => (
+        <SegmentedItem
+          key={n.endpoint}
+          value={n.endpoint}
+          className="font-mono"
+          // Selection follows focus, as it did before: the arrow keys pick a
+          // network, not only move to it. Radix moves the focus; this picks.
+          // Only from a listed endpoint: with Playnet or a custom URL the
+          // panel's open-focus lands on the first chip, which must not
+          // switch the network on its own.
+          onFocus={() =>
+            listed && n.endpoint !== endpoint && onPick(n.endpoint)
+          }
+        >
+          {n.label}
+        </SegmentedItem>
+      ))}
+    </Segmented>
+  );
+};
 
 /**
  * The Flow layout's settings overlay: network quick-switch, project export
@@ -102,7 +137,6 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
   // rest of the codebase consumes non-React-owned static state.
   useRenderOnChange(PgSettings.onDidChangeConnectionEndpoint);
   const endpoint = PgSettings.connection.endpoint;
-  const activeNetwork = NETWORKS.findIndex((n) => n.endpoint === endpoint);
 
   const explorer = useBlockExplorer();
   const wallet = useWallet();
@@ -135,23 +169,6 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
     }
   }, [open, focus]);
 
-  // Arrow keys move between clusters, selecting as they go. A radiogroup of
-  // `<button>`s gets none of this for free, unlike real radio inputs.
-  const moveNetworkFocus = (delta: number) => {
-    const chips =
-      chipsRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
-    if (!chips?.length) return;
-
-    const current = Array.from(chips).indexOf(
-      document.activeElement as HTMLButtonElement
-    );
-    const next =
-      ((current === -1 ? 0 : current) + delta + chips.length) % chips.length;
-
-    PgSettings.connection.endpoint = NETWORKS[next].endpoint;
-    chips[next].focus();
-  };
-
   // Close on Escape while open. Scoped to `open` (and skipped while a modal
   // is open, for the same reason as the outside-click guard above) rather
   // than a global keybind, so it never fires while the panel is closed.
@@ -183,43 +200,11 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
 
       <Section>
         <Eyebrow>Network</Eyebrow>
-        <Chips
-          ref={chipsRef}
-          role="radiogroup"
-          aria-label="Network"
-          onKeyDown={(ev) => {
-            const delta =
-              ev.key === "ArrowRight" || ev.key === "ArrowDown"
-                ? 1
-                : ev.key === "ArrowLeft" || ev.key === "ArrowUp"
-                ? -1
-                : 0;
-            if (!delta) return;
-            ev.preventDefault();
-            moveNetworkFocus(delta);
-          }}
-        >
-          {NETWORKS.map((n, i) => (
-            <Chip
-              key={n.endpoint}
-              type="button"
-              role="radio"
-              aria-checked={endpoint === n.endpoint}
-              // Roving tabindex: one stop for the whole group. Index 0 takes it
-              // when the endpoint is not one of these, so the group stays
-              // reachable by Tab.
-              tabIndex={
-                endpoint === n.endpoint || (activeNetwork === -1 && i === 0)
-                  ? 0
-                  : -1
-              }
-              $active={endpoint === n.endpoint}
-              onClick={() => (PgSettings.connection.endpoint = n.endpoint)}
-            >
-              {n.label}
-            </Chip>
-          ))}
-        </Chips>
+        <NetworkChoice
+          groupRef={chipsRef}
+          endpoint={endpoint}
+          onPick={(e) => (PgSettings.connection.endpoint = e)}
+        />
       </Section>
 
       <Section>
@@ -345,49 +330,6 @@ const Eyebrow = styled.div`
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: ${theme.colors.default.primary};
-  `}
-`;
-
-const Chips = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-`;
-
-const Chip = styled.button<{ $active: boolean }>`
-  ${({ theme, $active }) => css`
-    padding: 0.375rem 0.875rem;
-    border-radius: 999px;
-    border: 1px solid
-      ${$active ? theme.colors.default.primary : theme.colors.default.border};
-    background: ${$active
-      ? PgTheme.alpha(theme.colors.default.primary, "medium")
-      : "transparent"};
-    color: ${$active
-      ? theme.colors.default.primary
-      : theme.colors.default.textSecondary};
-    font-family: ${theme.font.code.family};
-    font-size: ${theme.font.code.size.small};
-    cursor: pointer;
-    transition: color ${theme.default.transition.duration.short}
-        ${theme.default.transition.type},
-      border-color ${theme.default.transition.duration.short}
-        ${theme.default.transition.type},
-      background ${theme.default.transition.duration.short}
-        ${theme.default.transition.type};
-
-    &:hover {
-      color: ${theme.colors.default.primary};
-      border-color: ${theme.colors.default.primary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 1px;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
   `}
 `;
 

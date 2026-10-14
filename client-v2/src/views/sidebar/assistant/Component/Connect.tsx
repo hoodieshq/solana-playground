@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import GradientButton from "../../../../components/GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
@@ -270,19 +271,23 @@ const Connect = () => {
           />
           <Label htmlFor="assistant-model">MODEL</Label>
           {provider.endpoint.models && (
-            <Presets>
+            <Segmented
+              variant="chips"
+              aria-label="Model presets"
+              value={
+                provider.endpoint.models.includes(endpoint.model)
+                  ? endpoint.model
+                  : ""
+              }
+              onValueChange={(m) => setEndpoint({ ...endpoint, model: m })}
+              className="pb-[0.4375rem]"
+            >
               {provider.endpoint.models.map((m) => (
-                <Preset
-                  key={m}
-                  type="button"
-                  aria-pressed={m === endpoint.model}
-                  $selected={m === endpoint.model}
-                  onClick={() => setEndpoint({ ...endpoint, model: m })}
-                >
+                <SegmentedItem key={m} value={m} className="font-mono">
                   {m}
-                </Preset>
+                </SegmentedItem>
               ))}
-            </Presets>
+            </Segmented>
           )}
           <Field
             id="assistant-model"
@@ -572,41 +577,6 @@ const Chevron = styled.span<{ $open: boolean }>`
 
 const Field = styled(Input)`
   margin-bottom: 0.75rem;
-`;
-
-const Presets = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  padding-bottom: 0.4375rem;
-`;
-
-const Preset = styled.button<{ $selected: boolean }>`
-  ${({ theme, $selected }) => css`
-    padding: 0.1875rem 0.4375rem;
-    background: ${$selected ? theme.colors.state.hover.bg : "transparent"};
-    border: 1px solid
-      ${$selected ? theme.colors.default.primary : theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    color: ${$selected
-      ? theme.colors.default.primary
-      : theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.code.size.xsmall};
-    cursor: pointer;
-    transition: all ${theme.default.transition.duration.medium}
-      ${theme.default.transition.type};
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.default.textPrimary};
-    }
-
-    &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-      outline-offset: -1px;
-    }
-  `}
 `;
 
 const Picker = styled.div`
