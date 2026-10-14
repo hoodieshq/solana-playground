@@ -66,7 +66,7 @@ it("shows the logo, switcher and footer when open", () => {
 it("hides the switcher and footer when collapsed, keeping the items", () => {
   draw(true);
   expect(screen.queryByText("switcher")).toBeNull();
-  // Hidden, not unmounted: the feedback form in the footer keeps its draft
+  // Hidden by an inline style, which beats the footer's own `flex`
   const footer = screen
     .getByText("footer")
     .closest<HTMLElement>('[data-slot="sidebar-footer"]');

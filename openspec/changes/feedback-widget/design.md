@@ -120,11 +120,11 @@ with two implementations:
   resolves, or rejects when `fail` is set. Only tests use it, by its module
   path; the slice's `index.ts` does not export it.
 
-`FeedbackWidget` reads the provider from a React context whose default is
+`FeedbackHost` reads the provider from a React context whose default is
 `reporterFeedbackProvider()`. `useFeedbackForm` receives the provider, the
 cluster, and the `onSent` and `onFailedClosed` callbacks in one options
 object, so its tests pass them directly and never touch `PgConnection` or
-`PgView`; the widget reads the cluster and shows the toasts.
+`PgView`; the host reads the cluster and shows the toasts.
 
 ### Tests, by layer
 
@@ -136,8 +136,9 @@ object, so its tests pass them directly and never touch `PgConnection` or
   memory telemetry provider), against `memoryFeedbackProvider`.
 - `Base*` components: interaction, driven with `user-event` by role,
   label and key, through props only.
-- `FeedbackWidget`: integration, the whole slice and one send end to end,
-  over the real reporter and the capturing transport.
+- `FeedbackHost` with `FeedbackTrigger`: integration, the whole slice and
+  one send end to end, over the real reporter and the capturing transport,
+  and a draft and a send that outlive the trigger unmounting.
 - The page: Playwright, the scenarios not marked `(manual)`, against the
   dev server.
 
@@ -161,8 +162,10 @@ All four live in `features/feedback/ui`:
 - `BaseStarRating`, private to the form: native radios, the `lucide-react`
   `Star`, `fill-primary` for a chosen star and `fill-surface-raised` for
   the rest.
-- `FeedbackWidget`: the two `Base*` components, `useFeedbackForm`, the
-  provider context, and the telemetry.
+- `FeedbackHost`: `BaseFeedbackForm`, `useFeedbackForm`, the provider
+  context and the telemetry; `FeedbackTrigger`, below it wherever the page
+  puts it, renders `BaseFeedbackWidget` from what the host hands it through a
+  context of the slice's own.
 
 `modal` replaces the Explorer's split between `Dialog` and `Drawer` on
 `isSm`: it is already a dialog on a wide screen and a page on a phone.
@@ -194,9 +197,12 @@ The modal opens from a menu item and has no trigger of its own, so
 
 ### Where it mounts
 
-`views/flow/Flow.tsx` renders `<FeedbackWidget />` beside `LayoutShell`. A
-legacy root may import a feature; the widget adds no UI to the legacy root
-itself.
+`views/flow/Flow.tsx` wraps the whole frame in `<FeedbackHost>` and puts
+`<FeedbackTrigger />` in the navigation's footer. The state sits in the host,
+above the shell, because the footer does not stay mounted: below 768 px it is
+in the navigation's Sheet, which unmounts its content on close, and crossing
+that width swaps the Sheet for the rail. A legacy root may import a feature;
+the slice adds no UI to the legacy root itself.
 
 ### What the browser suite can reach
 
@@ -228,8 +234,9 @@ is nothing to read but the toast, so the failure is a toast there.
   frame (`ui-migration` 5.2) put the navigation's footer in that corner, and
   the trigger covered the cluster chip and the avatar. It now sits in that
   footer, under the status chips, where the prototype keeps "Report a bug".
-  The footer is hidden, not unmounted, on the rail, so an open form keeps
-  its draft.
+  The footer is hidden on the rail and unmounted with the phone's Sheet, so
+  the form and its state stay in `FeedbackHost`, above the navigation, and
+  only the trigger moves with the footer.
 - [The feedback text reaches Sentry, which the team reads] → the message is
   never put in telemetry; the spec forbids it.
 

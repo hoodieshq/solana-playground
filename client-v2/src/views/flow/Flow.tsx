@@ -28,7 +28,7 @@ import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
-import { FeedbackWidget } from "@/features/feedback";
+import { FeedbackHost, FeedbackTrigger } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Assistant from "@/views/sidebar/assistant/Component";
 import ModalBackdrop from "@/components/ModalBackdrop";
@@ -41,12 +41,24 @@ import type { Disposable } from "@/utils/types";
 
 /**
  * The Flow layout, with no header: `LayoutShell` places four columns, the
- * navigation (`AppNav`, holding the logo, the project switcher and the status
- * chips), the assistant, the files column, and the stage router over its
- * collapsible console, with the `StageBar` stepper across the last two. The
- * sync banner sits above all four, full width.
+ * navigation (`AppNav`, holding the logo, the project switcher, and the status
+ * chips and the feedback trigger in its footer), the assistant, the files
+ * column, and the stage router over its collapsible console, with the
+ * `StageBar` stepper across the last two. The sync banner sits above all four,
+ * full width.
+ *
+ * The feedback form and its state sit in `FeedbackHost`, above the frame, not
+ * in the footer with the trigger: below `LAYOUT_BREAKPOINTS.left` the footer
+ * is in a Sheet that unmounts on close, and crossing that width swaps it for
+ * the rail, so a draft or a send held in the footer would go with it.
  */
-const Flow = () => {
+const Flow = () => (
+  <FeedbackHost>
+    <FlowFrame />
+  </FeedbackHost>
+);
+
+const FlowFrame = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
@@ -172,7 +184,7 @@ const Flow = () => {
                   onToggleSettings={toggleSettings(closeSheet)}
                   settingsOpen={settingsOpen}
                 />
-                <FeedbackWidget />
+                <FeedbackTrigger />
               </>
             }
           />

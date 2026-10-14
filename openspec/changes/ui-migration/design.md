@@ -342,7 +342,8 @@ exists.
 SidebarProvider (collapsible="icon", controlled open, ⌘B)
 ├─ Sidebar → AppNav: logo, Home, New project, Tutorials, Programs,
 │            ProjectSwitcher (as is), footer: StatusChips (as is) and
-│            FeedbackWidget; hidden on the rail, never unmounted
+│            FeedbackTrigger; hidden on the rail (the form and its
+│            state sit in FeedbackHost, above the shell)
 └─ SidebarInset → Group horizontal (id layout-horizontal)
    ├─ Panel assistant (left; folds to its 24 px strip; a right Sheet below
    │                   LAYOUT_BREAKPOINTS.compact, as in 5.1)

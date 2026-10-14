@@ -64,8 +64,10 @@ const BaseAppNav = ({
         ))}
       </SidebarMenu>
     </SidebarContent>
-    {/* Hidden on the rail, never unmounted: the feedback form it holds would
-        lose its draft. Inline, because the footer's own `flex` beats `hidden` */}
+    {/* Hidden on the rail. What it holds keeps its state above it
+        (`FeedbackHost`, `PgSession`), because below
+        `LAYOUT_BREAKPOINTS.left` the stock Sidebar's Sheet unmounts it on
+        close. Inline, because the footer's own `flex` beats `hidden` */}
     <SidebarFooter style={collapsed ? { display: "none" } : undefined}>
       <div className="flex flex-wrap items-center gap-2">{footer}</div>
     </SidebarFooter>

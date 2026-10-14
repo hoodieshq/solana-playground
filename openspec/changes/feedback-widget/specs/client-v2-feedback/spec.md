@@ -13,8 +13,11 @@ the events `features/feedback` sends.
 The page SHALL show a round button with the `aria-label` "Feedback" in the
 navigation's footer, under the status chips, with a 1px ring of the product
 gradient. Where the navigation is folded to its rail the trigger is hidden
-with the rest of the footer, and kept mounted so an open form keeps its draft. Pressing it SHALL open a menu above it,
-aligned to its start. An open modal, and a toast, SHALL cover the trigger.
+with the rest of the footer. The form, its draft and its send SHALL be held
+above the navigation, so they outlive the trigger: below 768 px the footer is
+in the navigation's Sheet, which unmounts it on close. Pressing the trigger
+SHALL open a menu above it, aligned to its start. An open modal, and a toast,
+SHALL cover the trigger.
 
 #### Scenario: The menu opens
 
@@ -105,6 +108,14 @@ the user allows motion, until the send ends.
 - **WHEN** the user picks three stars, types a message, closes the form and
   opens it again
 - **THEN** the three stars and the message are as the user left them
+
+#### Scenario: A draft outlives the navigation's Sheet (manual)
+
+- **WHEN** on a 375 px window the user opens the navigation's Sheet, opens
+  the form from its trigger, types a message, closes the form and the Sheet,
+  and opens both again
+- **THEN** the message is as the user left it, and a send still in flight
+  shows on the trigger
 
 ### Requirement: One browser module imports the Sentry SDK
 
