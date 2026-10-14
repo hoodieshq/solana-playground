@@ -31,8 +31,17 @@ export type ToastOptions = {
   duration?: number | "persistent";
 };
 
-/** Props a toast's component receives */
+/** Props a toast's component receives on top of its own */
 export type ToastChildProps = { id: ToastId };
+
+/**
+ * What `PgView.setToast` sends and `ToastHost` receives. The event is a
+ * plain DOM event, so a sender outside `setToast` may still omit `options`.
+ */
+export type ToastRequest = {
+  elementable: Elementable<any>;
+  props?: { componentProps?: Record<string, unknown>; options?: ToastOptions };
+};
 
 /** Sidebar page param */
 export type SidebarPageParam<N extends string> = {
@@ -264,8 +273,8 @@ class _PgView {
    * @param elementable component to show
    * @param props component props and toast options
    */
-  static setToast<P extends Record<string, unknown>>(
-    elementable: Elementable<P>,
+  static setToast<P extends Record<string, unknown> = Record<string, never>>(
+    elementable: Elementable<P & ToastChildProps>,
     props: { componentProps?: P; options: ToastOptions }
   ) {
     return PgCommon.createAndDispatchCustomEvent(PgView.events.TOAST_SET, {

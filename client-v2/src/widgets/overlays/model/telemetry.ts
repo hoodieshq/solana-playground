@@ -5,7 +5,7 @@ type OverlayEvents = {
   overlay_modal_opened: { name: string };
   /** A dialog's submit threw; the dialog stays open and shows the error. */
   overlay_modal_submit_failed: { name: string };
-  /** A toast was shown. */
+  /** A toast was shown, or replaced one with the same id. */
   overlay_toast_shown: { name: string };
 };
 

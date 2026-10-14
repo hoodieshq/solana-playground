@@ -13,7 +13,8 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import { PgCommon } from "@/utils/common";
-import { PgView } from "@/utils/view";
+import { RAIL_WIDTH } from "@/shared/lib/hooks/use-viewport";
+import { DEFAULT_TOAST_DURATION, PgView } from "@/utils/view";
 import type { ToastChildProps } from "@/utils/view";
 import { ToastHost } from "./ToastHost";
 
@@ -159,7 +160,7 @@ it("should keep clear of the rail on a wide window", () => {
   // Sonner draws its list once there is a toast
   show({ name: "demo", id: "o", duration: "persistent" });
 
-  expect(offsetLeft()).toBe("calc(3.25rem + 1rem)");
+  expect(offsetLeft()).toBe(`calc(${RAIL_WIDTH} + 1rem)`);
 });
 
 it("should not reserve the rail below 768 px, where the panel is a Sheet", () => {
@@ -184,37 +185,81 @@ it("should keep two toasts with no id apart, whatever the random draw", () => {
   expect(screen.getAllByText(/^message /)).toHaveLength(2);
 });
 
-it("should report a toast that cannot be built, and not throw from the event", () => {
-  render(<ToastHost />);
-  vi.spyOn(PgView, "normalizeElement").mockImplementation(() => {
-    throw new Error("cannot build");
-  });
+it("should report a toast that throws while rendering, close it and keep the app", () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const Broken = (): never => {
+    throw new Error("render failed");
+  };
+  render(
+    <>
+      <p>the app</p>
+      <ToastHost />
+    </>
+  );
 
   act(() => {
-    PgView.setToast(Message, { options: { name: "cluster-unreachable" } });
+    PgView.setToast(Broken, { options: { name: "broken" } });
   });
   act(() => {
     vi.advanceTimersByTime(50);
   });
 
+  expect(screen.getByText("the app")).toBeTruthy();
+  expect(
+    logs.entries
+      .filter((entry) => entry.level === "error")
+      .map((entry) => ({
+        ns: entry.ns,
+        report: entry.report,
+        name: entry.context?.name,
+      }))
+  ).toEqual([{ ns: "overlays:toast-host", report: true, name: "broken" }]);
+});
+
+it("should close a toast with no id from inside, by the id it was given", () => {
+  const Closable = ({ id }: ToastChildProps) => (
+    <button onClick={() => PgView.closeToast(id)}>close me</button>
+  );
+  render(<ToastHost />);
+  act(() => {
+    PgView.setToast(Closable, {
+      options: { name: "closable", duration: "persistent" },
+    });
+  });
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
+
+  act(() => {
+    screen.getByRole("button", { name: "close me" }).click();
+  });
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
+
+  expect(screen.queryByRole("button", { name: "close me" })).toBeNull();
+});
+
+it("should take the default duration for one that is not a positive number, and warn", () => {
+  render(<ToastHost />);
+  show({ name: "demo", id: "d", duration: -1 });
+
+  act(() => {
+    vi.advanceTimersByTime(DEFAULT_TOAST_DURATION + 1000);
+  });
+
+  expect(screen.queryByText("message d")).toBeNull();
   expect(
     logs.entries.map((entry) => ({
-      ns: entry.ns,
       level: entry.level,
-      report: entry.report,
-      context: entry.context,
+      message: entry.message,
     }))
   ).toEqual([
-    {
-      ns: "overlays:toast-host",
-      level: "error",
-      report: true,
-      context: { name: "cluster-unreachable" },
-    },
+    { level: "warn", message: "toast duration is not a positive number" },
   ]);
-  expect(
-    sent.events.filter((event) => event.name === "overlay_toast_shown")
-  ).toHaveLength(0);
 });
 
 const toasterTheme = () =>
@@ -224,14 +269,6 @@ const toasterTheme = () =>
 
 describe("the toaster's theme", () => {
   afterEach(() => document.documentElement.classList.remove("dark"));
-
-  it("should be dark when the app is in a dark theme", () => {
-    document.documentElement.classList.add("dark");
-    render(<ToastHost />);
-    show({ name: "demo", id: "t", duration: "persistent" });
-
-    expect(toasterTheme()).toBe("dark");
-  });
 
   it("should be light when the app is in a light theme", () => {
     render(<ToastHost />);

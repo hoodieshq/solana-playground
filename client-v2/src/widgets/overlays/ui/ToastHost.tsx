@@ -1,4 +1,5 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { Component, useCallback, useSyncExternalStore } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 
 import { toast } from "sonner";
 
@@ -11,24 +12,54 @@ import { Toaster } from "@/shared/ui/sonner";
 import type { Elementable } from "@/utils/types";
 import { PgView } from "@/utils/view";
 import { DEFAULT_TOAST_DURATION } from "@/utils/view";
-import type { ToastId, ToastOptions } from "@/utils/view";
+import type { ToastId, ToastOptions, ToastRequest } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
 
 const log = createLogger("overlays:toast-host");
 
-type ToastEvent = {
-  elementable: Elementable;
-  props?: {
-    componentProps?: Record<string, unknown>;
-    // Typed required by `PgView.setToast`; a raw event may still omit it
-    options?: ToastOptions;
-  };
+/** How long the toast stays; a duration that is not a positive number is a mistake, and gets the default */
+const durationOf = (name: string, duration: ToastOptions["duration"]) => {
+  if (duration === "persistent") return Infinity;
+  if (duration === undefined) return DEFAULT_TOAST_DURATION;
+  if (Number.isFinite(duration) && duration > 0) return duration;
+  log.warn("toast duration is not a positive number", {
+    context: { name, duration: String(duration) },
+  });
+  return DEFAULT_TOAST_DURATION;
 };
 
-const durationOf = (duration: ToastOptions["duration"]) => {
-  if (duration === "persistent") return Infinity;
-  return duration ?? DEFAULT_TOAST_DURATION;
+/** A name to log for a toast's component; never its source */
+const componentName = (elementable: Elementable<any>) => {
+  if (typeof elementable === "function") return elementable.name || "anonymous";
+  return "element";
 };
+
+/**
+ * Keeps a toast that throws while rendering from taking the app with it:
+ * the failure is reported and the toast closes.
+ */
+class ToastBoundary extends Component<
+  { id: ToastId; name: string; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    log.error(error, {
+      report: true,
+      context: { name: this.props.name, componentStack: info.componentStack },
+    });
+    toast.dismiss(this.props.id);
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 /**
  * The app's theme mode, read from the `dark` class that `applyThemeMode` puts
@@ -50,8 +81,9 @@ const modeNow = () =>
  * left and clear of the rail.
  *
  * The toaster sits above the dialogs and the navigation's Sheet (`z-[60]`,
- * over their `z-50`), as the legacy toast layer did: a toast must stay
- * visible and usable whatever is open, a persistent one included. A modal
+ * over their `z-50`). The legacy layer sat under the modal backdrop; this one
+ * does not, on purpose: a toast must stay visible and usable whatever is
+ * open, a persistent one included. A modal
  * layer sets `pointer-events: none` on the body, so the toaster turns it back
  * on. A click on a toast over a dialog would count as outside it, so
  * `BaseModalFrame` ignores one (`isInsideToast`). The stock Sheet is rendered
@@ -62,32 +94,25 @@ export const ToastHost = () => {
   // Below this width the navigation is a Sheet and there is no rail to clear
   const noRail = useIsMobile();
   const mode = useSyncExternalStore(subscribeToMode, modeNow);
-  const show = useCallback(({ elementable, props }: ToastEvent) => {
+  const show = useCallback(({ elementable, props }: ToastRequest) => {
     const options = props?.options;
     if (!options?.name) {
       log.warn("toast without a name", {
-        context: { elementable: String(elementable) },
+        context: { elementable: componentName(elementable) },
       });
     }
     const name = options?.name ?? "unnamed";
     // A random small int could repeat and silently replace a live toast
     const id = options?.id ?? uuid();
 
-    try {
-      // The component gets the toast's id, so it can close itself (NonLocal
-      // does)
-      toast(
-        PgView.normalizeElement(elementable, { ...props?.componentProps, id }),
-        {
-          id,
-          duration: durationOf(options?.duration),
-        }
-      );
-    } catch (e) {
-      // The event's sender cannot handle this; the team hears of it
-      log.error(e, { report: true, context: { name } });
-      return;
-    }
+    // The component gets the toast's id, so it can close itself (NonLocal
+    // does)
+    toast(
+      <ToastBoundary id={id} name={name}>
+        {PgView.normalizeElement(elementable, { ...props?.componentProps, id })}
+      </ToastBoundary>,
+      { id, duration: durationOf(name, options?.duration) }
+    );
     overlayTelemetry.track("overlay_toast_shown", { name });
   }, []);
 
