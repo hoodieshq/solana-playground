@@ -96,7 +96,7 @@ const WorkspaceButtons = () => {
 
 const log = createLogger("explorer:workspaces");
 
-const WorkspaceSelect = () => {
+export const WorkspaceSelect = () => {
   const explorer = useExplorer();
 
   const [tutorials, projects] = PgCommon.filterWithRemaining(
