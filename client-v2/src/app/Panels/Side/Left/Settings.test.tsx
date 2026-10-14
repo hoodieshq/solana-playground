@@ -120,4 +120,26 @@ describe("SettingSetterSelect", () => {
 
     expect(setModal).toHaveBeenCalledTimes(1);
   });
+
+  it("stays controlled and shows no option for a value no option has, without custom", () => {
+    // Radix says so through `console.warn`, React through `console.error`
+    const consoleWarn = vi.spyOn(console, "warn");
+    const consoleError = vi.spyOn(console, "error");
+    let current = "devnet";
+    const s = setting({ value: "devnet" });
+    s.getValue = () => current;
+    const { rerender } = render(<SettingSetterSelect {...s} />);
+
+    // a stored value the options no longer list, e.g. from an older build
+    current = "gone";
+    rerender(<SettingSetterSelect {...s} />);
+
+    expect(screen.getByRole("combobox", { name: "Endpoint" }).textContent).toBe(
+      ""
+    );
+    expect(consoleWarn).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleWarn.mockRestore();
+    consoleError.mockRestore();
+  });
 });

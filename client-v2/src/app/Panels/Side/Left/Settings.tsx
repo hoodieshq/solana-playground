@@ -222,7 +222,10 @@ export const SettingSetterSelect: FC<
 
   return (
     <Select
-      value={value}
+      // A stored value no option has, and no Custom row to stand for it:
+      // `""` keeps the select controlled and shows the empty trigger, where
+      // `undefined` would hand the value to Radix's own state
+      value={value ?? ""}
       onValueChange={(v) => {
         if (v === CUSTOM_VALUE) openCustom();
         else setting.setValue(v);
