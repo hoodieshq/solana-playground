@@ -6,7 +6,7 @@ import InputLabel from "../InputLabel";
 import Interaction from "../Interaction";
 import Foldable from "../../../../../components/Foldable";
 import SearchBar from "../../../../../components/SearchBar";
-import Text from "../../../../../components/Text";
+import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { SpinnerWithBg } from "../../../../../components/Loading";
 import { PgCommon, PgWeb3 } from "../../../../../utils";
 import { PgProgramInteraction } from "../../../../../utils/program-interaction";
@@ -111,7 +111,9 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
           >
             <SpinnerWithBg loading={fetchOneLoading || fetchAllLoading}>
               {fetchError ? (
-                <FetchError kind="error">{fetchError}</FetchError>
+                <Callout variant="error">
+                  <CalloutDescription>{fetchError}</CalloutDescription>
+                </Callout>
               ) : (
                 <CodeResult index={index}>
                   {PgCommon.prettyJSON(fetchedData!)}
@@ -137,10 +139,6 @@ const ButtonsWrapper = styled.div`
 
 const ResultWrapper = styled.div`
   margin-top: 1rem;
-  width: 100%;
-`;
-
-const FetchError = styled(Text)`
   width: 100%;
 `;
 
