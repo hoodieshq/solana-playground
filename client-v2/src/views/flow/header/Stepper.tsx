@@ -22,7 +22,8 @@ const LABEL: Record<Stage, string> = {
  * Writing has no completion signal of its own, so it is inferred: reaching a
  * build is what puts it behind you. Going back to the Write tab to look at
  * your code does not un-write it — deriving `done` from the selected tab alone
- * greyed the connector every time the learner glanced at their own source.
+ * left Write showing as not done every time the learner glanced at their
+ * own source.
  *
  * A build restored from the workspace's own record counts too: it happened,
  * even though `buildStartedAt` names a run this page never watched.
@@ -40,12 +41,7 @@ export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
 interface StepperProps {
   state: FlowState;
   onSelect: (stage: Stage) => void;
-  /**
-   * The stage the current lesson step is aiming at, drawn as a ring.
-   * `null` outside a lesson. Nothing else about the stepper changes:
-   * the loop stays a loop, and this only says where the lesson is
-   * pointing.
-   */
+  /** The stage the current lesson step is aiming at; `null` outside a lesson. */
   target?: Stage | null;
 }
 
