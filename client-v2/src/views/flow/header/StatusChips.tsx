@@ -10,6 +10,7 @@ import {
   useWallet,
 } from "../../../hooks";
 import { PgSession } from "../../../features/auth";
+import { createLogger } from "../../../shared/lib/logger";
 import { PgCommand, PgConnection } from "../../../utils";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
@@ -29,6 +30,8 @@ interface StatusChipsProps {
 
 const shortenPk = (s: string) => `${s.slice(0, 4)}...${s.slice(-4)}`;
 
+const log = createLogger("flow:status-chips");
+
 /** Cluster, wallet + balance and a settings entry point. */
 const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
   onToggleSettings,
@@ -43,8 +46,9 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
     PgConnection.onDidChangeIsClusterDown
   );
   useRenderOnChange(PgSession.onDidChange);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  // Read from the session, not kept here: on a phone these chips sit in the
+  // navigation's Sheet, which unmounts them on close while the sign-in goes on
+  const signInState = PgSession.signInState();
   const github = PgSession.get();
 
   const [profileOpen, setProfileOpen] = useState(false);
@@ -79,16 +83,12 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
     }
   }, [profileOpen]);
 
-  const signIn = async () => {
-    setAuthError(null);
-    setSigningIn(true);
-    try {
-      await PgSession.signIn();
-    } catch (e) {
-      setAuthError((e as Error).message);
-    } finally {
-      setSigningIn(false);
-    }
+  const signIn = () => {
+    PgSession.signIn().catch((error: unknown) =>
+      // `PgSession.signInState` holds the failure and the chips show it from
+      // there; telemetry already has its reason
+      log.info("sign-in failed", { context: { error: String(error) } })
+    );
   };
 
   return (
@@ -194,7 +194,7 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
             </Popover>
           )}
         </ProfileWrapper>
-      ) : signingIn ? (
+      ) : signInState.status === "pending" ? (
         // The popup cannot be asked whether it is still open once GitHub has
         // taken it over, so this is the only way out of the wait short of the
         // ten-minute timeout -- see `popup-channel.ts`.
@@ -216,9 +216,9 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
           <CompactHidden>Sign in</CompactHidden>
         </GithubChip>
       )}
-      {authError && (
-        <AuthError role="alert" title={authError}>
-          {authError}
+      {signInState.status === "failed" && (
+        <AuthError role="alert" title={signInState.message}>
+          {signInState.message}
         </AuthError>
       )}
       <IconButton
