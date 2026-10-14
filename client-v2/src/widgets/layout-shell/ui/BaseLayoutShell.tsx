@@ -4,7 +4,6 @@ import type { CSSProperties, MutableRefObject, ReactNode } from "react";
 import { usePanelRef } from "react-resizable-panels";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
-import { useIsMobile } from "@/shared/lib/hooks/use-mobile";
 import type { Viewport } from "@/shared/lib/hooks/use-viewport";
 import { createLogger } from "@/shared/lib/logger";
 import type { Disposable } from "@/utils/types";
@@ -76,18 +75,47 @@ export interface PanelState {
   onOpenChange: (open: boolean) => void;
 }
 
-/** What the stock Sidebar hands the navigation */
-export interface NavStock {
-  /** The stock toggle: the rail from 768 px, the Sheet below */
-  toggle: () => void;
-  /** Whether the Sidebar is its Sheet, below `LAYOUT_BREAKPOINTS.left` */
-  isMobile: boolean;
-  /** Folded to its rail; never true in the Sheet, which has no rail */
-  collapsed: boolean;
-}
+/**
+ * What the stock Sidebar hands the navigation. A union on `isMobile`, so the
+ * Sheet, which has no rail, cannot be handed `collapsed: true`.
+ */
+export type NavStock =
+  | {
+      /** The Sidebar is its Sheet, below `LAYOUT_BREAKPOINTS.left` */
+      isMobile: true;
+      /** Opens or closes the Sheet */
+      toggle: () => void;
+      collapsed: false;
+    }
+  | {
+      isMobile: false;
+      /** Folds or unfolds the rail, from `LAYOUT_BREAKPOINTS.left` up */
+      toggle: () => void;
+      /** Folded to its rail */
+      collapsed: boolean;
+    };
+
+/**
+ * What the files column is handed: below `LAYOUT_BREAKPOINTS.left` it sits in
+ * the navigation's Sheet and the stock toggle opens and closes that Sheet;
+ * from there up it is in the work group, where there is no Sheet and so no
+ * toggle to hand it.
+ */
+export type FilesStock =
+  | { isMobile: true; toggle: () => void }
+  | { isMobile: false };
 
 export interface BaseLayoutShellProps {
   viewport: Viewport;
+  /**
+   * Whether the window is below `LAYOUT_BREAKPOINTS.left`, so the files column
+   * is in the navigation's Sheet and not in the work group. One source, given
+   * by the caller (`useIsLeftSheet`), so the column is mounted once, in the
+   * right place, and a test reaches the phone layout with a prop. The stock
+   * Sidebar still decides its own Sheet with its own hook, which agrees on
+   * the width (`use-viewport.test.ts`) but is a render late on first load.
+   */
+  isMobile: boolean;
   /** The stock Sidebar's open state from `LAYOUT_BREAKPOINTS.left` up */
   navOpen: boolean;
   /** The stock Sidebar's toggle or ⌘B changed `navOpen` */
@@ -116,10 +144,10 @@ export interface BaseLayoutShellProps {
   /**
    * Renders the files column: in the work group from
    * `LAYOUT_BREAKPOINTS.left`, under the navigation in the stock Sidebar's
-   * Sheet below it, where a phone has no room for a column of its own. It is
-   * handed the stock toggle, which there opens and closes that Sheet.
+   * Sheet below it, where a phone has no room for a column of its own. In the
+   * Sheet it is handed the stock toggle, which opens and closes that Sheet.
    */
-  files: (stock: { isMobile: boolean; toggle: () => void }) => ReactNode;
+  files: (stock: FilesStock) => ReactNode;
   /**
    * Below `LAYOUT_BREAKPOINTS.left`: the navigation's Sheet opened or closed.
    * Not folded into one open/onOpenChange pair with `navOpen`: the stock
@@ -134,7 +162,8 @@ export interface BaseLayoutShellProps {
    * tree (rename, delete) could not be typed into while it stays open.
    * `close` returns whether it closed anything: on a wider window the stock
    * Sidebar can still hold the Sheet as open from before, but shows no Sheet.
-   * Pass a stable function: a new one each render resubscribes each render.
+   * `closeLeftSheetOn` is read once, when the shell mounts, so a new function
+   * each render is harmless: the subscription does not follow it.
    */
   closeLeftSheetOn: (close: () => boolean) => Disposable;
   /**
@@ -142,8 +171,8 @@ export interface BaseLayoutShellProps {
    * each time `toggle` is called, for as long as the returned disposable
    * lives, so a key outside the Sidebar (⌘E) reaches the Sheet that holds the
    * files column. `toggle` returns whether it did: from that width up there
-   * is no Sheet, and the caller toggles the column instead. Pass a stable
-   * function, as for `closeLeftSheetOn`.
+   * is no Sheet, and the caller toggles the column instead. Read once, as
+   * `closeLeftSheetOn` is.
    */
   toggleLeftSheetOn: (toggle: () => boolean) => Disposable;
   /** Across the top of the work area, over the files column and the stage */
@@ -214,7 +243,9 @@ const NavSlot = ({
   const { toggleSidebar, isMobile, open } = useSidebar();
   return (
     <>
-      {nav({ toggle: toggleSidebar, isMobile, collapsed: !isMobile && !open })}
+      {isMobile
+        ? nav({ isMobile, toggle: toggleSidebar, collapsed: false })
+        : nav({ isMobile, toggle: toggleSidebar, collapsed: !open })}
       {isMobile && files({ isMobile, toggle: toggleSidebar })}
     </>
   );
@@ -224,8 +255,9 @@ const NavSlot = ({
  * Below `LAYOUT_BREAKPOINTS.left` the stock Sidebar is a Sheet with no
  * visible opener (⌘B, ⌘E and the files column's button inside it open and
  * close it too), so this renders one at the left edge and reports the Sheet
- * opening and closing (not the value it starts with). Its label names the
- * project, whose files the Sheet holds.
+ * opening and closing (not the value it starts with). Its label is the fixed
+ * "Expand project panel", not one that names the project: tests and the
+ * browser suite find the element by it.
  */
 const NavSheetOpener = ({
   onChange,
@@ -243,21 +275,27 @@ const NavSheetOpener = ({
   // Read by the subscribers below, which outlive renders
   const mobile = useRef(isMobile);
   mobile.current = isMobile;
+  // The registrars are read once, at subscription, so a caller that passes a
+  // new function each render neither resubscribes nor has to memoise
+  const closeOnRef = useRef(closeOn);
+  closeOnRef.current = closeOn;
+  const toggleOnRef = useRef(toggleOn);
+  toggleOnRef.current = toggleOn;
   useEffect(() => {
     if (previous.current === openMobile) return;
     previous.current = openMobile;
     onChange(openMobile);
   }, [openMobile, onChange]);
   useEffect(() => {
-    const sub = closeOn(() => {
+    const sub = closeOnRef.current(() => {
       if (!shown.current) return false;
       setOpenMobile(false);
       return true;
     });
     return () => sub.dispose();
-  }, [closeOn, setOpenMobile]);
+  }, [setOpenMobile]);
   useEffect(() => {
-    const sub = toggleOn(() => {
+    const sub = toggleOnRef.current(() => {
       if (!mobile.current) return false;
       // The stock setter takes a value, not an updater; below the width
       // `shown` is the Sheet's own state
@@ -265,7 +303,7 @@ const NavSheetOpener = ({
       return true;
     });
     return () => sub.dispose();
-  }, [toggleOn, setOpenMobile]);
+  }, [setOpenMobile]);
   if (!isMobile) return null;
   return (
     <div className="absolute top-1 left-0 z-10">
@@ -282,12 +320,6 @@ const NavSheetOpener = ({
 };
 
 /**
- * The files column's stock toggle in the work group: the Sheet it would open
- * exists only below `LAYOUT_BREAKPOINTS.left`, where the column is not here
- */
-const noSheet = () => {};
-
-/**
  * The four-column frame: the navigation as the stock Sidebar, then the
  * assistant on a wide screen (a Sheet below `LAYOUT_BREAKPOINTS.compact`), then
  * the work area: the stage bar over the files column and the stage, the stage
@@ -296,9 +328,9 @@ const noSheet = () => {};
  */
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const [foldedOf] = useState(createFoldedOf);
-  // The stock Sidebar's own threshold, so the files column leaves the work
-  // group exactly when the Sidebar's Sheet starts holding it
-  const isMobile = useIsMobile();
+  // The caller's, at the stock Sidebar's own threshold, so the files column
+  // leaves the work group exactly when the Sidebar's Sheet starts holding it
+  const { isMobile } = props;
   const assistantRef = usePanelRef();
   const filesRef = usePanelRef();
   const consoleRef = usePanelRef();
@@ -599,7 +631,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                     }
                   }}
                 >
-                  {props.files({ isMobile, toggle: noSheet })}
+                  {props.files({ isMobile: false })}
                 </ResizablePanel>
               )}
               {!isMobile && <ResizableHandle className="w-2 bg-transparent" />}
