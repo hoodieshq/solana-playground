@@ -224,12 +224,13 @@ const isSame = (a: Connection | null, b: Connection) =>
 /**
  * Everything the panel renders.
  *
- * The API key is kept for the life of this tab in `sessionStorage` and nowhere
- * else; see `remembered-backend` and the OpenSpec change
- * `assistant-own-key-storage`. Conversation items are not: the open thread is
- * mirrored to IndexedDB on every change, keyed by workspace, so a reload and a
- * project switch both come back to the right conversation. See
- * `docs/persistent-conversations-spec.md`.
+ * The API key is held in memory and, so a reload keeps it, in this tab's
+ * `sessionStorage`; it is never written anywhere durable. See
+ * `remembered-backend` and the OpenSpec change `assistant-own-key-storage`.
+ * Conversation items are durable: the open thread is mirrored to IndexedDB on
+ * every change under its own thread id, which `PgThreadIndex` maps from the
+ * workspace, so a reload and a project switch both come back to the right
+ * conversation. See `docs/persistent-conversations-spec.md`.
  */
 export class PgAssistant {
   static get items(): readonly ChatItem[] {
@@ -240,7 +241,10 @@ export class PgAssistant {
     return PgAssistant._status;
   }
 
-  /** Which backend is selected, and its key. Kept only in this tab's session. */
+  /**
+   * Which backend is selected, and its key. Held in memory; a key-based one is
+   * also kept in this tab's `sessionStorage` by `rememberBackend`.
+   */
   static get connection() {
     return PgAssistant._connection;
   }
@@ -263,7 +267,8 @@ export class PgAssistant {
    *
    * Connecting when nothing is connected is *not* a switch, and must not reset
    * anything. The live connection starts empty after every reload, and by the
-   * time the user picks a backend, `chat-thread` has already restored this
+   * time one is made -- the user's pick, or `Connect`'s reconnect on load from
+   * `remembered-backend` -- `chat-thread` may already have restored this
    * workspace's conversation from storage. Treating that as a switch cleared
    * the restored thread on every single reload.
    *
