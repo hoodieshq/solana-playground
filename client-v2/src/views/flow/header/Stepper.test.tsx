@@ -8,12 +8,16 @@ import Stepper from "./Stepper";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
 
-const failedBuild: FlowState = Object.assign({}, INITIAL_FLOW_STATE, {
+const failedBuild: FlowState = {
   stage: "build",
   build: "failed",
-  buildStartedAt: 1000,
+  buildSettled: "upcoming",
+  deploy: "upcoming",
+  interact: "upcoming",
   buildErrorCount: 3,
-});
+  buildMs: null,
+  buildStartedAt: 1000,
+};
 
 /** jsdom has no `matchMedia`; this stands in for it, matching only `narrow` */
 const stubMatchMedia = (narrow: boolean) => {
