@@ -103,7 +103,7 @@ export const useLayoutState = () => {
     // `migrateV1` drops it by design: said here, not reported, so a reader of
     // the logs does not take the missing sizes for a loss
     log.info(
-      "A version 1 layout was migrated; its horizontal sizes were dropped because their panels changed",
+      "A version 1 layout was migrated; its horizontal sizes were not carried over because their panels changed",
       { context: { from: 1 } }
     );
     save(restored.state, "migration");

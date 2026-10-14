@@ -197,7 +197,7 @@ it("should say, without reporting, that a migrated layout's horizontal sizes wer
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(V1));
   renderHook(() => useLayoutState());
   const said = logs.entries.filter((entry) =>
-    entry.message?.includes("dropped")
+    entry.message?.includes("not carried over")
   );
   expect(said).toHaveLength(1);
   expect(said[0].level).toBe("info");
