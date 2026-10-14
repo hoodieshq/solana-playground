@@ -81,6 +81,8 @@ the team must hear about.
 - [A logger or error report captures the key by accident] → no code path logs a
   `Connection`; a unit test asserts the logged arguments of a failing write do
   not contain the key.
+- [A duplicated tab copies `sessionStorage`, so it keeps the key] → accepted:
+  the user duplicated the tab they are working in.
 
 ## Migration Plan
 

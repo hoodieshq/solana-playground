@@ -241,7 +241,8 @@ Honesty rule for the demo — never present a mocked step as working.
   anything that reaches our origin can spend the configured key, so it needs a
   challenge and a per-session limit before it points at a paid account.
 - **Your own key** is kept in the tab's `sessionStorage`: a reload keeps it, a
-  new tab asks again, disconnecting forgets it. It goes from the browser
+  new tab asks again (a duplicated tab copies it, since the browser copies
+  `sessionStorage`), disconnecting forgets it. It goes from the browser
   straight to the provider as a header on every request, never through our
   server, and is never logged or synced. Project code runs in the same origin
   and could read it while the tab is open; that is why it is not in

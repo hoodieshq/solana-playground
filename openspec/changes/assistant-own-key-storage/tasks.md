@@ -5,19 +5,19 @@ parallel with another, since each builds on the one before.
 
 ## 1. Keep and forget the connection
 
-- [ ] 1.1 ([plan](plans/1.1-own-key-storage.md)) Extend `model/remembered-backend.ts`: `rememberBackend(connection)`,
+- [x] 1.1 ([plan](plans/1.1-own-key-storage.md)) Extend `model/remembered-backend.ts`: `rememberBackend(connection)`,
       `forgetBackend()` clearing both stores, `rememberedConnection()` with shape
       checks, logged (never valued) storage failures; verify with unit tests in
       `remembered-backend.test.ts` covering store, read, clear, switch to the
       default, a malformed value, an unknown provider and storage that throws
-- [ ] 1.2 ([plan](plans/1.1-own-key-storage.md)) Call it from `PgAssistant.connect` and `disconnect` in `store.ts`
+- [x] 1.2 ([plan](plans/1.1-own-key-storage.md)) Call it from `PgAssistant.connect` and `disconnect` in `store.ts`
       (depends on 1.1); verify with `store.test.ts` that after connecting with a
       key, `localStorage` and the persisted thread hold no key string, and that
       disconnecting empties `sessionStorage`
 
 ## 2. Reconnect on load
 
-- [ ] 2.1 ([plan](plans/1.1-own-key-storage.md)) Reconnect a stored key-based connection on mount in
+- [x] 2.1 ([plan](plans/1.1-own-key-storage.md)) Reconnect a stored key-based connection on mount in
       `Component/Connect.tsx`, under the existing guards (depends on 1.2);
       verify with the spec's Playwright scenarios in
       `e2e/assistant-reconnect.e2e.spec.ts`, titled
@@ -28,7 +28,7 @@ parallel with another, since each builds on the one before.
 
 ## 3. Record the decision
 
-- [ ] 3.1 ([plan](plans/1.1-own-key-storage.md)) Rewrite the comments that say the key is never persisted
+- [x] 3.1 ([plan](plans/1.1-own-key-storage.md)) Rewrite the comments that say the key is never persisted
       (`store.ts`, `remembered-backend.ts`, `model/anthropic.ts`,
       `model/openai.ts`) to point at this change's design, and update the key
       handling in `docs/assistant-context.md`, then `yarn sync-assistant-context`;
