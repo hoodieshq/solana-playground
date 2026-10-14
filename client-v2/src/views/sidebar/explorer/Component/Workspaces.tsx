@@ -125,7 +125,7 @@ export const WorkspaceSelect = () => {
 
   return (
     <Select
-      value={explorer.currentWorkspaceName}
+      value={explorer.currentWorkspaceName ?? ""}
       onValueChange={(name) => {
         switchWorkspace(name).catch((e) =>
           log.error(e, { report: true, context: { workspace: name } })

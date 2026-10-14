@@ -20,7 +20,10 @@ vi.mock("../../../../utils", async () => {
   };
 });
 
-const explorer = {
+const explorer: {
+  allWorkspaceNames: string[];
+  currentWorkspaceName: string | undefined;
+} = {
   allWorkspaceNames: ["alpha", "Tutorial One", "beta"],
   currentWorkspaceName: "alpha",
 };
@@ -45,6 +48,7 @@ beforeAll(() => {
 
 afterEach(() => {
   explorer.allWorkspaceNames = ["alpha", "Tutorial One", "beta"];
+  explorer.currentWorkspaceName = "alpha";
   vi.restoreAllMocks();
   resetLogger();
 });
@@ -56,6 +60,19 @@ const open = async () => {
 };
 
 describe("WorkspaceSelect", () => {
+  it("renders without a current workspace and stays controlled", () => {
+    explorer.currentWorkspaceName = undefined;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = render(<WorkspaceSelect />);
+    explorer.currentWorkspaceName = "alpha";
+    rerender(<WorkspaceSelect />);
+
+    const warned = error.mock.calls.some((c) =>
+      /controlled|uncontrolled/i.test(String(c[0]))
+    );
+    expect(warned).toBe(false);
+  });
+
   it("groups projects and tutorials", async () => {
     render(<WorkspaceSelect />);
     await open();
