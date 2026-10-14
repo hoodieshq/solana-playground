@@ -5,13 +5,15 @@ import Button from "../../../../../components/Button";
 import FilePicker from "../../../../../components/FilePicker";
 import Input from "../../../../../components/Input";
 import Link from "../../../../../components/Link";
-import { ModalFrame, ModalPages } from "@/widgets/overlays";
+import { ModalFrame, ModalPages, modalPage } from "@/widgets/overlays";
 import type { ModalPageProps } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import { Checkmark, Sad } from "../../../../../components/Icons";
 import { PgCommon, PgExplorer, PgRouter, PgShare } from "../../../../../utils";
 
-export const Share = () => <ModalPages defaultPage={{ Component: Default }} />;
+export const Share = () => (
+  <ModalPages name="share" defaultPage={modalPage(Default)} />
+);
 
 type DefaultProps = ModalPageProps;
 
@@ -25,9 +27,9 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   const share = async () => {
     try {
       const shareId = await PgCommon.transition(PgShare.new(filePaths));
-      setPage({ Component: SuccessPage, props: { shareId } });
+      setPage(modalPage(SuccessPage, { shareId }));
     } catch (e: any) {
-      setPage({ Component: ErrorPage, props: { message: e.message } });
+      setPage(modalPage(ErrorPage, { message: e.message }));
     }
   };
 

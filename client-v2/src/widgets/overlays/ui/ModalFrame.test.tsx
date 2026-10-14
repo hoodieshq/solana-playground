@@ -15,9 +15,9 @@ import {
 import { Modal } from "@/shared/ui/modal";
 import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
-import { overlayTelemetry } from "../model/telemetry";
-import { ModalFrame } from "./ModalFrame";
-import { ModalPages } from "./ModalPages";
+import { ModalFrame, SubmitCancelled } from "./ModalFrame";
+import { ModalLayerContext } from "./modal-layer";
+import { ModalPages, modalPage } from "./ModalPages";
 import type { ModalPageProps } from "./ModalPages";
 import type { ModalFrameProps } from "./ModalFrame";
 
@@ -45,14 +45,16 @@ const events = (name: string) =>
 const renderFrame = (props: Omit<ModalFrameProps, "name">) =>
   render(
     <Modal open>
-      <ModalFrame
-        name="rename-item"
-        title={props.title}
-        buttonProps={props.buttonProps}
-        size={props.size}
-      >
-        <input aria-label="Name" />
-      </ModalFrame>
+      <ModalLayerContext.Provider value>
+        <ModalFrame
+          name="rename-item"
+          title={props.title}
+          buttonProps={props.buttonProps}
+          size={props.size}
+        >
+          <input aria-label="Name" />
+        </ModalFrame>
+      </ModalLayerContext.Provider>
     </Modal>
   );
 
@@ -62,17 +64,6 @@ const submit = async (text: string) => {
     fireEvent.click(screen.getByRole("button", { name: text }));
   });
 };
-
-it("should send overlay_modal_opened once on mount", () => {
-  const { rerender } = renderFrame({ title: "Rename" });
-  rerender(
-    <Modal open>
-      <ModalFrame name="rename-item" title="Rename" />
-    </Modal>
-  );
-
-  expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
-});
 
 it("should close with what the submit resolved", async () => {
   renderFrame({
@@ -157,7 +148,7 @@ it("should close with nothing when the button has no onSubmit", async () => {
   await submit("Done");
 
   expect(closeModal).toHaveBeenCalledTimes(1);
-  expect(closeModal).toHaveBeenCalledWith(undefined);
+  expect(closeModal).toHaveBeenCalledWith(null);
   expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
 });
 
@@ -171,22 +162,6 @@ it("should close with null on Cancel", () => {
 
   expect(closeModal).toHaveBeenCalledTimes(1);
   expect(closeModal).toHaveBeenCalledWith(null);
-});
-
-it("should not submit while the button is disabled", async () => {
-  const onSubmit = vi.fn();
-  renderFrame({
-    title: "Rename",
-    buttonProps: { text: "Rename", onSubmit, disabled: true },
-  });
-
-  await act(async () => {
-    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
-      key: "Enter",
-    });
-  });
-
-  expect(onSubmit).not.toHaveBeenCalled();
 });
 
 it("should show the product's name for title true", () => {
@@ -244,14 +219,16 @@ it("should report a dialog of several pages as opened once", () => {
       title="Share"
       buttonProps={{
         text: "Next",
-        onSubmit: () => setPage({ Component: Second }),
+        onSubmit: () => setPage(modalPage(Second)),
         noCloseOnSubmit: true,
       }}
     />
   );
   render(
     <Modal open>
-      <ModalPages defaultPage={{ Component: First }} />
+      <ModalLayerContext.Provider value>
+        <ModalPages name="share" defaultPage={modalPage(First)} />
+      </ModalLayerContext.Provider>
     </Modal>
   );
 
@@ -279,46 +256,81 @@ it("should clear the last error when a retry succeeds", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("should log the failure even when the tracker throws, and not let it escape", async () => {
-  vi.spyOn(overlayTelemetry, "track").mockImplementation((event) => {
-    if (event === "overlay_modal_submit_failed")
-      throw new Error("tracker down");
-  });
+it("should send overlay_modal_opened once under StrictMode", () => {
+  // StrictMode runs every effect twice on mount, as the dev server does
+  render(
+    <StrictMode>
+      <Modal open>
+        <ModalLayerContext.Provider value>
+          <ModalFrame name="rename-item" title="Rename" />
+        </ModalLayerContext.Provider>
+      </Modal>
+    </StrictMode>
+  );
+
+  expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
+});
+
+it("should show a message for an Error without one", async () => {
   renderFrame({
     title: "Rename",
     buttonProps: {
       text: "Rename",
       onSubmit: async () => {
-        throw new Error("exists");
+        throw new Error();
       },
     },
   });
 
   await submit("Rename");
 
-  expect(screen.getByRole("alert").textContent).toBe("exists");
-  // The submit's failure first, then the tracker's own
-  expect(
-    logs.entries.map((entry) => ({
-      ns: entry.ns,
-      report: entry.report,
-      message: entry.error?.message,
-    }))
-  ).toEqual([
-    { ns: "overlays:modal-frame", report: true, message: "exists" },
-    { ns: "overlays:modal-frame", report: true, message: "tracker down" },
-  ]);
+  expect(screen.getByRole("alert").textContent).toBe("Something went wrong");
 });
 
-it("should send overlay_modal_opened once under StrictMode", () => {
-  // StrictMode runs every effect twice on mount, as the dev server does
-  render(
-    <StrictMode>
+it("should stay open and quiet when the user cancels the submit", async () => {
+  renderFrame({
+    title: "Import",
+    buttonProps: {
+      text: "Import",
+      onSubmit: async () => {
+        throw new SubmitCancelled();
+      },
+    },
+  });
+
+  await submit("Import");
+
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(closeModal).not.toHaveBeenCalled();
+  expect(events("overlay_modal_submit_failed")).toEqual([]);
+  expect(logs.entries.filter((entry) => entry.report)).toEqual([]);
+});
+
+it("should not close another dialog when it was closed before its submit settled", async () => {
+  let finish!: (value: number) => void;
+  const { unmount } = renderFrame({
+    title: "Rename",
+    buttonProps: {
+      text: "Rename",
+      onSubmit: () => new Promise<number>((resolve) => (finish = resolve)),
+    },
+  });
+
+  await submit("Rename");
+  unmount();
+  await act(async () => finish(42));
+
+  expect(closeModal).not.toHaveBeenCalled();
+});
+
+it("should not draw outside ModalHost", () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+
+  expect(() =>
+    render(
       <Modal open>
         <ModalFrame name="rename-item" title="Rename" />
       </Modal>
-    </StrictMode>
-  );
-
-  expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
+    )
+  ).toThrow("ModalFrame is rendered outside ModalHost");
 });

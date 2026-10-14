@@ -1,36 +1,55 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { expect, it, vi } from "vitest";
 
 import { Modal } from "@/shared/ui/modal";
 import { BaseModalFrame } from "./BaseModalFrame";
-import type { BaseModalFrameProps } from "./BaseModalFrame";
+import type { BaseModalFrameProps, SubmitStatus } from "./BaseModalFrame";
 
-const submit = {
+type Submit = NonNullable<BaseModalFrameProps["submit"]>;
+
+/** A footer named "Rename", in the given status, with these handlers */
+const submitOf = (
+  status: SubmitStatus = "ready",
+  onSubmit: () => void = vi.fn(),
+  onCancel?: () => void
+): Submit => ({
   text: "Rename",
-  disabled: false,
-  busy: false,
-  variant: "default" as const,
-};
+  status,
+  variant: "default",
+  onSubmit,
+  onCancel,
+});
 
-const renderFrame = (props: Partial<BaseModalFrameProps> = {}) =>
+const renderFrame = ({
+  title = { text: "Rename", hidden: false },
+  error,
+  submit,
+  children,
+}: {
+  title?: BaseModalFrameProps["title"];
+  error?: string;
+  submit?: Submit;
+  children?: ReactNode;
+} = {}) =>
   render(
     <Modal open>
       <BaseModalFrame
-        title={props.title ?? "Rename"}
-        hideTitle={props.hideTitle ?? false}
-        error={props.error ?? ""}
-        submit={props.submit}
-        onCancel={props.onCancel}
-        onSubmit={props.onSubmit ?? vi.fn()}
-        size={props.size ?? "default"}
+        title={title}
+        error={error}
+        submit={submit}
+        size="default"
       >
-        {props.children}
+        {children}
       </BaseModalFrame>
     </Modal>
   );
 
+const enterOn = (el: Element, init: { isComposing?: boolean } = {}) =>
+  fireEvent.keyDown(el, { key: "Enter", isComposing: init.isComposing });
+
 it("should show the title as the dialog's heading and name", () => {
-  renderFrame({ title: "Rename file" });
+  renderFrame({ title: { text: "Rename file", hidden: false } });
 
   expect(screen.getByRole("heading", { name: "Rename file" })).toBeTruthy();
   expect(screen.getByRole("dialog", { name: "Rename file" })).toBeTruthy();
@@ -44,35 +63,63 @@ it("should show the error", () => {
 
 it("should submit once when Enter is pressed in an input", () => {
   const onSubmit = vi.fn();
-  renderFrame({ submit, onSubmit, children: <input aria-label="Name" /> });
-
-  const button = screen.getByRole("button", {
-    name: "Rename",
-  }) as HTMLButtonElement;
-  expect(button.getAttribute("type")).toBe("submit");
-  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
-    key: "Enter",
+  renderFrame({
+    submit: submitOf("ready", onSubmit),
+    children: <input aria-label="Name" />,
   });
 
+  const button = screen.getByRole("button", { name: "Rename" });
+  expect(button.getAttribute("type")).toBe("submit");
+  enterOn(screen.getByRole("textbox", { name: "Name" }));
+
   expect(onSubmit).toHaveBeenCalledTimes(1);
+});
+
+it("should submit on Enter after a click on a part of the body that takes no focus", () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    submit: submitOf("ready", onSubmit),
+    children: <div>Anchor</div>,
+  });
+
+  // A framework card: the focus stays on the dialog itself
+  enterOn(screen.getByRole("dialog"));
+
+  expect(onSubmit).toHaveBeenCalledTimes(1);
+});
+
+it("should leave Enter to a button in the body", () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    submit: submitOf("ready", onSubmit),
+    children: <button type="button">Copy</button>,
+  });
+
+  enterOn(screen.getByRole("button", { name: "Copy" }));
+
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+it("should not submit on an Enter that composes text", () => {
+  const onSubmit = vi.fn();
+  renderFrame({
+    submit: submitOf("ready", onSubmit),
+    children: <input aria-label="Name" />,
+  });
+
+  enterOn(screen.getByRole("textbox", { name: "Name" }), { isComposing: true });
+
+  expect(onSubmit).not.toHaveBeenCalled();
 });
 
 it("should not submit on Enter while the submit is disabled", () => {
   const onSubmit = vi.fn();
   renderFrame({
-    submit: {
-      text: submit.text,
-      disabled: true,
-      busy: false,
-      variant: submit.variant,
-    },
-    onSubmit,
+    submit: submitOf("disabled", onSubmit),
     children: <input aria-label="Name" />,
   });
 
-  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
-    key: "Enter",
-  });
+  enterOn(screen.getByRole("textbox", { name: "Name" }));
 
   expect(onSubmit).not.toHaveBeenCalled();
 });
@@ -80,16 +127,13 @@ it("should not submit on Enter while the submit is disabled", () => {
 it("should leave an Enter its input handled alone", () => {
   const onSubmit = vi.fn();
   renderFrame({
-    submit,
-    onSubmit,
+    submit: submitOf("ready", onSubmit),
     children: (
       <input aria-label="Name" onKeyDown={(ev) => ev.preventDefault()} />
     ),
   });
 
-  fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
-    key: "Enter",
-  });
+  enterOn(screen.getByRole("textbox", { name: "Name" }));
 
   expect(onSubmit).not.toHaveBeenCalled();
 });
@@ -98,8 +142,7 @@ it("should not submit when a button in the body without a type is clicked", () =
   const onSubmit = vi.fn();
   const onClick = vi.fn();
   renderFrame({
-    submit,
-    onSubmit,
+    submit: submitOf("ready", onSubmit),
     // Legacy buttons render a bare `<button>`, which submits its form
     children: <button onClick={onClick}>Copy</button>,
   });
@@ -112,7 +155,7 @@ it("should not submit when a button in the body without a type is clicked", () =
 
 it("should submit once when the button is clicked", () => {
   const onSubmit = vi.fn();
-  renderFrame({ submit, onSubmit });
+  renderFrame({ submit: submitOf("ready", onSubmit) });
 
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
 
@@ -121,7 +164,7 @@ it("should submit once when the button is clicked", () => {
 
 it("should show a Cancel button that calls onCancel", () => {
   const onCancel = vi.fn();
-  renderFrame({ submit, onCancel });
+  renderFrame({ submit: submitOf("ready", vi.fn(), onCancel) });
 
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -129,29 +172,22 @@ it("should show a Cancel button that calls onCancel", () => {
 });
 
 it("should show no Cancel button without onCancel", () => {
-  renderFrame({ submit });
+  renderFrame({ submit: submitOf() });
 
   expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
 });
 
-it("should disable the submit while busy", () => {
-  renderFrame({
-    submit: {
-      text: submit.text,
-      disabled: false,
-      busy: true,
-      variant: submit.variant,
-    },
-  });
+it("should disable the submit and Cancel while busy", () => {
+  renderFrame({ submit: submitOf("busy", vi.fn(), vi.fn()) });
 
-  expect(
-    (screen.getByRole("button", { name: /Rename/ }) as HTMLButtonElement)
-      .disabled
-  ).toBe(true);
+  const submit = screen.getByRole("button", { name: /Rename/ });
+  const cancel = screen.getByRole("button", { name: "Cancel" });
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+  expect((cancel as HTMLButtonElement).disabled).toBe(true);
 });
 
 it("should keep an accessible name and show no heading when the title is hidden", () => {
-  renderFrame({ title: "Solana Playground", hideTitle: true });
+  renderFrame({ title: { text: "Solana Playground", hidden: true } });
 
   expect(
     screen.getByRole("dialog", { name: "Solana Playground" })
@@ -164,7 +200,7 @@ it("should keep an accessible name and show no heading when the title is hidden"
 });
 
 it("should focus the submit on open when the body has no input, so Enter presses it", () => {
-  renderFrame({ submit, children: <p>Delete the file?</p> });
+  renderFrame({ submit: submitOf(), children: <p>Delete the file?</p> });
 
   expect(document.activeElement).toBe(
     screen.getByRole("button", { name: "Rename" })
@@ -173,7 +209,7 @@ it("should focus the submit on open when the body has no input, so Enter presses
 
 it("should focus the body's first input on open", () => {
   renderFrame({
-    submit,
+    submit: submitOf(),
     children: (
       <>
         <input type="hidden" />
@@ -202,10 +238,7 @@ const renderOpen = (onOpenChange: (open: boolean) => void) =>
       <button type="button">page</button>
       <Modal open onOpenChange={onOpenChange}>
         <BaseModalFrame
-          title="Rename"
-          hideTitle={false}
-          error=""
-          onSubmit={vi.fn()}
+          title={{ text: "Rename", hidden: false }}
           size="default"
         />
       </Modal>

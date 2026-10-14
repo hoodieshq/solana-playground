@@ -250,10 +250,6 @@ class _PgView {
    * @param data data to be resolved from the modal
    */
   static closeModal(data?: any) {
-    // `data` will be a `ClickEvent` if the modal has been closed with the
-    // default Cancel button
-    if (data?.target) data = null;
-
     PgCommon.createAndDispatchCustomEvent(
       PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).receive,
       { data }

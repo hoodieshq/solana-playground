@@ -3,14 +3,14 @@ import styled, { css } from "styled-components";
 
 import Button from "../../../../../components/Button";
 import Markdown from "../../../../../components/Markdown";
-import { ModalFrame, ModalPages } from "@/widgets/overlays";
+import { ModalFrame, ModalPages, modalPage } from "@/widgets/overlays";
 import type { ModalPageProps } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import { ExportFile, Info } from "../../../../../components/Icons";
 import { PgFramework, PgView } from "../../../../../utils";
 
 export const ExportWorkspace = () => (
-  <ModalPages defaultPage={{ Component: Default }} />
+  <ModalPages name="export-workspace" defaultPage={modalPage(Default)} />
 );
 
 type DefaultProps = ModalPageProps;
@@ -19,7 +19,7 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   const convertAndExport = async () => {
     try {
       const { readme } = await PgFramework.exportWorkspace({ convert: true });
-      setPage({ Component: Readme, props: { readme } });
+      setPage(modalPage(Readme, { readme }));
     } catch (e) {
       console.log("Convert and export error:", e);
       await exportWithoutChanges();

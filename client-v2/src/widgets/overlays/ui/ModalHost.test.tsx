@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+import {
   initTelemetry,
   memoryProvider,
   resetTelemetry,
@@ -139,4 +144,58 @@ it("should fire onDidOpenModal on each open", () => {
 
   expect(opened).toHaveBeenCalledTimes(2);
   listener.dispose();
+});
+
+it("should not close on Escape while the submit runs, and answer once it settles", async () => {
+  let finish!: (value: string) => void;
+  const Slow = () => (
+    <ModalFrame
+      name="slow"
+      title="Slow"
+      buttonProps={{
+        text: "Save",
+        onSubmit: () => new Promise<string>((resolve) => (finish = resolve)),
+      }}
+    />
+  );
+  render(<ModalHost />);
+  const answer = open(Slow);
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  });
+  act(() => {
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  });
+  expect(screen.getByRole("dialog", { name: "Slow" })).toBeTruthy();
+
+  await act(async () => finish("saved"));
+
+  await expect(answer).resolves.toBe("saved");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("should close a dialog that throws while rendering, report it and answer null", async () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const Broken = (): never => {
+    throw new Error("render failed");
+  };
+  render(
+    <>
+      <p>the IDE</p>
+      <ModalHost />
+    </>
+  );
+
+  const answer = open(Broken);
+
+  await expect(answer).resolves.toBeNull();
+  expect(screen.getByText("the IDE")).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    logs.entries.map((entry) => ({ ns: entry.ns, report: entry.report }))
+  ).toEqual([{ ns: "overlays:modal-host", report: true }]);
+  resetLogger();
 });
