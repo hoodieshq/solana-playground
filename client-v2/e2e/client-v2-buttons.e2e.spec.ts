@@ -77,8 +77,8 @@ test.describe("client-v2-buttons", () => {
     await block.hover();
     await copy.click();
 
-    // The refusal is reported under ui:button, and the button never claims
-    // the copy happened. The label is read once, right after the report: a
+    // The refusal is logged under ui:button, and the button never claims
+    // the copy happened. The label is read once, right after the log: a
     // retrying matcher would wait out the Copied timer and pass anyway
     await expect
       .poll(() => logged.some((l) => l.includes("[ui:button]")))
