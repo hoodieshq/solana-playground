@@ -501,6 +501,52 @@ Kept: every `aria-label` and test id inside the dialogs and menus, the key
 hints, Escape, the 500 ms tooltip delay, and the phone dialog as a page of
 its own (the stock `Modal` does it below `md`).
 
+## Controls (5.5)
+
+The controls the user picks with come from the design system, app-wide,
+before the screen tickets that place them (HOO-2068 New project, HOO-2071
+Settings). Installed with `yarn ds-add`: `stepper`, `segmented`, `select`,
+`native-select`, `toggle-group`, `radio-group`, `field`, `input-group`. The
+last six have sources in `design-system/src/components/ui` and no registry
+item, so this task registers them, as `feedback-widget` did for its parts.
+
+| Today | Becomes | Where |
+|---|---|---|
+| `views/flow/header/Stepper.tsx`, styled | `Stepper`: the gradient thumb, statuses, the lesson target, `compact` | Same file, same props (`state`, `onSelect`, `target`) |
+| `components/Select` (react-select) | `Select`: option groups, a tick on the chosen one | `app/Panels/Side/Left/Settings.tsx`, `Connect.tsx` (model, effort), `Workspaces.tsx` |
+| styled `<select>` | `NativeSelect` | `stages/Interact.tsx` (deployment) |
+| network chips, a hand-rolled roving tabindex | `Segmented`, `chips` | `settings/GearSidebar.tsx` |
+| framework buttons | `Segmented`, `gradient` | `gallery/StartFromScratch.tsx` |
+| model presets, `aria-pressed` | `Segmented`, `chips` | `Connect.tsx` |
+| provider cards, `aria-pressed` | `RadioGroup` (each card has a description and can be disabled) | `Connect.tsx` |
+| model and key fields | `Field`, `FieldLabel`, `Input`, `InputGroup` | `Connect.tsx` |
+
+`react-select`, `components/Select` and the theme's `components.select`
+(once nothing reads it) are removed.
+
+**The stepper keeps its file and its props**, so the layout task that moves
+it into the stage column (5.2, HOO-2055) moves an import, not a component.
+It keeps `flow-stage-tab-*`, `aria-controls="flow-stage-panel-*"` and its own
+`aria-label` ("Build: failed, 3 errors, current lesson target"), which
+override the design system's. `upcoming` and `active` map to `idle`: the
+thumb shows the current stage. The connectors between stages go; the thumb
+replaces them, as in the prototype.
+
+**Radix gives a single-choice toggle group the radio roles.** The network
+group keeps `role="radiogroup"` and `aria-label="Network"`. In `Connect`,
+`aria-pressed` buttons become radios with the same names, which states
+"one of a few" more precisely.
+
+**Not in this task:**
+
+- `components/Input` with `validator` and `error` (14 uses): the message
+  above the field and the success edge are the Field validator, planned in
+  the design system and ticketed separately.
+- The gallery's and the left panel's tabs: they are tabs with panels
+  (`role="tab"`, `flow-left-tab-*`), which `Segmented` would turn into
+  radios. The gallery is restyled by HOO-2068.
+- Checkbox and Switch: the leaves task (HOO-2058).
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
