@@ -286,7 +286,7 @@ export default GearSidebar;
 const Panel = styled.div<{ $open: boolean }>`
   ${({ theme, $open }) => css`
     position: fixed;
-    top: 3.5rem;
+    top: 0;
     right: 0;
     bottom: 0;
     width: 22rem;

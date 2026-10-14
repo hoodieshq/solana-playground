@@ -185,10 +185,10 @@ export const verticalOf = (layout: PanelLayout): VerticalLayout | null =>
  * A version 1 value as the current version: its left column is the files
  * column, and the navigation opens, since version 1 had none to fold. Its `h`
  * sized the `center` and `assistant` panels of `layout-horizontal`; that group
- * still exists, but its panels are now `assistant` and `work`, so the sizes
+ * still exists, but its panels are `assistant` and `work`, so the sizes
  * name panels that are gone and mean something else. They are dropped without
- * being reported (the hook logs it at info, unreported): the assistant opens at its
- * default size.
+ * being reported (the hook logs it at info, unreported): the assistant opens
+ * at its default size.
  */
 const migrateV1 = (
   parsed: Record<string, unknown> & { open: OpenV1 }

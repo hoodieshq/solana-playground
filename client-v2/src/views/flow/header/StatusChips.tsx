@@ -265,8 +265,9 @@ const GithubMark: FC<React.PropsWithChildren<unknown>> = () => (
 );
 
 // Above, at the foot of the navigation, the row is the navigation's width
-// (14.5 rem), narrower than the chips side by side, so it wraps, and it is
-// what the profile menu is anchored to (see `ProfileWrapper`).
+// (`SIDEBAR_STYLE` in `BaseLayoutShell`), narrower than the chips side by
+// side, so it wraps, and it is what the profile menu is anchored to (see
+// `ProfileWrapper`).
 const Wrapper = styled.div<{ $placement: Placement }>`
   display: flex;
   align-items: center;
@@ -541,11 +542,12 @@ const AuthError = styled.span`
 /**
  * Where the chips give way.
  *
- * The chips sit in the navigation's footer, a fixed 14.5 rem whatever the
- * window, so a media query on the window says nothing about their room. It is
- * kept from the header layout, where the chips shared the window's width,
- * until the session footer is rebuilt (HOO-2070): below it the two least
- * load-bearing pieces here, the balance and the "Sign in" wording, drop out.
+ * The chips sit in the navigation's footer, which is the width
+ * `SIDEBAR_STYLE` (`BaseLayoutShell`) gives it whatever the window, so a media
+ * query on the window says nothing about their room. The breakpoint is a
+ * stand-in for the chips' real room until the session footer is rebuilt
+ * (HOO-2070): below it the two least load-bearing pieces here, the balance
+ * and the "Sign in" wording, drop out.
  * Both remain reachable: the balance in the wallet panel, the wording in the
  * button's `aria-label`.
  */

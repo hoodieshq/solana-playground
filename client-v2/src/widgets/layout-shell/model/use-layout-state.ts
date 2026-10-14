@@ -99,7 +99,7 @@ export const useLayoutState = () => {
     if (restored.kind !== "saved" || !restored.migrated) return;
     if (migrationSaved.current) return;
     migrationSaved.current = true;
-    // Version 1's `h` sized panels that the horizontal group no longer has, so
+    // Version 1's `h` sized panels that the horizontal group does not have, so
     // `migrateV1` drops it by design: said here, not reported, so a reader of
     // the logs does not take the missing sizes for a loss. Only when the
     // value held an `h`, so the line never reports a drop that did not happen.

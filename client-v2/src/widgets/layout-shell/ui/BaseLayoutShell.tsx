@@ -35,13 +35,11 @@ const HANDLE_PX = 8;
 
 /**
  * Sizes in px; the design system gives the navigation's in rem
- * (`SIDEBAR_STYLE`). The files column opens and folds at the navigation's
- * widths (14.5 and 3.25 rem) and resizes from 12 rem. It has no maximum of
- * its own: 30% of the work area is below its minimum on a 1024 px window with
- * every column open, so what stops it growing is the stage's `stage.min`
- * beside it. `work.min` is an open files column at its minimum, the handle
- * and the stage at its minimum, so the work area never takes less than both
- * need: on that 1024 px window the assistant gives way instead. The console
+ * (`SIDEBAR_STYLE`, which owns that width). The files column has no maximum
+ * of its own: what stops it growing is the stage's `stage.min` beside it.
+ * `work.min` is an open files column at its minimum, the handle and the stage
+ * at its minimum, so the work area never takes less than both need: on a
+ * narrow window with every column open the assistant gives way instead. The console
  * folds to its handle, the bar `ConsoleDrawer` draws at `BOTTOM_BAR_PX`.
  */
 export const PANEL_SIZES = {
@@ -53,7 +51,7 @@ export const PANEL_SIZES = {
   work: { min: FILES.min + HANDLE_PX + STAGE.min },
 } as const;
 
-/** 14.5 rem open and 3.25 rem as a rail, as the design system's migration map has it */
+/** The navigation's open and rail widths, as the design system's migration map has them; the one place they are set */
 const SIDEBAR_STYLE = {
   "--sidebar-width": "14.5rem",
   "--sidebar-width-icon": "3.25rem",

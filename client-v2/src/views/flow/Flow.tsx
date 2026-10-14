@@ -381,7 +381,7 @@ const Collapse = styled.button`
 
 // Above everything the shell draws: the stock Sidebar (z-10) and the Sheets
 // (z-50), which portal to `body` beside these. The
-// explorer's context menu opens here from inside the project Sheet, so it
+// explorer's context menu opens here from inside the navigation's Sheet, so it
 // must sit over that Sheet; a modal closes the Sheet as it opens
 // (`LayoutShell`), since the Sheet traps focus. A modal Sheet also turns off
 // pointer events on `body`, so each portal turns them back on for itself.

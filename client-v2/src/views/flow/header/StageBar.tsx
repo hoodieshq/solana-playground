@@ -19,8 +19,8 @@ import { useKeybind } from "../../../hooks";
  * The dev-loop stepper, centred across the top of the files column and the
  * stage (`LayoutShell`'s `stageBar`). It owns the Ctrl+1..4 stage keys and
  * points the stepper at the stage the current lesson step is graded on. The
- * project switcher and the status chips that shared the old header with it
- * live in the navigation (`AppNav`) now.
+ * project switcher and the status chips live in the navigation (`AppNav`),
+ * not here.
  */
 const StageBar: FC = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);

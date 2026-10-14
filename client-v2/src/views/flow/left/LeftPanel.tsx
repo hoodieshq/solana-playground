@@ -36,8 +36,8 @@ interface LeftPanelProps {
 
 /**
  * Where you are inside the current project. Which project you are in is
- * the navigation switcher's job -- the rail used to answer that too, and two
- * controls for one question is what this change removed.
+ * the navigation switcher's job; the rail does not name the project too,
+ * since two controls for one question would disagree.
  */
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
@@ -79,6 +79,9 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
           panel back, so the rail stacks it under the chevron rather than
           dropping it. */}
       {collapsed && <Chevron $flip={false} />}
+      {/* Advertises the layout shell's fold key. It does not fire while the
+          editor has focus (Monaco takes the key there), so it works from the
+          rest of the page. */}
       <Hint>&#8984;E</Hint>
       {!collapsed && <Chevron $flip />}
     </Collapse>
@@ -179,7 +182,7 @@ const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 100%;
     // Explicit rather than inherited: as a grid item this stretched on its
-    // own, but the resize wrapper it now sits inside is a plain block, so
+    // own, but the resize wrapper it sits inside is a plain block, so
     // without this the panel ends at its content and stops short of the
     // editor beside it
     height: 100%;
@@ -205,8 +208,9 @@ const Collapse = styled.button<{ $collapsed: boolean }>`
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-    /* The rail has 1.5rem of width to spend, so "⌘E" only fits below the
-       chevron and only at a smaller size than the expanded panel uses. */
+    /* The rail is FILES.folded wide (BaseLayoutShell), too narrow for "⌘E"
+       beside the chevron, so it sits below it at a smaller size than the
+       expanded panel uses. */
     font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};
     border: none;
     background: transparent;

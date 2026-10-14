@@ -20,7 +20,7 @@ const Assistant = () => {
   // Mirrors the two inputs `Chat.tsx`'s own CONTEXT row reads off
   // (`PgExplorer.currentFilePath`, `PgBuildOutput.latest?.failed`) so the
   // header chip can never claim something the chat context does not also
-  // see -- kept live here rather than imported, since the header renders
+  // see -- kept live here rather than imported, since this header renders
   // above `Chat` and outlives a backend not being connected yet.
   const [currentFilePath, setCurrentFilePath] = useState(
     PgExplorer.currentFilePath
