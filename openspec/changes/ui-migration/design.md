@@ -541,13 +541,18 @@ group keeps `role="radiogroup"` and `aria-label="Network"`. In `Connect`,
 
 **In `Segmented`, selection follows focus on the arrow keys only.** A radio
 group's arrow keys move the choice, so the design system's `Segmented` picks
-the item an arrow, Home or End key moves focus to. Tab, Shift+Tab, a click's
+the item an arrow, Home, End, PageUp or PageDown key moves focus to (the
+keys Radix's roving focus moves on). Tab, Shift+Tab, a click's
 focus and a programmatic `.focus()` pick nothing by themselves: Radix keeps
 the last focused item as the group's tab stop, not the checked one, so
 picking on any focus switched the network on a Shift+Tab. A group with
 `rovingFocus={false}` (the merge view's pane tabs) never follows focus.
 In the backend list (a `RadioGroup`) the arrow keys walk the providers
 without folding the list; only a click folds it.
+
+**A stored setting value no option has shows an empty trigger.** On a
+setting without a Custom option, `Select` has nothing to show for it, where
+react-select showed the last option. A setting with Custom shows "Custom".
 
 **Not in this task:**
 
