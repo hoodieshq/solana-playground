@@ -33,15 +33,10 @@ const Import = () => (
         return;
       }
 
-      try {
-        const file = files[0];
-        const fileName = file.name;
-        const arrayBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        PgProgramInfo.update({ importedProgram: { bytes, fileName } });
-      } catch (err: any) {
-        console.log(err.message);
-      }
+      // A file that cannot be read throws; ImportButton reports it
+      const file = files[0];
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      PgProgramInfo.update({ importedProgram: { bytes, fileName: file.name } });
     }}
     showImportText
   >

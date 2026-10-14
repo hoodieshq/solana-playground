@@ -16,8 +16,6 @@ interface ImportButtonProps {
   accept?: string;
   showImportText?: boolean;
   variant?: ComponentProps<typeof Button>["variant"];
-  noButton?: boolean;
-  dir?: boolean;
   title?: string;
 }
 
@@ -26,8 +24,6 @@ const ImportButton: FC<PropsWithChildren<ImportButtonProps>> = ({
   accept,
   variant = "outline",
   showImportText,
-  noButton,
-  dir,
   title,
   children,
 }) => {
@@ -40,6 +36,9 @@ const ImportButton: FC<PropsWithChildren<ImportButtonProps>> = ({
   };
 
   const handleChange = async (ev: ChangeEvent<HTMLInputElement>) => {
+    // Read before the import runs: an import may reset the input, which
+    // empties its file list
+    const name = ev.target.files?.[0]?.name ?? "";
     try {
       await onImport(ev);
     } catch (error) {
@@ -47,16 +46,12 @@ const ImportButton: FC<PropsWithChildren<ImportButtonProps>> = ({
       // below would claim it was imported
       reportButtonFailure(error);
       setImportText("");
+      // so the same file, once corrected, fires a change again
+      ev.target.value = "";
       return;
     }
-    const files = ev.target.files;
-    if (!files?.length) setImportText("");
-    else setImportText(files[0].name);
+    setImportText(name);
   };
-
-  const dirProps = dir
-    ? { webkitdirectory: "", mozdirectory: "", directory: "", multiple: true }
-    : {};
 
   return (
     <Wrapper>
@@ -65,15 +60,10 @@ const ImportButton: FC<PropsWithChildren<ImportButtonProps>> = ({
         type="file"
         onChange={handleChange}
         accept={accept}
-        {...dirProps}
       />
-      {noButton ? (
-        <div onClick={handleClick}>{children}</div>
-      ) : (
-        <Button variant={variant} title={title} onClick={handleClick}>
-          {children}
-        </Button>
-      )}
+      <Button variant={variant} title={title} onClick={handleClick}>
+        {children}
+      </Button>
       {showImportText && importText && <ImportInfo>{importText}</ImportInfo>}
     </Wrapper>
   );
@@ -85,10 +75,6 @@ const Wrapper = styled.div`
 
   & input[type="file"] {
     display: none;
-  }
-
-  & > div {
-    width: 100%;
   }
 `;
 

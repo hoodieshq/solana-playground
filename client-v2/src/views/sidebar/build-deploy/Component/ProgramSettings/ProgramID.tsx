@@ -89,23 +89,18 @@ const Import = () => {
     const files = ev.target.files;
     if (!files?.length) return;
 
-    try {
-      const file = files[0];
-      const text = await file.text();
-      const bytes = Uint8Array.from(JSON.parse(text));
-      if (bytes.length !== 64) throw new Error("Invalid keypair");
+    // A file that is not a keypair throws; ImportButton reports it
+    const bytes = Uint8Array.from(JSON.parse(await files[0].text()));
+    if (bytes.length !== 64) throw new Error("Invalid keypair");
 
-      // Override customPk when user imports a new keypair
-      PgProgramInfo.update({
-        kp: PgWeb3.Keypair.fromSecretKey(bytes),
-        customPk: null,
-      });
+    // Override customPk when user imports a new keypair
+    PgProgramInfo.update({
+      kp: PgWeb3.Keypair.fromSecretKey(bytes),
+      customPk: null,
+    });
 
-      // Reset file
-      ev.target.value = "";
-    } catch (err: any) {
-      console.log(err.message);
-    }
+    // Reset file
+    ev.target.value = "";
   };
 
   return (

@@ -26,14 +26,9 @@ const Import = () => {
     const files = ev.target.files;
     if (!files?.length) return;
 
-    try {
-      const file = files[0];
-      const text = await file.text();
-      const idl = JSON.parse(text);
-      PgProgramInfo.update({ idl });
-    } catch (e: any) {
-      console.log(e.message);
-    }
+    // A malformed file throws; ImportButton reports it
+    const idl = JSON.parse(await files[0].text());
+    PgProgramInfo.update({ idl });
   };
 
   return (
@@ -139,20 +134,24 @@ const InitOrUpgrade = () => {
   }, [getIdl]);
 
   const handleInitOrUpgrade = async () => {
-    switch (state) {
-      case InitOrUpgradeState.CAN_INIT: {
-        setState(InitOrUpgradeState.IS_INITIALIZING);
-        await PgCommand.anchor.execute("idl", "init");
-        break;
+    try {
+      switch (state) {
+        case InitOrUpgradeState.CAN_INIT: {
+          setState(InitOrUpgradeState.IS_INITIALIZING);
+          await PgCommand.anchor.execute("idl", "init");
+          break;
+        }
+        case InitOrUpgradeState.CAN_UPGRADE: {
+          setState(InitOrUpgradeState.IS_UPGRADING);
+          await PgCommand.anchor.execute("idl", "upgrade");
+          break;
+        }
       }
-      case InitOrUpgradeState.CAN_UPGRADE: {
-        setState(InitOrUpgradeState.IS_UPGRADING);
-        await PgCommand.anchor.execute("idl", "upgrade");
-        break;
-      }
+    } finally {
+      // Leaves the initializing state whether or not the command worked;
+      // a failure still reaches the button's onError
+      await getIdl();
     }
-
-    await getIdl();
   };
 
   if (state === InitOrUpgradeState.HIDDEN) return null;
