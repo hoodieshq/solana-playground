@@ -1,5 +1,7 @@
 "use client"
 
+import { ChevronRightIcon } from "lucide-react"
+import { cn } from "cn"
 import { Collapsible as CollapsiblePrimitive } from "radix-ui"
 
 function Collapsible({
@@ -30,4 +32,28 @@ function CollapsibleContent({
   )
 }
 
-export { Collapsible, CollapsibleTrigger, CollapsibleContent }
+/* The fold's mark: points right when closed, down when open. Put it inside
+   a CollapsibleTrigger. */
+function CollapsibleChevron({
+  className,
+  ...props
+}: React.ComponentProps<typeof ChevronRightIcon>) {
+  return (
+    <ChevronRightIcon
+      data-slot="collapsible-chevron"
+      aria-hidden="true"
+      className={cn(
+        "size-4 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-90 motion-reduce:transition-none",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+  CollapsibleChevron,
+}
