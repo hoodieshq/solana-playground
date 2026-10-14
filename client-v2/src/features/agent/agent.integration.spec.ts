@@ -4,6 +4,128 @@ import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
 
 /**
+ * What the auth slice reports for the caller. A case runs signed in unless it
+ * sets `session.state` itself. `isAllowedOrigin` stays real: it reads
+ * `AUTH_BASE_URL`, which a case stubs.
+ */
+const session = vi.hoisted(() => ({
+  state: "signed-in" as
+    | "signed-in"
+    | "signed-out"
+    | "unavailable"
+    | "unconfigured",
+}));
+
+vi.mock("../auth/server.mjs", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../auth/server.mjs")>();
+  return {
+    SIGNED_OUT_REASON: real.SIGNED_OUT_REASON,
+    isAllowedOrigin: real.isAllowedOrigin,
+    getAuth: () => (session.state === "unconfigured" ? null : {}),
+    readSession: async () => {
+      if (session.state === "signed-in") {
+        return { status: "signed-in", user: { id: "user-1" } };
+      }
+      if (session.state === "unavailable") return { status: "unavailable" };
+      return { status: "signed-out" };
+    },
+  };
+});
+
+beforeEach(() => {
+  session.state = "signed-in";
+});
+
+/**
+ * Only a signed-in caller from our own site spends the deployment's key. Every
+ * refusal has to land before the upstream is dialled, or the key is spent on
+ * the way to refusing.
+ */
+describe("POST /api/agent sign-in gate", () => {
+  beforeEach(() => {
+    vi.stubEnv("AGENT_API_KEY", "k");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  const TURN = '{"messages":[{"role":"user","content":"hi"}]}';
+
+  it("refuses a signed-out caller with 401 and never reaches the upstream", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch");
+    session.state = "signed-out";
+
+    const res = await postJson(handler, TURN);
+
+    expect(res.statusCode).toBe(401);
+    expect(jsonBody<{ reason?: string }>(res).reason).toBe("signed-out");
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("refuses a signed-out caller before reading the body", async () => {
+    session.state = "signed-out";
+
+    const res = await postJson(handler, "{not json");
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("answers 503 when sign-in is not configured, and never reaches the upstream", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch");
+    session.state = "unconfigured";
+
+    const res = await postJson(handler, TURN);
+
+    expect(res.statusCode).toBe(503);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("answers 503, not 401, when the session lookup fails", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch");
+    session.state = "unavailable";
+
+    const res = await postJson(handler, TURN);
+
+    expect(res.statusCode).toBe(503);
+    expect(jsonBody<{ reason?: string }>(res).reason).toBeUndefined();
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("refuses a turn from another site with 403 and never reaches the upstream", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch");
+    vi.stubEnv("AUTH_BASE_URL", "https://app.test");
+
+    const res = await postJson(handler, TURN, {
+      headers: { origin: "https://elsewhere.test" },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+});
+
+/** Discovery tells the panel whether a turn could be answered at all */
+describe("GET /api/agent", () => {
+  beforeEach(() => {
+    vi.stubEnv("AGENT_API_KEY", "k");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("reports no default backend while sign-in is not configured", async () => {
+    session.state = "unconfigured";
+
+    const res = await postJson(handler, "", { method: "GET" });
+
+    expect(jsonBody<{ configured: boolean }>(res).configured).toBe(false);
+  });
+});
+
+/**
  * The default-backend rail, pinned against the real handler.
  *
  * A body that is not a JSON object is refused with a 400 on both

@@ -20,6 +20,7 @@
  */
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
+import { isAllowedOrigin, requireUser } from "../src/features/auth/server.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import { mcpExplorerEnv } from "../src/shared/config/server-env.mjs";
@@ -30,16 +31,19 @@ const PROTOCOL_VERSION = "2025-06-18";
 const SEPARATOR = "__";
 
 /**
- * Configured upstreams.
+ * The upstreams this caller may use.
  *
- * Explorer is present only when a bypass is supplied through the environment.
- * It is deliberately absent by default: its endpoint sits behind bot protection
- * its owners chose to switch on, and fronting it with a secret of ours would
- * offer anyone who finds this endpoint a way around that. Left unset, the
- * panel's Explorer entry simply has nothing to talk to — which is why it also
- * ships disabled. Previews only; production needs per-caller keys first.
+ * Explorer is present only when a bypass is supplied through the environment,
+ * and only to a signed-in caller. Its endpoint sits behind bot protection its
+ * owners chose to switch on, and our bypass secret rides on every request to
+ * it, so an anonymous caller would get a way around that protection. Left
+ * unset, the panel's Explorer entry has nothing to talk to, which is why it
+ * also ships disabled. The Solana upstream is public and stays open: the
+ * bring-your-own-key backends call it signed out.
+ *
+ * @param {{ signedIn: boolean }} caller
  */
-const upstreams = () => {
+const upstreams = (caller) => {
   const configured = {
     solana: {
       name: "Solana Developer MCP",
@@ -48,7 +52,7 @@ const upstreams = () => {
   };
 
   const explorer = mcpExplorerEnv();
-  if (explorer.BYPASS) {
+  if (explorer.BYPASS && caller.signedIn) {
     configured.explorer = {
       name: "Solana Explorer MCP",
       url: explorer.URL,
@@ -89,10 +93,13 @@ const selected = (url, configured) => {
 
   const unknown = asked.filter((id) => !configured[id]);
   if (unknown.length) {
-    // Explorer's absence is a missing env var rather than a typo
-    const hint = unknown.includes("explorer")
-      ? " Set MCP_EXPLORER_BYPASS on the server to enable explorer."
-      : "";
+    // Explorer's absence is a missing env var or a signed-out caller, not a typo
+    let hint = "";
+    if (unknown.includes("explorer")) {
+      hint = mcpExplorerEnv().BYPASS
+        ? " Sign in with GitHub to use explorer."
+        : " Set MCP_EXPLORER_BYPASS on the server to enable explorer.";
+    }
     throw new Error(
       `Unknown server: ${unknown.join(", ")}. Configured: ${
         Object.keys(configured).join(", ") || "none"
@@ -206,7 +213,13 @@ const callTool = async (id, ids, configured, params) => {
  */
 async function handler(req, res) {
   warnAboutMissingObservabilityIds();
-  const configured = upstreams();
+  // Our own origin first, so another site cannot borrow a visitor's session for
+  // Explorer; the lookup costs a database read, so only when Explorer could use it
+  const signedIn =
+    !!mcpExplorerEnv().BYPASS &&
+    isAllowedOrigin(req) &&
+    !!(await requireUser(req));
+  const configured = upstreams({ signedIn });
 
   // Discovery. The server decides which upstreams exist — the client asks
   // rather than carrying its own list, so adding one is a deploy and an
