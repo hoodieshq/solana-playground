@@ -374,7 +374,7 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
 - **The navigation is a widget, `widgets/app-nav`**: `BaseAppNav` built from
   the installed `Sidebar*` parts and `lucide-react` icons, slots for the
   switcher and the footer; `AppNav` connected. Until Home (5.8) and the
-  Tutorials and Programs pages (5.9) exist, every item opens today's gallery
+  Tutorials and Programs pages (5.9) exist, every item opens the existing gallery
   (`NewWorkspaceModal`): Home and New project on its default tab, Tutorials
   and Programs on theirs, through a new `initialTab` prop. _Rejected:_
   hiding Home until 5.8; disabled items saying "soon".
@@ -392,7 +392,7 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
   saved. The files column stays, and the assistant is the right Sheet, as in
   5.1. Below 768 the navigation and the files column share the stock
   Sidebar's Sheet, opened by "Expand project panel" at the left edge, as the
-  project Sheet is today; the files toggle and ⌘E open and close that Sheet.
+  project panel's Sheet was in 5.1; the files toggle and ⌘E open and close that Sheet.
   A phone has no room for a files column, and its own structure is 5.7.
 - **Panels.** The assistant is 280 to 560 px as in 5.1; the files column
   opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem, with no

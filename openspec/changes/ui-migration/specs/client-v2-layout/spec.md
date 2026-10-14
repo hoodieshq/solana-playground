@@ -161,11 +161,12 @@ no effect.
 
 The product SHALL send `layout_viewport` with the `viewport` class (`wide`,
 `compact` or `phone`) once per page load; `layout_panel_toggled` with the
-panel (`nav`, `files`, `assistant` or `console`), whether it is now open, and whether a button, a key, a drag of the
-panel's edge or the product itself did it (the product opens the console on a
-deploy and the assistant on "Fix with assistant", and closes the project
-Sheet when a modal opens or the settings open from it, since the Sheet would
-keep focus from them);
+panel (`nav`, `files`, `assistant` or `console`; the files column's earlier
+name, `left`, is not sent), whether it is open, and whether a button, a key, a
+drag of the panel's edge or the product itself did it (the product opens the
+console on a deploy and the assistant on "Fix with assistant", and closes the
+navigation's Sheet when a modal opens or the settings open from it, since the
+Sheet would keep focus from them);
 `layout_readonly_edit_blocked` the first time in a page load that a user
 tries to type in a read-only editor; and `layout_restore_failed` with the
 reason when a saved layout cannot be read.

@@ -77,8 +77,11 @@ reference only: its screens are rebuilt on the design system, and #32 is not
 merged. Each step installs the design-system components it needs; the small
 elements are swapped app-wide on a parallel track (5.3-5.6) that depends on
 nothing. Every step after 5.2 restyles inside a column 5.2 already placed.
-Tablet keeps 5.1's behaviour until the designer delivers a tablet layout
-(HOO-2056).
+Tablet keeps 5.1's layout, with one change from 5.2: between 768 and 1023 px
+the navigation starts as a rail on every load (unfolding it is for the visit
+and is not saved), and the assistant is the right Sheet, until the designer
+delivers a tablet layout (HOO-2056). A task that treats the rail on load as a
+regression against 5.1 has misread this rule.
 
 - [x] 5.1 New layout shell with today's panels inside; the editor read-only
       below 600 px (decided 2026-10-09); the classic layout removed

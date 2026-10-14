@@ -229,11 +229,10 @@ is nothing to read but the toast, so the failure is a toast there.
 - [Moving the logger's SDK calls into the reporter can change what the
   logger sends] → the move keeps `logger/providers/sentry.test.ts` and
   `widgets/observability` tests unchanged and passing.
-- [The trigger covers what is under it] → it no longer floats. Fixed at the
-  bottom left it sat over the project panel's "+ New file"; the four-column
-  frame (`ui-migration` 5.2) put the navigation's footer in that corner, and
-  the trigger covered the cluster chip and the avatar. It now sits in that
-  footer, under the status chips, where the prototype keeps "Report a bug".
+- [The trigger covers what is under it] → it does not float. Fixed at the
+  bottom left it would sit over the project panel's "+ New file" and, with the
+  four-column frame (`ui-migration` 5.2), over the cluster chip and the avatar
+  in the navigation's footer. It sits in that footer instead, under the status chips, where the prototype keeps "Report a bug".
   The rail swaps the footer for its own (the cluster's dot and the account)
   and the phone's Sheet unmounts it on close, so the form and its state stay
   in `FeedbackHost`, above the navigation, and only the trigger moves with

@@ -151,13 +151,15 @@ Done:
   (`decisions.md` → D10, D17). Flow is the only layout, a frame of four
   columns with no header. From the left: the navigation (Home, New project,
   Tutorials, Programs, the project switcher at its top, and the cluster,
-  wallet, GitHub and settings chips in its footer; Cmd+B folds it to a rail
-  of icons, whose footer keeps the cluster's status dot, which opens the
-  settings on the cluster, and an account button, which unfolds it), the
+  wallet, GitHub and settings chips and the feedback trigger in its footer;
+  Cmd+B folds it to a rail of icons, whose footer keeps the cluster's status
+  dot, which opens the settings on the cluster, and an account button, which
+  unfolds it; the rail has no feedback trigger), the
   assistant, then the work area. Across the top of the work area runs the
   stage bar, with the stepper (Write → Build → Deploy →
   Interact, state derived from real build/deploy events); under it sit the
-  Files column (Cmd+E folds it) and the stage, with the terminal in a console
+  Files column (Cmd+E folds it, except while the editor has focus, where
+  the editor takes the key; the column's own button always works) and the stage, with the terminal in a console
   drawer under the stage (Cmd+J). The assistant is a resizable panel on
   screens 1024 px and wider and a side Sheet below that; between 768 and
   1023 px the navigation starts as a rail; below 768 px the navigation and
