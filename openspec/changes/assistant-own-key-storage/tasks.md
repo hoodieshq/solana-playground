@@ -28,9 +28,12 @@ parallel with another, since each builds on the one before.
 
 ## 3. Record the decision
 
-- [x] 3.1 ([plan](plans/1.1-own-key-storage.md)) Rewrite the comments that say the key is never persisted
-      (`store.ts`, `remembered-backend.ts`, `model/anthropic.ts`,
-      `model/openai.ts`) to point at this change's design, and update the key
+- [x] 3.1 ([plan](plans/1.1-own-key-storage.md)) Rewrite the comments that said the key is never persisted:
+      `store.ts` and `remembered-backend.ts` describe the `sessionStorage`
+      entry and point at this change, `model/anthropic.ts` points at
+      `remembered-backend`, and `model/openai.ts` drops its pointer to the
+      old decision. Record the redaction of the key from provider errors
+      (`model/redact-key.ts`) as a decision in `design.md`. Update the key
       handling in `docs/assistant-context.md`, then `yarn sync-assistant-context`;
       verify `grep -rn "in memory only" client-v2/src/views/sidebar/assistant`
       finds nothing about the key and `yarn spec:validate` passes

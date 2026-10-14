@@ -35,11 +35,12 @@ without showing the picker or asking for the key.
 - **THEN** connecting still works for the life of the page, and the next load
   shows the picker instead of failing
 
-### Requirement: The key does not outlive its tab
+### Requirement: The key is kept per tab
 
-The panel SHALL NOT make the key available to any other tab or to a later
-browser session: a new tab of the same origin SHALL start with no stored
-key-based connection.
+The panel SHALL keep the key in the tab's `sessionStorage` only, so a new tab
+of the same origin SHALL start with no stored key-based connection. A tab the
+browser duplicates or restores carries its `sessionStorage` with it, and
+reconnects with the key as after a reload.
 
 #### Scenario: A new tab asks again
 
@@ -49,8 +50,9 @@ key-based connection.
 
 ### Requirement: Disconnecting forgets the key
 
-Disconnecting, or connecting to a backend that needs no key, SHALL remove the
-stored key-based connection, so the next load does not reconnect to it.
+Disconnecting (the Forget key button in the chat header), or connecting to a
+backend that needs no key, SHALL remove the stored key-based connection, so the
+next load does not reconnect to it.
 
 #### Scenario: Forgetting the key, then reload
 
