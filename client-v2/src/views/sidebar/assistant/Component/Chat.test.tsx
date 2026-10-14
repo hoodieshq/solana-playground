@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Chat from "./Chat";
 import { PgAssistant } from "../store";
-import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
+import * as reportModule from "@/shared/lib/report-button-failure";
 
 // The panel's neighbours are not under test: the utils barrel needs the
 // generated globals of a booted app, and the lesson, bridge and provider
@@ -64,38 +64,55 @@ beforeEach(() => {
   vi.spyOn(PgAssistant, "isPickingBackend", "get").mockReturnValue(false);
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  resetLogger();
-});
+afterEach(() => vi.restoreAllMocks());
 
 describe("Chat Send", () => {
-  it("reports a failure that happens before the turn starts", async () => {
-    const memory = memoryProvider();
-    initLogger({ providers: [memory] });
-    const failure = new Error("store is broken");
-    vi.spyOn(PgAssistant, "addUserMessage").mockImplementation(() => {
-      throw failure;
-    });
+  /** Types `text` into the composer and presses Send */
+  const typeAndSend = async (text: string) => {
     render(
       <ThemeProvider theme={theme}>
         <Chat />
       </ThemeProvider>
     );
-
-    fireEvent.change(screen.getByRole("textbox"), {
-      target: { value: "hello" },
-    });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: text } });
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Send" }))
     );
+  };
 
-    expect(memory.entries).toEqual([
-      expect.objectContaining({
-        ns: "ui:button",
-        error: failure,
-        report: true,
-      }),
-    ]);
+  it("reports a failure that happens before the turn starts", async () => {
+    const report = vi
+      .spyOn(reportModule, "reportButtonFailure")
+      .mockReturnValue(undefined);
+    const failure = new Error("store is broken");
+    vi.spyOn(PgAssistant, "addUserMessage").mockImplementation(() => {
+      throw failure;
+    });
+
+    await typeAndSend("hello");
+
+    expect(report).toHaveBeenCalledWith(failure);
+  });
+
+  it("keeps the typed text when the message cannot be added", async () => {
+    vi.spyOn(reportModule, "reportButtonFailure").mockReturnValue(undefined);
+    vi.spyOn(PgAssistant, "addUserMessage").mockImplementation(() => {
+      throw new Error("store is broken");
+    });
+
+    await typeAndSend("hello");
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "hello"
+    );
+  });
+
+  it("clears the composer once the message is added", async () => {
+    vi.spyOn(PgAssistant, "addUserMessage").mockReturnValue(undefined);
+    vi.spyOn(PgAssistant, "setStatus").mockReturnValue(undefined);
+
+    await typeAndSend("hello");
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
   });
 });

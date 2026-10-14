@@ -111,7 +111,7 @@ const Deploy = () => {
             // at an imported id; redeploying always targets the project's
             // own key, never whatever Interact last selected.
             PgProgramInfo.update({ customPk: null });
-            PgCommand.deploy.execute();
+            PgCommand.deploy.execute().catch(reportButtonFailure);
           }}
         >
           {deploying

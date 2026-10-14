@@ -170,8 +170,10 @@ const Chat = () => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
-    setInput("");
     PgAssistant.addUserMessage(trimmed);
+    // Cleared only once the message is in: a store that throws leaves the
+    // typed text where the user can send it again
+    setInput("");
     PgAssistant.setStatus("running");
 
     const controller = new AbortController();
