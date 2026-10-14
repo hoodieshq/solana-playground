@@ -3422,3 +3422,59 @@ format and the place: `brainstorming` ends in `/opsx:propose`,
 **Revisit when** a product or scope decision turns out to need a `changes/`
 folder after all (then the index line here points at it), or when OpenSpec
 gains a first-class artifact for standalone decisions.
+
+## D62 - The transport stays on our own loops; the ai SDK is not adopted (amends D1)
+
+**Date:** 2026-10-13 - **Status:** proposed (Slava), in team review as the
+OpenSpec change `ai-sdk-transport-verdict` (PR #70) - **Source:** HOO-1753,
+`docs/research/2026-10-13-ai-sdk-spike.md`. Per D60 the change's `design.md`
+is the full record once it merges; this entry is the index line and stays
+until then.
+
+**Chosen:** the assistant keeps its two transports: the hand-written
+chat-completions loop (`openai.ts`, which also drives the default rail) and
+the Anthropic SDK's Tool Runner (`anthropic.ts`). HOO-1754, the migration to
+the Vercel `ai` SDK, is cancelled once PR #70 is approved.
+
+**What changed since D1.** D1 rejected the SDK on two grounds: React 17, and a
+core that only runs on Node. Neither holds now. client-v2 runs React 19.3
+(HOO-1850), which `@ai-sdk/react@4` accepts. `ai@7`'s `engines.node >=22` is
+a floor for tooling, not for the runtime: the core reaches Node built-ins only
+through `process.getBuiltinModule`, behind a Node check. A probe of
+`streamText` with `@ai-sdk/openai-compatible` built under CRA 5,
+type-checked on our TypeScript 5.0.4, and took a real turn in the browser
+through `/api/agent`, approval card included. The SDK can run; it is
+rejected because it does not pay for itself.
+
+**Why not:**
+
+- **It gives nothing the C rail needs.** Streaming, tool calls and the
+  provider set already work. The cost gate (HOO-1751) and the session token
+  (HOO-1788) belong in `api/agent.mjs`, which pipes the upstream's stream.
+  The SDK on the client cannot enforce a cap, and the pipe can read per-turn
+  usage from the upstream's `usage` chunk without it.
+- **Its default retries work against the cost gate.** `maxRetries: 2`
+  resends a 429, so a capped session would reach the gate three times per
+  turn unless every call sets the retries to 0.
+- **The Anthropic provider would regress.** `@ai-sdk/anthropic@4` maps
+  `pause_turn` to an ordinary stop, which is the cut-off answer `anthropic.ts`
+  resumes. It also drives the MCP connector on the `mcp-client-2025-04-04`
+  beta without `mcp_toolset`, where we use `mcp-client-2025-11-20`.
+- **+205 KB gzip on the assistant chunk**, which loads on boot because the
+  panel is the start page. `zod@4` comes with it.
+- **It replaces working code for a like-for-like result.** Tools, approvals
+  and the transcript survive only because the probe uses the core alone and
+  keeps our store. `useChat`, UI messages and the SDK's own `needsApproval`
+  would replace the transcript that HOO-1737 settled.
+
+**What carries over if this is reopened:** the registry (`createTools`) maps
+onto `tool({ inputSchema: jsonSchema(schema), execute: run })` unchanged. The
+gate inside `run` holds the SDK's loop the same way it holds ours.
+
+**Revisit when** any of these becomes true:
+
+- a provider needs a wire protocol neither loop speaks (Gemini native, the
+  OpenAI Responses API), and the OpenAI-compatible shim no longer reaches it;
+- the agent loop moves to a server (D1-B), where the SDK runs on Node and
+  its providers and `onFinish` usage pay for themselves;
+- `@ai-sdk/anthropic` handles `pause_turn` and the current MCP connector beta.
