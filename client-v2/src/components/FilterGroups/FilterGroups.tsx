@@ -61,7 +61,7 @@ const FilterGroup: FC<React.PropsWithChildren<FilterGroupProps>> = ({
     <FilterGroupWrapper>
       <FilterGroupTitle>{param}</FilterGroupTitle>
       {nonZeroFilters.map((filter) => (
-        <Label key={filter.name} className="flex items-center gap-2">
+        <Label key={filter.name}>
           <Checkbox
             checked={searchValues.includes(filter.name)}
             onCheckedChange={(checked) => {

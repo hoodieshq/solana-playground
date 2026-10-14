@@ -71,7 +71,7 @@ const Grounding = () => {
 
         {SKILLS.map((skill) => (
           <Row key={skill.id}>
-            <Label className="flex items-center gap-2">
+            <Label>
               <Checkbox
                 checked={enabledSkills.includes(skill.id)}
                 onCheckedChange={(checked) =>

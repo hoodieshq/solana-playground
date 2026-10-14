@@ -21,9 +21,15 @@ test("client-v2-elements: A skill is switched by its name", async ({
   const box = page.getByRole("checkbox", { name, exact: true });
   await expect(box).toBeVisible();
 
+  const color = () => row.evaluate((el) => getComputedStyle(el).color);
+
   await expect(box).toBeChecked();
+  const checkedColor = await color();
   await page.getByText(name, { exact: true }).click();
   await expect(box).not.toBeChecked();
+  // The label brightens when its box is checked
+  await expect.poll(color).not.toBe(checkedColor);
   await page.getByText(name, { exact: true }).click();
   await expect(box).toBeChecked();
+  await expect.poll(color).toBe(checkedColor);
 });
