@@ -78,14 +78,6 @@ export const NetworkChoice: FC<{
           key={n.endpoint}
           value={n.endpoint}
           className="font-mono"
-          // Selection follows focus, as it did before: the arrow keys pick a
-          // network, not only move to it. Radix moves the focus; this picks.
-          // Only from a listed endpoint: with Playnet or a custom URL the
-          // panel's open-focus lands on the first chip, which must not
-          // switch the network on its own.
-          onFocus={() =>
-            listed && n.endpoint !== endpoint && onPick(n.endpoint)
-          }
         >
           {n.label}
         </SegmentedItem>
@@ -359,9 +351,9 @@ const Divider = styled.hr`
 // `UpstreamSettings` (`app/Panels/Side/Left/Settings.tsx`) renders a single
 // root `Wrapper` sized and chromed for its original home -- a tooltip-like
 // popover anchored to the sidebar. Strip that chrome from the outside so it
-// reads as a continuation of this panel instead of a nested card. The
-// upstream file itself is untouched; this only overrides via specificity
-// from a wrapping selector.
+// reads as a continuation of this panel instead of a nested card.
+// `Settings.tsx` keeps its own `Wrapper`; this only overrides it via
+// specificity from a wrapping selector.
 const SettingsFrame = styled.div`
   flex: 1;
   min-height: 0;
