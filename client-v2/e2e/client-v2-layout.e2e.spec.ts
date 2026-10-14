@@ -378,6 +378,11 @@ test.describe("on a phone", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
     await page.setViewportSize({ width: 375, height: 812 });
+    // The editor focuses itself when it opens the first file; landing after
+    // the Sheet closed, it would take focus from the settings
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
     const lines = linesOn(page);
     await page.getByRole("button", { name: "Expand project panel" }).click();
     const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');

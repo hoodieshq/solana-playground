@@ -88,6 +88,9 @@ test("the trigger opens its menu from the navigation's Sheet on a phone", async 
   await page.setViewportSize({ width: 1280, height: 800 });
   await seedWorkspace(page);
   await page.setViewportSize({ width: 375, height: 812 });
+  // The editor focuses itself when it opens the first file; landing after the
+  // menu opened, it would close the menu
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
   await page.getByRole("button", { name: "Expand project panel" }).click();
   const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
 
