@@ -11,10 +11,16 @@ test("client-v2-elements: A skill is switched by its name", async ({
 }) => {
   await page.getByRole("tab", { name: "Sources" }).click();
 
-  // The first skill in `SKILLS`; its visible name is the accessible name
-  const name = "Playground build environment";
+  // The first skill row; its visible name is the checkbox's accessible name
+  const row = page
+    .locator("label", { has: page.getByRole("checkbox") })
+    .first();
+  await expect(row).toBeVisible();
+  const name = ((await row.textContent()) ?? "").trim();
+  expect(name).not.toBe("");
   const box = page.getByRole("checkbox", { name, exact: true });
   await expect(box).toBeVisible();
+
   await expect(box).toBeChecked();
   await page.getByText(name, { exact: true }).click();
   await expect(box).not.toBeChecked();
