@@ -205,6 +205,22 @@ it("should say, without reporting, that a migrated layout's horizontal sizes wer
   expect(logs.entries.filter((entry) => entry.report)).toHaveLength(0);
 });
 
+it("should not say a horizontal drop happened when the version 1 layout had no horizontal sizes", () => {
+  const logs = logMemory();
+  initLogger({ providers: [logs] });
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      v: 1,
+      open: { left: true, assistant: true, console: true },
+    })
+  );
+  renderHook(() => useLayoutState());
+  expect(
+    logs.entries.filter((entry) => entry.message?.includes("not carried over"))
+  ).toHaveLength(0);
+});
+
 it("should not write a layout from a newer version on mount", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({ v: 3 }));
   const setItem = vi.spyOn(Storage.prototype, "setItem");

@@ -58,7 +58,9 @@ export const DEFAULT_LAYOUT: LayoutState = Object.freeze({
  * Callers use `DEFAULT_LAYOUT` for everything but `saved`. A `saved` layout
  * whose open flags were good but a size map was not comes back without that
  * map, named in `dropped`. `migrated` says version 1 wrote the value and it
- * was converted, so the caller can save it back in the new shape.
+ * was converted, so the caller can save it back in the new shape;
+ * `droppedH` says that value held horizontal sizes, which the conversion
+ * drops on purpose (see `migrateV1`).
  */
 export type Restored =
   | {
@@ -66,6 +68,7 @@ export type Restored =
       state: LayoutState;
       dropped: readonly SizeKey[];
       migrated: boolean;
+      droppedH?: true;
     }
   | { kind: "none" }
   | { kind: "failed"; reason: "version" }
@@ -184,7 +187,7 @@ export const verticalOf = (layout: PanelLayout): VerticalLayout | null =>
  * sized the `center` and `assistant` panels of `layout-horizontal`; that group
  * still exists, but its panels are now `assistant` and `work`, so the sizes
  * name panels that are gone and mean something else. They are dropped without
- * being reported (the hook logs it at debug): the assistant opens at its
+ * being reported (the hook logs it at info, unreported): the assistant opens at its
  * default size.
  */
 const migrateV1 = (
@@ -211,6 +214,7 @@ const migrateV1 = (
     state,
     dropped: vert === null ? ["vert"] : [],
     migrated: true,
+    droppedH: parsed.h === undefined ? undefined : true,
   };
 };
 

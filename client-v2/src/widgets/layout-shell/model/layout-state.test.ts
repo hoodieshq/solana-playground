@@ -215,6 +215,7 @@ it("should migrate a layout saved before the four columns", () => {
     },
     dropped: [],
     migrated: true,
+    droppedH: true,
   });
 });
 

@@ -101,11 +101,14 @@ export const useLayoutState = () => {
     migrationSaved.current = true;
     // Version 1's `h` sized panels that the horizontal group no longer has, so
     // `migrateV1` drops it by design: said here, not reported, so a reader of
-    // the logs does not take the missing sizes for a loss
-    log.info(
-      "A version 1 layout was migrated; its horizontal sizes were not carried over because their panels changed",
-      { context: { from: 1 } }
-    );
+    // the logs does not take the missing sizes for a loss. Only when the
+    // value held an `h`, so the line never reports a drop that did not happen.
+    if (restored.droppedH) {
+      log.info(
+        "A version 1 layout was migrated; its horizontal sizes were not carried over because their panels changed",
+        { context: { from: 1 } }
+      );
+    }
     save(restored.state, "migration");
   }, [restored, save]);
 
