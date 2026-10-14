@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   afterAll,
   afterEach,
@@ -9,6 +9,11 @@ import {
   vi,
 } from "vitest";
 
+import {
+  initLogger,
+  memoryProvider as memoryLogs,
+  resetLogger,
+} from "@/shared/lib/logger";
 import {
   initTelemetry,
   memoryProvider,
@@ -47,13 +52,18 @@ afterAll(() => {
 });
 
 let sent: ReturnType<typeof memoryProvider>;
+let logged: ReturnType<typeof memoryLogs>;
 beforeEach(() => {
-  view.setModal.mockClear();
+  // `setModal` settles when the modal closes
+  view.setModal.mockReset().mockResolvedValue(null);
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
+  logged = memoryLogs();
+  initLogger({ providers: [logged] });
 });
 afterEach(() => {
   resetTelemetry();
+  resetLogger();
 });
 
 const draw = () =>
@@ -77,33 +87,30 @@ const opened = () =>
     .filter((event) => event.name === "nav_item_opened")
     .map((event) => event.params);
 
-it("sends nav_item_opened and opens the tutorials tab for Tutorials", () => {
-  draw();
-  fireEvent.click(screen.getByRole("button", { name: "Tutorials" }));
-  expect(opened()).toEqual([{ item: "tutorials" }]);
-  expect(view.setModal).toHaveBeenCalledWith(NewWorkspaceModal, {
-    initialTab: "tutorials",
-  });
-});
+it.each([
+  ["Home", "home", "tutorials"],
+  ["New project", "new-project", "tutorials"],
+  ["Tutorials", "tutorials", "tutorials"],
+  ["Programs", "programs", "programs"],
+])(
+  "reports %s as the item picked and opens the gallery on its %s tab",
+  (label, item, initialTab) => {
+    draw();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(opened()).toEqual([{ item }]);
+    expect(view.setModal).toHaveBeenCalledTimes(1);
+    expect(view.setModal).toHaveBeenCalledWith(NewWorkspaceModal, {
+      initialTab,
+    });
+  }
+);
 
-it("opens the gallery on its programs tab for Programs", () => {
+it("reports a modal that fails to open", async () => {
+  const failure = new Error("no modal host");
+  view.setModal.mockRejectedValueOnce(failure);
   draw();
   fireEvent.click(screen.getByRole("button", { name: "Programs" }));
-  expect(opened()).toEqual([{ item: "programs" }]);
-  expect(view.setModal).toHaveBeenCalledWith(NewWorkspaceModal, {
-    initialTab: "programs",
-  });
-});
-
-it("opens the default tab for Home and New project", () => {
-  draw();
-  fireEvent.click(screen.getByRole("button", { name: "Home" }));
-  fireEvent.click(screen.getByRole("button", { name: "New project" }));
-  expect(opened()).toEqual([{ item: "home" }, { item: "new-project" }]);
-  expect(view.setModal).toHaveBeenNthCalledWith(1, NewWorkspaceModal, {
-    initialTab: "tutorials",
-  });
-  expect(view.setModal).toHaveBeenNthCalledWith(2, NewWorkspaceModal, {
-    initialTab: "tutorials",
-  });
+  await waitFor(() => expect(logged.entries).toHaveLength(1));
+  expect(logged.entries[0].report).toBe(true);
+  expect(logged.entries[0].error).toBe(failure);
 });

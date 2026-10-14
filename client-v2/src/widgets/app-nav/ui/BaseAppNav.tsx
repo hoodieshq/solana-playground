@@ -12,12 +12,16 @@ import {
 } from "@/shared/ui/sidebar";
 import type { NavItem } from "../model/nav-item";
 
-const ITEMS: { item: NavItem; label: string; Icon: ComponentType }[] = [
-  { item: "home", label: "Home", Icon: House },
-  { item: "new-project", label: "New project", Icon: Plus },
-  { item: "tutorials", label: "Tutorials", Icon: GraduationCap },
-  { item: "programs", label: "Programs", Icon: Code },
-];
+/** Keyed by item so a new `NavItem` without an entry does not compile; the
+ * menu lists them in the order written here */
+const ITEMS: Record<NavItem, { label: string; Icon: ComponentType }> = {
+  home: { label: "Home", Icon: House },
+  "new-project": { label: "New project", Icon: Plus },
+  tutorials: { label: "Tutorials", Icon: GraduationCap },
+  programs: { label: "Programs", Icon: Code },
+};
+
+const ORDER = Object.keys(ITEMS) as NavItem[];
 
 export interface BaseAppNavProps {
   /** The rail: icons only, no logo or switcher, `railFooter` for `footer` */
@@ -57,14 +61,17 @@ const BaseAppNav = ({
     </SidebarHeader>
     <SidebarContent>
       <SidebarMenu>
-        {ITEMS.map(({ item, label, Icon }) => (
-          <SidebarMenuItem key={item}>
-            <SidebarMenuButton tooltip={label} onClick={() => onOpen(item)}>
-              <Icon />
-              <span>{label}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
+        {ORDER.map((item) => {
+          const { label, Icon } = ITEMS[item];
+          return (
+            <SidebarMenuItem key={item}>
+              <SidebarMenuButton tooltip={label} onClick={() => onOpen(item)}>
+                <Icon />
+                <span>{label}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          );
+        })}
       </SidebarMenu>
     </SidebarContent>
     {/* Swapped, not hidden, on the rail: what the full footer holds keeps
