@@ -1,6 +1,7 @@
 // The design-system components in shared/ui mount and respond in client-v2
 // as installed: React 19, our aliases and jsdom, with no edit by hand.
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "./App";
@@ -13,6 +14,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/shared/ui/resizable";
+import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -210,5 +212,83 @@ describe("the controls, as installed", () => {
     expect(
       screen.getByLabelText("F").closest('[data-slot="field"]')
     ).not.toBeNull();
+  });
+});
+
+describe("Segmented, a choice of a few", () => {
+  function renderChoice(onValueChange: (value: string) => void) {
+    return render(
+      <Segmented
+        variant="chips"
+        aria-label="Network"
+        value="devnet"
+        onValueChange={onValueChange}
+      >
+        <SegmentedItem value="devnet">Devnet</SegmentedItem>
+        <SegmentedItem value="testnet">Testnet</SegmentedItem>
+        <SegmentedItem value="localnet">Localnet</SegmentedItem>
+      </Segmented>
+    );
+  }
+
+  it("picks the next one with the right arrow and moves focus to it", async () => {
+    const onValueChange = vi.fn();
+    renderChoice(onValueChange);
+    act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
+
+    await userEvent.keyboard("{ArrowRight}");
+
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenCalledWith("testnet");
+    expect(document.activeElement).toBe(
+      screen.getByRole("radio", { name: "Testnet" })
+    );
+  });
+
+  it("picks the last one with End", async () => {
+    const onValueChange = vi.fn();
+    renderChoice(onValueChange);
+    act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
+
+    await userEvent.keyboard("{End}");
+
+    expect(onValueChange).toHaveBeenCalledWith("localnet");
+  });
+
+  it("picks nothing when focus lands on an item without an arrow key", async () => {
+    const onValueChange = vi.fn();
+    renderChoice(onValueChange);
+
+    act(() => screen.getByRole("radio", { name: "Testnet" }).focus());
+    await userEvent.tab({ shift: true });
+    await userEvent.tab();
+
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it("picks once on a click", async () => {
+    const onValueChange = vi.fn();
+    renderChoice(onValueChange);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Testnet" }));
+
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenCalledWith("testnet");
+  });
+
+  it("does not pick on a later focus after an arrow that moved nothing", async () => {
+    const onValueChange = vi.fn();
+    render(
+      <Segmented aria-label="One" value="only" onValueChange={onValueChange}>
+        <SegmentedItem value="only">Only</SegmentedItem>
+      </Segmented>
+    );
+    const only = screen.getByRole("radio", { name: "Only" });
+    act(() => only.focus());
+    await userEvent.keyboard("{ArrowRight}");
+    act(() => only.blur());
+    act(() => only.focus());
+
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });
