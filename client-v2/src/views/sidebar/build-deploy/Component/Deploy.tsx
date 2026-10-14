@@ -12,7 +12,7 @@ import {
   useWallet,
 } from "../../../../hooks";
 
-/** What the deploy button shows for each state of a deploy */
+/** The deploy button's icon for each state of a deploy */
 const DEPLOY_ICONS: Record<typeof PgGlobal.deployState, ReactElement> = {
   ready: <Rocket data-icon="inline-start" />,
   cancelled: <Rocket data-icon="inline-start" />,
@@ -54,10 +54,13 @@ const Deploy = () => {
 
   const deployButton = (
     <AsyncButton
-      onClick={() => PgCommand.deploy.execute()}
+      // Not returned: the button must stay pressable while the deploy runs,
+      // since a second press pauses it and a third continues it
+      onClick={() => {
+        PgCommand.deploy.execute().catch(reportButtonFailure);
+      }}
       disabled={buildLoading}
       loading={deployState === "cancelled"}
-      onError={reportButtonFailure}
     >
       {DEPLOY_ICONS[deployState]}
       {deployButtonText}
