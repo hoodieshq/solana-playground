@@ -59,7 +59,7 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
   })),
 ];
 
-export const NetworkChoice: FC<{
+export const BaseNetworkChoice: FC<{
   endpoint: string;
   onPick: (endpoint: string) => void;
   groupRef?: React.Ref<HTMLDivElement>;
@@ -192,7 +192,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
 
       <Section>
         <Eyebrow>Network</Eyebrow>
-        <NetworkChoice
+        <BaseNetworkChoice
           groupRef={chipsRef}
           endpoint={endpoint}
           onPick={(e) => (PgSettings.connection.endpoint = e)}

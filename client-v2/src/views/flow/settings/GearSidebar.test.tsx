@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// GearSidebar's store-backed imports are not under test; `NetworkChoice` is
+// GearSidebar's store-backed imports are not under test; `BaseNetworkChoice` is
 // prop-driven.
 vi.mock("../../../utils", () => ({ PgCommon: {} }));
 vi.mock("../../../hooks", () => ({}));
@@ -11,10 +11,10 @@ vi.mock("../../../app/Panels/Side/Left/Settings", () => ({
 }));
 vi.mock("../../sidebar/explorer/Component/Modals", () => ({}));
 
-import { NetworkChoice } from "./GearSidebar";
+import { BaseNetworkChoice } from "./GearSidebar";
 import { Endpoint } from "../../../constants";
 
-describe("NetworkChoice", () => {
+describe("BaseNetworkChoice", () => {
   beforeEach(() => {
     // the group measures its chips with one; jsdom has none
     vi.stubGlobal(
@@ -28,7 +28,7 @@ describe("NetworkChoice", () => {
   });
 
   it("is a radio group named Network with the current one checked", () => {
-    render(<NetworkChoice endpoint={Endpoint.DEVNET} onPick={() => {}} />);
+    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={() => {}} />);
     expect(screen.getByRole("radiogroup", { name: "Network" })).toBeTruthy();
     expect(
       screen.getByRole("radio", { name: "Devnet" }).getAttribute("aria-checked")
@@ -37,7 +37,7 @@ describe("NetworkChoice", () => {
 
   it("picks the next network with the right arrow", async () => {
     const onPick = vi.fn();
-    render(<NetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
+    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
     act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
     await userEvent.keyboard("{ArrowRight}");
     expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
@@ -47,7 +47,7 @@ describe("NetworkChoice", () => {
   });
 
   it("leaves every chip unchecked for an endpoint it does not list, and Tab still enters the group", async () => {
-    render(<NetworkChoice endpoint="https://my.rpc" onPick={() => {}} />);
+    render(<BaseNetworkChoice endpoint="https://my.rpc" onPick={() => {}} />);
     const radios = screen.getAllByRole("radio");
     expect(
       radios.every((r) => r.getAttribute("aria-checked") === "false")
@@ -59,7 +59,7 @@ describe("NetworkChoice", () => {
 
   it("does not switch network when focus lands on a chip of an unlisted endpoint", () => {
     const onPick = vi.fn();
-    render(<NetworkChoice endpoint="https://my.rpc" onPick={onPick} />);
+    render(<BaseNetworkChoice endpoint="https://my.rpc" onPick={onPick} />);
     act(() => screen.getAllByRole("radio")[0].focus());
     expect(onPick).not.toHaveBeenCalled();
   });
@@ -68,7 +68,7 @@ describe("NetworkChoice", () => {
     const onPick = vi.fn();
     render(
       <>
-        <NetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />
+        <BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />
         <button>after</button>
       </>
     );
@@ -85,7 +85,7 @@ describe("NetworkChoice", () => {
 
   it("picks once on a click", async () => {
     const onPick = vi.fn();
-    render(<NetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
+    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
     await userEvent.click(screen.getByRole("radio", { name: "Testnet" }));
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
