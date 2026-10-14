@@ -198,7 +198,7 @@ export const SettingSetterSelect: FC<
   const renderOption = (o: Option) => {
     // Picking the row that is already selected fires no `onValueChange`, yet
     // `CustomSetting` is how the user edits the custom value they have, and
-    // react-select reopened it. So the current Custom row opens the modal
+    // the old select reopened it. So the current Custom row opens the modal
     // itself, on pointer and on Enter/Space. Any other pick goes through
     // `onValueChange`, so the two paths never both run.
     const reopens = o.value === CUSTOM_VALUE && value === CUSTOM_VALUE;
