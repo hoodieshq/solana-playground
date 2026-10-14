@@ -8,6 +8,9 @@ import type { ModalPageProps } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import { ExportFile, Info } from "../../../../../components/Icons";
 import { PgFramework, PgView } from "../../../../../utils";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("explorer:export-workspace");
 
 export const ExportWorkspace = () => (
   <ModalPages name="export-workspace" defaultPage={modalPage(Default)} />
@@ -21,7 +24,13 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
       const { readme } = await PgFramework.exportWorkspace({ convert: true });
       setPage(modalPage(Readme, { readme }));
     } catch (e) {
-      console.log("Convert and export error:", e);
+      // The export still happens, as is; the user hears that the layout
+      // stayed, and the team hears why the conversion failed
+      log.error(e, { report: true });
+      PgView.setToast(
+        () => <span>Could not convert the layout; exported it as is.</span>,
+        { options: { name: "export-convert-failed" } }
+      );
       await exportWithoutChanges();
     }
   };

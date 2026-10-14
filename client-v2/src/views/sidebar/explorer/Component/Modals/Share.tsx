@@ -10,6 +10,9 @@ import type { ModalPageProps } from "@/widgets/overlays";
 import Text from "../../../../../components/Text";
 import { Checkmark, Sad } from "../../../../../components/Icons";
 import { PgCommon, PgExplorer, PgRouter, PgShare } from "../../../../../utils";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("explorer:share");
 
 export const Share = () => (
   <ModalPages name="share" defaultPage={modalPage(Default)} />
@@ -29,6 +32,8 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
       const shareId = await PgCommon.transition(PgShare.new(filePaths));
       setPage(modalPage(SuccessPage, { shareId }));
     } catch (e: any) {
+      // The error page tells the user; the team hears of it here
+      log.error(e, { report: true });
       setPage(modalPage(ErrorPage, { message: e.message }));
     }
   };
