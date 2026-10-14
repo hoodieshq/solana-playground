@@ -639,8 +639,8 @@ styled-component.
 | hand-built chips, counts, empty states, key hints, status dots, the avatar, the logo mark | `Badge`, `Tag`, `Empty`, `Kbd`, `StatusDot`, `Avatar`, `Logo` | `views/flow` and the assistant panel |
 
 **Installed as used.** `yarn ds-add` installs only what a call site in this
-task uses. The stock parts (badge, checkbox, switch, collapsible, kbd, empty,
-item, avatar) have sources in `design-system/src/components/ui` and no
+task uses. The stock parts (badge, checkbox, switch, collapsible, kbd, empty and
+avatar) have sources in `design-system/src/components/ui` and no
 registry item, so this task registers them, as 5.5 did. `Progress` and
 `ScrollArea` wait for their first use.
 
