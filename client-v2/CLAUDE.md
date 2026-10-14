@@ -99,9 +99,11 @@ or from `ui.shadcn.com`: the stock shadcn parts are registry items too, and
 `@playground/`. The components' npm dependencies are added to
 `package.json` from npm.
 
-The hand-written `GradientButton` is not in `shared/ui`: it lives in
-`components/GradientButton`, beside the legacy `Button` it wraps, until the
-design system's brand button replaces both.
+Buttons come from `shared/ui`: `Button`, `BrandButton` (the one call to
+action of a view; it replaces the hand-written `GradientButton`),
+`AsyncButton` (an action that waits on a promise) and `CopyButton`. The
+legacy `components/Button` and `components/GradientButton` are deleted once
+their last call sites move (ui-migration 5.4); add no new use of either.
 
 One exception: the design system's components named after product parts
 (the catalogue lists them: composer, console drawer, step rail and the rest)
