@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import IdlActions from "./IdlActions";
-import Button from "../../../components/Button";
 import Link from "../../../components/Link";
-import GradientButton from "../../../components/GradientButton";
 import {
   useBlockExplorer,
   useProgramInfo,
@@ -18,6 +16,10 @@ import {
   PgProgramInfo,
   PgTheme,
 } from "../../../utils";
+import { BrandButton } from "@/shared/ui/brand-button";
+import { Button } from "@/shared/ui/button";
+import { CopyButton } from "@/shared/ui/copy-button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
@@ -94,7 +96,7 @@ const Deploy = () => {
       )}
 
       <Actions>
-        <GradientButton
+        <BrandButton
           disabled={!built || deploying}
           title={
             !built
@@ -118,7 +120,7 @@ const Deploy = () => {
             : latest
             ? `Redeploy to ${cluster}`
             : `Deploy to ${cluster}`}
-        </GradientButton>
+        </BrandButton>
         <IdlActions showUpload />
       </Actions>
       {built && !latest && programInfo.pk && (
@@ -131,7 +133,10 @@ const Deploy = () => {
           <Row>
             <Key>Program id</Key>
             <Mono title={latest.programId}>{latest.programId}</Mono>
-            <Button.Copy copyText={latest.programId} />
+            <CopyButton
+              value={latest.programId}
+              onError={reportButtonFailure}
+            />
             <Link
               href={explorer.getAddressUrl(latest.programId)}
               aria-label={`View latest deployment (${latest.programId}) on Explorer`}
@@ -185,7 +190,10 @@ const Deploy = () => {
             <Time>{new Date(latest.at).toLocaleString()}</Time>
           </Row>
           <Actions>
-            <Button onClick={() => PgFlow.setStage("interact")}>
+            <Button
+              variant="outline"
+              onClick={() => PgFlow.setStage("interact")}
+            >
               Interact
             </Button>
           </Actions>
