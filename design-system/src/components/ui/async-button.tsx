@@ -6,16 +6,21 @@ import { Spinner } from "@/components/ui/spinner"
 /* A Button that waits for its own work. Give it an onClick that returns a
    promise and it disables itself and shows a spinner until the promise
    settles, so a slow build cannot be started twice. loading takes over when
-   the wait is known elsewhere. It stays a Button: same variants, same slot. */
+   the wait is known elsewhere. A rejection or a throw goes to onError; with
+   no onError it is rethrown, so it is never lost. It stays a Button: same
+   variants, same slot. */
 function AsyncButton({
   onClick,
+  onError,
   loading: loadingProp,
   loadingText,
   disabled,
   children,
   ...props
-}: Omit<React.ComponentProps<typeof Button>, "onClick"> & {
+}: Omit<React.ComponentProps<typeof Button>, "onClick" | "onError"> & {
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => unknown
+  /** where a failed click goes; without it the failure is rethrown */
+  onError?: (error: unknown) => void
   loading?: boolean
   /** what the button says while it waits, e.g. "Building" */
   loadingText?: React.ReactNode
@@ -29,14 +34,17 @@ function AsyncButton({
       aria-busy={loading || undefined}
       disabled={disabled || loading}
       onClick={async (event) => {
-        const result = onClick?.(event)
-        if (result instanceof Promise) {
-          setPending(true)
-          try {
+        try {
+          const result = onClick?.(event)
+          if (result instanceof Promise) {
+            setPending(true)
             await result
-          } finally {
-            setPending(false)
           }
+        } catch (error) {
+          if (!onError) throw error
+          onError(error)
+        } finally {
+          setPending(false)
         }
       }}
       {...props}

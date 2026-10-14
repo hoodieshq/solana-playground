@@ -1,0 +1,152 @@
+// The design system's AsyncButton and CopyButton as installed: they report a
+// failure through onError instead of losing it.
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { AsyncButton } from "@/shared/ui/async-button";
+import { CopyButton } from "@/shared/ui/copy-button";
+import { TooltipProvider } from "@/shared/ui/tooltip";
+
+// The tooltip positions itself with a `ResizeObserver`, which jsdom lacks.
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+let consoleError: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+  consoleError = vi.spyOn(console, "error");
+});
+
+afterEach(() => {
+  expect(consoleError).not.toHaveBeenCalled();
+  consoleError.mockRestore();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe("AsyncButton", () => {
+  it("is disabled and busy until its promise settles", async () => {
+    let resolve!: () => void;
+    const work = new Promise<void>((r) => (resolve = r));
+    render(<AsyncButton onClick={() => work}>Build</AsyncButton>);
+    const button = screen.getByRole("button", { name: /build/i });
+
+    fireEvent.click(button);
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => resolve());
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+  });
+
+  it("hands a rejection to onError and is enabled again", async () => {
+    const failure = new Error("build server down");
+    const onError = vi.fn();
+    render(
+      <AsyncButton onClick={() => Promise.reject(failure)} onError={onError}>
+        Build
+      </AsyncButton>
+    );
+    const button = screen.getByRole("button", { name: /build/i });
+
+    await act(async () => fireEvent.click(button));
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("hands a synchronous throw to onError", async () => {
+    const failure = new Error("no workspace");
+    const onError = vi.fn();
+    render(
+      <AsyncButton
+        onClick={() => {
+          throw failure;
+        }}
+        onError={onError}
+      >
+        Build
+      </AsyncButton>
+    );
+
+    await act(async () => fireEvent.click(screen.getByRole("button")));
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
+  it("sets no state after it unmounts mid-wait", async () => {
+    let resolve!: () => void;
+    const work = new Promise<void>((r) => (resolve = r));
+    const { unmount } = render(
+      <AsyncButton onClick={() => work}>Save</AsyncButton>
+    );
+    fireEvent.click(screen.getByRole("button"));
+    unmount();
+    await act(async () => resolve());
+    // The afterEach guard asserts that no console.error fired.
+  });
+});
+
+describe("CopyButton", () => {
+  const renderCopy = (onError = vi.fn()) => {
+    render(
+      <TooltipProvider>
+        <CopyButton value="https://beta.solpg.io/abc" onError={onError} />
+      </TooltipProvider>
+    );
+    return { onError, button: screen.getByRole("button", { name: "Copy" }) };
+  };
+
+  it("writes its value and says Copied", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const { button } = renderCopy();
+
+    await act(async () => fireEvent.click(button));
+    expect(writeText).toHaveBeenCalledWith("https://beta.solpg.io/abc");
+    expect(button.getAttribute("aria-label")).toBe("Copied");
+  });
+
+  it("does not say Copied when the clipboard refuses, and reports it", async () => {
+    const refusal = new DOMException("denied", "NotAllowedError");
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockRejectedValue(refusal) },
+    });
+    const { button, onError } = renderCopy();
+
+    await act(async () => fireEvent.click(button));
+    expect(onError).toHaveBeenCalledWith(refusal);
+    expect(button.getAttribute("aria-label")).toBe("Copy");
+  });
+
+  it("reports a browser with no clipboard", async () => {
+    vi.stubGlobal("navigator", {});
+    const { button, onError } = renderCopy();
+
+    await act(async () => fireEvent.click(button));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(button.getAttribute("aria-label")).toBe("Copy");
+  });
+
+  it("keeps Copied for the full window after a second press", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    const { button } = renderCopy();
+
+    await act(async () => fireEvent.click(button));
+    await act(async () => vi.advanceTimersByTime(1000));
+    await act(async () => fireEvent.click(button));
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(button.getAttribute("aria-label")).toBe("Copied");
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(button.getAttribute("aria-label")).toBe("Copy");
+  });
+});
