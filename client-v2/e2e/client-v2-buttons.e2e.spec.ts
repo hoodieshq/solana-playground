@@ -82,4 +82,54 @@ test.describe("client-v2-buttons", () => {
       .toBe(true);
     await expect(copy).toHaveAccessibleName("Copy");
   });
+
+  test("client-v2-buttons: Build cannot be started twice", async ({
+    seededPage: page,
+  }) => {
+    test.setTimeout(120_000);
+    let builds = 0;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/build", async (route) => {
+      builds += 1;
+      await held;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+      });
+    });
+
+    await page.locator("#flow-stage-tab-build").click();
+    await page.getByRole("button", { name: "Build", exact: true }).click();
+
+    // The surface keeps its button while the run is in flight, now busy
+    const busy = page.getByRole("button", { name: /Building/ });
+    await expect(busy).toBeDisabled();
+    await expect(busy).toHaveAttribute("aria-busy", "true");
+    await busy.click({ force: true });
+
+    release();
+    await expect(page.getByText("Build succeeded")).toBeVisible();
+    expect(builds).toBe(1);
+  });
+
+  test("client-v2-buttons: The Build stage offers Deploy as a brand button", async ({
+    seededPage: page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.route("**/build", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+      })
+    );
+
+    await page.locator("#flow-stage-tab-build").click();
+    await page.getByRole("button", { name: "Build", exact: true }).click();
+
+    // A view shows at most one brand button
+    const brand = page.locator('[data-slot="brand-button"]:visible');
+    await expect(brand).toHaveCount(1);
+    await expect(brand).toHaveText(/Deploy/);
+  });
 });
