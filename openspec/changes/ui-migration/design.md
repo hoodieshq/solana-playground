@@ -382,8 +382,9 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
   files column, Ctrl+R the assistant, Ctrl+J the console. The files toggle
   keeps "Collapse project panel" / "Expand project panel" and the rail's "New
   file"; its hint reads ⌘E. Below 768 ⌘E opens and closes the Sheet that
-  holds the files column. Monaco keeps ⌘E (find with selection) while the
-  editor has focus; the shell's ⌘E works outside the editor.
+  holds the files column. On macOS Monaco keeps ⌘E (find with selection)
+  while the editor has focus, so the shell's ⌘E works outside the editor
+  there; on Windows and Linux Ctrl+E folds the column from the editor too.
   _Rejected:_ ⌘B staying on the files column, leaving the navigation to its
   button alone.
 - **Width.** From `LAYOUT_BREAKPOINTS.compact` (1024) every column is in
@@ -392,7 +393,8 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
   saved. The files column stays, and the assistant is the right Sheet, as in
   5.1. Below 768 the navigation and the files column share the stock
   Sidebar's Sheet, opened by "Expand project panel" at the left edge, as the
-  project panel's Sheet was in 5.1; the files toggle and ⌘E open and close that Sheet.
+  project panel's Sheet was in 5.1; the files toggle and ⌘E open and close
+  that Sheet.
   A phone has no room for a files column, and its own structure is 5.7.
 - **Panels.** The assistant is 280 to 560 px as in 5.1; the files column
   opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem, with no

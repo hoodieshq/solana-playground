@@ -79,9 +79,9 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
           panel back, so the rail stacks it under the chevron rather than
           dropping it. */}
       {collapsed && <Chevron $flip={false} />}
-      {/* Advertises the layout shell's fold key. It does not fire while the
-          editor has focus (Monaco takes the key there), so it works from the
-          rest of the page. */}
+      {/* Advertises the layout shell's fold key. On macOS it does not fire
+          while the editor has focus (Monaco binds ⌘E there); elsewhere it
+          works everywhere. */}
       <Hint>&#8984;E</Hint>
       {!collapsed && <Chevron $flip />}
     </Collapse>
@@ -208,7 +208,7 @@ const Collapse = styled.button<{ $collapsed: boolean }>`
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-    /* The rail is FILES.folded wide (BaseLayoutShell), too narrow for "⌘E"
+    /* The rail is PANEL_SIZES.files.folded wide (BaseLayoutShell), too narrow for "⌘E"
        beside the chevron, so it sits below it at a smaller size than the
        expanded panel uses. */
     font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};

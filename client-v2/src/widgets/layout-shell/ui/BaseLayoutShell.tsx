@@ -39,8 +39,9 @@ const HANDLE_PX = 8;
  * of its own: what stops it growing is the stage's `stage.min` beside it.
  * `work.min` is an open files column at its minimum, the handle and the stage
  * at its minimum, so the work area never takes less than both need: on a
- * narrow window with every column open the assistant gives way instead. The console
- * folds to its handle, the bar `ConsoleDrawer` draws at `BOTTOM_BAR_PX`.
+ * narrow window with every column open the assistant gives way instead.
+ * The console folds to its handle, the bar `ConsoleDrawer` draws at
+ * `BOTTOM_BAR_PX`.
  */
 export const PANEL_SIZES = {
   assistant: { default: 348, min: 280, max: 560, folded: 24 },
@@ -51,7 +52,10 @@ export const PANEL_SIZES = {
   work: { min: FILES.min + HANDLE_PX + STAGE.min },
 } as const;
 
-/** The navigation's open and rail widths, as the design system's migration map has them; the one place they are set */
+/**
+ * The navigation's open and rail widths, as the design system's migration
+ * map has them; the one place they are set.
+ */
 const SIDEBAR_STYLE = {
   "--sidebar-width": "14.5rem",
   "--sidebar-width-icon": "3.25rem",

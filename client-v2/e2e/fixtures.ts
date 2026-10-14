@@ -45,10 +45,10 @@ export const HELP_TAIL = "Run test(s)";
  * Waits for the editor to take focus, then moves focus out of it.
  *
  * The editor focuses itself when it opens a file, at a moment that varies
- * with the machine, and Monaco keeps ⌘E (find with selection) while it has
- * focus. A key the shell binds globally, such as ⌘E for the files column,
- * reaches the shell only from outside the editor, so a test pressing it
- * first settles where focus is.
+ * with the machine, and on macOS Monaco keeps ⌘E (find with selection)
+ * while it has focus. A key the shell binds globally, such as ⌘E for the
+ * files column, reaches the shell there only from outside the editor, so a
+ * test pressing it first settles where focus is.
  */
 export const leaveEditor = async (page: Page) => {
   const editor = page.locator(".monaco-editor textarea.inputarea");

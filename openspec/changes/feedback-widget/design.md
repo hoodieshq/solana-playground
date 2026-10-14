@@ -232,7 +232,8 @@ is nothing to read but the toast, so the failure is a toast there.
 - [The trigger covers what is under it] → it does not float. Fixed at the
   bottom left it would sit over the project panel's "+ New file" and, with the
   four-column frame (`ui-migration` 5.2), over the cluster chip and the avatar
-  in the navigation's footer. It sits in that footer instead, under the status chips, where the prototype keeps "Report a bug".
+  in the navigation's footer. It sits in that footer instead, under the
+  status chips, where the prototype keeps "Report a bug".
   The rail swaps the footer for its own (the cluster's dot and the account)
   and the phone's Sheet unmounts it on close, so the form and its state stay
   in `FeedbackHost`, above the navigation, and only the trigger moves with

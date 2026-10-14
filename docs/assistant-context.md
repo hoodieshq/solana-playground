@@ -158,8 +158,9 @@ Done:
   assistant, then the work area. Across the top of the work area runs the
   stage bar, with the stepper (Write → Build → Deploy →
   Interact, state derived from real build/deploy events); under it sit the
-  Files column (Cmd+E folds it, except while the editor has focus, where
-  the editor takes the key; the column's own button always works) and the stage, with the terminal in a console
+  Files column (Cmd+E folds it; on a Mac not while the editor has focus,
+  where the editor takes the key; the column's own button always works)
+  and the stage, with the terminal in a console
   drawer under the stage (Cmd+J). The assistant is a resizable panel on
   screens 1024 px and wider and a side Sheet below that; between 768 and
   1023 px the navigation starts as a rail; below 768 px the navigation and
