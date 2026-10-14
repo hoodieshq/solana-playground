@@ -68,25 +68,6 @@ const subscribeCompact = (onChange: () => void) => {
 };
 const isCompact = () => window.matchMedia(STEPPER_COMPACT_QUERY).matches;
 
-const ariaLabelOf = (
-  state: FlowState,
-  stage: Stage,
-  status: StageStatus,
-  target: Stage | null | undefined
-) => {
-  // Spoken here as well as drawn: a pre-compiler failure has no count, so
-  // saying "0 errors" would mislead.
-  const suffix =
-    stage === "build" && status === "failed" && state.buildErrorCount > 0
-      ? `, ${state.buildErrorCount} error${
-          state.buildErrorCount === 1 ? "" : "s"
-        }`
-      : "";
-  return `${LABEL[stage]}: ${status}${suffix}${
-    stage === target ? ", current lesson target" : ""
-  }`;
-};
-
 /**
  * The write -> build -> deploy -> interact loop, drawn with the design
  * system's stepper. Each stage's status is carried by glyph shape as well as
@@ -108,7 +89,17 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => {
               target={stage === target}
               id={`flow-stage-tab-${stage}`}
               aria-controls={`flow-stage-panel-${stage}`}
-              aria-label={ariaLabelOf(state, stage, status, target)}
+              aria-label={`${LABEL[stage]}: ${status}${
+                // Spoken here as well as drawn: a pre-compiler failure has no
+                // count, so saying "0 errors" would mislead.
+                stage === "build" &&
+                status === "failed" &&
+                state.buildErrorCount > 0
+                  ? `, ${state.buildErrorCount} error${
+                      state.buildErrorCount === 1 ? "" : "s"
+                    }`
+                  : ""
+              }${stage === target ? ", current lesson target" : ""}`}
             >
               {LABEL[stage]}
             </StepperItem>
