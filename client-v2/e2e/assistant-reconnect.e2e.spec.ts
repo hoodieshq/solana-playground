@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Page, Request } from "@playwright/test";
 import {
   hasDefaultBackend,
   NO_DEFAULT_BACKEND,
@@ -10,16 +10,25 @@ import {
  * The panel comes back usable after a reload, without being asked twice.
  *
  * A key-based backend comes back from this tab's `sessionStorage` (the
- * `assistant-own-key` tests below); the default backend needs no key at all --
- * and making the user click the same button on every single reload, before the
- * assistant could be used at all, was the whole of the difference.
+ * `assistant-own-key` describe block); the default backend needs no key at all
+ * -- and making the user click the same button on every single reload, before
+ * the assistant could be used at all, was the whole of the difference.
  *
- * Only reachable on a deployment that actually serves a default backend, which
- * is what the probe in `Connect` decides; the test asserts nothing when it is
- * not configured, rather than failing on an environment it was never about.
+ * "the default backend reconnects itself after a reload" and "disconnecting is
+ * not undone by the next reload" are only reachable on a deployment that
+ * serves a default backend, which is what the probe in `Connect` decides; they
+ * skip where it is not configured, rather than failing on an environment they
+ * were never about. The `assistant-own-key` tests need no default backend and
+ * run everywhere.
  */
 
 const LONG = { timeout: 60_000 };
+
+/**
+ * How long a negative check waits for something asynchronous that must not
+ * happen (a reconnect, a request) before it asserts its absence
+ */
+const QUIET_WINDOW_MS = 3_000;
 
 type AssistantWindow = Window & {
   __pgAssistant?: { isConnected: boolean; items: unknown[] };
@@ -136,6 +145,12 @@ const storedValues = (page: Page, store: "localStorage" | "sessionStorage") =>
     return values;
   }, store);
 
+/** Whether a request carries the key anywhere: its URL, a header or its body */
+const carriesKey = (req: Request) =>
+  [req.url(), JSON.stringify(req.headers()), req.postData() ?? ""].some(
+    (part) => part.includes(KEY)
+  );
+
 /** The picker's heading when nothing is connected */
 const picker = (page: Page) =>
   page.getByText("An assistant that can see your project");
@@ -186,7 +201,9 @@ test.describe("assistant-own-key", () => {
     await expect
       .poll(() => connected(page), LONG)
       .toMatchObject({ id: "openai", apiKey: KEY, endpoint: OWN.endpoint });
-    await expect(page.locator("#assistant-api-key")).toBeHidden();
+    // The picker opens on the keyless default, which has no key field, so
+    // only its heading says whether it is on screen
+    await expect(picker(page)).toBeHidden();
   });
 
   test("assistant-own-key: Storage that refuses access", async ({ page }) => {
@@ -219,7 +236,7 @@ test.describe("assistant-own-key", () => {
     await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
 
     // A reconnect would be asynchronous, so give one a window to show itself
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(QUIET_WINDOW_MS);
 
     expect(await connected(page)).toMatchObject({ id: "openai", apiKey: KEY });
     expect(
@@ -236,11 +253,12 @@ test.describe("assistant-own-key", () => {
 
     const second = await context.newPage();
     await second.goto("/");
+    // The picker on screen means `Connect` has mounted, and its reconnect
+    // from `sessionStorage` runs on mount: a connection now would be one
     await expect(picker(second)).toBeVisible(LONG);
-    // Polled, so a reconnect that has not run yet cannot make this pass
-    await expect.poll(() => connected(second), LONG).toBeNull();
+    expect(await connected(second)).toBeNull();
     expect(
-      await second.evaluate(() => JSON.stringify({ ...sessionStorage }))
+      JSON.stringify(await storedValues(second, "sessionStorage"))
     ).not.toContain(KEY);
   });
 
@@ -270,12 +288,12 @@ test.describe("assistant-own-key", () => {
     await seedWorkspace(page, "own-key-switch");
     await connectOwn(page);
     expect(
-      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+      JSON.stringify(await storedValues(page, "sessionStorage"))
     ).toContain(KEY);
     await connectOwn(page, { id: "default", apiKey: "" });
 
     expect(
-      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+      JSON.stringify(await storedValues(page, "sessionStorage"))
     ).not.toContain(KEY);
   });
 
@@ -288,7 +306,7 @@ test.describe("assistant-own-key", () => {
       .toMatchObject({ apiKey: KEY });
 
     expect(
-      await page.evaluate(() => JSON.stringify({ ...localStorage }))
+      JSON.stringify(await storedValues(page, "localStorage"))
     ).not.toContain(KEY);
     // The seeded workspace's files live here, so zero records means the
     // read found nothing and the check below would pass for no reason
@@ -301,14 +319,13 @@ test.describe("assistant-own-key", () => {
     page,
     baseURL,
   }) => {
-    // Connecting and reloading send no provider request, so this guards a
-    // regression that would send the key to our own origin on load or
-    // reconnect, not a request that exists today
+    // Connecting and reloading send no provider request, so this guards
+    // against a regression that would send the key to our own origin on load
+    // or reconnect
     const leaks: string[] = [];
     page.on("request", (req) => {
       if (new URL(req.url()).origin !== new URL(baseURL!).origin) return;
-      const carried = JSON.stringify(req.headers()) + (req.postData() ?? "");
-      if (carried.includes(KEY)) leaks.push(req.url());
+      if (carriesKey(req)) leaks.push(req.url());
     });
 
     await seedWorkspace(page, "own-key-requests");
@@ -319,7 +336,7 @@ test.describe("assistant-own-key", () => {
       .toMatchObject({ apiKey: KEY });
     // `networkidle` never arrives under the dev server (HMR socket, polling),
     // so give the post-connect requests a fixed window to show up instead
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(QUIET_WINDOW_MS);
 
     expect(leaks).toEqual([]);
   });
@@ -343,8 +360,7 @@ test.describe("assistant-own-key", () => {
     const leaks: string[] = [];
     page.on("request", (req) => {
       if (new URL(req.url()).origin !== new URL(baseURL!).origin) return;
-      const carried = JSON.stringify(req.headers()) + (req.postData() ?? "");
-      if (carried.includes(KEY)) leaks.push(req.url());
+      if (carriesKey(req)) leaks.push(req.url());
     });
 
     await seedWorkspace(page, "own-key-send");

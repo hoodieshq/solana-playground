@@ -15,6 +15,7 @@ import {
 // craco's webpack alias and in `vitest.config.ts`'s `resolve.alias`, and this
 // import is what fails when the vitest mapping drifts from the other two.
 import { PgFs } from "@/utils/explorer/fs";
+import { storedValues } from "../../../test-utils/stored-values";
 
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
@@ -464,6 +465,7 @@ describe("PgAssistant reply provenance", () => {
 describe("PgAssistant backend memory", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     PgAssistant.disconnect();
   });
 
@@ -472,7 +474,7 @@ describe("PgAssistant backend memory", () => {
     expect(isDefaultBackendRemembered()).toBe(true);
   });
 
-  it("does not remember a backend the user had to bring a key for", () => {
+  it("does not remember a key-based backend as the default", () => {
     PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
     expect(isDefaultBackendRemembered()).toBe(false);
   });
@@ -692,7 +694,7 @@ describe("the user's own key", () => {
     await settled();
 
     expect(sessionStorage.getItem("assistant.connection")).toContain(KEY);
-    expect(JSON.stringify({ ...localStorage })).not.toContain(KEY);
+    expect(JSON.stringify(storedValues(localStorage))).not.toContain(KEY);
     expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
       KEY
     );
