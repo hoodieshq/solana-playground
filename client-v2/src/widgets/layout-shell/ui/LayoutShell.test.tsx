@@ -126,10 +126,16 @@ const shell = () =>
   render(
     <ThemeProvider theme={theme}>
       <LayoutShell
-        nav={({ collapsed, toggle }) => (
-          <button type="button" onClick={toggle}>
-            {collapsed ? "Expand navigation" : "Collapse navigation"}
-          </button>
+        nav={({ collapsed, toggle, closeSheet }) => (
+          <>
+            <button type="button" onClick={toggle}>
+              {collapsed ? "Expand navigation" : "Collapse navigation"}
+            </button>
+            {/* Stands for the cluster chip, which opens settings */}
+            <button type="button" onClick={closeSheet}>
+              Open settings
+            </button>
+          </>
         )}
         stageBar={<div>stage bar</div>}
         files={({ collapsed, toggle }) => (
@@ -735,6 +741,28 @@ it("should close the navigation Sheet when a modal opens", () => {
     open: true,
     via: "button",
   });
+});
+
+it("should close the navigation Sheet for what the navigation opens over it, as auto", () => {
+  resizeTo(500);
+  shell();
+  tap(screen.getByRole("button", { name: "Expand project panel" }));
+  tap(screen.getByRole("button", { name: "Open settings" }));
+  expect(
+    document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
+  ).toBeNull();
+  expect(toggled()).toEqual([
+    { panel: "nav", open: true, via: "button" },
+    { panel: "nav", open: false, via: "auto" },
+  ]);
+});
+
+it("should leave no mark when the navigation asks to close a Sheet that is not open", () => {
+  // From 768 px up the navigation is not in a Sheet, so there is none to close
+  shell();
+  tap(screen.getByRole("button", { name: "Open settings" }));
+  tap(screen.getByRole("button", { name: "Collapse navigation" }));
+  expect(toggled()).toEqual([{ panel: "nav", open: false, via: "button" }]);
 });
 
 it("should report nothing for a modal on a desktop when the Sheet was left open on a phone", () => {

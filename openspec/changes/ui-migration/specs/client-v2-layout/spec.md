@@ -82,7 +82,9 @@ SHALL be in the navigation and the cluster, wallet and settings controls in
 its footer. Between 768 and 1023 px the navigation SHALL start as a rail on
 every load and the
 assistant a Sheet opened by "Expand assistant". Below 768 px the navigation
-and the files column SHALL share one Sheet opened by "Expand project panel".
+and the files column SHALL share one Sheet opened by "Expand project panel",
+and opening the settings from its footer SHALL close that Sheet, whose overlay
+would otherwise cover the settings and keep focus from them.
 
 #### Scenario: A wide window
 
@@ -104,6 +106,13 @@ and the files column SHALL share one Sheet opened by "Expand project panel".
 - **WHEN** a user opens a project on an 834 px wide window
 - **THEN** the navigation is a rail, the files column and the stage are
   shown, and "Expand assistant" opens the assistant in a Sheet
+
+#### Scenario: Settings on a phone
+
+- **WHEN** a user on a 375 px wide window opens the navigation's Sheet and
+  taps the cluster chip
+- **THEN** the Sheet closes, the settings open with focus on the cluster,
+  and picking another cluster changes it
 
 ### Requirement: The navigation opens the gallery
 
@@ -145,7 +154,8 @@ The product SHALL send `layout_viewport` with the `viewport` class (`wide`,
 panel (`nav`, `files`, `assistant` or `console`), whether it is now open, and whether a button, a key, a drag of the
 panel's edge or the product itself did it (the product opens the console on a
 deploy and the assistant on "Fix with assistant", and closes the project
-Sheet when a modal opens, since the Sheet would keep focus from the modal);
+Sheet when a modal opens or the settings open from it, since the Sheet would
+keep focus from them);
 `layout_readonly_edit_blocked` the first time in a page load that a user
 tries to type in a read-only editor; and `layout_restore_failed` with the
 reason when a saved layout cannot be read.

@@ -17,12 +17,17 @@ export interface LayoutShellProps {
   /**
    * The navigation. `collapsed` is never true in the Sheet below
    * `LAYOUT_BREAKPOINTS.left`, which has no rail; `toggle` folds the rail
-   * from there up and opens or closes the Sheet below it.
+   * from there up and opens or closes the Sheet below it. `closeSheet` is for
+   * a control in the navigation that opens something the Sheet's modal
+   * overlay would cover (settings, from the status chips): it closes the
+   * Sheet as the product's doing, `via: "auto"`, and does nothing where no
+   * Sheet is open.
    */
   nav: (panel: {
     collapsed: boolean;
     isMobile: boolean;
     toggle: () => void;
+    closeSheet: () => void;
   }) => ReactNode;
   /** Across the top of the files column and the stage */
   stageBar: ReactNode;
@@ -230,16 +235,29 @@ const LayoutShell = ({
     };
   }, []);
 
-  // A modal closes the Sheet, which traps focus away from it: the product's
-  // doing, not the user's, so it is reported as `auto`. The mark is dropped
-  // when there was no Sheet to close, so it cannot label a later toggle.
-  const closeLeftSheetOnModal = useCallback(
-    (close: () => boolean) =>
-      PgView.onDidOpenModal(() => {
-        navVia.current = "auto";
-        if (!close()) navVia.current = null;
-      }),
-    []
+  // What closes the navigation's Sheet, from `closeLeftSheetOn`
+  const sheetClose = useRef<(() => boolean) | null>(null);
+  // A modal, or settings opened from the navigation's own chips, closes the
+  // Sheet: the Sheet is a modal dialog that traps focus and covers both. The
+  // product's doing, not the user's, so it is reported as `auto`. The mark is
+  // dropped when there was no Sheet to close, so it cannot label a later
+  // toggle.
+  const closeSheetAuto = useCallback(() => {
+    navVia.current = "auto";
+    if (!sheetClose.current?.()) navVia.current = null;
+  }, []);
+  const closeLeftSheetOn = useCallback(
+    (close: () => boolean) => {
+      sheetClose.current = close;
+      const sub = PgView.onDidOpenModal(closeSheetAuto);
+      return {
+        dispose: () => {
+          sub.dispose();
+          if (sheetClose.current === close) sheetClose.current = null;
+        },
+      };
+    },
+    [closeSheetAuto]
   );
 
   return (
@@ -271,7 +289,12 @@ const LayoutShell = ({
       onWorkLayout={setWork}
       onVerticalLayout={setVertical}
       nav={({ toggle, isMobile, collapsed }) =>
-        nav({ collapsed, isMobile, toggle: toggleNav(toggle, isMobile) })
+        nav({
+          collapsed,
+          isMobile,
+          toggle: toggleNav(toggle, isMobile),
+          closeSheet: closeSheetAuto,
+        })
       }
       files={({ isMobile, toggle }) =>
         files({
@@ -285,7 +308,7 @@ const LayoutShell = ({
         })
       }
       onLeftSheetChange={onLeftSheetChange}
-      closeLeftSheetOn={closeLeftSheetOnModal}
+      closeLeftSheetOn={closeLeftSheetOn}
       toggleLeftSheetOn={toggleLeftSheetOn}
       sheetFont={{
         fontFamily: theme.font.code.family,

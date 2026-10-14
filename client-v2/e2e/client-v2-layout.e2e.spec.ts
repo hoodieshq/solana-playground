@@ -374,6 +374,47 @@ test.describe("on a phone", () => {
     await expect(lines).toContainText("const a = 1;");
   });
 
+  test("client-v2-layout: Settings on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    const lines = linesOn(page);
+    await page.getByRole("button", { name: "Expand project panel" }).click();
+    const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
+    await sheet.getByRole("button", { name: /^Change cluster/ }).click();
+
+    // The Sheet's overlay would cover the settings and trap focus away from
+    // them, so opening them closes it, as the product's doing
+    await expect(sheet).toHaveCount(0);
+    const settings = page.getByRole("region", { name: "Settings" });
+    const network = settings.getByRole("radiogroup", { name: "Network" });
+    await expect(network.getByRole("radio", { checked: true })).toBeFocused();
+    await expect
+      .poll(() =>
+        lines.find(
+          (line) =>
+            line.startsWith("[telemetry:event] layout_panel_toggled ") &&
+            line.includes("open: false")
+        )
+      )
+      .toContain("via: auto");
+
+    await network.getByRole("radio", { name: "Localnet" }).click();
+    await expect(
+      network.getByRole("radio", { name: "Localnet" })
+    ).toHaveAttribute("aria-checked", "true");
+    // Still open and in front: a second pick lands too
+    await network.getByRole("radio", { name: "Devnet" }).click();
+    await expect(
+      network.getByRole("radio", { name: "Devnet" })
+    ).toHaveAttribute("aria-checked", "true");
+    await settings.getByRole("button", { name: "Close settings" }).click();
+    await page.getByRole("button", { name: "Expand project panel" }).click();
+    await expect(
+      sheet.getByRole("button", { name: "Change cluster, currently devnet" })
+    ).toBeVisible();
+  });
+
   test("a file can be renamed from the project Sheet", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);

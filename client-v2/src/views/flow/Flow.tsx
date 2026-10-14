@@ -70,11 +70,17 @@ const Flow = () => {
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
   // Toggles rather than opens: the navigation footer's chips are the only way
-  // in, so a second click on one has to be the way out.
-  const toggleSettings = (focus: SettingsFocus = "panel") => {
-    setSettingsFocus(focus);
-    setSettingsOpen((open) => !open);
-  };
+  // in, so a second click on one has to be the way out. Opening closes the
+  // navigation's Sheet below `LAYOUT_BREAKPOINTS.left` (`closeSheet`): the
+  // chips sit in it, and its modal overlay would cover the panel and trap
+  // focus away from it.
+  const toggleSettings =
+    (closeSheet: () => void) =>
+    (focus: SettingsFocus = "panel") => {
+      if (!settingsOpen) closeSheet();
+      setSettingsFocus(focus);
+      setSettingsOpen((open) => !open);
+    };
 
   // Whether the empty-workspace gallery has already been opened once for
   // this mount of `Flow`.
@@ -153,7 +159,7 @@ const Flow = () => {
         <SyncBanner />
       </BannerSlot>
       <LayoutShell
-        nav={({ collapsed, toggle }) => (
+        nav={({ collapsed, toggle, closeSheet }) => (
           <AppNav
             collapsed={collapsed}
             onToggle={toggle}
@@ -163,7 +169,7 @@ const Flow = () => {
               <>
                 <StatusChips
                   placement="above"
-                  onToggleSettings={toggleSettings}
+                  onToggleSettings={toggleSettings(closeSheet)}
                   settingsOpen={settingsOpen}
                 />
                 <FeedbackWidget />
