@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { createLogger } from "@/shared/lib/logger";
 import GradientButton from "../../../../components/GradientButton";
 import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
@@ -17,6 +18,8 @@ import {
   type ProviderId,
   type ProviderInfo,
 } from "../model/types";
+
+const log = createLogger("assistant:connect");
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>
@@ -60,7 +63,13 @@ const useDefaultBackend = () => {
     let live = true;
     fetch(DEFAULT_BACKEND_URL)
       .then((r) => (r.ok ? r.json() : { configured: false }))
-      .catch(() => ({ configured: false }))
+      .catch((error) => {
+        // Expected on a deployment without `/api/agent`, so not reported
+        log.warn("could not probe the default backend", {
+          context: { reason: error instanceof Error ? error.name : "unknown" },
+        });
+        return { configured: false };
+      })
       .then((body) => live && setConfigured(!!body.configured));
     return () => {
       live = false;
@@ -101,10 +110,12 @@ const Connect = () => {
   /**
    * Reconnect to the key-based backend this tab was using before a reload.
    *
-   * Kept in `sessionStorage` by `rememberBackend`, so a new tab never gets
-   * here with one. Needs no probe: the probe only says whether this
-   * deployment serves the default backend. The same guards as the
-   * `isDefaultBackendRemembered` reconnect: nothing connected, and the picker not opened on purpose.
+   * Kept in `sessionStorage` by `rememberBackend`, so a freshly opened tab
+   * never gets here with one (a duplicated tab copies it, and reconnects).
+   * Needs no probe: the probe only says whether this deployment serves the
+   * default backend. Guarded like the `isDefaultBackendRemembered` reconnect
+   * below -- nothing connected, picker not opened on purpose -- so the user's
+   * own Disconnect or Change backend is not undone.
    */
   useEffect(() => {
     if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
@@ -396,10 +407,10 @@ const Connect = () => {
 
       {provider.needsKey && (
         <Note>
-          Held in memory for this tab only — never written to disk, never sent
-          anywhere but{" "}
-          {provider.endpoint ? "the endpoint above" : provider.name}. You will
-          re-enter it after a reload.
+          Kept for this tab only and forgotten when you disconnect or close the
+          tab. Sent only to{" "}
+          {provider.endpoint ? "the endpoint above" : provider.name}, never to
+          our server.
         </Note>
       )}
 
