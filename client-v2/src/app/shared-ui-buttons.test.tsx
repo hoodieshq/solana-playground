@@ -47,6 +47,65 @@ describe("AsyncButton", () => {
     expect(button.hasAttribute("aria-busy")).toBe(false);
   });
 
+  it("says its loadingText while it waits", async () => {
+    let resolve!: () => void;
+    const work = new Promise<void>((r) => (resolve = r));
+    render(
+      <AsyncButton onClick={() => work} loadingText="Sending...">
+        Send
+      </AsyncButton>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(screen.getByRole("button").textContent).toBe("Sending...");
+
+    await act(async () => resolve());
+    expect(screen.getByRole("button").textContent).toBe("Send");
+  });
+
+  it("keeps its own wait when loading is false", async () => {
+    let resolve!: () => void;
+    const work = new Promise<void>((r) => (resolve = r));
+    render(
+      <AsyncButton loading={false} onClick={() => work}>
+        Build
+      </AsyncButton>
+    );
+    const button = screen.getByRole("button", { name: /build/i });
+
+    fireEvent.click(button);
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => resolve());
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("is disabled and busy while loading, before any click", () => {
+    render(<AsyncButton loading>Build</AsyncButton>);
+    const button = screen.getByRole("button", { name: /build/i });
+
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("cannot have its busy state overridden by a caller", async () => {
+    let resolve!: () => void;
+    const work = new Promise<void>((r) => (resolve = r));
+    render(
+      <AsyncButton aria-busy={false} data-loading={false} onClick={() => work}>
+        Build
+      </AsyncButton>
+    );
+    const button = screen.getByRole("button", { name: /build/i });
+
+    fireEvent.click(button);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("data-loading")).toBe("true");
+
+    await act(async () => resolve());
+  });
+
   it("hands a rejection to onError and is enabled again", async () => {
     const failure = new Error("build server down");
     const onError = vi.fn();

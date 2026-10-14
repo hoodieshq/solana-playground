@@ -15,8 +15,12 @@ function CopyButton({
   onError,
   className,
   ...props
-}: Omit<React.ComponentProps<typeof Button>, "value" | "onClick" | "onError"> & {
+}: Omit<
+  React.ComponentProps<typeof Button>,
+  "value" | "onClick" | "onError" | "aria-label"
+> & {
   value: string
+  /** its accessible name until a copy succeeds, when it says Copied */
   label?: string
   /** where a refused copy goes */
   onError?: (error: unknown) => void
