@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, json, LONG, seedWorkspace, test } from "./fixtures";
 
 /**
  * The scenarios of `client-v2-controls`: the stepper, a radio group and a
@@ -106,5 +106,41 @@ test.describe("client-v2-controls", () => {
         page.evaluate(() => document.documentElement.classList.contains("dark"))
       )
       .toBe(false);
+  });
+
+  test("the backend list can be walked with the arrow keys", async ({
+    page,
+  }) => {
+    // The toggle only exists while a default backend is offered, and CI
+    // configures none: answer the probe here
+    await page.route("**/api/agent", (route) =>
+      json(route, { configured: true })
+    );
+    await seedWorkspace(page);
+    // The editor takes focus once the project opens; wait for that, or it
+    // takes it back from the radio between the keys
+    await expect(page.locator(".monaco-editor textarea").first()).toBeFocused(
+      LONG
+    );
+
+    const toggle = page.getByRole("button", { name: "Bring your own key" });
+    await toggle.click();
+    const group = page.getByRole("radiogroup", { name: "Backend" });
+    const radios = group.getByRole("radio");
+    const all = await radios.count();
+
+    await group.getByRole("radio", { checked: true }).focus();
+    // Radix checks the radio the arrow focused only while the key is still
+    // down, and moves the focus on a timer: hold it as a hand would
+    await page.keyboard.press("ArrowDown", { delay: 100 });
+    await expect(radios.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowDown", { delay: 100 });
+
+    await expect(
+      page.getByRole("button", { name: "Hide other backends" })
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(radios).toHaveCount(all);
+    await expect(radios.nth(2)).toBeChecked();
+    await expect(radios.nth(2)).toBeFocused();
   });
 });

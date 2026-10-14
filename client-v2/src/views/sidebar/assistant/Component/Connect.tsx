@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { cn } from "cn";
@@ -102,6 +102,12 @@ const Connect = () => {
     current?.id ?? "default"
   );
   const [expanded, setExpanded] = useState(false);
+  /**
+   * The pick in flight came from a pointer. Radix checks a radio as the arrow
+   * keys reach it, so a pick is also every step of a keyboard walk -- and
+   * folding on those took the rest of the list away after one step.
+   */
+  const pointerPick = useRef(false);
   const [key, setKey] = useState(current?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
@@ -153,8 +159,6 @@ const Connect = () => {
 
   const pickProvider = (p: typeof PROVIDERS[number]) => {
     setProviderId(p.id);
-    // Picking is the end of browsing: fold the list back to the two bars
-    setExpanded(false);
     // Seed the endpoint fields with the provider's defaults, editable from there
     setEndpoint(p.endpoint ? { ...p.endpoint } : null);
     setSettings(
@@ -163,7 +167,9 @@ const Connect = () => {
         : defaultSettings(p)
     );
     // A key belongs to the backend it was issued for: never carry it across.
-    // Coming back to the connected one restores its own key.
+    // Coming back to the connected one restores its own key. A keyboard walk
+    // clears it too, step by step: a key typed for one backend is no more
+    // valid for the next one the arrows pass through.
     setKey(p.id === current?.id ? current.apiKey : "");
   };
 
@@ -212,6 +218,7 @@ const Connect = () => {
   const providerBar = (p: ProviderInfo, compact = false) => (
     <label
       key={p.id}
+      onPointerDown={() => (pointerPick.current = true)}
       className={cn(
         "flex cursor-pointer items-start gap-2 rounded-md border border-border px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
       )}
@@ -273,7 +280,16 @@ const Connect = () => {
         <RadioGroup
           aria-label="Backend"
           value={selectedBar ?? ""}
-          onValueChange={(id) => pickProvider(byId(id))}
+          onValueChange={(id) => {
+            pickProvider(byId(id));
+            // A click is the end of browsing: fold the list back to the two
+            // bars. The arrow keys are still browsing.
+            if (pointerPick.current) setExpanded(false);
+            pointerPick.current = false;
+          }}
+          // A press on the checked bar changes nothing, so no pick clears the
+          // flag; the next key must not fold on its behalf
+          onKeyDown={() => (pointerPick.current = false)}
           className="gap-1.5"
         >
           {providerBar(DEFAULT_PROVIDER)}
