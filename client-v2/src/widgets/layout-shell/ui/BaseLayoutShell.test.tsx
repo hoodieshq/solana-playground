@@ -120,6 +120,8 @@ const handles = () => {
 interface PropsChoice {
   /** Below the stock Sidebar's line; the viewport's phone by default */
   isMobile?: boolean;
+  closeLeftSheetOn?: BaseLayoutShellProps["closeLeftSheetOn"];
+  toggleLeftSheetOn?: BaseLayoutShellProps["toggleLeftSheetOn"];
   nav?: BaseLayoutShellProps["nav"];
   files?: BaseLayoutShellProps["files"];
   navOpen?: boolean;
@@ -164,8 +166,9 @@ const props = (
   nav: choice.nav ?? (() => <nav>nav slot</nav>),
   files: choice.files ?? (() => <aside>files slot</aside>),
   onLeftSheetChange: vi.fn(),
-  closeLeftSheetOn: () => ({ dispose: () => {} }),
-  toggleLeftSheetOn: () => ({ dispose: () => {} }),
+  closeLeftSheetOn: choice.closeLeftSheetOn ?? (() => ({ dispose: () => {} })),
+  toggleLeftSheetOn:
+    choice.toggleLeftSheetOn ?? (() => ({ dispose: () => {} })),
   stageBar: <header>stage bar</header>,
   stage: <main>stage slot</main>,
   console: <div className="xterm">console slot</div>,
@@ -543,16 +546,13 @@ it("should close the project panel Sheet when it is asked to", () => {
   try {
     let close = () => false;
     const dispose = vi.fn();
-    const shell = props("phone");
-    render(
-      <BaseLayoutShell
-        {...shell}
-        closeLeftSheetOn={(fn) => {
-          close = fn;
-          return { dispose };
-        }}
-      />
-    );
+    const shell = props("phone", {
+      closeLeftSheetOn: (fn) => {
+        close = fn;
+        return { dispose };
+      },
+    });
+    render(<BaseLayoutShell {...shell} />);
     const sheet = () =>
       document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
     // Nothing to close yet
@@ -795,20 +795,21 @@ it("should neither resubscribe nor need a stable function when the caller passes
       subscribed();
       return { dispose: disposed };
     };
-    const first = props("phone");
     const { rerender } = render(
       <BaseLayoutShell
-        {...first}
-        closeLeftSheetOn={registrar}
-        toggleLeftSheetOn={registrar}
+        {...props("phone", {
+          closeLeftSheetOn: registrar,
+          toggleLeftSheetOn: registrar,
+        })}
       />
     );
     expect(subscribed).toHaveBeenCalledTimes(2);
     rerender(
       <BaseLayoutShell
-        {...first}
-        closeLeftSheetOn={() => registrar()}
-        toggleLeftSheetOn={() => registrar()}
+        {...props("phone", {
+          closeLeftSheetOn: () => registrar(),
+          toggleLeftSheetOn: () => registrar(),
+        })}
       />
     );
     expect(subscribed).toHaveBeenCalledTimes(2);
