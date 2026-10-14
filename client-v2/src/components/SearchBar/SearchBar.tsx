@@ -466,7 +466,9 @@ const SearchInput = styled(Input)<SearchButtonPosition>`
   `}
 `;
 
-/* Which side each button sits on; written out so Tailwind sees the classes */
+/* Both maps are keyed by the search button's position, not by where the
+   button they place sits: with the search button on the left, the clear
+   button goes to the right edge. Written out so Tailwind sees the classes. */
 const INPUT_CLOSE_BUTTON_SIDE = {
   left: "right-1",
   right: "right-[calc(var(--search-button-width)+0.25rem)]",
