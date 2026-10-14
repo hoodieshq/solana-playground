@@ -78,8 +78,7 @@ interface ChatItemBase {
  * Which backend a thread was created with, or a reply produced by.
  *
  * Never the API key, in any form -- not the value, not a hash, not the last
- * four characters. See `docs/decisions.md` -> D3 and D39: the key is held in
- * memory for a reason that persisting a conversation does not change.
+ * four characters. A thread is synced to the account; the key never is.
  */
 export interface BackendParams {
   provider: ProviderId;
@@ -219,8 +218,9 @@ const isSame = (a: Connection | null, b: Connection) =>
 /**
  * Everything the panel renders.
  *
- * The API key is deliberately in memory only — see `docs/decisions.md` -> D3
- * for why it is not in storage. Conversation items are not: the open thread is
+ * The API key is kept for the life of this tab in `sessionStorage` and nowhere
+ * else; see `remembered-backend` and the OpenSpec change
+ * `assistant-own-key-storage`. Conversation items are not: the open thread is
  * mirrored to IndexedDB on every change, keyed by workspace, so a reload and a
  * project switch both come back to the right conversation. See
  * `docs/persistent-conversations-spec.md`.
@@ -234,7 +234,7 @@ export class PgAssistant {
     return PgAssistant._status;
   }
 
-  /** Which backend is selected, and its key. Never written anywhere. */
+  /** Which backend is selected, and its key. Kept only in this tab's session. */
   static get connection() {
     return PgAssistant._connection;
   }
@@ -256,10 +256,10 @@ export class PgAssistant {
    * inside the provider and the new one cannot see the old transcript.
    *
    * Connecting when nothing is connected is *not* a switch, and must not reset
-   * anything. The connection is in memory only, so it is null after every
-   * reload -- and by the time the user picks a backend, `chat-thread` has
-   * already restored this workspace's conversation from storage. Treating that
-   * as a switch cleared the restored thread on every single reload.
+   * anything. The live connection starts empty after every reload, and by the
+   * time the user picks a backend, `chat-thread` has already restored this
+   * workspace's conversation from storage. Treating that as a switch cleared
+   * the restored thread on every single reload.
    *
    * @param connection which provider, its key, and whatever it needs to be
    * reached — a base URL and model, or a model and effort
@@ -274,9 +274,10 @@ export class PgAssistant {
     }
     PgAssistant._connection = next;
     PgAssistant._pickingBackend = false;
-    // So the next load can reconnect without asking again. Only the keyless
-    // default is actually written down; see `remembered-backend`.
-    rememberBackend(next.id);
+    // So a reload of this tab reconnects without asking again: the keyless
+    // default by id, a key-based backend whole for this tab only. See
+    // `remembered-backend`.
+    rememberBackend(next);
 
     // `_emitOnly`, because nothing here is the user writing to the
     // conversation. `clear` above goes out of its way to leave the stored

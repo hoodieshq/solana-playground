@@ -659,3 +659,37 @@ describe("PgAssistant threads", () => {
     expect(PgAssistant.items).toHaveLength(1);
   });
 });
+
+describe("the user's own key", () => {
+  const KEY = "sk-test-store-0123456789";
+  const openai = {
+    id: "openai" as const,
+    apiKey: KEY,
+    endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+  };
+
+  beforeEach(async () => {
+    PgAssistant.disconnect();
+    sessionStorage.clear();
+    localStorage.clear();
+    await PgAssistant.loadThread("own-key");
+  });
+
+  it("is kept for this tab and nowhere durable", async () => {
+    PgAssistant.connect(openai);
+    PgAssistant.addUserMessage("hello");
+    await settled();
+
+    expect(sessionStorage.getItem("assistant.connection")).toContain(KEY);
+    expect(JSON.stringify({ ...localStorage })).not.toContain(KEY);
+    expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
+      KEY
+    );
+  });
+
+  it("is forgotten on disconnect", () => {
+    PgAssistant.connect(openai);
+    PgAssistant.disconnect();
+    expect(sessionStorage.getItem("assistant.connection")).toBeNull();
+  });
+});
