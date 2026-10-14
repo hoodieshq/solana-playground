@@ -172,7 +172,7 @@ const isGroup = (e: Entry): e is Group => "options" in e;
  * Stands for the "Custom" row. An empty string cannot, because Radix refuses
  * an item with an empty value and no setting may have one as its default.
  */
-export const CUSTOM_VALUE = "__custom__";
+const CUSTOM_VALUE = "__custom__";
 
 export const SettingSetterSelect: FC<
   React.PropsWithChildren<SettingSetterSelectProps>
