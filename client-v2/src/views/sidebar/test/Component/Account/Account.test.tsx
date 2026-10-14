@@ -38,8 +38,8 @@ vi.mock("../../../../../components/SearchBar", () => ({
 
 // Interaction's styled wrapper reads these keys; no other theme use is mounted.
 const theme = {
-  colors: { default: { border: "#000" } },
-  views: { sidebar: { right: { default: { otherBg: "#111", bg: "#000" } } } },
+  colors: { default: { border: "black" } },
+  views: { sidebar: { right: { default: { otherBg: "gray", bg: "black" } } } },
 } as unknown as DefaultTheme;
 
 afterEach(() => vi.restoreAllMocks());
