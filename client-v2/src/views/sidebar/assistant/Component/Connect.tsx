@@ -114,8 +114,8 @@ const Connect = () => {
    * never gets here with one (a duplicated tab copies it, and reconnects).
    * Needs no probe: the probe only says whether this deployment serves the
    * default backend. Guarded like the `isDefaultBackendRemembered` reconnect
-   * below -- nothing connected, picker not opened on purpose -- so the user's
-   * own Disconnect or Change backend is not undone.
+   * -- nothing connected, picker not opened on purpose -- so the user's own
+   * Disconnect or Change backend is not undone.
    */
   useEffect(() => {
     if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
