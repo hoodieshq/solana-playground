@@ -6,6 +6,7 @@ import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Logomark from "./header/Logomark";
 import ProjectSwitcher from "./header/ProjectSwitcher";
+import RailFooter from "./header/RailFooter";
 import StageBar from "./header/StageBar";
 import StatusChips from "./header/StatusChips";
 import LeftPanel from "./left/LeftPanel";
@@ -42,7 +43,8 @@ import type { Disposable } from "@/utils/types";
 /**
  * The Flow layout, with no header: `LayoutShell` places four columns, the
  * navigation (`AppNav`, holding the logo, the project switcher, and the status
- * chips and the feedback trigger in its footer), the assistant, the files
+ * chips and the feedback trigger in its footer, which on the rail gives way to
+ * `RailFooter`'s cluster dot and account button), the assistant, the files
  * column, and the stage router over its collapsible console, with the
  * `StageBar` stepper across the last two. The sync banner sits above all four,
  * full width.
@@ -81,8 +83,9 @@ const FlowFrame = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  // Toggles rather than opens: the navigation footer's chips are the only way
-  // in, so a second click on one has to be the way out. Opening closes the
+  // Toggles rather than opens: the navigation footer's chips, and the rail's
+  // cluster dot, are the only way in, so a second click on one has to be the
+  // way out. Opening closes the
   // navigation's Sheet below `LAYOUT_BREAKPOINTS.left` (`closeSheet`): the
   // chips sit in it, and its modal overlay would cover the panel and trap
   // focus away from it.
@@ -186,6 +189,13 @@ const FlowFrame = () => {
                 />
                 <FeedbackTrigger />
               </>
+            }
+            railFooter={
+              <RailFooter
+                settingsOpen={settingsOpen}
+                onToggleSettings={toggleSettings(closeSheet)}
+                onExpand={toggle}
+              />
             }
           />
         )}

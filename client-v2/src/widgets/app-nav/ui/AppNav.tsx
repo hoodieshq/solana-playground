@@ -14,6 +14,7 @@ export interface AppNavProps {
   logo: ReactNode;
   switcher: ReactNode;
   footer: ReactNode;
+  railFooter: ReactNode;
 }
 
 /** Until Home, Tutorials and Programs have pages, each item opens the gallery */
@@ -23,6 +24,7 @@ const AppNav = ({
   logo,
   switcher,
   footer,
+  railFooter,
 }: AppNavProps) => {
   const open = (item: NavItem) => {
     navTelemetry.track("nav_item_opened", { item });
@@ -40,6 +42,7 @@ const AppNav = ({
       logo={logo}
       switcher={switcher}
       footer={footer}
+      railFooter={railFooter}
       onOpen={open}
     />
   );

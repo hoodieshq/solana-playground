@@ -12,12 +12,13 @@ the events `features/feedback` sends.
 
 The page SHALL show a round button with the `aria-label` "Feedback" in the
 navigation's footer, under the status chips, with a 1px ring of the product
-gradient. Where the navigation is folded to its rail the trigger is hidden
-with the rest of the footer. The form, its draft and its send SHALL be held
-above the navigation, so they outlive the trigger: below 768 px the footer is
-in the navigation's Sheet, which unmounts it on close. Pressing the trigger
-SHALL open a menu above it, aligned to its start. An open modal, and a toast,
-SHALL cover the trigger.
+gradient. Where the navigation is folded to its rail the trigger is not
+shown: the rail's footer holds only the cluster's dot and the account. The
+form, its draft and its send SHALL be held above the navigation, so they
+outlive the trigger: below 768 px the footer is in the navigation's Sheet,
+which unmounts it on close, and the rail swaps it for its own. Pressing the
+trigger SHALL open a menu above it, aligned to its start. An open modal, and a
+toast, SHALL cover the trigger.
 
 #### Scenario: The menu opens
 

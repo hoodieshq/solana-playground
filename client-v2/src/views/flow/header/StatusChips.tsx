@@ -11,9 +11,10 @@ import {
 } from "../../../hooks";
 import { PgSession } from "../../../features/auth";
 import { createLogger } from "../../../shared/lib/logger";
-import { PgCommand, PgConnection } from "../../../utils";
+import { PgCommand } from "../../../utils";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
+import { useClusterStatus } from "./use-cluster-status";
 
 /** Which side of its chip a menu opens on */
 type Placement = "below" | "above";
@@ -41,10 +42,7 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
   const connection = useConnection();
   const wallet = useWallet();
   const balance = useBalance();
-  const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
-  const isClusterDown = useRenderOnChange(
-    PgConnection.onDidChangeIsClusterDown
-  );
+  const cluster = useClusterStatus();
   useRenderOnChange(PgSession.onDidChange);
   // Read from the session, not kept here: on a phone these chips sit in the
   // navigation's Sheet, which unmounts them on close while the sign-in goes on
@@ -96,13 +94,13 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
       <ChipButton
         type="button"
         title={connection?.rpcEndpoint}
-        aria-label={`Change cluster, currently ${cluster ?? "unknown"}`}
+        aria-label={`Change cluster, currently ${cluster.name}`}
         aria-expanded={settingsOpen}
         {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
         onClick={() => onToggleSettings("network")}
       >
-        <ClusterDot $down={isClusterDown === true} />
-        {cluster ?? "unknown"}
+        <ClusterDot $down={cluster.down} />
+        {cluster.name}
       </ChipButton>
       <ChipButton
         type="button"

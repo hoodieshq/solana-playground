@@ -152,8 +152,10 @@ Done:
   columns with no header. From the left: the navigation (Home, New project,
   Tutorials, Programs, the project switcher at its top, and the cluster,
   wallet, GitHub and settings chips in its footer; Cmd+B folds it to a rail
-  of icons), the assistant, then the work area. Across the top of the work
-  area runs the stage bar, with the stepper (Write → Build → Deploy →
+  of icons, whose footer keeps the cluster's status dot, which opens the
+  settings on the cluster, and an account button, which unfolds it), the
+  assistant, then the work area. Across the top of the work area runs the
+  stage bar, with the stepper (Write → Build → Deploy →
   Interact, state derived from real build/deploy events); under it sit the
   Files column (Cmd+E folds it) and the stage, with the terminal in a console
   drawer under the stage (Cmd+J). The assistant is a resizable panel on

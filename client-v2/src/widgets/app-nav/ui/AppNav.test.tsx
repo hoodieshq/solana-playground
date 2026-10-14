@@ -66,6 +66,7 @@ const draw = () =>
           logo={null}
           switcher={null}
           footer={null}
+          railFooter={null}
         />
       </SidebarProvider>
     </TooltipProvider>

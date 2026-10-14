@@ -81,7 +81,10 @@ column and the stage. There SHALL be no top header: the project switcher
 SHALL be in the navigation and the cluster, wallet and settings controls in
 its footer. Between 768 and 1023 px the navigation SHALL start as a rail on
 every load and the
-assistant a Sheet opened by "Expand assistant". Below 768 px the navigation
+assistant a Sheet opened by "Expand assistant". The rail's footer SHALL hold
+the cluster's dot, coloured by whether the cluster answers and named "Cluster:
+<name>", which opens the settings on the cluster, and an "Account" button,
+which unfolds the navigation. Below 768 px the navigation
 and the files column SHALL share one Sheet opened by "Expand project panel",
 and opening the settings from its footer SHALL close that Sheet, whose overlay
 would otherwise cover the settings and keep focus from them.
@@ -106,6 +109,13 @@ would otherwise cover the settings and keep focus from them.
 - **WHEN** a user opens a project on an 834 px wide window
 - **THEN** the navigation is a rail, the files column and the stage are
   shown, and "Expand assistant" opens the assistant in a Sheet
+
+#### Scenario: The rail's footer
+
+- **WHEN** a user on an 834 px wide window clicks the cluster's dot at the
+  foot of the rail, clicks it again, then clicks "Account"
+- **THEN** the settings open with focus on the cluster, then close, and the
+  navigation opens at its full width with the cluster chip in its footer
 
 #### Scenario: Settings on a phone
 

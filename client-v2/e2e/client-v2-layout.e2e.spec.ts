@@ -276,7 +276,8 @@ test("client-v2-layout: Folding the navigation", async ({
   await expect(column).toHaveJSProperty("offsetWidth", 232);
   await page.keyboard.press("ControlOrMeta+b");
   await expect(column).toHaveJSProperty("offsetWidth", 52);
-  // A rail of icons: the items stay, the switcher and the chips go
+  // A rail of icons: the items stay, the switcher and the chips give way to
+  // the cluster's dot and the account
   await expect(
     nav(page).getByRole("button", { name: "Expand navigation" })
   ).toBeVisible();
@@ -287,6 +288,12 @@ test("client-v2-layout: Folding the navigation", async ({
   await expect(
     nav(page).getByRole("button", { name: "Open settings" })
   ).toHaveCount(0);
+  await expect(
+    nav(page).getByRole("button", { name: /^Cluster: / })
+  ).toBeVisible();
+  await expect(
+    nav(page).getByRole("button", { name: "Account" })
+  ).toBeVisible();
   await page.keyboard.press("ControlOrMeta+b");
   await expect(column).toHaveJSProperty("offsetWidth", 232);
   await expect(
@@ -803,6 +810,28 @@ test.describe("on a tablet", () => {
 
     await page.getByRole("button", { name: "Expand assistant" }).click();
     await expect(page.getByRole("dialog", { name: "Assistant" })).toBeVisible();
+  });
+
+  test("client-v2-layout: The rail's footer", async ({ seededPage: page }) => {
+    // The editor focuses itself when it opens the first file; landing after
+    // the settings opened, it would take focus from them
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
+    const footer = nav(page).locator('[data-slot="sidebar-footer"]');
+    await footer.getByRole("button", { name: /^Cluster: / }).click();
+    const settings = page.getByRole("region", { name: "Settings" });
+    const network = settings.getByRole("radiogroup", { name: "Network" });
+    await expect(network.getByRole("radio", { checked: true })).toBeFocused();
+    // A second click on the dot is the way out, as on the chip
+    await footer.getByRole("button", { name: /^Cluster: / }).click();
+    await expect(settings).toBeHidden();
+
+    await footer.getByRole("button", { name: "Account" }).click();
+    await expect(navColumn(page)).toHaveJSProperty("offsetWidth", 232);
+    await expect(
+      footer.getByRole("button", { name: /^Change cluster, currently / })
+    ).toBeVisible();
   });
 });
 

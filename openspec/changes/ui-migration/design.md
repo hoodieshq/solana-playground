@@ -342,8 +342,9 @@ exists.
 SidebarProvider (collapsible="icon", controlled open, ⌘B)
 ├─ Sidebar → AppNav: logo, Home, New project, Tutorials, Programs,
 │            ProjectSwitcher (as is), footer: StatusChips (as is) and
-│            FeedbackTrigger; hidden on the rail (the form and its
-│            state sit in FeedbackHost, above the shell)
+│            FeedbackTrigger (the form and its state sit in
+│            FeedbackHost, above the shell); on the rail, RailFooter:
+│            the cluster's dot and the account
 └─ SidebarInset → Group horizontal (id layout-horizontal)
    ├─ Panel assistant (left; folds to its 24 px strip; a right Sheet below
    │                   LAYOUT_BREAKPOINTS.compact, as in 5.1)
@@ -360,6 +361,13 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
   the navigation, `StatusChips` (cluster, wallet, settings) to its footer, the
   `Stepper` and its Ctrl+1..4 keys to the stage bar. In the rail the switcher
   and the chips are hidden; the four items keep their icons, with a tooltip.
+  The rail's footer holds two icons, as the prototype draws it: the
+  cluster's dot, coloured by its status like the chip's, which opens the
+  settings on the cluster, and the account (the avatar, or a user icon),
+  which unfolds the navigation. The feedback trigger is not on the rail; the
+  prototype keeps "Report a bug" in the account's menu. Between 768 and 1024
+  the rail is where the navigation starts, so without its footer a cluster
+  that is down would show nowhere.
   The sync banner stays above everything, full width.
 - **The stage bar spans the files column and the stage**, as the prototype
   draws it, not the files column alone.
