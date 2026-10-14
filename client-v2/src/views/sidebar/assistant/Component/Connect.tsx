@@ -103,8 +103,8 @@ const Connect = () => {
    *
    * Kept in `sessionStorage` by `rememberBackend`, so a new tab never gets
    * here with one. Needs no probe: the probe only says whether this
-   * deployment serves the default backend. The same guards as the default's
-   * reconnect below: nothing connected, and the picker not opened on purpose.
+   * deployment serves the default backend. The same guards as the
+   * `isDefaultBackendRemembered` reconnect: nothing connected, and the picker not opened on purpose.
    */
   useEffect(() => {
     if (PgAssistant.connection || PgAssistant.isPickingBackend) return;

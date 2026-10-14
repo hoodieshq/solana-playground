@@ -124,6 +124,7 @@ const picker = (page: Page) =>
 const indexedDbDump = (page: Page) =>
   page.evaluate(async () => {
     const out: unknown[] = [];
+    let records = 0;
     for (const { name } of await indexedDB.databases()) {
       if (!name) continue;
       const db = await new Promise<IDBDatabase>((ok, fail) => {
@@ -138,16 +139,18 @@ const indexedDbDump = (page: Page) =>
           req.onerror = () => fail(req.error);
         });
         out.push(all);
+        records += all.length;
       }
       db.close();
     }
     // Binary values (lightning-fs chunks) stringify as {} and hide nothing
     // text-shaped; decode them so the key cannot hide in a file's bytes
-    return JSON.stringify(out, (_, v) =>
+    const text = JSON.stringify(out, (_, v) =>
       v instanceof Uint8Array || v instanceof ArrayBuffer
         ? new TextDecoder().decode(v)
         : v
     );
+    return { text, records };
   });
 
 test.describe("assistant-own-key", () => {
@@ -192,7 +195,11 @@ test.describe("assistant-own-key", () => {
     const second = await context.newPage();
     await second.goto("/");
     await expect(picker(second)).toBeVisible(LONG);
-    expect(await connected(second)).toBeNull();
+    // Polled, so a reconnect that has not run yet cannot make this pass
+    await expect.poll(() => connected(second), LONG).toBeNull();
+    expect(
+      await second.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    ).not.toContain(KEY);
   });
 
   test("assistant-own-key: Disconnect, then reload", async ({ page }) => {
@@ -238,11 +245,11 @@ test.describe("assistant-own-key", () => {
     expect(
       await page.evaluate(() => JSON.stringify({ ...localStorage }))
     ).not.toContain(KEY);
-    // The seeded workspace's files live here, so an empty dump means the
+    // The seeded workspace's files live here, so zero records means the
     // read found nothing and the check below would pass for no reason
     const dump = await indexedDbDump(page);
-    expect(dump.length).toBeGreaterThan(2);
-    expect(dump).not.toContain(KEY);
+    expect(dump.records).toBeGreaterThan(0);
+    expect(dump.text).not.toContain(KEY);
   });
 
   test("assistant-own-key: Requests to our origin carry no key", async ({
