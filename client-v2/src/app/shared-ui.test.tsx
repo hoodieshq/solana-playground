@@ -5,11 +5,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "./App";
 import { Button } from "@/shared/ui/button";
+import { Field, FieldLabel } from "@/shared/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/shared/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/shared/ui/resizable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +27,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/shared/ui/sidebar";
+import { Stepper, StepperItem, StepperList } from "@/shared/ui/stepper";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 // jsdom has neither, every browser has both. `useIsMobile` reads
@@ -152,5 +163,52 @@ describe("shared/ui", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("the controls, as installed", () => {
+  it("mount with their data-slot names", () => {
+    render(
+      <>
+        <Stepper value="build">
+          <StepperList>
+            <StepperItem value="build">Build</StepperItem>
+          </StepperList>
+        </Stepper>
+        <Select value="a">
+          <SelectTrigger aria-label="Pick">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="a">A</SelectItem>
+          </SelectContent>
+        </Select>
+        <NativeSelect aria-label="Native">
+          <NativeSelectOption value="x">X</NativeSelectOption>
+        </NativeSelect>
+        <RadioGroup aria-label="Radios">
+          <RadioGroupItem value="r" aria-label="R" />
+        </RadioGroup>
+        <Field>
+          <FieldLabel htmlFor="f">F</FieldLabel>
+          <input id="f" />
+        </Field>
+      </>
+    );
+    expect(
+      screen.getByRole("tab", { name: /Build/ }).getAttribute("data-slot")
+    ).toBe("stepper-item");
+    expect(
+      screen.getByRole("combobox", { name: "Pick" }).getAttribute("data-slot")
+    ).toBe("select-trigger");
+    expect(
+      screen.getByRole("combobox", { name: "Native" }).getAttribute("data-slot")
+    ).toBe("native-select");
+    expect(
+      screen.getByRole("radio", { name: "R" }).getAttribute("data-slot")
+    ).toBe("radio-group-item");
+    expect(
+      screen.getByLabelText("F").closest('[data-slot="field"]')
+    ).not.toBeNull();
   });
 });

@@ -506,9 +506,11 @@ its own (the stock `Modal` does it below `md`).
 The controls the user picks with come from the design system, app-wide,
 before the screen tickets that place them (HOO-2068 New project, HOO-2071
 Settings). Installed with `yarn ds-add`: `stepper`, `segmented`, `select`,
-`native-select`, `toggle-group`, `radio-group`, `field`, `input-group`. The
-last six have sources in `design-system/src/components/ui` and no registry
-item, so this task registers them, as `feedback-widget` did for its parts.
+`native-select`, `radio-group`, `field`. The last four have sources in
+`design-system/src/components/ui` and no registry item, so this task registers
+them, as `feedback-widget` did for its parts. `toggle-group` and `input-group`
+wait for their first use (a multi-toggle, a field with an addon); none exists
+yet.
 
 | Today | Becomes | Where |
 |---|---|---|
