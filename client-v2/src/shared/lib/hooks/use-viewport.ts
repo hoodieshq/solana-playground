@@ -48,8 +48,14 @@ const subscribeLeft = (onChange: () => void) => {
  * is a Sheet. Right on the first render, unlike the stock Sidebar's
  * `useIsMobile`, which answers `false` until an effect runs: a layout that
  * moves the files column by this does not mount it in the work group and then
- * again in the Sheet on every phone load. Same width as that hook, held by
+ * again in the Sheet on every phone load. Same value as that hook, held by
  * `use-viewport.test.ts`.
  */
 export const useIsLeftSheet = (): boolean =>
-  useSyncExternalStore(subscribeLeft, () => window.matchMedia(LEFT).matches);
+  useSyncExternalStore(
+    subscribeLeft,
+    // The value the stock hook reads, not `matchMedia(...).matches`: under
+    // browser zoom the two can round a fractional width to different sides,
+    // and the files column would then be in neither the group nor the Sheet
+    () => window.innerWidth < LAYOUT_BREAKPOINTS.left
+  );

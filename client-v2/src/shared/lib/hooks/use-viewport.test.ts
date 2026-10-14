@@ -28,19 +28,25 @@ const fakeScreen = (initial: number) => {
       dispatchEvent: () => false,
     };
   };
+  window.innerWidth = initial;
   const resize = (next: number) => {
     width = next;
+    window.innerWidth = next;
     listeners.forEach((fn) => fn());
   };
   return { matchMedia, resize };
 };
 
+const initialInnerWidth = window.innerWidth;
 let screen: ReturnType<typeof fakeScreen>;
 beforeEach(() => {
   screen = fakeScreen(1440);
   vi.stubGlobal("matchMedia", screen.matchMedia);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  window.innerWidth = initialInnerWidth;
+});
 
 it("should draw the lines at 1024, 768 and 600", () => {
   expect(LAYOUT_BREAKPOINTS).toEqual({ compact: 1024, left: 768, phone: 600 });
