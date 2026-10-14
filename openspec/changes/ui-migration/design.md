@@ -423,7 +423,7 @@ Kept: every id, `aria-label` and test id (`flow-console-drawer-body`,
 assistant", "Console", "New file"). `left-panel-toggle.e2e` moves to ⌘E and
 the files column; a new e2e covers ⌘B on the navigation.
 
-## Menus, dialogs, tooltips and toasts (5.2.1)
+## Menus, dialogs, tooltips and toasts (5.6)
 
 Decided with Slava on 2026-10-13 (HOO-2061). The first element move of 5.2;
 the account footer, project list, New project and Settings (HOO-2068 to
@@ -441,7 +441,7 @@ HOO-2071) build on it. One PR.
   the wallet is HOO-2074). No wrapper of ours. `components/Menu` is deleted.
 - **Drawer is installed, not used yet.** None of the four menus is reached on
   a phone today (two open on right-click, the wallet moves in HOO-2074). The
-  phone Drawer arrives with the first phone menu (HOO-2069/HOO-2070) or in 5.3.
+  phone Drawer arrives with the first phone menu (HOO-2069/HOO-2070) or in 5.7.
 - **Tooltip.** Its four call sites move to the stock `Tooltip` with a 500 ms
   delay; `help` becomes `HelpTip`. `components/Tooltip` and
   `components/Popover` (used only by Tooltip) are deleted.

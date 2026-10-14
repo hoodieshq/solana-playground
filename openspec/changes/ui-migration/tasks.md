@@ -100,7 +100,7 @@ regression against 5.1 has misread this rule.
       ContextMenu, Popover, Drawer, Sonner) from the design system;
       react-toastify and the legacy `Menu`, `Modal`, `ModalBackdrop`,
       `Popover`, `Toast` and `Tooltip` removed (HOO-2061; parallel; plan:
-      [plans/5.2.1-overlays.md](plans/5.2.1-overlays.md))
+      [plans/5.6-overlays.md](plans/5.6-overlays.md))
 - [ ] 5.7 Phone: the prototype's three-page structure from 720 px, the
       editor editable on a phone, replacing 5.1's read-only editor (HOO-2062;
       after 5.2)
