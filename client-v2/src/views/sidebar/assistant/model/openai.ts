@@ -157,7 +157,6 @@ const streamOneCompletion = async (
       headers: {
         "Content-Type": "application/json",
         // The key is the user's own and goes only to the endpoint they typed in.
-        // See docs/decisions.md -> D3 for why it is not persisted anywhere.
         ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       },
       body: JSON.stringify({

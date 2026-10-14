@@ -612,9 +612,9 @@ describe("PgAssistant threads", () => {
       },
     ]);
 
-    // A reload leaves no connection behind -- it is in memory only -- so the
-    // first thing the user does is connect, and that must not be mistaken for
-    // switching away from a backend they were already talking to
+    // A reload starts with no connection in memory, so the first thing the
+    // user does is connect, and that must not be mistaken for switching away
+    // from a backend they were already talking to
     PgAssistant.disconnect();
     await PgAssistant.loadThread("t1");
     expect(PgAssistant.items).toHaveLength(1);

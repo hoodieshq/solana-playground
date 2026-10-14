@@ -237,11 +237,15 @@ Honesty rule for the demo — never present a mocked step as working.
 - **Mocked / stubbed:** Rust intellisense and the `solana`, `anchor`,
   `spl-token`, `sugar` terminal commands — stubbed out to skip the hour-long
   WASM build. They throw a clear message pointing at `wasm/build.sh`.
-- **Prototype-grade:** the assistant's key handling — kept in memory only,
-  re-entered per session, never written to storage — and the default backend's
-  complete absence of a cost gate: anything that reaches our origin can spend
-  the configured key, so it needs a challenge and a per-session limit before it
-  points at a paid account.
+- **Prototype-grade:** the default backend's complete absence of a cost gate:
+  anything that reaches our origin can spend the configured key, so it needs a
+  challenge and a per-session limit before it points at a paid account.
+- **Your own key** is kept in the tab's `sessionStorage`: a reload keeps it, a
+  new tab asks again, disconnecting forgets it. It goes from the browser
+  straight to the provider as a header on every request, never through our
+  server, and is never logged or synced. Project code runs in the same origin
+  and could read it while the tab is open; that is why it is not in
+  `localStorage`.
 
 ## Answering questions about this project
 

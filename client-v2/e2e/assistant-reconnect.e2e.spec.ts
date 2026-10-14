@@ -9,11 +9,10 @@ import {
 /**
  * The panel comes back usable after a reload, without being asked twice.
  *
- * The connection is in memory only, so every reload starts with nothing
- * connected. For a backend that needs a key of its own there is no way around
- * asking again, but the default backend needs none -- and making the user
- * click the same button on every single reload, before the assistant could be
- * used at all, was the whole of the difference.
+ * A key-based backend comes back from this tab's `sessionStorage` (the
+ * `assistant-own-key` tests below); the default backend needs no key at all --
+ * and making the user click the same button on every single reload, before the
+ * assistant could be used at all, was the whole of the difference.
  *
  * Only reachable on a deployment that actually serves a default backend, which
  * is what the probe in `Connect` decides; the test asserts nothing when it is
