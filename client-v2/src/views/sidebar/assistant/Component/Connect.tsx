@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { cn } from "cn";
+import { Field, FieldLabel } from "@/shared/ui/field";
+import { Input } from "@/shared/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import GradientButton from "../../../../components/GradientButton";
-import Input from "../../../../components/Input";
 import Link from "../../../../components/Link";
-import Select from "../../../../components/Select";
 import { PgAssistant } from "../store";
 import { isDefaultBackendRemembered } from "../model/remembered-backend";
 import {
@@ -71,6 +80,15 @@ const useDefaultBackend = () => {
 const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
 /** Everything behind the accordion: each of these needs a key of your own */
 const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
+
+/** The group can only produce an id it was given, so a miss is a bug */
+const byId = (id: string) => {
+  const found = [DEFAULT_PROVIDER, ...ALTERNATIVES].find((p) => p.id === id);
+  if (!found) throw new Error(`Unknown provider: ${id}`);
+  return found;
+};
+
+const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
 
 const Connect = () => {
   // Reopened over a live connection: seed the fields with it so changing just
@@ -192,23 +210,34 @@ const Connect = () => {
    * to keep the toggle and the connect button above the fold
    */
   const providerBar = (p: ProviderInfo, compact = false) => (
-    <ProviderOption
+    <label
       key={p.id}
-      aria-pressed={selectedBar === p.id}
-      $selected={selectedBar === p.id}
-      disabled={isUnavailable(p)}
-      onClick={() => pickProvider(p)}
-    >
-      <ProviderName $selected={selectedBar === p.id}>
-        {p.name}
-        {!p.needsKey && !isUnavailable(p) && <NoKey>no key needed</NoKey>}
-      </ProviderName>
-      {!compact && (
-        <ProviderDescription>
-          {p.id === "default" ? defaultDescription(p) : p.description}
-        </ProviderDescription>
+      className={cn(
+        "flex cursor-pointer items-start gap-2 rounded-md border border-border px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
       )}
-    </ProviderOption>
+    >
+      <RadioGroupItem
+        value={p.id}
+        disabled={isUnavailable(p)}
+        className="mt-0.5"
+      />
+      <span className="flex min-w-0 flex-col">
+        <span
+          className={cn(
+            "flex items-center gap-2 text-sm",
+            selectedBar === p.id ? "text-primary" : "text-foreground"
+          )}
+        >
+          {p.name}
+          {!p.needsKey && !isUnavailable(p) && <NoKey>no key needed</NoKey>}
+        </span>
+        {!compact && (
+          <span className="pt-[0.1875rem] text-xs leading-normal text-muted-foreground">
+            {p.id === "default" ? defaultDescription(p) : p.description}
+          </span>
+        )}
+      </span>
+    </label>
   );
 
   return (
@@ -241,10 +270,17 @@ const Connect = () => {
 
       <Label as="div">BACKEND</Label>
       <Providers>
-        {providerBar(DEFAULT_PROVIDER)}
-        {showAlternatives
-          ? ALTERNATIVES.map((p) => providerBar(p, p.id !== provider.id))
-          : selectedAlternative && providerBar(selectedAlternative)}
+        <RadioGroup
+          aria-label="Backend"
+          value={selectedBar ?? ""}
+          onValueChange={(id) => pickProvider(byId(id))}
+          className="gap-1.5"
+        >
+          {providerBar(DEFAULT_PROVIDER)}
+          {showAlternatives
+            ? ALTERNATIVES.map((p) => providerBar(p, p.id !== provider.id))
+            : selectedAlternative && providerBar(selectedAlternative)}
+        </RadioGroup>
         {!forcedOpen && (
           <Toggle
             type="button"
@@ -259,109 +295,138 @@ const Connect = () => {
 
       {provider.endpoint && endpoint && (
         <>
-          <Label htmlFor="assistant-base-url">BASE URL</Label>
-          <Field
-            id="assistant-base-url"
-            value={endpoint.baseUrl}
-            onChange={(ev) =>
-              setEndpoint({ ...endpoint, baseUrl: ev.target.value })
-            }
-            placeholder={provider.endpoint.baseUrl}
-            autoComplete="off"
-          />
-          <Label htmlFor="assistant-model">MODEL</Label>
-          {provider.endpoint.models && (
-            <Segmented
-              variant="chips"
-              aria-label="Model presets"
-              value={
-                provider.endpoint.models.includes(endpoint.model)
-                  ? endpoint.model
-                  : ""
+          <Field className="mb-3">
+            <FieldLabel htmlFor="assistant-base-url" className={FIELD_LABEL}>
+              BASE URL
+            </FieldLabel>
+            <Input
+              id="assistant-base-url"
+              value={endpoint.baseUrl}
+              onChange={(ev) =>
+                setEndpoint({ ...endpoint, baseUrl: ev.target.value })
               }
-              onValueChange={(m) => setEndpoint({ ...endpoint, model: m })}
-              className="pb-[0.4375rem]"
-            >
-              {provider.endpoint.models.map((m) => (
-                <SegmentedItem key={m} value={m} className="font-mono">
-                  {m}
-                </SegmentedItem>
-              ))}
-            </Segmented>
-          )}
-          <Field
-            id="assistant-model"
-            value={endpoint.model}
-            onChange={(ev) =>
-              setEndpoint({ ...endpoint, model: ev.target.value })
-            }
-            placeholder={provider.endpoint.model}
-            autoComplete="off"
-          />
+              placeholder={provider.endpoint.baseUrl}
+              autoComplete="off"
+            />
+          </Field>
+          <Field className="mb-3">
+            <FieldLabel htmlFor="assistant-model" className={FIELD_LABEL}>
+              MODEL
+            </FieldLabel>
+            {provider.endpoint.models && (
+              <Segmented
+                variant="chips"
+                aria-label="Model presets"
+                value={
+                  provider.endpoint.models.includes(endpoint.model)
+                    ? endpoint.model
+                    : ""
+                }
+                onValueChange={(m) => setEndpoint({ ...endpoint, model: m })}
+                className="pb-[0.4375rem]"
+              >
+                {provider.endpoint.models.map((m) => (
+                  <SegmentedItem key={m} value={m} className="font-mono">
+                    {m}
+                  </SegmentedItem>
+                ))}
+              </Segmented>
+            )}
+            <Input
+              id="assistant-model"
+              value={endpoint.model}
+              onChange={(ev) =>
+                setEndpoint({ ...endpoint, model: ev.target.value })
+              }
+              placeholder={provider.endpoint.model}
+              autoComplete="off"
+            />
+          </Field>
         </>
       )}
 
       {provider.modelSettings && activeSettings && (
         <>
-          <Label as="div">MODEL</Label>
-          <Picker>
+          <Field className="mb-3">
+            <FieldLabel
+              htmlFor="assistant-model-select"
+              className={FIELD_LABEL}
+            >
+              MODEL
+            </FieldLabel>
             <Select
-              options={provider.modelSettings.models.map((m) => ({
-                label: m,
-                value: m,
-              }))}
-              value={{
-                label: activeSettings.model,
-                value: activeSettings.model,
-              }}
-              onChange={(option) =>
-                option &&
-                setSettings({ ...activeSettings, model: option.value })
+              value={activeSettings.model}
+              onValueChange={(model) =>
+                setSettings({ ...activeSettings, model })
               }
-              isSearchable={false}
-            />
-          </Picker>
+            >
+              <SelectTrigger
+                id="assistant-model-select"
+                aria-label="Model"
+                className="w-full font-mono"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {provider.modelSettings.models.map((m) => (
+                  <SelectItem key={m} value={m} className="font-mono">
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-          <Label as="div">EFFORT</Label>
-          <Picker>
+          <Field className="mb-3">
+            <FieldLabel
+              htmlFor="assistant-effort-select"
+              className={FIELD_LABEL}
+            >
+              EFFORT
+            </FieldLabel>
             <Select
-              options={provider.modelSettings.efforts.map((e) => ({
-                label: e,
-                value: e,
-              }))}
-              value={{
-                label: activeSettings.effort,
-                value: activeSettings.effort,
-              }}
-              onChange={(option) =>
-                option &&
-                setSettings({
-                  ...activeSettings,
-                  effort: option.value as Effort,
-                })
+              value={activeSettings.effort}
+              onValueChange={(effort) =>
+                setSettings({ ...activeSettings, effort: effort as Effort })
               }
-              isSearchable={false}
-            />
-          </Picker>
+            >
+              <SelectTrigger
+                id="assistant-effort-select"
+                aria-label="Effort"
+                className="w-full font-mono"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {provider.modelSettings.efforts.map((e) => (
+                  <SelectItem key={e} value={e} className="font-mono">
+                    {e}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </>
       )}
 
       {provider.needsKey && (
         <>
-          <Label htmlFor="assistant-api-key">
-            API KEY{provider.keyOptional ? " (OPTIONAL)" : ""}
-          </Label>
-          <Input
-            id="assistant-api-key"
-            value={key}
-            onChange={(ev) => setKey(ev.target.value)}
-            onKeyDown={(ev) => {
-              if (ev.key === "Enter" && ready) connect();
-            }}
-            placeholder={provider.keyPlaceholder}
-            type="password"
-            autoComplete="off"
-          />
+          <Field className="mb-3">
+            <FieldLabel htmlFor="assistant-api-key" className={FIELD_LABEL}>
+              API KEY{provider.keyOptional ? " (OPTIONAL)" : ""}
+            </FieldLabel>
+            <Input
+              id="assistant-api-key"
+              value={key}
+              onChange={(ev) => setKey(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" && ready) connect();
+              }}
+              placeholder={provider.keyPlaceholder}
+              type="password"
+              autoComplete="off"
+            />
+          </Field>
         </>
       )}
 
@@ -483,60 +548,10 @@ const Providers = styled.div`
   padding-bottom: 1rem;
 `;
 
-const ProviderOption = styled.button<{ $selected: boolean }>`
-  ${({ theme, $selected }) => css`
-    &:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    text-align: left;
-    padding: 0.5rem 0.625rem;
-    background: transparent;
-    border: 1px solid
-      ${$selected ? theme.colors.default.primary : theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    font: inherit;
-    cursor: pointer;
-    transition: all ${theme.default.transition.duration.medium}
-      ${theme.default.transition.type};
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-    }
-
-    &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-      outline-offset: -1px;
-    }
-  `}
-`;
-
-const ProviderName = styled.div<{ $selected: boolean }>`
-  ${({ theme, $selected }) => css`
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: ${$selected
-      ? theme.colors.default.primary
-      : theme.colors.default.textPrimary};
-    font-size: ${theme.font.code.size.small};
-  `}
-`;
-
 const NoKey = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.state.success.color};
     font-size: ${theme.font.code.size.xsmall};
-  `}
-`;
-
-const ProviderDescription = styled.div`
-  ${({ theme }) => css`
-    padding-top: 0.1875rem;
-    color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
-    line-height: 1.5;
   `}
 `;
 
@@ -573,14 +588,6 @@ const Chevron = styled.span<{ $open: boolean }>`
     transition: transform ${theme.default.transition.duration.medium}
       ${theme.default.transition.type};
   `}
-`;
-
-const Field = styled(Input)`
-  margin-bottom: 0.75rem;
-`;
-
-const Picker = styled.div`
-  margin-bottom: 0.75rem;
 `;
 
 const ConnectButton = styled(GradientButton)`
