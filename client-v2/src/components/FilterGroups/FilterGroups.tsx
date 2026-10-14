@@ -2,7 +2,8 @@ import { ComponentProps, FC } from "react";
 import { useSearchParams } from "react-router-dom";
 import styled, { css } from "styled-components";
 
-import Checkbox from "../Checkbox";
+import { Checkbox } from "@/shared/ui/checkbox";
+import { Label } from "@/shared/ui/label";
 import { DetailTag } from "@/entities/tutorial";
 import type { Filter } from "../../hooks";
 
@@ -60,30 +61,27 @@ const FilterGroup: FC<React.PropsWithChildren<FilterGroupProps>> = ({
     <FilterGroupWrapper>
       <FilterGroupTitle>{param}</FilterGroupTitle>
       {nonZeroFilters.map((filter) => (
-        <Checkbox
-          key={filter.name}
-          label={
-            <FilterLabel
-              kind={param}
-              value={filter.name}
-              count={filter.count}
-            />
-          }
-          checked={searchValues.includes(filter.name)}
-          onChange={(ev) => {
-            if (ev.target.checked) {
-              searchParams.append(param, filter.name);
-            } else {
-              const otherValues = searchValues.filter((f) => f !== filter.name);
-              searchParams.delete(param);
-              for (const otherValue of otherValues) {
-                searchParams.append(param, otherValue);
+        <Label key={filter.name} className="flex items-center gap-2">
+          <Checkbox
+            checked={searchValues.includes(filter.name)}
+            onCheckedChange={(checked) => {
+              if (checked === true) {
+                searchParams.append(param, filter.name);
+              } else {
+                const otherValues = searchValues.filter(
+                  (f) => f !== filter.name
+                );
+                searchParams.delete(param);
+                for (const otherValue of otherValues) {
+                  searchParams.append(param, otherValue);
+                }
               }
-            }
 
-            setSearchParams(searchParams, { replace: true });
-          }}
-        />
+              setSearchParams(searchParams, { replace: true });
+            }}
+          />
+          <FilterLabel kind={param} value={filter.name} count={filter.count} />
+        </Label>
       ))}
     </FilterGroupWrapper>
   );
