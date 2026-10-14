@@ -52,9 +52,10 @@ key-based connection.
 Disconnecting, or connecting to a backend that needs no key, SHALL remove the
 stored key-based connection, so the next load does not reconnect to it.
 
-#### Scenario: Disconnect, then reload
+#### Scenario: Forgetting the key, then reload
 
-- **WHEN** the user disconnects from a key-based backend and reloads the tab
+- **WHEN** the user is connected to a key-based backend, presses Forget key in
+  the chat header and reloads the tab
 - **THEN** the panel is not connected and `sessionStorage` holds no key
 
 #### Scenario: Switching to the default backend

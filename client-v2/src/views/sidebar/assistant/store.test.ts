@@ -1,4 +1,9 @@
-import { PgAssistant, turnProducedApproval, type ChatItem } from "./store";
+import {
+  KEY_NOT_FORGOTTEN,
+  PgAssistant,
+  turnProducedApproval,
+  type ChatItem,
+} from "./store";
 import { MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } from "./model/redact-key";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
 import {
@@ -725,5 +730,35 @@ describe("the user's own key", () => {
     PgAssistant.connect(openai);
     PgAssistant.disconnect();
     expect(sessionStorage.getItem("assistant.connection")).toBeNull();
+    expect(PgAssistant.items).toEqual([]);
+  });
+
+  it("tells the user to close the tab when disconnecting cannot remove it", async () => {
+    PgAssistant.connect(openai);
+    PgAssistant.addUserMessage("hello");
+    await settled();
+    // Neither the removal nor its blanking fallback goes through
+    for (const method of ["removeItem", "setItem"] as const) {
+      const original = Storage.prototype[method] as (...args: string[]) => void;
+      vi.spyOn(Storage.prototype, method).mockImplementation(function (
+        this: Storage,
+        ...args: string[]
+      ) {
+        if (this === sessionStorage) throw new Error("blocked");
+        original.apply(this, args);
+      } as never);
+    }
+
+    PgAssistant.disconnect();
+    await settled();
+    vi.restoreAllMocks();
+
+    expect(PgAssistant.items).toEqual([
+      expect.objectContaining({ kind: "notice", text: KEY_NOT_FORGOTTEN }),
+    ]);
+    // Shown in this tab only: the stored thread keeps its conversation
+    expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
+      KEY_NOT_FORGOTTEN
+    );
   });
 });

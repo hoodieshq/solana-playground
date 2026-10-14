@@ -158,6 +158,11 @@ export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   return false;
 };
 
+/** Shown when disconnecting could not remove the key from this tab */
+export const KEY_NOT_FORGOTTEN =
+  "Your key could not be removed from this tab's storage. Close this tab to " +
+  "remove it.";
+
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
   id: ProviderId;
@@ -304,14 +309,30 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  /** Drop the backend and the key, and clear the conversation with it */
+  /**
+   * Drop the backend and the key, and clear the conversation with it.
+   *
+   * What the chat header's Forget key button does. If the key could not be
+   * removed from this tab's storage, a notice says how to get rid of it.
+   */
   static disconnect() {
     PgAssistant._connection = null;
     PgAssistant._pickingBackend = false;
     // Disconnecting is the user saying *not* to reconnect; without this the
     // next load would quietly undo it
-    forgetBackend();
+    const forgotten = forgetBackend();
     PgAssistant.clear();
+    if (forgotten) return;
+
+    // `_emitOnly`, like `clear`: the notice is about this tab, and `_emit`
+    // would write it over the stored conversation `clear` just left alone
+    PgAssistant._items.push({
+      kind: "notice",
+      id: makeId(),
+      createdAt: now(),
+      text: KEY_NOT_FORGOTTEN,
+    });
+    PgAssistant._emitOnly();
   }
 
   /** Which skills the model may load this session */

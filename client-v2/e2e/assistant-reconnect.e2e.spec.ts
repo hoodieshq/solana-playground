@@ -121,6 +121,21 @@ const connectOwn = (page: Page, connection: unknown = OWN) =>
 const connected = (page: Page) =>
   page.evaluate(() => (window as OwnWindow).__pgAssistant?.connection ?? null);
 
+/**
+ * Every key and value one of the page's storages holds, read through the
+ * `Storage` API rather than spread into a new shape
+ */
+const storedValues = (page: Page, store: "localStorage" | "sessionStorage") =>
+  page.evaluate((name) => {
+    const storage = window[name];
+    const values: Record<string, string | null> = {};
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key !== null) values[key] = storage.getItem(key);
+    }
+    return values;
+  }, store);
+
 /** The picker's heading when nothing is connected */
 const picker = (page: Page) =>
   page.getByText("An assistant that can see your project");
@@ -229,20 +244,23 @@ test.describe("assistant-own-key", () => {
     ).not.toContain(KEY);
   });
 
-  test("assistant-own-key: Disconnect, then reload", async ({ page }) => {
-    await seedWorkspace(page, "own-key-disconnect");
+  test("assistant-own-key: Forgetting the key, then reload", async ({
+    page,
+  }) => {
+    await seedWorkspace(page, "own-key-forget");
     await connectOwn(page);
     expect(
-      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+      JSON.stringify(await storedValues(page, "sessionStorage"))
     ).toContain(KEY);
-    await page.evaluate(() =>
-      (window as OwnWindow).__pgAssistant!.disconnect()
-    );
+
+    await page.getByRole("button", { name: "Forget key" }).click();
+    await expect(picker(page)).toBeVisible(LONG);
     await page.reload();
 
     await expect(picker(page)).toBeVisible(LONG);
+    expect(await connected(page)).toBeNull();
     expect(
-      await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+      JSON.stringify(await storedValues(page, "sessionStorage"))
     ).not.toContain(KEY);
   });
 
