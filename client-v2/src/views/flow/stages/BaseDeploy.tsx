@@ -19,26 +19,31 @@ import { StatusDot } from "@/shared/ui/status-dot";
 import type { DeployRecord } from "../state/deploy-history";
 import { STAGE_BODY, STAGE_FOOT, STAGE_FRAME } from "./stage-layout";
 
-/** What the chain says about the deployed program; `null` when unknown */
+/**
+ * What the chain says about the deployed program; `null` when unknown or,
+ * for the authority and size, when the program can no longer be upgraded
+ */
 export interface DeployDetails {
   upgradable: boolean | null;
   authority: string | null;
   programSize: number | null;
 }
 
+/** Where the project's last deploy stands */
+export type DeployStatus = "idle" | "running" | "failed";
+
 export interface BaseDeployProps {
   /** The cluster's name, `null` until the endpoint has been read */
   cluster: string | null;
   /** The last build succeeded, so there is something to deploy */
   built: boolean;
-  /** A deploy is running; a second press would pause it, so it is held */
-  deploying: boolean;
-  /** The last deploy failed */
-  failed: boolean;
+  /**
+   * The last deploy's state. While one runs, a second press would pause it,
+   * so the button is held.
+   */
+  deploy: DeployStatus;
   /** The project's own program id, shown before the first deployment */
   programId: string | null;
-  /** The project's most recent deployment */
-  latest: DeployRecord | null;
   details: DeployDetails;
   /** Every deployment of the project, newest first */
   history: DeployRecord[];
@@ -51,32 +56,29 @@ export interface BaseDeployProps {
 }
 
 /** Why the Deploy button is off, for its tooltip; undefined when it is on */
-const deployBlockedReason = (built: boolean, deploying: boolean) => {
-  if (!built) return "Build successfully first";
-  if (deploying) return "A deploy is already running";
+const deployBlockedReason = (p: BaseDeployProps) => {
+  if (!p.built) return "Build successfully first";
+  if (p.deploy === "running") return "A deploy is already running";
   return undefined;
 };
 
-const deployLabel = (
-  deploying: boolean,
-  redeploy: boolean,
-  cluster: string
-) => {
-  if (deploying) return redeploy ? "Upgrading..." : "Deploying...";
-  return redeploy ? `Redeploy to ${cluster}` : `Deploy to ${cluster}`;
+const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
+  if (p.deploy === "running") return redeploy ? "Upgrading..." : "Deploying...";
+  const where = clusterName(p);
+  return redeploy ? `Redeploy to ${where}` : `Deploy to ${where}`;
 };
 
-/** The cluster as a sentence names it, before the endpoint is read too */
+/** The cluster for prose; "the network" until the endpoint has been read */
 const clusterName = (p: BaseDeployProps) => p.cluster ?? "the network";
 
-const description = (p: BaseDeployProps) => {
+const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (!p.built) {
     return "Build the program first -- the stepper unlocks Deploy once it compiles cleanly.";
   }
-  if (p.latest) {
+  if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  return `Nothing deployed yet. Deploying sends the compiled program to ${clusterName(
+  return `Deploying sends the compiled program to ${clusterName(
     p
   )} using the connected wallet.`;
 };
@@ -149,7 +151,7 @@ const DeployResult = ({
         <Fact name="When">{new Date(latest.at).toLocaleString()}</Fact>
       </dl>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={p.onInteract}>
+        <Button size="sm" variant="outline" onClick={p.onInteract}>
           Interact
         </Button>
         <ExplorerLink
@@ -210,7 +212,7 @@ const History = ({ p }: { p: BaseDeployProps }) => (
 
 /** The Deploy stage, drawn from props alone; `Deploy` connects it */
 const BaseDeploy = (p: BaseDeployProps) => {
-  const { latest } = p;
+  const latest = p.history[0] ?? null;
   const n = p.history.length;
   const meta = [p.cluster, latest && `${n} deployment${n === 1 ? "" : "s"}`]
     .filter(Boolean)
@@ -226,13 +228,13 @@ const BaseDeploy = (p: BaseDeployProps) => {
           {latest ? "Deploy" : "Nothing deployed yet"}
         </StageEmptyTitle>
         {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
-        <StageEmptyDescription>{description(p)}</StageEmptyDescription>
+        <StageEmptyDescription>{description(p, latest)}</StageEmptyDescription>
         {p.built && !latest && p.programId && (
           <p className="text-caption text-muted-foreground">
             Program id <code className="font-mono">{p.programId}</code>
           </p>
         )}
-        {p.failed && (
+        {p.deploy === "failed" && (
           <Callout variant="error" role="alert">
             <CalloutDescription>
               Deploy failed - see the console.
@@ -244,12 +246,12 @@ const BaseDeploy = (p: BaseDeployProps) => {
         {p.idlDrop}
         <StageEmptyActions className={STAGE_FOOT}>
           <BrandButton
-            disabled={!p.built || p.deploying}
-            aria-busy={p.deploying || undefined}
-            title={deployBlockedReason(p.built, p.deploying)}
+            disabled={!p.built || p.deploy === "running"}
+            aria-busy={p.deploy === "running" || undefined}
+            title={deployBlockedReason(p)}
             onClick={p.onDeploy}
           >
-            {deployLabel(p.deploying, latest !== null, clusterName(p))}
+            {deployLabel(p, latest !== null)}
           </BrandButton>
         </StageEmptyActions>
       </StageEmpty>

@@ -11,7 +11,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import BaseDeploy from "./BaseDeploy";
-import type { BaseDeployProps, DeployDetails } from "./BaseDeploy";
+import type {
+  BaseDeployProps,
+  DeployDetails,
+  DeployStatus,
+} from "./BaseDeploy";
 import type { DeployRecord } from "../state/deploy-history";
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
@@ -34,17 +38,14 @@ const NO_DETAILS: DeployDetails = {
 /** Every prop, named; each test passes what it is about */
 const props = (state: {
   built: boolean;
-  deploying: boolean;
+  deploy: DeployStatus;
   history: DeployRecord[];
   details?: DeployDetails;
-  failed?: boolean;
 }): BaseDeployProps => ({
   cluster: "devnet",
   built: state.built,
-  deploying: state.deploying,
-  failed: state.failed ?? false,
+  deploy: state.deploy,
   programId: PROGRAM_ID,
-  latest: state.history[0] ?? null,
   details: state.details ?? NO_DETAILS,
   history: state.history,
   addressUrl: (id) => `https://explorer.test/address/${id}`,
@@ -77,7 +78,7 @@ const lastIsActions = (container: HTMLElement) =>
 describe("BaseDeploy", () => {
   it("holds Deploy until a build succeeded", () => {
     const { container } = render(
-      <BaseDeploy {...props({ built: false, deploying: false, history: [] })} />
+      <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
     );
 
     expect(
@@ -90,7 +91,7 @@ describe("BaseDeploy", () => {
   });
 
   it("deploys a built program and names its id", () => {
-    const p = props({ built: true, deploying: false, history: [] });
+    const p = props({ built: true, deploy: "idle", history: [] });
     const { container } = render(<BaseDeploy {...p} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }));
@@ -101,7 +102,7 @@ describe("BaseDeploy", () => {
 
   it("holds the button while a first deploy runs", () => {
     render(
-      <BaseDeploy {...props({ built: true, deploying: true, history: [] })} />
+      <BaseDeploy {...props({ built: true, deploy: "running", history: [] })} />
     );
 
     const busy = screen.getByRole("button", { name: "Deploying..." });
@@ -114,7 +115,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploying: true,
+          deploy: "running",
           history: [record("a", null)],
         })}
       />
@@ -125,9 +126,7 @@ describe("BaseDeploy", () => {
 
   it("says a failed deploy failed", () => {
     render(
-      <BaseDeploy
-        {...props({ built: true, deploying: false, history: [], failed: true })}
-      />
+      <BaseDeploy {...props({ built: true, deploy: "failed", history: [] })} />
     );
 
     expect(screen.getByRole("alert").textContent).toContain(
@@ -138,7 +137,7 @@ describe("BaseDeploy", () => {
   it("shows the latest deployment's program id to copy", () => {
     const p = props({
       built: true,
-      deploying: false,
+      deploy: "idle",
       history: [record("a", "5sig")],
     });
     const { container } = render(<BaseDeploy {...p} />);
@@ -175,7 +174,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploying: false,
+          deploy: "idle",
           history: [record("a", null)],
         })}
       />
@@ -187,7 +186,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploying: false,
+          deploy: "idle",
           history: [record("a", null)],
           details: {
             upgradable: true,
@@ -207,7 +206,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploying: false,
+          deploy: "idle",
           history: [record("a", null), record("b", null)],
         })}
       />
@@ -223,11 +222,38 @@ describe("BaseDeploy", () => {
 
   it("says when nothing was deployed", () => {
     render(
-      <BaseDeploy {...props({ built: true, deploying: false, history: [] })} />
+      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
     );
 
     expect(
       screen.getByText("No deployments yet for this project.")
     ).toBeTruthy();
+  });
+
+  it("says nothing deployed once", () => {
+    render(
+      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
+    );
+
+    expect(screen.getAllByText(/Nothing deployed yet/)).toHaveLength(1);
+  });
+
+  /** Redeploy is the screen's accent; Interact is a quiet next step */
+  it("keeps Interact quiet beside the brand Deploy", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          history: [record("a", null)],
+        })}
+      />
+    );
+
+    expect(
+      screen
+        .getByRole("button", { name: "Interact" })
+        .getAttribute("data-variant")
+    ).toBe("outline");
   });
 });

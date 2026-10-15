@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import BaseDeploy from "./BaseDeploy";
-import type { DeployDetails } from "./BaseDeploy";
+import type { DeployDetails, DeployStatus } from "./BaseDeploy";
 import IdlActions from "./IdlActions";
 import {
   useBlockExplorer,
@@ -24,6 +24,19 @@ import type { FlowState } from "../state/stage";
 /** This workspace's deployments, newest first */
 const readHistory = () =>
   PgDeployHistory.list(PgExplorer.currentWorkspaceName ?? "");
+
+/**
+ * A second click on Deploy while one is already running pauses it
+ * (`deployState` becomes "paused") rather than starting a new one, which
+ * upstream's sidebar exposes as an explicit "Continue"/pause toggle. Flow
+ * does not offer that control, so the stage holds the button while a deploy
+ * is "running" instead.
+ */
+const deployStatus = (deployState: unknown, flow: FlowState): DeployStatus => {
+  if (deployState === "loading") return "running";
+  if (flow.deploy === "failed") return "failed";
+  return "idle";
+};
 
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
 const Deploy = () => {
@@ -48,8 +61,9 @@ const Deploy = () => {
     };
   }, []);
 
-  // Only what the chain answered for a deployed program; the authority
-  // matters only while the program can still be upgraded.
+  // Only what the chain answered for a deployed program. The authority and
+  // the program-data size describe the upgrade path, so they show only while
+  // the program can still be upgraded.
   const onChain = programInfo.onChain;
   const deployed = onChain?.deployed === true;
   const upgradable = deployed && onChain?.upgradable === true;
@@ -63,15 +77,8 @@ const Deploy = () => {
     <BaseDeploy
       cluster={PgConnection.cluster}
       built={flow.build === "done"}
-      // A second click on Deploy while one is already running pauses it
-      // (`deployState` becomes "paused") rather than starting a new one,
-      // which upstream's sidebar exposes as an explicit "Continue"/pause
-      // toggle. Flow does not offer that control, so a click here would
-      // either be a no-op or an unintended pause -- hold the button instead.
-      deploying={deployState === "loading"}
-      failed={flow.deploy === "failed"}
+      deploy={deployStatus(deployState, flow)}
       programId={programInfo.pk?.toBase58() ?? null}
-      latest={history[0] ?? null}
       details={details}
       history={history}
       addressUrl={(id) => explorer.getAddressUrl(id)}
