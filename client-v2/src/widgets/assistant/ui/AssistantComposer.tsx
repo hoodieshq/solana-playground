@@ -1,0 +1,173 @@
+import { useEffect, useReducer, useState } from "react";
+
+import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
+import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
+import { realBridge } from "../../../views/sidebar/assistant/bridge/playground-bridge";
+import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import type { Connection } from "../../../views/sidebar/assistant/store";
+import { INITIAL_LESSON_STATE, PgLesson } from "../../../views/flow/lessons";
+import type { LessonState } from "../../../views/flow/lessons";
+import { PgExplorer } from "../../../utils/explorer/explorer";
+import { PgProgramInfo } from "../../../utils/program-info";
+import { modelOptions, modelShown } from "../model/choice";
+import type { ModelOption } from "../model/choice";
+import { useDefaultBackend } from "../model/default-backend";
+import { assistantTelemetry } from "../model/telemetry";
+import { withEffort, withModel } from "../model/tune";
+import type { Turn } from "../model/use-turn";
+import {
+  BaseAssistantComposer,
+  type ComposerContextChip,
+} from "./BaseAssistantComposer";
+import { BaseEffortMenu } from "./BaseEffortMenu";
+import { BaseModelMenu } from "./BaseModelMenu";
+
+const DEFAULT_CONNECTION: Connection = { id: "default", apiKey: "" };
+
+/** What the assistant reads each turn, as chips over the input */
+const contextChips = (lessonState: LessonState): ComposerContextChip[] => {
+  // Mirror what `describeProject()` actually sends, so the row cannot claim
+  // less than the model gets. Paths only — never file content, since this runs
+  // on every render, including every streamed token.
+  const currentFilePath = PgExplorer.currentFilePath;
+  const filePaths = realBridge.listFiles();
+  const openPaths = realBridge.listOpenFiles();
+  const lesson = describeLesson(lessonState);
+  return [
+    lesson
+      ? {
+          label: `step ${lesson.stepIndex} of ${lesson.stepCount}`,
+          title: lesson.objective,
+        }
+      : null,
+    {
+      label: `${filePaths.length} ${filePaths.length === 1 ? "file" : "files"}`,
+      title: `Every path is sent each turn, and the assistant can read any of them:\n\n${filePaths.join(
+        "\n"
+      )}`,
+    },
+    openPaths.length > 1
+      ? {
+          label: `${openPaths.length} open`,
+          title: `Your open tabs are named each turn; only the active one is sent in full:\n\n${openPaths.join(
+            "\n"
+          )}`,
+        }
+      : null,
+    currentFilePath
+      ? {
+          label: `${PgExplorer.getItemNameFromPath(currentFilePath)} active`,
+          title: "The tab you are looking at, sent in full every turn",
+        }
+      : null,
+    PgBuildOutput.latest?.failed
+      ? { label: "build error", title: "The last build's compiler output" }
+      : null,
+    PgProgramInfo.idl
+      ? { label: "idl", title: "The built program's interface" }
+      : null,
+  ].filter((chip): chip is ComposerContextChip => !!chip);
+};
+
+const placeholderFor = (turn: Turn) => {
+  if (PgAssistant.status === "awaiting") return "Waiting on your decision…";
+  if (turn.busy) return "Working…";
+  return "Ask about this project…";
+};
+
+/**
+ * The assistant's composer, connected: the context it reads, the model and
+ * effort menus, and the turn shared with the thread.
+ */
+export function AssistantComposer({ turn }: { turn: Turn }) {
+  const [, render] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => PgAssistant.onDidChange(render).dispose, []);
+
+  const [lessonState, setLessonState] =
+    useState<LessonState>(INITIAL_LESSON_STATE);
+  useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
+
+  const defaultBackend = useDefaultBackend();
+  const connection = PgAssistant.connection;
+  const shown = modelShown(connection, defaultBackend);
+
+  const tune = (next: Connection | null) => {
+    if (next) PgAssistant.tune(next);
+    return !!next;
+  };
+
+  const pick = (option: ModelOption) => {
+    if (option.provider === "default") {
+      if (connection?.id === "default") return;
+      // From a keyed backend this is a change of backend, and starts a new
+      // conversation as connecting always has
+      PgAssistant.connect(DEFAULT_CONNECTION);
+      assistantTelemetry.track("assistant_model_picked", {
+        provider: "default",
+        via: "menu",
+      });
+      return;
+    }
+    if (connection?.id !== option.provider || option.model === null) {
+      // Another backend needs its key, so Connect a model asks for it
+      turn.openConnect("model");
+      return;
+    }
+    if (tune(withModel(connection, option.model))) {
+      assistantTelemetry.track("assistant_model_picked", {
+        provider: option.provider,
+        via: "menu",
+      });
+    }
+  };
+
+  const effort =
+    shown.kind === "keyed" && shown.effort && connection ? (
+      <BaseEffortMenu
+        effort={shown.effort}
+        disabled={turn.busy}
+        onChange={(next) => {
+          if (tune(withEffort(connection, next))) {
+            assistantTelemetry.track("assistant_effort_changed", {
+              effort: next,
+            });
+          }
+        }}
+      />
+    ) : null;
+
+  return (
+    <div className="flex shrink-0 flex-col gap-2 px-3 pt-2 pb-3">
+      {turn.promptWaiting && (
+        <p role="status" className="px-1 text-xs text-muted-foreground italic">
+          Connect a backend to send this to the assistant. Your prompt is
+          waiting in the composer.
+        </p>
+      )}
+      <BaseAssistantComposer
+        chips={contextChips(lessonState)}
+        value={turn.input}
+        onValueChange={turn.setInput}
+        onSend={(text) => {
+          void turn.send(text);
+        }}
+        onStop={turn.stop}
+        busy={turn.busy}
+        placeholder={placeholderFor(turn)}
+        model={
+          <BaseModelMenu
+            model={shown}
+            options={modelOptions(defaultBackend)}
+            onPick={pick}
+            // "Connect a model" on the button and "Connect with a key…" in
+            // its menu: both are the model chip's; "menu" is the head's More
+            onConnect={() => turn.openConnect("model")}
+            disabled={turn.busy}
+          />
+        }
+        effort={effort}
+        focusRequest={turn.focusRequest}
+      />
+    </div>
+  );
+}

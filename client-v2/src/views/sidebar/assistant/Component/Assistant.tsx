@@ -6,6 +6,7 @@ import Grounding from "./Grounding";
 import { PgAssistant } from "../store";
 import { PgBuildOutput } from "../bridge/build-output";
 import { PgExplorer } from "../../../../utils";
+import { AssistantComposer, useTurn } from "../../../../widgets/assistant";
 
 type Tab = "chat" | "sources";
 
@@ -16,12 +17,15 @@ const TABS: Array<{ id: Tab; label: string }> = [
 
 const Assistant = () => {
   const [tab, setTab] = useState<Tab>("chat");
+  // Here, above both tabs, so a turn and a prompt waiting in the composer
+  // outlive a visit to Sources; the thread and the composer share this one
+  const turn = useTurn();
 
-  // Mirrors the two inputs `Chat.tsx`'s own CONTEXT row reads off
+  // Mirrors the two inputs `AssistantComposer`'s context chips read off
   // (`PgExplorer.currentFilePath`, `PgBuildOutput.latest?.failed`) so the
   // header chip can never claim something the chat context does not also
-  // see -- kept live here rather than imported, since this header renders
-  // above `Chat` and outlives a backend not being connected yet.
+  // see -- kept live here rather than imported, since this header also shows
+  // over the Sources tab, where the composer is not rendered.
   const [currentFilePath, setCurrentFilePath] = useState(
     PgExplorer.currentFilePath
   );
@@ -85,7 +89,12 @@ const Assistant = () => {
         ))}
       </Tabs>
 
-      {tab === "chat" && <Chat />}
+      {tab === "chat" && (
+        <>
+          <Chat turn={turn} />
+          <AssistantComposer turn={turn} />
+        </>
+      )}
       {tab === "sources" && <Grounding />}
     </Wrapper>
   );

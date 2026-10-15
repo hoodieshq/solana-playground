@@ -301,8 +301,8 @@ export class PgAssistant {
    * Switch the model or effort on the connected backend, keeping the thread.
    *
    * Does not `clear`, unlike `connect` with a different connection: the
-   * provider for the next turn is rebuilt from what is rendered (`Chat` and
-   * `use-turn` compare connection identity), so the new settings apply to the
+   * provider for the next turn is rebuilt from what is rendered (`useTurn`
+   * compares connection identity), so the new settings apply to the
    * next turn and the transcript on screen stays the history it works from.
    * `_emitOnly` for the same reason as `connect`: the connection is in memory
    * only and nothing here is the user writing to the conversation.
@@ -493,14 +493,14 @@ export class PgAssistant {
    * assistant" on a build error card.
    *
    * The panel itself owns the actual send (its provider lives in a ref
-   * inside `Chat`), so this only notifies; it does not append a message
+   * inside `useTurn`), so this only notifies; it does not append a message
    * itself.
    *
    * Observers subscribe too and never send: `Flow` reopens the panel when it
-   * is collapsed, `Assistant` switches to the chat tab. `Chat` is the only
+   * is collapsed, `Assistant` switches to the chat tab. `useTurn` is the only
    * subscriber that can act on a request, so with none registered the request
    * is buffered in `_pendingPrompt` until one mounts a moment later and claims
-   * it -- which is exactly the collapsed-panel and other-tab cases.
+   * it -- which is exactly the collapsed-panel case.
    *
    * @param text the prompt to send
    * @param opts `send: false` leaves it in the composer for the user to edit,
@@ -906,7 +906,7 @@ export class PgAssistant {
   private static readonly _promptSenders = new Set<
     (request: PromptRequest) => void
   >();
-  // Set by `requestPrompt` when `Chat` is not around to receive it live;
+  // Set by `requestPrompt` when `useTurn` is not around to receive it live;
   // claimed and cleared by the next `onDidRequestPrompt` subscriber.
   private static _pendingPrompt: PromptRequest | null = null;
 
