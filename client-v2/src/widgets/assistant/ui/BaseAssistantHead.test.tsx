@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseAssistantHead } from "./BaseAssistantHead";
@@ -51,6 +51,9 @@ class NoopResizeObserver {
 const more = () => screen.getByRole("button", { name: "More" });
 
 describe("BaseAssistantHead", () => {
+  beforeEach(() => vi.stubGlobal("ResizeObserver", NoopResizeObserver));
+  afterEach(() => vi.unstubAllGlobals());
+
   it("names the project", () => {
     setup();
     expect(screen.getByText("hello-anchor")).toBeTruthy();
@@ -73,20 +76,14 @@ describe("BaseAssistantHead", () => {
   });
 
   it("says why Clear conversation is disabled", async () => {
-    // The tooltip's positioning watches its trigger's size
-    vi.stubGlobal("ResizeObserver", NoopResizeObserver);
-    try {
-      const { user } = setup();
-      await user.click(more());
-      const item = screen.getByRole("menuitem", { name: "Clear conversation" });
-      // The item takes no pointer events while disabled; its wrapper does
-      await user.hover(item.parentElement!);
-      expect((await screen.findByRole("tooltip")).textContent).toBe(
-        "Coming soon"
-      );
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    const { user } = setup();
+    await user.click(more());
+    const item = screen.getByRole("menuitem", { name: "Clear conversation" });
+    // The item takes no pointer events while disabled; its wrapper does
+    await user.hover(item.parentElement!);
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "Coming soon"
+    );
   });
 
   it("opens Sources and tools and Connect a model from their items", async () => {
