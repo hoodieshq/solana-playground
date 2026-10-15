@@ -20,7 +20,7 @@ const NotFound: FC<React.PropsWithChildren<NotFoundProps>> = ({
   navigate,
 }) => (
   <Wrapper>
-    <Callout variant="error">
+    <Callout variant="error" className="w-fit">
       <CircleXIcon />
       <CalloutDescription>
         {text ?? `URL path not found: ${PgRouter.location.pathname}`}

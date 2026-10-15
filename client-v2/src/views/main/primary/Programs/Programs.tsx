@@ -47,7 +47,7 @@ const Programs: FC<React.PropsWithChildren<ProgramsProps>> = ({
             ))}
           </ResponsiveItems>
         ) : (
-          <Callout className="h-20 w-84 text-xs">
+          <Callout className="flex h-20 w-84 items-center justify-center gap-2.5 text-sm *:[svg]:translate-y-0">
             <FrownIcon />
             <CalloutDescription>No match found</CalloutDescription>
           </Callout>
