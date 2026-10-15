@@ -253,7 +253,7 @@ export class PgAssistant {
     return !!PgAssistant._connection;
   }
 
-  /** Whether the backend picker is open on top of an existing connection */
+  /** Whether Connect a model is open; reconnects stand down while it is */
   static get isPickingBackend() {
     return PgAssistant._pickingBackend;
   }
@@ -323,13 +323,13 @@ export class PgAssistant {
     return isSame(PgAssistant._connection, next);
   }
 
-  /** Reopen the picker, keeping the conversation in case the user comes back */
+  /** Mark Connect a model open, keeping the conversation */
   static pickBackend() {
     PgAssistant._pickingBackend = true;
     PgAssistant._emit();
   }
 
-  /** Close the picker without changing anything */
+  /** Mark Connect a model closed without changing anything */
   static keepBackend() {
     PgAssistant._pickingBackend = false;
     PgAssistant._emit();
@@ -338,7 +338,7 @@ export class PgAssistant {
   /**
    * Drop the backend and the key, and clear the conversation with it.
    *
-   * What the chat header's Forget key button does. If the key could not be
+   * What Forget key in the assistant head's More does. If the key could not be
    * removed from this tab's storage, a notice says how to get rid of it.
    */
   static disconnect() {

@@ -7,51 +7,19 @@ import { PgAssistant } from "../../../views/sidebar/assistant/store";
 
 // The thread, Sources and the composer stand in by name: what is under test
 // is which of them the panel shows, not what they draw.
-// While Connect a model is open the thread shows the picker in the region
-// `CONNECT_REGION` names, re-rendering on its own as the store's thread does;
-// `picker.shows` is off for a picker that never appears, so the focus has
-// nowhere in it to go
-const picker = vi.hoisted(() => ({
-  open: false,
-  shows: true,
-  rerender: null as (() => void) | null,
+vi.mock("../../../views/sidebar/assistant/Component/Chat", () => ({
+  default: () => <div>thread</div>,
 }));
-vi.mock("../../../views/sidebar/assistant/Component/Chat", async () => {
-  const { useReducer } = await import("react");
-  const { CONNECT_REGION } = await import(
-    "../../../views/sidebar/assistant/Component/connect-region"
-  );
-  const Thread = () => {
-    const [, rerender] = useReducer((n: number) => n + 1, 0);
-    picker.rerender = rerender;
-    return (
-      <div>
-        thread
-        {picker.open && picker.shows && (
-          <div {...{ [CONNECT_REGION]: "" }}>
-            <button type="button" disabled>
-              Default
-            </button>
-            <button type="button">Anthropic</button>
-          </div>
-        )}
-      </div>
-    );
-  };
-  return { default: Thread };
-});
 vi.mock("../../../views/sidebar/assistant/Component/Grounding", () => ({
   default: () => <div>sources</div>,
 }));
 vi.mock("./AssistantComposer", () => ({
   AssistantComposer: () => <div>composer</div>,
 }));
-const turn = vi.hoisted(() => ({
-  openConnect: vi.fn(() => {
-    picker.open = true;
-    picker.rerender?.();
-  }),
-}));
+// Connect a model is a dialog of `PgView`'s stack, which takes focus as it
+// opens; `dialog.shows` is off for one that never appears
+const dialog = vi.hoisted(() => ({ shows: true }));
+const turn = vi.hoisted(() => ({ busy: false, openConnect: vi.fn() }));
 vi.mock("../model/use-turn", () => ({ useTurn: () => turn }));
 
 // The explorer's workspace, with the two events the heading follows
@@ -76,7 +44,16 @@ vi.mock("../../../utils/explorer/explorer", () => {
   };
 });
 
+import { PgView } from "@/utils/view";
+import { ModalFrame, ModalHost } from "../../overlays";
 import { Assistant } from "./Assistant";
+
+/** Stands in for Connect a model: a dialog with a field */
+const FakeConnect = () => (
+  <ModalFrame name="connect-model" title="Connect a model">
+    <input aria-label="Dialog field" />
+  </ModalFrame>
+);
 
 class NoopResizeObserver {
   observe() {}
@@ -87,14 +64,19 @@ class NoopResizeObserver {
 beforeEach(() => {
   explorer.name = "hello-anchor";
   explorer.listeners.clear();
-  turn.openConnect.mockClear();
-  picker.open = false;
-  picker.shows = true;
-  picker.rerender = null;
+  turn.openConnect.mockReset();
+  turn.openConnect.mockImplementation(() => {
+    if (dialog.shows) void PgView.setModal(FakeConnect);
+  });
+  turn.busy = false;
+  dialog.shows = true;
+  PgAssistant.disconnect();
   vi.spyOn(PgAssistant, "initMcp").mockResolvedValue(undefined);
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
 });
-afterEach(() => {
+afterEach(async () => {
+  await act(async () => PgView.closeModal(null));
+  PgAssistant.disconnect();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -105,6 +87,7 @@ const setup = () => {
   // The app's one `TooltipProvider` sits in `App`
   render(
     <TooltipProvider>
+      <ModalHost />
       <Assistant wide={false} setWide={setWide} canWiden onHide={onHide} />
     </TooltipProvider>
   );
@@ -170,31 +153,63 @@ describe("Assistant", () => {
     await waitFor(() => expect(document.activeElement).toBe(back));
   });
 
-  it("puts focus on the picker's first control when Connect a model is picked", async () => {
+  it("leaves focus in Connect a model when it is picked", async () => {
     const { user } = setup();
     await user.click(screen.getByRole("button", { name: "More" }));
     await user.keyboard("k");
-    const first = screen.getByRole("button", { name: "Anthropic" });
-    await waitFor(() => expect(document.activeElement).toBe(first));
+    expect(turn.openConnect).toHaveBeenCalledWith("menu");
+    const field = screen.getByRole("textbox", { name: "Dialog field" });
+    await waitFor(() => expect(document.activeElement).toBe(field));
   });
 
-  it("opens Connect a model over the thread when picked from Sources", async () => {
+  it("opens Connect a model over Sources, which stays", async () => {
     const { user } = setup();
     await openSources(user);
     await user.click(screen.getByRole("button", { name: "More" }));
     await user.keyboard("k");
-    expect(screen.queryByText("sources")).toBeNull();
-    const first = screen.getByRole("button", { name: "Anthropic" });
-    await waitFor(() => expect(document.activeElement).toBe(first));
+    expect(turn.openConnect).toHaveBeenCalledWith("menu");
+    expect(screen.getByText("sources")).toBeTruthy();
   });
 
   it("gives focus back to More when the picked view has nothing to focus", async () => {
-    picker.shows = false;
+    dialog.shows = false;
     const { user } = setup();
     const more = screen.getByRole("button", { name: "More" });
     await user.click(more);
     await user.keyboard("k");
     await waitFor(() => expect(document.activeElement).toBe(more));
+  });
+
+  it("offers Forget key while a key is held, and forgets it", async () => {
+    PgAssistant.connect({
+      id: "anthropic",
+      apiKey: "sk-ant-fake",
+      settings: { model: "claude-opus-5-5", effort: "medium" },
+    });
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Forget key" }));
+    expect(PgAssistant.connection).toBeNull();
+    expect(sessionStorage.getItem("assistant.connection")).toBeNull();
+  });
+
+  it("keeps Forget key disabled during a turn", async () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-fake" });
+    turn.busy = true;
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Forget key" })
+        .getAttribute("aria-disabled")
+    ).toBe("true");
+  });
+
+  it("offers no Forget key for the keyless default", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.queryByRole("menuitem", { name: "Forget key" })).toBeNull();
   });
 
   it("widens through the shell, and hides through it", async () => {

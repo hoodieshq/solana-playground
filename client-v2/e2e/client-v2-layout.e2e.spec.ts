@@ -768,10 +768,11 @@ test.describe("a select inside the assistant Sheet", () => {
     await page.getByRole("button", { name: "Expand assistant" }).click();
     const sheet = page.locator('[data-slot="sheet-content"]');
     await expect(sheet).toBeVisible();
-    // The picker opens from the head's More, not on its own
+    // Connect a model opens from the head's More, as a dialog over the Sheet
     await sheet.getByRole("button", { name: "More" }).click();
     await page.getByRole("menuitem", { name: /Connect a model/ }).click();
-    await sheet.getByText("claude-opus-5-5").click();
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    await dialog.getByRole("combobox", { name: "Model" }).click();
     const option = page.getByRole("option").first();
     await expect(option).toBeVisible();
     await expect(option).toContainText("claude");

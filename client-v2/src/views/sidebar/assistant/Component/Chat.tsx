@@ -4,7 +4,6 @@ import styled, { css } from "styled-components";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { Empty, EmptyDescription } from "@/shared/ui/empty";
 import ChatItem from "./ChatItem";
-import Connect from "./Connect";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";
 import {
   PgAssistant,
@@ -23,7 +22,6 @@ import {
   verifyingStage,
 } from "../../../flow/lessons";
 import type { LessonState } from "../../../flow/lessons";
-import { CONNECT_REGION } from "./connect-region";
 import type { Turn } from "../../../../widgets/assistant";
 
 const SUGGESTIONS = [
@@ -72,33 +70,6 @@ const Chat = ({ turn }: { turn: Turn }) => {
   const [lessonState, setLessonState] =
     useState<LessonState>(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
-
-  // Only when asked for (Send with nothing to send to, the model button, More):
-  // with nothing connected the thread and the composer stay usable, since the
-  // first send connects the deployment's default
-  if (PgAssistant.isPickingBackend) {
-    // The conversation is restored long before a backend is picked -- on
-    // another browser, picking one is the first thing the user does, and
-    // returning only the picker made a thread that was already in memory look
-    // like it had not been synced at all. Shown read-only: every action a
-    // `ChatItem` offers starts a turn, and there is nothing to run it.
-    return (
-      <Wrapper>
-        {items.length > 0 && (
-          <Messages role="log" aria-label="Conversation">
-            {items.map((item) => (
-              <ChatItem key={item.id} item={item} />
-            ))}
-            <div ref={bottomRef} />
-          </Messages>
-        )}
-
-        <ConnectSlot {...{ [CONNECT_REGION]: "" }}>
-          <Connect />
-        </ConnectSlot>
-      </Wrapper>
-    );
-  }
 
   const lesson = describeLesson(lessonState);
 
@@ -213,20 +184,6 @@ const Wrapper = styled.div`
   flex-direction: column;
   flex-grow: 1;
   min-height: 0;
-`;
-
-/**
- * Keeps the picker at its natural height under a restored conversation.
- *
- * Without it the two share the column and the picker is squeezed to whatever
- * the transcript leaves -- the transcript is the part that should scroll.
- */
-const ConnectSlot = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  min-height: 0;
-  overflow-y: auto;
 `;
 
 const Messages = styled.div`

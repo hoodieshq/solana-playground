@@ -4,22 +4,26 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import Chat from "../../../views/sidebar/assistant/Component/Chat";
 import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
+import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../../utils/explorer/explorer";
-import { CONNECT_REGION } from "../../../views/sidebar/assistant/Component/connect-region";
 import { useTurn } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
 import { BaseAssistantHead } from "./BaseAssistantHead";
+import type { ForgetKey } from "./BaseAssistantHead";
 
 /** What the panel shows under its head */
 type View = "chat" | "sources";
 
-/** The view a pick from More opened, until it has been given focus */
-type Picked = "sources" | "connect";
-
-/** What can take focus in a view, enabled */
-const FOCUSABLE =
-  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** Whether More offers Forget key, and whether it can be pressed now */
+const forgetKeyOf = (busy: boolean): ForgetKey => {
+  const id = PgAssistant.connection?.id;
+  const holdsKey = !!PROVIDERS.find((p) => p.id === id)?.needsKey;
+  if (!holdsKey) return "none";
+  // The turn is using the key
+  if (busy) return "busy";
+  return "ready";
+};
 
 /** What a heading shows while no project is open yet */
 const NO_PROJECT = "Assistant";
@@ -64,26 +68,20 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
   const turn = useTurn();
   const title = useProjectName();
 
-  // The view a pick from More opened takes focus once the menu has closed
-  // (`BaseAssistantHead`'s `focusPicked`): Back in Sources, the picker's first
-  // control in Connect a model. Focus the user already put somewhere in the
-  // meantime, such as on a select they clicked, is left where it is.
-  const picked = useRef<Picked | null>(null);
-  const root = useRef<HTMLDivElement>(null);
+  // What a pick from More opened takes focus once the menu has closed
+  // (`BaseAssistantHead`'s `focusPicked`): Back in Sources; Connect a model
+  // is a dialog, which takes it as it opens. Focus the user already put
+  // somewhere in the meantime, such as on a select they clicked, is left
+  // where it is.
+  const sourcesPicked = useRef(false);
   const back = useRef<HTMLButtonElement>(null);
   const focusPicked = () => {
-    const view = picked.current;
-    picked.current = null;
+    const toSources = sourcesPicked.current;
+    sourcesPicked.current = false;
     const active = document.activeElement;
     if (active && active !== document.body) return true;
-    const target =
-      view === "sources"
-        ? back.current
-        : root.current?.querySelector<HTMLElement>(
-            `[${CONNECT_REGION}] :is(${FOCUSABLE})`
-          );
-    if (!target) return false;
-    target.focus();
+    if (!toSources || !back.current) return false;
+    back.current.focus();
     return true;
   };
 
@@ -102,24 +100,22 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
   }, []);
 
   return (
-    <div ref={root} className="flex h-full max-h-full min-h-0 flex-1 flex-col">
+    <div className="flex h-full max-h-full min-h-0 flex-1 flex-col">
       <BaseAssistantHead
         title={title}
         onSources={() => {
           setView("sources");
-          picked.current = "sources";
+          sourcesPicked.current = true;
         }}
-        onConnect={() => {
-          // The picker is in the thread, which Sources covers
-          setView("chat");
-          turn.openConnect("menu");
-          picked.current = "connect";
-        }}
+        onConnect={() => turn.openConnect("menu")}
         focusPicked={focusPicked}
         wide={wide}
         onWiden={() => setWide(!wide)}
         onHide={onHide}
         canWiden={canWiden}
+        // Read on every render `useTurn` makes for a change in the store
+        forgetKey={forgetKeyOf(turn.busy)}
+        onForgetKey={() => PgAssistant.disconnect()}
       />
       {view === "chat" && (
         <>

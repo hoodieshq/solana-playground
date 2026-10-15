@@ -11,11 +11,19 @@ type AssistantWindow = Window & {
 
 const CODE = "anchor build\nanchor deploy";
 
-/** The assistant picker's brand button: Connect, or Start for a keyless backend */
-const assistantAction = (page: Page) =>
-  page.locator('[data-slot="brand-button"]:visible', {
-    hasText: /^(Connect|Start)$/,
-  });
+/**
+ * Connect a model's brand button, opened from the assistant head's More:
+ * Connect, or Start for a keyless backend
+ */
+const assistantAction = async (page: Page) => {
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+  return page
+    .getByRole("dialog", { name: "Connect a model" })
+    .locator('[data-slot="brand-button"]:visible', {
+      hasText: /^(Connect|Start)$/,
+    });
+};
 
 /**
  * The WCAG contrast ratio of a button's label against its resting fill.
@@ -166,19 +174,19 @@ test.describe("client-v2-buttons", () => {
     await page.locator("#flow-stage-tab-build").click();
     await page.getByRole("button", { name: "Build", exact: true }).click();
 
-    // A view shows at most one brand button; the assistant panel beside the
-    // stage is a view of its own, with its own Connect
+    // A view shows at most one brand button
     const brand = page
       .locator('[role="tabpanel"][aria-labelledby="flow-stage-tab-build"]')
       .locator('[data-slot="brand-button"]:visible');
     await expect(brand).toHaveCount(1);
     await expect(brand).toHaveText(/Deploy/);
 
-    // Page-wide, that is the stage's Deploy and the picker's Connect (or
-    // Start, for a keyless backend): a brand button anywhere else is a stray
+    // Page-wide, that is the stage's Deploy: the assistant beside the stage
+    // has none until Connect a model opens, and a brand button anywhere else
+    // is a stray
     const everywhere = page.locator('[data-slot="brand-button"]:visible');
-    await expect(everywhere).toHaveCount(2);
-    await expect(everywhere).toHaveText([/^(Connect|Start)$/, /Deploy/]);
+    await expect(everywhere).toHaveCount(1);
+    await expect(everywhere).toHaveText([/Deploy/]);
   });
 
   test("client-v2-buttons: The ring brand button's label reads in the light theme", async ({
@@ -196,7 +204,7 @@ test.describe("client-v2-buttons", () => {
       .toBe(false);
 
     // At rest the ring's fill is the light surface; a white label vanishes
-    const action = assistantAction(page);
+    const action = await assistantAction(page);
     await expect(action).toBeVisible();
     await page.mouse.move(0, 0);
     const { label, ratio } = await restingContrast(action);
@@ -208,7 +216,7 @@ test.describe("client-v2-buttons", () => {
     seededPage: page,
   }) => {
     test.setTimeout(120_000);
-    const action = assistantAction(page);
+    const action = await assistantAction(page);
     await expect(action).toBeVisible();
     await page.mouse.move(0, 0);
     const { ratio } = await restingContrast(action);

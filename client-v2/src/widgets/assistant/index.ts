@@ -10,7 +10,7 @@ export type { ModelOption, ModelShown } from "./model/choice";
 export { BaseModelMenu } from "./ui/BaseModelMenu";
 export { BaseEffortMenu, EFFORT_LABELS } from "./ui/BaseEffortMenu";
 export { useTurn } from "./model/use-turn";
-export type { ConnectVia, Turn } from "./model/use-turn";
+export type { ConnectPreset, ConnectVia, Turn } from "./model/use-turn";
 export { BaseAssistantComposer } from "./ui/BaseAssistantComposer";
 export type { ComposerContextChip } from "./ui/BaseAssistantComposer";
 export { AssistantComposer } from "./ui/AssistantComposer";

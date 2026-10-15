@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
+import { ThemeProvider, type DefaultTheme } from "styled-components";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,7 +14,9 @@ import {
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { PgView } from "@/utils/view";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import { ModalHost } from "../../overlays";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import type { DefaultBackend } from "../model/default-backend";
 import { useTurn } from "../model/use-turn";
@@ -31,6 +34,9 @@ vi.mock("../model/default-backend", async (importOriginal) => {
     useDefaultBackend: () => backend,
   };
 });
+// Connect a model's footer link reaches the utils barrel, which needs the
+// build's globals; the dialog is not drawn here
+vi.mock("../../../components/Link", () => ({ default: () => null }));
 // Reaches the explorer and the account; a turn's end only has to ask for it
 vi.mock("../../../effects/chat-thread/push-thread", () => ({
   pushThread: vi.fn(() => Promise.resolve()),
@@ -60,6 +66,26 @@ vi.mock("../../../views/flow/lessons", () => ({
   INITIAL_LESSON_STATE: { path: null, record: [] },
   PgLesson: { onDidChange: () => ({ dispose: () => {} }) },
 }));
+
+/**
+ * A theme that answers every key: Connect a model's form reads deep theme
+ * keys for its styles, and the real theme needs the utils barrel
+ */
+const anyTheme: DefaultTheme = new Proxy(
+  {},
+  {
+    get: (_, key) =>
+      key === Symbol.toPrimitive || key === "toString"
+        ? () => "inherit"
+        : anyTheme,
+  }
+) as unknown as DefaultTheme;
+
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 
 let events: ReturnType<typeof memoryTelemetry>;
 let logs: ReturnType<typeof memoryLog>;
@@ -104,6 +130,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   PgAssistant.disconnect();
   resetTelemetry();
   resetLogger();
@@ -137,6 +164,28 @@ describe("AssistantComposer, connected", () => {
     expect(tracked()).toEqual([["assistant_connect_opened", { via: "model" }]]);
     expect(PgAssistant.connection).toEqual(anthropic);
     expect(PgAssistant.items.length).toBe(1);
+  });
+
+  it("opens Connect a model on the backend of the model picked", async () => {
+    vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+    render(
+      <ThemeProvider theme={anyTheme}>
+        <ModalHost />
+        <Harness />
+      </ThemeProvider>
+    );
+    const user = await openMenu(/Opus 5.5/);
+    const other = screen
+      .getAllByRole("menuitemradio")
+      .find((item) => /Gemini/.test(item.textContent ?? ""));
+    await user.click(other!);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Connect a model",
+    });
+    const gemini = within(dialog).getByRole("radio", { name: /Gemini/ });
+    expect(gemini.getAttribute("aria-checked")).toBe("true");
+    await act(async () => PgView.closeModal(null));
   });
 
   it("connects the default from a keyed backend and clears the thread", async () => {

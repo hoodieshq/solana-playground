@@ -18,6 +18,13 @@ import {
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
+/**
+ * Forget key in More: `none` while no backend holding the user's key is
+ * connected (the item is not shown), `busy` while a turn runs (shown
+ * disabled, since the turn is using the key)
+ */
+export type ForgetKey = "none" | "ready" | "busy";
+
 export interface BaseAssistantHeadProps {
   /** The open project's name */
   title: string;
@@ -38,6 +45,9 @@ export interface BaseAssistantHeadProps {
   onHide(): void;
   /** Widen is offered: not in the Sheet, which has no width to change */
   canWiden: boolean;
+  forgetKey: ForgetKey;
+  /** Drops the backend and the key this tab holds */
+  onForgetKey(): void;
 }
 
 /**
@@ -56,6 +66,8 @@ export function BaseAssistantHead({
   onWiden,
   onHide,
   canWiden,
+  forgetKey,
+  onForgetKey,
 }: BaseAssistantHeadProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   // An item replaces what the assistant shows, so once the menu has closed
@@ -119,6 +131,25 @@ export function BaseAssistantHead({
             <MenuItemText>Connect a model…</MenuItemText>
             <DropdownMenuShortcut>K</DropdownMenuShortcut>
           </DropdownMenuItem>
+          {forgetKey === "ready" && (
+            <DropdownMenuItem onSelect={() => pick(onForgetKey)}>
+              <MenuItemText>Forget key</MenuItemText>
+            </DropdownMenuItem>
+          )}
+          {forgetKey === "busy" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <DropdownMenuItem disabled>
+                    <MenuItemText>Forget key</MenuItemText>
+                  </DropdownMenuItem>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                Finish this turn first
+              </TooltipContent>
+            </Tooltip>
+          )}
           {/* A disabled item takes no pointer events, so the tooltip hangs
               on a wrapper. Clearing waits on the cross-device clear
               (HOO-1741): clearing only what is shown would come back from

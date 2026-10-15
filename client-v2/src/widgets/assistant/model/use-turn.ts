@@ -4,19 +4,26 @@ import { pushThread } from "../../../effects/chat-thread/push-thread";
 import { report } from "../../../features/persistence/model/diagnostics";
 import { toReplayMessages } from "../../../features/persistence/model/replay";
 import { createProvider } from "../../../views/sidebar/assistant/model";
-import { isDefaultBackendRemembered } from "../../../views/sidebar/assistant/model/remembered-backend";
+import {
+  isDefaultBackendRemembered,
+  rememberedConnection,
+} from "../../../views/sidebar/assistant/model/remembered-backend";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import type {
   Connection,
   PromptRequest,
 } from "../../../views/sidebar/assistant/store";
+import { createLogger } from "../../../shared/lib/logger";
 import { reportButtonFailure } from "../../../shared/lib/report-button-failure";
+import { openConnectDialog } from "../ui/ConnectDialog";
+import type { ConnectPreset, ConnectVia } from "../ui/ConnectDialog";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
 
-/** Where Connect a model was opened from */
-export type ConnectVia = "menu" | "model" | "send";
+export type { ConnectPreset, ConnectVia };
+
+const log = createLogger("assistant:connect");
 
 /**
  * One assistant turn at a time, shared by the thread and the composer.
@@ -33,7 +40,8 @@ export interface Turn {
   /** What is in the composer */
   input: string;
   setInput(value: string): void;
-  openConnect(via: ConnectVia): void;
+  /** Open Connect a model, on `preset`'s backend when given */
+  openConnect(via: ConnectVia, preset?: ConnectPreset): void;
   /** A requested prompt waits in the composer for a backend to be connected */
   promptWaiting: boolean;
   /** Bumped whenever the composer's input should take focus */
@@ -44,13 +52,16 @@ const DEFAULT_CONNECTION: Connection = { id: "default", apiKey: "" };
 
 /**
  * Connect the deployment's default when it has one; `null` when it has none,
- * for the caller to ask the user.
+ * or while Connect a model is open, for the caller to ask the user.
  */
 const connectDefault = async (): Promise<Connection | null> => {
   const backend = await probeDefaultBackend();
   if (backend.state !== "present") return null;
-  // Another caller may have connected while the probe was out
-  if (!PgAssistant.connection) PgAssistant.connect(DEFAULT_CONNECTION);
+  // Another caller may have connected while the probe was out; and a user
+  // choosing in Connect a model is not overruled by a send behind the dialog
+  if (!PgAssistant.connection && !PgAssistant.isPickingBackend) {
+    PgAssistant.connect(DEFAULT_CONNECTION);
+  }
   return PgAssistant.connection;
 };
 
@@ -86,12 +97,28 @@ export const useTurn = (): Turn => {
     if (connection) setPromptWaiting(false);
   }, [connection]);
 
-  // `Connect` reconnects a remembered default when it mounts, but it mounts
-  // only when the picker is asked for now; this is the same rule for a panel
-  // that opens on the thread and the composer. Only a default the user picked
-  // before, only once the probe confirms this deployment still serves it, and
-  // never under an open picker, where it would throw away a choice mid-edit.
+  /**
+   * Reconnect what this tab was using before a reload, without asking again.
+   *
+   * First the key-based backend kept in this tab's `sessionStorage` by
+   * `rememberBackend` (a new tab has none; a tab the browser duplicates or
+   * restores carries it). It needs no probe, so it is connected on mount,
+   * before the probe can answer, and the default's reconnect then finds a
+   * connection and stands down: a kept key wins over a remembered default.
+   *
+   * Then the keyless default, only if the user picked it before and only once
+   * the probe confirms this deployment still serves it. One probe per page:
+   * `probeDefaultBackend` is shared with the composer and Connect a model.
+   *
+   * Neither runs while something is connected or Connect a model is open,
+   * where it would undo the user's Forget key or throw away a choice mid-edit.
+   */
   useEffect(() => {
+    if (!PgAssistant.connection && !PgAssistant.isPickingBackend) {
+      const kept = rememberedConnection();
+      if (kept) PgAssistant.connect(kept);
+    }
+
     let live = true;
     void probeDefaultBackend().then((backend) => {
       if (!live || backend.state !== "present") return;
@@ -104,9 +131,12 @@ export const useTurn = (): Turn => {
     };
   }, []);
 
-  const openConnect = (via: ConnectVia) => {
-    assistantTelemetry.track("assistant_connect_opened", { via });
-    PgAssistant.pickBackend();
+  const openConnect = (via: ConnectVia, preset?: ConnectPreset) => {
+    openConnectDialog(via, preset).catch((error) => {
+      // `PgView.setModal` rejects only when the dialog host answers with an
+      // error; the user is left with no dialog, so the team must hear of it
+      log.error(error, { report: true, context: { via } });
+    });
   };
 
   /** Whether a turn, or a send still finding its backend, is under way */
@@ -248,8 +278,11 @@ export const useTurn = (): Turn => {
           return;
         }
         void probeDefaultBackend().then((backend) => {
-          // Connected while the probe was out, or the default can be
-          if (PgAssistant.isConnected || backend.state === "present") {
+          // Connected while the probe was out, or the default can be; not
+          // behind an open Connect a model, where the user is choosing
+          const canConnectDefault =
+            backend.state === "present" && !PgAssistant.isPickingBackend;
+          if (PgAssistant.isConnected || canConnectDefault) {
             if (!PgAssistant.isConnected) {
               PgAssistant.connect(DEFAULT_CONNECTION);
             }

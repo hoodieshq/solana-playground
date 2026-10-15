@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
-import { createLogger } from "@/shared/lib/logger";
 import { cn } from "cn";
 import { BrandButton } from "@/shared/ui/brand-button";
 import { Field, FieldLabel } from "@/shared/ui/field";
@@ -16,20 +15,14 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import Link from "../../../../components/Link";
+import type { DefaultBackend } from "../../../../widgets/assistant";
 import { PgAssistant } from "../store";
 import {
-  isDefaultBackendRemembered,
-  rememberedConnection,
-} from "../model/remembered-backend";
-import {
-  DEFAULT_BACKEND_URL,
   PROVIDERS,
   type Effort,
   type ProviderId,
   type ProviderInfo,
 } from "../model/types";
-
-const log = createLogger("assistant:connect");
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>
@@ -59,64 +52,67 @@ const CAPABILITIES = [
   },
 ];
 
-/**
- * Whether this deployment configured a default backend.
- *
- * `undefined` while the answer is outstanding: the option is neither offered
- * nor ruled out until the server has said, so a fork with no key of its own
- * never preselects a backend that cannot answer.
- */
-const useDefaultBackend = () => {
-  const [configured, setConfigured] = useState<boolean>();
-
-  useEffect(() => {
-    let live = true;
-    fetch(DEFAULT_BACKEND_URL)
-      .then((r) => {
-        if (r.ok) return r.json();
-        // A deployment without `/api/agent` answers 404, and one whose agent
-        // is down a 5xx; either way there is no default to offer. Not
-        // reported: the picker still works on the user's own key.
-        log.warn("the default backend probe was refused", {
-          context: { status: r.status },
-        });
-        return { configured: false };
-      })
-      .catch((error) => {
-        // No answer at all (a network failure) or one that is not JSON.
-        // Expected off a full deployment, so not reported.
-        log.warn("could not probe the default backend", {
-          context: { reason: error instanceof Error ? error.name : "unknown" },
-        });
-        return { configured: false };
-      })
-      // `null` is valid JSON, so the body is not assumed to be an object
-      .then((body) => live && setConfigured(!!body?.configured));
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  return configured;
-};
-
 const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
 /** Everything behind the accordion: each of these needs a key of your own */
 const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
 
 const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
 
-const Connect = () => {
+/** The backend, and maybe the model, Connect a model opens on */
+export interface ConnectPreset {
+  provider: ProviderId;
+  /** A model of the backend's own list, or its endpoint's model id */
+  model?: string;
+}
+
+export interface ConnectProps {
+  /** What the deployment answered about its keyless default */
+  defaultBackend: DefaultBackend;
+  preset?: ConnectPreset;
+}
+
+/** The endpoint fields a backend starts with, `model` in place of its own */
+const startEndpoint = (provider: ProviderInfo, model?: string) =>
+  provider.endpoint
+    ? {
+        baseUrl: provider.endpoint.baseUrl,
+        model: model ?? provider.endpoint.model,
+      }
+    : null;
+
+/** The settings a backend starts with, `model` in place of its default */
+const startSettings = (provider: ProviderInfo, model?: string) => {
+  const settings = defaultSettings(provider);
+  if (settings && model && provider.modelSettings?.models.includes(model)) {
+    settings.model = model;
+  }
+  return settings;
+};
+
+/**
+ * The form of Connect a model. It lives in `ConnectDialog`, which gives it its
+ * title and closes it once a backend is connected; reconnecting on load is
+ * `useTurn`'s.
+ */
+const Connect = ({ defaultBackend: probed, preset }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
-  const defaultBackend = useDefaultBackend();
+  /**
+   * Whether this deployment configured a default backend. `undefined` while
+   * the answer is outstanding: the option is neither offered nor ruled out
+   * until the server has said, so a fork with no key of its own never
+   * preselects a backend that cannot answer.
+   */
+  const defaultBackend =
+    probed.state === "checking" ? undefined : probed.state === "present";
 
-  const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
+  const startId = preset?.provider ?? current?.id ?? "default";
+  const initial = PROVIDERS.find((p) => p.id === startId)!;
+  /** Opened on the backend already connected: its own key and choices */
+  const onCurrent = current?.id === startId ? current : null;
 
-  const [providerId, setProviderId] = useState<ProviderId>(
-    current?.id ?? "default"
-  );
+  const [providerId, setProviderId] = useState<ProviderId>(startId);
   const [expanded, setExpanded] = useState(false);
   /**
    * The pick in flight came from a pointer. Radix checks a radio as the arrow
@@ -124,60 +120,23 @@ const Connect = () => {
    * folding on those took the rest of the list away after one step.
    */
   const pointerPick = useRef(false);
-  const [key, setKey] = useState(current?.apiKey ?? "");
+  const [key, setKey] = useState(onCurrent?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
     model: string;
-  } | null>(() => (current?.endpoint ? { ...current.endpoint } : null));
+  } | null>(() =>
+    onCurrent?.endpoint
+      ? { ...onCurrent.endpoint }
+      : startEndpoint(initial, preset?.model)
+  );
   const [settings, setSettings] = useState(() =>
-    current?.settings ? { ...current.settings } : defaultSettings(initial)
+    onCurrent?.settings
+      ? { ...onCurrent.settings }
+      : startSettings(initial, preset?.model)
   );
 
   /** The probe is still out: the default is neither offered nor ruled out yet */
   const pending = defaultBackend === undefined;
-
-  /**
-   * Reconnect to the key-based backend this tab was using before a reload.
-   *
-   * Kept in `sessionStorage` by `rememberBackend`, so a freshly opened tab
-   * never gets here with one; a tab the browser duplicates or restores
-   * carries it, and reconnects as after a reload. Needs no probe: the probe
-   * only says whether this deployment serves the default backend. Guarded
-   * like the `isDefaultBackendRemembered` reconnect -- nothing connected,
-   * picker not opened on purpose -- so the user's own Forget key or Change
-   * backend is not undone.
-   *
-   * Runs on mount, before the probe can answer, which is what makes it win
-   * over a remembered default: the default's reconnect then finds a
-   * connection and stands down. `Connect.test.tsx` pins that order.
-   */
-  useEffect(() => {
-    if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
-    const remembered = rememberedConnection();
-    if (remembered) PgAssistant.connect(remembered);
-  }, []);
-
-  /**
-   * Reconnect to the default backend without making the user ask twice.
-   *
-   * A reload lands here with nothing connected unless this tab kept a
-   * key-based connection (the `rememberedConnection` reconnect) -- and for
-   * the keyless default that meant clicking the same button again before the
-   * panel could be used at all. Only a backend the user has already chosen is
-   * reconnected, and only once the probe confirms this deployment still
-   * serves it.
-   *
-   * Deliberately not run when `isPickingBackend`: the user opened this on
-   * purpose to change something, and connecting out from under them would
-   * throw the choice away mid-edit.
-   */
-  useEffect(() => {
-    if (defaultBackend !== true) return;
-    if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
-    if (!isDefaultBackendRemembered()) return;
-
-    PgAssistant.connect({ id: "default", apiKey: "" });
-  }, [defaultBackend]);
 
   /**
    * Declared unavailable, or a default backend this deployment has not
@@ -285,31 +244,22 @@ const Connect = () => {
 
   return (
     <Wrapper>
-      {current && (
-        <Back onClick={() => PgAssistant.keepBackend()}>Back to chat</Back>
-      )}
-
-      <Intro>
-        <Title>
-          {current
-            ? "Switch backend"
-            : "An assistant that can see your project"}
-        </Title>
-        {!current && (
+      {!current && (
+        <Intro>
           <Lead>
             It reads the tab you are looking at and the last build error,
             explains what went wrong against your actual code, and proposes
             patches you apply yourself.
           </Lead>
-        )}
-        {!current && defaultBackend && (
-          <Lead>
-            Out of the box it runs on this deployment's own backend, with the
-            capabilities listed below. Bring your own key to run it on something
-            else.
-          </Lead>
-        )}
-      </Intro>
+          {defaultBackend && (
+            <Lead>
+              Out of the box it runs on this deployment's own backend, with the
+              capabilities listed below. Bring your own key to run it on
+              something else.
+            </Lead>
+          )}
+        </Intro>
+      )}
 
       <Label as="div">BACKEND</Label>
       <Providers>
@@ -528,34 +478,10 @@ const Connect = () => {
   );
 };
 
+/** The dialog's body scrolls and pads; the form only stacks */
 const Wrapper = styled.div`
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1.25rem 1rem;
-`;
-
-const Back = styled.button`
-  ${({ theme }) => css`
-    align-self: flex-start;
-    padding: 0 0 0.75rem;
-    background: transparent;
-    border: none;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.code.size.small};
-    cursor: pointer;
-
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-    }
-
-    &:focus-visible {
-      outline: 1px solid ${theme.colors.default.primary};
-    }
-  `}
 `;
 
 const Intro = styled.div`
@@ -563,16 +489,6 @@ const Intro = styled.div`
   flex-direction: column;
   gap: 0.625rem;
   padding-bottom: 1.25rem;
-`;
-
-const Title = styled.h2`
-  ${({ theme }) => css`
-    margin: 0;
-    color: ${theme.colors.default.textPrimary};
-    font-size: ${theme.font.code.size.medium};
-    font-weight: 600;
-    line-height: 1.5;
-  `}
 `;
 
 const Lead = styled.div`

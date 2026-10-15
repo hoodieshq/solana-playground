@@ -10,6 +10,7 @@ import * as reportModule from "../../../shared/lib/report-button-failure";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { createProvider } from "../../../views/sidebar/assistant/model";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
+import type { Connection } from "../../../views/sidebar/assistant/store";
 import { rememberBackend } from "../../../views/sidebar/assistant/model/remembered-backend";
 import { resetDefaultBackendProbe } from "./default-backend";
 import { useTurn } from "./use-turn";
@@ -19,6 +20,9 @@ import { useTurn } from "./use-turn";
 vi.mock("../../../views/sidebar/assistant/model", () => ({
   createProvider: vi.fn(),
 }));
+// Connect a model's footer link reaches the utils barrel, which needs the
+// build's globals; the dialog is not drawn here
+vi.mock("../../../components/Link", () => ({ default: () => null }));
 // Reaches the explorer and the account; a turn's end only has to ask for it
 vi.mock("../../../effects/chat-thread/push-thread", () => ({
   pushThread: vi.fn(() => Promise.resolve()),
@@ -350,6 +354,69 @@ describe("useTurn", () => {
     renderHook(() => useTurn());
 
     await waitFor(() => expect(PgAssistant.connection?.id).toBe("default"));
+  });
+
+  it("reconnects this tab's kept key over a remembered default, with one probe", async () => {
+    const own: Connection = {
+      id: "openai",
+      apiKey: "sk-test-turn-0123456789",
+      endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+    };
+    rememberBackend({ id: "default", apiKey: "" });
+    sessionStorage.setItem("assistant.connection", JSON.stringify(own));
+    const probe = defaultBackend(true);
+
+    renderHook(() => useTurn());
+
+    expect(PgAssistant.connection).toMatchObject({
+      id: "openai",
+      apiKey: own.apiKey,
+    });
+    await waitFor(() => expect(probe).toHaveBeenCalledTimes(1));
+    await act(() => Promise.resolve());
+    expect(PgAssistant.connection?.id).toBe("openai");
+  });
+
+  it("does not reconnect a kept key while Connect a model is open", () => {
+    sessionStorage.setItem(
+      "assistant.connection",
+      JSON.stringify({ id: "anthropic", apiKey: "sk-ant-kept" })
+    );
+    PgAssistant.pickBackend();
+
+    renderHook(() => useTurn());
+
+    expect(PgAssistant.connection).toBeNull();
+  });
+
+  it("does not connect the default for a send while Connect a model is open", async () => {
+    defaultBackend(true);
+    const { result } = renderHook(() => useTurn());
+    act(() => result.current.openConnect("menu"));
+
+    await act(() => result.current.send("hi"));
+
+    expect(PgAssistant.connection).toBeNull();
+    expect(PgAssistant.isPickingBackend).toBe(true);
+    expect(result.current.input).toBe("hi");
+    expect(provider.send).not.toHaveBeenCalled();
+    expect(
+      eventNames().filter(([name]) => name === "assistant_connect_opened")
+    ).toEqual([["assistant_connect_opened", { via: "menu" }]]);
+  });
+
+  it("does not connect the default for a requested prompt while Connect a model is open", async () => {
+    const probe = defaultBackend(true);
+    const { result } = renderHook(() => useTurn());
+    act(() => result.current.openConnect("menu"));
+
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    await waitFor(() => expect(result.current.promptWaiting).toBe(true));
+    expect(probe).toHaveBeenCalled();
+    expect(PgAssistant.connection).toBeNull();
+    expect(result.current.input).toBe("Explain this error");
+    expect(provider.send).not.toHaveBeenCalled();
   });
 
   it("does not connect a default the user never picked", async () => {

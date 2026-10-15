@@ -121,8 +121,12 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
       return;
     }
     if (connection?.id !== option.provider || option.model === null) {
-      // Another backend needs its key, so Connect a model asks for it
-      turn.openConnect("model");
+      // Another backend needs its key, so Connect a model asks for it, opened
+      // on that backend and model
+      turn.openConnect("model", {
+        provider: option.provider,
+        model: option.model ?? undefined,
+      });
       return;
     }
     if (tune(withModel(connection, option.model))) {

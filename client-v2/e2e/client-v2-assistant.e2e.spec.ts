@@ -112,16 +112,20 @@ test("client-v2-assistant: No default backend", async ({ page }) => {
   await input(page).fill("Say hello");
   await page.getByRole("button", { name: "Send", exact: true }).click();
 
-  // The picker is open: its key field is on screen
-  await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
-  await expect(input(page)).toHaveValue("Say hello");
-  // The prompt waits in the composer, but no notice says so once the picker is
+  // Connect a model is open, with its key field on screen
+  const dialog = page.getByRole("dialog", { name: "Connect a model" });
+  await expect(dialog.locator("#assistant-api-key")).toBeVisible(LONG);
+  // The prompt waits in the composer, but no notice says so once the dialog is
   // what the user is looking at (Ruling R9)
   await expect(
     page.getByText(
       "Connect a backend to send this to the assistant. Your prompt is waiting in the composer."
     )
   ).toBeHidden();
+  // The composer sits under the dialog; closed, it still holds the prompt
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(input(page)).toHaveValue("Say hello");
 });
 
 test("client-v2-assistant: Stopping an answer", async ({ page }) => {
@@ -199,4 +203,79 @@ test("client-v2-assistant: Stopping a turn is reported once", async ({
   ).toHaveLength(1);
 
   release();
+});
+
+/** Connect a model, opened from the head's More */
+const openConnect = async (page: Page) => {
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Connect a model" });
+  await expect(dialog).toBeVisible(LONG);
+  return dialog;
+};
+
+test.describe("Connect a model", () => {
+  test.setTimeout(120_000);
+
+  test.describe("on a desktop", () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    test("client-v2-assistant: Connecting on a desktop", async ({ page }) => {
+      await stubAgent(page, { configured: false, model: null }, answer);
+      await openProject(page, "connect-desktop");
+
+      const dialog = await openConnect(page);
+      // A card over the app, not a page of its own
+      const box = (await dialog.boundingBox())!;
+      expect(box.width).toBeLessThan(1280);
+      expect(box.height).toBeLessThan(800);
+
+      // With no default on the deployment, the form opens on Anthropic
+      await dialog.locator("#assistant-api-key").fill("sk-ant-fake-key");
+      await dialog
+        .getByRole("button", { name: "Connect", exact: true })
+        .click();
+
+      await expect(dialog).toBeHidden(LONG);
+      await expect(modelButton(page, "Opus 5.5")).toBeVisible();
+    });
+  });
+
+  test.describe("on a phone", () => {
+    const PHONE = { width: 390, height: 844 };
+
+    test("client-v2-assistant: Connecting on a phone", async ({ page }) => {
+      await stubAgent(page, { configured: false, model: null }, answer);
+      // The project opens from the gallery on a desktop-sized page; a phone
+      // reaches the assistant through its Sheet
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await openProject(page, "connect-phone");
+      await page.setViewportSize(PHONE);
+      await page.getByRole("button", { name: "Expand assistant" }).click();
+      const sheet = page.locator('[data-slot="sheet-content"]');
+      await expect(sheet).toBeVisible();
+      await sheet.getByRole("button", { name: "More", exact: true }).click();
+      await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+      const dialog = page.getByRole("dialog", { name: "Connect a model" });
+      await expect(dialog).toBeVisible(LONG);
+
+      // A page of its own: the box fills the screen
+      await expect
+        .poll(async () => {
+          const box = await dialog.boundingBox();
+          return box && [box.x, box.y, box.width, box.height];
+        })
+        .toEqual([0, 0, PHONE.width, PHONE.height]);
+      // The connect button is in reach without scrolling
+      const connect = dialog.getByRole("button", {
+        name: "Connect",
+        exact: true,
+      });
+      await expect(connect).toBeInViewport({ ratio: 1 });
+
+      await dialog.locator("#assistant-api-key").fill("sk-ant-fake-key");
+      await connect.click();
+      await expect(dialog).toBeHidden(LONG);
+    });
+  });
 });
