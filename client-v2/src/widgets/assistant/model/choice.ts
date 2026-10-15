@@ -38,9 +38,6 @@ const defaultLabel = (backend: DefaultBackend) => {
   return DEFAULT_LABEL;
 };
 
-const ladderOf = (provider: ProviderId): readonly Effort[] =>
-  PROVIDERS.find((p) => p.id === provider)?.modelSettings?.efforts ?? [];
-
 /** What the model button shows for the current connection, or for the default about to be used */
 export const modelShown = (
   connection: Connection | null,
@@ -61,23 +58,26 @@ export const modelShown = (
       connected: true,
     };
   }
-  if (connection.settings) {
+  // A connection with no model of its own gets the provider's default, as
+  // `createProvider` does
+  const info = PROVIDERS.find((p) => p.id === connection.id);
+  const settings = connection.settings ?? info?.modelSettings?.defaults;
+  if (settings) {
     return {
       kind: "keyed",
       provider: connection.id,
-      label: displayModelName(connection.settings.model),
+      label: displayModelName(settings.model),
       effort: {
-        value: connection.settings.effort,
-        ladder: ladderOf(connection.id),
+        value: settings.effort,
+        ladder: info?.modelSettings?.efforts ?? [],
       },
     };
   }
+  const endpoint = connection.endpoint ?? info?.endpoint;
   return {
     kind: "keyed",
     provider: connection.id,
-    label: connection.endpoint
-      ? displayModelName(connection.endpoint.model)
-      : DEFAULT_LABEL,
+    label: endpoint ? displayModelName(endpoint.model) : DEFAULT_LABEL,
     effort: null,
   };
 };

@@ -81,6 +81,31 @@ describe("modelShown", () => {
   });
 });
 
+describe("modelShown with a connection that names no model", () => {
+  it("labels Anthropic from the connect screen's defaults", () => {
+    const connection: Connection = { id: "anthropic", apiKey: "k" };
+    expect(modelShown(connection, absent)).toEqual({
+      kind: "keyed",
+      provider: "anthropic",
+      label: "Opus 5.5",
+      effort: {
+        value: "medium",
+        ladder: ["low", "medium", "high", "xhigh", "max"],
+      },
+    });
+  });
+
+  it("labels OpenAI from its default endpoint model", () => {
+    const connection: Connection = { id: "openai", apiKey: "k" };
+    expect(modelShown(connection, absent)).toEqual({
+      kind: "keyed",
+      provider: "openai",
+      label: "gpt-5.1",
+      effort: null,
+    });
+  });
+});
+
 describe("modelOptions", () => {
   it("starts with the default, then lists the keyed models", () => {
     expect(modelOptions(present)).toEqual([
