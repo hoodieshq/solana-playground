@@ -654,13 +654,14 @@ registry item, so this task registers them, as 5.5 did. `Progress` and
   toggles it, as the legacy `<label><input>` did.
 
 **The theme loses** `components.text` and `components.progressbar`, which only
-the removed components read.
+the removed components read. `components.text` is already gone; `components.progressbar`
+still lives in `themes/palette.ts` and goes with task 9, after #73.
 
 **Unreachable code is swapped, not deleted.** The legacy sidebar pages'
 components (`views/sidebar/build-deploy`, `tutorials` and `programs`),
 `components/FilterGroups`, the explorer's `Share` modal and
-`components/FilePicker` are reached by nothing, since `createSidebarPage`'s
-`importComponent` has no caller. They take the mechanical swap so the legacy
+`components/FilePicker` are reached by nothing, since nothing calls a sidebar
+page's `importComponent`. They take the mechanical swap so the legacy
 components can go; deleting them belongs to the screens that replace them
 (HOO-2064, HOO-2066, HOO-1760).
 
