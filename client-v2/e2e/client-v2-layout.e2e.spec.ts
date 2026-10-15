@@ -1,6 +1,13 @@
 import type { Page } from "@playwright/test";
 
-import { expect, json, leaveEditor, seedWorkspace, test } from "./fixtures";
+import {
+  expect,
+  HELP_TAIL,
+  json,
+  leaveEditor,
+  seedWorkspace,
+  test,
+} from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** Names of the telemetry events the page has logged so far */
@@ -284,31 +291,121 @@ test("client-v2-layout: Folding the navigation", async ({
 });
 
 test.describe("on a phone", () => {
-  test.use({ viewport: { width: 375, height: 812 } });
+  test.use({ viewport: { width: 390, height: 844 } });
 
-  // Task 7 rewrites this for the three pages; the read-only checks it held
-  // went with the read-only editor
-  test.fixme("client-v2-layout: A phone", async ({ page }) => {
-    // The project tree lives in a closed Sheet on a phone, which the fixture
-    // waits on, so seed on a desktop-sized page and narrow it afterwards.
+  // The seed runs on a desktop-sized page, as the fixture waits on the tree
+  // a phone keeps in a closed Sheet; the window is narrowed afterwards
+  const seedThenNarrow = async (page: Page) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.getByRole("button", { name: "Expand assistant" }).click();
-    const sheet = page.locator('[data-slot="sheet-content"]');
-    // The Sheet fills a phone's width (the design system's own is 3/4)
-    await expect
-      .poll(async () => (await sheet.boundingBox())?.width)
-      .toBeGreaterThanOrEqual(374);
+    await page.setViewportSize({ width: 390, height: 844 });
+  };
+
+  test("client-v2-layout: A phone", async ({ page }) => {
+    await seedThenNarrow(page);
+    const lines = page.locator(".monaco-editor .view-lines");
+    await expect(lines).toContainText("use anchor_lang");
+    await page.locator(".monaco-editor textarea.inputarea").focus();
+    await page.keyboard.press("ControlOrMeta+Home");
+    await page.keyboard.type("// phone\n");
+    await expect(lines).toContainText("// phone");
+
+    await page.getByRole("button", { name: /^Files, .* open$/ }).click();
+    const files = page.getByRole("dialog", { name: "Files" });
+    await files.getByRole("button", { name: "client", exact: true }).click();
+    await files.getByRole("button", { name: "client.ts" }).click();
+    await expect(
+      page.getByRole("button", { name: "Files, client.ts open" })
+    ).toBeVisible();
+    await expect(files).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Preview the build" }).click();
+    await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
+    await expect(consoleHandle(page)).toBeInViewport();
+    await page.getByRole("button", { name: "Back to the code" }).click();
+    await expect(page.locator(".monaco-editor")).toBeInViewport();
+
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    const menu = page.getByRole("region", { name: "Navigation" });
+    await expect(menu).toBeInViewport();
+    await page.getByRole("button", { name: "Collapse navigation" }).click();
+    await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
+    await page.getByRole("radio", { name: "Chat" }).click();
     // A fresh profile has no backend, so the assistant opens on its picker; a
     // key of any value connects, as nothing is sent until a message is.
-    await sheet.getByRole("textbox", { name: "API KEY" }).fill("e2e-key");
-    await sheet.getByRole("button", { name: "Connect", exact: true }).click();
-    const composer = sheet.getByRole("textbox", {
+    await page.getByRole("textbox", { name: "API KEY" }).fill("e2e-key");
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    const composer = page.getByRole("textbox", {
       name: "Message the assistant",
     });
     await composer.fill("hello");
     await expect(composer).toHaveValue("hello");
+  });
+
+  test("client-v2-layout: Turning a phone across 720 px", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    if ((await consoleHandle(page).getAttribute("aria-expanded")) !== "true") {
+      await consoleHandle(page).click();
+    }
+    await page.getByLabel("Terminal input").first().click();
+    await page.keyboard.type("help");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".xterm-rows").first()).toContainText(HELP_TAIL);
+
+    const lines = page.locator(".monaco-editor .view-lines");
+    await expect(lines).toContainText("use anchor_lang");
+    await page.locator(".monaco-editor textarea.inputarea").focus();
+    await page.keyboard.press("ControlOrMeta+Home");
+    await page.keyboard.type("// across\n");
+    await expect(lines).toContainText("// across");
+    const before = await savedLayout(page);
+
+    for (const width of [390, 1024, 390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(lines).toContainText("// across");
+    }
+    await expect(page.locator(".xterm-rows").first()).toContainText(HELP_TAIL);
+    expect(await savedLayout(page)).toBe(before);
+  });
+
+  test("client-v2-layout: Settings on a phone", async ({ page }) => {
+    await seedThenNarrow(page);
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Navigation" })
+      .getByRole("button", { name: /^Change cluster/ })
+      .click();
+
+    const settings = page.getByRole("region", { name: "Settings" });
+    const network = settings.getByRole("radiogroup", { name: "Network" });
+    await expect(network.getByRole("radio", { checked: true })).toBeFocused();
+    await network.getByRole("radio", { name: "Localnet" }).click();
+    await expect(
+      network.getByRole("radio", { name: "Localnet" })
+    ).toHaveAttribute("aria-checked", "true");
+    await network.getByRole("radio", { name: "Devnet" }).click();
+    await expect(
+      network.getByRole("radio", { name: "Devnet" })
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("client-v2-layout: Opening the preview on a phone", async ({ page }) => {
+    await seedThenNarrow(page);
+    const lines = linesOn(page);
+    await page.getByRole("button", { name: "Preview the build" }).click();
+    await expect
+      .poll(() =>
+        lines.find(
+          (line) =>
+            line.startsWith("[telemetry:event] layout_page_shown ") &&
+            line.includes("page: preview")
+        )
+      )
+      .toContain("via: button");
   });
 });
 
@@ -556,8 +653,12 @@ test.describe("the layout_viewport event", () => {
     expect(await widthClassAt(page, 800)).toContain("viewport: compact");
   });
 
-  test("reports phone at 375 px", async ({ page }) => {
-    expect(await widthClassAt(page, 375)).toContain("viewport: phone");
+  test("reports compact at 740 px", async ({ page }) => {
+    expect(await widthClassAt(page, 740)).toContain("viewport: compact");
+  });
+
+  test("reports phone at 390 px", async ({ page }) => {
+    expect(await widthClassAt(page, 390)).toContain("viewport: phone");
   });
 });
 
