@@ -19,7 +19,10 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
     PgFramework.all[0]?.name
   );
   const [name, setName] = useState("");
-  const [error, setError] = useState("");
+  // A bad name blocks Start until it is edited; a failed creation does not,
+  // so a press after it is a retry
+  const [nameError, setNameError] = useState("");
+  const [createError, setCreateError] = useState("");
   // Off while a project is being made, so a second press cannot make it twice
   const [creating, setCreating] = useState(false);
 
@@ -28,10 +31,11 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
 
     const projectName = name.trim() || defaultName(framework);
     if (!PgExplorer.isWorkspaceNameValid(projectName)) {
-      setError("Invalid project name");
+      setNameError("Invalid project name");
       return;
     }
 
+    setCreateError("");
     setCreating(true);
     try {
       const { getDefaultFiles, defaultOpenFile } = PgFramework.get(framework);
@@ -42,7 +46,9 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
       });
       PgView.setModal(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create project");
+      setCreateError(
+        e instanceof Error ? e.message : "Could not create project"
+      );
     } finally {
       setCreating(false);
     }
@@ -79,16 +85,16 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
           value={name}
           onChange={(e) => {
             setName(e.target.value);
-            setError("");
+            setNameError("");
+            setCreateError("");
           }}
-          error={error}
-          setError={setError}
+          error={nameError || createError}
           placeholder={framework ? defaultName(framework) : "project name"}
           aria-label="Project name"
         />
         <BrandButton
           type="button"
-          disabled={!!error || !framework || creating}
+          disabled={!!nameError || !framework || creating}
           aria-busy={creating || undefined}
           onClick={create}
         >
