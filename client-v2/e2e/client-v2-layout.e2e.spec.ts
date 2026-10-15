@@ -230,6 +230,34 @@ test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
   await expect(page.locator(".xterm-rows")).toContainText("echo-marker");
 });
 
+// React's StrictMode runs an effect twice in dev; opening the terminal on
+// both runs printed the welcome twice and left `$ $` as the prompt
+test("the terminal greets once", async ({ seededPage: page }) => {
+  // xterm renders only the rows in view, so the console is made tall enough
+  // to hold a doubled greeting: a second copy must be on screen to be counted
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await consoleHandle(page).click();
+  await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
+  await drag(page, consoleSeparator(page), 0, -600);
+  const rows = page.locator(".xterm-rows");
+  await expect(rows).toContainText("Type help to see all commands");
+  await expect
+    .poll(() =>
+      page
+        .locator(".xterm-viewport")
+        .evaluate((el) => el.scrollHeight - el.clientHeight)
+    )
+    .toBeLessThanOrEqual(0);
+
+  const lines = await rows.evaluate((el) =>
+    Array.from(el.children, (row) =>
+      (row.textContent ?? "").replace(/\u00a0/g, " ").trimEnd()
+    ).filter((line) => line !== "")
+  );
+  expect(lines.filter((line) => line.includes("Welcome to"))).toHaveLength(1);
+  expect(lines.at(-1)).toBe("$");
+});
+
 test("client-v2-layout: Folding the project panel", async ({
   seededPage: page,
 }) => {
