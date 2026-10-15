@@ -64,9 +64,8 @@ export class PgSession {
   /**
    * Re-read the session cookie.
    *
-   * Never throws: a network failure means we cannot prove anyone is signed in,
-   * which is the same state as signed out, and the panel must keep working
-   * either way.
+   * Never throws: a failed read leaves the user signed out, since nobody can be
+   * proved signed in, and is logged (reported when it threw or answered 5xx).
    */
   static async refresh() {
     let next: SessionUser | null = null;
@@ -86,9 +85,18 @@ export class PgSession {
               login: body.user.login ?? null,
             }
           : null;
+      } else if (response.status >= 500) {
+        log.error(new Error(`session read answered ${response.status}`), {
+          report: true,
+          context: { status: response.status },
+        });
+      } else {
+        log.warn(`session read answered ${response.status}`, {
+          context: { status: response.status },
+        });
       }
-    } catch {
-      next = null;
+    } catch (error) {
+      log.error(error, { report: true, context: { step: "refresh" } });
     }
 
     PgSession._set(next);
@@ -106,7 +114,7 @@ export class PgSession {
    * Nothing secret crosses the channel. Better Auth sets an HttpOnly session
    * cookie on our origin during its callback, and cookies are per-origin
    * rather than per-window, so the reply only has to say "finished" and this
-   * side re-reads the session.
+   * side re-reads the session. Rejects when that read finds nobody signed in.
    */
   static async signIn({ from }: { from?: SignInOrigin } = {}) {
     authTelemetry.track("auth_sign_in_started", {});
@@ -189,6 +197,13 @@ export class PgSession {
     }
 
     await PgSession.refresh();
+    // `refresh` never throws, so a failed read would otherwise pass for a sign-in
+    if (!PgSession.get()) {
+      throw new SignInFailed(
+        "request-failed",
+        "Signed in with GitHub, but the session could not be read. Try again."
+      );
+    }
   }
 
   /** Stop waiting on the popup. Inert unless a sign-in is outstanding. */
