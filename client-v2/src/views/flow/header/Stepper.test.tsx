@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../utils", () => ({}));
 
-import Stepper from "./Stepper";
+import Stepper, { STEPPER_FULL_WIDTH_PX } from "./Stepper";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
 
@@ -19,37 +19,35 @@ const failedBuild: FlowState = {
   buildStartedAt: 1000,
 };
 
-/** jsdom has no `matchMedia`; this stands in for it, matching only `narrow` */
-const stubMatchMedia = (narrow: boolean) => {
-  const matchMedia = (q: string) => ({
-    matches: narrow && q === "(max-width: 80rem)",
-    media: q,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  });
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    writable: true,
-    value: matchMedia,
-  });
+/** the observers the stepper registered, so a test can say what width it was given */
+const observers: Array<(width: number) => void> = [];
+
+class StubResizeObserver {
+  private readonly callback: ResizeObserverCallback;
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+  observe(target: Element) {
+    observers.push((width) =>
+      this.callback(
+        [{ target, contentRect: { width } } as ResizeObserverEntry],
+        this as unknown as ResizeObserver
+      )
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+}
+
+const resizeTo = (width: number) => {
+  act(() => observers.forEach((fire) => fire(width)));
 };
 
 describe("Stepper", () => {
   beforeEach(() => {
-    stubMatchMedia(false);
-    // the thumb measures its tabs with one; jsdom has none
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      }
-    );
+    observers.length = 0;
+    // the thumb and the fold both measure with one; jsdom has none
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
   });
 
   it("is one tab list with a tab per stage, ids kept", () => {
@@ -88,11 +86,23 @@ describe("Stepper", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("goes compact below 80rem", () => {
-    stubMatchMedia(true);
+  it("shows the full labels when the stage bar has room, at any window width", () => {
     render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
+    resizeTo(900);
+    expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
+      "false"
+    );
+  });
+
+  it("folds to initials when the stage bar is narrower than the full list", () => {
+    render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
+    resizeTo(STEPPER_FULL_WIDTH_PX - 1);
     expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
       "true"
+    );
+    resizeTo(STEPPER_FULL_WIDTH_PX);
+    expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
+      "false"
     );
   });
 });

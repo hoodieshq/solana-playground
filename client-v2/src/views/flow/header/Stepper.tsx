@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FC } from "react";
 
 import {
@@ -55,18 +55,18 @@ const DS_STATUS: Record<StageStatus, StepperStatus> = {
 };
 
 /**
- * Below this width the four labels collapse to their initials. The breakpoint
- * follows the window, not the stage bar's own width. The full name stays in
- * each tab's `aria-label`.
+ * The width the four full labels need, in px. When the stage bar gives the
+ * stepper less than this, the labels fold to their initials; the full name
+ * stays in each tab's `aria-label`.
+ *
+ * Measured in Chromium at 1280 and 1440 px windows: the list with no stage
+ * marked is 293.3 px wide, and each check or dot beside a label adds about
+ * 18 px, so a list with all four stages marked needs about 366 px. The
+ * constant covers that widest case so a stage finishing never pushes the
+ * list past its bar; it is a measurement, not derived, so re-measure when the
+ * labels, padding or font size change.
  */
-const STEPPER_COMPACT_QUERY = "(max-width: 80rem)";
-
-const subscribeCompact = (onChange: () => void) => {
-  const list = window.matchMedia(STEPPER_COMPACT_QUERY);
-  list.addEventListener("change", onChange);
-  return () => list.removeEventListener("change", onChange);
-};
-const isCompact = () => window.matchMedia(STEPPER_COMPACT_QUERY).matches;
+export const STEPPER_FULL_WIDTH_PX = 368;
 
 /**
  * The write -> build -> deploy -> interact loop, drawn with the design
@@ -74,9 +74,31 @@ const isCompact = () => window.matchMedia(STEPPER_COMPACT_QUERY).matches;
  * color, so the sequence reads correctly without color vision.
  */
 const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => {
-  const compact = useSyncExternalStore(subscribeCompact, isCompact);
+  // The root fills the stage bar, so what it measures is the room the bar
+  // gives, not the list's own width. Folding the labels shrinks the list but
+  // not the root, so the fold cannot flip itself back. Until the first
+  // measurement the labels show in full; the observer's first callback runs
+  // before paint.
+  const ref = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (entry) setRoom(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const compact = room !== null && room < STEPPER_FULL_WIDTH_PX;
   return (
-    <DsStepper value={state.stage} onValueChange={(v) => onSelect(v as Stage)}>
+    <DsStepper
+      ref={ref}
+      className="w-full min-w-0 items-center"
+      value={state.stage}
+      onValueChange={(v) => onSelect(v as Stage)}
+    >
       <StepperList compact={compact}>
         {STAGES.map((stage) => {
           const status = statusOf(state, stage);
