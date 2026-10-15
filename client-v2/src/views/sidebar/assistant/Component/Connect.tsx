@@ -112,6 +112,7 @@ const Connect = () => {
     current?.id ?? "default"
   );
   const [expanded, setExpanded] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
   const [key, setKey] = useState(current?.apiKey ?? "");
   const [endpoint, setEndpoint] = useState<{
     baseUrl: string;
@@ -258,14 +259,18 @@ const Connect = () => {
     return "Start";
   };
 
-  const signIn = () =>
-    PgSession.signIn({ from: "assistant" }).catch((error: unknown) =>
-      // `PgSession.signInState` holds the failure and the header chip shows it;
-      // `info`, as the chip logs the same failure
+  const signIn = () => {
+    setSignInError(null);
+    return PgSession.signIn({ from: "assistant" }).catch((error: unknown) => {
+      // Not reported: a blocked popup or a cancelled sign-in is expected
       log.info("sign-in from the assistant panel failed", {
         context: { error: String(error) },
-      })
-    );
+      });
+      setSignInError(
+        error instanceof Error ? error.message : "Sign-in failed. Try again."
+      );
+    });
+  };
 
   /**
    * @param compact drop the description, so the open list stays short enough
@@ -445,9 +450,12 @@ const Connect = () => {
       )}
 
       {needsSignIn ? (
-        <ConnectButton kind="primary" fullWidth onClick={signIn}>
-          Sign in with GitHub
-        </ConnectButton>
+        <>
+          <ConnectButton kind="primary" fullWidth onClick={signIn}>
+            Sign in with GitHub
+          </ConnectButton>
+          {signInError && <SignInError role="alert">{signInError}</SignInError>}
+        </>
       ) : (
         <ConnectButton
           kind="primary"
@@ -712,6 +720,15 @@ const Picker = styled.div`
 
 const ConnectButton = styled(GradientButton)`
   margin-top: 0.75rem;
+`;
+
+const SignInError = styled.div`
+  ${({ theme }) => css`
+    padding-top: 0.5rem;
+    color: ${theme.colors.state.error.color};
+    font-size: ${theme.font.code.size.xsmall};
+    line-height: 1.6;
+  `}
 `;
 
 const Note = styled.div`

@@ -2,8 +2,8 @@
 // exist only once the app has booted. Which backend the picker reconnects to
 // is all that is under test, so plain elements stand in.
 vi.mock("../../../../components/GradientButton", () => ({
-  default: (props: { children: React.ReactNode }) => (
-    <button>{props.children}</button>
+  default: (props: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={props.onClick}>{props.children}</button>
   ),
 }));
 vi.mock("../../../../components/Input", () => ({
@@ -16,7 +16,7 @@ vi.mock("../../../../components/Link", () => ({
 }));
 vi.mock("../../../../components/Select", () => ({ default: () => null }));
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -122,5 +122,38 @@ describe("Connect", () => {
 
     await screen.findByText(/Not configured on this deployment/);
     await waitFor(() => expect(PgAssistant.connection).toBeNull());
+  });
+
+  it("shows why a sign-in from the panel failed", async () => {
+    probeAnswers(JSON.stringify({ configured: true }));
+    vi.spyOn(PgSession, "signIn").mockRejectedValue(
+      new Error("Allow popups for this site to sign in.")
+    );
+
+    renderConnect();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sign in with GitHub" })
+    );
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Allow popups for this site to sign in."
+    );
+  });
+
+  it("clears the failure when the next sign-in starts", async () => {
+    probeAnswers(JSON.stringify({ configured: true }));
+    vi.spyOn(PgSession, "signIn")
+      .mockRejectedValueOnce(new Error("Sign-in cancelled."))
+      .mockReturnValueOnce(new Promise(() => {}));
+
+    renderConnect();
+    const button = await screen.findByRole("button", {
+      name: "Sign in with GitHub",
+    });
+    fireEvent.click(button);
+    await screen.findByRole("alert");
+    fireEvent.click(button);
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 });
