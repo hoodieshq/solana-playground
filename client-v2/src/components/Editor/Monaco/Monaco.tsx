@@ -26,6 +26,7 @@ import {
   useSendAndReceiveCustomEvent,
 } from "../../../hooks";
 import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
+import { isTypingElsewhere } from "@/shared/lib/focus";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("editor:monaco");
@@ -357,8 +358,13 @@ const Monaco = () => {
         endColumn: endPosition.column,
       });
 
-      // Focus the editor
-      editor.focus();
+      // A late mount opens the current file while the user may already be
+      // typing elsewhere (a new file's name); the file opens, focus stays.
+      if (
+        !isTypingElsewhere(document.activeElement, editor.getContainerDomNode())
+      ) {
+        editor.focus();
+      }
 
       // Save position data
       positionDataIntervalId = setInterval(() => {

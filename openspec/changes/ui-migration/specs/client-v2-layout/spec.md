@@ -83,6 +83,25 @@ width. The 720 px value SHALL be held in one place.
   editor
 - **THEN** the code changes
 
+### Requirement: The editor does not take focus from a field
+
+Opening a file SHALL focus the editor, unless the user is typing in a text
+field outside it at that moment (the editor mounting late on a slow first
+load opens the current file then); the file SHALL still open, and the field
+SHALL keep its focus and what was typed.
+
+#### Scenario: A late editor mount leaves the new-file field focused
+
+- **WHEN** the editor mounts late and, before it does, the user clicks "New
+  file" and types a name
+- **THEN** once the editor shows the file, the new-file field still has
+  focus and holds the name
+
+#### Scenario: Opening a file with no tabs focuses the editor
+
+- **WHEN** a user closes every tab and clicks `lib.rs` in the files column
+- **THEN** the editor opens `lib.rs` and has focus
+
 ### Requirement: Four columns and no header
 
 From 1024 px wide the product SHALL show, left to right, the navigation, the
