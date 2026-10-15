@@ -33,8 +33,8 @@ describe("modelShown", () => {
     expect(modelShown(null, absent)).toEqual({ kind: "none" });
   });
 
-  it("shows nothing to send to while the default is being checked", () => {
-    expect(modelShown(null, checking)).toEqual({ kind: "none" });
+  it("says it is checking while the default is being asked about", () => {
+    expect(modelShown(null, checking)).toEqual({ kind: "checking" });
   });
 
   it("marks a connected default as connected, with no effort", () => {

@@ -106,6 +106,18 @@ describe("BaseModelMenu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("renders a quiet disabled button while checking, with no menu", async () => {
+    const { user, onConnect } = setup({ kind: "checking" });
+    const button = screen.getByRole("button", { name: "Checking the model…" });
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Connect a model" })
+    ).toBeNull();
+    await user.click(button);
+    expect(onConnect).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("disables the trigger", () => {
     setup(shownDefault, true);
     expect(

@@ -9,6 +9,8 @@ import { displayModelName } from "./model-name";
 
 /** What the composer's model button shows */
 export type ModelShown =
+  /** The deployment's default is still being asked about: nothing to offer yet */
+  | { kind: "checking" }
   /** Nothing to send to: the button opens Connect a model */
   | { kind: "none" }
   /** The deployment's default, connected or about to be on the first send */
@@ -44,6 +46,7 @@ export const modelShown = (
   defaultBackend: DefaultBackend
 ): ModelShown => {
   if (connection === null) {
+    if (defaultBackend.state === "checking") return { kind: "checking" };
     if (defaultBackend.state !== "present") return { kind: "none" };
     return {
       kind: "default",

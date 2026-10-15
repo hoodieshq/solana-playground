@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { MenuItemDescription, MenuItemText } from "@/shared/ui/menu-extras";
 import type { ModelOption, ModelShown } from "../model/choice";
 
 /** Whether an option is the one the composer shows: the default by its provider, a keyed one by provider and label */
@@ -34,6 +35,15 @@ export function BaseModelMenu({
   onConnect(): void;
   disabled: boolean;
 }) {
+  if (model.kind === "checking") {
+    // Takes the place of the label the probe is about to settle, so the
+    // button does not first offer to connect and then rename itself
+    return (
+      <ComposerModel disabled aria-label="Checking the model…">
+        <span aria-hidden="true">…</span>
+      </ComposerModel>
+    );
+  }
   if (model.kind === "none") {
     return (
       <ComposerModel onClick={onConnect} disabled={disabled}>
@@ -61,18 +71,18 @@ export function BaseModelMenu({
               key={`${option.provider}:${option.model ?? ""}`}
               value={String(index)}
             >
-              {option.label}
-              {option.provider === "default" && (
-                <span className="ml-auto pl-3 text-xs text-muted-foreground">
-                  no key needed
-                </span>
-              )}
+              <MenuItemText>
+                {option.label}
+                {option.provider === "default" && (
+                  <MenuItemDescription>no key needed</MenuItemDescription>
+                )}
+              </MenuItemText>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onConnect}>
-          Connect with a key…
+          <MenuItemText>Connect with a key…</MenuItemText>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
