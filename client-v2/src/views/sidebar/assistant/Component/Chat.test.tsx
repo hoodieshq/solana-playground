@@ -134,4 +134,26 @@ describe("Chat when the session ends", () => {
     expect(screen.getByLabelText("Message the assistant")).toBeTruthy();
     expect(PgAssistant.isPickingBackend).toBe(false);
   });
+
+  it("offers no way back to chat while the default backend has no session", async () => {
+    PgAssistant.connect(DEFAULT);
+    renderChat();
+
+    await act(() => PgSession.refreshWith(null));
+
+    expect(
+      await screen.findByRole("button", { name: "Sign in with GitHub" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Back to chat" })).toBeNull();
+  });
+
+  it("offers the way back to chat for a key-based backend with no session", async () => {
+    PgAssistant.connect(OWN);
+    renderChat();
+    await act(() => PgSession.refreshWith(null));
+
+    act(() => PgAssistant.pickBackend());
+
+    expect(screen.getByRole("button", { name: "Back to chat" })).toBeTruthy();
+  });
 });

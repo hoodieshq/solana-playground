@@ -536,6 +536,36 @@ describe("PgAssistant when the session changes", () => {
 
     expect(PgAssistant.isPickingBackend).toBe(false);
   });
+
+  it("keeps the picker open while the default backend has no session", async () => {
+    await signedIn(null);
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    await PgSession.refreshWith(null);
+
+    PgAssistant.keepBackend();
+
+    expect(PgAssistant.isPickingBackend).toBe(true);
+  });
+
+  it("closes the picker for the default backend once signed in again", async () => {
+    await signedIn(null);
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    await PgSession.refreshWith(null);
+    await signedIn(null);
+
+    PgAssistant.keepBackend();
+
+    expect(PgAssistant.isPickingBackend).toBe(false);
+  });
+
+  it("closes the picker for a key-based backend with no session", async () => {
+    PgAssistant.connect({ id: "openai", apiKey: "sk-test" });
+    PgAssistant.pickBackend();
+
+    PgAssistant.keepBackend();
+
+    expect(PgAssistant.isPickingBackend).toBe(false);
+  });
 });
 
 describe("PgAssistant threads", () => {

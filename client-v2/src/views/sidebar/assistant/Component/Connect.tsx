@@ -301,7 +301,7 @@ const Connect = () => {
 
   return (
     <Wrapper>
-      {current && (
+      {current && !PgAssistant.needsSignIn && (
         <Back onClick={() => PgAssistant.keepBackend()}>Back to chat</Back>
       )}
 

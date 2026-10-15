@@ -309,8 +309,19 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  /** Close the picker without changing anything */
+  /** Whether the connection is the default backend while nobody is signed in */
+  static get needsSignIn() {
+    return isDefaultBackend(PgAssistant._connection?.id) && !PgSession.get();
+  }
+
+  /**
+   * Close the picker without changing anything.
+   *
+   * Refused while `needsSignIn`: every turn would get the 401 refusal, and a
+   * refresh of an already null session fires no change to reopen the picker.
+   */
   static keepBackend() {
+    if (PgAssistant.needsSignIn) return;
     PgAssistant._pickingBackend = false;
     PgAssistant._emit();
   }
@@ -949,9 +960,7 @@ export class PgAssistant {
 // The default backend needs a session, and only the picker offers sign-in;
 // the connection stays remembered so signing in again reconnects it
 PgSession.onDidChange(() => {
-  if (!PgSession.get() && isDefaultBackend(PgAssistant.connection?.id)) {
-    PgAssistant.pickBackend();
-  }
+  if (PgAssistant.needsSignIn) PgAssistant.pickBackend();
 });
 
 // A handle on the panel's state for the browser console, and for the e2e tests
