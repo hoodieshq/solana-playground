@@ -1,6 +1,7 @@
 import { createTracker } from "../../../shared/lib/telemetry";
 import type { Viewport } from "../../../shared/lib/hooks/use-viewport";
 import type { LayoutPanel, RestoreFailure } from "./layout-state";
+import type { PageSource, PhonePage, WorkView } from "./phone-pages";
 
 /**
  * What opened or closed a panel: a click, a key, a drag of its edge, or the
@@ -25,6 +26,10 @@ type LayoutEvents = {
   layout_viewport: { viewport: Viewport };
   /** The saved layout could not be read and the defaults were used; `reason` says why. */
   layout_restore_failed: { reason: RestoreFailure };
+  /** A phone page came into view after the load; `via` says what moved it. */
+  layout_page_shown: { page: PhonePage; via: PageSource };
+  /** The work page switched between the assistant and the code. */
+  layout_work_view: { view: WorkView; via: "button" | "key" | "auto" };
 };
 
 export const layoutTelemetry = createTracker<LayoutEvents>();
