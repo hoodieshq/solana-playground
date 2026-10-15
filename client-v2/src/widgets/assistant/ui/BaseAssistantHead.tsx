@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import {
   EllipsisVertical,
@@ -51,8 +51,14 @@ export function BaseAssistantHead({
   canWiden,
 }: BaseAssistantHeadProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  // An item replaces what the assistant shows, so focus stays wherever that
+  // view puts it. Handed back to More once the menu's exit animation ends, it
+  // would blur the view's first control: a select opened in that window shut.
+  // A dismissal (Escape, a click outside) still returns focus to More.
+  const picked = useRef(false);
 
   const pick = (action: () => void) => {
+    picked.current = true;
     setMoreOpen(false);
     action();
   };
@@ -91,6 +97,10 @@ export function BaseAssistantHead({
           align="end"
           className="w-auto min-w-48"
           onKeyDown={onMenuKey}
+          onCloseAutoFocus={(event) => {
+            if (picked.current) event.preventDefault();
+            picked.current = false;
+          }}
         >
           <DropdownMenuItem onSelect={() => pick(onSources)}>
             Sources and tools

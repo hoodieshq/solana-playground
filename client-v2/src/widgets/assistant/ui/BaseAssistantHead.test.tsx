@@ -90,6 +90,24 @@ describe("BaseAssistantHead", () => {
     expect(onConnect).toHaveBeenCalledTimes(1);
   });
 
+  it("does not hand focus back to More once an item is picked", async () => {
+    // The picked item replaces the view; in the browser More's focus came back
+    // after the menu's exit animation and shut a select opened meanwhile
+    const { user } = setup();
+    await user.click(more());
+    await user.click(screen.getByRole("menuitem", { name: /Connect a model/ }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).not.toBe(more());
+  });
+
+  it("gives focus back to More when the menu is dismissed", async () => {
+    const { user } = setup();
+    await user.click(more());
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(more());
+  });
+
   it("picks Sources and tools with S while the menu is open, and closes it", async () => {
     const { user, onSources, onConnect } = setup();
     await user.click(more());
