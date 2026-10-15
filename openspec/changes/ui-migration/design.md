@@ -212,15 +212,15 @@ reload), the terminal (input, resize, no leaked `PgTerm` from the `useMemo`
 factory running twice under strict mode), hot reload (`react-refresh` 0.11;
 fallback `FAST_REFRESH=false`).
 
-| Library                 | With React 19                                         | Action                             |
-| ----------------------- | ----------------------------------------------------- | ---------------------------------- |
-| `typescript` `=5.0.4`   | `@types/react` 19 declares TS 5.6                     | Lift the pin (HOO-1855), not first |
-| `styled-components` 5.3 | Runs; 5.1.36 types accept React 19                    | Keep 5                             |
-| `react-use-clipboard`   | No release supports React 19                          | Replace in `hooks/useCopy.tsx`     |
-| `react-select` 5.5      | Peer range excludes 19                                | Removed by 5.5                     |
-| `re-resizable` 6.9      | Peer range excludes 19                                | 6.11 or newer                      |
-| `react-rnd` 10.3        | Works (passes `nodeRef`, so `findDOMNode` is skipped) | Bump anyway                        |
-| Our code                | 20+ `FC` with implicit `children`; 9 global `JSX.`    | Mechanical fixes                   |
+| Library                 | With React 19                                         | Action                                                                                   |
+| ----------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `typescript` `=5.0.4`   | `@types/react` 19 declares TS 5.6                     | Lift the pin (HOO-1855), not first                                                       |
+| `styled-components` 5.3 | Runs; 5.1.36 types accept React 19                    | Keep 5                                                                                   |
+| `react-use-clipboard`   | No release supports React 19                          | Replace in `hooks/useCopy.tsx`; 5.4 kept it, for Wallet Settings' Copy address menu item |
+| `react-select` 5.5      | Peer range excludes 19                                | Removed by 5.5                                                                           |
+| `re-resizable` 6.9      | Peer range excludes 19                                | 6.11 or newer                                                                            |
+| `react-rnd` 10.3        | Works (passes `nodeRef`, so `findDOMNode` is skipped) | Bump anyway                                                                              |
+| Our code                | 20+ `FC` with implicit `children`; 9 global `JSX.`    | Mechanical fixes                                                                         |
 
 HOO-1772 and HOO-1773 change the Monaco and language-server modules; they do
 not land in the same week as the upgrade.
@@ -571,7 +571,7 @@ design system: `Button`, `BrandButton`, `AsyncButton` and `CopyButton`, all
 installed with `yarn ds-add`. `HelpTip` arrived with 5.6 and is not touched
 here. One PR, stacked on 5.6's.
 
-| Today | Becomes |
+| Was (legacy) | Becomes |
 |---|---|
 | `GradientButton`, the one call to action of a view | `BrandButton`, `ring` |
 | `kind="primary"` | `Button`, `default`; `BrandButton` `accent` where it is a call to action and the ring would be too loud |
