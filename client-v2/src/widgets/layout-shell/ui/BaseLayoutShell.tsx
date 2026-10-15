@@ -7,6 +7,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { RAIL_WIDTH } from "@/shared/lib/hooks/use-viewport";
 import type { Viewport } from "@/shared/lib/hooks/use-viewport";
 import { createLogger } from "@/shared/lib/logger";
+import { Outlet, OutletContent, useOutletNode } from "@/shared/lib/outlet";
 import type { Disposable } from "@/utils/types";
 import {
   ResizableHandle,
@@ -331,6 +332,11 @@ const NavSheetOpener = ({
  */
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const [foldedOf] = useState(createFoldedOf);
+  // Rendered once, here, and placed by the frame or the pager: crossing
+  // `LAYOUT_BREAKPOINTS.phone` must not remount `Primary` (it goes blank when
+  // remounted) or the terminal (it loses its session)
+  const stageNode = useOutletNode("flex min-h-0 flex-1 flex-col");
+  const consoleNode = useOutletNode("flex min-h-0 flex-1 flex-col");
   // The caller's, at the stock Sidebar's own threshold, so the files column
   // leaves the work group exactly when the Sidebar's Sheet starts holding it
   const { isMobile } = props;
@@ -465,7 +471,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       }
     >
       <ResizablePanel id="stage" className="flex min-h-0 flex-col">
-        {props.stage}
+        <Outlet node={stageNode} className="flex min-h-0 flex-1 flex-col" />
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel
@@ -490,189 +496,195 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           }
         }}
       >
-        {props.console}
+        <Outlet node={consoleNode} className="flex min-h-0 flex-1 flex-col" />
       </ResizablePanel>
     </ResizablePanelGroup>
   );
 
   return (
-    <SidebarProvider
-      open={props.navOpen}
-      onOpenChange={props.onNavOpenChange}
-      style={{ ...SIDEBAR_STYLE, padding: GAP }}
-      className="relative min-h-0 flex-1"
-    >
-      {/* The stock Sidebar's container is fixed at the window's full height.
+    <>
+      <OutletContent node={stageNode}>{props.stage}</OutletContent>
+      <OutletContent node={consoleNode}>{props.console}</OutletContent>
+      <SidebarProvider
+        open={props.navOpen}
+        onOpenChange={props.onNavOpenChange}
+        style={{ ...SIDEBAR_STYLE, padding: GAP }}
+        className="relative min-h-0 flex-1"
+      >
+        {/* The stock Sidebar's container is fixed at the window's full height.
           Flow draws the sync banner above the provider, so the Sidebar sits
           inside the provider instead, inset by the gutter, where the banner
           pushes it down rather than being covered by it. The container's
           edge line and fill are dropped, so the navigation sits on the
           page's ground like the other columns. */}
-      <Sidebar
-        collapsible="icon"
-        className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"
-        style={{ left: GAP, top: GAP, bottom: GAP }}
-      >
-        <div className="contents" style={props.sheetFont}>
-          <NavSlot nav={props.nav} files={props.files} />
-        </div>
-      </Sidebar>
-      <NavSheetOpener
-        onChange={props.onLeftSheetChange}
-        closeOn={props.closeLeftSheetOn}
-        toggleOn={props.toggleLeftSheetOn}
-      />
-      <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
-        {/* One tree at every width, so a rotate across
+        <Sidebar
+          collapsible="icon"
+          className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"
+          style={{ left: GAP, top: GAP, bottom: GAP }}
+        >
+          <div className="contents" style={props.sheetFont}>
+            <NavSlot nav={props.nav} files={props.files} />
+          </div>
+        </Sidebar>
+        <NavSheetOpener
+          onChange={props.onLeftSheetChange}
+          closeOn={props.closeLeftSheetOn}
+          toggleOn={props.toggleLeftSheetOn}
+        />
+        <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
+          {/* One tree at every width, so a rotate across
             `LAYOUT_BREAKPOINTS.compact` does not remount the stage, Monaco or
             the console's terminal. Below it the group holds only the work
             area, so it neither takes nor saves the horizontal layout:
             crossing a breakpoint writes nothing. */}
-        <ResizablePanelGroup
-          orientation="horizontal"
-          id="layout-horizontal"
-          defaultLayout={wide ? props.horizontal : undefined}
-          onLayoutChanged={
-            wide
-              ? (layout, meta) =>
-                  settle(
-                    {
-                      panel: assistantRef.current,
-                      state: props.assistantState,
-                      openSize: assistantOpenSize.current,
-                      settledOnce: assistantSettled,
-                      save: props.onHorizontalLayout,
-                    },
-                    layout,
-                    meta
-                  )
-              : undefined
-          }
-        >
-          {wide && (
-            <ResizablePanel
-              id="assistant"
-              panelRef={assistantRef}
-              collapsible
-              collapsedSize={PANEL_SIZES.assistant.folded}
-              defaultSize={
-                props.assistantState.open
-                  ? PANEL_SIZES.assistant.default
-                  : PANEL_SIZES.assistant.folded
-              }
-              minSize={PANEL_SIZES.assistant.min}
-              maxSize={PANEL_SIZES.assistant.max}
-              groupResizeBehavior="preserve-pixel-size"
-              className="flex min-w-0 flex-col"
-              onResize={(size) => {
-                if (
-                  foldedOf(assistantRef.current) === false &&
-                  size.inPixels > PANEL_SIZES.assistant.folded
-                ) {
-                  assistantOpenSize.current = size.inPixels;
-                }
-              }}
-            >
-              {props.assistant}
-            </ResizablePanel>
-          )}
-          {wide && <ResizableHandle className="w-2 bg-transparent" />}
-          <ResizablePanel
-            id="work"
-            minSize={PANEL_SIZES.work.min}
-            className="flex min-w-0 flex-col"
+          <ResizablePanelGroup
+            orientation="horizontal"
+            id="layout-horizontal"
+            defaultLayout={wide ? props.horizontal : undefined}
+            onLayoutChanged={
+              wide
+                ? (layout, meta) =>
+                    settle(
+                      {
+                        panel: assistantRef.current,
+                        state: props.assistantState,
+                        openSize: assistantOpenSize.current,
+                        settledOnce: assistantSettled,
+                        save: props.onHorizontalLayout,
+                      },
+                      layout,
+                      meta
+                    )
+                : undefined
+            }
           >
-            {/* Over the files column and the stage both, as the prototype
+            {wide && (
+              <ResizablePanel
+                id="assistant"
+                panelRef={assistantRef}
+                collapsible
+                collapsedSize={PANEL_SIZES.assistant.folded}
+                defaultSize={
+                  props.assistantState.open
+                    ? PANEL_SIZES.assistant.default
+                    : PANEL_SIZES.assistant.folded
+                }
+                minSize={PANEL_SIZES.assistant.min}
+                maxSize={PANEL_SIZES.assistant.max}
+                groupResizeBehavior="preserve-pixel-size"
+                className="flex min-w-0 flex-col"
+                onResize={(size) => {
+                  if (
+                    foldedOf(assistantRef.current) === false &&
+                    size.inPixels > PANEL_SIZES.assistant.folded
+                  ) {
+                    assistantOpenSize.current = size.inPixels;
+                  }
+                }}
+              >
+                {props.assistant}
+              </ResizablePanel>
+            )}
+            {wide && <ResizableHandle className="w-2 bg-transparent" />}
+            <ResizablePanel
+              id="work"
+              minSize={PANEL_SIZES.work.min}
+              className="flex min-w-0 flex-col"
+            >
+              {/* Over the files column and the stage both, as the prototype
                 draws it */}
-            {props.stageBar}
-            {/* Below `LAYOUT_BREAKPOINTS.left` the files column is in the
+              {props.stageBar}
+              {/* Below `LAYOUT_BREAKPOINTS.left` the files column is in the
                 navigation's Sheet, so the group holds only the stage and,
                 like the horizontal group below `compact`, neither takes nor
                 saves its layout */}
-            <ResizablePanelGroup
-              orientation="horizontal"
-              id="layout-work"
-              className="h-auto min-h-0 flex-1"
-              defaultLayout={isMobile ? undefined : props.work}
-              onLayoutChanged={
-                isMobile
-                  ? undefined
-                  : (layout, meta) =>
-                      settle(
-                        {
-                          panel: filesRef.current,
-                          state: props.filesState,
-                          openSize: filesOpenSize.current,
-                          settledOnce: filesSettled,
-                          save: props.onWorkLayout,
-                        },
-                        layout,
-                        meta
-                      )
-              }
-            >
-              {!isMobile && (
-                <ResizablePanel
-                  id="files"
-                  panelRef={filesRef}
-                  collapsible
-                  collapsedSize={PANEL_SIZES.files.folded}
-                  defaultSize={
-                    props.filesState.open
-                      ? PANEL_SIZES.files.default
-                      : PANEL_SIZES.files.folded
-                  }
-                  minSize={PANEL_SIZES.files.min}
-                  groupResizeBehavior="preserve-pixel-size"
-                  className="flex min-w-0 flex-col"
-                  onResize={(size) => {
-                    if (
-                      foldedOf(filesRef.current) === false &&
-                      size.inPixels > PANEL_SIZES.files.folded
-                    ) {
-                      filesOpenSize.current = size.inPixels;
+              <ResizablePanelGroup
+                orientation="horizontal"
+                id="layout-work"
+                className="h-auto min-h-0 flex-1"
+                defaultLayout={isMobile ? undefined : props.work}
+                onLayoutChanged={
+                  isMobile
+                    ? undefined
+                    : (layout, meta) =>
+                        settle(
+                          {
+                            panel: filesRef.current,
+                            state: props.filesState,
+                            openSize: filesOpenSize.current,
+                            settledOnce: filesSettled,
+                            save: props.onWorkLayout,
+                          },
+                          layout,
+                          meta
+                        )
+                }
+              >
+                {!isMobile && (
+                  <ResizablePanel
+                    id="files"
+                    panelRef={filesRef}
+                    collapsible
+                    collapsedSize={PANEL_SIZES.files.folded}
+                    defaultSize={
+                      props.filesState.open
+                        ? PANEL_SIZES.files.default
+                        : PANEL_SIZES.files.folded
                     }
-                  }}
+                    minSize={PANEL_SIZES.files.min}
+                    groupResizeBehavior="preserve-pixel-size"
+                    className="flex min-w-0 flex-col"
+                    onResize={(size) => {
+                      if (
+                        foldedOf(filesRef.current) === false &&
+                        size.inPixels > PANEL_SIZES.files.folded
+                      ) {
+                        filesOpenSize.current = size.inPixels;
+                      }
+                    }}
+                  >
+                    {props.files({ isMobile: false })}
+                  </ResizablePanel>
+                )}
+                {!isMobile && (
+                  <ResizableHandle className="w-2 bg-transparent" />
+                )}
+                <ResizablePanel
+                  id="center"
+                  minSize={PANEL_SIZES.stage.min}
+                  className="flex min-w-0 flex-col"
                 >
-                  {props.files({ isMobile: false })}
+                  {center}
                 </ResizablePanel>
-              )}
-              {!isMobile && <ResizableHandle className="w-2 bg-transparent" />}
-              <ResizablePanel
-                id="center"
-                minSize={PANEL_SIZES.stage.min}
-                className="flex min-w-0 flex-col"
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+          {props.viewport !== "wide" && (
+            <>
+              {/* Under the settings panel (fixed, z-2) when it opens over it */}
+              <div className="absolute top-1 right-0 z-1">
+                {props.assistantOpener}
+              </div>
+              <Sheet
+                open={props.assistantState.open}
+                onOpenChange={props.assistantState.onOpenChange}
               >
-                {center}
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-        {props.viewport !== "wide" && (
-          <>
-            {/* Under the settings panel (fixed, z-2) when it opens over it */}
-            <div className="absolute top-1 right-0 z-1">
-              {props.assistantOpener}
-            </div>
-            <Sheet
-              open={props.assistantState.open}
-              onOpenChange={props.assistantState.onOpenChange}
-            >
-              <SheetContent
-                side="right"
-                showCloseButton={false}
-                aria-describedby={undefined}
-                className={cn("p-0", SHEET_WIDTH[props.viewport])}
-                style={props.sheetFont}
-              >
-                <SheetTitle className="sr-only">Assistant</SheetTitle>
-                {props.assistant}
-              </SheetContent>
-            </Sheet>
-          </>
-        )}
-      </SidebarInset>
-    </SidebarProvider>
+                <SheetContent
+                  side="right"
+                  showCloseButton={false}
+                  aria-describedby={undefined}
+                  className={cn("p-0", SHEET_WIDTH[props.viewport])}
+                  style={props.sheetFont}
+                >
+                  <SheetTitle className="sr-only">Assistant</SheetTitle>
+                  {props.assistant}
+                </SheetContent>
+              </Sheet>
+            </>
+          )}
+        </SidebarInset>
+      </SidebarProvider>
+    </>
   );
 };
 

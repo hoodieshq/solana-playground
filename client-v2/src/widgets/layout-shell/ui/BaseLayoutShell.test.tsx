@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { createElement, useRef } from "react";
+import { createElement, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -131,6 +132,8 @@ interface PropsChoice {
   consoleOpen?: boolean;
   horizontal?: BaseLayoutShellProps["horizontal"];
   work?: BaseLayoutShellProps["work"];
+  stage?: ReactNode;
+  console?: ReactNode;
 }
 
 const props = (
@@ -170,8 +173,8 @@ const props = (
   toggleLeftSheetOn:
     choice.toggleLeftSheetOn ?? (() => ({ dispose: () => {} })),
   stageBar: <header>stage bar</header>,
-  stage: <main>stage slot</main>,
-  console: <div className="xterm">console slot</div>,
+  stage: choice.stage ?? <main>stage slot</main>,
+  console: choice.console ?? <div className="xterm">console slot</div>,
   assistant: <section>assistant slot</section>,
   assistantOpener: <button type="button">Expand assistant</button>,
 });
@@ -817,4 +820,44 @@ it("should neither resubscribe nor need a stable function when the caller passes
   } finally {
     restore();
   }
+});
+
+it("keeps the stage and the console mounted, and the stage node the same, across widths", () => {
+  const stageMounts = vi.fn();
+  const consoleMounts = vi.fn();
+  const Probe = ({
+    onMount,
+    label,
+  }: {
+    onMount: () => void;
+    label: string;
+  }) => {
+    useEffect(() => {
+      onMount();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return <div>{label}</div>;
+  };
+  const stage = <Probe onMount={stageMounts} label="the stage" />;
+  const consoleSlot = <Probe onMount={consoleMounts} label="the console" />;
+  const choice = (
+    viewport: BaseLayoutShellProps["viewport"],
+    isMobile: boolean
+  ) => props(viewport, { isMobile, stage, console: consoleSlot });
+  const { rerender } = render(<BaseLayoutShell {...choice("wide", false)} />);
+  const stageBefore = screen.getByText("the stage");
+  const consoleBefore = screen.getByText("the console");
+  const steps = [
+    ["compact", false],
+    ["compact", true],
+    ["wide", true],
+    ["wide", false],
+  ] as const;
+  for (const [viewport, isMobile] of steps) {
+    rerender(<BaseLayoutShell {...choice(viewport, isMobile)} />);
+    expect(screen.getByText("the stage")).toBe(stageBefore);
+    expect(screen.getByText("the console")).toBe(consoleBefore);
+  }
+  expect(stageMounts).toHaveBeenCalledTimes(1);
+  expect(consoleMounts).toHaveBeenCalledTimes(1);
 });
