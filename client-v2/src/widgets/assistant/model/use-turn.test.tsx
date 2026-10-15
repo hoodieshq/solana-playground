@@ -105,6 +105,85 @@ describe("useTurn", () => {
     expect(provider.send).toHaveBeenCalledTimes(1);
     expect(provider.send.mock.calls[0][0]).toBe("first");
     act(() => result.current.stop());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+  });
+
+  it("says Stopped once for two Stops before the turn unwinds", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    let unwind!: () => void;
+    // Rejects only when the test says, so the turn stays busy after the abort
+    provider.send.mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          unwind = () => reject(new Error("aborted"));
+        })
+    );
+    const { result } = renderHook(() => useTurn());
+
+    act(() => {
+      void result.current.send("hi");
+    });
+    act(() => result.current.stop());
+    expect(result.current.busy).toBe(true);
+    act(() => result.current.stop());
+
+    const stopped = PgAssistant.items.filter(
+      (item) => item.kind === "notice" && item.text === "Stopped."
+    );
+    expect(stopped.length).toBe(1);
+    expect(
+      eventNames().filter(([name]) => name === "assistant_turn_stopped").length
+    ).toBe(1);
+    await act(async () => unwind());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+  });
+
+  it("keeps a requested prompt that arrives during a turn", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    provider.send.mockImplementation(untilAborted);
+    const { result } = renderHook(() => useTurn());
+
+    act(() => {
+      void result.current.send("first");
+    });
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    await waitFor(() =>
+      expect(result.current.input).toBe("Explain this error")
+    );
+    expect(provider.send).toHaveBeenCalledTimes(1);
+    act(() => result.current.stop());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+  });
+
+  it("keeps a requested prompt that arrives while the default is probed", async () => {
+    let answer!: (res: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockReturnValue(
+      new Promise<Response>((resolve) => {
+        answer = resolve;
+      })
+    );
+    provider.send.mockImplementation(untilAborted);
+    const { result } = renderHook(() => useTurn());
+
+    act(() => {
+      void result.current.send("first");
+    });
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+    await act(async () =>
+      answer({
+        ok: true,
+        json: async () => ({ configured: true, model: null }),
+      } as Response)
+    );
+
+    await waitFor(() =>
+      expect(result.current.input).toBe("Explain this error")
+    );
+    expect(provider.send).toHaveBeenCalledTimes(1);
+    expect(provider.send.mock.calls[0][0]).toBe("first");
+    act(() => result.current.stop());
+    await waitFor(() => expect(result.current.busy).toBe(false));
   });
 
   it("starts one turn for two sends while the default is probed", async () => {

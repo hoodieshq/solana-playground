@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
 import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
 import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
 import { realBridge } from "../../../views/sidebar/assistant/bridge/playground-bridge";
@@ -23,6 +24,8 @@ import { BaseEffortMenu } from "./BaseEffortMenu";
 import { BaseModelMenu } from "./BaseModelMenu";
 
 const DEFAULT_CONNECTION: Connection = { id: "default", apiKey: "" };
+
+const log = createLogger("assistant:composer");
 
 /** What the assistant reads each turn, as chips over the input */
 const contextChips = (lessonState: LessonState): ComposerContextChip[] => {
@@ -91,9 +94,18 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
   const connection = PgAssistant.connection;
   const shown = modelShown(connection, defaultBackend);
 
+  /** Apply a model or effort pick; `false` when nothing changed or it failed */
   const tune = (next: Connection | null) => {
-    if (next) PgAssistant.tune(next);
-    return !!next;
+    if (!next) return false;
+    try {
+      PgAssistant.tune(next);
+      return true;
+    } catch (error) {
+      // `tune` refuses a change of backend or key; the menus only offer the
+      // connected one's, so this is a bug to hear of, not a user's mistake
+      log.error(error, { report: true, context: { provider: next.id } });
+      return false;
+    }
   };
 
   const pick = (option: ModelOption) => {

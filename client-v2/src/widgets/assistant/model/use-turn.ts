@@ -108,10 +108,18 @@ export const useTurn = (): Turn => {
     PgAssistant.pickBackend();
   };
 
-  const send = async (text: string) => {
+  /** Whether a turn, or a send still finding its backend, is under way */
+  const occupied = () =>
+    starting.current || !!turn.current || PgAssistant.status !== "idle";
+
+  /**
+   * @returns `false` when the send was refused because another one is under
+   * way, so a caller holding text the user never typed can keep it
+   */
+  const start = async (text: string): Promise<boolean> => {
     const trimmed = text.trim();
-    if (!trimmed || starting.current || turn.current) return;
-    if (PgAssistant.status !== "idle") return;
+    if (!trimmed) return true;
+    if (occupied()) return false;
 
     // Only a send with nothing connected waits, so a connected one has started
     // its turn by the time it first yields
@@ -123,13 +131,15 @@ export const useTurn = (): Turn => {
       } finally {
         starting.current = false;
       }
+      // A turn may have started while the probe was out
+      if (occupied()) return false;
     }
     if (!current) {
       // Nothing to send to: the prompt stays where the user can send it once
       // a backend is connected
       setInput(text);
       openConnect("send");
-      return;
+      return true;
     }
 
     // One provider per connection; it owns the conversation history. The store
@@ -172,17 +182,24 @@ export const useTurn = (): Turn => {
         void pushThread(threadId).catch((e) => report("push turn", e));
       }
     }
+    return true;
   };
-  // Bridges `onDidRequestPrompt`, which subscribes once, to this render's `send`
-  const sendRef = useRef(send);
-  sendRef.current = send;
+  const send = async (text: string) => {
+    await start(text);
+  };
+  // Bridges `onDidRequestPrompt`, which subscribes once, to this render's `start`
+  const startRef = useRef(start);
+  startRef.current = start;
 
   /**
    * Aborting the request is not enough on its own: a tool waiting on an
    * approval holds the agent loop open, so deny whatever is pending too.
+   *
+   * A stopped turn stays busy until its provider unwinds; a second Stop in
+   * that window has nothing left to stop and must not say so twice.
    */
   const stop = () => {
-    if (!turn.current) return;
+    if (!turn.current || turn.current.signal.aborted) return;
     turn.current.abort();
     PgAssistant.cancelPending();
     PgAssistant.addNotice("Stopped.");
@@ -198,10 +215,19 @@ export const useTurn = (): Turn => {
       setInput(text);
       focus();
     };
-    /** With a backend to run it: send, or leave it for a look first */
+    /**
+     * With a backend to run it: send, or leave it for a look first. A send
+     * refused because another is under way leaves it in the composer rather
+     * than dropping a prompt the user never typed and cannot retype.
+     */
     const run = ({ text, send }: PromptRequest) => {
-      if (send) void sendRef.current(text);
-      else place(text);
+      if (!send) {
+        place(text);
+        return;
+      }
+      void startRef.current(text).then((started) => {
+        if (!started) place(text);
+      });
     };
     return PgAssistant.onDidRequestPrompt(
       (request) => {
@@ -226,7 +252,7 @@ export const useTurn = (): Turn => {
       { sends: true }
     ).dispose;
     // `openConnect`, `place` and `run` only touch the store, state setters and
-    // `sendRef`
+    // `startRef`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
