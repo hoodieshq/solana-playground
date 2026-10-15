@@ -29,13 +29,15 @@ const explorer: {
 };
 vi.mock("../../../../hooks", () => ({ useExplorer: () => explorer }));
 
-// Only the select is under test: the modals, text and icons pull in the
-// theme, which needs the same build-time global
+// The select and the workspace buttons are under test: the modals, text and
+// icons pull in the theme, which needs the same build-time global
 vi.mock("./Modals", () => ({}));
 vi.mock("../../../../components/Text", () => ({ default: () => null }));
 vi.mock("../../../../components/Icons", () => ({}));
 
 import { PgExplorer, PgTutorial } from "../../../../utils";
+// The real modal channel, imported past the mocked barrel
+import { PgView } from "../../../../utils/view";
 import { WorkspaceButton, WorkspaceSelect } from "./Workspaces";
 
 // Radix Select calls these while opening; jsdom implements none of them
@@ -163,5 +165,28 @@ describe("WorkspaceButton", () => {
 
     close();
     await waitFor(() => expect(screen.getByTestId("icon")).toBeTruthy());
+    expect(button).toHaveProperty("disabled", false);
+    expect(button.getAttribute("aria-busy")).toBeNull();
+  });
+
+  it("waits for the modal it opens and is usable once it closes", async () => {
+    render(
+      <WorkspaceButton
+        onClick={() => PgView.setModal(() => null)}
+        title="Create"
+      >
+        <svg data-testid="icon" />
+      </WorkspaceButton>
+    );
+
+    await userEvent.setup().click(screen.getByRole("button"));
+
+    const button = screen.getByRole("button", { name: /Create/ });
+    expect(button.getAttribute("aria-busy")).toBe("true");
+
+    PgView.closeModal();
+    await waitFor(() => expect(button).toHaveProperty("disabled", false));
+    expect(button.getAttribute("aria-busy")).toBeNull();
+    expect(screen.getByTestId("icon")).toBeTruthy();
   });
 });

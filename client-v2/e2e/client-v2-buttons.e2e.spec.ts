@@ -137,5 +137,11 @@ test.describe("client-v2-buttons", () => {
       .locator('[data-slot="brand-button"]:visible');
     await expect(brand).toHaveCount(1);
     await expect(brand).toHaveText(/Deploy/);
+
+    // Page-wide, that is the stage's Deploy and the picker's Connect (or
+    // Start, for a keyless backend): a brand button anywhere else is a stray
+    const everywhere = page.locator('[data-slot="brand-button"]:visible');
+    await expect(everywhere).toHaveCount(2);
+    await expect(everywhere).toHaveText([/^(Connect|Start)$/, /Deploy/]);
   });
 });
