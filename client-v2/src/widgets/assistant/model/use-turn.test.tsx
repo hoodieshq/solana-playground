@@ -6,6 +6,7 @@ import {
   memoryProvider as memoryTelemetry,
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
+import * as reportModule from "../../../shared/lib/report-button-failure";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { createProvider } from "../../../views/sidebar/assistant/model";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
@@ -74,6 +75,26 @@ describe("useTurn", () => {
     expect(provider.send).toHaveBeenCalledTimes(1);
     expect(provider.send.mock.calls[0][0]).toBe("hi");
     expect(result.current.input).toBe("");
+  });
+
+  it("keeps the typed text and reports when the message cannot be added", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const failure = new Error("store is broken");
+    vi.spyOn(PgAssistant, "addUserMessage").mockImplementation(() => {
+      throw failure;
+    });
+    const report = vi
+      .spyOn(reportModule, "reportButtonFailure")
+      .mockReturnValue(undefined);
+    const { result } = renderHook(() => useTurn());
+    act(() => result.current.setInput("hello"));
+
+    await act(() => result.current.send("hello"));
+
+    expect(report).toHaveBeenCalledWith(failure);
+    expect(result.current.input).toBe("hello");
+    expect(result.current.busy).toBe(false);
+    expect(provider.send).not.toHaveBeenCalled();
   });
 
   it("opens Connect and keeps the text when there is no default", async () => {
@@ -295,6 +316,23 @@ describe("useTurn", () => {
     expect(provider.send.mock.calls[0][0]).toBe("Explain this error");
   });
 
+  it("keeps a requested prompt and reports when the message cannot be added", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const failure = new Error("store is broken");
+    vi.spyOn(PgAssistant, "addUserMessage").mockImplementation(() => {
+      throw failure;
+    });
+    const report = vi
+      .spyOn(reportModule, "reportButtonFailure")
+      .mockReturnValue(undefined);
+    const { result } = renderHook(() => useTurn());
+
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    await waitFor(() => expect(report).toHaveBeenCalledWith(failure));
+    expect(result.current.input).toBe("Explain this error");
+  });
+
   it("connects the default for a requested prompt and sends it", async () => {
     defaultBackend(true);
     renderHook(() => useTurn());
@@ -307,7 +345,7 @@ describe("useTurn", () => {
 
   it("reconnects a remembered default on mount", async () => {
     defaultBackend(true);
-    rememberBackend("default");
+    rememberBackend({ id: "default", apiKey: "" });
 
     renderHook(() => useTurn());
 

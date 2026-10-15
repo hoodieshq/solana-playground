@@ -11,6 +11,7 @@ import type {
   Connection,
   PromptRequest,
 } from "../../../views/sidebar/assistant/store";
+import { reportButtonFailure } from "../../../shared/lib/report-button-failure";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
 
@@ -155,10 +156,12 @@ export const useTurn = (): Turn => {
     }
     const instance = provider.current.instance;
 
+    PgAssistant.addUserMessage(trimmed);
+    // Cleared only once the message is in: a store that throws leaves the
+    // typed text where the user can send it again
+    setInput("");
     const controller = new AbortController();
     turn.current = controller;
-    setInput("");
-    PgAssistant.addUserMessage(trimmed);
     PgAssistant.setStatus("running");
 
     try {
@@ -184,8 +187,11 @@ export const useTurn = (): Turn => {
     }
     return true;
   };
+  // `start` answers its own failures once a turn runs; one before that (the
+  // store throwing on the new message) would be an unhandled rejection with
+  // nothing on screen
   const send = async (text: string) => {
-    await start(text);
+    await start(text).catch(reportButtonFailure);
   };
   // Bridges `onDidRequestPrompt`, which subscribes once, to this render's `start`
   const startRef = useRef(start);
@@ -225,9 +231,15 @@ export const useTurn = (): Turn => {
         place(text);
         return;
       }
-      void startRef.current(text).then((started) => {
-        if (!started) place(text);
-      });
+      startRef.current(text).then(
+        (started) => {
+          if (!started) place(text);
+        },
+        (e) => {
+          place(text);
+          reportButtonFailure(e);
+        }
+      );
     };
     return PgAssistant.onDidRequestPrompt(
       (request) => {

@@ -161,10 +161,7 @@ const Chat = ({ turn }: { turn: Turn }) => {
               TRY ASKING
             </EmptyDescription>
             {SUGGESTIONS.map((suggestion) => (
-              <Suggestion
-                key={suggestion}
-                onClick={() => sendAndReport(suggestion)}
-              >
+              <Suggestion key={suggestion} onClick={() => send(suggestion)}>
                 {suggestion}
               </Suggestion>
             ))}
@@ -175,9 +172,7 @@ const Chat = ({ turn }: { turn: Turn }) => {
               key={item.id}
               item={item}
               onMakeChange={
-                item.id === changeableId
-                  ? () => sendAndReport(MAKE_CHANGE)
-                  : undefined
+                item.id === changeableId ? () => send(MAKE_CHANGE) : undefined
               }
               // Inside a lesson the same click skips the hint ladder, so it is
               // offered as a way out rather than as the obvious next step
