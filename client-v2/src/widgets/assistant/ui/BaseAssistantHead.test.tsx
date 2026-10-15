@@ -8,11 +8,14 @@ import { BaseAssistantHead } from "./BaseAssistantHead";
 interface HeadChoice {
   wide?: boolean;
   canWiden?: boolean;
+  /** What the caller's `focusPicked` does; takes focus by default */
+  focusPicked?: () => boolean;
 }
 
 const setup = (choice: HeadChoice = {}) => {
   const onSources = vi.fn();
   const onConnect = vi.fn();
+  const focusPicked = vi.fn(() => choice.focusPicked?.() ?? true);
   const onWiden = vi.fn();
   const onHide = vi.fn();
   render(
@@ -21,6 +24,7 @@ const setup = (choice: HeadChoice = {}) => {
         title="hello-anchor"
         onSources={onSources}
         onConnect={onConnect}
+        focusPicked={focusPicked}
         wide={choice.wide ?? false}
         onWiden={onWiden}
         onHide={onHide}
@@ -28,7 +32,14 @@ const setup = (choice: HeadChoice = {}) => {
       />
     </TooltipProvider>
   );
-  return { onSources, onConnect, onWiden, onHide, user: userEvent.setup() };
+  return {
+    onSources,
+    onConnect,
+    focusPicked,
+    onWiden,
+    onHide,
+    user: userEvent.setup(),
+  };
 };
 
 class NoopResizeObserver {
@@ -90,21 +101,43 @@ describe("BaseAssistantHead", () => {
     expect(onConnect).toHaveBeenCalledTimes(1);
   });
 
-  it("does not hand focus back to More once an item is picked", async () => {
-    // The picked item replaces the view; in the browser More's focus came back
-    // after the menu's exit animation and shut a select opened meanwhile
-    const { user } = setup();
+  it("hands focus to the picked view once the menu has closed", async () => {
+    const field = document.createElement("input");
+    document.body.append(field);
+    try {
+      // The view Connect a model opened takes focus, as the widget's does
+      const { user, focusPicked } = setup({
+        focusPicked: () => {
+          field.focus();
+          return true;
+        },
+      });
+      await user.click(more());
+      await user.click(
+        screen.getByRole("menuitem", { name: /Connect a model/ })
+      );
+      expect(screen.queryByRole("menu")).toBeNull();
+      expect(focusPicked).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(field);
+    } finally {
+      field.remove();
+    }
+  });
+
+  it("gives focus back to More when the picked view takes none", async () => {
+    const { user } = setup({ focusPicked: () => false });
     await user.click(more());
-    await user.click(screen.getByRole("menuitem", { name: /Connect a model/ }));
+    await user.keyboard("s");
     expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).not.toBe(more());
+    expect(document.activeElement).toBe(more());
   });
 
   it("gives focus back to More when the menu is dismissed", async () => {
-    const { user } = setup();
+    const { user, focusPicked } = setup();
     await user.click(more());
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
+    expect(focusPicked).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(more());
   });
 

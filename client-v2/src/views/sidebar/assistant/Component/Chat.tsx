@@ -23,6 +23,7 @@ import {
   verifyingStage,
 } from "../../../flow/lessons";
 import type { LessonState } from "../../../flow/lessons";
+import { CONNECT_REGION } from "./connect-region";
 import type { Turn } from "../../../../widgets/assistant";
 
 const SUGGESTIONS = [
@@ -92,7 +93,7 @@ const Chat = ({ turn }: { turn: Turn }) => {
           </Messages>
         )}
 
-        <ConnectSlot>
+        <ConnectSlot {...{ [CONNECT_REGION]: "" }}>
           <Connect />
         </ConnectSlot>
       </Wrapper>

@@ -24,6 +24,11 @@ export interface BaseAssistantHeadProps {
   onSources(): void;
   /** Opens Connect a model */
   onConnect(): void;
+  /**
+   * Called once More's menu has closed on a picked item: gives focus to what
+   * the pick opened. `false` when nothing took it, and More takes it back.
+   */
+  focusPicked(): boolean;
   /** The panel is widened to its maximum */
   wide: boolean;
   /** Widens the panel, or narrows it back when `wide` */
@@ -45,16 +50,18 @@ export function BaseAssistantHead({
   title,
   onSources,
   onConnect,
+  focusPicked,
   wide,
   onWiden,
   onHide,
   canWiden,
 }: BaseAssistantHeadProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  // An item replaces what the assistant shows, so focus stays wherever that
-  // view puts it. Handed back to More once the menu's exit animation ends, it
-  // would blur the view's first control: a select opened in that window shut.
-  // A dismissal (Escape, a click outside) still returns focus to More.
+  // An item replaces what the assistant shows, so once the menu has closed
+  // (after its exit animation) focus goes into that view (`focusPicked`), not
+  // back to More, which would blur whatever the user reached in the meantime:
+  // a select opened in that window shut. A dismissal (Escape, a click outside)
+  // still returns focus to More.
   const picked = useRef(false);
 
   const pick = (action: () => void) => {
@@ -98,8 +105,9 @@ export function BaseAssistantHead({
           className="w-auto min-w-48"
           onKeyDown={onMenuKey}
           onCloseAutoFocus={(event) => {
-            if (picked.current) event.preventDefault();
+            const wasPicked = picked.current;
             picked.current = false;
+            if (wasPicked && focusPicked()) event.preventDefault();
           }}
         >
           <DropdownMenuItem onSelect={() => pick(onSources)}>

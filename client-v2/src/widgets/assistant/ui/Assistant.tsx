@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
@@ -6,12 +6,20 @@ import Chat from "../../../views/sidebar/assistant/Component/Chat";
 import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { CONNECT_REGION } from "../../../views/sidebar/assistant/Component/connect-region";
 import { useTurn } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
 import { BaseAssistantHead } from "./BaseAssistantHead";
 
 /** What the panel shows under its head */
 type View = "chat" | "sources";
+
+/** The view a pick from More opened, until it has been given focus */
+type Picked = "sources" | "connect";
+
+/** What can take focus in a view, enabled */
+const FOCUSABLE =
+  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** What a heading shows while no project is open yet */
 const NO_PROJECT = "Assistant";
@@ -56,6 +64,29 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
   const turn = useTurn();
   const title = useProjectName();
 
+  // The view a pick from More opened takes focus once the menu has closed
+  // (`BaseAssistantHead`'s `focusPicked`): Back in Sources, the picker's first
+  // control in Connect a model. Focus the user already put somewhere in the
+  // meantime, such as on a select they clicked, is left where it is.
+  const picked = useRef<Picked | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const back = useRef<HTMLButtonElement>(null);
+  const focusPicked = () => {
+    const view = picked.current;
+    picked.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return true;
+    const target =
+      view === "sources"
+        ? back.current
+        : root.current?.querySelector<HTMLElement>(
+            `[${CONNECT_REGION}] :is(${FOCUSABLE})`
+          );
+    if (!target) return false;
+    target.focus();
+    return true;
+  };
+
   // Ask the gateway what it serves and what those servers offer. Has to happen
   // here rather than only in Sources: `createTools` reads the result, so a
   // model connected before this ran would be offered no MCP tool at all, with
@@ -71,11 +102,20 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
   }, []);
 
   return (
-    <div className="flex h-full max-h-full min-h-0 flex-1 flex-col">
+    <div ref={root} className="flex h-full max-h-full min-h-0 flex-1 flex-col">
       <BaseAssistantHead
         title={title}
-        onSources={() => setView("sources")}
-        onConnect={() => turn.openConnect("menu")}
+        onSources={() => {
+          setView("sources");
+          picked.current = "sources";
+        }}
+        onConnect={() => {
+          // The picker is in the thread, which Sources covers
+          setView("chat");
+          turn.openConnect("menu");
+          picked.current = "connect";
+        }}
+        focusPicked={focusPicked}
         wide={wide}
         onWiden={() => setWide(!wide)}
         onHide={onHide}
@@ -90,7 +130,12 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
       {view === "sources" && (
         <>
           <div className="shrink-0 px-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={() => setView("chat")}>
+            <Button
+              ref={back}
+              variant="ghost"
+              size="sm"
+              onClick={() => setView("chat")}
+            >
               <ArrowLeft aria-hidden="true" />
               Back
             </Button>
