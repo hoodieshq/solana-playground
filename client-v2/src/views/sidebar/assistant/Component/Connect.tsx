@@ -253,7 +253,7 @@ const Connect = () => {
   };
 
   const signIn = () =>
-    PgSession.signIn().catch((error: unknown) =>
+    PgSession.signIn({ from: "assistant" }).catch((error: unknown) =>
       // `PgSession.signInState` holds the failure and the header chip shows it;
       // `info`, as the chip logs the same failure
       log.info("sign-in from the assistant panel failed", {

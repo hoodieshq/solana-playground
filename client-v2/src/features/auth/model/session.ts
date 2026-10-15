@@ -41,6 +41,9 @@ export interface SessionUser {
   login: string | null;
 }
 
+/** Where a sign-in started, when its listeners must tell it apart from the header's */
+export type SignInOrigin = "assistant";
+
 /**
  * The signed-in user, from our backend rather than from GitHub.
  *
@@ -105,15 +108,26 @@ export class PgSession {
    * rather than per-window, so the reply only has to say "finished" and this
    * side re-reads the session.
    */
-  static async signIn() {
+  static async signIn({ from }: { from?: SignInOrigin } = {}) {
     authTelemetry.track("auth_sign_in_started", {});
+    PgSession._signingInFrom = from ?? null;
     try {
       await PgSession._signInThroughPopup();
     } catch (error) {
       authTelemetry.track("auth_sign_in_failed", { reason: reasonOf(error) });
       throw error;
+    } finally {
+      PgSession._signingInFrom = null;
     }
     authTelemetry.track("auth_signed_in", {});
+  }
+
+  /**
+   * The origin passed to the `signIn` in progress, or `null` when none runs or it named none.
+   * Still set when `onDidChange` fires for that sign-in; cleared once it settles.
+   */
+  static get signingInFrom(): SignInOrigin | null {
+    return PgSession._signingInFrom;
   }
 
   private static async _signInThroughPopup() {
@@ -260,9 +274,11 @@ export class PgSession {
     PgSession._listeners.clear();
     PgSession._channel = undefined;
     PgSession._openChannelImpl = openPopupChannel;
+    PgSession._signingInFrom = null;
   }
 
   private static _user: SessionUser | null = null;
+  private static _signingInFrom: SignInOrigin | null = null;
   private static _onSignOut: (() => Promise<void>) | null = null;
   private static readonly _listeners = new Set<() => void>();
 
