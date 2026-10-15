@@ -1,13 +1,13 @@
 name: client-v2
 
 # The fork's frontend checks. Upstream's ci.yml guards `client/` on master;
-# this one guards `client-v2/` on master and never touches the Rust
-# workspaces.
+# this one guards `client-v2/` on master and on new-face, the 2.0 line's
+# design-system branch, and never touches the Rust workspaces.
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "new-face"]
   pull_request:
-    branches: ["master"]
+    branches: ["master", "new-face"]
 
   workflow_dispatch:
 
