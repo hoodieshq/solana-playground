@@ -37,3 +37,17 @@ test("client-v2-elements: A skill is switched by its name", async ({
   await expect(box).toBeChecked();
   await expect.poll(color).toBe(checkedColor);
 });
+
+test("client-v2-elements: A settings group folds", async ({
+  seededPage: page,
+}) => {
+  await page.locator("[data-settings-trigger]").first().click();
+  const heading = page
+    .getByLabel("Settings")
+    .getByRole("button", { expanded: true })
+    .first();
+  await heading.click();
+  await expect(heading).toHaveAttribute("aria-expanded", "false");
+  await heading.click();
+  await expect(heading).toHaveAttribute("aria-expanded", "true");
+});
