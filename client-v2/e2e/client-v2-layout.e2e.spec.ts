@@ -10,12 +10,6 @@ import {
 } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
-/** Names of the telemetry events the page has logged so far */
-const eventsOn = (page: Page) => {
-  const lines = linesOn(page);
-  return { has: (name: string) => lines.some((l) => l.split(" ")[1] === name) };
-};
-
 /**
  * The one event line with this name: waits for it, then a moment more, so a
  * second copy sent by the same gesture (a key, then the drag it causes) fails
@@ -473,8 +467,7 @@ test("a file can be renamed from the project Sheet", async ({ page }) => {
   });
   await rename.click();
   // Tapped, as on a phone: the modal Sheet, closing, keeps the modal's
-  // field from taking focus itself. Left to the adaptive design, which
-  // decides how the project panel behaves on a phone.
+  // field from taking focus itself.
   const input = page.locator('input[value="lib.rs"]');
   await input.click();
   await input.fill("renamed.rs");
