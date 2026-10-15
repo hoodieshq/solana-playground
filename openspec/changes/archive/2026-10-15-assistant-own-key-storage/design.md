@@ -5,8 +5,9 @@
 `PgAssistant` (`views/sidebar/assistant/store.ts`) holds the connection in
 memory. `model/remembered-backend.ts` writes one value, `assistant.backend`, to
 `localStorage`, and only the keyless default backend is ever "remembered"
-there; `Connect.tsx` reconnects to it once the probe of `/api/agent` confirms
-the deployment serves one. Every other backend is lost on reload.
+there; `Connect.tsx` reconnects to it only when the probe of `/api/agent`
+confirms the deployment serves one and the user is signed in. Signed out, the
+picker offers sign-in instead. Every other backend is lost on reload.
 
 The key already travels the way the ticket asks: the Anthropic SDK sends it as
 `x-api-key` (`dangerouslyAllowBrowser`), `openai.ts` as
@@ -65,9 +66,9 @@ each have to know about the other's key to clear it on a switch.
 ### Decision: reconnect before the probe
 
 `Connect.tsx` reconnects a stored key-based connection on mount, without waiting
-for the `/api/agent` probe, which only matters for the default backend. The
-guards the default's reconnect already had apply: nothing already connected,
-the picker not open on purpose. Running first is also what makes it win over a
+for the `/api/agent` probe or a sign-in, which only matter for the default
+backend. The guards that apply to every reconnect also apply here: nothing
+already connected, the picker not open on purpose. Running first is also what makes it win over a
 remembered default; `Component/Connect.test.tsx` pins that order.
 
 ### Decision: Forget key in the chat header
