@@ -166,9 +166,42 @@ const carriesKey = (req: Request) =>
     (part) => part.includes(KEY)
   );
 
-/** The picker's heading when nothing is connected */
-const picker = (page: Page) =>
-  page.getByText("An assistant that can see your project");
+/**
+ * The composer's model button with nothing connected and no default on the
+ * deployment (`stubNoDefault`). It reads so only once the shared probe has
+ * answered, and the kept-key reconnect runs on mount, before that: a
+ * connection made on load would already show here.
+ */
+const connectButton = (page: Page) =>
+  page.getByRole("button", { name: "Connect a model", exact: true });
+
+/**
+ * Nothing connected: the store says so, and the composer offers to connect.
+ * Its own step, since the composer and the store answer at different times.
+ */
+const expectNothingConnected = async (page: Page) => {
+  await expect(connectButton(page)).toBeVisible(LONG);
+  expect(await connected(page)).toBeNull();
+};
+
+/**
+ * The deployment serves no default backend, for every page of the context
+ * (`A new tab asks again` opens a second): with nothing connected, the
+ * composer's model button then reads "Connect a model" wherever the suite
+ * runs
+ */
+const stubNoDefault = (page: Page) =>
+  page
+    .context()
+    .route("**/api/agent", (route) =>
+      json(route, { configured: false, model: null })
+    );
+
+/** Forget key, from the head's More */
+const forgetKey = async (page: Page) => {
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Forget key" }).click();
+};
 
 /** Every value the origin's IndexedDB holds, as one string */
 const indexedDbDump = (page: Page) =>
@@ -205,6 +238,7 @@ const indexedDbDump = (page: Page) =>
 
 test.describe("assistant-own-key", () => {
   test.setTimeout(240_000);
+  test.beforeEach(({ page }) => stubNoDefault(page));
 
   test("assistant-own-key: Reloading the tab keeps the connection", async ({
     page,
@@ -216,9 +250,9 @@ test.describe("assistant-own-key", () => {
     await expect
       .poll(() => connected(page), LONG)
       .toMatchObject({ id: "openai", apiKey: KEY, endpoint: OWN.endpoint });
-    // The picker opens on the keyless default, which has no key field, so
-    // only its heading says whether it is on screen
-    await expect(picker(page)).toBeHidden();
+    // Connected, the model button names the model instead
+    await expect(page.getByRole("button", { name: "gpt-x" })).toBeVisible(LONG);
+    await expect(connectButton(page)).toBeHidden();
   });
 
   test("assistant-own-key: Storage that refuses access", async ({ page }) => {
@@ -236,8 +270,7 @@ test.describe("assistant-own-key", () => {
       .toMatchObject({ id: "openai" });
 
     await page.reload();
-    await expect(picker(page)).toBeVisible(LONG);
-    expect(await connected(page)).toBeNull();
+    await expectNothingConnected(page);
   });
 
   test("assistant-own-key: Changing the backend is not undone", async ({
@@ -245,9 +278,11 @@ test.describe("assistant-own-key", () => {
   }) => {
     await seedWorkspace(page, "own-key-change");
     await connectOwn(page);
-    await page.evaluate(() =>
-      (window as OwnWindow).__pgAssistant!.pickBackend()
-    );
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Connect a model" })
+    ).toBeVisible(LONG);
     await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
 
     // A reconnect would be asynchronous, so give one a window to show itself
@@ -268,10 +303,7 @@ test.describe("assistant-own-key", () => {
 
     const second = await context.newPage();
     await second.goto("/");
-    // The picker on screen means `Connect` has mounted, and its reconnect
-    // from `sessionStorage` runs on mount: a connection now would be one
-    await expect(picker(second)).toBeVisible(LONG);
-    expect(await connected(second)).toBeNull();
+    await expectNothingConnected(second);
     expect(
       JSON.stringify(await storedValues(second, "sessionStorage"))
     ).not.toContain(KEY);
@@ -286,12 +318,11 @@ test.describe("assistant-own-key", () => {
       JSON.stringify(await storedValues(page, "sessionStorage"))
     ).toContain(KEY);
 
-    await page.getByRole("button", { name: "Forget key" }).click();
-    await expect(picker(page)).toBeVisible(LONG);
+    await forgetKey(page);
+    await expectNothingConnected(page);
     await page.reload();
 
-    await expect(picker(page)).toBeVisible(LONG);
-    expect(await connected(page)).toBeNull();
+    await expectNothingConnected(page);
     expect(
       JSON.stringify(await storedValues(page, "sessionStorage"))
     ).not.toContain(KEY);
