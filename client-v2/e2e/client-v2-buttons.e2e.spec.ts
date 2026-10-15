@@ -1,3 +1,5 @@
+import type { Locator, Page } from "@playwright/test";
+
 import { expect, seedWorkspace, test } from "./fixtures";
 
 type AssistantWindow = Window & {
@@ -8,6 +10,40 @@ type AssistantWindow = Window & {
 };
 
 const CODE = "anchor build\nanchor deploy";
+
+/** The assistant picker's brand button: Connect, or Start for a keyless backend */
+const assistantAction = (page: Page) =>
+  page.locator('[data-slot="brand-button"]:visible', {
+    hasText: /^(Connect|Start)$/,
+  });
+
+/**
+ * The WCAG contrast ratio of a button's label against its resting fill.
+ *
+ * The fill is the ring's `--stroke-fill`, read through a probe element so the
+ * browser resolves it to `rgb()`; the gradient under it is transparent until
+ * hover, so the fill is what the label sits on.
+ */
+const restingContrast = (button: Locator) =>
+  button.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.backgroundColor = "var(--stroke-fill)";
+    el.appendChild(probe);
+    const fill = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const label = getComputedStyle(el).color;
+
+    const luminance = (rgb: string) => {
+      const [r, g, b] = (rgb.match(/[\d.]+/g) ?? []).map(Number);
+      const [lr, lg, lb] = [r, g, b].map((c) => {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+    };
+    const [hi, lo] = [luminance(label), luminance(fill)].sort((a, b) => b - a);
+    return { label, fill, ratio: (hi + 0.05) / (lo + 0.05) };
+  });
 
 test.describe("client-v2-buttons", () => {
   test("client-v2-buttons: Copying a code block", async ({
@@ -143,5 +179,39 @@ test.describe("client-v2-buttons", () => {
     const everywhere = page.locator('[data-slot="brand-button"]:visible');
     await expect(everywhere).toHaveCount(2);
     await expect(everywhere).toHaveText([/^(Connect|Start)$/, /Deploy/]);
+  });
+
+  test("client-v2-buttons: The ring brand button's label reads in the light theme", async ({
+    seededPage: page,
+  }) => {
+    test.setTimeout(120_000);
+    // The product does not follow the OS, so the theme is picked the way a
+    // returning user's is: from storage
+    await page.evaluate(() => localStorage.setItem("theme", "Light"));
+    await page.reload();
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.classList.contains("dark"))
+      )
+      .toBe(false);
+
+    // At rest the ring's fill is the light surface; a white label vanishes
+    const action = assistantAction(page);
+    await expect(action).toBeVisible();
+    await page.mouse.move(0, 0);
+    const { label, ratio } = await restingContrast(action);
+    expect(label).not.toBe("rgb(255, 255, 255)");
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("client-v2-buttons: The ring brand button's label reads in the dark theme", async ({
+    seededPage: page,
+  }) => {
+    test.setTimeout(120_000);
+    const action = assistantAction(page);
+    await expect(action).toBeVisible();
+    await page.mouse.move(0, 0);
+    const { ratio } = await restingContrast(action);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
