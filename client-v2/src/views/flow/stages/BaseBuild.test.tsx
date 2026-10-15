@@ -4,15 +4,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import BaseBuild from "./BaseBuild";
-import type { BaseBuildProps } from "./BaseBuild";
-import type { BuildSurface } from "./build-surface";
+import type { BaseBuildProps, BuildSurfaceView } from "./BaseBuild";
 import type { DiagnosticView } from "./build-view";
 
-const typeError = (prompt: string): DiagnosticView => ({
+const typeError = (prompt: string, label: string | null): DiagnosticView => ({
   code: "E0308",
   title: "Wrong type",
-  explanation: "The value is a different type. Rustc says: expected u32.",
-  label: "expected u32",
+  explanation: "The value is a different type.",
+  label,
   file: "src/lib.rs",
   lines: [
     { num: 4, text: "fn f() {", failing: false },
@@ -23,19 +22,25 @@ const typeError = (prompt: string): DiagnosticView => ({
   prompt,
 });
 
-/** Every prop, named; each test changes the ones it is about */
+const RAW = "error[E0308]: mismatched types\nwarning: unused";
+
+/** The failed surface with its errors, counted */
+const failed = (diagnostics: DiagnosticView[]): BuildSurfaceView => ({
+  kind: "failed",
+  diagnostics,
+  errorCount: diagnostics.length,
+  raw: RAW,
+});
+
+/** Every prop, named; each test passes the surface it is about */
 const props = (
-  surface: BuildSurface,
-  diagnostics: DiagnosticView[] = [],
+  surface: BuildSurfaceView,
   building = false
 ): BaseBuildProps => ({
   surface,
   building,
   host: "api.solpg.io",
   ms: 2900,
-  diagnostics,
-  errorCount: diagnostics.length,
-  raw: "error[E0308]: mismatched types\nwarning: unused",
   onBuild: vi.fn(() => Promise.resolve()),
   onContinue: vi.fn(),
   onExport: vi.fn(() => Promise.resolve()),
@@ -48,10 +53,10 @@ const brandButtons = (container: HTMLElement) =>
   container.querySelectorAll('[data-slot="brand-button"]');
 
 /** The action row is the stage's last element, so a phone can pin it */
-const lastIsActions = (container: HTMLElement) => {
-  const stage = container.querySelector('[data-slot="stage-empty"]');
-  return stage?.lastElementChild?.getAttribute("data-slot");
-};
+const lastIsActions = (container: HTMLElement) =>
+  container
+    .querySelector('[data-slot="stage-empty"]')
+    ?.lastElementChild?.getAttribute("data-slot");
 
 describe("BaseBuild", () => {
   it("offers a first build with no brand button", () => {
@@ -68,7 +73,7 @@ describe("BaseBuild", () => {
   });
 
   it("says where a first build runs while it runs", () => {
-    render(<BaseBuild {...props({ kind: "empty" }, [], true)} />);
+    render(<BaseBuild {...props({ kind: "empty" }, true)} />);
 
     expect(screen.getByRole("heading", { name: "Building..." })).toBeTruthy();
     expect(screen.getByText(/Compiling on api\.solpg\.io/)).toBeTruthy();
@@ -125,10 +130,11 @@ describe("BaseBuild", () => {
   });
 
   it("marks the faulty line of a failed build", () => {
-    const p = props({ kind: "failed", stderr: "" }, [typeError("fix it")]);
+    const p = props(failed([typeError("fix it", "expected u32")]));
     const { container } = render(<BaseBuild {...p} />);
 
     expect(screen.getByRole("heading", { name: "Build failed" })).toBeTruthy();
+    expect(screen.getByText("1 error · 2.9s · api.solpg.io")).toBeTruthy();
     expect(container.querySelectorAll('[data-slot="diagnostic"]')).toHaveLength(
       1
     );
@@ -148,13 +154,21 @@ describe("BaseBuild", () => {
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
 
+  /** rustc prints no text after the carets for some errors */
+  it("marks the faulty line when rustc gave it no label", () => {
+    const { container } = render(
+      <BaseBuild {...props(failed([typeError("fix it", null)]))} />
+    );
+
+    const fault = container.querySelector("[data-fault]");
+    expect(fault?.textContent).toContain("let x");
+    expect(fault?.textContent).toContain("Wrong type");
+  });
+
   it("keeps the brand button for the first error only", () => {
     const { container } = render(
       <BaseBuild
-        {...props({ kind: "failed", stderr: "" }, [
-          typeError("first"),
-          typeError("second"),
-        ])}
+        {...props(failed([typeError("first", "a"), typeError("second", "b")]))}
       />
     );
 
@@ -175,9 +189,7 @@ describe("BaseBuild", () => {
       excerpt: "5 | let x: u32 = 1;",
       prompt: "fix",
     };
-    const { container } = render(
-      <BaseBuild {...props({ kind: "failed", stderr: "" }, [view])} />
-    );
+    const { container } = render(<BaseBuild {...props(failed([view]))} />);
 
     expect(
       container.querySelector('[data-slot="diagnostic-source"]')?.textContent
@@ -185,39 +197,38 @@ describe("BaseBuild", () => {
     expect(screen.queryByRole("button", { name: "Open in editor" })).toBeNull();
   });
 
-  /** The stepper's badge counted errors the parser could not split */
-  it("keeps the stepper's count when no error could be parsed", () => {
-    const p: BaseBuildProps = {
-      surface: { kind: "failed", stderr: "boom" },
-      building: false,
-      host: "h",
-      ms: null,
-      diagnostics: [],
-      errorCount: 2,
-      raw: "boom",
-      onBuild: vi.fn(),
-      onContinue: vi.fn(),
-      onExport: vi.fn(),
-      onFix: vi.fn(),
-      onOpenFile: vi.fn(),
-      idlActions: null,
+  it("draws no empty source block for a card without one", () => {
+    const view: DiagnosticView = {
+      code: null,
+      title: "Unparsed compiler error",
+      explanation: "See raw output.",
+      label: null,
+      file: null,
+      lines: null,
+      excerpt: "",
+      prompt: "fix",
     };
-    render(<BaseBuild {...p} />);
+    const { container } = render(<BaseBuild {...props(failed([view]))} />);
 
-    expect(screen.getByText("2 errors · h")).toBeTruthy();
-    expect(screen.getByText("Unparsed compiler error")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Fix with assistant" }));
-    expect(p.onFix).toHaveBeenCalledWith(
-      "Explain this build failure and propose a fix:\nboom"
-    );
+    expect(
+      container.querySelector('[data-slot="diagnostic-source"]')
+    ).toBeNull();
+  });
+
+  it("names no count when none is known", () => {
+    const surface: BuildSurfaceView = {
+      kind: "failed",
+      diagnostics: [typeError("fix", "a")],
+      errorCount: null,
+      raw: RAW,
+    };
+    render(<BaseBuild {...props(surface)} />);
+
+    expect(screen.getByText("2.9s · api.solpg.io")).toBeTruthy();
   });
 
   it("folds the compiler's output away until asked", () => {
-    render(
-      <BaseBuild
-        {...props({ kind: "failed", stderr: "" }, [typeError("fix")])}
-      />
-    );
+    render(<BaseBuild {...props(failed([typeError("fix", "a")]))} />);
 
     const toggle = screen.getByRole("button", {
       name: /Show compiler output/,

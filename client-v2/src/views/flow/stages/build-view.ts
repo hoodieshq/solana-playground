@@ -1,4 +1,5 @@
 import { humanize } from "./humanize";
+import { parseBuildReport } from "./build-report";
 import type { BuildDiagnostic } from "./build-report";
 
 /** One line of source around a diagnostic, the faulty one marked */
@@ -79,9 +80,63 @@ export const diagnosticView = (
     file: d.file,
     lines: sourceLines(d, content),
     excerpt: d.excerpt,
-    prompt:
-      `Explain this build error and propose a fix: ` +
-      `${d.code ?? ""} ${d.title} at ${d.file}:${d.line}`,
+    prompt: [
+      "Explain this build error and propose a fix:",
+      d.code,
+      d.title,
+      d.file && `at ${d.file}${d.line ? `:${d.line}` : ""}`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+};
+
+/**
+ * The card for a failure the parser could not split into diagnostics: it
+ * sends the compiler's whole output to the assistant.
+ */
+const unparsedView = (stderr: string): DiagnosticView => ({
+  code: null,
+  title: "Unparsed compiler error",
+  explanation:
+    "The compiler reported an error without a parseable diagnostic; see raw output.",
+  label: null,
+  file: null,
+  lines: null,
+  excerpt: "",
+  prompt: "Explain this build failure and propose a fix:\n" + stderr,
+});
+
+/** What the failed Build surface draws */
+export interface FailedView {
+  /** One card per error, in rustc's order; never empty */
+  diagnostics: DiagnosticView[];
+  /** How many errors to name, `null` when nothing counted any */
+  errorCount: number | null;
+  /** The compiler's output, for the toggle under the errors */
+  raw: string;
+}
+
+/**
+ * A failed build as the stage shows it. `stepperCount` is `countErrors`'
+ * figure, the stepper badge's: rustc output the parser cannot split still
+ * leaves the badge with a count, so the surface names that count rather than
+ * "0 errors" beside output that says otherwise; when neither counted any, it
+ * names none.
+ */
+export const failedView = (
+  stderr: string,
+  stepperCount: number,
+  readFile: (path: string) => string | null
+): FailedView => {
+  const report = parseBuildReport(stderr);
+  const parsed = report.diagnostics.map((d) =>
+    diagnosticView(d, d.file ? readFile(d.file) : null)
+  );
+  return {
+    diagnostics: parsed.length ? parsed : [unparsedView(stderr)],
+    errorCount: parsed.length || stepperCount || null,
+    raw: report.raw,
   };
 };
 
@@ -90,8 +145,8 @@ export const msLabel = (ms: number | null) =>
   ms === null ? null : `${(ms / 1000).toFixed(1)}s`;
 
 /** A failed build's figures: `2 errors · 2.9s · api.solpg.io` */
-export const errorMeta = (n: number, ms: number | null, host: string) =>
-  [`${n} error${n === 1 ? "" : "s"}`, msLabel(ms), host]
+export const errorMeta = (n: number | null, ms: number | null, host: string) =>
+  [n && `${n} error${n === 1 ? "" : "s"}`, msLabel(ms), host]
     .filter(Boolean)
     .join(" · ");
 

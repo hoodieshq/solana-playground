@@ -38,23 +38,22 @@ import {
 } from "@/shared/ui/stage-empty";
 import { errorMeta, msLabel, warningCount } from "./build-view";
 import type { BuildSurface } from "./build-surface";
-import type { DiagnosticView } from "./build-view";
+import type { DiagnosticView, FailedView } from "./build-view";
 import { STAGE_BODY, STAGE_FOOT, STAGE_FRAME } from "./stage-layout";
 
+/** A Build surface with what it draws: the failed one carries its errors */
+export type BuildSurfaceView =
+  | Exclude<BuildSurface, { kind: "failed" }>
+  | ({ kind: "failed" } & FailedView);
+
 export interface BaseBuildProps {
-  surface: BuildSurface;
+  surface: BuildSurfaceView;
   /** A build is running; the surface stays, its action waits */
   building: boolean;
   /** The build server's host, for naming it */
   host: string;
   /** The last build's duration, `null` while unknown */
   ms: number | null;
-  /** The failed surface's errors, in rustc's order */
-  diagnostics: DiagnosticView[];
-  /** The failed surface's count: the stepper's when none could be parsed */
-  errorCount: number;
-  /** The compiler's output, for the toggle under the errors */
-  raw: string;
   onBuild: () => unknown;
   onContinue: () => void;
   onExport: () => unknown;
@@ -189,17 +188,22 @@ const Succeeded = (p: BaseBuildProps) => (
   />
 );
 
-/** One compiler error. Only the first one's fix is the brand button */
+/**
+ * One compiler error. A screen has one brand action, so only the first
+ * error's fix takes it; the rest are outlined.
+ */
 const ErrorCard = ({
   view,
-  first,
-  p,
+  fix,
+  onFix,
+  onOpenFile,
 }: {
   view: DiagnosticView;
-  first: boolean;
-  p: BaseBuildProps;
+  fix: "brand" | "outline";
+  onFix: (prompt: string) => void;
+  onOpenFile: (path: string) => void;
 }) => {
-  const fix = () => p.onFix(view.prompt);
+  const sendFix = () => onFix(view.prompt);
   const file = view.file;
   return (
     <Diagnostic>
@@ -214,34 +218,32 @@ const ErrorCard = ({
       {(view.lines || view.excerpt) && (
         <DiagnosticSource>
           {view.lines
-            ? view.lines.map((line) => {
-                const fault =
-                  line.failing && view.label ? view.label : undefined;
-                return (
-                  <DiagnosticLine
-                    key={line.num}
-                    number={line.num}
-                    fault={fault}
-                  >
-                    {line.text}
-                  </DiagnosticLine>
-                );
-              })
+            ? view.lines.map((line) => (
+                // The mark is the fault's text, so a line rustc gave no
+                // label still needs one: the error's own title
+                <DiagnosticLine
+                  key={line.num}
+                  number={line.num}
+                  fault={line.failing ? view.label ?? view.title : undefined}
+                >
+                  {line.text}
+                </DiagnosticLine>
+              ))
             : view.excerpt}
         </DiagnosticSource>
       )}
       <DiagnosticFooter>
-        {first ? (
-          <BrandButton size="sm" onClick={fix}>
+        {fix === "brand" ? (
+          <BrandButton size="sm" onClick={sendFix}>
             Fix with assistant
           </BrandButton>
         ) : (
-          <Button size="sm" variant="outline" onClick={fix}>
+          <Button size="sm" variant="outline" onClick={sendFix}>
             Fix with assistant
           </Button>
         )}
         {file && (
-          <Button size="sm" variant="ghost" onClick={() => p.onOpenFile(file)}>
+          <Button size="sm" variant="ghost" onClick={() => onOpenFile(file)}>
             Open in editor
           </Button>
         )}
@@ -272,7 +274,7 @@ const CompilerOutput = ({ raw }: { raw: string }) => {
   );
 };
 
-const Failed = (p: BaseBuildProps & { stderr: string }) => (
+const Failed = (p: BaseBuildProps & FailedView) => (
   <Surface
     icon={<CircleX className="text-error" />}
     title="Build failed"
@@ -280,26 +282,14 @@ const Failed = (p: BaseBuildProps & { stderr: string }) => (
     actions={<BuildButton p={p} label="Rebuild" variant="outline" />}
   >
     <div className="flex w-full flex-col gap-3.5">
-      {p.diagnostics.length === 0 && (
-        <ErrorCard
-          first
-          p={p}
-          view={{
-            code: null,
-            title: "Unparsed compiler error",
-            explanation:
-              "The compiler reported an error without a parseable diagnostic; see raw output.",
-            label: null,
-            file: null,
-            lines: null,
-            excerpt: "",
-            prompt:
-              "Explain this build failure and propose a fix:\n" + p.stderr,
-          }}
-        />
-      )}
       {p.diagnostics.map((view, i) => (
-        <ErrorCard key={i} view={view} first={i === 0} p={p} />
+        <ErrorCard
+          key={i}
+          view={view}
+          fix={i === 0 ? "brand" : "outline"}
+          onFix={p.onFix}
+          onOpenFile={p.onOpenFile}
+        />
       ))}
       <CompilerOutput raw={p.raw} />
     </div>
@@ -319,7 +309,14 @@ const BaseBuild = (p: BaseBuildProps) => {
     case "succeeded":
       return <Succeeded {...p} />;
     case "failed":
-      return <Failed {...p} stderr={s.stderr} />;
+      return (
+        <Failed
+          {...p}
+          diagnostics={s.diagnostics}
+          errorCount={s.errorCount}
+          raw={s.raw}
+        />
+      );
   }
 };
 

@@ -1,6 +1,7 @@
 import {
   diagnosticView,
   errorMeta,
+  failedView,
   extractLabel,
   sourceLines,
   warningCount,
@@ -37,6 +38,20 @@ describe("sourceLines", () => {
 
   it("has nothing past the end of the file", () => {
     expect(sourceLines(diagnosticAt("src/lib.rs", 99), FILE)).toBeNull();
+  });
+
+  it("starts at the file's first line", () => {
+    expect(sourceLines(diagnosticAt("src/lib.rs", 1), FILE)).toEqual([
+      { num: 1, text: "a", failing: true },
+      { num: 2, text: "b", failing: false },
+    ]);
+  });
+
+  it("ends at the file's last line", () => {
+    expect(sourceLines(diagnosticAt("src/lib.rs", 6), FILE)).toEqual([
+      { num: 5, text: '    let x: u32 = "no";', failing: false },
+      { num: 6, text: "f", failing: true },
+    ]);
   });
 
   it("has nothing without a location", () => {
@@ -82,11 +97,64 @@ describe("diagnosticView", () => {
   });
 });
 
+describe("diagnosticView without a location", () => {
+  it("asks about the error alone", () => {
+    expect(diagnosticView(diagnosticAt(null, null), null).prompt).toBe(
+      "Explain this build error and propose a fix: E0308 mismatched types"
+    );
+  });
+});
+
+const PARSED = [
+  "error[E0308]: mismatched types",
+  " --> src/lib.rs:5:9",
+  "  |",
+  EXCERPT,
+  "",
+  "error: could not compile `p` (lib) due to 1 previous error",
+].join("\n");
+
+describe("failedView", () => {
+  const readNothing = () => null;
+
+  it("draws one card per parsed error and counts them", () => {
+    const view = failedView(PARSED, 7, readNothing);
+    expect(view.diagnostics).toHaveLength(1);
+    expect(view.errorCount).toBe(1);
+  });
+
+  it("reads each error's file for its lines", () => {
+    const view = failedView(PARSED, 1, (path) =>
+      path === "src/lib.rs" ? FILE : null
+    );
+    expect(view.diagnostics[0].lines).toHaveLength(3);
+  });
+
+  /** The stepper's badge counted errors the parser could not split */
+  it("keeps the stepper's count when nothing could be parsed", () => {
+    const view = failedView("boom", 2, readNothing);
+    expect(view.errorCount).toBe(2);
+    expect(view.diagnostics).toHaveLength(1);
+    expect(view.diagnostics[0].title).toBe("Unparsed compiler error");
+    expect(view.diagnostics[0].prompt).toBe(
+      "Explain this build failure and propose a fix:\nboom"
+    );
+  });
+
+  it("claims no count when neither side has one", () => {
+    expect(failedView("boom", 0, readNothing).errorCount).toBeNull();
+  });
+});
+
 describe("errorMeta", () => {
   it("names the count, time and host", () => {
     expect(errorMeta(2, 2900, "api.solpg.io")).toBe(
       "2 errors · 2.9s · api.solpg.io"
     );
+  });
+
+  it("leaves out a count it does not know", () => {
+    expect(errorMeta(null, 2900, "h")).toBe("2.9s \u00b7 h");
   });
 
   it("leaves out a time it does not know", () => {
