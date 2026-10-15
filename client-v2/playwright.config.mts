@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
-import { decideDevServer } from "./scripts/dev-server-owner.mjs";
+import {
+  DevServerRefusal,
+  decideDevServer,
+} from "./scripts/dev-server-owner.mjs";
 
 // `craco start` binds `PORT`, so the same variable picks the server the run
 // uses. Locally, give each worktree its own (docs/testing.md section 8).
@@ -15,10 +18,17 @@ const devServerDecision = (): "start" | "reuse" => {
   if (process.env.CI) return "start";
   const cached = process.env[DEV_SERVER_DECISION_ENV];
   if (cached === "start" || cached === "reuse") return cached;
-  // Throws, before any test, for a port held by another worktree's server.
-  const decision = decideDevServer({ port, root: import.meta.dirname });
-  process.env[DEV_SERVER_DECISION_ENV] = decision;
-  return decision;
+  try {
+    const decision = decideDevServer({ port, root: import.meta.dirname });
+    process.env[DEV_SERVER_DECISION_ENV] = decision;
+    return decision;
+  } catch (error) {
+    if (!(error instanceof DevServerRefusal)) throw error;
+    // The message is the whole answer; a stack trace would bury it. Exiting
+    // here stops the run before any test.
+    console.error(error.message);
+    process.exit(1);
+  }
 };
 const decision = devServerDecision();
 

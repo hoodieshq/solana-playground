@@ -8,8 +8,10 @@ import { test } from "node:test";
 
 import {
   DEV_SERVER_ROOT_HEADER,
+  DevServerRefusal,
   decideDevServer,
   foreignServerMessage,
+  silentServerMessage,
   whoseServer,
   whoseServerSync,
 } from "./dev-server-owner.mjs";
@@ -103,11 +105,11 @@ test("a server without the header is foreign, root unknown", async (t) => {
   });
 });
 
-test("a server that never answers is foreign, root unknown", async (t) => {
+test("a server that never answers is silent, not foreign", async (t) => {
   const port = await serve(t, () => {});
   assert.deepEqual(await whoseServer({ port, root: ROOT, timeoutMs: 200 }), {
-    kind: "foreign",
-    root: null,
+    kind: "silent",
+    timeoutMs: 200,
   });
 });
 
@@ -149,4 +151,31 @@ test("foreignServerMessage with an unknown root says it is no dev server of this
   assert.match(message, /3000/);
   assert.match(message, /not a client-v2 dev server of this worktree/);
   assert.match(message, /PORT=/);
+});
+
+test("silentServerMessage says the server did not answer in time and how to go on", () => {
+  const message = silentServerMessage({ port: 3000, timeoutMs: 15000 });
+  assert.match(message, /3000/);
+  assert.match(message, /did not answer within 15 s/);
+  assert.match(message, /busy compiling/);
+  assert.match(message, /PORT=/);
+});
+
+test("decideDevServer refuses a silent server with a DevServerRefusal", async (t) => {
+  const port = await serve(t, () => {});
+  assert.throws(
+    () => decideDevServer({ port, root: ROOT, timeoutMs: 300 }),
+    (error) =>
+      error instanceof DevServerRefusal &&
+      error.message.includes("did not answer") &&
+      error.message.includes(String(port))
+  );
+});
+
+test("a foreign server is refused with a DevServerRefusal too", async (t) => {
+  const port = await serveInChild(t, OTHER_ROOT);
+  assert.throws(
+    () => decideDevServer({ port, root: ROOT }),
+    (error) => error instanceof DevServerRefusal
+  );
 });
