@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Outlet } from "@/shared/lib/outlet";
+import { BOTTOM_BAR_PX } from "@/views/flow/tokens";
 import { Button } from "@/shared/ui/button";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
@@ -227,10 +228,13 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
         )}
         <Outlet
           node={props.consoleNode}
+          // Closed, the console is its bar: the body stays mounted (the
+          // terminal keeps its buffer) and is clipped, as on wide
           className={cn(
             "flex min-h-0 flex-col",
-            props.consoleOpen ? "h-2/5" : "h-auto"
+            props.consoleOpen ? "h-2/5" : "overflow-hidden"
           )}
+          style={props.consoleOpen ? undefined : { height: BOTTOM_BAR_PX }}
         />
       </section>
       <Sheet open={props.filesOpen} onOpenChange={props.onFilesOpenChange}>

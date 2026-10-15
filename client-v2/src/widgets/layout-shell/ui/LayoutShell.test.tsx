@@ -964,6 +964,10 @@ describe("on a phone", () => {
   const button = (name: string) => screen.getByRole("button", { name });
   const isChecked = (name: string) =>
     screen.getByRole("radio", { name }).getAttribute("aria-checked");
+  const escapeSheet = () =>
+    fireEvent.keyDown(document.querySelector('[data-slot="sheet-content"]')!, {
+      key: "Escape",
+    });
   const savedBefore = () => {
     localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
     return localStorage.getItem(LAYOUT_STORAGE_KEY);
@@ -971,7 +975,7 @@ describe("on a phone", () => {
   /** The outlet's box, which carries the page's sizing classes */
   const boxOf = (el: Element) => el.closest("div[class*='flex']")!;
   const consoleBox = () =>
-    consoleButton().closest("[class~='h-2/5'], [class~='h-auto']")!;
+    consoleButton().closest("[class~='h-2/5'], [class~='overflow-hidden']")!;
 
   it("lands on the work page showing the code", () => {
     phoneShell();
@@ -1051,6 +1055,7 @@ describe("on a phone", () => {
   it("opens the console on a deploy, for the visit and unsaved", () => {
     phoneShell();
     expect(consoleBox().classList.contains("h-2/5")).toBe(false);
+    expect((consoleBox() as HTMLElement).style.height).toBe("28px");
     act(() => deploy.starts.forEach((cb) => cb(null)));
     expect(consoleBox().classList.contains("h-2/5")).toBe(true);
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
@@ -1101,7 +1106,11 @@ describe("on a phone", () => {
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
     press({ key: "j", ctrlKey: true });
     expect(consoleBox().classList.contains("h-2/5")).toBe(true);
-    expect(toggled()).toEqual([]);
+    expect(toggled()).toEqual([
+      { panel: "files", open: true, via: "key" },
+      { panel: "files", open: false, via: "key" },
+      { panel: "console", open: true, via: "key" },
+    ]);
   });
 
   it("writes nothing to the saved layout on a visit", () => {
@@ -1111,9 +1120,65 @@ describe("on a phone", () => {
     press({ key: "e", metaKey: true });
     press({ key: "j", ctrlKey: true });
     press({ key: "r", ctrlKey: true });
+    fireEvent.click(consoleButton());
+    fireEvent.click(button("Files"));
+    escapeSheet();
     fireEvent.click(button("Preview the build"));
     fireEvent.click(button("Back to the code"));
     fireEvent.click(button("Menu"));
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(before);
+  });
+
+  it("reports the console and the Files sheet, with what did it", () => {
+    phoneShell();
+    fireEvent.click(consoleButton());
+    press({ key: "j", ctrlKey: true });
+    act(() => deploy.starts.forEach((cb) => cb(null)));
+    fireEvent.click(button("Files"));
+    press({ key: "e", metaKey: true });
+    press({ key: "e", metaKey: true });
+    escapeSheet();
+    fireEvent.click(button("Files"));
+    escapeSheet();
+    expect(toggled()).toEqual([
+      { panel: "console", open: true, via: "button" },
+      { panel: "console", open: false, via: "key" },
+      { panel: "console", open: true, via: "auto" },
+      { panel: "files", open: true, via: "button" },
+      { panel: "files", open: false, via: "key" },
+      { panel: "files", open: true, via: "key" },
+      { panel: "files", open: false, via: "button" },
+      { panel: "files", open: true, via: "button" },
+      { panel: "files", open: false, via: "button" },
+    ]);
+  });
+
+  it("folds the console to its bar and opens it to a share of the page", () => {
+    phoneShell();
+    expect((consoleBox() as HTMLElement).style.height).toBe("28px");
+    expect(consoleBox().classList.contains("overflow-hidden")).toBe(true);
+    fireEvent.click(consoleButton());
+    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
+    expect((consoleBox() as HTMLElement).style.height).toBe("");
+  });
+
+  it("brings Work into view when Ctrl+R switches the view from the preview", () => {
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    press({ key: "r", ctrlKey: true });
+    expect(events("layout_page_shown").at(-1)).toEqual({
+      page: "work",
+      via: "auto",
+    });
+    expect(events("layout_work_view")).toEqual([{ view: "chat", via: "key" }]);
+  });
+
+  it("opens the preview on the last stage a wide window showed", () => {
+    shell();
+    act(() => PgFlow.setStage("deploy"));
+    act(() => PgFlow.setStage("write"));
+    act(() => resizeTo(390));
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("deploy");
   });
 });

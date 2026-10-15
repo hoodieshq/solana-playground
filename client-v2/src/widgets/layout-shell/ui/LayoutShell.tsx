@@ -80,6 +80,10 @@ const LayoutShell = ({
   // Held in state, not read off `PgFlow.state`, so a stage change re-renders
   const [flowStage, setFlowStage] = useState(PgFlow.state.stage);
   const lastPreview = useRef<PreviewStage>("build");
+  // Mirror `filesOpen` and `phoneConsole` for the keys, which can fire twice
+  // in a tick and for the subscriptions, which outlive renders
+  const filesNow = useRef(false);
+  const phoneConsoleNow = useRef(false);
   // The subscriptions below outlive renders, so they read these
   const pageRef = useRef(page);
   pageRef.current = page;
@@ -161,6 +165,27 @@ const LayoutShell = ({
     const toStage = stageForPage(next, PgFlow.state.stage, lastPreview.current);
     if (toStage) PgFlow.setStage(toStage);
   };
+  // The phone's Files sheet and console are the visit's: reported, never saved
+  const setPhoneFiles = (open: boolean, via: ToggleSource) => {
+    if (filesNow.current === open) return;
+    filesNow.current = open;
+    setFilesOpen(open);
+    layoutTelemetry.track("layout_panel_toggled", {
+      panel: "files",
+      open,
+      via,
+    });
+  };
+  const setPhoneConsoleOpen = (open: boolean, via: ToggleSource) => {
+    if (phoneConsoleNow.current === open) return;
+    phoneConsoleNow.current = open;
+    setPhoneConsole(open);
+    layoutTelemetry.track("layout_panel_toggled", {
+      panel: "console",
+      open,
+      via,
+    });
+  };
   const showView = (next: WorkView, via: "button" | "key" | "auto") => {
     if (viewRef.current === next) return;
     viewRef.current = next;
@@ -172,8 +197,10 @@ const LayoutShell = ({
   useEffect(() => {
     const sub = PgFlow.onDidChange((flow) => {
       setFlowStage(flow.stage);
-      if (!phone) return;
+      // Kept off the phone too: the Preview a phone opens on is the last stage
+      // shown, wherever it was shown
       if (flow.stage !== "write") lastPreview.current = flow.stage;
+      if (!phone) return;
       const next = pageForStage(flow.stage, pageRef.current);
       if (next) showPage(next, "auto");
     });
@@ -185,7 +212,7 @@ const LayoutShell = ({
   // Files closes when a file opens in it
   useEffect(() => {
     if (!phone) return;
-    const sub = PgExplorer.onDidOpenFile(() => setFilesOpen(false));
+    const sub = PgExplorer.onDidOpenFile(() => setPhoneFiles(false, "auto"));
     return () => sub.dispose();
   }, [phone]);
 
@@ -195,13 +222,14 @@ const LayoutShell = ({
     if (phone) {
       const source = via === "auto" ? "auto" : "button";
       showPage("work", source);
+      // A drag only resizes the wide panel, so none reaches a phone
       showView(open ? "chat" : "code", via === "drag" ? "button" : via);
     } else if (viewport === "wide") setOpen("assistant", { open, via });
     else setSheet(open, via);
   };
   /** The console opening on its own: the visit's on a phone, else saved */
   const openConsole = () => {
-    if (phone) setPhoneConsole(true);
+    if (phone) setPhoneConsoleOpen(true, "auto");
     else setOpen("console", { open: true, via: "auto" });
   };
 
@@ -209,15 +237,18 @@ const LayoutShell = ({
   useKeybind(
     "Ctrl+R",
     () => {
-      if (phone) showView(view === "chat" ? "code" : "chat", "key");
-      else setAssistant(!assistantShown, "key");
+      if (phone) {
+        // The view is shown on Work: bring it into view first
+        showPage("work", "auto");
+        showView(view === "chat" ? "code" : "chat", "key");
+      } else setAssistant(!assistantShown, "key");
     },
     [viewport, assistantShown, view]
   );
   useKeybind(
     "Ctrl+J",
     () => {
-      if (phone) setPhoneConsole((open) => !open);
+      if (phone) setPhoneConsoleOpen(!phoneConsoleNow.current, "key");
       else setOpen("console", { open: !state.open.console, via: "key" });
     },
     [viewport, state.open.console]
@@ -251,7 +282,7 @@ const LayoutShell = ({
         ev.preventDefault();
         // The phone's files are its own Sheet, not the navigation's
         if (phone) {
-          setFilesOpen((open) => !open);
+          setPhoneFiles(!filesNow.current, "key");
           return;
         }
         navVia.current = "key";
@@ -446,7 +477,7 @@ const LayoutShell = ({
         title: PgExplorer.currentWorkspaceName ?? "",
         file,
         filesOpen,
-        onFilesOpenChange: setFilesOpen,
+        onFilesOpenChange: (open) => setPhoneFiles(open, "button"),
         stageOn: flowStage === "write" ? "work" : "preview",
         consoleOpen: phoneConsole,
       }}
@@ -454,8 +485,10 @@ const LayoutShell = ({
       stage={stage}
       console={console({
         open: phone ? phoneConsole : state.open.console,
-        toggle: () =>
-          setOpen("console", { open: !state.open.console, via: "button" }),
+        toggle: () => {
+          if (phone) setPhoneConsoleOpen(!phoneConsoleNow.current, "button");
+          else setOpen("console", { open: !state.open.console, via: "button" });
+        },
       })}
       assistant={assistant({
         open: assistantShown,

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -29,9 +29,11 @@ export const OutletContent = ({
 export const Outlet = ({
   node,
   className,
+  style,
 }: {
   node: HTMLDivElement;
   className?: string;
+  style?: CSSProperties;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -42,5 +44,5 @@ export const Outlet = ({
       if (node.parentNode === host) host.removeChild(node);
     };
   }, [node]);
-  return <div ref={ref} className={className} />;
+  return <div ref={ref} className={className} style={style} />;
 };
