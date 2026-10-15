@@ -65,7 +65,7 @@ const Build = () => {
       onExport={() => PgFramework.exportWorkspace()}
       onFix={(prompt) => PgAssistant.requestPrompt(prompt)}
       onOpenFile={(path) => PgExplorer.openFile(path)}
-      idlActions={<IdlActions showGenerate />}
+      idlActions={<IdlActions mode="download" />}
     />
   );
 };

@@ -91,7 +91,7 @@ const Deploy = () => {
         PgCommand.deploy.execute().catch(reportButtonFailure);
       }}
       onInteract={() => PgFlow.setStage("interact")}
-      idlDrop={<IdlActions showUpload />}
+      idlDrop={<IdlActions mode="drop" />}
     />
   );
 };
