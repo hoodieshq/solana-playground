@@ -98,6 +98,8 @@ const Wrapper = styled.div`
   ${({ theme }) => css`
     ${PgTheme.convertToCSS(theme.components.terminal.default)};
 
+    /* Same ground as xterm's background, so the padding around the rows
+       matches the screen */
     background: var(--surface-well);
 
     & .xterm {

@@ -5,8 +5,9 @@ import { parseBuildReport } from "../stages/build-report";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { FlowState } from "../state/stage";
 
-/** Visual weight for the collapsed console handle's status text. Each tone is
- * a `StatusDot` variant, so tsc fails here if the dot drops one. */
+/** Which `StatusDot` variant the console strip shows, and whether its text
+ * reads as an error. Each tone is a `StatusDot` variant, so tsc fails here if
+ * the dot drops one. */
 export type ConsoleStatusTone = Extract<
   NonNullable<VariantProps<typeof statusDotVariants>["variant"]>,
   "idle" | "running" | "success" | "error"
@@ -24,7 +25,7 @@ const buildTime = (ms: number | null) =>
   ms === null ? null : `${(ms / 1000).toFixed(1)}s`;
 
 /**
- * The collapsed console handle's status line, derived from `PgFlow.state`
+ * The console strip's status line, derived from `PgFlow.state`
  * plus (only on a failed build) the first diagnostic code out of
  * `PgBuildOutput.latest` via `parseBuildReport`.
  *

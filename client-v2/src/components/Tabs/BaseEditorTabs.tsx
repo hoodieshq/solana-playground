@@ -38,6 +38,8 @@ const moveFocus = (ev: KeyboardEvent<HTMLDivElement>) => {
   triggers[move(from, triggers.length)].focus();
 };
 
+/** Tab row: the tabs scroll sideways inside it (scrollbar hidden), and `end`
+ * stays pinned beside them. */
 export const BaseEditorTabs = ({ id, children, end }: BaseEditorTabsProps) => (
   <div
     id={id}

@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
+import { BOTTOM_BAR_PX } from "../tokens";
 import BaseConsoleDrawer from "./BaseConsoleDrawer";
 
 const idle = { text: "", tone: "idle" as const };
@@ -65,4 +68,16 @@ it("shows the status text with a dot of its tone", () => {
       .querySelector('[data-slot="status-dot"]')
       ?.getAttribute("data-variant")
   ).toBe("error");
+});
+
+// The shell folds the panel to `BOTTOM_BAR_PX`; the bar draws itself `h-bar`
+// tall, from the design system's `--layout-bar`
+it("draws the bar exactly as tall as the folded panel", () => {
+  const tokens = fs.readFileSync(
+    path.join(__dirname, "../../../app/styles/playground-tokens.css"),
+    "utf8"
+  );
+  const bar = /--layout-bar:\s*([\d.]+)rem;/.exec(tokens);
+  expect(bar).not.toBeNull();
+  expect(parseFloat(bar![1]) * 16).toBe(BOTTOM_BAR_PX);
 });

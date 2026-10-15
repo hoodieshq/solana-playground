@@ -7,8 +7,10 @@ type XtermStyles = Theme["components"]["terminal"]["xterm"];
 /**
  * xterm's colours from the theme. xterm paints on its own and cannot read
  * CSS variables, so every value goes through `resolve` (`resolveColor` in
- * the app) against the current `<html>`. The ground and the cursor come
- * from the design system (the console well and its green), not the theme.
+ * the app) against the current `<html>`. The ground is the console well
+ * (`--surface-well`) and the cursor is `--success`, both from the design
+ * system rather than the theme's `terminal.xterm` block, whose `cursor.color`
+ * and `cursor.accentColor` are therefore inert.
  */
 export const xtermTheme = (
   xterm: XtermStyles,

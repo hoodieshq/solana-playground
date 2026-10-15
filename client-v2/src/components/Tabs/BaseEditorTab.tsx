@@ -1,9 +1,4 @@
-import {
-  ComponentPropsWithoutRef,
-  forwardRef,
-  MouseEvent,
-  ReactNode,
-} from "react";
+import { ComponentPropsWithoutRef, forwardRef, ReactNode } from "react";
 
 import {
   EditorTab,
@@ -55,12 +50,6 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
     },
     ref
   ) => {
-    const close = (ev: MouseEvent<HTMLButtonElement>) => {
-      // The tab must not be selected first
-      ev.stopPropagation();
-      onClose();
-    };
-
     return (
       <EditorTab
         ref={ref}
@@ -88,7 +77,7 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
         <EditorTabClose
           aria-label={`Close ${name}`}
           title="Close (Alt+W)"
-          onClick={close}
+          onClick={onClose}
           // The drag sensor listens for mousedown on the root
           onMouseDown={(ev) => ev.stopPropagation()}
         />

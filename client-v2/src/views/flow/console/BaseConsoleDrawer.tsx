@@ -26,7 +26,9 @@ interface BaseConsoleDrawerProps {
  * The console under the stage, drawn from the design system's drawer. The
  * layout shell owns its height (folded, it is `BOTTOM_BAR_PX` tall: the
  * strip alone) and the shortcut, so the drawer's own hotkey is off and the
- * well fills whatever height the panel has.
+ * well fills whatever height the panel has. The bar's `h-bar` is the design
+ * system's `--layout-bar` (1.75rem) and must equal `BOTTOM_BAR_PX` (28), or
+ * the folded panel cuts the bar or leaves a gap under it.
  */
 const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
   open,

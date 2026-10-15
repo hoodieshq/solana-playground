@@ -48,8 +48,8 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
     {
       path,
       index,
-      // The sortable also hands over its own bookkeeping (`Item`, `id`, and
-      // `sortable` on the drag overlay); none of it belongs on a DOM node
+      // Props `Dnd.Sortable` spreads into every item (`Item`, `id`, and
+      // `sortable` on the overlay) that are not DOM attributes
       Item: _Item,
       sortable: _sortable,
       id: _id,

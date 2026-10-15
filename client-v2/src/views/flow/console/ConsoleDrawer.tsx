@@ -19,9 +19,9 @@ interface ConsoleDrawerProps {
 
 /**
  * The console at the bottom of the centre column. The layout shell folds its
- * panel to the handle's height (`BOTTOM_BAR_PX`, which both read) rather
- * than unmounting it, so the xterm buffer (scrollback, running process)
- * survives while it is closed.
+ * panel to the bar's height (`BOTTOM_BAR_PX`) rather than unmounting it, so
+ * the xterm buffer (scrollback, running process) survives while it is
+ * closed.
  */
 const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
   const [status, setStatus] = useState<ConsoleStatus>(() =>
