@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ChevronDown, ChevronLeft, Folder, Menu, Play } from "lucide-react";
+import { ChevronDown, ChevronLeft, Folder, Menu, Play, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -117,9 +117,19 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     >
       <section
         aria-label="Navigation"
-        className="flex h-full w-full shrink-0 snap-start flex-col overflow-y-auto"
+        className="flex h-full w-full shrink-0 snap-start flex-col"
       >
-        {props.menu}
+        <PhoneBar>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Close the menu"
+            onClick={() => props.onGo("work")}
+          >
+            <X />
+          </Button>
+        </PhoneBar>
+        <div className="min-h-0 flex-1 overflow-y-auto">{props.menu}</div>
       </section>
       <section
         aria-label="Work"

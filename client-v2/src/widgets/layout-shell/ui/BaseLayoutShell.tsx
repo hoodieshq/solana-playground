@@ -67,13 +67,11 @@ const SIDEBAR_STYLE = {
 
 /**
  * Same variants as `shared/ui/sheet`'s own `data-[side=right]:w-3/4
- * data-[side=right]:sm:max-w-sm`: an unprefixed `w-full` loses to them
+ * data-[side=right]:sm:max-w-sm`: an unprefixed width loses to them. The
+ * assistant's Sheet is only in the frame (`compact`); the phone is the pager.
  */
-const SHEET_WIDTH: Record<Exclude<Viewport, "wide">, string> = {
-  compact:
-    "data-[side=right]:w-[21.75rem] data-[side=right]:sm:max-w-[21.75rem]",
-  phone: "data-[side=right]:w-full data-[side=right]:sm:max-w-full",
-};
+const ASSISTANT_SHEET_WIDTH =
+  "data-[side=right]:w-[21.75rem] data-[side=right]:sm:max-w-[21.75rem]";
 
 export interface PanelState {
   open: boolean;
@@ -717,7 +715,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                     side="right"
                     showCloseButton={false}
                     aria-describedby={undefined}
-                    className={cn("p-0", SHEET_WIDTH[props.viewport])}
+                    className={cn("p-0", ASSISTANT_SHEET_WIDTH)}
                     style={props.sheetFont}
                   >
                     <SheetTitle className="sr-only">Assistant</SheetTitle>

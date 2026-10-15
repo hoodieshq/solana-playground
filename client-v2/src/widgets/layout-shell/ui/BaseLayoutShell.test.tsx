@@ -139,7 +139,7 @@ interface PropsChoice {
 
 /**
  * "sheet" is a window the stock Sidebar holds as a Sheet but the shell still
- * lays out as a frame (720 to 767 px): `compact`, below the left line. A real
+ * lays out as a frame (from `LAYOUT_BREAKPOINTS.phone` up to the left line): `compact`, below the left line. A real
  * `phone` is the pager.
  */
 type TestViewport = BaseLayoutShellProps["viewport"] | "sheet";

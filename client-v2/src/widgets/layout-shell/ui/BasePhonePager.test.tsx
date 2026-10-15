@@ -88,7 +88,7 @@ it("has three pages, the work page in view, with a 60 px bar each", () => {
   for (const name of ["Navigation", "Work", "Preview"]) {
     expect(screen.getByRole("region", { name })).toBeTruthy();
   }
-  expect(screen.getAllByTestId("phone-bar")).toHaveLength(2);
+  expect(screen.getAllByTestId("phone-bar")).toHaveLength(3);
   expect(screen.getByTestId("phone-pager").scrollLeft).toBe(390);
 });
 
@@ -168,4 +168,11 @@ it("shows the stage on the page it is on", () => {
       "stage-probe"
     )
   ).toBeTruthy();
+});
+
+it("closes the menu back to the work page", async () => {
+  const onGo = vi.fn();
+  renderPager({ page: "menu", onGo });
+  await userEvent.click(screen.getByRole("button", { name: "Close the menu" }));
+  expect(onGo).toHaveBeenLastCalledWith("work");
 });
