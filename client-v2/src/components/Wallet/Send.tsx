@@ -8,7 +8,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleHeading,
 } from "@/shared/ui/collapsible";
 import {
   PgCommon,
@@ -23,10 +23,10 @@ import { useBalance, useKeybind } from "../../hooks";
 const Send = () => (
   <Wrapper>
     <Collapsible>
-      <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+      <CollapsibleHeading>
         <CollapsibleChevron />
         <Title>Send</Title>
-      </CollapsibleTrigger>
+      </CollapsibleHeading>
       <CollapsibleContent className="mt-2">
         <SendExpanded />
       </CollapsibleContent>
@@ -40,7 +40,7 @@ const Wrapper = styled.div`
   `}
 `;
 
-const Title = styled.div`
+const Title = styled.span`
   ${({ theme }) => css`
     ${PgTheme.convertToCSS(theme.components.wallet.main.send.title)};
   `}

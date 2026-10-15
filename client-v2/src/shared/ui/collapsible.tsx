@@ -30,6 +30,26 @@ function CollapsibleContent({
   );
 }
 
+/* A trigger dressed as a fold heading: bold, muted text that brightens on
+   hover and while open, shrink-wrapped, not selectable, with a visible focus
+   outline. Pair it with CollapsibleChevron. CollapsibleTrigger stays unstyled
+   for any other use. */
+function CollapsibleHeading({
+  className,
+  ...props
+}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleTrigger>) {
+  return (
+    <CollapsiblePrimitive.CollapsibleTrigger
+      data-slot="collapsible-heading"
+      className={cn(
+        "flex w-fit cursor-pointer items-center gap-1 font-bold text-muted-foreground select-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:text-foreground",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
 /* The fold's mark: points right when closed, down when open. Put it inside
    a CollapsibleTrigger. */
 function CollapsibleChevron({
@@ -52,6 +72,7 @@ function CollapsibleChevron({
 export {
   Collapsible,
   CollapsibleTrigger,
+  CollapsibleHeading,
   CollapsibleContent,
   CollapsibleChevron,
 };

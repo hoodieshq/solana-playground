@@ -8,7 +8,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleHeading,
 } from "@/shared/ui/collapsible";
 import SearchBar from "../../../../../components/SearchBar";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
@@ -110,10 +110,10 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
       {(fetchedData || fetchError) && (
         <ResultWrapper>
           <Collapsible open={resultOpen} onOpenChange={setResultOpen}>
-            <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+            <CollapsibleHeading>
               <CollapsibleChevron />
               Result
-            </CollapsibleTrigger>
+            </CollapsibleHeading>
             <CollapsibleContent className="mt-2">
               <SpinnerWithBg loading={fetchOneLoading || fetchAllLoading}>
                 {fetchError ? (

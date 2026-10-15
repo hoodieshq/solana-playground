@@ -5,7 +5,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleHeading,
 } from "@/shared/ui/collapsible";
 
 interface InteractionProps {
@@ -20,10 +20,10 @@ const Interaction: FC<React.PropsWithChildren<InteractionProps>> = ({
 }) => (
   <Wrapper index={index}>
     <Collapsible>
-      <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+      <CollapsibleHeading>
         <CollapsibleChevron />
         {name}
-      </CollapsibleTrigger>
+      </CollapsibleHeading>
       <CollapsibleContent className="mt-2">{children}</CollapsibleContent>
     </Collapsible>
   </Wrapper>

@@ -8,7 +8,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleHeading,
 } from "@/shared/ui/collapsible";
 import { Emoji } from "../../../../../constants";
 import {
@@ -152,10 +152,10 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
         <ArgsAndAccountsWrapper>
           {instruction.values.args.length > 0 && (
             <Collapsible defaultOpen>
-              <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+              <CollapsibleHeading>
                 <CollapsibleChevron />
                 Args
-              </CollapsibleTrigger>
+              </CollapsibleHeading>
               <CollapsibleContent className="mt-2">
                 <InstructionInputsWrapper>
                   {instruction.values.args.map((arg) => (
@@ -182,10 +182,10 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
 
           {instruction.values.accounts.length > 0 && (
             <Collapsible defaultOpen>
-              <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+              <CollapsibleHeading>
                 <CollapsibleChevron />
                 Accounts
-              </CollapsibleTrigger>
+              </CollapsibleHeading>
               <CollapsibleContent className="mt-2">
                 <InstructionInputsWrapper>
                   {instruction.values.accounts.map((acc) => (

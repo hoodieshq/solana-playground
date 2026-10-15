@@ -5,7 +5,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleHeading,
 } from "@/shared/ui/collapsible";
 import { useSyncedOpen } from "./useSyncedOpen";
 import BuildFlags from "./BuildFlags";
@@ -109,10 +109,10 @@ const ProgramSetting: FC<React.PropsWithChildren<ProgramSettingProps>> = ({
   return (
     <ProgramSettingWrapper>
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="flex items-center gap-1 font-bold text-muted-foreground data-[state=open]:text-foreground">
+        <CollapsibleHeading>
           <CollapsibleChevron />
           {title}
-        </CollapsibleTrigger>
+        </CollapsibleHeading>
         <CollapsibleContent className="mt-2">
           <ProgramSettingsInside>
             <ProgramSettingDescription>{description}</ProgramSettingDescription>
