@@ -123,7 +123,7 @@ export function whoseServerSync({
     // config load can never hang on a stuck child.
     { encoding: "utf8", timeout: timeoutMs + graceMs }
   );
-  if (child.error?.code === "ETIMEDOUT" || child.signal) {
+  if (child.error?.code === "ETIMEDOUT") {
     throw new DevServerRefusal(silentServerMessage({ port, timeoutMs }));
   }
   const failure = (why) =>
@@ -132,6 +132,7 @@ export function whoseServerSync({
         "The e2e run cannot tell whose server it is."
     );
   if (child.error) throw failure(child.error.message);
+  if (child.signal) throw failure(`signal ${child.signal}`);
   if (child.status !== 0) {
     throw failure(`exit ${child.status}, ${child.stderr.trim()}`);
   }

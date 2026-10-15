@@ -237,7 +237,13 @@ test("a server that drops the connection is foreign, with the cause", async (t) 
   assert.equal(owner.kind, "foreign");
   assert.equal(owner.root, null);
   assert.ok(owner.detail);
-  assert.ok(foreignServerMessage({ port, ...owner }).includes(owner.detail));
+  assert.ok(
+    foreignServerMessage({
+      port,
+      root: owner.root,
+      detail: owner.detail,
+    }).includes(owner.detail)
+  );
 });
 
 test("foreignServerMessage for an unknown root names the header and the dropped connection", () => {
@@ -283,5 +289,18 @@ test("a probe child that outlives its time is refused as silent", () => {
     (error) =>
       error instanceof DevServerRefusal &&
       error.message.includes("did not answer")
+  );
+});
+
+test("a probe child killed by a signal is a failure refusal naming the signal", () => {
+  const script = path.join(ROOT, "killed.mjs");
+  fs.writeFileSync(script, 'process.kill(process.pid, "SIGKILL");');
+  assert.throws(
+    () => whoseServerSync({ port: 4321, root: ROOT, script }),
+    (error) =>
+      error instanceof DevServerRefusal &&
+      error.message.includes("signal SIGKILL") &&
+      error.message.includes("4321") &&
+      !error.message.includes("did not answer")
   );
 });
