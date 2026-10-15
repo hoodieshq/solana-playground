@@ -90,7 +90,7 @@ regression against 5.1 has misread this rule.
       moved unchanged (HOO-2055; after 5.1; design.md, "The four-column
       frame (5.2)"; plan:
       [plans/5.2-four-column-frame.md](plans/5.2-four-column-frame.md))
-- [ ] 5.3 Elements: leaves (Tag, Callout, Badge, Checkbox, Switch,
+- [x] 5.3 Elements: leaves (Tag, Callout, Badge, Checkbox, Switch,
       Collapsible, Kbd, Empty, StatusDot, Avatar, Logo) swapped app-wide; the
       legacy `Tag`, `Text`, `Checkbox`, `Foldable` and `ProgressBar` removed
       (HOO-2058; parallel; design.md, "Leaf elements (5.3)"; plan:

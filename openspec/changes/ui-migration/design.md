@@ -633,7 +633,7 @@ styled-component.
 |---|---|---|
 | `components/Text` (a callout) | `Callout`, with a lucide icon per kind | 26 call sites: modals, the wallet, the explorer, Interact, the not-found page, the gallery lists |
 | `components/Tag` (level, framework, languages) | `Tag`, `levelVariant` for the level colours; the framework image and `LangIcon` stay inside it | tutorial and program cards, tutorial details |
-| `components/Checkbox` | `Checkbox` and `Label` | the assistant's skills, settings |
+| `components/Checkbox` | `Checkbox` and `Label`; a boolean setting is a toggle, so it takes `Switch` | the assistant's skills, the build flags; the settings panel |
 | `components/Foldable` | `Collapsible`, a chevron that turns 90° | settings groups, the wallet's Send, Interact's Args, Accounts and Result |
 | `components/ProgressBar` | nothing: no call site uses it | removed |
 | hand-built chips, counts, empty states, key hints, status dots, the avatar, the logo mark | `Badge`, `Tag`, `Empty`, `Kbd`, `StatusDot`, `Avatar`, `Logo` | `views/flow` and the assistant panel |
@@ -654,8 +654,10 @@ registry item, so this task registers them, as 5.5 did. `Progress` and
   toggles it, as the legacy `<label><input>` did.
 
 **The theme loses** `components.text` and `components.progressbar`, which only
-the removed components read. `components.text` is already gone; `components.progressbar`
-still lives in `themes/palette.ts` and goes with task 9, after #73.
+the removed components read: their types in `utils/theme/interface.ts`
+(with `OverridableComponent`, which nothing else used), their defaults in
+`utils/theme/theme.ts` and the progress bar's accent in `themes/palette.ts`
+are gone.
 
 **Unreachable code is swapped, not deleted.** The legacy sidebar pages'
 components (`views/sidebar/build-deploy`, `tutorials` and `programs`),
@@ -665,9 +667,11 @@ page's `importComponent`. They take the mechanical swap so the legacy
 components can go; deleting them belongs to the screens that replace them
 (HOO-2064, HOO-2066, HOO-1760).
 
-**Files under the other element tasks wait.** Call sites in files that 5.2,
-5.4, 5.5 and 5.6 change are swapped after those land, by a rebase, so this
-task merges after them. Ids, `aria-label`s and the texts the e2e reads stay.
+**Files under the other element tasks were swapped last.** Call sites in
+files that 5.2, 5.4, 5.5 and 5.6 change were swapped after those landed, by a
+rebase, so this task merges after them. The legacy `Text`, `Tag`, `Checkbox`
+and `Foldable` components are deleted, and no import of them remains. Ids,
+`aria-label`s and the texts the e2e reads stay.
 
 ## Risks / Trade-offs
 
