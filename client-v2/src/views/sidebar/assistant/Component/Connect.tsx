@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import { cn } from "cn";
-import { BrandButton } from "@/shared/ui/brand-button";
 import { Field, FieldLabel } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
@@ -64,6 +63,18 @@ export interface ConnectPreset {
   model?: string;
 }
 
+/**
+ * The form's one action. Its host draws it: Connect a model puts it in the
+ * dialog's footer, which a phone pins to the bottom of the screen.
+ */
+export interface ConnectAction {
+  /** "Switch" over a connection, "Connect" for a key, "Start" without one */
+  text: string;
+  /** Every field the backend needs is filled in */
+  ready: boolean;
+  connect(): void;
+}
+
 export interface ConnectProps {
   /**
    * Whether this deployment serves a keyless default backend. `undefined`
@@ -73,6 +84,8 @@ export interface ConnectProps {
    */
   defaultBackend: boolean | undefined;
   preset?: ConnectPreset;
+  /** Called whenever the action's label or readiness changes; keep it stable */
+  onAction(action: ConnectAction): void;
 }
 
 /** The endpoint fields a backend starts with, `model` in place of its own */
@@ -98,7 +111,7 @@ const startSettings = (provider: ProviderInfo, model?: string) => {
  * title and closes it once a backend is connected; reconnecting on load is
  * `useTurn`'s.
  */
-const Connect = ({ defaultBackend, preset }: ConnectProps) => {
+const Connect = ({ defaultBackend, preset, onAction }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
@@ -183,6 +196,21 @@ const Connect = ({ defaultBackend, preset }: ConnectProps) => {
   const switching = !!current && !PgAssistant.isCurrent(next);
 
   const connect = () => PgAssistant.connect(next);
+
+  let actionText = "Start";
+  if (current) actionText = "Switch";
+  else if (provider.needsKey) actionText = "Connect";
+  // The host holds the action across renders; the ref hands it this render's
+  // fields, so it is re-sent only when what it shows changes
+  const connectNow = useRef(connect);
+  connectNow.current = connect;
+  useEffect(() => {
+    onAction({
+      text: actionText,
+      ready,
+      connect: () => connectNow.current(),
+    });
+  }, [onAction, actionText, ready]);
 
   // Nothing selectable is on screen while the default is ruled out, so the
   // alternatives stay open and the toggle that could hide them goes away
@@ -421,9 +449,6 @@ const Connect = ({ defaultBackend, preset }: ConnectProps) => {
               id="assistant-api-key"
               value={key}
               onChange={(ev) => setKey(ev.target.value)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" && ready) connect();
-              }}
               placeholder={provider.keyPlaceholder}
               type="password"
               autoComplete="off"
@@ -431,10 +456,6 @@ const Connect = ({ defaultBackend, preset }: ConnectProps) => {
           </Field>
         </>
       )}
-
-      <BrandButton className="mt-3 w-full" disabled={!ready} onClick={connect}>
-        {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
-      </BrandButton>
 
       {switching && (
         <Note>

@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   renderHook,
+  within,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -157,6 +158,43 @@ describe("ConnectDialog", () => {
       ["assistant_connect_opened", { via: "model" }],
       ["assistant_model_picked", { provider: "anthropic", via: "dialog" }],
     ]);
+  });
+
+  it("puts the connect action in the dialog's footer, ready once the form is", async () => {
+    renderHost();
+    const user = userEvent.setup();
+    act(() => openConnectDialog("menu"));
+
+    const footer = document.querySelector<HTMLElement>(
+      '[data-slot="modal-footer"]'
+    )!;
+    const body = document.querySelector<HTMLElement>(
+      '[data-slot="modal-body"]'
+    )!;
+    const connect = within(footer).getByRole("button", { name: "Connect" });
+    expect(within(body).queryByRole("button", { name: "Connect" })).toBeNull();
+    expect(connect.hasAttribute("disabled")).toBe(true);
+
+    await user.type(
+      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      "sk-ant-fake"
+    );
+    expect(connect.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("connects once on Enter in the key field", async () => {
+    renderHost();
+    const user = userEvent.setup();
+    const connect = vi.spyOn(PgAssistant, "connect");
+    act(() => openConnectDialog("menu"));
+
+    await user.type(
+      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      "sk-ant-fake{Enter}"
+    );
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 
   it("closes on Escape without connecting", async () => {

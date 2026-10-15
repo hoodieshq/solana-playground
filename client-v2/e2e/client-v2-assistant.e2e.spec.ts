@@ -273,9 +273,37 @@ test.describe("Connect a model", () => {
       });
       await expect(connect).toBeInViewport({ ratio: 1 });
 
-      await dialog.locator("#assistant-api-key").fill("sk-ant-fake-key");
+      // The longest form: an OpenAI-compatible backend with its key, base URL
+      // and model, and every other backend listed above it (a pick folds the
+      // list, so it is opened again)
+      await dialog.getByRole("radio", { name: /OpenAI-compatible/ }).click();
+      await dialog.getByRole("button", { name: "Bring your own key" }).click();
+      await expect(
+        dialog.getByRole("button", { name: "Hide other backends" })
+      ).toHaveAttribute("aria-expanded", "true");
+      await dialog.locator("#assistant-api-key").fill("sk-fake-key");
+      await dialog
+        .locator("#assistant-base-url")
+        .fill("http://mock-llm.test/v1");
+      await dialog.locator("#assistant-model").fill("mock-model");
+      await expect(connect).toBeInViewport({ ratio: 1 });
+
+      // The form scrolls under the footer, which stays where it is: pinned
+      // to the bottom of the screen, not carried up with the form
+      const body = dialog.locator('[data-slot="modal-body"]');
+      const before = (await connect.boundingBox())!;
+      const scrolled = await body.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+        return el.scrollTop;
+      });
+      expect(scrolled).toBeGreaterThan(0);
+      await expect(connect).toBeInViewport({ ratio: 1 });
+      expect((await connect.boundingBox())!.y).toBe(before.y);
+      expect(before.y + before.height).toBeGreaterThan(PHONE.height - 80);
+
       await connect.click();
       await expect(dialog).toBeHidden(LONG);
+      await expect(modelButton(page, "mock-model")).toBeVisible();
     });
   });
 });

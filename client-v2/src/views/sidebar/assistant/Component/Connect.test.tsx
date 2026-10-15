@@ -6,12 +6,13 @@ vi.mock("../../../../components/Link", () => ({
   ),
 }));
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import Connect from "./Connect";
-import type { ConnectProps } from "./Connect";
+import type { ConnectAction, ConnectProps } from "./Connect";
 import { PgAssistant, type Connection } from "../store";
 
 /**
@@ -35,10 +36,19 @@ const OWN: Connection = {
   endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
 };
 
-const renderConnect = (props: ConnectProps) =>
+/** What the form handed its host last, as the dialog's footer would draw it */
+let action: ConnectAction | null;
+
+const renderConnect = (props: Omit<ConnectProps, "onAction">) =>
   render(
     <ThemeProvider theme={anyTheme}>
-      <Connect defaultBackend={props.defaultBackend} preset={props.preset} />
+      <Connect
+        defaultBackend={props.defaultBackend}
+        preset={props.preset}
+        onAction={(next) => {
+          action = next;
+        }}
+      />
     </ThemeProvider>
   );
 
@@ -49,6 +59,7 @@ const checked = () =>
 
 describe("Connect", () => {
   beforeEach(() => {
+    action = null;
     PgAssistant.disconnect();
   });
   afterEach(() => {
@@ -98,6 +109,34 @@ describe("Connect", () => {
     expect(
       document.querySelector<HTMLInputElement>("#assistant-api-key")?.value
     ).toBe("");
+  });
+
+  it("hands its host the action, ready once the key is in, and connects", async () => {
+    const user = userEvent.setup();
+    renderConnect({ defaultBackend: false });
+    expect(action).toMatchObject({ text: "Connect", ready: false });
+    expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+
+    await user.type(
+      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      "sk-ant-fake"
+    );
+    expect(action).toMatchObject({ text: "Connect", ready: true });
+    act(() => action!.connect());
+    expect(PgAssistant.connection).toMatchObject({
+      id: "anthropic",
+      apiKey: "sk-ant-fake",
+    });
+  });
+
+  it("names the action Start for the keyless default, Switch over a connection", () => {
+    const { unmount } = renderConnect({ defaultBackend: true });
+    expect(action).toMatchObject({ text: "Start", ready: true });
+    unmount();
+
+    PgAssistant.connect(OWN);
+    renderConnect({ defaultBackend: true });
+    expect(action?.text).toBe("Switch");
   });
 
   it("brings no title or way back of its own: the dialog has them", () => {
