@@ -6,8 +6,9 @@ import { expect, test } from "@playwright/test";
  * style pass), the build stays green and every utility goes inert. The Flow
  * wrapper's three utilities repeat its styled rule, so a screenshot cannot
  * tell either; this reads the rules themselves out of the utilities layer.
- * It anchors on any element carrying the three utilities, not on exactly one:
- * other design-system parts (the console drawer's well) use them too.
+ * The anchor only proves that some element carries the three utilities
+ * (other design-system parts, such as the console drawer's well, use them
+ * too); the rule checks below are what guard the build.
  */
 test("Tailwind utilities reach the page in the utilities layer", async ({
   page,

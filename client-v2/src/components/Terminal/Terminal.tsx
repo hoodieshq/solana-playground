@@ -99,7 +99,6 @@ const Wrapper = styled.div`
     ${PgTheme.convertToCSS(theme.components.terminal.default)};
 
     background: var(--surface-well);
-    font-family: var(--font-mono);
 
     & .xterm {
       padding: 0.75rem;

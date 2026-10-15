@@ -10,9 +10,6 @@ import { LONG, seedWorkspace, test } from "./fixtures";
  */
 const MONACO_CHUNK = /\/static\/js\/[^/]*Editor_Monaco_index[^/]*\.js(\?|$)/;
 
-/** How long the editor's mount is held back while the user types. */
-const HOLD_MS = 3_000;
-
 test("client-v2-layout: A late editor mount leaves the new-file field focused", async ({
   page,
 }) => {
@@ -39,7 +36,7 @@ test("client-v2-layout: A late editor mount leaves the new-file field focused", 
   await expect(name).toBeFocused();
   await page.keyboard.type("late.rs");
 
-  await page.waitForTimeout(HOLD_MS);
+  // The editor mounts only now, with the name already typed
   release();
 
   // The editor sets its model and then focuses in one handler, so once a
