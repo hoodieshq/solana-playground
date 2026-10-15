@@ -11,6 +11,7 @@ import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
+  CollapsibleHeading,
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
 import { Empty, EmptyDescription, EmptyTitle } from "@/shared/ui/empty";
@@ -73,16 +74,46 @@ describe("shared/ui leaf elements", () => {
     expect(screen.getByText("Hidden text")).toBeTruthy();
   });
 
-  it("gives a callout the role its variant needs", () => {
+  it("dresses a fold heading and leaves the plain trigger bare", () => {
     render(
       <>
-        <Callout variant="error">Broke</Callout>
-        <Callout variant="info">FYI</Callout>
+        <Collapsible>
+          <CollapsibleHeading>Fold</CollapsibleHeading>
+        </Collapsible>
+        <Collapsible>
+          <CollapsibleTrigger>Bare</CollapsibleTrigger>
+        </Collapsible>
       </>
     );
 
-    expect(screen.getByRole("alert").textContent).toBe("Broke");
-    expect(screen.getByRole("note").textContent).toBe("FYI");
+    const heading = screen.getByRole("button", { name: "Fold" });
+    expect(heading.className).toContain("select-none");
+    expect(heading.className).toContain("w-fit");
+    expect(heading.className).toContain("hover:text-foreground");
+    expect(screen.getByRole("button", { name: "Bare" }).className).toBe("");
+  });
+
+  it.each([
+    ["error", "alert"],
+    ["warning", "alert"],
+    ["default", "note"],
+    ["info", "note"],
+    ["success", "note"],
+  ] as const)("gives a %s callout the %s role", (variant, role) => {
+    render(<Callout variant={variant}>Said</Callout>);
+
+    expect(screen.getByRole(role).textContent).toBe("Said");
+  });
+
+  it("lets an explicit role win over the variant's", () => {
+    render(
+      <Callout variant="error" role="status">
+        Calm
+      </Callout>
+    );
+
+    expect(screen.getByRole("status").textContent).toBe("Calm");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("colours a tag by level and falls back to error", () => {
