@@ -211,8 +211,8 @@ an override of their default, and this section is that override:
   inside `/opsx:apply`, one task at a time; `test-driven-development` and
   `verification-before-completion` apply to every task as before.
 - The question whether to close the change comes before `gh pr create`
-  for the PR that ticks its last task, never after the merge;
-  `superpowers:finishing-a-development-branch` does not ask it again.
+  for the PR that ticks its last task, never after the merge. Do not ask
+  it again in `superpowers:finishing-a-development-branch`.
 
 **Scenarios are the test plan.** Every `#### Scenario:` in a spec is
 either a Playwright test in `e2e/` whose title is
@@ -286,6 +286,13 @@ check's job (HOO-1859); the rest hold by review.
   a fallback or a migration for a problem someone reported, reproduce it
   live (a probe, a curl, a screenshot, dated) and put that in the PR. A PR
   that solves a problem the repository does not have is closed, not fixed.
+- **Archiving is a human's call, asked before the review agents.** If the
+  PR ticks the change's last task, ask whether to close the change before
+  running `/pr-review-toolkit:review-pr` and opening the PR. On a yes,
+  confirm every task is ticked, delete `tasks.md`, run `/opsx:archive` and
+  commit the deletion and the archive in this PR; on a no, the PR
+  description says `OpenSpec: <change> stays open (<who answered>, <date>)`.
+  Never archive unasked.
 - **Run the review agents.** `/pr-review-toolkit:review-pr` before
   `gh pr create`. Its agents (the toolkit's README lists them) cover the
   headings every human review here has used: silent failures, type design,
@@ -295,13 +302,6 @@ check's job (HOO-1859); the rest hold by review.
 - **The `check` script is green before the push.** It runs what CI runs,
   in CI's order, minus the production build. Opt in to running it on every
   push with `git config core.hooksPath .githooks` once per clone.
-- **Archiving is a human's call, asked before the review agents.** If the
-  PR ticks the change's last task, ask whether to close the change before
-  running `/pr-review-toolkit:review-pr` and opening the PR. On a yes,
-  confirm every task is ticked, delete `tasks.md`, run `/opsx:archive` and
-  commit both in this PR; on a no, the PR description says
-  `OpenSpec: <change> stays open (<who answered>, <date>)`. Never archive
-  unasked.
 - **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` job of
   `client-v2.yml`) on every PR to `master`, and a red spec fails the
   PR's checks. It needs no server and no Postgres: every spec stubs the account
