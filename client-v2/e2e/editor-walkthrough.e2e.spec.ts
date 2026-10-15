@@ -83,7 +83,7 @@ test.describe.serial("the editor", () => {
     for (let left = await tabs.count(); left > 0; left--) {
       const tab = tabs.first();
       await tab.hover({ force: true });
-      await tab.locator("svg").last().click({ force: true });
+      await tab.getByRole("button", { name: /^Close / }).click({ force: true });
       await expect(tabs).toHaveCount(left - 1);
     }
     await expect(page.locator(".monaco-editor")).toHaveCount(0);

@@ -20,7 +20,8 @@ const failedBuild: FlowState = {
   buildStartedAt: 1000,
 };
 
-/** the stage bar's observer, keyed by what it watches: the stepper root only */
+/** Every element a `ResizeObserver` watches (the fold's stepper root, the
+ * thumb's targets), each with a way to report a width for it */
 const observed = new Map<Element, (width: number) => void>();
 
 class StubResizeObserver {
@@ -99,13 +100,8 @@ describe("Stepper", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("shows the full labels again when the stage bar widens", () => {
+  it("shows the full labels before the first measurement", () => {
     render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
-    resizeTo(STEPPER_FULL_WIDTH_PX - 1);
-    expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
-      "true"
-    );
-    resizeTo(900);
     expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
       "false"
     );

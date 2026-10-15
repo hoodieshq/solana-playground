@@ -11,7 +11,8 @@ import {
 import { StatusDot } from "@/shared/ui/status-dot";
 import type { ConsoleStatus } from "./status";
 
-/** The well's id: the shell's e2e and `aria-controls` find the body by it */
+/** The well's id. The Console button's `aria-controls` names it, and the
+ * drawer's unit tests find the body by it; no e2e does. */
 export const CONSOLE_BODY_ID = "flow-console-drawer-body";
 
 interface BaseConsoleDrawerProps {

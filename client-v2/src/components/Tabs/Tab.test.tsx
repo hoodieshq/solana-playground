@@ -1,4 +1,3 @@
-import type { FC } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { DefaultTheme, ThemeProvider } from "styled-components";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,9 +56,6 @@ const openMenuOf = async (path: string, index: number) => {
 const closed = () =>
   explorer.closeFile.mock.calls.map((call: string[]) => call[0]);
 
-/** Tab as the sortable renders it: with props its type does not name */
-const Untyped = Tab as unknown as FC<Record<string, unknown>>;
-
 describe("Tab root", () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -67,7 +63,7 @@ describe("Tab root", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     render(
       <ThemeProvider theme={theme}>
-        <Untyped
+        <Tab
           path="/a.rs"
           index={0}
           Item={() => null}

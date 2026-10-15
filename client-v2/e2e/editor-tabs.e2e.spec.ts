@@ -206,3 +206,15 @@ test("a tab opened past the row's edge scrolls into view, and the wheel scrolls 
     .poll(() => list.evaluate((el) => el.scrollLeft))
     .toBeGreaterThan(0);
 });
+
+test("a tab's frame is not focusable: the trigger is the one tab stop", async ({
+  seededPage: page,
+}) => {
+  await threeTabs(page);
+  const frames = page.locator('#tabs [data-slot="editor-tab"]');
+  await expect(frames).toHaveCount(3);
+  for (const frame of await frames.all()) {
+    await expect(frame).not.toHaveAttribute("tabindex");
+    await expect(frame).toHaveAttribute("role", "presentation");
+  }
+});
