@@ -252,6 +252,12 @@ const Connect = () => {
       : "Sign in with GitHub to use it, or bring your own key below.";
   };
 
+  const connectLabel = () => {
+    if (current) return "Switch";
+    if (provider.needsKey) return "Connect";
+    return "Start";
+  };
+
   const signIn = () =>
     PgSession.signIn({ from: "assistant" }).catch((error: unknown) =>
       // `PgSession.signInState` holds the failure and the header chip shows it;
@@ -449,7 +455,7 @@ const Connect = () => {
           disabled={!ready}
           onClick={connect}
         >
-          {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
+          {connectLabel()}
         </ConnectButton>
       )}
 
