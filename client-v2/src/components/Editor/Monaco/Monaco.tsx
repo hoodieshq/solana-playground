@@ -286,8 +286,14 @@ const Monaco = () => {
   useEffect(() => {
     if (!editor) return;
     let positionDataIntervalId: NodeJS.Timer;
+    // `onDidOpenFile` replays the current file as it subscribes, which is the
+    // open a late mount makes; every later open is the user's own.
+    let isMountOpen = true;
 
     const switchFile = PgExplorer.onDidOpenFile((curFile) => {
+      const isLateMountOpen = isMountOpen;
+      isMountOpen = false;
+
       // Clear previous state
       if (positionDataIntervalId) clearInterval(positionDataIntervalId);
 
@@ -360,7 +366,9 @@ const Monaco = () => {
 
       // A late mount opens the current file while the user may already be
       // typing elsewhere (a new file's name); the file opens, focus stays.
+      // Any later open (creating a file, picking a tab) takes focus as before.
       if (
+        !isLateMountOpen ||
         !isTypingElsewhere(document.activeElement, editor.getContainerDomNode())
       ) {
         editor.focus();

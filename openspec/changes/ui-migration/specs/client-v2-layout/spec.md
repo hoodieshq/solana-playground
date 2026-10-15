@@ -85,10 +85,12 @@ width. The 720 px value SHALL be held in one place.
 
 ### Requirement: The editor does not take focus from a field
 
-Opening a file SHALL focus the editor, unless the user is typing in a text
-field outside it at that moment (the editor mounting late on a slow first
-load opens the current file then); the file SHALL still open, and the field
-SHALL keep its focus and what was typed.
+Opening a file SHALL focus the editor. The one exception is the open the
+editor makes as it mounts (on a slow first load it mounts late and opens the
+current file then): if the user is typing in a text field outside the editor
+at that moment, the file SHALL still open, and the field SHALL keep its focus
+and what was typed. Every later open, including the one that creating a file
+makes, SHALL focus the editor.
 
 #### Scenario: A late editor mount leaves the new-file field focused
 
@@ -101,6 +103,12 @@ SHALL keep its focus and what was typed.
 
 - **WHEN** a user closes every tab and clicks `lib.rs` in the files column
 - **THEN** the editor opens `lib.rs` and has focus
+
+#### Scenario: Creating a file with a tab open focuses the editor
+
+- **WHEN** a tab is open and the user clicks "New file", types `x.rs` and
+  presses Enter
+- **THEN** the editor opens `x.rs` and has focus
 
 ### Requirement: Four columns and no header
 
