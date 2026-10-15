@@ -61,6 +61,10 @@ const serveInChild = async (t, value) => {
   t.after(() => child.kill());
   return new Promise((resolve, reject) => {
     child.once("error", reject);
+    // A child that dies before printing its port must fail the test, not hang it.
+    child.once("exit", (code) =>
+      reject(new Error(`server child exited (${code}) before printing a port`))
+    );
     child.stdout.once("data", (data) => resolve(Number(data.toString())));
   });
 };

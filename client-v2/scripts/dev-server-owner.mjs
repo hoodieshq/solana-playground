@@ -2,7 +2,7 @@
 // client-v2. A local e2e run used to reuse whatever answered on the port,
 // often another worktree's server, and reported false passes and failures
 // (HOO-2106). `craco.config.js` makes the dev server name its own root in
-// `DEV_SERVER_ROOT_HEADER`; `playwright.config.ts` asks `decideDevServer`.
+// `DEV_SERVER_ROOT_HEADER`; `playwright.config.mts` asks `decideDevServer`.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -114,7 +114,10 @@ export function decideDevServer({ port, root }) {
 
 // No top-level await: craco.config.js `require`s this module, which Node
 // refuses for an ES module that awaits at the top level.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   const [port, root] = process.argv.slice(2);
   whoseServer({ port: Number(port), root }).then(
     (owner) => console.log(JSON.stringify(owner)),
