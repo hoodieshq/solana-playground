@@ -1,7 +1,12 @@
 import { createTracker } from "../../../shared/lib/telemetry";
 import type { Viewport } from "../../../shared/lib/hooks/use-viewport";
 import type { LayoutPanel, RestoreFailure } from "./layout-state";
-import type { PageSource, PhonePage, WorkView } from "./phone-pages";
+import type {
+  PageSource,
+  PhonePage,
+  WorkView,
+  WorkViewSource,
+} from "./phone-pages";
 
 /**
  * What opened or closed a panel: a click, a key, a drag of its edge, or the
@@ -29,7 +34,7 @@ type LayoutEvents = {
   /** A phone page came into view after the load; `via` says what moved it. */
   layout_page_shown: { page: PhonePage; via: PageSource };
   /** The work page switched between the assistant and the code. */
-  layout_work_view: { view: WorkView; via: "button" | "key" | "auto" };
+  layout_work_view: { view: WorkView; via: WorkViewSource };
 };
 
 export const layoutTelemetry = createTracker<LayoutEvents>();

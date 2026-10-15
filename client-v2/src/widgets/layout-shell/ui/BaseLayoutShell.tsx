@@ -23,7 +23,7 @@ import {
 } from "@/shared/ui/sidebar";
 import { BOTTOM_BAR_PX, GAP } from "@/views/flow/tokens";
 import BasePhonePager from "./BasePhonePager";
-import type { BasePhonePagerProps } from "./BasePhonePager";
+import type { PhonePagerState } from "./BasePhonePager";
 import type {
   HorizontalLayout,
   PanelLayout,
@@ -199,16 +199,7 @@ export interface BaseLayoutShellProps {
    * Below `LAYOUT_BREAKPOINTS.phone`: the pager's state. The slots and the
    * outlets' nodes are the shell's own.
    */
-  phone: Omit<
-    BasePhonePagerProps,
-    | "stageNode"
-    | "consoleNode"
-    | "menu"
-    | "files"
-    | "assistant"
-    | "stageBar"
-    | "sheetFont"
-  >;
+  phone: PhonePagerState;
 }
 
 const log = createLogger("layout-shell:panels");
@@ -345,13 +336,13 @@ const NavSheetOpener = ({
  * over the console. Below `LAYOUT_BREAKPOINTS.left` the files column moves into
  * the navigation's Sheet. Below `LAYOUT_BREAKPOINTS.phone` the frame gives way
  * to `BasePhonePager`; the stage and the console are outlets, so their nodes
- * move between the two without remounting. Lays out what it is given; holds
- * no state.
+ * move between the two without remounting. Lays out what it is given; owns
+ * only the outlets' nodes, and no layout state.
  */
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const [foldedOf] = useState(createFoldedOf);
   // Rendered once, here, and placed by the frame or the pager: crossing
-  // `LAYOUT_BREAKPOINTS.phone` must not remount `Primary` (it goes blank when
+  // `LAYOUT_BREAKPOINTS.phone` must not remount the stage's editor (upstream's `Primary`; it goes blank when
   // remounted) or the terminal (it loses its session)
   const stageNode = useOutletNode("flex min-h-0 flex-1 flex-col");
   const consoleNode = useOutletNode("flex min-h-0 flex-1 flex-col");
@@ -578,9 +569,11 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             toggleOn={props.toggleLeftSheetOn}
           />
           <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
-            {/* One tree at every width, so a rotate across
-            `LAYOUT_BREAKPOINTS.compact` does not remount the stage, Monaco or
-            the console's terminal. Below it the group holds only the work
+            {/* Between `LAYOUT_BREAKPOINTS.compact` and wide the tree is the
+            same, so a rotate across it does not remount the stage, Monaco or
+            the console's terminal; across `LAYOUT_BREAKPOINTS.phone` the
+            frame swaps for the pager and they survive as outlets. Below
+            `LAYOUT_BREAKPOINTS.compact` the group holds only the work
             area, so it neither takes nor saves the horizontal layout:
             crossing a breakpoint writes nothing. */}
             <ResizablePanelGroup

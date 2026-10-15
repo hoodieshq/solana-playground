@@ -14,6 +14,7 @@ import type {
   PhonePage,
   PreviewStage,
   WorkView,
+  WorkViewSource,
 } from "../model/phone-pages";
 import { layoutTelemetry } from "../model/telemetry";
 import type { ToggleSource } from "../model/telemetry";
@@ -28,8 +29,8 @@ export interface LayoutShellProps {
    * a control in the navigation that opens something the Sheet's modal
    * overlay would cover (settings, from the status chips): it closes the
    * Sheet as the product's doing, `via: "auto"`; on a phone, where the
-   * navigation is a page, it brings Work into view; elsewhere it does nothing
-   * where no Sheet is open.
+   * navigation is a page, it brings Work into view; otherwise it closes the
+   * Sheet if one is open.
    */
   nav: (panel: {
     collapsed: boolean;
@@ -190,7 +191,7 @@ const LayoutShell = ({
       via,
     });
   };
-  const showView = (next: WorkView, via: "button" | "key" | "auto") => {
+  const showView = (next: WorkView, via: WorkViewSource) => {
     if (viewRef.current === next) return;
     viewRef.current = next;
     setView(next);
@@ -201,8 +202,8 @@ const LayoutShell = ({
   useEffect(() => {
     const sub = PgFlow.onDidChange((flow) => {
       setFlowStage(flow.stage);
-      // Kept off the phone too: the Preview a phone opens on is the last stage
-      // shown, wherever it was shown
+      // Tracked at every width, not only on a phone: the Preview a phone opens
+      // on is the last non-write stage shown anywhere
       if (flow.stage !== "write") lastPreview.current = flow.stage;
       if (!phone) return;
       const next = pageForStage(flow.stage, pageRef.current);
@@ -226,7 +227,8 @@ const LayoutShell = ({
     if (phone) {
       const source = via === "auto" ? "auto" : "button";
       showPage("work", source);
-      // A drag only resizes the wide panel, so none reaches a phone
+      // A drag only resizes the wide panel, so none reaches a phone: the
+      // mapping only narrows the type
       showView(open ? "chat" : "code", via === "drag" ? "button" : via);
     } else if (viewport === "wide") setOpen("assistant", { open, via });
     else setSheet(open, via);
@@ -265,7 +267,8 @@ const LayoutShell = ({
   // meaning in one, so it still folds the column. On Windows and Linux Ctrl is
   // the primary modifier and means nothing in a field, so the key works
   // everywhere there, Monaco included.
-  // Below `LAYOUT_BREAKPOINTS.left` the files column is in the navigation's
+  // On a phone the key toggles the pager's own Files Sheet. Below
+  // `LAYOUT_BREAKPOINTS.left` the files column is in the navigation's
   // Sheet, so the key opens and closes that Sheet, which reports itself as
   // `nav` a render later and takes the mark; the column's desktop flag, which
   // nothing there shows, is left alone.
