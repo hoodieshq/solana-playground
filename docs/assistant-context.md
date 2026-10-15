@@ -164,8 +164,9 @@ Done:
   drawer under the stage (Cmd+J). The assistant is a resizable panel on
   screens 1024 px and wider and a side Sheet below that; between 768 and
   1023 px the navigation starts as a rail; below 768 px the navigation and
-  Files share one Sheet, and below 600 px the editor is read-only and says
-  why. The frame has no phone structure yet (HOO-2062). A New Workspace
+  Files share one Sheet, and below 720 px the app is three swiped pages: the
+  navigation, Work (Chat or Code, with Files in a Sheet) and Preview (the
+  stage over the console). The editor edits at every width. A New Workspace
   gallery starts a project from 34 upstream programs or 16 tutorials. The
   gear chip in the navigation's footer opens a settings overlay embedding
   the existing settings registry.

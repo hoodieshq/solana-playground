@@ -107,7 +107,7 @@ regression against 5.1 has misread this rule.
       react-toastify and the legacy `Menu`, `Modal`, `ModalBackdrop`,
       `Popover`, `Toast` and `Tooltip` removed (HOO-2061; parallel; plan:
       [plans/5.6-overlays.md](plans/5.6-overlays.md))
-- [ ] 5.7 Phone: the prototype's three-page structure below 720 px, the
+- [x] 5.7 Phone: the prototype's three-page structure below 720 px, the
       editor editable on a phone, replacing 5.1's read-only editor (HOO-2062;
       after 5.2; design.md, "The phone (5.7)"; plan:
       [plans/5.7-phone-pages.md](plans/5.7-phone-pages.md))
