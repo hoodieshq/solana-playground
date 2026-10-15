@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 import { expect, json, LONG, seedWorkspace, test } from "./fixtures";
 
 /**
@@ -16,10 +18,19 @@ const FAILED_BUILD_STDERR = [
   "error: could not compile `e2e-project` (lib) due to 1 previous error",
 ].join("\n");
 
+/**
+ * The editor focuses itself when it opens the first file, at a moment that
+ * varies with the machine; landing after a test put the focus on a control,
+ * it takes it away (and a key meant for the control). Wait for it first.
+ */
+const editorTookFocus = (page: Page) =>
+  expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(LONG);
+
 test.describe("client-v2-controls", () => {
   test("client-v2-controls: The stepper drives the stages", async ({
     seededPage: page,
   }) => {
+    await editorTookFocus(page);
     await page.locator("#flow-stage-tab-build").click();
     await expect(page.locator("#flow-stage-tab-build")).toHaveAttribute(
       "aria-selected",
@@ -64,6 +75,7 @@ test.describe("client-v2-controls", () => {
   test("client-v2-controls: Network by keyboard", async ({
     seededPage: page,
   }) => {
+    await editorTookFocus(page);
     await page.locator("[data-settings-trigger]").first().click();
     const group = page.getByRole("radiogroup", { name: "Network" });
     await group.getByRole("radio", { checked: true }).focus();
@@ -79,6 +91,7 @@ test.describe("client-v2-controls", () => {
   });
 
   test("client-v2-controls: A setting select", async ({ seededPage: page }) => {
+    await editorTookFocus(page);
     await page.locator("[data-settings-trigger]").first().click();
     const row = page
       .locator('[aria-label="Settings"]')
