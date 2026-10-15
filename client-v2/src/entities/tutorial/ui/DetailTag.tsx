@@ -1,5 +1,6 @@
 import { cn } from "cn";
 
+import { createLogger } from "@/shared/lib/logger";
 import Img from "../../../components/Img";
 import LangIcon from "../../../components/LangIcon";
 import { PgFramework, PgLanguage } from "../../../utils";
@@ -10,6 +11,11 @@ type DetailTagProps = {
   value: string;
   className?: string;
 };
+
+const log = createLogger("tutorial:detail-tag");
+
+/** Unknown frameworks already reported, so a list of tags reports each once */
+const reported = new Set<string>();
 
 function DetailTag({ kind, value, className }: DetailTagProps) {
   // The design system's Tag rounds its icons to `rounded-sm`
@@ -28,9 +34,18 @@ function DetailTag({ kind, value, className }: DetailTagProps) {
 
 function iconOf(kind: string, value: string) {
   if (kind === "framework") {
-    // An unknown framework shows its name alone
     const framework = PgFramework.get(value as FrameworkName);
-    if (!framework) return null;
+    if (!framework) {
+      // An unknown framework shows its name alone
+      if (!reported.has(value)) {
+        reported.add(value);
+        log.warn("tutorial names a framework the playground does not know", {
+          report: true,
+          context: { framework: value },
+        });
+      }
+      return null;
+    }
     return <Img src={framework.icon} />;
   }
   if (kind === "languages") {
