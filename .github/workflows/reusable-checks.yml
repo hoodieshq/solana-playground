@@ -5,6 +5,12 @@ name: Checks
 # two trigger workflows can't drift apart.
 on:
   workflow_call:
+    inputs:
+      # The full client + WASM build takes 20+ minutes. ci.yml turns it off for
+      # pull requests, which Vercel's preview build already covers.
+      build:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -115,6 +121,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    if: inputs.build
     needs:
       [format_client, format_server, format_wasm, clippy_server, clippy_wasm]
 

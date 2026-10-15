@@ -16,3 +16,5 @@ permissions:
 jobs:
   checks:
     uses: ./.github/workflows/reusable-checks.yml
+    with:
+      build: ${{ github.event_name != 'pull_request' }}
