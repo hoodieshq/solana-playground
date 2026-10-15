@@ -96,7 +96,12 @@ class ErrorBoundary extends Component<Props, State> {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={refresh}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Refresh"
+                  onClick={refresh}
+                >
                   <Refresh color="error" />
                 </Button>
               </TooltipTrigger>

@@ -105,6 +105,7 @@ const Deploy = () => {
       <Actions>
         <BrandButton
           disabled={!built || deploying}
+          aria-busy={deploying || undefined}
           title={deployBlockedReason(built, deploying)}
           onClick={() => {
             // Interact's deployment switcher may have pointed the project

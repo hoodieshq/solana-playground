@@ -366,6 +366,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
           <Button
             variant="ghost"
             size="icon-xs"
+            aria-label="Clear search"
             className={`absolute inset-y-0 my-auto ${INPUT_CLOSE_BUTTON_SIDE[searchButtonPosition]}`}
             onClick={() => {
               setInputValue("", { focus: true });
@@ -379,6 +380,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
         <Button
           variant="ghost"
+          aria-label="Search"
           className={`absolute h-full w-(--search-button-width) px-0 ${SEARCH_BUTTON_SIDE[searchButtonPosition]}`}
           onClick={searchTopResult}
         >
@@ -395,6 +397,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label="Back"
                     className="[&_svg:not([class*='size-'])]:size-5"
                     onClick={() => {
                       setItemState({ items, isInSubSearch: false });
@@ -406,7 +409,12 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                   </Button>
 
                   {itemState.closeButton && (
-                    <Button variant="ghost" size="icon-sm" onClick={reset}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Close"
+                      onClick={reset}
+                    >
                       <Close />
                     </Button>
                   )}

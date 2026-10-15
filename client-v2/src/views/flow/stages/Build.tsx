@@ -198,7 +198,7 @@ const Build = () => {
 
   // Also reached while the very first build is in flight: there is no
   // previous surface to hold onto, so the empty state itself says
-  // "Building..." instead of offering a live Build button mid-run.
+  // "Building..." and its Build button waits, disabled, until the run ends.
   if (!own) {
     return (
       <Surface>

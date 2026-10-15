@@ -93,17 +93,20 @@ const WorkspaceButtons = () => {
   );
 };
 
-/** An icon button whose click opens a modal and waits for it to close */
-const WorkspaceButton = (
+/** An icon button whose click opens a modal and waits for it to close.
+    While it waits the spinner takes the icon's place, and the title stays
+    its accessible name. */
+export const WorkspaceButton = (
   props: Omit<
     React.ComponentProps<typeof AsyncButton>,
-    "onError" | "variant" | "size"
-  >
+    "onError" | "variant" | "size" | "loadingText"
+  > & { title: string }
 ) => (
   <AsyncButton
     variant="ghost"
     size="icon-sm"
     onError={reportButtonFailure}
+    loadingText={<span className="sr-only">{props.title}</span>}
     {...props}
   />
 );

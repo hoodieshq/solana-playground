@@ -36,7 +36,7 @@ vi.mock("../../../../components/Text", () => ({ default: () => null }));
 vi.mock("../../../../components/Icons", () => ({}));
 
 import { PgExplorer, PgTutorial } from "../../../../utils";
-import { WorkspaceSelect } from "./Workspaces";
+import { WorkspaceButton, WorkspaceSelect } from "./Workspaces";
 
 // Radix Select calls these while opening; jsdom implements none of them
 beforeAll(() => {
@@ -141,5 +141,27 @@ describe("WorkspaceSelect", () => {
     await new Promise((resolve) => setTimeout(resolve));
     process.off("unhandledRejection", unhandled);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+});
+
+describe("WorkspaceButton", () => {
+  it("shows only the spinner while it waits and keeps its name", async () => {
+    let close!: () => void;
+    const modal = new Promise<void>((resolve) => (close = resolve));
+    render(
+      <WorkspaceButton onClick={() => modal} title="Create">
+        <svg data-testid="icon" />
+      </WorkspaceButton>
+    );
+
+    await userEvent.setup().click(screen.getByRole("button"));
+
+    const button = screen.getByRole("button", { name: /Create/ });
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.querySelector('[data-slot="spinner"]')).not.toBeNull();
+    expect(screen.queryByTestId("icon")).toBeNull();
+
+    close();
+    await waitFor(() => expect(screen.getByTestId("icon")).toBeTruthy());
   });
 });

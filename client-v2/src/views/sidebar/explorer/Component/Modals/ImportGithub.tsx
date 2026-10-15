@@ -168,12 +168,16 @@ const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => (
         <Eye data-icon="inline-end" />
       </Button>
 
-      <Link href={framework.githubExample.url}>
-        <Button type="button" variant="outline">
+      <Button asChild variant="outline">
+        <a
+          href={framework.githubExample.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           Open in GitHub
           <Github data-icon="inline-end" />
-        </Button>
-      </Link>
+        </a>
+      </Button>
     </ExampleButtonsWrapper>
   </ExampleWrapper>
 );

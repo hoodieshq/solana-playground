@@ -55,6 +55,7 @@ const NewItemButton: FC<React.PropsWithChildren<ButtonProps>> = ({
       variant="ghost"
       size="icon-sm"
       title={title}
+      loadingText={<span className="sr-only">{title}</span>}
     >
       <Img src={getExplorerIconsPath(imageName)} alt={title} />
     </AsyncButton>
@@ -79,6 +80,7 @@ const GoBackButton = () => (
     variant="ghost"
     size="icon-sm"
     title="Go back to projects"
+    loadingText={<span className="sr-only">Go back to your project</span>}
   >
     <Img
       src={getExplorerIconsPath("back.png")}

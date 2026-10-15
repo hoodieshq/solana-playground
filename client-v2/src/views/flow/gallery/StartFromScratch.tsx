@@ -89,6 +89,7 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
         <BrandButton
           type="button"
           disabled={!!error || !framework || creating}
+          aria-busy={creating || undefined}
           onClick={create}
         >
           Start &rarr;
