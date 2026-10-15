@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
 import { cn } from "cn";
 
+import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
 import {
   ModalBody,
@@ -16,6 +17,13 @@ import { isInsideToast } from "@/shared/lib/toast-layer";
 /** `wide` is for dialogs with a code or a table in the body */
 export type ModalSize = "default" | "wide";
 
+/**
+ * How the submit is drawn: the stock `Button`'s `default` or `destructive`,
+ * or `brand`, the ring `BrandButton`, for a dialog whose submit is its view's
+ * one call to action
+ */
+export type SubmitVariant = "default" | "destructive" | "brand";
+
 /** Whether the submit can be pressed, and why not */
 export type SubmitStatus = "ready" | "disabled" | "busy";
 
@@ -28,7 +36,7 @@ export type BaseModalFrameProps = {
   submit?: {
     text: string;
     status: SubmitStatus;
-    variant: "default" | "destructive";
+    variant: SubmitVariant;
     onSubmit: () => void;
     /** Shown as a Cancel button beside the submit */
     onCancel?: () => void;
@@ -149,15 +157,22 @@ export const BaseModalFrame = ({
                 Cancel
               </Button>
             )}
-            <Button
-              ref={submitRef}
-              type="submit"
-              variant={submit.variant}
-              disabled={!canSubmit}
-            >
-              {submit.status === "busy" && <Spinner />}
-              {submit.text}
-            </Button>
+            {submit.variant === "brand" ? (
+              <BrandButton ref={submitRef} type="submit" disabled={!canSubmit}>
+                {submit.status === "busy" && <Spinner />}
+                {submit.text}
+              </BrandButton>
+            ) : (
+              <Button
+                ref={submitRef}
+                type="submit"
+                variant={submit.variant}
+                disabled={!canSubmit}
+              >
+                {submit.status === "busy" && <Spinner />}
+                {submit.text}
+              </Button>
+            )}
           </ModalFooter>
         )}
       </form>
