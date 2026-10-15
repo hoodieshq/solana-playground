@@ -143,4 +143,27 @@ describe("IdlActions", () => {
     });
     expect(await screen.findByText("Using counter")).toBeTruthy();
   });
+
+  /**
+   * A browser fires no change for the file the input already holds, so a
+   * file fixed on disk and picked again would be ignored unless the input
+   * lets go of it after each pick.
+   */
+  it("takes the same file picked again", async () => {
+    const { container } = render(<IdlActions mode="drop" />);
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const cleared = vi.fn();
+    Object.defineProperty(input, "value", {
+      configurable: true,
+      get: () => "",
+      set: cleared,
+    });
+
+    fireEvent.change(input, { target: { files: [jsonFile("not json")] } });
+
+    expect(await screen.findByText("Not an Anchor IDL JSON file")).toBeTruthy();
+    expect(cleared).toHaveBeenCalledWith("");
+  });
 });
