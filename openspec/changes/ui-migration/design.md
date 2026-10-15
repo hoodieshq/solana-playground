@@ -309,6 +309,9 @@ and a unit test holds it to `use-mobile`.
 | compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
 | phone <600 | the stock Sheet | full-width Sheet | read-only |
 
+5.7 replaces the phone row: below 720 the app is three pages and the editor
+edits (see "The phone (5.7)").
+
 The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
 three thresholds; that is accepted rather than editing `shared/`. On a phone
 Monaco gets `readOnly`, and the message that editing works from 600 px is
@@ -673,6 +676,80 @@ rebase, so this task merges after them. The legacy `Text`, `Tag`, `Checkbox`
 and `Foldable` components are deleted, and no import of them remains. Ids,
 `aria-label`s and the texts the e2e reads stay.
 
+## The phone (5.7)
+
+Decided with Slava on 2026-10-14 (HOO-2062). Below
+`LAYOUT_BREAKPOINTS.phone` the app is the prototype's three pages, and the
+editor edits on a phone; 5.1's read-only editor is gone. The value moves
+from 600 to 720 px, the prototype's, while the customer's sheet says 1024:
+it is still being confirmed with the customer, so it stays the one constant
+every phone rule reads.
+
+```
+LayoutShell
+├─ outlets: stage, console      rendered once, through portals
+├─ >= phone: the four-column frame (5.2), unchanged
+└─ <  phone: PhonePager (scroll-snap, three pages of 100vw)
+   ├─ menu     the navigation, full width (AppNav, its footer and chips)
+   ├─ work     bar: Menu, project name, Chat | Code, Preview
+   │           Code: a file picker over the stage outlet (the Write stage)
+   │           Chat: the assistant
+   └─ preview  bar: Back to the code, the StageBar
+               the stage outlet (Build, Deploy or Interact) over the
+               console outlet
+```
+
+- **Widths.** Below 720 the pager. From 720 to 767 the layout is 5.2's:
+  the navigation and the files column share the stock Sidebar's Sheet, the
+  assistant is the right Sheet. The stock Sidebar still turns into its Sheet
+  at 768 by its own hook (`use-mobile`), which is installed and not edited.
+- **The pages** are one horizontal scroll container with mandatory snap, so
+  a swipe moves between them and the bars' buttons scroll to a page. Each
+  page has a 60 px bar (`h-phone-bar`). A load lands on Work, showing Code.
+  The page and the Chat | Code choice are the visit's and are not saved: the
+  phone writes nothing to the `layout` key, so a phone visit leaves a wide
+  window's layout as it was.
+- **Code and Preview share the stage.** The stage router shows one stage at
+  a time and `Write` (upstream's `Primary`) must never unmount, so there is
+  one stage, not two: Code shows it at `write`; Preview shows the last stage
+  that was not `write`, `build` the first time. Moving to a page sets
+  `PgFlow.stage`, and a stage set elsewhere (the StageBar's Write tab,
+  Ctrl+1..4) scrolls the pager to the page that shows it (`via: auto`), so
+  no page is left without its stage.
+- **Nothing remounts across 720.** The stage and the console are rendered
+  once, through `createPortal` into DOM nodes the shell owns; the frame and
+  the pager each place those nodes where they need them. Crossing 720
+  (a rotation) keeps Monaco, the open file and the terminal's session. The
+  assistant remounts, as it already does between its panel and its Sheet;
+  its thread lives in the store.
+- **Files.** The picker on Code ("Files, <file> open") opens a full-height
+  Sheet titled Files holding `LeftPanel` as it is; opening a file closes it.
+  ⌘E opens and closes it on a phone.
+- **The navigation's `closeSheet`** has no Sheet to close on the Menu page;
+  there it moves to Work, so settings opened from the chips are seen.
+  `FeedbackHost` stays above the frame, so a draft survives the move between
+  pages and across 720.
+- **The assistant.** Chat shows it. `PgAssistant.onDidRequestPrompt` ("Fix
+  with assistant") moves to Work and shows Chat; Ctrl+R switches Chat and
+  Code.
+- **The read-only editor is removed.** `components/Editor/Monaco/read-only.ts`
+  goes whole (`applyReadOnly`, `READ_ONLY_MESSAGE`, `executeProductEdits`),
+  with `PgEditor.events.READ_ONLY_EDIT` and `layout_readonly_edit_blocked`.
+  The product's own edits (a format, the program id a build writes) call
+  `editor.executeEdits` again, as before 5.1: with no read-only editor its
+  `false` answer cannot happen. The two e2e that guarded the read-only
+  editor go; the phone scenario now edits a file.
+- **Telemetry** (prefix `layout`): `layout_page_shown {page: menu | work |
+  preview, via: swipe | button | auto}` when a page comes into view
+  (`auto`: the product moved it, as "Fix with assistant" does), not on load;
+  `layout_work_view {view: chat | code, via: button | key | auto}` when Work
+  switches. `layout_viewport`'s `phone` now means below 720.
+
+Kept: every id, `aria-label` and test id of the pieces inside the pages. The
+pager's own controls take the prototype's names: "Menu", "Close the menu",
+"Preview the build", "Back to the code", "Files, <file> open", and the
+"Show" group holding Chat and Code.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
@@ -686,5 +763,7 @@ and `Foldable` components are deleted, and no import of them remains. Ids,
 - **Removing themes** is visible to users who picked one. Dark fallback,
   said once.
 - **Two sets of primitives** if Base UI stays for the combobox.
-- **The read-only editor breakpoint** is settled (2026-10-09): 600 px. See
-  "The layout shell".
+- **The phone breakpoint** is 720 px, the prototype's (2026-10-14), while the
+  customer's sheet says 1024; it is being confirmed with them. One constant,
+  `LAYOUT_BREAKPOINTS.phone`, so the answer is a one-line change. 5.1's
+  read-only editor below 600 px is gone with 5.7.
