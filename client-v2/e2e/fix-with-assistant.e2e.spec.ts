@@ -39,7 +39,7 @@ test("a prompt asked for before connecting leaves no notice behind", async ({
   );
   await expect(page.getByText(HINT)).toBeVisible(LONG);
 
-  await page.getByRole("button", { name: "OpenAI-compatible" }).click();
+  await page.getByRole("radio", { name: "OpenAI-compatible" }).click();
   await page.locator("#assistant-base-url").fill("http://mock-llm.test/v1");
   await page.locator("#assistant-model").fill("mock-model");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
@@ -59,7 +59,7 @@ test("a prompt asked for before connecting leaves no notice behind", async ({
     (window as AssistantWindow).__pgAssistant!.disconnect()
   );
   await expect(
-    page.getByRole("button", { name: "OpenAI-compatible" })
+    page.getByRole("radio", { name: "OpenAI-compatible" })
   ).toBeVisible(LONG);
   await expect(page.getByText(HINT)).toBeHidden();
 });
