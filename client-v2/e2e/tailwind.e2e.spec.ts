@@ -47,8 +47,9 @@ test("Tailwind utilities reach the page in the utilities layer", async ({
  * The stock Checkbox and Switch style their checked state with `data-checked:`
  * utilities, but Radix sets `data-state`. shadcn/tailwind.css (imported in index.css)
  * defines the variants for both spellings; if that import stops reaching the page
- * the parts render, and a checked box looks unchecked. No page mounts them
- * yet, so this reads the rule out of the utilities layer.
+ * the parts render, and a checked box looks unchecked. Checkbox is mounted
+ * (the assistant's Sources); Switch is not mounted yet. So this reads the rule
+ * out of the utilities layer.
  */
 test("data-checked utilities match Radix's data-state", async ({ page }) => {
   await page.goto("/");
