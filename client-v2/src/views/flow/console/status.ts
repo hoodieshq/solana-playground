@@ -3,7 +3,7 @@ import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { FlowState } from "../state/stage";
 
 /** Visual weight for the collapsed console handle's status text */
-export type ConsoleStatusTone = "idle" | "success" | "error";
+export type ConsoleStatusTone = "idle" | "running" | "success" | "error";
 
 export interface ConsoleStatus {
   /** e.g. `building...`, `last build \u00b7 3.4s \u00b7 ok`, or `""`
@@ -31,9 +31,9 @@ const buildTime = (ms: number | null) =>
  * the last build's result, then nothing before the first build.
  */
 export const describeConsoleStatus = (flow: FlowState): ConsoleStatus => {
-  if (flow.build === "running") return { text: "building...", tone: "idle" };
+  if (flow.build === "running") return { text: "building...", tone: "running" };
   if (flow.deploy === "running") {
-    return { text: "deploying...", tone: "idle" };
+    return { text: "deploying...", tone: "running" };
   }
   if (flow.deploy === "failed") {
     return { text: "deploy failed", tone: "error" };
