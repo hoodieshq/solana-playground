@@ -62,15 +62,19 @@ const Terminal: FC<React.PropsWithChildren<TerminalProps>> = ({
 
   useExposeStatic(PgTerminal.events.STATIC, term);
 
-  // Open terminal
+  // Open terminal. `PgTerm.open` prints the welcome and a prompt, which no
+  // cleanup can take back, so a term is opened once: StrictMode's second run
+  // of this effect in dev keeps the same `term` and must leave it alone.
+  const openedRef = useRef<PgTerm | null>(null);
   useEffect(() => {
-    if (terminalRef.current) {
-      if (terminalRef.current.hasChildNodes()) {
-        terminalRef.current.removeChild(terminalRef.current.childNodes[0]);
-      }
+    if (!terminalRef.current || openedRef.current === term) return;
 
-      term.open(terminalRef.current);
+    if (terminalRef.current.hasChildNodes()) {
+      terminalRef.current.removeChild(terminalRef.current.childNodes[0]);
     }
+
+    term.open(terminalRef.current);
+    openedRef.current = term;
   }, [term]);
 
   // Handle resize
