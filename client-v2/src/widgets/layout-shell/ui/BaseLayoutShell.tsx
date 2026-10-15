@@ -148,8 +148,9 @@ export interface BaseLayoutShellProps {
   /**
    * Renders the files column: in the work group from
    * `LAYOUT_BREAKPOINTS.left`, under the navigation in the stock Sidebar's
-   * Sheet below it, where a phone has no room for a column of its own. In the
-   * Sheet it is handed the stock toggle, which opens and closes that Sheet.
+   * Sheet below it, where a narrow window has no room for a column of its own.
+   * In the Sheet it is handed the stock toggle, which opens and closes that
+   * Sheet. Below `LAYOUT_BREAKPOINTS.phone` the pager shows it in its own Sheet.
    */
   files: (stock: FilesStock) => ReactNode;
   /**
@@ -342,7 +343,10 @@ const NavSheetOpener = ({
  * assistant on a wide screen (a Sheet below `LAYOUT_BREAKPOINTS.compact`), then
  * the work area: the stage bar over the files column and the stage, the stage
  * over the console. Below `LAYOUT_BREAKPOINTS.left` the files column moves into
- * the navigation's Sheet. Lays out what it is given; holds no state.
+ * the navigation's Sheet. Below `LAYOUT_BREAKPOINTS.phone` the frame gives way
+ * to `BasePhonePager`; the stage and the console are outlets, so their nodes
+ * move between the two without remounting. Lays out what it is given; holds
+ * no state.
  */
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const [foldedOf] = useState(createFoldedOf);

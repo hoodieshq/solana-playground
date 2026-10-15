@@ -27,8 +27,9 @@ export interface LayoutShellProps {
    * from there up and opens or closes the Sheet below it. `closeSheet` is for
    * a control in the navigation that opens something the Sheet's modal
    * overlay would cover (settings, from the status chips): it closes the
-   * Sheet as the product's doing, `via: "auto"`, and does nothing where no
-   * Sheet is open.
+   * Sheet as the product's doing, `via: "auto"`; on a phone, where the
+   * navigation is a page, it brings Work into view; elsewhere it does nothing
+   * where no Sheet is open.
    */
   nav: (panel: {
     collapsed: boolean;
@@ -55,8 +56,11 @@ const isEditable = (target: EventTarget | null) =>
   ) !== null;
 
 /**
- * The four-column frame, connected: the layout state and its storage, the
- * keys, the panels the product opens on its own, and the `layout_*` events.
+ * The frame and the phone's pager, connected: the layout state and its
+ * storage, the keys, the panels the product opens on its own, and the
+ * `layout_*` events. Below `LAYOUT_BREAKPOINTS.phone` it drives `BasePhonePager`
+ * instead of the columns; that page, view, Files Sheet and console are
+ * visit state, never written to the saved layout.
  */
 const LayoutShell = ({
   nav,
@@ -477,7 +481,7 @@ const LayoutShell = ({
         title: PgExplorer.currentWorkspaceName ?? "",
         file,
         filesOpen,
-        onFilesOpenChange: (open) => setPhoneFiles(open, "button"),
+        onFilesOpenChange: (open) => setPhoneFiles(open, lastInput.current),
         stageOn: flowStage === "write" ? "work" : "preview",
         consoleOpen: phoneConsole,
       }}
