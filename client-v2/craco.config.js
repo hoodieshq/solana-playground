@@ -101,6 +101,21 @@ const esbuildTarget = () => {
   return [...lowest].map(([engine, version]) => engine + version);
 };
 
+/** esbuild's options for minifying the production JS */
+const jsMinifyOptions = () => ({
+  // Decorators name change events after `_Pg*` classes, and esbuild keeps
+  // names only all or none
+  keepNames: true,
+  target: esbuildTarget(),
+  // Chunks are classic scripts sharing one global scope, and `keepNames`
+  // declares its two helpers (`Object.defineProperty` and a name setter) as
+  // top-level `var`s. Two chunks can minify them to the same name in
+  // different roles, so a later chunk's `Object.defineProperty` replaces an
+  // earlier chunk's name setter, whose next call throws "Property description
+  // must be an object". Each chunk keeps its helpers in its own function scope
+  format: "iife",
+});
+
 /** CRA's in-build type check and lint, by plugin class name */
 const BUILD_ONLY_CHECKS = [
   "ForkTsCheckerWebpackPlugin",
@@ -488,9 +503,7 @@ module.exports = {
       }
       jsMinimizer.options.minimizer = {
         implementation: TerserPlugin.esbuildMinify,
-        // Decorators name change events after `_Pg*` classes, and esbuild
-        // keeps names only all or none
-        options: { keepNames: true, target: esbuildTarget() },
+        options: jsMinifyOptions(),
       };
       // Workers are threads in this process, outside `--max-old-space-size`
       jsMinimizer.options.parallel = 2;
@@ -638,6 +651,7 @@ const defineFromPublicDir = (dirName, cb) => {
   return JSON.stringify(cb(fs.readdirSync(publicPath), publicPath));
 };
 
-// Exported for tests only. The craco config itself is the default export
-// above; this is the one pure function in the file worth covering directly.
+// Exported for tests only. The craco config itself is the `module.exports`
+// object above.
 module.exports.resolveApiRoute = resolveApiRoute;
+module.exports.jsMinifyOptions = jsMinifyOptions;
