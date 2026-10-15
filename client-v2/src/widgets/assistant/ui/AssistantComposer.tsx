@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
+import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
 import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
 import { realBridge } from "../../../views/sidebar/assistant/bridge/playground-bridge";
@@ -155,10 +156,12 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
   return (
     <div className="flex shrink-0 flex-col gap-2 px-3 pt-2 pb-3">
       {turn.promptWaiting && (
-        <p role="status" className="px-1 text-xs text-muted-foreground italic">
-          Connect a backend to send this to the assistant. Your prompt is
-          waiting in the composer.
-        </p>
+        <Callout variant="info" role="status">
+          <CalloutDescription>
+            Connect a backend to send this to the assistant. Your prompt is
+            waiting in the composer.
+          </CalloutDescription>
+        </Callout>
       )}
       <BaseAssistantComposer
         chips={contextChips(lessonState)}

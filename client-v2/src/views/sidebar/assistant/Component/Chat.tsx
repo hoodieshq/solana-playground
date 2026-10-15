@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { Empty, EmptyDescription } from "@/shared/ui/empty";
 import ChatItem from "./ChatItem";
 import { ThreeDots } from "../../../../components/Loading/ThreeDots";

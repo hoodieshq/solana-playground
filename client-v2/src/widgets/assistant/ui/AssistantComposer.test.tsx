@@ -240,3 +240,19 @@ describe("AssistantComposer, connected", () => {
     expect(entry?.report).toBe(true);
   });
 });
+
+describe("AssistantComposer, nothing connected", () => {
+  it("says a requested prompt is waiting, in an info callout", async () => {
+    PgAssistant.disconnect();
+    render(<Harness />);
+
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    const hint = await screen.findByRole("status");
+    expect(hint.getAttribute("data-slot")).toBe("callout");
+    expect(hint.getAttribute("data-variant")).toBe("info");
+    expect(hint.textContent).toBe(
+      "Connect a backend to send this to the assistant. Your prompt is waiting in the composer."
+    );
+  });
+});
