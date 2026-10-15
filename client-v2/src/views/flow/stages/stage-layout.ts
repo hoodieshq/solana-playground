@@ -15,5 +15,9 @@ export const STAGE_FRAME = "flex h-full flex-col overflow-y-auto";
 export const STAGE_BODY =
   "max-w-[42rem] max-md:min-h-full max-md:flex-1 max-md:pb-0";
 
-/** The action row, on `StageEmptyActions` */
-export const STAGE_FOOT = "max-md:mt-auto";
+/**
+ * The action row, on `StageEmptyActions`. Its fade starts from the stage
+ * column's own surface (`--surface-panel`, the theme's `bgSecondary`), not
+ * the page's background, which drew a darker band behind the button.
+ */
+export const STAGE_FOOT = "max-md:mt-auto max-md:from-surface-panel";
