@@ -28,9 +28,9 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
- * A theme that answers every key: the banner and the legacy button read
- * deep theme keys for their styles, none of which matters here, and the
- * real theme's module needs the utils barrel.
+ * A theme that answers every key: the banner reads deep theme keys for its
+ * styles, none of which matters here, and the real theme's module needs the
+ * utils barrel.
  */
 const anyTheme: DefaultTheme = new Proxy(
   {},

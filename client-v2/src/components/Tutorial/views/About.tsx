@@ -1,4 +1,5 @@
 import { FC, Fragment } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import styled, { css } from "styled-components";
 
 import { AsyncButton } from "@/shared/ui/async-button";
@@ -21,12 +22,12 @@ export const About: FC<
   return (
     <Wrapper>
       <GoBackButtonWrapper>
-        <Link href="/tutorials">
-          <Button variant="ghost">
+        <Button asChild variant="ghost">
+          <RouterLink to="/tutorials">
             <PointedArrow data-icon="inline-start" rotate="180deg" />
             Go back to tutorials
-          </Button>
-        </Link>
+          </RouterLink>
+        </Button>
       </GoBackButtonWrapper>
 
       <TutorialAboutPage>

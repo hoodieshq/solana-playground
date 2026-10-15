@@ -1,4 +1,5 @@
 import { FC, useEffect, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import styled, { css } from "styled-components";
 
 import { Button } from "@/shared/ui/button";
@@ -48,12 +49,17 @@ const Home = () => {
             ))}
           </TutorialCardsWrapper>
 
-          <Link href="/tutorials">
-            <Button variant="ghost" size="sm" className="mt-4 text-primary">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="mt-4 text-primary"
+          >
+            <RouterLink to="/tutorials">
               Playground tutorials
               <ShortArrow data-icon="inline-end" />
-            </Button>
-          </Link>
+            </RouterLink>
+          </Button>
         </TutorialsWrapper>
       </ContentWrapper>
     </Wrapper>
@@ -110,12 +116,12 @@ const Resource: FC<React.PropsWithChildren<ResourceProps>> = ({
     </ResourceTitle>
     <ResourceDescription>{description}</ResourceDescription>
     <ResourceButtonWrapper>
-      <Link href={url}>
-        <Button variant="outline" className="w-full">
+      <Button asChild variant="outline" className="w-full">
+        <a href={url} target="_blank" rel="noopener noreferrer">
           Learn more
           <External data-icon="inline-end" />
-        </Button>
-      </Link>
+        </a>
+      </Button>
     </ResourceButtonWrapper>
   </ResourceCard>
 );
