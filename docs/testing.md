@@ -768,23 +768,28 @@ COMPOSE_PROJECT_NAME=pg-slot$k PG_CLIENT_PORT=$((13000 + 10 * k)) PG_CLIENT_V2_P
 
 In each case of a group, read `http://localhost:3000` and `http://localhost:8080` as the slot's client and server ports.
 
-client-v2's browser suite takes the same slot through `PORT`:
+client-v2's browser suite does not take a slot: leave `PORT` unset and run only the specs you touched.
 
 ```sh
-k=5
-PORT=$((13000 + 10 * k)) yarn test-e2e
+yarn test-e2e e2e/<spec>.e2e.spec.ts
 ```
 
-The run starts its own dev server on that port, or reuses one that this worktree already started there. A server on
-the port from another worktree, or anything else that is not this worktree's client-v2, fails the run before any test.
+A local run waits in a machine-wide queue, so several worktrees do not swap the machine, and the queue picks its port:
+queue slot `N` runs on `13900 + N`, so the 139xx range is the queue's and no group above uses it. At most
+`E2E_MAX_RUNS` runs (default 1) go at once, each with `E2E_WORKERS` Chromiums (default 2). The queue's slots are the
+directories `slot-1`, `slot-2`, ... under `~/.cache/solana-playground-e2e` (`E2E_QUEUE_DIR` moves them); each one's
+`owner.json` names the run's pid, worktree, and port. A waiting run prints who holds the slots. A run that was killed
+leaves its slot behind, and the next run reclaims it once the owner's pid is gone. If an unrelated process has since
+been given that pid, the slot stays held until that process exits: when a run waits on a holder that is not an e2e run,
+delete the slot by hand (`rm -r ~/.cache/solana-playground-e2e/slot-N`). CI does not queue and uses port 3000.
 
-A local run also waits in a machine-wide queue, so several worktrees do not swap the machine: at most `E2E_MAX_RUNS`
-runs (default 2) go at once, each with `E2E_WORKERS` Chromiums (default 2). The slots are the directories `slot-1`,
-`slot-2`, ... under `~/.cache/solana-playground-e2e` (`E2E_QUEUE_DIR` moves them). A waiting run prints who holds the
-slots. A run that was killed leaves its slot behind, and the next run reclaims it once the owner's pid is gone. If an
-unrelated process has since been given that pid, the slot stays held until that process exits: when a run waits on a
-holder that is not an e2e run, delete the slot by hand (`rm -r ~/.cache/solana-playground-e2e/slot-N`). CI does not
-queue.
+The run starts its own dev server on its port, or reuses one that this worktree already started there. A server on the
+port from another worktree, or anything else that is not this worktree's client-v2, fails the run before any test, and
+the message names the pid holding the port. A hand-set `PORT` still works, outside 139xx, and gets the same check.
+
+The full suite is CI's. A local run with no spec, or with only the test directory (`e2e/`), stops with a message; a
+`--grep`, `--last-failed`, or `--only-changed` run goes ahead. `E2E_FULL=1 yarn test-e2e` runs the full suite anyway,
+still through the queue.
 
 ### Limits
 
