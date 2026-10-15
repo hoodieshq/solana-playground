@@ -267,7 +267,7 @@ export class PgAssistant {
    *
    * Connecting when nothing is connected is *not* a switch, and must not reset
    * anything. The live connection starts empty after every reload, and by the
-   * time one is made -- the user's pick, or `Connect`'s reconnect on load from
+   * time one is made -- the user's pick, or `useTurn`'s reconnect on load from
    * `remembered-backend` -- `chat-thread` may already have restored this
    * workspace's conversation from storage. Treating that as a switch cleared
    * the restored thread on every single reload.
