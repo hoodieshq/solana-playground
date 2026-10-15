@@ -81,6 +81,8 @@ existing code moves.
 - `client-v2-stages`: what the Build and Deploy stages show: a failed build's
   diagnostics with the faulty line marked, the latest deployment's program id
   to copy, and the stage's action at the foot on a phone.
+- `client-v2-assistant`: how the assistant's composer names the model it
+  talks to, how a turn is sent and stopped, and how a model is connected.
 
 ### Modified Capabilities
 

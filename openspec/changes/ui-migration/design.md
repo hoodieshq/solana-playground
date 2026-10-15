@@ -828,6 +828,88 @@ whoever wires that sidebar path again builds the page anew.
 
 Kept: `flow-stage-panel-*`, `flow-stage-tab-*` and the texts the e2e reads.
 
+## The composer and Connect a model (5.17)
+
+Decided with Slava on 2026-10-14 (HOO-2067). The assistant's head, its
+composer and the Connect a model dialog take the prototype's shape; the
+thread above the composer stays as it is until 5.18 (HOO-1794).
+
+```
+widgets/assistant
+├─ AssistantHead: project name | More (⋮) | Widen | Hide
+│    More: Sources and tools (S), Connect a model… (K),
+│          Clear conversation (disabled until HOO-1741)
+├─ (thread: today's Chat items, unchanged until 5.18)
+├─ AssistantComposer (shared/ui/composer)
+│    context chips | input | Add | ModelMenu | EffortMenu? | Send ⇄ Stop
+└─ ConnectDialog (shared/ui/modal) around today's Connect form
+```
+
+- **Where the code goes.** A new widget slice, `src/widgets/assistant/`,
+  with the pairs `BaseAssistantHead`/`AssistantHead`,
+  `BaseAssistantComposer`/`AssistantComposer`, `BaseModelMenu`,
+  `BaseEffortMenu` and `ConnectDialog`. The store (`PgAssistant`), the
+  providers and the `Connect` form stay in `views/sidebar/assistant/` and
+  are imported from there; they move with the thread or later. 5.18 adds the
+  thread to the same slice.
+- **The head.** The project's name, then More, Widen and Hide. Hide is the
+  shell's "Collapse assistant", label kept. Widen sizes the assistant panel
+  to its maximum (560 px) and back; it is not saved in the layout, and it is
+  not offered below `LAYOUT_BREAKPOINTS.compact`, where the assistant is a
+  Sheet. The Chat and Sources tabs go: Sources and tools opens from More and
+  closes with a back button. Clear conversation is shown disabled: clearing
+  only what is rendered would come back from another device, and the
+  cross-device clear is HOO-1741 (server half HOO-1742, signed-out HOO-1739).
+- **The composer is always there.** Nothing connected no longer swaps the
+  composer for the picker:
+  - the default backend configured on this deployment: the model button names
+    it and the first send connects to it, then sends;
+  - none configured: the model button reads "Connect a model", and Send
+    opens the dialog with the typed prompt kept in the composer.
+  The thread restored before a backend is picked stays on screen above it.
+- **The model is the real one.** The default backend's model comes from
+  `GET /api/agent` (`model`, which it already returns), shown through a
+  small table of display names (`z-ai/glm-5.3-flash:US` is "GLM 5.3 Flash");
+  an id the table does not know is shown as it is. The prototype's
+  "Opus 5.5" is sample data and is never shown for a backend that is not
+  connected to it. A key-based backend shows its model id
+  (`settings.model` or `endpoint.model`).
+- **The model menu.** The hosted default ("no key needed"), the models of
+  the backends that have a model list, and "Connect with a key…". A model
+  of the connected backend is switched in place; one of another backend
+  opens the dialog on that backend.
+- **Effort only where the backend takes it.** `ComposerEffort`'s ring runs
+  over the backend's own ladder (`modelSettings.efforts`, five steps on
+  Anthropic) and is shown only for a backend with `modelSettings`. The
+  default backend's effort is the server's (`AGENT_REASONING_EFFORT`), so
+  the composer shows none for it.
+- **Switching in place keeps the thread.** A model or effort change on the
+  same backend and key replaces the connection without `clear`
+  (`PgAssistant.tune`); the next turn's provider is seeded from what is
+  rendered, as a reopened thread is. A change of backend still starts a new
+  conversation, as today.
+- **Send turns to Stop** through the composer's `busy` and `onStop`. The
+  input stays editable during a turn; Enter sends, Shift+Enter breaks the
+  line, and an input method's Enter never sends. A prompt placed by "Fix with
+  assistant" enables Send: the design system's `Composer` reads emptiness
+  from `value` when the input is controlled (a fix made in
+  `design-system/src/components/ui/composer.tsx` and reinstalled).
+- **Connect a model is a dialog.** The design system's `Modal`, already in
+  `shared/ui`, so 5.6 (#68) is not needed for it; below `md` the Modal is a
+  page of its own with a sticky footer. It holds today's `Connect` form
+  without its "Back to chat" and its own title, and opens from More (K),
+  from the model menu, and from a Send with nothing to send to. It is built
+  after 5.5 (#72) and the own-key change (#71) merge: both edit
+  `Connect.tsx`.
+- **What survives.** "Message the assistant", the "Conversation" log, Send
+  and Stop, "Expand assistant" and "Collapse assistant", and the form's
+  ids and buttons ("Start", "Connect").
+- **Telemetry.** Prefix `assistant`: `assistant_model_picked {provider,
+  via}`, `assistant_effort_changed {effort}`, `assistant_connect_opened {via:
+  menu | model | send}`, `assistant_turn_stopped`, and
+  `assistant_default_probe_failed`, also logged with `report: true`. Logs
+  under `assistant:composer` and `assistant:connect`.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
