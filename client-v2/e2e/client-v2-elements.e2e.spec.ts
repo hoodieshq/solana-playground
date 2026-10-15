@@ -42,10 +42,13 @@ test("client-v2-elements: A settings group folds", async ({
   seededPage: page,
 }) => {
   await page.locator("[data-settings-trigger]").first().click();
-  const heading = page
-    .getByLabel("Settings")
-    .getByRole("button", { expanded: true })
-    .first();
+  // Pin the first open group by its name: once it folds it no longer matches
+  // `expanded: true`, and the locator would move on to the next group
+  const settings = page.getByLabel("Settings");
+  const open = settings.getByRole("button", { expanded: true }).first();
+  const name = ((await open.textContent()) ?? "").trim();
+  expect(name).not.toBe("");
+  const heading = settings.getByRole("button", { name, exact: true });
   await heading.click();
   await expect(heading).toHaveAttribute("aria-expanded", "false");
   await heading.click();
