@@ -5,8 +5,8 @@ schema: spec-driven
 # client-v2/CLAUDE.md and are not repeated here.
 context: |
   The product is Solana Playground's client-v2: a fork of upstream's Create
-  React App client (React 17 today, React 19 arriving in change
-  ui-migration), moving to Tailwind 4, shadcn/ui on Radix and vitest. Create
+  React App client, on React 19 since HOO-1850, moving to Tailwind 4,
+  shadcn/ui on Radix and vitest in change ui-migration. Create
   React App stays; Next is a later, separate decision.
   client/ is upstream's and byte-identical; server/ is not modified. All
   changes go in client-v2/ and design-system/. client-v2 is not synced with
