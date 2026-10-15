@@ -12,17 +12,25 @@ type AssistantWindow = Window & {
 const CODE = "anchor build\nanchor deploy";
 
 /**
- * Connect a model's brand button, opened from the assistant head's More:
- * Connect, or Start for a keyless backend
+ * A ring brand button at rest: the Build stage's Continue to Deploy, after a
+ * build the stub answers. Connect a model's action, which these tests read
+ * before, is now its dialog's footer submit.
  */
-const assistantAction = async (page: Page) => {
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
-  return page
-    .getByRole("dialog", { name: "Connect a model" })
-    .locator('[data-slot="brand-button"]:visible', {
-      hasText: /^(Connect|Start)$/,
-    });
+const ringAction = async (page: Page) => {
+  await page.route("**/build", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+    })
+  );
+  await page.locator("#flow-stage-tab-build").click();
+  await page.getByRole("button", { name: "Build", exact: true }).click();
+  return page.locator(
+    '[data-slot="brand-button"][data-variant="ring"]:visible',
+    {
+      hasText: /Deploy/,
+    }
+  );
 };
 
 /**
@@ -182,8 +190,8 @@ test.describe("client-v2-buttons", () => {
     await expect(brand).toHaveText(/Deploy/);
 
     // Page-wide, that is the stage's Deploy: the assistant beside the stage
-    // has none until Connect a model opens, and a brand button anywhere else
-    // is a stray
+    // has none (Connect a model's action is its dialog's submit), and a brand
+    // button anywhere else is a stray
     const everywhere = page.locator('[data-slot="brand-button"]:visible');
     await expect(everywhere).toHaveCount(1);
     await expect(everywhere).toHaveText([/Deploy/]);
@@ -204,7 +212,7 @@ test.describe("client-v2-buttons", () => {
       .toBe(false);
 
     // At rest the ring's fill is the light surface; a white label vanishes
-    const action = await assistantAction(page);
+    const action = await ringAction(page);
     await expect(action).toBeVisible();
     await page.mouse.move(0, 0);
     const { label, ratio } = await restingContrast(action);
@@ -216,7 +224,7 @@ test.describe("client-v2-buttons", () => {
     seededPage: page,
   }) => {
     test.setTimeout(120_000);
-    const action = await assistantAction(page);
+    const action = await ringAction(page);
     await expect(action).toBeVisible();
     await page.mouse.move(0, 0);
     const { ratio } = await restingContrast(action);
