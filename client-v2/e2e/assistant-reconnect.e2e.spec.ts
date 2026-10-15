@@ -106,7 +106,8 @@ test("disconnecting is not undone by the next reload", async ({ page }) => {
   await expect(page.getByRole("button", { name: "GLM 5.3 Flash" })).toBeVisible(
     LONG
   );
-  await page.waitForTimeout(2000);
+  // The model button reads "GLM 5.3 Flash" only once the shared probe has
+  // answered, and the reconnect effect has run by then
   expect(await isConnected(page)).toBe(false);
 });
 

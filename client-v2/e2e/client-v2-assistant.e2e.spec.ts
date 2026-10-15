@@ -63,6 +63,12 @@ test("client-v2-assistant: A backend with an effort ladder", async ({
   page,
 }) => {
   await stubAgent(page, { configured: false, model: null }, answer);
+  // Connecting must not send anything: a request here would be a turn
+  let anthropicRequests = 0;
+  await page.route("https://api.anthropic.com/**", (route) => {
+    anthropicRequests += 1;
+    return route.abort();
+  });
   await openProject(page, "effort-ladder");
 
   await page.getByRole("button", { name: "More", exact: true }).click();
@@ -75,6 +81,7 @@ test("client-v2-assistant: A backend with an effort ladder", async ({
     page.getByRole("button", { name: "Medium: 2 of 5" })
   ).toBeVisible(LONG);
   await expect(modelButton(page, "Opus 5.5")).toBeVisible();
+  expect(anthropicRequests).toBe(0);
 });
 
 test("client-v2-assistant: The first message on the hosted default", async ({
@@ -107,6 +114,13 @@ test("client-v2-assistant: No default backend", async ({ page }) => {
   // The picker is open: its key field is on screen
   await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
   await expect(input(page)).toHaveValue("Say hello");
+  // The prompt waits in the composer, but no notice says so once the picker is
+  // what the user is looking at (Ruling R9)
+  await expect(
+    page.getByText(
+      "Connect a backend to send this to the assistant. Your prompt is waiting in the composer."
+    )
+  ).toBeHidden();
 });
 
 test("client-v2-assistant: Stopping an answer", async ({ page }) => {
