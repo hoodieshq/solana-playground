@@ -1,6 +1,7 @@
+import type { FC } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { DefaultTheme, ThemeProvider } from "styled-components";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Tab from "./Tab";
 
@@ -56,17 +57,23 @@ const openMenuOf = async (path: string, index: number) => {
 const closed = () =>
   explorer.closeFile.mock.calls.map((call: string[]) => call[0]);
 
+/** Tab as the sortable renders it: with props its type does not name */
+const Untyped = Tab as unknown as FC<Record<string, unknown>>;
+
 describe("Tab root", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("keeps the sortable's bookkeeping off the DOM", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const sortableProps = {
-      Item: () => null,
-      id: "/other",
-      sortable: { index: 0 },
-    };
     render(
       <ThemeProvider theme={theme}>
-        <Tab path="/a.rs" index={0} {...(sortableProps as object)} />
+        <Untyped
+          path="/a.rs"
+          index={0}
+          Item={() => null}
+          id="/other"
+          sortable={{ index: 0 }}
+        />
       </ThemeProvider>
     );
     const root = screen.getByTitle("/a.rs");
@@ -74,7 +81,6 @@ describe("Tab root", () => {
     expect(root.hasAttribute("item")).toBe(false);
     expect(root.id).toBe("/a.rs");
     expect(error).not.toHaveBeenCalled();
-    error.mockRestore();
   });
 
   it("keeps the design system's slot name under the context menu", () => {
