@@ -111,14 +111,18 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // comment.
   await expect(page.getByRole("tab", { name: "Steps" })).toBeVisible();
   // "Step 1 of 4" is on the page twice on entry -- the band's eyebrow and
-  // the open reader's -- and the band renders first in DOM order.
-  await expect(page.getByText("Step 1 of 4").first()).toBeVisible();
+  // the open reader's -- and the band renders first in DOM order. `exact`
+  // keeps out the assistant composer's "step 1 of 4" context chip, which
+  // sits earlier in the DOM and a default (case-insensitive, substring)
+  // match would take first.
+  const eyebrow = page.getByText("Step 1 of 4", { exact: true }).first();
+  await expect(eyebrow).toBeVisible();
 
   // The objective text is rendered more than once -- in the band, in the
   // step rail's own row for the current step, in the reader's bar -- so
   // scope to the band's own text block (its eyebrow's parent) to keep
   // this a single-element locator.
-  const band = page.getByText("Step 1 of 4").first().locator("..");
+  const band = eyebrow.locator("..");
   await expect(
     band.getByText("Define the hello instruction and log a message")
   ).toBeVisible();
@@ -229,7 +233,9 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
     .getByRole("button", { name: "Mark as read", exact: true })
     .click();
   await expect(sheet).toHaveCount(0);
-  await expect(page.getByText("Step 4 of 4").first()).toBeVisible();
+  await expect(
+    page.getByText("Step 4 of 4", { exact: true }).first()
+  ).toBeVisible();
 
   // Skipping the last step lands past the end: the band sums the path in
   // the record's own vocabulary and offers the gallery as the way on,
