@@ -202,6 +202,11 @@ reason when a saved layout cannot be read.
 - **WHEN** a user on a 390 px wide screen taps "Preview the build"
 - **THEN** `layout_page_shown` is sent with the page `preview`, by button
 
+#### Scenario: Swiping between pages on a phone
+
+- **WHEN** a user on a 390 px wide screen swipes from the code to the preview
+- **THEN** the Build stage shows and `layout_page_shown` is sent once, with the page `preview`, by swipe
+
 #### Scenario: A corrupt saved layout is reported
 
 - **WHEN** the saved layout is corrupt and the user loads the product

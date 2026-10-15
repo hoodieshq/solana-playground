@@ -365,6 +365,8 @@ test.describe("on a phone", () => {
 
   test("client-v2-layout: Settings on a phone", async ({ page }) => {
     await seedThenNarrow(page);
+    // The editor focuses itself when it opens the first file; landing after
+    // the menu opened, it would take focus from the settings
     await expect(
       page.locator(".monaco-editor textarea.inputarea")
     ).toBeFocused();
@@ -385,6 +387,31 @@ test.describe("on a phone", () => {
     await expect(
       network.getByRole("radio", { name: "Devnet" })
     ).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("client-v2-layout: Swiping between pages on a phone", async ({
+    page,
+  }) => {
+    await seedThenNarrow(page);
+    const lines = linesOn(page);
+    // Over the work page's bar, which no editor or terminal takes a wheel from
+    const bar = page
+      .getByRole("region", { name: "Work" })
+      .getByTestId("phone-bar");
+    const box = (await bar.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(390, 0);
+    await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
+    await expect
+      .poll(() => lineOf(lines, "layout_page_shown"))
+      .toContain("via: swipe");
+    // Settled once: the stage this page sets does not send a second move
+    await page.waitForTimeout(400);
+    const shown = lines.filter((line) =>
+      line.startsWith("[telemetry:event] layout_page_shown ")
+    );
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toContain("page: preview");
   });
 
   test("client-v2-layout: Opening the preview on a phone", async ({ page }) => {
@@ -466,8 +493,8 @@ test("a file can be renamed from the project Sheet", async ({ page }) => {
     }
   });
   await rename.click();
-  // Tapped, as on a phone: the modal Sheet, closing, keeps the modal's
-  // field from taking focus itself.
+  // Tapped: the modal Sheet, closing, keeps the modal's field from taking
+  // focus itself.
   const input = page.locator('input[value="lib.rs"]');
   await input.click();
   await input.fill("renamed.rs");
