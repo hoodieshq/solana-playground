@@ -1,0 +1,107 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type { ModelOption, ModelShown } from "../model/choice";
+import { BaseModelMenu } from "./BaseModelMenu";
+
+const options: ModelOption[] = [
+  { provider: "default", model: null, label: "GLM 5.3 Flash" },
+  { provider: "anthropic", model: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+];
+
+const shownDefault: ModelShown = {
+  kind: "default",
+  label: "GLM 5.3 Flash",
+  connected: true,
+};
+
+const setup = (model: ModelShown, disabled = false) => {
+  const onPick = vi.fn();
+  const onConnect = vi.fn();
+  render(
+    <BaseModelMenu
+      model={model}
+      options={options}
+      onPick={onPick}
+      onConnect={onConnect}
+      disabled={disabled}
+    />
+  );
+  return { onPick, onConnect, user: userEvent.setup() };
+};
+
+describe("BaseModelMenu", () => {
+  it("names the shown model on the trigger", () => {
+    setup(shownDefault);
+    expect(screen.getByRole("button", { name: /GLM 5.3 Flash/ })).toBeTruthy();
+  });
+
+  it("lists the options and the connect entry when opened", async () => {
+    const { user } = setup(shownDefault);
+    await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));
+    expect(screen.getByText("Model")).toBeTruthy();
+    expect(
+      screen.getByRole("menuitemradio", { name: /Sonnet 5.5/ })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", { name: "Connect with a key…" })
+    ).toBeTruthy();
+  });
+
+  it("checks the default option when the default is shown", async () => {
+    const { user } = setup(shownDefault);
+    await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));
+    const checked = screen.getAllByRole("menuitemradio", { checked: true });
+    expect(checked.length).toBe(1);
+    expect(checked[0].textContent).toContain("GLM 5.3 Flash");
+  });
+
+  it("checks the keyed option matching provider and label", async () => {
+    const { user } = setup({
+      kind: "keyed",
+      provider: "anthropic",
+      label: "Sonnet 5.5",
+      effort: null,
+    });
+    await user.click(screen.getByRole("button", { name: /Sonnet 5.5/ }));
+    const checked = screen.getAllByRole("menuitemradio", { checked: true });
+    expect(checked.length).toBe(1);
+    expect(checked[0].textContent).toContain("Sonnet 5.5");
+  });
+
+  it("hands the picked option to onPick", async () => {
+    const { user, onPick } = setup(shownDefault);
+    await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: /Sonnet 5.5/ }));
+    expect(onPick).toHaveBeenCalledWith({
+      provider: "anthropic",
+      model: "claude-sonnet-5-5",
+      label: "Sonnet 5.5",
+    });
+  });
+
+  it("calls onConnect from the key entry", async () => {
+    const { user, onConnect } = setup(shownDefault);
+    await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Connect with a key…" })
+    );
+    expect(onConnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a plain Connect a model button for none, with no menu", async () => {
+    const { user, onConnect } = setup({ kind: "none" });
+    await user.click(screen.getByRole("button", { name: "Connect a model" }));
+    expect(onConnect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("disables the trigger", () => {
+    setup(shownDefault, true);
+    expect(
+      screen
+        .getByRole("button", { name: /GLM 5.3 Flash/ })
+        .hasAttribute("disabled")
+    ).toBe(true);
+  });
+});

@@ -7,3 +7,5 @@ export {
 export type { DefaultBackend } from "./model/default-backend";
 export { modelOptions, modelShown } from "./model/choice";
 export type { ModelOption, ModelShown } from "./model/choice";
+export { BaseModelMenu } from "./ui/BaseModelMenu";
+export { BaseEffortMenu, EFFORT_LABELS } from "./ui/BaseEffortMenu";
