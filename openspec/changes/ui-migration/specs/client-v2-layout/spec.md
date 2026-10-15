@@ -95,13 +95,17 @@ width. The 720 px value SHALL be held in one place.
 
 ### Requirement: The editor does not take focus from a field
 
-Opening a file SHALL focus the editor. The one exception is the open the
-editor makes as it mounts (on a slow first load it mounts late and opens the
-current file then, or the first file opened after it when none was current):
-if the user is typing in a text field outside the editor at that moment, the
-file SHALL still open, and the field SHALL keep its focus and what was typed.
-Every later open, and creating a file with or without a tab open, SHALL focus
-the editor.
+Opening a file SHALL focus the editor. The exception is an open the user
+did not start: the open the editor makes as it mounts (on a slow first load
+it mounts late and opens the current file then, or the first file opened
+after it when none was current), and a re-open or reload of the workspace
+that sync makes (taking the account's copy, merging with another device,
+following another tab's write). If the user is typing in a text field outside
+the editor at that moment, the file SHALL still open, and the field SHALL
+keep its focus and what was typed. After the mount, a field in the
+explorer's tree does not count: an open made while the user is typing there
+is one they started, such as creating a file. Every open the user starts,
+creating a file with or without a tab open included, SHALL focus the editor.
 
 #### Scenario: A late editor mount leaves the new-file field focused
 
@@ -109,6 +113,14 @@ the editor.
   file" and types a name
 - **THEN** once the editor shows the file, the new-file field still has
   focus and holds the name
+
+#### Scenario: A workspace re-open leaves the composer focused
+
+- **WHEN** the user is typing in the assistant's composer and the workspace
+  is re-opened without them asking (another tab of the browser creates a
+  file in the same project)
+- **THEN** once the editor shows the file again, the composer still has
+  focus and holds what was typed, and the editor does not have focus
 
 #### Scenario: Opening a file with no tabs focuses the editor
 

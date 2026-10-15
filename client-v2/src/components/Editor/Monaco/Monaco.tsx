@@ -17,6 +17,7 @@ import {
   PgSettings,
   PgTerminal,
   PgTheme,
+  PgView,
   resolveTextMateTheme,
 } from "../../../utils";
 import {
@@ -26,8 +27,8 @@ import {
   useSendAndReceiveCustomEvent,
 } from "../../../hooks";
 import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
-import { isTypingElsewhere } from "@/shared/lib/focus";
 import { createMountOpen } from "./mount-open";
+import { leavesFocusElsewhere } from "./open-focus";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("editor:monaco");
@@ -364,13 +365,20 @@ const Monaco = () => {
         endColumn: endPosition.column,
       });
 
-      // A late mount opens the current file while the user may already be
-      // typing elsewhere (a new file's name); the file opens, focus stays.
-      // Any later open takes focus as before: the user's (creating a file,
-      // picking a tab) and sync's re-open of the workspace alike.
-      if (isMountOpen && isTypingElsewhere(editor.getContainerDomNode())) {
+      // An open the user did not start -- a late mount's, sync re-opening
+      // the workspace -- leaves focus in a field they are typing in; the
+      // file opens, focus stays. One started from the explorer's tree
+      // (creating a file) still ends in the editor; see `leavesFocusElsewhere`.
+      const open = isMountOpen ? "mount" : "later";
+      if (
+        leavesFocusElsewhere({
+          open,
+          editor: editor.getContainerDomNode(),
+          tree: document.getElementById(PgView.ids.ROOT_DIR),
+        })
+      ) {
         log.debug("Left focus in a field the user is typing in", {
-          context: { path: curFile.path },
+          context: { path: curFile.path, open },
         });
       } else {
         editor.focus();
