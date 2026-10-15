@@ -230,7 +230,9 @@ const LayoutShell = ({
   const assistantShown = phone ? view === "chat" : wideOrSheet;
   const setAssistant = (open: boolean, via: ToggleSource) => {
     if (phone) {
-      const source = via === "auto" ? "auto" : "button";
+      // A key keeps its own source; a drag never reaches a phone
+      const source: PageSource =
+        via === "key" || via === "auto" ? via : "button";
       showPage("work", source);
       // A drag only resizes the wide panel, so none reaches a phone: the
       // mapping only narrows the type
@@ -250,7 +252,7 @@ const LayoutShell = ({
     () => {
       if (phone) {
         // The view is shown on Work: bring it into view first
-        showPage("work", "auto");
+        showPage("work", "key");
         showView(view === "chat" ? "code" : "chat", "key");
       } else setAssistant(!assistantShown, "key");
     },

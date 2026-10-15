@@ -31,7 +31,12 @@ type LayoutEvents = {
   layout_viewport: { viewport: Viewport };
   /** The saved layout could not be read and the defaults were used; `reason` says why. */
   layout_restore_failed: { reason: RestoreFailure };
-  /** A phone page came into view after the load; `via` says what moved it. */
+  /**
+   * A phone page came into view after the load; `via` says what moved it: a
+   * swipe, a button, a key (Ctrl+R from another page) or the product (`auto`).
+   * Crossing into the phone width with the stage off `write` is the product
+   * bringing the preview into view, so it sends one `auto` event.
+   */
   layout_page_shown: { page: PhonePage; via: PageSource };
   /** The work page switched between the assistant and the code. */
   layout_work_view: { view: WorkView; via: WorkViewSource };

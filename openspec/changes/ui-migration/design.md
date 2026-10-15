@@ -740,8 +740,10 @@ LayoutShell
   `false` answer cannot happen. The two e2e that guarded the read-only
   editor go; the phone scenario now edits a file.
 - **Telemetry** (prefix `layout`): `layout_page_shown {page: menu | work |
-  preview, via: swipe | button | auto}` when a page comes into view
-  (`auto`: the product moved it, as "Fix with assistant" does), not on load;
+  preview, via: swipe | button | key | auto}` when a page comes into view
+  (`key`: Ctrl+R from another page; `auto`: the product moved it, as "Fix
+  with assistant" does, or as a stage set elsewhere does, which includes
+  crossing into the phone width with the stage off `write`), not on load;
   `layout_work_view {view: chat | code, via: button | key | auto}` when Work
   switches. `layout_viewport`'s `phone` now means below 720.
 

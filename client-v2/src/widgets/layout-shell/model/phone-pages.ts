@@ -4,7 +4,7 @@ import type { Stage } from "@/views/flow/state/stage";
 export const PHONE_PAGES = ["menu", "work", "preview"] as const;
 export type PhonePage = typeof PHONE_PAGES[number];
 export type WorkView = "chat" | "code";
-export type PageSource = "swipe" | "button" | "auto";
+export type PageSource = "swipe" | "button" | "key" | "auto";
 export type WorkViewSource = "button" | "key" | "auto";
 export type PreviewStage = Exclude<Stage, "write">;
 

@@ -1051,6 +1051,8 @@ describe("on a phone", () => {
     press({ key: "r", ctrlKey: true });
     expect(events("layout_work_view")).toEqual([{ view: "chat", via: "key" }]);
     expect(isChecked("Chat")).toBe("true");
+    // Already on Work: the key moves no page, so it reports none
+    expect(events("layout_page_shown")).toEqual([]);
     // The assistant's Sheet is not the phone's
     expect(toggled()).toEqual([]);
   });
@@ -1229,7 +1231,7 @@ describe("on a phone", () => {
     press({ key: "r", ctrlKey: true });
     expect(events("layout_page_shown").at(-1)).toEqual({
       page: "work",
-      via: "auto",
+      via: "key",
     });
     expect(events("layout_work_view")).toEqual([{ view: "chat", via: "key" }]);
   });
