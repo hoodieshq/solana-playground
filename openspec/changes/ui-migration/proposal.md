@@ -48,11 +48,11 @@ existing code moves.
 - The classic layout (`?classic`) is removed with the shell; Flow is the only
   layout.
 - The layout shell adds the telemetry events `layout_panel_toggled`,
-  `layout_viewport` (field `viewport`), `layout_readonly_edit_blocked` and
-  `layout_restore_failed` (prefix `layout`), described in the
-  `client-v2-layout` spec. The phone's three pages (5.7) remove the read-only
-  editor and `layout_readonly_edit_blocked` with it, and add
-  `layout_page_shown` and `layout_work_view`. The four-column frame names the panels in
+  `layout_viewport` (field `viewport`) and `layout_restore_failed` (prefix
+  `layout`), described in the `client-v2-layout` spec. The 5.1 shell also
+  added `layout_readonly_edit_blocked`; the phone's three pages (5.7) remove
+  it with the read-only editor and add `layout_page_shown` and
+  `layout_work_view`. The four-column frame names the panels in
   `layout_panel_toggled` `nav`, `files`, `assistant` and `console` (`left`
   is gone), and its navigation (`widgets/app-nav`) adds `nav_item_opened`
   (prefix `nav`).

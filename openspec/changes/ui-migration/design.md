@@ -267,7 +267,7 @@ widgets/layout-shell/
 `app/Panels/Side/Left/Settings.tsx` (and `CustomSetting.tsx`) stay with the
 classic panels' removal: `GearSidebar` uses them.
 
-`useViewport()` (wide >=1024, compact 600-1023, phone <600) lives in
+`useViewport()` (wide >=1024, compact 600-1023, phone <600; 5.7 replaced this: see "The phone (5.7)") lives in
 `shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
 announces a blocked edit as a `PgEditor` document event, so the editor does
 not import the widget.
@@ -299,22 +299,22 @@ owns the state; the subscriptions that open panels on their own
 (`deploy.onDidStart` and a failed deploy open the console,
 `PgAssistant.onDidRequestPrompt` the assistant) move into it unchanged.
 
-**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, left: 768, phone: 600 }`.
+**Width.** `LAYOUT_BREAKPOINTS = { compact: 1024, left: 768, phone: 600 }` (5.1; 5.7 replaced this: see "The phone (5.7)").
 `left` is not a viewport class: it names the stock Sidebar's own threshold,
 and a unit test holds it to `use-mobile`.
 
 | Width | Left | Assistant | Editor |
 |---|---|---|---|
 | wide >=1024 | Sidebar or rail | resizable panel | edits |
-| compact 600-1023 | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
-| phone <600 | the stock Sheet | full-width Sheet | read-only |
+| compact 600-1023 (5.1) | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
+| phone <600 (5.1; 5.7 replaced this: see "The phone (5.7)") | the stock Sheet | full-width Sheet | read-only |
 
 5.7 replaces the phone row: below 720 the app is three pages and the editor
 edits (see "The phone (5.7)").
 
 The stock Sidebar turns into its Sheet at 768 px (`use-mobile`), so there are
 three thresholds; that is accepted rather than editing `shared/`. On a phone
-Monaco gets `readOnly`, and the message that editing works from 600 px is
+(5.1; 5.7 replaced this: see "The phone (5.7)") Monaco gets `readOnly`, and the message that editing works from 600 px is
 shown through Monaco's message controller (0.37 has no `readOnlyMessage`
 option); chat works at every width. Explorer actions are not made read-only.
 The header is gone since 5.2; its compact steps, `STEPPER_COMPACT_AT` (80 rem)
@@ -687,9 +687,9 @@ every phone rule reads.
 
 ```
 LayoutShell
-├─ outlets: stage, console      rendered once, through portals
+├─ BaseLayoutShell owns the outlets: stage, console, rendered once, through portals
 ├─ >= phone: the four-column frame (5.2), unchanged
-└─ <  phone: PhonePager (scroll-snap, three pages of 100vw)
+└─ <  phone: BasePhonePager (scroll-snap, three pages of 100vw)
    ├─ menu     the navigation, full width (AppNav, its footer and chips)
    ├─ work     bar: Menu, project name, Chat | Code, Preview
    │           Code: a file picker over the stage outlet (the Write stage)
