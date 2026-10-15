@@ -48,6 +48,20 @@ describe("BaseEditorTab", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // jsdom lays nothing out, so a click at the tab's left edge cannot be
+  // placed; the padding that edge is drawn from sits on the trigger instead
+  it("selects from the tab's left edge: the trigger owns the padding", () => {
+    const { onSelect } = setup(false);
+    const root = screen.getByTitle("/src/lib.rs");
+    const trigger = screen.getByRole("tab");
+    expect(root.className.split(" ")).toContain("pl-0");
+    expect(root.className.split(" ")).not.toContain("pl-3");
+    expect(root.className.split(" ")).not.toContain("gap-1");
+    expect(trigger.className.split(" ")).toContain("pl-3");
+    fireEvent.click(trigger);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
   it("closes without selecting on a click on close", () => {
     const { onSelect, onClose } = setup(false);
     fireEvent.click(screen.getByRole("button", { name: "Close lib.rs" }));

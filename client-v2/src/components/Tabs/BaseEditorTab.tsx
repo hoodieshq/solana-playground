@@ -64,13 +64,15 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
         menuOpen={menuOpen}
         data-dragging={isDragging || undefined}
         data-drag-overlay={isDragOverlay || undefined}
+        // The trigger takes the tab's left padding and the gap before close,
+        // so a click anywhere up to the close button selects the tab
         className={cn(
-          "data-dragging:opacity-60 data-drag-overlay:bg-surface data-drag-overlay:text-foreground data-drag-overlay:shadow-lg data-drag-overlay:ring-1 data-drag-overlay:ring-border",
+          "gap-0 pl-0 data-dragging:opacity-60 data-drag-overlay:bg-surface data-drag-overlay:text-foreground data-drag-overlay:shadow-lg data-drag-overlay:ring-1 data-drag-overlay:ring-border",
           className
         )}
         {...props}
       >
-        <EditorTabTrigger onClick={onSelect}>
+        <EditorTabTrigger onClick={onSelect} className="pr-1 pl-3">
           {icon}
           <EditorTabLabel>{name}</EditorTabLabel>
         </EditorTabTrigger>
