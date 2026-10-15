@@ -64,6 +64,9 @@ test("a signed-out user is offered sign-in, not the default backend", async ({
   await expect(
     page.getByRole("button", { name: "Start", exact: true })
   ).toBeHidden();
+  // The tag would otherwise call the backend ready to use
+  await expect(page.getByText("sign-in needed", { exact: true })).toBeVisible();
+  await expect(page.getByText("no key needed", { exact: true })).toBeHidden();
   expect(await isConnected(page)).toBe(false);
 });
 

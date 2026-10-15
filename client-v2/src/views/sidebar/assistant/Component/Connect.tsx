@@ -206,9 +206,11 @@ const Connect = () => {
   const endpointReady =
     !provider.endpoint ||
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
-  /** The default is served here but refuses a signed-out turn; the button signs in instead */
-  const needsSignIn =
-    provider.id === "default" && isDefaultBackendConfigured && !signedIn;
+  /** Served here, but `/api/agent` refuses this user's turns until they sign in */
+  const needsSignInFor = (p: ProviderInfo) =>
+    p.id === "default" && isDefaultBackendConfigured && !signedIn;
+  /** The button signs in instead of connecting */
+  const needsSignIn = needsSignInFor(provider);
   const ready =
     keyReady && endpointReady && !isUnavailable(provider) && !needsSignIn;
 
@@ -272,7 +274,10 @@ const Connect = () => {
     >
       <ProviderName $selected={selectedBar === p.id}>
         {p.name}
-        {!p.needsKey && !isUnavailable(p) && <NoKey>no key needed</NoKey>}
+        {needsSignInFor(p) && <SignInNeeded>sign-in needed</SignInNeeded>}
+        {!p.needsKey && !isUnavailable(p) && !needsSignInFor(p) && (
+          <NoKey>no key needed</NoKey>
+        )}
       </ProviderName>
       {!compact && (
         <ProviderDescription>
@@ -600,6 +605,13 @@ const ProviderName = styled.div<{ $selected: boolean }>`
 const NoKey = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.state.success.color};
+    font-size: ${theme.font.code.size.xsmall};
+  `}
+`;
+
+const SignInNeeded = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.state.warning.color};
     font-size: ${theme.font.code.size.xsmall};
   `}
 `;
