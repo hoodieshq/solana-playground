@@ -339,6 +339,11 @@ test.describe("on a phone", () => {
   test("client-v2-layout: Turning a phone across 720 px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
+    // The editor focuses itself when it opens the first file; landing after
+    // the click below, it would take the typed command away from the terminal
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
     if ((await consoleHandle(page).getAttribute("aria-expanded")) !== "true") {
       await consoleHandle(page).click();
     }
