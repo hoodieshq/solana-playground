@@ -11,13 +11,8 @@ import {
   isDefaultBackendRemembered,
   rememberedConnection,
 } from "../model/remembered-backend";
-import {
-  DEFAULT_BACKEND_URL,
-  PROVIDERS,
-  type Effort,
-  type ProviderId,
-  type ProviderInfo,
-} from "../model/types";
+import { DEFAULT_BACKEND_URL, type ModelProvider } from "@/shared/lib/ai";
+import { PROVIDERS, type Effort, type ProviderInfo } from "../model/types";
 
 const log = createLogger("assistant:connect");
 
@@ -102,7 +97,7 @@ const Connect = () => {
 
   const initial = PROVIDERS.find((p) => p.id === (current?.id ?? "default"))!;
 
-  const [providerId, setProviderId] = useState<ProviderId>(
+  const [providerId, setProviderId] = useState<ModelProvider>(
     current?.id ?? "default"
   );
   const [expanded, setExpanded] = useState(false);

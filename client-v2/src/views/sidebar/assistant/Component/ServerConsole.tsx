@@ -3,15 +3,13 @@ import styled, { css } from "styled-components";
 
 import { PgAssistant } from "../store";
 import { PgConnection } from "../../../../utils";
-import { callTool, listTools, McpUnreachableError } from "../grounding";
+import { callTool, listTools } from "../grounding";
 import type { McpServerEntry, McpTool } from "../grounding";
 
 interface ServerConsoleProps {
   server: McpServerEntry;
   /** The connected backend's name, when one is connected */
   providerName?: string;
-  /** Whether that backend can execute a `server`-executor entry for us */
-  hasServerExecutor: boolean;
 }
 
 /** Descriptions past this many characters start collapsed */
@@ -53,15 +51,8 @@ const skeletonFor = (tool: McpTool, cluster: string) => {
   );
 };
 
-/**
- * One MCP server: what can reach it, and — when the browser can — a console
- * for calling its tools with no backend connected at all.
- */
-const ServerConsole = ({
-  server,
-  providerName,
-  hasServerExecutor,
-}: ServerConsoleProps) => {
+/** One MCP server, with a console for calling its tools with no backend connected at all */
+const ServerConsole = ({ server, providerName }: ServerConsoleProps) => {
   const tools = PgAssistant.mcpTools[server.id] ?? [];
 
   const [busy, setBusy] = useState(false);
@@ -76,10 +67,7 @@ const ServerConsole = ({
   // Long enough to bury the argument box: some servers write a page here
   const descriptionIsLong = description.length > LONG_DESCRIPTION;
 
-  const explain = (e: unknown) => {
-    if (e instanceof McpUnreachableError) return e.message;
-    return e instanceof Error ? e.message : String(e);
-  };
+  const explain = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   const discover = async () => {
     setBusy(true);
@@ -153,84 +141,66 @@ const ServerConsole = ({
     <Card>
       <Head>
         <Name>{server.name || server.id}</Name>
-        <Badge>{server.executor}</Badge>
       </Head>
 
-      {server.executor === "server" ? (
-        <Note>
-          {hasServerExecutor
-            ? `This server has no CORS headers, so a page cannot call it. ` +
-              `${providerName} executes it for us.`
-            : `This server has no CORS headers, so a page cannot call it, and ` +
-              `${
-                providerName ?? "the backend you connect"
-              } provides no executor for it. Its tools are unavailable until ` +
-              `one does.`}
-        </Note>
-      ) : (
+      <Note>Callable straight from here — no backend, no key, no tokens.</Note>
+
+      <Actions>
+        <Action onClick={discover} disabled={busy}>
+          {busy ? "Working…" : tools.length ? "Refresh tools" : "Connect"}
+        </Action>
+      </Actions>
+
+      {tools.length > 0 && (
         <>
-          <Note>
-            Callable straight from here — no backend, no key, no tokens.
-          </Note>
+          <Label htmlFor={`mcp-tool-${server.id}`}>TOOL</Label>
+          <Picker
+            id={`mcp-tool-${server.id}`}
+            value={selected ?? ""}
+            onChange={(ev) => pick(ev.target.value)}
+          >
+            <option value="">Pick a tool…</option>
+            {tools.map((tool) => (
+              <option key={tool.name} value={tool.name}>
+                {tool.name}
+              </option>
+            ))}
+          </Picker>
 
-          <Actions>
-            <Action onClick={discover} disabled={busy}>
-              {busy ? "Working…" : tools.length ? "Refresh tools" : "Connect"}
-            </Action>
-          </Actions>
-
-          {tools.length > 0 && (
+          {selected && (
             <>
-              <Label htmlFor={`mcp-tool-${server.id}`}>TOOL</Label>
-              <Picker
-                id={`mcp-tool-${server.id}`}
-                value={selected ?? ""}
-                onChange={(ev) => pick(ev.target.value)}
-              >
-                <option value="">Pick a tool…</option>
-                {tools.map((tool) => (
-                  <option key={tool.name} value={tool.name}>
-                    {tool.name}
-                  </option>
-                ))}
-              </Picker>
-
-              {selected && (
-                <>
-                  <Description $clamped={!descriptionOpen && descriptionIsLong}>
-                    {description}
-                  </Description>
-                  {descriptionIsLong && (
-                    <Disclosure
-                      type="button"
-                      aria-expanded={descriptionOpen}
-                      onClick={() => setDescriptionOpen((open) => !open)}
-                    >
-                      {descriptionOpen ? "Show less" : "Show more"}
-                    </Disclosure>
-                  )}
-
-                  <Label htmlFor={`mcp-args-${server.id}`}>ARGUMENTS</Label>
-                  <Json
-                    id={`mcp-args-${server.id}`}
-                    value={args}
-                    onChange={(ev) => setArgs(ev.target.value)}
-                    spellCheck={false}
-                    rows={5}
-                  />
-
-                  <Actions>
-                    <Action onClick={call} disabled={busy}>
-                      {busy ? "Calling…" : "Call"}
-                    </Action>
-                    {PgAssistant.isConnected && (
-                      <Action onClick={askAssistant} disabled={busy}>
-                        Ask {providerName ?? "the assistant"}
-                      </Action>
-                    )}
-                  </Actions>
-                </>
+              <Description $clamped={!descriptionOpen && descriptionIsLong}>
+                {description}
+              </Description>
+              {descriptionIsLong && (
+                <Disclosure
+                  type="button"
+                  aria-expanded={descriptionOpen}
+                  onClick={() => setDescriptionOpen((open) => !open)}
+                >
+                  {descriptionOpen ? "Show less" : "Show more"}
+                </Disclosure>
               )}
+
+              <Label htmlFor={`mcp-args-${server.id}`}>ARGUMENTS</Label>
+              <Json
+                id={`mcp-args-${server.id}`}
+                value={args}
+                onChange={(ev) => setArgs(ev.target.value)}
+                spellCheck={false}
+                rows={5}
+              />
+
+              <Actions>
+                <Action onClick={call} disabled={busy}>
+                  {busy ? "Calling…" : "Call"}
+                </Action>
+                {PgAssistant.isConnected && (
+                  <Action onClick={askAssistant} disabled={busy}>
+                    Ask {providerName ?? "the assistant"}
+                  </Action>
+                )}
+              </Actions>
             </>
           )}
         </>
@@ -262,17 +232,6 @@ const Name = styled.div`
   ${({ theme }) => css`
     color: ${theme.colors.default.textPrimary};
     font-size: ${theme.font.code.size.small};
-  `}
-`;
-
-const Badge = styled.span`
-  ${({ theme }) => css`
-    flex-shrink: 0;
-    padding: 0.0625rem 0.375rem;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.xsmall};
   `}
 `;
 

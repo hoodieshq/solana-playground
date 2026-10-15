@@ -4,7 +4,7 @@ import {
   listTools,
   LOCAL_MCP_SERVERS,
 } from "./grounding";
-import { redactKey } from "./model/redact-key";
+import { redactKey } from "@/shared/lib/ai";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
 import {
   mergeThreads,
@@ -18,7 +18,8 @@ import {
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
-import type { Effort, ProviderId } from "./model/types";
+import type { ModelProvider } from "@/shared/lib/ai";
+import type { Effort } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -82,7 +83,7 @@ interface ChatItemBase {
  * four characters. A thread is synced to the account; the key never is.
  */
 export interface BackendParams {
-  provider: ProviderId;
+  provider: ModelProvider;
   /** Absent only on a backend that picks its own model server-side */
   model?: string;
   /** Only the OpenAI-compatible providers have one */
@@ -165,7 +166,7 @@ export const KEY_NOT_FORGOTTEN =
 
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
-  id: ProviderId;
+  id: ModelProvider;
   apiKey: string;
   endpoint?: { baseUrl: string; model: string };
   /** Model and effort, for backends that pick them without a base URL */
@@ -407,7 +408,7 @@ export class PgAssistant {
   }
 
   /**
-   * Tools discovered from browser-executed servers, by server id.
+   * Tools discovered from each server, by server id.
    *
    * Cached because discovery is a network round trip and `createTools()` is
    * synchronous — a server missing from here contributes no tools this turn
@@ -423,7 +424,7 @@ export class PgAssistant {
   }
 
   /**
-   * Discover tools for every enabled browser-executed server.
+   * Discover tools for every enabled server.
    *
    * Called when the panel mounts, not only from the Sources tab: `createTools`
    * reads this cache, so a model connected before discovery ran would simply
@@ -436,9 +437,7 @@ export class PgAssistant {
    */
   static async discoverMcpTools(force = false) {
     const servers = PgAssistant.enabledMcpServers.filter(
-      (server) =>
-        server.executor === "browser" &&
-        (force || !PgAssistant._mcpTools[server.id])
+      (server) => force || !PgAssistant._mcpTools[server.id]
     );
 
     await Promise.all(
@@ -549,16 +548,6 @@ export class PgAssistant {
     if (item?.kind === "assistant") {
       item.text += delta;
       stamp(item);
-      PgAssistant._emit();
-    }
-  }
-
-  /** Drop an assistant message that never received any text */
-  static discardIfEmpty(id: string) {
-    const index = PgAssistant._items.findIndex((i) => i.id === id);
-    const item = PgAssistant._items[index];
-    if (item?.kind === "assistant" && !item.text) {
-      PgAssistant._items.splice(index, 1);
       PgAssistant._emit();
     }
   }

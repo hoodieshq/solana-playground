@@ -4,7 +4,7 @@ import {
   turnProducedApproval,
   type ChatItem,
 } from "./store";
-import { MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } from "./model/redact-key";
+import { MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } from "@/shared/lib/ai";
 import { isDefaultBackendRemembered } from "./model/remembered-backend";
 import {
   MAX_MESSAGES_PER_THREAD,
