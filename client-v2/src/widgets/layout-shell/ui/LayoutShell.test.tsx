@@ -446,7 +446,7 @@ it("should say once that the layout could not be saved, not on every toggle", ()
 it("should report Cmd+B as a key after a toggle that changed nothing", () => {
   // On a phone the button opens the Sheet and the Sheet reports itself; the
   // mark the button set must not outlive that
-  resizeTo(700);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
@@ -515,7 +515,7 @@ it("should set the assistant Sheet in the theme's font and draw no stock close b
 });
 
 it("should set the navigation Sheet in the theme's font", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   const sheet = document.querySelector<HTMLElement>(
@@ -527,7 +527,7 @@ it("should set the navigation Sheet in the theme's font", () => {
 });
 
 it("should open the navigation Sheet below 768 px and report it as the navigation", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   const sheet = document.querySelector(
@@ -542,7 +542,7 @@ it("should open the navigation Sheet below 768 px and report it as the navigatio
 });
 
 it("should report the navigation Sheet toggled by Cmd+B below 768 px as a key", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   press({ key: "b", metaKey: true });
   press({ key: "b", metaKey: true });
@@ -553,7 +553,7 @@ it("should report the navigation Sheet toggled by Cmd+B below 768 px as a key", 
 });
 
 it("should report the navigation Sheet closed by Escape as a key and by its own button as a button", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   fireEvent.keyDown(
@@ -571,7 +571,7 @@ it("should report the navigation Sheet closed by Escape as a key and by its own 
 });
 
 it("should open and close the Sheet by Cmd+E below 768 px, as the navigation", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   const sheet = () =>
     document.querySelector('[data-slot="sidebar"][data-mobile="true"]');
@@ -588,7 +588,7 @@ it("should open and close the Sheet by Cmd+E below 768 px, as the navigation", (
 });
 
 it("should close the Sheet by the files column's button below 768 px", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   fireEvent.click(
@@ -612,7 +612,7 @@ it("should render the navigation and the files open in the Sheet, whatever the s
       open: { nav: false, files: false, assistant: true, console: false },
     })
   );
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   const sheet = document.querySelector(
@@ -719,7 +719,7 @@ const openModal = () => {
 };
 
 it("should close the navigation Sheet when a modal opens", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   openModal();
@@ -738,7 +738,7 @@ it("should close the navigation Sheet when a modal opens", () => {
 });
 
 it("should close the navigation Sheet for what the navigation opens over it, as auto", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   tap(screen.getByRole("button", { name: "Open settings" }));
@@ -761,7 +761,7 @@ it("should leave no mark when the navigation asks to close a Sheet that is not o
 
 it("should report nothing for a modal on a desktop when the Sheet was left open on a phone", () => {
   // The stock Sidebar keeps the Sheet open across 768 px, where it shows none
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   act(() => resizeTo(1440));
@@ -875,7 +875,7 @@ it("should report the Sheet's next tap as a button after a desktop Cmd+E changed
   // cannot label a tap after the window narrows
   shell();
   press({ key: "e", metaKey: true });
-  act(() => resizeTo(500));
+  act(() => resizeTo(740));
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   expect(toggled().at(-1)).toEqual({
     panel: "nav",
@@ -885,7 +885,7 @@ it("should report the Sheet's next tap as a button after a desktop Cmd+E changed
 });
 
 it("should toggle the files column by Cmd+E again after a trip through the phone's Sheet", () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   press({ key: "e", metaKey: true });
   press({ key: "e", metaKey: true });
@@ -900,7 +900,7 @@ it("should toggle the files column by Cmd+E again after a trip through the phone
 });
 
 it("should not label a tap on the Sheet's overlay a key because a Cmd+E left no change", async () => {
-  resizeTo(500);
+  resizeTo(740);
   shell();
   tap(screen.getByRole("button", { name: "Expand project panel" }));
   // Radix starts listening for an outside tap a tick after the Sheet opens

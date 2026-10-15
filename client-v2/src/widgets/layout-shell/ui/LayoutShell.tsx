@@ -344,6 +344,20 @@ const LayoutShell = ({
         fontFamily: theme.font.code.family,
         fontSize: theme.font.code.size.medium,
       }}
+      // Temporary: the pager's state is connected in the next task
+      phone={{
+        page: "work",
+        onSwipe: () => {},
+        onGo: () => {},
+        view: "code",
+        onView: () => {},
+        title: "",
+        file: null,
+        filesOpen: false,
+        onFilesOpenChange: () => {},
+        stageOn: "work",
+        consoleOpen: false,
+      }}
       stageBar={stageBar}
       stage={stage}
       console={console({
