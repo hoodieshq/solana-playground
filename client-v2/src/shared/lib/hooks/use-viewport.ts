@@ -2,7 +2,8 @@ import { useSyncExternalStore } from "react";
 
 /**
  * Below `compact` the assistant is a Sheet; below `left` the navigation is
- * one, holding the files column too; below `phone` the editor is read-only.
+ * one, holding the files column too; below `phone` the app is three pages
+ * (`BasePhonePager`).
  * `left` is not a `Viewport` class: the stock Sidebar decides it with its own
  * hook (`use-mobile.ts`, installed from the design system), and
  * `use-viewport.test.ts` holds the two to the same width.
@@ -10,7 +11,7 @@ import { useSyncExternalStore } from "react";
 export const LAYOUT_BREAKPOINTS = {
   compact: 1024,
   left: 768,
-  phone: 600,
+  phone: 720,
 } as const;
 
 /**

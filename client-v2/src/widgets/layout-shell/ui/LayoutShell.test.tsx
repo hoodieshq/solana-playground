@@ -23,12 +23,10 @@ const deploy = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", async () => {
   const { PgKeybind } = await import("@/utils/keybind");
-  const { PgEditor } = await import("@/utils/editor");
   const { PgCommon } = await import("@/utils/common");
   const { PgView } = await import("@/utils/view");
   return {
     PgKeybind,
-    PgEditor,
     PgCommon,
     PgView,
     PgCommand: {
@@ -42,7 +40,6 @@ vi.mock("@/utils", async () => {
   };
 });
 
-import { PgEditor } from "@/utils/editor";
 import { PgView } from "@/utils/view";
 import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
@@ -658,15 +655,6 @@ it("should fall back on a corrupt saved layout and report it", () => {
   expect(
     sent.events.filter((event) => event.name === "layout_restore_failed")
   ).toEqual([expect.objectContaining({ params: { reason: "corrupt" } })]);
-});
-
-it("should report a blocked edit once per load", () => {
-  shell();
-  document.dispatchEvent(new CustomEvent(PgEditor.events.READ_ONLY_EDIT));
-  document.dispatchEvent(new CustomEvent(PgEditor.events.READ_ONLY_EDIT));
-  expect(
-    sent.events.filter((event) => event.name === "layout_readonly_edit_blocked")
-  ).toHaveLength(1);
 });
 
 it("should close the Sheet when crossing to wide and keep the saved state", () => {

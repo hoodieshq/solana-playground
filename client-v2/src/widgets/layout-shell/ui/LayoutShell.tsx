@@ -4,7 +4,7 @@ import { useTheme } from "styled-components";
 
 import { useKeybind } from "@/hooks";
 import { useIsLeftSheet, useViewport } from "@/shared/lib/hooks/use-viewport";
-import { PgCommand, PgCommon, PgEditor, PgView } from "@/utils";
+import { PgCommand, PgCommon, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
@@ -209,18 +209,6 @@ const LayoutShell = ({
     // `setOpen` is stable; `setAssistant` changes only with the viewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport]);
-
-  useEffect(() => {
-    let reported = false;
-    const onBlocked = () => {
-      if (reported) return;
-      reported = true;
-      layoutTelemetry.track("layout_readonly_edit_blocked", {});
-    };
-    document.addEventListener(PgEditor.events.READ_ONLY_EDIT, onBlocked);
-    return () =>
-      document.removeEventListener(PgEditor.events.READ_ONLY_EDIT, onBlocked);
-  }, []);
 
   /** The mark a button left, else the last input; the mark is used once */
   const takeNavVia = (): ToggleSource => {

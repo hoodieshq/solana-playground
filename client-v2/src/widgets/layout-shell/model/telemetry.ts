@@ -1,5 +1,4 @@
 import { createTracker } from "../../../shared/lib/telemetry";
-import type { NoParams } from "../../../shared/lib/telemetry";
 import type { Viewport } from "../../../shared/lib/hooks/use-viewport";
 import type { LayoutPanel, RestoreFailure } from "./layout-state";
 
@@ -24,8 +23,6 @@ type LayoutEvents = {
   };
   /** The window's width class, once per page load. */
   layout_viewport: { viewport: Viewport };
-  /** The user tried to type in the read-only editor; the first time in a page load. */
-  layout_readonly_edit_blocked: NoParams;
   /** The saved layout could not be read and the defaults were used; `reason` says why. */
   layout_restore_failed: { reason: RestoreFailure };
 };
