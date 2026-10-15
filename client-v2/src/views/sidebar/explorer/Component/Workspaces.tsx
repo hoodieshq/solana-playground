@@ -210,7 +210,7 @@ const TemporaryWarning = () => {
 
   return (
     <TemporaryWarningWrapper>
-      <Callout>
+      <Callout variant="info">
         <InfoIcon />
         <CalloutDescription>
           This is a temporary project, import it to persist changes.
