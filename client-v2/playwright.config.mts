@@ -119,7 +119,11 @@ const devServerDecision = (): "start" | "reuse" => {
   const cached = process.env[DEV_SERVER_DECISION_ENV];
   if (cached === "start" || cached === "reuse") return cached;
   try {
-    const decision = decideDevServer({ port, root: import.meta.dirname });
+    const decision = decideDevServer({
+      port,
+      root: import.meta.dirname,
+      fromQueue: ownPort === undefined,
+    });
     process.env[DEV_SERVER_DECISION_ENV] = decision;
     return decision;
   } catch (error) {

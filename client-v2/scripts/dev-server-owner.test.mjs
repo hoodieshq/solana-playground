@@ -179,6 +179,17 @@ test("decideDevServer names the pid holding a silent server's port", async (t) =
   );
 });
 
+test("on a queue port, the refusal calls the holder a leftover to stop", async (t) => {
+  const port = await serveInChild(t, OTHER_ROOT);
+  assert.throws(
+    () => decideDevServer({ port, root: ROOT, fromQueue: true }),
+    (error) =>
+      error.message.includes("left over from an earlier run") &&
+      error.message.includes(`kill ${childPids.get(port)}`) &&
+      !error.message.includes("PORT=")
+  );
+});
+
 test("portHolderPid is null for a free port", async () => {
   assert.equal(portHolderPid(await freePort()), null);
 });

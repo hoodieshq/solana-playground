@@ -7,6 +7,13 @@ import { fullSuiteRefusal, isFullSuite } from "./e2e-scope.mjs";
 const cwd = "/wt/client-v2";
 const testDir = path.join(cwd, "e2e");
 const full = (...args) => isFullSuite(["test", ...args], { cwd, testDir });
+const withLastRun = (files, args, env = {}) =>
+  isFullSuite(["test", ...args], {
+    cwd,
+    testDir,
+    env,
+    exists: (file) => files.includes(file),
+  });
 
 test("a bare run is the full suite", () => {
   assert.equal(full(), true);
@@ -39,13 +46,57 @@ test("an optional value is taken only when it is one of the flag's choices", () 
   assert.equal(full("-u", "e2e/a.e2e.spec.ts"), false);
 });
 
-test("--grep, -g, --last-failed and --only-changed narrow the run", () => {
+test("one filter that matches every spec makes the run full", () => {
+  assert.equal(full(".", "e2e/a.e2e.spec.ts"), true);
+  assert.equal(full("e2e/a.e2e.spec.ts", "e2e"), true);
+});
+
+test("--grep, -g, --only-changed, --test-list and --ui narrow the run", () => {
   assert.equal(full("--grep", "sync"), false);
   assert.equal(full("--grep=sync"), false);
   assert.equal(full("-g", "sync"), false);
-  assert.equal(full("--last-failed"), false);
+  assert.equal(full("-gsync"), false);
+  assert.equal(full("--test-list", "list.txt"), false);
+  assert.equal(full("--ui"), false);
   assert.equal(full("--only-changed"), false);
   assert.equal(full("--only-changed=origin/new-face"), false);
+});
+
+test("a short option's attached value is not taken for a spec", () => {
+  assert.equal(full("-j1"), true);
+  assert.equal(full("-cmy.config.mts", "e2e/a.e2e.spec.ts"), false);
+});
+
+test("--project takes every word up to the next option", () => {
+  assert.equal(full("--project", "a", "b"), true);
+  assert.equal(full("--project", "a", "--headed", "e2e/a.e2e.spec.ts"), false);
+});
+
+test("--shard still runs a large part of the suite", () => {
+  assert.equal(full("--shard", "1/2"), true);
+});
+
+test("--last-failed narrows only when the last run's record exists", () => {
+  const record = path.join(cwd, "test-results", ".last-run.json");
+  assert.equal(withLastRun([], ["--last-failed"]), true);
+  assert.equal(withLastRun([record], ["--last-failed"]), false);
+  const moved = path.join(cwd, "out", ".last-run.json");
+  assert.equal(
+    withLastRun([moved], ["--last-failed", "--output", "out"]),
+    false
+  );
+  assert.equal(withLastRun([moved], ["--last-failed", "--output=out"]), false);
+  const named = path.join(cwd, "runs.json");
+  assert.equal(
+    withLastRun([named], ["--last-failed", "--last-failed-file", "runs.json"]),
+    false
+  );
+  assert.equal(
+    withLastRun([named], ["--last-failed"], {
+      PLAYWRIGHT_LAST_RUN_OUTPUT_FILE: "runs.json",
+    }),
+    false
+  );
 });
 
 test("--grep-invert alone still runs nearly everything", () => {

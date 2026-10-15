@@ -100,6 +100,10 @@ const removeDir = (dirPath) => {
 const makeSlot = (dir, n, owner, portForSlot) => {
   const slotDir = slotPath(dir, n);
   const port = portForSlot ? portForSlot(n) : owner.port;
+  if (!Number.isInteger(port)) {
+    removeDir(slotDir);
+    throw new TypeError("A slot needs owner.port or portForSlot.");
+  }
   try {
     fs.writeFileSync(
       path.join(slotDir, OWNER_FILE),

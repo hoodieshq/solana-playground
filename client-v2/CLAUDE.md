@@ -330,9 +330,9 @@ check's job (HOO-1859); the rest hold by review.
   queue picks its port: slot N runs on `13900 + N`. At most `E2E_MAX_RUNS`
   runs (default 1) go at once across every worktree, each with 2 workers
   (`E2E_WORKERS`). The run reuses only this worktree's own dev server on its
-  port and stops before any test, naming the pid, when another worktree's
-  server or anything else holds it, or when the server does not answer within
-  15 s. A hand-set `PORT` still works and gets the same check. Stop your own
+  port and stops before any test, with the pid where `lsof` finds it, when
+  another worktree's server or anything else holds it, or when the server does
+  not answer within 15 s; on a queue port that holder is a leftover to stop. A hand-set `PORT` still works and gets the same check. Stop your own
   dev server when the run is done.
 - **A runtime upgrade still gets the manual walk-through** from the UI
   migration spec ("The React 19 gate"), in development and in the production

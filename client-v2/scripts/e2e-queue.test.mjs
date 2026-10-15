@@ -142,6 +142,13 @@ test("a run with a port of its own keeps it", (t) => {
   assert.equal(slot.port, 4321);
 });
 
+test("a slot with no port is refused and not left behind", (t) => {
+  const dir = tempDir(t);
+  const portless = { pid: process.pid, worktree: "/wt/mine" };
+  assert.throws(() => acquireSlot({ dir, max: 1, owner: portless }), TypeError);
+  assert.ok(!fs.existsSync(path.join(dir, "slot-1")));
+});
+
 test("a reclaimed slot hands out the same port", (t) => {
   const dir = tempDir(t);
   writeOwner(dir, 1, deadPid());

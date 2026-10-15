@@ -768,7 +768,7 @@ COMPOSE_PROJECT_NAME=pg-slot$k PG_CLIENT_PORT=$((13000 + 10 * k)) PG_CLIENT_V2_P
 
 In each case of a group, read `http://localhost:3000` and `http://localhost:8080` as the slot's client and server ports.
 
-client-v2's browser suite does not take a slot: leave `PORT` unset and run only the specs you touched.
+client-v2's browser suite does not take one of these slots: leave `PORT` unset and run only the specs you touched.
 
 ```sh
 yarn test-e2e e2e/<spec>.e2e.spec.ts
@@ -785,11 +785,15 @@ delete the slot by hand (`rm -r ~/.cache/solana-playground-e2e/slot-N`). CI does
 
 The run starts its own dev server on its port, or reuses one that this worktree already started there. A server on the
 port from another worktree, or anything else that is not this worktree's client-v2, fails the run before any test, and
-the message names the pid holding the port. A hand-set `PORT` still works, outside 139xx, and gets the same check.
+the message names the pid holding the port. On a queue port that holder can only be a dev server left behind by a run
+that was killed (its slot was reclaimed, its server was not): stop it and run again. A hand-set `PORT` still works,
+outside 139xx, and gets the same check.
 
-The full suite is CI's. A local run with no spec, or with only the test directory (`e2e/`), stops with a message; a
-`--grep`, `--last-failed`, or `--only-changed` run goes ahead. `E2E_FULL=1 yarn test-e2e` runs the full suite anyway,
-still through the queue.
+The full suite is CI's. A local run with no spec, or with a filter that names the test directory (`e2e/`, `.`), stops
+with a message; a `--grep`, `--only-changed`, `--test-list`, or `--ui` run goes ahead, and so does `--last-failed` once
+a last run's record exists (without one it runs everything). `E2E_FULL=1 yarn test-e2e` runs the full suite anyway,
+still through the queue. The check reads filters as paths, while Playwright reads them as regular expressions, so a
+broad pattern such as `spec` gets past it: it catches the usual mistake, not every spelling.
 
 ### Limits
 
