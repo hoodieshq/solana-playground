@@ -30,9 +30,26 @@ describe("composer: a controlled value", () => {
         <ComposerSend />
       </Composer>
     );
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      false
+    );
     rerender(
       <Composer>
         <ComposerInput value="" onChange={() => {}} />
+        <ComposerSend />
+      </Composer>
+    );
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      true
+    );
+  });
+
+  it("keeps Send disabled for a whitespace-only value", () => {
+    render(
+      <Composer>
+        <ComposerInput value="   " onChange={() => {}} />
         <ComposerSend />
       </Composer>
     );

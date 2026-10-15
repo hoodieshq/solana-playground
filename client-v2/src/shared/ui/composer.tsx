@@ -102,7 +102,8 @@ function ComposerInput({
     setEmpty(!el.value.trim());
   };
   // A controlled value can change without an input event (a prompt the
-  // product puts in, a send that clears it), so emptiness follows it too
+  // product puts in, a send that clears it), so emptiness follows it too.
+  // `grow` is left out of the deps: it only uses the stable setEmpty and the ref
   React.useLayoutEffect(() => {
     if (value === undefined || !ref.current) return;
     grow(ref.current);
