@@ -21,18 +21,23 @@ import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
 
+/** This workspace's deployments, newest first */
+const readHistory = () =>
+  PgDeployHistory.list(PgExplorer.currentWorkspaceName ?? "");
+
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
 const Deploy = () => {
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
-  const [history, setHistory] = useState<DeployRecord[]>([]);
+  // Read on mount, not only on change: the stage router remounts this stage
+  // on every switch, and no event fires to fill it again.
+  const [history, setHistory] = useState<DeployRecord[]>(readHistory);
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
   const deployState = useRenderOnChange(PgGlobal.onDidChangeDeployState);
   useRenderOnChange(PgConnection.onDidChangeCluster);
 
   useEffect(() => {
-    const refresh = () =>
-      setHistory(PgDeployHistory.list(PgExplorer.currentWorkspaceName ?? ""));
+    const refresh = () => setHistory(readHistory());
     const a = PgFlow.onDidChange(setFlow);
     const b = PgDeployHistory.onDidChange(refresh);
     const c = PgExplorer.onDidSwitchWorkspace(refresh);
