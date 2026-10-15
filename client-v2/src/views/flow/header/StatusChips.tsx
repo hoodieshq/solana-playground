@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CircleUserRound } from "lucide-react";
 import styled, { css } from "styled-components";
 
 import {
@@ -10,7 +11,7 @@ import {
   useWallet,
 } from "../../../hooks";
 import { PgSession } from "../../../features/auth";
-import { Avatar, AvatarImage } from "@/shared/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
 import { StatusDot } from "@/shared/ui/status-dot";
 import { createLogger } from "../../../shared/lib/logger";
 import { PgCommand } from "../../../utils";
@@ -136,6 +137,9 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
           >
             <Avatar className="size-4" aria-hidden>
               <AvatarImage src={github.image ?? undefined} alt="" />
+              <AvatarFallback className="bg-transparent">
+                <CircleUserRound aria-hidden />
+              </AvatarFallback>
             </Avatar>
             <span>{github.login ?? github.name ?? "Account"}</span>
           </GithubChip>
@@ -167,6 +171,9 @@ const StatusChips: FC<React.PropsWithChildren<StatusChipsProps>> = ({
                   <ProfileHeader>
                     <Avatar>
                       <AvatarImage src={github.image ?? undefined} alt="" />
+                      <AvatarFallback className="bg-transparent">
+                        <CircleUserRound aria-hidden />
+                      </AvatarFallback>
                     </Avatar>
                     <ProfileNames>
                       <DisplayName>{github.name ?? github.login}</DisplayName>
