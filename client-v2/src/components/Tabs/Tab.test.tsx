@@ -56,6 +56,28 @@ const openMenuOf = async (path: string, index: number) => {
 const closed = () =>
   explorer.closeFile.mock.calls.map((call: string[]) => call[0]);
 
+describe("Tab root", () => {
+  it("keeps the sortable's bookkeeping off the DOM", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sortableProps = {
+      Item: () => null,
+      id: "/other",
+      sortable: { index: 0 },
+    };
+    render(
+      <ThemeProvider theme={theme}>
+        <Tab path="/a.rs" index={0} {...(sortableProps as object)} />
+      </ThemeProvider>
+    );
+    const root = screen.getByTitle("/a.rs");
+    expect(root.hasAttribute("sortable")).toBe(false);
+    expect(root.hasAttribute("item")).toBe(false);
+    expect(root.id).toBe("/a.rs");
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+});
+
 describe("Tab context menu", () => {
   it("Close closes only this tab", async () => {
     await openMenuOf("/b.rs", 1);

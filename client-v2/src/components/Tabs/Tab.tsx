@@ -25,7 +25,15 @@ interface TabProps extends ComponentPropsWithoutRef<"div"> {
 }
 
 const Tab = forwardRef<HTMLDivElement, TabProps>(
-  ({ path, index, ...props }, ref) => {
+  ({ path, index, ...rest }, ref) => {
+    // The sortable also hands over its own bookkeeping (`Item`, `id`, and
+    // `sortable` on the drag overlay); none of it belongs on a DOM node
+    const {
+      Item: _Item,
+      sortable: _sortable,
+      id: _id,
+      ...props
+    } = rest as typeof rest & { Item?: unknown; sortable?: unknown };
     const [isSelected, setIsSelected] = useState(false);
 
     const fileName = useMemo(

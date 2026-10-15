@@ -10,7 +10,7 @@ interface BaseEditorTabsProps {
 }
 
 export const BaseEditorTabs = ({ id, children, end }: BaseEditorTabsProps) => (
-  <EditorTabs id={id}>
+  <EditorTabs id={id} className="overflow-hidden">
     <div className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
       {children}
     </div>

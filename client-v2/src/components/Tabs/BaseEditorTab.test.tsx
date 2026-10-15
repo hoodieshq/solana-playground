@@ -55,6 +55,26 @@ describe("BaseEditorTab", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("does not start a drag from a press on close", () => {
+    const onMouseDown = vi.fn();
+    render(
+      <BaseEditorTab
+        path="/a.rs"
+        name="a.rs"
+        icon={null}
+        current={false}
+        menuOpen={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onMouseDown={onMouseDown}
+      />
+    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Close a.rs" }));
+    expect(onMouseDown).not.toHaveBeenCalled();
+    fireEvent.mouseDown(screen.getByRole("tab"));
+    expect(onMouseDown).toHaveBeenCalledTimes(1);
+  });
+
   it("marks an open menu", () => {
     setup(false, true);
     expect(

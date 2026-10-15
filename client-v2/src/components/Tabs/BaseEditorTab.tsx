@@ -78,8 +78,8 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
           aria-label={`Close ${name}`}
           title="Close (Alt+W)"
           onClick={close}
-          // A press on close must not start a drag
-          onPointerDown={(ev) => ev.stopPropagation()}
+          // The drag sensor listens for mousedown on the root
+          onMouseDown={(ev) => ev.stopPropagation()}
         />
       </EditorTab>
     );
