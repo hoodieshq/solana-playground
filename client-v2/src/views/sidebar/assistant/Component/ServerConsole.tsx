@@ -2,7 +2,6 @@ import { useState } from "react";
 import styled, { css } from "styled-components";
 
 import { Badge } from "@/shared/ui/badge";
-import { Collapsible, CollapsibleTrigger } from "@/shared/ui/collapsible";
 import { NativeSelect, NativeSelectOption } from "@/shared/ui/native-select";
 import { PgAssistant } from "../store";
 import { PgConnection } from "../../../../utils";
@@ -204,21 +203,19 @@ const ServerConsole = ({
 
               {selected && (
                 <>
-                  <Collapsible
-                    open={descriptionOpen}
-                    onOpenChange={setDescriptionOpen}
-                  >
-                    <Description
-                      $clamped={!descriptionOpen && descriptionIsLong}
+                  <Description $clamped={!descriptionOpen && descriptionIsLong}>
+                    {description}
+                  </Description>
+                  {descriptionIsLong && (
+                    <button
+                      type="button"
+                      aria-expanded={descriptionOpen}
+                      onClick={() => setDescriptionOpen((open) => !open)}
+                      className="mt-1 cursor-pointer p-0 text-xs text-muted-foreground underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                      {description}
-                    </Description>
-                    {descriptionIsLong && (
-                      <CollapsibleTrigger className="mt-1 cursor-pointer p-0 text-xs text-muted-foreground underline hover:text-foreground">
-                        {descriptionOpen ? "Show less" : "Show more"}
-                      </CollapsibleTrigger>
-                    )}
-                  </Collapsible>
+                      {descriptionOpen ? "Show less" : "Show more"}
+                    </button>
+                  )}
 
                   <Label htmlFor={`mcp-args-${server.id}`}>ARGUMENTS</Label>
                   <Json
