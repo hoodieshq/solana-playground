@@ -148,6 +148,33 @@ it("does not report its own scroll to the page it was given", () => {
   expect(onSwipe).not.toHaveBeenCalled();
 });
 
+it("aligns instantly on load and smoothly after", () => {
+  // jsdom has no scrolling: record what the element's scroll-behavior is at
+  // each write of `scrollLeft`
+  const original = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    "scrollLeft"
+  )!;
+  const behaviors: string[] = [];
+  Object.defineProperty(Element.prototype, "scrollLeft", {
+    configurable: true,
+    get() {
+      return original.get!.call(this);
+    },
+    set(value: number) {
+      behaviors.push((this as HTMLElement).style.scrollBehavior);
+      original.set!.call(this, value);
+    },
+  });
+  try {
+    const { rerender } = renderPager({ page: "work" });
+    rerender(pagerElement({ page: "preview" }));
+  } finally {
+    Object.defineProperty(Element.prototype, "scrollLeft", original);
+  }
+  expect(behaviors).toEqual(["auto", ""]);
+});
+
 it("re-aligns to its page when the window resizes", () => {
   renderPager({ page: "preview" });
   pageWidth = 600;

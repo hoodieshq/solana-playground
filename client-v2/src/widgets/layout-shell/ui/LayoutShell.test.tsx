@@ -21,6 +21,13 @@ import {
 const deploy = vi.hoisted(() => ({
   starts: new Set<(input: string | null) => void>(),
 }));
+// The open file and project the phone's bar and picker name, and the listeners
+// the Files sheet closes on
+const explorer = vi.hoisted(() => ({
+  opens: new Set<() => void>(),
+  name: undefined as string | undefined,
+  path: null as string | null,
+}));
 vi.mock("@/utils", async () => {
   const { PgKeybind } = await import("@/utils/keybind");
   const { PgCommon } = await import("@/utils/common");
@@ -29,6 +36,18 @@ vi.mock("@/utils", async () => {
     PgKeybind,
     PgCommon,
     PgView,
+    PgExplorer: {
+      onNeedRender: () => ({ dispose: () => {} }),
+      onDidOpenFile: (cb: () => void) => {
+        explorer.opens.add(cb);
+        return { dispose: () => explorer.opens.delete(cb) };
+      },
+      get currentWorkspaceName() {
+        return explorer.name;
+      },
+      getCurrentFile: () => (explorer.path ? { path: explorer.path } : null),
+      getRelativePath: (path: string) => path.replace("/proj/", ""),
+    },
     PgCommand: {
       deploy: {
         onDidStart: (cb: (input: string | null) => void) => {
@@ -78,6 +97,8 @@ let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   width = 1440;
   window.innerWidth = 1440;
+  explorer.name = undefined;
+  explorer.path = null;
   vi.stubGlobal("matchMedia", screenMedia);
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
   localStorage.clear();
@@ -931,4 +952,168 @@ it("should report the rail's unfolding once when it is asked twice in one tick",
     press({ key: "b", metaKey: true });
   });
   expect(toggled()).toEqual([{ panel: "nav", open: true, via: "key" }]);
+});
+
+describe("on a phone", () => {
+  const events = (name: string) =>
+    sent.events.filter((event) => event.name === name).map((e) => e.params);
+  const phoneShell = () => {
+    resizeTo(390);
+    return shell();
+  };
+  const button = (name: string) => screen.getByRole("button", { name });
+  const isChecked = (name: string) =>
+    screen.getByRole("radio", { name }).getAttribute("aria-checked");
+  const savedBefore = () => {
+    localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
+    return localStorage.getItem(LAYOUT_STORAGE_KEY);
+  };
+  /** The outlet's box, which carries the page's sizing classes */
+  const boxOf = (el: Element) => el.closest("div[class*='flex']")!;
+  const consoleBox = () =>
+    consoleButton().closest("[class~='h-2/5'], [class~='h-auto']")!;
+
+  it("lands on the work page showing the code", () => {
+    phoneShell();
+    expect(isChecked("Code")).toBe("true");
+    expect(events("layout_page_shown")).toEqual([]);
+  });
+
+  it("opens the preview on the last stage it showed, then back to write", () => {
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("build");
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "button" },
+    ]);
+    act(() => PgFlow.setStage("deploy"));
+    fireEvent.click(button("Back to the code"));
+    expect(PgFlow.state.stage).toBe("write");
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("deploy");
+  });
+
+  it("follows a stage set from elsewhere to its page", () => {
+    phoneShell();
+    act(() => PgFlow.setStage("build"));
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "auto" },
+    ]);
+  });
+
+  it("puts the stage on the page that shows it", () => {
+    phoneShell();
+    const stageOf = () => screen.getByText("stage").closest("section")!;
+    expect(stageOf().getAttribute("aria-label")).toBe("Work");
+    act(() => PgFlow.setStage("build"));
+    expect(stageOf().getAttribute("aria-label")).toBe("Preview");
+  });
+
+  it("brings the assistant to the work page, in Chat, when the product asks", () => {
+    phoneShell();
+    act(() => PgFlow.setStage("build"));
+    act(() => PgAssistant.requestPrompt("fix this"));
+    expect(events("layout_work_view")).toContainEqual({
+      view: "chat",
+      via: "auto",
+    });
+    expect(events("layout_page_shown").at(-1)).toEqual({
+      page: "work",
+      via: "auto",
+    });
+    expect(isChecked("Chat")).toBe("true");
+  });
+
+  it("switches Chat and Code by Ctrl+R", () => {
+    phoneShell();
+    press({ key: "r", ctrlKey: true });
+    expect(events("layout_work_view")).toEqual([{ view: "chat", via: "key" }]);
+    expect(isChecked("Chat")).toBe("true");
+    // The assistant's Sheet is not the phone's
+    expect(toggled()).toEqual([]);
+  });
+
+  it("shows the assistant in Chat and the stage in Code", () => {
+    phoneShell();
+    const assistantBox = () =>
+      boxOf(screen.getByRole("button", { name: /assistant/ }));
+    expect(assistantBox().classList.contains("hidden")).toBe(true);
+    expect(boxOf(screen.getByText("stage")).classList.contains("hidden")).toBe(
+      false
+    );
+    fireEvent.click(screen.getByRole("radio", { name: "Chat" }));
+    expect(assistantBox().classList.contains("hidden")).toBe(false);
+    expect(events("layout_work_view")).toEqual([
+      { view: "chat", via: "button" },
+    ]);
+  });
+
+  it("opens the console on a deploy, for the visit and unsaved", () => {
+    phoneShell();
+    expect(consoleBox().classList.contains("h-2/5")).toBe(false);
+    act(() => deploy.starts.forEach((cb) => cb(null)));
+    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
+    expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("keeps the console on the preview page", () => {
+    phoneShell();
+    expect(consoleButton().closest("section")!.getAttribute("aria-label")).toBe(
+      "Preview"
+    );
+  });
+
+  it("opens Files from the picker and closes it when a file opens", () => {
+    phoneShell();
+    fireEvent.click(button("Files"));
+    expect(
+      document.querySelector('[data-slot="sheet-content"]')
+    ).not.toBeNull();
+    act(() => explorer.opens.forEach((cb) => cb()));
+    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
+  });
+
+  it("names the project and the open file", () => {
+    explorer.name = "my-program";
+    explorer.path = "/proj/src/lib.rs";
+    phoneShell();
+    expect(screen.getByText("my-program")).toBeTruthy();
+    expect(button("Files, lib.rs open").textContent).toContain("src/");
+  });
+
+  it("moves to the work page when the navigation asks to close", () => {
+    phoneShell();
+    fireEvent.click(button("Menu"));
+    fireEvent.click(button("Open settings"));
+    expect(events("layout_page_shown").at(-1)).toEqual({
+      page: "work",
+      via: "auto",
+    });
+  });
+
+  it("toggles Files by Cmd+E and the console by Ctrl+J", () => {
+    phoneShell();
+    press({ key: "e", metaKey: true });
+    expect(
+      document.querySelector('[data-slot="sheet-content"]')
+    ).not.toBeNull();
+    press({ key: "e", metaKey: true });
+    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
+    press({ key: "j", ctrlKey: true });
+    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
+    expect(toggled()).toEqual([]);
+  });
+
+  it("writes nothing to the saved layout on a visit", () => {
+    const before = savedBefore();
+    phoneShell();
+    press({ key: "e", metaKey: true });
+    press({ key: "e", metaKey: true });
+    press({ key: "j", ctrlKey: true });
+    press({ key: "r", ctrlKey: true });
+    fireEvent.click(button("Preview the build"));
+    fireEvent.click(button("Back to the code"));
+    fireEvent.click(button("Menu"));
+    expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(before);
+  });
 });

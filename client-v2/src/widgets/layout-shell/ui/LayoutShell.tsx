@@ -2,12 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTheme } from "styled-components";
 
-import { useKeybind } from "@/hooks";
+import { useExplorer, useKeybind } from "@/hooks";
 import { useIsLeftSheet, useViewport } from "@/shared/lib/hooks/use-viewport";
-import { PgCommand, PgCommon, PgView } from "@/utils";
+import { PgCommand, PgCommon, PgExplorer, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
+import { pageForStage, stageForPage } from "../model/phone-pages";
+import type {
+  PageSource,
+  PhonePage,
+  PreviewStage,
+  WorkView,
+} from "../model/phone-pages";
 import { layoutTelemetry } from "../model/telemetry";
 import type { ToggleSource } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
@@ -60,10 +67,25 @@ const LayoutShell = ({
   assistant,
 }: LayoutShellProps) => {
   const viewport = useViewport();
+  const phone = viewport === "phone";
   const isMobile = useIsLeftSheet();
   const theme = useTheme();
   const { state, setOpen, setHorizontal, setWork, setVertical } =
     useLayoutState();
+  // The phone's state is the visit's: a phone writes nothing to `layout`
+  const [page, setPage] = useState<PhonePage>("work");
+  const [view, setView] = useState<WorkView>("code");
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [phoneConsole, setPhoneConsole] = useState(false);
+  // Held in state, not read off `PgFlow.state`, so a stage change re-renders
+  const [flowStage, setFlowStage] = useState(PgFlow.state.stage);
+  const lastPreview = useRef<PreviewStage>("build");
+  // The subscriptions below outlive renders, so they read these
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  useExplorer();
   // Below `LAYOUT_BREAKPOINTS.compact` the assistant is a Sheet, closed on
   // arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -131,21 +153,74 @@ const LayoutShell = ({
     });
   };
 
-  const assistantShown = viewport === "wide" ? state.open.assistant : sheetOpen;
+  const showPage = (next: PhonePage, via: PageSource) => {
+    if (pageRef.current === next) return;
+    pageRef.current = next;
+    setPage(next);
+    layoutTelemetry.track("layout_page_shown", { page: next, via });
+    const toStage = stageForPage(next, PgFlow.state.stage, lastPreview.current);
+    if (toStage) PgFlow.setStage(toStage);
+  };
+  const showView = (next: WorkView, via: "button" | "key" | "auto") => {
+    if (viewRef.current === next) return;
+    viewRef.current = next;
+    setView(next);
+    layoutTelemetry.track("layout_work_view", { view: next, via });
+  };
+
+  // A stage set from elsewhere moves the pager to the page that shows it
+  useEffect(() => {
+    const sub = PgFlow.onDidChange((flow) => {
+      setFlowStage(flow.stage);
+      if (!phone) return;
+      if (flow.stage !== "write") lastPreview.current = flow.stage;
+      const next = pageForStage(flow.stage, pageRef.current);
+      if (next) showPage(next, "auto");
+    });
+    return () => sub.dispose();
+    // `showPage` reads only refs and stable setters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
+
+  // Files closes when a file opens in it
+  useEffect(() => {
+    if (!phone) return;
+    const sub = PgExplorer.onDidOpenFile(() => setFilesOpen(false));
+    return () => sub.dispose();
+  }, [phone]);
+
+  const wideOrSheet = viewport === "wide" ? state.open.assistant : sheetOpen;
+  const assistantShown = phone ? view === "chat" : wideOrSheet;
   const setAssistant = (open: boolean, via: ToggleSource) => {
-    if (viewport === "wide") setOpen("assistant", { open, via });
+    if (phone) {
+      const source = via === "auto" ? "auto" : "button";
+      showPage("work", source);
+      showView(open ? "chat" : "code", via === "drag" ? "button" : via);
+    } else if (viewport === "wide") setOpen("assistant", { open, via });
     else setSheet(open, via);
+  };
+  /** The console opening on its own: the visit's on a phone, else saved */
+  const openConsole = () => {
+    if (phone) setPhoneConsole(true);
+    else setOpen("console", { open: true, via: "auto" });
   };
 
   // The handlers read what they toggle, so they are renewed with it
-  useKeybind("Ctrl+R", () => setAssistant(!assistantShown, "key"), [
-    viewport,
-    assistantShown,
-  ]);
+  useKeybind(
+    "Ctrl+R",
+    () => {
+      if (phone) showView(view === "chat" ? "code" : "chat", "key");
+      else setAssistant(!assistantShown, "key");
+    },
+    [viewport, assistantShown, view]
+  );
   useKeybind(
     "Ctrl+J",
-    () => setOpen("console", { open: !state.open.console, via: "key" }),
-    [state.open.console]
+    () => {
+      if (phone) setPhoneConsole((open) => !open);
+      else setOpen("console", { open: !state.open.console, via: "key" });
+    },
+    [viewport, state.open.console]
   );
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘E on a Mac. Monaco binds ⌘E
   // (find with selection) while it has focus; this one wins only outside it.
@@ -174,6 +249,11 @@ const LayoutShell = ({
         // `PgKeybind` prevents the default itself unless told not to, which
         // would also swallow the keys left to a field above
         ev.preventDefault();
+        // The phone's files are its own Sheet, not the navigation's
+        if (phone) {
+          setFilesOpen((open) => !open);
+          return;
+        }
         navVia.current = "key";
         if (sheetToggle.current?.()) return;
         // A defence: the next pointer or key input clears the mark in the
@@ -183,30 +263,29 @@ const LayoutShell = ({
       },
       opts: { noPreventDefault: true },
     },
-    [state.open.files]
+    [state.open.files, phone]
   );
 
   useEffect(() => {
     // `onDidChange` replays the current state first; that one is the baseline
     let prevDeploy: StageStatus | undefined;
     const subs = [
-      PgCommand.deploy.onDidStart(() =>
-        setOpen("console", { open: true, via: "auto" })
-      ),
+      PgCommand.deploy.onDidStart(openConsole),
       PgFlow.onDidChange((flow) => {
         if (
           prevDeploy !== undefined &&
           flow.deploy === "failed" &&
           prevDeploy !== "failed"
         ) {
-          setOpen("console", { open: true, via: "auto" });
+          openConsole();
         }
         prevDeploy = flow.deploy;
       }),
       PgAssistant.onDidRequestPrompt(() => setAssistant(true, "auto")),
     ];
     return () => subs.forEach((sub) => sub.dispose());
-    // `setOpen` is stable; `setAssistant` changes only with the viewport
+    // `setOpen` is stable; `setAssistant` and `openConsole` change only with
+    // the viewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport]);
 
@@ -272,6 +351,20 @@ const LayoutShell = ({
     navVia.current = "auto";
     if (!sheetClose.current?.()) navVia.current = null;
   }, []);
+  // On a phone the navigation is a page, and "closing" it goes back to Work
+  const closeNav = () => {
+    if (phone) showPage("work", "auto");
+    else closeSheetAuto();
+  };
+
+  const filePath = PgExplorer.getCurrentFile()?.path;
+  const relativeFile = filePath ? PgExplorer.getRelativePath(filePath) : null;
+  const file = relativeFile
+    ? {
+        dir: relativeFile.slice(0, relativeFile.lastIndexOf("/") + 1),
+        name: relativeFile.slice(relativeFile.lastIndexOf("/") + 1),
+      }
+    : null;
   const closeLeftSheetOn = useCallback(
     (close: () => boolean) => {
       sheetClose.current = close;
@@ -319,7 +412,7 @@ const LayoutShell = ({
         nav({
           collapsed: stock.collapsed,
           toggle: toggleNav(stock.toggle, stock.isMobile),
-          closeSheet: closeSheetAuto,
+          closeSheet: closeNav,
         })
       }
       files={(stock) => {
@@ -344,24 +437,23 @@ const LayoutShell = ({
         fontFamily: theme.font.code.family,
         fontSize: theme.font.code.size.medium,
       }}
-      // Temporary: the pager's state is connected in the next task
       phone={{
-        page: "work",
-        onSwipe: () => {},
-        onGo: () => {},
-        view: "code",
-        onView: () => {},
-        title: "",
-        file: null,
-        filesOpen: false,
-        onFilesOpenChange: () => {},
-        stageOn: "work",
-        consoleOpen: false,
+        page,
+        onSwipe: (next) => showPage(next, "swipe"),
+        onGo: (next) => showPage(next, "button"),
+        view,
+        onView: (next) => showView(next, "button"),
+        title: PgExplorer.currentWorkspaceName ?? "",
+        file,
+        filesOpen,
+        onFilesOpenChange: setFilesOpen,
+        stageOn: flowStage === "write" ? "work" : "preview",
+        consoleOpen: phoneConsole,
       }}
       stageBar={stageBar}
       stage={stage}
       console={console({
-        open: state.open.console,
+        open: phone ? phoneConsole : state.open.console,
         toggle: () =>
           setOpen("console", { open: !state.open.console, via: "button" }),
       })}

@@ -86,8 +86,18 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   const index = PHONE_PAGES.indexOf(props.page);
   // Smooth by CSS (`scroll-smooth`). The scroll this causes settles on the
   // page given, so `onScroll` reports nothing for it.
+  // The first alignment, on load, is instant: arriving is not a move
+  const aligned = useRef(false);
   useLayoutEffect(() => {
-    alignTo(ref.current!, index);
+    const el = ref.current!;
+    if (aligned.current) {
+      alignTo(el, index);
+      return;
+    }
+    aligned.current = true;
+    el.style.scrollBehavior = "auto";
+    alignTo(el, index);
+    el.style.removeProperty("scroll-behavior");
   }, [index]);
   // A rotation changes the page width: put the page back, not between two
   useEffect(() => {
