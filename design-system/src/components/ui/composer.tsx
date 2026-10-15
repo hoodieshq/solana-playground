@@ -63,15 +63,24 @@ function ComposerChip({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
-function ComposerInput({ className, onKeyDown, onInput, ...props }: React.ComponentProps<"textarea">) {
+function ComposerInput({ className, onKeyDown, onInput, value, ...props }: React.ComponentProps<"textarea">) {
   const { setEmpty } = React.useContext(ComposerContext)
+  const ref = React.useRef<HTMLTextAreaElement>(null)
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto"
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
     setEmpty(!el.value.trim())
   }
+  // A controlled value can change without an input event (a prompt the
+  // product puts in, a send that clears it), so emptiness follows it too
+  React.useLayoutEffect(() => {
+    if (value === undefined || !ref.current) return
+    grow(ref.current)
+  }, [value])
   return (
     <textarea
+      ref={ref}
+      value={value}
       data-slot="composer-input"
       rows={1}
       aria-label="Message"
