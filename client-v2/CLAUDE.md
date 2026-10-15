@@ -313,7 +313,8 @@ check's job (HOO-1859); the rest hold by review.
   Locally, run `PORT=<port> yarn test-e2e` with a free slot port
   (`docs/testing.md` section 8). The run reuses only this worktree's own dev
   server on that port and stops before any test, with a message, when another
-  worktree's server or anything else holds it.
+  worktree's server or anything else holds it, and when the server does not
+  answer within 15 s.
 - **A runtime upgrade still gets the manual walk-through** from the UI
   migration spec ("The React 19 gate"), in development and in the production
   build, because the suite runs against the dev server only.

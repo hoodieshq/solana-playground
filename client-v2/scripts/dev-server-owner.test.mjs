@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -31,7 +32,14 @@ const serve = async (t, handler) => {
 };
 
 const sendRoot = (value) => (req, res) => {
-  res.writeHead(200, value === null ? {} : { [DEV_SERVER_ROOT_HEADER]: value });
+  // The dev server sends the root percent-encoded, so any path is a legal
+  // header value.
+  res.writeHead(
+    200,
+    value === null
+      ? {}
+      : { [DEV_SERVER_ROOT_HEADER]: encodeURIComponent(value) }
+  );
   res.end();
 };
 
@@ -53,7 +61,7 @@ const serveInChild = async (t, value) => {
       `const s = require("node:http").createServer((q, r) => {
          r.writeHead(200, { ${JSON.stringify(
            DEV_SERVER_ROOT_HEADER
-         )}: ${JSON.stringify(value)} });
+         )}: ${JSON.stringify(encodeURIComponent(value))} });
          r.end();
        });
        s.listen(0, () => console.log(s.address().port));`,
@@ -177,5 +185,103 @@ test("a foreign server is refused with a DevServerRefusal too", async (t) => {
   assert.throws(
     () => decideDevServer({ port, root: ROOT }),
     (error) => error instanceof DevServerRefusal
+  );
+});
+
+test("a root with non-ASCII characters reads as ours when sent encoded", async (t) => {
+  const dir = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "проект-"))
+  );
+  t.after(() => fs.rmSync(dir, { recursive: true }));
+  const port = await serve(t, sendRoot(dir));
+  assert.deepEqual(await whoseServer({ port, root: dir }), { kind: "ours" });
+});
+
+test("a header that does not decode is compared as written", async (t) => {
+  const port = await serve(t, (req, res) => {
+    res.writeHead(200, { [DEV_SERVER_ROOT_HEADER]: "%E0%A4%A" });
+    res.end();
+  });
+  assert.deepEqual(await whoseServer({ port, root: ROOT }), {
+    kind: "foreign",
+    root: "%E0%A4%A",
+  });
+});
+
+test("a header path that cannot be resolved here is foreign with that path", async (t) => {
+  const missing = path.join(ROOT, "no", "such", "dir");
+  const port = await serve(t, sendRoot(missing));
+  assert.deepEqual(await whoseServer({ port, root: ROOT }), {
+    kind: "foreign",
+    root: missing,
+  });
+});
+
+test("a header path below a file falls back to the text too", async (t) => {
+  const file = path.join(ROOT, "a-file");
+  fs.writeFileSync(file, "");
+  const below = path.join(file, "child");
+  const port = await serve(t, sendRoot(below));
+  assert.deepEqual(await whoseServer({ port, root: ROOT }), {
+    kind: "foreign",
+    root: below,
+  });
+});
+
+test("a server that drops the connection is foreign, with the cause", async (t) => {
+  const server = net.createServer((socket) => socket.destroy());
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+  const { port } = server.address();
+  const owner = await whoseServer({ port, root: ROOT });
+  assert.equal(owner.kind, "foreign");
+  assert.equal(owner.root, null);
+  assert.ok(owner.detail);
+  assert.ok(foreignServerMessage({ port, ...owner }).includes(owner.detail));
+});
+
+test("foreignServerMessage for an unknown root names the header and the dropped connection", () => {
+  const message = foreignServerMessage({ port: 3000, root: null });
+  assert.match(message, /X-Dev-Server-Root/);
+  assert.match(message, /dropped the connection/);
+});
+
+test("a probe child that exits non-zero is a refusal naming port, root and stderr", () => {
+  const script = path.join(ROOT, "fails.mjs");
+  fs.writeFileSync(script, 'console.error("boom"); process.exit(1);');
+  assert.throws(
+    () => whoseServerSync({ port: 4321, root: ROOT, script }),
+    (error) =>
+      error instanceof DevServerRefusal &&
+      error.message.includes("4321") &&
+      error.message.includes(ROOT) &&
+      error.message.includes("boom")
+  );
+});
+
+test("a probe child that prints no JSON is a refusal", () => {
+  const script = path.join(ROOT, "garbage.mjs");
+  fs.writeFileSync(script, 'console.log("not json");');
+  assert.throws(
+    () => whoseServerSync({ port: 4321, root: ROOT, script }),
+    (error) => error instanceof DevServerRefusal && /4321/.test(error.message)
+  );
+});
+
+test("a probe child that outlives its time is refused as silent", () => {
+  const script = path.join(ROOT, "hangs.mjs");
+  fs.writeFileSync(script, "setInterval(() => {}, 1000);");
+  assert.throws(
+    () =>
+      whoseServerSync({
+        port: 4321,
+        root: ROOT,
+        script,
+        timeoutMs: 100,
+        graceMs: 200,
+      }),
+    (error) =>
+      error instanceof DevServerRefusal &&
+      error.message.includes("did not answer")
   );
 });

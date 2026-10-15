@@ -7,6 +7,12 @@ import {
 // `craco start` binds `PORT`, so the same variable picks the server the run
 // uses. Locally, give each worktree its own (docs/testing.md section 8).
 const port = Number(process.env.PORT ?? 3000);
+if (!(Number.isInteger(port) && port > 0 && port < 65536)) {
+  console.error(
+    `PORT must be an integer from 1 to 65535, got "${process.env.PORT}".`
+  );
+  process.exit(1);
+}
 const origin = `http://localhost:${port}`;
 
 // Playwright evaluates this config again in every worker, where our own dev

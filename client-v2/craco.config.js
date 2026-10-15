@@ -514,7 +514,8 @@ module.exports = {
       "Cross-Origin-Opener-Policy": "same-origin",
       // Names this worktree's client-v2, so a local e2e run can tell its own
       // server from another worktree's on the same port (`decideDevServer`).
-      [DEV_SERVER_ROOT_HEADER]: __dirname,
+      // Percent-encoded: a header value must be ASCII, a path need not be.
+      [DEV_SERVER_ROOT_HEADER]: encodeURIComponent(__dirname),
     };
 
     // Serve `api/*.mjs` from the dev server itself, so local API work needs

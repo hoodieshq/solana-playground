@@ -12,9 +12,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 export const DEV_SERVER_ROOT_HEADER = "X-Dev-Server-Root";
 
 /**
- * How long the probe waits for an answer. A dev server that is recompiling,
- * with other dev servers busy on the same laptop, can take several seconds to
- * answer; a shorter wait rejected a healthy server of this worktree.
+ * How long the probe waits for an answer. A dev server recompiling while other
+ * dev servers load the same laptop can take seconds to answer; a timeout
+ * refuses the run as silent, so too short a value rejects this worktree's own
+ * healthy server.
  */
 export const DEFAULT_PROBE_TIMEOUT_MS = 15_000;
 
@@ -29,18 +30,29 @@ export class DevServerRefusal extends Error {
  *
  * @typedef {{ kind: "free" }
  *   | { kind: "ours" }
- *   | { kind: "foreign", root: string | null }
+ *   | { kind: "foreign", root: string | null, detail?: string }
  *   | { kind: "silent", timeoutMs: number }} PortOwner
  */
 
-// A path that does not exist here (another machine's, a deleted worktree)
-// cannot be resolved; it is compared as written, and then it never matches.
+// A path that cannot be resolved here (another machine's, a deleted worktree,
+// one below a file or one we may not read) still compares as text, and then it
+// never matches ours; any filesystem error must not abort the probe.
 const resolveRoot = (value) => {
   try {
     return fs.realpathSync(value);
-  } catch (error) {
-    if (error.code === "ENOENT") return value;
-    throw error;
+  } catch {
+    return value;
+  }
+};
+
+// The header travels percent-encoded so any path is a legal header value. A
+// value that does not decode was not sent by our dev server; it is compared
+// as written.
+const decodeRoot = (value) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
 };
 
@@ -70,12 +82,17 @@ export async function whoseServer({
     if (error.name === "TimeoutError") return { kind: "silent", timeoutMs };
     // A reset or another network error means something holds the port but does
     // not answer like our dev server, so the run must not reuse it nor start
-    // on top of it.
-    return { kind: "foreign", root: null };
+    // on top of it. The cause goes into the refusal so it can be told apart.
+    return {
+      kind: "foreign",
+      root: null,
+      detail: error.cause?.code ?? error.message,
+    };
   }
 
-  const theirs = response.headers.get(DEV_SERVER_ROOT_HEADER);
-  if (theirs === null) return { kind: "foreign", root: null };
+  const sent = response.headers.get(DEV_SERVER_ROOT_HEADER);
+  if (sent === null) return { kind: "foreign", root: null };
+  const theirs = decodeRoot(sent);
   if (resolveRoot(theirs) === resolveRoot(root)) return { kind: "ours" };
   return { kind: "foreign", root: theirs };
 }
@@ -84,41 +101,68 @@ export async function whoseServer({
  * The same answer, synchronously, for a config file that is evaluated
  * synchronously: runs this module as a child `node` and parses its stdout.
  *
- * @param {{ port: number, root: string, timeoutMs?: number }} options
+ * `script` and `graceMs` exist so a test can point the child at another
+ * script and shorten the wait past the child's own.
+ *
+ * @param {{ port: number, root: string, timeoutMs?: number, script?: string,
+ *   graceMs?: number }} options
  * @returns {PortOwner}
- * @throws {Error} when the child fails
+ * @throws {DevServerRefusal} when the child times out, fails or prints no JSON
  */
 export function whoseServerSync({
   port,
   root,
   timeoutMs = DEFAULT_PROBE_TIMEOUT_MS,
+  script = fileURLToPath(import.meta.url),
+  graceMs = 5_000,
 }) {
   const child = spawnSync(
     process.execPath,
-    [fileURLToPath(import.meta.url), String(port), root, String(timeoutMs)],
+    [script, String(port), root, String(timeoutMs)],
     // The child's own wait is `timeoutMs`; this one is a little longer, so the
     // config load can never hang on a stuck child.
-    { encoding: "utf8", timeout: timeoutMs + 5_000 }
+    { encoding: "utf8", timeout: timeoutMs + graceMs }
   );
-  if (child.error) throw child.error;
-  if (child.status !== 0) {
-    throw new Error(`dev-server-owner probe failed: ${child.stderr}`);
+  if (child.error?.code === "ETIMEDOUT" || child.signal) {
+    throw new DevServerRefusal(silentServerMessage({ port, timeoutMs }));
   }
-  return JSON.parse(child.stdout);
+  const failure = (why) =>
+    new DevServerRefusal(
+      `The probe of port ${port} for ${root} failed: ${why}\n` +
+        "The e2e run cannot tell whose server it is."
+    );
+  if (child.error) throw failure(child.error.message);
+  if (child.status !== 0) {
+    throw failure(`exit ${child.status}, ${child.stderr.trim()}`);
+  }
+  try {
+    return JSON.parse(child.stdout);
+  } catch {
+    throw failure(`unreadable answer: ${child.stdout.trim()}`);
+  }
 }
+
+const unknownHolder = (detail) => {
+  const why = detail === undefined ? "" : `: ${detail}`;
+  return (
+    "a server that is not a client-v2 dev server of this worktree " +
+    `(it sent no ${DEV_SERVER_ROOT_HEADER} header, or dropped the connection${why})`
+  );
+};
 
 /**
  * The fail-fast message for a port held by something that is not this
  * worktree's dev server.
  *
- * @param {{ port: number, root: string | null }} options `root` is the other
- *   worktree's, when the server named it
+ * @param {{ port: number, root: string | null, detail?: string }} options
+ *   `root` is the other worktree's, when the server named it; `detail` is the
+ *   network error, when the server dropped the connection
  * @returns {string}
  */
-export function foreignServerMessage({ port, root }) {
+export function foreignServerMessage({ port, root, detail }) {
   const holder =
     root === null
-      ? "a server that is not a client-v2 dev server of this worktree (or does not answer)"
+      ? unknownHolder(detail)
       : `the client-v2 dev server of another worktree: ${root}`;
   return [
     `Port ${port} is held by ${holder}.`,
@@ -160,7 +204,9 @@ export function decideDevServer({ port, root, timeoutMs }) {
       silentServerMessage({ port, timeoutMs: owner.timeoutMs })
     );
   }
-  throw new DevServerRefusal(foreignServerMessage({ port, root: owner.root }));
+  throw new DevServerRefusal(
+    foreignServerMessage({ port, root: owner.root, detail: owner.detail })
+  );
 }
 
 // No top-level await: craco.config.js `require`s this module, which Node
