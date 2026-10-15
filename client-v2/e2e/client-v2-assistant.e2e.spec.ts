@@ -252,14 +252,14 @@ test.describe("Connect a model", () => {
     test("client-v2-assistant: Connecting on a phone", async ({ page }) => {
       await stubAgent(page, { configured: false, model: null }, answer);
       // The project opens from the gallery on a desktop-sized page; a phone
-      // reaches the assistant through its Sheet
+      // shows the assistant on the pager's Work page, through Show: Chat
       await page.setViewportSize({ width: 1280, height: 800 });
       await openProject(page, "connect-phone");
       await page.setViewportSize(PHONE);
-      await page.getByRole("button", { name: "Expand assistant" }).click();
-      const sheet = page.locator('[data-slot="sheet-content"]');
-      await expect(sheet).toBeVisible();
-      await sheet.getByRole("button", { name: "More", exact: true }).click();
+      await page.getByRole("radio", { name: "Chat" }).click();
+      const work = page.getByRole("region", { name: "Work" });
+      await expect(work).toBeInViewport();
+      await work.getByRole("button", { name: "More", exact: true }).click();
       await page.getByRole("menuitem", { name: /Connect a model/ }).click();
       const dialog = page.getByRole("dialog", { name: "Connect a model" });
       await expect(dialog).toBeVisible(LONG);
