@@ -81,7 +81,9 @@ export interface PanelState {
 
 /**
  * What the stock Sidebar hands the navigation. A union on `isMobile`, so the
- * Sheet, which has no rail, cannot be handed `collapsed: true`.
+ * Sheet, which has no rail, cannot be handed `collapsed: true`. Below
+ * `LAYOUT_BREAKPOINTS.phone` the pager gives the navigation a page, handed
+ * the same `isMobile: true` shape; its `toggle` goes back to Work.
  */
 export type NavStock =
   | {
@@ -103,7 +105,8 @@ export type NavStock =
  * What the files column is handed: below `LAYOUT_BREAKPOINTS.left` it sits in
  * the navigation's Sheet and the stock toggle opens and closes that Sheet;
  * from there up it is in the work group, where there is no Sheet and so no
- * toggle to hand it.
+ * toggle to hand it. On a phone the pager's own Files Sheet holds it, and the
+ * toggle closes that Sheet.
  */
 export type FilesStock =
   | { isMobile: true; toggle: () => void }
@@ -115,7 +118,7 @@ export interface BaseLayoutShellProps {
    * Whether the window is below `LAYOUT_BREAKPOINTS.left`, so the files column
    * is in the navigation's Sheet and not in the work group. One source, given
    * by the caller (`useIsLeftSheet`), so the column is mounted once, in the
-   * right place, and a test reaches the phone layout with a prop. The stock
+   * right place, and a test reaches the left-Sheet layout with a prop. The stock
    * Sidebar still decides its own Sheet with its own hook, which agrees on
    * the width (`use-viewport.test.ts`) but is a render late on first load.
    */
@@ -143,7 +146,11 @@ export interface BaseLayoutShellProps {
   onHorizontalLayout: (layout: PanelLayout) => void;
   onWorkLayout: (layout: PanelLayout) => void;
   onVerticalLayout: (layout: PanelLayout) => void;
-  /** Renders the navigation, inside the stock Sidebar */
+  /**
+   * Renders the navigation, inside the stock Sidebar; on a phone, on the
+   * pager's menu page. Across `LAYOUT_BREAKPOINTS.phone` it remounts: only the
+   * stage and the console keep their nodes.
+   */
   nav: (stock: NavStock) => ReactNode;
   /**
    * Renders the files column: in the work group from
@@ -167,8 +174,11 @@ export interface BaseLayoutShellProps {
    * tree (rename, delete) could not be typed into while it stays open.
    * `close` returns whether it closed anything: on a wider window the stock
    * Sidebar can still hold the Sheet as open from before, but shows no Sheet.
-   * `closeLeftSheetOn` is read once, when the shell mounts, so a new function
-   * each render is harmless: the subscription does not follow it.
+   * `closeLeftSheetOn` is read once, when the frame mounts, so a new function
+   * each render is harmless: the subscription does not follow it. The frame
+   * remounts across `LAYOUT_BREAKPOINTS.phone`, so it is read again on the way
+   * back; the pager has no such Sheet, and the caller closes its Files Sheet
+   * on a modal itself.
    */
   closeLeftSheetOn: (close: () => boolean) => Disposable;
   /**
@@ -180,7 +190,10 @@ export interface BaseLayoutShellProps {
    * `closeLeftSheetOn` is.
    */
   toggleLeftSheetOn: (toggle: () => boolean) => Disposable;
-  /** Across the top of the work area, over the files column and the stage */
+  /**
+   * Across the top of the work area, over the files column and the stage; on
+   * a phone, in the bar of the preview page
+   */
   stageBar: ReactNode;
   stage: ReactNode;
   console: ReactNode;

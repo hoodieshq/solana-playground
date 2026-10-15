@@ -55,7 +55,7 @@ const subscribeLeft = (onChange: () => void) => {
  * is a Sheet. Right on the first render, unlike the stock Sidebar's
  * `useIsMobile`, which answers `false` until an effect runs: a layout that
  * moves the files column by this does not mount it in the work group and then
- * again in the Sheet on every phone load. Same value as that hook, held by
+ * again in the Sheet on every load below `left`. Same value as that hook, held by
  * `use-viewport.test.ts`.
  */
 export const useIsLeftSheet = (): boolean =>

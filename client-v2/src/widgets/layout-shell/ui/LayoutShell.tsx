@@ -294,7 +294,6 @@ const LayoutShell = ({
         // `PgKeybind` prevents the default itself unless told not to, which
         // would also swallow the keys left to a field above
         ev.preventDefault();
-        // The phone's files are its own Sheet, not the navigation's
         if (phone) {
           setPhoneFiles(!filesNow.current, "key");
           return;
