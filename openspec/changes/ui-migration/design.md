@@ -775,24 +775,34 @@ the workspace's own report:
 | Surface | When | Shows |
 |---|---|---|
 | `empty` | no build yet, or the first one running | "Nothing built yet" / "Building...", Build |
-| `unreached` | this run failed with no report from the compiler | the build server named, Retry build |
-| `restored` | a verdict kept from before a reload, no report | "Built earlier" / "Last build failed", Build |
+| `unreached` | a build settled in this session with no report from the compiler | the build server named, Retry build |
+| `restored` | a verdict kept from before a reload, and no build settled since (a rebuild in flight keeps it) | "Built earlier" / "Last build failed", Build |
 | `succeeded` | the report has no error | "Build succeeded", Continue to Deploy, Download IDL, Export project |
 | `failed` | the report has errors | one `Diagnostic` per error, the compiler's output behind a toggle, Rebuild |
 
 A diagnostic carries the rustc code, the plain explanation from `humanize`,
 and the source lines around the fault read from the explorer, the faulty one
-marked with rustc's label; without the file or the line it shows rustc's own
-excerpt. "Fix with assistant" sends the error to the assistant; it is the brand
-button on the first diagnostic only.
+marked with rustc's label (the error's title when rustc gave none); without the
+file or the line it shows rustc's own excerpt. Output the parser cannot split
+becomes one "Unparsed compiler error" card, and the count falls back to the
+stepper's, or is left out when neither counted any. "Fix with assistant" sends
+the error to the assistant; it is the brand button on the first diagnostic
+only.
 
-**Deploy** is a `StageEmpty` until the project's first deployment, then the
-Deploy result block: a status line, the program id with a `CopyButton`, the
-transaction, upgradability, authority, size and time, Interact and Explorer.
+**Deploy** is one `StageEmpty`, titled "Nothing deployed yet" until the
+project's first deployment and "Deploy" after it, when it gains the Deploy
+result block: a status line, the program id with a `CopyButton`, the
+transaction, upgradability, and, while the program can be upgraded, its
+authority and size, the time, then Interact (outline) and the Explorer links.
+It reads the project's deployments when it opens, since the stage router
+remounts it on every switch.
 The history is a plain list: `Table` is not in the registry, and one list does
 not justify registering it. The IDL is loaded through a `DropZone`, which takes
 a dragged file or a picked one; a file that is not an Anchor IDL is refused and
-logged as a warning, since it is the user's input and not a fault.
+logged as a warning, since it is the user's input and not a fault, while a
+failure after the file was accepted is ours and is reported. Interact's
+toolbar keeps a compact "Load IDL file" button (`IdlActions mode="button"`)
+until its own screen moves (5.12).
 
 **One accent action per screen.** Build, Retry build and Rebuild stay
 `AsyncButton`s (5.4), so the empty Build stage has no brand button; Continue to
@@ -813,7 +823,8 @@ added: `views/` is a legacy root.
 **Deleted:** `views/sidebar/build-deploy/Component`, which 5.3 swapped and
 left for this task. Nothing calls the page's `importComponent`; the page's
 registration (`build-deploy.ts`) stays, because `SIDEBAR` and the tutorials
-still name it.
+still name it. Its default `importComponent` now points at the deleted folder;
+whoever wires that sidebar path again builds the page anew.
 
 Kept: `flow-stage-panel-*`, `flow-stage-tab-*` and the texts the e2e reads.
 
