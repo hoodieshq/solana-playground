@@ -1,4 +1,26 @@
 import { defineConfig } from "@playwright/test";
+import { decideDevServer } from "./scripts/dev-server-owner.mjs";
+
+// `craco start` binds `PORT`, so the same variable picks the server the run
+// uses. Locally, give each worktree its own (docs/testing.md section 8).
+const port = Number(process.env.PORT ?? 3000);
+const origin = `http://localhost:${port}`;
+
+// Playwright evaluates this config again in every worker, where our own dev
+// server is already up. The runner's first evaluation probes the port and
+// leaves the decision here, so workers read it instead of probing again.
+const DEV_SERVER_DECISION_ENV = "E2E_DEV_SERVER";
+
+const devServerDecision = (): "start" | "reuse" => {
+  if (process.env.CI) return "start";
+  const cached = process.env[DEV_SERVER_DECISION_ENV];
+  if (cached === "start" || cached === "reuse") return cached;
+  // Throws, before any test, for a port held by another worktree's server.
+  const decision = decideDevServer({ port, root: import.meta.dirname });
+  process.env[DEV_SERVER_DECISION_ENV] = decision;
+  return decision;
+};
+const decision = devServerDecision();
 
 /**
  * Browser-level tests. Kept out of `src` so vitest never collects them -
@@ -52,7 +74,7 @@ export default defineConfig({
   // the line saying which test was running.
   globalTimeout: process.env.CI ? 25 * 60_000 : 0,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: origin,
     // Every failed attempt keeps its trace, a flaky test's first attempt
     // included; CI uploads them as the job's artifact, and locally
     // `yarn playwright show-trace test-results/<test>/trace.zip` opens one.
@@ -67,9 +89,12 @@ export default defineConfig({
     // `dev` runs `generate-fast`: still syncs public/, but skips
     // `generate-crates`, which shells out to cargo and dominates the runtime
     command: "yarn dev",
-    url: "http://localhost:3000",
-    // Reuse a dev server you already have running; CI always starts its own
-    reuseExistingServer: !process.env.CI,
+    url: origin,
+    // Only this worktree's own dev server is reused. Any other server on the
+    // port fails the run in `decideDevServer` (HOO-2106: a run reused another
+    // worktree's server on :3000 and reported false passes). CI always starts
+    // its own.
+    reuseExistingServer: decision === "reuse",
     // A minute on a laptop; a 2-vCPU runner compiles the same bundle several
     // times slower, and a boot that times out fails the whole job for nothing
     timeout: process.env.CI ? 600_000 : 300_000,
@@ -79,6 +104,6 @@ export default defineConfig({
     // job log.
     stdout: process.env.CI ? "pipe" : "ignore",
     stderr: "pipe",
-    env: { BROWSER: "none" },
+    env: { BROWSER: "none", PORT: String(port) },
   },
 });
