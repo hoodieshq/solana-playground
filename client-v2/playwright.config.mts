@@ -47,7 +47,11 @@ const workers = process.env.CI
 const QUEUE_SLOT_ENV = "E2E_QUEUE_SLOT";
 
 const takeQueueSlot = () => {
-  if (process.env.CI || process.argv.includes("--list")) return;
+  // `--list`, `--list=...` and the short `-l` only print test titles.
+  const listing = process.argv.some(
+    (arg) => arg === "-l" || arg.startsWith("--list")
+  );
+  if (process.env.CI || listing) return;
   if (process.env[QUEUE_SLOT_ENV]) return;
   const max = positiveIntegerFromEnv("E2E_MAX_RUNS", DEFAULT_MAX_RUNS);
   const dir =

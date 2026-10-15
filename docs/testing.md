@@ -788,8 +788,10 @@ the port from another worktree, or anything else that is not this worktree's cli
 A local run also waits in a machine-wide queue, so several worktrees do not swap the machine: at most `E2E_MAX_RUNS`
 runs (default 2) go at once, each with `E2E_WORKERS` Chromiums (default 2). The slots are the directories `slot-1`,
 `slot-2`, ... under `~/.cache/solana-playground-e2e` (`E2E_QUEUE_DIR` moves them). A waiting run prints who holds the
-slots. A run that was killed leaves its slot behind, and the next run reclaims it once the owner's pid is gone. CI does
-not queue.
+slots. A run that was killed leaves its slot behind, and the next run reclaims it once the owner's pid is gone. If an
+unrelated process has since been given that pid, the slot stays held until that process exits: when a run waits on a
+holder that is not an e2e run, delete the slot by hand (`rm -r ~/.cache/solana-playground-e2e/slot-N`). CI does not
+queue.
 
 ### Limits
 

@@ -139,6 +139,54 @@ test("release leaves a slot that another run has taken", (t) => {
   assert.ok(fs.existsSync(path.join(dir, "slot-1", "owner.json")));
 });
 
+test("a slot whose owner.json cannot be written is not left behind", (t) => {
+  const dir = tempDir(t);
+  // A BigInt port makes JSON.stringify throw while the slot is being written.
+  const broken = { pid: process.pid, worktree: "/wt/mine", port: 1n };
+  assert.throws(() => acquireSlot({ dir, max: 1, owner: broken }), TypeError);
+  assert.ok(!fs.existsSync(path.join(dir, "slot-1")));
+  assert.equal(acquireSlot({ dir, max: 1, owner: owner(1) }).slot, 1);
+});
+
+/** A child that makes one pass once `goFile` exists, prints the result, and stays alive until stdin closes. */
+const raceInChild = (dir, goFile) => {
+  const code = `
+    import fs from "node:fs";
+    import { tryAcquireSlot } from ${JSON.stringify(MODULE_URL)};
+    while (!fs.existsSync(${JSON.stringify(goFile)})) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1);
+    }
+    const result = tryAcquireSlot({ dir: ${JSON.stringify(dir)}, max: 1, owner: { pid: process.pid, worktree: "/wt/racer", port: 1 } });
+    process.stdout.write(result.kind + "\\n");
+    process.stdin.resume();
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", code], {
+    stdio: ["pipe", "pipe", "inherit"],
+  });
+  const kind = new Promise((resolve) =>
+    child.stdout.once("data", (chunk) => resolve(chunk.toString().trim()))
+  );
+  return { child, kind };
+};
+
+test("two runs racing to reclaim one dead slot: exactly one gets it", async (t) => {
+  for (let round = 0; round < 5; round++) {
+    const dir = tempDir(t);
+    writeOwner(dir, 1, deadPid());
+    const goFile = path.join(dir, "go");
+    const racers = [raceInChild(dir, goFile), raceInChild(dir, goFile)];
+    // Let both children finish loading before the starting gun.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fs.writeFileSync(goFile, "");
+    const kinds = await Promise.all(racers.map((r) => r.kind));
+    racers.forEach((r) => r.child.stdin.end());
+    assert.equal(kinds.filter((k) => k === "acquired").length, 1, kinds.join());
+    await Promise.all(
+      racers.map((r) => new Promise((resolve) => r.child.once("exit", resolve)))
+    );
+  }
+});
+
 test("describeHolders names worktree, pid and port, one line per holder", () => {
   const text = describeHolders(
     [
