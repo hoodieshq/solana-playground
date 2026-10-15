@@ -8,6 +8,7 @@ import {
   ConsoleDrawerContent,
   ConsoleDrawerStatus,
 } from "@/shared/ui/console-drawer";
+import { Kbd } from "@/shared/ui/kbd";
 import { StatusDot } from "@/shared/ui/status-dot";
 import type { ConsoleStatus } from "./status";
 
@@ -62,9 +63,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
         )}
       </ConsoleDrawerStatus>
       <ConsoleDrawerActions>
-        <span aria-hidden className="font-mono opacity-60">
-          ⌘J
-        </span>
+        <Kbd aria-hidden>⌘J</Kbd>
         {open && (
           <Button type="button" variant="ghost" size="xs" onClick={onClear}>
             Clear
