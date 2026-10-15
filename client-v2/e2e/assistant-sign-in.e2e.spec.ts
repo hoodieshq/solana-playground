@@ -49,7 +49,7 @@ const openProject = async (page: Page, name: string) => {
   await expect(gallery).toBeHidden(LONG);
 };
 
-test("a signed-out user is offered sign-in, not the default backend", async ({
+test("assistant-own-key: Signed out, the default backend offers sign-in", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -72,7 +72,7 @@ test("a signed-out user is offered sign-in, not the default backend", async ({
   expect(await isConnected(page)).toBe(false);
 });
 
-test("a signed-in user is reconnected to the remembered default backend", async ({
+test("assistant-own-key: Signed in, the remembered default backend reconnects", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -121,7 +121,7 @@ const expectSignInPicker = async (page: Page) => {
   await expect(page.getByLabel("Message the assistant")).toBeHidden();
 };
 
-test("a user connected to the default backend is offered sign-in after signing out", async ({
+test("assistant-own-key: Signing out while connected to the default backend", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -140,7 +140,7 @@ test("a user connected to the default backend is offered sign-in after signing o
   await expectSignInPicker(page);
 });
 
-test("a user whose session ends mid-chat is offered sign-in for the default backend", async ({
+test("assistant-own-key: The session ends mid-chat on the default backend", async ({
   page,
 }) => {
   test.setTimeout(240_000);
