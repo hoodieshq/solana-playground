@@ -109,25 +109,40 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // `scrollend` is missing on Safari before 26, so a rest of the scroll
   // stands in for it
   const settle = useRef<number>(undefined);
-  const onScroll = () => {
+  // A finger resting mid-drag fires no scroll events, so a rest is not a
+  // settle while a touch is down; it is one when the finger lifts
+  const touching = useRef(false);
+  const armSettle = () => {
     window.clearTimeout(settle.current);
     settle.current = window.setTimeout(() => {
       const el = ref.current;
-      if (!el || el.clientWidth === 0) return;
+      if (!el || el.clientWidth === 0 || touching.current) return;
       const at = PHONE_PAGES[Math.round(el.scrollLeft / el.clientWidth)];
       if (at && at !== props.page) props.onSwipe(at);
     }, SWIPE_SETTLE_MS);
+  };
+  const onTouchStart = () => {
+    touching.current = true;
+    window.clearTimeout(settle.current);
+  };
+  const onTouchEnd = () => {
+    touching.current = false;
+    armSettle();
   };
   useEffect(() => () => window.clearTimeout(settle.current), []);
   return (
     <div
       ref={ref}
       data-testid="phone-pager"
-      onScroll={onScroll}
+      onScroll={armSettle}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
       className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth [scrollbar-width:none]"
     >
       <section
         aria-label="Navigation"
+        inert={props.page !== "menu"}
         className="flex h-full w-full shrink-0 snap-start flex-col"
       >
         <PhoneBar>
@@ -140,10 +155,13 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
             <X />
           </Button>
         </PhoneBar>
-        <div className="min-h-0 flex-1 overflow-y-auto">{props.menu}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {props.menu}
+        </div>
       </section>
       <section
         aria-label="Work"
+        inert={props.page !== "work"}
         className="flex h-full w-full shrink-0 snap-start flex-col"
       >
         <PhoneBar>
@@ -207,6 +225,7 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
       </section>
       <section
         aria-label="Preview"
+        inert={props.page !== "preview"}
         className="flex h-full w-full shrink-0 snap-start flex-col"
       >
         <PhoneBar>

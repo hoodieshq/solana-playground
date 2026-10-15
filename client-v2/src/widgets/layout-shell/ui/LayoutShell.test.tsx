@@ -1005,6 +1005,23 @@ describe("on a phone", () => {
     ]);
   });
 
+  it("tells a section that is not the current page apart by `inert`", () => {
+    phoneShell();
+    const inertOf = (name: string) =>
+      screen.getByRole("region", { name }).hasAttribute("inert");
+    expect([
+      inertOf("Navigation"),
+      inertOf("Work"),
+      inertOf("Preview"),
+    ]).toEqual([true, false, true]);
+    fireEvent.click(button("Preview the build"));
+    expect([
+      inertOf("Navigation"),
+      inertOf("Work"),
+      inertOf("Preview"),
+    ]).toEqual([true, true, false]);
+  });
+
   it("puts the stage on the page that shows it", () => {
     phoneShell();
     const stageOf = () => screen.getByText("stage").closest("section")!;
@@ -1134,11 +1151,11 @@ describe("on a phone", () => {
     fireEvent.click(consoleButton());
     press({ key: "j", ctrlKey: true });
     act(() => deploy.starts.forEach((cb) => cb(null)));
-    fireEvent.click(button("Files"));
+    tap(button("Files"));
     press({ key: "e", metaKey: true });
     press({ key: "e", metaKey: true });
     escapeSheet();
-    fireEvent.click(button("Files"));
+    tap(button("Files"));
     escapeSheet();
     expect(toggled()).toEqual([
       { panel: "console", open: true, via: "button" },
@@ -1147,10 +1164,38 @@ describe("on a phone", () => {
       { panel: "files", open: true, via: "button" },
       { panel: "files", open: false, via: "key" },
       { panel: "files", open: true, via: "key" },
-      { panel: "files", open: false, via: "button" },
+      { panel: "files", open: false, via: "key" },
       { panel: "files", open: true, via: "button" },
-      { panel: "files", open: false, via: "button" },
+      { panel: "files", open: false, via: "key" },
     ]);
+  });
+
+  it("reports a tap on the Files sheet's overlay as a button", async () => {
+    phoneShell();
+    tap(button("Files"));
+    // Radix starts listening for an outside tap a tick after the Sheet opens
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    tap(sheetOverlay());
+    expect(toggled().at(-1)).toEqual({
+      panel: "files",
+      open: false,
+      via: "button",
+    });
+  });
+
+  it("brings Work back with the stage on it after a wide visit that picked Write", () => {
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("build");
+    act(() => resizeTo(1280));
+    act(() => PgFlow.setStage("write"));
+    act(() => resizeTo(390));
+    const stageOf = () => screen.getByText("stage").closest("section")!;
+    expect(stageOf().getAttribute("aria-label")).toBe("Work");
+    expect(stageOf().getAttribute("inert")).toBeNull();
+    expect(
+      screen.getByRole("region", { name: "Preview" }).getAttribute("inert")
+    ).not.toBeNull();
   });
 
   it("folds the console to its bar and opens it to a share of the page", () => {

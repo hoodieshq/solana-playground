@@ -138,6 +138,39 @@ it("reports a swipe once it settles on another page", () => {
   expect(onSwipe).toHaveBeenCalledWith("preview");
 });
 
+it("does not settle while a finger is down, only once it lifts", () => {
+  vi.useFakeTimers();
+  const onSwipe = vi.fn();
+  renderPager({ page: "work", onSwipe });
+  const pager = screen.getByTestId("phone-pager");
+  fireEvent.touchStart(pager);
+  pager.scrollLeft = 585;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS * 3);
+  expect(onSwipe).not.toHaveBeenCalled();
+  pager.scrollLeft = 780;
+  fireEvent.touchEnd(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  expect(onSwipe).toHaveBeenCalledWith("preview");
+});
+
+it("makes every section but the current page inert", () => {
+  const { rerender } = renderPager({ page: "work" });
+  const inertOf = (name: string) =>
+    screen.getByRole("region", { name }).hasAttribute("inert");
+  expect([inertOf("Navigation"), inertOf("Work"), inertOf("Preview")]).toEqual([
+    true,
+    false,
+    true,
+  ]);
+  rerender(pagerElement({ page: "menu" }));
+  expect([inertOf("Navigation"), inertOf("Work"), inertOf("Preview")]).toEqual([
+    false,
+    true,
+    true,
+  ]);
+});
+
 it("does not report its own scroll to the page it was given", () => {
   vi.useFakeTimers();
   const onSwipe = vi.fn();
