@@ -232,9 +232,14 @@ test.describe("Connect a model", () => {
 
       // With no default on the deployment, the form opens on Anthropic
       await dialog.locator("#assistant-api-key").fill("sk-ant-fake-key");
-      await dialog
-        .getByRole("button", { name: "Connect", exact: true })
-        .click();
+      // The dialog's submit, drawn as the view's ring brand button
+      const connect = dialog.getByRole("button", {
+        name: "Connect",
+        exact: true,
+      });
+      await expect(connect).toHaveAttribute("data-slot", "brand-button");
+      await expect(connect).toHaveAttribute("data-variant", "ring");
+      await connect.click();
 
       await expect(dialog).toBeHidden(LONG);
       await expect(modelButton(page, "Opus 5.5")).toBeVisible();

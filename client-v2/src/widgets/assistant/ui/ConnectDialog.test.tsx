@@ -173,6 +173,9 @@ describe("ConnectDialog", () => {
     )!;
     const connect = within(footer).getByRole("button", { name: "Connect" });
     expect(within(body).queryByRole("button", { name: "Connect" })).toBeNull();
+    // The view's one call to action keeps the brand ring
+    expect(connect.getAttribute("data-slot")).toBe("brand-button");
+    expect(connect.getAttribute("data-variant")).toBe("ring");
     expect(connect.hasAttribute("disabled")).toBe(true);
 
     await user.type(

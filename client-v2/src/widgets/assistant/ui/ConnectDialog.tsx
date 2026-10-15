@@ -81,6 +81,8 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
               text: action.text,
               disabled: !action.ready,
               onSubmit: action.connect,
+              // Connect is the one call to action here (design 5.4)
+              variant: "brand",
               // The dialog closes itself on the connection, with it as the
               // answer
               noCloseOnSubmit: true,
