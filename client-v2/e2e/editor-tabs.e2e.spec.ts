@@ -9,9 +9,8 @@ import { LONG, test } from "./fixtures";
  * what only the page's own key handling can show (arrows in the editor).
  */
 
-/** A tab's frame, by its path; the drag's copy carries the same id */
-const TAB =
-  '#tabs [data-slot="editor-tab"][id^="/"]:not([data-drag="overlay"])';
+/** A tab's frame, by its path (the drag's copy has no id) */
+const TAB = '#tabs [data-slot="editor-tab"][id^="/"]';
 
 const tabIds = (page: Page) =>
   page.locator(TAB).evaluateAll((tabs) => tabs.map((tab) => tab.id));

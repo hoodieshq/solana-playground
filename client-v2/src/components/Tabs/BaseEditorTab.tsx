@@ -15,7 +15,7 @@ export type EditorTabDrag = "source" | "overlay";
 export interface BaseEditorTabProps
   extends Omit<
     ComponentPropsWithoutRef<"div">,
-    "onSelect" | "role" | "tabIndex"
+    "onSelect" | "role" | "tabIndex" | "id" | "title" | "children"
   > {
   path: string;
   name: string;
@@ -50,11 +50,15 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
     },
     ref
   ) => {
+    // The copy that follows the pointer is a picture of the tab: it takes no
+    // id from the tab it copies, and assistive tech and the keyboard skip it
+    const isOverlay = drag === "overlay";
     return (
       <EditorTab
         ref={ref}
-        id={path}
+        id={isOverlay ? undefined : path}
         title={path}
+        inert={isOverlay}
         active={current}
         menuOpen={menuOpen}
         data-drag={drag}

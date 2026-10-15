@@ -39,6 +39,24 @@ describe("BaseEditorTab", () => {
     expect(root.id).toBe("/src/lib.rs");
   });
 
+  it("draws the drag's copy with no id, out of reach of the keyboard", () => {
+    render(
+      <BaseEditorTab
+        path="/src/lib.rs"
+        name="lib.rs"
+        icon={null}
+        current
+        menuOpen={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        drag="overlay"
+      />
+    );
+    const copy = screen.getByTitle("/src/lib.rs");
+    expect(copy.hasAttribute("id")).toBe(false);
+    expect(copy.hasAttribute("inert")).toBe(true);
+  });
+
   // The trigger is the tab; a focusable root around it would put a second
   // control in the tab list, with the tab nested inside it
   it("draws the root as a frame: role presentation, not focusable", () => {

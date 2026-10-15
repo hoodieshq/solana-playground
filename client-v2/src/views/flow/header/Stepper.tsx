@@ -65,7 +65,9 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => {
   // gives, not the list's own width. Folding the labels shrinks the list but
   // not the root, so the fold cannot flip itself back. Until the first
   // measurement the labels show in full; the observer's first callback runs
-  // before paint, and the state it sets commits after.
+  // before paint, and the state it sets commits after. A hidden bar reports
+  // a width of 0, which says nothing about the room it gives once shown, so
+  // the last real width stands.
   const ref = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<number | null>(null);
   useEffect(() => {
@@ -73,7 +75,9 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => {
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
-      if (entry) setRoom(entry.contentRect.width);
+      if (entry && entry.contentRect.width > 0) {
+        setRoom(entry.contentRect.width);
+      }
     });
     observer.observe(el);
     return () => observer.disconnect();

@@ -5,17 +5,23 @@ import { parseBuildReport } from "../stages/build-report";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { FlowState } from "../state/stage";
 
+type StatusDotVariant = NonNullable<
+  VariantProps<typeof statusDotVariants>["variant"]
+>;
+
+/** Its argument, accepted only if every member is a `StatusDot` variant */
+type DotVariants<T extends StatusDotVariant> = T;
+
 /** Which `StatusDot` variant the console strip shows, and whether its text
- * reads as an error. Each tone is a `StatusDot` variant, so tsc fails here if
- * the dot drops one. */
-export type ConsoleStatusTone = Extract<
-  NonNullable<VariantProps<typeof statusDotVariants>["variant"]>,
+ * reads as an error. tsc fails here if the dot drops one of them (an
+ * `Extract` would drop the tone too, silently). */
+export type ConsoleStatusTone = DotVariants<
   "idle" | "running" | "success" | "error"
 >;
 
 export interface ConsoleStatus {
   /** e.g. `building...`, `last build \u00b7 3.4s \u00b7 ok`, or `""`
-   * before the first build, which pairs with any tone */
+   * before the first build, when the tone is `"idle"` */
   text: string;
   tone: ConsoleStatusTone;
 }

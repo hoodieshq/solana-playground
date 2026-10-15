@@ -118,4 +118,13 @@ describe("Stepper", () => {
       "false"
     );
   });
+
+  it("keeps its labels while the stage bar is hidden (zero width)", () => {
+    render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
+    resizeTo(900);
+    resizeTo(0);
+    expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
+      "false"
+    );
+  });
 });
