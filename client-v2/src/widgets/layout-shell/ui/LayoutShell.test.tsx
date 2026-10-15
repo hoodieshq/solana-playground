@@ -63,6 +63,7 @@ import { PgView } from "@/utils/view";
 import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { LAYOUT_STORAGE_KEY } from "../model/layout-state";
+import { SWIPE_SETTLE_MS } from "./BasePhonePager";
 import LayoutShell from "./LayoutShell";
 
 const listeners = new Set<() => void>();
@@ -1216,6 +1217,56 @@ describe("on a phone", () => {
       via: "auto",
     });
     expect(events("layout_work_view")).toEqual([{ view: "chat", via: "key" }]);
+  });
+
+  it("follows a swipe: the preview opens on the last stage, Work goes back to write", () => {
+    vi.useFakeTimers();
+    const widthDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientWidth"
+    );
+    // jsdom has no layout: each page is as wide as the phone
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get: () => 390,
+    });
+    try {
+      phoneShell();
+      act(() => PgFlow.setStage("deploy"));
+      fireEvent.click(button("Back to the code"));
+      expect(PgFlow.state.stage).toBe("write");
+      const pager = screen.getByTestId("phone-pager");
+      const swipeTo = (page: number) => {
+        pager.scrollLeft = page * 390;
+        fireEvent.scroll(pager);
+        act(() => {
+          vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+        });
+      };
+      swipeTo(2);
+      expect(events("layout_page_shown").at(-1)).toEqual({
+        page: "preview",
+        via: "swipe",
+      });
+      expect(PgFlow.state.stage).toBe("deploy");
+      swipeTo(1);
+      expect(events("layout_page_shown").at(-1)).toEqual({
+        page: "work",
+        via: "swipe",
+      });
+      expect(PgFlow.state.stage).toBe("write");
+    } finally {
+      vi.useRealTimers();
+      if (widthDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientWidth",
+          widthDescriptor
+        );
+      } else {
+        delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
   });
 
   it("opens the preview on the last stage a wide window showed", () => {
