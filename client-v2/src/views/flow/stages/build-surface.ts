@@ -28,17 +28,19 @@ export const ownOutput = (
  * that says one already happened, and for a restored failure it went further
  * and named a cause ("failed before the compiler ran") it cannot know.
  *
- * `buildStartedAt` is the discriminator: a build this session started sets
- * it, so a missing report there means the run produced none, which is a
- * different story with its own surface.
+ * `buildMs` is the discriminator: only `build-finish` sets it, and a reload
+ * does not restore it, so it stays `null` until a build settles in this
+ * session. `buildStartedAt` would not do: a rebuild sets it the moment it
+ * starts, and the restored failure then read as "the server could not be
+ * reached" for as long as the rebuild ran.
  */
 export const isRestoredBuild = (
   settled: StageStatus,
   own: BuildOutput | null,
-  buildStartedAt: number | null
+  buildMs: number | null
 ) =>
   own === null &&
-  buildStartedAt === null &&
+  buildMs === null &&
   (settled === "done" || settled === "failed");
 
 /** Which of the Build stage's surfaces is on screen */
@@ -62,7 +64,10 @@ export const buildSurface = ({
   flow,
   own,
 }: {
-  flow: Pick<FlowState, "build" | "buildSettled" | "buildStartedAt">;
+  flow: Pick<
+    FlowState,
+    "build" | "buildSettled" | "buildStartedAt" | "buildMs"
+  >;
   own: BuildOutput | null;
 }): BuildSurface => {
   const settled = flow.build === "running" ? flow.buildSettled : flow.build;
@@ -80,7 +85,7 @@ export const buildSurface = ({
   // not. Say what is known and no more: the other surfaces would either
   // offer a first build over a finished one, or blame a build server for a
   // failure whose cause this page never saw.
-  if (isRestoredBuild(settled, own, flow.buildStartedAt)) {
+  if (isRestoredBuild(settled, own, flow.buildMs)) {
     return { kind: "restored", failed: settled === "failed" };
   }
   if (settled === "failed" && (!own || stale)) return { kind: "unreached" };

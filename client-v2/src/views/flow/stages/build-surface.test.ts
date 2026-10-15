@@ -44,7 +44,7 @@ describe("isRestoredBuild", () => {
     expect(isRestoredBuild("failed", null, null)).toBe(true);
   });
 
-  it("is false once this session has started a build of its own", () => {
+  it("is false once a build has settled in this session", () => {
     expect(isRestoredBuild("done", null, 1000)).toBe(false);
   });
 
@@ -63,11 +63,13 @@ describe("isRestoredBuild", () => {
   });
 });
 
+/** `buildMs` is set once a build settles in this session */
 const flowOf = (
   build: StageStatus,
   buildSettled: StageStatus,
-  buildStartedAt: number | null
-) => ({ build, buildSettled, buildStartedAt });
+  buildStartedAt: number | null,
+  buildMs: number | null = buildStartedAt === null ? null : 100
+) => ({ build, buildSettled, buildStartedAt, buildMs });
 
 const report = (failed: boolean, at: number): BuildOutput => ({
   stderr: failed ? "error[E0308]: mismatched types" : "",
@@ -131,5 +133,23 @@ describe("buildSurface", () => {
         own: report(true, 9),
       })
     ).toEqual({ kind: "failed", stderr: "error[E0308]: mismatched types" });
+  });
+
+  /**
+   * A rebuild after a reload: nothing this session has settled yet, so the
+   * page still knows only the recorded verdict, not why it failed.
+   */
+  it("keeps a restored failure while its rebuild runs", () => {
+    expect(
+      buildSurface({
+        flow: {
+          build: "running",
+          buildSettled: "failed",
+          buildStartedAt: 5,
+          buildMs: null,
+        },
+        own: null,
+      })
+    ).toEqual({ kind: "restored", failed: true });
   });
 });
