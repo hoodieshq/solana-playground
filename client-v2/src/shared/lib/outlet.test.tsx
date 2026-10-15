@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect, useState } from "react";
+import { initLogger, memoryProvider, resetLogger } from "./logger";
 import { Outlet, OutletContent, useOutletNode } from "./outlet";
 
 const mounts = vi.fn();
@@ -37,4 +38,38 @@ it("gives the node the class it was made with", () => {
   render(<Host where="a" />);
   const node = screen.getByTestId("a").firstElementChild?.firstElementChild;
   expect(node?.classList.contains("flex")).toBe(true);
+});
+
+describe("two Outlets for one node", () => {
+  afterEach(resetLogger);
+
+  it("is reported once, when the second mounts", () => {
+    const logs = memoryProvider();
+    initLogger({ providers: [logs] });
+    const Twice = () => {
+      const node = useOutletNode("flex");
+      return (
+        <>
+          <Outlet node={node} />
+          <Outlet node={node} />
+        </>
+      );
+    };
+    render(<Twice />);
+    expect(logs.entries).toEqual([
+      expect.objectContaining({
+        ns: "shared:outlet",
+        level: "warn",
+        report: true,
+      }),
+    ]);
+  });
+
+  it("is not reported when a place is swapped for another", () => {
+    const logs = memoryProvider();
+    initLogger({ providers: [logs] });
+    const { rerender } = render(<Host where="a" />);
+    act(() => rerender(<Host where="b" />));
+    expect(logs.entries).toEqual([]);
+  });
 });
