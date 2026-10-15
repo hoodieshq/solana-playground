@@ -11,6 +11,7 @@
  * probe in `/api/sync` and the dev server both need that.
  */
 import { betterAuth } from "better-auth";
+import { oAuthProxy } from "better-auth/plugins";
 
 import { authEnv } from "../../../shared/config/server-env.mjs";
 import { getPool, isConfigured } from "../../persistence/server.mjs";
@@ -41,6 +42,46 @@ let instance = null;
 export const resolveBaseURL = () => {
   const { AUTH_BASE_URL, VERCEL_URL } = authEnv();
   return AUTH_BASE_URL || (VERCEL_URL ? `https://${VERCEL_URL}` : undefined);
+};
+
+/**
+ * Better Auth's OAuth proxy, so every preview signs in through one GitHub app.
+ *
+ * A GitHub OAuth app takes one callback URL and a preview's origin changes on
+ * every deployment, so a preview cannot have an app of its own. With the
+ * proxy, a preview sends GitHub to the host's callback (`AUTH_OAUTH_PROXY_URL`,
+ * the deployment that follows `master-2.0`). The host trades the code for the
+ * profile and hands it, encrypted with `AUTH_OAUTH_PROXY_SECRET`, back to the
+ * preview, which creates the user and the session in its own database. The
+ * host never creates a user for a preview.
+ *
+ * Off without the secret. Without the URL, or with one naming this
+ * deployment, this is the host. The host keeps the hooks but drops the
+ * plugin's endpoints: they turn an encrypted payload into a session, and the
+ * secret sits in every preview's environment, so on the host they would let
+ * whoever holds a preview's environment sign in as anyone.
+ *
+ * Exported for tests.
+ *
+ * @returns {object[]} the plugins to install, empty when the proxy is off
+ */
+export const oauthProxyPlugins = () => {
+  const { AUTH_OAUTH_PROXY_URL, AUTH_OAUTH_PROXY_SECRET } = authEnv();
+  if (!AUTH_OAUTH_PROXY_SECRET) return [];
+
+  const self = resolveBaseURL();
+  const host = AUTH_OAUTH_PROXY_URL ?? self;
+  const plugin = oAuthProxy({
+    productionURL: host,
+    // The origin the session cookie is issued for, never a request's Host
+    currentURL: self,
+    secret: AUTH_OAUTH_PROXY_SECRET,
+  });
+
+  const isHost =
+    !AUTH_OAUTH_PROXY_URL ||
+    (self !== undefined && new URL(host).origin === new URL(self).origin);
+  return [isHost ? { ...plugin, endpoints: {} } : plugin];
 };
 
 /**
@@ -80,6 +121,7 @@ export const getAuth = () => {
       database: pool,
       baseURL: resolveBaseURL(),
       secret: env.AUTH_SECRET,
+      plugins: oauthProxyPlugins(),
       user: {
         additionalFields: {
           // The @handle. Better Auth's core schema has `name` and `image` but
@@ -92,6 +134,9 @@ export const getAuth = () => {
         github: {
           clientId: env.GITHUB_CLIENT_ID,
           clientSecret: env.GITHUB_CLIENT_SECRET,
+          // Not applied to a sign-in through the OAuth proxy: the payload the
+          // host forwards carries only Better Auth's own user fields, so a
+          // preview's user has no `login` and the header falls back to `name`.
           mapProfileToUser: (profile) => ({ login: profile.login }),
           // Scope is deliberately not set. Better Auth already requests
           // `read:user user:email`, and the option appends rather than

@@ -29,8 +29,8 @@ as soon as the Root Directory points at `client-v2`.
    - `AGENT_*` — only once `/api/agent` has something in front of it.
 3. **GitHub OAuth app for production.** Its callback URL is
    `<AUTH_BASE_URL>/api/auth/callback/github`. A GitHub OAuth app takes a
-   single callback, so production gets its own app rather than sharing a
-   preview's.
+   single callback, so previews have no app of their own: they sign in through
+   the host's, by the [OAuth proxy](#sign-in-on-previews).
 4. **Build server CORS.** `PG_CLIENT_URLS` on the build server includes the
    production origin.
 5. **Dry run on a preview**, from `master`:
@@ -246,7 +246,36 @@ before this existed.
 | `SYNC_ENABLED` | Kill switch. Only the exact string `true` enables sync; unset or anything else keeps the app local-only |
 | `AUTH_SECRET` | Better Auth signing secret. Generate one per environment; rotating it signs everyone out |
 | `AUTH_BASE_URL` | The deployment's own origin, e.g. `https://example.vercel.app`. Better Auth builds the OAuth callback from it, so a wrong value breaks sign-in with no error at the browser |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | The OAuth app. Its callback URL must match `AUTH_BASE_URL` |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | The OAuth app. Its callback URL must match `AUTH_BASE_URL`; previews carry the host's pair |
+| `AUTH_OAUTH_PROXY_URL` | Previews only: the origin of the host, the deployment whose callback is on the GitHub app |
+| `AUTH_OAUTH_PROXY_SECRET` | The OAuth proxy's encryption key. The same value on the host and every preview, never `AUTH_SECRET`'s. Unset, the proxy is off |
+
+### Sign-in on previews
+
+A preview's origin changes on every deployment and a GitHub OAuth app takes one
+callback, so previews sign in through the host's app with Better Auth's OAuth
+proxy (`oauthProxyPlugins` in `src/features/auth/model/auth.mjs`). The host is
+the deployment that follows `master-2.0`,
+`https://solana-playground-teal.vercel.app`. A preview sends GitHub to the
+host's callback; the host trades the code for the profile and redirects back
+to the preview with it encrypted; the preview creates the user and the session
+in its own database.
+
+Set once in the Vercel dashboard:
+
+- **Production:** `AUTH_OAUTH_PROXY_SECRET`.
+- **Preview:** `AUTH_OAUTH_PROXY_URL=https://solana-playground-teal.vercel.app`,
+  the same `AUTH_OAUTH_PROXY_SECRET`, and the host's `GITHUB_CLIENT_ID` and
+  `GITHUB_CLIENT_SECRET`.
+
+The host drops the proxy's completion endpoints: the secret sits in every
+preview's environment, and on the host those endpoints would turn a forged
+payload into a session. The host must run this code before any preview can
+sign in.
+
+A user signed in on a preview has no `login`: the proxy forwards only Better
+Auth's own user fields, so `mapProfileToUser` does not reach it, and the
+header shows the GitHub name instead.
 
 **Migrations are applied by hand, never by a function.** Every preview gets its
 own Neon branch, so its schema is its own problem:

@@ -6,8 +6,9 @@ name: Checks
 on:
   workflow_call:
     inputs:
-      # The full client + WASM build takes 20+ minutes. ci.yml turns it off for
-      # pull requests, which Vercel's preview build already covers.
+      # The full client + WASM build takes 20+ minutes. ci.yml turns it off:
+      # Vercel's build of each PR and of master-2.0 compiles the same WASM.
+      # cicd.yml's deploy gate keeps it.
       build:
         type: boolean
         default: true
