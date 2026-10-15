@@ -314,7 +314,12 @@ check's job (HOO-1859); the rest hold by review.
   (`docs/testing.md` section 8). The run reuses only this worktree's own dev
   server on that port and stops before any test, with a message, when another
   worktree's server or anything else holds it, and when the server does not
-  answer within 15 s.
+  answer within 15 s. Locally run only the specs your change touches
+  (`PORT=<slot port> yarn test-e2e e2e/<spec>.e2e.spec.ts`); the full suite is
+  CI's. Stop your own dev server when the run is done. A local run uses 2
+  workers (`E2E_WORKERS`) and queues machine-wide before it starts its dev
+  server: at most `E2E_MAX_RUNS` runs (default 2) go at once, across every
+  worktree.
 - **A runtime upgrade still gets the manual walk-through** from the UI
   migration spec ("The React 19 gate"), in development and in the production
   build, because the suite runs against the dev server only.
