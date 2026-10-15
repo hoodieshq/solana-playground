@@ -46,3 +46,9 @@ whether the stage's content is shorter or taller than the screen.
 
 - **WHEN** the Build stage is shown on a 390 px wide screen with nothing built
 - **THEN** the Build button sits at the foot of the stage
+
+#### Scenario: The Deploy action at the foot on a phone
+
+- **WHEN** the Deploy stage of a deployed project is shown on a 390 px wide
+  screen
+- **THEN** the Redeploy button sits at the foot of the stage

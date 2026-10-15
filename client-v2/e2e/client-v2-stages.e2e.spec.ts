@@ -43,8 +43,9 @@ test.describe("client-v2-stages", () => {
     await expect(
       diagnostic.locator('[data-slot="diagnostic-code"]')
     ).toHaveText("E0308");
+    // The line itself, read from the project, not rustc's excerpt
     const fault = diagnostic.locator("[data-fault]");
-    await expect(fault).toContainText("5");
+    await expect(fault.locator("span").first()).toHaveText("5");
     await expect(fault).toContainText("expected u32, found &str");
     await expect(
       diagnostic.getByRole("button", { name: "Fix with assistant" })
@@ -74,6 +75,7 @@ test.describe("client-v2-stages", () => {
       [PROGRAM_ID, Date.now()] as const
     );
     await page.reload();
+    await expect(page.locator("#root-dir")).toBeVisible(LONG);
 
     await page.locator("#flow-stage-tab-deploy").click();
     const result = page
@@ -102,6 +104,48 @@ test.describe("client-v2-stages on a phone", () => {
     await expect(actions.getByRole("button", { name: /^Build$/ })).toBeVisible(
       LONG
     );
+
+    const panelBox = (await panel.boundingBox())!;
+    const actionsBox = (await actions.boundingBox())!;
+    const gap =
+      panelBox.y + panelBox.height - (actionsBox.y + actionsBox.height);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThan(32);
+  });
+
+  /** Deploy's stage is the longest: its result, history and drop zone */
+  test("client-v2-stages: The Deploy action at the foot on a phone", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.evaluate(
+      ([programId, at]) =>
+        localStorage.setItem(
+          "flow.deploys",
+          JSON.stringify([
+            {
+              id: "e2e-deploy",
+              workspace: "e2e-project",
+              cluster: "devnet",
+              programId,
+              signature: null,
+              at,
+            },
+          ])
+        ),
+      [PROGRAM_ID, Date.now()] as const
+    );
+    await page.reload();
+    await expect(page.locator("#root-dir")).toBeAttached(LONG);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.locator("#flow-stage-tab-deploy").click();
+    const panel = page.locator("#flow-stage-panel-deploy");
+    const actions = panel.locator('[data-slot="stage-empty-actions"]');
+    await expect(
+      actions.getByRole("button", { name: /Redeploy to devnet/ })
+    ).toBeVisible(LONG);
 
     const panelBox = (await panel.boundingBox())!;
     const actionsBox = (await actions.boundingBox())!;
