@@ -3,6 +3,7 @@ import styled, { css } from "styled-components";
 
 import { createLogger } from "@/shared/lib/logger";
 import { cn } from "cn";
+import { BrandButton } from "@/shared/ui/brand-button";
 import { Field, FieldLabel } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
@@ -14,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import GradientButton from "../../../../components/GradientButton";
 import Link from "../../../../components/Link";
 import { PgAssistant } from "../store";
 import {
@@ -228,9 +228,7 @@ const Connect = () => {
   };
   const switching = !!current && !PgAssistant.isCurrent(next);
 
-  // `Button` restores its own state after awaiting this handler, so unmounting
-  // synchronously would leave it setting state on an unmounted component.
-  const connect = () => setTimeout(() => PgAssistant.connect(next), 0);
+  const connect = () => PgAssistant.connect(next);
 
   // Nothing selectable is on screen while the default is ruled out, so the
   // alternatives stay open and the toggle that could hide them goes away
@@ -489,14 +487,9 @@ const Connect = () => {
         </>
       )}
 
-      <ConnectButton
-        kind="primary"
-        fullWidth
-        disabled={!ready}
-        onClick={connect}
-      >
+      <BrandButton className="mt-3 w-full" disabled={!ready} onClick={connect}>
         {current ? "Switch" : provider.needsKey ? "Connect" : "Start"}
-      </ConnectButton>
+      </BrandButton>
 
       {switching && (
         <Note>
@@ -647,10 +640,6 @@ const Chevron = styled.span<{ $open: boolean }>`
     transition: transform ${theme.default.transition.duration.medium}
       ${theme.default.transition.type};
   `}
-`;
-
-const ConnectButton = styled(GradientButton)`
-  margin-top: 0.75rem;
 `;
 
 const Note = styled.div`
