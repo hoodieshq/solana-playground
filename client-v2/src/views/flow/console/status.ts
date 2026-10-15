@@ -1,13 +1,20 @@
+import type { VariantProps } from "class-variance-authority";
+
+import type { statusDotVariants } from "@/shared/ui/status-dot";
 import { parseBuildReport } from "../stages/build-report";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { FlowState } from "../state/stage";
 
-/** Visual weight for the collapsed console handle's status text */
-export type ConsoleStatusTone = "idle" | "running" | "success" | "error";
+/** Visual weight for the collapsed console handle's status text. Each tone is
+ * a `StatusDot` variant, so tsc fails here if the dot drops one. */
+export type ConsoleStatusTone = Extract<
+  NonNullable<VariantProps<typeof statusDotVariants>["variant"]>,
+  "idle" | "running" | "success" | "error"
+>;
 
 export interface ConsoleStatus {
   /** e.g. `building...`, `last build \u00b7 3.4s \u00b7 ok`, or `""`
-   * before the first build */
+   * before the first build, which pairs with any tone */
   text: string;
   tone: ConsoleStatusTone;
 }

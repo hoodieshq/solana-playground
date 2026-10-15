@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 
-import { BaseEditorTab } from "./BaseEditorTab";
+import { BaseEditorTab, EditorTabDrag } from "./BaseEditorTab";
 import LangIcon from "../LangIcon";
 import { PgExplorer } from "../../utils";
 import {
@@ -19,21 +19,46 @@ import {
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import type { SortableItemCommonProps } from "../Dnd/Sortable";
 
-interface TabProps extends ComponentPropsWithoutRef<"div"> {
+type SortableFlags = Partial<
+  Pick<SortableItemCommonProps, "isDragging" | "isDragOverlay">
+>;
+
+interface TabProps
+  extends Omit<ComponentPropsWithoutRef<"div">, "onSelect">,
+    SortableFlags {
   path: string;
   index: number;
+  /** The sortable's item component, handed back to every item */
+  Item?: unknown;
+  /** dnd-kit's sortable state, on the drag overlay only */
+  sortable?: unknown;
 }
 
+const dragOf = ({
+  isDragging,
+  isDragOverlay,
+}: SortableFlags): EditorTabDrag | undefined => {
+  if (isDragOverlay) return "overlay";
+  if (isDragging) return "source";
+  return undefined;
+};
+
 const Tab = forwardRef<HTMLDivElement, TabProps>(
-  ({ path, index, ...rest }, ref) => {
-    // The sortable also hands over its own bookkeeping (`Item`, `id`, and
-    // `sortable` on the drag overlay); none of it belongs on a DOM node
-    const {
+  (
+    {
+      path,
+      index,
+      // The sortable also hands over its own bookkeeping (`Item`, `id`, and
+      // `sortable` on the drag overlay); none of it belongs on a DOM node
       Item: _Item,
       sortable: _sortable,
       id: _id,
+      isDragging,
+      isDragOverlay,
       ...props
-    } = rest as typeof rest & { Item?: unknown; sortable?: unknown };
+    },
+    ref
+  ) => {
     const [isSelected, setIsSelected] = useState(false);
 
     const fileName = useMemo(
@@ -76,7 +101,8 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
             menuOpen={isSelected}
             onSelect={changeTab}
             onClose={closeFile}
-            {...(props as SortableItemCommonProps)}
+            drag={dragOf({ isDragging, isDragOverlay })}
+            {...props}
           />
         </ContextMenuTrigger>
         {/* Every label is a MenuItemText: one element to match, and the shortcut stays at the far edge */}

@@ -16,8 +16,8 @@ describe("isTypingElsewhere", () => {
     const page = mount('<div id="editor"></div><input id="name" />');
     expect(
       isTypingElsewhere(
-        page.querySelector("#name"),
-        page.querySelector("#editor")!
+        page.querySelector("#editor")!,
+        page.querySelector("#name")
       )
     ).toBe(true);
   });
@@ -26,8 +26,8 @@ describe("isTypingElsewhere", () => {
     const page = mount('<div id="editor"><textarea></textarea></div>');
     expect(
       isTypingElsewhere(
-        page.querySelector("textarea"),
-        page.querySelector("#editor")!
+        page.querySelector("#editor")!,
+        page.querySelector("textarea")
       )
     ).toBe(false);
   });
@@ -38,8 +38,8 @@ describe("isTypingElsewhere", () => {
     );
     expect(
       isTypingElsewhere(
-        page.querySelector('[role="treeitem"]'),
-        page.querySelector("#editor")!
+        page.querySelector("#editor")!,
+        page.querySelector('[role="treeitem"]')
       )
     ).toBe(false);
   });
@@ -47,8 +47,8 @@ describe("isTypingElsewhere", () => {
   it("is false when nothing or the body has focus", () => {
     const page = mount('<div id="editor"></div>');
     const editor = page.querySelector("#editor")!;
-    expect(isTypingElsewhere(null, editor)).toBe(false);
-    expect(isTypingElsewhere(document.body, editor)).toBe(false);
+    expect(isTypingElsewhere(editor, null)).toBe(false);
+    expect(isTypingElsewhere(editor, document.body)).toBe(false);
   });
 
   it("is true for a contenteditable element outside the editor", () => {
@@ -58,7 +58,7 @@ describe("isTypingElsewhere", () => {
     const note = page.querySelector("#note")!;
     // jsdom does not implement isContentEditable.
     Object.defineProperty(note, "isContentEditable", { value: true });
-    expect(isTypingElsewhere(note, page.querySelector("#editor")!)).toBe(true);
+    expect(isTypingElsewhere(page.querySelector("#editor")!, note)).toBe(true);
   });
 
   it("is false for a checkbox, which is not a text field", () => {
@@ -67,9 +67,27 @@ describe("isTypingElsewhere", () => {
     );
     expect(
       isTypingElsewhere(
-        page.querySelector("#box"),
-        page.querySelector("#editor")!
+        page.querySelector("#editor")!,
+        page.querySelector("#box")
       )
     ).toBe(false);
+  });
+
+  it("is false for a select, which takes no text", () => {
+    const page = mount(
+      '<div id="editor"></div><select id="pick"><option>a</option></select>'
+    );
+    expect(
+      isTypingElsewhere(
+        page.querySelector("#editor")!,
+        page.querySelector("#pick")
+      )
+    ).toBe(false);
+  });
+
+  it("reads the document's focus when no element is given", () => {
+    const page = mount('<div id="editor"></div><input id="name" />');
+    page.querySelector<HTMLInputElement>("#name")!.focus();
+    expect(isTypingElsewhere(page.querySelector("#editor")!)).toBe(true);
   });
 });

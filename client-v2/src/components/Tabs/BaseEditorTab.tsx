@@ -13,6 +13,10 @@ import {
 } from "@/shared/ui/editor-tabs";
 import { cn } from "cn";
 
+/** How a tab takes part in a drag: `source` is the tab left in its place,
+ * `overlay` the copy that follows the pointer */
+export type EditorTabDrag = "source" | "overlay";
+
 export interface BaseEditorTabProps
   extends Omit<ComponentPropsWithoutRef<"div">, "onSelect"> {
   path: string;
@@ -22,10 +26,8 @@ export interface BaseEditorTabProps
   menuOpen: boolean;
   onSelect: () => void;
   onClose: () => void;
-  /** The tab is the one being dragged in place */
-  isDragging?: boolean;
-  /** The tab is the copy that follows the pointer */
-  isDragOverlay?: boolean;
+  /** Absent while no drag involves this tab */
+  drag?: EditorTabDrag;
 }
 
 /** One open file, drawn from the design system. Presentational: what a click
@@ -42,8 +44,7 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
       menuOpen,
       onSelect,
       onClose,
-      isDragging = false,
-      isDragOverlay = false,
+      drag,
       className,
       ...props
     },
@@ -62,12 +63,11 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
         title={path}
         active={current}
         menuOpen={menuOpen}
-        data-dragging={isDragging || undefined}
-        data-drag-overlay={isDragOverlay || undefined}
+        data-drag={drag}
         // The trigger takes the tab's left padding and the gap before close,
         // so a click anywhere up to the close button selects the tab
         className={cn(
-          "gap-0 pl-0 data-dragging:opacity-60 data-drag-overlay:bg-surface data-drag-overlay:text-foreground data-drag-overlay:shadow-lg data-drag-overlay:ring-1 data-drag-overlay:ring-border",
+          "gap-0 pl-0 data-[drag=source]:opacity-60 data-[drag=overlay]:bg-surface data-[drag=overlay]:text-foreground data-[drag=overlay]:shadow-lg data-[drag=overlay]:ring-1 data-[drag=overlay]:ring-border",
           className
         )}
         {...props}
