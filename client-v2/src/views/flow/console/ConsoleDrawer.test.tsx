@@ -45,7 +45,7 @@ it("should report itself expanded when open", () => {
 
 it("should clear the terminal from the Clear button", () => {
   render(<ConsoleDrawer open={true} onToggle={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: "Clear the console" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
   expect(PgTerminal.clear).toHaveBeenCalledTimes(1);
 });
 
@@ -53,7 +53,7 @@ it("should report a clear that fails", async () => {
   const failure = new Error("boom");
   vi.mocked(PgTerminal.clear).mockRejectedValueOnce(failure);
   render(<ConsoleDrawer open={true} onToggle={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: "Clear the console" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
   await vi.waitFor(() => expect(logError).toHaveBeenCalledTimes(1));
   expect(logError.mock.calls[0][0]).toBe(failure);
   expect(logError.mock.calls[0][1].report).toBe(true);

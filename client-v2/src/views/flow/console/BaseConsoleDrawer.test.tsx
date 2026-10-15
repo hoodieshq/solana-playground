@@ -45,7 +45,7 @@ it("clears without toggling", () => {
   const onToggle = vi.fn();
   const onClear = vi.fn();
   draw(true, { onToggle, onClear });
-  fireEvent.click(screen.getByRole("button", { name: "Clear the console" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
   expect(onClear).toHaveBeenCalledTimes(1);
   expect(onToggle).not.toHaveBeenCalled();
 });

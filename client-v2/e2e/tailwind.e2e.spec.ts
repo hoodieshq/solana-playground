@@ -6,13 +6,15 @@ import { expect, test } from "@playwright/test";
  * style pass), the build stays green and every utility goes inert. The Flow
  * wrapper's three utilities repeat its styled rule, so a screenshot cannot
  * tell either; this reads the rules themselves out of the utilities layer.
+ * It anchors on any element carrying the three utilities, not on exactly one:
+ * other design-system parts (the console drawer's well) use them too.
  */
 test("Tailwind utilities reach the page in the utilities layer", async ({
   page,
 }) => {
   await page.goto("/");
   const wrapper = page.locator("div.flex.flex-col.overflow-hidden");
-  await expect(wrapper).toHaveCount(1);
+  await expect(wrapper.first()).toBeVisible();
 
   const rules = await page.evaluate(() => {
     const found: Record<string, string> = {};

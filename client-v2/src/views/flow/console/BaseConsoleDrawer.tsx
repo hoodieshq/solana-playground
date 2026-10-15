@@ -62,13 +62,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
           ⌘J
         </span>
         {open && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            aria-label="Clear the console"
-            onClick={onClear}
-          >
+          <Button type="button" variant="ghost" size="xs" onClick={onClear}>
             Clear
           </Button>
         )}
