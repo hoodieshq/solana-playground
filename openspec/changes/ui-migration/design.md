@@ -468,7 +468,10 @@ HOO-2071) build on it. One PR.
   `SubmitCancelled` (the user backed out of a dialog it opened) stays open
   and quiet. While a submit runs the dialog cannot be dismissed. Enter
   submits from anywhere in the dialog except a control that owns Enter.
-  `size="wide"` is the gallery's. A dialog that throws while rendering is
+  `size="wide"` is the gallery's. The submit's `variant` is the stock
+  `Button`'s `default` or `destructive`, or `brand`, the ring `BrandButton`,
+  for a dialog whose submit is its view's one call to action (Connect a
+  model, 5.17). A dialog that throws while rendering is
   reported and closed with no answer. Each stacked dialog's own answer
   (`closeModal` resolves every pending `setModal`) is HOO-2091.
 - **Toasts keep `PgView.setToast` and `closeToast`.** The options become our
