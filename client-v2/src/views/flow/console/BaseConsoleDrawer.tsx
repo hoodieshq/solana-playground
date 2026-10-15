@@ -74,7 +74,9 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
         )}
       </ConsoleDrawerActions>
     </ConsoleDrawerBar>
-    <ConsoleDrawerContent className="flex h-auto min-h-0 flex-1 flex-col overflow-hidden max-md:data-[state=open]:h-auto">
+    {/* The terminal's own root has no height; stretch it to the well so
+        xterm's fit sees a real size and counts the right rows. */}
+    <ConsoleDrawerContent className="flex h-auto min-h-0 flex-1 flex-col overflow-hidden max-md:data-[state=open]:h-auto [&>div]:min-h-0 [&>div]:flex-1">
       {children}
     </ConsoleDrawerContent>
   </ConsoleDrawer>
