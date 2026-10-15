@@ -214,7 +214,7 @@ const streamOneCompletion = async (
     // head behind for `PgAssistant.addError`, which redacts the whole key only
     const body = redactKey(raw, config.apiKey);
     const refusal = signedOutRefusal(config, response.status, body);
-    // The browser believed it was signed in; re-read it so the panel offers sign-in
+    // The session ended server-side; ending it here lets the store's listener reopen the picker
     if (refusal) void PgSession.refresh();
     throw new Error(
       refusal ??

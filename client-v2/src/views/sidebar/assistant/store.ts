@@ -6,6 +6,7 @@ import {
 } from "./grounding";
 import { redactKey } from "./model/redact-key";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
+import { PgSession } from "../../../features/auth";
 import {
   mergeThreads,
   versionOf,
@@ -18,7 +19,7 @@ import {
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
-import type { Effort, ProviderId } from "./model/types";
+import { isDefaultBackend, type Effort, type ProviderId } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -944,6 +945,14 @@ export class PgAssistant {
     for (const cb of PgAssistant._listeners) cb();
   }
 }
+
+// The default backend needs a session, and only the picker offers sign-in;
+// the connection stays remembered so signing in again reconnects it
+PgSession.onDidChange(() => {
+  if (!PgSession.get() && isDefaultBackend(PgAssistant.connection?.id)) {
+    PgAssistant.pickBackend();
+  }
+});
 
 // A handle on the panel's state for the browser console, and for the e2e tests
 // that cover thread persistence -- sending a message for real would need a

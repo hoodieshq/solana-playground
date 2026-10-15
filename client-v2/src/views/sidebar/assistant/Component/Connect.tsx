@@ -15,6 +15,7 @@ import {
 } from "../model/remembered-backend";
 import {
   DEFAULT_BACKEND_URL,
+  isDefaultBackend,
   PROVIDERS,
   type Effort,
   type ProviderId,
@@ -208,7 +209,7 @@ const Connect = () => {
     (!!endpoint?.baseUrl.trim() && !!endpoint?.model.trim());
   /** Served here, but `/api/agent` refuses this user's turns until they sign in */
   const needsSignInFor = (p: ProviderInfo) =>
-    p.id === "default" && isDefaultBackendConfigured && !signedIn;
+    isDefaultBackend(p.id) && isDefaultBackendConfigured && !signedIn;
   /** The button signs in instead of connecting */
   const needsSignIn = needsSignInFor(provider);
   const ready =
