@@ -772,7 +772,11 @@ const Monaco = () => {
       // Reported: a program id left unwritten builds the old id, and the
       // deploy that then fails has no other clue
       try {
-        editor.executeEdits(null, [{ range, text: programPkStr }]);
+        if (!editor.executeEdits(null, [{ range, text: programPkStr }])) {
+          log.error(new Error("The editor refused the program id edit"), {
+            report: true,
+          });
+        }
       } catch (error) {
         log.error(error, { report: true, context: { edit: "program id" } });
       }
