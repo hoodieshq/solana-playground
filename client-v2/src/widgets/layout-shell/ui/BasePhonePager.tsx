@@ -8,8 +8,8 @@ import { BOTTOM_BAR_PX } from "@/views/flow/tokens";
 import { Button } from "@/shared/ui/button";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
-import { PHONE_PAGES } from "../model/phone-pages";
-import type { PhonePage, WorkView } from "../model/phone-pages";
+import { PHONE_PAGES, isWorkView } from "../model/phone-pages";
+import type { PhonePage, StagePage, WorkView } from "../model/phone-pages";
 
 /** How long a scroll must rest before it counts as a swipe that settled */
 export const SWIPE_SETTLE_MS = 120;
@@ -30,7 +30,7 @@ export interface PhonePagerState {
   filesOpen: boolean;
   onFilesOpenChange: (open: boolean) => void;
   /** The stage shows on the work page (Code) at `write`, else on the preview */
-  stageOn: "work" | "preview";
+  stageOn: StagePage;
   /** The console's height on the preview: open, or its folded bar */
   consoleOpen: boolean;
 }
@@ -114,8 +114,9 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     window.addEventListener("resize", align);
     return () => window.removeEventListener("resize", align);
   }, [index]);
-  // `scrollend` is missing on Safari before 26, so a rest of the scroll
-  // stands in for it
+  // `scrollend` is missing on Safari before 26
+  // (https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollend_event#browser_compatibility),
+  // so a rest of the scroll stands in for it
   const settle = useRef<number>(undefined);
   // A finger resting mid-drag fires no scroll events, so a rest is not a
   // settle while a touch is down; it is one when the finger lifts
@@ -197,18 +198,16 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
           <span className="min-w-0 flex-1 truncate font-semibold">
             {props.title}
           </span>
-          {/* The segmented's root is a radiogroup; the group names the pair
-            for the tests and for readers that look for a group */}
-          <div role="group" aria-label="Show">
-            <Segmented
-              aria-label="Show"
-              value={props.view}
-              onValueChange={(v) => props.onView(v as WorkView)}
-            >
-              <SegmentedItem value="chat">Chat</SegmentedItem>
-              <SegmentedItem value="code">Code</SegmentedItem>
-            </Segmented>
-          </div>
+          <Segmented
+            aria-label="Show"
+            value={props.view}
+            onValueChange={(v) => {
+              if (isWorkView(v)) props.onView(v);
+            }}
+          >
+            <SegmentedItem value="chat">Chat</SegmentedItem>
+            <SegmentedItem value="code">Code</SegmentedItem>
+          </Segmented>
           <Button
             variant="ghost"
             size="icon"

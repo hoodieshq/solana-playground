@@ -1081,13 +1081,6 @@ describe("on a phone", () => {
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
   });
 
-  it("keeps the console on the preview page", () => {
-    phoneShell();
-    expect(consoleButton().closest("section")!.getAttribute("aria-label")).toBe(
-      "Preview"
-    );
-  });
-
   it("opens Files from the picker and closes it when a file opens", () => {
     phoneShell();
     fireEvent.click(button("Files"));

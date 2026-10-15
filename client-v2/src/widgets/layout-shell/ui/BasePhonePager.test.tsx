@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { OutletContent, useOutletNode } from "@/shared/lib/outlet";
 
+import { PHONE_PAGES } from "../model/phone-pages";
 import BasePhonePager, { SWIPE_SETTLE_MS } from "./BasePhonePager";
 import type { BasePhonePagerProps } from "./BasePhonePager";
 
@@ -83,13 +84,22 @@ const Harness = (choice: Choice) => {
 const pagerElement = (choice: Choice = {}) => <Harness {...choice} />;
 const renderPager = (choice: Choice = {}) => render(pagerElement(choice));
 
-it("has three pages, the work page in view, with a 60 px bar each", () => {
+it("has three pages, the work page in view, with a bar each", () => {
   renderPager({ page: "work" });
   for (const name of ["Navigation", "Work", "Preview"]) {
     expect(screen.getByRole("region", { name })).toBeTruthy();
   }
   expect(screen.getAllByTestId("phone-bar")).toHaveLength(3);
   expect(screen.getByTestId("phone-pager").scrollLeft).toBe(390);
+});
+
+it("lays its pages out in PHONE_PAGES order", () => {
+  renderPager();
+  const label = { menu: "Navigation", work: "Work", preview: "Preview" };
+  const sections = [
+    ...screen.getByTestId("phone-pager").querySelectorAll("section"),
+  ].map((section) => section.getAttribute("aria-label"));
+  expect(sections).toEqual(PHONE_PAGES.map((page) => label[page]));
 });
 
 it("asks for the preview, then back to the code", async () => {
@@ -111,9 +121,10 @@ it("switches Chat and Code", async () => {
   const onView = vi.fn();
   renderPager({ view: "code", onView });
   await userEvent.click(
-    within(screen.getByRole("group", { name: "Show" })).getByRole("radio", {
-      name: "Chat",
-    })
+    within(screen.getByRole("radiogroup", { name: "Show" })).getByRole(
+      "radio",
+      { name: "Chat" }
+    )
   );
   expect(onView).toHaveBeenCalledWith("chat");
 });
@@ -134,6 +145,36 @@ it("reports a swipe once it settles on another page", () => {
   const pager = screen.getByTestId("phone-pager");
   pager.scrollLeft = 780;
   fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  expect(onSwipe).toHaveBeenCalledWith("preview");
+});
+
+it.each([
+  ["a swipe past the middle of the next page", 600, "preview"],
+  ["a swipe short of the middle of the next page", 500, null],
+] as const)("rounds %s to the nearest page", (_, scrollLeft, expected) => {
+  vi.useFakeTimers();
+  const onSwipe = vi.fn();
+  renderPager({ page: "work", onSwipe });
+  const pager = screen.getByTestId("phone-pager");
+  pager.scrollLeft = scrollLeft;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  if (expected) expect(onSwipe).toHaveBeenCalledWith(expected);
+  else expect(onSwipe).not.toHaveBeenCalled();
+});
+
+it("settles when the system cancels the touch, as when it lifts", () => {
+  vi.useFakeTimers();
+  const onSwipe = vi.fn();
+  renderPager({ page: "work", onSwipe });
+  const pager = screen.getByTestId("phone-pager");
+  fireEvent.touchStart(pager);
+  pager.scrollLeft = 780;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS * 3);
+  expect(onSwipe).not.toHaveBeenCalled();
+  fireEvent.touchCancel(pager);
   vi.advanceTimersByTime(SWIPE_SETTLE_MS);
   expect(onSwipe).toHaveBeenCalledWith("preview");
 });
@@ -244,6 +285,15 @@ it("shows the stage on the page it is on", () => {
   expect(
     within(screen.getByRole("region", { name: "Preview" })).getByTestId(
       "stage-probe"
+    )
+  ).toBeTruthy();
+});
+
+it("keeps the console on the preview page", () => {
+  renderPager();
+  expect(
+    within(screen.getByRole("region", { name: "Preview" })).getByTestId(
+      "console-probe"
     )
   ).toBeTruthy();
 });

@@ -8,7 +8,7 @@ import { PgCommand, PgCommon, PgExplorer, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
 import type { StageStatus } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
-import { pageForStage, stageForPage } from "../model/phone-pages";
+import { pageForStage, stageForPage, stagePageOf } from "../model/phone-pages";
 import type {
   PageSource,
   PhonePage,
@@ -492,7 +492,7 @@ const LayoutShell = ({
         file,
         filesOpen,
         onFilesOpenChange: (open) => setPhoneFiles(open, lastInput.current),
-        stageOn: flowStage === "write" ? "work" : "preview",
+        stageOn: stagePageOf(flowStage),
         consoleOpen: phoneConsole,
       }}
       stageBar={stageBar}

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { pageForStage, stageForPage } from "./phone-pages";
+import {
+  isWorkView,
+  pageForStage,
+  stageForPage,
+  stagePageOf,
+} from "./phone-pages";
 
 describe("pageForStage", () => {
   it.each([
@@ -16,16 +21,39 @@ describe("pageForStage", () => {
 });
 
 describe("stageForPage", () => {
-  it("shows the last preview stage on the preview", () => {
-    expect(stageForPage("preview", "write", "deploy")).toBe("deploy");
+  it.each([
+    ["preview", "write", "deploy", "deploy"],
+    ["preview", "interact", "build", null],
+    ["work", "build", "build", "write"],
+    ["work", "write", "build", null],
+    ["menu", "build", "build", null],
+    ["menu", "write", "build", null],
+  ] as const)(
+    "%s seen at %s with %s as the last preview sets %s",
+    (page, stage, lastPreview, expected) => {
+      expect(stageForPage(page, stage, lastPreview)).toBe(expected);
+    }
+  );
+});
+
+describe("stagePageOf", () => {
+  it.each([
+    ["write", "work"],
+    ["build", "preview"],
+    ["deploy", "preview"],
+    ["interact", "preview"],
+  ] as const)("%s shows on %s", (stage, expected) => {
+    expect(stagePageOf(stage)).toBe(expected);
   });
-  it("leaves a preview stage alone on the preview", () => {
-    expect(stageForPage("preview", "interact", "build")).toBeNull();
-  });
-  it("shows write on the work page", () => {
-    expect(stageForPage("work", "build", "build")).toBe("write");
-  });
-  it("leaves the stage alone on the menu", () => {
-    expect(stageForPage("menu", "build", "build")).toBeNull();
+});
+
+describe("isWorkView", () => {
+  it.each([
+    ["chat", true],
+    ["code", true],
+    ["preview", false],
+    ["", false],
+  ])("%j is %s", (value, expected) => {
+    expect(isWorkView(value)).toBe(expected);
   });
 });
