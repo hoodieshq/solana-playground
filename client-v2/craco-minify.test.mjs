@@ -19,10 +19,13 @@ const minify = async (name, code) => {
 
 describe("jsMinifyOptions", () => {
   // Chunks are classic scripts sharing one global scope. `keepNames` puts its
-  // helpers (`var o=Object.defineProperty` in one chunk, `var o=(f,n)=>...`
-  // in another) at a chunk's top level, where they would be globals, so a
-  // chunk loaded later could swap out another chunk's helper and its next
-  // `o(fn, "name")` would call `Object.defineProperty` without a descriptor.
+  // helpers at a chunk's top level, where they would be globals, and the same
+  // minified name (say `o`) can be `Object.defineProperty` in one chunk and
+  // the name setter in another: a chunk loaded later could swap out another
+  // chunk's helper, and its next `o(fn, "name")` would call
+  // `Object.defineProperty` without a descriptor. Two chunks of one shape
+  // minify to the same names in the same roles and so cannot reproduce that
+  // crash; the test checks that nothing leaks into the global scope instead.
   it("keeps each chunk's keepNames helpers out of the global scope", async () => {
     const chunk = (label) => `"use strict";
       self.render${label} = () => {
