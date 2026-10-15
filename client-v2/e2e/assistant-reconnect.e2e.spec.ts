@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page, Request } from "@playwright/test";
-import {
-  hasDefaultBackend,
-  NO_DEFAULT_BACKEND,
-  seedWorkspace,
-} from "./fixtures";
+import { json, seedWorkspace } from "./fixtures";
 
 /**
  * The panel comes back usable after a reload, without being asked twice.
@@ -14,12 +10,11 @@ import {
  * -- and making the user click the same button on every single reload, before
  * the assistant could be used at all, was the whole of the difference.
  *
- * "the default backend reconnects itself after a reload" and "disconnecting is
- * not undone by the next reload" are only reachable on a deployment that
- * serves a default backend, which is what the probe in `Connect` decides; they
- * skip where it is not configured, rather than failing on an environment they
- * were never about. The `assistant-own-key` tests need no default backend and
- * run everywhere.
+ * Only reachable on a deployment that serves a default backend. `/api/agent`
+ * is stubbed to say it does, so the tests run wherever the dev server runs,
+ * configured or not.
+ *
+ * The `assistant-own-key` tests need no default backend and run everywhere.
  */
 
 const LONG = { timeout: 60_000 };
@@ -37,17 +32,34 @@ type AssistantWindow = Window & {
 const isConnected = (page: Page) =>
   page.evaluate(() => !!(window as AssistantWindow).__pgAssistant?.isConnected);
 
-/** The picker's connect button reads "Start" for the keyless default */
-const start = (page: Page) =>
-  page.getByRole("button", { name: "Start", exact: true });
+const stubDefault = (page: Page) =>
+  page.route("**/api/agent", (route) => {
+    if (route.request().method() === "GET")
+      return json(route, { configured: true, model: "z-ai/glm-5.3-flash:US" });
+    return route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: 'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\ndata: [DONE]\n\n',
+    });
+  });
+
+const composer = (page: Page) =>
+  page.getByRole("textbox", { name: "Message the assistant" });
+
+/** The first message connects the default: no key, no connect step */
+const sendFirstMessage = async (page: Page) => {
+  await composer(page).fill("hi");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect.poll(() => isConnected(page), LONG).toBe(true);
+};
 
 test("the default backend reconnects itself after a reload", async ({
   page,
 }) => {
   test.setTimeout(240_000);
 
+  await stubDefault(page);
   await page.goto("/");
-  test.skip(!(await hasDefaultBackend(page)), NO_DEFAULT_BACKEND);
 
   const gallery = page.locator("[data-gallery-modal]");
   await expect(gallery).toBeVisible(LONG);
@@ -55,23 +67,22 @@ test("the default backend reconnects itself after a reload", async ({
   await gallery.getByRole("button", { name: /^Start/ }).click();
   await expect(gallery).toBeHidden(LONG);
 
-  // A first visit still asks: choosing a backend is how the panel introduces
-  // what it can reach, and nothing has been chosen yet
-  await expect(start(page)).toBeVisible(LONG);
-  await start(page).click();
-  await expect.poll(() => isConnected(page), LONG).toBe(true);
+  await expect(composer(page)).toBeVisible(LONG);
+  await sendFirstMessage(page);
 
   await page.reload();
 
   await expect.poll(() => isConnected(page), LONG).toBe(true);
-  await expect(start(page)).toBeHidden(LONG);
+  await expect(
+    page.getByRole("button", { name: "Connect a model" })
+  ).toBeHidden();
 });
 
 test("disconnecting is not undone by the next reload", async ({ page }) => {
   test.setTimeout(240_000);
 
+  await stubDefault(page);
   await page.goto("/");
-  test.skip(!(await hasDefaultBackend(page)), NO_DEFAULT_BACKEND);
 
   const gallery = page.locator("[data-gallery-modal]");
   await expect(gallery).toBeVisible(LONG);
@@ -79,9 +90,8 @@ test("disconnecting is not undone by the next reload", async ({ page }) => {
   await gallery.getByRole("button", { name: /^Start/ }).click();
   await expect(gallery).toBeHidden(LONG);
 
-  await expect(start(page)).toBeVisible(LONG);
-  await start(page).click();
-  await expect.poll(() => isConnected(page), LONG).toBe(true);
+  await expect(composer(page)).toBeVisible(LONG);
+  await sendFirstMessage(page);
 
   // Disconnecting says "stop using this backend", and a reload that quietly
   // reconnected would be the app overruling that
@@ -92,7 +102,11 @@ test("disconnecting is not undone by the next reload", async ({ page }) => {
   );
   await page.reload();
 
-  await expect(start(page)).toBeVisible(LONG);
+  // The composer is back with the default named, and nothing is connected
+  await expect(page.getByRole("button", { name: "GLM 5.3 Flash" })).toBeVisible(
+    LONG
+  );
+  await page.waitForTimeout(2000);
   expect(await isConnected(page)).toBe(false);
 });
 

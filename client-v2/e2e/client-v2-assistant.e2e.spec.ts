@@ -1,0 +1,143 @@
+import type { Page, Route } from "@playwright/test";
+import { expect, json, LONG, test } from "./fixtures";
+
+/**
+ * The assistant's composer: the model it names, sending without a key,
+ * Send turning to Stop. Every test stubs `/api/agent`, so none depends on the
+ * dev server's own default backend.
+ */
+
+const DEFAULT_MODEL = "z-ai/glm-5.3-flash:US";
+const ANSWER =
+  'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\ndata: [DONE]\n\n';
+
+const input = (page: Page) =>
+  page.getByRole("textbox", { name: "Message the assistant" });
+/**
+ * The model button, by the name it shows. Found by role: the menu's trigger
+ * replaces the button's `data-slot`.
+ */
+const modelButton = (page: Page, name: string | RegExp) =>
+  page.getByRole("button", { name });
+const effortControl = (page: Page) =>
+  page.getByRole("button", { name: /: \d of \d$/ });
+
+/** `GET` answers the probe; `POST` is handed to `onTurn` */
+const stubAgent = async (
+  page: Page,
+  probe: { configured: boolean; model: string | null },
+  onTurn: (route: Route) => Promise<void> | void
+) => {
+  await page.route("**/api/agent", (route) => {
+    if (route.request().method() === "GET") return json(route, probe);
+    return onTurn(route);
+  });
+};
+
+const answer = (route: Route) =>
+  route.fulfill({
+    status: 200,
+    contentType: "text/event-stream",
+    body: ANSWER,
+  });
+
+const openProject = async (page: Page, name: string) => {
+  await page.goto("/");
+  const gallery = page.locator("[data-gallery-modal]");
+  await expect(gallery).toBeVisible(LONG);
+  await gallery.getByLabel("Project name").fill(name);
+  await gallery.getByRole("button", { name: /^Start/ }).click();
+  await expect(gallery).toBeHidden(LONG);
+  await expect(input(page)).toBeVisible(LONG);
+};
+
+test("client-v2-assistant: The hosted default", async ({ page }) => {
+  await stubAgent(page, { configured: true, model: DEFAULT_MODEL }, answer);
+  await openProject(page, "hosted-default");
+
+  await expect(modelButton(page, "GLM 5.3 Flash")).toBeVisible(LONG);
+  await expect(effortControl(page)).toHaveCount(0);
+});
+
+test("client-v2-assistant: A backend with an effort ladder", async ({
+  page,
+}) => {
+  await stubAgent(page, { configured: false, model: null }, answer);
+  await openProject(page, "effort-ladder");
+
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+  await page.getByRole("button", { name: "Anthropic" }).click();
+  await page.locator("#assistant-api-key").fill("sk-ant-fake-key");
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Medium: 2 of 5" })
+  ).toBeVisible(LONG);
+  await expect(modelButton(page, "Opus 5.5")).toBeVisible();
+});
+
+test("client-v2-assistant: The first message on the hosted default", async ({
+  page,
+}) => {
+  let turns = 0;
+  await stubAgent(page, { configured: true, model: DEFAULT_MODEL }, (route) => {
+    turns += 1;
+    return answer(route);
+  });
+  await openProject(page, "first-message");
+
+  await input(page).fill("Say hello");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  const thread = page.getByRole("log", { name: "Conversation" });
+  await expect(thread.getByText("Say hello")).toBeVisible(LONG);
+  await expect(thread.getByText("Hello", { exact: true })).toBeVisible(LONG);
+  expect(turns).toBe(1);
+});
+
+test("client-v2-assistant: No default backend", async ({ page }) => {
+  await stubAgent(page, { configured: false, model: null }, answer);
+  await openProject(page, "no-default");
+  await expect(modelButton(page, "Connect a model")).toBeVisible(LONG);
+
+  await input(page).fill("Say hello");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  // The picker is open: its key field is on screen
+  await expect(page.locator("#assistant-api-key")).toBeVisible(LONG);
+  await expect(input(page)).toHaveValue("Say hello");
+});
+
+test("client-v2-assistant: Stopping an answer", async ({ page }) => {
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await stubAgent(
+    page,
+    { configured: true, model: DEFAULT_MODEL },
+    async (route) => {
+      await held;
+      await route.abort().catch(() => {});
+    }
+  );
+  await openProject(page, "stopping");
+
+  await input(page).fill("Say hello");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  const stop = page.getByRole("button", { name: "Stop", exact: true });
+  await expect(stop).toBeVisible(LONG);
+  await stop.click();
+
+  await expect(
+    page.getByRole("log", { name: "Conversation" }).getByText("Stopped.")
+  ).toBeVisible(LONG);
+  await expect(
+    page.getByRole("button", { name: "Send", exact: true })
+  ).toBeVisible(LONG);
+
+  // Let the held request end so the page closes cleanly
+  release();
+});
