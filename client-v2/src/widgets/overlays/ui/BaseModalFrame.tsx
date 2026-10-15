@@ -45,11 +45,19 @@ export type BaseModalFrameProps = {
   children?: ReactNode;
 };
 
+/**
+ * What a field needs to be one the user can reach: enabled and in the tab
+ * order. Radix keeps a native control beside a radio group or a select inside
+ * a form, `aria-hidden` and out of the tab order, which must not take focus.
+ */
+const REACHABLE =
+  ':not(:disabled):not([aria-hidden="true"]):not([tabindex="-1"])';
+
 /** A field of the body that takes focus when the dialog opens */
 const FIRST_FIELD = [
-  '[data-slot="modal-body"] input:not([type="hidden"]):not([type="file"]):not(:disabled)',
-  '[data-slot="modal-body"] textarea:not(:disabled)',
-  '[data-slot="modal-body"] select:not(:disabled)',
+  `[data-slot="modal-body"] input:not([type="hidden"]):not([type="file"])${REACHABLE}`,
+  `[data-slot="modal-body"] textarea${REACHABLE}`,
+  `[data-slot="modal-body"] select${REACHABLE}`,
 ].join(", ");
 
 /**

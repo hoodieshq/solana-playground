@@ -207,6 +207,25 @@ it("should focus the submit on open when the body has no input, so Enter presses
   );
 });
 
+it("should pass over the hidden controls Radix keeps for a form, and focus the submit", () => {
+  // A radio group and a select inside a form each keep a native control the
+  // user never reaches: `aria-hidden`, out of the tab order
+  renderFrame({
+    submit: submitOf(),
+    children: (
+      <>
+        <input type="radio" aria-hidden="true" tabIndex={-1} readOnly />
+        <select aria-hidden="true" tabIndex={-1} />
+        <p>Pick one</p>
+      </>
+    ),
+  });
+
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Rename" })
+  );
+});
+
 it("should focus the body's first input on open", () => {
   renderFrame({
     submit: submitOf(),
