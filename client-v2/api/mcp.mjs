@@ -20,7 +20,7 @@
  */
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
-import { isAllowedOrigin, requireUser } from "../src/features/auth/server.mjs";
+import { isAllowedOrigin, readSession } from "../src/features/auth/server.mjs";
 import { warnAboutMissingObservabilityIds } from "../src/features/api/server/observability.mjs";
 import { withObservability } from "../src/features/api/server/with-observability.mjs";
 import { mcpExplorerEnv } from "../src/shared/config/server-env.mjs";
@@ -75,6 +75,30 @@ const sendJson = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
+/** What a caller asking for Explorer is told, by why it is withheld */
+const EXPLORER_HINTS = {
+  "no-bypass": " Set MCP_EXPLORER_BYPASS on the server to enable explorer.",
+  "foreign-origin": " Explorer is offered only to requests from this site.",
+  unconfigured:
+    " Sign-in is not configured on this deployment, so explorer is off.",
+  unavailable: " Sign-in is unavailable right now. Try explorer again shortly.",
+  "signed-out": " Sign in with GitHub to use explorer.",
+};
+
+/**
+ * Why Explorer is withheld from this request, or `null` when it is offered.
+ *
+ * @param {import("node:http").IncomingMessage} req
+ * @returns {Promise<keyof typeof EXPLORER_HINTS | null>}
+ */
+const explorerWithheld = async (req) => {
+  if (!mcpExplorerEnv().BYPASS) return "no-bypass";
+  // Before the session, so another site cannot borrow a visitor's; the lookup is also a database read
+  if (!isAllowedOrigin(req)) return "foreign-origin";
+  const session = await readSession(req);
+  return session.status === "signed-in" ? null : session.status;
+};
+
 const rpcError = (res, id, code, message) =>
   sendJson(res, 200, {
     jsonrpc: "2.0",
@@ -82,8 +106,14 @@ const rpcError = (res, id, code, message) =>
     error: { code, message },
   });
 
-/** Which upstreams this request is for, defaulting to all of them */
-const selected = (url, configured) => {
+/**
+ * Which upstreams this request is for, defaulting to all of them.
+ *
+ * @param {URL} url
+ * @param {ReturnType<typeof upstreams>} configured
+ * @param {keyof typeof EXPLORER_HINTS | null} withheld why Explorer is absent, for the error
+ */
+const selected = (url, configured, withheld) => {
   // Accepts `server[]=x` and `server=x`, repeated
   const asked = [
     ...url.searchParams.getAll("server[]"),
@@ -93,13 +123,9 @@ const selected = (url, configured) => {
 
   const unknown = asked.filter((id) => !configured[id]);
   if (unknown.length) {
-    // Explorer's absence is a missing env var or a signed-out caller, not a typo
-    let hint = "";
-    if (unknown.includes("explorer")) {
-      hint = mcpExplorerEnv().BYPASS
-        ? " Sign in with GitHub to use explorer."
-        : " Set MCP_EXPLORER_BYPASS on the server to enable explorer.";
-    }
+    // Explorer's absence has a reason of its own, not a typo
+    const hint =
+      unknown.includes("explorer") && withheld ? EXPLORER_HINTS[withheld] : "";
     throw new Error(
       `Unknown server: ${unknown.join(", ")}. Configured: ${
         Object.keys(configured).join(", ") || "none"
@@ -213,13 +239,8 @@ const callTool = async (id, ids, configured, params) => {
  */
 async function handler(req, res) {
   warnAboutMissingObservabilityIds();
-  // Our own origin first, so another site cannot borrow a visitor's session for
-  // Explorer; the lookup costs a database read, so only when Explorer could use it
-  const signedIn =
-    !!mcpExplorerEnv().BYPASS &&
-    isAllowedOrigin(req) &&
-    !!(await requireUser(req));
-  const configured = upstreams({ signedIn });
+  const withheld = await explorerWithheld(req);
+  const configured = upstreams({ signedIn: withheld === null });
 
   // Discovery. The server decides which upstreams exist — the client asks
   // rather than carrying its own list, so adding one is a deploy and an
@@ -246,7 +267,7 @@ async function handler(req, res) {
   let ids;
   try {
     body = await readJson(req);
-    ids = selected(url, configured);
+    ids = selected(url, configured, withheld);
   } catch (e) {
     return sendJson(res, 400, { error: e.message });
   }
