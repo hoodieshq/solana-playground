@@ -297,6 +297,27 @@ export class PgAssistant {
     PgAssistant._emitOnly();
   }
 
+  /**
+   * Switch the model or effort on the connected backend, keeping the thread.
+   *
+   * Does not `clear`, unlike `connect` with a different connection: the
+   * provider for the next turn is rebuilt from what is rendered (`Chat` and
+   * `use-turn` compare connection identity), so the new settings apply to the
+   * next turn and the transcript on screen stays the history it works from.
+   * `_emitOnly` for the same reason as `connect`: the connection is in memory
+   * only and nothing here is the user writing to the conversation.
+   *
+   * @throws when nothing is connected, or `next` names another backend or key
+   */
+  static tune(next: Connection) {
+    const current = PgAssistant._connection;
+    if (!current || current.id !== next.id || current.apiKey !== next.apiKey) {
+      throw new Error("tune changes model or effort, not the backend");
+    }
+    PgAssistant._connection = next;
+    PgAssistant._emitOnly();
+  }
+
   /** Whether connecting with these settings would keep the conversation */
   static isCurrent(next: Connection) {
     return isSame(PgAssistant._connection, next);
