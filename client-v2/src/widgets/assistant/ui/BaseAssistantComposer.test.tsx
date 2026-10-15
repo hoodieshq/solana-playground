@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseAssistantComposer } from "./BaseAssistantComposer";
 
 interface Setup {
@@ -26,18 +27,20 @@ const setup = ({
   const Harness = () => {
     const [text, setText] = useState(value);
     return (
-      <BaseAssistantComposer
-        chips={chips}
-        value={text}
-        onValueChange={setText}
-        onSend={onSend}
-        onStop={onStop}
-        busy={busy}
-        placeholder={placeholder}
-        model={<span>model slot</span>}
-        effort={<span>effort slot</span>}
-        focusRequest={focusRequest}
-      />
+      <TooltipProvider>
+        <BaseAssistantComposer
+          chips={chips}
+          value={text}
+          onValueChange={setText}
+          onSend={onSend}
+          onStop={onStop}
+          busy={busy}
+          placeholder={placeholder}
+          model={<span>model slot</span>}
+          effort={<span>effort slot</span>}
+          focusRequest={focusRequest}
+        />
+      </TooltipProvider>
     );
   };
   const view = render(<Harness />);
@@ -48,6 +51,8 @@ const input = () =>
   screen.getByRole("textbox", { name: "Message the assistant" });
 
 describe("BaseAssistantComposer", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("sends the typed text once on Enter", async () => {
     const { onSend, user } = setup();
     await user.type(input(), "hello{Enter}");
@@ -90,19 +95,31 @@ describe("BaseAssistantComposer", () => {
     );
   });
 
-  it("renders each chip with its title", () => {
-    setup({
+  it("renders each chip focusable, explained by a tooltip on focus", async () => {
+    // The tooltip's positioning watches its trigger's size
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const { user } = setup({
       chips: [
         { label: "3 files", title: "Every path is sent" },
         { label: "idl", title: "The built program's interface" },
       ],
     });
-    expect(screen.getByText("3 files").getAttribute("title")).toBe(
-      "Every path is sent"
-    );
-    expect(screen.getByText("idl").getAttribute("title")).toBe(
-      "The built program's interface"
-    );
+    const files = screen.getByText("3 files");
+    expect(files.getAttribute("tabindex")).toBe("0");
+    expect(files.getAttribute("title")).toBeNull();
+    await user.tab();
+    expect(document.activeElement).toBe(files);
+    expect(
+      (await screen.findAllByText("Every path is sent")).length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("idl").getAttribute("tabindex")).toBe("0");
   });
 
   it("renders no context list without chips", () => {

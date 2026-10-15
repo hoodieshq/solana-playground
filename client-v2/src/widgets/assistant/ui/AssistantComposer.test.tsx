@@ -12,6 +12,7 @@ import {
   memoryProvider as memoryTelemetry,
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import type { DefaultBackend } from "../model/default-backend";
@@ -72,7 +73,11 @@ const anthropic: Connection = {
 /** The composer with the turn held by its parent, as the widget holds it */
 function Harness() {
   const turn = useTurn();
-  return <AssistantComposer turn={turn} />;
+  return (
+    <TooltipProvider>
+      <AssistantComposer turn={turn} />
+    </TooltipProvider>
+  );
 }
 
 const tracked = () => events.events.map((e) => [e.name, e.params]);

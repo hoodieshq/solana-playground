@@ -10,6 +10,7 @@ import {
   ComposerToolbar,
 } from "@/shared/ui/composer";
 import { LogoMark } from "@/shared/ui/logo";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 /** One thing the assistant reads each turn, named in the composer */
 export interface ComposerContextChip {
@@ -71,9 +72,15 @@ export function BaseAssistantComposer({
         {chips.length > 0 && (
           <ComposerContextList>
             {chips.map((chip) => (
-              <ComposerChip key={chip.label} title={chip.title}>
-                {chip.label}
-              </ComposerChip>
+              <Tooltip key={chip.label}>
+                {/* Focusable, so the explanation reaches keyboard users too */}
+                <TooltipTrigger asChild>
+                  <ComposerChip tabIndex={0}>{chip.label}</ComposerChip>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-80 break-all whitespace-pre-wrap">
+                  {chip.title}
+                </TooltipContent>
+              </Tooltip>
             ))}
           </ComposerContextList>
         )}

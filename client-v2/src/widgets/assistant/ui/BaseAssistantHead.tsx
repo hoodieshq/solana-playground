@@ -15,6 +15,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { MenuItemText } from "@/shared/ui/menu-extras";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 export interface BaseAssistantHeadProps {
@@ -111,11 +112,11 @@ export function BaseAssistantHead({
           }}
         >
           <DropdownMenuItem onSelect={() => pick(onSources)}>
-            Sources and tools
+            <MenuItemText>Sources and tools</MenuItemText>
             <DropdownMenuShortcut>S</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => pick(onConnect)}>
-            Connect a model…
+            <MenuItemText>Connect a model…</MenuItemText>
             <DropdownMenuShortcut>K</DropdownMenuShortcut>
           </DropdownMenuItem>
           {/* A disabled item takes no pointer events, so the tooltip hangs
@@ -125,7 +126,9 @@ export function BaseAssistantHead({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <DropdownMenuItem disabled>Clear conversation</DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <MenuItemText>Clear conversation</MenuItemText>
+                </DropdownMenuItem>
               </div>
             </TooltipTrigger>
             <TooltipContent side="left">Coming soon</TooltipContent>
@@ -133,29 +136,37 @@ export function BaseAssistantHead({
         </DropdownMenuContent>
       </DropdownMenu>
       {canWiden && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={widenLabel}
-          title={widenLabel}
-          onClick={onWiden}
-        >
-          {wide ? (
-            <FoldHorizontal aria-hidden="true" />
-          ) : (
-            <UnfoldHorizontal aria-hidden="true" />
-          )}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={widenLabel}
+              onClick={onWiden}
+            >
+              {wide ? (
+                <FoldHorizontal aria-hidden="true" />
+              ) : (
+                <UnfoldHorizontal aria-hidden="true" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{widenLabel}</TooltipContent>
+        </Tooltip>
       )}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Collapse assistant"
-        title="Collapse assistant"
-        onClick={onHide}
-      >
-        <PanelLeftClose aria-hidden="true" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Collapse assistant"
+            onClick={onHide}
+          >
+            <PanelLeftClose aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Collapse assistant</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
