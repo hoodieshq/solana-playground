@@ -29,10 +29,9 @@ const explorer: {
 };
 vi.mock("../../../../hooks", () => ({ useExplorer: () => explorer }));
 
-// Only the select is under test: the modals, buttons and icons pull in the
+// Only the select is under test: the modals, text and icons pull in the
 // theme, which needs the same build-time global
 vi.mock("./Modals", () => ({}));
-vi.mock("../../../../components/Button", () => ({ default: () => null }));
 vi.mock("../../../../components/Text", () => ({ default: () => null }));
 vi.mock("../../../../components/Icons", () => ({}));
 

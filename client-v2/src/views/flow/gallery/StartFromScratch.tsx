@@ -1,10 +1,10 @@
 import { FC, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { BrandButton } from "@/shared/ui/brand-button";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import Img from "../../../components/Img";
 import Input from "../../../components/Input";
-import GradientButton from "../../../components/GradientButton";
 import { PgExplorer, PgFramework, PgView, PgTheme } from "../../../utils";
 
 /**
@@ -20,6 +20,8 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
   );
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  // Off while a project is being made, so a second press cannot make it twice
+  const [creating, setCreating] = useState(false);
 
   const create = async () => {
     if (!framework) return;
@@ -30,6 +32,7 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
       return;
     }
 
+    setCreating(true);
     try {
       const { getDefaultFiles, defaultOpenFile } = PgFramework.get(framework);
       const { files } = await getDefaultFiles();
@@ -40,6 +43,8 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
       PgView.setModal(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create project");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -81,13 +86,12 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
           placeholder={framework ? defaultName(framework) : "project name"}
           aria-label="Project name"
         />
-        <GradientButton
-          kind="primary"
-          disabled={!!error || !framework}
+        <BrandButton
+          disabled={!!error || !framework || creating}
           onClick={create}
         >
           Start &rarr;
-        </GradientButton>
+        </BrandButton>
       </Controls>
     </Row>
   );

@@ -130,8 +130,11 @@ test.describe("client-v2-buttons", () => {
     await page.locator("#flow-stage-tab-build").click();
     await page.getByRole("button", { name: "Build", exact: true }).click();
 
-    // A view shows at most one brand button
-    const brand = page.locator('[data-slot="brand-button"]:visible');
+    // A view shows at most one brand button; the assistant panel beside the
+    // stage is a view of its own, with its own Connect
+    const brand = page
+      .locator('[role="tabpanel"][aria-labelledby="flow-stage-tab-build"]')
+      .locator('[data-slot="brand-button"]:visible');
     await expect(brand).toHaveCount(1);
     await expect(brand).toHaveText(/Deploy/);
   });
