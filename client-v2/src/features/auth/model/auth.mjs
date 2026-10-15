@@ -31,8 +31,8 @@ let instance = null;
  * through to Better Auth's own default instead of being handed a base URL that
  * is not one.
  *
- * Exported because `api/projects.mjs` and `api/conversations.mjs` compare it
- * against a write request's `Origin`. Deliberately the same value the session
+ * {@link isAllowedOrigin} compares it against a request's `Origin` for
+ * `/api/agent`, `/api/mcp` and the sync routes. Deliberately the same value the session
  * cookie is issued for, rather than a second copy of "where we are deployed"
  * that could drift from it: an origin check keyed off a different answer than
  * the cookie's would be a check of nothing in particular.
@@ -152,8 +152,8 @@ export const getAuth = () => {
 };
 
 /**
- * Who a request is signed in as, or `unavailable` when building auth or the
- * lookup threw.
+ * Who a request is signed in as. Never throws: `unavailable` when building auth
+ * or the lookup threw, `unconfigured` when sign-in lacks its settings.
  *
  * A route that spends something on the user's behalf answers `unavailable` with
  * "try again", not "sign in": signing in needs the same lookup. Unverified:
@@ -165,14 +165,15 @@ export const getAuth = () => {
  *   | { status: "signed-in"; user: { id: string } }
  *   | { status: "signed-out" }
  *   | { status: "unavailable" }
- * >} `signed-out` too when sign-in is not configured
+ *   | { status: "unconfigured" }
+ * >}
  */
 export const readSession = async (req) => {
   try {
     // Inside the `try`: building the instance opens the pool, and a route such
     // as `/api/mcp` must keep serving signed-out callers when that throws
     const auth = getAuth();
-    if (!auth) return { status: "signed-out" };
+    if (!auth) return { status: "unconfigured" };
 
     const { fromNodeHeaders } = await import("better-auth/node");
     const session = await auth.api.getSession({
@@ -195,8 +196,9 @@ export const readSession = async (req) => {
 /**
  * The signed-in user for a request, or `null`.
  *
- * Fails closed: a lookup that fails reads as signed out, after `readSession`
- * has logged it. Use `readSession` where the two need different answers.
+ * Fails closed: a failed lookup or unconfigured sign-in reads as signed out,
+ * after `readSession` has logged a failure. Use `readSession` where they need
+ * different answers.
  *
  * @param {import("node:http").IncomingMessage} req
  * @returns {Promise<{id: string} | null>}

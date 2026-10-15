@@ -1,4 +1,6 @@
 // @vitest-environment node
+// `@types/mocha` also declares a global `it`, without `each`
+import { it } from "vitest";
 import type { Mock } from "vitest";
 import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
@@ -21,14 +23,16 @@ vi.mock("../auth/server.mjs", async (importOriginal) => {
   return {
     SIGNED_OUT_REASON: real.SIGNED_OUT_REASON,
     isAllowedOrigin: real.isAllowedOrigin,
-    getAuth: () => (session.state === "unconfigured" ? null : {}),
-    readSession: async () => {
-      if (session.state === "signed-in") {
-        return { status: "signed-in", user: { id: "user-1" } };
-      }
-      if (session.state === "unavailable") return { status: "unavailable" };
-      return { status: "signed-out" };
+    // Building auth can throw (the pool), so the route must never call it outside `readSession`
+    getAuth: () => {
+      throw new Error("getAuth called outside readSession");
     },
+    missingConfig: () =>
+      session.state === "unconfigured" ? ["AUTH_SECRET"] : [],
+    readSession: async () =>
+      session.state === "signed-in"
+        ? { status: "signed-in", user: { id: "user-1" } }
+        : { status: session.state },
   };
 });
 
@@ -116,13 +120,22 @@ describe("GET /api/agent", () => {
     vi.unstubAllEnvs();
   });
 
-  it("reports no default backend while sign-in is not configured", async () => {
-    session.state = "unconfigured";
+  it.each([
+    ["unconfigured", false],
+    ["signed-out", true],
+  ] as const)(
+    "reports configured: %s sign-in -> %s",
+    async (state, configured) => {
+      session.state = state;
 
-    const res = await postJson(handler, "", { method: "GET" });
+      const res = await postJson(handler, "", { method: "GET" });
 
-    expect(jsonBody<{ configured: boolean }>(res).configured).toBe(false);
-  });
+      expect(res.statusCode).toBe(200);
+      expect(jsonBody<{ configured: boolean }>(res).configured).toBe(
+        configured
+      );
+    }
+  );
 });
 
 /**
@@ -268,6 +281,7 @@ describe("POST /api/agent streaming", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     delete (globalThis as { fetch?: unknown }).fetch;
   });
 
@@ -314,6 +328,26 @@ describe("POST /api/agent streaming", () => {
     expect(res.statusCode).toBe(429);
     expect(jsonBody(res).error).toMatch(/^Upstream 429: slow down/);
   });
+
+  // Relayed, either would read as our own refusal of the caller
+  it.each([401, 403])(
+    "answers 502 when the upstream refuses the key with %i",
+    async (status) => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const res = makeRes();
+      await call(res, {
+        ok: false,
+        status,
+        text: async () => "invalid key",
+      } as never);
+
+      expect(res.statusCode).toBe(502);
+      expect(jsonBody(res).error).toBe(
+        `The default backend's key was refused upstream (${status}).`
+      );
+      expect(logged).toHaveBeenCalled();
+    }
+  );
 
   it("answers 502 to a success that has nothing to stream", async () => {
     const res = makeRes();

@@ -27,8 +27,8 @@
 
 import { readJson } from "../src/features/api/server/read-json.mjs";
 import {
-  getAuth,
   isAllowedOrigin,
+  missingConfig,
   readSession,
   SIGNED_OUT_REASON,
 } from "../src/features/auth/server.mjs";
@@ -130,9 +130,10 @@ async function handler(req, res) {
   // Discovery, mirroring `api/mcp.mjs`: the client asks whether this
   // deployment has a default backend rather than assuming one. Without sign-in
   // the POST below refuses every turn, so it counts as none. The model is named
-  // so the panel can show what answered; the key never leaves here.
+  // so the panel can show what answered; the key never leaves here. Settings
+  // only, not `getAuth`: building auth opens the pool, which can throw.
   if (req.method === "GET") {
-    const served = !!configured && !!getAuth();
+    const served = !!configured && missingConfig().length === 0;
     return sendJson(res, 200, {
       configured: served,
       model: served ? configured.model : null,
@@ -160,14 +161,14 @@ async function handler(req, res) {
   if (!isAllowedOrigin(req)) {
     return sendJson(res, 403, { error: "Cross-origin request refused" });
   }
-  if (!getAuth()) {
+  const session = await readSession(req);
+  if (session.status === "unconfigured") {
     return sendJson(res, 503, {
       error:
         "Sign-in is not configured on this deployment, so its default " +
         "backend is off. Pick another backend and supply your own key.",
     });
   }
-  const session = await readSession(req);
   if (session.status === "unavailable") {
     return sendJson(res, 503, {
       error: "Sign-in is unavailable right now. Try again shortly.",
@@ -230,6 +231,16 @@ async function handler(req, res) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
+    // Our key was refused: relayed, it would read as this route refusing the caller
+    if (response.status === 401 || response.status === 403) {
+      console.error("agent: upstream refused the key", {
+        status: response.status,
+        body: text.slice(0, 300),
+      });
+      return sendJson(res, 502, {
+        error: `The default backend's key was refused upstream (${response.status}).`,
+      });
+    }
     // The upstream's own status, so a 429 still reads as a 429 in the panel
     return sendJson(res, response.status, {
       error: `Upstream ${response.status}: ${text.slice(0, 300)}`,
