@@ -42,7 +42,7 @@ const Terminal: FC<React.PropsWithChildren<TerminalProps>> = ({
         convertEol: true,
         rendererType: "dom",
         fontFamily: theme.font.code.family,
-        fontSize: 14,
+        fontSize: 13,
         cursorBlink: xterm.cursor.blink,
         cursorStyle: xterm.cursor.kind,
         tabStopWidth: 4,
@@ -98,8 +98,11 @@ const Wrapper = styled.div`
   ${({ theme }) => css`
     ${PgTheme.convertToCSS(theme.components.terminal.default)};
 
+    background: var(--surface-well);
+    font-family: var(--font-mono);
+
     & .xterm {
-      padding: 0.25rem 1rem;
+      padding: 0.75rem;
     }
 
     & .xterm-viewport {

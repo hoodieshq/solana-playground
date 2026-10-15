@@ -25,6 +25,7 @@ describe("xtermTheme", () => {
     const resolve = vi.fn((v: string) => `resolved(${v})`);
 
     expect(xtermTheme(xterm, resolve)).toEqual({
+      background: "resolved(var(--surface-well))",
       foreground: "resolved(var(--text-primary))",
       brightBlack: "resolved(var(--text-secondary))",
       black: "resolved(var(--text-secondary))",
@@ -35,8 +36,8 @@ describe("xtermTheme", () => {
       brightYellow: "resolved(var(--warning))",
       brightBlue: "resolved(var(--info))",
       selection: "resolved(var(--surface-hover))",
-      cursor: "resolved(var(--text-primary))",
-      cursorAccent: "resolved(var(--surface-base))",
+      cursor: "resolved(var(--success))",
+      cursorAccent: "resolved(var(--surface-well))",
     });
   });
 });
