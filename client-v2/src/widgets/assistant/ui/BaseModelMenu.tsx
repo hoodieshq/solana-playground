@@ -62,6 +62,11 @@ export function BaseModelMenu({
               value={String(index)}
             >
               {option.label}
+              {option.provider === "default" && (
+                <span className="ml-auto pl-3 text-xs text-muted-foreground">
+                  no key needed
+                </span>
+              )}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

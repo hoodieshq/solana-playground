@@ -47,6 +47,17 @@ describe("BaseEffortMenu", () => {
     expect(onChange).toHaveBeenCalledWith("high");
   });
 
+  it("renders nothing when the value is not on the ladder", () => {
+    const { container } = render(
+      <BaseEffortMenu
+        effort={{ value: "max", ladder: ["low", "medium", "high"] }}
+        onChange={vi.fn()}
+        disabled={false}
+      />
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
   it("disables the trigger", () => {
     setup("medium", true);
     expect(

@@ -48,6 +48,16 @@ describe("BaseModelMenu", () => {
     ).toBeTruthy();
   });
 
+  it("marks only the hosted default with a no-key hint", async () => {
+    const { user } = setup(shownDefault);
+    await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));
+    expect(screen.getAllByText("no key needed").length).toBe(1);
+    const item = screen.getByRole("menuitemradio", { name: /GLM 5.3 Flash/ });
+    expect(item.textContent).toContain("no key needed");
+    const sonnet = screen.getByRole("menuitemradio", { name: /Sonnet 5.5/ });
+    expect(sonnet.textContent).not.toContain("no key needed");
+  });
+
   it("checks the default option when the default is shown", async () => {
     const { user } = setup(shownDefault);
     await user.click(screen.getByRole("button", { name: /GLM 5.3 Flash/ }));

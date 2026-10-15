@@ -28,6 +28,8 @@ export function BaseEffortMenu({
   disabled: boolean;
 }) {
   const { value, ladder } = effort;
+  // A level the ladder lacks has no honest place on it, so show nothing
+  if (!ladder.includes(value)) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
