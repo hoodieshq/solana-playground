@@ -1,33 +1,77 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { BaseEditorTab } from "./BaseEditorTab";
 import { BaseEditorTabs } from "./BaseEditorTabs";
 
 const FILES = ["a.rs", "b.rs", "c.rs"];
 
+/** Every `scrollIntoView` call: the element and its options */
+const scrolled = vi.fn();
+const original = Element.prototype.scrollIntoView;
+// jsdom lays nothing out and has no `scrollIntoView`
+beforeAll(() => {
+  Element.prototype.scrollIntoView = function (
+    this: Element,
+    arg?: boolean | ScrollIntoViewOptions
+  ) {
+    scrolled(this, arg);
+  };
+});
+afterEach(() => scrolled.mockReset());
+afterAll(() => {
+  Element.prototype.scrollIntoView = original;
+});
+
+/** The row with `current` as the current tab and a Wallet button in `end` */
+const row = (current: string, onSelect: (name: string) => void) => (
+  <BaseEditorTabs
+    id="tabs"
+    current={`/${current}`}
+    end={<button type="button">Wallet</button>}
+  >
+    {FILES.map((name) => (
+      <BaseEditorTab
+        key={name}
+        path={`/${name}`}
+        name={name}
+        icon={null}
+        current={name === current}
+        menuOpen={false}
+        onSelect={() => onSelect(name)}
+        onClose={vi.fn()}
+      />
+    ))}
+  </BaseEditorTabs>
+);
+
 /** Three tabs, `b.rs` current, and a Wallet button in `end` */
 const setup = () => {
   const onSelect = vi.fn();
-  render(
-    <BaseEditorTabs id="tabs" end={<button type="button">Wallet</button>}>
-      {FILES.map((name) => (
-        <BaseEditorTab
-          key={name}
-          path={`/${name}`}
-          name={name}
-          icon={null}
-          current={name === "b.rs"}
-          menuOpen={false}
-          onSelect={() => onSelect(name)}
-          onClose={vi.fn()}
-        />
-      ))}
-    </BaseEditorTabs>
-  );
+  const view = render(row("b.rs", onSelect));
   const tab = (name: string) => screen.getByRole("tab", { name });
-  return { onSelect, tab, user: userEvent.setup() };
+  return { onSelect, tab, view, user: userEvent.setup() };
+};
+
+/** The tab a trigger sits in, close button and all */
+const frameOf = (trigger: HTMLElement) =>
+  trigger.closest('[data-slot="editor-tab"]');
+
+/** The row's scroller, laid out as `scrollWidth` wide in `clientWidth` */
+const layOut = (scrollWidth: number, clientWidth: number) => {
+  const list = screen.getByRole("tablist");
+  Object.defineProperty(list, "scrollWidth", { value: scrollWidth });
+  Object.defineProperty(list, "clientWidth", { value: clientWidth });
+  return list;
 };
 
 describe("BaseEditorTabs", () => {
@@ -87,5 +131,55 @@ describe("BaseEditorTabs", () => {
     await user.keyboard("{ArrowRight}");
 
     expect(document.activeElement).toBe(tab("b.rs"));
+  });
+});
+
+describe("BaseEditorTabs scrolling", () => {
+  it("scrolls the current tab, close included, into view on mount", () => {
+    const { tab } = setup();
+    expect(scrolled.mock.calls).toEqual([
+      [frameOf(tab("b.rs")), { block: "nearest", inline: "nearest" }],
+    ]);
+  });
+
+  it("scrolls the new current tab into view when it changes", () => {
+    const { tab, view } = setup();
+    scrolled.mockReset();
+
+    view.rerender(row("c.rs", vi.fn()));
+
+    expect(scrolled.mock.calls).toEqual([
+      [frameOf(tab("c.rs")), { block: "nearest", inline: "nearest" }],
+    ]);
+  });
+
+  it("turns a vertical wheel into a sideways scroll when the row overflows", () => {
+    setup();
+    const list = layOut(600, 200);
+
+    const passed = fireEvent.wheel(list, { deltaY: 120, deltaX: 0 });
+
+    expect(list.scrollLeft).toBe(120);
+    expect(passed).toBe(false);
+  });
+
+  it("leaves the wheel alone when the row fits", () => {
+    setup();
+    const list = layOut(200, 200);
+
+    const passed = fireEvent.wheel(list, { deltaY: 120, deltaX: 0 });
+
+    expect(list.scrollLeft).toBe(0);
+    expect(passed).toBe(true);
+  });
+
+  it("leaves a mostly sideways wheel to the browser", () => {
+    setup();
+    const list = layOut(600, 200);
+
+    const passed = fireEvent.wheel(list, { deltaY: 10, deltaX: 40 });
+
+    expect(list.scrollLeft).toBe(0);
+    expect(passed).toBe(true);
   });
 });

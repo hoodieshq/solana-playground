@@ -54,7 +54,10 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
   return (
     <BaseConsoleDrawer
       open={open}
-      onToggle={onToggle}
+      // The shell only flips; a request for the state it is in changes nothing
+      onOpenChange={(next) => {
+        if (next !== open) onToggle();
+      }}
       status={status}
       onClear={clear}
     >

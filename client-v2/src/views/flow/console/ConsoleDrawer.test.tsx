@@ -1,9 +1,22 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { PgTerminal } from "../../../utils";
 
+import BaseConsoleDrawer from "./BaseConsoleDrawer";
 import ConsoleDrawer from "./ConsoleDrawer";
+
+// The real drawer, watched, so a test can make the request the design
+// system's drawer would
+vi.mock(import("./BaseConsoleDrawer"), async (load) => {
+  const { CONSOLE_BODY_ID, default: Base } = await load();
+  return { CONSOLE_BODY_ID, default: vi.fn(Base) } as const;
+});
+
+/** Makes the request the design system's drawer would, through the
+ * `onOpenChange` `ConsoleDrawer` last handed its Base */
+const requestOpen = (open: boolean) =>
+  act(() => vi.mocked(BaseConsoleDrawer).mock.lastCall![0].onOpenChange(open));
 
 vi.mock("../../main/secondary/terminal/Component/Terminal", () => ({
   default: () => <div className="xterm" />,
@@ -57,4 +70,21 @@ it("should report a clear that fails", async () => {
   await vi.waitFor(() => expect(logError).toHaveBeenCalledTimes(1));
   expect(logError.mock.calls[0][0]).toBe(failure);
   expect(logError.mock.calls[0][1].report).toBe(true);
+});
+
+it("should toggle on a request for the other state only", () => {
+  const onToggle = vi.fn();
+  const { rerender } = render(
+    <ConsoleDrawer open={false} onToggle={onToggle} />
+  );
+  requestOpen(false);
+  expect(onToggle).not.toHaveBeenCalled();
+  requestOpen(true);
+  expect(onToggle).toHaveBeenCalledTimes(1);
+
+  rerender(<ConsoleDrawer open={true} onToggle={onToggle} />);
+  requestOpen(true);
+  expect(onToggle).toHaveBeenCalledTimes(1);
+  requestOpen(false);
+  expect(onToggle).toHaveBeenCalledTimes(2);
 });

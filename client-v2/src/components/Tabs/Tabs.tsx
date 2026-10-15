@@ -43,7 +43,11 @@ export const Tabs = () => {
   if (!explorer.tabs.length) return null;
 
   return (
-    <BaseEditorTabs id={PgView.ids.TABS} end={<Wallet />}>
+    <BaseEditorTabs
+      id={PgView.ids.TABS}
+      current={explorer.currentFilePath ?? undefined}
+      end={<Wallet />}
+    >
       <Dnd.Sortable
         items={explorer.tabs as string[]}
         setItems={setItems}

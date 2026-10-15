@@ -91,3 +91,29 @@ test("client-v2-layout: Creating a file with a tab open focuses the editor", asy
     LONG
   );
 });
+
+test("client-v2-layout: Creating a file with no tabs focuses the editor", async ({
+  seededPage: page,
+}) => {
+  await expect(page.locator(".monaco-editor").first()).toBeVisible(LONG);
+
+  const tabs = page.locator('#tabs [data-slot="editor-tab"][id^="/"]');
+  for (let left = await tabs.count(); left > 0; left--) {
+    const tab = tabs.first();
+    await tab.hover({ force: true });
+    await tab.getByRole("button", { name: /^Close / }).click({ force: true });
+    await expect(tabs).toHaveCount(left - 1);
+  }
+  await expect(page.locator(".monaco-editor")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "New file" }).click();
+  const name = page.locator("#root-dir input");
+  await expect(name).toBeFocused();
+  await page.keyboard.type("y.rs");
+  await page.keyboard.press("Enter");
+
+  await expect(name).toHaveCount(0);
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(
+    LONG
+  );
+});

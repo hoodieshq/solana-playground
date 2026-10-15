@@ -52,6 +52,16 @@ Folding a panel SHALL hide it without discarding what it holds.
 - **THEN** the navigation folds to a rail of icons, then opens at its full
   width
 
+### Requirement: The terminal greets once
+
+The console's terminal SHALL print its welcome and its prompt once per page
+load, however many times React runs its effects.
+
+#### Scenario: The terminal greets once
+
+- **WHEN** a user opens the console on a fresh page load
+- **THEN** the terminal shows one welcome and a single `$` prompt
+
 ### Requirement: A phone is three pages
 
 Below 720 px wide the product SHALL show three pages side by side, moved
@@ -87,10 +97,11 @@ width. The 720 px value SHALL be held in one place.
 
 Opening a file SHALL focus the editor. The one exception is the open the
 editor makes as it mounts (on a slow first load it mounts late and opens the
-current file then): if the user is typing in a text field outside the editor
-at that moment, the file SHALL still open, and the field SHALL keep its focus
-and what was typed. Every later open, including the one that creating a file
-makes, SHALL focus the editor.
+current file then, or the first file opened after it when none was current):
+if the user is typing in a text field outside the editor at that moment, the
+file SHALL still open, and the field SHALL keep its focus and what was typed.
+Every later open, and creating a file with or without a tab open, SHALL focus
+the editor.
 
 #### Scenario: A late editor mount leaves the new-file field focused
 
@@ -109,6 +120,12 @@ makes, SHALL focus the editor.
 - **WHEN** a tab is open and the user clicks "New file", types `x.rs` and
   presses Enter
 - **THEN** the editor opens `x.rs` and has focus
+
+#### Scenario: Creating a file with no tabs focuses the editor
+
+- **WHEN** a user closes every tab, clicks "New file", types `y.rs` and
+  presses Enter
+- **THEN** the editor opens `y.rs` and has focus
 
 ### Requirement: Four columns and no header
 

@@ -10,13 +10,13 @@ const idle = { text: "", tone: "idle" as const };
 
 const draw = (
   open: boolean,
-  handlers: { onToggle?: () => void; onClear?: () => void }
+  handlers: { onOpenChange?: (open: boolean) => void; onClear?: () => void }
 ) =>
   render(
     <BaseConsoleDrawer
       open={open}
       status={idle}
-      onToggle={handlers.onToggle ?? vi.fn()}
+      onOpenChange={handlers.onOpenChange ?? vi.fn()}
       onClear={handlers.onClear ?? vi.fn()}
     >
       <div className="xterm" />
@@ -33,24 +33,30 @@ it("names its button Console and controls the body by its fixed id", () => {
   ).not.toBeNull();
 });
 
-it("toggles once from the button and once from the strip", () => {
-  const onToggle = vi.fn();
-  draw(false, { onToggle });
+it("asks to open, from the button and from the strip, while closed", () => {
+  const onOpenChange = vi.fn();
+  draw(false, { onOpenChange });
   fireEvent.click(screen.getByRole("button", { name: "Console" }));
-  expect(onToggle).toHaveBeenCalledTimes(1);
   fireEvent.click(
     screen.getByText("Console", { selector: "[data-console-label]" })
   );
-  expect(onToggle).toHaveBeenCalledTimes(2);
+  expect(onOpenChange.mock.calls).toEqual([[true], [true]]);
+});
+
+it("asks to close from the button while open", () => {
+  const onOpenChange = vi.fn();
+  draw(true, { onOpenChange });
+  fireEvent.click(screen.getByRole("button", { name: "Console" }));
+  expect(onOpenChange.mock.calls).toEqual([[false]]);
 });
 
 it("clears without toggling", () => {
-  const onToggle = vi.fn();
+  const onOpenChange = vi.fn();
   const onClear = vi.fn();
-  draw(true, { onToggle, onClear });
+  draw(true, { onOpenChange, onClear });
   fireEvent.click(screen.getByRole("button", { name: "Clear" }));
   expect(onClear).toHaveBeenCalledTimes(1);
-  expect(onToggle).not.toHaveBeenCalled();
+  expect(onOpenChange).not.toHaveBeenCalled();
 });
 
 it("shows the status text with a dot of its tone", () => {
@@ -58,7 +64,7 @@ it("shows the status text with a dot of its tone", () => {
     <BaseConsoleDrawer
       open={false}
       status={{ text: "build failed", tone: "error" }}
-      onToggle={vi.fn()}
+      onOpenChange={vi.fn()}
       onClear={vi.fn()}
     />
   );

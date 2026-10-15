@@ -232,7 +232,9 @@ test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
 
 // React's StrictMode runs an effect twice in dev; opening the terminal on
 // both runs printed the welcome twice and left `$ $` as the prompt
-test("the terminal greets once", async ({ seededPage: page }) => {
+test("client-v2-layout: The terminal greets once", async ({
+  seededPage: page,
+}) => {
   // xterm renders only the rows in view, so the console is made tall enough
   // to hold a doubled greeting: a second copy must be on screen to be counted
   await page.setViewportSize({ width: 1280, height: 1200 });

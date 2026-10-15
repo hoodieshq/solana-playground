@@ -158,3 +158,51 @@ test("arrow keys in the editor stay in the editor", async ({
   await expect(input).toBeFocused();
   expect(await currentName(page)).toBe("keys.rs");
 });
+
+test("a tab opened past the row's edge scrolls into view, and the wheel scrolls the row", async ({
+  seededPage: page,
+}) => {
+  await page.setViewportSize({ width: 834, height: 900 });
+  const names = ["f1.rs", "f2.rs", "f3.rs", "f4.rs", "f5.rs", "f6.rs"];
+  for (const name of names) await newFile(page, name);
+  const list = page.locator('#tabs [role="tablist"]');
+  const overflow = () => list.evaluate((el) => el.scrollWidth - el.clientWidth);
+  await expect.poll(overflow).toBeGreaterThan(0);
+
+  // The last tab, far right, opened from the explorer with the row scrolled
+  // to its start
+  await page
+    .locator("#root-dir")
+    .getByText("lib.rs", { exact: true })
+    .first()
+    .click();
+  await expect.poll(() => currentName(page)).toBe("lib.rs");
+  await list.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  await page
+    .locator("#root-dir")
+    .getByText("f6.rs", { exact: true })
+    .first()
+    .click();
+  await expect.poll(() => currentName(page)).toBe("f6.rs");
+
+  const last = page.locator(`${TAB}[id$="/f6.rs"]`);
+  const inView = async () => {
+    const row = (await list.boundingBox())!;
+    const tab = (await last.boundingBox())!;
+    return tab.x >= row.x - 1 && tab.x + tab.width <= row.x + row.width + 1;
+  };
+  await expect.poll(inView).toBe(true);
+
+  // A plain wheel, vertical only, over the row
+  await list.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  const row = (await list.boundingBox())!;
+  await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2);
+  await page.mouse.wheel(0, 200);
+  await expect
+    .poll(() => list.evaluate((el) => el.scrollLeft))
+    .toBeGreaterThan(0);
+});

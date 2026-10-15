@@ -16,7 +16,8 @@ export const CONSOLE_BODY_ID = "flow-console-drawer-body";
 
 interface BaseConsoleDrawerProps {
   open: boolean;
-  onToggle: () => void;
+  /** The state the drawer asks for, which may be the one it is in */
+  onOpenChange: (open: boolean) => void;
   onClear: () => void;
   status: ConsoleStatus;
   children?: ReactNode;
@@ -32,14 +33,14 @@ interface BaseConsoleDrawerProps {
  */
 const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
   open,
-  onToggle,
+  onOpenChange,
   onClear,
   status,
   children,
 }) => (
   <ConsoleDrawer
     open={open}
-    onOpenChange={onToggle}
+    onOpenChange={onOpenChange}
     hotkey={null}
     contentId={CONSOLE_BODY_ID}
     className="h-full rounded-b-md border border-t-0 border-border bg-surface"
