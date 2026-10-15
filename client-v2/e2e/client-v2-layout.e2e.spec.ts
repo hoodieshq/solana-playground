@@ -356,6 +356,10 @@ test.describe("on a phone", () => {
     await input.click();
     await input.fill("renamed.rs");
     await page.keyboard.press("Enter");
+    // The modal closed the Sheet; its tree stays in the page for the length
+    // of the Sheet's exit animation, holding the new name too, so the page
+    // has one copy of it only once the Sheet is gone
+    await expect(sheet).toHaveCount(0);
     await expect(page.getByText("renamed.rs", { exact: true })).toBeVisible();
   });
 });
