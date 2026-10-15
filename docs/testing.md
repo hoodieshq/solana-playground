@@ -366,9 +366,8 @@ A status of `200` alone proves nothing for a crate file: the single-page-app fal
 `index.html` and `200`, and Rust Analyzer then panics with `Unexpected('<')`. Every crate check in section 4 also asserts
 the body is not HTML.
 
-The client-v2 requirements for these files are the OpenSpec change `rust-analyzer-crates`, capability
-`client-v2-editor-crates`, on `feat/vercel-wasm-cache`. S-1 to S-3 and S-6 to S-9 walk its manual scenarios; when the
-change is archived, its spec in `openspec/specs/` is the authority and these cases follow it.
+The client-v2 requirements for these files are the spec `openspec/specs/client-v2-editor-crates/spec.md`. S-1 to S-3
+and S-6 to S-9 walk its manual scenarios.
 
 Where client-v2's crate files come from. Every path writes them to `client-v2/public/crates`, and each generator skips
 when its key file there matches its inputs:
@@ -669,8 +668,8 @@ Expect: one image per directory in `server/templates/`.
 ## 7. client-v2 production build
 
 The production build minifies with esbuild through `terser-webpack-plugin`'s `esbuildMinify`; the Terser library does
-not run. It also leaves the type check and ESLint to CI and `yarn run check`. The requirements are the OpenSpec change
-`esbuild-minifier`, capability `client-v2-build`, on `feat/vercel-wasm-cache`; M-1 to M-4 walk its manual scenarios.
+not run. It also leaves the type check and ESLint to CI and `yarn run check`. The requirements are the spec
+`openspec/specs/client-v2-build/spec.md`; M-1 to M-4 walk its manual scenarios.
 The bundle is about 15% larger than Terser's, accepted on purpose; shrinking it is a postponed improvement.
 
 ### M-1. the build fits Vercel's standard machine
