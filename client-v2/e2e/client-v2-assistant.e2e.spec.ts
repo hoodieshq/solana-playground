@@ -1,5 +1,6 @@
 import type { Page, Route } from "@playwright/test";
 import { expect, json, LONG, test } from "./fixtures";
+import { lineOf, linesOn } from "./telemetry";
 
 /**
  * The assistant's composer: the model it names, sending without a key,
@@ -153,5 +154,49 @@ test("client-v2-assistant: Stopping an answer", async ({ page }) => {
   ).toBeVisible(LONG);
 
   // Let the held request end so the page closes cleanly
+  release();
+});
+
+test("client-v2-assistant: Stopping a turn is reported once", async ({
+  page,
+}) => {
+  const lines = linesOn(page);
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await stubAgent(
+    page,
+    { configured: true, model: DEFAULT_MODEL },
+    async (route) => {
+      await held;
+      await route.abort().catch(() => {});
+    }
+  );
+  await openProject(page, "stopping-once");
+
+  await input(page).fill("Say hello");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  const stop = page.getByRole("button", { name: "Stop", exact: true });
+  await expect(stop).toBeVisible(LONG);
+  // Two presses before the button can turn back into Send
+  await stop.evaluate((button: HTMLElement) => {
+    button.click();
+    button.click();
+  });
+
+  await expect(
+    page.getByRole("log", { name: "Conversation" }).getByText("Stopped.")
+  ).toBeVisible(LONG);
+  await expect.poll(() => lineOf(lines, "assistant_turn_stopped")).toBeTruthy();
+  // A moment more, so a second copy fails the test instead of passing unread
+  await page.waitForTimeout(300);
+  expect(
+    lines.filter((l) =>
+      l.startsWith("[telemetry:event] assistant_turn_stopped ")
+    )
+  ).toHaveLength(1);
+
   release();
 });
