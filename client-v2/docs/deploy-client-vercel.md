@@ -23,13 +23,16 @@ as soon as the Root Directory points at `client-v2`.
    - `AUTH_BASE_URL` — the production origin. **Required here, not optional:**
      without it `resolveBaseURL()` (`src/features/auth/model/auth.mjs`) falls
      back to `VERCEL_URL`, the per-deployment hostname, so the session cookie
-     and the write-origin checks in `api/projects.mjs` and
-     `api/conversations.mjs` are issued for a host nobody visits.
+     and the origin checks (`isAllowedOrigin`) in `api/agent.mjs`,
+     `api/mcp.mjs`, `api/projects.mjs` and `api/conversations.mjs` are issued
+     for a host nobody visits. A production build with `AGENT_API_KEY` fails
+     without it (`scripts/check-agent-env.mjs`).
    - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` — see step 3.
    - `AGENT_*`: set only after sign-in (`AUTH_SECRET`, `GITHUB_CLIENT_ID`,
      `GITHUB_CLIENT_SECRET`, `DATABASE_URL`) and the [firewall](firewall.md)
      rules. `/api/agent` answers only signed-in users, and a production build
-     fails when the key is set without sign-in (`scripts/check-agent-env.mjs`).
+     fails when the key is set without sign-in or `AUTH_BASE_URL`
+     (`scripts/check-agent-env.mjs`).
 3. **GitHub OAuth app for production.** Its callback URL is
    `<AUTH_BASE_URL>/api/auth/callback/github`. A GitHub OAuth app takes a
    single callback, so production gets its own app rather than sharing a
@@ -218,9 +221,12 @@ browser never sees. The key enables the Default backend; without one the option 
 unconfigured and the panel falls back to bring-your-own-key. A Vercel build
 without the key fails: `vercel.json`'s `buildCommand` runs
 `scripts/check-agent-env.mjs` first, so set the key for Production and Preview
-alike. Store it as a Secret. A local `vercel build` (the `Makefile.vercel`
-deploy targets) pulls a Secret as an empty value; the check accepts that,
-since the deployment reads the real value at runtime:
+alike. Store it as a Secret. A production build also fails when the key is set
+without sign-in's variables or without a parseable `AUTH_BASE_URL`. On Vercel's
+build machine (`CI` set) an empty value counts as unset, as it does at runtime.
+A local `vercel build` (the `Makefile.vercel` deploy targets) pulls a Secret as
+an empty value; there the check accepts an empty value and warns, since the
+deployment reads the real value at runtime:
 
 | Variable | Meaning |
 | --- | --- |
@@ -245,6 +251,11 @@ the body or calls the upstream:
 The `403` compares against `AUTH_BASE_URL` (or `VERCEL_URL`), as on the sync
 routes: a page opened on another hostname of the same deployment, such as a
 branch alias or a `www` domain, gets `403` on turns and sync writes.
+
+An upstream that refuses the key with `401` or `403` is answered `502` and
+logged as `agent: upstream refused the key`, so the panel never reads it as its
+own sign-in or origin refusal. Other upstream errors, `429` included, keep their
+status.
 
 `GET /api/agent` reports `configured: false` while sign-in is not configured, so
 the panel never offers a backend that would refuse every turn. Sign-in limits who
