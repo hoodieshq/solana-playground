@@ -14,7 +14,8 @@ import type { PhonePage, WorkView } from "../model/phone-pages";
 /** How long a scroll must rest before it counts as a swipe that settled */
 export const SWIPE_SETTLE_MS = 120;
 
-export interface BasePhonePagerProps {
+/** What the pager shows and the callbacks it reports through */
+export interface PhonePagerState {
   page: PhonePage;
   /** A swipe settled on another page */
   onSwipe: (page: PhonePage) => void;
@@ -30,16 +31,22 @@ export interface BasePhonePagerProps {
   onFilesOpenChange: (open: boolean) => void;
   /** The stage shows on the work page (Code) at `write`, else on the preview */
   stageOn: "work" | "preview";
+  /** The console's height on the preview: open, or its folded bar */
+  consoleOpen: boolean;
+}
+
+/** The content and the outlets' nodes the pager lays out */
+export interface PhonePagerSlots {
   menu: ReactNode;
   assistant: ReactNode;
   files: ReactNode;
   stageBar: ReactNode;
   stageNode: HTMLDivElement;
   consoleNode: HTMLDivElement;
-  /** The console's height on the preview: open, or its folded bar */
-  consoleOpen: boolean;
   sheetFont?: CSSProperties;
 }
+
+export type BasePhonePagerProps = PhonePagerState & PhonePagerSlots;
 
 /** Where a page of the pager starts, as `scrollLeft` */
 const alignTo = (el: HTMLElement, index: number) => {
@@ -78,7 +85,7 @@ const FilePicker = ({
 
 /**
  * Three pages side by side, swiped between: the navigation, the work (Chat or
- * Code) and the preview. Markup only: the page and the view are the caller's.
+ * Code) and the preview. Holds no page state: the page and the view are the caller's.
  * The stage and the console are the outlets' nodes, so they are not remounted
  * by moving between pages or by crossing `LAYOUT_BREAKPOINTS.phone`.
  */
@@ -86,7 +93,8 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const index = PHONE_PAGES.indexOf(props.page);
   // Smooth by CSS (`scroll-smooth`). The scroll this causes settles on the
-  // page given, so `onScroll` reports nothing for it.
+  // page given, so the settle finds the page already current and `onSwipe`
+  // is not called for it.
   // The first alignment, on load, is instant: arriving is not a move
   const aligned = useRef(false);
   useLayoutEffect(() => {
@@ -121,23 +129,36 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
       if (at && at !== props.page) props.onSwipe(at);
     }, SWIPE_SETTLE_MS);
   };
-  const onTouchStart = () => {
-    touching.current = true;
-    window.clearTimeout(settle.current);
-  };
-  const onTouchEnd = () => {
-    touching.current = false;
-    armSettle();
-  };
+  // Native listeners, not React props: the stage and the console are portaled
+  // outlets whose React parent is the shell, so a React `touchstart` that
+  // begins inside them never bubbles to the pager. DOM bubbling counts them.
+  const armSettleRef = useRef(armSettle);
+  armSettleRef.current = armSettle;
+  useEffect(() => {
+    const el = ref.current!;
+    const down = () => {
+      touching.current = true;
+      window.clearTimeout(settle.current);
+    };
+    const up = () => {
+      touching.current = false;
+      armSettleRef.current();
+    };
+    el.addEventListener("touchstart", down, { passive: true });
+    el.addEventListener("touchend", up, { passive: true });
+    el.addEventListener("touchcancel", up, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", down);
+      el.removeEventListener("touchend", up);
+      el.removeEventListener("touchcancel", up);
+    };
+  }, []);
   useEffect(() => () => window.clearTimeout(settle.current), []);
   return (
     <div
       ref={ref}
       data-testid="phone-pager"
       onScroll={armSettle}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
       className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth [scrollbar-width:none]"
     >
       <section

@@ -154,6 +154,24 @@ it("does not settle while a finger is down, only once it lifts", () => {
   expect(onSwipe).toHaveBeenCalledWith("preview");
 });
 
+it("does not settle while a finger is down in the stage, a portaled outlet", () => {
+  vi.useFakeTimers();
+  const onSwipe = vi.fn();
+  renderPager({ page: "work", onSwipe });
+  const pager = screen.getByTestId("phone-pager");
+  // The stage's React parent is the harness, not the pager; its DOM node is
+  // inside the pager
+  fireEvent.touchStart(screen.getByTestId("stage-probe"));
+  pager.scrollLeft = 585;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS * 3);
+  expect(onSwipe).not.toHaveBeenCalled();
+  pager.scrollLeft = 780;
+  fireEvent.touchEnd(screen.getByTestId("stage-probe"));
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  expect(onSwipe).toHaveBeenCalledWith("preview");
+});
+
 it("makes every section but the current page inert", () => {
   const { rerender } = renderPager({ page: "work" });
   const inertOf = (name: string) =>
