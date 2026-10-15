@@ -57,7 +57,7 @@ export function BaseModelMenu({
       <DropdownMenuTrigger asChild disabled={disabled}>
         <ComposerModel disabled={disabled}>{model.label}</ComposerModel>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="min-w-56">
         <DropdownMenuLabel>Model</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={current < 0 ? "" : String(current)}
