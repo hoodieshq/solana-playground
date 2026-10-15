@@ -17,7 +17,7 @@ New code lives in five layers under `src/`, and a layer imports only from
 the layers below it. This is feature-sliced design (FSD) with the `pages`
 layer left out:
 
-```
+```text
 app -> widgets -> features -> entities -> shared
 ```
 
@@ -123,7 +123,7 @@ structure, not only the ids.
 
 Apply it to every edit that touches UI:
 
-```
+```text
 New component or screen?
   yes -> the design system has it? install it : build a Base + connected pair
   no  -> will the edit show, and is it designed?
