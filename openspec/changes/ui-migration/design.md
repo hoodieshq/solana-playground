@@ -842,11 +842,12 @@ widgets/assistant
 ├─ (thread: today's Chat items, unchanged until 5.18)
 ├─ AssistantComposer (shared/ui/composer)
 │    context chips | input | Add | ModelMenu | EffortMenu? | Send ⇄ Stop
-└─ ConnectDialog (shared/ui/modal) around today's Connect form
+└─ ConnectDialog (ModalFrame through PgView.setModal) around today's Connect form
 ```
 
 - **Where the code goes.** A new widget slice, `src/widgets/assistant/`,
-  with the pairs `BaseAssistantHead`/`AssistantHead`,
+  with `BaseAssistantHead` (its connected side is the slice's `Assistant`,
+  which also holds the thread and Sources views),
   `BaseAssistantComposer`/`AssistantComposer`, `BaseModelMenu`,
   `BaseEffortMenu` and `ConnectDialog`. The store (`PgAssistant`), the
   providers and the `Connect` form stay in `views/sidebar/assistant/` and
@@ -873,7 +874,9 @@ widgets/assistant
   an id the table does not know is shown as it is. The prototype's
   "Opus 5.5" is sample data and is never shown for a backend that is not
   connected to it. A key-based backend shows its model id
-  (`settings.model` or `endpoint.model`).
+  (`settings.model` or `endpoint.model`). While the deployment has not
+  answered yet, the button is a quiet, disabled placeholder ("Checking the
+  model…"), never "Connect a model" that then turns into the default's name.
 - **The model menu.** The hosted default ("no key needed"), the models of
   the backends that have a model list, and "Connect with a key…". A model
   of the connected backend is switched in place; one of another backend
@@ -894,9 +897,11 @@ widgets/assistant
   assistant" enables Send: the design system's `Composer` reads emptiness
   from `value` when the input is controlled (a fix made in
   `design-system/src/components/ui/composer.tsx` and reinstalled).
-- **Connect a model is a dialog.** The design system's `Modal`, already in
-  `shared/ui`, so 5.6 (#68) is not needed for it; below `md` the Modal is a
-  page of its own with a sticky footer. It holds today's `Connect` form
+- **Connect a model is a dialog.** It opens through `PgView.setModal` in a
+  `ModalFrame` (`name: "connect-model"`), as 5.6 has every dialog do, so it
+  joins the modal stack, closes the navigation's Sheet through
+  `onDidOpenModal`, and reports `overlay_modal_opened`; below `md` the stock
+  Modal makes it a page of its own with a sticky footer. It holds today's `Connect` form
   without its "Back to chat" and its own title, and opens from More (K),
   from the model menu, and from a Send with nothing to send to. It is built
   after 5.5 (#72) and the own-key change (#71) merge: both edit

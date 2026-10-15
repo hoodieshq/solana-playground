@@ -56,6 +56,10 @@ existing code moves.
   `layout_panel_toggled` `nav`, `files`, `assistant` and `console` (`left`
   is gone), and its navigation (`widgets/app-nav`) adds `nav_item_opened`
   (prefix `nav`).
+- The assistant (`widgets/assistant`, 5.17) adds `assistant_model_picked`,
+  `assistant_effort_changed`, `assistant_connect_opened`,
+  `assistant_turn_stopped` and `assistant_default_probe_failed` (prefix
+  `assistant`), described in the `client-v2-assistant` spec.
 
 ## Capabilities
 
