@@ -466,7 +466,7 @@ it("should say once that the layout could not be saved, not on every toggle", ()
 });
 
 it("should report Cmd+B as a key after a toggle that changed nothing", () => {
-  // On a phone the button opens the Sheet and the Sheet reports itself; the
+  // On a narrow window the button opens the Sheet and the Sheet reports itself; the
   // mark the button set must not outlive that
   resizeTo(740);
   shell();
@@ -781,7 +781,7 @@ it("should leave no mark when the navigation asks to close a Sheet that is not o
   expect(toggled()).toEqual([{ panel: "nav", open: false, via: "button" }]);
 });
 
-it("should report nothing for a modal on a desktop when the Sheet was left open on a phone", () => {
+it("should report nothing for a modal on a desktop when the Sheet was left open on a narrow window", () => {
   // The stock Sidebar keeps the Sheet open across 768 px, where it shows none
   resizeTo(740);
   shell();
@@ -906,7 +906,7 @@ it("should report the Sheet's next tap as a button after a desktop Cmd+E changed
   });
 });
 
-it("should toggle the files column by Cmd+E again after a trip through the phone's Sheet", () => {
+it("should toggle the files column by Cmd+E again after a trip through the narrow window's Sheet", () => {
   resizeTo(740);
   shell();
   press({ key: "e", metaKey: true });
@@ -1124,23 +1124,6 @@ describe("on a phone", () => {
     });
   });
 
-  it("toggles Files by Cmd+E and the console by Ctrl+J", () => {
-    phoneShell();
-    press({ key: "e", metaKey: true });
-    expect(
-      document.querySelector('[data-slot="sheet-content"]')
-    ).not.toBeNull();
-    press({ key: "e", metaKey: true });
-    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
-    press({ key: "j", ctrlKey: true });
-    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
-    expect(toggled()).toEqual([
-      { panel: "files", open: true, via: "key" },
-      { panel: "files", open: false, via: "key" },
-      { panel: "console", open: true, via: "key" },
-    ]);
-  });
-
   it("writes nothing to the saved layout on a visit", () => {
     const before = savedBefore();
     phoneShell();
@@ -1277,6 +1260,48 @@ describe("on a phone", () => {
         delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
       }
     }
+  });
+
+  it("closes the assistant back to Code by its own toggle", () => {
+    phoneShell();
+    fireEvent.click(screen.getByRole("radio", { name: "Chat" }));
+    fireEvent.click(button("Collapse assistant"));
+    expect(isChecked("Code")).toBe("true");
+    expect(events("layout_work_view")).toEqual([
+      { view: "chat", via: "button" },
+      { view: "code", via: "button" },
+    ]);
+  });
+
+  it("closes the Files sheet by the column's own button", () => {
+    phoneShell();
+    tap(button("Files"));
+    fireEvent.click(button("Collapse project panel"));
+    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
+    expect(toggled().at(-1)).toEqual({
+      panel: "files",
+      open: false,
+      via: "button",
+    });
+  });
+
+  it("sends no page event for a stage set or a deploy on a wide window", () => {
+    shell();
+    act(() => PgFlow.setStage("build"));
+    act(() => PgFlow.setStage("write"));
+    expect(events("layout_page_shown")).toEqual([]);
+  });
+
+  it("shows a stage set wide on the preview once the window narrows", () => {
+    shell();
+    act(() => PgFlow.setStage("build"));
+    act(() => resizeTo(390));
+    const stageOf = () => screen.getByText("stage").closest("section")!;
+    expect(stageOf().getAttribute("aria-label")).toBe("Preview");
+    expect(stageOf().hasAttribute("inert")).toBe(false);
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "auto" },
+    ]);
   });
 
   it("opens the preview on the last stage a wide window showed", () => {
