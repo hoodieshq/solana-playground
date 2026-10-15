@@ -57,14 +57,14 @@ describe("Connect", () => {
   });
 
   it("offers no default the deployment does not serve, and falls back to a key", () => {
-    renderConnect({ defaultBackend: { state: "absent" } });
+    renderConnect({ defaultBackend: false });
 
     expect(screen.getByText(/Not configured on this deployment/)).toBeTruthy();
     expect(checked()?.getAttribute("value")).toBe("anthropic");
   });
 
   it("neither offers nor rules out the default while the probe is out", () => {
-    renderConnect({ defaultBackend: { state: "checking" } });
+    renderConnect({ defaultBackend: undefined });
 
     expect(
       screen.getByText("Checking this deployment for a default backend…")
@@ -75,7 +75,7 @@ describe("Connect", () => {
   it("opens on the connected backend with its own key and endpoint", () => {
     PgAssistant.connect(OWN);
 
-    renderConnect({ defaultBackend: { state: "present", model: null } });
+    renderConnect({ defaultBackend: true });
 
     expect(checked()?.getAttribute("value")).toBe("openai");
     expect(
@@ -90,7 +90,7 @@ describe("Connect", () => {
     PgAssistant.connect(OWN);
 
     renderConnect({
-      defaultBackend: { state: "present", model: null },
+      defaultBackend: true,
       preset: { provider: "anthropic" },
     });
 
@@ -101,7 +101,7 @@ describe("Connect", () => {
   });
 
   it("brings no title or way back of its own: the dialog has them", () => {
-    renderConnect({ defaultBackend: { state: "present", model: null } });
+    renderConnect({ defaultBackend: true });
 
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.queryByText("Back to chat")).toBeNull();

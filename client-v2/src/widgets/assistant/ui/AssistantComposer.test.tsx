@@ -21,6 +21,7 @@ import type { Connection } from "../../../views/sidebar/assistant/store";
 import type { DefaultBackend } from "../model/default-backend";
 import { useTurn } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
+import { openConnectDialog } from "./ConnectDialog";
 
 // The probe is the deployment's; a test says what it answered
 let backend: DefaultBackend;
@@ -98,7 +99,7 @@ const anthropic: Connection = {
 
 /** The composer with the turn held by its parent, as the widget holds it */
 function Harness() {
-  const turn = useTurn();
+  const turn = useTurn({ open: openConnectDialog });
   return (
     <TooltipProvider>
       <AssistantComposer turn={turn} />

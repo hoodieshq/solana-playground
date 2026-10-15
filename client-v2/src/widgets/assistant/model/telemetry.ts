@@ -5,7 +5,7 @@ import type {
   ProviderId,
 } from "../../../views/sidebar/assistant/model";
 
-type AssistantEvents = {
+export type AssistantEvents = {
   /** The user picked a model; `via` says whether from the composer's menu or the Connect dialog. */
   assistant_model_picked: { provider: ProviderId; via: "menu" | "dialog" };
   /** The user changed the reasoning effort in the composer's menu. */

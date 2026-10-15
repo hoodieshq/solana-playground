@@ -2,6 +2,7 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -15,9 +16,15 @@ import {
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
 import { PgView } from "@/utils/view";
+import {
+  initLogger,
+  memoryProvider as memoryLog,
+  resetLogger,
+} from "../../../shared/lib/logger";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
-import { ModalHost } from "../../overlays";
+import { ModalFrame, ModalHost } from "../../overlays";
 import type { DefaultBackend } from "../model/default-backend";
+import { useTurn } from "../model/use-turn";
 import { openConnectDialog } from "./ConnectDialog";
 
 // The form's footer link reaches the utils barrel, which needs the build's
@@ -32,7 +39,22 @@ vi.mock("../../../components/Link", () => ({
 let backend: DefaultBackend;
 vi.mock("../model/default-backend", () => ({
   useDefaultBackend: () => backend,
+  probeDefaultBackend: () => Promise.resolve(backend),
 }));
+// A turn is never run here; the real providers stream from the network
+vi.mock("../../../views/sidebar/assistant/model", () => ({
+  createProvider: vi.fn(),
+}));
+vi.mock("../../../effects/chat-thread/push-thread", () => ({
+  pushThread: vi.fn(() => Promise.resolve()),
+}));
+
+/** Another dialog, opened over Connect a model */
+const Other = () => (
+  <ModalFrame name="other" title="Other">
+    <p>Something else</p>
+  </ModalFrame>
+);
 
 /**
  * A theme that answers every key: the form reads deep theme keys for its
@@ -77,6 +99,7 @@ afterEach(async () => {
   await act(async () => PgView.closeModal(null));
   PgAssistant.disconnect();
   resetTelemetry();
+  resetLogger();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -94,7 +117,7 @@ describe("ConnectDialog", () => {
   it("opens as a dialog titled Connect a model, and says where from", () => {
     renderHost();
 
-    act(() => void openConnectDialog("menu"));
+    act(() => openConnectDialog("menu"));
 
     expect(dialog()).toBeTruthy();
     expect(PgAssistant.isPickingBackend).toBe(true);
@@ -106,8 +129,8 @@ describe("ConnectDialog", () => {
   it("does not open a second one over the first", () => {
     renderHost();
 
-    act(() => void openConnectDialog("menu"));
-    act(() => void openConnectDialog("send"));
+    act(() => openConnectDialog("menu"));
+    act(() => openConnectDialog("send"));
 
     expect(screen.getAllByRole("dialog").length).toBe(1);
     expect(eventNames()).toEqual([
@@ -118,7 +141,7 @@ describe("ConnectDialog", () => {
   it("closes once a backend is connected, and reports the pick", async () => {
     renderHost();
     const user = userEvent.setup();
-    act(() => void openConnectDialog("model"));
+    act(() => openConnectDialog("model"));
 
     // With no default on this deployment the form falls back to Anthropic
     await user.type(
@@ -138,7 +161,7 @@ describe("ConnectDialog", () => {
 
   it("closes on Escape without connecting", async () => {
     renderHost();
-    act(() => void openConnectDialog("menu"));
+    act(() => openConnectDialog("menu"));
 
     act(() => {
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
@@ -152,16 +175,54 @@ describe("ConnectDialog", () => {
     ]);
   });
 
+  it("stays open, and keeps the default out, when a dialog over it closes", async () => {
+    backend = { state: "present", model: "z-ai/glm-5.3-flash:US" };
+    renderHost();
+    const { result } = renderHook(() => useTurn({ open: openConnectDialog }));
+    act(() => openConnectDialog("menu"));
+    act(() => void PgView.setModal(Other));
+
+    // `closeModal` also answers Connect's own `setModal` (HOO-2091)
+    await act(async () => PgView.closeModal(null));
+
+    expect(screen.queryByRole("dialog", { name: "Other" })).toBeNull();
+    expect(dialog()).toBeTruthy();
+    expect(PgAssistant.isPickingBackend).toBe(true);
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+    await waitFor(() => expect(result.current.promptWaiting).toBe(true));
+    expect(PgAssistant.connection).toBeNull();
+
+    // The user's pick later is still the dialog's, and reported
+    act(() => PgAssistant.connect({ id: "default", apiKey: "" }));
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(eventNames()).toContainEqual([
+      "assistant_model_picked",
+      { provider: "default", via: "dialog" },
+    ]);
+  });
+
+  it("is not left marked open when it cannot be opened", async () => {
+    const logs = memoryLog();
+    initLogger({ providers: [logs] });
+    vi.spyOn(PgView, "setModal").mockRejectedValue(new Error("no host"));
+
+    act(() => openConnectDialog("send"));
+
+    await waitFor(() => expect(PgAssistant.isPickingBackend).toBe(false));
+    const entry = logs.entries.find((e) => e.ns === "assistant:connect");
+    expect(entry?.level).toBe("error");
+    expect(entry?.report).toBe(true);
+  });
+
   it("opens on the backend and model it was asked for", () => {
     backend = { state: "present", model: "z-ai/glm-5.3-flash:US" };
     renderHost();
 
-    act(
-      () =>
-        void openConnectDialog("model", {
-          provider: "anthropic",
-          model: "claude-opus-5-5",
-        })
+    act(() =>
+      openConnectDialog("model", {
+        provider: "anthropic",
+        model: "claude-opus-5-5",
+      })
     );
 
     expect(

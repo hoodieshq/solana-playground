@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import Link from "../../../../components/Link";
-import type { DefaultBackend } from "../../../../widgets/assistant";
 import { PgAssistant } from "../store";
 import {
   PROVIDERS,
@@ -66,8 +65,13 @@ export interface ConnectPreset {
 }
 
 export interface ConnectProps {
-  /** What the deployment answered about its keyless default */
-  defaultBackend: DefaultBackend;
+  /**
+   * Whether this deployment serves a keyless default backend. `undefined`
+   * while the answer is outstanding: the option is neither offered nor ruled
+   * out until the server has said, so a fork with no key of its own never
+   * preselects a backend that cannot answer.
+   */
+  defaultBackend: boolean | undefined;
   preset?: ConnectPreset;
 }
 
@@ -94,19 +98,10 @@ const startSettings = (provider: ProviderInfo, model?: string) => {
  * title and closes it once a backend is connected; reconnecting on load is
  * `useTurn`'s.
  */
-const Connect = ({ defaultBackend: probed, preset }: ConnectProps) => {
+const Connect = ({ defaultBackend, preset }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
-  /**
-   * Whether this deployment configured a default backend. `undefined` while
-   * the answer is outstanding: the option is neither offered nor ruled out
-   * until the server has said, so a fork with no key of its own never
-   * preselects a backend that cannot answer.
-   */
-  const defaultBackend =
-    probed.state === "checking" ? undefined : probed.state === "present";
-
   const startId = preset?.provider ?? current?.id ?? "default";
   const initial = PROVIDERS.find((p) => p.id === startId)!;
   /** Opened on the backend already connected: its own key and choices */

@@ -10,6 +10,9 @@ import { PgAssistant } from "../../../views/sidebar/assistant/store";
 vi.mock("../../../views/sidebar/assistant/Component/Chat", () => ({
   default: () => <div>thread</div>,
 }));
+// Connect a model's footer link reaches the utils barrel, which needs the
+// build's globals; the panel's dialog here is a stand-in
+vi.mock("../../../components/Link", () => ({ default: () => null }));
 vi.mock("../../../views/sidebar/assistant/Component/Grounding", () => ({
   default: () => <div>sources</div>,
 }));

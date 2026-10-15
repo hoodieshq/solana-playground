@@ -1,18 +1,15 @@
 import { useEffect, useRef } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
 import { PgView } from "@/utils/view";
 import Connect from "../../../views/sidebar/assistant/Component/Connect";
-import type { ConnectPreset } from "../../../views/sidebar/assistant/Component/Connect";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
-import type { Connection } from "../../../views/sidebar/assistant/store";
 import { ModalFrame } from "../../overlays";
 import { useDefaultBackend } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
+import type { ConnectOpener, ConnectPreset } from "../model/use-turn";
 
-export type { ConnectPreset };
-
-/** Where Connect a model was opened from */
-export type ConnectVia = "menu" | "model" | "send";
+const log = createLogger("assistant:connect");
 
 interface ConnectDialogProps {
   /** The backend, and maybe the model, the form opens on */
@@ -22,28 +19,53 @@ interface ConnectDialogProps {
 /**
  * Connect a model: today's `Connect` form in a dialog of `PgView`'s stack.
  * Closes itself with the connection on the first one made while it is open.
+ *
+ * `PgAssistant.isPickingBackend` says it is open for exactly as long as this
+ * is mounted. Not for as long as its `setModal` is pending: `closeModal`
+ * answers every pending one (HOO-2091), so a dialog stacked on this one
+ * closing would end it while this is still on screen. `ModalHost` keeps a
+ * lower dialog mounted, so the cleanup runs only when this one is popped.
  */
 const ConnectDialog = ({ preset }: ConnectDialogProps) => {
-  const defaultBackend = useDefaultBackend();
+  const probed = useDefaultBackend();
   // Above `ModalFrame`, so a dialog stacked on this one does not reset it
   const opened = useRef(PgAssistant.connection);
   const closed = useRef(false);
 
-  useEffect(
-    () =>
-      PgAssistant.onDidChange(() => {
-        const connection = PgAssistant.connection;
-        // `connect` always stores a new object, so re-picking the backend
-        // already connected counts as a connection too
-        if (!connection || connection === opened.current) return;
-        // The store emits again before this unmounts; a second close would
-        // take whatever dialog is under this one with it
-        if (closed.current) return;
-        closed.current = true;
-        PgView.closeModal(connection);
-      }).dispose,
-    []
-  );
+  useEffect(() => {
+    // Marked by `openConnectDialog` before this mounts; marked again after
+    // StrictMode's extra cleanup has cleared it
+    if (!PgAssistant.isPickingBackend && !closed.current) {
+      PgAssistant.pickBackend();
+    }
+    const sub = PgAssistant.onDidChange(() => {
+      const connection = PgAssistant.connection;
+      // `connect` always stores a new object, so re-picking the backend
+      // already connected counts as a connection too
+      if (!connection || connection === opened.current) return;
+      // The store emits again before this unmounts; a second close would
+      // take whatever dialog is under this one with it
+      if (closed.current) return;
+      closed.current = true;
+      assistantTelemetry.track("assistant_model_picked", {
+        provider: connection.id,
+        via: "dialog",
+      });
+      PgView.closeModal(connection);
+    });
+    return () => {
+      sub.dispose();
+      // Closed with no connection (Escape, Close, a press outside, a crash)
+      if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
+    };
+  }, []);
+
+  /**
+   * Whether this deployment serves a default; `undefined` while the probe is
+   * out
+   */
+  const defaultBackend =
+    probed.state === "checking" ? undefined : probed.state === "present";
 
   return (
     <ModalFrame name="connect-model" title="Connect a model">
@@ -55,31 +77,23 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
 /**
  * Open Connect a model, unless it is open already.
  *
- * `PgAssistant.isPickingBackend` is what says it is open: the reconnects on
- * load and a send with nothing connected both stand down while it is set, so
- * nothing connects behind the user's back while they are choosing.
+ * Marks it open at once, so the reconnects on load, a send with nothing
+ * connected and a second open all stand down before the dialog has mounted;
+ * from then on `ConnectDialog` holds the mark. Its answer is not read here
+ * (see `ConnectDialog`).
  */
-export const openConnectDialog = async (
-  via: ConnectVia,
-  preset?: ConnectPreset
-) => {
+export const openConnectDialog: ConnectOpener = (via, preset) => {
   if (PgAssistant.isPickingBackend) return;
   assistantTelemetry.track("assistant_connect_opened", { via });
   PgAssistant.pickBackend();
 
-  const connection = await PgView.setModal<Connection, ConnectDialogProps>(
-    ConnectDialog,
-    { preset }
+  PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset }).catch(
+    (error) => {
+      // `setModal` rejects only when the dialog host answers with an error;
+      // the user is left without the dialog, so the team must hear of it
+      log.error(error, { report: true, context: { via } });
+      // Nothing is choosing any more: a send may connect the default again
+      if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
+    }
   );
-  // `closeModal` answers every pending `setModal` (HOO-2091), so an answer
-  // counts only when it is the connection this dialog made
-  if (connection && connection === PgAssistant.connection) {
-    assistantTelemetry.track("assistant_model_picked", {
-      provider: connection.id,
-      via: "dialog",
-    });
-    return;
-  }
-  // Closed with no answer (Escape, Close, a press outside)
-  if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
 };

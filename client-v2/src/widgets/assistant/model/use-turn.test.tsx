@@ -14,19 +14,26 @@ import type { Connection } from "../../../views/sidebar/assistant/store";
 import { rememberBackend } from "../../../views/sidebar/assistant/model/remembered-backend";
 import { resetDefaultBackendProbe } from "./default-backend";
 import { useTurn } from "./use-turn";
+import type { ConnectOpener } from "./use-turn";
 
 // The real providers stream from the network; a turn here is whatever the
 // stub's `send` does
 vi.mock("../../../views/sidebar/assistant/model", () => ({
   createProvider: vi.fn(),
 }));
-// Connect a model's footer link reaches the utils barrel, which needs the
-// build's globals; the dialog is not drawn here
-vi.mock("../../../components/Link", () => ({ default: () => null }));
 // Reaches the explorer and the account; a turn's end only has to ask for it
 vi.mock("../../../effects/chat-thread/push-thread", () => ({
   pushThread: vi.fn(() => Promise.resolve()),
 }));
+
+/**
+ * Stands in for the widget's `openConnectDialog`: marks Connect a model
+ * open, unless it is already, and draws nothing
+ */
+const open = vi.fn<ConnectOpener>(() => {
+  if (!PgAssistant.isPickingBackend) PgAssistant.pickBackend();
+});
+const useTestTurn = () => useTurn({ open });
 
 let events: ReturnType<typeof memoryTelemetry>;
 let provider: { id: "default"; label: string; send: ReturnType<typeof vi.fn> };
@@ -44,6 +51,7 @@ const untilAborted = (_: string, signal?: AbortSignal) =>
   });
 
 beforeEach(() => {
+  open.mockClear();
   events = memoryTelemetry();
   initTelemetry({ providers: [events] });
   resetDefaultBackendProbe();
@@ -71,7 +79,7 @@ const eventNames = () => events.events.map((e) => [e.name, e.params]);
 describe("useTurn", () => {
   it("connects the default and sends when nothing is connected", async () => {
     defaultBackend(true);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send("hi"));
 
@@ -90,7 +98,7 @@ describe("useTurn", () => {
     const report = vi
       .spyOn(reportModule, "reportButtonFailure")
       .mockReturnValue(undefined);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
     act(() => result.current.setInput("hello"));
 
     await act(() => result.current.send("hello"));
@@ -104,7 +112,7 @@ describe("useTurn", () => {
   it("opens Connect and keeps the text when there is no default", async () => {
     defaultBackend(false);
     const pick = vi.spyOn(PgAssistant, "pickBackend");
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send("hi"));
 
@@ -112,15 +120,14 @@ describe("useTurn", () => {
     expect(pick).toHaveBeenCalledTimes(1);
     expect(result.current.input).toBe("hi");
     expect(PgAssistant.items.length).toBe(0);
-    expect(eventNames()).toEqual([
-      ["assistant_connect_opened", { via: "send" }],
-    ]);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith("send", undefined);
   });
 
   it("starts one turn for two sends in the same tick", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => {
       void result.current.send("first");
@@ -143,7 +150,7 @@ describe("useTurn", () => {
           unwind = () => reject(new Error("aborted"));
         })
     );
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => {
       void result.current.send("hi");
@@ -166,7 +173,7 @@ describe("useTurn", () => {
   it("keeps a requested prompt that arrives during a turn", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => {
       void result.current.send("first");
@@ -189,7 +196,7 @@ describe("useTurn", () => {
       })
     );
     provider.send.mockImplementation(untilAborted);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => {
       void result.current.send("first");
@@ -213,7 +220,7 @@ describe("useTurn", () => {
 
   it("starts one turn for two sends while the default is probed", async () => {
     defaultBackend(true);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     await act(async () => {
       await Promise.all([
@@ -229,7 +236,7 @@ describe("useTurn", () => {
   it("stops a turn: aborts, denies what is pending, says so", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => {
       void result.current.send("hi");
@@ -264,7 +271,7 @@ describe("useTurn", () => {
   it("reports a failed turn as an error item", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockRejectedValue(new Error("quota"));
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send("hi"));
 
@@ -282,7 +289,7 @@ describe("useTurn", () => {
       apiKey: "k",
       settings: { model: "claude-sonnet-5-5", effort: "high" },
     });
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send("one"));
     act(() =>
@@ -302,7 +309,7 @@ describe("useTurn", () => {
 
   it("puts a requested prompt in the composer without sending", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => PgAssistant.requestPrompt("Explain this error", { send: false }));
 
@@ -312,7 +319,7 @@ describe("useTurn", () => {
 
   it("sends a requested prompt when connected", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     act(() => PgAssistant.requestPrompt("Explain this error"));
 
@@ -329,7 +336,7 @@ describe("useTurn", () => {
     const report = vi
       .spyOn(reportModule, "reportButtonFailure")
       .mockReturnValue(undefined);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => PgAssistant.requestPrompt("Explain this error"));
 
@@ -339,7 +346,7 @@ describe("useTurn", () => {
 
   it("connects the default for a requested prompt and sends it", async () => {
     defaultBackend(true);
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     act(() => PgAssistant.requestPrompt("Explain this error"));
 
@@ -351,7 +358,7 @@ describe("useTurn", () => {
     defaultBackend(true);
     rememberBackend({ id: "default", apiKey: "" });
 
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     await waitFor(() => expect(PgAssistant.connection?.id).toBe("default"));
   });
@@ -366,7 +373,7 @@ describe("useTurn", () => {
     sessionStorage.setItem("assistant.connection", JSON.stringify(own));
     const probe = defaultBackend(true);
 
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     expect(PgAssistant.connection).toMatchObject({
       id: "openai",
@@ -384,14 +391,14 @@ describe("useTurn", () => {
     );
     PgAssistant.pickBackend();
 
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     expect(PgAssistant.connection).toBeNull();
   });
 
   it("does not connect the default for a send while Connect a model is open", async () => {
     defaultBackend(true);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
     act(() => result.current.openConnect("menu"));
 
     await act(() => result.current.send("hi"));
@@ -400,14 +407,11 @@ describe("useTurn", () => {
     expect(PgAssistant.isPickingBackend).toBe(true);
     expect(result.current.input).toBe("hi");
     expect(provider.send).not.toHaveBeenCalled();
-    expect(
-      eventNames().filter(([name]) => name === "assistant_connect_opened")
-    ).toEqual([["assistant_connect_opened", { via: "menu" }]]);
   });
 
   it("does not connect the default for a requested prompt while Connect a model is open", async () => {
     const probe = defaultBackend(true);
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
     act(() => result.current.openConnect("menu"));
 
     act(() => PgAssistant.requestPrompt("Explain this error"));
@@ -422,7 +426,7 @@ describe("useTurn", () => {
   it("does not connect a default the user never picked", async () => {
     const probe = defaultBackend(true);
 
-    renderHook(() => useTurn());
+    renderHook(() => useTestTurn());
 
     await waitFor(() => expect(probe).toHaveBeenCalled());
     await act(() => Promise.resolve());
@@ -432,7 +436,7 @@ describe("useTurn", () => {
   it("keeps a requested prompt waiting when there is no default", async () => {
     defaultBackend(false);
     const pick = vi.spyOn(PgAssistant, "pickBackend");
-    const { result } = renderHook(() => useTurn());
+    const { result } = renderHook(() => useTestTurn());
 
     act(() => PgAssistant.requestPrompt("Explain this error"));
 

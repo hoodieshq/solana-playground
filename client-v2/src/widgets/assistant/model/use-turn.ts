@@ -14,16 +14,27 @@ import type {
   Connection,
   PromptRequest,
 } from "../../../views/sidebar/assistant/store";
-import { createLogger } from "../../../shared/lib/logger";
+import type { ConnectPreset } from "../../../views/sidebar/assistant/Component/Connect";
 import { reportButtonFailure } from "../../../shared/lib/report-button-failure";
-import { openConnectDialog } from "../ui/ConnectDialog";
-import type { ConnectPreset, ConnectVia } from "../ui/ConnectDialog";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
+import type { AssistantEvents } from "./telemetry";
 
-export type { ConnectPreset, ConnectVia };
+export type { ConnectPreset };
 
-const log = createLogger("assistant:connect");
+/** Where Connect a model was opened from */
+export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
+
+/**
+ * Opens Connect a model and marks it open (`PgAssistant.pickBackend`), or
+ * does nothing while it is open already. The panel hands in the widget's
+ * `openConnectDialog`; this module only decides when to call it.
+ */
+export type ConnectOpener = (via: ConnectVia, preset?: ConnectPreset) => void;
+
+export interface TurnOptions {
+  open: ConnectOpener;
+}
 
 /**
  * One assistant turn at a time, shared by the thread and the composer.
@@ -65,7 +76,7 @@ const connectDefault = async (): Promise<Connection | null> => {
   return PgAssistant.connection;
 };
 
-export const useTurn = (): Turn => {
+export const useTurn = ({ open }: TurnOptions): Turn => {
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgAssistant.onDidChange(render).dispose, []);
 
@@ -131,13 +142,11 @@ export const useTurn = (): Turn => {
     };
   }, []);
 
-  const openConnect = (via: ConnectVia, preset?: ConnectPreset) => {
-    openConnectDialog(via, preset).catch((error) => {
-      // `PgView.setModal` rejects only when the dialog host answers with an
-      // error; the user is left with no dialog, so the team must hear of it
-      log.error(error, { report: true, context: { via } });
-    });
-  };
+  // Through a ref: `onDidRequestPrompt` subscribes once, with the first render's
+  const opener = useRef(open);
+  opener.current = open;
+  const openConnect = (via: ConnectVia, preset?: ConnectPreset) =>
+    opener.current(via, preset);
 
   /** Whether a turn, or a send still finding its backend, is under way */
   const occupied = () =>

@@ -9,6 +9,7 @@ import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { useTurn } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
+import { openConnectDialog } from "./ConnectDialog";
 import { BaseAssistantHead } from "./BaseAssistantHead";
 import type { ForgetKey } from "./BaseAssistantHead";
 
@@ -65,7 +66,7 @@ export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
   const [view, setView] = useState<View>("chat");
   // Here, above both views, so a turn and a prompt waiting in the composer
   // outlive a visit to Sources; the thread and the composer share this one
-  const turn = useTurn();
+  const turn = useTurn({ open: openConnectDialog });
   const title = useProjectName();
 
   // What a pick from More opened takes focus once the menu has closed
