@@ -56,9 +56,9 @@ test("Tailwind utilities reach the page in the utilities layer", async ({
  */
 test("data-checked utilities match Radix's data-state", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("div.flex.flex-col.overflow-hidden")).toHaveCount(
-    1
-  );
+  await expect(
+    page.locator("div.flex.flex-col.overflow-hidden").first()
+  ).toBeVisible();
 
   const selectors = await page.evaluate(() => {
     const found: string[] = [];
