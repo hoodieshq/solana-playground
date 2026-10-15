@@ -1,8 +1,15 @@
 import { defineConfig } from "@playwright/test";
+import os from "node:os";
+import path from "node:path";
 import {
   DevServerRefusal,
   decideDevServer,
 } from "./scripts/dev-server-owner.mjs";
+import {
+  DEFAULT_MAX_RUNS,
+  acquireSlot,
+  describeHolders,
+} from "./scripts/e2e-queue.mjs";
 
 // `craco start` binds `PORT`, so the same variable picks the server the run
 // uses. Locally, give each worktree its own (docs/testing.md section 8).
@@ -14,6 +21,59 @@ if (!(Number.isInteger(port) && port > 0 && port < 65536)) {
   process.exit(1);
 }
 const origin = `http://localhost:${port}`;
+
+const positiveIntegerFromEnv = (name: string, fallback: number): number => {
+  const value = Number(process.env[name] ?? fallback);
+  if (!(Number.isInteger(value) && value > 0)) {
+    console.error(
+      `${name} must be a positive integer, got "${process.env[name]}".`
+    );
+    process.exit(1);
+  }
+  return value;
+};
+
+// Two Chromiums beside the dev server fit a laptop that other worktrees also
+// load; Playwright's default is half the cores. CI leaves `workers` unset.
+const workers = process.env.CI
+  ? undefined
+  : positiveIntegerFromEnv("E2E_WORKERS", 2);
+
+// Several worktrees running the suite at once swapped the machine (HOO-2106),
+// so a local run waits for a machine-wide slot before it starts its dev
+// server. `--list` never takes one. The runner's first evaluation does and
+// leaves a marker in the environment, so workers, which evaluate this config
+// again, skip the queue.
+const QUEUE_SLOT_ENV = "E2E_QUEUE_SLOT";
+
+const takeQueueSlot = () => {
+  if (process.env.CI || process.argv.includes("--list")) return;
+  if (process.env[QUEUE_SLOT_ENV]) return;
+  const max = positiveIntegerFromEnv("E2E_MAX_RUNS", DEFAULT_MAX_RUNS);
+  const dir =
+    process.env.E2E_QUEUE_DIR ??
+    path.join(os.homedir(), ".cache", "solana-playground-e2e");
+  const slot = acquireSlot({
+    dir,
+    max,
+    owner: { pid: process.pid, worktree: import.meta.dirname, port },
+    onWait: (holders) => console.error(describeHolders(holders, max)),
+  });
+  process.env[QUEUE_SLOT_ENV] = String(slot.slot);
+  console.error(`e2e queue: got slot ${slot.slot}`);
+  process.on("exit", slot.release);
+  // Release first, then let the signal take its usual course: our listener
+  // is removed, so the re-raised signal ends the process as it would have.
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    const onSignal = () => {
+      slot.release();
+      process.off(signal, onSignal);
+      process.kill(process.pid, signal);
+    };
+    process.on(signal, onSignal);
+  }
+};
+takeQueueSlot();
 
 // Playwright evaluates this config again in every worker, where our own dev
 // server is already up. The runner's first evaluation probes the port and
@@ -65,6 +125,7 @@ export default defineConfig({
   // sequentially takes longer than everything that follows it.
   expect: { timeout: 20_000 },
   fullyParallel: false,
+  workers,
   // One retry in CI, none locally. The runner is three times slower than a
   // laptop and reorders what lands first, so a spec can fail there on timing
   // alone; red on every such run would block unrelated PRs and train people
