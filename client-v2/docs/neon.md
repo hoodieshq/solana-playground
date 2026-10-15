@@ -1,6 +1,6 @@
 # Neon preview databases
 
-A PR labelled `preview` gets a preview deployment with its own Neon branch, `preview/pr-<number>`, cut from the
+A PR into `master-2.0` labelled `preview` gets a preview deployment with its own Neon branch, `preview/pr-<number>`, cut from the
 empty parent `preview-base`. A preview deployed by hand from a laptop gets `preview/<git-branch>`. Production uses
 the project's default branch through the project-level `DATABASE_URL`; see
 [Deploy the client to Vercel](deploy-client-vercel.md).
@@ -30,6 +30,10 @@ cancelled or failed. Daily, it deletes every `preview/pr-<n>` older than an hour
 labelled. Run by hand (Actions → preview-sweep → Run workflow) it defaults to a dry run, and scope `all-preview`
 extends it to every other `preview/*` branch whose git branch has no open PR: the integration's leftovers and
 hand-deployed previews. It never touches `preview-base`, the default branch or a protected branch.
+
+GitHub runs a schedule, and lists a workflow under Run workflow, only from the repository's default branch,
+`master`. Until `preview-sweep.yml` is on `master`, it neither runs daily nor can be started from the Actions tab;
+clean up by hand meanwhile (see [Cleanup](#cleanup)).
 
 ## Configuration
 
