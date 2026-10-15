@@ -39,14 +39,15 @@ const OWN: Connection = {
 /** What the form handed its host last, as the dialog's footer would draw it */
 let action: ConnectAction | null;
 
-const renderConnect = (props: Omit<ConnectProps, "onAction">) =>
+const renderConnect = (props: Omit<ConnectProps, "frame">) =>
   render(
     <ThemeProvider theme={anyTheme}>
       <Connect
         defaultBackend={props.defaultBackend}
         preset={props.preset}
-        onAction={(next) => {
-          action = next;
+        frame={(parts) => {
+          action = parts.action;
+          return <>{parts.form}</>;
         }}
       />
     </ThemeProvider>

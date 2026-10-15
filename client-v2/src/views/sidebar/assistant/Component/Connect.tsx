@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
 import styled, { css } from "styled-components";
 
 import { cn } from "cn";
@@ -64,8 +65,9 @@ export interface ConnectPreset {
 }
 
 /**
- * The form's one action. Its host draws it: Connect a model puts it in the
- * dialog's footer, which a phone pins to the bottom of the screen.
+ * The form's one action. Its host draws it (`ConnectProps.frame`): Connect a
+ * model puts it in the dialog's footer, which a phone pins to the bottom of
+ * the screen.
  */
 export interface ConnectAction {
   /** "Switch" over a connection, "Connect" for a key, "Start" without one */
@@ -84,8 +86,12 @@ export interface ConnectProps {
    */
   defaultBackend: boolean | undefined;
   preset?: ConnectPreset;
-  /** Called whenever the action's label or readiness changes; keep it stable */
-  onAction(action: ConnectAction): void;
+  /**
+   * Draws the form and its action. Handed both on every render, the first
+   * included, so a host can place the action outside the form (a dialog's
+   * footer) and have it there when the dialog opens and gives out focus.
+   */
+  frame(parts: { action: ConnectAction; form: ReactNode }): ReactElement;
 }
 
 /** The endpoint fields a backend starts with, `model` in place of its own */
@@ -111,7 +117,7 @@ const startSettings = (provider: ProviderInfo, model?: string) => {
  * title and closes it once a backend is connected; reconnecting on load is
  * `useTurn`'s.
  */
-const Connect = ({ defaultBackend, preset, onAction }: ConnectProps) => {
+const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just
   // the model id does not mean retyping the key
   const current = PgAssistant.connection;
@@ -200,17 +206,7 @@ const Connect = ({ defaultBackend, preset, onAction }: ConnectProps) => {
   let actionText = "Start";
   if (current) actionText = "Switch";
   else if (provider.needsKey) actionText = "Connect";
-  // The host holds the action across renders; the ref hands it this render's
-  // fields, so it is re-sent only when what it shows changes
-  const connectNow = useRef(connect);
-  connectNow.current = connect;
-  useEffect(() => {
-    onAction({
-      text: actionText,
-      ready,
-      connect: () => connectNow.current(),
-    });
-  }, [onAction, actionText, ready]);
+  const action: ConnectAction = { text: actionText, ready, connect };
 
   // Nothing selectable is on screen while the default is ruled out, so the
   // alternatives stay open and the toggle that could hide them goes away
@@ -265,7 +261,7 @@ const Connect = ({ defaultBackend, preset, onAction }: ConnectProps) => {
     </label>
   );
 
-  return (
+  const form = (
     <Wrapper>
       {!current && (
         <Intro>
@@ -492,6 +488,7 @@ const Connect = ({ defaultBackend, preset, onAction }: ConnectProps) => {
       )}
     </Wrapper>
   );
+  return frame({ action, form });
 };
 
 /** The dialog's body scrolls and pads; the form only stacks */

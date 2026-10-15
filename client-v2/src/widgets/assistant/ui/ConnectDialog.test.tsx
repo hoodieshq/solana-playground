@@ -185,6 +185,17 @@ describe("ConnectDialog", () => {
     expect(connect.hasAttribute("disabled")).toBe(false);
   });
 
+  it("gives focus to the submit when the form has no field", async () => {
+    backend = { state: "present", model: "z-ai/glm-5.3-flash:US" };
+    renderHost();
+
+    act(() => openConnectDialog("menu"));
+
+    // The keyless default has no field: Enter must start, not close
+    const start = screen.getByRole("button", { name: "Start" });
+    await waitFor(() => expect(document.activeElement).toBe(start));
+  });
+
   it("connects once on Enter in the key field", async () => {
     renderHost();
     const user = userEvent.setup();

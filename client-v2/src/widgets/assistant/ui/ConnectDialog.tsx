@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { PgView } from "@/utils/view";
 import Connect from "../../../views/sidebar/assistant/Component/Connect";
-import type { ConnectAction } from "../../../views/sidebar/assistant/Component/Connect";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { ModalFrame } from "../../overlays";
 import { useDefaultBackend } from "../model/default-backend";
@@ -32,9 +31,6 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
   // Above `ModalFrame`, so a dialog stacked on this one does not reset it
   const opened = useRef(PgAssistant.connection);
   const closed = useRef(false);
-  // The form's action, drawn as the dialog's submit: a phone pins the footer
-  // to the bottom of the screen, so it never scrolls away with the form
-  const [action, setAction] = useState<ConnectAction | null>(null);
 
   useEffect(() => {
     // Marked by `openConnectDialog` before this mounts; marked again after
@@ -72,30 +68,32 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
     probed.state === "checking" ? undefined : probed.state === "present";
 
   return (
-    <ModalFrame
-      name="connect-model"
-      title="Connect a model"
-      buttonProps={
-        action
-          ? {
-              text: action.text,
-              disabled: !action.ready,
-              onSubmit: action.connect,
-              // Connect is the one call to action here (design 5.4)
-              variant: "brand",
-              // The dialog closes itself on the connection, with it as the
-              // answer
-              noCloseOnSubmit: true,
-            }
-          : undefined
-      }
-    >
-      <Connect
-        defaultBackend={defaultBackend}
-        preset={preset}
-        onAction={setAction}
-      />
-    </ModalFrame>
+    // The form is the frame's body, its action the frame's submit: a phone
+    // pins the footer to the bottom of the screen, so the action never
+    // scrolls away with the form. The form holds its state above the frame,
+    // so a dialog stacked on this one does not reset what was typed.
+    <Connect
+      defaultBackend={defaultBackend}
+      preset={preset}
+      frame={({ action, form }) => (
+        <ModalFrame
+          name="connect-model"
+          title="Connect a model"
+          buttonProps={{
+            text: action.text,
+            disabled: !action.ready,
+            onSubmit: action.connect,
+            // Connect is the one call to action here (design 5.4)
+            variant: "brand",
+            // The dialog closes itself on the connection, with it as the
+            // answer
+            noCloseOnSubmit: true,
+          }}
+        >
+          {form}
+        </ModalFrame>
+      )}
+    />
   );
 };
 
