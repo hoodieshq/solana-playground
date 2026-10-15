@@ -18,7 +18,10 @@ import { cn } from "cn";
 export type EditorTabDrag = "source" | "overlay";
 
 export interface BaseEditorTabProps
-  extends Omit<ComponentPropsWithoutRef<"div">, "onSelect"> {
+  extends Omit<
+    ComponentPropsWithoutRef<"div">,
+    "onSelect" | "role" | "tabIndex"
+  > {
   path: string;
   name: string;
   icon: ReactNode;
@@ -32,8 +35,10 @@ export interface BaseEditorTabProps
 
 /** One open file, drawn from the design system. Presentational: what a click
  * does comes in through `onSelect` and `onClose`. The rest props (the
- * sortable's attributes and listeners, a context menu trigger's handlers)
- * land on the root, which is why it forwards its ref. */
+ * sortable's listeners, a context menu trigger's handlers) land on the root,
+ * which is why it forwards its ref. The root is only a frame
+ * (`role="presentation"`, not focusable): the trigger is the one `tab` the
+ * tab list holds. */
 export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
   (
     {
@@ -71,6 +76,10 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
           className
         )}
         {...props}
+        // A context menu trigger wrapping the tab hands down its own slot
+        // name; the tab keeps the design system's, which tests find it by
+        data-slot="editor-tab"
+        role="presentation"
       >
         <EditorTabTrigger onClick={onSelect} className="pr-1 pl-3">
           {icon}

@@ -56,7 +56,7 @@ test("client-v2-layout: Opening a file with no tabs focuses the editor", async (
 }) => {
   await expect(page.locator(".monaco-editor").first()).toBeVisible(LONG);
 
-  const tabs = page.locator('#tabs [role="button"][id^="/"]');
+  const tabs = page.locator('#tabs [data-slot="editor-tab"][id^="/"]');
   for (let left = await tabs.count(); left > 0; left--) {
     const tab = tabs.first();
     await tab.hover({ force: true });

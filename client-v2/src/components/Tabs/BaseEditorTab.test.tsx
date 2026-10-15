@@ -15,7 +15,6 @@ const setup = (current: boolean, menuOpen = false) => {
       menuOpen={menuOpen}
       onSelect={onSelect}
       onClose={onClose}
-      role="button"
     />
   );
   return { onSelect, onClose };
@@ -34,11 +33,19 @@ describe("BaseEditorTab", () => {
     ).toBe("true");
   });
 
-  it("keeps id and title as the path and the passed role", () => {
+  it("keeps id and title as the path", () => {
     setup(false);
     const root = screen.getByTitle("/src/lib.rs");
     expect(root.id).toBe("/src/lib.rs");
-    expect(root.getAttribute("role")).toBe("button");
+  });
+
+  // The trigger is the tab; a focusable root around it would put a second
+  // control in the tab list, with the tab nested inside it
+  it("draws the root as a frame: role presentation, not focusable", () => {
+    setup(true);
+    const root = screen.getByTitle("/src/lib.rs");
+    expect(root.getAttribute("role")).toBe("presentation");
+    expect(root.hasAttribute("tabindex")).toBe(false);
   });
 
   it("selects on a click on the tab", () => {

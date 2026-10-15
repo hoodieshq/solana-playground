@@ -79,7 +79,7 @@ test.describe.serial("the editor", () => {
   });
 
   test("closes every tab to the start screen and reopens", async () => {
-    const tabs = page.locator('#tabs [role="button"][id^="/"]');
+    const tabs = page.locator('#tabs [data-slot="editor-tab"][id^="/"]');
     for (let left = await tabs.count(); left > 0; left--) {
       const tab = tabs.first();
       await tab.hover({ force: true });

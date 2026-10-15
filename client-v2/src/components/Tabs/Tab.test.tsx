@@ -76,6 +76,17 @@ describe("Tab root", () => {
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();
   });
+
+  it("keeps the design system's slot name under the context menu", () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <Tab path="/a.rs" index={0} />
+      </ThemeProvider>
+    );
+    expect(screen.getByTitle("/a.rs").getAttribute("data-slot")).toBe(
+      "editor-tab"
+    );
+  });
 });
 
 describe("Tab context menu", () => {
