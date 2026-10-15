@@ -214,11 +214,16 @@ const LayoutShell = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phone]);
 
-  // Files closes when a file opens in it
+  // Files closes when any file opens, and when a modal opens: the Sheet is a
+  // modal dialog that traps focus, so a Rename opened from the file tree
+  // could not be typed into while it stays open
   useEffect(() => {
     if (!phone) return;
-    const sub = PgExplorer.onDidOpenFile(() => setPhoneFiles(false, "auto"));
-    return () => sub.dispose();
+    const subs = [
+      PgExplorer.onDidOpenFile(() => setPhoneFiles(false, "auto")),
+      PgView.onDidOpenModal(() => setPhoneFiles(false, "auto")),
+    ];
+    return () => subs.forEach((sub) => sub.dispose());
   }, [phone]);
 
   const wideOrSheet = viewport === "wide" ? state.open.assistant : sheetOpen;

@@ -1096,6 +1096,21 @@ describe("on a phone", () => {
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
   });
 
+  it("closes the Files sheet when a modal opens over it", () => {
+    phoneShell();
+    fireEvent.click(button("Files"));
+    expect(
+      document.querySelector('[data-slot="sheet-content"]')
+    ).not.toBeNull();
+    openModal();
+    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
+    expect(toggled().at(-1)).toEqual({
+      panel: "files",
+      open: false,
+      via: "auto",
+    });
+  });
+
   it("names the project and the open file", () => {
     explorer.name = "my-program";
     explorer.path = "/proj/src/lib.rs";

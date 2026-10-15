@@ -103,6 +103,19 @@ test("client-v2-overlays: A dialog closes the left sheet", async ({
   await expect(dialog.getByRole("textbox")).toBeFocused();
 });
 
+test("client-v2-overlays: A dialog closes the Files sheet on a phone", async ({
+  seededPage: page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.getByRole("button", { name: /^Files/ }).click();
+  const sheet = page.locator('[data-slot="sheet-content"]');
+  await expect(sheet).toBeVisible();
+  await openRename(page);
+  await expect(sheet).toBeHidden();
+  const dialog = page.getByRole("dialog", { name: "Rename 'lib.rs'" });
+  await expect(dialog.getByRole("textbox")).toBeFocused();
+});
+
 test("client-v2-overlays: A toast clear of the rail", async ({
   seededPage: page,
 }) => {
