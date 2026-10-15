@@ -14,3 +14,7 @@ export type { ConnectVia, Turn } from "./model/use-turn";
 export { BaseAssistantComposer } from "./ui/BaseAssistantComposer";
 export type { ComposerContextChip } from "./ui/BaseAssistantComposer";
 export { AssistantComposer } from "./ui/AssistantComposer";
+export { BaseAssistantHead } from "./ui/BaseAssistantHead";
+export type { BaseAssistantHeadProps } from "./ui/BaseAssistantHead";
+export { Assistant } from "./ui/Assistant";
+export type { AssistantProps } from "./ui/Assistant";

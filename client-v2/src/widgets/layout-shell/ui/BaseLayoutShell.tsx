@@ -112,6 +112,19 @@ export type FilesStock =
   | { isMobile: true; toggle: () => void }
   | { isMobile: false };
 
+/**
+ * What the assistant is handed to widen itself: the panel sized to
+ * `PANEL_SIZES.assistant.max` and back, for the visit. Never saved: the
+ * stored layout takes only the user's drags. `setWide` does nothing below
+ * `LAYOUT_BREAKPOINTS.compact`, where the assistant is a Sheet or a page of
+ * the phone pager, or while the panel is folded; a drag of the panel's edge
+ * ends `wide`.
+ */
+export interface AssistantWide {
+  wide: boolean;
+  setWide: (wide: boolean) => void;
+}
+
 export interface BaseLayoutShellProps {
   viewport: Viewport;
   /**
@@ -197,7 +210,8 @@ export interface BaseLayoutShellProps {
   stageBar: ReactNode;
   stage: ReactNode;
   console: ReactNode;
-  assistant: ReactNode;
+  /** Renders the assistant, in its panel, its Sheet or the pager's page */
+  assistant: (wide: AssistantWide) => ReactNode;
   /**
    * Below `LAYOUT_BREAKPOINTS.compact`: what opens the assistant Sheet, on the
    * right edge
@@ -350,7 +364,8 @@ const NavSheetOpener = ({
  * the navigation's Sheet. Below `LAYOUT_BREAKPOINTS.phone` the frame gives way
  * to `BasePhonePager`; the stage and the console are outlets, so their nodes
  * move between the two without remounting. Lays out what it is given; owns
- * only the outlets' nodes, and no layout state.
+ * the outlets' nodes and, of layout state, only the assistant widened for
+ * the visit (`AssistantWide`), never saved.
  */
 const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const [foldedOf] = useState(createFoldedOf);
@@ -406,6 +421,43 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     // The panel mounts again on the way back to wide, and settles again
     if (props.viewport !== "wide") assistantSettled.current = false;
   }, [props.viewport]);
+
+  // Widened for the visit (`AssistantWide`). `sizeBeforeWide` is the open size
+  // the panel had when it was widened, and is set exactly while `wide` is.
+  const [assistantWide, setAssistantWide] = useState(false);
+  const sizeBeforeWide = useRef<number | null>(null);
+  /** Ends `wide` without resizing: the panel is folding, or was dragged */
+  const endWide = () => {
+    sizeBeforeWide.current = null;
+    setAssistantWide(false);
+  };
+  const setWide = (next: boolean) => {
+    if (props.viewport !== "wide" || !props.assistantState.open) return;
+    const panel = assistantRef.current;
+    if (!panel || next === assistantWide) return;
+    if (next) {
+      sizeBeforeWide.current = assistantOpenSize.current;
+      // A resize the product makes reaches `onLayoutChanged` with
+      // `isUserInteraction` false, so `settle` saves nothing for it
+      panel.resize(PANEL_SIZES.assistant.max);
+      setAssistantWide(true);
+      return;
+    }
+    panel.resize(sizeBeforeWide.current ?? PANEL_SIZES.assistant.default);
+    endWide();
+  };
+  // Folding, or leaving for the Sheet or the pager, ends `wide`; the panel
+  // reopens at the size it had before it was widened, not at the maximum
+  // `onResize` saw
+  const wideEnds = props.viewport !== "wide" || !props.assistantState.open;
+  useEffect(() => {
+    if (!wideEnds) return;
+    if (sizeBeforeWide.current !== null) {
+      assistantOpenSize.current = sizeBeforeWide.current;
+    }
+    endWide();
+  }, [wideEnds]);
+  const assistant = props.assistant({ wide: assistantWide, setWide });
 
   // The files flag does not follow the viewport, so there is no crossing to
   // skip: below `LAYOUT_BREAKPOINTS.left` the column is not in the group, and
@@ -547,7 +599,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               isMobile: true,
               toggle: () => props.phone.onFilesOpenChange(false),
             })}
-            assistant={props.assistant}
+            assistant={assistant}
             stageBar={props.stageBar}
             stageNode={stageNode}
             consoleNode={consoleNode}
@@ -595,7 +647,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               defaultLayout={wide ? props.horizontal : undefined}
               onLayoutChanged={
                 wide
-                  ? (layout, meta) =>
+                  ? (layout, meta) => {
+                      // A drag of the panel's edge takes over from Widen
+                      if (meta.isUserInteraction) endWide();
                       settle(
                         {
                           panel: assistantRef.current,
@@ -606,7 +660,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                         },
                         layout,
                         meta
-                      )
+                      );
+                    }
                   : undefined
               }
             >
@@ -634,7 +689,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                     }
                   }}
                 >
-                  {props.assistant}
+                  {assistant}
                 </ResizablePanel>
               )}
               {wide && <ResizableHandle className="w-2 bg-transparent" />}
@@ -729,7 +784,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                     style={props.sheetFont}
                   >
                     <SheetTitle className="sr-only">Assistant</SheetTitle>
-                    {props.assistant}
+                    {assistant}
                   </SheetContent>
                 </Sheet>
               </>
