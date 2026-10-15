@@ -30,10 +30,11 @@ export interface BaseEditorTabProps
 
 /** One open file, drawn from the design system. Presentational: what a click
  * does comes in through `onSelect` and `onClose`. The rest props (the
- * sortable's listeners, a context menu trigger's handlers) land on the root,
- * which is why it forwards its ref. The root is only a frame
- * (`role="presentation"`, not focusable): the trigger is the one `tab` the
- * tab list holds. */
+ * sortable's listeners, a context menu trigger's handlers) land on the root.
+ * The ref is forwarded to the root for the sortable's `setNodeRef` and for
+ * `ContextMenuTrigger asChild`, which both need the element. The root is
+ * only a frame (`role="presentation"`, not focusable): the trigger is the
+ * one `tab` the tab list holds. */
 export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
   (
     {
@@ -70,7 +71,9 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
         )}
         {...props}
         // A context menu trigger wrapping the tab hands down its own slot
-        // name; the tab keeps the design system's, which tests find it by
+        // name; the tab keeps the design system's. `BaseEditorTabs`' arrow,
+        // Home and End handling (`moveFocus`) finds the tab by it, as do the
+        // tests
         data-slot="editor-tab"
         role="presentation"
       >

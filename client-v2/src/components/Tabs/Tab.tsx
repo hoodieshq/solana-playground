@@ -48,8 +48,9 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
     {
       path,
       index,
-      // Props `Dnd.Sortable` spreads into every item (`Item`, `id`, and
-      // `sortable` on the overlay) that are not DOM attributes
+      // Props `Dnd.Sortable` spreads into every item. `Item` and `sortable`
+      // (on the overlay) are not DOM attributes. `id` is one, but the
+      // sortable's would replace the path the tab takes as its id
       Item: _Item,
       sortable: _sortable,
       id: _id,

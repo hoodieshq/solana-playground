@@ -29,8 +29,8 @@ interface BaseConsoleDrawerProps {
  * layout shell owns its height (folded, it is `BOTTOM_BAR_PX` tall: the
  * strip alone) and the shortcut, so the drawer's own hotkey is off and the
  * well fills whatever height the panel has. The bar's `h-bar` is the design
- * system's `--layout-bar` (1.75rem) and must equal `BOTTOM_BAR_PX` (28), or
- * the folded panel cuts the bar or leaves a gap under it.
+ * system's `--layout-bar` and must equal `BOTTOM_BAR_PX`, or the folded panel
+ * cuts the bar or leaves a gap under it.
  */
 const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
   open,
@@ -72,6 +72,9 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
         )}
       </ConsoleDrawerActions>
     </ConsoleDrawerBar>
+    {/* The panel sets the height on every width: `h-auto` undoes the
+        drawer's own fixed well, and the `max-md` override undoes its phone
+        height (45dvh), which would otherwise outrank `h-auto` there. */}
     <ConsoleDrawerContent className="flex h-auto min-h-0 flex-1 flex-col overflow-hidden max-md:data-[state=open]:h-auto">
       {/* The terminal's own root has no height. One grid cell the well's
           size stretches it, whatever element it is, so xterm's fit sees a
