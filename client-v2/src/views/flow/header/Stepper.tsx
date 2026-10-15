@@ -8,6 +8,7 @@ import {
 } from "@/shared/ui/stepper";
 import type { StepperStatus } from "@/shared/ui/stepper";
 
+import { STEPPER_FULL_WIDTH_PX } from "./stepper-width";
 import { STAGES } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
 
@@ -55,20 +56,6 @@ const DS_STATUS: Record<StageStatus, StepperStatus> = {
 };
 
 /**
- * The width the four full labels need, in px. When the stage bar gives the
- * stepper less than this, the labels fold to their initials; the full name
- * stays in each tab's `aria-label`.
- *
- * Measured in Chromium at 1280 and 1440 px windows: the list with no stage
- * marked is 293.3 px wide, and each check or dot beside a label adds about
- * 18 px, so a list with all four stages marked needs about 366 px. The
- * constant covers that widest case so a stage finishing never pushes the
- * list past its bar; it is a measurement, not derived, so re-measure when the
- * labels, padding or font size change.
- */
-export const STEPPER_FULL_WIDTH_PX = 368;
-
-/**
  * The write -> build -> deploy -> interact loop, drawn with the design
  * system's stepper. Each stage's status is carried by glyph shape as well as
  * color, so the sequence reads correctly without color vision.
@@ -78,7 +65,7 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target }) => {
   // gives, not the list's own width. Folding the labels shrinks the list but
   // not the root, so the fold cannot flip itself back. Until the first
   // measurement the labels show in full; the observer's first callback runs
-  // before paint.
+  // before paint, and the state it sets commits after.
   const ref = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<number | null>(null);
   useEffect(() => {

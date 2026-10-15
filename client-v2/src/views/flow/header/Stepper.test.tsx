@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../utils", () => ({}));
 
-import Stepper, { STEPPER_FULL_WIDTH_PX } from "./Stepper";
+import Stepper from "./Stepper";
+import { STEPPER_FULL_WIDTH_PX } from "./stepper-width";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
 
@@ -19,33 +20,45 @@ const failedBuild: FlowState = {
   buildStartedAt: 1000,
 };
 
-/** the observers the stepper registered, so a test can say what width it was given */
-const observers: Array<(width: number) => void> = [];
+/** the stage bar's observer, keyed by what it watches: the stepper root only */
+const observed = new Map<Element, (width: number) => void>();
 
 class StubResizeObserver {
   private readonly callback: ResizeObserverCallback;
+  private readonly targets = new Set<Element>();
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
   }
   observe(target: Element) {
-    observers.push((width) =>
+    this.targets.add(target);
+    observed.set(target, (width) =>
       this.callback(
         [{ target, contentRect: { width } } as ResizeObserverEntry],
         this as unknown as ResizeObserver
       )
     );
   }
-  unobserve() {}
-  disconnect() {}
+  unobserve(target: Element) {
+    this.targets.delete(target);
+    observed.delete(target);
+  }
+  disconnect() {
+    this.targets.forEach((target) => observed.delete(target));
+    this.targets.clear();
+  }
 }
 
+/** Gives the stepper root, and only it, this much room */
 const resizeTo = (width: number) => {
-  act(() => observers.forEach((fire) => fire(width)));
+  const root = document.querySelector('[data-slot="stepper"]')!;
+  const fire = observed.get(root);
+  if (!fire) throw new Error("the stepper root is not observed");
+  act(() => fire(width));
 };
 
 describe("Stepper", () => {
   beforeEach(() => {
-    observers.length = 0;
+    observed.clear();
     // the thumb and the fold both measure with one; jsdom has none
     vi.stubGlobal("ResizeObserver", StubResizeObserver);
   });
@@ -86,8 +99,12 @@ describe("Stepper", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("shows the full labels when the stage bar has room, at any window width", () => {
+  it("shows the full labels again when the stage bar widens", () => {
     render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
+    resizeTo(STEPPER_FULL_WIDTH_PX - 1);
+    expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
+      "true"
+    );
     resizeTo(900);
     expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(
       "false"
