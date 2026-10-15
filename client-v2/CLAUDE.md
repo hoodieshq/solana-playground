@@ -100,10 +100,10 @@ or from `ui.shadcn.com`: the stock shadcn parts are registry items too, and
 `package.json` from npm.
 
 Buttons come from `shared/ui`: `Button`, `BrandButton` (the one call to
-action of a view; it replaces the hand-written `GradientButton`),
-`AsyncButton` (an action that waits on a promise) and `CopyButton`. The
-legacy `components/Button` and `components/GradientButton` are deleted once
-their last call sites move (ui-migration 5.4); add no new use of either.
+action of a view), `AsyncButton` (an action that waits on a promise) and
+`CopyButton`. Every `AsyncButton` and `CopyButton` passes
+`onError={reportButtonFailure}`. A file input behind a button is
+`components/ImportButton`.
 
 One exception: the design system's components named after product parts
 (the catalogue lists them: composer, console drawer, step rail and the rest)

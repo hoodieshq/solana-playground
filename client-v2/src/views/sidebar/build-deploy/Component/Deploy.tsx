@@ -59,6 +59,7 @@ const Deploy = () => {
       onClick={() => {
         PgCommand.deploy.execute().catch(reportButtonFailure);
       }}
+      onError={reportButtonFailure}
       disabled={buildLoading}
       loading={deployState === "cancelled"}
     >

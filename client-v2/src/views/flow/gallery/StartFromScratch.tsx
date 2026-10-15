@@ -87,6 +87,7 @@ const StartFromScratch: FC<React.PropsWithChildren<unknown>> = () => {
           aria-label="Project name"
         />
         <BrandButton
+          type="button"
           disabled={!!error || !framework || creating}
           onClick={create}
         >

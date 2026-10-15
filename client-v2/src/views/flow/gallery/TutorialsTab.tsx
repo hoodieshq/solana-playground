@@ -51,6 +51,7 @@ const TutorialsTab: FC<React.PropsWithChildren<TutorialsTabProps>> = ({
             {error?.name === t.name && <ErrorText>{error.message}</ErrorText>}
           </Body>
           <AsyncButton
+            type="button"
             variant="outline"
             onError={reportButtonFailure}
             onClick={async () => {

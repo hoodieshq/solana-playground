@@ -88,6 +88,7 @@ const ProgramsTab: FC<React.PropsWithChildren<ProgramsTabProps>> = ({
             )}
           </Body>
           <AsyncButton
+            type="button"
             variant="outline"
             onError={reportButtonFailure}
             onClick={async () => {

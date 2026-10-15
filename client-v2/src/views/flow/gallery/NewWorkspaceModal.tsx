@@ -136,6 +136,7 @@ const NewWorkspaceModal = ({
             <Empty>
               Could not load the programs.{" "}
               <Button
+                type="button"
                 variant="secondary"
                 onClick={() => setAttempt(attempt + 1)}
               >

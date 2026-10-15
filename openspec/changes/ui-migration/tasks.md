@@ -92,7 +92,7 @@ regression against 5.1 has misread this rule.
       [plans/5.2-four-column-frame.md](plans/5.2-four-column-frame.md))
 - [ ] 5.3 Elements: leaves (Tag, Callout, Badge, Checkbox, Switch, Progress,
       Collapsible and the like) swapped app-wide (HOO-2058; parallel)
-- [ ] 5.4 Elements: buttons (BrandButton, AsyncButton, CopyButton, HelpTip)
+- [x] 5.4 Elements: buttons (BrandButton, AsyncButton, CopyButton, HelpTip)
       (HOO-2059; parallel; design.md, "Buttons (5.4)"; plan:
       [plans/5.4-buttons.md](plans/5.4-buttons.md))
 - [x] 5.5 Elements: controls (Stepper, Segmented, Select, NativeSelect,
