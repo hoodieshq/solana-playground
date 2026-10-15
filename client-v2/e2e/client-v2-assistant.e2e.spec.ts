@@ -74,7 +74,7 @@ test("client-v2-assistant: A backend with an effort ladder", async ({
 
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: /Connect a model/ }).click();
-  await page.getByRole("button", { name: "Anthropic" }).click();
+  await page.getByRole("radio", { name: "Anthropic" }).click();
   await page.locator("#assistant-api-key").fill("sk-ant-fake-key");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
 

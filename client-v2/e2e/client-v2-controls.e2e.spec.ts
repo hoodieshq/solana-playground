@@ -137,6 +137,10 @@ test.describe("client-v2-controls", () => {
       LONG
     );
 
+    // The picker opens from the head's More, not on its own
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+
     const toggle = page.getByRole("button", { name: "Bring your own key" });
     await toggle.click();
     const group = page.getByRole("radiogroup", { name: "Backend" });
