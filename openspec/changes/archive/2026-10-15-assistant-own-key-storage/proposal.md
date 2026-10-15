@@ -24,9 +24,7 @@ memory on purpose until the storage question was decided. Slava decided it on
   browser to the provider as a header on every request (`x-api-key` for
   Anthropic, `Authorization: Bearer` for the OpenAI-compatible providers) and
   never reaches our origin. Nothing is built for that part of the ticket.
-- The default backend's remembered choice reconnects only when the probe of
-  `/api/agent` confirms the deployment serves it and the user is signed in.
-  Signed out, the picker offers sign-in instead.
+- The default backend's remembered choice keeps working as before.
 - Telemetry: the assistant panel lives in the legacy `views/` root and is not a
   slice under `features/` or `widgets/`; this change adds, renames and removes
   no events.
