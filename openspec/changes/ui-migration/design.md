@@ -267,10 +267,14 @@ widgets/layout-shell/
 `app/Panels/Side/Left/Settings.tsx` (and `CustomSetting.tsx`) stay with the
 classic panels' removal: `GearSidebar` uses them.
 
-`useViewport()` (wide >=1024, compact 600-1023, phone <600; 5.7 replaced this: see "The phone (5.7)") lives in
+`useViewport()` (wide >=1024, compact 600-1023, phone <600) lives in
 `shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
 announces a blocked edit as a `PgEditor` document event, so the editor does
-not import the widget.
+not import the widget. (5.7 replaced this: see "The phone (5.7)": Monaco reads no viewport and announces no
+blocked edit, the widths are 1024 and 720. The hook stays in `shared/`
+because several slices read it (the layout shell, the overlays' toast host,
+the navigation, the Flow views), and a widget may not import another
+widget's code.)
 
 ```
 SidebarProvider (collapsible="icon", controlled open)
@@ -306,7 +310,7 @@ and a unit test holds it to `use-mobile`.
 | Width | Left | Assistant | Editor |
 |---|---|---|---|
 | wide >=1024 | Sidebar or rail | resizable panel | edits |
-| compact 600-1023 (5.1) | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
+| compact 600-1023 (5.1; 5.7 replaced this: see "The phone (5.7)") | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
 | phone <600 (5.1; 5.7 replaced this: see "The phone (5.7)") | the stock Sheet | full-width Sheet | read-only |
 
 5.7 replaces the phone row: below 720 the app is three pages and the editor
@@ -322,12 +326,13 @@ and `CHIPS_COMPACT_AT` (72 rem), are kept as they are until 5.10 and 5.15
 restyle the stage bar and the footer. The phone's own structure is 5.7
 (HOO-2062).
 
-**Telemetry** (prefix `layout`, `model/telemetry.ts`): `layout_panel_toggled
+**Telemetry** (prefix `layout`, `model/telemetry.ts`; `layout_readonly_edit_blocked`
+below is 5.7 replaced this: see "The phone (5.7)": the event is no longer sent): `layout_panel_toggled
 {panel, open, via: button | key | drag | auto}`, `via: drag` when dragging an
 edge folded or unfolded it, `via: auto` when a deploy or "Fix with assistant"
 opened it; `layout_viewport {viewport}` once per load;
 `layout_readonly_edit_blocked` once per page load, from Monaco's
-`onDidAttemptReadOnlyEdit`; `layout_restore_failed {reason: corrupt | version
+`onDidAttemptReadOnlyEdit` (5.1 only); `layout_restore_failed {reason: corrupt | version
 | storage-unavailable}`.
 
 Kept: every id, `aria-label`, `#tabs`, `#root-dir`, and the keys ⌘B, Ctrl+R,
@@ -384,8 +389,8 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
 - **Keys.** ⌘B folds the navigation (the stock Sidebar's own key), ⌘E the
   files column, Ctrl+R the assistant, Ctrl+J the console. The files toggle
   keeps "Collapse project panel" / "Expand project panel" and the rail's "New
-  file"; its hint reads ⌘E. Below 768 ⌘E opens and closes the Sheet that
-  holds the files column. On macOS Monaco keeps ⌘E (find with selection)
+  file"; its hint reads ⌘E. From 720 to 767 ⌘E opens and closes the Sheet that
+  holds the files column (below 720, the pager's Files Sheet). On macOS Monaco keeps ⌘E (find with selection)
   while the editor has focus, so the shell's ⌘E works outside the editor
   there; on Windows and Linux Ctrl+E folds the column from the editor too.
   _Rejected:_ ⌘B staying on the files column, leaving the navigation to its
@@ -394,11 +399,11 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
   place. Between `left` (768) and 1024 the navigation starts as a rail on
   every load; ⌘B or its button unfold it for the visit, and that is not
   saved. The files column stays, and the assistant is the right Sheet, as in
-  5.1. Below 768 the navigation and the files column share the stock
+  5.1. From 720 to 767 (below 768 until 5.7, which gives the phone its own
+  structure below 720) the navigation and the files column share the stock
   Sidebar's Sheet, opened by "Expand project panel" at the left edge, as the
   project panel's Sheet was in 5.1; the files toggle and ⌘E open and close
   that Sheet.
-  A phone has no room for a files column, and its own structure is 5.7.
 - **Panels.** The assistant is 280 to 560 px as in 5.1; the files column
   opens at 14.5 rem, folds to 3.25 rem and resizes from 12 rem, with no
   maximum of its own (a 30% cap fell below its own minimum on a 1024 px
@@ -689,7 +694,7 @@ every phone rule reads.
 LayoutShell
 ├─ BaseLayoutShell owns the outlets: stage, console, rendered once, through portals
 ├─ >= phone: the four-column frame (5.2), unchanged
-└─ <  phone: BasePhonePager (scroll-snap, three pages of 100vw)
+└─ <  phone: BasePhonePager (scroll-snap, three full-width pages)
    ├─ menu     the navigation, full width (AppNav, its footer and chips)
    ├─ work     bar: Menu, project name, Chat | Code, Preview
    │           Code: a file picker over the stage outlet (the Write stage)
@@ -712,16 +717,19 @@ LayoutShell
 - **Code and Preview share the stage.** The stage router shows one stage at
   a time and `Write` (upstream's `Primary`) must never unmount, so there is
   one stage, not two: Code shows it at `write`; Preview shows the last stage
-  that was not `write`, `build` the first time. Moving to a page sets
-  `PgFlow.stage`, and a stage set elsewhere (the StageBar's Write tab,
+  that was not `write`, `build` the first time. Moving to Work or Preview sets
+  `PgFlow.stage` (Work: `write`; Preview: the last stage that was not
+  `write`); the Menu sets none. A stage set elsewhere (the StageBar's Write tab,
   Ctrl+1..4) scrolls the pager to the page that shows it (`via: auto`), so
   no page is left without its stage.
-- **Nothing remounts across 720.** The stage and the console are rendered
+- **The stage and the console do not remount across 720.** They are rendered
   once, through `createPortal` into DOM nodes the shell owns; the frame and
   the pager each place those nodes where they need them. Crossing 720
-  (a rotation) keeps Monaco, the open file and the terminal's session. The
-  assistant remounts, as it already does between its panel and its Sheet;
-  its thread lives in the store.
+  (a rotation) keeps Monaco, the open file and the terminal's session. What
+  does remount, because the pager replaces the frame's tree: the assistant
+  (as it already does between its panel and its Sheet), the navigation and
+  `LeftPanel`. Their state lives in stores (the assistant's thread, the
+  explorer), so nothing is lost but scroll positions and uncommitted input.
 - **Files.** The picker on Code ("Files, <file> open") opens a full-height
   Sheet titled Files holding `LeftPanel` as it is; opening a file closes it.
   ⌘E opens and closes it on a phone.
@@ -735,9 +743,11 @@ LayoutShell
 - **The read-only editor is removed.** `components/Editor/Monaco/read-only.ts`
   goes whole (`applyReadOnly`, `READ_ONLY_MESSAGE`, `executeProductEdits`),
   with `PgEditor.events.READ_ONLY_EDIT` and `layout_readonly_edit_blocked`.
-  The product's own edits (a format, the program id a build writes) call
-  `editor.executeEdits` again, as before 5.1: with no read-only editor its
-  `false` answer cannot happen. The two e2e that guarded the read-only
+  The product's own edits call `editor.executeEdits` again, as before 5.1.
+  The format sites ignore its result: `false` cannot happen without a
+  read-only editor. The program id site keeps a logged guard (`report:
+  true`), because a refused edit there would leave a stale `declare_id!` and
+  fail silently at deploy. The two e2e that guarded the read-only
   editor go; the phone scenario now edits a file.
 - **Telemetry** (prefix `layout`): `layout_page_shown {page: menu | work |
   preview, via: swipe | button | key | auto}` when a page comes into view
@@ -750,7 +760,7 @@ LayoutShell
 Kept: every id, `aria-label` and test id of the pieces inside the pages. The
 pager's own controls take the prototype's names: "Menu", "Close the menu",
 "Preview the build", "Back to the code", "Files, <file> open", and the
-"Show" group holding Chat and Code.
+"Show" radio group holding Chat and Code.
 
 ## Risks / Trade-offs
 
@@ -767,5 +777,7 @@ pager's own controls take the prototype's names: "Menu", "Close the menu",
 - **Two sets of primitives** if Base UI stays for the combobox.
 - **The phone breakpoint** is 720 px, the prototype's (2026-10-14), while the
   customer's sheet says 1024; it is being confirmed with them. One constant,
-  `LAYOUT_BREAKPOINTS.phone`, so the answer is a one-line change. 5.1's
+  `LAYOUT_BREAKPOINTS.phone`, so the code change is one line; the spec
+  scenarios and the four 740 px tests change with it, since 1024 is above
+  `left` and the 720 to 767 px band disappears. 5.1's
   read-only editor below 600 px is gone with 5.7.

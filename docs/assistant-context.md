@@ -166,7 +166,7 @@ Done:
   to 1023 px the navigation starts as a rail; from 720 to 767 px the
   navigation and Files share one Sheet. Below 720 px the app is three swiped
   pages: the navigation, Work (Chat or Code, with Files in a Sheet) and
-  Preview (the stage over the console); there the assistant is the Chat view
+  Preview (the Build, Deploy or Interact stage over the console); there the assistant is the Chat view
   of Work, not a Sheet. The editor edits at every width. A New Workspace
   gallery starts a project from 34 upstream programs or 16 tutorials. The
   gear chip in the navigation's footer opens a settings overlay embedding
