@@ -110,6 +110,41 @@ it("marks Settings as a settings trigger, so a second pick closes them", async (
   expect(onPick).toHaveBeenCalledExactlyOnceWith("settings");
 });
 
+it.each([
+  ["Settings", view({})],
+  [
+    "devnet is not answering",
+    view({ cluster: { name: "devnet", down: true } }),
+  ],
+] as const)(
+  "leaves focus where %s put it, not back on the menu's trigger",
+  async (name, account) => {
+    const panel = document.createElement("button");
+    document.body.append(panel);
+    // The settings panel focuses itself as it opens, as `GearSidebar` does;
+    // while the menu is mounted, its focus trap would pull focus back
+    await open(
+      account,
+      vi.fn(() => panel.focus())
+    );
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: new RegExp(name) })
+    );
+    expect(document.activeElement).toBe(panel);
+    panel.remove();
+  }
+);
+
+it("returns focus to the menu's trigger after any other pick", async () => {
+  await open(view({}));
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: "Connect wallet" })
+  );
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Open" })
+  );
+});
+
 it("opens Docs and the profile in a new tab and reports the pick", async () => {
   const onPick = await open(view({ user: TESTER }));
   const docs = screen.getByRole("menuitem", { name: "Docs" });

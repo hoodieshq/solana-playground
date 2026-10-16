@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -37,6 +38,12 @@ export interface BaseAccountMenuProps {
   settingsShortcut: string;
   onPick: (item: AccountItem) => void;
 }
+
+/** Picks that open the settings, which take focus as they open */
+const MOVES_FOCUS: ReadonlySet<AccountItem> = new Set([
+  "settings",
+  "cluster-down",
+]);
 
 /** Lets a pick through `GearSidebar`'s outside-click check, so a second pick closes the settings */
 const settingsTrigger = { [SETTINGS_TRIGGER_ATTR]: "" };
@@ -118,6 +125,14 @@ const BaseAccountMenu = ({
   onPick,
 }: BaseAccountMenuProps) => {
   const { cluster, wallet } = account;
+  // A pick that opens the settings waits for the menu to close: while the
+  // menu is mounted its focus trap pulls back the focus the settings take as
+  // they open, and as it closes it puts focus back on its trigger
+  const deferred = useRef<AccountItem | null>(null);
+  const pick = (item: AccountItem) => {
+    if (MOVES_FOCUS.has(item)) deferred.current = item;
+    else onPick(item);
+  };
   return (
     <DropdownMenuContent
       side={side}
@@ -125,25 +140,29 @@ const BaseAccountMenu = ({
       sideOffset={8}
       className="min-w-56"
       aria-label="Account"
+      onCloseAutoFocus={(ev) => {
+        const item = deferred.current;
+        if (!item) return;
+        deferred.current = null;
+        ev.preventDefault();
+        onPick(item);
+      }}
     >
       {cluster.down && (
         <>
           <DropdownMenuItem
             variant="destructive"
             {...settingsTrigger}
-            onSelect={() => onPick("cluster-down")}
+            onSelect={() => pick("cluster-down")}
           >
             <TriangleAlert /> {cluster.name} is not answering
           </DropdownMenuItem>
           <DropdownMenuSeparator />
         </>
       )}
-      <SessionItems account={account} onPick={onPick} />
+      <SessionItems account={account} onPick={pick} />
       <DropdownMenuSeparator />
-      <DropdownMenuItem
-        {...settingsTrigger}
-        onSelect={() => onPick("settings")}
-      >
+      <DropdownMenuItem {...settingsTrigger} onSelect={() => pick("settings")}>
         <Settings /> Settings
         <DropdownMenuShortcut>{settingsShortcut}</DropdownMenuShortcut>
       </DropdownMenuItem>
@@ -152,7 +171,7 @@ const BaseAccountMenu = ({
           href={DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => onPick("docs")}
+          onClick={() => pick("docs")}
         >
           <BookOpen /> Docs
           <External />
@@ -162,19 +181,19 @@ const BaseAccountMenu = ({
       <DropdownMenuSeparator />
       {wallet ? (
         <>
-          <DropdownMenuItem onSelect={() => onPick("wallet")}>
+          <DropdownMenuItem onSelect={() => pick("wallet")}>
             <Wallet />
             <span className="font-mono">{shortAddress(wallet.address)}</span>
             <span className="ml-auto text-success">
               {formatBalance(wallet.balance)}
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPick("disconnect-wallet")}>
+          <DropdownMenuItem onSelect={() => pick("disconnect-wallet")}>
             <Unplug /> Disconnect wallet
           </DropdownMenuItem>
         </>
       ) : (
-        <DropdownMenuItem onSelect={() => onPick("connect-wallet")}>
+        <DropdownMenuItem onSelect={() => pick("connect-wallet")}>
           <Wallet /> Connect wallet
         </DropdownMenuItem>
       )}
