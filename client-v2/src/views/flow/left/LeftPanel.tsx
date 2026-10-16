@@ -2,7 +2,6 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import { Kbd } from "@/shared/ui/kbd";
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
 import {
@@ -13,26 +12,16 @@ import {
 } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
-import Chevron from "../Chevron";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
 
 type Tab = "steps" | "files";
 
 interface LeftPanelProps {
-  collapsed: boolean;
-  onToggle: () => void;
   /**
-   * Whether the rail's "+" is waiting for the tree to appear.
-   *
-   * Owned by `Flow` rather than held here, because this component does not
-   * always survive the toggle: below `LAYOUT_BREAKPOINTS.left` the shell
-   * renders it inside a Sheet that unmounts it on close, and crossing that
-   * width swaps the desktop rail for the Sheet. A flag kept here went with it,
-   * and the rail's "+" expanded the panel and then did nothing at all.
+   * Hidden by the stage bar's toggle or ⌘E: the column takes no width
+   * (design.md, "Frame chrome (5.25)"), so it draws nothing
    */
-  pendingCreate?: boolean;
-  /** Raise or clear `pendingCreate`. */
-  onPendingCreateChange?: (pending: boolean) => void;
+  collapsed: boolean;
 }
 
 /**
@@ -42,9 +31,6 @@ interface LeftPanelProps {
  */
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
-  onToggle,
-  pendingCreate = false,
-  onPendingCreateChange,
 }) => {
   const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
@@ -54,39 +40,6 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
   const { createItem } = useCreateItem();
-
-  // `createItem` portals its input into the explorer tree, so it cannot run
-  // in the rail button's own handler -- the tree is still unmounted at that
-  // point. Expanding raises the flag instead and the create happens here, on
-  // the commit that mounts the tree.
-  useEffect(() => {
-    if (collapsed || !pendingCreate) return;
-
-    onPendingCreateChange?.(false);
-    createItem();
-  }, [collapsed, pendingCreate, createItem, onPendingCreateChange]);
-
-  // Sits in the tab row when open and at the top of the rail when collapsed,
-  // so it lines up with the tab labels instead of floating above them.
-  const toggle = (
-    <Collapse
-      type="button"
-      $collapsed={collapsed}
-      aria-expanded={!collapsed}
-      aria-label={collapsed ? "Expand project panel" : "Collapse project panel"}
-      onClick={onToggle}
-    >
-      {/* Collapsed, this hint is the only thing telling you how to get the
-          panel back, so the rail stacks it under the chevron rather than
-          dropping it. */}
-      {collapsed && <Chevron $flip={false} />}
-      {/* Advertises the layout shell's fold key. On macOS it does not fire
-          while the editor has focus (Monaco binds ⌘E there); elsewhere it
-          works everywhere. */}
-      <Kbd className={collapsed ? "text-[0.5625rem]" : undefined}>&#8984;E</Kbd>
-      {!collapsed && <Chevron $flip />}
-    </Collapse>
-  );
 
   const inLesson = !!lesson.path;
   const showSteps = inLesson && tab === "steps";
@@ -100,27 +53,11 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
 
   return (
     <Wrapper>
-      {collapsed && toggle}
-      {collapsed && !showSteps && (
-        <RailAction
-          type="button"
-          onClick={() => {
-            onPendingCreateChange?.(true);
-            onToggle();
-          }}
-          aria-label="New file"
-          title="New file"
-        >
-          +
-        </RailAction>
-      )}
       {!collapsed && (
         <>
-          {/* Rendered outside a lesson too, where it carries no tabs: the row
-              is the toggle's only home when the panel is open. */}
-          <Tabs role={inLesson ? "tablist" : undefined}>
-            {inLesson &&
-              (["steps", "files"] as const).map((t) => (
+          {inLesson && (
+            <Tabs role="tablist">
+              {(["steps", "files"] as const).map((t) => (
                 <TabButton
                   key={t}
                   id={`flow-left-tab-${t}`}
@@ -133,8 +70,8 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
                   {t === "steps" ? "Steps" : "Files"}
                 </TabButton>
               ))}
-            {toggle}
-          </Tabs>
+            </Tabs>
+          )}
           <Body
             id="flow-left-tabpanel"
             role={inLesson ? "tabpanel" : undefined}
@@ -191,66 +128,6 @@ const Wrapper = styled.aside`
     flex-direction: column;
     background: ${theme.colors.default.bgPrimary};
     overflow: hidden;
-  `}
-`;
-
-// A flex child either way -- last in the tab row when open, top of the rail
-// when collapsed -- so `align-items: center` lines it up with the tab labels
-// rather than the panel's top edge.
-const Collapse = styled.button<{ $collapsed: boolean }>`
-  ${({ theme, $collapsed }) => css`
-    flex-shrink: 0;
-    width: ${$collapsed ? "100%" : "auto"};
-    padding: ${$collapsed ? "0.375rem 0" : "0 0.5rem"};
-    display: flex;
-    flex-direction: ${$collapsed ? "column" : "row"};
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    /* The rail is PANEL_SIZES.files.folded wide (BaseLayoutShell), too narrow for "⌘E"
-       beside the chevron, so it sits below it at a smaller size than the
-       expanded panel uses. */
-    font-size: ${$collapsed ? "0.5625rem" : theme.font.code.size.small};
-    border: none;
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    cursor: pointer;
-    z-index: 1;
-
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: 2px;
-    }
-  `}
-`;
-
-// The collapsed stand-in for `Footer`: same bottom edge, same divider, so
-// the action does not move when the panel opens.
-const RailAction = styled.button`
-  ${({ theme }) => css`
-    margin-top: auto;
-    flex-shrink: 0;
-    width: 100%;
-    height: ${BOTTOM_BAR_HEIGHT};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-top: 1px solid ${theme.colors.default.border};
-    background: transparent;
-    color: ${theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: 1.125rem;
-    line-height: 1;
-    cursor: pointer;
-    &:hover {
-      color: ${theme.colors.default.textPrimary};
-      background: ${theme.colors.default.bgPrimary};
-    }
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: -2px;
-    }
   `}
 `;
 
