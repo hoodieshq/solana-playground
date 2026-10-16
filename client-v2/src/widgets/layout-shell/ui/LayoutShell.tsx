@@ -51,7 +51,7 @@ export interface LayoutShellProps {
    * The assistant, in its panel or, below `LAYOUT_BREAKPOINTS.compact`, its
    * Sheet. `toggle` folds the panel or closes the Sheet; `wide` and `setWide`
    * size the panel to its maximum and back for the visit (`AssistantWide`),
-   * and do nothing for the Sheet.
+   * and `canWiden` says when that can happen: never for the Sheet.
    */
   assistant: (
     panel: { open: boolean; toggle: () => void } & AssistantWide
@@ -512,12 +512,13 @@ const LayoutShell = ({
           else setOpen("console", { open: !state.open.console, via: "button" });
         },
       })}
-      assistant={({ wide, setWide }) =>
+      assistant={({ wide, setWide, canWiden }) =>
         assistant({
           open: assistantShown,
           toggle: () => setAssistant(!assistantShown, "button"),
           wide,
           setWide,
+          canWiden,
         })
       }
       assistantOpener={

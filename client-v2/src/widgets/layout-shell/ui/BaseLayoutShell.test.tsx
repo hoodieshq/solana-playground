@@ -935,6 +935,7 @@ describe("widening the assistant", () => {
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
     act(() => panelSpies.panels.assistant.onResize!({ inPixels: 400 }));
     expect(seen.last!.wide).toBe(false);
+    expect(seen.last!.canWiden).toBe(true);
 
     act(() => seen.last!.setWide(true));
     expect(panel.resize).toHaveBeenLastCalledWith(PANEL_SIZES.assistant.max);
@@ -997,6 +998,7 @@ describe("widening the assistant", () => {
     act(() => seen.last!.setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
     expect(seen.last!.wide).toBe(false);
+    expect(seen.last!.canWiden).toBe(false);
   });
 
   it("should do nothing while the panel is folded", () => {

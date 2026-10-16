@@ -48,12 +48,19 @@ const useProjectName = () => {
   return name;
 };
 
-export interface AssistantProps {
-  /** The panel is widened to its maximum */
+/**
+ * Widen, as the layout shell hands it (its `AssistantWide`): whether the
+ * panel is widened to its maximum, and whether it can be now, which it
+ * cannot in the Sheet or folded
+ */
+export interface AssistantWiden {
   wide: boolean;
   setWide(wide: boolean): void;
-  /** Widen is offered: not below `LAYOUT_BREAKPOINTS.compact`, in the Sheet */
   canWiden: boolean;
+}
+
+export interface AssistantProps {
+  widen: AssistantWiden;
   /** Folds the panel, or closes the Sheet */
   onHide(): void;
 }
@@ -62,7 +69,8 @@ export interface AssistantProps {
  * The assistant, connected: its head, then the conversation over the composer,
  * or Sources and tools in their place.
  */
-export function Assistant({ wide, setWide, canWiden, onHide }: AssistantProps) {
+export function Assistant({ widen, onHide }: AssistantProps) {
+  const { wide, setWide, canWiden } = widen;
   const [view, setView] = useState<View>("chat");
   // Here, above both views, so a turn and a prompt waiting in the composer
   // outlive a visit to Sources; the thread and the composer share this one

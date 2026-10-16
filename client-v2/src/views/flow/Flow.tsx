@@ -33,7 +33,6 @@ import { FeedbackHost, FeedbackTrigger } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Wallet from "@/components/Wallet";
 import { PgExplorer, PgView } from "@/utils";
-import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav } from "@/widgets/app-nav";
 import { Assistant } from "@/widgets/assistant";
 import { LayoutShell } from "@/widgets/layout-shell";
@@ -70,9 +69,6 @@ const FlowFrame = () => {
   // the rail for the Sheet, so anything `LeftPanel` held goes with it.
   const [pendingCreate, setPendingCreate] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
-  // The shell's own reading: below `LAYOUT_BREAKPOINTS.compact` the assistant
-  // is a Sheet, which Widen cannot widen
-  const viewport = useViewport();
 
   useEffect(() => {
     const subs = [
@@ -245,26 +241,18 @@ const FlowFrame = () => {
         console={({ open, toggle }) => (
           <ConsoleDrawer open={open} onToggle={toggle} />
         )}
-        assistant={({ open, toggle, wide, setWide }) => (
+        assistant={({ open, toggle, ...widen }) => (
           <Right>
             {open ? (
-              // The head carries "Collapse assistant"; below
-              // `LAYOUT_BREAKPOINTS.compact` the assistant is a Sheet, whose
-              // width Widen cannot change
-              <Assistant
-                wide={wide}
-                setWide={setWide}
-                canWiden={viewport === "wide"}
-                onHide={toggle}
-              />
+              // The head carries "Collapse assistant", and Widen while the
+              // shell says it can widen
+              <Assistant widen={widen} onHide={toggle} />
             ) : (
               <Collapse
                 type="button"
                 aria-label="Expand assistant"
                 onClick={toggle}
               >
-                {/* The assistant folds toward the left edge: folded, the
-                    chevron points right (open) */}
                 <Chevron $flip={false} />
               </Collapse>
             )}

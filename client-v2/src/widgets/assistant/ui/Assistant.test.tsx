@@ -91,7 +91,10 @@ const setup = () => {
   render(
     <TooltipProvider>
       <ModalHost />
-      <Assistant wide={false} setWide={setWide} canWiden onHide={onHide} />
+      <Assistant
+        widen={{ wide: false, setWide, canWiden: true }}
+        onHide={onHide}
+      />
     </TooltipProvider>
   );
   return { setWide, onHide, user: userEvent.setup() };

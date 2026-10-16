@@ -123,6 +123,8 @@ export type FilesStock =
 export interface AssistantWide {
   wide: boolean;
   setWide: (wide: boolean) => void;
+  /** Whether `setWide` can do anything now, so Widen is offered only then */
+  canWiden: boolean;
 }
 
 export interface BaseLayoutShellProps {
@@ -422,42 +424,39 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     if (props.viewport !== "wide") assistantSettled.current = false;
   }, [props.viewport]);
 
-  // Widened for the visit (`AssistantWide`). `sizeBeforeWide` is the open size
-  // the panel had when it was widened, and is set exactly while `wide` is.
-  const [assistantWide, setAssistantWide] = useState(false);
-  const sizeBeforeWide = useRef<number | null>(null);
-  /** Ends `wide` without resizing: the panel is folding, or was dragged */
-  const endWide = () => {
-    sizeBeforeWide.current = null;
-    setAssistantWide(false);
-  };
+  // Widened for the visit (`AssistantWide`): the open size the panel had when
+  // it was widened, `null` while it is not wide
+  const [wideFrom, setWideFrom] = useState<number | null>(null);
+  /** Folded, or below `LAYOUT_BREAKPOINTS.compact`: there is no panel to widen */
+  const wideEnds = props.viewport !== "wide" || !props.assistantState.open;
   const setWide = (next: boolean) => {
-    if (props.viewport !== "wide" || !props.assistantState.open) return;
+    if (wideEnds) return;
     const panel = assistantRef.current;
-    if (!panel || next === assistantWide) return;
+    if (!panel || next === (wideFrom !== null)) return;
     if (next) {
-      sizeBeforeWide.current = assistantOpenSize.current;
+      setWideFrom(assistantOpenSize.current);
       // A resize the product makes reaches `onLayoutChanged` with
       // `isUserInteraction` false, so `settle` saves nothing for it
       panel.resize(PANEL_SIZES.assistant.max);
-      setAssistantWide(true);
       return;
     }
-    panel.resize(sizeBeforeWide.current ?? PANEL_SIZES.assistant.default);
-    endWide();
+    panel.resize(wideFrom ?? PANEL_SIZES.assistant.default);
+    setWideFrom(null);
   };
   // Folding, or leaving for the Sheet or the pager, ends `wide`; the panel
   // reopens at the size it had before it was widened, not at the maximum
-  // `onResize` saw
-  const wideEnds = props.viewport !== "wide" || !props.assistantState.open;
+  // `onResize` saw. `wideFrom` cannot become set while `wideEnds` holds
+  // (`setWide` refuses), so running on its change only returns early.
   useEffect(() => {
     if (!wideEnds) return;
-    if (sizeBeforeWide.current !== null) {
-      assistantOpenSize.current = sizeBeforeWide.current;
-    }
-    endWide();
-  }, [wideEnds]);
-  const assistant = props.assistant({ wide: assistantWide, setWide });
+    if (wideFrom !== null) assistantOpenSize.current = wideFrom;
+    setWideFrom(null);
+  }, [wideEnds, wideFrom]);
+  const assistant = props.assistant({
+    wide: wideFrom !== null,
+    setWide,
+    canWiden: !wideEnds,
+  });
 
   // The files flag does not follow the viewport, so there is no crossing to
   // skip: below `LAYOUT_BREAKPOINTS.left` the column is not in the group, and
@@ -649,7 +648,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                 wide
                   ? (layout, meta) => {
                       // A drag of the panel's edge takes over from Widen
-                      if (meta.isUserInteraction) endWide();
+                      if (meta.isUserInteraction) setWideFrom(null);
                       settle(
                         {
                           panel: assistantRef.current,

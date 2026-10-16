@@ -22,4 +22,4 @@ export { AssistantComposer } from "./ui/AssistantComposer";
 export { BaseAssistantHead } from "./ui/BaseAssistantHead";
 export type { BaseAssistantHeadProps } from "./ui/BaseAssistantHead";
 export { Assistant } from "./ui/Assistant";
-export type { AssistantProps } from "./ui/Assistant";
+export type { AssistantProps, AssistantWiden } from "./ui/Assistant";
