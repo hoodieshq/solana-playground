@@ -33,6 +33,7 @@ import { useKeybind } from "@/hooks";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { Assistant } from "@/widgets/assistant";
+import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
@@ -68,6 +69,7 @@ const FlowFrame = () => {
   // puts it in a Sheet that unmounts it on close, so a tab held there would
   // reset to Steps on every close.
   const [lessonTab, setLessonTab] = useState<LessonTab>("steps");
+  const phone = useViewport() === "phone";
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
   useEffect(() => {
@@ -213,13 +215,18 @@ const FlowFrame = () => {
             onTabChange={setLessonTab}
           />
         )}
-        stage={
+        stage={({ openFiles }) => (
           <Center>
             <ObjectiveBand
               state={lesson}
               flow={state}
               onRead={read}
               onOpenGallery={openGallery}
+              compact={phone}
+              onOpenSteps={() => {
+                setLessonTab("steps");
+                openFiles();
+              }}
             />
             <Stage>
               <StageRouter stage={state.stage} />
@@ -243,7 +250,7 @@ const FlowFrame = () => {
               )}
             </Stage>
           </Center>
-        }
+        )}
         console={({ open, toggle }) => (
           <ConsoleDrawer open={open} onToggle={toggle} />
         )}

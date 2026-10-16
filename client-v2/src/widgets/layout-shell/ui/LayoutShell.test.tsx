@@ -191,7 +191,14 @@ const shell = () =>
               Files column control
             </button>
           )}
-          stage={<main>stage</main>}
+          stage={({ openFiles }) => (
+            <main>
+              stage
+              <button type="button" onClick={openFiles}>
+                Show the steps
+              </button>
+            </main>
+          )}
           console={({ open, toggle }) => (
             <button
               type="button"
@@ -348,7 +355,7 @@ it("should send each toggle once under StrictMode", async () => {
             nav={() => null}
             stageTabs={null}
             files={() => null}
-            stage={<main>stage</main>}
+            stage={() => <main>stage</main>}
             console={({ open, toggle }) => (
               <button type="button" aria-label="Console" onClick={toggle}>
                 {String(open)}
@@ -1231,6 +1238,15 @@ describe("on a phone", () => {
       { panel: "files", open: true, via: "button" },
       { panel: "files", open: false, via: "key" },
     ]);
+  });
+
+  it("opens the Files sheet from the stage, reported as a button", () => {
+    phoneShell();
+    tap(screen.getByRole("button", { name: "Show the steps" }));
+    expect(
+      document.querySelector('[data-slot="sheet-content"]')
+    ).not.toBeNull();
+    expect(toggled()).toEqual([{ panel: "files", open: true, via: "button" }]);
   });
 
   it("reports a tap on the Files sheet's overlay as a button", async () => {
