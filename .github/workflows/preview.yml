@@ -11,10 +11,13 @@ name: preview
 # - label removed, or PR closed or merged: delete the branch.
 #
 # What this misses (a cancelled teardown, a failed delete) is swept by
-# preview-sweep.yml.
+# preview-sweep.yml, once that file is on the default branch: GitHub runs a
+# schedule only from there. Until then, see client-v2/docs/neon.md, "Cleanup".
 #
 # The label name is spelled out in the `if:`s below because job conditions
-# cannot read `env`; keep the three in step with PREVIEW_LABEL.
+# cannot read `env`; keep the three, and PREVIEW_LABEL in preview-sweep.yml,
+# in step with PREVIEW_LABEL. A sweep with the old name keeps no preview alive
+# and deletes every one.
 on:
   pull_request:
     branches: ["master-2.0"]
@@ -22,11 +25,17 @@ on:
 
 permissions: {}
 
+defaults:
+  run:
+    # Explicit, for pipefail: the implicit default runs `bash -e` without it.
+    shell: bash
+
 env:
   PREVIEW_LABEL: preview
   BRANCH: preview/pr-${{ github.event.pull_request.number }}
-  # Same names as in client-v2/.env; see client-v2/docs/neon.md.
-  NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+  # Same name as in client-v2/.env; see client-v2/docs/neon.md. NEON_API_KEY is
+  # given per step instead, to keep it from `vercel build`, which runs the PR's
+  # code.
   NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
 
 jobs:
@@ -82,6 +91,8 @@ jobs:
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID variable is unset}"
 
       - name: Neon branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: bash .github/scripts/neon.sh ensure "$BRANCH" >/dev/null
 
       # Same pinned version as client-v2.yml.
@@ -96,10 +107,14 @@ jobs:
       # only the first: a push may add a migration.
       - name: Migrate the preview database
         working-directory: client-v2
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           url=$(bash ../.github/scripts/neon.sh uri "$BRANCH")
           echo "::add-mask::$url"
           url=$(printf '%s' "$url" | sed -E 's/([?&])channel_binding=[^&]*&?/\1/; s/[?&]$//')
+          # The mask above covers the raw string only; this is what dbmate gets.
+          echo "::add-mask::$url"
           case "$url" in *sslmode=*) ;; *) echo "::error::Neon returned a URL without sslmode"; exit 1 ;; esac
           DATABASE_URL="$url" dbmate --wait --wait-timeout 60s --no-dump-schema up
 
@@ -110,19 +125,27 @@ jobs:
       # the way.
       - name: Build and deploy
         id: deploy
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           cli=$(sed -n 's/^VERCEL_CLI := //p' client-v2/Makefile.vercel)
           [ -n "$cli" ] || { echo "::error::no VERCEL_CLI in client-v2/Makefile.vercel"; exit 1; }
           db=$(bash .github/scripts/neon.sh uri "$BRANCH" pooled)
           echo "::add-mask::$db"
+          # Nothing below needs it, and `vercel build` runs the PR's code.
+          unset NEON_API_KEY
           npx --yes "$cli" pull --yes --environment=preview --token="$VERCEL_TOKEN"
           jq '.settings.rootDirectory = "client-v2"' .vercel/project.json > .vercel/project.json.next
           mv .vercel/project.json.next .vercel/project.json
-          set -a && . ./.vercel/.env.preview.local && set +a
+          # Separate lines: `-e` does not stop on a failure inside an && list.
+          set -a
+          . ./.vercel/.env.preview.local
+          set +a
           npx --yes "$cli" build --token="$VERCEL_TOKEN"
           # --archive=tgz: the prebuilt output is over the upload API's 15000-file cap.
           url=$(npx --yes "$cli" deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN" \
             -e DATABASE_URL="$db" --meta githubPrId="$PR" --meta githubCommitSha="$SHA")
+          [ -n "$url" ] || { echo "::error::vercel deploy printed no URL"; exit 1; }
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "### Preview: $url" >> "$GITHUB_STEP_SUMMARY"
 
@@ -133,6 +156,14 @@ jobs:
           bash .github/scripts/preview-comment.sh "$PR" "**Preview:** $URL
 
           Commit \`${SHA::7}\`, database: Neon branch \`$BRANCH\`, migrated. Remove the \`$PREVIEW_LABEL\` label or close the PR to drop the database."
+
+      # Not on cancel: a newer push's run or the teardown writes the comment.
+      - name: Report the failure on the PR
+        if: failure()
+        run: |
+          bash .github/scripts/preview-comment.sh "$PR" "**Preview deploy failed** for commit \`${SHA::7}\`: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          An earlier preview, if any, still serves an earlier commit, and its database may be partly migrated."
 
   teardown:
     name: drop preview database
@@ -151,19 +182,28 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
-      # The name the Vercel integration and neon-preview-branch.sh gave a
-      # branch before this workflow existed; deleted too while those linger.
-      LEGACY_BRANCH: preview/${{ github.event.pull_request.head.ref }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
     steps:
       # Sparse: only the scripts, not the submodule.
       - uses: actions/checkout@v6
         with:
           sparse-checkout: .github/scripts
 
+      # `preview/<head branch>` is the name the Vercel integration gave a branch
+      # before this workflow existed, and the one neon-preview-branch.sh (`make
+      # deploy-client-to-vercel-preview`) still gives, so it is cleaned up too.
+      # Except where that name means something else: `pr-<n>` would be another
+      # PR's live preview, and `preview/master` is the production dry run's
+      # (deploy-client-vercel.md).
       - name: Delete the Neon branches
         run: |
           bash .github/scripts/neon.sh delete "$BRANCH"
-          bash .github/scripts/neon.sh delete "$LEGACY_BRANCH"
+          if [[ "$HEAD_REF" =~ ^(pr-[0-9]+|master|master-2\.0)$ ]]; then
+            echo "keeping preview/$HEAD_REF: not this PR's to delete"
+          else
+            bash .github/scripts/neon.sh delete "preview/$HEAD_REF"
+          fi
 
       # `--edit-only`: a PR that never had a preview gets no comment.
       - name: Update the PR comment

@@ -26,8 +26,8 @@ The deployment gets only `DATABASE_URL` from the workflow. The app reads no othe
 integration's project-level ones, if still set for Preview, are unused.
 
 [`preview-sweep.yml`](../../.github/workflows/preview-sweep.yml) is the safety net for a teardown that was
-cancelled or failed. Daily, it deletes every `preview/pr-<n>` older than an hour whose PR is no longer open and
-labelled. Run by hand (Actions → preview-sweep → Run workflow) it defaults to a dry run, and scope `all-preview`
+cancelled or failed. Daily, it deletes every `preview/pr-<n>` older than its `MIN_AGE_MINUTES` whose PR is no
+longer open and labelled. Run by hand (Actions → preview-sweep → Run workflow) it defaults to a dry run, and scope `all-preview`
 extends it to every other `preview/*` branch whose git branch has no open PR: the integration's leftovers and
 hand-deployed previews. It never touches `preview-base`, the default branch or a protected branch.
 

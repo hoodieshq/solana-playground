@@ -20,8 +20,11 @@ pr=$1
 body="$MARKER
 $2"
 
-id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$pr/comments" \
-  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$MARKER\"))) | .id" | head -1)
+# All the ids, then the first: `| head -1` would close the pipe on gh, and
+# pipefail would fail a deploy that had succeeded.
+ids=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$pr/comments" \
+  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$MARKER\"))) | .id")
+id=${ids%%$'\n'*}
 
 if [ -n "$id" ]; then
   gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" >/dev/null

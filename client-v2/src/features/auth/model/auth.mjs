@@ -45,47 +45,46 @@ export const resolveBaseURL = () => {
 };
 
 /**
- * Better Auth's OAuth proxy, so every preview signs in through one GitHub app.
+ * Better Auth's OAuth proxy, so every preview signs in through one GitHub app:
+ * a preview sends GitHub to the host's callback (`AUTH_OAUTH_PROXY_URL`), and
+ * the host hands the profile back encrypted with `AUTH_OAUTH_PROXY_SECRET`.
+ * How it is deployed: `docs/deploy-client-vercel.md`, "Sign-in on previews".
  *
- * A GitHub OAuth app takes one callback URL and a preview's origin changes on
- * every deployment, so a preview cannot have an app of its own. With the
- * proxy, a preview sends GitHub to the host's callback (`AUTH_OAUTH_PROXY_URL`,
- * the deployment that follows `master-2.0`). The host trades the code for the
- * profile and hands it, encrypted with `AUTH_OAUTH_PROXY_SECRET`, back to the
- * preview, which creates the user and the session in its own database. The
- * host never creates a user for a preview.
- *
- * Off without the secret. Without the URL, or with one naming this
- * deployment, this is the host. The host keeps the hooks but drops the
- * plugin's endpoints: they turn an encrypted payload into a session, and the
- * secret sits in every preview's environment, so on the host they would let
- * whoever holds a preview's environment sign in as anyone.
+ * Off without the secret. Only a Vercel preview whose proxy URL names another
+ * origin completes a proxied sign-in; every other deployment is the host and
+ * drops the plugin's endpoints, which turn an encrypted payload into a
+ * session. The secret sits in every preview's environment, so on the host they
+ * would let whoever holds one sign in as anyone. The role is decided that way
+ * round so a production deployment given the proxy URL by mistake still drops
+ * them.
  *
  * Exported for tests.
  *
  * @returns {object[]} the plugins to install, empty when the proxy is off
  */
 export const oauthProxyPlugins = () => {
-  const { AUTH_OAUTH_PROXY_URL, AUTH_OAUTH_PROXY_SECRET } = authEnv();
+  const { AUTH_OAUTH_PROXY_URL, AUTH_OAUTH_PROXY_SECRET, VERCEL_ENV } =
+    authEnv();
   if (!AUTH_OAUTH_PROXY_SECRET) return [];
 
   const self = resolveBaseURL();
-  const host = AUTH_OAUTH_PROXY_URL ?? self;
   const plugin = oAuthProxy({
-    productionURL: host,
+    productionURL: AUTH_OAUTH_PROXY_URL ?? self,
     // The origin the session cookie is issued for, never a request's Host
     currentURL: self,
     secret: AUTH_OAUTH_PROXY_SECRET,
   });
 
-  const isHost =
-    !AUTH_OAUTH_PROXY_URL ||
-    (self !== undefined && new URL(host).origin === new URL(self).origin);
-  return [isHost ? { ...plugin, endpoints: {} } : plugin];
+  const isPreview =
+    VERCEL_ENV === "preview" &&
+    AUTH_OAUTH_PROXY_URL !== undefined &&
+    self !== undefined &&
+    new URL(AUTH_OAUTH_PROXY_URL).origin !== new URL(self).origin;
+  return [isPreview ? plugin : { ...plugin, endpoints: {} }];
 };
 
 /**
- * Which of the settings sign-in needs are absent.
+ * Which of the settings sign-in needs are absent or unusable.
  *
  * The same list `getAuth` refuses on, so the two cannot drift, and the reason
  * `/api/auth` gives for a 503. Names only, never values: on a platform where
@@ -97,11 +96,25 @@ export const oauthProxyPlugins = () => {
  * @returns {string[]} the missing variable names, empty when sign-in can run
  */
 export const missingConfig = () => {
-  const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = authEnv();
+  const {
+    GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET,
+    AUTH_OAUTH_PROXY_URL,
+    AUTH_OAUTH_PROXY_SECRET,
+  } = authEnv();
   return [
     isConfigured() ? null : "DATABASE_URL",
     GITHUB_CLIENT_ID ? null : "GITHUB_CLIENT_ID",
     GITHUB_CLIENT_SECRET ? null : "GITHUB_CLIENT_SECRET",
+    // A proxy URL alone leaves the proxy off, and the preview then sends GitHub
+    // its own callback, which GitHub rejects with nothing said here
+    AUTH_OAUTH_PROXY_URL && !AUTH_OAUTH_PROXY_SECRET
+      ? "AUTH_OAUTH_PROXY_SECRET"
+      : null,
+    // Unparseable, it would throw from `getAuth` on every request
+    AUTH_OAUTH_PROXY_URL && !URL.canParse(AUTH_OAUTH_PROXY_URL)
+      ? "AUTH_OAUTH_PROXY_URL"
+      : null,
   ].filter(Boolean);
 };
 
@@ -134,9 +147,9 @@ export const getAuth = () => {
         github: {
           clientId: env.GITHUB_CLIENT_ID,
           clientSecret: env.GITHUB_CLIENT_SECRET,
-          // Not applied to a sign-in through the OAuth proxy: the payload the
-          // host forwards carries only Better Auth's own user fields, so a
-          // preview's user has no `login` and the header falls back to `name`.
+          // Not applied to a sign-in through the OAuth proxy, whose payload
+          // carries only Better Auth's own user fields: a preview's user has
+          // no `login` (see "Sign-in on previews" in the deploy doc).
           mapProfileToUser: (profile) => ({ login: profile.login }),
           // Scope is deliberately not set. Better Auth already requests
           // `read:user user:email`, and the option appends rather than

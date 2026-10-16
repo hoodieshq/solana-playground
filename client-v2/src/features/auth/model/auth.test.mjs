@@ -8,9 +8,8 @@ const load = async () => {
   return import(url.href);
 };
 
-// Read before the cases clear it; the cases that sign in need a real database
-const DATABASE_URL = process.env.DATABASE_URL;
-const needsDatabase = DATABASE_URL ? false : "needs DATABASE_URL";
+// The cases that run a request need a real database
+const needsDatabase = process.env.DATABASE_URL ? false : "needs DATABASE_URL";
 
 const HOST = "https://solana-playground-teal.vercel.app";
 const PREVIEW_HOST = "solana-playground-abc123-hoodies.vercel.app";
@@ -19,6 +18,7 @@ const PROXY_SECRET = "proxy-secret-proxy-secret-proxy-secret";
 
 /** The environment a preview deploys with: the host's URL, no base URL */
 const asPreview = () => {
+  process.env.VERCEL_ENV = "preview";
   process.env.VERCEL_URL = PREVIEW_HOST;
   process.env.AUTH_OAUTH_PROXY_URL = HOST;
   process.env.AUTH_OAUTH_PROXY_SECRET = PROXY_SECRET;
@@ -26,9 +26,18 @@ const asPreview = () => {
 
 /** The environment the host deploys with: its own base URL, no proxy URL */
 const asHost = () => {
+  process.env.VERCEL_ENV = "production";
   process.env.AUTH_BASE_URL = HOST;
   process.env.AUTH_OAUTH_PROXY_SECRET = PROXY_SECRET;
 };
+
+/** The proxy's completion endpoint, with a profile that does not decrypt */
+const complete = (auth, origin) =>
+  auth.handler(
+    new Request(
+      `${origin}/api/auth/callback/github/oauth-proxy?callbackURL=%2F&profile=x`
+    )
+  );
 
 /** What `signIn.social` sends from the popup */
 const signIn = (auth, origin) =>
@@ -49,6 +58,7 @@ describe("oauthProxyPlugins", () => {
   beforeEach(() => {
     for (const name of [
       "AUTH_BASE_URL",
+      "VERCEL_ENV",
       "VERCEL_URL",
       "AUTH_OAUTH_PROXY_URL",
       "AUTH_OAUTH_PROXY_SECRET",
@@ -58,7 +68,6 @@ describe("oauthProxyPlugins", () => {
     process.env.AUTH_SECRET = "auth-secret-auth-secret-auth-secret-auth";
     process.env.GITHUB_CLIENT_ID = "client-id";
     process.env.GITHUB_CLIENT_SECRET = "client-secret";
-    if (DATABASE_URL) process.env.DATABASE_URL = DATABASE_URL;
   });
 
   it("is off without the secret", async () => {
@@ -93,6 +102,29 @@ describe("oauthProxyPlugins", () => {
     assert.deepEqual(plugin.endpoints, {});
   });
 
+  // Fails closed: production given the preview's settings by mistake
+  it("is the host outside a preview whatever the proxy URL", async () => {
+    asPreview();
+    process.env.VERCEL_ENV = "production";
+    const { oauthProxyPlugins } = await load();
+    const [plugin] = oauthProxyPlugins();
+    assert.deepEqual(plugin.endpoints, {});
+  });
+
+  it("reports a proxy URL without its secret", async () => {
+    asPreview();
+    delete process.env.AUTH_OAUTH_PROXY_SECRET;
+    const { missingConfig } = await load();
+    assert.ok(missingConfig().includes("AUTH_OAUTH_PROXY_SECRET"));
+  });
+
+  it("reports a proxy URL that is not a URL", async () => {
+    asPreview();
+    process.env.AUTH_OAUTH_PROXY_URL = "solana-playground-teal.vercel.app";
+    const { missingConfig } = await load();
+    assert.ok(missingConfig().includes("AUTH_OAUTH_PROXY_URL"));
+  });
+
   it(
     "sends a preview's GitHub callback to the host",
     { skip: needsDatabase },
@@ -110,17 +142,25 @@ describe("oauthProxyPlugins", () => {
     }
   );
 
+  // The control for the case below: the same request reaches the endpoint
+  it(
+    "routes the completion endpoint on a preview",
+    { skip: needsDatabase },
+    async () => {
+      asPreview();
+      const { getAuth } = await load();
+      const res = await complete(getAuth(), PREVIEW);
+      assert.notEqual(res.status, 404);
+    }
+  );
+
   it(
     "404s the completion endpoint on the host",
     { skip: needsDatabase },
     async () => {
       asHost();
       const { getAuth } = await load();
-      const res = await getAuth().handler(
-        new Request(
-          `${HOST}/api/auth/callback/github/oauth-proxy?callbackURL=%2F&profile=x`
-        )
-      );
+      const res = await complete(getAuth(), HOST);
       assert.equal(res.status, 404);
     }
   );

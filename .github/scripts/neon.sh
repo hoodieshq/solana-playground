@@ -21,17 +21,19 @@ API=https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID
 
 # A branch with a running operation answers 423 Locked to the next write; Neon
 # documents retrying. curl's own --retry does not cover 423, hence the loop.
+# A POST is retried only on 423 and 429, which refuse it unprocessed: after a
+# 5xx or a dropped connection it may have created the branch already.
 api() {
-  local attempt status body
+  local attempt status body retry='^(423|429|5..|000)$'
+  [[ " $* " == *" -X POST "* ]] && retry='^(423|429)$'
   body=$(mktemp)
   for attempt in 1 2 3 4 5 6; do
-    status=$(curl -sS -o "$body" -w '%{http_code}' \
+    status=$(curl -sS --connect-timeout 10 --max-time 60 -o "$body" -w '%{http_code}' \
       -H "Authorization: Bearer $NEON_API_KEY" -H 'Content-Type: application/json' "$@") || status=000
-    case "$status" in
-      2??) cat "$body"; rm -f "$body"; return 0 ;;
-      423 | 429 | 5?? | 000) echo "neon: HTTP $status, retry $attempt" >&2; sleep $((attempt * 5)) ;;
-      *) break ;;
-    esac
+    [[ "$status" == 2?? ]] && { cat "$body"; rm -f "$body"; return 0; }
+    [[ "$status" =~ $retry ]] && [ "$attempt" -lt 6 ] || break
+    echo "neon: HTTP $status, retry $attempt" >&2
+    sleep $((attempt * 5))
   done
   echo "neon: HTTP $status for $*" >&2
   cat "$body" >&2
@@ -39,10 +41,24 @@ api() {
   return 1
 }
 
+# Every branch matching `search` (all of them without one), as one page. The
+# API's page limit is 10000, far above any plan's branch cap; a full page
+# fails rather than let a branch on a later page read as absent.
+# The explicit returns: this runs inside `$(...)`, where `set -e` is off.
+branches() {
+  local page count
+  page=$(api -G --data-urlencode limit=10000 ${1:+--data-urlencode "search=$1"} "$API/branches") || return 1
+  count=$(jq -e '.branches | length' <<<"$page") || return 1
+  if [ "$count" -ge 10000 ]; then
+    echo "neon: 10000 branches in one page, the rest unread" >&2
+    return 1
+  fi
+  printf '%s\n' "$page"
+}
+
 # Exact match: `search` is a substring filter, so `preview/pr-1` also finds `preview/pr-12`.
 branch_id() {
-  api -G --data-urlencode "search=$1" "$API/branches" |
-    jq -r --arg name "$1" '.branches[] | select(.name == $name) | .id'
+  branches "$1" | jq -er --arg name "$1" 'first(.branches[] | select(.name == $name) | .id) // ""'
 }
 
 wait_ready() {
@@ -65,7 +81,7 @@ cmd_ensure() {
     parent=$(branch_id "$BASE_BRANCH")
     [ -n "$parent" ] || { echo "neon: no parent branch $BASE_BRANCH" >&2; return 1; }
     id=$(api -X POST "$API/branches" -d "$(jq -n --arg name "$name" --arg parent "$parent" \
-      '{branch: {name: $name, parent_id: $parent}, endpoints: [{type: "read_write"}]}')" | jq -r .branch.id)
+      '{branch: {name: $name, parent_id: $parent}, endpoints: [{type: "read_write"}]}')" | jq -er .branch.id)
     echo "created Neon branch $name ($id)" >&2
   else
     echo "reusing Neon branch $name ($id)" >&2
@@ -83,7 +99,7 @@ cmd_uri() {
   role=$(api "$API/branches/$id/roles" | jq -r '[.roles[] | select(.protected | not) | .name] | if length == 1 then .[0] else error("expected one role, got \(.)") end')
   api -G --data-urlencode "branch_id=$id" --data-urlencode "database_name=$DATABASE" \
     --data-urlencode "role_name=$role" --data-urlencode "pooled=$pooled" \
-    "$API/connection_uri" | jq -r .uri
+    "$API/connection_uri" | jq -er .uri
 }
 
 cmd_delete() {
@@ -98,8 +114,7 @@ cmd_delete() {
 }
 
 cmd_list() {
-  api -G --data-urlencode limit=10000 "$API/branches" |
-    jq -r '.branches[] | select((.default // false) or (.protected // false) | not)
+  branches | jq -r '.branches[] | select((.default // false) or (.protected // false) | not)
       | "\(.name) \((now - (.created_at | sub("\\.[0-9]+"; "") | fromdateiso8601)) / 60 | floor)"'
 }
 

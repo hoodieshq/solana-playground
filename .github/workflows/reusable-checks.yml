@@ -6,9 +6,11 @@ name: Checks
 on:
   workflow_call:
     inputs:
-      # The full client + WASM build takes 20+ minutes. ci.yml turns it off:
-      # Vercel's build of each PR and of master-2.0 compiles the same WASM.
-      # cicd.yml's deploy gate keeps it.
+      # The `build` job: `yarn setup` (the WASM compile), then type check,
+      # unit tests and production build of upstream's `client/`, 20+ minutes.
+      # ci.yml turns it off, so nothing on master-2.0 checks `client/`, which
+      # this fork does not edit. The WASM still compiles for every preview,
+      # in vercel-install.sh on a cache miss. cicd.yml's deploy gate keeps it.
       build:
         type: boolean
         default: true
