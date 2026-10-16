@@ -15,6 +15,7 @@ import { oAuthProxy } from "better-auth/plugins";
 
 import { authEnv } from "../../../shared/config/server-env.mjs";
 import { getPool, isConfigured } from "../../persistence/server.mjs";
+import { SIGN_IN_ENV } from "../config.mjs";
 
 let instance = null;
 
@@ -31,8 +32,8 @@ let instance = null;
  * through to Better Auth's own default instead of being handed a base URL that
  * is not one.
  *
- * Exported because `api/projects.mjs` and `api/conversations.mjs` compare it
- * against a write request's `Origin`. Deliberately the same value the session
+ * {@link isAllowedOrigin} compares it against a request's `Origin` for
+ * `/api/agent`, `/api/mcp` and the sync routes. Deliberately the same value the session
  * cookie is issued for, rather than a second copy of "where we are deployed"
  * that could drift from it: an origin check keyed off a different answer than
  * the cookie's would be a check of nothing in particular.
@@ -84,6 +85,46 @@ export const oauthProxyPlugins = () => {
 };
 
 /**
+ * Whether a state-changing request came from our own deployment.
+ *
+ * Every route that acts on a signed-in user's behalf calls this before reading
+ * the session. The session cookie is `SameSite=Lax`, which keeps it off a
+ * cross-site write. That is Better Auth's default rather than a decision made
+ * here, and a same-site origin (a sibling subdomain) or a later
+ * `sameSite: "none"` would send it. A JSON body is no defence either:
+ * `readJson` ignores `content-type`, so a `text/plain` POST needs no preflight.
+ * This is the control written down, so the next person to touch cookie
+ * attributes finds it.
+ *
+ * `resolveBaseURL()` is `undefined` when neither `AUTH_BASE_URL` nor
+ * `VERCEL_URL` is set, which is local development: there is no deployment
+ * origin to compare against, so there is no check to make. Both sides are
+ * reduced to `URL.origin` because `AUTH_BASE_URL` may legitimately carry a
+ * path and an `Origin` header never does.
+ *
+ * A request carrying no `Origin` at all is allowed through. Every browser
+ * sends one on PUT, POST and DELETE, so a missing header is a client that had
+ * to attach the session cookie itself -- not the attack this guards against.
+ * It also keeps the tests honest: `yarn test-api` calls these handlers
+ * directly, and making every body-level case fake a header would have each of
+ * them assert the header rather than the thing the case is about.
+ *
+ * @param {import("node:http").IncomingMessage} req
+ */
+export const isAllowedOrigin = (req) => {
+  const expected = resolveBaseURL();
+  const origin = req.headers.origin;
+  if (!expected || !origin) return true;
+
+  try {
+    return new URL(origin).origin === new URL(expected).origin;
+  } catch {
+    // An `Origin` we cannot even parse is not one of ours
+    return false;
+  }
+};
+
+/**
  * Which of the settings sign-in needs are absent or unusable.
  *
  * The same list `getAuth` refuses on, so the two cannot drift, and the reason
@@ -96,25 +137,25 @@ export const oauthProxyPlugins = () => {
  * @returns {string[]} the missing variable names, empty when sign-in can run
  */
 export const missingConfig = () => {
-  const {
-    GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET,
-    AUTH_OAUTH_PROXY_URL,
-    AUTH_OAUTH_PROXY_SECRET,
-  } = authEnv();
+  const env = authEnv();
+  // `DATABASE_URL` is read by the persistence slice, the rest by `authEnv`
+  const present = {
+    DATABASE_URL: isConfigured(),
+    GITHUB_CLIENT_ID: !!env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: !!env.GITHUB_CLIENT_SECRET,
+    // Signs the session cookie; a deployment must never fall back to a default
+    AUTH_SECRET: !!env.AUTH_SECRET,
+  };
+  // The OAuth proxy's settings are optional, so not in `SIGN_IN_ENV`; only a
+  // half-set or malformed proxy is reported
+  const proxyURL = env.AUTH_OAUTH_PROXY_URL;
   return [
-    isConfigured() ? null : "DATABASE_URL",
-    GITHUB_CLIENT_ID ? null : "GITHUB_CLIENT_ID",
-    GITHUB_CLIENT_SECRET ? null : "GITHUB_CLIENT_SECRET",
+    ...SIGN_IN_ENV.filter((name) => !present[name]),
     // A proxy URL alone leaves the proxy off, and the preview then sends GitHub
     // its own callback, which GitHub rejects with nothing said here
-    AUTH_OAUTH_PROXY_URL && !AUTH_OAUTH_PROXY_SECRET
-      ? "AUTH_OAUTH_PROXY_SECRET"
-      : null,
+    proxyURL && !env.AUTH_OAUTH_PROXY_SECRET ? "AUTH_OAUTH_PROXY_SECRET" : null,
     // Unparseable, it would throw from `getAuth` on every request
-    AUTH_OAUTH_PROXY_URL && !URL.canParse(AUTH_OAUTH_PROXY_URL)
-      ? "AUTH_OAUTH_PROXY_URL"
-      : null,
+    proxyURL && !URL.canParse(proxyURL) ? "AUTH_OAUTH_PROXY_URL" : null,
   ].filter(Boolean);
 };
 
@@ -165,23 +206,58 @@ export const getAuth = () => {
 };
 
 /**
- * Resolve the signed-in user for a request.
+ * Who a request is signed in as. Never throws: `unavailable` when building auth
+ * or the lookup threw, `unconfigured` when sign-in lacks its settings.
+ *
+ * A route that spends something on the user's behalf answers `unavailable` with
+ * "try again", not "sign in": signing in needs the same lookup. Unverified:
+ * which Better Auth failures throw rather than answer `null`; a database outage
+ * is assumed to throw.
  *
  * @param {import("node:http").IncomingMessage} req
- * @returns {Promise<{id: string} | null>} the user, or `null` when signed out
+ * @returns {Promise<
+ *   | { status: "signed-in"; user: { id: string } }
+ *   | { status: "signed-out" }
+ *   | { status: "unavailable" }
+ *   | { status: "unconfigured" }
+ * >}
  */
-export const requireUser = async (req) => {
-  const auth = getAuth();
-  if (!auth) return null;
-
+export const readSession = async (req) => {
   try {
+    // Inside the `try`: building the instance opens the pool, and a route such
+    // as `/api/mcp` must keep serving signed-out callers when that throws
+    const auth = getAuth();
+    if (!auth) return { status: "unconfigured" };
+
     const { fromNodeHeaders } = await import("better-auth/node");
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });
-    return session?.user ? { id: String(session.user.id) } : null;
-  } catch {
-    // An unreadable session is a signed-out request, not a server error
-    return null;
+    return session?.user
+      ? { status: "signed-in", user: { id: String(session.user.id) } }
+      : { status: "signed-out" };
+  } catch (e) {
+    // Field by field: the platform's console drops an Error's own properties
+    console.error("auth: session lookup failed", {
+      message: e?.message,
+      code: e?.code,
+      stack: e?.stack,
+    });
+    return { status: "unavailable" };
   }
+};
+
+/**
+ * The signed-in user for a request, or `null`.
+ *
+ * Fails closed: a failed lookup or unconfigured sign-in reads as signed out,
+ * after `readSession` has logged a failure. Use `readSession` where they need
+ * different answers.
+ *
+ * @param {import("node:http").IncomingMessage} req
+ * @returns {Promise<{id: string} | null>}
+ */
+export const requireUser = async (req) => {
+  const session = await readSession(req);
+  return session.status === "signed-in" ? session.user : null;
 };

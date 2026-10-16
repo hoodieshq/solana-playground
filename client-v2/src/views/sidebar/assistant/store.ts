@@ -6,6 +6,7 @@ import {
 } from "./grounding";
 import { redactKey } from "./model/redact-key";
 import { forgetBackend, rememberBackend } from "./model/remembered-backend";
+import { PgSession } from "../../../features/auth";
 import {
   mergeThreads,
   versionOf,
@@ -18,7 +19,7 @@ import {
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
-import type { Effort, ProviderId } from "./model/types";
+import { isDefaultBackend, type Effort, type ProviderId } from "./model/types";
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -224,9 +225,9 @@ const isSame = (a: Connection | null, b: Connection) =>
 /**
  * Everything the panel renders.
  *
- * The API key is held in memory and, so a reload keeps it, in this tab's
- * `sessionStorage`; it is never written anywhere durable. See
- * `remembered-backend` and the OpenSpec change `assistant-own-key-storage`.
+ * The API key is held in memory and in this tab's `sessionStorage`, so a
+ * reload keeps it; it is never written anywhere durable. See
+ * `remembered-backend` and the spec `openspec/specs/assistant-own-key/spec.md`.
  * Conversation items are durable: the open thread is mirrored to IndexedDB on
  * every change under its own thread id, which `PgThreadIndex` maps from the
  * workspace, so a reload and a project switch both come back to the right
@@ -308,8 +309,19 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  /** Close the picker without changing anything */
+  /** Whether the connection is the default backend while nobody is signed in */
+  static get needsSignIn() {
+    return isDefaultBackend(PgAssistant._connection?.id) && !PgSession.get();
+  }
+
+  /**
+   * Close the picker without changing anything.
+   *
+   * Refused while `needsSignIn`: every turn would get the 401 refusal, and a
+   * refresh of an already null session fires no change to reopen the picker.
+   */
   static keepBackend() {
+    if (PgAssistant.needsSignIn) return;
     PgAssistant._pickingBackend = false;
     PgAssistant._emit();
   }
@@ -944,6 +956,12 @@ export class PgAssistant {
     for (const cb of PgAssistant._listeners) cb();
   }
 }
+
+// The default backend needs a session, and only the picker offers sign-in;
+// the connection stays remembered so signing in again reconnects it
+PgSession.onDidChange(() => {
+  if (PgAssistant.needsSignIn) PgAssistant.pickBackend();
+});
 
 // A handle on the panel's state for the browser console, and for the e2e tests
 // that cover thread persistence -- sending a message for real would need a

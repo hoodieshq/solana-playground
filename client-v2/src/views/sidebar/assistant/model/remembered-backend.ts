@@ -12,14 +12,15 @@ import { PROVIDERS, type ProviderId } from "./types";
  * while a tab the browser duplicates or restores (a reopened closed tab, a
  * restored session) carries it and reconnects, as after a reload. Project
  * code runs in this origin and can read either store; `sessionStorage` bounds
- * that to the tab the user is already working in. See the design of the
- * OpenSpec change `assistant-own-key-storage` (HOO-1748).
+ * that to the tab the user is already working in. See the design in
+ * `openspec/changes/archive/2026-10-15-assistant-own-key-storage/design.md`
+ * (HOO-1748).
  *
  * Every access is guarded. Storage throws rather than returning `null` with
  * site data blocked, and the panel has to open either way. A failure is
  * logged by what was attempted, never with the value.
  */
-const BACKEND_KEY = "assistant.backend";
+export const REMEMBERED_BACKEND_KEY = "assistant.backend";
 const CONNECTION_KEY = "assistant.connection";
 
 const DEFAULT_ID: ProviderId = "default";
@@ -206,7 +207,7 @@ export const rememberBackend = (connection: Connection) => {
   // Written down as a whole id rather than a flag, so switching to a
   // key-based backend overwrites it instead of leaving a stale `true` behind
   attempt("remember the backend", () =>
-    localStorage.setItem(BACKEND_KEY, connection.id)
+    localStorage.setItem(REMEMBERED_BACKEND_KEY, connection.id)
   );
 
   if (connection.id === DEFAULT_ID) {
@@ -232,7 +233,9 @@ export const rememberBackend = (connection: Connection) => {
  * is not
  */
 export const forgetBackend = () => {
-  attempt("forget the backend", () => localStorage.removeItem(BACKEND_KEY));
+  attempt("forget the backend", () =>
+    localStorage.removeItem(REMEMBERED_BACKEND_KEY)
+  );
   return dropKept("forget the key");
 };
 
@@ -240,7 +243,7 @@ export const forgetBackend = () => {
 export const isDefaultBackendRemembered = () =>
   guarded(
     "read the remembered backend",
-    () => localStorage.getItem(BACKEND_KEY) === DEFAULT_ID,
+    () => localStorage.getItem(REMEMBERED_BACKEND_KEY) === DEFAULT_ID,
     false
   );
 
