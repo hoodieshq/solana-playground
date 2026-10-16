@@ -98,10 +98,9 @@ it("draws the bar exactly as tall as the folded panel", () => {
   expect(parseFloat(bar![1]) * 16).toBe(BOTTOM_BAR_PX);
 });
 
-it("sits flush in the frame: a top line, no card edges", () => {
+it("sits flush in the frame: no edges of its own, the shell's handle draws the line", () => {
   const { container } = draw(true, {});
   const root = container.firstElementChild!;
-  expect(root.className).toMatch(/\bborder-t\b/);
+  expect(root.className).not.toMatch(/\bborder/);
   expect(root.className).not.toMatch(/rounded/);
-  expect(root.className).not.toMatch(/border-t-0/);
 });

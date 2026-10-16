@@ -42,9 +42,9 @@ import type { Disposable } from "@/utils/types";
  * navigation (`AppNav`, holding the logo, the project list, and the status
  * chips and the feedback trigger in its footer, which on the rail gives way to
  * `RailFooter`'s cluster dot and account button), the assistant, the files
- * column, and the stage router over its collapsible console, with the
- * `StageBar` stepper across the last two. The sync banner sits above all four,
- * full width.
+ * column, and the stage router over its collapsible console, with the shell's
+ * stage bar (`BaseStageBar`) and then the `StageBar` stage tabs across the
+ * last two. The sync banner sits above all four, full width.
  *
  * The feedback form and its state sit in `FeedbackHost`, above the frame, not
  * in the footer with the trigger: below `LAYOUT_BREAKPOINTS.left` the footer

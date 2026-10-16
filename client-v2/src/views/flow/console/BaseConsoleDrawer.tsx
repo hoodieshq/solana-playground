@@ -45,7 +45,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
     onOpenChange={onOpenChange}
     hotkey={null}
     contentId={CONSOLE_BODY_ID}
-    className="h-full border-t border-border bg-surface"
+    className="h-full bg-surface"
   >
     <ConsoleDrawerBar triggerLabel="Console" className="shrink-0">
       <ConsoleDrawerStatus>
