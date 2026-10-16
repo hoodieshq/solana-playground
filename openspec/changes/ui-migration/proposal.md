@@ -90,8 +90,9 @@ existing code moves.
 
 ### Modified Capabilities
 
-None. `openspec/specs/` is empty before this change; these are the first
-capabilities it records.
+- `assistant-own-key`: the picker and the chat header's Forget key are gone
+  (5.17), so its scenarios name Connect a model, the composer's model button
+  and Forget key in the assistant head's More menu.
 
 ## Impact
 

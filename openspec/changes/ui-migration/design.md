@@ -841,6 +841,7 @@ thread above the composer stays as it is until 5.18 (HOO-1794).
 widgets/assistant
 ├─ AssistantHead: project name | More (⋮) | Widen | Hide
 │    More: Sources and tools (S), Connect a model… (K),
+│          Forget key (a keyed backend only),
 │          Clear conversation (disabled until HOO-1741)
 ├─ (thread: today's Chat items, unchanged until 5.18)
 ├─ AssistantComposer (shared/ui/composer)
@@ -864,6 +865,14 @@ widgets/assistant
   closes with a back button. Clear conversation is shown disabled: clearing
   only what is rendered would come back from another device, and the
   cross-device clear is HOO-1741 (server half HOO-1742, signed-out HOO-1739).
+  Forget key, the old chat header's button (#71), moves into More: shown only
+  while a backend that needs a key is connected, disabled during a turn
+  ("Finish this turn first"). Decided with Slava 2026-10-15.
+- **One reconnect, on the composer's mount.** The connection a tab keeps in
+  `sessionStorage` (#71) and the remembered default both reconnect from
+  `useTurn`'s mount, the kept key first, with one probe of `GET /api/agent`
+  per page. `Connect` no longer probes or reconnects; nothing reconnects
+  while Connect a model is open.
 - **The composer is always there.** Nothing connected no longer swaps the
   composer for the picker:
   - the default backend configured on this deployment: the model button names
@@ -915,8 +924,13 @@ widgets/assistant
 - **Telemetry.** Prefix `assistant`: `assistant_model_picked {provider,
   via}`, `assistant_effort_changed {effort}`, `assistant_connect_opened {via:
   menu | model | send}`, `assistant_turn_stopped`, and
-  `assistant_default_probe_failed`, also logged with `report: true`. Logs
-  under `assistant:composer` and `assistant:connect`.
+  `assistant_default_probe_failed`, also logged with `report: true`. A probe
+  answered 404 (no `/api/agent` on this deployment) is logged as a warning,
+  not reported and not tracked, as #71 had it: it is expected off a full
+  deployment; 5xx, network and body failures are reported. A connection made
+  in the dialog counts as `assistant_model_picked` only when it differs from
+  the one current when the dialog opened. Logs under `assistant:composer` and
+  `assistant:connect`. Decided with Slava 2026-10-16.
 
 ## Risks / Trade-offs
 

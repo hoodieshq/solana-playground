@@ -55,10 +55,11 @@ turn.
 The assistant SHALL send these telemetry events (prefix `assistant`). None
 carries a key, a prompt or a reply.
 
-- `assistant_model_picked {provider, via}`: a pick changed the backend or the
-  model. `provider` is `default`, `anthropic`, `openai`, `openrouter` or
-  `gemini`; `via` is `menu` (the composer's model menu) or `dialog` (a
-  connection made in Connect a model).
+- `assistant_model_picked {provider, via}`: a pick changed the backend, the
+  model or the effort. `provider` is `default`, `anthropic`, `openai`,
+  `openrouter` or `gemini`; `via` is `menu` (the composer's model menu) or
+  `dialog` (a connection made in Connect a model that differs from the one
+  current when it opened). Re-picking the current connection sends nothing.
 - `assistant_effort_changed {effort}`: a user picked another effort;
   `effort` is `low`, `medium`, `high`, `xhigh` or `max`.
 - `assistant_connect_opened {via}`: Connect a model opened; `via` is `menu`
@@ -67,7 +68,10 @@ carries a key, a prompt or a reply.
 - `assistant_turn_stopped`: a user stopped a turn; once per turn.
 - `assistant_default_probe_failed {reason}`: asking the deployment for its
   default backend failed; `reason` is `network`, `status` (an answer that is
-  not a success) or `body` (an answer with no boolean `configured`).
+  neither a success nor a 404) or `body` (an answer with no boolean
+  `configured`). A 404 means the deployment serves no `/api/agent`, which is
+  expected off a full deployment: it is logged as a warning, not reported,
+  and sends no event.
 
 #### Scenario: Stopping a turn is reported once
 
