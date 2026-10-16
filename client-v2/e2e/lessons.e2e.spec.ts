@@ -239,6 +239,21 @@ test.describe("client-v2-lessons", () => {
     );
     expect(Math.abs(prove.y - stuck.y)).toBeLessThanOrEqual(1);
 
+    // And the proving action can be reached: scrolled into view, it lies
+    // inside the row's visible box
+    const proveButton = b.getByRole("button", { name: "Build to prove this" });
+    await proveButton.scrollIntoViewIfNeeded();
+    const row = await boxOf(b.locator('[data-slot="objective-actions-row"]'));
+    const reached = await boxOf(proveButton);
+    expect(reached.x).toBeGreaterThanOrEqual(row.x - 1);
+    expect(reached.x + reached.width).toBeLessThanOrEqual(
+      row.x + row.width + 1
+    );
+    expect(reached.y).toBeGreaterThanOrEqual(row.y - 1);
+    expect(reached.y + reached.height).toBeLessThanOrEqual(
+      row.y + row.height + 1
+    );
+
     // Leave the sheet on Files first, so the chevron has to switch it back
     await page.getByRole("button", { name: /^Files, .* open$/ }).click();
     const sheet = page.getByRole("dialog", { name: "Files" });

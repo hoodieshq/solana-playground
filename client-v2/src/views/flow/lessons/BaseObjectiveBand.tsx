@@ -89,13 +89,15 @@ export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = (props) => {
         )}
         {/* Row two (design.md, "Lessons (5.19)"): back and on, then the
             actions. On a phone it stays one line and scrolls sideways, so
-            the proving action is never pushed onto a third line. */}
+            the proving action is never pushed onto a third line. The padding
+            (undone by the negative margin) keeps the scroller from clipping
+            a focused button's ring, since overflow-x also clips y. */}
         <div
           data-slot="objective-actions-row"
           className={cn(
             "flex w-full items-center gap-2",
             compact
-              ? "flex-nowrap overflow-x-auto [scrollbar-width:none] *:shrink-0"
+              ? "-m-1 w-[calc(100%+0.5rem)] flex-nowrap overflow-x-auto p-1 [scrollbar-width:none] *:shrink-0"
               : "flex-wrap"
           )}
         >
