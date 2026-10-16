@@ -2,6 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  initLogger,
+  memoryProvider as memoryLog,
+  resetLogger,
+} from "../../../shared/lib/logger";
+import {
   initTelemetry,
   memoryProvider as memoryTelemetry,
   resetTelemetry,
@@ -12,6 +17,7 @@ import { createProvider } from "../../../views/sidebar/assistant/model";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import { rememberBackend } from "../../../views/sidebar/assistant/model/remembered-backend";
+import { pushThread } from "../../../effects/chat-thread/push-thread";
 import { resetDefaultBackendProbe } from "./default-backend";
 import { useTurn } from "./use-turn";
 import type { ConnectOpener } from "./use-turn";
@@ -448,5 +454,165 @@ describe("useTurn", () => {
     act(() => PgAssistant.connect({ id: "default", apiKey: "" }));
     expect(result.current.promptWaiting).toBe(false);
     expect(result.current.input).toBe("Explain this error");
+  });
+});
+
+/** A probe held until the test answers it, `configured` with no model */
+const heldProbe = () => {
+  let release!: (configured: boolean) => void;
+  vi.spyOn(globalThis, "fetch").mockReturnValue(
+    new Promise<Response>((resolve) => {
+      release = (configured) =>
+        resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ configured, model: null }),
+        } as Response);
+    })
+  );
+  return (configured: boolean) => act(async () => release(configured));
+};
+
+describe("useTurn's failures and races", () => {
+  let logs: ReturnType<typeof memoryLog>;
+
+  beforeEach(() => {
+    logs = memoryLog();
+    initLogger({ providers: [logs] });
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    resetLogger();
+  });
+
+  const logged = () => logs.entries.map((e) => [e.ns, e.level, e.report]);
+
+  it("keeps a requested prompt and reports when connecting the default throws", async () => {
+    defaultBackend(true);
+    const failure = new Error("connect is broken");
+    vi.spyOn(PgAssistant, "connect").mockImplementation(() => {
+      throw failure;
+    });
+    const report = vi
+      .spyOn(reportModule, "reportButtonFailure")
+      .mockReturnValue(undefined);
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    await waitFor(() => expect(report).toHaveBeenCalledWith(failure));
+    expect(result.current.input).toBe("Explain this error");
+  });
+
+  it("keeps a requested prompt and reports when opening Connect throws", async () => {
+    defaultBackend(false);
+    const failure = new Error("the dialog host is gone");
+    open.mockImplementationOnce(() => {
+      throw failure;
+    });
+    const report = vi
+      .spyOn(reportModule, "reportButtonFailure")
+      .mockReturnValue(undefined);
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+
+    await waitFor(() => expect(report).toHaveBeenCalledWith(failure));
+    expect(result.current.input).toBe("Explain this error");
+  });
+
+  it("logs, and reports, an error a stopped turn ends with", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    let fail!: (error: unknown) => void;
+    provider.send.mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          fail = reject;
+        })
+    );
+    const { result } = renderHook(() => useTestTurn());
+    act(() => {
+      void result.current.send("hi");
+    });
+    act(() => result.current.stop());
+
+    await act(async () => fail(new Error("the stream broke")));
+
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    expect(logged()).toEqual([["assistant:turn", "error", true]]);
+    // Stopping is the user's own doing: nothing more on screen than Stopped.
+    expect(PgAssistant.items.map((item) => item.kind)).not.toContain("error");
+  });
+
+  it("logs the abort a stopped turn ends with at debug only", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    provider.send.mockImplementation(
+      (_: string, signal?: AbortSignal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () =>
+            reject(new DOMException("The user aborted", "AbortError"))
+          );
+        })
+    );
+    const { result } = renderHook(() => useTestTurn());
+    act(() => {
+      void result.current.send("hi");
+    });
+
+    act(() => result.current.stop());
+
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    expect(logged()).toEqual([["assistant:turn", "debug", false]]);
+  });
+
+  it("logs a failed reconnect of the remembered default", async () => {
+    defaultBackend(true);
+    rememberBackend({ id: "default", apiKey: "" });
+    vi.spyOn(PgAssistant, "connect").mockImplementation(() => {
+      throw new Error("connect is broken");
+    });
+
+    renderHook(() => useTestTurn());
+
+    await waitFor(() =>
+      expect(logged()).toEqual([["assistant:connect", "error", true]])
+    );
+  });
+
+  it("does not reconnect a remembered default once Connect a model opened during the probe", async () => {
+    rememberBackend({ id: "default", apiKey: "" });
+    const release = heldProbe();
+    renderHook(() => useTestTurn());
+
+    act(() => PgAssistant.pickBackend());
+    await release(true);
+
+    expect(PgAssistant.connection).toBeNull();
+    expect(PgAssistant.isPickingBackend).toBe(true);
+  });
+
+  it("does not reconnect a remembered default after the panel unmounts", async () => {
+    rememberBackend({ id: "default", apiKey: "" });
+    const release = heldProbe();
+    const { unmount } = renderHook(() => useTestTurn());
+
+    unmount();
+    await release(true);
+
+    expect(PgAssistant.connection).toBeNull();
+  });
+
+  it("pushes the thread at the end of a turn", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("thread-1");
+    vi.mocked(pushThread).mockClear();
+    const { result } = renderHook(() => useTestTurn());
+
+    await act(() => result.current.send("hi"));
+
+    expect(pushThread).toHaveBeenCalledTimes(1);
+    expect(pushThread).toHaveBeenCalledWith("thread-1");
   });
 });

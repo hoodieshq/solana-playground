@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
+
 import { pushThread } from "../../../effects/chat-thread/push-thread";
 import { report } from "../../../features/persistence/model/diagnostics";
 import { toReplayMessages } from "../../../features/persistence/model/replay";
@@ -21,6 +23,19 @@ import { assistantTelemetry } from "./telemetry";
 import type { AssistantEvents } from "./telemetry";
 
 export type { ConnectPreset };
+
+const log = createLogger("assistant:turn");
+const connectLog = createLogger("assistant:connect");
+
+/**
+ * The rejection an aborted fetch or stream ends with. By name: a
+ * `DOMException` is not an `Error` everywhere (jsdom's is not).
+ */
+const isAbort = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  error.name === "AbortError";
 
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
@@ -131,12 +146,21 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     }
 
     let live = true;
-    void probeDefaultBackend().then((backend) => {
-      if (!live || backend.state !== "present") return;
-      if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
-      if (!isDefaultBackendRemembered()) return;
-      PgAssistant.connect(DEFAULT_CONNECTION);
-    });
+    probeDefaultBackend()
+      .then((backend) => {
+        if (!live || backend.state !== "present") return;
+        if (PgAssistant.connection || PgAssistant.isPickingBackend) return;
+        if (!isDefaultBackendRemembered()) return;
+        PgAssistant.connect(DEFAULT_CONNECTION);
+      })
+      .catch((error: unknown) => {
+        // Nothing on screen asked for it: the panel opens unconnected, and
+        // the first send connects or asks
+        connectLog.error(error, {
+          report: true,
+          context: { reconnect: "default" },
+        });
+      });
     return () => {
       live = false;
     };
@@ -206,9 +230,15 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     try {
       await instance.send(trimmed, controller.signal);
     } catch (e) {
-      // Stopping is the user's own doing; `stop` already said so
       if (!controller.signal.aborted) {
         PgAssistant.addError(e instanceof Error ? e.message : String(e));
+      } else if (isAbort(e)) {
+        // Stopping is the user's own doing, and `stop` already said so
+        log.debug("the stopped turn unwound");
+      } else {
+        // Stopped, but the turn ended on something other than the abort: not
+        // the user's to read, since they stopped it, but a bug to hear of
+        log.error(e, { report: true, context: { stopped: true } });
       }
     } finally {
       if (turn.current === controller) turn.current = null;
@@ -286,22 +316,28 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
           run(request);
           return;
         }
-        void probeDefaultBackend().then((backend) => {
-          // Connected while the probe was out, or the default can be; not
-          // behind an open Connect a model, where the user is choosing
-          const canConnectDefault =
-            backend.state === "present" && !PgAssistant.isPickingBackend;
-          if (PgAssistant.isConnected || canConnectDefault) {
-            if (!PgAssistant.isConnected) {
-              PgAssistant.connect(DEFAULT_CONNECTION);
+        probeDefaultBackend()
+          .then((backend) => {
+            // Connected while the probe was out, or the default can be; not
+            // behind an open Connect a model, where the user is choosing
+            const canConnectDefault =
+              backend.state === "present" && !PgAssistant.isPickingBackend;
+            if (PgAssistant.isConnected || canConnectDefault) {
+              if (!PgAssistant.isConnected) {
+                PgAssistant.connect(DEFAULT_CONNECTION);
+              }
+              run(request);
+              return;
             }
-            run(request);
-            return;
-          }
-          setInput(request.text);
-          setPromptWaiting(true);
-          openConnect("send");
-        });
+            setInput(request.text);
+            setPromptWaiting(true);
+            openConnect("send");
+          })
+          .catch((e: unknown) => {
+            // A prompt the user did not type, and cannot retype, is kept
+            place(request.text);
+            reportButtonFailure(e);
+          });
       },
       { sends: true }
     ).dispose;
