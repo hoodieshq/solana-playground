@@ -4,9 +4,7 @@ import styled, { css } from "styled-components";
 import ConsoleDrawer from "./console/ConsoleDrawer";
 import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Logomark from "./header/Logomark";
-import RailFooter from "./header/RailFooter";
 import StageBar from "./header/StageBar";
-import StatusChips from "./header/StatusChips";
 import LeftPanel from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
@@ -27,27 +25,30 @@ import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
-import { FeedbackHost, FeedbackTrigger } from "@/features/feedback";
+import { FeedbackHost } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Wallet from "@/components/Wallet";
+import { useKeybind } from "@/hooks";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { Assistant } from "@/widgets/assistant";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
+import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import type { Disposable } from "@/utils/types";
 
 /**
  * The Flow layout, with no header: `LayoutShell` places four columns, the
- * navigation (`AppNav`, holding the logo, the project list, and the status
- * chips and the feedback trigger in its footer, which on the rail gives way to
- * `RailFooter`'s cluster dot and account button), the assistant, the files
+ * navigation (`AppNav`, holding the logo, the project list, and the
+ * session footer, `SessionFooter`: the cluster row, and the account row that
+ * opens the account menu, which on the rail gives way to `RailFooter`'s
+ * cluster dot and account button), the assistant, the files
  * column, and the stage router over its collapsible console, with the shell's
  * stage bar (`BaseStageBar`) and then the `StageBar` stage tabs across the
  * last two. The sync banner sits above all four, full width.
  *
  * The feedback form and its state sit in `FeedbackHost`, above the frame, not
- * in the footer with the trigger: below `LAYOUT_BREAKPOINTS.left` the footer
+ * in the footer with the account menu: below `LAYOUT_BREAKPOINTS.left` the footer
  * is in a Sheet that unmounts on close, and crossing that width swaps it for
  * the rail, so a draft or a send held in the footer would go with it.
  */
@@ -76,11 +77,11 @@ const FlowFrame = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  // Toggles rather than opens: the navigation footer's chips, and the rail's
-  // cluster dot, are the only way in, so a second click on one has to be the
-  // way out. Opening closes the
+  // Toggles rather than opens: the footer's cluster row and the account
+  // menu's Settings, the rail's dot and ⌘, all lead in, so a second use of one
+  // has to be the way out. Opening closes the
   // navigation's Sheet below `LAYOUT_BREAKPOINTS.left` (`closeSheet`): the
-  // chips sit in it, and its modal overlay would cover the panel and trap
+  // footer sits in it, and its modal overlay would cover the panel and trap
   // focus away from it.
   const toggleSettings =
     (closeSheet: () => void) =>
@@ -89,6 +90,10 @@ const FlowFrame = () => {
       setSettingsFocus(focus);
       setSettingsOpen((open) => !open);
     };
+
+  // `PgKeybind` reads Meta as Ctrl, so this is ⌘, on a Mac and Ctrl+,
+  // elsewhere. It closes no Sheet: it has none to close from here.
+  useKeybind("Ctrl+,", () => toggleSettings(() => undefined)(), [settingsOpen]);
 
   // Whether the empty-workspace gallery has already been opened once for
   // this mount of `Flow`.
@@ -174,20 +179,15 @@ const FlowFrame = () => {
             logo={<Logomark aria-hidden="true" />}
             projects={<ProjectList />}
             footer={
-              <>
-                <StatusChips
-                  placement="above"
-                  onToggleSettings={toggleSettings(closeSheet)}
-                  settingsOpen={settingsOpen}
-                />
-                <FeedbackTrigger />
-              </>
+              <SessionFooter
+                settingsOpen={settingsOpen}
+                onToggleSettings={toggleSettings(closeSheet)}
+              />
             }
             railFooter={
               <RailFooter
                 settingsOpen={settingsOpen}
                 onToggleSettings={toggleSettings(closeSheet)}
-                onExpand={toggle}
               />
             }
           />

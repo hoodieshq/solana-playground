@@ -43,8 +43,8 @@ export interface SessionUser {
 
 /**
  * Where the last sign-in stands. Held here, not by the control that started
- * it: the status chips sit in the navigation's Sheet on a phone, which
- * unmounts them on close, and a sign-in outlives that.
+ * it: the session footer sits in the navigation's Sheet on a narrow window,
+ * which unmounts it on close, and a sign-in outlives that.
  */
 export type SignInState =
   | { status: "idle" }
