@@ -67,6 +67,7 @@ const app = vi.hoisted(() => {
       onDidRenameWorkspace: on,
       onDidDeleteWorkspace: on,
       onDidSwitchWorkspace: on,
+      onDidChangeWorkspaceList: on,
     },
     PgTutorial: {
       isWorkspaceTutorial: (name: string) => state.lessons.includes(name),
@@ -222,7 +223,7 @@ describe("ProjectList", () => {
   it.each([
     ["beta", "A project named beta already exists."],
     ["bad/name", "Use letters, digits, spaces, - and _."],
-    [" lead", "Use letters, digits, spaces, - and _."],
+    ["   ", "Use letters, digits, spaces, - and _."],
   ])("keeps the field open for %j and says why", (value, message) => {
     draw();
     fireEvent.keyDown(menuOf("alpha"), { key: "r" });
@@ -236,9 +237,8 @@ describe("ProjectList", () => {
   });
 
   it("tells the user a rename failed, and reports it", async () => {
-    // The project went away (renamed or deleted elsewhere) while the field
-    // was open
-    const failure = new Error("Workspace not found");
+    // Not one of the refusals the field explains: the store itself failed
+    const failure = new Error("QuotaExceededError");
     app.PgExplorer.renameWorkspace.mockRejectedValue(failure);
     draw();
     fireEvent.keyDown(menuOf("alpha"), { key: "r" });
@@ -246,7 +246,7 @@ describe("ProjectList", () => {
     fireEvent.change(field, { target: { value: "gamma" } });
     fireEvent.keyDown(field, { key: "Enter" });
 
-    await waitFor(() => expect(toasts()).toEqual(["project-action-failed"]));
+    await waitFor(() => expect(toasts()).toEqual(["project-rename-failed"]));
     expect(events("nav_project_action")).toEqual([
       { action: "rename", via: "key" },
     ]);
@@ -322,5 +322,138 @@ describe("ProjectList", () => {
       app.emit();
     });
     expect(projectNames()).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("renames a name typed with a leading space, trimmed", async () => {
+    draw();
+    fireEvent.keyDown(menuOf("alpha"), { key: "r" });
+    const field = screen.getByRole("textbox", { name: "Rename alpha" });
+    fireEvent.change(field, { target: { value: " gamma" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(app.PgExplorer.renameWorkspace).toHaveBeenCalledWith("gamma", {
+        from: "alpha",
+        announce: true,
+      })
+    );
+  });
+
+  it("starts one rename however often Enter is pressed while it runs", async () => {
+    let finish = () => {};
+    app.PgExplorer.renameWorkspace.mockReturnValue(
+      new Promise<void>((resolve) => (finish = resolve))
+    );
+    draw();
+    fireEvent.keyDown(menuOf("alpha"), { key: "r" });
+    const field = screen.getByRole("textbox", { name: "Rename alpha" });
+    fireEvent.change(field, { target: { value: "gamma" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.blur(field);
+    await act(async () => finish());
+
+    expect(app.PgExplorer.renameWorkspace).toHaveBeenCalledTimes(1);
+    expect(toasts()).toEqual([]);
+  });
+
+  it.each([
+    ["Workspace not found", "alpha is no longer in your projects."],
+    ["Already exists", "A project named gamma already exists."],
+  ])(
+    "says in the field, unreported, why a rename was refused: %s",
+    async (refusal, message) => {
+      app.PgExplorer.renameWorkspace.mockRejectedValue(new Error(refusal));
+      draw();
+      fireEvent.keyDown(menuOf("alpha"), { key: "r" });
+      const field = screen.getByRole("textbox", { name: "Rename alpha" });
+      fireEvent.change(field, { target: { value: "gamma" } });
+      fireEvent.keyDown(field, { key: "Enter" });
+
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toBe(message)
+      );
+      expect(toasts()).toEqual([]);
+      expect(logged.entries.filter((entry) => entry.report)).toEqual([]);
+      expect(events("nav_project_action_failed")).toEqual([
+        { action: "rename" },
+      ]);
+    }
+  );
+
+  it("follows a rename made elsewhere, and drops a field for a name that went", () => {
+    draw();
+    fireEvent.keyDown(menuOf("alpha"), { key: "r" });
+    act(() => {
+      app.state.names = ["gamma", "beta", "Hello Anchor"];
+      app.state.ids = { gamma: "id-a", beta: "id-b", "Hello Anchor": "id-h" };
+      app.emit();
+    });
+
+    expect(screen.queryByRole("textbox", { name: "Rename alpha" })).toBeNull();
+    expect(projectNames()).toEqual(["gamma", "beta"]);
+    // The name coming back does not bring the field back with it
+    act(() => {
+      app.state.names = ["alpha", "beta", "Hello Anchor"];
+      app.state.ids = { alpha: "id-a", beta: "id-b", "Hello Anchor": "id-h" };
+      app.emit();
+    });
+    expect(screen.queryByRole("textbox", { name: "Rename alpha" })).toBeNull();
+  });
+
+  it("keeps a pin another tab made when this one pins", () => {
+    draw();
+    // Tab B pinned alpha after this tab read the pins
+    localStorage.setItem(PINS_KEY, JSON.stringify(["id-a"]));
+    fireEvent.keyDown(menuOf("beta"), { key: "p" });
+
+    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual([
+      "id-a",
+      "id-b",
+    ]);
+  });
+
+  it("keeps the pins while the explorer has no workspaces yet", () => {
+    localStorage.setItem(PINS_KEY, JSON.stringify(["id-a"]));
+    app.state.names = [];
+    app.state.ids = {};
+    draw();
+    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-a"]);
+
+    act(() => {
+      app.state.names = ["beta", "alpha"];
+      app.state.ids = { alpha: "id-a", beta: "id-b" };
+      app.emit();
+    });
+    expect(projectNames()).toEqual(["alpha", "beta"]);
+  });
+
+  it("logs the message of a dialog that failed to open, not [object Object]", async () => {
+    // `PgCommon.sendAndReceiveCustomEvent` rejects with a bare `{ message }`
+    app.PgView.setModal.mockRejectedValue({ message: "no modal host" });
+    draw();
+    fireEvent.keyDown(menuOf("alpha"), { key: "e" });
+
+    await waitFor(() => expect(logged.entries).toHaveLength(1));
+    const { error } = logged.entries[0] as { error: unknown };
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("no modal host");
+  });
+
+  it("warns once, not on every render, when stale pins cannot be dropped", () => {
+    localStorage.setItem(PINS_KEY, JSON.stringify(["id-a", "gone"]));
+    const refused = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("full", "QuotaExceededError");
+      });
+    try {
+      draw();
+      act(() => app.emit());
+      act(() => app.emit());
+    } finally {
+      refused.mockRestore();
+    }
+    expect(logged.entries).toHaveLength(1);
   });
 });

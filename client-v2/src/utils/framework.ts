@@ -1,5 +1,6 @@
 import { PgCommon } from "./common";
 import { PgExplorer, TupleFiles } from "./explorer";
+import { PgWorkspace } from "./explorer/workspace";
 import type { RequiredKey, SyncOrAsync } from "./types";
 
 /** Framework creation parameter */
@@ -86,7 +87,19 @@ export type Framework<N extends string = string> = RequiredKey<
   "icon" | "getIsCurrent" | "getDefaultFiles" | "import" | "export"
 >;
 
+/** What `exportWorkspace` throws when it cannot tell a project's framework */
+const UNKNOWN_FRAMEWORK = "Could not identify framework";
+
 export class PgFramework {
+  /**
+   * Whether an export failed only because the project's framework could not
+   * be told: an expected outcome for a project of no known framework, which
+   * still exports as is.
+   */
+  static isUnknownFramework(error: unknown) {
+    return error instanceof Error && error.message === UNKNOWN_FRAMEWORK;
+  }
+
   /** All frameworks */
   static all: Framework<FrameworkName>[];
 
@@ -121,7 +134,7 @@ export class PgFramework {
    */
   static async convertToPlaygroundLayout(files: TupleFiles) {
     const framework = await this.getFromFiles(files);
-    if (!framework) throw new Error("Could not identify framework");
+    if (!framework) throw new Error(UNKNOWN_FRAMEWORK);
 
     const { convertToPlayground } = await framework.import();
     const convertedFiles = await convertToPlayground(files);
@@ -131,12 +144,15 @@ export class PgFramework {
   }
 
   /**
-   * Export the current workspace as a zip file based on the current framework
-   * layout.
+   * Export a workspace as a zip file: the open one, unless `opts.name` names
+   * another.
    *
    * @param opts options
    * - `convert`: whether to convert the playground layout to the framework's layout
+   * - `name`: the workspace to export; the open one by default
    * @returns README Markdown text if `opts.convert` is `true`
+   * @throws when `opts.convert` is set and the framework cannot be told
+   * (`PgFramework.isUnknownFramework`), and when nothing names a workspace
    */
   static async exportWorkspace<C extends boolean = false>(opts?: {
     convert?: C;
@@ -144,12 +160,11 @@ export class PgFramework {
     name?: string;
   }) {
     const name = opts?.name ?? PgExplorer.currentWorkspaceName;
-    // The open workspace's path, as before, when no name is given
-    const workspacePath = opts?.name
-      ? PgCommon.appendSlash(
-          PgCommon.joinPaths(PgExplorer.PATHS.ROOT_DIR_PATH, opts.name)
-        )
-      : PgExplorer.getRequiredCurrentWorkspacePath();
+    // An empty name would read the root and zip every workspace as ".zip"
+    if (!name) throw new Error(PgWorkspace.errors.CURRENT_NOT_FOUND);
+    const workspacePath = PgCommon.appendSlash(
+      PgCommon.joinPaths(PgExplorer.PATHS.ROOT_DIR_PATH, name)
+    );
 
     let files: TupleFiles = [];
     const recursivelyGetItems = async (path: string) => {
@@ -176,7 +191,7 @@ export class PgFramework {
     let readme: string | undefined;
     if (opts?.convert) {
       const framework = await this.getFromFiles(files);
-      if (!framework) throw new Error("Could not identify framework");
+      if (!framework) throw new Error(UNKNOWN_FRAMEWORK);
 
       const frameworkFrom = await framework.export();
       readme = frameworkFrom.readme;

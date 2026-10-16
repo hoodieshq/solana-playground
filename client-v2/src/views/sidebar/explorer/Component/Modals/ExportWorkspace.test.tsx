@@ -13,7 +13,11 @@ import { ModalLayerContext } from "@/widgets/overlays/ui/modal-layer";
 // The `utils` barrel needs a booted app; the modal uses three of its parts,
 // and its icons' `Svg` reads `PgTheme` for styles that do not matter here
 const utils = vi.hoisted(() => ({
-  PgFramework: { exportWorkspace: vi.fn() },
+  PgFramework: {
+    exportWorkspace: vi.fn(),
+    isUnknownFramework: (e: unknown) =>
+      e instanceof Error && e.message === "Could not identify framework",
+  },
   PgView: { setToast: vi.fn(), closeModal: vi.fn() },
   PgExplorer: { currentWorkspaceName: "open-one" },
   PgTheme: { convertToCSS: () => "", getColor: () => "inherit" },
@@ -88,6 +92,48 @@ it("tells the user a conversion failed and exports as is", async () => {
     [{ name: "beta" }],
   ]);
   expect(toastNames()).toEqual(["export-convert-failed"]);
+});
+
+it("does not report a project of no known framework, only notes it", async () => {
+  utils.PgFramework.exportWorkspace
+    .mockRejectedValueOnce(new Error("Could not identify framework"))
+    .mockResolvedValueOnce({});
+  draw("beta");
+
+  fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
+
+  await waitFor(() => expect(utils.PgView.closeModal).toHaveBeenCalled());
+  expect(logs.entries.filter((entry) => entry.report)).toEqual([]);
+});
+
+it("reports a conversion that failed for another reason", async () => {
+  const failure = new Error("convertFromPlayground blew up");
+  utils.PgFramework.exportWorkspace
+    .mockRejectedValueOnce(failure)
+    .mockResolvedValueOnce({});
+  draw("beta");
+
+  fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
+
+  await waitFor(() => expect(toastNames()).toEqual(["export-convert-failed"]));
+  expect(logs.entries).toEqual([
+    expect.objectContaining({
+      error: failure,
+      report: true,
+      context: { step: "convert" },
+    }),
+  ]);
+});
+
+it("says only that the export failed when the fallback fails too", async () => {
+  // A project that cannot be read fails the conversion and the plain export
+  utils.PgFramework.exportWorkspace.mockRejectedValue(new Error("ENOENT"));
+  draw("beta");
+
+  fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
+
+  await waitFor(() => expect(toastNames()).toEqual(["export-failed"]));
+  expect(utils.PgView.closeModal).not.toHaveBeenCalled();
 });
 
 it("tells the user an export failed, and reports it", async () => {

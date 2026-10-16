@@ -48,6 +48,16 @@ describe("PgFramework.exportWorkspace", () => {
     expect(await zipped(blob)).toEqual(["src/lib.rs"]);
   });
 
+  it("refuses an empty name rather than export the open workspace", async () => {
+    await PgExplorer.createWorkspace("beta", {
+      files: [["/beta/src/lib.rs", "beta();"]],
+    });
+    const exported = vi.spyOn(PgCommon, "export").mockImplementation(() => {});
+
+    await expect(PgFramework.exportWorkspace({ name: "" })).rejects.toThrow();
+    expect(exported).not.toHaveBeenCalled();
+  });
+
   it("exports the open workspace when no name is given", async () => {
     await PgExplorer.createWorkspace("beta", {
       files: [["/beta/src/lib.rs", "beta();"]],

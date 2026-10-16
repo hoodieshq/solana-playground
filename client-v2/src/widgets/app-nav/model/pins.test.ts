@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 import { PINS_KEY, prunePins, readPins, togglePin, writePins } from "./pins";
@@ -33,6 +33,25 @@ describe("pins", () => {
       ]);
     }
   );
+
+  it("reads no pins, logged, where the browser refuses `localStorage` itself", () => {
+    const memory = memoryProvider();
+    initLogger({ providers: [memory] });
+    // Blocked site data: reaching `window.localStorage` throws a SecurityError
+    const blocked = vi
+      .spyOn(window, "localStorage", "get")
+      .mockImplementation(() => {
+        throw new DOMException("The operation is insecure.", "SecurityError");
+      });
+    try {
+      expect(readPins()).toEqual([]);
+    } finally {
+      blocked.mockRestore();
+    }
+    expect(memory.entries).toEqual([
+      expect.objectContaining({ ns: "app-nav:pins" }),
+    ]);
+  });
 
   it("toggles a pin on and off", () => {
     expect(togglePin(["a"], "b")).toEqual(["a", "b"]);

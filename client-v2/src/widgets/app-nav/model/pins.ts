@@ -17,10 +17,12 @@ const isIdList = (value: unknown): value is string[] =>
  * ids, or storage that cannot be read, is no pins too, logged, so a bad
  * value never takes the navigation down.
  */
-export const readPins = (storage: Storage = localStorage): string[] => {
+export const readPins = (storage?: Storage): string[] => {
   let raw: string | null;
   try {
-    raw = storage.getItem(PINS_KEY);
+    // Resolved in here: where site data is blocked, reaching
+    // `window.localStorage` is itself what throws
+    raw = (storage ?? localStorage).getItem(PINS_KEY);
   } catch (e) {
     log.warn("pins unreadable: storage unavailable", { context: { e } });
     return [];
@@ -40,11 +42,9 @@ export const readPins = (storage: Storage = localStorage): string[] => {
   return [];
 };
 
-/** Throws when storage refuses the write; the caller tells the user */
-export const writePins = (
-  ids: readonly string[],
-  storage: Storage = localStorage
-) => storage.setItem(PINS_KEY, JSON.stringify(ids));
+/** Throws when storage refuses the write; a caller acting for the user tells them */
+export const writePins = (ids: readonly string[], storage?: Storage) =>
+  (storage ?? localStorage).setItem(PINS_KEY, JSON.stringify(ids));
 
 export const togglePin = (pins: readonly string[], id: string) =>
   pins.includes(id) ? pins.filter((pin) => pin !== id) : [...pins, id];
