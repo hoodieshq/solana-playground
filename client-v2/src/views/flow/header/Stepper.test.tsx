@@ -128,3 +128,20 @@ describe("Stepper", () => {
     );
   });
 });
+
+describe("fill", () => {
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+  });
+
+  it("stretches the list across the row, its stages sharing the width", () => {
+    const { container, rerender } = render(
+      <Stepper state={INITIAL_FLOW_STATE} onSelect={vi.fn()} fill />
+    );
+    const list = () =>
+      container.querySelector('[data-slot="stepper-list"]')!.className;
+    expect(list()).toMatch(/\bw-full\b/);
+    rerender(<Stepper state={INITIAL_FLOW_STATE} onSelect={vi.fn()} />);
+    expect(list()).not.toMatch(/\bw-full\b/);
+  });
+});
