@@ -1,6 +1,6 @@
 # Deploy the client to Vercel
 
-Vercel's native Git integration auto-deploys: `master` → production (the integration branch); any other branch → preview. Those builds use the dashboard's Root Directory, which must be `client-v2` — while it is `client`, **pushes deploy the upstream client, not `client-v2`**. Makefile targets pin `client-v2` themselves and work either way — see [Which client gets deployed](#which-client-gets-deployed).
+Vercel's native Git integration auto-deploys: `master` → production (the integration branch); any other branch → preview. Those builds use the dashboard's Root Directory, `client-v2`, so a push deploys the fork's client. Makefile targets pin `client-v2` themselves and work whatever the dashboard holds; see [Which client gets deployed](#which-client-gets-deployed).
 
 ## Release checklist: `client-v2` to production
 
@@ -74,7 +74,7 @@ runs against the newer schema; revisit this once one is not.
 | --- | --- |
 | Plan / Build Machine | Enterprise + **Enhanced** |
 | Framework Preset | Other |
-| Root Directory | `client` — intended `client-v2`, not yet changed |
+| Root Directory | `client-v2` |
 | Production Branch | `master-2.0`; switch to `master` once `master-2.0` is merged into `master` |
 | Ignored Build Step | Automatic |
 
@@ -111,16 +111,14 @@ failed stream as an SSE `error` event rather than ending quietly.
 
 ## Which client gets deployed
 
-The dashboard and the Makefile currently disagree, on purpose:
+Both paths build `client-v2`, each from its own setting:
 
 | Path | Root Directory used | Deploys |
 | --- | --- | --- |
-| `git push` (Git integration) | dashboard: `client` | upstream client |
+| `git push` (Git integration) | dashboard: `client-v2` | the fork's client |
 | `make -f client-v2/Makefile.vercel deploy-client-to-vercel-preview` | pinned to `client-v2` | the fork's client |
 
-`vercel build` takes the built directory from `settings.rootDirectory` in `.vercel/project.json`, which `vercel pull` caches from the dashboard. `vercel.json` has no `rootDirectory` key, so the dashboard is the only source for the Git path. `vercel-link-preview` rewrites the cached value to `client-v2` after every pull — that is what makes the local target build the fork while pushes do not.
-
-Setting the dashboard Root Directory to `client-v2` makes both paths agree; the rewrite then becomes a no-op and can be dropped.
+`vercel build` takes the built directory from `settings.rootDirectory` in `.vercel/project.json`, which `vercel pull` caches from the dashboard. `vercel.json` has no `rootDirectory` key, so the dashboard is the only source for the Git path. `vercel-link-preview` rewrites the cached value to `client-v2` after every pull, so the local targets build the fork whatever the dashboard holds.
 
 ## One-time setup
 
@@ -141,7 +139,7 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 ## Deploy
 
-- **Automatic:** push the branch — but this builds `client`, not `client-v2`, until the dashboard Root Directory is changed.
+- **Automatic:** push the branch. The Git integration builds `client-v2`, the dashboard's Root Directory.
 - **Local preview:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-preview`. Promote later with `vercel promote <url> --prod`.
 - **Local production:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-production`. The target prints the branch and commit, asks for a typed `yes`, and then runs `vercel build --prod` and `vercel deploy --prebuilt --prod`. Run `migrate-production-db` first when migrations are pending.
 - **Local production, fast:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-prod-fast`. Rebuilds from the working tree in ~5 minutes by skipping `installCommand` (rustup + `wasm/build.sh`, about an hour). It refuses to run unless a previous full build left `client-v2/node_modules` and the real — not stubbed — `wasm/*/pkg` packages on disk. It deploys whatever is in the working tree, committed or not.
@@ -175,6 +173,14 @@ The supported crates (every other file in `public/crates`) are not cached. `yarn
 Remote Cache is reached through its [artifacts API](https://vercel.com/docs/rest-api/artifacts/upload-a-cache-artifact). The script expects the credentials in `VERCEL_ARTIFACTS_TOKEN` and `VERCEL_ARTIFACTS_OWNER`, and the build log says which of the two were set. Without the token only the local tar is used.
 
 Rust state (toolchains, cargo registry, and target dir) lives in `client-v2/.cache/rust`, outside `node_modules`. It is larger than the build cache size limit, so on Vercel it is empty at the start of every build. Locally it persists.
+
+### wasm-bindgen
+
+wasm-pack needs a `wasm-bindgen` binary at the exact version a package's lockfile resolves. That version is declared once per root: `[workspace.dependencies]` in `wasm/Cargo.toml` for the workspace members, and `wasm/rust-analyzer/Cargo.toml` for `rust-analyzer`, which the workspace excludes. `wasm/Cargo.lock` and `wasm/rust-analyzer/Cargo.lock` follow those pins, and `cargo metadata --locked` in each root fails when they do not.
+
+With no matching binary on `PATH`, wasm-pack downloads a prebuilt release. When that download fails, wasm-pack runs `cargo install --force wasm-bindgen-cli` without `--locked`. The unlocked install resolves dependencies published after the pinned toolchain: [`time 0.3.55`](https://crates.io/crates/time/0.3.55) needs Rust 1.88, and Cargo 1.75 stops with ``feature `edition2024` is required``. The log carries no reason for the failed download: wasm-pack reports it with `log::warn!`, which its `env_logger::init()` drops unless `RUST_LOG` is set, so only Cargo's error follows. Why wasm-pack's own download fails on Vercel is unknown; a Vercel log holding `>>> wasm-bindgen <version>: prebuilt` shows that the script's download works there.
+
+For each package, `scripts/vercel-install.sh` installs the version its lockfile resolves into `.cache/rust/wasm-bindgen/<version>/`, then runs `wasm/build.sh` for that package with the version first on `PATH`. The binary comes from the [wasm-bindgen release](https://github.com/rustwasm/wasm-bindgen/releases) tarball for `x86_64-unknown-linux-musl`, or `x86_64-apple-darwin` on macOS, the same choice wasm-pack makes; arm64 runs it under Rosetta when installed, and otherwise the cargo install below takes over. When the tarball cannot be fetched or does not run, `cargo install wasm-bindgen-cli --locked` builds the binary from the crate's own lockfile. The log holds one line per version: `>>> wasm-bindgen <version>: prebuilt`, `>>> wasm-bindgen <version>: cargo install --locked`, or `>>> wasm-bindgen <version>: cached` when an earlier local build left the binary in place. The script reads the version from the lockfile, the file wasm-pack reads. Before reading, `cargo metadata --locked` refuses a lockfile that does not match its manifest, so a bump without `cargo update` stops the build here, before wasm-pack asks for a version the script did not install. To bump a version, change the two manifests, then run `cargo update -p wasm-bindgen` in `wasm/` and in `wasm/rust-analyzer/`.
 
 ## Tokens
 
