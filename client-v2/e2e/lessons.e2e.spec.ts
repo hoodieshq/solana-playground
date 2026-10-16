@@ -1,0 +1,210 @@
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "./fixtures";
+
+const FIRST = "Define the hello instruction and log a message";
+
+const band = (page: Page) => page.locator('[data-slot="objective-band"]');
+const rows = (page: Page) =>
+  page.locator('[data-slot="step-rail"] [data-slot="step-rail-item"]');
+
+/**
+ * Gallery -> Tutorials -> Hello Anchor -> START, as `lesson-path` does.
+ * `START` creates the workspace and flips the route to the lesson chrome.
+ */
+const startHelloAnchor = async (page: Page) => {
+  // No default backend, whatever the dev server is configured with
+  await page.route("**/api/agent", (route) =>
+    route.fulfill({ json: { configured: false, model: null } })
+  );
+  await page.goto("/");
+  const gallery = page.getByRole("dialog", {
+    name: "What do you want to build?",
+  });
+  await expect(gallery).toBeVisible();
+  await page.getByRole("tab", { name: /tutorials/i }).click();
+  const card = page
+    .getByText("Hello Anchor", { exact: true })
+    .locator("xpath=../..");
+  await card.getByRole("button", { name: "Open" }).click();
+  await expect(gallery).toHaveCount(0);
+  await page.getByRole("button", { name: "START", exact: true }).click();
+  await expect(band(page)).toBeVisible();
+};
+
+/** Entering a lesson opens its page once; most scenarios start from the code */
+const closePage = async (page: Page) => {
+  const reader = page.getByRole("dialog", { name: /hello instruction/i });
+  await expect(reader).toBeVisible();
+  // The record learns the page was opened only once its content has loaded;
+  // an Escape that outruns the load leaves the page unread on purpose.
+  await expect(
+    band(page).getByRole("button", { name: "Read the page" })
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(reader).toHaveCount(0);
+};
+
+const skipStep = (page: Page) =>
+  page.getByRole("button", { name: "Skip this step", exact: true });
+
+test.describe("client-v2-lessons", () => {
+  test.setTimeout(120_000);
+
+  test("client-v2-lessons: The objective band over the editor", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await startHelloAnchor(page);
+
+    const b = band(page);
+    await expect(b.getByText("Step 1 of 4", { exact: true })).toBeVisible();
+    await expect(b.getByText(FIRST)).toBeVisible();
+    await expect(b.getByRole("progressbar")).toBeVisible();
+    await expect(
+      b.getByRole("button", { name: "Previous step" })
+    ).toBeVisible();
+    await expect(b.getByRole("button", { name: "Next step" })).toBeVisible();
+    await expect(
+      b.getByRole("button", { name: "Read the page" })
+    ).toBeVisible();
+    await expect(b.getByRole("button", { name: "I'm stuck" })).toBeVisible();
+
+    // Above the editor, not beside it
+    const bandBox = await b.boundingBox();
+    const editorBox = await page.locator("#tabs").boundingBox();
+    expect(bandBox).not.toBeNull();
+    expect(editorBox).not.toBeNull();
+    expect(bandBox!.y + bandBox!.height).toBeLessThanOrEqual(editorBox!.y + 1);
+  });
+
+  test("client-v2-lessons: Steps beside the files", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await startHelloAnchor(page);
+
+    await expect(page.getByRole("radio", { name: "Steps" })).toHaveAttribute(
+      "data-state",
+      "on"
+    );
+    await expect(page.getByRole("radio", { name: "Files" })).toBeVisible();
+
+    await expect(rows(page)).toHaveCount(4);
+    await expect(rows(page).nth(0)).toHaveAttribute("data-status", "current");
+    for (const i of [1, 2, 3]) {
+      await expect(rows(page).nth(i)).toHaveAttribute("data-status", "locked");
+    }
+  });
+
+  test("client-v2-lessons: Skipping marks the step skipped", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await startHelloAnchor(page);
+    await closePage(page);
+
+    await skipStep(page).click();
+
+    await expect(rows(page).nth(0)).toHaveAttribute("data-status", "skipped");
+    await expect(rows(page).nth(1)).toHaveAttribute("data-status", "current");
+  });
+
+  test("client-v2-lessons: Re-entering lands on the same step", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await startHelloAnchor(page);
+    await closePage(page);
+    await skipStep(page).click();
+    await expect(
+      band(page).getByText("Step 2 of 4", { exact: true })
+    ).toBeVisible();
+
+    // The ledger is written to the workspace's volume a beat after the move
+    await page.waitForTimeout(1_000);
+    await page.reload();
+
+    await expect(
+      band(page).getByText("Step 2 of 4", { exact: true })
+    ).toBeVisible();
+    await expect(rows(page).nth(1)).toHaveAttribute("data-status", "current");
+  });
+
+  test("client-v2-lessons: The page opens beside the band, not over it", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await startHelloAnchor(page);
+    await closePage(page);
+
+    // Next step is offered only behind the furthest step reached: skip one
+    // and step back, so there is something for it to do
+    await skipStep(page).click();
+    await band(page).getByRole("button", { name: "Previous step" }).click();
+
+    const read = band(page).getByRole("button", { name: "Read the page" });
+    await read.click();
+
+    const reader = page.getByRole("dialog", { name: /hello instruction/i });
+    await expect(reader).toBeVisible();
+
+    // The page sits inside the stage under the band, over the editor
+    const readerBox = await reader.boundingBox();
+    const bandBox = await band(page).boundingBox();
+    const editorBox = await page.locator("#tabs").boundingBox();
+    expect(readerBox).not.toBeNull();
+    expect(bandBox).not.toBeNull();
+    expect(editorBox).not.toBeNull();
+    expect(readerBox!.y).toBeGreaterThanOrEqual(
+      bandBox!.y + bandBox!.height - 1
+    );
+    expect(readerBox!.y).toBeLessThanOrEqual(editorBox!.y + editorBox!.height);
+    expect(readerBox!.y + readerBox!.height).toBeGreaterThanOrEqual(
+      editorBox!.y
+    );
+
+    // Non-modal: Next step is not covered, so a click would land
+    const next = band(page).getByRole("button", { name: "Next step" });
+    await expect(next).toBeEnabled();
+    await next.click({ trial: true });
+
+    await page.keyboard.press("Escape");
+    await expect(reader).toHaveCount(0);
+    await expect(read).toBeFocused();
+  });
+
+  test("client-v2-lessons: The band on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await startHelloAnchor(page);
+    await closePage(page);
+
+    const b = band(page);
+    await expect(b.getByText("1/4", { exact: true })).toBeVisible();
+    await expect(b.getByText(FIRST)).toBeVisible();
+
+    // Position and objective share a row; the actions sit in a row under it
+    const position = await b.getByText("1/4", { exact: true }).boundingBox();
+    const objective = await b.getByText(FIRST).boundingBox();
+    const actions = await b
+      .locator('[data-slot="objective-actions-row"]')
+      .boundingBox();
+    expect(position).not.toBeNull();
+    expect(objective).not.toBeNull();
+    expect(actions).not.toBeNull();
+    expect(Math.abs(position!.y - objective!.y)).toBeLessThan(
+      objective!.height
+    );
+    expect(actions!.y).toBeGreaterThan(objective!.y);
+    await expect(
+      b.getByRole("button", { name: "Read the page" })
+    ).toBeVisible();
+    await expect(b.getByRole("button", { name: "I'm stuck" })).toBeVisible();
+
+    await b.getByRole("button", { name: "Show the steps" }).click();
+    const sheet = page.getByRole("dialog", { name: "Files" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("radio", { name: "Steps" })).toHaveAttribute(
+      "data-state",
+      "on"
+    );
+  });
+});
