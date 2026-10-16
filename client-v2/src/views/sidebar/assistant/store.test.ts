@@ -5,7 +5,10 @@ import {
   type ChatItem,
 } from "./store";
 import { MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } from "./model/redact-key";
-import { isDefaultBackendRemembered } from "./model/remembered-backend";
+import {
+  isDefaultBackendRemembered,
+  rememberedConnection,
+} from "./model/remembered-backend";
 import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
@@ -762,5 +765,97 @@ describe("the user's own key", () => {
     expect(JSON.stringify(await PgChatStorage.read("own-key"))).not.toContain(
       KEY_NOT_FORGOTTEN
     );
+  });
+});
+
+describe("PgAssistant.tune", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    PgAssistant.disconnect();
+    PgAssistant.clear();
+  });
+
+  it("changes model and effort and keeps the thread", () => {
+    PgAssistant.connect({
+      id: "anthropic",
+      apiKey: "sk-test",
+      settings: { model: "claude-opus-4-8", effort: "medium" },
+    });
+    PgAssistant.addUserMessage("hello");
+
+    PgAssistant.tune({
+      id: "anthropic",
+      apiKey: "sk-test",
+      settings: { model: "claude-sonnet-5-5", effort: "high" },
+    });
+
+    expect(PgAssistant.items).toHaveLength(1);
+    expect(PgAssistant.connection?.settings).toEqual({
+      model: "claude-sonnet-5-5",
+      effort: "high",
+    });
+  });
+
+  it("keeps the tuned model and effort for a reload of this tab", () => {
+    PgAssistant.connect({
+      id: "anthropic",
+      apiKey: "sk-test",
+      settings: { model: "claude-opus-4-8", effort: "medium" },
+    });
+
+    PgAssistant.tune({
+      id: "anthropic",
+      apiKey: "sk-test",
+      settings: { model: "claude-sonnet-5-5", effort: "high" },
+    });
+
+    expect(rememberedConnection()).toEqual({
+      id: "anthropic",
+      apiKey: "sk-test",
+      settings: { model: "claude-sonnet-5-5", effort: "high" },
+    });
+  });
+
+  it("refuses another backend and leaves the connection", () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
+
+    expect(() => PgAssistant.tune({ id: "openai", apiKey: "sk-test" })).toThrow(
+      "tune changes model or effort, not the backend"
+    );
+    expect(PgAssistant.connection?.id).toBe("anthropic");
+  });
+
+  it("refuses another key", () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
+
+    expect(() =>
+      PgAssistant.tune({ id: "anthropic", apiKey: "sk-other" })
+    ).toThrow("tune changes model or effort, not the backend");
+    expect(PgAssistant.connection?.apiKey).toBe("sk-test");
+  });
+
+  it("says beforehand which changes it takes", () => {
+    expect(PgAssistant.canTune({ id: "anthropic", apiKey: "sk-test" })).toBe(
+      false
+    );
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
+
+    expect(PgAssistant.canTune({ id: "anthropic", apiKey: "sk-test" })).toBe(
+      true
+    );
+    expect(PgAssistant.canTune({ id: "anthropic", apiKey: "sk-other" })).toBe(
+      false
+    );
+    expect(PgAssistant.canTune({ id: "openai", apiKey: "sk-test" })).toBe(
+      false
+    );
+  });
+
+  it("refuses when nothing is connected", () => {
+    expect(() =>
+      PgAssistant.tune({ id: "anthropic", apiKey: "sk-test" })
+    ).toThrow("tune changes model or effort, not the backend");
+    expect(PgAssistant.isConnected).toBe(false);
   });
 });

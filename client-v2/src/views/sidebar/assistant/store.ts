@@ -253,7 +253,7 @@ export class PgAssistant {
     return !!PgAssistant._connection;
   }
 
-  /** Whether the backend picker is open on top of an existing connection */
+  /** Whether Connect a model is open; reconnects stand down while it is */
   static get isPickingBackend() {
     return PgAssistant._pickingBackend;
   }
@@ -261,13 +261,14 @@ export class PgAssistant {
   /**
    * Choose a backend for this tab.
    *
-   * Re-picking the current one is a no-op beyond closing the picker; switching
+   * Re-picking the current one keeps the conversation and marks Connect a
+   * model closed; switching
    * to a different one starts a new conversation, because the history lives
    * inside the provider and the new one cannot see the old transcript.
    *
    * Connecting when nothing is connected is *not* a switch, and must not reset
    * anything. The live connection starts empty after every reload, and by the
-   * time one is made -- the user's pick, or `Connect`'s reconnect on load from
+   * time one is made -- the user's pick, or `useTurn`'s reconnect on load from
    * `remembered-backend` -- `chat-thread` may already have restored this
    * workspace's conversation from storage. Treating that as a switch cleared
    * the restored thread on every single reload.
@@ -297,18 +298,48 @@ export class PgAssistant {
     PgAssistant._emitOnly();
   }
 
+  /**
+   * Switch the model or effort on the connected backend, keeping the thread.
+   *
+   * Does not `clear`, unlike `connect` with a different connection: the
+   * provider for the next turn is rebuilt from what is rendered (`useTurn`
+   * compares connection identity), so the new settings apply to the
+   * next turn and the transcript on screen stays the history it works from.
+   * Remembered as `connect` remembers, so a reload of this tab keeps the new
+   * model and effort. `_emitOnly` for the same reason as `connect`: nothing
+   * here is the user writing to the conversation.
+   *
+   * @throws when `canTune(next)` is false
+   */
+  static tune(next: Connection) {
+    if (!PgAssistant.canTune(next)) {
+      throw new Error("tune changes model or effort, not the backend");
+    }
+    PgAssistant._connection = next;
+    rememberBackend(next);
+    PgAssistant._emitOnly();
+  }
+
+  /** Whether `tune(next)` would take it: the connected backend, with its key */
+  static canTune(next: Connection) {
+    const current = PgAssistant._connection;
+    return (
+      !!current && current.id === next.id && current.apiKey === next.apiKey
+    );
+  }
+
   /** Whether connecting with these settings would keep the conversation */
   static isCurrent(next: Connection) {
     return isSame(PgAssistant._connection, next);
   }
 
-  /** Reopen the picker, keeping the conversation in case the user comes back */
+  /** Mark Connect a model open, keeping the conversation */
   static pickBackend() {
     PgAssistant._pickingBackend = true;
     PgAssistant._emit();
   }
 
-  /** Close the picker without changing anything */
+  /** Mark Connect a model closed without changing anything */
   static keepBackend() {
     PgAssistant._pickingBackend = false;
     PgAssistant._emit();
@@ -317,7 +348,7 @@ export class PgAssistant {
   /**
    * Drop the backend and the key, and clear the conversation with it.
    *
-   * What the chat header's Forget key button does. If the key could not be
+   * What Forget key in the assistant head's More does. If the key could not be
    * removed from this tab's storage, a notice says how to get rid of it.
    */
   static disconnect() {
@@ -472,14 +503,14 @@ export class PgAssistant {
    * assistant" on a build error card.
    *
    * The panel itself owns the actual send (its provider lives in a ref
-   * inside `Chat`), so this only notifies; it does not append a message
+   * inside `useTurn`), so this only notifies; it does not append a message
    * itself.
    *
    * Observers subscribe too and never send: `Flow` reopens the panel when it
-   * is collapsed, `Assistant` switches to the chat tab. `Chat` is the only
+   * is collapsed, `Assistant` switches to the chat tab. `useTurn` is the only
    * subscriber that can act on a request, so with none registered the request
    * is buffered in `_pendingPrompt` until one mounts a moment later and claims
-   * it -- which is exactly the collapsed-panel and other-tab cases.
+   * it -- which is exactly the collapsed-panel case.
    *
    * @param text the prompt to send
    * @param opts `send: false` leaves it in the composer for the user to edit,
@@ -885,7 +916,7 @@ export class PgAssistant {
   private static readonly _promptSenders = new Set<
     (request: PromptRequest) => void
   >();
-  // Set by `requestPrompt` when `Chat` is not around to receive it live;
+  // Set by `requestPrompt` when `useTurn` is not around to receive it live;
   // claimed and cleared by the next `onDidRequestPrompt` subscriber.
   private static _pendingPrompt: PromptRequest | null = null;
 
