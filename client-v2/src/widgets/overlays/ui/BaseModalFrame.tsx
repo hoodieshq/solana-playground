@@ -86,6 +86,13 @@ export const BaseModalFrame = ({
   const formRef = useRef<HTMLFormElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const canSubmit = submit?.status === "ready";
+  /** What either kind of submit button shows */
+  const submitLabel = submit && (
+    <>
+      {submit.status === "busy" && <Spinner />}
+      {submit.text}
+    </>
+  );
 
   const handleSubmit = (ev: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     ev.preventDefault();
@@ -167,8 +174,7 @@ export const BaseModalFrame = ({
             )}
             {submit.variant === "brand" ? (
               <BrandButton ref={submitRef} type="submit" disabled={!canSubmit}>
-                {submit.status === "busy" && <Spinner />}
-                {submit.text}
+                {submitLabel}
               </BrandButton>
             ) : (
               <Button
@@ -177,8 +183,7 @@ export const BaseModalFrame = ({
                 variant={submit.variant}
                 disabled={!canSubmit}
               >
-                {submit.status === "busy" && <Spinner />}
-                {submit.text}
+                {submitLabel}
               </Button>
             )}
           </ModalFooter>
