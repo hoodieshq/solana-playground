@@ -352,8 +352,12 @@ class _PgTutorial {
       private async _writeFile(data: T) {
         await PgExplorer.fs.writeFile(
           PgTutorialStorage._PATH,
-          JSON.stringify(data)
+          JSON.stringify(data),
+          { createParents: true }
         );
+        // The directory tree is saved on a 500 ms debounce, so a reload right
+        // after a first write comes back without the file or its folder
+        await PgExplorer.fs.flush();
       }
 
       /** Relative path to the tutorial storage JSON file */
