@@ -175,7 +175,8 @@ test("client-v2-layout: Letter keys in a project's menu", async ({ page }) => {
   await twoProjects(page);
 
   await projectMenu(page, "alpha");
-  await page.keyboard.press("d");
+  // Capital, as the item's hint shows it
+  await page.keyboard.press("Shift+D");
 
   await expect(currentProject(page)).toHaveText("alpha copy", LONG);
 });
