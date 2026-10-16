@@ -51,8 +51,9 @@ export interface LayoutShellProps {
   files: (panel: { collapsed: boolean; toggle: () => void }) => ReactNode;
   /**
    * The stage. `openFiles` opens the phone's Files sheet, for a control in the
-   * stage that points at the files column (the lesson band's "Show the steps");
-   * it does nothing above a phone, where the column is already beside the stage.
+   * stage that points at the files column (the lesson band's "Show the steps"),
+   * below `LAYOUT_BREAKPOINTS.phone`, and is a no-op otherwise: its only
+   * caller, the compact band, shows only below that breakpoint.
    */
   stage: (panel: { openFiles: () => void }) => ReactNode;
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;

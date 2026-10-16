@@ -14,9 +14,11 @@ interface StepRailProps {
 /**
  * The lesson's steps, marked with what actually confirmed them.
  *
- * An honest map: rows at legal positions navigate (clicking one is
- * pure navigation, and the model proves it), rows beyond the frontier
- * do not and say why. Nothing is "locked" -- some things are unproved.
+ * An honest map: rows at legal positions are buttons that move there
+ * (master-2.0's navigation; design.md "Lessons (5.19)" overrides the
+ * design system's "not a way to jump"), and clicking one proves nothing.
+ * Every row not done, skipped or current maps to `locked` (`railStatus`);
+ * why a row cannot be reached is its meta line, "not reached".
  */
 const StepRail: FC<React.PropsWithChildren<StepRailProps>> = ({ state }) => {
   const { path } = state;

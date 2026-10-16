@@ -136,10 +136,10 @@ test.describe("client-v2-lessons", () => {
       band(page).getByText("Step 2 of 4", { exact: true })
     ).toBeVisible();
 
-    // No wait for the write: the record is saved and its directory entry
-    // flushed in the same step (`PgTutorialStorage._writeFile`), so leaving
-    // at once must still come back to step 2
-    // Leave the tutorial, then open it again
+    // Leaves as soon as the band shows Step 2, while the record's write and
+    // flush (`PgTutorialStorage._writeFile`) are still in flight, then comes
+    // back. This guards the flush with a small timing margin: a failure here
+    // means the flush regressed, or the margin was too small on a slow runner.
     await page.goto("/");
     await page.goto("/tutorials/hello-anchor");
 

@@ -88,7 +88,11 @@ const storage = {
     };
   },
 
-  /** Serialize the data and write to storage. */
+  /**
+   * Serialize the data and write it with `createParents`, then flush, for
+   * the reason `PgTutorialStorage._writeFile` gives: a reload right after
+   * would otherwise lose the file, and with it the program's keypair.
+   */
   async write(state: ProgramInfo) {
     if (!PgExplorer.isInitialized || !PgExplorer.currentWorkspaceName) return;
 
@@ -109,8 +113,6 @@ const storage = {
         JSON.stringify(serializedState),
         { createParents: true }
       );
-      // The directory tree is saved on a 500 ms debounce, so a reload right
-      // after a first write comes back without the file or its folder
       await PgExplorer.fs.flush();
     } catch (e) {
       log.error(e, { report: true });

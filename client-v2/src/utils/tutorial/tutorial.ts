@@ -345,7 +345,10 @@ class _PgTutorial {
       }
 
       /**
-       * Save the file with the given storage data.
+       * Save the storage data, creating its folder (`createParents`) and
+       * then `PgExplorer.fs.flush`ing: lightning-fs saves its superblock
+       * 500 ms after the last write, and an unload inside that window loses
+       * the file.
        *
        * @param data storage data
        */
@@ -355,8 +358,6 @@ class _PgTutorial {
           JSON.stringify(data),
           { createParents: true }
         );
-        // The directory tree is saved on a 500 ms debounce, so a reload right
-        // after a first write comes back without the file or its folder
         await PgExplorer.fs.flush();
       }
 

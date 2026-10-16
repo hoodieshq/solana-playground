@@ -46,12 +46,11 @@ interface ObjectiveBandProps {
 /**
  * One ask, above the editor, always visible.
  *
- * The primary action is the criterion: the control is labelled by what
- * proves the step and dispatches the same command the stage bar's
- * stepper does. The assistant sits beside it as a secondary -- the unaided
- * first attempt, bought by layout rather than by a disabled button.
- * The page comes first among the actions, and until it has been opened
- * it is the band's signpost (D34).
+ * "I'm stuck" is the band's one `BrandButton` (the prototype's choice,
+ * Slava 2026-10-16). The proving action is an outline button labelled by
+ * what proves the step, dispatching the same command the stage bar's
+ * stepper does. The page comes first among the actions, and until it has
+ * been opened its unread dot is the band's signpost (D34).
  */
 const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
   state,
@@ -68,7 +67,7 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
   // A built program survives a reload while `PgFlow` does not, so the
   // explainer has to watch it or it will ask for a build that already
-  // happened -- and contradict the rail above it
+  // happened -- and contradict the step rail in the files column
   useProgramInfo();
   useRenderOnChange(PgSession.onDidChange);
 

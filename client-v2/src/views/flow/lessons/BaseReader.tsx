@@ -42,7 +42,9 @@ export interface BaseReaderProps {
  * The lesson page as the design system's Dialog, non-modal and drawn in
  * place over the stage rather than portalled over the whole screen: the
  * rest of the layout stays live, so outside clicks are not dismissals.
- * Radix supplies Escape, focus on open and focus back on close.
+ * Radix supplies Escape and focus on open. Its non-modal Content restores
+ * focus on close only to a trigger, and this dialog has none, so
+ * `onCloseAutoFocus` gives focus back to the opener by hand.
  */
 export const BaseReader: FC<BaseReaderProps> = ({
   title,
