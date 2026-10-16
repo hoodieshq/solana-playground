@@ -1,10 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import BaseStageBar, { DOCS_URL } from "./BaseStageBar";
 import type { BaseStageBarProps } from "./BaseStageBar";
+
+// A click hovers first, which opens the button's tooltip; Radix measures it
+// with a ResizeObserver, which jsdom lacks
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+beforeEach(() => vi.stubGlobal("ResizeObserver", NoopResizeObserver));
+afterEach(() => vi.unstubAllGlobals());
 
 const draw = (props: BaseStageBarProps) =>
   render(
