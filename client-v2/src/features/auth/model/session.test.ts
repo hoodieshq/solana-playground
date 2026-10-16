@@ -5,7 +5,7 @@ import {
   memoryProvider,
   resetLogger,
 } from "../../../shared/lib/logger";
-import { PgSession } from "./session";
+import { isSignInFailure, PgSession } from "./session";
 
 const signedIn = (user: {
   id: string;
@@ -266,9 +266,21 @@ describe("PgSession", () => {
 
     expect(PgSession.signInState()).toEqual({
       status: "failed",
+      reason: "cancelled",
       message: "Sign-in cancelled.",
     });
     expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells a sign-in that ended at a known step from any other error", async () => {
+    const popup = heldPopup();
+    const pending = PgSession.signIn();
+    await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+    popup.cancel();
+    const known = await pending.catch((error: unknown) => error);
+
+    expect(isSignInFailure(known)).toBe(true);
+    expect(isSignInFailure(new TypeError("fetch failed"))).toBe(false);
   });
 
   it("does not start a second sign-in while one is pending", async () => {
