@@ -3,8 +3,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { createLogger } from "@/shared/lib/logger";
 
 import { pushThread } from "../../../effects/chat-thread/push-thread";
-import { report } from "../../../features/persistence/model/diagnostics";
-import { toReplayMessages } from "../../../features/persistence/model/replay";
+import { report, toReplayMessages } from "../../../features/persistence";
 import { createProvider } from "../../../views/sidebar/assistant/model";
 import {
   isDefaultBackendRemembered,
