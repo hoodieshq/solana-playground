@@ -107,7 +107,7 @@ describe("Stepper", () => {
     );
   });
 
-  it("folds to initials when the stage bar is narrower than the full list", () => {
+  it("folds to initials when its row is narrower than the full list", () => {
     render(<Stepper state={INITIAL_FLOW_STATE} onSelect={() => {}} />);
     resizeTo(STEPPER_FULL_WIDTH_PX - 1);
     expect(screen.getByRole("tablist").getAttribute("data-compact")).toBe(

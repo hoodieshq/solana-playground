@@ -25,6 +25,7 @@ const deploy = vi.hoisted(() => ({
 // the Files sheet closes on
 const explorer = vi.hoisted(() => ({
   opens: new Set<() => void>(),
+  renames: new Set<() => void>(),
   name: undefined as string | undefined,
   path: null as string | null,
 }));
@@ -41,6 +42,10 @@ vi.mock("@/utils", async () => {
       onDidOpenFile: (cb: () => void) => {
         explorer.opens.add(cb);
         return { dispose: () => explorer.opens.delete(cb) };
+      },
+      onDidRenameWorkspace: (cb: () => void) => {
+        explorer.renames.add(cb);
+        return { dispose: () => explorer.renames.delete(cb) };
       },
       get currentWorkspaceName() {
         return explorer.name;
@@ -198,7 +203,7 @@ const shell = () =>
           assistant={({ open, toggle, wide, setWide }) => (
             <>
               {/* The head's Hide; folded, the assistant shows nothing, and the
-                stage bar or the Sheet's opener carries "Expand assistant" */}
+                stage bar carries "Expand assistant", for the panel and the Sheet alike */}
               {open && (
                 <button type="button" onClick={toggle}>
                   Collapse assistant
@@ -1416,6 +1421,22 @@ describe("the stage bar", () => {
     expect(
       document.querySelector('[data-slot="sheet-content"]')
     ).not.toBeNull();
+  });
+
+  it("names the project again after a rename", () => {
+    explorer.name = "Counter";
+    shell();
+    fireEvent.click(screen.getByRole("button", { name: "Hide the assistant" }));
+    explorer.name = "Counter v2";
+    act(() => explorer.renames.forEach((cb) => cb()));
+    expect(screen.getByText("Counter v2")).toBeTruthy();
+  });
+
+  it("names no project below 1024 px, where the assistant is a Sheet", () => {
+    explorer.name = "Counter";
+    resizeTo(900);
+    shell();
+    expect(screen.queryByText("Counter")).toBeNull();
   });
 
   it("leaves one Expand assistant between 768 and 1023 px", () => {

@@ -442,6 +442,20 @@ describe("the flush frame", () => {
     });
   });
 
+  it("draws no handle for a hidden files column, and an unseen one for a hidden assistant", () => {
+    render(
+      <BaseLayoutShell
+        {...props("wide", { filesOpen: false, assistantOpen: false })}
+      />
+    );
+    const handlesFound = document.querySelectorAll(
+      '[data-slot="resizable-handle"]'
+    );
+    // The assistant's and the stage/console one; none beside the files column
+    expect(handlesFound).toHaveLength(2);
+    expect(handlesFound[0].className).toMatch(/\bbg-transparent\b/);
+  });
+
   it("lets the navigation draw its right line", () => {
     render(<BaseLayoutShell {...props("wide")} />);
     const sidebar = document.querySelector('[data-slot="sidebar-container"]')!;
@@ -747,12 +761,18 @@ it("should report an error from isCollapsed other than the expected one, once", 
   expect(errors[0].error?.message).toBe("broken");
 });
 
-it("should collapse the files column when filesState turns false", () => {
-  const { files } = handles();
+it("should take a hidden files column out of the group, and its handle", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
-  expect(files.collapse).not.toHaveBeenCalled();
+  expect(document.querySelector("#files[data-panel]")).not.toBeNull();
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
-  expect(files.collapse).toHaveBeenCalledTimes(1);
+  // Not collapsed to 0 px: a 0 px panel stays in the library's layout, which
+  // snapped it open when a drag of the assistant's edge reflowed the work area
+  expect(document.querySelector("#files[data-panel]")).toBeNull();
+  expect(
+    document.querySelector(
+      '[data-slot="resizable-handle"][aria-controls="files"]'
+    )
+  ).toBeNull();
 });
 
 it("should take and save the work layout the user dragged", () => {
@@ -863,19 +883,14 @@ it("should put back the files column again after a trip through the navigation's
 });
 
 it("should open a reopened files column at the width it was dragged to", () => {
-  const { files } = handles();
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   // Dragged to 300 px while open
   act(() => panelSpies.panels["files"].onResize!({ inPixels: 300 }));
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
-  expect(files.collapse).toHaveBeenCalledTimes(1);
-  // Folded: the library reports the folded width, which is not remembered
-  files.isCollapsed.mockReturnValue(true);
-  act(() =>
-    panelSpies.panels["files"].onResize!({ inPixels: PANEL_SIZES.files.folded })
-  );
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: true })} />);
-  expect(files.resize).toHaveBeenLastCalledWith(300);
+  expect(
+    (panelSpies.panels["files"] as { defaultSize?: unknown }).defaultSize
+  ).toBe(300);
 });
 
 it("should neither resubscribe nor need a stable function when the caller passes new ones each render", () => {
@@ -1009,6 +1024,33 @@ describe("widening the assistant", () => {
     act(() => seen.last!.setWide(false));
     expect(panel.resize).toHaveBeenLastCalledWith(400);
     expect(seen.last!.wide).toBe(false);
+  });
+
+  it("should say whether it changed the panel, so only a real change is measured", () => {
+    const { seen, assistant } = slot();
+    render(<BaseLayoutShell {...props("wide", { assistant })} />);
+    let changed: boolean | undefined;
+    act(() => {
+      changed = seen.last!.setWide(true);
+    });
+    expect(changed).toBe(true);
+    // Already wide: nothing to do
+    act(() => {
+      changed = seen.last!.setWide(true);
+    });
+    expect(changed).toBe(false);
+  });
+
+  it("should say it changed nothing while the panel has not registered", () => {
+    panelSpies.handles[0] =
+      undefined as unknown as typeof panelSpies.handles[0];
+    const { seen, assistant } = slot();
+    render(<BaseLayoutShell {...props("wide", { assistant })} />);
+    let changed: boolean | undefined;
+    act(() => {
+      changed = seen.last!.setWide(true);
+    });
+    expect(changed).toBe(false);
   });
 
   it("should save nothing for the library's own layout after a widen", () => {

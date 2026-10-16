@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTheme } from "styled-components";
 
-import { useExplorer, useKeybind } from "@/hooks";
+import { useExplorer, useKeybind, useRenderOnChange } from "@/hooks";
 import { useIsLeftSheet, useViewport } from "@/shared/lib/hooks/use-viewport";
 import { PgCommand, PgCommon, PgExplorer, PgView } from "@/utils";
 import { PgFlow } from "@/views/flow/state/stage";
@@ -108,6 +108,9 @@ const LayoutShell = ({
   const viewRef = useRef(view);
   viewRef.current = view;
   useExplorer();
+  // The project's name shows in the stage bar and the phone's bar; a rename
+  // opens no file, so `useExplorer`'s events miss it
+  useRenderOnChange(PgExplorer.onDidRenameWorkspace);
   // Below `LAYOUT_BREAKPOINTS.compact` the assistant is a Sheet, closed on
   // arrival and never saved
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -473,8 +476,9 @@ const LayoutShell = ({
         })
       }
       files={(stock) => {
-        // In the Sheet the column is always open, so its button closes the
-        // Sheet, as ⌘E does there
+        // In the Sheet the column is always open, so a control of its own, if
+        // it draws one, closes the Sheet, as ⌘E does there (Flow's column
+        // draws none since the stage bar took its toggle)
         if (stock.isMobile) {
           return files({
             collapsed: false,
@@ -527,7 +531,7 @@ const LayoutShell = ({
                 }
           }
           // The panel's toggle on a wide window; below it, what opens the
-          // Sheet (the bar now holds the corner the edge opener sat in)
+          // Sheet: the frame has no other opener for it
           assistant={{
             open: assistantShown,
             onToggle: () => setAssistant(!assistantShown, "button"),
@@ -548,13 +552,14 @@ const LayoutShell = ({
           open: assistantShown,
           toggle: () => setAssistant(!assistantShown, "button"),
           wide,
-          // Only the user's click is measured, and only when it changes the
-          // width: the shell's own narrowing on a fold never comes through here
+          // Only the user's click is measured, and only a change the shell
+          // made: its own narrowing on a fold never comes through here
           setWide: (next) => {
-            if (canWiden && next !== wide) {
+            const changed = setWide(next);
+            if (changed) {
               layoutTelemetry.track("layout_assistant_widened", { wide: next });
             }
-            setWide(next);
+            return changed;
           },
           canWiden,
         })

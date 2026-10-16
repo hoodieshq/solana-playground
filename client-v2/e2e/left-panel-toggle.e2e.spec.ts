@@ -1,7 +1,7 @@
 import { expect, leaveEditor, test } from "./fixtures";
 
 /**
- * Hiding the files column and bringing it back. The column takes no width
+ * Hiding the files column and bringing it back. The column leaves the layout
  * while hidden (design.md, "Frame chrome (5.25)"); the stage bar's toggle and
  * ⌘E are the two ways back.
  */
@@ -16,7 +16,7 @@ test("cmd+e toggles the files column", async ({ seededPage: page }) => {
   await leaveEditor(page);
 
   await page.keyboard.press("Meta+e");
-  await expect(panel(page)).toHaveJSProperty("offsetWidth", 0);
+  await expect(panel(page)).toHaveCount(0);
 
   await page.keyboard.press("Meta+e");
   await expect(panel(page)).toHaveJSProperty("offsetWidth", OPEN_PX);
@@ -29,7 +29,7 @@ test("the stage bar's toggle hides and shows the column", async ({
   const expand = page.getByRole("button", { name: "Expand project panel" });
 
   await collapse.click();
-  await expect(panel(page)).toHaveJSProperty("offsetWidth", 0);
+  await expect(panel(page)).toHaveCount(0);
   await expect(expand).toHaveAttribute("aria-expanded", "false");
 
   await expand.click();

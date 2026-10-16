@@ -6,33 +6,35 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 export const DOCS_URL = "https://solana.com/docs";
 
+/** A column's toggle in the bar: whether the column shows, and the click */
+export interface BarToggle {
+  open: boolean;
+  onToggle: () => void;
+}
+
 export interface BaseStageBarProps {
   /** The project's name, shown while the assistant is hidden; null hides it */
   title: string | null;
   /**
    * The files column's toggle; null where the column sits in the
-   * navigation's Sheet, whose own opener at the left edge carries the name
+   * navigation's Sheet, whose opener at the left edge carries "Expand
+   * project panel"
    */
-  files: { open: boolean; onToggle: () => void } | null;
-  /**
-   * The assistant's toggle: the panel's on a wide window, the Sheet's below
-   * it; null draws none
-   */
-  assistant: { open: boolean; onToggle: () => void } | null;
+  files: BarToggle | null;
+  /** The assistant's toggle: the panel's on a wide window, the Sheet's below */
+  assistant: BarToggle;
 }
 
 /** An icon button with its label as the tooltip, as the assistant's head draws them */
 const BarButton = ({
   label,
   hint,
-  pressed,
   expanded,
   onClick,
   children,
 }: {
   label: string;
   hint: string;
-  pressed?: boolean;
   expanded?: boolean;
   onClick: () => void;
   children: ReactNode;
@@ -43,7 +45,6 @@ const BarButton = ({
         variant="ghost"
         size="icon-sm"
         aria-label={label}
-        aria-pressed={pressed}
         aria-expanded={expanded}
         onClick={onClick}
       >
@@ -54,6 +55,21 @@ const BarButton = ({
   </Tooltip>
 );
 
+/** The files toggle, named by what a click does, as before the bar */
+const FilesToggle = ({ files }: { files: BarToggle }) => {
+  const label = files.open ? "Collapse project panel" : "Expand project panel";
+  return (
+    <BarButton
+      label={label}
+      hint={`${label} (⌘E)`}
+      expanded={files.open}
+      onClick={files.onToggle}
+    >
+      <FolderClosed aria-hidden="true" />
+    </BarButton>
+  );
+};
+
 /**
  * The 44 px bar over the files column and the stage (design.md, "Frame chrome
  * (5.25)"): the project's name while the assistant is hidden, then the files
@@ -62,10 +78,7 @@ const BarButton = ({
  * button.
  */
 const BaseStageBar = ({ title, files, assistant }: BaseStageBarProps) => {
-  const filesLabel = files?.open
-    ? "Collapse project panel"
-    : "Expand project panel";
-  const assistantLabel = assistant?.open
+  const assistantLabel = assistant.open
     ? "Hide the assistant"
     : "Expand assistant";
   return (
@@ -79,26 +92,14 @@ const BaseStageBar = ({ title, files, assistant }: BaseStageBarProps) => {
       >
         {title}
       </span>
-      {files && (
-        <BarButton
-          label={filesLabel}
-          hint={`${filesLabel} (⌘E)`}
-          expanded={files.open}
-          onClick={files.onToggle}
-        >
-          <FolderClosed aria-hidden="true" />
-        </BarButton>
-      )}
-      {assistant && (
-        <BarButton
-          label={assistantLabel}
-          hint={`${assistantLabel} (Ctrl+R)`}
-          pressed={assistant.open}
-          onClick={assistant.onToggle}
-        >
-          <MessageSquare aria-hidden="true" />
-        </BarButton>
-      )}
+      {files && <FilesToggle files={files} />}
+      <BarButton
+        label={assistantLabel}
+        hint={`${assistantLabel} (Ctrl+R)`}
+        onClick={assistant.onToggle}
+      >
+        <MessageSquare aria-hidden="true" />
+      </BarButton>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="icon-sm" asChild>

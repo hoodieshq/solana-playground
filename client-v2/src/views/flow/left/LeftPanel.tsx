@@ -26,8 +26,9 @@ interface LeftPanelProps {
 
 /**
  * Where you are inside the current project. Which project you are in is
- * the navigation's project list's job; the rail does not name the project too,
- * since two controls for one question would disagree.
+ * the navigation's project list's job, and the stage bar's while the
+ * assistant, whose head names it, is out of view; this column does not name
+ * it too, since two controls for one question would disagree.
  */
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
@@ -51,61 +52,63 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
       ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
       : null;
 
+  // Hidden, the column takes no width: no landmark either, since an empty,
+  // unnamed <aside> is still listed by a screen reader
+  if (collapsed) return null;
+
   return (
     <Wrapper>
-      {!collapsed && (
-        <>
-          {inLesson && (
-            <Tabs role="tablist">
-              {(["steps", "files"] as const).map((t) => (
-                <TabButton
-                  key={t}
-                  id={`flow-left-tab-${t}`}
-                  role="tab"
-                  aria-selected={tab === t}
-                  aria-controls="flow-left-tabpanel"
-                  $active={tab === t}
-                  onClick={() => setTab(t)}
-                >
-                  {t === "steps" ? "Steps" : "Files"}
-                </TabButton>
-              ))}
-            </Tabs>
+      <>
+        {inLesson && (
+          <Tabs role="tablist">
+            {(["steps", "files"] as const).map((t) => (
+              <TabButton
+                key={t}
+                id={`flow-left-tab-${t}`}
+                role="tab"
+                aria-selected={tab === t}
+                aria-controls="flow-left-tabpanel"
+                $active={tab === t}
+                onClick={() => setTab(t)}
+              >
+                {t === "steps" ? "Steps" : "Files"}
+              </TabButton>
+            ))}
+          </Tabs>
+        )}
+        <Body
+          id="flow-left-tabpanel"
+          role={inLesson ? "tabpanel" : undefined}
+          aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
+        >
+          {showSteps ? (
+            <StepRail state={lesson} />
+          ) : (
+            <>
+              {!inLesson && <Eyebrow>Files</Eyebrow>}
+              <ExplorerContainer>
+                <Explorer />
+              </ExplorerContainer>
+            </>
           )}
-          <Body
-            id="flow-left-tabpanel"
-            role={inLesson ? "tabpanel" : undefined}
-            aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
-          >
-            {showSteps ? (
-              <StepRail state={lesson} />
-            ) : (
-              <>
-                {!inLesson && <Eyebrow>Files</Eyebrow>}
-                <ExplorerContainer>
-                  <Explorer />
-                </ExplorerContainer>
-              </>
-            )}
-          </Body>
-          {/* Pinned below the rail for the same reason as the files footer:
+        </Body>
+        {/* Pinned below the rail for the same reason as the files footer:
               a way out that scrolls away is not a way out. */}
-          {showSteps && frontierStep && (
-            <SkipFooter
-              type="button"
-              title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
-              onClick={() => PgLesson.pass()}
-            >
-              Skip this step
-            </SkipFooter>
-          )}
-          {!showSteps && (
-            <Footer type="button" onClick={createItem}>
-              + New file
-            </Footer>
-          )}
-        </>
-      )}
+        {showSteps && frontierStep && (
+          <SkipFooter
+            type="button"
+            title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
+            onClick={() => PgLesson.pass()}
+          >
+            Skip this step
+          </SkipFooter>
+        )}
+        {!showSteps && (
+          <Footer type="button" onClick={createItem}>
+            + New file
+          </Footer>
+        )}
+      </>
     </Wrapper>
   );
 };
@@ -114,8 +117,9 @@ export default LeftPanel;
 
 // A column of the flush frame like Center and Right (design.md, "Frame
 // chrome (5.25)"): no card edges, the page's background.
-// Width comes from the layout shell's Sidebar (its `SIDEBAR_STYLE`), so the
-// panel fills whatever it is given.
+// Width comes from the layout shell (`PANEL_SIZES.files`, or the navigation's
+// Sheet below `LAYOUT_BREAKPOINTS.left`), so the panel fills whatever it is
+// given.
 const Wrapper = styled.aside`
   ${({ theme }) => css`
     width: 100%;

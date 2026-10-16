@@ -66,7 +66,7 @@ const DS_STATUS: Record<StageStatus, StepperStatus> = {
  * color, so the sequence reads correctly without color vision.
  */
 const Stepper: FC<StepperProps> = ({ state, onSelect, target, fill }) => {
-  // The root fills the stage bar, so what it measures is the room the bar
+  // The root fills its row, so what it measures is the room the row
   // gives, not the list's own width. Folding the labels shrinks the list but
   // not the root, so the fold cannot flip itself back. Until the first
   // measurement the labels show in full; the observer's first callback runs

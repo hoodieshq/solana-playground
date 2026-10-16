@@ -32,7 +32,7 @@ it("names the files toggle by what it does", async () => {
   const { rerender } = draw({
     title: null,
     files: { open: true, onToggle },
-    assistant: null,
+    assistant: { open: true, onToggle: vi.fn() },
   });
   const collapse = screen.getByRole("button", {
     name: "Collapse project panel",
@@ -46,7 +46,7 @@ it("names the files toggle by what it does", async () => {
       <BaseStageBar
         title={null}
         files={{ open: false, onToggle }}
-        assistant={null}
+        assistant={{ open: true, onToggle: vi.fn() }}
       />
     </TooltipProvider>
   );
@@ -64,9 +64,11 @@ it("names the assistant toggle by what it does", async () => {
     files: null,
     assistant: { open: true, onToggle },
   });
-  await userEvent.click(
-    screen.getByRole("button", { name: "Hide the assistant" })
-  );
+  const hide = screen.getByRole("button", { name: "Hide the assistant" });
+  // The label says what a click does; a pressed state on top would read as
+  // "Hide the assistant, pressed"
+  expect(hide.hasAttribute("aria-pressed")).toBe(false);
+  await userEvent.click(hide);
   expect(onToggle).toHaveBeenCalledTimes(1);
 
   rerender(
@@ -81,10 +83,13 @@ it("names the assistant toggle by what it does", async () => {
   expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
 });
 
-it("draws no toggle it is not handed, and always the documentation", () => {
-  draw({ title: null, files: null, assistant: null });
+it("draws no files toggle where it is not handed, and always the documentation", () => {
+  draw({
+    title: null,
+    files: null,
+    assistant: { open: true, onToggle: vi.fn() },
+  });
   expect(screen.queryByRole("button", { name: /project panel/ })).toBeNull();
-  expect(screen.queryByRole("button", { name: /assistant/ })).toBeNull();
   const docs = screen.getByRole("link", { name: "Documentation" });
   expect(docs.getAttribute("href")).toBe(DOCS_URL);
   expect(docs.getAttribute("target")).toBe("_blank");
@@ -92,18 +97,30 @@ it("draws no toggle it is not handed, and always the documentation", () => {
 });
 
 it("shows the project's name only when given one", () => {
-  const { rerender } = draw({ title: "Counter", files: null, assistant: null });
+  const { rerender } = draw({
+    title: "Counter",
+    files: null,
+    assistant: { open: true, onToggle: vi.fn() },
+  });
   expect(screen.getByText("Counter")).toBeTruthy();
   rerender(
     <TooltipProvider>
-      <BaseStageBar title={null} files={null} assistant={null} />
+      <BaseStageBar
+        title={null}
+        files={null}
+        assistant={{ open: true, onToggle: vi.fn() }}
+      />
     </TooltipProvider>
   );
   expect(screen.queryByText("Counter")).toBeNull();
 });
 
 it("is the 44 px column bar with a bottom line", () => {
-  const { container } = draw({ title: null, files: null, assistant: null });
+  const { container } = draw({
+    title: null,
+    files: null,
+    assistant: { open: true, onToggle: vi.fn() },
+  });
   const bar = container.querySelector('[data-slot="stage-bar"]')!;
   expect(bar.className).toMatch(/\bh-11\b/);
   expect(bar.className).toMatch(/\bborder-b\b/);

@@ -62,6 +62,8 @@ describe("LeftPanel in the flush frame", () => {
 
   it("draws nothing while hidden", () => {
     const { container } = draw(true);
-    expect(container.textContent).toBe("");
+    // Not even its landmark: an empty, unnamed <aside> is still listed by a
+    // screen reader
+    expect(container.firstChild).toBeNull();
   });
 });
