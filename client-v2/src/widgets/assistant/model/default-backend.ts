@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createLogger } from "@/shared/lib/logger";
 import { DEFAULT_BACKEND_URL } from "../../../views/sidebar/assistant/model/types";
 import { assistantTelemetry } from "./telemetry";
+import type { AssistantEvents } from "./telemetry";
 
 const log = createLogger("assistant:connect");
 
@@ -12,7 +13,15 @@ export type DefaultBackend =
   | { state: "absent" }
   | { state: "present"; model: string | null };
 
-type ProbeFailure = "network" | "status" | "body";
+/** Why a probe failed: the request, the status or the body */
+type ProbeFailure = AssistantEvents["assistant_default_probe_failed"]["reason"];
+
+/**
+ * What one request answered. A failure is the answer for its own callers
+ * only: the next one asks again, so a blip on load does not hide the default
+ * for the rest of the page.
+ */
+type Asked = { backend: DefaultBackend; failed: boolean };
 
 let probe: Promise<DefaultBackend> | undefined;
 
@@ -21,13 +30,18 @@ export const resetDefaultBackendProbe = () => {
   probe = undefined;
 };
 
-const failed = (reason: ProbeFailure, error: unknown): DefaultBackend => {
+const failed = (reason: ProbeFailure, error: unknown): Asked => {
   log.error(error, { report: true, context: { reason } });
   assistantTelemetry.track("assistant_default_probe_failed", { reason });
-  return { state: "absent" };
+  return { backend: { state: "absent" }, failed: true };
 };
 
-const ask = async (): Promise<DefaultBackend> => {
+const answered = (backend: DefaultBackend): Asked => ({
+  backend,
+  failed: false,
+});
+
+const ask = async (): Promise<Asked> => {
   let res: Response;
   try {
     res = await fetch(DEFAULT_BACKEND_URL);
@@ -41,7 +55,7 @@ const ask = async (): Promise<DefaultBackend> => {
     log.warn("this deployment serves no default backend", {
       context: { status: res.status },
     });
-    return { state: "absent" };
+    return answered({ state: "absent" });
   }
   if (!res.ok) {
     return failed(
@@ -59,17 +73,39 @@ const ask = async (): Promise<DefaultBackend> => {
   if (typeof body?.configured !== "boolean") {
     return failed("body", new Error("No boolean `configured` in the answer"));
   }
-  if (!body.configured) return { state: "absent" };
-  return {
-    state: "present",
-    model: typeof body.model === "string" ? body.model : null,
-  };
+  if (!body.configured) return answered({ state: "absent" });
+  if (typeof body.model === "string") {
+    return answered({ state: "present", model: body.model });
+  }
+  if (body.model !== null && body.model !== undefined) {
+    // The default still answers; the composer shows "Default model" instead
+    // of its name, which is worth a look but not a report
+    log.warn("the default backend's model is not a string", {
+      context: { type: typeof body.model },
+    });
+  }
+  return answered({ state: "present", model: null });
 };
 
-/** Ask the server once per page whether its default backend is configured, and with which model */
+/**
+ * Ask the server whether its default backend is configured, and with which
+ * model: once per page, unless the asking fails, when the next caller asks
+ * again.
+ */
 export const probeDefaultBackend = (): Promise<DefaultBackend> => {
-  probe ??= ask();
-  return probe;
+  if (probe) return probe;
+  const current: Promise<DefaultBackend> = ask().then(
+    ({ backend, failed }) => {
+      if (failed && probe === current) probe = undefined;
+      return backend;
+    },
+    (error: unknown) => {
+      if (probe === current) probe = undefined;
+      throw error;
+    }
+  );
+  probe = current;
+  return current;
 };
 
 export const useDefaultBackend = (): DefaultBackend => {
@@ -77,9 +113,17 @@ export const useDefaultBackend = (): DefaultBackend => {
 
   useEffect(() => {
     let live = true;
-    probeDefaultBackend().then((answer) => {
-      if (live) setBackend(answer);
-    });
+    probeDefaultBackend().then(
+      (answer) => {
+        if (live) setBackend(answer);
+      },
+      (error: unknown) => {
+        // The probe answers its own failures, so this is a bug past them;
+        // without an answer the default is not offered
+        log.error(error, { report: true, context: { reason: "hook" } });
+        if (live) setBackend({ state: "absent" });
+      }
+    );
     return () => {
       live = false;
     };

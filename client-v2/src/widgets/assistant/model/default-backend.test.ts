@@ -16,6 +16,7 @@ import {
   resetDefaultBackendProbe,
   useDefaultBackend,
 } from "./default-backend";
+import { assistantTelemetry } from "./telemetry";
 
 let events: ReturnType<typeof memoryTelemetry>;
 let logs: ReturnType<typeof memoryLog>;
@@ -100,6 +101,51 @@ describe("probeDefaultBackend", () => {
     expectFailure("body");
   });
 
+  it("is absent and reported when the body is not JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+    } as Response);
+    expect(await probeDefaultBackend()).toEqual({ state: "absent" });
+    expectFailure("body");
+  });
+
+  it("is present with no model, and warned of, when the model is not a string", async () => {
+    answer({ configured: true, model: 42 });
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: null,
+    });
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["assistant:connect", "warn", false],
+    ]);
+  });
+
+  it("asks again after a failed probe", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ configured: true, model: null }),
+      } as Response);
+    expect(await probeDefaultBackend()).toEqual({ state: "absent" });
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: null,
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a deployment without the agent for the page", async () => {
+    const spy = answer({}, 404);
+    await probeDefaultBackend();
+    await probeDefaultBackend();
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("asks once per page", async () => {
     const spy = answer({ configured: true, model: null });
     await probeDefaultBackend();
@@ -116,5 +162,21 @@ describe("useDefaultBackend", () => {
     await waitFor(() =>
       expect(result.current).toEqual({ state: "present", model: null })
     );
+  });
+
+  it("settles absent and logs when the probe rejects", async () => {
+    // The probe answers its own failures; this is a throw past them, such as
+    // a log provider that fails while reporting one
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    vi.spyOn(assistantTelemetry, "track").mockImplementation(() => {
+      throw new Error("telemetry is broken");
+    });
+    const { result } = renderHook(() => useDefaultBackend());
+    await waitFor(() => expect(result.current).toEqual({ state: "absent" }));
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      // The probe's own report, then the hook's
+      ["assistant:connect", "error", true],
+      ["assistant:connect", "error", true],
+    ]);
   });
 });
