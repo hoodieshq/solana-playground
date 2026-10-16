@@ -176,6 +176,35 @@ describe("useTurn", () => {
     await waitFor(() => expect(result.current.busy).toBe(false));
   });
 
+  it("names the turn's phase: running, awaiting, stopping, idle", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    let unwind!: () => void;
+    provider.send.mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          unwind = () =>
+            reject(new DOMException("The user aborted", "AbortError"));
+        })
+    );
+    const { result } = renderHook(() => useTestTurn());
+    expect(result.current.phase).toBe("idle");
+
+    act(() => {
+      void result.current.send("hi");
+    });
+    expect(result.current.phase).toBe("running");
+    act(() => PgAssistant.setStatus("awaiting"));
+    expect(result.current.phase).toBe("awaiting");
+    // `cancelPending` drops the status to idle before the turn unwinds
+    act(() => result.current.stop());
+    expect(result.current.phase).toBe("stopping");
+    expect(result.current.busy).toBe(true);
+
+    await act(async () => unwind());
+    await waitFor(() => expect(result.current.phase).toBe("idle"));
+    expect(result.current.busy).toBe(false);
+  });
+
   it("keeps a requested prompt that arrives during a turn", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);

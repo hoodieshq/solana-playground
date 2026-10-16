@@ -52,6 +52,12 @@ export interface TurnOptions {
 }
 
 /**
+ * Where the turn is. `stopping` is a stopped turn still unwinding:
+ * `cancelPending` drops the store's status to idle before its provider does.
+ */
+export type TurnPhase = "idle" | "running" | "awaiting" | "stopping";
+
+/**
  * One assistant turn at a time, shared by the thread and the composer.
  *
  * Called once by the panel and handed to both: two calls would hold two
@@ -62,12 +68,14 @@ export interface Turn {
   send(text: string): Promise<void>;
   /** Abort the turn in flight and deny whatever it is waiting on */
   stop(): void;
+  phase: TurnPhase;
+  /** `phase` is not idle: a turn runs, waits on an approval, or unwinds */
   busy: boolean;
   /** What is in the composer */
   input: string;
   setInput(value: string): void;
   /** Open Connect a model, on `preset`'s backend when given */
-  openConnect(via: ConnectVia, preset?: ConnectPreset): void;
+  openConnect: ConnectOpener;
   /** A requested prompt waits in the composer for a backend to be connected */
   promptWaiting: boolean;
   /** Bumped whenever the composer's input should take focus */
@@ -110,10 +118,16 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // while the first is still finding a backend
   const starting = useRef(false);
 
-  const status = PgAssistant.status;
-  // A stopped turn still has to unwind, and `cancelPending` drops the status to
-  // idle before it does; the controller is what says a turn is really over
-  const busy = status !== "idle" || !!turn.current;
+  // The store says what a live turn is doing; the controller says whether a
+  // turn is over, since a stopped one still has to unwind
+  const phaseOf = (): TurnPhase => {
+    if (turn.current?.signal.aborted) return "stopping";
+    if (PgAssistant.status !== "idle") return PgAssistant.status;
+    if (turn.current) return "running";
+    return "idle";
+  };
+  const phase = phaseOf();
+  const busy = phase !== "idle";
 
   const connection = PgAssistant.connection;
   // Connecting answers the hint; a later disconnect must not bring it back
@@ -131,11 +145,13 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
    * connection and stands down: a kept key wins over a remembered default.
    *
    * Then the keyless default, only if the user picked it before and only once
-   * the probe confirms this deployment still serves it. One probe per page:
-   * `probeDefaultBackend` is shared with the composer and Connect a model.
+   * the probe confirms this deployment still serves it. `probeDefaultBackend`
+   * is shared with the composer and Connect a model, so the page asks once
+   * (again only after a failure).
    *
-   * Neither runs while something is connected or Connect a model is open,
-   * where it would undo the user's Forget key or throw away a choice mid-edit.
+   * Neither overrules a live connection or a choice in progress in Connect a
+   * model. A Forget key stays forgotten because `forgetBackend` drops what
+   * both would read.
    */
   useEffect(() => {
     if (!PgAssistant.connection && !PgAssistant.isPickingBackend) {
@@ -164,7 +180,8 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     };
   }, []);
 
-  // Through a ref: `onDidRequestPrompt` subscribes once, with the first render's
+  // Through a ref: `onDidRequestPrompt` subscribes once, with the first
+  // render's `open`; the ref hands it the latest
   const opener = useRef(open);
   opener.current = open;
   const openConnect = (via: ConnectVia, preset?: ConnectPreset) =>
@@ -204,9 +221,10 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       return true;
     }
 
-    // One provider per connection; it owns the conversation history. The store
-    // keeps the same object while the settings are unchanged, so identity is
-    // enough to catch a switched key or model as well as a switched provider.
+    // One provider per connection; it owns the conversation history. Every
+    // connect and tune stores a new object, so identity catches any change, a
+    // re-pick included; a rebuild is harmless: the new provider is seeded from
+    // what is rendered.
     if (provider.current?.connection !== current) {
       provider.current = {
         connection: current,
@@ -340,13 +358,14 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       { sends: true }
     ).dispose;
     // `openConnect`, `place` and `run` only touch the store, state setters and
-    // `startRef`
+    // the `startRef` and `opener` refs
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
     send,
     stop,
+    phase,
     busy,
     input,
     setInput,

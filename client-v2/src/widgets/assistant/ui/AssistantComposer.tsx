@@ -17,7 +17,7 @@ import { DEFAULT_CONNECTION } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
 import { withEffort, withModel } from "../model/tune";
-import type { Turn } from "../model/use-turn";
+import type { Turn, TurnPhase } from "../model/use-turn";
 import {
   BaseAssistantComposer,
   type ComposerContextChip,
@@ -72,10 +72,12 @@ const contextChips = (lessonState: LessonState): ComposerContextChip[] => {
   ].filter((chip): chip is ComposerContextChip => !!chip);
 };
 
-const placeholderFor = (turn: Turn) => {
-  if (PgAssistant.status === "awaiting") return "Waiting on your decision…";
-  if (turn.busy) return "Working…";
-  return "Ask about this project…";
+/** The input's placeholder, by where the turn is */
+const PLACEHOLDERS: Record<TurnPhase, string> = {
+  idle: "Ask about this project…",
+  running: "Working…",
+  awaiting: "Waiting on your decision…",
+  stopping: "Stopping…",
 };
 
 /**
@@ -183,7 +185,7 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
         }}
         onStop={turn.stop}
         busy={turn.busy}
-        placeholder={placeholderFor(turn)}
+        placeholder={PLACEHOLDERS[turn.phase]}
         model={
           <BaseModelMenu
             model={shown}
