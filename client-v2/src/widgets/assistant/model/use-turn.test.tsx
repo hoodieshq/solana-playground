@@ -633,6 +633,35 @@ describe("useTurn's failures and races", () => {
     expect(PgAssistant.connection).toBeNull();
   });
 
+  it("sends nothing, and opens nothing, for a whitespace-only send", async () => {
+    const { result } = renderHook(() => useTestTurn());
+
+    await act(() => result.current.send("   "));
+
+    expect(provider.send).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(PgAssistant.items.length).toBe(0);
+  });
+
+  it("sends to what was connected while the default was probed, not the default", async () => {
+    const release = heldProbe();
+    const { result } = renderHook(() => useTestTurn());
+    let sent!: Promise<void>;
+    act(() => {
+      sent = result.current.send("hi");
+    });
+
+    act(() => PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-mid" }));
+    await release(true);
+    await act(() => sent);
+
+    expect(PgAssistant.connection?.id).toBe("anthropic");
+    expect(provider.send).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createProvider).mock.calls[0][0]).toMatchObject({
+      id: "anthropic",
+    });
+  });
+
   it("pushes the thread at the end of a turn", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     vi.spyOn(PgAssistant, "threadId", "get").mockReturnValue("thread-1");

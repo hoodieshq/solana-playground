@@ -254,6 +254,53 @@ describe("ConnectDialog", () => {
     ]);
   });
 
+  it("reports no pick for a new key on the same backend and model", async () => {
+    PgAssistant.connect({
+      id: "openai",
+      apiKey: "sk-old",
+      endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+    });
+    renderHost();
+    act(() => openConnectDialog("menu"));
+
+    act(() =>
+      PgAssistant.connect({
+        id: "openai",
+        apiKey: "sk-new",
+        endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+      })
+    );
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(eventNames()).toEqual([
+      ["assistant_connect_opened", { via: "menu" }],
+    ]);
+  });
+
+  it("reports a pick that changes the endpoint's model", async () => {
+    PgAssistant.connect({
+      id: "openai",
+      apiKey: "sk-old",
+      endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.1" },
+    });
+    renderHost();
+    act(() => openConnectDialog("menu"));
+
+    act(() =>
+      PgAssistant.connect({
+        id: "openai",
+        apiKey: "sk-old",
+        endpoint: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.2" },
+      })
+    );
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(eventNames()).toEqual([
+      ["assistant_connect_opened", { via: "menu" }],
+      ["assistant_model_picked", { provider: "openai", via: "dialog" }],
+    ]);
+  });
+
   it("closes on Escape without connecting", async () => {
     renderHost();
     act(() => openConnectDialog("menu"));

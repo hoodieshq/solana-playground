@@ -74,6 +74,13 @@ describe("BaseAssistantComposer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it("neither sends nor stops on Enter during a turn", async () => {
+    const { onStop, onSend, user } = setup({ busy: true, value: "draft" });
+    await user.type(input(), "{Enter}");
+    expect(onSend).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
   it("keeps the input editable during a turn", () => {
     setup({ busy: true });
     expect(input()).toHaveProperty("disabled", false);

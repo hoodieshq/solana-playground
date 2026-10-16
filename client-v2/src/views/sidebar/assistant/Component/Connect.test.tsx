@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import Connect from "./Connect";
 import type { ConnectAction, ConnectProps } from "./Connect";
+import { PROVIDERS } from "../model/types";
 import { PgAssistant, type Connection } from "../store";
 
 /**
@@ -110,6 +111,37 @@ describe("Connect", () => {
     expect(
       document.querySelector<HTMLInputElement>("#assistant-api-key")?.value
     ).toBe("");
+  });
+
+  it("opens on the backend's default model for a preset model it does not list", async () => {
+    const user = userEvent.setup();
+    renderConnect({
+      defaultBackend: "present",
+      preset: { provider: "anthropic", model: "claude-unknown-9" },
+    });
+    await user.type(
+      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      "sk-ant-fake"
+    );
+
+    act(() => action!.connect());
+
+    const anthropic = PROVIDERS.find((p) => p.id === "anthropic")!;
+    expect(PgAssistant.connection?.settings?.model).toBe(
+      anthropic.modelSettings!.defaults.model
+    );
+  });
+
+  it("puts a preset model into an endpoint's model field", () => {
+    renderConnect({
+      defaultBackend: "present",
+      preset: { provider: "openrouter", model: "vendor/model-x" },
+    });
+
+    expect(checked()?.getAttribute("value")).toBe("openrouter");
+    expect(
+      document.querySelector<HTMLInputElement>("#assistant-model")?.value
+    ).toBe("vendor/model-x");
   });
 
   it("hands its host the action, ready once the key is in, and connects", async () => {

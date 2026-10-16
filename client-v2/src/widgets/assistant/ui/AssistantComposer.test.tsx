@@ -265,6 +265,50 @@ describe("AssistantComposer, connected", () => {
   });
 });
 
+describe("AssistantComposer, re-picking and busy", () => {
+  it("sends nothing for a re-pick of the connected model", async () => {
+    const tune = vi.spyOn(PgAssistant, "tune");
+    render(<Harness />);
+    const user = await openMenu(/Opus 5.5/);
+    await user.click(screen.getByRole("menuitemradio", { name: /Opus 5.5/ }));
+
+    expect(tune).not.toHaveBeenCalled();
+    expect(tracked()).toEqual([]);
+    expect(PgAssistant.connection).toEqual(anthropic);
+  });
+
+  it("sends nothing for a re-pick of the connected default", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const connect = vi.spyOn(PgAssistant, "connect");
+    render(<Harness />);
+    const user = await openMenu(/GLM 5.3 Flash/);
+    await user.click(
+      screen.getByRole("menuitemradio", { name: /GLM 5.3 Flash/ })
+    );
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(tracked()).toEqual([]);
+  });
+
+  it("disables the model and effort menus during a turn", () => {
+    render(<Harness />);
+    act(() => PgAssistant.setStatus("running"));
+
+    expect(
+      screen.getByRole("button", { name: /Opus 5.5/ }).hasAttribute("disabled")
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: /Medium/ }).hasAttribute("disabled")
+    ).toBe(true);
+    expect(
+      screen
+        .getByRole("textbox", { name: "Message the assistant" })
+        .getAttribute("placeholder")
+    ).toBe("Working…");
+    act(() => PgAssistant.setStatus("idle"));
+  });
+});
+
 describe("AssistantComposer, nothing connected", () => {
   it("says a requested prompt is waiting, in an info callout", async () => {
     PgAssistant.disconnect();
