@@ -70,9 +70,10 @@ export function BaseAssistantHead({
   onForgetKey,
 }: BaseAssistantHeadProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  // An item replaces what the assistant shows, so once the menu has closed
-  // (after its exit animation) focus goes into that view (`focusPicked`), not
-  // back to More, which would blur whatever the user reached in the meantime:
+  // A picked item may open something (Sources in place of the chat, Connect
+  // a model over it), so once the menu has closed (after its exit animation)
+  // focus goes there (`focusPicked`), not back to More, which would blur
+  // whatever the user reached in the meantime:
   // a select opened in that window shut. A dismissal (Escape, a click outside)
   // still returns focus to More.
   const picked = useRef(false);

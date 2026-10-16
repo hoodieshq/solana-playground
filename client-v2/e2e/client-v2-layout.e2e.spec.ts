@@ -385,7 +385,7 @@ test.describe("on a phone", () => {
     await page.getByRole("button", { name: "Collapse navigation" }).click();
     await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
     await page.getByRole("radio", { name: "Chat" }).click();
-    // The composer is there with nothing connected: the first send connects
+    // The composer is there and takes typing with nothing connected
     const composer = page.getByRole("textbox", {
       name: "Message the assistant",
     });

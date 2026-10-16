@@ -116,7 +116,8 @@ test("client-v2-assistant: No default backend", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Connect a model" });
   await expect(dialog.locator("#assistant-api-key")).toBeVisible(LONG);
   // The prompt waits in the composer, but no notice says so once the dialog is
-  // what the user is looking at (Ruling R9)
+  // what the user is looking at: the notice is for a prompt asked for from
+  // outside the panel, such as Fix with assistant
   await expect(
     page.getByText(
       "Connect a backend to send this to the assistant. Your prompt is waiting in the composer."

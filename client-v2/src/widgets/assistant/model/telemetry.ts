@@ -10,7 +10,7 @@ export type AssistantEvents = {
   assistant_model_picked: { provider: ProviderId; via: "menu" | "dialog" };
   /** The user changed the reasoning effort in the composer's menu. */
   assistant_effort_changed: { effort: Effort };
-  /** The Connect dialog opened; `via` says whether from the menu, the model chip or a send with nothing connected. */
+  /** The Connect dialog opened; `via` says whether from the head's More, the model chip or a send with nothing connected. */
   assistant_connect_opened: { via: "menu" | "model" | "send" };
   /** The user stopped a turn in progress with the stop button. */
   assistant_turn_stopped: NoParams;

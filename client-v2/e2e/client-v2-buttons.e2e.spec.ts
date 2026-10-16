@@ -12,9 +12,8 @@ type AssistantWindow = Window & {
 const CODE = "anchor build\nanchor deploy";
 
 /**
- * A ring brand button at rest: the Build stage's Continue to Deploy, after a
- * build the stub answers. Connect a model's action, which these tests read
- * before, is now its dialog's footer submit.
+ * A ring brand button at rest, on the page itself rather than in a dialog:
+ * the Build stage's Continue to Deploy, after a build the stub answers.
  */
 const ringAction = async (page: Page) => {
   await page.route("**/build", (route) =>

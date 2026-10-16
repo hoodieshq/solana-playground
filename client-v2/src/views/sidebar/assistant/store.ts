@@ -261,7 +261,8 @@ export class PgAssistant {
   /**
    * Choose a backend for this tab.
    *
-   * Re-picking the current one is a no-op beyond closing the picker; switching
+   * Re-picking the current one keeps the conversation and marks Connect a
+   * model closed; switching
    * to a different one starts a new conversation, because the history lives
    * inside the provider and the new one cannot see the old transcript.
    *
