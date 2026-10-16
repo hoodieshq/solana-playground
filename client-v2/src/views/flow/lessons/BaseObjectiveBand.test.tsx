@@ -116,10 +116,13 @@ describe("BaseObjectiveBand", () => {
 
   it("draws the finished band with the gallery", () => {
     const onGallery = vi.fn();
-    const { container } = render(
-      <BaseObjectiveBand {...finished(onGallery)} />
-    );
+    const onBack = vi.fn();
+    const f = finished(onGallery);
+    f.back = { enabled: true, onClick: onBack };
+    const { container } = render(<BaseObjectiveBand {...f} />);
     expect(container.textContent).toContain("4 of 4 steps");
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Browse gallery" }));
     expect(onGallery).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "I'm stuck" })).toBeNull();

@@ -326,32 +326,36 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
         throw new Error("quota exceeded");
       },
     }));
-    explorer.currentWorkspaceName = PATH.tutorial;
-    const sub = PgLesson.init();
-    await flush();
+    let sub: ReturnType<typeof PgLesson.init> | undefined;
+    try {
+      explorer.currentWorkspaceName = PATH.tutorial;
+      sub = PgLesson.init();
+      await flush();
 
-    PgLesson.opened("one");
-    await flush();
-    PgLesson.opened("two");
-    await flush();
+      PgLesson.opened("one");
+      await flush();
+      PgLesson.opened("two");
+      await flush();
 
-    // Every failed write is reported to the team; the learner is told once
-    expect(logged.entries.length).toBeGreaterThanOrEqual(2);
-    for (const entry of logged.entries) {
-      expect(entry.ns).toBe("lessons:store");
-      expect(entry.level).toBe("error");
-      expect(entry.error?.message).toBe("quota exceeded");
-      expect(entry.report).toBe(true);
+      // Every failed write is reported to the team; the learner is told once
+      expect(logged.entries.length).toBeGreaterThanOrEqual(2);
+      for (const entry of logged.entries) {
+        expect(entry.ns).toBe("lessons:store");
+        expect(entry.level).toBe("error");
+        expect(entry.error?.message).toBe("quota exceeded");
+        expect(entry.report).toBe(true);
+      }
+      // The toast component is imported lazily, so it can land after `flush`
+      await vi.waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
+      await flush();
+      expect(PgView.setToast).toHaveBeenCalledTimes(1);
+      expect(
+        (PgView.setToast as ReturnType<typeof vi.fn>).mock.calls[0][1]
+      ).toEqual({ options: { name: "lesson-save-failed" } });
+    } finally {
+      sub?.dispose();
+      resetLogger();
     }
-    // The toast component is imported lazily, so it can land after `flush`
-    await vi.waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
-    await flush();
-    expect(PgView.setToast).toHaveBeenCalledTimes(1);
-    expect(
-      (PgView.setToast as ReturnType<typeof vi.fn>).mock.calls[0][1]
-    ).toEqual({ options: { name: "lesson-save-failed" } });
-    sub.dispose();
-    resetLogger();
   });
 
   it("does not leak one lesson's record into the next workspace's load", async () => {
