@@ -845,7 +845,8 @@ widgets/assistant
 │          Clear conversation (disabled until HOO-1741)
 ├─ (thread: today's Chat items, unchanged until 5.18)
 ├─ AssistantComposer (shared/ui/composer)
-│    context chips | input | Add | ModelMenu | EffortMenu? | Send ⇄ Stop
+│    context chips | input | Add (not rendered until there is something to add)
+│      | ModelMenu | EffortMenu? | Send ⇄ Stop
 └─ ConnectDialog (ModalFrame through PgView.setModal) around today's Connect form
 ```
 
@@ -868,10 +869,10 @@ widgets/assistant
   Forget key, the old chat header's button (#71), moves into More: shown only
   while a backend that needs a key is connected, disabled during a turn
   ("Finish this turn first"). Decided with Slava 2026-10-15.
-- **One reconnect, on the composer's mount.** The connection a tab keeps in
-  `sessionStorage` (#71) and the remembered default both reconnect from
-  `useTurn`'s mount, the kept key first, with one probe of `GET /api/agent`
-  per page. `Connect` no longer probes or reconnects; nothing reconnects
+- **One reconnect, on the panel's mount.** The connection a tab keeps in
+  `sessionStorage` (#71) and the remembered default both reconnect from the
+  panel's mount (`Assistant`, through `useTurn`), the kept key first, with one
+  probe of `GET /api/agent` per page, asked again only after a failed one. `Connect` no longer probes or reconnects; nothing reconnects
   while Connect a model is open.
 - **The composer is always there.** Nothing connected no longer swaps the
   composer for the picker:
@@ -915,8 +916,8 @@ widgets/assistant
   `onDidOpenModal`, and reports `overlay_modal_opened`; below `md` the stock
   Modal makes it a page of its own with a sticky footer. It holds today's `Connect` form
   without its "Back to chat" and its own title, and opens from More (K),
-  from the model menu, and from a Send with nothing to send to. It is built
-  after 5.5 (#72) and the own-key change (#71) merge: both edit
+  from the model menu, and from a Send with nothing to send to. It was built
+  after 5.5 (#72) and the own-key change (#71) merged, since both edit
   `Connect.tsx`.
 - **What survives.** "Message the assistant", the "Conversation" log, Send
   and Stop, "Expand assistant" and "Collapse assistant", and the form's
