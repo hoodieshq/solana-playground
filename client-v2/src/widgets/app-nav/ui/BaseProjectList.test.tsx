@@ -130,6 +130,12 @@ describe("BaseProjectList", () => {
     expect(onAction).toHaveBeenLastCalledWith(alpha, action, "key");
   });
 
+  it("takes the letter whatever its case: Shift or Caps Lock gives D", () => {
+    const { onAction } = draw();
+    fireEvent.keyDown(openMenu("alpha"), { key: "D", shiftKey: true });
+    expect(onAction).toHaveBeenLastCalledWith(alpha, "duplicate", "key");
+  });
+
   it("unpins a pinned row by P", () => {
     const { onAction } = draw();
     fireEvent.keyDown(openMenu("beta"), { key: "p" });

@@ -16,7 +16,12 @@ type NavEvents = {
    * `delete` when their dialog opens, since the dialog owns what follows.
    */
   nav_project_action: { action: ProjectAction; via: "click" | "key" };
-  /** A project action threw; the user was told and the error was logged */
+  /**
+   * The list's own part of a project action failed (an open, a pin, a
+   * rename, a duplicate, or a dialog that did not open); the user was told
+   * and the error was logged. A failure inside the export or delete dialog
+   * is that dialog's to report.
+   */
   nav_project_action_failed: { action: ProjectAction };
 };
 

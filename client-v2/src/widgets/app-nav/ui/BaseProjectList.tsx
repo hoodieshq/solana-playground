@@ -149,7 +149,10 @@ const Row = ({
   // Ahead of Radix's typeahead, which would only move focus to the item
   // whose label starts with the letter
   const onKeyDown = (event: KeyboardEvent) => {
-    const action = KEYS[event.key];
+    // A letter in either case: under Shift or Caps Lock, D is what the
+    // item's hint shows; named keys (Backspace, Delete) are matched as named
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const action = KEYS[key];
     if (!action || event.metaKey || event.ctrlKey || event.altKey) return;
     event.preventDefault();
     run(action === "pin" ? pinAction(entry) : action, "key");
@@ -238,7 +241,7 @@ const Row = ({
           <DropdownMenuSeparator />
           <Item
             icon={Trash2}
-            hint="⌫"
+            hint={"\u232B" /* the Backspace symbol */}
             label={`Delete ${entry.name}`}
             destructive
             onSelect={() => run("delete", "click")}

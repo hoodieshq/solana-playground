@@ -236,7 +236,7 @@ const ProjectList = () => {
     perform(entry, action).catch((e: unknown) => fail(entry, action, e));
   };
 
-  const onRenameCommit = (entry: ProjectEntry, value: string) => {
+  const onRenameCommit = async (entry: ProjectEntry, value: string) => {
     if (renamePending.current) return;
     const newName = value.trim();
     if (!PgExplorer.isWorkspaceNameValid(newName)) {
@@ -257,26 +257,27 @@ const ProjectList = () => {
       via: renameVia.current,
     });
     renamePending.current = true;
-    // Another workspace is renamed where it lies, and announced so sync
-    // uploads the new name; the open one is renamed as before
-    PgExplorer.renameWorkspace(newName, { from: entry.name, announce: true })
-      .then(() => {
-        setRenaming(null);
-        setRenameError(null);
-      })
-      .catch((e: unknown) => {
-        const refusal = refusalOf(e, entry, newName);
-        if (refusal) {
-          navTelemetry.track("nav_project_action_failed", { action: "rename" });
-          setRenameError(refusal);
-          return;
-        }
-        fail(entry, "rename", e);
-        setRenameError(`Could not rename ${entry.name}.`);
-      })
-      .finally(() => {
-        renamePending.current = false;
+    try {
+      // Another workspace is renamed where it lies, and announced so sync
+      // uploads the new name; the open one is renamed as before
+      await PgExplorer.renameWorkspace(newName, {
+        from: entry.name,
+        announce: true,
       });
+      setRenaming(null);
+      setRenameError(null);
+    } catch (e) {
+      const refusal = refusalOf(e, entry, newName);
+      if (refusal) {
+        navTelemetry.track("nav_project_action_failed", { action: "rename" });
+        setRenameError(refusal);
+        return;
+      }
+      fail(entry, "rename", e);
+      setRenameError(`Could not rename ${entry.name}.`);
+    } finally {
+      renamePending.current = false;
+    }
   };
 
   return (

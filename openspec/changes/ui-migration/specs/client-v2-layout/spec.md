@@ -294,8 +294,11 @@ user and export the project as is.
 
 The navigation SHALL send `nav_project_action` with the `action` (`open`,
 `pin`, `unpin`, `rename`, `duplicate`, `export` or `delete`) and whether a
-click or a key ran it each time a project action runs, and
-`nav_project_action_failed` with the `action` when one fails.
+click or a key ran it each time a project action starts (`export` and
+`delete` when their dialog opens), and `nav_project_action_failed` with the
+`action` when the list's own part of it fails: an open, a pin, a rename, a
+duplicate, or a dialog that does not open. A failure inside the export or
+delete dialog is that dialog's to report.
 
 #### Scenario: Pinning by key
 

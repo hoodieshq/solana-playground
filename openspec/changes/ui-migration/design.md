@@ -1024,8 +1024,12 @@ AppNav
   unpin | rename | duplicate | export | delete, via: click | key}` when an
   action starts (`rename` on commit; `export` and `delete` when their
   dialog opens, since the dialog owns what follows), and
-  `nav_project_action_failed {action}` when one fails. Logs go to
-  `app-nav:projects`.
+  `nav_project_action_failed {action}` when the list's own part fails. A
+  failure inside a dialog is the dialog's: `DeleteWorkspace`'s submit sends
+  the overlays' `overlay_modal_submit_failed`, and `ExportWorkspace` tells
+  the user and logs with `report: true`. The list does not hear of either,
+  and making the legacy dialogs call back into it is not worth a second
+  failure count. Logs go to `app-nav:projects`.
 
 Kept: "Delete <name>" and "Rename <name>", the switcher's labels, now the
 menu's items and the rename field. The e2e that went through the switcher's
