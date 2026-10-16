@@ -250,3 +250,66 @@ export const startProject = async (page: Page, name: string) => {
   await expect(gallery).toBeHidden(LONG);
   await expect(currentProject(page)).toHaveText(name, LONG);
 };
+
+/**
+ * Whether the lesson record on disk holds a `pass` for this step (a skip is recorded as one).
+ *
+ * `PgLesson._persist` writes the record into the workspace's volume a beat
+ * after the move; a test that leaves the page straight away races that write.
+ * Scanned the way `workspaceIdOf` scans, since the volume keeps file contents
+ * by inode: every value is tried, and the record is the one holding an
+ * `events` list. Poll it with `expect.poll`.
+ */
+export const lessonPassed = (page: Page, stepId: string) =>
+  page.evaluate(async (stepId) => {
+    const dbs: Array<{ name?: string }> = await (
+      indexedDB as unknown as {
+        databases: () => Promise<Array<{ name?: string }>>;
+      }
+    ).databases();
+
+    const holdsPass = (node: unknown): boolean => {
+      if (Array.isArray(node)) return node.some(holdsPass);
+      if (node === null || typeof node !== "object") return false;
+      const record = node as Record<string, unknown>;
+      if (record.type === "pass" && record.stepId === stepId) return true;
+      return Object.values(record).some(holdsPass);
+    };
+
+    for (const { name: dbName } of dbs) {
+      if (!dbName) continue;
+      const db: IDBDatabase = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      for (const store of Array.from(db.objectStoreNames)) {
+        const values: unknown[] = await new Promise((resolve) => {
+          const request = db
+            .transaction(store, "readonly")
+            .objectStore(store)
+            .getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => resolve([]);
+        });
+
+        for (const value of values) {
+          try {
+            const text =
+              typeof value === "string"
+                ? value
+                : new TextDecoder().decode(value as ArrayBuffer);
+            if (holdsPass(JSON.parse(text))) {
+              db.close();
+              return true;
+            }
+          } catch {
+            // Not text, or not JSON: some other file, or the superblock
+          }
+        }
+      }
+      db.close();
+    }
+    return false;
+  }, stepId);

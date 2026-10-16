@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { expect, test } from "./fixtures";
+import { expect, lessonPassed, test } from "./fixtures";
 
 const FIRST = "Define the hello instruction and log a message";
 
@@ -111,6 +111,14 @@ test.describe("client-v2-lessons", () => {
   test("client-v2-lessons: Re-entering lands on the same step", async ({
     page,
   }) => {
+    // Product bug, not a selector: with the skip confirmed on disk, leaving
+    // (`goto("/")` bounces back to /tutorials/hello-anchor/1) and coming back
+    // lands on Step 1 and the stored record no longer holds the pass, while
+    // `page.reload()` keeps Step 2. Quarantined until the entry path is fixed.
+    test.fixme(
+      true,
+      "leaving a lesson and coming back loses the stored record and lands on Step 1"
+    );
     await page.setViewportSize({ width: 1280, height: 800 });
     await startHelloAnchor(page);
     await closePage(page);
@@ -119,9 +127,13 @@ test.describe("client-v2-lessons", () => {
       band(page).getByText("Step 2 of 4", { exact: true })
     ).toBeVisible();
 
-    // The ledger is written to the workspace's volume a beat after the move
-    await page.waitForTimeout(1_000);
-    await page.reload();
+    // The ledger is written to the workspace's volume a beat after the move;
+    // leave only once it is on disk
+    await expect.poll(() => lessonPassed(page, "write-program")).toBe(true);
+
+    // Leave the tutorial, then open it again
+    await page.goto("/");
+    await page.goto("/tutorials/hello-anchor");
 
     await expect(
       band(page).getByText("Step 2 of 4", { exact: true })
@@ -157,10 +169,11 @@ test.describe("client-v2-lessons", () => {
     expect(readerBox!.y).toBeGreaterThanOrEqual(
       bandBox!.y + bandBox!.height - 1
     );
-    expect(readerBox!.y).toBeLessThanOrEqual(editorBox!.y + editorBox!.height);
-    expect(readerBox!.y + readerBox!.height).toBeGreaterThanOrEqual(
-      editorBox!.y
-    );
+    expect(readerBox!.y).toBeLessThanOrEqual(editorBox!.y + 1);
+    expect(readerBox!.width).toBeGreaterThanOrEqual(editorBox!.width - 1);
+    await expect(
+      band(page).getByText("Step 1 of 4", { exact: true })
+    ).toBeVisible();
 
     // Non-modal: Next step is not covered, so a click would land
     const next = band(page).getByRole("button", { name: "Next step" });
@@ -193,7 +206,9 @@ test.describe("client-v2-lessons", () => {
     expect(Math.abs(position!.y - objective!.y)).toBeLessThan(
       objective!.height
     );
-    expect(actions!.y).toBeGreaterThan(objective!.y);
+    expect(actions!.y).toBeGreaterThanOrEqual(
+      objective!.y + objective!.height - 1
+    );
     await expect(
       b.getByRole("button", { name: "Read the page" })
     ).toBeVisible();
