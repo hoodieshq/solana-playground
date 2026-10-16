@@ -309,6 +309,39 @@ describe("ConnectDialog", () => {
     expect(entry?.report).toBe(true);
   });
 
+  it("tells the user when it cannot be opened", async () => {
+    initLogger({ providers: [memoryLog()] });
+    vi.spyOn(PgView, "setModal").mockRejectedValue(new Error("no host"));
+    const toast = vi.spyOn(PgView, "setToast").mockReturnValue(undefined);
+
+    act(() => openConnectDialog("send"));
+
+    await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+    expect(toast.mock.calls[0][1]).toEqual({
+      options: { name: "connect-model-failed" },
+    });
+  });
+
+  it("still closes on a later connection when closing it threw once", async () => {
+    const logs = memoryLog();
+    initLogger({ providers: [logs] });
+    renderHost();
+    act(() => openConnectDialog("menu"));
+    const close = vi.spyOn(PgView, "closeModal").mockImplementationOnce(() => {
+      throw new Error("the host is busy");
+    });
+
+    act(() => PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-one" }));
+    expect(dialog()).not.toBeNull();
+    act(() => PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-two" }));
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["assistant:connect", "error", true],
+    ]);
+  });
+
   it("opens on the backend and model it was asked for", () => {
     backend = { state: "present", model: "z-ai/glm-5.3-flash:US" };
     renderHost();

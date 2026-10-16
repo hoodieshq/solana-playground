@@ -62,6 +62,14 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
       // take whatever dialog is under this one with it
       if (closed.current) return;
       closed.current = true;
+      try {
+        PgView.closeModal(connection);
+      } catch (error) {
+        // Still on screen: the next connection made in it closes it
+        closed.current = false;
+        log.error(error, { report: true, context: { step: "close" } });
+        return;
+      }
       // Re-picking what was connected closes the dialog but picks nothing
       if (isNewPick(opened.current, connection)) {
         assistantTelemetry.track("assistant_model_picked", {
@@ -69,7 +77,6 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
           via: "dialog",
         });
       }
-      PgView.closeModal(connection);
     });
     return () => {
       sub.dispose();
@@ -115,6 +122,13 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
   );
 };
 
+const CouldNotOpen = () => (
+  <span>
+    <strong>Could not open Connect a model.</strong> Reload the page and try
+    again.
+  </span>
+);
+
 /**
  * Open Connect a model, unless it is open already.
  *
@@ -131,8 +145,12 @@ export const openConnectDialog: ConnectOpener = (via, preset) => {
   PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset }).catch(
     (error) => {
       // `setModal` rejects only when the dialog host answers with an error;
-      // the user is left without the dialog, so the team must hear of it
+      // the user is left without the dialog, so the team must hear of it,
+      // and the user is told why nothing opened
       log.error(error, { report: true, context: { via } });
+      PgView.setToast(CouldNotOpen, {
+        options: { name: "connect-model-failed" },
+      });
       // Nothing is choosing any more: a send may connect the default again
       if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
     }
