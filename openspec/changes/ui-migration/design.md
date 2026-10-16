@@ -951,16 +951,24 @@ AppNav
 ```
 
 - **Where it lives.** `widgets/app-nav`: `BaseProjectList` takes the
-  entries, the current name, the pins and the callbacks, and is built from
-  the installed `Sidebar*` parts, `DropdownMenu` with `DropdownMenuShortcut`
-  and `Input`; `ProjectList` connects `PgExplorer`, `PgTutorial`, `PgLesson`
-  and the pins. `BaseAppNav`'s `switcher` slot becomes `projects`, not
-  rendered on the rail, which shows no projects in the prototype.
-  `ProjectSwitcher.tsx` is deleted; `groupWorkspaces` moves to the widget's
-  `model/`. The list re-renders on `PgExplorer`'s create, rename, delete and
-  switch events, so a project synced from another device appears without a
-  switch, as it did in the switcher. On a phone it is on the menu page,
-  which renders `AppNav` (5.7).
+  entries (each with its `pinned` flag), the current name, the rename state
+  and the callbacks, and is built from the installed `Sidebar*` parts,
+  `DropdownMenu` with `DropdownMenuShortcut` and `Input`; `ProjectList`
+  connects `PgExplorer`, `PgTutorial`, `PgLesson` and the pins.
+  `BaseAppNav`'s `switcher` slot becomes `projects`, not rendered on the
+  rail, which shows no projects in the prototype. `ProjectSwitcher.tsx` is
+  deleted; `groupWorkspaces` becomes `listProjects` in
+  `model/project-entries.ts`, which also orders pinned entries first.
+- **It follows the explorer.** The list re-renders on `PgExplorer`'s
+  create, rename, delete and switch events, `PgLesson.onDidChange` (the open
+  lesson's progress), and a new `onDidChangeWorkspaceList`: the switcher
+  re-read the list each time it opened, while the list stays mounted, and two
+  changes reach the list with no other event, another tab's list taken by
+  `refreshWorkspaces` and a rename sync makes unannounced. So a project
+  synced from another device appears without a switch, and one renamed or
+  deleted elsewhere does not linger. A rename field whose project went is
+  dropped. On a phone the list is on the menu page, which renders `AppNav`
+  (5.7).
 - **A row.** A folder icon (a cap for a lesson) and the name; the current
   project is marked (`aria-current`, the accent on its icon); a pinned one
   shows a pin. "Actions for <name>" opens its menu, shown on hover and on
@@ -974,36 +982,48 @@ AppNav
   `PgExplorer.switchWorkspace` for a project, as the switcher did.
 - **Pins** are kept per device under one `localStorage` key, `nav.pins`: an
   array of workspace ids, so a rename keeps the pin. An id no workspace has
-  any more is dropped when read; a value that cannot be read is no pins,
-  logged. Syncing pins across devices is a ticket of its own (HOO-2121). _Rejected:_ pins in `/.config` through `PgFs` (an async read
-  before the list can draw, for a few hundred bytes).
-- **Rename** happens in the row: an `Input` named "Rename <name>", Enter
-  commits, Escape or a blur without a change cancels, and an invalid or taken
-  name shows in place (`aria-invalid`) and keeps the field open. It calls
+  any more is left out when the list draws, and removed from storage once
+  the explorer has loaded its workspaces. A value that cannot be read, or
+  storage the browser refuses, is no pins, logged. A pin is toggled against
+  what storage holds, and another tab's change is taken from the `storage`
+  event, so two tabs do not undo each other's pins. Syncing pins across
+  devices is a ticket of its own (HOO-2121). _Rejected:_ pins in `/.config`
+  through `PgFs` (an async read before the list can draw, for a few hundred
+  bytes).
+- **Rename** happens in the row: an `Input` named "Rename <name>". Enter,
+  or a blur after a change, commits; Escape, or a blur with no change,
+  cancels. The name is trimmed before it is checked. An invalid or taken
+  name shows in place (`aria-invalid`) and keeps the field open, and so does
+  a refusal from the explorer (the project went, or the name was taken
+  meanwhile), unreported. One rename runs at a time. It calls
   `PgExplorer.renameWorkspace(newName, {from, announce: true})`, the path
   the rename modal takes, so sync uploads the new name.
 - **Duplicate** reads the project's files from the store and creates
-  `<name> copy` (then `<name> copy 2`, ...; a workspace name allows no parentheses) through
-  `PgExplorer.createWorkspace`, which opens it. It leaves out
-  `.workspace/`: `program-info.json` holds the program keypair, and a copy
-  holding it would deploy over the original's program. _Rejected:_ copying
-  the keypair.
+  `<name> copy` (then `<name> copy 2`, ...; a workspace name allows no
+  parentheses) through `PgExplorer.createWorkspace`, which opens it. It
+  leaves out `.workspace/`: `program-info.json` holds the program keypair,
+  and a copy holding it would deploy over the original's program.
+  _Rejected:_ copying the keypair. An edit made in the last 500 ms before a
+  duplicate of the open project, still in the editor's autosave window, is
+  not in the copy, as it is not in anything else that reads the store.
 - **Export as zip** opens `ExportWorkspace`, already on the design system's
   `ModalFrame` since 5.6, fixed in place by the UI move rule rather than
   rebuilt in `app-nav`, which would have to import the `overlays` widget's
   `ModalFrame`; the list opens it through `PgView.setModal`, as it does
-  `DeleteWorkspace`. It
-  takes the workspace's `name`, and `PgFramework.exportWorkspace` takes it
-  too, so any project exports, not only the open one. A conversion that
-  fails tells the user in a toast, exports as is, and logs with
-  `report: true`, as since 5.6; an export that fails now tells the user too
-  (it was only logged, through `reportButtonFailure`), and logs with
-  `report: true`.
+  `DeleteWorkspace`. It takes the workspace's `name`, and
+  `PgFramework.exportWorkspace` takes it too, so any project exports, not
+  only the open one. A conversion that fails exports as is, and the toast
+  saying so is shown once that export has happened; a project of no known
+  framework (`PgFramework.isUnknownFramework`) is noted, any other
+  conversion failure is logged with `report: true`. An export that fails
+  tells the user and logs with `report: true` (it was only logged, through
+  `reportButtonFailure`).
 - **Delete** opens `DeleteWorkspace`, which owns the confirmation, as from
   the switcher.
 - **Telemetry** (prefix `nav`): `nav_project_action {action: open | pin |
   unpin | rename | duplicate | export | delete, via: click | key}` when an
-  action runs (`rename` on commit, `export` when the dialog exports), and
+  action starts (`rename` on commit; `export` and `delete` when their
+  dialog opens, since the dialog owns what follows), and
   `nav_project_action_failed {action}` when one fails. Logs go to
   `app-nav:projects`.
 

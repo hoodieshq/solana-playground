@@ -10,9 +10,10 @@ type NavEvents = {
    */
   nav_item_opened: { item: NavItem };
   /**
-   * A project action ran from the navigation's project list, picked in a
-   * row's menu (`via: click`) or by its letter while the menu was open
-   * (`via: key`). `rename` is sent on commit, not when the field opens.
+   * An action started from the navigation's project list: a click on the row
+   * (open) or on a menu item (`via: click`), or the item's letter while the
+   * menu is open (`via: key`). `rename` is sent on commit; `export` and
+   * `delete` when their dialog opens, since the dialog owns what follows.
    */
   nav_project_action: { action: ProjectAction; via: "click" | "key" };
   /** A project action threw; the user was told and the error was logged */

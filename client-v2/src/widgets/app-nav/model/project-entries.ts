@@ -3,7 +3,10 @@ export interface ProjectEntry {
   /** The stable workspace id pins key on; `null` while the explorer has none */
   id: string | null;
   isLesson: boolean;
-  /** e.g. "3 of 4" or "done" for a lesson; `null` for a project */
+  /**
+   * "3 of 4" or "done" for the open lesson, "<n> steps" for another; `null`
+   * for a project, or a lesson with no lesson path
+   */
   progress: string | null;
   pinned: boolean;
 }

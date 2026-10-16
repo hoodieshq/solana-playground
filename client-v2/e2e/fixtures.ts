@@ -211,7 +211,7 @@ export const projectRow = (page: Page, name: string) =>
     .locator('[data-slot="sidebar"]')
     .getByRole("button", { name, exact: true });
 
-/** The open project's row; what the frame's switcher used to name */
+/** The open project's row (`aria-current="page"`) in the navigation's list */
 export const currentProject = (page: Page) =>
   page.locator(
     '[data-slot="sidebar"] [data-sidebar="menu-button"][aria-current="page"]'
@@ -225,7 +225,7 @@ export const projectMenu = async (page: Page, name: string) => {
   return menu;
 };
 
-/** Opens the gallery from the navigation, where "Browse gallery" was */
+/** Opens the gallery through the navigation's New project item */
 export const openGallery = async (page: Page) => {
   await page
     .locator('[data-slot="sidebar"]')
