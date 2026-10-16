@@ -20,8 +20,7 @@ const WALLET = {
 
 /** Every field named: an explicit copy, not a spread over a base */
 const view = (fields: Partial<AccountView>): AccountView => ({
-  user: fields.user ?? null,
-  signIn: fields.signIn ?? { status: "idle" },
+  session: fields.session ?? { status: "idle" },
   wallet: fields.wallet ?? null,
   cluster: fields.cluster ?? UP,
   sending: fields.sending ?? false,
@@ -61,7 +60,7 @@ it("offers sign-in, settings, docs, feedback and the wallet when signed out", as
 });
 
 it("offers the profile and Sign out when signed in, with no Proposal group", async () => {
-  await open(view({ user: TESTER }));
+  await open(view({ session: { status: "signed-in", user: TESTER } }));
   expect(screen.getByText("Tester")).toBeTruthy();
   expect(screen.getByText("@t")).toBeTruthy();
   expect(items().slice(0, 2)).toEqual(["OpenGitHubprofile", "Signout"]);
@@ -69,15 +68,50 @@ it("offers the profile and Sign out when signed in, with no Proposal group", asy
 });
 
 it("leaves out the profile link for an account with no login", async () => {
-  await open(view({ user: { name: "Tester", login: null, image: null } }));
+  await open(
+    view({
+      session: {
+        status: "signed-in",
+        user: { name: "Tester", login: null, image: null },
+      },
+    })
+  );
   expect(
     screen.queryByRole("menuitem", { name: "Open GitHub profile" })
   ).toBeNull();
   expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeTruthy();
 });
 
+it("says why a sign-in failed above Sign in with GitHub, for the rail too", async () => {
+  await open(
+    view({
+      session: {
+        status: "failed",
+        reason: "popup-blocked",
+        message: "Allow popups for this site to sign in.",
+      },
+    })
+  );
+  expect(
+    screen.getByText("Allow popups for this site to sign in.")
+  ).toBeTruthy();
+  expect(items()[0]).toBe("SigninwithGitHub");
+});
+
+it("names an account with neither a name nor a login", async () => {
+  await open(
+    view({
+      session: {
+        status: "signed-in",
+        user: { name: null, login: null, image: null },
+      },
+    })
+  );
+  expect(screen.getByText("Account")).toBeTruthy();
+});
+
 it("offers Cancel while a sign-in waits", async () => {
-  const onPick = await open(view({ signIn: { status: "pending" } }));
+  const onPick = await open(view({ session: { status: "pending" } }));
   expect(screen.getByText("Signing in...")).toBeTruthy();
   await userEvent.click(screen.getByRole("menuitem", { name: "Cancel" }));
   expect(onPick).toHaveBeenCalledExactlyOnceWith("cancel-sign-in");
@@ -146,7 +180,9 @@ it("returns focus to the menu's trigger after any other pick", async () => {
 });
 
 it("opens Docs and the profile in a new tab and reports the pick", async () => {
-  const onPick = await open(view({ user: TESTER }));
+  const onPick = await open(
+    view({ session: { status: "signed-in", user: TESTER } })
+  );
   const docs = screen.getByRole("menuitem", { name: "Docs" });
   expect(docs.getAttribute("href")).toBe("https://solana.com/docs");
   expect(docs.getAttribute("target")).toBe("_blank");

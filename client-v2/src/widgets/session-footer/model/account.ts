@@ -1,4 +1,4 @@
-import type { SignInState } from "@/features/auth";
+import type { SessionUser, SignInState } from "@/features/auth";
 import type { ClusterStatus } from "./use-cluster-status";
 
 /** What a user can pick in the account menu (and the row's Cancel), for telemetry */
@@ -14,11 +14,18 @@ export type AccountItem =
   | "wallet"
   | "disconnect-wallet";
 
-export interface AccountUser {
-  name: string | null;
-  login: string | null;
-  image: string | null;
-}
+/** Where the account menu opens from: the footer's account row, or the rail's "Account" */
+export type AccountSurface = "footer" | "rail";
+
+export type AccountUser = Pick<SessionUser, "name" | "login" | "image">;
+
+/**
+ * Signed in, or where a sign-in stands. One value, so a user who is signed in
+ * is never also shown a sign-in that failed before the session arrived
+ */
+export type AccountSession =
+  | { status: "signed-in"; user: AccountUser }
+  | SignInState;
 
 export interface AccountWallet {
   /** Base58 */
@@ -29,19 +36,18 @@ export interface AccountWallet {
 
 /** Everything the footer, the rail and the menu draw */
 export interface AccountView {
-  user: AccountUser | null;
-  signIn: SignInState;
+  session: AccountSession;
   wallet: AccountWallet | null;
   cluster: ClusterStatus;
   /** A feedback send is in flight behind a closed form */
   sending: boolean;
 }
 
-/** One line under the account's name, and how it reads */
-export interface AccountLine {
-  text: string;
-  tone: "muted" | "error";
-}
+/** The line under the account's name */
+export type AccountLine =
+  | { kind: "signing-in" }
+  | { kind: "failed"; message: string }
+  | ({ kind: "wallet" } & AccountWallet);
 
 export const DOCS_URL = "https://solana.com/docs";
 
@@ -54,34 +60,58 @@ export const shortAddress = (address: string) =>
 export const formatBalance = (balance: number | null) =>
   balance === null ? "…" : `${balance.toFixed(2)} SOL`;
 
+export const accountUser = ({ session }: AccountView) =>
+  session.status === "signed-in" ? session.user : null;
+
+/** The short name on the account row: the handle first */
 const displayName = (user: AccountUser) => user.login ?? user.name ?? "Account";
 
+/** The name at the head of the menu: the display name first, never empty */
+export const profileName = (user: AccountUser) =>
+  user.name ?? user.login ?? "Account";
+
 /** The account controls' name: the visible text alone would not say what they open */
-export const accountLabel = ({ user }: AccountView) =>
-  user ? `Account: ${displayName(user)}` : "Account, signed out";
+export const accountLabel = (view: AccountView) => {
+  const user = accountUser(view);
+  return user ? `Account: ${displayName(user)}` : "Account, signed out";
+};
+
+const sessionLine = (session: AccountSession): AccountLine | null => {
+  if (session.status === "pending") return { kind: "signing-in" };
+  // The user chose to stop; there is nothing to report
+  if (session.status === "failed" && session.reason !== "cancelled") {
+    return { kind: "failed", message: session.message };
+  }
+  return null;
+};
 
 /** The account row's name, and the line under it: a sign-in under way or failed wins over the wallet */
 export const accountLines = (
   view: AccountView
 ): { primary: string; secondary: AccountLine | null } => {
-  const primary = view.user ? displayName(view.user) : "Sign in";
-  if (view.signIn.status === "pending") {
-    return { primary, secondary: { text: "Signing in...", tone: "muted" } };
+  const user = accountUser(view);
+  const fromSession = sessionLine(view.session);
+  const fromWallet: AccountLine | null = view.wallet && {
+    kind: "wallet",
+    address: view.wallet.address,
+    balance: view.wallet.balance,
+  };
+  return {
+    primary: user ? displayName(user) : "Sign in",
+    secondary: fromSession ?? fromWallet,
+  };
+};
+
+/** A line, in words */
+export const lineText = (line: AccountLine) => {
+  switch (line.kind) {
+    case "signing-in":
+      return "Signing in...";
+    case "failed":
+      return "Couldn't sign in";
+    case "wallet":
+      return `${shortAddress(line.address)} · ${formatBalance(line.balance)}`;
   }
-  if (view.signIn.status === "failed") {
-    return { primary, secondary: { text: "Couldn't sign in", tone: "error" } };
-  }
-  if (view.wallet) {
-    const { address, balance } = view.wallet;
-    return {
-      primary,
-      secondary: {
-        text: `${shortAddress(address)} · ${formatBalance(balance)}`,
-        tone: "muted",
-      },
-    };
-  }
-  return { primary, secondary: null };
 };
 
 /** Named, not only coloured, so a screen reader hears a cluster that is down */

@@ -23,6 +23,7 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
+import { SETUP_REJECTED } from "@/commands/connect/setup-rejected";
 import RailFooter from "./RailFooter";
 import SessionFooter from "./SessionFooter";
 
@@ -32,6 +33,8 @@ const wallet = vi.hoisted(() => ({
 }));
 const connect = vi.hoisted(() => ({ execute: vi.fn() }));
 const walletWindow = vi.hoisted(() => ({ show: false }));
+const balance = vi.hoisted(() => ({ current: 2.4 as number | undefined }));
+const setToast = vi.hoisted(() => vi.fn());
 
 vi.mock("../model/use-cluster-status", () => ({
   useClusterStatus: () => status,
@@ -40,12 +43,13 @@ vi.mock("../model/use-cluster-status", () => ({
 vi.mock("@/hooks", () => ({
   useRenderOnChange: () => undefined,
   useWallet: () => wallet.current,
-  useBalance: () => 2.4,
+  useBalance: () => balance.current,
 }));
 vi.mock("@/utils", () => ({
   PgCommand: { connect },
   PgCommon: { getOS: () => "MacOS" },
   PgWallet: walletWindow,
+  PgView: { setToast },
 }));
 vi.mock("@/views/flow/settings/GearSidebar", () => ({
   SETTINGS_TRIGGER_ATTR: "data-settings-trigger",
@@ -94,6 +98,8 @@ afterEach(() => {
   status.down = false;
   wallet.current = null;
   walletWindow.show = false;
+  balance.current = 2.4;
+  setToast.mockReset();
   PgSession.reset();
 });
 
@@ -122,7 +128,7 @@ const pick = async (name: string | RegExp) => {
 const eventsNamed = (name: string) =>
   sent.events.filter((event) => event.name === name).map((e) => e.params);
 
-it("opens the settings on the cluster from both the row and the rail's dot", async () => {
+it("opens the settings on the cluster from the footer's cluster row", async () => {
   const fromRow = draw("footer");
   await userEvent.click(
     screen.getByRole("button", { name: "Change cluster, currently devnet" })
@@ -159,13 +165,11 @@ it("starts a sign-in from the menu", async () => {
   ]);
 });
 
+const signInAsTester = () =>
+  PgSession.refreshWith({ id: "u1", name: "Tester", image: null, login: "t" });
+
 it("asks before signing out, and signs out only on the confirmation", async () => {
-  await PgSession.refreshWith({
-    id: "u1",
-    name: "Tester",
-    image: null,
-    login: "t",
-  });
+  await signInAsTester();
   const signOut = vi.spyOn(PgSession, "signOut").mockResolvedValue();
   draw("footer");
 
@@ -180,7 +184,109 @@ it("asks before signing out, and signs out only on the confirmation", async () =
   await pick("Sign out");
   await screen.findByRole("dialog", { name: "Sign out of GitHub?" });
   await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Sign out of GitHub?" })
+    ).toBeNull()
+  );
   expect(signOut).toHaveBeenCalledOnce();
+});
+
+it("keeps the dialog busy while signing out, so it cannot run twice", async () => {
+  await signInAsTester();
+  let finish = () => {};
+  const signOut = vi
+    .spyOn(PgSession, "signOut")
+    .mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+  draw("footer");
+
+  await pick("Sign out");
+  const confirm = await screen.findByRole("button", { name: "Sign out" });
+  await userEvent.click(confirm);
+  expect(confirm.getAttribute("aria-busy")).toBe("true");
+  await userEvent.click(confirm);
+  expect(signOut).toHaveBeenCalledOnce();
+
+  finish();
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Sign out of GitHub?" })
+    ).toBeNull()
+  );
+});
+
+it("logs, and reports, a sign-out that fails", async () => {
+  await signInAsTester();
+  const logged = logMemory();
+  initLogger({ providers: [logged] });
+  const failure = new Error("flush threw");
+  vi.spyOn(PgSession, "signOut").mockRejectedValue(failure);
+  draw("footer");
+
+  await pick("Sign out");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Sign out" })
+  );
+
+  await waitFor(() =>
+    expect(logged.entries).toEqual([
+      expect.objectContaining({
+        ns: "session-footer:account",
+        level: "error",
+        error: failure,
+        report: true,
+      }),
+    ])
+  );
+});
+
+it("shows a signed-in user, not a sign-in that failed before the session arrived", async () => {
+  vi.spyOn(PgSession, "signInState").mockReturnValue({
+    status: "failed",
+    reason: "popup-blocked",
+    message: "Allow popups for this site to sign in.",
+  });
+  await signInAsTester();
+  draw("footer");
+
+  expect(screen.getByRole("button", { name: "Account: t" })).toBeTruthy();
+  expect(screen.queryByText("Couldn't sign in")).toBeNull();
+});
+
+it("reports a sign-in that failed for no known reason", async () => {
+  const logged = logMemory();
+  initLogger({ providers: [logged] });
+  const failure = new TypeError("fetch failed");
+  vi.spyOn(PgSession, "signIn").mockRejectedValue(failure);
+  draw("footer");
+
+  await pick("Sign in with GitHub");
+
+  await waitFor(() =>
+    expect(logged.entries).toEqual([
+      expect.objectContaining({
+        ns: "session-footer:account",
+        level: "error",
+        error: failure,
+        report: true,
+      }),
+    ])
+  );
+});
+
+it("cancels a waiting sign-in from the row's Cancel", async () => {
+  vi.spyOn(PgSession, "signInState").mockReturnValue({ status: "pending" });
+  const cancel = vi
+    .spyOn(PgSession, "cancelSignIn")
+    .mockImplementation(() => {});
+  draw("footer");
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(eventsNamed("session_account_item_picked")).toEqual([
+    { item: "cancel-sign-in" },
+  ]);
 });
 
 it("opens the settings from the menu's Settings, showing ⌘, on a Mac", async () => {
@@ -198,10 +304,10 @@ it("connects a wallet through the connect command", async () => {
   expect(connect.execute).toHaveBeenCalledOnce();
 });
 
-it("logs, and reports, a wallet connect that fails, and the menu still opens", async () => {
+it("logs, reports and tells the user of a wallet connect that fails, and the menu still opens", async () => {
   const logged = logMemory();
   initLogger({ providers: [logged] });
-  const failure = new Error("User rejected");
+  const failure = new Error("Failed to confirm wallet connection state");
   connect.execute.mockRejectedValueOnce(failure);
   draw("footer");
 
@@ -217,10 +323,35 @@ it("logs, and reports, a wallet connect that fails, and the menu still opens", a
       }),
     ])
   );
+  expect(setToast).toHaveBeenCalledOnce();
   await openMenu();
   expect(
     await screen.findByRole("menuitem", { name: "Connect wallet" })
   ).toBeTruthy();
+});
+
+it("neither reports nor warns of a wallet setup the user dismissed", async () => {
+  const logged = logMemory();
+  initLogger({ providers: [logged] });
+  connect.execute.mockRejectedValueOnce(new Error(SETUP_REJECTED));
+  draw("footer");
+
+  await pick("Connect wallet");
+
+  await waitFor(() => expect(logged.entries).toHaveLength(1));
+  expect(logged.entries[0]).toEqual(
+    expect.objectContaining({ level: "info", report: false })
+  );
+  expect(setToast).not.toHaveBeenCalled();
+});
+
+it("waits for a balance that has not loaded rather than showing zero", () => {
+  wallet.current = { publicKey: { toBase58: () => ADDRESS } };
+  balance.current = undefined;
+  draw("footer");
+  expect(
+    screen.getByRole("button", { name: /^Account/ }).textContent
+  ).toContain("7Hq5…Xk2P · …");
 });
 
 it("shows a connected wallet on the row and opens its window from the menu", async () => {

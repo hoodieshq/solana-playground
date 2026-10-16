@@ -1,3 +1,5 @@
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -12,7 +14,8 @@ import {
 interface BaseSignOutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  /** Signs out; the dialog stays open, its button busy, until it settles */
+  onConfirm: () => Promise<void>;
 }
 
 /** Asked in a dialog, not in the menu: the menu closes on the click that would confirm */
@@ -34,9 +37,13 @@ const BaseSignOutDialog = ({
         <DialogClose asChild>
           <Button variant="outline">Cancel</Button>
         </DialogClose>
-        <Button variant="destructive" onClick={onConfirm}>
+        <AsyncButton
+          variant="destructive"
+          onClick={onConfirm}
+          onError={reportButtonFailure}
+        >
           Sign out
-        </Button>
+        </AsyncButton>
       </DialogFooter>
     </DialogContent>
   </Dialog>

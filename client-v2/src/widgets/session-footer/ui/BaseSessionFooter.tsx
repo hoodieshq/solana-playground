@@ -12,9 +12,21 @@ import {
 import { Spinner } from "@/shared/ui/spinner";
 import { StatusDot } from "@/shared/ui/status-dot";
 import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
-import { accountLabel, accountLines, clusterLabel } from "../model/account";
-import type { AccountView } from "../model/account";
+import {
+  accountLabel,
+  accountLines,
+  accountUser,
+  clusterLabel,
+  lineText,
+} from "../model/account";
+import type { AccountLine, AccountView } from "../model/account";
 import AccountAvatar from "./AccountAvatar";
+
+const LINE_STYLE: Record<AccountLine["kind"], string> = {
+  "signing-in": "text-muted-foreground",
+  failed: "text-destructive",
+  wallet: "font-mono text-muted-foreground",
+};
 
 export interface BaseSessionFooterProps {
   account: AccountView;
@@ -43,8 +55,6 @@ const BaseSessionFooter = ({
   accountRef,
 }: BaseSessionFooterProps) => {
   const { primary, secondary } = accountLines(account);
-  const failure =
-    account.signIn.status === "failed" ? account.signIn.message : undefined;
   return (
     <SidebarMenu className="w-full">
       <SidebarMenuItem>
@@ -74,9 +84,12 @@ const BaseSessionFooter = ({
               size="lg"
               aria-label={accountLabel(account)}
               aria-busy={account.sending || undefined}
+              // Opening the menu is no click outside the settings: Settings
+              // in it toggles them, so open settings must still be open then
+              {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
             >
               <AccountAvatar
-                image={account.user?.image ?? null}
+                image={accountUser(account)?.image ?? null}
                 sending={account.sending}
               />
               <span className="flex min-w-0 flex-col leading-tight">
@@ -85,15 +98,19 @@ const BaseSessionFooter = ({
                 </span>
                 {secondary && (
                   <span
-                    title={failure}
+                    // A failure is announced; its reason is in full in the menu
+                    role={secondary.kind === "failed" ? "status" : undefined}
+                    title={
+                      secondary.kind === "failed"
+                        ? secondary.message
+                        : undefined
+                    }
                     className={cn(
                       "truncate text-xs",
-                      secondary.tone === "error"
-                        ? "text-destructive"
-                        : "font-mono text-muted-foreground"
+                      LINE_STYLE[secondary.kind]
                     )}
                   >
-                    {secondary.text}
+                    {lineText(secondary)}
                   </span>
                 )}
               </span>
@@ -109,7 +126,7 @@ const BaseSessionFooter = ({
           </DropdownMenuTrigger>
           {menu}
         </DropdownMenu>
-        {account.signIn.status === "pending" && (
+        {account.session.status === "pending" && (
           // The popup cannot be asked whether it is still open once GitHub has
           // taken it over, so this is the way out short of the ten-minute
           // timeout -- see `popup-channel.ts`

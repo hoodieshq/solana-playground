@@ -43,8 +43,7 @@ afterAll(() => {
 
 /** Every field named: an explicit copy, not a spread over a base */
 const view = (fields: Partial<AccountView>): AccountView => ({
-  user: fields.user ?? null,
-  signIn: fields.signIn ?? { status: "idle" },
+  session: fields.session ?? { status: "idle" },
   wallet: fields.wallet ?? null,
   cluster: fields.cluster ?? { name: "devnet", down: false },
   sending: fields.sending ?? false,
@@ -99,6 +98,15 @@ it("opens the account menu from Account, not the navigation", async () => {
   );
   expect(screen.getByRole("menuitem", { name: "Item" })).toBeTruthy();
   expect(onMenuOpenChange).toHaveBeenCalledWith(true);
+});
+
+it("marks Account as a settings trigger, so opening the menu keeps open settings open", () => {
+  draw({ account: view({}) });
+  expect(
+    screen
+      .getByRole("button", { name: "Account, signed out" })
+      .hasAttribute("data-settings-trigger")
+  ).toBe(true);
 });
 
 it("shows a send in flight on Account", () => {

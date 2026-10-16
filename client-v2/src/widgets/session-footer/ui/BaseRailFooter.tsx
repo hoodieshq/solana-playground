@@ -8,7 +8,7 @@ import {
 } from "@/shared/ui/sidebar";
 import { StatusDot } from "@/shared/ui/status-dot";
 import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
-import { accountLabel, clusterLabel } from "../model/account";
+import { accountLabel, accountUser, clusterLabel } from "../model/account";
 import type { AccountView } from "../model/account";
 import AccountAvatar from "./AccountAvatar";
 
@@ -65,10 +65,13 @@ const BaseRailFooter = ({
               tooltip="Account"
               aria-label={accountLabel(account)}
               aria-busy={account.sending || undefined}
+              // Opening the menu is no click outside the settings: Settings
+              // in it toggles them, so open settings must still be open then
+              {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
               className="justify-center"
             >
               <AccountAvatar
-                image={account.user?.image ?? null}
+                image={accountUser(account)?.image ?? null}
                 sending={account.sending}
                 className="size-4"
               />

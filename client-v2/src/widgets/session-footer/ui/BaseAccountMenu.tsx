@@ -22,6 +22,7 @@ import {
   DOCS_URL,
   formatBalance,
   githubProfileUrl,
+  profileName,
   shortAddress,
 } from "../model/account";
 import type { AccountItem, AccountView } from "../model/account";
@@ -57,8 +58,9 @@ const SessionItems = ({
   account,
   onPick,
 }: Pick<BaseAccountMenuProps, "account" | "onPick">) => {
-  const { user, signIn } = account;
-  if (user) {
+  const { session } = account;
+  if (session.status === "signed-in") {
+    const { user } = session;
     return (
       <>
         <DropdownMenuLabel className="flex items-center gap-2 font-normal">
@@ -69,7 +71,7 @@ const SessionItems = ({
           />
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-foreground">
-              {user.name ?? user.login}
+              {profileName(user)}
             </span>
             {user.login && (
               <span className="truncate text-xs text-muted-foreground">
@@ -97,7 +99,7 @@ const SessionItems = ({
       </>
     );
   }
-  if (signIn.status === "pending") {
+  if (session.status === "pending") {
     return (
       <>
         <DropdownMenuLabel className="font-normal text-muted-foreground">
@@ -109,10 +111,23 @@ const SessionItems = ({
       </>
     );
   }
+  // The reason is said in full here: the row has room for "Couldn't sign
+  // in" only, and the rail for nothing at all
+  const failure =
+    session.status === "failed" && session.reason !== "cancelled"
+      ? session.message
+      : null;
   return (
-    <DropdownMenuItem onSelect={() => onPick("sign-in")}>
-      <GithubMark className="size-4" /> Sign in with GitHub
-    </DropdownMenuItem>
+    <>
+      {failure && (
+        <DropdownMenuLabel className="font-normal text-destructive">
+          {failure}
+        </DropdownMenuLabel>
+      )}
+      <DropdownMenuItem onSelect={() => onPick("sign-in")}>
+        <GithubMark className="size-4" /> Sign in with GitHub
+      </DropdownMenuItem>
+    </>
   );
 };
 

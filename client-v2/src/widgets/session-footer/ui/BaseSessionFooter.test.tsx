@@ -35,8 +35,7 @@ afterAll(() => {
 
 /** Every field named: an explicit copy, not a spread over a base */
 const view = (fields: Partial<AccountView>): AccountView => ({
-  user: fields.user ?? null,
-  signIn: fields.signIn ?? { status: "idle" },
+  session: fields.session ?? { status: "idle" },
   wallet: fields.wallet ?? null,
   cluster: fields.cluster ?? { name: "devnet", down: false },
   sending: fields.sending ?? false,
@@ -103,7 +102,10 @@ it("opens the account menu from the account row and reports it", async () => {
 it("shows the login and the wallet on the account row", () => {
   draw({
     account: view({
-      user: { name: "Tester", login: "t", image: null },
+      session: {
+        status: "signed-in",
+        user: { name: "Tester", login: "t", image: null },
+      },
       wallet: {
         address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
         balance: 2.4,
@@ -115,20 +117,48 @@ it("shows the login and the wallet on the account row", () => {
   expect(row.textContent).toContain("7Hq5…Xk2P · 2.40 SOL");
 });
 
-it("shows Couldn't sign in under the row after a failure, the reason on hover", () => {
+it("announces Couldn't sign in under the row after a failure, the reason on hover", () => {
   draw({
     account: view({
-      signIn: { status: "failed", message: "Sign-in cancelled." },
+      session: {
+        status: "failed",
+        reason: "popup-blocked",
+        message: "Allow popups for this site to sign in.",
+      },
     }),
   });
-  expect(screen.getByText("Couldn't sign in").getAttribute("title")).toBe(
-    "Sign-in cancelled."
+  const line = screen.getByRole("status");
+  expect(line.textContent).toBe("Couldn't sign in");
+  expect(line.getAttribute("title")).toBe(
+    "Allow popups for this site to sign in."
   );
+});
+
+it("says nothing under the row of a sign-in the user cancelled", () => {
+  draw({
+    account: view({
+      session: {
+        status: "failed",
+        reason: "cancelled",
+        message: "Sign-in cancelled.",
+      },
+    }),
+  });
+  expect(screen.queryByText("Couldn't sign in")).toBeNull();
+});
+
+it("marks the account row as a settings trigger, so opening the menu keeps open settings open", () => {
+  draw({ account: view({}) });
+  expect(
+    screen
+      .getByRole("button", { name: "Account, signed out" })
+      .hasAttribute("data-settings-trigger")
+  ).toBe(true);
 });
 
 it("offers Cancel beside the row while signing in", async () => {
   const onCancelSignIn = vi.fn();
-  draw({ account: view({ signIn: { status: "pending" } }), onCancelSignIn });
+  draw({ account: view({ session: { status: "pending" } }), onCancelSignIn });
   expect(screen.getByText("Signing in...")).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(onCancelSignIn).toHaveBeenCalledOnce();
