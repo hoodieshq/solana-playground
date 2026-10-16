@@ -205,16 +205,20 @@ export const makeLocalProject = async (page: Page, name: string) => {
   return id!;
 };
 
-/** A project's row in the navigation's list */
+/**
+ * A project's row in the navigation's list: inside its groups, which are
+ * where the list is drawn both in the stock Sidebar and on a phone's menu
+ * page
+ */
 export const projectRow = (page: Page, name: string) =>
   page
-    .locator('[data-slot="sidebar"]')
+    .locator('[data-sidebar="group"]')
     .getByRole("button", { name, exact: true });
 
 /** The open project's row (`aria-current="page"`) in the navigation's list */
 export const currentProject = (page: Page) =>
   page.locator(
-    '[data-slot="sidebar"] [data-sidebar="menu-button"][aria-current="page"]'
+    '[data-sidebar="group"] [data-sidebar="menu-button"][aria-current="page"]'
   );
 
 /** Opens a project's menu in the navigation's list and returns it */

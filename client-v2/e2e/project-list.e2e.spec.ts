@@ -52,6 +52,10 @@ test("client-v2-layout: Pinning a project", async ({ page }) => {
 test("client-v2-layout: Renaming in place", async ({ page }) => {
   test.setTimeout(120_000);
   await twoProjects(page);
+  // Pinned first, so the rename is seen to keep the pin
+  await (await projectMenu(page, "alpha"))
+    .getByRole("menuitem", { name: "Pin" })
+    .click();
 
   const menu = await projectMenu(page, "alpha");
   await menu.getByRole("menuitem", { name: "Rename alpha" }).click();
@@ -73,6 +77,39 @@ test("client-v2-layout: Renaming in place", async ({ page }) => {
   await expect(projectRow(page, "alpha")).toHaveCount(0);
   // The open project was not the one renamed
   await expect(currentProject(page)).toHaveText("beta");
+  // The pin is kept by id, through the rename and a reload
+  await page.reload();
+  await expect.poll(() => projectNames(page), LONG).toEqual(["gamma", "beta"]);
+  await expect(
+    page.getByRole("group", { name: "Projects" }).getByTitle("Pinned")
+  ).toHaveCount(1);
+});
+
+test("renames the open project in place", async ({ page }) => {
+  test.setTimeout(120_000);
+  await twoProjects(page);
+
+  const menu = await projectMenu(page, "beta");
+  await menu.getByRole("menuitem", { name: "Rename beta" }).click();
+  const field = page.getByRole("textbox", { name: "Rename beta" });
+  await field.fill("delta");
+  await field.press("Enter");
+
+  await expect(currentProject(page)).toHaveText("delta", LONG);
+  await expect(projectRow(page, "beta")).toHaveCount(0);
+  await expect(page.locator("#root-dir").getByText("lib.rs")).toBeVisible();
+});
+
+test("the list is on a phone's menu page", async ({ page }) => {
+  test.setTimeout(120_000);
+  await twoProjects(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(projectRow(page, "alpha")).toBeVisible();
+  await projectRow(page, "alpha").click();
+
+  await expect(currentProject(page)).toHaveText("alpha", LONG);
 });
 
 test("client-v2-layout: Duplicating a project", async ({ page }) => {
