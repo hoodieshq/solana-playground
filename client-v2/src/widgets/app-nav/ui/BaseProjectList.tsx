@@ -106,7 +106,9 @@ const Group = ({
 }) => {
   const labelId = useId();
   return (
-    <SidebarGroup role="group" aria-labelledby={labelId}>
+    // No side padding of its own: the rows line up with the items above,
+    // which sit straight in `SidebarContent`, as in the prototype
+    <SidebarGroup role="group" aria-labelledby={labelId} className="px-0">
       <SidebarGroupLabel id={labelId}>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {entries.map((entry) => (
