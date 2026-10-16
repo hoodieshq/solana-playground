@@ -69,14 +69,14 @@ describe("Connect", () => {
   });
 
   it("offers no default the deployment does not serve, and falls back to a key", () => {
-    renderConnect({ defaultBackend: false });
+    renderConnect({ defaultBackend: "absent" });
 
     expect(screen.getByText(/Not configured on this deployment/)).toBeTruthy();
     expect(checked()?.getAttribute("value")).toBe("anthropic");
   });
 
   it("neither offers nor rules out the default while the probe is out", () => {
-    renderConnect({ defaultBackend: undefined });
+    renderConnect({ defaultBackend: "checking" });
 
     expect(
       screen.getByText("Checking this deployment for a default backend…")
@@ -87,7 +87,7 @@ describe("Connect", () => {
   it("opens on the connected backend with its own key and endpoint", () => {
     PgAssistant.connect(OWN);
 
-    renderConnect({ defaultBackend: true });
+    renderConnect({ defaultBackend: "present" });
 
     expect(checked()?.getAttribute("value")).toBe("openai");
     expect(
@@ -102,7 +102,7 @@ describe("Connect", () => {
     PgAssistant.connect(OWN);
 
     renderConnect({
-      defaultBackend: true,
+      defaultBackend: "present",
       preset: { provider: "anthropic" },
     });
 
@@ -114,7 +114,7 @@ describe("Connect", () => {
 
   it("hands its host the action, ready once the key is in, and connects", async () => {
     const user = userEvent.setup();
-    renderConnect({ defaultBackend: false });
+    renderConnect({ defaultBackend: "absent" });
     expect(action).toMatchObject({ text: "Connect", ready: false });
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
 
@@ -131,17 +131,17 @@ describe("Connect", () => {
   });
 
   it("names the action Start for the keyless default, Switch over a connection", () => {
-    const { unmount } = renderConnect({ defaultBackend: true });
+    const { unmount } = renderConnect({ defaultBackend: "present" });
     expect(action).toMatchObject({ text: "Start", ready: true });
     unmount();
 
     PgAssistant.connect(OWN);
-    renderConnect({ defaultBackend: true });
+    renderConnect({ defaultBackend: "present" });
     expect(action?.text).toBe("Switch");
   });
 
   it("brings no title or way back of its own: the dialog has them", () => {
-    renderConnect({ defaultBackend: true });
+    renderConnect({ defaultBackend: "present" });
 
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.queryByText("Back to chat")).toBeNull();

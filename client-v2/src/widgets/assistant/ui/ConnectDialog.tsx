@@ -32,7 +32,7 @@ interface ConnectDialogProps {
 }
 
 /**
- * Connect a model: today's `Connect` form in a dialog of `PgView`'s stack.
+ * Connect a model: the legacy `Connect` form in a dialog of `PgView`'s stack.
  * Closes itself with the connection on the first one made while it is open.
  *
  * `PgAssistant.isPickingBackend` says it is open for exactly as long as this
@@ -85,20 +85,13 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
     };
   }, []);
 
-  /**
-   * Whether this deployment serves a default; `undefined` while the probe is
-   * out
-   */
-  const defaultBackend =
-    probed.state === "checking" ? undefined : probed.state === "present";
-
   return (
     // The form is the frame's body, its action the frame's submit: a phone
     // pins the footer to the bottom of the screen, so the action never
     // scrolls away with the form. The form holds its state above the frame,
     // so a dialog stacked on this one does not reset what was typed.
     <Connect
-      defaultBackend={defaultBackend}
+      defaultBackend={probed.state}
       preset={preset}
       frame={({ action, form }) => (
         <ModalFrame

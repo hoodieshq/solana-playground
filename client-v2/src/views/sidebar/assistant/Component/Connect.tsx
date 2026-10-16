@@ -59,7 +59,8 @@ const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
 
 /** The backend, and maybe the model, Connect a model opens on */
 export interface ConnectPreset {
-  provider: ProviderId;
+  /** A key-based backend: the default needs no form opened on it */
+  provider: Exclude<ProviderId, "default">;
   /** A model of the backend's own list, or its endpoint's model id */
   model?: string;
 }
@@ -71,20 +72,23 @@ export interface ConnectPreset {
  */
 export interface ConnectAction {
   /** "Switch" over a connection, "Connect" for a key, "Start" without one */
-  text: string;
+  text: "Start" | "Switch" | "Connect";
   /** Every field the backend needs is filled in */
   ready: boolean;
   connect(): void;
 }
 
+/**
+ * Whether this deployment serves a keyless default backend. `checking` while
+ * the answer is outstanding: the option is neither offered nor ruled out
+ * until the server has said, so a fork with no key of its own never
+ * preselects a backend that cannot answer. Declared here, not taken from the
+ * assistant widget, so this view imports nothing from the layers.
+ */
+export type ConnectDefault = "checking" | "present" | "absent";
+
 export interface ConnectProps {
-  /**
-   * Whether this deployment serves a keyless default backend. `undefined`
-   * while the answer is outstanding: the option is neither offered nor ruled
-   * out until the server has said, so a fork with no key of its own never
-   * preselects a backend that cannot answer.
-   */
-  defaultBackend: boolean | undefined;
+  defaultBackend: ConnectDefault;
   preset?: ConnectPreset;
   /**
    * Draws the form and its action. Handed both on every render, the first
@@ -150,7 +154,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   );
 
   /** The probe is still out: the default is neither offered nor ruled out yet */
-  const pending = defaultBackend === undefined;
+  const pending = defaultBackend === "checking";
 
   /**
    * Declared unavailable, or a default backend this deployment has not
@@ -158,12 +162,14 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
    * ready and then withdrawn a moment later.
    */
   const isUnavailable = (p: ProviderInfo) =>
-    !!p.unavailable || (p.id === "default" && defaultBackend !== true);
+    !!p.unavailable || (p.id === "default" && defaultBackend !== "present");
 
   // The probe can rule out the preselected default after the fact; fall back
   // rather than leaving a dead option selected
   const fallenBack =
-    providerId === "default" && defaultBackend === false ? "anthropic" : null;
+    providerId === "default" && defaultBackend === "absent"
+      ? "anthropic"
+      : null;
   const provider = PROVIDERS.find((p) => p.id === (fallenBack ?? providerId))!;
   // The fallback never went through `pickProvider`, so its pickers need seeding
   const activeSettings = settings ?? defaultSettings(provider);
@@ -203,7 +209,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
 
   const connect = () => PgAssistant.connect(next);
 
-  let actionText = "Start";
+  let actionText: ConnectAction["text"] = "Start";
   if (current) actionText = "Switch";
   else if (provider.needsKey) actionText = "Connect";
   const action: ConnectAction = { text: actionText, ready, connect };
@@ -219,7 +225,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
 
   const defaultDescription = (p: ProviderInfo) => {
     if (pending) return "Checking this deployment for a default backend…";
-    return defaultBackend
+    return defaultBackend === "present"
       ? p.description
       : "Not configured on this deployment — pick a backend below and supply " +
           "your own key.";
@@ -270,7 +276,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
             explains what went wrong against your actual code, and proposes
             patches you apply yourself.
           </Lead>
-          {defaultBackend && (
+          {defaultBackend === "present" && (
             <Lead>
               Out of the box it runs on this deployment's own backend, with the
               capabilities listed below. Bring your own key to run it on
