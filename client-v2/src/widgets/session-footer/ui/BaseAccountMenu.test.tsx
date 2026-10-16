@@ -16,6 +16,7 @@ const TESTER = { name: "Tester", login: "t", image: null };
 const WALLET = {
   address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
   balance: 2.4,
+  name: null,
 };
 
 /** Every field named: an explicit copy, not a spread over a base */
@@ -125,6 +126,24 @@ it("shows a connected wallet and offers to disconnect it", async () => {
   expect(screen.queryByRole("menuitem", { name: "Connect wallet" })).toBeNull();
   await userEvent.click(screen.getByRole("menuitem", { name: /7Hq5…Xk2P/ }));
   expect(onPick).toHaveBeenCalledExactlyOnceWith("wallet");
+});
+
+it("names the extension wallet it disconnects, which hands back to the Playground wallet", async () => {
+  await open(
+    view({
+      wallet: {
+        address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
+        balance: 1,
+        name: "Phantom",
+      },
+    })
+  );
+  expect(
+    screen.getByRole("menuitem", { name: "Disconnect Phantom" })
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("menuitem", { name: "Disconnect wallet" })
+  ).toBeNull();
 });
 
 it("puts a cluster that is down first, as the way to the network settings", async () => {

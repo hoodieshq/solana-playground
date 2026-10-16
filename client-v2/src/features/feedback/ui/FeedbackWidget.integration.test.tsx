@@ -206,6 +206,10 @@ it("should let the user close a sending form, show the send on the account contr
   await waitFor(() => expect(setToast).toHaveBeenCalledTimes(1));
   render(setToast.mock.calls[0][0]());
   expect(screen.getByText("Could not send feedback.")).toBeTruthy();
+  // The button the old toast pointed at is gone; the form is in the account menu
+  expect(document.body.textContent).toContain(
+    "Open Share feedback in the account menu to try again"
+  );
 
   await userEvent.click(account());
   await userEvent.click(

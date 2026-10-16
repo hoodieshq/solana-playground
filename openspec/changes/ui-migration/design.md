@@ -1177,9 +1177,10 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
   and counted by `auth`; any other sign-in or sign-out error is reported.
 
 Kept: "Cluster: <name>" on the rail's dot, "Change cluster, currently
-<name>" on the cluster row, "Account", "Connect wallet", "Sign in with
-GitHub" and the settings trigger attribute that lets a second click close
-the settings.
+<name>" on the cluster row, "Connect wallet", "Sign in with GitHub" and the
+settings trigger attribute that lets a second click close the settings. The
+account controls, the row and the rail's button alike, are named
+"Account: <login>" or "Account, signed out"; tests match `/^Account/`.
 
 ## Risks / Trade-offs
 

@@ -67,6 +67,7 @@ export const useAccount = ({ from, onToggleSettings }: UseAccountOptions) => {
       ? {
           address: wallet.publicKey.toBase58(),
           balance: typeof balance === "number" ? balance : null,
+          name: wallet.isPg ? null : wallet.name,
         }
       : null,
     cluster,

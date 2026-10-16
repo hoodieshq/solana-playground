@@ -109,8 +109,9 @@ it("marks Account as a settings trigger, so opening the menu keeps open settings
   ).toBe(true);
 });
 
-it("shows a send in flight on Account", () => {
+it("shows a send in flight on Account, with the labelled spinner", () => {
   draw({ account: view({ sending: true }) });
+  expect(screen.getByRole("status", { name: "Sending feedback" })).toBeTruthy();
   expect(
     screen
       .getByRole("button", { name: "Account, signed out" })

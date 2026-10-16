@@ -6,6 +6,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
+import { Spinner } from "@/shared/ui/spinner";
 import { StatusDot } from "@/shared/ui/status-dot";
 import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
 import { accountLabel, accountUser, clusterLabel } from "../model/account";
@@ -70,11 +71,17 @@ const BaseRailFooter = ({
               {...{ [SETTINGS_TRIGGER_ATTR]: "" }}
               className="justify-center"
             >
-              <AccountAvatar
-                image={accountUser(account)?.image ?? null}
-                sending={account.sending}
-                className="size-4"
-              />
+              {account.sending ? (
+                // The rail has no room for both: the spinner says it, as the
+                // footer's row does beside the avatar
+                <Spinner aria-label="Sending feedback" />
+              ) : (
+                <AccountAvatar
+                  image={accountUser(account)?.image ?? null}
+                  sending={false}
+                  className="size-4"
+                />
+              )}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           {menu}

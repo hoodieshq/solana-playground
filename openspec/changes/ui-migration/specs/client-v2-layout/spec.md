@@ -243,10 +243,13 @@ when signed out (while signing in, "Signing in..." with "Cancel"), or when
 signed in the profile's name, "Open GitHub profile" and "Sign out"; then
 "Settings", "Docs" and the feedback entries; then the wallet, either "Connect
 wallet" or its address and balance (opening the wallet window) and
-"Disconnect wallet". "Docs" SHALL open `https://solana.com/docs` in a new tab.
+"Disconnect wallet" ("Disconnect <name>" for an extension wallet, which hands
+back to the Playground wallet). "Docs" SHALL open `https://solana.com/docs` in
+a new tab.
 "Sign out" SHALL ask "Sign out of GitHub?" in a dialog before it ends the
 session. A failed sign-in SHALL show "Couldn't sign in" under the account
-row. ⌘, (Ctrl+, off macOS) SHALL open and close the settings anywhere in
+row, above the wallet's line when a wallet is connected, and its reason at the
+head of the menu; a sign-in the user cancelled SHALL show nothing. ⌘, (Ctrl+, off macOS) SHALL open and close the settings anywhere in
 the product. A cluster that does not answer SHALL turn the dot red, add
 ", down" to the cluster row's and the rail dot's names, and put a warning
 first in the account menu that opens the settings on the cluster. The menu

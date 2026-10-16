@@ -54,7 +54,7 @@ const BaseSessionFooter = ({
   onMenuOpenChange,
   accountRef,
 }: BaseSessionFooterProps) => {
-  const { primary, secondary } = accountLines(account);
+  const { primary, lines } = accountLines(account);
   return (
     <SidebarMenu className="w-full">
       <SidebarMenuItem>
@@ -96,23 +96,17 @@ const BaseSessionFooter = ({
                 <span className="truncate font-medium text-foreground">
                   {primary}
                 </span>
-                {secondary && (
+                {lines.map((line) => (
                   <span
+                    key={line.kind}
                     // A failure is announced; its reason is in full in the menu
-                    role={secondary.kind === "failed" ? "status" : undefined}
-                    title={
-                      secondary.kind === "failed"
-                        ? secondary.message
-                        : undefined
-                    }
-                    className={cn(
-                      "truncate text-xs",
-                      LINE_STYLE[secondary.kind]
-                    )}
+                    role={line.kind === "failed" ? "status" : undefined}
+                    title={line.kind === "failed" ? line.message : undefined}
+                    className={cn("truncate text-xs", LINE_STYLE[line.kind])}
                   >
-                    {lineText(secondary)}
+                    {lineText(line)}
                   </span>
-                )}
+                ))}
               </span>
               {account.sending ? (
                 <Spinner aria-label="Sending feedback" className="ml-auto" />

@@ -27,8 +27,8 @@ const warn = () =>
   PgView.setToast(
     () => (
       <span>
-        <strong>Could not send feedback.</strong> Open Feedback to try again;
-        what you wrote is kept.
+        <strong>Could not send feedback.</strong> Open Share feedback in the
+        account menu to try again; what you wrote is kept.
       </span>
     ),
     { options: { name: "feedback-failed" } }

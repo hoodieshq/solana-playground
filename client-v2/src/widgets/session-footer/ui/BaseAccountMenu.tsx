@@ -204,7 +204,7 @@ const BaseAccountMenu = ({
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => pick("disconnect-wallet")}>
-            <Unplug /> Disconnect wallet
+            <Unplug /> Disconnect {wallet.name ?? "wallet"}
           </DropdownMenuItem>
         </>
       ) : (

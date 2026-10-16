@@ -33,6 +33,7 @@ const signedIn = (user: typeof TESTER | typeof NAME_ONLY): AccountSession => ({
 const WALLET = {
   address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
   balance: 2.4,
+  name: null,
 };
 
 describe("accountLabel", () => {
@@ -63,34 +64,26 @@ describe("profileName", () => {
 });
 
 describe("accountLines", () => {
+  const FAILED = {
+    status: "failed",
+    reason: "popup-blocked",
+    message: "Allow popups for this site to sign in.",
+  } as const;
+
   it("asks to sign in with nothing under it", () => {
-    expect(accountLines(view({}))).toEqual({
-      primary: "Sign in",
-      secondary: null,
-    });
+    expect(accountLines(view({}))).toEqual({ primary: "Sign in", lines: [] });
   });
 
   it("says a sign-in is under way", () => {
     expect(
-      accountLines(view({ session: { status: "pending" } })).secondary
-    ).toEqual({ kind: "signing-in" });
+      accountLines(view({ session: { status: "pending" } })).lines
+    ).toEqual([{ kind: "signing-in" }]);
   });
 
   it("says a sign-in failed, with its reason", () => {
-    expect(
-      accountLines(
-        view({
-          session: {
-            status: "failed",
-            reason: "popup-blocked",
-            message: "Allow popups for this site to sign in.",
-          },
-        })
-      ).secondary
-    ).toEqual({
-      kind: "failed",
-      message: "Allow popups for this site to sign in.",
-    });
+    expect(accountLines(view({ session: FAILED })).lines).toEqual([
+      { kind: "failed", message: "Allow popups for this site to sign in." },
+    ]);
   });
 
   it("says nothing of a sign-in the user cancelled", () => {
@@ -103,8 +96,22 @@ describe("accountLines", () => {
             message: "Sign-in cancelled.",
           },
         })
-      ).secondary
-    ).toBeNull();
+      ).lines
+    ).toEqual([]);
+  });
+
+  it("keeps the wallet under a failed sign-in, not instead of it", () => {
+    expect(
+      accountLines(view({ session: FAILED, wallet: WALLET })).lines
+    ).toEqual([
+      { kind: "failed", message: "Allow popups for this site to sign in." },
+      {
+        kind: "wallet",
+        address: WALLET.address,
+        balance: 2.4,
+        name: null,
+      },
+    ]);
   });
 
   it("shows the login and the wallet once signed in", () => {
@@ -112,11 +119,9 @@ describe("accountLines", () => {
       accountLines(view({ session: signedIn(TESTER), wallet: WALLET }))
     ).toEqual({
       primary: "t",
-      secondary: {
-        kind: "wallet",
-        address: WALLET.address,
-        balance: 2.4,
-      },
+      lines: [
+        { kind: "wallet", address: WALLET.address, balance: 2.4, name: null },
+      ],
     });
   });
 
@@ -127,7 +132,7 @@ describe("accountLines", () => {
   });
 
   it("shows a wallet while signed out too", () => {
-    expect(accountLines(view({ wallet: WALLET })).secondary?.kind).toBe(
+    expect(accountLines(view({ wallet: WALLET })).lines[0]?.kind).toBe(
       "wallet"
     );
   });
@@ -138,7 +143,12 @@ describe("lineText", () => {
     expect(lineText({ kind: "signing-in" })).toBe("Signing in...");
     expect(lineText({ kind: "failed", message: "x" })).toBe("Couldn't sign in");
     expect(
-      lineText({ kind: "wallet", address: WALLET.address, balance: 2.4 })
+      lineText({
+        kind: "wallet",
+        address: WALLET.address,
+        balance: 2.4,
+        name: null,
+      })
     ).toBe("7Hq5…Xk2P · 2.40 SOL");
   });
 });

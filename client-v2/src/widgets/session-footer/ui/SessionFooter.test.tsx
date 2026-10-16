@@ -29,7 +29,11 @@ import SessionFooter from "./SessionFooter";
 
 const status = vi.hoisted(() => ({ name: "devnet", down: false }));
 const wallet = vi.hoisted(() => ({
-  current: null as null | { publicKey: { toBase58: () => string } },
+  current: null as null | {
+    publicKey: { toBase58: () => string };
+    isPg?: boolean;
+    name?: string;
+  },
 }));
 const connect = vi.hoisted(() => ({ execute: vi.fn() }));
 const walletWindow = vi.hoisted(() => ({ show: false }));
@@ -346,7 +350,7 @@ it("neither reports nor warns of a wallet setup the user dismissed", async () =>
 });
 
 it("waits for a balance that has not loaded rather than showing zero", () => {
-  wallet.current = { publicKey: { toBase58: () => ADDRESS } };
+  wallet.current = { publicKey: { toBase58: () => ADDRESS }, isPg: true };
   balance.current = undefined;
   draw("footer");
   expect(
@@ -355,7 +359,7 @@ it("waits for a balance that has not loaded rather than showing zero", () => {
 });
 
 it("shows a connected wallet on the row and opens its window from the menu", async () => {
-  wallet.current = { publicKey: { toBase58: () => ADDRESS } };
+  wallet.current = { publicKey: { toBase58: () => ADDRESS }, isPg: true };
   draw("footer");
   expect(
     screen.getByRole("button", { name: /^Account/ }).textContent
@@ -364,8 +368,21 @@ it("shows a connected wallet on the row and opens its window from the menu", asy
   expect(walletWindow.show).toBe(true);
 });
 
+it("names an extension wallet in the menu, not a Playground one", async () => {
+  wallet.current = {
+    publicKey: { toBase58: () => ADDRESS },
+    isPg: false,
+    name: "Phantom",
+  };
+  draw("footer");
+  await openMenu();
+  expect(
+    await screen.findByRole("menuitem", { name: "Disconnect Phantom" })
+  ).toBeTruthy();
+});
+
 it("disconnects a wallet through the same command", async () => {
-  wallet.current = { publicKey: { toBase58: () => ADDRESS } };
+  wallet.current = { publicKey: { toBase58: () => ADDRESS }, isPg: true };
   draw("footer");
   await pick("Disconnect wallet");
   expect(connect.execute).toHaveBeenCalledOnce();

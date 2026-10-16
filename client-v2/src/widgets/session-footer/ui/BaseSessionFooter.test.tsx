@@ -109,6 +109,7 @@ it("shows the login and the wallet on the account row", () => {
       wallet: {
         address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
         balance: 2.4,
+        name: null,
       },
     }),
   });
@@ -132,6 +133,26 @@ it("announces Couldn't sign in under the row after a failure, the reason on hove
   expect(line.getAttribute("title")).toBe(
     "Allow popups for this site to sign in."
   );
+});
+
+it("keeps the wallet under a failed sign-in", () => {
+  draw({
+    account: view({
+      session: {
+        status: "failed",
+        reason: "popup-blocked",
+        message: "Allow popups for this site to sign in.",
+      },
+      wallet: {
+        address: "7Hq5aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaXk2P",
+        balance: 2.4,
+        name: null,
+      },
+    }),
+  });
+  const row = screen.getByRole("button", { name: "Account, signed out" });
+  expect(row.textContent).toContain("Couldn't sign in");
+  expect(row.textContent).toContain("7Hq5…Xk2P · 2.40 SOL");
 });
 
 it("says nothing under the row of a sign-in the user cancelled", () => {

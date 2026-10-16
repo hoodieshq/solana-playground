@@ -32,6 +32,11 @@ export interface AccountWallet {
   address: string;
   /** In SOL; `null` until it has loaded */
   balance: number | null;
+  /**
+   * An extension wallet's name; `null` for the Playground wallet. Disconnecting
+   * an extension hands back to the Playground wallet, so the menu names it
+   */
+  name: string | null;
 }
 
 /** Everything the footer, the rail and the menu draw */
@@ -85,21 +90,27 @@ const sessionLine = (session: AccountSession): AccountLine | null => {
   return null;
 };
 
-/** The account row's name, and the line under it: a sign-in under way or failed wins over the wallet */
+/**
+ * The account row's name, and the lines under it: where a sign-in stands,
+ * then the wallet. Both show: a failed sign-in stays failed in `PgSession`
+ * until the next attempt, and must not hide a wallet connected meanwhile
+ */
 export const accountLines = (
   view: AccountView
-): { primary: string; secondary: AccountLine | null } => {
+): { primary: string; lines: AccountLine[] } => {
   const user = accountUser(view);
+  const lines: AccountLine[] = [];
   const fromSession = sessionLine(view.session);
-  const fromWallet: AccountLine | null = view.wallet && {
-    kind: "wallet",
-    address: view.wallet.address,
-    balance: view.wallet.balance,
-  };
-  return {
-    primary: user ? displayName(user) : "Sign in",
-    secondary: fromSession ?? fromWallet,
-  };
+  if (fromSession) lines.push(fromSession);
+  if (view.wallet) {
+    lines.push({
+      kind: "wallet",
+      address: view.wallet.address,
+      balance: view.wallet.balance,
+      name: view.wallet.name,
+    });
+  }
+  return { primary: user ? displayName(user) : "Sign in", lines };
 };
 
 /** A line, in words */
