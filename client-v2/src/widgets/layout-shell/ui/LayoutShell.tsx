@@ -550,7 +550,14 @@ const LayoutShell = ({
           open: assistantShown,
           toggle: () => setAssistant(!assistantShown, "button"),
           wide,
-          setWide,
+          // Only the user's click is measured, and only when it changes the
+          // width: the shell's own narrowing on a fold never comes through here
+          setWide: (next) => {
+            if (canWiden && next !== wide) {
+              layoutTelemetry.track("layout_assistant_widened", { wide: next });
+            }
+            setWide(next);
+          },
           canWiden,
         })
       }

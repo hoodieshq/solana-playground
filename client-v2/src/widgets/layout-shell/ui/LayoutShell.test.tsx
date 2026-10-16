@@ -1429,3 +1429,40 @@ describe("the stage bar", () => {
     expect(screen.getAllByText("stage tabs").length).toBeGreaterThan(0);
   });
 });
+
+describe("layout_assistant_widened", () => {
+  const widened = () =>
+    sent.events
+      .filter((event) => event.name === "layout_assistant_widened")
+      .map((event) => event.params);
+
+  it("is sent for Widen and for Narrow", () => {
+    shell();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Widen the assistant" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Narrow the assistant" })
+    );
+    expect(widened()).toEqual([{ wide: true }, { wide: false }]);
+  });
+
+  it("is not sent when hiding a widened assistant narrows it", () => {
+    shell();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Widen the assistant" })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hide the assistant" }));
+    expect(widened()).toEqual([{ wide: true }]);
+  });
+
+  it("is not sent where there is nothing to widen", () => {
+    resizeTo(900);
+    shell();
+    fireEvent.click(screen.getByRole("button", { name: "Expand assistant" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Widen the assistant" })
+    );
+    expect(widened()).toEqual([]);
+  });
+});
