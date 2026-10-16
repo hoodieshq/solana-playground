@@ -15,8 +15,8 @@ carry the feedback entries, after "Settings" and "Docs": "Share feedback"
 where feedback can be sent, "Suggest an idea" and "Report a bug". There
 SHALL be no separate feedback button. The form, its draft and its send SHALL
 be held above the navigation, so they outlive the menu: below 720 px the
-footer is on the menu page and below 768 px in the navigation's Sheet, and
-the rail swaps the footer for its own. A send in flight SHALL show on the
+footer is on the menu page, from 720 to 767 px in the navigation's Sheet,
+and the rail swaps the footer for its own. A send in flight SHALL show on the
 account row and on the rail's "Account". An open modal SHALL cover the
 account row.
 

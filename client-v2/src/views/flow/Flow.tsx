@@ -41,7 +41,7 @@ import type { Disposable } from "@/utils/types";
  * The Flow layout, with no header: `LayoutShell` places four columns, the
  * navigation (`AppNav`, holding the logo, the project list, and the
  * session footer, `SessionFooter`: the cluster row, and the account row that
- * opens the account menu, which on the rail gives way to `RailFooter`'s
+ * opens the account menu; on the rail that footer gives way to `RailFooter`'s
  * cluster dot and account button), the assistant, the files
  * column, and the stage router over its collapsible console, with the shell's
  * stage bar (`BaseStageBar`) and then the `StageBar` stage tabs across the

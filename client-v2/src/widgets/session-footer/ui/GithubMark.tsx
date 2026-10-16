@@ -1,5 +1,5 @@
-// Kept as one unbroken path string: a version with manual line wrapping broke
-// the SVG path data mid-render
+// Split only for line length: every piece starts with a space or a sign, so
+// the joined path data is unchanged
 const GITHUB_MARK_PATH =
   "M8 .2a8 8 0 0 0-2.5 15.6c.4 0 .5-.2.5-.4v-1.4c-2 .4-2.5-.9-2.5-.9" +
   "-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.9 1.2.9.7 1.2 1.9.9" +

@@ -376,7 +376,8 @@ folding to a strip and a rail. See "Frame chrome (5.25)".)
   The rail's footer holds two icons, as the prototype draws it: the
   cluster's dot, coloured by its status like the chip's, which opens the
   settings on the cluster, and the account (the avatar, or a user icon),
-  which unfolds the navigation. The feedback trigger is not on the rail; the
+  which unfolds the navigation (5.15: it opens the account menu instead). The
+  feedback trigger is not on the rail; the
   prototype keeps "Report a bug" in the account's menu. Between 768 and 1024
   the rail is where the navigation starts, so without its footer a cluster
   that is down would show nowhere.
@@ -1141,7 +1142,13 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
   Settings (⌘,), Docs and the feedback entries, then the wallet. The
   prototype's "Proposal" group (UX evaluation, Back to deck) is left out.
 - **Sign-out asks in a `Dialog`**, not in the menu: a menu closes on the
-  click that would confirm, and the dialog returns focus to the account row.
+  click that would confirm. Its Sign out waits on the sign-out, busy, so it
+  cannot run twice.
+- **A failed sign-in** shows "Couldn't sign in" under the account row,
+  announced, and its reason in full at the head of the menu, which the rail
+  shows too. A sign-in the user cancelled shows nothing. A session that
+  arrives after a failed sign-in wins over it (`AccountView.session` is one
+  union).
 - **The feedback trigger goes into the menu.** "Share feedback" (where a send
   can succeed), "Suggest an idea" and "Report a bug" sit in the account menu;
   the round "Feedback" button is removed. `FeedbackHost` keeps the form and
@@ -1154,17 +1161,20 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
 - **⌘, toggles the settings** (Ctrl+, off macOS) from anywhere, through the
   same `toggleSettings` the rows use.
 - **A widget, `widgets/session-footer`**: `BaseSessionFooter` and
-  `SessionFooter`, `BaseAccountMenu` and `AccountMenu`, `BaseRailFooter` and
-  `RailFooter`, and `useClusterStatus`, moved out of the legacy
+  `SessionFooter`, `BaseRailFooter` and `RailFooter`, `BaseAccountMenu` (both
+  footers connect it through `useAccount`), and `useClusterStatus`, moved
+  out of the legacy
   `views/flow/header/`. It meets `features/auth` (`PgSession`, whose
   `signInState()` holds sign-in progress and failure) and `features/feedback`
   here, which is why it is a widget. `BaseAppNav` keeps its `footer` and
   `railFooter` slots, so the project list (5.14) and this step touch
   different lines.
 - **Telemetry**, prefix `session`: `session_account_menu_opened {from:
-  footer | rail}` and `session_account_item_picked {item}`. A wallet connect
-  or disconnect that throws is logged under `session-footer:wallet` with
-  `report: true`; a failed sign-in is already counted by `auth`.
+  footer | rail}` and `session_account_item_picked {item}`. Under
+  `session-footer:account`, a wallet connect or disconnect that throws is
+  logged with `report: true` and the user gets a toast (a setup the user
+  closed is only logged); a sign-in that failed at a known step is logged,
+  and counted by `auth`; any other sign-in or sign-out error is reported.
 
 Kept: "Cluster: <name>" on the rail's dot, "Change cluster, currently
 <name>" on the cluster row, "Account", "Connect wallet", "Sign in with

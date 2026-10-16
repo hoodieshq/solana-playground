@@ -35,7 +35,7 @@ const warn = () =>
   );
 
 /** What the account menu and its control read from the `FeedbackHost` above them */
-interface TriggerContext {
+interface MenuContext {
   canShare: boolean;
   sending: boolean;
   onShare: () => void;
@@ -43,7 +43,7 @@ interface TriggerContext {
   triggerRef: RefObject<HTMLButtonElement | null>;
 }
 
-const FeedbackTriggerContext = createContext<TriggerContext | null>(null);
+const FeedbackMenuContext = createContext<MenuContext | null>(null);
 
 /**
  * The form and its state, sending through `FeedbackProviderContext`, with the
@@ -80,7 +80,7 @@ export const FeedbackHost = ({ children }: { children: ReactNode }) => {
   );
 
   const sending = state.send === "sending";
-  const context = useMemo<TriggerContext>(
+  const context = useMemo<MenuContext>(
     () => ({
       canShare: provider.available,
       sending,
@@ -92,7 +92,7 @@ export const FeedbackHost = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <FeedbackTriggerContext.Provider value={context}>
+    <FeedbackMenuContext.Provider value={context}>
       {children}
       <BaseFeedbackForm
         open={state.open}
@@ -105,20 +105,19 @@ export const FeedbackHost = ({ children }: { children: ReactNode }) => {
         returnFocusTo={trigger}
         font={font}
       />
-    </FeedbackTriggerContext.Provider>
+    </FeedbackMenuContext.Provider>
   );
 };
 
-const useTriggerContext = (who: string) => {
-  const context = useContext(FeedbackTriggerContext);
+const useMenuContext = (who: string) => {
+  const context = useContext(FeedbackMenuContext);
   if (!context) throw new Error(`${who} must be rendered inside FeedbackHost`);
   return context;
 };
 
 /** The feedback entries for the account menu, from the `FeedbackHost` above */
 export const FeedbackMenuItems = () => {
-  const { canShare, onShare, onGithub } =
-    useTriggerContext("FeedbackMenuItems");
+  const { canShare, onShare, onGithub } = useMenuContext("FeedbackMenuItems");
   return (
     <BaseFeedbackMenuItems
       canShare={canShare}
@@ -129,11 +128,11 @@ export const FeedbackMenuItems = () => {
 };
 
 /**
- * Whether a send is in flight, and the ref the form returns focus to: the
- * account control that opened the menu attaches it, so a send behind a
- * closed form shows on that control
+ * Whether a send is in flight, and the ref the form returns focus to. The
+ * account control that is mounted (the footer's row or the rail's "Account")
+ * attaches the ref and shows `sending`
  */
 export const useFeedbackSend = () => {
-  const { sending, triggerRef } = useTriggerContext("useFeedbackSend");
+  const { sending, triggerRef } = useMenuContext("useFeedbackSend");
   return { sending, triggerRef };
 };
