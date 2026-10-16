@@ -836,6 +836,47 @@ whoever wires that sidebar path again builds the page anew.
 
 Kept: `flow-stage-panel-*`, `flow-stage-tab-*` and the texts the e2e reads.
 
+## Lessons (5.19)
+
+Decided with Slava on 2026-10-16 (HOO-2076). Only placement and look change:
+master-2.0's lesson logic (the ledger, the entry, verify, readiness) stays as
+it is.
+
+**Objective band** (`objective-band`, installed). Compact, over the editor in
+the stage. Row one: "Step n of m", the gradient meter, the objective. Row two:
+back and on (`ObjectiveNav`, "Previous step" and "Next step"), "Read the page"
+(or "Read step n first" with the unread dot), "I'm stuck" as the band's one
+`BrandButton` (the prototype's choice, Slava 2026-10-16), and the proving
+action ("Build to prove this", "Deploy to prove this", "Mark as read") as an
+outline `Button`. The readiness line and its remedies sit under the band as a
+`Callout`, only while something blocks the proving action. At the path's end
+the band says "done" and offers Browse gallery.
+
+**Step rail** (`step-rail`, installed), in the files column behind a Steps |
+Files `Segmented` that keeps the `flow-left-tab-*` ids. Marks map: proved and
+attested to `done`, passed to `skipped`, the cursor to `current`, the rest to
+`locked`; each row keeps today's sub-line copy. Rows at legal positions stay
+buttons that move there: master-2.0's navigation wins over the prototype's
+"not a way to jump". "Skip this step" stays at the rail's foot, at the
+frontier only.
+
+**Reader.** The design system's `Dialog` with `modal={false}`, placed inside
+the stage under the band, so it covers the editor and not the band. Esc closes
+it and focus goes back to what opened it. It keeps "Close the page", the
+criterion and "Mark as read" or "Back to the code" in its footer, and the
+once-on-entry opening (D34).
+
+**Phone** (below `LAYOUT_BREAKPOINTS.phone`). The band folds to one row ("n/m",
+the objective, a chevron); the chevron opens the Files sheet on Steps, so the
+Steps | Files choice moves from `LeftPanel` to `Flow`, because the sheet
+remounts `LeftPanel`. Until the designer's LessonBar exists (HOO-2057), the
+band's actions stay in a row under it; they move to the foot when it lands.
+
+**Structure.** As in 5.11: `BaseObjectiveBand`, `BaseStepRail` and
+`BaseReader` sit beside the connected ones in `views/flow/lessons/` and draw
+from props alone. No telemetry: `views/` is a legacy root. Every
+styled-component in the three and in `LeftPanel`'s tab row is gone.
+
 ## The composer and Connect a model (5.17)
 
 Decided with Slava on 2026-10-14 (HOO-2067). The assistant's head, its

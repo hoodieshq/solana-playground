@@ -345,15 +345,20 @@ class _PgTutorial {
       }
 
       /**
-       * Save the file with the given storage data.
+       * Save the storage data, creating its folder (`createParents`) and
+       * then `PgExplorer.fs.flush`ing: lightning-fs saves its superblock
+       * 500 ms after the last write, and an unload inside that window loses
+       * the file.
        *
        * @param data storage data
        */
       private async _writeFile(data: T) {
         await PgExplorer.fs.writeFile(
           PgTutorialStorage._PATH,
-          JSON.stringify(data)
+          JSON.stringify(data),
+          { createParents: true }
         );
+        await PgExplorer.fs.flush();
       }
 
       /** Relative path to the tutorial storage JSON file */

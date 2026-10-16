@@ -15,6 +15,9 @@ import {
 import { PgExplorer } from "./explorer";
 import { PgWeb3 } from "./web3";
 import type { Nullable } from "./types";
+import { createLogger } from "../shared/lib/logger";
+
+const log = createLogger("program-info:storage");
 
 /** Program info state */
 type ProgramInfo = Nullable<{
@@ -85,7 +88,11 @@ const storage = {
     };
   },
 
-  /** Serialize the data and write to storage. */
+  /**
+   * Serialize the data and write it with `createParents`, then flush, for
+   * the reason `PgTutorialStorage._writeFile` gives: a reload right after
+   * would otherwise lose the file, and with it the program's keypair.
+   */
   async write(state: ProgramInfo) {
     if (!PgExplorer.isInitialized || !PgExplorer.currentWorkspaceName) return;
 
@@ -98,7 +105,18 @@ const storage = {
       lastBuildFailed: state.lastBuildFailed,
     };
 
-    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState));
+    // `updatable` calls this without awaiting it, so a failure is logged
+    // here; rethrown, it would be an unhandled rejection naming nothing
+    try {
+      await PgExplorer.fs.writeFile(
+        this.PATH,
+        JSON.stringify(serializedState),
+        { createParents: true }
+      );
+      await PgExplorer.fs.flush();
+    } catch (e) {
+      log.error(e, { report: true });
+    }
   },
 };
 
