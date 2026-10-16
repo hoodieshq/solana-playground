@@ -125,7 +125,9 @@ describe("LeftPanel", () => {
     expect(onTabChange).toHaveBeenCalledWith("files");
   });
 
-  it("shows the step rail on steps and the explorer on files, and keeps it across a remount", () => {
+  // The tab lives in `Flow`; this proves only that a fresh mount draws
+  // whichever tab it is handed, which is what the Sheet's remount relies on
+  it("shows the step rail on steps and the explorer on files, from the tab it is given on mount", () => {
     mount("steps", vi.fn());
     expect(container.querySelector('[data-slot="step-rail"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="explorer"]')).toBeNull();
@@ -205,7 +207,11 @@ describe("LeftPanel in the flush frame", () => {
     draw(false);
     expect(document.getElementById("root-dir")).not.toBeNull();
     expect(screen.getByRole("button", { name: "+ New file" })).toBeTruthy();
+    // No tab row at all: the column's only fold control is the stage bar's
     expect(document.querySelector('[data-slot="segmented"]')).toBeNull();
+    expect(screen.queryByRole("group", { name: "Lesson panel" })).toBeNull();
+    expect(document.getElementById("flow-left-tab-steps")).toBeNull();
+    expect(document.getElementById("flow-left-tab-files")).toBeNull();
   });
 
   it("draws nothing while hidden", () => {

@@ -191,6 +191,16 @@ test.describe("client-v2-lessons", () => {
     await page.keyboard.press("Escape");
     await expect(reader).toHaveCount(0);
     await expect(read).toBeFocused();
+
+    // And the press works with the page open: the band moves on, and the
+    // page closes with the step it belonged to (`Flow`'s step-change effect)
+    await read.click();
+    await expect(reader).toBeVisible();
+    await next.click();
+    await expect(
+      band(page).getByText("Step 2 of 4", { exact: true })
+    ).toBeVisible();
+    await expect(reader).toHaveCount(0);
   });
 
   test("client-v2-lessons: The band on a phone", async ({ page }) => {
@@ -229,8 +239,19 @@ test.describe("client-v2-lessons", () => {
     );
     expect(Math.abs(prove.y - stuck.y)).toBeLessThanOrEqual(1);
 
-    await b.getByRole("button", { name: "Show the steps" }).click();
+    // Leave the sheet on Files first, so the chevron has to switch it back
+    await page.getByRole("button", { name: /^Files, .* open$/ }).click();
     const sheet = page.getByRole("dialog", { name: "Files" });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("radio", { name: "Files" }).click();
+    await expect(sheet.getByRole("radio", { name: "Files" })).toHaveAttribute(
+      "data-state",
+      "on"
+    );
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveCount(0);
+
+    await b.getByRole("button", { name: "Show the steps" }).click();
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("radio", { name: "Steps" })).toHaveAttribute(
       "data-state",

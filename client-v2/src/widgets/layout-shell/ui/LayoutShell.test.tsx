@@ -1246,6 +1246,7 @@ describe("on a phone", () => {
     expect(
       document.querySelector('[data-slot="sheet-content"]')
     ).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "Files" })).toBeTruthy();
     expect(toggled()).toEqual([{ panel: "files", open: true, via: "button" }]);
   });
 
