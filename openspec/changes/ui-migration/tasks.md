@@ -137,7 +137,7 @@ regression against 5.1 has misread this rule.
 - [ ] 5.18 Assistant: the thread, messages, diffs and approvals (HOO-1794;
       after 5.17)
 - [ ] 5.19 Lessons: objective band, step rail, Steps and Files, the reader
-      (HOO-2076; after 5.2 and 5.10)
+      (HOO-2076; after 5.2 and 5.10; design.md, "Lessons (5.19)")
 - [ ] 5.20 Details: Settings as a full page (HOO-2071; after 5.5 and 5.6)
 - [ ] 5.21 Details: the tutorial page, its empty and error states
       (HOO-2072; after 5.2)
