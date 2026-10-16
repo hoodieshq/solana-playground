@@ -1403,6 +1403,21 @@ describe("the stage bar", () => {
     expect(screen.queryByText("Counter")).toBeNull();
   });
 
+  it("opens the assistant Sheet from the bar between 768 and 1023 px", () => {
+    resizeTo(900);
+    shell();
+    const bar = document.querySelector<HTMLElement>('[data-slot="stage-bar"]')!;
+    fireEvent.click(
+      within(bar).getByRole("button", { name: "Expand assistant" })
+    );
+    expect(toggled()).toEqual([
+      { panel: "assistant", open: true, via: "button" },
+    ]);
+    expect(
+      document.querySelector('[data-slot="sheet-content"]')
+    ).not.toBeNull();
+  });
+
   it("leaves one Expand assistant between 768 and 1023 px", () => {
     resizeTo(900);
     shell();

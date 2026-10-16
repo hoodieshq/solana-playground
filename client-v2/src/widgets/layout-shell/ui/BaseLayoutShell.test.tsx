@@ -190,7 +190,6 @@ const props = (
     stage: choice.stage ?? <main>stage slot</main>,
     console: choice.console ?? <div className="xterm">console slot</div>,
     assistant: choice.assistant ?? (() => <section>assistant slot</section>),
-    assistantOpener: <button type="button">Expand assistant</button>,
     phone: {
       page: "work",
       onSwipe: vi.fn(),
@@ -297,7 +296,6 @@ it("should hand the navigation the stock toggle and whether it is a rail", () =>
       stage={shell.stage}
       console={shell.console}
       assistant={shell.assistant}
-      assistantOpener={shell.assistantOpener}
       phone={shell.phone}
     />
   );
@@ -353,10 +351,11 @@ it("should keep a folded console mounted", () => {
   expect(document.querySelector(".xterm")).not.toBeNull();
 });
 
-it("should put the assistant in a closed Sheet below 1024 px, with its opener", () => {
+it("should put the assistant in a closed Sheet below 1024 px, opened from the stage bar", () => {
   render(<BaseLayoutShell {...props("compact")} />);
   expect(screen.queryByText("assistant slot")).toBeNull();
-  expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
+  // No opener of the frame's own on the edge: the stage bar carries it
+  expect(screen.queryByRole("button", { name: "Expand assistant" })).toBeNull();
   expect(
     document.querySelectorAll('[data-slot="resizable-panel-group"]')
   ).toHaveLength(3);
@@ -389,7 +388,6 @@ it("should show the assistant Sheet when it is open", () => {
       stage={open.stage}
       console={open.console}
       assistant={open.assistant}
-      assistantOpener={open.assistantOpener}
       phone={open.phone}
     />
   );
@@ -448,6 +446,9 @@ describe("the flush frame", () => {
     render(<BaseLayoutShell {...props("wide")} />);
     const sidebar = document.querySelector('[data-slot="sidebar-container"]')!;
     expect(sidebar.className).not.toMatch(/border-r-0/);
+    // In the frame's line colour: a bare `border-r` is currentColor in
+    // Tailwind 4 until the global reset (5.24) lands
+    expect(sidebar.className).toMatch(/\bborder-border\b/);
   });
 
   it("hides the assistant and the files column to no width", () => {

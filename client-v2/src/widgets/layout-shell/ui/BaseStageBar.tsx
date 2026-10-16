@@ -15,8 +15,8 @@ export interface BaseStageBarProps {
    */
   files: { open: boolean; onToggle: () => void } | null;
   /**
-   * The assistant's toggle; null where the assistant is a Sheet, whose
-   * opener at the right edge carries "Expand assistant"
+   * The assistant's toggle: the panel's on a wide window, the Sheet's below
+   * it; null draws none
    */
   assistant: { open: boolean; onToggle: () => void } | null;
 }

@@ -1096,12 +1096,13 @@ SidebarProvider (no padding)
   sizes, which would have reset every user's widths for nothing.
 - **Width.** Wherever the frame shows (from 720 px, above the phone's
   pager) it is flush and carries the bars. Between 768 and 1023 the behaviour is 5.2's: the
-  navigation starts as a rail, the assistant is the right Sheet, still
-  opened by "Expand assistant" at the right edge, so the stage bar carries
-  no assistant toggle there; from 720 to 767 the files column is in the
-  navigation's Sheet, opened by "Expand project panel" at the left edge, so
-  the bar carries no files toggle either. One button per name. The phone's
-  pager is unchanged.
+  navigation starts as a rail and the assistant is the right Sheet. Its
+  "Expand assistant" moves from the right edge into the stage bar, whose
+  help link now holds that corner; same name, same Sheet. From 720 to 767
+  the files column is in the navigation's Sheet, opened by "Expand project
+  panel" at the left edge, so the bar carries no files toggle there. One
+  button per name. The phone's pager is unchanged but for the stage's card
+  edge, which goes as everywhere else.
 - **Telemetry.** The bars' buttons send `layout_panel_toggled` with
   `via: "button"`, as the buttons they replace did. Widen sends
   `layout_assistant_widened {wide}` (prefix `layout`).

@@ -526,14 +526,12 @@ const LayoutShell = ({
                     }),
                 }
           }
-          assistant={
-            viewport === "wide"
-              ? {
-                  open: assistantShown,
-                  onToggle: () => setAssistant(!assistantShown, "button"),
-                }
-              : null
-          }
+          // The panel's toggle on a wide window; below it, what opens the
+          // Sheet (the bar now holds the corner the edge opener sat in)
+          assistant={{
+            open: assistantShown,
+            onToggle: () => setAssistant(!assistantShown, "button"),
+          }}
         />
       }
       stageTabs={stageTabs}
@@ -560,16 +558,6 @@ const LayoutShell = ({
           },
           canWiden,
         })
-      }
-      assistantOpener={
-        <button
-          type="button"
-          aria-label="Expand assistant"
-          className="rounded-l-md border border-r-0 border-border bg-card px-1.5 py-2 text-muted-foreground hover:text-foreground"
-          onClick={() => setAssistant(true, "button")}
-        >
-          &#8249;
-        </button>
       }
     />
   );

@@ -294,22 +294,15 @@ test("client-v2-layout: Folding the project panel", async ({
   seededPage: page,
 }) => {
   const files = filesPanel(page);
-  await expect(
-    page.getByRole("button", { name: "Collapse project panel" })
-  ).toBeVisible();
   await expect(files).toHaveJSProperty("offsetWidth", 232);
   await leaveEditor(page);
   await page.keyboard.press("ControlOrMeta+e");
-  await expect(files).toHaveJSProperty("offsetWidth", 52);
-  await expect(
-    files.getByRole("button", { name: "Expand project panel" })
-  ).toBeVisible();
-  await expect(files.getByRole("button", { name: "New file" })).toBeVisible();
+  // Hidden, not folded to a rail: the column takes no width
+  await expect(files).toHaveJSProperty("offsetWidth", 0);
   // The fold is kept over a reload
   await page.reload();
-  await expect(files).toHaveJSProperty("offsetWidth", 52);
-  await leaveEditor(page);
-  await page.keyboard.press("ControlOrMeta+e");
+  await expect(files).toHaveJSProperty("offsetWidth", 0);
+  await page.getByRole("button", { name: "Expand project panel" }).click();
   await expect(files).toHaveJSProperty("offsetWidth", 232);
   await expect(files.locator("#root-dir")).toBeVisible();
 });
@@ -818,9 +811,9 @@ test("client-v2-layout: A layout saved before the four columns", async ({
     )
   );
   await page.reload();
-  await expect(filesPanel(page)).toHaveJSProperty("offsetWidth", 52);
+  await expect(filesPanel(page)).toHaveJSProperty("offsetWidth", 0);
   await expect(
-    filesPanel(page).getByRole("button", { name: "Expand project panel" })
+    page.getByRole("button", { name: "Expand project panel" })
   ).toBeVisible();
   await expect(consoleHandle(page)).toHaveAttribute("aria-expanded", "true");
   await expect(navColumn(page)).toHaveJSProperty("offsetWidth", 232);
@@ -1081,4 +1074,85 @@ test("the GitHub profile menu opens inside the window, its Sign out on top", asy
     return hit !== null && el.contains(hit);
   });
   expect(onTop).toBe(true);
+});
+
+/** The top edge and height of an element, in px */
+const barOf = async (locator: ReturnType<Page["locator"]>) => {
+  const box = (await locator.boundingBox())!;
+  return { y: Math.round(box.y), height: Math.round(box.height) };
+};
+
+test("client-v2-layout: The frame at 1440", async ({ seededPage: page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // Flush: the navigation starts at the window's edge, the bars at its top
+  await expect
+    .poll(async () => (await navColumn(page).boundingBox())!.x)
+    .toBe(0);
+  const head = assistantPanel(page).getByRole("heading").locator("..");
+  const stageBar = page.locator('[data-slot="stage-bar"]');
+  expect(await barOf(head)).toEqual({ y: 0, height: 44 });
+  expect(await barOf(stageBar)).toEqual({ y: 0, height: 44 });
+  // The stage tabs span the files column and the stage together
+  const tabs = (await page
+    .locator('[data-slot="stepper-list"]')
+    .boundingBox())!;
+  const work = (await page.locator("#work[data-panel]").boundingBox())!;
+  expect(tabs.width).toBeGreaterThan(work.width - 20);
+  // One background, separated by 1 px lines: no gutter between the columns
+  const assistant = (await assistantPanel(page).boundingBox())!;
+  const handle = (await assistantHandle(page).boundingBox())!;
+  expect(Math.round(handle.width)).toBe(1);
+  expect(Math.round(work.x - (assistant.x + assistant.width))).toBe(1);
+});
+
+test("client-v2-layout: Hiding the assistant from the stage bar", async ({
+  seededPage: page,
+}) => {
+  const before = await widthOf(page);
+  const stageBar = page.locator('[data-slot="stage-bar"]');
+  await page.getByRole("button", { name: "Hide the assistant" }).click();
+  await expect.poll(() => widthOf(page)).toBe(0);
+  // The project's name moves into the stage bar while the assistant is hidden
+  await expect(stageBar).toContainText(/\S/);
+  await page.getByRole("button", { name: "Expand assistant" }).click();
+  await expect
+    .poll(async () => Math.abs((await widthOf(page)) - before))
+    .toBeLessThanOrEqual(2);
+});
+
+test("client-v2-layout: A layout saved before the column bars", async ({
+  seededPage: page,
+}) => {
+  // As the flush frame's predecessor wrote it: files folded, the assistant
+  // dragged to 30% of the row
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "layout",
+      JSON.stringify({
+        v: 2,
+        open: { nav: true, files: false, assistant: true, console: false },
+        h: { assistant: 30, work: 70 },
+      })
+    )
+  );
+  await page.reload();
+  await expect(filesPanel(page)).toHaveJSProperty("offsetWidth", 0);
+  const row = (await page
+    .locator('[data-slot="sidebar-inset"]')
+    .boundingBox())!;
+  await expect
+    .poll(async () => Math.abs((await widthOf(page)) / row.width - 0.3))
+    .toBeLessThan(0.02);
+});
+
+test("client-v2-layout: Widening the assistant", async ({
+  seededPage: page,
+}) => {
+  const lines = linesOn(page);
+  await page.getByRole("button", { name: "Widen the assistant" }).click();
+  await expect(
+    page.getByRole("button", { name: "Narrow the assistant" })
+  ).toBeVisible();
+  const line = await onlyLineOf(page, lines, "layout_assistant_widened");
+  expect(line).toContain("wide: true");
 });

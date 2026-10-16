@@ -220,11 +220,6 @@ export interface BaseLayoutShellProps {
   /** Renders the assistant, in its panel, its Sheet or the pager's page */
   assistant: (wide: AssistantWide) => ReactNode;
   /**
-   * Below `LAYOUT_BREAKPOINTS.compact`: what opens the assistant Sheet, on the
-   * right edge
-   */
-  assistantOpener: ReactNode;
-  /**
    * The font a Sheet's content is set in. Sheets portal outside the app
    * wrapper that sets it, so they would fall back to the browser's.
    */
@@ -626,7 +621,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           ground like the other columns. */}
           <Sidebar
             collapsible="icon"
-            className="absolute inset-y-0 left-0 h-auto [&>[data-slot=sidebar-inner]]:bg-transparent"
+            className="absolute inset-y-0 left-0 h-auto border-border [&>[data-slot=sidebar-inner]]:bg-transparent"
           >
             <div className="contents" style={props.sheetFont}>
               <NavSlot nav={props.nav} files={props.files} />
@@ -771,10 +766,6 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             </ResizablePanelGroup>
             {props.viewport !== "wide" && (
               <>
-                {/* Under the settings panel (fixed, z-2) when it opens over it */}
-                <div className="absolute top-1 right-0 z-1">
-                  {props.assistantOpener}
-                </div>
                 <Sheet
                   open={props.assistantState.open}
                   onOpenChange={props.assistantState.onOpenChange}

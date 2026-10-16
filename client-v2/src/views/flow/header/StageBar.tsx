@@ -78,6 +78,10 @@ const Bar = styled.div<{ $row: boolean }>`
     min-width: 0;
     background: transparent;
     font-family: ${theme.font.other.family};
+    /* The stepper's thumb and items stack with z-index; kept inside the row,
+       so they never rise over a window opened above the work area (the
+       wallet, z-index 1), which the full-width row now reaches */
+    isolation: isolate;
     ${$row
       ? css`
           height: 38px;
