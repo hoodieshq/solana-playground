@@ -46,8 +46,7 @@ export type ModelOption =
 const effortOn = (
   value: Effort,
   ladder: readonly Effort[] | undefined
-): EffortChoice | null =>
-  ladder?.includes(value) ? { value, ladder } : null;
+): EffortChoice | null => (ladder?.includes(value) ? { value, ladder } : null);
 
 const DEFAULT_LABEL = "Default model";
 

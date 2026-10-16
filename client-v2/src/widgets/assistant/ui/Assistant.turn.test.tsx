@@ -86,11 +86,9 @@ describe("Assistant's turn", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
 
     expect(
-      screen
-        .getByRole<HTMLInputElement>("textbox", {
-          name: "Message the assistant",
-        })
-        .value
+      screen.getByRole<HTMLInputElement>("textbox", {
+        name: "Message the assistant",
+      }).value
     ).toBe("half a question");
   });
 });
