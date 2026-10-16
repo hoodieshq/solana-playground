@@ -13,6 +13,7 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgProgramInfo } from "../../../utils/program-info";
 import { modelOptions, modelShown } from "../model/choice";
 import type { ModelOption } from "../model/choice";
+import { DEFAULT_CONNECTION } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
 import { withEffort, withModel } from "../model/tune";
@@ -23,8 +24,6 @@ import {
 } from "./BaseAssistantComposer";
 import { BaseEffortMenu } from "./BaseEffortMenu";
 import { BaseModelMenu } from "./BaseModelMenu";
-
-const DEFAULT_CONNECTION: Connection = { id: "default", apiKey: "" };
 
 const log = createLogger("assistant:composer");
 
@@ -133,12 +132,12 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
       });
       return;
     }
-    if (connection?.id !== option.provider || option.model === null) {
+    if (connection?.id !== option.provider) {
       // Another backend needs its key, so Connect a model asks for it, opened
       // on that backend and model
       turn.openConnect("model", {
         provider: option.provider,
-        model: option.model ?? undefined,
+        model: option.model,
       });
       return;
     }

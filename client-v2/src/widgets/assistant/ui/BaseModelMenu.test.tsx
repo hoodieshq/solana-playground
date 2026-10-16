@@ -66,10 +66,11 @@ describe("BaseModelMenu", () => {
     expect(checked[0].textContent).toContain("GLM 5.3 Flash");
   });
 
-  it("checks the keyed option matching provider and label", async () => {
+  it("checks the keyed option matching provider and model id", async () => {
     const { user } = setup({
       kind: "keyed",
       provider: "anthropic",
+      model: "claude-sonnet-5-5",
       label: "Sonnet 5.5",
       effort: null,
     });
@@ -77,6 +78,35 @@ describe("BaseModelMenu", () => {
     const checked = screen.getAllByRole("menuitemradio", { checked: true });
     expect(checked.length).toBe(1);
     expect(checked[0].textContent).toContain("Sonnet 5.5");
+  });
+
+  it("checks by model id when two options share a label", async () => {
+    const onPick = vi.fn();
+    render(
+      <BaseModelMenu
+        model={{
+          kind: "keyed",
+          provider: "openrouter",
+          model: "vendor/model-b",
+          label: "Model",
+          effort: null,
+        }}
+        options={[
+          { provider: "openrouter", model: "vendor/model-a", label: "Model" },
+          { provider: "openrouter", model: "vendor/model-b", label: "Model" },
+        ]}
+        onPick={onPick}
+        onConnect={vi.fn()}
+        disabled={false}
+      />
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Model" }));
+    const items = screen.getAllByRole("menuitemradio");
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+    ]);
   });
 
   it("hands the picked option to onPick", async () => {

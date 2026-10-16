@@ -12,11 +12,11 @@ import {
 import { MenuItemDescription, MenuItemText } from "@/shared/ui/menu-extras";
 import type { ModelOption, ModelShown } from "../model/choice";
 
-/** Whether an option is the one the composer shows: the default by its provider, a keyed one by provider and label */
+/** Whether an option is the one the composer shows: the default by its provider, a keyed one by provider and model id */
 const isShown = (model: ModelShown, option: ModelOption) => {
   if (model.kind === "default") return option.provider === "default";
   if (model.kind === "keyed") {
-    return option.provider === model.provider && option.label === model.label;
+    return option.provider === model.provider && option.model === model.model;
   }
   return false;
 };

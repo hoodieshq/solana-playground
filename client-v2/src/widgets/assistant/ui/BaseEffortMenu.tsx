@@ -1,4 +1,5 @@
 import type { Effort } from "../../../views/sidebar/assistant/model/types";
+import type { EffortChoice } from "../model/choice";
 import { ComposerEffort } from "@/shared/ui/composer";
 import {
   DropdownMenu,
@@ -23,7 +24,7 @@ export function BaseEffortMenu({
   onChange,
   disabled,
 }: {
-  effort: { value: Effort; ladder: readonly Effort[] };
+  effort: EffortChoice;
   onChange(e: Effort): void;
   disabled: boolean;
 }) {

@@ -17,6 +17,7 @@ import type {
 } from "../../../views/sidebar/assistant/store";
 import type { ConnectPreset } from "../../../views/sidebar/assistant/Component/Connect";
 import { reportButtonFailure } from "../../../shared/lib/report-button-failure";
+import { DEFAULT_CONNECTION } from "./connection";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
 import type { AssistantEvents } from "./telemetry";
@@ -72,8 +73,6 @@ export interface Turn {
   /** Bumped whenever the composer's input should take focus */
   focusRequest: number;
 }
-
-const DEFAULT_CONNECTION: Connection = { id: "default", apiKey: "" };
 
 /**
  * Connect the deployment's default when it has one; `null` when it has none,

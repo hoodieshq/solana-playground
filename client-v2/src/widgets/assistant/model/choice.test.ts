@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Effort } from "../../../views/sidebar/assistant/model/types";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import type { DefaultBackend } from "./default-backend";
 import { modelOptions, modelShown } from "./choice";
@@ -55,6 +56,7 @@ describe("modelShown", () => {
     expect(modelShown(connection, absent)).toEqual({
       kind: "keyed",
       provider: "anthropic",
+      model: "claude-opus-5-5",
       label: "Opus 5.5",
       effort: {
         value: "medium",
@@ -75,6 +77,7 @@ describe("modelShown", () => {
     expect(modelShown(connection, absent)).toEqual({
       kind: "keyed",
       provider: "gemini",
+      model: "gemini-3.6-flash",
       label: "Gemini 3.6 Flash",
       effort: null,
     });
@@ -87,6 +90,7 @@ describe("modelShown with a connection that names no model", () => {
     expect(modelShown(connection, absent)).toEqual({
       kind: "keyed",
       provider: "anthropic",
+      model: "claude-opus-5-5",
       label: "Opus 5.5",
       effort: {
         value: "medium",
@@ -100,9 +104,36 @@ describe("modelShown with a connection that names no model", () => {
     expect(modelShown(connection, absent)).toEqual({
       kind: "keyed",
       provider: "openai",
+      model: "gpt-5.1",
       label: "gpt-5.1",
       effort: null,
     });
+  });
+});
+
+describe("modelShown's effort", () => {
+  it("is null for an effort its ladder lacks", () => {
+    const connection: Connection = {
+      id: "anthropic",
+      apiKey: "k",
+      // Stored by an older build, or tuned on a provider whose ladder changed
+      settings: {
+        model: "claude-opus-5-5",
+        effort: "none" as unknown as Effort,
+      },
+    };
+    const shown = modelShown(connection, absent);
+    expect(shown.kind === "keyed" && shown.effort).toBeNull();
+  });
+
+  it("is null for settings on a provider with no ladder", () => {
+    const connection: Connection = {
+      id: "openai",
+      apiKey: "k",
+      settings: { model: "gpt-5.1", effort: "high" },
+    };
+    const shown = modelShown(connection, absent);
+    expect(shown.kind === "keyed" && shown.effort).toBeNull();
   });
 });
 
