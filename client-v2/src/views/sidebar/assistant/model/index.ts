@@ -1,5 +1,6 @@
 import { createAnthropicProvider } from "./anthropic";
 import { createOpenAiProvider } from "./openai";
+import { createAiSdkProvider } from "./ai-sdk";
 import { DEFAULT_BACKEND_URL, PROVIDERS } from "./types";
 import type { ReplayMessage } from "../../../../features/persistence/model/replay";
 import type { Effort, Provider, ProviderId } from "./types";
@@ -30,6 +31,9 @@ export const createProvider = (
   switch (id) {
     // The model is the server's to pick, so none is sent and none is shown
     case "default":
+      // SPIKE (HOO-1753): ?transport=ai-sdk drives the default rail through the ai SDK
+      if (new URLSearchParams(window.location.search).get("transport") === "ai-sdk")
+        return createAiSdkProvider({ id, url: DEFAULT_BACKEND_URL, label: "default backend (ai SDK)" }, seed);
       return createOpenAiProvider(
         {
           id,

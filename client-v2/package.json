@@ -6,6 +6,9 @@
   "license": "GPL-3.0",
   "private": true,
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.79",
+    "@ai-sdk/openai-compatible": "3.0.68",
+    "@ai-sdk/react": "4.0.141",
     "@anthropic-ai/sdk": "^0.117.1",
     "@clockwork-xyz/sdk": "^0.3.1",
     "@coral-xyz/anchor": "^0.29.0",
@@ -34,6 +37,7 @@
     "@solana/wallet-adapter-base": "0.9.27",
     "@solana/wallet-adapter-react": "0.15.39",
     "@solana/web3.js": "*",
+    "ai": "7.0.138",
     "assert": "^2.0.0",
     "better-auth": "^1.7.5",
     "class-variance-authority": "^0.7.1",
@@ -73,7 +77,8 @@
     "vscode-textmate": "^9.0.0",
     "xterm": "^4.18.0",
     "xterm-addon-fit": "^0.5.0",
-    "xterm-addon-web-links": "^0.5.1"
+    "xterm-addon-web-links": "^0.5.1",
+    "zod": "^4"
   },
   "devDependencies": {
     "@craco/craco": "^6.4.3",
