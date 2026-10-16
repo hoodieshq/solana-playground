@@ -72,6 +72,11 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // default.
   test.setTimeout(120_000);
 
+  // No default backend, so the ask below has no model to go to whatever the
+  // dev server is configured with
+  await page.route("**/api/agent", (route) =>
+    route.fulfill({ json: { configured: false, model: null } })
+  );
   await page.goto("/");
 
   // Same anchor as the test above: the gallery dialog, by its title.
@@ -179,9 +184,15 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // the prompt text itself is unit-tested in `hints.test.ts`. What is
   // deterministic here is the band's own action label: rung zero reads
   // "I'm stuck"; one click with no attempt yet recorded moves it to
-  // "Try it first" (`band-copy.ts`'s `assistantLabel`).
+  // "Try it first" (`band-copy.ts`'s `assistantLabel`). With nothing to
+  // send the hint to, the ask opens Connect a model over the page; closed,
+  // the band is back with its new label.
   await expect(page.getByRole("button", { name: "I'm stuck" })).toBeVisible();
   await page.getByRole("button", { name: "I'm stuck" }).click();
+  const connect = page.getByRole("dialog", { name: "Connect a model" });
+  await expect(connect).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(connect).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Try it first" })
   ).toBeVisible();
