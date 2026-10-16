@@ -2,6 +2,8 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { Button } from "@/shared/ui/button";
+import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
 import {
@@ -14,7 +16,7 @@ import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
 
-type Tab = "steps" | "files";
+export type LessonTab = "steps" | "files";
 
 interface LeftPanelProps {
   /**
@@ -22,6 +24,14 @@ interface LeftPanelProps {
    * (design.md, "Frame chrome (5.25)"), so it draws nothing
    */
   collapsed: boolean;
+  /**
+   * The open tab, owned by `Flow`: below `LAYOUT_BREAKPOINTS.left` the shell
+   * renders this panel in a Sheet that unmounts it, and a tab held here would
+   * reset to Steps on every close.
+   */
+  tab: LessonTab;
+  /** Switch tab. */
+  onTabChange: (tab: LessonTab) => void;
 }
 
 /**
@@ -32,11 +42,12 @@ interface LeftPanelProps {
  */
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
+  tab,
+  onTabChange,
 }) => {
   const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
-  const [tab, setTab] = useState<Tab>("steps");
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
@@ -60,27 +71,22 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
     <Wrapper>
       <>
         {inLesson && (
-          <Tabs role="tablist">
-            {(["steps", "files"] as const).map((t) => (
-              <TabButton
-                key={t}
-                id={`flow-left-tab-${t}`}
-                role="tab"
-                aria-selected={tab === t}
-                aria-controls="flow-left-tabpanel"
-                $active={tab === t}
-                onClick={() => setTab(t)}
-              >
-                {t === "steps" ? "Steps" : "Files"}
-              </TabButton>
-            ))}
-          </Tabs>
+          <div className="flex items-center gap-2 border-b border-border px-2 py-1.5">
+            <Segmented
+              aria-label="Lesson panel"
+              value={tab}
+              onValueChange={(v) => onTabChange(v as LessonTab)}
+            >
+              <SegmentedItem id="flow-left-tab-steps" value="steps">
+                Steps
+              </SegmentedItem>
+              <SegmentedItem id="flow-left-tab-files" value="files">
+                Files
+              </SegmentedItem>
+            </Segmented>
+          </div>
         )}
-        <Body
-          id="flow-left-tabpanel"
-          role={inLesson ? "tabpanel" : undefined}
-          aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
-        >
+        <Body id="flow-left-tabpanel">
           {showSteps ? (
             <StepRail state={lesson} />
           ) : (
@@ -95,13 +101,17 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
         {/* Pinned below the rail for the same reason as the files footer:
               a way out that scrolls away is not a way out. */}
         {showSteps && frontierStep && (
-          <SkipFooter
-            type="button"
-            title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
-            onClick={() => PgLesson.pass()}
-          >
-            Skip this step
-          </SkipFooter>
+          <div className="flex shrink-0 justify-center border-t border-border py-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
+              onClick={() => PgLesson.pass()}
+            >
+              Skip this step
+            </Button>
+          </div>
         )}
         {!showSteps && (
           <Footer type="button" onClick={createItem}>
@@ -132,37 +142,6 @@ const Wrapper = styled.aside`
     flex-direction: column;
     background: ${theme.colors.default.bgPrimary};
     overflow: hidden;
-  `}
-`;
-
-const Tabs = styled.div`
-  ${({ theme }) => css`
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid ${theme.colors.default.border};
-  `}
-`;
-
-const TabButton = styled.button<{ $active: boolean }>`
-  ${({ theme, $active }) => css`
-    flex: 1;
-    padding: 0.625rem;
-    border: none;
-    border-bottom: 2px solid
-      ${$active ? theme.colors.default.primary : "transparent"};
-    background: transparent;
-    color: ${$active
-      ? theme.colors.default.textPrimary
-      : theme.colors.default.textSecondary};
-    font: inherit;
-    font-size: ${theme.font.other.size.small};
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    cursor: pointer;
-    &:focus-visible {
-      outline: 2px solid ${theme.colors.default.primary};
-      outline-offset: -2px;
-    }
   `}
 `;
 
@@ -202,16 +181,6 @@ const Footer = styled.button`
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: -2px;
     }
-  `}
-`;
-
-// The files footer's shape, dimmed further: skipping is the way out of a
-// step, never the way through it
-const SkipFooter = styled(Footer)`
-  ${({ theme }) => css`
-    justify-content: center;
-    font-size: ${theme.font.other.size.small};
-    text-decoration: underline;
   `}
 `;
 

@@ -6,6 +6,7 @@ import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import Logomark from "./header/Logomark";
 import StageBar from "./header/StageBar";
 import LeftPanel from "./left/LeftPanel";
+import type { LessonTab } from "./left/LeftPanel";
 import ObjectiveBand from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 // The barrel registers every lesson path as a side effect, so importing
@@ -63,6 +64,10 @@ const FlowFrame = () => {
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Lives here, not in `LeftPanel`: below `LAYOUT_BREAKPOINTS.left` the shell
+  // puts it in a Sheet that unmounts it on close, so a tab held there would
+  // reset to Steps on every close.
+  const [lessonTab, setLessonTab] = useState<LessonTab>("steps");
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
 
   useEffect(() => {
@@ -201,7 +206,13 @@ const FlowFrame = () => {
           );
         }}
         stageTabs={<StageBar />}
-        files={({ collapsed }) => <LeftPanel collapsed={collapsed} />}
+        files={({ collapsed }) => (
+          <LeftPanel
+            collapsed={collapsed}
+            tab={lessonTab}
+            onTabChange={setLessonTab}
+          />
+        )}
         stage={
           <Center>
             <ObjectiveBand
