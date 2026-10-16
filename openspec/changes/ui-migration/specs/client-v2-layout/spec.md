@@ -32,10 +32,10 @@ read SHALL give the default layout without breaking the page.
 
 #### Scenario: A layout saved before the column bars
 
-- **WHEN** a user whose saved layout is version 2 (files column folded,
-  assistant open, the console resized) loads the product
-- **THEN** the files column is hidden, the assistant is open at its default
-  width, and the saved layout is rewritten in version 3 without sizes
+- **WHEN** a user whose saved layout was written before the column bars
+  (files column folded, assistant open and resized) loads the product
+- **THEN** the files column is hidden and the assistant is open at the width
+  it was given
 
 ### Requirement: Panels fold without losing their state
 

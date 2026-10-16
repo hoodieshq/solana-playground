@@ -1089,15 +1089,19 @@ SidebarProvider (no padding)
   as the prototype hides them; the 24 px strip and the 52 px rail go, and
   the rail's "New file" with it (the open column keeps its own). A drag
   from the edge still opens either one. The navigation's rail is unchanged.
-- **What survives a reload** moves to `v: 3`, same key and shape. A `v: 2`
-  value keeps its four open flags and drops its sizes: a size taken with a
-  52 px rail or a 24 px strip as the folded width does not mean the same on
-  the new frame. A `v: 1` value still migrates, now straight to 3.
+- **What survives a reload** is unchanged: `v: 2`, same key and shape. It
+  keeps sizes for open panels only (`withoutFoldedSizes`), so the old folded
+  widths were never stored, and an open panel's size means the same on the
+  flush frame. Considered and dropped the same day: a `v: 3` that cleared
+  sizes, which would have reset every user's widths for nothing.
 - **Width.** Wherever the frame shows (from 720 px, above the phone's
   pager) it is flush and carries the bars. Between 768 and 1023 the behaviour is 5.2's: the
   navigation starts as a rail, the assistant is the right Sheet, still
-  opened by "Expand assistant" at the right edge; the stage bar's toggle
-  opens the same Sheet. The phone's pager is unchanged.
+  opened by "Expand assistant" at the right edge, so the stage bar carries
+  no assistant toggle there; from 720 to 767 the files column is in the
+  navigation's Sheet, opened by "Expand project panel" at the left edge, so
+  the bar carries no files toggle either. One button per name. The phone's
+  pager is unchanged.
 - **Telemetry.** The bars' buttons send `layout_panel_toggled` with
   `via: "button"`, as the buttons they replace did. Widen sends
   `layout_assistant_widened {wide}` (prefix `layout`).
@@ -1106,7 +1110,7 @@ SidebarProvider (no padding)
 _Rejected:_ a second bar over the assistant (5.17's head is that bar);
 keeping the 24 px strip and the 52 px rail (the prototype has neither, and
 the stage bar's toggles replace them); a `layout` key per bar (the stored
-layout is one value, extended).
+layout is one value).
 
 ## Risks / Trade-offs
 
