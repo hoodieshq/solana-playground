@@ -34,10 +34,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const answer = (body: unknown, ok = true) =>
-  vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValue({ ok, json: async () => body } as Response);
+/** The probe's answer: this body, with this status */
+const answer = (body: unknown, status = 200) =>
+  vi.spyOn(globalThis, "fetch").mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response);
 
 const expectFailure = (reason: string) => {
   expect(logs.entries.map((e) => [e.ns, e.report])).toEqual([
@@ -70,10 +73,25 @@ describe("probeDefaultBackend", () => {
     expectFailure("network");
   });
 
-  it("is absent and reported on a bad status", async () => {
-    answer({}, false);
+  it("is absent and reported when the agent answers a 5xx", async () => {
+    answer({}, 503);
     expect(await probeDefaultBackend()).toEqual({ state: "absent" });
     expectFailure("status");
+  });
+
+  it("is absent, warned of and not reported on a deployment without the agent", async () => {
+    answer({}, 404);
+    expect(await probeDefaultBackend()).toEqual({ state: "absent" });
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["assistant:connect", "warn", false],
+    ]);
+    expect(events.events).toEqual([]);
+  });
+
+  it("is absent and reported on a null body", async () => {
+    answer(null);
+    expect(await probeDefaultBackend()).toEqual({ state: "absent" });
+    expectFailure("body");
   });
 
   it("is absent and reported on a body without configured", async () => {

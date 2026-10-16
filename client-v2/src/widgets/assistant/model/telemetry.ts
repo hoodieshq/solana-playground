@@ -14,7 +14,7 @@ export type AssistantEvents = {
   assistant_connect_opened: { via: "menu" | "model" | "send" };
   /** The user stopped a turn in progress with the stop button. */
   assistant_turn_stopped: NoParams;
-  /** The default backend's probe failed and the default was treated as absent; `reason` says whether the request, the status or the body. */
+  /** The default backend's probe failed and the default was treated as absent; `reason` says whether the request, the status (not a 404, which is a deployment without the agent) or the body. */
   assistant_default_probe_failed: { reason: "network" | "status" | "body" };
 };
 

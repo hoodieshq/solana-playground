@@ -34,6 +34,15 @@ const ask = async (): Promise<DefaultBackend> => {
   } catch (error) {
     return failed("network", error);
   }
+  if (res.status === 404) {
+    // A deployment without `/api/agent` (a fork, a static host): there is no
+    // default to offer, and nothing for the team to hear of, since the user's
+    // own key still works. Not a failure, so not `assistant_default_probe_failed`
+    log.warn("this deployment serves no default backend", {
+      context: { status: res.status },
+    });
+    return { state: "absent" };
+  }
   if (!res.ok) {
     return failed(
       "status",
