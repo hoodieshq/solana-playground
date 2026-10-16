@@ -7,23 +7,39 @@ import { ModalFrame, ModalPages, modalPage } from "@/widgets/overlays";
 import type { ModalPageProps } from "@/widgets/overlays";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { ExportFile } from "../../../../../components/Icons";
-import { PgFramework, PgView } from "../../../../../utils";
+import { PgExplorer, PgFramework, PgView } from "../../../../../utils";
 import { createLogger } from "@/shared/lib/logger";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const log = createLogger("explorer:export-workspace");
 
-export const ExportWorkspace = () => (
-  <ModalPages name="export-workspace" defaultPage={modalPage(Default)} />
+interface ExportWorkspaceProps {
+  /** Which workspace to export; defaults to the one the user is in */
+  name?: string;
+}
+
+export const ExportWorkspace = ({ name }: ExportWorkspaceProps) => (
+  <ModalPages
+    name="export-workspace"
+    defaultPage={modalPage(Default, { name })}
+  />
 );
 
-type DefaultProps = ModalPageProps;
+type DefaultProps = ModalPageProps & ExportWorkspaceProps;
 
-const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
+const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
+  setPage,
+  name,
+}) => {
+  const label = name ?? PgExplorer.currentWorkspaceName ?? "the project";
+
   const convertAndExport = async () => {
     try {
-      const { readme } = await PgFramework.exportWorkspace({ convert: true });
+      const { readme } = await PgFramework.exportWorkspace({
+        convert: true,
+        name,
+      });
       setPage(modalPage(Readme, { readme }));
     } catch (e) {
       // The export still happens, as is; the user hears that the layout
@@ -38,12 +54,23 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({ setPage }) => {
   };
 
   const exportWithoutChanges = async () => {
-    await PgFramework.exportWorkspace();
+    try {
+      await PgFramework.exportWorkspace({ name });
+    } catch (e) {
+      // Nothing downloaded: the user hears it, the team hears why. Left to
+      // the button, it was only logged, and the dialog sat there as if the
+      // click had done nothing
+      log.error(e, { report: true, context: { step: "export" } });
+      PgView.setToast(() => <span>Could not export {label}.</span>, {
+        options: { name: "export-failed" },
+      });
+      return;
+    }
     PgView.closeModal();
   };
 
   return (
-    <ModalFrame name="export-workspace" title="Export project">
+    <ModalFrame name="export-workspace" title={`Export ${label}`}>
       <Content>
         <Question>Convert the project layout?</Question>
 

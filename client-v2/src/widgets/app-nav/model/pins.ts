@@ -50,5 +50,7 @@ export const togglePin = (pins: readonly string[], id: string) =>
   pins.includes(id) ? pins.filter((pin) => pin !== id) : [...pins, id];
 
 /** Drops pins no workspace has any more, keeping the order of the rest */
-export const prunePins = (pins: readonly string[], liveIds: readonly string[]) =>
-  pins.filter((pin) => liveIds.includes(pin));
+export const prunePins = (
+  pins: readonly string[],
+  liveIds: readonly string[]
+) => pins.filter((pin) => liveIds.includes(pin));

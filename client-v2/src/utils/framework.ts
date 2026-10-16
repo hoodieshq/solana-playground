@@ -140,8 +140,16 @@ export class PgFramework {
    */
   static async exportWorkspace<C extends boolean = false>(opts?: {
     convert?: C;
+    /** The workspace to export; the open one by default */
+    name?: string;
   }) {
-    const workspacePath = PgExplorer.getRequiredCurrentWorkspacePath();
+    const name = opts?.name ?? PgExplorer.currentWorkspaceName;
+    // The open workspace's path, as before, when no name is given
+    const workspacePath = opts?.name
+      ? PgCommon.appendSlash(
+          PgCommon.joinPaths(PgExplorer.PATHS.ROOT_DIR_PATH, opts.name)
+        )
+      : PgExplorer.getRequiredCurrentWorkspacePath();
 
     let files: TupleFiles = [];
     const recursivelyGetItems = async (path: string) => {
@@ -153,7 +161,8 @@ export class PgFramework {
       for (const subItemPath of subItemPaths) {
         const metadata = await PgExplorer.fs.getMetadata(subItemPath);
         if (metadata.isFile()) {
-          const relativePath = PgExplorer.getRelativePath(subItemPath);
+          // Not `getRelativePath`: it resolves against the open workspace
+          const relativePath = subItemPath.slice(workspacePath.length);
           const content = await PgExplorer.fs.readToString(subItemPath);
           files.push([relativePath, content]);
         } else {
@@ -183,7 +192,7 @@ export class PgFramework {
       else zip.folder(path);
     });
     const blob = await zip.generateAsync({ type: "blob" });
-    PgCommon.export(PgExplorer.currentWorkspaceName + ".zip", blob);
+    PgCommon.export(name + ".zip", blob);
 
     return { readme } as { readme: C extends true ? string : undefined };
   }
