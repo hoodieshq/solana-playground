@@ -932,14 +932,21 @@ test.describe("on a tablet", () => {
     const settings = page.getByRole("region", { name: "Settings" });
     const network = settings.getByRole("radiogroup", { name: "Network" });
     await expect(network.getByRole("radio", { checked: true })).toBeFocused();
-    // A second click on the dot is the way out, as on the chip
+    // A second click on the dot is the way out, as on the footer's cluster row
     await footer.getByRole("button", { name: /^Cluster: / }).click();
     await expect(settings).toBeHidden();
 
-    // "Account" opens the account menu beside the rail; the rail stays
+    // "Account" opens the account menu beside the rail; the rail stays.
+    // Measured first: the open menu hides the rest from the accessibility tree
+    const trigger = await boxOf(account(page));
     await account(page).click();
-    await expect(page.getByRole("menu", { name: "Account" })).toBeVisible();
+    const menu = page.getByRole("menu", { name: "Account" });
+    await expect(menu).toBeVisible();
     await expect(navColumn(page)).toHaveJSProperty("offsetWidth", 52);
+    // Beside the rail's Account, not over it
+    expect((await boxOf(menu)).x).toBeGreaterThanOrEqual(
+      trigger.x + trigger.width
+    );
   });
 });
 
@@ -1211,7 +1218,8 @@ test("client-v2-layout: Signing in from the account menu", async ({
   await expect(footer.getByText("Signing in...")).toBeVisible();
   await expect(footer.getByRole("button", { name: "Cancel" })).toBeVisible();
   release();
-  await expect(footer.getByText("Couldn't sign in")).toBeVisible();
+  await expect(account(page)).toContainText("Sign in");
+  await expect(account(page)).toContainText("Couldn't sign in");
 });
 
 test("client-v2-layout: Signing out asks first", async ({ page }) => {
@@ -1249,9 +1257,19 @@ test("client-v2-layout: Settings from the menu and by key", async ({
   await page.keyboard.press("Escape");
   await expect(settings).toBeHidden();
 
+  // From inside the editor too, which binds keys of its own
+  await page.locator(".monaco-editor .view-lines").first().click();
   await page.keyboard.press("ControlOrMeta+Comma");
   await expect(settings).toBeVisible();
   await page.keyboard.press("ControlOrMeta+Comma");
+  await expect(settings).toBeHidden();
+
+  // Settings in the menu closes them while they are open, by mouse: opening
+  // the menu must not count as a click outside them
+  await page.keyboard.press("ControlOrMeta+Comma");
+  await expect(settings).toBeVisible();
+  await account(page).click();
+  await page.getByRole("menuitem", { name: /^Settings/ }).click();
   await expect(settings).toBeHidden();
 });
 
@@ -1321,4 +1339,36 @@ test("⌘, closes the navigation's Sheet on a narrow window", async ({
 
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
+});
+
+// The sign-in lives in the session, not in the footer, so the Sheet that
+// holds the footer on a narrow window can close and reopen around it
+test("a sign-in outlives the navigation's Sheet on a narrow window", async ({
+  page,
+}) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/auth/sign-in/social", async (route) => {
+    await held;
+    await route.fulfill({ status: 500, body: "" });
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedWorkspace(page);
+  await page.setViewportSize({ width: 740, height: 812 });
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
+  const sheetAccount = sheet.getByRole("button", { name: /^Account/ });
+
+  await page.getByRole("button", { name: "Expand project panel" }).click();
+  await sheetAccount.click();
+  await page.getByRole("menuitem", { name: "Sign in with GitHub" }).click();
+  // Closed by its overlay, right of the Sheet
+  await page.mouse.click(720, 400);
+  await expect(sheet).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Expand project panel" }).click();
+  await expect(sheet.getByText("Signing in...")).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Cancel" })).toBeVisible();
+  release();
+  await expect(sheetAccount).toContainText("Couldn't sign in");
 });
