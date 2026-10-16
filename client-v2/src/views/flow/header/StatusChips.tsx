@@ -17,7 +17,7 @@ import { createLogger } from "../../../shared/lib/logger";
 import { PgCommand } from "../../../utils";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
 import type { SettingsFocus } from "../settings/GearSidebar";
-import { useClusterStatus } from "./use-cluster-status";
+import { useClusterStatus } from "../../../widgets/session-footer/model/use-cluster-status";
 
 /** Which side of its chip a menu opens on */
 type Placement = "below" | "above";

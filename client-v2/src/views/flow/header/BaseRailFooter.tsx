@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
 import { SETTINGS_TRIGGER_ATTR } from "../settings/GearSidebar";
-import type { ClusterStatus } from "./use-cluster-status";
+import type { ClusterStatus } from "../../../widgets/session-footer/model/use-cluster-status";
 
 export interface BaseRailFooterProps {
   cluster: ClusterStatus;

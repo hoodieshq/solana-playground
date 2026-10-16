@@ -2,7 +2,7 @@ import { useRenderOnChange } from "../../../hooks";
 import { PgSession } from "../../../features/auth";
 import type { SettingsFocus } from "../settings/GearSidebar";
 import BaseRailFooter from "./BaseRailFooter";
-import { useClusterStatus } from "./use-cluster-status";
+import { useClusterStatus } from "../../../widgets/session-footer/model/use-cluster-status";
 
 interface RailFooterProps {
   settingsOpen: boolean;

@@ -7,7 +7,9 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import RailFooter from "./RailFooter";
 
 const status = vi.hoisted(() => ({ name: "devnet", down: false }));
-vi.mock("./use-cluster-status", () => ({ useClusterStatus: () => status }));
+vi.mock("../../../widgets/session-footer/model/use-cluster-status", () => ({
+  useClusterStatus: () => status,
+}));
 // The utils barrel, which the hooks and the settings panel import, reads
 // generated globals that exist only in the built app
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));

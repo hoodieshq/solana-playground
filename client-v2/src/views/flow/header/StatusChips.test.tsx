@@ -6,7 +6,9 @@ import { PgSession } from "@/features/auth";
 import StatusChips from "./StatusChips";
 
 const status = vi.hoisted(() => ({ name: "devnet", down: false }));
-vi.mock("./use-cluster-status", () => ({ useClusterStatus: () => status }));
+vi.mock("../../../widgets/session-footer/model/use-cluster-status", () => ({
+  useClusterStatus: () => status,
+}));
 // The hooks and the command registry import the utils barrel, which reads
 // generated globals that exist only in the built app
 vi.mock("../../../hooks", () => ({
