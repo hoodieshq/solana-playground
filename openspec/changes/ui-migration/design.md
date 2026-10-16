@@ -365,6 +365,10 @@ SidebarProvider (collapsible="icon", controlled open, ⌘B)
                StageRouter) | console (Ctrl+J)
 ```
 
+(5.25 restyles this frame: no inset, gutters or cards, a bar over each
+column, and the assistant and files columns hide to nothing instead of
+folding to a strip and a rail. See "Frame chrome (5.25)".)
+
 - **The header is removed.** The logo and `ProjectSwitcher` go to the top of
   the navigation, `StatusChips` (cluster, wallet, settings) to its footer, the
   `Stepper` and its Ctrl+1..4 keys to the stage bar. In the rail the switcher
@@ -1034,6 +1038,75 @@ AppNav
 Kept: "Delete <name>" and "Rename <name>", the switcher's labels, now the
 menu's items and the rename field. The e2e that went through the switcher's
 trigger go through the list.
+
+## Frame chrome (5.25)
+
+Decided with Slava on 2026-10-16 (HOO-2122), from the frame comparison of
+that day (prototype against `new-face` e4879af6, measured at 1440). 5.2 moved
+the pieces into the frame unchanged; this task gives the frame the
+prototype's own look. Nothing inside a column changes.
+
+```
+SidebarProvider (no padding)
+├─ Sidebar → AppNav, 1 px right line
+└─ SidebarInset → Group horizontal (id layout-horizontal)
+   ├─ Panel assistant: AssistantHead (44 px, 5.17's) over the assistant;
+   │                   hides to 0 px
+   ├─ 1 px handle
+   └─ Panel work
+      ├─ StageBar (44 px): [project name when the assistant is hidden] ...
+      │                    Files · Assistant · Documentation
+      ├─ stage tabs (38 px): Write | Build | Deploy | Interact, full width
+      └─ Group horizontal (id layout-work)
+         ├─ Panel files: LeftPanel, no ⌘E strip; hides to 0 px
+         ├─ 1 px handle
+         └─ Panel center: stage | 1 px handle | console
+```
+
+- **Flush.** The shell's 8 px inset (`GAP` on the provider and the
+  Sidebar), the `md:ml-2` gutter and the `w-2` transparent handles go. A
+  handle is a 1 px line in `border` with its old hit area. The navigation
+  draws its own right line again. The floating cards (`Center` and `Right`
+  in `Flow`, `LeftPanel`'s wrapper, the console drawer's) lose their border
+  and radius and sit on the page's background; the editor keeps its own.
+  The sync banner keeps its gutter.
+- **Bars.** Every bar is 44 px with a 1 px bottom line, as the navigation's
+  head. Over the assistant it is 5.17's `AssistantHead` (the project's name,
+  More, Widen or Narrow, and "Collapse assistant"), sized to the bar and not
+  redrawn. Over the stage, `StageBar` holds the stage's toggles on the
+  right: "Collapse project panel" / "Expand project panel" (⌘E; the files
+  column's own strip goes), the assistant's toggle, and "Documentation"
+  (solana.com/docs, a new tab). The assistant's toggle reads "Hide the
+  assistant" while the assistant is open and "Expand assistant" while it is
+  hidden, so the head's "Collapse assistant" stays the one button by that
+  name. With the assistant hidden, the project's name moves to the bar's
+  left.
+- **Stage tabs.** The `Stepper` leaves the bar and becomes a 38 px row of
+  its own under it, spanning the files column and the stage, its four
+  segments sharing the width equally. Ctrl+1..4, the statuses, the lesson
+  target and `flow-stage-tab-*` are kept.
+- **Hidden, not folded.** The assistant and the files column fold to 0 px,
+  as the prototype hides them; the 24 px strip and the 52 px rail go, and
+  the rail's "New file" with it (the open column keeps its own). A drag
+  from the edge still opens either one. The navigation's rail is unchanged.
+- **What survives a reload** moves to `v: 3`, same key and shape. A `v: 2`
+  value keeps its four open flags and drops its sizes: a size taken with a
+  52 px rail or a 24 px strip as the folded width does not mean the same on
+  the new frame. A `v: 1` value still migrates, now straight to 3.
+- **Width.** Wherever the frame shows (from 720 px, above the phone's
+  pager) it is flush and carries the bars. Between 768 and 1023 the behaviour is 5.2's: the
+  navigation starts as a rail, the assistant is the right Sheet, still
+  opened by "Expand assistant" at the right edge; the stage bar's toggle
+  opens the same Sheet. The phone's pager is unchanged.
+- **Telemetry.** The bars' buttons send `layout_panel_toggled` with
+  `via: "button"`, as the buttons they replace did. Widen sends
+  `layout_assistant_widened {wide}` (prefix `layout`).
+- **Keys.** ⌘B, ⌘E, Ctrl+R, Ctrl+J and Ctrl+1..4 are unchanged.
+
+_Rejected:_ a second bar over the assistant (5.17's head is that bar);
+keeping the 24 px strip and the 52 px rail (the prototype has neither, and
+the stage bar's toggles replace them); a `layout` key per bar (the stored
+layout is one value, extended).
 
 ## Risks / Trade-offs
 
