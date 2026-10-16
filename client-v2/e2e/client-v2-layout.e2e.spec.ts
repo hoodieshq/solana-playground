@@ -1301,3 +1301,24 @@ test("client-v2-layout: A cluster that is down", async ({
     .getByRole("radiogroup", { name: "Network" });
   await expect(network.getByRole("radio", { checked: true })).toBeFocused();
 });
+
+// The Sheet's overlay would cover the settings and trap focus away from them,
+// so ⌘, closes it as the cluster row does
+test("⌘, closes the navigation's Sheet on a narrow window", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedWorkspace(page);
+  await page.setViewportSize({ width: 740, height: 812 });
+  // The editor focuses itself when it opens the first file; landing after
+  // the Sheet closed, it would take focus from the settings
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await page.getByRole("button", { name: "Expand project panel" }).click();
+  const sheet = page.locator('[data-slot="sidebar"][data-mobile="true"]');
+  await expect(sheet).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+Comma");
+
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
+});

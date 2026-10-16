@@ -92,8 +92,13 @@ const FlowFrame = () => {
     };
 
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘, on a Mac and Ctrl+,
-  // elsewhere. It closes no Sheet: it has none to close from here.
-  useKeybind("Ctrl+,", () => toggleSettings(() => undefined)(), [settingsOpen]);
+  // elsewhere. The key has no Sheet of its own to close, so it takes the one
+  // the navigation last handed over: below `LAYOUT_BREAKPOINTS.left` the
+  // navigation's Sheet may be open, and its overlay would cover the settings.
+  const closeNavSheet = useRef<() => void>(() => undefined);
+  useKeybind("Ctrl+,", () => toggleSettings(closeNavSheet.current)(), [
+    settingsOpen,
+  ]);
 
   // Whether the empty-workspace gallery has already been opened once for
   // this mount of `Flow`.
@@ -172,26 +177,29 @@ const FlowFrame = () => {
         <SyncBanner />
       </BannerSlot>
       <LayoutShell
-        nav={({ collapsed, toggle, closeSheet }) => (
-          <AppNav
-            collapsed={collapsed}
-            onToggle={toggle}
-            logo={<Logomark aria-hidden="true" />}
-            projects={<ProjectList />}
-            footer={
-              <SessionFooter
-                settingsOpen={settingsOpen}
-                onToggleSettings={toggleSettings(closeSheet)}
-              />
-            }
-            railFooter={
-              <RailFooter
-                settingsOpen={settingsOpen}
-                onToggleSettings={toggleSettings(closeSheet)}
-              />
-            }
-          />
-        )}
+        nav={({ collapsed, toggle, closeSheet }) => {
+          closeNavSheet.current = closeSheet;
+          return (
+            <AppNav
+              collapsed={collapsed}
+              onToggle={toggle}
+              logo={<Logomark aria-hidden="true" />}
+              projects={<ProjectList />}
+              footer={
+                <SessionFooter
+                  settingsOpen={settingsOpen}
+                  onToggleSettings={toggleSettings(closeSheet)}
+                />
+              }
+              railFooter={
+                <RailFooter
+                  settingsOpen={settingsOpen}
+                  onToggleSettings={toggleSettings(closeSheet)}
+                />
+              }
+            />
+          );
+        }}
         stageTabs={<StageBar />}
         files={({ collapsed }) => <LeftPanel collapsed={collapsed} />}
         stage={
