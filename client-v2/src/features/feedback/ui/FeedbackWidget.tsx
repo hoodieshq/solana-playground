@@ -9,6 +9,7 @@ import { useFeedbackProvider } from "../model/context";
 import { feedbackTelemetry } from "../model/telemetry";
 import { useFeedbackForm } from "../model/use-feedback-form";
 import { BaseFeedbackForm } from "./BaseFeedbackForm";
+import { BaseFeedbackMenuItems } from "./BaseFeedbackMenuItems";
 import { BaseFeedbackWidget } from "./BaseFeedbackWidget";
 
 const thank = () =>
@@ -63,7 +64,7 @@ export const FeedbackHost = ({ children }: { children: ReactNode }) => {
     }),
     [theme]
   );
-  // Empty while the trigger is unmounted; the form then returns focus nowhere
+  // Empty while no account control is mounted; the form then returns focus nowhere
   const trigger = useRef<HTMLButtonElement>(null);
   useRenderOnChange(PgConnection.onDidChangeCluster);
   const { state, open, close, edit, submit } = useFeedbackForm({
@@ -110,11 +111,36 @@ export const FeedbackHost = ({ children }: { children: ReactNode }) => {
   );
 };
 
-/** The "Feedback" button and its menu, for the `FeedbackHost` above it */
-export const FeedbackTrigger = () => {
+const useTriggerContext = (who: string) => {
   const context = useContext(FeedbackTriggerContext);
-  if (!context) {
-    throw new Error("FeedbackTrigger must be rendered inside FeedbackHost");
-  }
-  return <BaseFeedbackWidget {...context} />;
+  if (!context) throw new Error(`${who} must be rendered inside FeedbackHost`);
+  return context;
+};
+
+/** The "Feedback" button and its menu, for the `FeedbackHost` above it */
+export const FeedbackTrigger = () => (
+  <BaseFeedbackWidget {...useTriggerContext("FeedbackTrigger")} />
+);
+
+/** The feedback entries for the account menu, from the `FeedbackHost` above */
+export const FeedbackMenuItems = () => {
+  const { canShare, onShare, onGithub } =
+    useTriggerContext("FeedbackMenuItems");
+  return (
+    <BaseFeedbackMenuItems
+      canShare={canShare}
+      onShare={onShare}
+      onGithub={onGithub}
+    />
+  );
+};
+
+/**
+ * Whether a send is in flight, and the ref the form returns focus to: the
+ * account control that opened the menu attaches it, so a send behind a
+ * closed form shows on that control
+ */
+export const useFeedbackSend = () => {
+  const { sending, triggerRef } = useTriggerContext("useFeedbackSend");
+  return { sending, triggerRef };
 };
