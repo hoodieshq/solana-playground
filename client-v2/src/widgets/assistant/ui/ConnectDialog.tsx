@@ -4,12 +4,27 @@ import { createLogger } from "@/shared/lib/logger";
 import { PgView } from "@/utils/view";
 import Connect from "../../../views/sidebar/assistant/Component/Connect";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import type { Connection } from "../../../views/sidebar/assistant/store";
 import { ModalFrame } from "../../overlays";
 import { useDefaultBackend } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
 import type { ConnectOpener, ConnectPreset } from "../model/use-turn";
 
 const log = createLogger("assistant:connect");
+
+/** The model a connection talks to: its own setting, or its endpoint's */
+const modelOf = (connection: Connection) =>
+  connection.settings?.model ?? connection.endpoint?.model;
+
+/**
+ * Whether `next` is a pick of something other than `before`: another
+ * backend, model or effort. A new key alone, or the same choice again, is not.
+ */
+const isNewPick = (before: Connection | null, next: Connection) =>
+  !before ||
+  before.id !== next.id ||
+  modelOf(before) !== modelOf(next) ||
+  before.settings?.effort !== next.settings?.effort;
 
 interface ConnectDialogProps {
   /** The backend, and maybe the model, the form opens on */
@@ -47,10 +62,13 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
       // take whatever dialog is under this one with it
       if (closed.current) return;
       closed.current = true;
-      assistantTelemetry.track("assistant_model_picked", {
-        provider: connection.id,
-        via: "dialog",
-      });
+      // Re-picking what was connected closes the dialog but picks nothing
+      if (isNewPick(opened.current, connection)) {
+        assistantTelemetry.track("assistant_model_picked", {
+          provider: connection.id,
+          via: "dialog",
+        });
+      }
       PgView.closeModal(connection);
     });
     return () => {

@@ -211,6 +211,49 @@ describe("ConnectDialog", () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 
+  it("closes on a re-pick of what was connected, and reports no pick", async () => {
+    PgAssistant.connect({
+      id: "anthropic",
+      apiKey: "sk-ant-fake",
+      settings: { model: "claude-opus-5-5", effort: "medium" },
+    });
+    renderHost();
+    const user = userEvent.setup();
+    act(() => openConnectDialog("menu"));
+
+    // Opened over the connection, the form holds its key and choices
+    await user.click(screen.getByRole("button", { name: "Switch" }));
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(eventNames()).toEqual([
+      ["assistant_connect_opened", { via: "menu" }],
+    ]);
+  });
+
+  it("reports a pick that changes the effort of what was connected", async () => {
+    PgAssistant.connect({
+      id: "anthropic",
+      apiKey: "sk-ant-fake",
+      settings: { model: "claude-opus-5-5", effort: "medium" },
+    });
+    renderHost();
+    act(() => openConnectDialog("menu"));
+
+    act(() =>
+      PgAssistant.connect({
+        id: "anthropic",
+        apiKey: "sk-ant-fake",
+        settings: { model: "claude-opus-5-5", effort: "high" },
+      })
+    );
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(eventNames()).toEqual([
+      ["assistant_connect_opened", { via: "menu" }],
+      ["assistant_model_picked", { provider: "anthropic", via: "dialog" }],
+    ]);
+  });
+
   it("closes on Escape without connecting", async () => {
     renderHost();
     act(() => openConnectDialog("menu"));

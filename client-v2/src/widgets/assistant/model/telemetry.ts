@@ -6,7 +6,7 @@ import type {
 } from "../../../views/sidebar/assistant/model";
 
 export type AssistantEvents = {
-  /** The user picked a model; `via` says whether from the composer's menu or the Connect dialog. */
+  /** The user picked a model; `via` says whether from the composer's menu or the Connect dialog, where re-picking the connection it opened over is not a pick. */
   assistant_model_picked: { provider: ProviderId; via: "menu" | "dialog" };
   /** The user changed the reasoning effort in the composer's menu. */
   assistant_effort_changed: { effort: Effort };
