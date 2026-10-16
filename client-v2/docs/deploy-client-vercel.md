@@ -1,6 +1,6 @@
 # Deploy the client to Vercel
 
-Vercel's native Git integration auto-deploys: `master` → production (the integration branch); any other branch → preview. Those builds use the dashboard's Root Directory, `client-v2`, so a push deploys the fork's client. Makefile targets pin `client-v2` themselves and work whatever the dashboard holds; see [Which client gets deployed](#which-client-gets-deployed).
+Vercel's native Git integration deploys the Production Branch ([settings](#verified-vercel-project-settings)) from the dashboard's Root Directory, `client-v2`. A push to any other branch is cancelled by the Ignored Build Step; a preview comes from `preview.yml` or the Makefile, which build the prebuilt output on a runner ([Known gaps](#known-gaps)). Makefile targets pin `client-v2` themselves and work whatever the dashboard holds; see [Which client gets deployed](#which-client-gets-deployed).
 
 ## Release checklist: `client-v2` to production
 
@@ -139,7 +139,7 @@ Add the Vercel deployment origin to the server's [`PG_CLIENT_URLS`](https://gith
 
 ## Deploy
 
-- **Automatic:** push the branch. The Git integration builds `client-v2`, the dashboard's Root Directory.
+- **Automatic:** push the Production Branch. The Git integration builds `client-v2`, the dashboard's Root Directory, and deploys to production. A push to any other branch is cancelled by the Ignored Build Step ([Known gaps](#known-gaps)).
 - **Local preview:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-preview`. Promote later with `vercel promote <url> --prod`.
 - **Local production:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-production`. The target prints the branch and commit, asks for a typed `yes`, and then runs `vercel build --prod` and `vercel deploy --prebuilt --prod`. Run `migrate-production-db` first when migrations are pending.
 - **Local production, fast:** `make -f client-v2/Makefile.vercel deploy-client-to-vercel-prod-fast`. Rebuilds from the working tree in ~5 minutes by skipping `installCommand` (rustup + `wasm/build.sh`, about an hour). It refuses to run unless a previous full build left `client-v2/node_modules` and the real — not stubbed — `wasm/*/pkg` packages on disk. It deploys whatever is in the working tree, committed or not.
@@ -176,11 +176,19 @@ Rust state (toolchains, cargo registry, and target dir) lives in `client-v2/.cac
 
 ### wasm-bindgen
 
-wasm-pack needs a `wasm-bindgen` binary at the exact version a package's lockfile resolves. That version is declared once per root: `[workspace.dependencies]` in `wasm/Cargo.toml` for the workspace members, and `wasm/rust-analyzer/Cargo.toml` for `rust-analyzer`, which the workspace excludes. `wasm/Cargo.lock` and `wasm/rust-analyzer/Cargo.lock` follow those pins, and `cargo metadata --locked` in each root fails when they do not.
+wasm-pack needs a `wasm-bindgen` binary at the exact version a package's lockfile resolves. The version is declared once per root: `[workspace.dependencies]` in `wasm/Cargo.toml` for the workspace members, `wasm/rust-analyzer/Cargo.toml` for `rust-analyzer`, which the workspace excludes. The lockfiles follow the pins; `cargo metadata --locked` fails in a root where they do not.
 
-With no matching binary on `PATH`, wasm-pack downloads a prebuilt release. When that download fails, wasm-pack runs `cargo install --force wasm-bindgen-cli` without `--locked`. The unlocked install resolves dependencies published after the pinned toolchain: [`time 0.3.55`](https://crates.io/crates/time/0.3.55) needs Rust 1.88, and Cargo 1.75 stops with ``feature `edition2024` is required``. The log carries no reason for the failed download: wasm-pack reports it with `log::warn!`, which its `env_logger::init()` drops unless `RUST_LOG` is set, so only Cargo's error follows. Why wasm-pack's own download fails on Vercel is unknown; a Vercel log holding `>>> wasm-bindgen <version>: prebuilt` shows that the script's download works there.
+Without a matching binary on `PATH`, wasm-pack downloads a prebuilt release, and when that fails it runs `cargo install --force wasm-bindgen-cli` without `--locked`. Unlocked, Cargo 1.75 resolves [`time 0.3.55`](https://crates.io/crates/time/0.3.55), which needs Rust 1.88, and stops with ``feature `edition2024` is required``. The log never says why the download failed: wasm-pack reports that with `log::warn!`, which `env_logger::init()` drops unless `RUST_LOG` is set. Why the download fails on Vercel is unknown; a `>>> wasm-bindgen <version>: prebuilt` line in a Vercel log shows the script's own download works there.
 
-For each package, `scripts/vercel-install.sh` installs the version its lockfile resolves into `.cache/rust/wasm-bindgen/<version>/`, then runs `wasm/build.sh` for that package with the version first on `PATH`. The binary comes from the [wasm-bindgen release](https://github.com/rustwasm/wasm-bindgen/releases) tarball for `x86_64-unknown-linux-musl`, or `x86_64-apple-darwin` on macOS, the same choice wasm-pack makes; arm64 runs it under Rosetta when installed, and otherwise the cargo install below takes over. When the tarball cannot be fetched or does not run, `cargo install wasm-bindgen-cli --locked` builds the binary from the crate's own lockfile. The log holds one line per version: `>>> wasm-bindgen <version>: prebuilt`, `>>> wasm-bindgen <version>: cargo install --locked`, or `>>> wasm-bindgen <version>: cached` when an earlier local build left the binary in place. The script reads the version from the lockfile, the file wasm-pack reads. Before reading, `cargo metadata --locked` refuses a lockfile that does not match its manifest, so a bump without `cargo update` stops the build here, before wasm-pack asks for a version the script did not install. To bump a version, change the two manifests, then run `cargo update -p wasm-bindgen` in `wasm/` and in `wasm/rust-analyzer/`.
+So `scripts/vercel-install.sh` installs each version itself, into `.cache/rust/wasm-bindgen/<version>/`, and runs `wasm/build.sh` one package at a time with that package's version first on `PATH`. Sources, in order:
+
+| Log line | Source |
+| --- | --- |
+| `>>> wasm-bindgen <version>: cached` | A binary an earlier local build left in place |
+| `>>> wasm-bindgen <version>: prebuilt` | The [release](https://github.com/rustwasm/wasm-bindgen/releases) tarball for `x86_64-unknown-linux-musl`, or `x86_64-apple-darwin` on macOS as wasm-pack chooses; arm64 runs it under Rosetta when installed |
+| `>>> wasm-bindgen <version>: cargo install --locked` | `cargo install wasm-bindgen-cli --locked`, from the crate's own lockfile, when the tarball cannot be fetched or does not run |
+
+The version comes from the lockfile, the file wasm-pack reads, after `cargo metadata --locked` has accepted it, so a bump without `cargo update` stops the build before wasm-pack asks for a version the script did not install. To bump: change the two manifests, then `cargo update -p wasm-bindgen` in `wasm/` and in `wasm/rust-analyzer/`.
 
 ## Tokens
 
