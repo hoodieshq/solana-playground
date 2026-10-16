@@ -1432,11 +1432,18 @@ describe("the stage bar", () => {
     expect(screen.getByText("Counter v2")).toBeTruthy();
   });
 
-  it("names no project below 1024 px, where the assistant is a Sheet", () => {
+  it("names the project between 768 and 1023 px while the assistant's Sheet is closed", () => {
     explorer.name = "Counter";
     resizeTo(900);
     shell();
-    expect(screen.queryByText("Counter")).toBeNull();
+    const bar = () =>
+      document.querySelector<HTMLElement>('[data-slot="stage-bar"]')!;
+    expect(within(bar()).getByText("Counter")).toBeTruthy();
+    fireEvent.click(
+      within(bar()).getByRole("button", { name: "Expand assistant" })
+    );
+    // Open, the Sheet's head names it
+    expect(within(bar()).queryByText("Counter")).toBeNull();
   });
 
   it("leaves one Expand assistant between 768 and 1023 px", () => {

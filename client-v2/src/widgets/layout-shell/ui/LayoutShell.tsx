@@ -513,10 +513,10 @@ const LayoutShell = ({
       }}
       stageBar={
         <BaseStageBar
+          // While the assistant is out of view (hidden, or its Sheet closed),
+          // its head cannot name the project, so the bar does
           title={
-            viewport === "wide" && !assistantShown
-              ? PgExplorer.currentWorkspaceName ?? null
-              : null
+            assistantShown ? null : PgExplorer.currentWorkspaceName ?? null
           }
           files={
             isMobile

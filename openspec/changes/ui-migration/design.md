@@ -1079,8 +1079,8 @@ SidebarProvider (no padding)
   (solana.com/docs, a new tab). The assistant's toggle reads "Hide the
   assistant" while the assistant is open and "Expand assistant" while it is
   hidden, so the head's "Collapse assistant" stays the one button by that
-  name. With the assistant hidden, the project's name moves to the bar's
-  left.
+  name. While the assistant is out of view (hidden on a wide window, its
+  Sheet closed below 1024 px), the project's name shows at the bar's left.
 - **Stage tabs.** The `Stepper` leaves the bar and becomes a 38 px row of
   its own under it, spanning the files column and the stage, its four
   segments sharing the width equally. Ctrl+1..4, the statuses, the lesson

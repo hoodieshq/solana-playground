@@ -1152,6 +1152,7 @@ test("client-v2-layout: A layout saved before the column bars", async ({
 test("client-v2-layout: Widening the assistant", async ({
   seededPage: page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   const lines = linesOn(page);
   await page.getByRole("button", { name: "Widen the assistant" }).click();
   await expect(

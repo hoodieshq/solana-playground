@@ -50,8 +50,8 @@ Folding a panel SHALL hide it without discarding what it holds.
 
 - **WHEN** a user presses ⌘E with the files column open, then clicks
   "Expand project panel" in the stage bar
-- **THEN** the column hides and takes no width, then opens at its full
-  width with its tree as it was
+- **THEN** the column hides and takes no width, then opens at the width it
+  last had
 
 #### Scenario: Folding the navigation
 
@@ -211,7 +211,9 @@ From 720 px wide the product SHALL draw its columns edge to edge on one
 background, separated by 1 px lines, with no inset and no gaps. Each column
 SHALL start with a 44 px bar: the navigation's head, the assistant's head,
 and over the files column and the stage a bar with "Collapse project panel"
-/ "Expand project panel", the assistant's toggle and "Documentation". The
+/ "Expand project panel" (except from 720 to 767 px, where the files column
+is in the navigation's Sheet and its left-edge opener carries the name), the
+assistant's toggle and "Documentation". The
 stage tabs SHALL sit in a full-width row under that bar. A hidden assistant
 or files column SHALL take no width.
 
