@@ -98,7 +98,12 @@ const storage = {
       lastBuildFailed: state.lastBuildFailed,
     };
 
-    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState));
+    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState), {
+      createParents: true,
+    });
+    // The directory tree is saved on a 500 ms debounce, so a reload right
+    // after a first write comes back without the file or its folder
+    await PgExplorer.fs.flush();
   },
 };
 
