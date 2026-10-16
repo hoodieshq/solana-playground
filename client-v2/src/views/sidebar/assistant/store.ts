@@ -304,18 +304,27 @@ export class PgAssistant {
    * provider for the next turn is rebuilt from what is rendered (`useTurn`
    * compares connection identity), so the new settings apply to the
    * next turn and the transcript on screen stays the history it works from.
-   * `_emitOnly` for the same reason as `connect`: the connection is in memory
-   * only and nothing here is the user writing to the conversation.
+   * Remembered as `connect` remembers, so a reload of this tab keeps the new
+   * model and effort. `_emitOnly` for the same reason as `connect`: nothing
+   * here is the user writing to the conversation.
    *
-   * @throws when nothing is connected, or `next` names another backend or key
+   * @throws when `canTune(next)` is false
    */
   static tune(next: Connection) {
-    const current = PgAssistant._connection;
-    if (!current || current.id !== next.id || current.apiKey !== next.apiKey) {
+    if (!PgAssistant.canTune(next)) {
       throw new Error("tune changes model or effort, not the backend");
     }
     PgAssistant._connection = next;
+    rememberBackend(next);
     PgAssistant._emitOnly();
+  }
+
+  /** Whether `tune(next)` would take it: the connected backend, with its key */
+  static canTune(next: Connection) {
+    const current = PgAssistant._connection;
+    return (
+      !!current && current.id === next.id && current.apiKey === next.apiKey
+    );
   }
 
   /** Whether connecting with these settings would keep the conversation */
