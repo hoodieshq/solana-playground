@@ -983,7 +983,7 @@ AppNav
   `PgExplorer.renameWorkspace(newName, {from, announce: true})`, the path
   the rename modal takes, so sync uploads the new name.
 - **Duplicate** reads the project's files from the store and creates
-  `<name> (copy)` (then `(copy 2)`, ...) through
+  `<name> copy` (then `<name> copy 2`, ...; a workspace name allows no parentheses) through
   `PgExplorer.createWorkspace`, which opens it. It leaves out
   `.workspace/`: `program-info.json` holds the program keypair, and a copy
   holding it would deploy over the original's program. _Rejected:_ copying

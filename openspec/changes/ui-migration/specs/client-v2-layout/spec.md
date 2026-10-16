@@ -232,7 +232,7 @@ or Backspace or Delete, SHALL run that item. A lesson's menu SHALL have no
 Rename and no Duplicate. The rail SHALL show no project list. Pins SHALL be
 kept on the device by workspace id, so a rename keeps them. A rename SHALL
 happen in the row and reach the account the way the rename dialog's does. A
-duplicate SHALL be a new project named "<name> (copy)" holding the files but
+duplicate SHALL be a new project named "<name> copy" holding the files but
 not the program keypair. An export whose conversion fails SHALL tell the
 user and export the project as is.
 
@@ -258,7 +258,7 @@ user and export the project as is.
 #### Scenario: Duplicating a project
 
 - **WHEN** a user picks Duplicate in the menu of "alpha"
-- **THEN** "alpha (copy)" opens holding alpha's files, and no
+- **THEN** "alpha copy" opens holding alpha's files, and no
   `.workspace/program-info.json` of alpha's
 
 #### Scenario: Export with a failed conversion

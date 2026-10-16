@@ -41,7 +41,7 @@ describe("readWorkspaceFiles", () => {
 describe("rebaseFiles", () => {
   it("moves files under another workspace name", () => {
     expect(
-      rebaseFiles([["/alpha/src/lib.rs", "x"]], "alpha", "alpha (copy)")
-    ).toEqual([["/alpha (copy)/src/lib.rs", "x"]]);
+      rebaseFiles([["/alpha/src/lib.rs", "x"]], "alpha", "alpha copy")
+    ).toEqual([["/alpha copy/src/lib.rs", "x"]]);
   });
 });
