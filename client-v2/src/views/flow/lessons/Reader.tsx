@@ -60,16 +60,24 @@ const Reader: FC<React.PropsWithChildren<ReaderProps>> = ({
     // this component has unmounted.
     let live = true;
     (async () => {
+      let page: string;
       try {
-        const page = await readPage();
-        if (live) {
-          setContent(page);
-          onLoaded();
-        }
+        page = await readPage();
       } catch (e) {
-        // A missing page is content, not a fault: the step is unaffected
-        log.error(e, { report: false });
+        // Pages are bundled, so a rejection is a broken chunk or build,
+        // not content; a step with no page never gets here (`kind: "none"`)
+        log.error(e, { report: true });
         if (live) setFailed(true);
+        return;
+      }
+      if (!live) return;
+      setContent(page);
+      try {
+        onLoaded();
+      } catch (e) {
+        // The store failed to record the opening; the page itself is fine,
+        // so the learner keeps reading and the team hears of the store
+        log.error(e, { report: true });
       }
     })();
 

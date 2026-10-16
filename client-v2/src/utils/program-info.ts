@@ -15,6 +15,9 @@ import {
 import { PgExplorer } from "./explorer";
 import { PgWeb3 } from "./web3";
 import type { Nullable } from "./types";
+import { createLogger } from "../shared/lib/logger";
+
+const log = createLogger("program-info:storage");
 
 /** Program info state */
 type ProgramInfo = Nullable<{
@@ -98,12 +101,20 @@ const storage = {
       lastBuildFailed: state.lastBuildFailed,
     };
 
-    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState), {
-      createParents: true,
-    });
-    // The directory tree is saved on a 500 ms debounce, so a reload right
-    // after a first write comes back without the file or its folder
-    await PgExplorer.fs.flush();
+    // `updatable` calls this without awaiting it, so a failure is logged
+    // here; rethrown, it would be an unhandled rejection naming nothing
+    try {
+      await PgExplorer.fs.writeFile(
+        this.PATH,
+        JSON.stringify(serializedState),
+        { createParents: true }
+      );
+      // The directory tree is saved on a 500 ms debounce, so a reload right
+      // after a first write comes back without the file or its folder
+      await PgExplorer.fs.flush();
+    } catch (e) {
+      log.error(e, { report: true });
+    }
   },
 };
 
