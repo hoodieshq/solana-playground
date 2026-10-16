@@ -148,14 +148,17 @@ the lockfile, not from the folder's content. Install with `--check-files` after 
 ```sh
 yarn --cwd client-v2 install --frozen-lockfile
 yarn --cwd client-v2 run check
+yarn --cwd client-v2 vitest list src/shared/lib/ids.ts | grep -qF 'mints a v4 without crypto.randomUUID, which insecure origins lack' && echo blocks collected
 yarn --cwd client-v2 build-fast
 grep -q '\.flex{display:flex}' client-v2/build/static/css/main.*.css && echo tailwind ok
 grep -q '"_PgConnection"' client-v2/build/static/js/*.js && grep -q '"_PgProgramInfo"' client-v2/build/static/js/*.js && echo names ok
+! grep -qF 'should read back what it wrote, under one key' client-v2/build/static/js/*.js && echo tests out
 ```
 
-Expect: exit code 0; `client-v2/build/index.html` exists; the two `grep` lines print `tailwind ok` and `names ok`, as the
-post-build steps "Check Tailwind is in the built CSS" and "Check decorator class names survive minification" in
-`client-v2.yml` require. Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
+Expect: exit code 0; `client-v2/build/index.html` exists; the `vitest list` line prints `blocks collected`, as the step
+"Check in-source tests are collected" in `client-v2.yml` requires; the three `grep` lines print `tailwind ok`,
+`names ok`, and `tests out`, as the post-build steps "Check Tailwind is in the built CSS", "Check decorator class names
+survive minification", and "Check in-source tests stay out of the bundle" in `client-v2.yml` require. Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
 
 ### B-4. server: format, lint, release build
 
@@ -664,7 +667,7 @@ Expect: one image per directory in `server/templates/`.
 
 The production build minifies with esbuild through `terser-webpack-plugin`'s `esbuildMinify`; the Terser library does
 not run. It also leaves the type check and ESLint to CI and `yarn run check`. The requirements are the spec
-`openspec/specs/client-v2-build/spec.md`; M-1 to M-4 walk its manual scenarios.
+`openspec/specs/client-v2-build/spec.md`; M-1 to M-5 walk its manual scenarios.
 The bundle is about 15% larger than Terser's, accepted on purpose; shrinking it is a postponed improvement.
 
 ### M-1. the build fits Vercel's standard machine
@@ -726,6 +729,26 @@ Expect:
 - [ ] `yarn --cwd client-v2 dev` shows the error in the overlay.
 
 Remove the type error.
+
+### M-5. in-source tests stay out of the bundle
+
+```sh
+yarn --cwd client-v2 build-fast
+grep -lF 'should read back what it wrote, under one key' client-v2/build/static/js/*.js
+grep -rlF --exclude='*.test.*' 'should read back what it wrote, under one key' client-v2/src | xargs grep -lF 'import.meta.vitest'
+```
+
+Expect:
+
+- [ ] the `grep` over `build/static/js` lists no file and the `grep` over `src` lists
+      `client-v2/src/widgets/layout-shell/model/layout-state.ts`: the title exists only inside that module's in-source
+      test block (`client-v2/AGENTS.md`, "Tests: a module's unit tests live in the module"). CI runs the same check for
+      three titles after `build-fast` ("Check in-source tests stay out of the bundle" in `client-v2.yml`) and fails when
+      a title is in the bundle, or is not in a non-test file under `src/` that holds the guard text (a title moved back
+      into a `*.test.ts` file is never bundled, so it would not count). webpack drops the block on its own, with no
+      setting of ours, which is why the outcome is checked.
+- [ ] with `yarn --cwd client-v2 dev` running, the served `static/js/bundle.js` holds none of that module's test
+      titles either.
 
 ## 8. Parallel runs
 
