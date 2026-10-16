@@ -6,7 +6,7 @@ import { expect, leaveEditor, test } from "./fixtures";
  * ⌘E are the two ways back.
  */
 
-const OPEN_PX = 232; // 14.5rem
+const OPEN_PX = 240; // the prototype's files column at 1440
 
 const panel = (page: import("@playwright/test").Page) =>
   page.locator("#files[data-panel]");

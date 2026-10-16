@@ -294,7 +294,7 @@ test("client-v2-layout: Folding the project panel", async ({
   seededPage: page,
 }) => {
   const files = filesPanel(page);
-  await expect(files).toHaveJSProperty("offsetWidth", 232);
+  await expect(files).toHaveJSProperty("offsetWidth", 240);
   await leaveEditor(page);
   await page.keyboard.press("ControlOrMeta+e");
   // Hidden, not folded to a rail: the column takes no width
@@ -303,7 +303,7 @@ test("client-v2-layout: Folding the project panel", async ({
   await page.reload();
   await expect(files).toHaveJSProperty("offsetWidth", 0);
   await page.getByRole("button", { name: "Expand project panel" }).click();
-  await expect(files).toHaveJSProperty("offsetWidth", 232);
+  await expect(files).toHaveJSProperty("offsetWidth", 240);
   await expect(files.locator("#root-dir")).toBeVisible();
 });
 
@@ -1098,6 +1098,10 @@ test("client-v2-layout: The frame at 1440", async ({ seededPage: page }) => {
     .boundingBox())!;
   const work = (await page.locator("#work[data-panel]").boundingBox())!;
   expect(tabs.width).toBeGreaterThan(work.width - 20);
+  // The prototype's widths: nav 232, assistant 368, files 240
+  expect(Math.round((await navColumn(page).boundingBox())!.width)).toBe(232);
+  expect(Math.round(await widthOf(page))).toBe(368);
+  await expect(filesPanel(page)).toHaveJSProperty("offsetWidth", 240);
   // One background, separated by 1 px lines: no gutter between the columns
   const assistant = (await assistantPanel(page).boundingBox())!;
   const handle = (await assistantHandle(page).boundingBox())!;

@@ -451,6 +451,12 @@ describe("the flush frame", () => {
     expect(sidebar.className).toMatch(/\bborder-border\b/);
   });
 
+  it("opens the columns at the prototype's widths at 1440", () => {
+    // nav 232 · assistant 368 · files 240 · editor 600 (design.md 5.25)
+    expect(PANEL_SIZES.assistant.default).toBe(368);
+    expect(PANEL_SIZES.files.default).toBe(240);
+  });
+
   it("hides the assistant and the files column to no width", () => {
     expect(PANEL_SIZES.assistant.folded).toBe(0);
     expect(PANEL_SIZES.files.folded).toBe(0);

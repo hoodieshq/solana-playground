@@ -1085,6 +1085,10 @@ SidebarProvider (no padding)
   its own under it, spanning the files column and the stage, its four
   segments sharing the width equally. Ctrl+1..4, the statuses, the lesson
   target and `flow-stage-tab-*` are kept.
+- **Widths at 1440** are the prototype's: navigation 232, assistant 368,
+  files 240, the editor the rest (600). The assistant's and the files
+  column's defaults move from 348 and 232; their minimums and the
+  assistant's maximum stay. The tablet's assistant Sheet keeps 21.75 rem.
 - **Hidden, not folded.** The assistant and the files column fold to 0 px,
   as the prototype hides them; the 24 px strip and the 52 px rail go, and
   the rail's "New file" with it (the open column keeps its own). A drag

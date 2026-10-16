@@ -31,7 +31,7 @@ import type {
   WorkLayout,
 } from "../model/layout-state";
 
-const FILES = { default: 232, min: 192, folded: 0 } as const;
+const FILES = { default: 240, min: 192, folded: 0 } as const;
 /** The stage over the console, beside the files column inside `work` */
 const STAGE = { min: 240 } as const;
 /** The handles between the columns: the stock 1 px line */
@@ -48,7 +48,7 @@ const HANDLE_PX = 1;
  * `BOTTOM_BAR_PX`.
  */
 export const PANEL_SIZES = {
-  assistant: { default: 348, min: 280, max: 560, folded: 0 },
+  assistant: { default: 368, min: 280, max: 560, folded: 0 },
   files: FILES,
   stage: STAGE,
   console: { default: 256, min: 120, folded: BOTTOM_BAR_PX },
