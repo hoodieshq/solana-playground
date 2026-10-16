@@ -933,6 +933,79 @@ widgets/assistant
   the one current when the dialog opened. Logs under `assistant:composer` and
   `assistant:connect`. Decided with Slava 2026-10-16.
 
+## The project list (5.14)
+
+Decided with Slava on 2026-10-16 (HOO-2069). The prototype's "Projects"
+group replaces the frame's `ProjectSwitcher`; the account footer beside it
+is HOO-2070's (5.15), which keeps `SidebarFooter` and the `footer` /
+`railFooter` slots.
+
+```
+AppNav
+├─ SidebarHeader   logo, fold button (5.2)
+├─ SidebarContent  Home, New project, Tutorials, Programs (5.2)
+│                  projects slot → ProjectList (hidden on the rail)
+│                  ├─ "Projects": pinned first, then the rest
+│                  └─ "Lessons":  pinned first, progress on the right
+└─ SidebarFooter   HOO-2070
+```
+
+- **Where it lives.** `widgets/app-nav`: `BaseProjectList` takes the
+  entries, the current name, the pins and the callbacks, and is built from
+  the installed `Sidebar*` parts, `DropdownMenu` with `DropdownMenuShortcut`
+  and `Input`; `ProjectList` connects `PgExplorer`, `PgTutorial`, `PgLesson`
+  and the pins. `BaseAppNav`'s `switcher` slot becomes `projects`, not
+  rendered on the rail, which shows no projects in the prototype.
+  `ProjectSwitcher.tsx` is deleted; `groupWorkspaces` moves to the widget's
+  `model/`. The list re-renders on `PgExplorer`'s create, rename, delete and
+  switch events, so a project synced from another device appears without a
+  switch, as it did in the switcher. On a phone it is on the menu page,
+  which renders `AppNav` (5.7).
+- **A row.** A folder icon (a cap for a lesson) and the name; the current
+  project is marked (`aria-current`, the accent on its icon); a pinned one
+  shows a pin. "Actions for <name>" opens its menu, shown on hover and on
+  focus. The menu, as the prototype draws it: Open `O`, Pin or Unpin `P` |
+  Rename `R`, Duplicate `D`, Export as zip `E` | Delete `⌫`. A letter (or
+  Backspace or Delete) runs its item while the menu is open, in place of
+  Radix's typeahead, which would only move focus. A lesson's menu has no
+  Rename, since a lesson is recognised by its workspace name, and no
+  Duplicate.
+- **Open** goes through `PgTutorial.open` for a lesson and
+  `PgExplorer.switchWorkspace` for a project, as the switcher did.
+- **Pins** are kept per device under one `localStorage` key, `nav.pins`: an
+  array of workspace ids, so a rename keeps the pin. An id no workspace has
+  any more is dropped when read; a value that cannot be read is no pins,
+  logged. Syncing pins across devices is a ticket of its own (HOO-2121). _Rejected:_ pins in `/.config` through `PgFs` (an async read
+  before the list can draw, for a few hundred bytes).
+- **Rename** happens in the row: an `Input` named "Rename <name>", Enter
+  commits, Escape or a blur without a change cancels, and an invalid or taken
+  name shows in place (`aria-invalid`) and keeps the field open. It calls
+  `PgExplorer.renameWorkspace(newName, {from, announce: true})`, the path
+  the rename modal takes, so sync uploads the new name.
+- **Duplicate** reads the project's files from the store and creates
+  `<name> (copy)` (then `(copy 2)`, ...) through
+  `PgExplorer.createWorkspace`, which opens it. It leaves out
+  `.workspace/`: `program-info.json` holds the program keypair, and a copy
+  holding it would deploy over the original's program. _Rejected:_ copying
+  the keypair.
+- **Export as zip** is rebuilt on the design system's `Dialog`: "Convert and
+  export" or "Export as is". `PgFramework.exportWorkspace` takes the
+  workspace's `name`, so any project exports, not only the open one. A
+  conversion that fails tells the user in a toast, exports as is, and logs
+  with `report: true`; an export that fails tells the user and logs too. The
+  legacy `ExportWorkspace` modal stays for the explorer's own bar.
+- **Delete** opens `DeleteWorkspace`, which owns the confirmation, as from
+  the switcher.
+- **Telemetry** (prefix `nav`): `nav_project_action {action: open | pin |
+  unpin | rename | duplicate | export | delete, via: click | key}` when an
+  action runs (`rename` on commit, `export` when the dialog exports), and
+  `nav_project_action_failed {action}` when one fails. Logs go to
+  `app-nav:projects`.
+
+Kept: "Delete <name>" and "Rename <name>", the switcher's labels, now the
+menu's items and the rename field. The e2e that went through the switcher's
+trigger go through the list.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
