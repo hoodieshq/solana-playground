@@ -39,9 +39,8 @@ interface ObjectiveBandProps {
   flow: FlowState;
   onRead: () => void;
   onOpenGallery: () => void;
-  /** The phone's one-row band */
-  compact?: boolean;
-  onOpenSteps?: () => void;
+  /** The phone's one-row band, whose chevron opens the steps; absent = wide */
+  compact?: { onOpenSteps: () => void };
 }
 
 /**
@@ -59,8 +58,7 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
   flow,
   onRead,
   onOpenGallery,
-  compact = false,
-  onOpenSteps,
+  compact,
 }) => {
   // What the proving action needs, from the same sources the navigation's
   // session footer reads. Subscribed here, before the early return below, so the
@@ -102,6 +100,7 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
     if (!finished) return null;
     return (
       <BaseObjectiveBand
+        kind="finished"
         position={{
           label: finished.number,
           short: positionLabel(state.path, view),
@@ -111,13 +110,8 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
         criterion={finished.verifiedBy}
         back={back}
         next={next}
-        read={null}
-        stuck={null}
-        prove={null}
         gallery={{ label: "Browse gallery", onClick: onOpenGallery }}
-        readiness={null}
         compact={compact}
-        onOpenSteps={onOpenSteps}
       />
     );
   }
@@ -188,6 +182,7 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
 
   return (
     <BaseObjectiveBand
+      kind="step"
       position={{
         label: shown.number,
         short: `${positionNumber(state.path, view)}/${state.path.steps.length}`,
@@ -200,10 +195,8 @@ const ObjectiveBand: FC<React.PropsWithChildren<ObjectiveBandProps>> = ({
       read={read}
       stuck={{ label: assistantLabel(spent, tried), onClick: askForHelp }}
       prove={primary}
-      gallery={null}
       readiness={readinessProp}
       compact={compact}
-      onOpenSteps={onOpenSteps}
     />
   );
 };

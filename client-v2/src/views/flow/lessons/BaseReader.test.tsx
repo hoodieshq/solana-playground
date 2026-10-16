@@ -26,7 +26,7 @@ const props = (overrides: Partial<BaseReaderProps>): BaseReaderProps => ({
   position: "Step 1 of 4",
   criterion: "Verified when the build passes.",
   body: { kind: "none" },
-  footer: { label: "Back to the code", onClick: noop },
+  footer: { kind: "back", onClick: noop },
   onClose: noop,
   ...overrides,
 });
@@ -86,12 +86,20 @@ describe("BaseReader", () => {
     expect(screen.getByText("This step has no page to read.")).toBeTruthy();
   });
 
-  it("fires the footer action", () => {
+  it("labels and styles the footer by its kind and fires it", () => {
     const onClick = vi.fn();
-    render(
-      <BaseReader {...props({ footer: { label: "Mark as read", onClick } })} />
+    const { rerender } = render(
+      <BaseReader {...props({ footer: { kind: "attest", onClick } })} />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
+    const attest = screen.getByRole("button", { name: "Mark as read" });
+    expect(attest.getAttribute("data-variant")).toBe("default");
+    fireEvent.click(attest);
     expect(onClick).toHaveBeenCalledTimes(1);
+    rerender(<BaseReader {...props({ footer: { kind: "back", onClick } })} />);
+    expect(
+      screen
+        .getByRole("button", { name: "Back to the code" })
+        .getAttribute("data-variant")
+    ).toBe("outline");
   });
 });

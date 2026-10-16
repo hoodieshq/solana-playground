@@ -18,6 +18,10 @@ import { BOTTOM_BAR_HEIGHT } from "../tokens";
 
 export type LessonTab = "steps" | "files";
 
+/** Narrows the Segmented's plain string to a tab */
+export const isLessonTab = (value: string): value is LessonTab =>
+  value === "steps" || value === "files";
+
 interface LeftPanelProps {
   /**
    * Hidden by the stage bar's toggle or ⌘E: the column takes no width
@@ -75,7 +79,9 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
             <Segmented
               aria-label="Lesson panel"
               value={tab}
-              onValueChange={(v) => onTabChange(v as LessonTab)}
+              onValueChange={(v) => {
+                if (isLessonTab(v)) onTabChange(v);
+              }}
             >
               <SegmentedItem id="flow-left-tab-steps" value="steps">
                 Steps

@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { ChevronDown } from "lucide-react";
+import { cn } from "cn";
 
 import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
@@ -13,7 +14,7 @@ import {
 
 export type BandAction = { label: string; onClick: () => void };
 
-export type BaseObjectiveBandProps = {
+type BandShared = {
   /** `label` is the wide eyebrow, `short` the phone's "1/4", `progress` 0..1 */
   position: { label: string; short: string; progress: number };
   objective: string;
@@ -21,49 +22,41 @@ export type BaseObjectiveBandProps = {
   criterion: string;
   back: { enabled: boolean; onClick: () => void };
   next: { enabled: boolean; onClick: () => void };
+  /** The phone's one-row band, whose chevron opens the steps; absent = wide */
+  compact?: { onOpenSteps: () => void };
+};
+
+/** A step under the cursor: its page, the assistant and the proving action */
+export type StepBandProps = BandShared & {
+  kind: "step";
+  /** `null` when the step has no page */
   read: (BandAction & { unread: boolean }) | null;
-  /** `null` on the finished band */
-  stuck: BandAction | null;
+  stuck: BandAction;
+  /** `null` behind the frontier, where there is nothing left to prove */
   prove: BandAction | null;
-  /** Only on the finished band */
-  gallery: BandAction | null;
+  /** What blocks the proving action; `null` when nothing does */
   readiness: {
     lead: string;
     items: { key: string; text: string; onClick: (() => void) | null }[];
   } | null;
-  /** The phone's one-row band */
-  compact: boolean;
-  /** The compact row's chevron */
-  onOpenSteps?: () => void;
 };
+
+/** The path's end: "done", and where to go */
+export type FinishedBandProps = BandShared & {
+  kind: "finished";
+  gallery: BandAction;
+};
+
+export type BaseObjectiveBandProps = StepBandProps | FinishedBandProps;
 
 /**
  * One ask above the editor, drawn from props alone. The actions are a
  * sibling row of the design system's parts rather than `ObjectiveActions`,
  * which hides below `md`: a phone still needs to prove a step.
  */
-export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = ({
-  position,
-  objective,
-  criterion,
-  back,
-  next,
-  read,
-  stuck,
-  prove,
-  gallery,
-  readiness,
-  compact,
-  onOpenSteps,
-}) => {
-  const nav = (
-    <ObjectiveNav
-      onBack={back.onClick}
-      onNext={next.onClick}
-      canBack={back.enabled}
-      canNext={next.enabled}
-    />
-  );
+export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = (props) => {
+  const { position, objective, criterion, back, next, compact } = props;
+  const step = props.kind === "step" ? props : null;
 
   return (
     <div className="flex flex-col">
@@ -84,52 +77,63 @@ export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = ({
             {criterion}
           </span>
         )}
-        {compact ? (
+        {compact && (
           <Button
             variant="ghost"
             size="icon-xs"
             aria-label="Show the steps"
-            onClick={onOpenSteps}
+            onClick={compact.onOpenSteps}
           >
             <ChevronDown />
           </Button>
-        ) : (
-          nav
         )}
+        {/* Row two (design.md, "Lessons (5.19)"): back and on, then the
+            actions. On a phone it stays one line and scrolls sideways, so
+            the proving action is never pushed onto a third line. */}
         <div
           data-slot="objective-actions-row"
-          className="flex w-full flex-wrap items-center gap-2"
+          className={cn(
+            "flex w-full items-center gap-2",
+            compact
+              ? "flex-nowrap overflow-x-auto [scrollbar-width:none] *:shrink-0"
+              : "flex-wrap"
+          )}
         >
-          {compact && nav}
-          {read && (
+          <ObjectiveNav
+            onBack={back.onClick}
+            onNext={next.onClick}
+            canBack={back.enabled}
+            canNext={next.enabled}
+          />
+          {step?.read && (
             <Button
               variant="ghost"
               size="sm"
-              data-unread={read.unread ? "" : undefined}
-              onClick={read.onClick}
+              data-unread={step.read.unread ? "" : undefined}
+              onClick={step.read.onClick}
             >
-              {read.unread && (
+              {step.read.unread && (
                 <span
                   aria-hidden
                   className="size-1.5 rounded-full bg-primary"
                 />
               )}
-              {read.label}
+              {step.read.label}
             </Button>
           )}
-          {stuck && (
-            <BrandButton size="sm" onClick={stuck.onClick}>
-              {stuck.label}
+          {step && (
+            <BrandButton size="sm" onClick={step.stuck.onClick}>
+              {step.stuck.label}
             </BrandButton>
           )}
-          {prove && (
-            <Button variant="outline" size="sm" onClick={prove.onClick}>
-              {prove.label}
+          {step?.prove && (
+            <Button variant="outline" size="sm" onClick={step.prove.onClick}>
+              {step.prove.label}
             </Button>
           )}
-          {gallery && (
-            <Button variant="ghost" size="sm" onClick={gallery.onClick}>
-              {gallery.label}
+          {props.kind === "finished" && (
+            <Button variant="ghost" size="sm" onClick={props.gallery.onClick}>
+              {props.gallery.label}
             </Button>
           )}
         </div>
@@ -137,11 +141,11 @@ export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = ({
       {/* `aria-live` because the list shrinks as the learner fixes things,
           and a change nobody is looking at is a change nobody hears */}
       <div aria-live="polite">
-        {readiness && (
+        {step?.readiness && (
           <Callout className="rounded-none border-x-0 py-2">
-            <span>{readiness.lead}</span>
+            <span>{step.readiness.lead}</span>
             <div className="flex flex-wrap items-baseline gap-x-2.5">
-              {readiness.items.map((item) =>
+              {step.readiness.items.map((item) =>
                 item.onClick ? (
                   <Button
                     key={item.key}

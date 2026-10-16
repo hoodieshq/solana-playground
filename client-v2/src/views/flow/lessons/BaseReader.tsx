@@ -14,6 +14,17 @@ export type ReaderBody =
   | { kind: "failed" }
   | { kind: "none" };
 
+export type ReaderFooterKind = "attest" | "back";
+
+/** The footer's one way on: attesting is the primary, going back is not */
+const FOOTER: Record<
+  ReaderFooterKind,
+  { label: string; variant: "default" | "outline" }
+> = {
+  attest: { label: "Mark as read", variant: "default" },
+  back: { label: "Back to the code", variant: "outline" },
+};
+
 export interface BaseReaderProps {
   /** The step objective; also the dialog's accessible name */
   title: string;
@@ -22,8 +33,8 @@ export interface BaseReaderProps {
   /** The band's criterion line, so the page and the band agree */
   criterion: string;
   body: ReaderBody;
-  /** The one way on: "Mark as read" is the primary, "Back to the code" is not */
-  footer: { label: "Mark as read" | "Back to the code"; onClick: () => void };
+  /** The one way on: "Mark as read" (`attest`) or "Back to the code" */
+  footer: { kind: ReaderFooterKind; onClick: () => void };
   onClose: () => void;
 }
 
@@ -80,10 +91,10 @@ export const BaseReader: FC<BaseReaderProps> = ({
           <span className="text-xs text-muted-foreground">{criterion}</span>
           <Button
             type="button"
-            variant={footer.label === "Mark as read" ? "default" : "outline"}
+            variant={FOOTER[footer.kind].variant}
             onClick={footer.onClick}
           >
-            {footer.label}
+            {FOOTER[footer.kind].label}
           </Button>
         </div>
       </DialogPrimitive.Content>

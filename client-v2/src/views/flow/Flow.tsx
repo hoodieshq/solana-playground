@@ -222,11 +222,16 @@ const FlowFrame = () => {
               flow={state}
               onRead={read}
               onOpenGallery={openGallery}
-              compact={phone}
-              onOpenSteps={() => {
-                setLessonTab("steps");
-                openFiles();
-              }}
+              compact={
+                phone
+                  ? {
+                      onOpenSteps: () => {
+                        setLessonTab("steps");
+                        openFiles();
+                      },
+                    }
+                  : undefined
+              }
             />
             <Stage>
               <StageRouter stage={state.stage} />

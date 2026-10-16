@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { BaseObjectiveBand } from "./BaseObjectiveBand";
-import type { BaseObjectiveBandProps } from "./BaseObjectiveBand";
+import type { FinishedBandProps, StepBandProps } from "./BaseObjectiveBand";
 
 const noop = () => {};
 
-const props = (): BaseObjectiveBandProps => ({
+const props = (): StepBandProps => ({
+  kind: "step",
   position: { label: "Step 1 of 4", short: "1/4", progress: 0.25 },
   objective: "Say hello on chain",
   criterion: "Verified when the build passes.",
@@ -14,10 +15,21 @@ const props = (): BaseObjectiveBandProps => ({
   read: { label: "Read the page", unread: false, onClick: noop },
   stuck: { label: "I'm stuck", onClick: noop },
   prove: { label: "Build to prove this", onClick: noop },
-  gallery: null,
   readiness: null,
-  compact: false,
 });
+
+const finished = (onGallery: () => void): FinishedBandProps => ({
+  kind: "finished",
+  position: { label: "4 of 4 steps", short: "done", progress: 1 },
+  objective: "Say hello on chain",
+  criterion: "Verified when the build passes.",
+  back: { enabled: true, onClick: noop },
+  next: { enabled: false, onClick: noop },
+  gallery: { label: "Browse gallery", onClick: onGallery },
+});
+
+const actionsRow = (container: HTMLElement) =>
+  container.querySelector('[data-slot="objective-actions-row"]');
 
 describe("BaseObjectiveBand", () => {
   it("draws the wide band with its position, meter and actions", () => {
@@ -104,24 +116,30 @@ describe("BaseObjectiveBand", () => {
 
   it("draws the finished band with the gallery", () => {
     const onGallery = vi.fn();
-    const p = props();
-    p.position = { label: "4 of 4 steps", short: "done", progress: 1 };
-    p.read = null;
-    p.stuck = null;
-    p.prove = null;
-    p.gallery = { label: "Browse gallery", onClick: onGallery };
-    const { container } = render(<BaseObjectiveBand {...p} />);
+    const { container } = render(
+      <BaseObjectiveBand {...finished(onGallery)} />
+    );
     expect(container.textContent).toContain("4 of 4 steps");
     fireEvent.click(screen.getByRole("button", { name: "Browse gallery" }));
     expect(onGallery).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "I'm stuck" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /read/i })).toBeNull();
+  });
+
+  it("puts back and on in the actions row on a wide screen", () => {
+    const { container } = render(<BaseObjectiveBand {...props()} />);
+    const row = actionsRow(container);
+    for (const name of ["Previous step", "Next step", "I'm stuck"]) {
+      expect(row?.contains(screen.getByRole("button", { name }))).toBe(true);
+    }
+    expect(row?.className).toContain("flex-wrap");
+    expect(screen.queryByRole("button", { name: "Show the steps" })).toBeNull();
   });
 
   it("folds to one row on a phone and opens the steps", () => {
     const onOpenSteps = vi.fn();
     const p = props();
-    p.compact = true;
-    p.onOpenSteps = onOpenSteps;
+    p.compact = { onOpenSteps };
     const { container } = render(<BaseObjectiveBand {...p} />);
     const band = container.querySelector('[data-slot="objective-band"]');
     expect(band?.textContent).toContain("1/4");
@@ -130,5 +148,15 @@ describe("BaseObjectiveBand", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show the steps" }));
     expect(onOpenSteps).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "I'm stuck" })).toBeTruthy();
+  });
+
+  it("keeps the phone's actions on one row that scrolls", () => {
+    const p = props();
+    p.compact = { onOpenSteps: noop };
+    const { container } = render(<BaseObjectiveBand {...p} />);
+    const row = actionsRow(container);
+    expect(row?.className).toContain("flex-nowrap");
+    expect(row?.className).toContain("overflow-x-auto");
+    expect(row?.className).not.toContain("flex-wrap");
   });
 });

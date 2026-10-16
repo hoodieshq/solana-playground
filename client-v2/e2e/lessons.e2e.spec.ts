@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
 
@@ -45,6 +45,13 @@ const closePage = async (page: Page) => {
   await expect(reader).toHaveCount(0);
 };
 
+/** A control's box, which must be on screen */
+const boxOf = async (locator: Locator) => {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return box!;
+};
+
 const skipStep = (page: Page) =>
   page.getByRole("button", { name: "Skip this step", exact: true });
 
@@ -69,6 +76,16 @@ test.describe("client-v2-lessons", () => {
       b.getByRole("button", { name: "Read the page" })
     ).toBeVisible();
     await expect(b.getByRole("button", { name: "I'm stuck" })).toBeVisible();
+
+    // Row two holds back and on beside the actions (design.md, "Lessons
+    // (5.19)"); the buttons differ in height, so their middles are compared
+    const middle = (box: { y: number; height: number }) =>
+      box.y + box.height / 2;
+    const back = await boxOf(b.getByRole("button", { name: "Previous step" }));
+    const stuck = await boxOf(b.getByRole("button", { name: "I'm stuck" }));
+    const objective = await boxOf(b.getByText(FIRST));
+    expect(Math.abs(middle(back) - middle(stuck))).toBeLessThanOrEqual(1);
+    expect(back.y).toBeGreaterThanOrEqual(objective.y + objective.height - 1);
 
     // Above the editor, not beside it
     const bandBox = await b.boundingBox();
@@ -204,6 +221,13 @@ test.describe("client-v2-lessons", () => {
       b.getByRole("button", { name: "Read the page" })
     ).toBeVisible();
     await expect(b.getByRole("button", { name: "I'm stuck" })).toBeVisible();
+
+    // One line of actions that scrolls, never a third line for the proof
+    const stuck = await boxOf(b.getByRole("button", { name: "I'm stuck" }));
+    const prove = await boxOf(
+      b.getByRole("button", { name: "Build to prove this" })
+    );
+    expect(Math.abs(prove.y - stuck.y)).toBeLessThanOrEqual(1);
 
     await b.getByRole("button", { name: "Show the steps" }).click();
     const sheet = page.getByRole("dialog", { name: "Files" });

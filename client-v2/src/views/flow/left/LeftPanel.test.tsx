@@ -33,7 +33,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 
-import LeftPanel, { type LessonTab } from "./LeftPanel";
+import LeftPanel, { isLessonTab, type LessonTab } from "./LeftPanel";
 import { INITIAL_LESSON_STATE, PgLesson } from "../lessons";
 import type { LessonState } from "../lessons";
 import { LESSON_PATHS } from "../lessons/paths";
@@ -156,6 +156,16 @@ describe("LeftPanel", () => {
     );
     act(() => skip()?.click());
     expect(pass).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("isLessonTab", () => {
+  it("accepts the two tabs and nothing else", () => {
+    expect(isLessonTab("steps")).toBe(true);
+    expect(isLessonTab("files")).toBe(true);
+    // The Segmented reports a plain string; anything but a tab is ignored
+    expect(isLessonTab("")).toBe(false);
+    expect(isLessonTab("settings")).toBe(false);
   });
 });
 

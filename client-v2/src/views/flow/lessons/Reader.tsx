@@ -99,8 +99,8 @@ const Reader: FC<React.PropsWithChildren<ReaderProps>> = ({
       body={body}
       footer={
         offersAttest
-          ? { label: "Mark as read", onClick: onAttest }
-          : { label: "Back to the code", onClick: onClose }
+          ? { kind: "attest", onClick: onAttest }
+          : { kind: "back", onClick: onClose }
       }
       onClose={onClose}
     />
