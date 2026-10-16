@@ -10,11 +10,10 @@ import { json, seedWorkspace } from "./fixtures";
  * -- and making the user click the same button on every single reload, before
  * the assistant could be used at all, was the whole of the difference.
  *
- * Only reachable on a deployment that serves a default backend. `/api/agent`
- * is stubbed to say it does, so the tests run wherever the dev server runs,
- * configured or not.
- *
- * The `assistant-own-key` tests need no default backend and run everywhere.
+ * Each test stubs `/api/agent` to what it needs: the default's tests to a
+ * deployment that serves one, the `assistant-own-key` block to one that
+ * serves none unless a test says otherwise. So every test runs wherever the
+ * dev server runs, configured or not.
  */
 
 const LONG = { timeout: 60_000 };
@@ -262,10 +261,38 @@ test.describe("assistant-own-key", () => {
       .toMatchObject({ id: "openai", apiKey: KEY, endpoint: OWN.endpoint });
     // Connected, the model button names the model instead
     await expect(page.getByRole("button", { name: "gpt-x" })).toBeVisible(LONG);
+    // Nothing asks for the key again
+    await expect(page.locator("#assistant-api-key")).toHaveCount(0);
     // The probe has answered by now; give the default's reconnect a window
     // to show itself
     await page.waitForTimeout(QUIET_WINDOW_MS);
     expect(await connected(page)).toMatchObject({ id: "openai", apiKey: KEY });
+  });
+
+  test("a model tuned in the composer comes back after a reload", async ({
+    page,
+  }) => {
+    await seedWorkspace(page, "own-key-tuned");
+    await connectOwn(page, {
+      id: "anthropic",
+      apiKey: KEY,
+      settings: { model: "claude-opus-5-5", effort: "medium" },
+    });
+    await page.getByRole("button", { name: "Opus 5.5" }).click(LONG);
+    await page.getByRole("menuitemradio", { name: /Sonnet 5\.5/ }).click();
+    await expect(page.getByRole("button", { name: "Sonnet 5.5" })).toBeVisible(
+      LONG
+    );
+
+    await page.reload();
+
+    await expect(page.getByRole("button", { name: "Sonnet 5.5" })).toBeVisible(
+      LONG
+    );
+    expect(await connected(page)).toMatchObject({
+      id: "anthropic",
+      apiKey: KEY,
+    });
   });
 
   test("assistant-own-key: Storage that refuses access", async ({ page }) => {
