@@ -1,0 +1,185 @@
+import type { ReactNode } from "react";
+import {
+  ArrowUpRight,
+  BookOpen,
+  LogOut,
+  Settings,
+  TriangleAlert,
+  Unplug,
+  Wallet,
+} from "lucide-react";
+
+import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+} from "@/shared/ui/dropdown-menu";
+import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
+import {
+  DOCS_URL,
+  formatBalance,
+  githubProfileUrl,
+  shortAddress,
+} from "../model/account";
+import type { AccountItem, AccountView } from "../model/account";
+import AccountAvatar from "./AccountAvatar";
+import GithubMark from "./GithubMark";
+
+export interface BaseAccountMenuProps {
+  account: AccountView;
+  /** The feedback entries, from `features/feedback` */
+  feedback: ReactNode;
+  /** `top` above the footer's account row, `right` beside the rail */
+  side: "top" | "right";
+  /** "⌘," on macOS, "Ctrl+," elsewhere */
+  settingsShortcut: string;
+  onPick: (item: AccountItem) => void;
+}
+
+/** Lets a pick through `GearSidebar`'s outside-click check, so a second pick closes the settings */
+const settingsTrigger = { [SETTINGS_TRIGGER_ATTR]: "" };
+
+const External = () => (
+  <ArrowUpRight aria-hidden className="ml-auto text-muted-foreground" />
+);
+
+/** The session group: sign in, a sign-in under way, or the signed-in profile */
+const SessionItems = ({
+  account,
+  onPick,
+}: Pick<BaseAccountMenuProps, "account" | "onPick">) => {
+  const { user, signIn } = account;
+  if (user) {
+    return (
+      <>
+        <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+          <AccountAvatar
+            image={user.image}
+            sending={false}
+            className="size-8"
+          />
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-foreground">
+              {user.name ?? user.login}
+            </span>
+            {user.login && (
+              <span className="truncate text-xs text-muted-foreground">
+                @{user.login}
+              </span>
+            )}
+          </span>
+        </DropdownMenuLabel>
+        {user.login && (
+          <DropdownMenuItem asChild>
+            <a
+              href={githubProfileUrl(user.login)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => onPick("github-profile")}
+            >
+              <GithubMark className="size-4" /> Open GitHub profile
+              <External />
+            </a>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={() => onPick("sign-out")}>
+          <LogOut /> Sign out
+        </DropdownMenuItem>
+      </>
+    );
+  }
+  if (signIn.status === "pending") {
+    return (
+      <>
+        <DropdownMenuLabel className="font-normal text-muted-foreground">
+          Signing in...
+        </DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => onPick("cancel-sign-in")}>
+          Cancel
+        </DropdownMenuItem>
+      </>
+    );
+  }
+  return (
+    <DropdownMenuItem onSelect={() => onPick("sign-in")}>
+      <GithubMark className="size-4" /> Sign in with GitHub
+    </DropdownMenuItem>
+  );
+};
+
+/** The account menu's content, opened from the footer's account row or the rail's "Account" */
+const BaseAccountMenu = ({
+  account,
+  feedback,
+  side,
+  settingsShortcut,
+  onPick,
+}: BaseAccountMenuProps) => {
+  const { cluster, wallet } = account;
+  return (
+    <DropdownMenuContent
+      side={side}
+      align={side === "top" ? "start" : "end"}
+      sideOffset={8}
+      className="min-w-56"
+      aria-label="Account"
+    >
+      {cluster.down && (
+        <>
+          <DropdownMenuItem
+            variant="destructive"
+            {...settingsTrigger}
+            onSelect={() => onPick("cluster-down")}
+          >
+            <TriangleAlert /> {cluster.name} is not answering
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+        </>
+      )}
+      <SessionItems account={account} onPick={onPick} />
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        {...settingsTrigger}
+        onSelect={() => onPick("settings")}
+      >
+        <Settings /> Settings
+        <DropdownMenuShortcut>{settingsShortcut}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => onPick("docs")}
+        >
+          <BookOpen /> Docs
+          <External />
+        </a>
+      </DropdownMenuItem>
+      {feedback}
+      <DropdownMenuSeparator />
+      {wallet ? (
+        <>
+          <DropdownMenuItem onSelect={() => onPick("wallet")}>
+            <Wallet />
+            <span className="font-mono">{shortAddress(wallet.address)}</span>
+            <span className="ml-auto text-success">
+              {formatBalance(wallet.balance)}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onPick("disconnect-wallet")}>
+            <Unplug /> Disconnect wallet
+          </DropdownMenuItem>
+        </>
+      ) : (
+        <DropdownMenuItem onSelect={() => onPick("connect-wallet")}>
+          <Wallet /> Connect wallet
+        </DropdownMenuItem>
+      )}
+    </DropdownMenuContent>
+  );
+};
+
+export default BaseAccountMenu;
