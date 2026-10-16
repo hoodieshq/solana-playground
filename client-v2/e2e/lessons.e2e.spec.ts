@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { expect, lessonPassed, test } from "./fixtures";
+import { expect, test } from "./fixtures";
 
 const FIRST = "Define the hello instruction and log a message";
 
@@ -111,14 +111,6 @@ test.describe("client-v2-lessons", () => {
   test("client-v2-lessons: Re-entering lands on the same step", async ({
     page,
   }) => {
-    // Product bug, not a selector: with the skip confirmed on disk, leaving
-    // (`goto("/")` bounces back to /tutorials/hello-anchor/1) and coming back
-    // lands on Step 1 and the stored record no longer holds the pass, while
-    // `page.reload()` keeps Step 2. Quarantined until the entry path is fixed.
-    test.fixme(
-      true,
-      "leaving a lesson and coming back loses the stored record and lands on Step 1"
-    );
     await page.setViewportSize({ width: 1280, height: 800 });
     await startHelloAnchor(page);
     await closePage(page);
@@ -127,10 +119,9 @@ test.describe("client-v2-lessons", () => {
       band(page).getByText("Step 2 of 4", { exact: true })
     ).toBeVisible();
 
-    // The ledger is written to the workspace's volume a beat after the move;
-    // leave only once it is on disk
-    await expect.poll(() => lessonPassed(page, "write-program")).toBe(true);
-
+    // No wait for the write: the record is saved and its directory entry
+    // flushed in the same step (`PgTutorialStorage._writeFile`), so leaving
+    // at once must still come back to step 2
     // Leave the tutorial, then open it again
     await page.goto("/");
     await page.goto("/tutorials/hello-anchor");
