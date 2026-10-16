@@ -206,10 +206,15 @@ export interface BaseLayoutShellProps {
    */
   toggleLeftSheetOn: (toggle: () => boolean) => Disposable;
   /**
-   * Across the top of the work area, over the files column and the stage; on
-   * a phone, in the bar of the preview page
+   * The 44 px bar at the top of the work area, over the files column and the
+   * stage (`BaseStageBar`); not on a phone, whose pager has its own bar
    */
   stageBar: ReactNode;
+  /**
+   * The stage tabs, in a row under `stageBar` across the files column and the
+   * stage; on a phone, in the bar of the preview page
+   */
+  stageTabs: ReactNode;
   stage: ReactNode;
   console: ReactNode;
   /** Renders the assistant, in its panel, its Sheet or the pager's page */
@@ -599,7 +604,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               toggle: () => props.phone.onFilesOpenChange(false),
             })}
             assistant={assistant}
-            stageBar={props.stageBar}
+            stageBar={props.stageTabs}
             stageNode={stageNode}
             consoleNode={consoleNode}
             sheetFont={props.sheetFont}
@@ -698,8 +703,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                 className="flex min-w-0 flex-col"
               >
                 {/* Over the files column and the stage both, as the prototype
-                draws it */}
+                draws them: the column bar, then the stage tabs */}
                 {props.stageBar}
+                {props.stageTabs}
                 {/* Below `LAYOUT_BREAKPOINTS.left` the files column is in the
                 navigation's Sheet, so the group holds only the stage and,
                 like the horizontal group below `compact`, neither takes nor

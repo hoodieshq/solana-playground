@@ -186,6 +186,7 @@ const props = (
     toggleLeftSheetOn:
       choice.toggleLeftSheetOn ?? (() => ({ dispose: () => {} })),
     stageBar: <header>stage bar</header>,
+    stageTabs: <nav>stage tabs</nav>,
     stage: choice.stage ?? <main>stage slot</main>,
     console: choice.console ?? <div className="xterm">console slot</div>,
     assistant: choice.assistant ?? (() => <section>assistant slot</section>),
@@ -292,6 +293,7 @@ it("should hand the navigation the stock toggle and whether it is a rail", () =>
       closeLeftSheetOn={shell.closeLeftSheetOn}
       toggleLeftSheetOn={shell.toggleLeftSheetOn}
       stageBar={shell.stageBar}
+      stageTabs={shell.stageTabs}
       stage={shell.stage}
       console={shell.console}
       assistant={shell.assistant}
@@ -383,6 +385,7 @@ it("should show the assistant Sheet when it is open", () => {
       closeLeftSheetOn={open.closeLeftSheetOn}
       toggleLeftSheetOn={open.toggleLeftSheetOn}
       stageBar={open.stageBar}
+      stageTabs={open.stageTabs}
       stage={open.stage}
       console={open.console}
       assistant={open.assistant}
@@ -402,6 +405,15 @@ it("should set the design system's sidebar widths", () => {
   expect(wrapper.style.getPropertyValue("--sidebar-width-icon")).toBe(
     "3.25rem"
   );
+});
+
+it("should draw the stage bar, then the stage tabs, over the work area", () => {
+  render(<BaseLayoutShell {...props("wide")} />);
+  const bar = screen.getByText("stage bar");
+  const tabs = screen.getByText("stage tabs");
+  expect(
+    bar.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
 });
 
 describe("the flush frame", () => {

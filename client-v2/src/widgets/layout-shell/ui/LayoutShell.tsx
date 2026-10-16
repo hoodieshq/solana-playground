@@ -20,6 +20,7 @@ import { layoutTelemetry } from "../model/telemetry";
 import type { ToggleSource } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
 import BaseLayoutShell from "./BaseLayoutShell";
+import BaseStageBar from "./BaseStageBar";
 import type { AssistantWide } from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
@@ -38,8 +39,11 @@ export interface LayoutShellProps {
     toggle: () => void;
     closeSheet: () => void;
   }) => ReactNode;
-  /** Across the top of the files column and the stage */
-  stageBar: ReactNode;
+  /**
+   * The stage tabs, in a row across the files column and the stage, under the
+   * shell's own stage bar; on a phone, in the preview page's bar
+   */
+  stageTabs: ReactNode;
   /**
    * The files column. `collapsed` is never true in the Sheet below
    * `LAYOUT_BREAKPOINTS.left`, where it sits open under the navigation.
@@ -74,7 +78,7 @@ const isEditable = (target: EventTarget | null) =>
  */
 const LayoutShell = ({
   nav,
-  stageBar,
+  stageTabs,
   files,
   stage,
   console,
@@ -503,7 +507,36 @@ const LayoutShell = ({
         stageOn: stagePageOf(flowStage),
         consoleOpen: phoneConsole,
       }}
-      stageBar={stageBar}
+      stageBar={
+        <BaseStageBar
+          title={
+            viewport === "wide" && !assistantShown
+              ? PgExplorer.currentWorkspaceName ?? null
+              : null
+          }
+          files={
+            isMobile
+              ? null
+              : {
+                  open: state.open.files,
+                  onToggle: () =>
+                    setOpen("files", {
+                      open: !state.open.files,
+                      via: "button",
+                    }),
+                }
+          }
+          assistant={
+            viewport === "wide"
+              ? {
+                  open: assistantShown,
+                  onToggle: () => setAssistant(!assistantShown, "button"),
+                }
+              : null
+          }
+        />
+      }
+      stageTabs={stageTabs}
       stage={stage}
       console={console({
         open: phone ? phoneConsole : state.open.console,

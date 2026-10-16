@@ -197,7 +197,7 @@ const FlowFrame = () => {
             }
           />
         )}
-        stageBar={<StageBar />}
+        stageTabs={<StageBar />}
         files={({ collapsed, toggle }) => (
           <LeftPanel
             collapsed={collapsed}
