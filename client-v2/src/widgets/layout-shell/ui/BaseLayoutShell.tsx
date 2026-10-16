@@ -21,7 +21,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/shared/ui/sidebar";
-import { BOTTOM_BAR_PX, GAP } from "@/views/flow/tokens";
+import { BOTTOM_BAR_PX } from "@/views/flow/tokens";
 import BasePhonePager from "./BasePhonePager";
 import type { PhonePagerState } from "./BasePhonePager";
 import type {
@@ -31,11 +31,11 @@ import type {
   WorkLayout,
 } from "../model/layout-state";
 
-const FILES = { default: 232, min: 192, folded: 52 } as const;
+const FILES = { default: 232, min: 192, folded: 0 } as const;
 /** The stage over the console, beside the files column inside `work` */
 const STAGE = { min: 240 } as const;
-/** The handles between the columns: `w-2` */
-const HANDLE_PX = 8;
+/** The handles between the columns: the stock 1 px line */
+const HANDLE_PX = 1;
 
 /**
  * Sizes in px; the design system gives the navigation's in rem
@@ -48,7 +48,7 @@ const HANDLE_PX = 8;
  * `BOTTOM_BAR_PX`.
  */
 export const PANEL_SIZES = {
-  assistant: { default: 348, min: 280, max: 560, folded: 24 },
+  assistant: { default: 348, min: 280, max: 560, folded: 0 },
   files: FILES,
   stage: STAGE,
   console: { default: 256, min: 120, folded: BOTTOM_BAR_PX },
@@ -609,19 +609,19 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         <SidebarProvider
           open={props.navOpen}
           onOpenChange={props.onNavOpenChange}
-          style={{ ...SIDEBAR_STYLE, padding: GAP }}
+          style={SIDEBAR_STYLE}
           className="relative min-h-0 flex-1"
         >
           {/* The stock Sidebar's container is fixed at the window's full height.
           Flow draws the sync banner above the provider, so the Sidebar sits
-          inside the provider instead, inset by the gutter, where the banner
-          pushes it down rather than being covered by it. The container's
-          edge line and fill are dropped, so the navigation sits on the
-          page's ground like the other columns. */}
+          inside the provider instead, where the banner pushes it down rather
+          than being covered by it. The frame is flush (design.md, "Frame
+          chrome (5.25)"): the container keeps its right line, the columns'
+          divider, and drops its fill, so the navigation sits on the page's
+          ground like the other columns. */}
           <Sidebar
             collapsible="icon"
-            className="absolute inset-y-0 h-auto group-data-[side=left]:border-r-0 [&>[data-slot=sidebar-inner]]:bg-transparent"
-            style={{ left: GAP, top: GAP, bottom: GAP }}
+            className="absolute inset-y-0 left-0 h-auto [&>[data-slot=sidebar-inner]]:bg-transparent"
           >
             <div className="contents" style={props.sheetFont}>
               <NavSlot nav={props.nav} files={props.files} />
@@ -632,7 +632,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             closeOn={props.closeLeftSheetOn}
             toggleOn={props.toggleLeftSheetOn}
           />
-          <SidebarInset className="relative min-h-0 min-w-0 md:ml-2">
+          <SidebarInset className="relative min-h-0 min-w-0">
             {/* Between `LAYOUT_BREAKPOINTS.compact` and wide the tree is the
             same, so a rotate across it does not remount the stage, Monaco or
             the console's terminal; across `LAYOUT_BREAKPOINTS.phone` the
@@ -691,7 +691,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                   {assistant}
                 </ResizablePanel>
               )}
-              {wide && <ResizableHandle className="w-2 bg-transparent" />}
+              {wide && <ResizableHandle />}
               <ResizablePanel
                 id="work"
                 minSize={PANEL_SIZES.work.min}
@@ -752,9 +752,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       {props.files({ isMobile: false })}
                     </ResizablePanel>
                   )}
-                  {!isMobile && (
-                    <ResizableHandle className="w-2 bg-transparent" />
-                  )}
+                  {!isMobile && <ResizableHandle />}
                   <ResizablePanel
                     id="center"
                     minSize={PANEL_SIZES.stage.min}

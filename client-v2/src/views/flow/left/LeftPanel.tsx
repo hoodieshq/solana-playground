@@ -175,8 +175,8 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
 
 export default LeftPanel;
 
-// A floating panel like Center and Right: full 1px border, rounded corners,
-// the raised surface background instead of the black page ground.
+// A column of the flush frame like Center and Right (design.md, "Frame
+// chrome (5.25)"): no card edges, the page's background.
 // Width comes from the layout shell's Sidebar (its `SIDEBAR_STYLE`), so the
 // panel fills whatever it is given.
 const Wrapper = styled.aside`
@@ -189,9 +189,7 @@ const Wrapper = styled.aside`
     height: 100%;
     display: flex;
     flex-direction: column;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    background: ${theme.colors.default.bgPrimary};
     overflow: hidden;
   `}
 `;

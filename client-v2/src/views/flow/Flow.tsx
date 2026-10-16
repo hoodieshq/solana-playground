@@ -301,9 +301,8 @@ const BannerSlot = styled.div`
   }
 `;
 
-// The floating center panel holding the stage. It is open at the bottom: the
-// console panel under it carries the sides and bottom border, so the two read
-// as one surface.
+// The stage's column. The frame is flush (design.md, "Frame chrome (5.25)"):
+// no card edges, the page's background; the shell draws the dividers.
 const Center = styled.div`
   ${({ theme }) => css`
     display: flex;
@@ -311,11 +310,7 @@ const Center = styled.div`
     flex: 1;
     min-width: 0;
     min-height: 0;
-    background: ${theme.colors.default.bgSecondary};
-    border: 1px solid ${theme.colors.default.border};
-    border-bottom: none;
-    border-radius: ${theme.default.borderRadius} ${theme.default.borderRadius} 0
-      0;
+    background: ${theme.colors.default.bgPrimary};
     overflow: hidden;
   `}
 `;
@@ -340,9 +335,7 @@ const Right = styled.aside`
     position: relative;
     width: 100%;
     height: 100%;
-    border: 1px solid ${theme.colors.default.border};
-    border-radius: ${theme.default.borderRadius};
-    background: ${theme.colors.default.bgSecondary};
+    background: ${theme.colors.default.bgPrimary};
     display: flex;
     flex-direction: column;
     overflow: hidden;

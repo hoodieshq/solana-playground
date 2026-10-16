@@ -404,6 +404,47 @@ it("should set the design system's sidebar widths", () => {
   );
 });
 
+describe("the flush frame", () => {
+  it("has no inset on the provider and no gutter on the inset", () => {
+    render(<BaseLayoutShell {...props("wide")} />);
+    const wrapper = document.querySelector<HTMLElement>(
+      '[data-slot="sidebar-wrapper"]'
+    )!;
+    expect(wrapper.style.padding).toBe("");
+    const inset = document.querySelector('[data-slot="sidebar-inset"]')!;
+    expect(inset.className).not.toMatch(/\bmd:ml-2\b/);
+    const sidebar = document.querySelector<HTMLElement>(
+      '[data-slot="sidebar-container"]'
+    )!;
+    expect(sidebar.style.top).toBe("");
+    expect(sidebar.style.bottom).toBe("");
+  });
+
+  it("draws the columns' handles as the stock 1 px line", () => {
+    render(<BaseLayoutShell {...props("wide")} />);
+    const handlesFound = document.querySelectorAll(
+      '[data-slot="resizable-handle"]'
+    );
+    expect(handlesFound.length).toBeGreaterThan(0);
+    handlesFound.forEach((handle) => {
+      expect(handle.className).not.toMatch(/\bw-2\b/);
+      expect(handle.className).not.toMatch(/\bbg-transparent\b/);
+    });
+  });
+
+  it("lets the navigation draw its right line", () => {
+    render(<BaseLayoutShell {...props("wide")} />);
+    const sidebar = document.querySelector('[data-slot="sidebar-container"]')!;
+    expect(sidebar.className).not.toMatch(/border-r-0/);
+  });
+
+  it("hides the assistant and the files column to no width", () => {
+    expect(PANEL_SIZES.assistant.folded).toBe(0);
+    expect(PANEL_SIZES.files.folded).toBe(0);
+    expect(PANEL_SIZES.handle).toBe(1);
+  });
+});
+
 it("should keep the console mounted when the window crosses 1024 px", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   const before = screen.getByText("console slot");
