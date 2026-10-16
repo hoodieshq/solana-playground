@@ -988,12 +988,17 @@ AppNav
   `.workspace/`: `program-info.json` holds the program keypair, and a copy
   holding it would deploy over the original's program. _Rejected:_ copying
   the keypair.
-- **Export as zip** is rebuilt on the design system's `Dialog`: "Convert and
-  export" or "Export as is". `PgFramework.exportWorkspace` takes the
-  workspace's `name`, so any project exports, not only the open one. A
-  conversion that fails tells the user in a toast, exports as is, and logs
-  with `report: true`; an export that fails tells the user and logs too. The
-  legacy `ExportWorkspace` modal stays for the explorer's own bar.
+- **Export as zip** opens `ExportWorkspace`, already on the design system's
+  `ModalFrame` since 5.6, fixed in place by the UI move rule rather than
+  rebuilt in `app-nav`, which would have to import the `overlays` widget's
+  `ModalFrame`; the list opens it through `PgView.setModal`, as it does
+  `DeleteWorkspace`. It
+  takes the workspace's `name`, and `PgFramework.exportWorkspace` takes it
+  too, so any project exports, not only the open one. A conversion that
+  fails tells the user in a toast, exports as is, and logs with
+  `report: true`, as since 5.6; an export that fails now tells the user too
+  (it was only logged, through `reportButtonFailure`), and logs with
+  `report: true`.
 - **Delete** opens `DeleteWorkspace`, which owns the confirmation, as from
   the switcher.
 - **Telemetry** (prefix `nav`): `nav_project_action {action: open | pin |
