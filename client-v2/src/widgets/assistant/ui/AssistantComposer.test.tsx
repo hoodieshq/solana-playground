@@ -226,18 +226,42 @@ describe("AssistantComposer, connected", () => {
     ]);
   });
 
-  it("reports a tune that throws and tracks nothing", async () => {
-    vi.spyOn(PgAssistant, "tune").mockImplementation(() => {
-      throw new Error("refused");
-    });
+  it("reports a tune the store refuses and tracks nothing", async () => {
+    vi.spyOn(PgAssistant, "canTune").mockReturnValue(false);
+    const tune = vi.spyOn(PgAssistant, "tune");
     render(<Harness />);
     const user = await openMenu(/Medium/);
     await user.click(screen.getByRole("menuitemradio", { name: "High" }));
 
+    expect(tune).not.toHaveBeenCalled();
     expect(tracked()).toEqual([]);
-    const entry = logs.entries.find((e) => e.ns === "assistant:composer");
-    expect(entry?.level).toBe("error");
-    expect(entry?.report).toBe(true);
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["assistant:composer", "error", true],
+    ]);
+  });
+
+  it("tracks a tune that went through, even when a listener then throws", async () => {
+    // The change is made; what throws is something reacting to it, which is
+    // not a refusal
+    vi.spyOn(PgAssistant, "tune").mockImplementation(() => {
+      throw new Error("a listener broke");
+    });
+    const swallow = (event: ErrorEvent) => event.preventDefault();
+    window.addEventListener("error", swallow);
+    try {
+      render(<Harness />);
+      const user = await openMenu(/Medium/);
+      await user.click(screen.getByRole("menuitemradio", { name: "High" }));
+    } finally {
+      window.removeEventListener("error", swallow);
+    }
+
+    expect(tracked()).toEqual([
+      ["assistant_effort_changed", { effort: "high" }],
+    ]);
+    expect(logs.entries.filter((e) => e.ns === "assistant:composer")).toEqual(
+      []
+    );
   });
 });
 

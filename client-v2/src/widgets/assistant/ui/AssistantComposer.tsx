@@ -95,17 +95,29 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
   const connection = PgAssistant.connection;
   const shown = modelShown(connection, defaultBackend);
 
-  /** Apply a model or effort pick; `false` when nothing changed or it failed */
-  const tune = (next: Connection | null) => {
-    if (!next) return false;
-    try {
-      PgAssistant.tune(next);
-      return true;
-    } catch (error) {
+  /**
+   * Apply a model or effort pick, then `track` it. Nothing when `next` is
+   * `null` (nothing changed), or the store would refuse it.
+   *
+   * The refusal is asked first rather than caught: a throw from something
+   * reacting to the change comes after the change is made, so it is neither
+   * a refusal nor a reason to leave the pick untracked.
+   */
+  const tune = (next: Connection | null, track: () => void) => {
+    if (!next) return;
+    if (!PgAssistant.canTune(next)) {
       // `tune` refuses a change of backend or key; the menus only offer the
       // connected one's, so this is a bug to hear of, not a user's mistake
-      log.error(error, { report: true, context: { provider: next.id } });
-      return false;
+      log.error(new Error("tune refused the composer's pick"), {
+        report: true,
+        context: { provider: next.id },
+      });
+      return;
+    }
+    try {
+      PgAssistant.tune(next);
+    } finally {
+      track();
     }
   };
 
@@ -130,12 +142,12 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
       });
       return;
     }
-    if (tune(withModel(connection, option.model))) {
+    tune(withModel(connection, option.model), () =>
       assistantTelemetry.track("assistant_model_picked", {
         provider: option.provider,
         via: "menu",
-      });
-    }
+      })
+    );
   };
 
   const effort =
@@ -143,13 +155,13 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
       <BaseEffortMenu
         effort={shown.effort}
         disabled={turn.busy}
-        onChange={(next) => {
-          if (tune(withEffort(connection, next))) {
+        onChange={(next) =>
+          tune(withEffort(connection, next), () =>
             assistantTelemetry.track("assistant_effort_changed", {
               effort: next,
-            });
-          }
-        }}
+            })
+          )
+        }
       />
     ) : null;
 
