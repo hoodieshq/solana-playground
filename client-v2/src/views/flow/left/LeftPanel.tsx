@@ -4,12 +4,7 @@ import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
 import StepRail from "../lessons/StepRail";
-import {
-  cursorStep,
-  foldRecord,
-  INITIAL_LESSON_STATE,
-  PgLesson,
-} from "../lessons";
+import { cursorStep, foldRecord, PgLesson } from "../lessons";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
@@ -33,38 +28,45 @@ interface LeftPanelProps {
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
 }) => {
-  const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
+  // From the first commit, not from the subscription's first call: a commit
+  // without the lesson draws the tree, and the scroll put back below would
+  // land on it rather than on the step rail
+  const [lesson, setLesson] = useState(() => PgLesson.state);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
   const [tab, setTab] = useState<Tab>(
-    () => keptColumn(PgExplorer.currentWorkspaceName ?? "")?.tab ?? "steps"
+    () => keptColumn(PgExplorer.currentWorkspaceId)?.tab ?? "steps"
   );
-  // Read by the unmount below, which must see the tab picked last
-  const tabRef = useRef(tab);
-  tabRef.current = tab;
 
   // Hidden, the column unmounts (design.md, "Frame chrome (5.25)"), so its
-  // scroll and tab are kept for the next mount. A layout effect: the tree,
-  // a child, has reopened its folders by now (`useHandleItemState`), so the
-  // scroll lands where it was rather than on a shut tree too short for it.
-  const bodyRef = useRef<HTMLDivElement>(null);
+  // tab and scroll are kept for the next mount (`kept-column.ts`). Both are
+  // tracked as they change rather than read at unmount: by then the body
+  // may be out of the document, where its scroll reads 0.
+  const kept = useRef({ tab, scrollTop: 0 });
   useLayoutEffect(() => {
-    // Captured now: by the cleanup React has already cleared the ref
+    kept.current.tab = tab;
+  }, [tab]);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // A layout effect: the tree, a child, has reopened its folders by now
+  // (`useHandleItemState`), so the scroll lands where it was rather than on
+  // a shut tree too short for it
+  useLayoutEffect(() => {
+    // The one object `onScroll` and the tab effect write to
+    const memory = kept.current;
     const body = bodyRef.current;
-    const kept = keptColumn(PgExplorer.currentWorkspaceName ?? "");
-    if (body && kept) body.scrollTop = kept.scrollTop;
+    const restored = keptColumn(PgExplorer.currentWorkspaceId);
+    if (body && restored) {
+      body.scrollTop = restored.scrollTop;
+      memory.scrollTop = body.scrollTop;
+    }
     return () => {
-      if (body) {
-        keepColumn({
-          // Read now, not at mount: a lesson mounts the column before the
-          // explorer has opened its project
-          workspace: PgExplorer.currentWorkspaceName ?? "",
-          tab: tabRef.current,
-          scrollTop: body.scrollTop,
-        });
-      }
+      // Read now, not at mount: a lesson mounts the column before the
+      // explorer has opened its project
+      const workspace = PgExplorer.currentWorkspaceId;
+      if (workspace) keepColumn({ workspace, ...memory });
     };
-    // `collapsed` draws no body, so a change of it is an unmount and a mount
+    // Defensive: the frame unmounts a hidden column rather than passing
+    // `collapsed`, but a `collapsed` column draws no body either
   }, [collapsed]);
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
@@ -107,6 +109,9 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
         )}
         <Body
           ref={bodyRef}
+          onScroll={(e) => {
+            kept.current.scrollTop = e.currentTarget.scrollTop;
+          }}
           id="flow-left-tabpanel"
           role={inLesson ? "tabpanel" : undefined}
           aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}

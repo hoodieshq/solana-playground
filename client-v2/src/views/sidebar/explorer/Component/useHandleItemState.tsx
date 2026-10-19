@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useLayoutEffect } from "react";
 import { useTheme } from "styled-components";
 import { PgCommon, PgExplorer } from "../../../../utils";
-import { forgetTree, keepTree, keptFolders, reopenFolders } from "./kept-tree";
+import { keepTree, keptFolders, reopenFolders } from "./kept-tree";
 
 /**
  * Manage the item state when the current workspace or file changes, and
@@ -19,17 +19,17 @@ export const useHandleItemState = (
   // (`LeftPanel`, a parent, runs its layout effects after this one) and
   // before the first paint shows them shut.
   useLayoutEffect(() => {
-    // Captured now: by the cleanup React has already cleared the ref
+    // Captured now, the element this mount drew: what the cleanup keeps
     const root = rootRef.current;
     reopenFolders(
-      keptFolders(PgExplorer.currentWorkspaceName ?? ""),
+      keptFolders(PgExplorer.currentWorkspaceId),
       (path) => PgExplorer.getElFromPath(path),
       (el) => PgExplorer.openFolder(el)
     );
     return () => {
       // Read now, not at mount, as `LeftPanel` does: the project may have
       // opened after the tree mounted
-      if (root) keepTree(PgExplorer.currentWorkspaceName ?? "", root);
+      if (root) keepTree(PgExplorer.currentWorkspaceId, root);
     };
   }, [rootRef]);
 
@@ -37,7 +37,6 @@ export const useHandleItemState = (
     const switchWorkspace = PgExplorer.onDidSwitchWorkspace(() => {
       // Reset folder open/closed state
       PgExplorer.collapseAllFolders();
-      forgetTree();
     });
 
     const openParentsAndSelectEl = (
