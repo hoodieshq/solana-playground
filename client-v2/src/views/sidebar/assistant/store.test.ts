@@ -23,6 +23,10 @@ import { storedValues } from "../../../test-utils/stored-values";
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
 
+/** The texts of a stored thread, in order */
+const storedTexts = (items: ChatItem[] | null) =>
+  (items ?? []).map((i) => (i as { text?: string }).text);
+
 /** The id of the approval card added most recently */
 const latestCard = () =>
   PgAssistant.items.filter((i) => i.kind === "approval").slice(-1)[0].id;
@@ -621,16 +625,77 @@ describe("PgAssistant threads", () => {
     await loading;
     await settled();
 
-    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "remember me",
+    ]);
+
+    // And open to writes again once the read has landed
+    PgAssistant.addUserMessage("after");
+    await settled();
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "remember me",
+      "after",
+    ]);
   });
 
-  it("writes a message sent while the thread was being read", async () => {
+  // Passes without the HOO-2109 fix too: it guards the adoption that fix
+  // relies on, since with writes closed nothing else would write the message
+  it("writes a message sent while the thread was being read, after the stored ones", async () => {
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "66666666-6666-4666-8666-666666666666",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
     const loading = PgAssistant.loadThread("t1");
     PgAssistant.addUserMessage("sent mid-read");
     await loading;
     await settled();
 
-    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "sent mid-read",
+    ]);
+  });
+
+  it("keeps a message sent mid-read when the thread closes before the read lands", async () => {
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "77777777-7777-4777-8777-777777777777",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    // A workspace switch or a sign-out, before the read is back
+    PgAssistant.closeThread();
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "sent mid-read",
+    ]);
+  });
+
+  it("does not write a message sent mid-read over a thread it could not read", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    const corrupt = "{ not json";
+    files.set("/.config/chats/t1.json", corrupt);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    await loading;
+    await settled();
+
+    expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
+    expect(PgAssistant.items).toHaveLength(1);
   });
 
   it("does not overwrite a thread when the panel resets on backend switch", async () => {

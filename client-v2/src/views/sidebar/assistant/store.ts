@@ -805,25 +805,41 @@ export class PgAssistant {
 
     PgAssistant._denyPending();
     PgAssistant._threadId = threadId;
-    PgAssistant._items = [];
+    // Kept by reference: messages sent during the read are pushed onto it,
+    // and it is what holds them if the thread is closed before the read lands
+    const gap: ChatItem[] = [];
+    PgAssistant._items = gap;
     PgAssistant._status = "idle";
     // Closed to writes until the read lands. `_items` is a stand-in for the
     // thread until then, and any `_emit` in the gap -- MCP discovery on a
     // reload, say -- would write it over the stored thread, behind a read
     // that still returns the old content: memory right, storage `[]`.
-    // Messages sent meanwhile are adopted and written below.
+    // Messages sent meanwhile are adopted when the read lands, and written
+    // unless it failed.
     PgAssistant._readOnly = true;
     PgAssistant._emitOnly();
 
     const items = await PgChatStorage.read(threadId);
-    if (PgAssistant._threadId !== threadId) return;
+    if (PgAssistant._threadId !== threadId) {
+      // Closed or switched away before the read landed. What was typed
+      // meanwhile is on no list any more, and with writes closed it was never
+      // written either: it belongs to this thread, so it goes after what is
+      // stored rather than vanishing. Not over a thread that could not be
+      // read, for the reason below.
+      const unwritten = [...orphans, ...gap];
+      if (unwritten.length && items !== null) {
+        PgAssistant._queueWrite(threadId, [...items, ...unwritten]);
+      }
+      return;
+    }
 
     // A thread that could not be read renders as empty -- there is nothing
     // else the panel can show -- but it must not be *persisted* as empty. The
     // next `_persist()` would write this back over a file that may still be
     // recoverable, so the thread stays closed to writes until it reads
-    // cleanly. `__pgChatStorage.lastFailure` says why. Set before the emit
-    // below, which is where `_persist` reads it.
+    // cleanly. `__pgChatStorage.lastFailure` says why. A clean read is also
+    // what opens the thread to writes again, closed since the read began.
+    // Set before the emit below, which is where `_persist` reads it.
     PgAssistant._readOnly = items === null;
 
     // Whatever is in `_items` now arrived during the read, for this thread
@@ -929,7 +945,7 @@ export class PgAssistant {
   private static _threadId: string | null = null;
   /**
    * Set while the open thread is being read and when it failed to read,
-   * cleared when one reads cleanly
+   * cleared when one reads cleanly or the thread is closed
    */
   private static _readOnly = false;
   private static _lastWrite: Promise<void> = Promise.resolve();
@@ -957,17 +973,21 @@ export class PgAssistant {
    */
   private static _persist() {
     if (!PgAssistant._threadId) return;
-    // The open thread could not be read, so what is in memory is not the
-    // thread -- it is the empty list the panel fell back to. Writing it back
-    // would replace a file that may still be recoverable by hand with
-    // nothing, which is the same mistake as reporting it uploaded.
+    // The open thread is still being read, or could not be: either way what
+    // is in memory is not the thread -- it is the empty list standing in for
+    // it. Writing it back would replace the stored thread, or a file that may
+    // still be recoverable by hand, with nothing.
     if (PgAssistant._readOnly) return;
 
-    // Chained rather than fired independently, so writes cannot land out of
-    // order -- two quick messages must not race into the second overwriting
-    // the first with a shorter list
-    const threadId = PgAssistant._threadId;
-    const items = [...PgAssistant._items];
+    PgAssistant._queueWrite(PgAssistant._threadId, [...PgAssistant._items]);
+  }
+
+  /**
+   * Chained rather than fired independently, so writes cannot land out of
+   * order -- two quick messages must not race into the second overwriting
+   * the first with a shorter list
+   */
+  private static _queueWrite(threadId: string, items: readonly ChatItem[]) {
     PgAssistant._lastWrite = PgAssistant._lastWrite
       .catch(() => {})
       .then(() => PgChatStorage.write(threadId, items));
