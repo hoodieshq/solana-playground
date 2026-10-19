@@ -1,15 +1,42 @@
-import { useEffect } from "react";
+import { RefObject, useEffect, useLayoutEffect } from "react";
 import { useTheme } from "styled-components";
 import { PgCommon, PgExplorer } from "../../../../utils";
+import { forgetTree, keepTree, keptFolders, reopenFolders } from "./kept-tree";
 
-/** Manage the item state when the current workspace or file changes. */
-export const useHandleItemState = () => {
+/**
+ * Manage the item state when the current workspace or file changes, and
+ * across an unmount of the tree.
+ *
+ * @param rootRef the tree's root element (`#root-dir`)
+ */
+export const useHandleItemState = (
+  rootRef: RefObject<HTMLDivElement | null>
+) => {
   const theme = useTheme();
+
+  // The folders open when the tree last unmounted are opened again. A layout
+  // effect, so they are open before the column restores its scroll
+  // (`LeftPanel`, a parent, runs its layout effects after this one) and
+  // before the first paint shows them shut.
+  useLayoutEffect(() => {
+    // Captured now: by the cleanup React has already cleared the ref
+    const root = rootRef.current;
+    const workspace = PgExplorer.currentWorkspaceName ?? "";
+    reopenFolders(
+      keptFolders(workspace),
+      (path) => PgExplorer.getElFromPath(path),
+      (el) => PgExplorer.openFolder(el)
+    );
+    return () => {
+      if (root) keepTree(workspace, root);
+    };
+  }, [rootRef]);
 
   useEffect(() => {
     const switchWorkspace = PgExplorer.onDidSwitchWorkspace(() => {
       // Reset folder open/closed state
       PgExplorer.collapseAllFolders();
+      forgetTree();
     });
 
     const openParentsAndSelectEl = (
