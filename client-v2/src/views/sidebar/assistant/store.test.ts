@@ -805,6 +805,35 @@ describe("PgAssistant threads", () => {
     ]);
   });
 
+  it("keeps the messages of two overtaken reads of one thread", async () => {
+    // A -> B -> A -> C with a message typed in each read of A: both reads
+    // are overtaken, and writing each one's own snapshot let the second
+    // replace the first
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const first = PgAssistant.loadThread("tA");
+    PgAssistant.addUserMessage("first read");
+    const toB = PgAssistant.loadThread("tB");
+    const second = PgAssistant.loadThread("tA");
+    PgAssistant.addUserMessage("second read");
+    const toC = PgAssistant.loadThread("tC");
+    await Promise.all([first, toB, second, toC]);
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("tA"))).toEqual([
+      "stored",
+      "first read",
+      "second read",
+    ]);
+  });
+
   it("keeps a message sent mid-read when the same thread is reopened before the read lands", async () => {
     // A -> B -> A faster than a read: the first read used to pass for the
     // current one, since the thread id matched again. The message typed in

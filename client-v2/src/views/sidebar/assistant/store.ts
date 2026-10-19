@@ -848,14 +848,17 @@ export class PgAssistant {
     // `_keepOvertaken` kept for it, and a read issued first would come back
     // without it -- then the next write from memory would replace the file
     // that had it
-    await PgAssistant._lastWrite.catch(() => {});
+    await PgAssistant._lastWrite.catch(() => {
+      // Nothing to handle: `PgChatStorage.write` reports its own failures and
+      // never rejects; this only waits for the queue
+    });
     const items = await PgChatStorage.read(threadId);
     // By load, not by thread id: A -> B -> A faster than a read leaves the
     // same id open, and the first read passing for the current one dropped
     // what was typed in its gap and handed the second read its whole thread
     // to adopt, so every item showed twice
     if (PgAssistant._loadSeq !== seq) {
-      PgAssistant._keepOvertaken(threadId, items, [...orphans, ...gap]);
+      PgAssistant._keepOvertaken(threadId, [...orphans, ...gap]);
       return;
     }
 
@@ -888,15 +891,12 @@ export class PgAssistant {
    *
    * - The same thread is open again: it goes onto what is rendered, where
    *   that load adopts it, or writes it now if its read has landed.
-   * - Another thread, or none, is open: it is written after what is stored.
+   * - Another thread, or none, is open: it is written after what is stored
+   *   by then, on the write queue.
    * - The thread could not be read: nothing is written over it, and the loss
    *   is reported, since nothing else would say so.
    */
-  private static _keepOvertaken(
-    threadId: string,
-    stored: ChatItem[] | null,
-    unwritten: ChatItem[]
-  ) {
+  private static _keepOvertaken(threadId: string, unwritten: ChatItem[]) {
     if (!unwritten.length) return;
 
     if (PgAssistant._threadId === threadId) {
@@ -904,15 +904,28 @@ export class PgAssistant {
       PgAssistant._emit();
       return;
     }
-    if (stored === null) {
-      // `report` appends "failed" to this
-      report(
-        `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
-        null
-      );
-      return;
-    }
-    PgAssistant._queueWrite(threadId, [...stored, ...unwritten]);
+
+    // Appended to the thread as it is when the write's turn comes, not to the
+    // copy this read saw: two overtaken reads of one thread saw the same copy,
+    // and writing each one's own let the second replace the first
+    PgAssistant._lastWrite = PgAssistant._lastWrite
+      .catch(() => {})
+      .then(async () => {
+        const stored = await PgChatStorage.read(threadId);
+        if (stored === null) {
+          // `report` appends "failed" to this
+          report(
+            `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
+            null
+          );
+          return;
+        }
+        const known = new Set(stored.map((item) => item.id));
+        const missing = unwritten.filter((item) => !known.has(item.id));
+        if (missing.length) {
+          await PgChatStorage.write(threadId, [...stored, ...missing]);
+        }
+      });
   }
 
   /**
