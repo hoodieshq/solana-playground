@@ -900,9 +900,9 @@ export class PgAssistant {
       return;
     }
     if (stored === null) {
+      // `report` appends "failed" to this
       report(
-        `keep ${threadId}: ${unwritten.length} message(s) typed during a read ` +
-          "of an unreadable thread were not saved",
+        `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
         null
       );
       return;
