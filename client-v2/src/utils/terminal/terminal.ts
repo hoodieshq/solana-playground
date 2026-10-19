@@ -7,6 +7,7 @@ import { PgHistory } from "./history";
 import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
+import { markFailureShown } from "@/shared/lib/report-button-failure";
 import type { CommandManager, Prefixes, PrintOptions } from "./types";
 import type { Methods, ClassReturnType, SyncOrAsync } from "../types";
 
@@ -95,8 +96,16 @@ export class PgTerminal {
 
   /** {@link PgTerm.process} */
   static async process<T>(cb: () => SyncOrAsync<T>) {
+    // Outside the `try`: a terminal that is not there has printed nothing
     const term = await PgTerminal.get();
-    return await term.process<T>(cb);
+    try {
+      return await term.process<T>(cb);
+    } catch (e) {
+      // `PgTerm.process` has printed `Process error: …` by now, so a button
+      // that started this must not show the failure a second time
+      markFailureShown(e);
+      throw e;
+    }
   }
 
   /**

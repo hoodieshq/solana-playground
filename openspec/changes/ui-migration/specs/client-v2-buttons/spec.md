@@ -61,7 +61,7 @@ must not reach error tracking), and the button SHALL stay usable.
 - **WHEN** a button's action rejects
 - **THEN** the failure is logged under `ui:button`, not marked for reporting, a toast says what did not happen, and the button is enabled again
 
-Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`. The e2e for a failed click is the refused clipboard above.
+Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.tsx`, `terminal-process.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`. The e2e for a failed click is the refused clipboard above.
 
 #### Scenario: A failure the terminal printed is shown once
 

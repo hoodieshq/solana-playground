@@ -29,7 +29,7 @@ const NotFound: FC<React.PropsWithChildren<NotFoundProps>> = ({
     <AsyncButton
       variant="ghost"
       onClick={() => PgRouter.navigate(navigate?.path)}
-      onError={reportButtonFailure}
+      onError={reportButtonFailure("go there")}
     >
       {navigate?.name ?? "Go home"}
     </AsyncButton>

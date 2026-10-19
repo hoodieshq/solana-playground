@@ -51,7 +51,7 @@ const NewItemButton: FC<React.PropsWithChildren<ButtonProps>> = ({
   return (
     <AsyncButton
       onClick={createItem}
-      onError={reportButtonFailure}
+      onError={reportButtonFailure("create it")}
       variant="ghost"
       size="icon-sm"
       title={title}
@@ -76,7 +76,7 @@ const CollapseAllButton = () => (
 const GoBackButton = () => (
   <AsyncButton
     onClick={() => PgRouter.navigate()}
-    onError={reportButtonFailure}
+    onError={reportButtonFailure("go back to your projects")}
     variant="ghost"
     size="icon-sm"
     title="Go back to projects"

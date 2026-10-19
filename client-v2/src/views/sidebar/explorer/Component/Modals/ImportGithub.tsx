@@ -149,7 +149,7 @@ const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => (
           await PgGithub.import(framework.githubExample.url);
           PgView.closeModal();
         }}
-        onError={reportButtonFailure}
+        onError={reportButtonFailure("import the program")}
       >
         Import
         <ImportWorkspace data-icon="inline-end" />

@@ -130,7 +130,7 @@ const SendExpanded = () => {
       />
       <AsyncButton
         onClick={send}
-        onError={reportButtonFailure}
+        onError={reportButtonFailure("send SOL")}
         disabled={disabled}
         loadingText="Sending..."
         variant="ghost"
