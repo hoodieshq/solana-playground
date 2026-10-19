@@ -478,8 +478,12 @@ HOO-2071) build on it. One PR.
   `Button`'s `default` or `destructive`, or `brand`, the ring `BrandButton`,
   for a dialog whose submit is its view's one call to action (Connect a
   model, 5.17). A dialog that throws while rendering is
-  reported and closed with no answer. Each stacked dialog's own answer
-  (`closeModal` resolves every pending `setModal`) is HOO-2091.
+  reported (`overlays:modal-host`, `report: true`), told to the user by a
+  `modal-failed` toast ("Could not open. Try again."), and closed with no
+  answer. `setModal` never rejects, so `ModalHost`'s boundary is the one
+  place that can tell whoever opened the dialog (5.8). Each stacked
+  dialog's own answer (`closeModal` resolves every pending `setModal`) is
+  HOO-2091.
 - **Toasts keep `PgView.setToast` and `closeToast`.** The options become our
   own type, `{name, id?, duration?: number | "persistent"}`, instead of
   react-toastify's `ToastOptions`; `id` replaces `toastId`, `"persistent"`
@@ -1288,10 +1292,12 @@ project lands on Home instead of the gallery modal.
   `PhoneHome`. Telemetry prefix `home`: `home_shown` when Home is shown,
   `home_tile_opened {tile: new-project | tutorials | programs}`,
   `home_tutorial_opened`, `home_quickstart_opened {id: continue | new |
-  tutorial}`, `home_composer_opened`. A tutorial, a quick start or the
-  gallery that fails to open logs under `home:actions` with `report: true`
-  and tells the user (on the tutorial's card, or a `home-action-failed`
-  toast). The program count that cannot be read keeps its ellipsis and is
+  tutorial}`, `home_composer_opened`. A tutorial or a quick start that fails
+  to open logs under `home:actions` with `report: true` and tells the user
+  (on the tutorial's card, or a `home-action-failed` toast). A gallery that
+  fails to render is the overlays' to report and tell, as every dialog is
+  (`modal-failed`, 5.6): `setModal` never rejects, so Home has nothing to
+  catch. The program count that cannot be read keeps its ellipsis and is
   logged under `home:programs` only, without `report`.
 
 Kept: the gallery's `[data-gallery-modal]`, "Project name" and "Start", which
