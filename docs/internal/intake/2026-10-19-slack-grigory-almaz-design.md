@@ -57,9 +57,10 @@ milestone "I Mobile" in Solana Playground, the Q4 design plan artifact
 
 1. Slava: kickoff call with Almaz on how the team works (Nikita asked).
    Almaz books it. Grigory suggests Slava also gives the product tour.
+   — lead: tracked as Slava's own action, no ticket
 2. Check the Q4 design plan against the development plan (Nikita's PPS):
-   where stages, dates and the mobile question disagree.
+   where stages, dates and the mobile question disagree. — lead: running
 3. Put mobile's priority to Slava, with what it displaces in the plan,
-   before Friday's call with Cat.
+   before Friday's call with Cat. — lead: goes to Slava with the comparison
 4. Add "success metrics" to the handoff and ticket shape for design and
-   frontend work.
+   frontend work. — lead: waits on Slava's word in the Lead window
