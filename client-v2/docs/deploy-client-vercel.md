@@ -277,9 +277,9 @@ before this existed.
 | `AUTH_OAUTH_PROXY_URL` | Previews only: the origin of the host, the deployment whose callback is on the GitHub app |
 | `AUTH_OAUTH_PROXY_SECRET` | The OAuth proxy's encryption key. The same value on the host and every preview, never `AUTH_SECRET`'s. Unset, the proxy is off |
 
-**Migrations are never applied by a function.** Every preview gets its own Neon
-branch, so its schema is its own problem. A labelled PR's preview is migrated by
-`preview.yml` on every deploy (see
+**Migrations are never applied by a function.** A labelled PR's preview gets its
+own Neon branch, so its schema is its own problem; `preview.yml` migrates it on
+every push (see
 [Previews from a PR label](neon.md#previews-from-a-pr-label)); a preview
 deployed by hand is migrated by hand:
 
@@ -361,11 +361,11 @@ and no GitHub profile link.
   [Assistant default backend](#assistant-default-backend).
 - The deployed-preview reachability of `DATABASE_URL` has not been verified;
   everything so far has run against a local container.
-- **Git-triggered preview builds never run.** The Ignored Build Step exits 0
-  for anything that is not production, so preview builds are switched off at
-  the project level. Previews come from a runner instead (`preview.yml`, or the
-  Makefile by hand), which builds and deploys the prebuilt output; the first
-  one deployed on 2026-10-15.
+- **Previews are built by Vercel's Git integration** (seen on PR #96,
+  2026-10-16). `preview.yml` builds nothing: it only gives a labelled PR's
+  previews their own database ([Neon preview databases](neon.md#previews-from-a-pr-label)).
+  The Makefile's `deploy-client-to-vercel-preview` still builds on the machine
+  it runs on.
 - **The Neon targets are untested against real Neon.** See
   [Neon preview databases](neon.md#known-gaps).
 
