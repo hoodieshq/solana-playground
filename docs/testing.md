@@ -27,7 +27,7 @@ test a failure on purpose (C-2, C-3, C-5, M-4) say so in their title or steps.
 | A COEP error for the preview toolbar | Vercel previews | The toolbar's frame lacks the headers the page's COEP requires |
 | A failed request for `manifest.json` | Vercel previews behind protection | The browser fetches the manifest without the bypass cookie |
 | A `503` for `/api/auth/get-session` | client-v2 with no database or no sign-in configured locally (C-4, D-8) | The account endpoints need Postgres and the OAuth app |
-| `ENOENT` for `/<project>/.workspace`, once, right after a project is created | client-v2 | The workspace folder is read before its first write; it also shows in runs where everything else passes |
+| `ENOENT` for `/<project>/.workspace`, once, right after a project is created | client-v2 | The workspace folder is read before its first write (HOO-2150); it also shows in runs where everything else passes |
 
 The browser's `ResizeObserver loop completed with undelivered notifications.` is not in the table: client-v2's global
 error handler drops it (HOO-2125). A `logger:global` error with that text means the filter regressed, and C-4 fails.
