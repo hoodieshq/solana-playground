@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 /** What the mocked explorer and lesson report; each test sets its own */
 const given = vi.hoisted(() => ({
-  workspace: "a",
+  workspace: "a" as string | undefined,
   lesson: { path: null as unknown, record: [] as unknown[] },
 }));
 
@@ -121,6 +121,23 @@ describe("LeftPanel across an unmount", () => {
 
     draw(false);
     expect(body().scrollTop).toBe(120);
+  });
+
+  it("keeps for the project open when the column hides", () => {
+    // A lesson mounts the column before the explorer has opened its project
+    given.workspace = undefined;
+    inLesson();
+    const first = draw(false);
+    given.workspace = "a";
+    fireEvent.click(document.getElementById("flow-left-tab-files")!);
+    first.unmount();
+
+    draw(false);
+    expect(
+      document
+        .getElementById("flow-left-tab-files")!
+        .getAttribute("aria-selected")
+    ).toBe("true");
   });
 
   it("ignores another project's memory", () => {

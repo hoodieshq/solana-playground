@@ -51,13 +51,14 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   useLayoutEffect(() => {
     // Captured now: by the cleanup React has already cleared the ref
     const body = bodyRef.current;
-    const workspace = PgExplorer.currentWorkspaceName ?? "";
-    const kept = keptColumn(workspace);
+    const kept = keptColumn(PgExplorer.currentWorkspaceName ?? "");
     if (body && kept) body.scrollTop = kept.scrollTop;
     return () => {
       if (body) {
         keepColumn({
-          workspace,
+          // Read now, not at mount: a lesson mounts the column before the
+          // explorer has opened its project
+          workspace: PgExplorer.currentWorkspaceName ?? "",
           tab: tabRef.current,
           scrollTop: body.scrollTop,
         });

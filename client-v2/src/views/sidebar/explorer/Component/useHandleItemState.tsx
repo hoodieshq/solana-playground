@@ -21,14 +21,15 @@ export const useHandleItemState = (
   useLayoutEffect(() => {
     // Captured now: by the cleanup React has already cleared the ref
     const root = rootRef.current;
-    const workspace = PgExplorer.currentWorkspaceName ?? "";
     reopenFolders(
-      keptFolders(workspace),
+      keptFolders(PgExplorer.currentWorkspaceName ?? ""),
       (path) => PgExplorer.getElFromPath(path),
       (el) => PgExplorer.openFolder(el)
     );
     return () => {
-      if (root) keepTree(workspace, root);
+      // Read now, not at mount, as `LeftPanel` does: the project may have
+      // opened after the tree mounted
+      if (root) keepTree(PgExplorer.currentWorkspaceName ?? "", root);
     };
   }, [rootRef]);
 
