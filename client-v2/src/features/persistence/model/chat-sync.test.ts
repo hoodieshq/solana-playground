@@ -554,6 +554,54 @@ describe("handing conversations over at sign-out", () => {
 
     expect(await PgChatStorage.threadIds()).toEqual([underDeleted]);
   });
+
+  it("keeps a thread written to after its push", async () => {
+    // The sign-out request runs between the push and `forget`, with the panel
+    // still open. A reply that finished in that window was deleted unsent.
+    accepted();
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+
+    const handed = await PgChatSync.pushAll();
+    await PgChatStorage.write(threadId, [item(1), item(2)]);
+    await PgChatSync.forget(handed);
+
+    expect(await PgChatStorage.read(threadId)).toEqual([item(1), item(2)]);
+  });
+
+  it("keeps a thread that appeared after the push, and drops the rest", async () => {
+    // Nothing pushed it, so the directory may no longer be dropped wholesale
+    accepted();
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+
+    const handed = await PgChatSync.pushAll();
+    const later = uuid();
+    await PgChatStorage.write(later, [item(2)]);
+    await PgChatSync.forget(handed);
+
+    expect(await PgChatStorage.threadIds()).toEqual([later]);
+  });
+
+  it("sends nothing while a sign-out tears down", async () => {
+    // The server has ended the session by then, so every request answered
+    // 401 and was reported as a sync failure on an ordinary sign-out
+    accepted();
+    await signedIn();
+    await PgChatStorage.write(threadId, [item(1)]);
+    let outcome: PushOutcome | undefined;
+    PgSession.setOnSignOut(async () => async () => {
+      outcome = await PgChatSync.push(threadId);
+    });
+
+    await PgSession.signOut();
+
+    expect(outcome).toBe("failed");
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/conversations",
+      expect.anything()
+    );
+  });
 });
 
 describe("pulling a thread that cannot be read locally", () => {

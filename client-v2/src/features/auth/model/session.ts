@@ -9,6 +9,7 @@ import type { PopupChannel } from "../lib/popup-channel";
 import { authTelemetry } from "./telemetry";
 import type { SignInFailure } from "./telemetry";
 import { createLogger } from "../../../shared/lib/logger";
+import { timeoutSignal } from "../../../shared/lib/timeout-signal";
 import type { Disposable } from "../../../utils/types";
 
 /** A sign-in that ended at a known step; any other error counts as `request-failed` */
@@ -48,7 +49,10 @@ export type SignInOrigin = "assistant";
 export type SignOutTeardown = () => Promise<void>;
 
 /** Runs before the sign-out request; see `PgSession.setOnSignOut` */
-export type SignOutHook = () => Promise<SignOutTeardown | void>;
+export type SignOutHook = () => Promise<SignOutTeardown | undefined>;
+
+/** Long enough for a slow network; a hung request otherwise never answers */
+const SIGN_OUT_TIMEOUT_MS = 15_000;
 
 /**
  * The signed-in user, from our backend rather than from GitHub.
@@ -226,16 +230,43 @@ export class PgSession {
    * account to the next person while telling the user it had not. The user
    * stays signed in, nothing local is torn down, and this rejects with a
    * message for them.
+   *
+   * A call while one is running joins it rather than starting another: two
+   * teardowns at once deleted the same workspaces twice.
    */
-  static async signOut() {
+  static signOut(): Promise<void> {
+    if (!PgSession._signingOut) {
+      PgSession._signingOut = PgSession._signOut().finally(() => {
+        PgSession._signingOut = null;
+      });
+    }
+    return PgSession._signingOut;
+  }
+
+  /**
+   * Whether the server has ended the session and its local teardown is
+   * running.
+   *
+   * `get` still answers the user then, because what the teardown removes is
+   * keyed by their id. Nothing may go to the network on their behalf, though:
+   * the cookie is gone, every request answers 401, and each one was reported
+   * as a sync failure on an ordinary sign-out.
+   */
+  static get isEnding(): boolean {
+    return PgSession._ending;
+  }
+
+  private static async _signOut() {
     // Before the cookie goes, so anything holding unsynced local state gets a
     // last chance at the network while the request is still authenticated.
-    // Never allowed to block the sign-out itself.
-    let teardown: SignOutTeardown | void;
+    // Never allowed to block the sign-out itself -- but a hook that throws
+    // returns no teardown either.
+    let teardown: SignOutTeardown | undefined;
     try {
       teardown = await PgSession._onSignOut?.();
     } catch (error) {
-      // Unsynced local work may be lost: the team needs to hear of it
+      // Nothing local is forgotten: the account's conversations and projects
+      // stay on this browser after it signs out
       log.error(error, { report: true, context: { step: "flush" } });
     }
 
@@ -244,10 +275,16 @@ export class PgSession {
       res = await fetch("/api/auth/sign-out", {
         method: "POST",
         credentials: "include",
+        signal: timeoutSignal(SIGN_OUT_TIMEOUT_MS),
       });
     } catch (error) {
+      // Offline, or timed out: the user's network, not a defect to report
       log.warn("sign-out request failed; still signed in", {
-        context: { error: String(error) },
+        context: {
+          step: "request",
+          error: String(error),
+          name: (error as Error | undefined)?.name,
+        },
       });
       throw new Error("Could not sign out. Check your connection.");
     }
@@ -259,15 +296,19 @@ export class PgSession {
       throw new Error("Could not sign out. Try again.");
     }
 
-    // While the user is still readable: what it removes is keyed by their id
+    PgSession._ending = true;
     try {
-      await teardown?.();
-    } catch (error) {
-      // The previous account's data may be left on this browser
-      log.error(error, { report: true, context: { step: "teardown" } });
+      // While the user is still readable: what it removes is keyed by their id
+      try {
+        await teardown?.();
+      } catch (error) {
+        // The previous account's data may be left on this browser
+        log.error(error, { report: true, context: { step: "teardown" } });
+      }
+      PgSession._set(null);
+    } finally {
+      PgSession._ending = false;
     }
-
-    PgSession._set(null);
     authTelemetry.track("auth_signed_out", {});
   }
 
@@ -311,8 +352,12 @@ export class PgSession {
     PgSession._channel = undefined;
     PgSession._openChannelImpl = openPopupChannel;
     PgSession._signingInFrom = null;
+    PgSession._signingOut = null;
+    PgSession._ending = false;
   }
 
+  private static _signingOut: Promise<void> | null = null;
+  private static _ending = false;
   private static _user: SessionUser | null = null;
   private static _signingInFrom: SignInOrigin | null = null;
   private static _onSignOut: SignOutHook | null = null;

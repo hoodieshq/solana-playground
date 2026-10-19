@@ -64,23 +64,11 @@ const acquire = (locks: LockManager) =>
       .catch(failed);
   });
 
-/** How long a request made while holding the lock may take */
-export const LOCKED_REQUEST_MS = 15_000;
-
 /**
- * A signal that aborts a request after `ms`, for anything sent while the
- * lock is held.
+ * How long a request made while holding the lock may take.
  *
- * Every other tab's sync waits behind the holder, and `fetch` itself never
- * gives up: a request stuck on a dead connection kept the lock, and with it
- * every tab's reconcile and upload, for as long as the browser let it hang.
- * An aborted request rejects, which lands in the caller's existing catch.
- *
- * @returns the signal, or `undefined` where the browser cannot make one --
- * the request then behaves as it did before
+ * Every other tab's sync waits behind the holder, so a request stuck on a dead
+ * connection kept the lock, and with it every tab's reconcile and upload. Sent
+ * with `timeoutSignal` (`shared/lib/timeout-signal`).
  */
-export const timeoutSignal = (ms: number): AbortSignal | undefined =>
-  typeof AbortSignal !== "undefined" &&
-  typeof AbortSignal.timeout === "function"
-    ? AbortSignal.timeout(ms)
-    : undefined;
+export const LOCKED_REQUEST_MS = 15_000;
