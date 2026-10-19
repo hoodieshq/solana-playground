@@ -35,7 +35,7 @@ import { Assistant, openConnectDialog } from "@/widgets/assistant";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
-import { SetupList } from "@/widgets/setup-list";
+import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
 import type { Disposable } from "@/utils/types";
 
 /**
@@ -267,6 +267,7 @@ const FlowFrame = () => {
         open={settingsOpen}
         focus={settingsFocus}
         onClose={() => setSettingsOpen(false)}
+        onChooseNetwork={markNetworkChosen}
       />
 
       <Wallet />

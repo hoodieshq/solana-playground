@@ -25,11 +25,18 @@ export interface BaseSetupListProps {
   /** A step to do was clicked; its action runs */
   onPick: (step: SetupStep) => void;
   onDismiss: () => void;
+  /** Extra attributes for a step's button, such as a settings trigger's */
+  stepAttrs?: Partial<Record<SetupStep, Record<`data-${string}`, string>>>;
 }
 
-/** "Get set up · n of 4": a done step shows its value, a step to do runs its action */
-const BaseSetupList = ({ steps, onPick, onDismiss }: BaseSetupListProps) => (
-  <SetupList defaultOpen>
+/** "Get set up · n of total": a done step shows its value, a step to do runs its action */
+const BaseSetupList = ({
+  steps,
+  onPick,
+  onDismiss,
+  stepAttrs,
+}: BaseSetupListProps) => (
+  <SetupList defaultOpen className="px-2 pb-2">
     <SetupListHeader>
       <SetupListTrigger
         done={steps.filter((s) => s.done).length}
@@ -51,6 +58,7 @@ const BaseSetupList = ({ steps, onPick, onDismiss }: BaseSetupListProps) => (
           <SetupListItem key={step} className="p-0">
             <button
               type="button"
+              {...stepAttrs?.[step]}
               onClick={() => onPick(step)}
               className="flex size-full items-center gap-2.5 rounded-md px-2 text-left outline-none hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ring"
             >

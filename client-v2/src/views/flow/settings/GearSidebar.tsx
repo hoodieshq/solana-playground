@@ -13,7 +13,6 @@ import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { markNetworkChosen } from "@/widgets/setup-list";
 import { Endpoint, PLATFORM_ENDPOINTS } from "../../../constants";
 import {
   useBlockExplorer,
@@ -48,6 +47,8 @@ interface GearSidebarProps {
   open: boolean;
   onClose: () => void;
   focus?: SettingsFocus;
+  /** Any network pick, the current one included (the Get set up checklist) */
+  onChooseNetwork?: () => void;
 }
 
 // `string`, not `Endpoint`: platform endpoints are build-time URLs, not enum
@@ -109,6 +110,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
   open,
   onClose,
   focus = "panel",
+  onChooseNetwork,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
@@ -217,7 +219,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
           groupRef={chipsRef}
           endpoint={endpoint}
           onPick={(e) => (PgSettings.connection.endpoint = e)}
-          onChoose={markNetworkChosen}
+          onChoose={onChooseNetwork}
         />
       </Section>
 

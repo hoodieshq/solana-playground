@@ -67,10 +67,12 @@ test.beforeEach(async ({ context }) => {
 test("client-v2-layout: Counting the steps", async ({ page }) => {
   await seedWorkspace(page);
   await expect(title(page)).toHaveText("Get set up· 0 of 4", LONG);
-
   await connectWallet(page);
 
-  await expect(title(page)).toHaveText("Get set up· 1 of 4");
+  // A user who comes back with the wallet still connected
+  await page.reload();
+  await expect(title(page)).toHaveText("Get set up· 1 of 4", LONG);
+  await expect(doneStep(page, "Connect a wallet")).toContainText(/\w{4}…\w{4}/);
   await expect(step(page, "Sign in with GitHub")).toBeVisible();
   await expect(step(page, "Connect the assistant")).toBeVisible();
 });
@@ -89,12 +91,69 @@ test("client-v2-layout: Choosing a network", async ({ page }) => {
     .toContain("{item: network}");
 });
 
+test("the network step keeps settings that are already open on screen", async ({
+  page,
+}) => {
+  await seedWorkspace(page);
+  await page
+    .getByRole("button", { name: "Change cluster, currently devnet" })
+    .click();
+  const network = page.getByRole("radiogroup", { name: "Network" });
+  await expect(network).toBeVisible();
+  // Watch for the panel closing (it stays mounted, `aria-hidden`) at any
+  // point during the click: a mousedown outside it closes it
+  await page.evaluate(() => {
+    const w = window as unknown as { settingsClosed: boolean };
+    w.settingsClosed = false;
+    new MutationObserver(() => {
+      const chips = document.querySelector('[aria-label="Network"]');
+      if (chips?.closest('[aria-hidden="true"]')) w.settingsClosed = true;
+    }).observe(document.body, {
+      attributes: true,
+      attributeFilter: ["aria-hidden"],
+      subtree: true,
+    });
+  });
+
+  await step(page, "Choose a network").click();
+
+  await expect(network).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { settingsClosed: boolean }).settingsClosed
+    )
+  ).toBe(false);
+});
+
 test("client-v2-layout: A step opens its action", async ({ page }) => {
+  const lines = linesOn(page);
   await seedWorkspace(page);
   await step(page, "Connect the assistant").click();
   await expect(
     page.getByRole("dialog", { name: "Connect a model" })
   ).toBeVisible();
+  await expect
+    .poll(() => lineOf(lines, "assistant_connect_opened"))
+    .toContain("{via: setup}");
+});
+
+test("the checklist is on a phone's menu page, and its network step works there", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(title(page)).toHaveText("Get set up· 0 of 4");
+
+  await step(page, "Choose a network").click();
+
+  const network = page.getByRole("radiogroup", { name: "Network" });
+  await expect(network).toBeInViewport();
+  await network.locator('[role="radio"][aria-checked="true"]').click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(title(page)).toHaveText("Get set up· 1 of 4");
 });
 
 test("client-v2-layout: Dismissing the checklist", async ({ page }) => {

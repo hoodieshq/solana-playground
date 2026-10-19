@@ -5,6 +5,7 @@ import { isSignInFailure, PgSession } from "@/features/auth";
 import { useRenderOnChange, useWallet } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommand, PgConnection, PgView } from "@/utils";
+import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { SETUP_STEPS } from "../model/steps";
 import type { SetupStep, StepView } from "../model/steps";
@@ -118,7 +119,16 @@ const SetupList = ({ onConnectAssistant, onChooseNetwork }: SetupListProps) => {
   // list must not flash in between
   if (marks.dismissed || marks.completed || allDone) return null;
 
-  return <BaseSetupList steps={steps} onPick={pick} onDismiss={dismiss} />;
+  return (
+    <BaseSetupList
+      steps={steps}
+      onPick={pick}
+      onDismiss={dismiss}
+      // `GearSidebar` closes on a mousedown outside it, except on its triggers;
+      // without this, a click here with the settings open shuts them first
+      stepAttrs={{ network: { [SETTINGS_TRIGGER_ATTR]: "" } }}
+    />
+  );
 };
 
 export default SetupList;

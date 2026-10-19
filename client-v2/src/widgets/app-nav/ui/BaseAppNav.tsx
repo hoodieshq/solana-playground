@@ -77,7 +77,7 @@ const BaseAppNav = ({
         })}
       </SidebarMenu>
       {!collapsed && projects}
-      {!collapsed && <div className="mt-auto px-2 pb-2">{setup}</div>}
+      {!collapsed && <div className="mt-auto">{setup}</div>}
     </SidebarContent>
     {/* Swapped, not hidden, on the rail: what the full footer holds keeps
         its state above it (`FeedbackHost`, `PgSession`), as it must anyway

@@ -64,3 +64,25 @@ it("folds and unfolds from its title", async () => {
   await userEvent.click(title);
   expect(screen.getByRole("button", { name: "Connect a wallet" })).toBeTruthy();
 });
+
+it("puts a step's extra attributes on its button", () => {
+  const onPick = vi.fn();
+  render(
+    <BaseSetupList
+      steps={TWO_DONE}
+      onPick={onPick}
+      onDismiss={vi.fn()}
+      stepAttrs={{ wallet: { "data-marker": "" } }}
+    />
+  );
+  expect(
+    screen
+      .getByRole("button", { name: "Connect a wallet" })
+      .hasAttribute("data-marker")
+  ).toBe(true);
+  expect(
+    screen
+      .getByRole("button", { name: "Connect the assistant" })
+      .hasAttribute("data-marker")
+  ).toBe(false);
+});
