@@ -1,14 +1,17 @@
 name: preview
 
-# A preview deployment of client-v2, with its own Neon database, for a PR that
-# carries the `preview` label -- and only for one. The Neon project caps its
+# A Neon database for the Vercel preview of a PR that carries the `preview`
+# label -- and only for one. Vercel's Git integration builds and deploys the
+# preview itself; this workflow gives it a database. The Neon project caps its
 # branch count, so the Vercel integration's branch-per-deployment option is
 # off (see client-v2/docs/neon.md) and this workflow owns the branch instead:
 #
 # - labelled, opened/reopened or pushed to while labelled: create (or reuse)
-#   `preview/pr-<number>` from `main`, migrate it, build, deploy with it
-#   as DATABASE_URL, and post the URL on the PR;
-# - label removed, or PR closed or merged: delete the branch.
+#   `preview/pr-<number>` from `main`, migrate it, set its pooled URL as the
+#   Preview `DATABASE_URL` scoped to the PR's git branch, redeploy the head
+#   commit's preview if Vercel built it before that variable changed, and say
+#   so on the PR;
+# - label removed, or PR closed or merged: delete the branch and the variable.
 #
 # What this misses (a cancelled teardown, a failed delete) is swept by
 # preview-sweep.yml, once that file is on the default branch: GitHub runs a
@@ -34,57 +37,53 @@ env:
   PREVIEW_LABEL: preview
   BRANCH: preview/pr-${{ github.event.pull_request.number }}
   # Same name as in client-v2/.env; see client-v2/docs/neon.md. NEON_API_KEY is
-  # given per step instead, to keep it from `vercel build`, which runs the PR's
-  # code.
+  # given per step instead, so dbmate, which runs the PR's migrations, never
+  # holds it.
   NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+  # The git branch Vercel deploys the PR from, and so the scope of its variable.
+  HEAD_REF: ${{ github.event.pull_request.head.ref }}
 
 jobs:
   deploy:
-    name: deploy preview branch
+    name: database for the preview
     # A fork's PR gets no secrets. Unrelated label changes do not redeploy.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'preview') &&
       (contains(fromJSON('["opened", "reopened", "synchronize"]'), github.event.action) ||
        (github.event.action == 'labeled' && github.event.label.name == 'preview'))
-    # Job-level, shared with teardown: a push cancels the deploy it supersedes,
-    # and a close cancels a deploy still running. A workflow-level group would
-    # also let every skipped run (an unrelated label) cancel a live deploy.
+    # Job-level, shared with teardown: a push cancels the run it supersedes,
+    # and a close cancels a run still going. A workflow-level group would
+    # also let every skipped run (an unrelated label) cancel a live one.
     concurrency:
       group: preview-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    # A wasm Remote Cache miss rebuilds the packages, about an hour.
-    timeout-minutes: 120
+    # Mostly the wait for Vercel to create the deployment (vercel.sh, 10 min).
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-      # vercel-install.sh's Remote Cache credentials, which a Vercel build is
-      # given and a runner is not.
-      VERCEL_ARTIFACTS_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ARTIFACTS_OWNER: ${{ vars.VERCEL_ORG_ID }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
       SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       # The head commit, not the merge commit `pull_request` checks out by
-      # default: the preview shows the branch as pushed. Submodule with full
-      # history, as in client-v2.yml: update-static dates tutorials from it.
+      # default: its migrations are the ones Vercel's preview of it expects.
+      # Sparse: the scripts and the migrations, nothing to build.
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: true
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: client-v2/.nvmrc
+          sparse-checkout: |
+            .github/scripts
+            client-v2/db
 
       - name: Check configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           : "${VERCEL_TOKEN:?VERCEL_TOKEN secret is unset}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID variable is unset}"
@@ -104,7 +103,8 @@ jobs:
 
       # Direct connection, not the PgBouncer endpoint, and without
       # `channel_binding`, which dbmate's driver cannot parse. Every run, not
-      # only the first: a push may add a migration.
+      # only the first: a push may add a migration. Before the variable is
+      # set, so a first preview never points at an unmigrated database.
       - name: Migrate the preview database
         working-directory: client-v2
         env:
@@ -112,58 +112,92 @@ jobs:
         run: |
           url=$(bash ../.github/scripts/neon.sh uri "$BRANCH")
           echo "::add-mask::$url"
+          unset NEON_API_KEY
           url=$(printf '%s' "$url" | sed -E 's/([?&])channel_binding=[^&]*&?/\1/; s/[?&]$//')
           # The mask above covers the raw string only; this is what dbmate gets.
           echo "::add-mask::$url"
           case "$url" in *sslmode=*) ;; *) echo "::error::Neon returned a URL without sslmode"; exit 1 ;; esac
           DATABASE_URL="$url" dbmate --wait --wait-timeout 60s --no-dump-schema up
 
-      # The same chain as Makefile.vercel's deploy-client-to-vercel-preview,
-      # with its CLI version: pull, pin the Root Directory, build here, deploy
-      # the prebuilt output. Building here rather than on Vercel also keeps the
-      # project's Ignored Build Step, which cancels every preview build, out of
-      # the way.
-      - name: Build and deploy
-        id: deploy
+      # The branch is cut from `main`, so it starts with production's rows; a
+      # preview tests sign-in, projects and sync from nothing. Once per branch,
+      # after migrating (dbmate needs `main`'s schema_migrations): a later push
+      # keeps what was made on the preview. The marker, set in the same
+      # transaction as the truncate, decides "once" rather than whether this
+      # run created the branch, so a run cancelled between creating and
+      # emptying still has it emptied by the next. Re-add the label to start
+      # over: the teardown deletes the branch.
+      - name: Empty the preview database
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          cli=$(sed -n 's/^VERCEL_CLI := //p' client-v2/Makefile.vercel)
-          [ -n "$cli" ] || { echo "::error::no VERCEL_CLI in client-v2/Makefile.vercel"; exit 1; }
+          url=$(bash .github/scripts/neon.sh uri "$BRANCH")
+          echo "::add-mask::$url"
+          unset NEON_API_KEY
+          psql "$url" -v ON_ERROR_STOP=1 -q <<'SQL'
+          DO $$
+          BEGIN
+            IF obj_description('public'::regnamespace, 'pg_namespace') IS DISTINCT FROM 'preview: emptied' THEN
+              EXECUTE (
+                SELECT 'TRUNCATE ' || string_agg(format('public.%I', tablename), ', ') || ' RESTART IDENTITY CASCADE'
+                FROM pg_tables
+                WHERE schemaname = 'public' AND tablename <> 'schema_migrations'
+              );
+              COMMENT ON SCHEMA public IS 'preview: emptied';
+              RAISE NOTICE 'emptied every table but schema_migrations';
+            ELSE
+              RAISE NOTICE 'already emptied, keeping its rows';
+            END IF;
+          END $$;
+          SQL
+
+      # Branch-scoped, so it outranks the project's unscoped Preview
+      # DATABASE_URL for this git branch only, and every later push's build
+      # picks it up without this workflow.
+      - name: Point the branch's previews at it
+        id: env
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
           db=$(bash .github/scripts/neon.sh uri "$BRANCH" pooled)
           echo "::add-mask::$db"
-          # Nothing below needs it, and `vercel build` runs the PR's code.
-          unset NEON_API_KEY
-          npx --yes "$cli" pull --yes --environment=preview --token="$VERCEL_TOKEN"
-          jq '.settings.rootDirectory = "client-v2"' .vercel/project.json > .vercel/project.json.next
-          mv .vercel/project.json.next .vercel/project.json
-          # Separate lines: `-e` does not stop on a failure inside an && list.
-          set -a
-          . ./.vercel/.env.preview.local
-          set +a
-          npx --yes "$cli" build --token="$VERCEL_TOKEN"
-          # --archive=tgz: the prebuilt output is over the upload API's 15000-file cap.
-          url=$(npx --yes "$cli" deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN" \
-            -e DATABASE_URL="$db" --meta githubPrId="$PR" --meta githubCommitSha="$SHA")
-          [ -n "$url" ] || { echo "::error::vercel deploy printed no URL"; exit 1; }
+          since=$(printf '%s' "$db" | bash .github/scripts/vercel.sh env-set "$HEAD_REF")
+          echo "since=$since" >> "$GITHUB_OUTPUT"
+
+      # A deployment reads its variables when it is built. The one Vercel
+      # started on the push that added the label predates the variable, so it
+      # is rebuilt; on a later push the variable is already there and nothing
+      # is.
+      - name: Redeploy a preview built before it
+        id: redeploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SINCE: ${{ steps.env.outputs.since }}
+        run: |
+          url=$(bash .github/scripts/vercel.sh redeploy-if-stale "$SHA" "$SINCE")
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "### Preview: $url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment on the PR
         env:
-          URL: ${{ steps.deploy.outputs.url }}
+          URL: ${{ steps.redeploy.outputs.url }}
         run: |
-          bash .github/scripts/preview-comment.sh "$PR" "**Preview:** $URL
+          if [ -n "$URL" ]; then
+            how="The preview of this commit was built before that and has been redeployed: $URL"
+          else
+            how="Vercel's preview of this commit already uses it."
+          fi
+          bash .github/scripts/preview-comment.sh "$PR" "**Preview database:** Neon branch \`$BRANCH\`, emptied when created, migrated to commit \`${SHA::7}\`, set as \`DATABASE_URL\` for \`$HEAD_REF\`'s previews. $how
 
-          Commit \`${SHA::7}\`, database: Neon branch \`$BRANCH\`, migrated. Remove the \`$PREVIEW_LABEL\` label or close the PR to drop the database."
+          Remove the \`$PREVIEW_LABEL\` label or close the PR to drop the database."
 
       # Not on cancel: a newer push's run or the teardown writes the comment.
       - name: Report the failure on the PR
         if: failure()
         run: |
-          bash .github/scripts/preview-comment.sh "$PR" "**Preview deploy failed** for commit \`${SHA::7}\`: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          bash .github/scripts/preview-comment.sh "$PR" "**Preview database failed** for commit \`${SHA::7}\`: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          An earlier preview, if any, still serves an earlier commit, and its database may be partly migrated."
+          The preview may be pointing at an earlier state of the database, or at none, and the database may be partly migrated."
 
   teardown:
     name: drop preview database
@@ -183,12 +217,17 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       # Sparse: only the scripts, not the submodule.
       - uses: actions/checkout@v6
         with:
           sparse-checkout: .github/scripts
+
+      # First, so a later build of this branch falls back to the project's
+      # Preview DATABASE_URL instead of a deleted branch.
+      - name: Remove the branch's DATABASE_URL
+        run: bash .github/scripts/vercel.sh env-rm "$HEAD_REF"
 
       # `preview/<head branch>` is the name the Vercel integration gave a branch
       # before this workflow existed, and the one neon-preview-branch.sh (`make
@@ -196,7 +235,10 @@ jobs:
       # Except where that name means something else: `pr-<n>` would be another
       # PR's live preview, and `preview/master` is the production dry run's
       # (deploy-client-vercel.md).
+      # Even when removing the variable failed: a branch left behind counts
+      # against the project's cap.
       - name: Delete the Neon branches
+        if: ${{ !cancelled() }}
         run: |
           bash .github/scripts/neon.sh delete "$BRANCH"
           if [[ "$HEAD_REF" =~ ^(pr-[0-9]+|master|master-2\.0)$ ]]; then
@@ -208,4 +250,4 @@ jobs:
       # `--edit-only`: a PR that never had a preview gets no comment.
       - name: Update the PR comment
         run: |
-          bash .github/scripts/preview-comment.sh --edit-only "$PR" "Preview database \`$BRANCH\` deleted. The last deployment still loads but has no database; add the \`$PREVIEW_LABEL\` label again to redeploy."
+          bash .github/scripts/preview-comment.sh --edit-only "$PR" "Preview database \`$BRANCH\` deleted, and \`$HEAD_REF\`'s previews no longer point at it. The last deployment still loads but has no database; add the \`$PREVIEW_LABEL\` label again to recreate it."
