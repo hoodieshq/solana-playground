@@ -1,6 +1,21 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+/** What the mocked explorer and lesson report; each test sets its own */
+const given = vi.hoisted(() => ({
+  workspace: "a",
+  lesson: { path: null as unknown, record: [] as unknown[] },
+}));
+
+// The utils barrel needs build-time globals the unit runner does not define.
+vi.mock("../../../utils", () => ({
+  PgExplorer: {
+    get currentWorkspaceName() {
+      return given.workspace;
+    },
+  },
+}));
 
 vi.mock("../../sidebar/explorer/Component", () => ({
   default: () => <div id="root-dir">tree</div>,
@@ -14,7 +29,10 @@ vi.mock("../../sidebar/explorer/Component/useCreateItem", () => ({
 vi.mock("../lessons", () => ({
   INITIAL_LESSON_STATE: { path: null, record: [] },
   PgLesson: {
-    onDidChange: () => ({ dispose: () => {} }),
+    onDidChange: (cb: (state: unknown) => void) => {
+      cb(given.lesson);
+      return { dispose: () => {} };
+    },
     canPass: () => false,
   },
   cursorStep: () => null,
@@ -23,6 +41,7 @@ vi.mock("../lessons", () => ({
 vi.mock("../lessons/StepRail", () => ({ default: () => null }));
 
 import LeftPanel from "./LeftPanel";
+import { forgetColumn } from "./kept-column";
 
 /** A theme that answers every key; the styles do not matter here */
 const anyTheme: DefaultTheme = new Proxy(
@@ -65,5 +84,59 @@ describe("LeftPanel in the flush frame", () => {
     // Not even its landmark: an empty, unnamed <aside> is still listed by a
     // screen reader
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe("LeftPanel across an unmount", () => {
+  /** A lesson the panel shows its Steps and Files tabs for */
+  const inLesson = () => {
+    given.lesson = { path: { id: "lesson" }, record: [] };
+  };
+  const body = () => document.getElementById("flow-left-tabpanel")!;
+
+  afterEach(() => {
+    forgetColumn();
+    given.workspace = "a";
+    given.lesson = { path: null, record: [] };
+  });
+
+  it("keeps the Files tab across an unmount", () => {
+    inLesson();
+    const first = draw(false);
+    fireEvent.click(document.getElementById("flow-left-tab-files")!);
+    first.unmount();
+
+    draw(false);
+    expect(
+      document
+        .getElementById("flow-left-tab-files")!
+        .getAttribute("aria-selected")
+    ).toBe("true");
+  });
+
+  it("keeps the scroll across an unmount", () => {
+    const first = draw(false);
+    body().scrollTop = 120;
+    first.unmount();
+
+    draw(false);
+    expect(body().scrollTop).toBe(120);
+  });
+
+  it("ignores another project's memory", () => {
+    inLesson();
+    const first = draw(false);
+    fireEvent.click(document.getElementById("flow-left-tab-files")!);
+    body().scrollTop = 120;
+    first.unmount();
+
+    given.workspace = "b";
+    draw(false);
+    expect(
+      document
+        .getElementById("flow-left-tab-steps")!
+        .getAttribute("aria-selected")
+    ).toBe("true");
+    expect(body().scrollTop).toBe(0);
   });
 });

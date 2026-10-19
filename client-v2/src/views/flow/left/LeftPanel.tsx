@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Eyebrow from "./Eyebrow";
@@ -13,8 +13,8 @@ import {
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
-
-type Tab = "steps" | "files";
+import { keepColumn, keptColumn, type Tab } from "./kept-column";
+import { PgExplorer } from "../../../utils";
 
 interface LeftPanelProps {
   /**
@@ -36,7 +36,35 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   const [lesson, setLesson] = useState(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
-  const [tab, setTab] = useState<Tab>("steps");
+  const [tab, setTab] = useState<Tab>(
+    () => keptColumn(PgExplorer.currentWorkspaceName ?? "")?.tab ?? "steps"
+  );
+  // Read by the unmount below, which must see the tab picked last
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+
+  // Hidden, the column unmounts (design.md, "Frame chrome (5.25)"), so its
+  // scroll and tab are kept for the next mount. A layout effect: the tree,
+  // a child, has reopened its folders by now (`useHandleItemState`), so the
+  // scroll lands where it was rather than on a shut tree too short for it.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    // Captured now: by the cleanup React has already cleared the ref
+    const body = bodyRef.current;
+    const workspace = PgExplorer.currentWorkspaceName ?? "";
+    const kept = keptColumn(workspace);
+    if (body && kept) body.scrollTop = kept.scrollTop;
+    return () => {
+      if (body) {
+        keepColumn({
+          workspace,
+          tab: tabRef.current,
+          scrollTop: body.scrollTop,
+        });
+      }
+    };
+    // `collapsed` draws no body, so a change of it is an unmount and a mount
+  }, [collapsed]);
   // The same upstream hook `ExplorerButtons.tsx` calls for its own hidden
   // "New file" icon button (`NewItemButton` -> `useCreateItem`) -- no
   // upstream edit, no programmatic `.click()` of a hidden button.
@@ -77,6 +105,7 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
           </Tabs>
         )}
         <Body
+          ref={bodyRef}
           id="flow-left-tabpanel"
           role={inLesson ? "tabpanel" : undefined}
           aria-labelledby={inLesson ? `flow-left-tab-${tab}` : undefined}
