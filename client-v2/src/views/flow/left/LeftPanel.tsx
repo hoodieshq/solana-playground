@@ -40,8 +40,8 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
 
   // Hidden, the column unmounts (design.md, "Frame chrome (5.25)"), so its
   // tab and scroll are kept for the next mount (`kept-column.ts`). Both are
-  // tracked as they change rather than read at unmount: by then the body
-  // may be out of the document, where its scroll reads 0.
+  // tracked as they change, for a body already out of the document, where
+  // its scroll reads 0.
   const kept = useRef({ tab, scrollTop: 0 });
   useLayoutEffect(() => {
     kept.current.tab = tab;
@@ -63,7 +63,12 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
       // Read now, not at mount: a lesson mounts the column before the
       // explorer has opened its project
       const workspace = PgExplorer.currentWorkspaceId;
-      if (workspace) keepColumn({ workspace, ...memory });
+      if (!workspace) return;
+      // Read from the body while it is still in the document: `scroll`
+      // arrives a frame late, so ⌘E right after a scroll would otherwise
+      // keep the scroll before it
+      const scrollTop = body?.isConnected ? body.scrollTop : memory.scrollTop;
+      keepColumn({ workspace, tab: memory.tab, scrollTop });
     };
     // Defensive: the frame unmounts a hidden column rather than passing
     // `collapsed`, but a `collapsed` column draws no body either

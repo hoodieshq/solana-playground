@@ -157,6 +157,17 @@ describe("LeftPanel across an unmount", () => {
     expect(body().scrollTop).toBe(120);
   });
 
+  it("keeps a scroll made in the frame it hides", () => {
+    // The browser sends `scroll` on the next frame, so a hide in the same
+    // frame (⌘E right after a scroll) unmounts before the event arrives
+    const first = draw(false);
+    body().scrollTop = 120;
+    first.unmount();
+
+    draw(false);
+    expect(body().scrollTop).toBe(120);
+  });
+
   it("keeps the Files tab across an unmount", () => {
     inLesson();
     const first = draw(false);
