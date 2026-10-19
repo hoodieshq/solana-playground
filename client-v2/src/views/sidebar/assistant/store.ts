@@ -848,10 +848,7 @@ export class PgAssistant {
     // `_keepOvertaken` kept for it, and a read issued first would come back
     // without it -- then the next write from memory would replace the file
     // that had it
-    await PgAssistant._lastWrite.catch(() => {
-      // Nothing to handle: `PgChatStorage.write` reports its own failures and
-      // never rejects; this only waits for the queue
-    });
+    await PgAssistant._afterWrites();
     const items = await PgChatStorage.read(threadId);
     // By load, not by thread id: A -> B -> A faster than a read leaves the
     // same id open, and the first read passing for the current one dropped
@@ -908,24 +905,22 @@ export class PgAssistant {
     // Appended to the thread as it is when the write's turn comes, not to the
     // copy this read saw: two overtaken reads of one thread saw the same copy,
     // and writing each one's own let the second replace the first
-    PgAssistant._lastWrite = PgAssistant._lastWrite
-      .catch(() => {})
-      .then(async () => {
-        const stored = await PgChatStorage.read(threadId);
-        if (stored === null) {
-          // `report` appends "failed" to this
-          report(
-            `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
-            null
-          );
-          return;
-        }
-        const known = new Set(stored.map((item) => item.id));
-        const missing = unwritten.filter((item) => !known.has(item.id));
-        if (missing.length) {
-          await PgChatStorage.write(threadId, [...stored, ...missing]);
-        }
-      });
+    PgAssistant._lastWrite = PgAssistant._afterWrites().then(async () => {
+      const stored = await PgChatStorage.read(threadId);
+      if (stored === null) {
+        // `report` appends "failed" to this
+        report(
+          `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
+          null
+        );
+        return;
+      }
+      const known = new Set(stored.map((item) => item.id));
+      const missing = unwritten.filter((item) => !known.has(item.id));
+      if (missing.length) {
+        await PgChatStorage.write(threadId, [...stored, ...missing]);
+      }
+    });
   }
 
   /**
@@ -1064,9 +1059,19 @@ export class PgAssistant {
    * the first with a shorter list
    */
   private static _queueWrite(threadId: string, items: readonly ChatItem[]) {
-    PgAssistant._lastWrite = PgAssistant._lastWrite
-      .catch(() => {})
-      .then(() => PgChatStorage.write(threadId, items));
+    PgAssistant._lastWrite = PgAssistant._afterWrites().then(() =>
+      PgChatStorage.write(threadId, items)
+    );
+  }
+
+  /** Once every write queued so far has settled, however it went */
+  private static _afterWrites() {
+    return PgAssistant._lastWrite.catch((e) => {
+      // Nothing on the queue rejects today: `PgChatStorage` catches and
+      // reports its own failures. If something ever did, it is reported here
+      // and the queue goes on, since one failed write must not stop the rest
+      report("chat write queue", e);
+    });
   }
 
   /** Notify and write back. Every mutator goes through here. */
