@@ -1104,7 +1104,9 @@ SidebarProvider (no padding)
   comes back (5.26): the open folders, by path, in `useHandleItemState`;
   the scroll and the lesson's tab in `LeftPanel`. The memory lasts for the
   page, is kept per project (`currentWorkspaceId`) and is overwritten by the
-  next hide; another project's is ignored. The column is not kept mounted out
+  next hide; another project's is ignored. The tree's memory also brings a
+  lesson's folders back from its Steps tab, which unmounts the tree the same
+  way. The column is not kept mounted out
   of view: the tree's keybinds (Alt+N, F2, Delete) are global and
   `PgExplorer` finds elements through `document`, so a hidden live tree
   would act on keys and miss updates.
