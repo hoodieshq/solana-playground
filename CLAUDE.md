@@ -12,7 +12,8 @@ This file records only what the code and git history do not make obvious.
 `master-2.0` is the integration branch. `ci.yml` checks formatting and clippy
 for `client/`, `server/` and `wasm/`, but not `client/`'s build or tests;
 `client-v2.yml` guards `client-v2/`; `preview.yml` deploys a
-labelled PR's preview. All three run on `master-2.0` only. Feature branches
+labelled PR's preview. `ci.yml` and `preview.yml` run on `master-2.0` only;
+`client-v2.yml` runs on `master` and `master-2.0`. Feature branches
 come off `master-2.0` and PRs go against `master-2.0`. Foundation `master`
 is merged into it.
 
@@ -267,15 +268,16 @@ changes. Asked to build something in the client, look there first.
   first cloned from the main checkout's `wasm/target`), so a warm build takes
   minutes, not the hour of a cold one. The stubs (`wasm/stub-packages.sh`) are
   written only under `USE_WASM_STUBS=true`, which the `:with-stubs` scripts and
-  `client-v2.yml` set; they make Rust intellisense and the `solana`/`anchor`/
+  the manual `client-v2-with-stubs.yml` set; they make Rust intellisense and the `solana`/`anchor`/
   `spl-token`/`sugar` terminal commands throw. `yarn dev` and `yarn test-e2e`
   refuse stubs nobody asked for, `vercel-install.sh` refuses the variable, and the
   Vercel build fails on a bundle that carries a stub. yarn 1 copies a `file:`
   package again only when its folder is missing, so `setup-wasm.sh` and
   `vercel-install.sh` delete the installed copies first; `--check-files` alone
   keeps the old copy. The variable's name lives in `client-v2/scripts/wasm-stubs.sh`
-  and `client-v2/scripts/wasm-stubs.mjs`. `client-v2-real-wasm.yml` (manual) runs
-  the `@real-wasm` browser specs on the real packages.
+  and `client-v2/scripts/wasm-stubs.mjs`. `client-v2.yml` runs on the real
+  packages: the `wasm` job of `client-v2-reusable.yml` builds them once, cached
+  under Vercel's `wasm_source_key`, and the other jobs download them.
 - **`client-v2/public/` is gitignored and generated**, not authored.
   `scripts/update-static.mjs` copies it out of the `client/public` git submodule
   and dates tutorials from that submodule's history — so the submodule needs
