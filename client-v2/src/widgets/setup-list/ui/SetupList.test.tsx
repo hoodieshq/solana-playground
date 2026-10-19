@@ -69,7 +69,8 @@ afterEach(() => {
   wallet.current = null;
   assistant.connected = false;
   localStorage.clear();
-  setupMarks.reload();
+  // What another tab clearing the site's storage looks like: marks start over
+  window.dispatchEvent(new StorageEvent("storage", { key: null }));
   PgSession.reset();
 });
 

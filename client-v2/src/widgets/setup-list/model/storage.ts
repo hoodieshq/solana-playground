@@ -82,38 +82,40 @@ export const createSetupMarks = (storage?: Storage) => {
   };
   const notify = () => listeners.forEach((listener) => listener());
 
-  /** Reads storage again, as when another tab stored a mark */
-  const reload = () => {
-    marks = readMarks(storage);
+  /** `current` with every mark `stored` holds too: a mark never turns back */
+  const merged = (current: SetupMarks, stored: SetupMarks): SetupMarks => ({
+    dismissed: current.dismissed || stored.dismissed,
+    completed: current.completed || stored.completed,
+    networkChosen: current.networkChosen || stored.networkChosen,
+  });
+
+  // Another tab stored a mark: take it, so an open list hides there too. A
+  // `null` key is the site's storage cleared, which starts the list over.
+  // Listened to for the page's life, not only while mounted: the memory is
+  // what the next mount reads.
+  window.addEventListener("storage", (event) => {
+    if (event.key === null) {
+      marks = readMarks(storage);
+    } else if (event.key === SETUP_LIST_KEY) {
+      marks = merged(get(), readMarks(storage));
+    } else {
+      return;
+    }
     notify();
-  };
-  // Another tab stored a mark: take it, so an open list hides there too
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === SETUP_LIST_KEY) reload();
-  };
+  });
 
   return {
     get,
-    reload,
     subscribe(listener: () => void) {
-      if (listeners.size === 0) window.addEventListener("storage", onStorage);
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
-        if (listeners.size === 0) {
-          window.removeEventListener("storage", onStorage);
-        }
       };
     },
     mark(which: keyof SetupMarks) {
       const current = get();
       if (current[which]) return;
-      const stored = readMarks(storage);
-      marks = {
-        dismissed: current.dismissed || stored.dismissed,
-        completed: current.completed || stored.completed,
-        networkChosen: current.networkChosen || stored.networkChosen,
-      };
+      marks = merged(current, readMarks(storage));
       marks[which] = true;
       notify();
       try {

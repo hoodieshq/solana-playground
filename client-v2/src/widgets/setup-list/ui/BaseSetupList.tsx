@@ -13,7 +13,7 @@ import {
 } from "@/shared/ui/setup-list";
 import type { SetupStep, StepView } from "../model/steps";
 
-export const STEP_LABELS: Record<SetupStep, string> = {
+const STEP_LABELS: Record<SetupStep, string> = {
   assistant: "Connect the assistant",
   network: "Choose a network",
   github: "Sign in with GitHub",
@@ -51,7 +51,11 @@ const BaseSetupList = ({
         done ? (
           <SetupListItem key={step} status="done">
             <SetupListIndicator />
-            <SetupListLabel>{STEP_LABELS[step]}</SetupListLabel>
+            <SetupListLabel>
+              {STEP_LABELS[step]}
+              {/* The tick is drawn, and hidden from screen readers */}
+              <span className="sr-only">, done</span>
+            </SetupListLabel>
             {value && <SetupListValue>{value}</SetupListValue>}
           </SetupListItem>
         ) : (

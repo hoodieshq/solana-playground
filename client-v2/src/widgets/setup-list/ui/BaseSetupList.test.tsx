@@ -86,3 +86,14 @@ it("puts a step's extra attributes on its button", () => {
       .hasAttribute("data-marker")
   ).toBe(false);
 });
+
+it("says a step is done in words, not only with the tick", () => {
+  renderList(TWO_DONE);
+  const items = screen.getAllByRole("listitem");
+  expect(items.map((item) => item.textContent)).toEqual([
+    "Connect the assistant",
+    "Choose a network, donedevnet",
+    "Sign in with GitHub, doneoctocat",
+    "Connect a wallet",
+  ]);
+});

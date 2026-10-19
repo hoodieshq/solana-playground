@@ -131,6 +131,36 @@ describe("setupMarks", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("never lets another tab's stored value undo a mark of this page", () => {
+    const storage = refusingStorage();
+    const marks = createSetupMarks(storage);
+    marks.subscribe(() => {});
+    marks.mark("dismissed");
+    // The write was refused; another tab then stores its own marks
+    vi.spyOn(storage, "getItem").mockReturnValue(
+      '{"dismissed":false,"completed":false,"networkChosen":true}'
+    );
+
+    window.dispatchEvent(new StorageEvent("storage", { key: SETUP_LIST_KEY }));
+
+    expect(marks.get()).toEqual({
+      dismissed: true,
+      completed: false,
+      networkChosen: true,
+    });
+  });
+
+  it("starts over when another tab clears the site's storage", () => {
+    const marks = createSetupMarks();
+    marks.subscribe(() => {});
+    marks.mark("dismissed");
+    localStorage.clear();
+
+    window.dispatchEvent(new StorageEvent("storage", { key: null }));
+
+    expect(marks.get().dismissed).toBe(false);
+  });
+
   it("keeps a mark for this page when storage refuses the write, and reports it once", () => {
     const memory = memoryProvider();
     initLogger({ providers: [memory] });
