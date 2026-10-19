@@ -45,17 +45,25 @@ SHALL NOT say "Copied".
 #### Scenario: A refused clipboard is not reported as copied
 
 - **WHEN** the browser refuses to write to the clipboard
-- **THEN** the button does not say "Copied" and the failure is logged
+- **THEN** the button does not say "Copied", a toast says "Could not copy.", and the failure is logged
 
-### Requirement: A failing click is logged, not swallowed
+### Requirement: A failing click tells the user once
 
-A click whose action fails SHALL be logged under `ui:button`, not marked for
-reporting (a user-caused or already-shown failure must not reach error
-tracking), and the button SHALL stay usable.
+A click whose action fails SHALL tell the user what did not happen, in one
+sentence naming the action ("Could not copy."), never the raw error. A failure
+the action already showed (a terminal command printed it to the console)
+SHALL NOT be shown again. Every failure SHALL still be logged under
+`ui:button`, not marked for reporting (a user-caused or already-shown failure
+must not reach error tracking), and the button SHALL stay usable.
 
 #### Scenario: A rejected action is logged (manual)
 
 - **WHEN** a button's action rejects
-- **THEN** the failure is logged under `ui:button`, not marked for reporting, and the button is enabled again
+- **THEN** the failure is logged under `ui:button`, not marked for reporting, a toast says what did not happen, and the button is enabled again
 
-Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`.
+Covered by unit tests, not e2e, because no click in the product can be made to reject without a stand-in handler: `report-button-failure.test.ts`, `shared-ui-buttons.test.tsx`, `SyncBanner.test.tsx`, `ImportButton.test.tsx` and `Chat.test.tsx`. The e2e for a failed click is the refused clipboard above.
+
+#### Scenario: A failure the terminal printed is shown once
+
+- **WHEN** a build started from the Build button fails
+- **THEN** the console shows the error and no toast appears

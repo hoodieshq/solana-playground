@@ -627,7 +627,7 @@ replaces the legacy `Button`'s `console.error`, which only wrote to the
 console: many of these failures are caused by the user (a cancelled deploy, a
 wallet refusal) or already printed by the terminal command, so they must not
 page the team. What reaches Sentry is HOO-1800's call. Decided with Slava
-2026-10-14.
+2026-10-14. 5.26 adds what the user sees ("Failed clicks (5.26)").
 
 Removed: `components/Button`, `components/GradientButton`, and the theme's
 `components.button` override type. `client-v2/CLAUDE.md` loses its paragraph
@@ -1181,6 +1181,35 @@ Kept: "Cluster: <name>" on the rail's dot, "Change cluster, currently
 settings trigger attribute that lets a second click close the settings. The
 account controls, the row and the rail's button alike, are named
 "Account: <login>" or "Account, signed out"; tests match `/^Account/`.
+
+## Failed clicks (5.26)
+
+Decided with Slava on 2026-10-19 (HOO-2100). Until now a failed click was
+only logged (5.4), and nothing on screen said the action did not happen.
+
+- **A toast says what did not happen.** `reportButtonFailure("<action>")`
+  returns the handler that `onError` and a click path's `catch` take; the
+  toast reads "Could not <action>." The phrase is the call site's ("copy",
+  "export the project", "fetch the account"). The raw error stays in the
+  log, never on screen.
+- **Shown once.** The terminal prints `Process error: …` and rethrows;
+  `PgTerminal.process`, the one way in, marks the failure as shown before
+  rethrowing it, and `reportButtonFailure`
+  only logs a marked failure. An object is matched by identity, a thrown
+  string by value (`Send` throws `txResult.err`, which can be a string).
+  The mark and its predicate are declared once, beside `reportButtonFailure`.
+- **A repeat replaces.** Every such toast has one `id`, so a second failure
+  replaces the first instead of stacking. Its `name` is `button-failed`
+  (`overlay_toast_shown {name}`).
+- **Logging is unchanged**: `ui:button`, not marked for reporting. What
+  reaches Sentry stays HOO-1800's call.
+- **Plain `onClick` paths** whose failure reaches `global-handlers` today as
+  an unhandled rejection move onto `AsyncButton`, or catch into
+  `reportButtonFailure`.
+
+_Rejected:_ an inline message on the control (a failed click often closed
+the dialog or menu it sat in, and one channel reads the same everywhere);
+showing the raw error (it is written for the log, not for the user).
 
 ## Risks / Trade-offs
 
