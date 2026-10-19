@@ -390,7 +390,7 @@ folding to a strip and a rail. See "Frame chrome (5.25)".)
   Tutorials and Programs pages (5.9) exist, those items open the existing
   gallery (`NewWorkspaceModal`) on their tab, through a new `initialTab` prop,
   and New project opens it on its default tab. Home's item opens the gallery
-  only while a project is open; see "Home (5.8)". _Rejected:_ hiding Home
+  whenever Home is not on screen; see "Home (5.8)". _Rejected:_ hiding Home
   until 5.8; disabled items saying "soon".
 - **Keys.** ⌘B folds the navigation (the stock Sidebar's own key), ⌘E the
   files column, Ctrl+R the assistant, Ctrl+J the console. The files toggle
@@ -1264,7 +1264,7 @@ project lands on Home instead of the gallery modal.
   and Home after the last project is deleted. A route hands `Primary` its
   content once, `PgRouter.navigate` to the current path does nothing, so a
   remounted `Write` stays blank. Until HOO-2118, Home in the navigation opens
-  the gallery while a project is open, as in 5.2.
+  the gallery whenever Home is not on screen, as in 5.2.
 - **From 720 px.** "Where should we begin?", the composer, three tiles and
   four tutorial cards, built from `composer`, `action-card`, `tag` and
   `button`. New project unfolds `StartFromScratch` under the tiles; Follow a

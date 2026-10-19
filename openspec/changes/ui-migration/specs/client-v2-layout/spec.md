@@ -366,7 +366,7 @@ Until the Tutorials and Programs pages exist, the navigation's items SHALL
 open the gallery: New project on its default tab, Tutorials on its
 tutorials tab (`gallery-tab-tutorials`), Programs on its programs tab
 (`gallery-tab-programs`). Home SHALL open the gallery on its default tab
-while a project is open, and leave Home in place while Home shows.
+whenever Home is not on screen, and leave Home in place while Home shows.
 
 #### Scenario: Programs from the navigation
 

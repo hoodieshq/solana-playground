@@ -1640,6 +1640,22 @@ describe("with Home", () => {
     expect(screen.queryByText("stage tabs")).toBeNull();
   });
 
+  it("titles the bar nothing while the start is pending", () => {
+    explorer.name = "Counter";
+    shell(() => null);
+    const bar = document.querySelector<HTMLElement>('[data-slot="stage-bar"]')!;
+    expect(within(bar).queryByText("Home")).toBeNull();
+  });
+
+  it("titles the phone's work page nothing while the start is pending", () => {
+    resizeTo(390);
+    shell(() => null);
+    const work = screen.getByRole("region", { name: "Work" });
+    expect(within(work).getByTestId("phone-bar").textContent).not.toContain(
+      "Home"
+    );
+  });
+
   it.each([
     ["wide", 1440],
     ["compact", 900],

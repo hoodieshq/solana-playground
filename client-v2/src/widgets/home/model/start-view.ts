@@ -30,7 +30,7 @@ export const decideStart = ({
  * have, so on `/` this initialises it first; `PgExplorer.init` runs its calls
  * one after another, so the route's own call later is harmless. Once the
  * work shows it stays for the page load: coming back to Home from an open
- * project is not supported yet.
+ * project is HOO-2118.
  */
 export const useStartView = (): StartView => {
   const [view, setView] = useState<StartView>(() =>
@@ -49,7 +49,7 @@ export const useStartView = (): StartView => {
         const workspaces = PgExplorer.allWorkspaceNames;
         if (workspaces === undefined) {
           // An init that lists nothing is a broken explorer, not a first
-          // visit; the work is today's start and copes without Home
+          // visit; the work is the start without Home and copes
           log.error(new Error("The explorer listed no projects after init"), {
             report: true,
           });
@@ -59,7 +59,7 @@ export const useStartView = (): StartView => {
         setView(decideStart({ path: PgRouter.location.pathname, workspaces }));
       })
       .catch((e: unknown) => {
-        // The work is today's start and still works without Home
+        // The work is the start without Home and still works
         log.error(e, { report: true });
         if (live) setView("work");
       });
