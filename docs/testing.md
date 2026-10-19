@@ -20,15 +20,17 @@ Case IDs are stable: refer to a case by ID, not by position.
 Every case states its success result under "Expect": what must be observed, not only that a command exits 0. Cases that
 test a failure on purpose (C-2, C-3, C-5, M-4) say so in their title or steps.
 
-Console messages that are expected and fail no case:
+**Expected console messages.** These fail no case; C-1 and C-4 allow only the rows whose "Where" matches the run:
 
 | Message | Where | Why |
 | --- | --- | --- |
 | A COEP error for the preview toolbar | Vercel previews | The toolbar's frame lacks the headers the page's COEP requires |
 | A failed request for `manifest.json` | Vercel previews behind protection | The browser fetches the manifest without the bypass cookie |
 | A `503` for `/api/auth/get-session` | client-v2 with no database or no sign-in configured locally (C-4, D-8) | The account endpoints need Postgres and the OAuth app |
-| `ResizeObserver loop completed with undelivered notifications.`, logged by `logger:global` | client-v2 branches without HOO-2125 | Reported by the browser for the panel layout; harmless. The global handler drops it since HOO-2125, so where that fix is in, it fails C-4 again |
-| `ENOENT` for `/<project>/.workspace`, once, right after a project is created | client-v2 | The workspace folder is read before its first write; it shows in passing runs too |
+| `ENOENT` for `/<project>/.workspace`, once, right after a project is created | client-v2 | The workspace folder is read before its first write; it also shows in runs where everything else passes |
+
+The browser's `ResizeObserver loop completed with undelivered notifications.` is not in the table: client-v2's global
+error handler drops it (HOO-2125). A `logger:global` error with that text means the filter regressed, and C-4 fails.
 
 ## 0. Prerequisites
 
@@ -194,8 +196,8 @@ curl -sI http://localhost:3000
 
 Expect:
 
-- [ ] the page loads at `http://localhost:3000` with no console errors on load, apart from the expected messages
-      listed at the top of this document.
+- [ ] the page loads at `http://localhost:3000` with no console errors on load, apart from the "Expected console
+      messages" whose "Where" matches the run.
 - [ ] the IDE renders: file explorer, editor, and terminal. Typing `help` in the terminal lists the commands, which
       proves the wasm packages loaded.
 - [ ] the network tab shows no failed request on load (no 4xx, 5xx, or HTML served for a non-HTML file), apart from
