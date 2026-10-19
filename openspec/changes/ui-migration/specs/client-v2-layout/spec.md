@@ -314,7 +314,8 @@ all four steps being done at once. The rail SHALL show no checklist.
 The checklist SHALL send `setup_item_picked` with `item` (`assistant`,
 `network`, `github` or `wallet`) each time a user clicks a step to do,
 `setup_dismissed` with `done` (how many steps were done) when it is
-dismissed, and `setup_completed` when all four steps are done.
+dismissed, and `setup_completed` the first time all four steps are done
+together on the device.
 
 #### Scenario: Counting the steps
 

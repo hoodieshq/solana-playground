@@ -1205,8 +1205,11 @@ Decided with Slava on 2026-10-19 (HOO-2075), from the prototype's sidebar
   first moment all four steps are done together. Live state alone would not
   do: the assistant's connection is held per tab, so a new tab would bring
   "3 of 4" back to a user who has finished. One `localStorage` key,
-  `setup-list`, holds `{dismissed, completed, networkChosen}`, read and
-  written like the navigation's pins.
+  `setup-list`, holds `{dismissed, completed, networkChosen}`, read like
+  the navigation's pins. Each mark only ever turns true and merges with
+  what storage holds, so a tab that read the marks earlier cannot undo
+  another tab's dismissal; a refused write is reported once and the mark
+  still holds for the page.
 - **Open with the designer** (q-20261015-12): whether the network counts as
   done by default (the prototype shows it so), and whether dismissal belongs
   to the device or the account. Until they answer, the network counts once
@@ -1216,11 +1219,16 @@ Decided with Slava on 2026-10-19 (HOO-2075), from the prototype's sidebar
   runs the actions. It meets `features/auth` and the assistant's widget,
   which is why it is a widget.
 - **Telemetry**, prefix `setup`: `setup_item_picked {item}`,
-  `setup_dismissed {done}` and `setup_completed`. Under
+  `setup_dismissed {done}` and `setup_completed` (once per device). Under
   `setup-list:<module>`, an action that throws is logged with
-  `report: true` and the user gets a toast, as the account menu does; a
-  wallet setup the user closed and a sign-in that failed at a known step
-  are only logged.
+  `report: true`; a wallet connect that throws also shows a toast, as the
+  account menu does, while a failed sign-in shows in the account row
+  (`PgSession.signInState`). A wallet setup the user closed and a sign-in
+  that failed at a known step are only logged.
+- **The network step is a settings trigger.** The settings close on a
+  mousedown outside them except on their triggers, so the step carries the
+  trigger attribute and opens them without toggling: settings already open
+  stay open.
 
 ## Risks / Trade-offs
 
