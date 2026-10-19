@@ -152,6 +152,6 @@ regression against 5.1 has misread this rule.
       a hidden assistant or files column takes no width (HOO-2122; after 5.2,
       5.10 and 5.17; design.md, "Frame chrome (5.25)"; plan:
       [plans/5.25-frame-chrome.md](plans/5.25-frame-chrome.md))
-- [ ] 5.26 Failed clicks tell the user: a toast says what did not happen,
+- [x] 5.26 Failed clicks tell the user: a toast says what did not happen,
       once (HOO-2100; after 5.4 and 5.6; design.md, "Failed clicks (5.26)";
       plan: [plans/5.26-failed-clicks.md](plans/5.26-failed-clicks.md))
