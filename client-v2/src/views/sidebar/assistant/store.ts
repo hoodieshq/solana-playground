@@ -807,6 +807,12 @@ export class PgAssistant {
     PgAssistant._threadId = threadId;
     PgAssistant._items = [];
     PgAssistant._status = "idle";
+    // Closed to writes until the read lands. `_items` is a stand-in for the
+    // thread until then, and any `_emit` in the gap -- MCP discovery on a
+    // reload, say -- would write it over the stored thread, behind a read
+    // that still returns the old content: memory right, storage `[]`.
+    // Messages sent meanwhile are adopted and written below.
+    PgAssistant._readOnly = true;
     PgAssistant._emitOnly();
 
     const items = await PgChatStorage.read(threadId);
@@ -921,7 +927,10 @@ export class PgAssistant {
   private static _pendingPrompt: PromptRequest | null = null;
 
   private static _threadId: string | null = null;
-  /** Set when the open thread failed to read, cleared when one reads cleanly */
+  /**
+   * Set while the open thread is being read and when it failed to read,
+   * cleared when one reads cleanly
+   */
   private static _readOnly = false;
   private static _lastWrite: Promise<void> = Promise.resolve();
   /** The thread read `loadThread` has out, if any */
