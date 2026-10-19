@@ -601,6 +601,38 @@ describe("PgAssistant threads", () => {
     expect(await PgChatStorage.read("t2")).toHaveLength(0);
   });
 
+  it("does not write over a thread while it is still being read", async () => {
+    // A reload restores the thread while the panel's mount effects land:
+    // MCP discovery calls `_emit` with nothing in the conversation changed.
+    // Landing mid-read, that wrote the empty list standing in for the thread
+    // over the stored one, behind a read that still returned it -- so memory
+    // held the conversation and storage held `[]` (HOO-2109)
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "55555555-5555-4555-8555-555555555555",
+        createdAt: at,
+        text: "remember me",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.setMcpTools("probe", []);
+    await loading;
+    await settled();
+
+    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+  });
+
+  it("writes a message sent while the thread was being read", async () => {
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    await loading;
+    await settled();
+
+    expect(await PgChatStorage.read("t1")).toHaveLength(1);
+  });
+
   it("does not overwrite a thread when the panel resets on backend switch", async () => {
     await PgAssistant.loadThread("t1");
     PgAssistant.addUserMessage("keep me");
