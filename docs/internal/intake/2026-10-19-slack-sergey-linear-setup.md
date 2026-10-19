@@ -46,10 +46,10 @@ setup), `.claude/prompts/proposal-linear-transparency.md`.
 **Actions**
 
 1. Correct the memory note: HOO-1599/1600 are High; Cycles are off by
-   Sergey's answer; estimates stay T-shirt.
+   Sergey's answer; estimates stay T-shirt. — lead: done 2026-10-19
 2. Before deciding how stages show on the board, whoever applies this looks
    at how milestones are organised in Linear now (they changed on today's
    call) and decides from that, with Sergey where it changes his board.
-   (Slava.)
+   (Slava.) — lead: waits on Slava's go in the Lead window
 3. Drop the cycle step from the date mirroring (graph → Linear): only due
-   dates and milestone targets remain.
+   dates and milestone targets remain. — lead: relayed to Planner
