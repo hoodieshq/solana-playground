@@ -399,7 +399,7 @@ describe("handing conversations over at sign-out", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect(await PgChatStorage.threadIds()).toEqual([]);
   });
@@ -411,7 +411,7 @@ describe("handing conversations over at sign-out", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect(await PgChatStorage.read(threadId)).toHaveLength(1);
   });
@@ -443,7 +443,7 @@ describe("handing conversations over at sign-out", () => {
     await PgChatStorage.write(second, [item(2)]);
     await PgChatStorage.write(third, [item(3)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect((await PgChatStorage.threadIds())?.sort()).toEqual([second]);
     expect(await PgChatStorage.read(second)).toHaveLength(1);
@@ -467,7 +467,7 @@ describe("handing conversations over at sign-out", () => {
   it("does not report a thread it could not read as uploaded", async () => {
     // Same shape one level down: an unreadable thread read as an empty one,
     // and `push` reported success for a thread the server never saw -- which
-    // is what then let `handOver` delete the one file worth recovering
+    // is what then let `forget` delete the one file worth recovering
     accepted();
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
@@ -503,7 +503,7 @@ describe("handing conversations over at sign-out", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect(await PgChatStorage.threadIds()).toEqual([]);
   });
@@ -522,7 +522,7 @@ describe("handing conversations over at sign-out", () => {
     await signedIn();
     await PgChatStorage.write(threadId, [item(1)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect(await PgChatStorage.read(threadId)).toEqual([item(1)]);
   });
@@ -550,7 +550,7 @@ describe("handing conversations over at sign-out", () => {
     await PgChatStorage.write(threadId, [item(1)]);
     await PgChatStorage.write(underDeleted, [item(2)]);
 
-    await PgChatSync.handOver();
+    await PgChatSync.forget(await PgChatSync.pushAll());
 
     expect(await PgChatStorage.threadIds()).toEqual([underDeleted]);
   });

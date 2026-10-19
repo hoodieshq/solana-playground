@@ -285,27 +285,90 @@ describe("PgSession", () => {
     );
   });
 
-  it("clears the user even when sign-out fails on the network", async () => {
+  it("stays signed in when sign-out fails on the network", async () => {
     global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
     await PgSession.refresh();
 
-    global.fetch = vi
-      .fn()
-      .mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
-    await PgSession.signOut();
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
-    expect(PgSession.get()).toBeNull();
+    await expect(PgSession.signOut()).rejects.toThrow(/could not sign out/i);
+    expect(PgSession.get()?.id).toBe("u1");
   });
 
-  it("says so when the server refuses the sign-out", async () => {
+  it("stays signed in, and says so, when the server refuses the sign-out", async () => {
+    // The cookie is HttpOnly and survives a refused sign-out, so a reload
+    // signed the user straight back in after the header had said otherwise
     global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
     await PgSession.refresh();
     const logged = memoryProvider();
     initLogger({ providers: [logged] });
 
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 500,
+    } as Response);
+
+    await expect(PgSession.signOut()).rejects.toThrow(/could not sign out/i);
+    expect(PgSession.get()?.id).toBe("u1");
+    expect(logged.entries).toEqual([
+      expect.objectContaining({
+        ns: "auth:session",
+        level: "error",
+        report: true,
+        context: { step: "request", status: 500 },
+      }),
+    ]);
+  });
+
+  it("runs the teardown only once the server has ended the session", async () => {
+    global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
+    await PgSession.refresh();
+    const order: string[] = [];
+    PgSession.setOnSignOut(async () => {
+      order.push("hand over");
+      return async () => {
+        // Still readable: what the teardown removes is keyed by the user id
+        order.push(`teardown as ${PgSession.get()?.id}`);
+      };
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      order.push("request");
+      return { ok: true } as Response;
+    });
+
+    await PgSession.signOut();
+
+    expect(order).toEqual(["hand over", "request", "teardown as u1"]);
+    expect(PgSession.get()).toBeNull();
+  });
+
+  it("skips the teardown when the server refuses the sign-out", async () => {
+    // The user is still signed in, so their conversation and projects stay
+    global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
+    await PgSession.refresh();
+    const teardown = vi.fn().mockResolvedValue(undefined);
+    PgSession.setOnSignOut(async () => teardown);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 500,
+    } as Response);
+
+    await expect(PgSession.signOut()).rejects.toThrow();
+
+    expect(teardown).not.toHaveBeenCalled();
+  });
+
+  it("still signs out when the teardown fails, and reports it", async () => {
+    global.fetch = signedIn({ id: "u1", name: "Ada", image: null });
+    await PgSession.refresh();
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    const failure = new Error("quota");
+    PgSession.setOnSignOut(async () => async () => {
+      throw failure;
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true } as Response);
+
     await PgSession.signOut();
 
     expect(PgSession.get()).toBeNull();
@@ -313,8 +376,9 @@ describe("PgSession", () => {
       expect.objectContaining({
         ns: "auth:session",
         level: "error",
+        error: failure,
         report: true,
-        context: { step: "request", status: 500 },
+        context: { step: "teardown" },
       }),
     ]);
   });

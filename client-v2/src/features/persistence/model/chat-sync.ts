@@ -350,11 +350,12 @@ export class PgChatSync {
   }
 
   /**
-   * Hand local threads over on sign-out, then forget them.
+   * Forget the threads a sign-out's `pushAll` handed over.
    *
-   * Registered with `PgSession` by the session effect rather than called from
-   * it: `features/auth` must not import `features/persistence`, because this
-   * module already imports `features/auth` and the two would be circular.
+   * Separate from the push because a sign-out spans both: the push runs while
+   * the request is still authenticated, and this only once the server has
+   * ended the session. A sign-out that fails leaves the user signed in, with
+   * every thread still on the device.
    *
    * A thread is only dropped once the server holds it, or has closed it
    * under a project it still has (`isHandedOver`). A failed push leaves
@@ -370,8 +371,7 @@ export class PgChatSync {
    * single flaky request handed the next user the entire transcript. Nothing
    * was gained for it: the failed thread is kept either way.
    */
-  static async handOver(): Promise<void> {
-    const handed = await PgChatSync.pushAll();
+  static async forget(handed: HandOver | null): Promise<void> {
     if (!handed) return;
 
     // Wholesale when everything made it, because that is the one case where
