@@ -1182,6 +1182,46 @@ settings trigger attribute that lets a second click close the settings. The
 account controls, the row and the rail's button alike, are named
 "Account: <login>" or "Account, signed out"; tests match `/^Account/`.
 
+## The Get set up checklist (5.16)
+
+Decided with Slava on 2026-10-19 (HOO-2075), from the prototype's sidebar
+(`#app`) and the design system's "Setup list" block. One PR.
+
+- **Where it sits.** At the foot of the navigation's content, above the
+  session footer, through a new `setup` slot in `BaseAppNav`. The rail has
+  no room for it and shows none; the phone's menu page shows it.
+- **Four steps, in this order.** "Connect the assistant" is done while a
+  model is connected (`PgAssistant.isConnected`); "Choose a network" once
+  the user has picked a network in the settings, the current one included;
+  "Sign in with GitHub" while signed in (`PgSession`); "Connect a wallet"
+  while a wallet is connected. A done step shows its value at the right (the
+  cluster's name, the login, the wallet's short address); a step to do shows
+  a chevron and runs its action when clicked: Connect a model
+  (`openConnectDialog`), the settings on the network, the GitHub sign-in,
+  the wallet's connect.
+- **The title counts.** "Get set up · n of 4", folding the list, with the
+  design system's dismiss beside it.
+- **It goes for good, on this device.** Dismissing it hides it; so does the
+  first moment all four steps are done together. Live state alone would not
+  do: the assistant's connection is held per tab, so a new tab would bring
+  "3 of 4" back to a user who has finished. One `localStorage` key,
+  `setup-list`, holds `{dismissed, completed, networkChosen}`, read and
+  written like the navigation's pins.
+- **Open with the designer** (q-20261015-12): whether the network counts as
+  done by default (the prototype shows it so), and whether dismissal belongs
+  to the device or the account. Until they answer, the network counts once
+  chosen and dismissal is per device; either answer changes one rule here.
+- **A widget, `widgets/setup-list`**: `BaseSetupList` draws the design
+  system's `setup-list` from props; `SetupList` reads the four states and
+  runs the actions. It meets `features/auth` and the assistant's widget,
+  which is why it is a widget.
+- **Telemetry**, prefix `setup`: `setup_item_picked {item}`,
+  `setup_dismissed {done}` and `setup_completed`. Under
+  `setup-list:<module>`, an action that throws is logged with
+  `report: true` and the user gets a toast, as the account menu does; a
+  wallet setup the user closed and a sign-in that failed at a known step
+  are only logged.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
