@@ -1,6 +1,7 @@
 import {
   KEY_NOT_FORGOTTEN,
   PgAssistant,
+  THREAD_NOT_SAVED,
   turnProducedApproval,
   type ChatItem,
 } from "./store";
@@ -24,7 +25,7 @@ import { storedValues } from "../../../test-utils/stored-values";
 const settled = () => PgAssistant.whenPersisted();
 
 /** The texts of a stored thread, in order */
-const storedTexts = (items: ChatItem[] | null) =>
+const storedTexts = (items: readonly ChatItem[] | null) =>
   (items ?? []).map((i) => (i as { text?: string }).text);
 
 /** The id of the approval card added most recently */
@@ -536,6 +537,39 @@ describe("PgAssistant threads", () => {
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
   });
 
+  it("tells the user a thread it could not read is not being saved", async () => {
+    // Every message after a failed read stays in memory only; without this
+    // the panel looked like any other conversation while nothing was kept
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    const corrupt = "{ not json";
+    files.set("/.config/chats/t1.json", corrupt);
+
+    await PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("hi");
+    await settled();
+
+    const notices = PgAssistant.items.filter(
+      (i) => i.kind === "notice" && i.text === THREAD_NOT_SAVED
+    );
+    expect(notices).toHaveLength(1);
+    expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
+  });
+
+  it("drops that notice once the thread reads cleanly", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    files.set("/.config/chats/t1.json", "{ not json");
+    await PgAssistant.loadThread("t1");
+
+    files.delete("/.config/chats/t1.json");
+    await PgAssistant.loadThread("t1", true);
+
+    expect(
+      PgAssistant.items.some(
+        (i) => i.kind === "notice" && i.text === THREAD_NOT_SAVED
+      )
+    ).toBe(false);
+  });
+
   it("writes again once a thread reads cleanly", async () => {
     const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
     files.set("/.config/chats/t1.json", "{ not json");
@@ -695,7 +729,11 @@ describe("PgAssistant threads", () => {
     await settled();
 
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
-    expect(PgAssistant.items).toHaveLength(1);
+    // Still on screen, under the notice that it is not saved
+    expect(storedTexts(PgAssistant.items)).toEqual([
+      THREAD_NOT_SAVED,
+      "sent mid-read",
+    ]);
   });
 
   it("does not overwrite a thread when the panel resets on backend switch", async () => {

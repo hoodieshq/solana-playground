@@ -163,6 +163,15 @@ export const KEY_NOT_FORGOTTEN =
   "Your key could not be removed from this tab's storage. Close this tab to " +
   "remove it.";
 
+/**
+ * Shown on a thread that could not be read. Its file may still be recoverable
+ * by hand, so nothing is written over it -- which means nothing typed here is
+ * kept either, and the user has to be told.
+ */
+export const THREAD_NOT_SAVED =
+  "This conversation could not be read from this device's storage, so new " +
+  "messages here are not saved.";
+
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
   id: ProviderId;
@@ -844,7 +853,19 @@ export class PgAssistant {
 
     // Whatever is in `_items` now arrived during the read, for this thread
     const adopted = [...orphans, ...PgAssistant._items];
-    PgAssistant._items = [...(items ?? []), ...adopted];
+    // In memory only, like everything else on a read-only thread
+    const notice: ChatItem[] =
+      items === null
+        ? [
+            {
+              kind: "notice",
+              id: makeId(),
+              createdAt: now(),
+              text: THREAD_NOT_SAVED,
+            },
+          ]
+        : [];
+    PgAssistant._items = [...notice, ...(items ?? []), ...adopted];
     // `_emit` rather than `_emitOnly` when something was adopted: those
     // messages have never been written down under this thread. On a read-only
     // thread `_persist` declines regardless, so they stay on screen without
