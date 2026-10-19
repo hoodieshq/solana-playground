@@ -24,6 +24,23 @@ so the preview Vercel started on the push that added the label still points at t
 is redeployed ([`vercel.sh`](../../.github/scripts/vercel.sh) `redeploy-if-stale`). A preview that is not
 labelled, or whose label was removed, uses the unscoped Preview `DATABASE_URL`.
 
+### Every other preview uses production's database
+
+The unscoped Preview `DATABASE_URL` is production's: the pooled URL of `main`. So every preview without the
+label, and a labelled PR's first build until the workflow redeploys it, signs users in and syncs projects
+against production. That is deliberate. The Vercel project is a sandbox deployment of upstream, not a product
+with users to protect, and the constraint this setup solves is the Neon branch cap: a branch per preview, or
+per pushed git branch, used it up fast. Only a PR that asks for its own database gets one.
+
+What follows from it:
+
+- **Label a PR that adds a migration.** Without the label its preview runs the new code against production's
+  schema, which nothing migrates until the PR merges and someone runs `migrate-production-db`.
+- **Label a PR whose testing must start from nothing**, such as sign-in, a first project or sync. An unlabelled
+  preview shows whatever production holds, and what it writes stays there.
+- **Open the preview the workflow's comment names**, or wait for the comment, on a newly labelled PR. The
+  deployment Vercel built before the label still points at production.
+
 On a push to a labelled PR, Vercel's build and the workflow's migration run side by side, so a preview can go
 live a little before a migration it adds has been applied. Migrations are additive so far, so the earlier
 schema serves it until then.

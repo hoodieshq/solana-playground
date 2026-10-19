@@ -277,6 +277,13 @@ before this existed.
 | `AUTH_OAUTH_PROXY_URL` | Previews only: the origin of the host, the deployment whose callback is on the GitHub app |
 | `AUTH_OAUTH_PROXY_SECRET` | The OAuth proxy's encryption key. The same value on the host and every preview, never `AUTH_SECRET`'s. Unset, the proxy is off |
 
+**Previews share production's database unless labelled.** The unscoped
+Preview `DATABASE_URL` is the same as Production's, on purpose: this project is
+a sandbox, and Neon's branch cap rules out a database per preview. Only a PR
+labelled `preview` gets a branch of its own; see
+[Every other preview uses production's database](neon.md#every-other-preview-uses-productions-database)
+for when to add the label.
+
 **Migrations are never applied by a function.** A labelled PR's preview gets its
 own Neon branch, so its schema is its own problem; `preview.yml` migrates it on
 every push (see
