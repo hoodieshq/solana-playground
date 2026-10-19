@@ -101,11 +101,26 @@ export class PgTerminal {
     try {
       return await term.process<T>(cb);
     } catch (e) {
-      // `PgTerm.process` has printed `Process error: …` by now, so a button
-      // that started this must not show the failure a second time
-      markFailureShown(e);
+      // `PgTerm.process` has shown `Process error: …` in the terminal by now,
+      // so a button that started this must not show the failure a second
+      // time. Only while the console is open: printed into a folded one, the
+      // user saw nothing, and the button's toast is all they get
+      if (PgTerminal._consoleOpen) markFailureShown(e);
       throw e;
     }
+  }
+
+  /** Whether the console showing the terminal is open */
+  private static _consoleOpen = false;
+
+  /**
+   * Record whether the console showing the terminal is open; its drawer calls
+   * this whenever it folds or unfolds, and with `false` when it unmounts.
+   *
+   * @param open whether the user can see the terminal
+   */
+  static setConsoleOpen(open: boolean) {
+    PgTerminal._consoleOpen = open;
   }
 
   /**

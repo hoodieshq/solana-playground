@@ -79,6 +79,23 @@ describe("reportButtonFailure", () => {
     expect(setToast).not.toHaveBeenCalled();
   });
 
+  it("forgets a shown string once it has matched", () => {
+    markFailureShown("AccountNotFound");
+
+    reportButtonFailure("send SOL")("AccountNotFound");
+    reportButtonFailure("fetch the account")("AccountNotFound");
+
+    expect(setToast).toHaveBeenCalledTimes(1);
+  });
+
+  it("never treats null or undefined as shown", () => {
+    markFailureShown(undefined);
+    markFailureShown(null);
+
+    expect(wasFailureShown(undefined)).toBe(false);
+    expect(wasFailureShown(null)).toBe(false);
+  });
+
   it("does not treat another error as shown", () => {
     markFailureShown(new Error("same"));
 

@@ -1195,8 +1195,15 @@ only logged (5.4), and nothing on screen said the action did not happen.
 - **Shown once.** The terminal prints `Process error: …` and rethrows;
   `PgTerminal.process`, the one way in, marks the failure as shown before
   rethrowing it, and `reportButtonFailure`
-  only logs a marked failure. An object is matched by identity, a thrown
-  string by value (`Send` throws `txResult.err`, which can be a string).
+  only logs a marked failure. Only while the console is open: the console
+  drawer tells the terminal whether it can be seen, and a failure printed
+  into a folded console is still toasted, since the user saw nothing. An
+  object is matched by identity, a thrown string by value (`Send` throws
+  `txResult.err`, which can be a string) and only once, so a later failure
+  with the same text is told; `null` and `undefined` are never marked.
+- **Passed bare, the factory swallows.** `.catch(reportButtonFailure)`
+  type-checks (a rejection is `any`) and calls nothing; a lint rule
+  (`no-restricted-syntax`) forbids it.
   The mark and its predicate are declared once, beside `reportButtonFailure`.
 - **A repeat replaces.** Every such toast has one `id`, so a second failure
   replaces the first instead of stacking. Its `name` is `button-failed`

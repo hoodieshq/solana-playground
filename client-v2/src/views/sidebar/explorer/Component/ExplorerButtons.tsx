@@ -11,8 +11,16 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const ExplorerButtons = () => (
   <ButtonsWrapper>
-    <NewItemButton imageName="new_file.png" title="New file" />
-    <NewItemButton imageName="new_folder.png" title="New folder" />
+    <NewItemButton
+      imageName="new_file.png"
+      title="New file"
+      failureAction="add a file"
+    />
+    <NewItemButton
+      imageName="new_folder.png"
+      title="New folder"
+      failureAction="add a folder"
+    />
     <CreateItem />
     <CollapseAllButton />
     {PgExplorer.isTemporary && <GoBackButton />}
@@ -40,18 +48,21 @@ const ButtonsWrapper = styled.div`
 interface ButtonProps {
   imageName: string;
   title: string;
+  /** What did not happen when the click fails, completing "Could not …" */
+  failureAction: string;
 }
 
 const NewItemButton: FC<React.PropsWithChildren<ButtonProps>> = ({
   imageName,
   title,
+  failureAction,
 }) => {
   const { createItem } = useCreateItem();
 
   return (
     <AsyncButton
       onClick={createItem}
-      onError={reportButtonFailure("create it")}
+      onError={reportButtonFailure(failureAction)}
       variant="ghost"
       size="icon-sm"
       title={title}

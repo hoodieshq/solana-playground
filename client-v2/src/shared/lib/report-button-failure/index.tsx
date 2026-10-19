@@ -14,15 +14,19 @@ const shownStrings: unknown[] = [];
 
 /**
  * Mark a failure as already shown to the user, so `reportButtonFailure` logs
- * it without a toast. `PgTerminal.process` calls it for every failure its
- * terminal printed.
+ * it without a toast. `PgTerminal.process` calls it for every failure it
+ * printed to an open console.
  *
  * Objects are matched by identity. A thrown primitive (`Send` throws the
- * transaction's error string) can only be matched by value; the newest
- * `SHOWN_STRINGS_CAP` are kept.
+ * transaction's error string) can only be matched by value, so it answers one
+ * check and is forgotten: a later failure with the same text, from a path
+ * that printed nothing, is still toasted. The newest `SHOWN_STRINGS_CAP` are
+ * kept. `null` and `undefined` say nothing about which failure they were and
+ * are never marked.
  */
 export const markFailureShown = (error: unknown): void => {
-  if (typeof error === "object" && error !== null) {
+  if (error === null || error === undefined) return;
+  if (typeof error === "object") {
     shownObjects.add(error);
     return;
   }
@@ -30,11 +34,19 @@ export const markFailureShown = (error: unknown): void => {
   if (shownStrings.length > SHOWN_STRINGS_CAP) shownStrings.shift();
 };
 
-/** Whether `markFailureShown` was called with this failure */
-export const wasFailureShown = (error: unknown): boolean =>
-  typeof error === "object" && error !== null
-    ? shownObjects.has(error)
-    : shownStrings.includes(error);
+/**
+ * Whether `markFailureShown` was called with this failure. A matched
+ * primitive is forgotten (see `markFailureShown`).
+ */
+export const wasFailureShown = (error: unknown): boolean => {
+  if (typeof error === "object" && error !== null) {
+    return shownObjects.has(error);
+  }
+  const at = shownStrings.indexOf(error);
+  if (at === -1) return false;
+  shownStrings.splice(at, 1);
+  return true;
+};
 
 /**
  * Where a failed click goes: the `onError` of `AsyncButton` and
@@ -45,7 +57,8 @@ export const wasFailureShown = (error: unknown): boolean =>
  * reporting (which failures reach error tracking is decided in HOO-1800),
  * and tells the user "Could not <action>." in a toast. The raw error never
  * reaches the screen. A failure already shown, such as one the terminal
- * printed, is only logged: the user hears of a failure once.
+ * printed to an open console, is only logged: the user hears of a failure
+ * once.
  *
  * @param action what did not happen, completing "Could not …", such as
  * "export the project"
