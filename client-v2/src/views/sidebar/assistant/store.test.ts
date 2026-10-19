@@ -743,6 +743,68 @@ describe("PgAssistant threads", () => {
     expect(PgAssistant.unsaved).toBe(true);
   });
 
+  it("reads a reopened thread after the write that kept its overtaken message", async () => {
+    // Overtaken by a switch, A's message is queued behind B's writes. A reopen
+    // reading before that write was issued came back without it, and the next
+    // write from memory then replaced the file that had it
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "99999999-9999-4999-8999-999999999999",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+    // Each write waits on the gate in place when it is issued, so the queue
+    // can be held twice: behind B's write, then behind the kept message
+    const gates: Array<() => void> = [];
+    let hold: Promise<void> = Promise.resolve();
+    const holdWrites = () => {
+      hold = new Promise<void>((resolve) => gates.push(resolve));
+    };
+    const releaseAll = () => gates.forEach((resolve) => resolve());
+    const realWrite = PgChatStorage.write.bind(PgChatStorage);
+    const write = vi
+      .spyOn(PgChatStorage, "write")
+      .mockImplementation(async (threadId, items) => {
+        await hold;
+        return realWrite(threadId, items);
+      });
+
+    try {
+      await PgAssistant.loadThread("tB");
+      holdWrites();
+      PgAssistant.addUserMessage("in B");
+
+      // A's read is overtaken by going back to B, so its message is queued
+      const first = PgAssistant.loadThread("tA");
+      PgAssistant.addUserMessage("sent mid-read");
+      const backToB = PgAssistant.loadThread("tB", true);
+      // B's write must have taken the first gate before the second goes up
+      await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+      const releaseB = gates[0];
+      holdWrites();
+      releaseB();
+      await Promise.all([first, backToB]);
+
+      // Reopened while that write is still held
+      const reopened = PgAssistant.loadThread("tA");
+      releaseAll();
+      await reopened;
+      PgAssistant.addUserMessage("later");
+      await settled();
+    } finally {
+      releaseAll();
+      write.mockRestore();
+    }
+
+    expect(storedTexts(await PgChatStorage.read("tA"))).toEqual([
+      "stored",
+      "sent mid-read",
+      "later",
+    ]);
+  });
+
   it("keeps a message sent mid-read when the same thread is reopened before the read lands", async () => {
     // A -> B -> A faster than a read: the first read used to pass for the
     // current one, since the thread id matched again. The message typed in

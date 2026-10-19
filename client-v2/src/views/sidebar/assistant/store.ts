@@ -844,6 +844,11 @@ export class PgAssistant {
     PgAssistant._writes = "reading";
     PgAssistant._emitOnly();
 
+    // After every queued write: one may hold this very thread, such as what
+    // `_keepOvertaken` kept for it, and a read issued first would come back
+    // without it -- then the next write from memory would replace the file
+    // that had it
+    await PgAssistant._lastWrite.catch(() => {});
     const items = await PgChatStorage.read(threadId);
     // By load, not by thread id: A -> B -> A faster than a read leaves the
     // same id open, and the first read passing for the current one dropped
