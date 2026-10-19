@@ -1,7 +1,6 @@
 import {
   KEY_NOT_FORGOTTEN,
   PgAssistant,
-  THREAD_NOT_SAVED,
   turnProducedApproval,
   type ChatItem,
 } from "./store";
@@ -537,7 +536,7 @@ describe("PgAssistant threads", () => {
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
   });
 
-  it("tells the user a thread it could not read is not being saved", async () => {
+  it("says a thread it could not read is not being saved", async () => {
     // Every message after a failed read stays in memory only; without this
     // the panel looked like any other conversation while nothing was kept
     const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
@@ -548,14 +547,28 @@ describe("PgAssistant threads", () => {
     PgAssistant.addUserMessage("hi");
     await settled();
 
-    const notices = PgAssistant.items.filter(
-      (i) => i.kind === "notice" && i.text === THREAD_NOT_SAVED
-    );
-    expect(notices).toHaveLength(1);
+    expect(PgAssistant.unsaved).toBe(true);
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
   });
 
-  it("drops that notice once the thread reads cleanly", async () => {
+  it("still says so after the panel resets on a backend switch", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    files.set("/.config/chats/t1.json", "{ not json");
+    await PgAssistant.loadThread("t1");
+
+    // `clear` empties what is rendered; the thread is no more saved than before
+    PgAssistant.clear();
+
+    expect(PgAssistant.unsaved).toBe(true);
+  });
+
+  it("does not say so while a thread is only being read", async () => {
+    const loading = PgAssistant.loadThread("t1");
+    expect(PgAssistant.unsaved).toBe(false);
+    await loading;
+  });
+
+  it("stops saying so once the thread reads cleanly", async () => {
     const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
     files.set("/.config/chats/t1.json", "{ not json");
     await PgAssistant.loadThread("t1");
@@ -563,11 +576,7 @@ describe("PgAssistant threads", () => {
     files.delete("/.config/chats/t1.json");
     await PgAssistant.loadThread("t1", true);
 
-    expect(
-      PgAssistant.items.some(
-        (i) => i.kind === "notice" && i.text === THREAD_NOT_SAVED
-      )
-    ).toBe(false);
+    expect(PgAssistant.unsaved).toBe(false);
   });
 
   it("writes again once a thread reads cleanly", async () => {
@@ -729,9 +738,35 @@ describe("PgAssistant threads", () => {
     await settled();
 
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
-    // Still on screen, under the notice that it is not saved
-    expect(storedTexts(PgAssistant.items)).toEqual([
-      THREAD_NOT_SAVED,
+    // Still on screen, with the panel saying it is not saved
+    expect(storedTexts(PgAssistant.items)).toEqual(["sent mid-read"]);
+    expect(PgAssistant.unsaved).toBe(true);
+  });
+
+  it("keeps a message sent mid-read when the same thread is reopened before the read lands", async () => {
+    // A -> B -> A faster than a read: the first read used to pass for the
+    // current one, since the thread id matched again. The message typed in
+    // its gap was dropped by the close, and the second read adopted the
+    // first's whole thread as though it had arrived mid-read: every item twice
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "88888888-8888-4888-8888-888888888888",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const first = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    PgAssistant.closeThread();
+    const second = PgAssistant.loadThread("t1");
+    await Promise.all([first, second]);
+    await settled();
+
+    expect(storedTexts(PgAssistant.items)).toEqual(["stored", "sent mid-read"]);
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
       "sent mid-read",
     ]);
   });

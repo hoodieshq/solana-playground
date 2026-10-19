@@ -15,6 +15,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
 } from "../../../features/persistence/model/chat-storage";
+import { report } from "../../../features/persistence";
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
@@ -171,6 +172,9 @@ export const KEY_NOT_FORGOTTEN =
 export const THREAD_NOT_SAVED =
   "This conversation could not be read from this device's storage, so new " +
   "messages here are not saved.";
+
+/** Whether the open thread may be written, and why not -- see `_writes` */
+type ThreadWrites = "open" | "reading" | "unreadable";
 
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
@@ -739,6 +743,14 @@ export class PgAssistant {
   }
 
   /**
+   * Whether the open thread could not be read, so nothing typed into it is
+   * saved. The panel shows `THREAD_NOT_SAVED` while it is.
+   */
+  static get unsaved() {
+    return PgAssistant._writes === "unreadable";
+  }
+
+  /**
    * Close the open thread without touching what is stored.
    *
    * For when there is no workspace to key a conversation on -- the panel still
@@ -754,7 +766,10 @@ export class PgAssistant {
 
     PgAssistant._denyPending();
     PgAssistant._threadId = null;
-    PgAssistant._readOnly = false;
+    // A read still out for the closed thread is stale from here on, even if
+    // the same thread opens again before it lands
+    PgAssistant._loadSeq++;
+    PgAssistant._writes = "open";
     PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
@@ -814,8 +829,9 @@ export class PgAssistant {
 
     PgAssistant._denyPending();
     PgAssistant._threadId = threadId;
+    const seq = ++PgAssistant._loadSeq;
     // Kept by reference: messages sent during the read are pushed onto it,
-    // and it is what holds them if the thread is closed before the read lands
+    // and it is what holds them if the read is overtaken before it lands
     const gap: ChatItem[] = [];
     PgAssistant._items = gap;
     PgAssistant._status = "idle";
@@ -825,20 +841,16 @@ export class PgAssistant {
     // that still returns the old content: memory right, storage `[]`.
     // Messages sent meanwhile are adopted when the read lands, and written
     // unless it failed.
-    PgAssistant._readOnly = true;
+    PgAssistant._writes = "reading";
     PgAssistant._emitOnly();
 
     const items = await PgChatStorage.read(threadId);
-    if (PgAssistant._threadId !== threadId) {
-      // Closed or switched away before the read landed. What was typed
-      // meanwhile is on no list any more, and with writes closed it was never
-      // written either: it belongs to this thread, so it goes after what is
-      // stored rather than vanishing. Not over a thread that could not be
-      // read, for the reason below.
-      const unwritten = [...orphans, ...gap];
-      if (unwritten.length && items !== null) {
-        PgAssistant._queueWrite(threadId, [...items, ...unwritten]);
-      }
+    // By load, not by thread id: A -> B -> A faster than a read leaves the
+    // same id open, and the first read passing for the current one dropped
+    // what was typed in its gap and handed the second read its whole thread
+    // to adopt, so every item showed twice
+    if (PgAssistant._loadSeq !== seq) {
+      PgAssistant._keepOvertaken(threadId, items, [...orphans, ...gap]);
       return;
     }
 
@@ -846,32 +858,56 @@ export class PgAssistant {
     // else the panel can show -- but it must not be *persisted* as empty. The
     // next `_persist()` would write this back over a file that may still be
     // recoverable, so the thread stays closed to writes until it reads
-    // cleanly. `__pgChatStorage.lastFailure` says why. A clean read is also
-    // what opens the thread to writes again, closed since the read began.
-    // Set before the emit below, which is where `_persist` reads it.
-    PgAssistant._readOnly = items === null;
+    // cleanly, and the panel says so (`unsaved`).
+    // `__pgChatStorage.lastFailure` says why. A clean read is also what opens
+    // the thread to writes again, closed since the read began. Set before the
+    // emit below, which is where `_persist` reads it.
+    PgAssistant._writes = items === null ? "unreadable" : "open";
 
     // Whatever is in `_items` now arrived during the read, for this thread
     const adopted = [...orphans, ...PgAssistant._items];
-    // In memory only, like everything else on a read-only thread
-    const notice: ChatItem[] =
-      items === null
-        ? [
-            {
-              kind: "notice",
-              id: makeId(),
-              createdAt: now(),
-              text: THREAD_NOT_SAVED,
-            },
-          ]
-        : [];
-    PgAssistant._items = [...notice, ...(items ?? []), ...adopted];
+    PgAssistant._items = [...(items ?? []), ...adopted];
     // `_emit` rather than `_emitOnly` when something was adopted: those
-    // messages have never been written down under this thread. On a read-only
-    // thread `_persist` declines regardless, so they stay on screen without
-    // overwriting a file that may still be recoverable.
+    // messages have never been written down under this thread. On an
+    // unreadable thread `_persist` declines regardless, so they stay on
+    // screen without overwriting a file that may still be recoverable.
     if (adopted.length) PgAssistant._emit();
     else PgAssistant._emitOnly();
+  }
+
+  /**
+   * Keep what was typed during a read that was overtaken before it landed.
+   *
+   * With writes closed it was never written, and the close or the next load
+   * took it off screen: it belongs to `threadId`, so it is not dropped.
+   *
+   * - The same thread is open again: it goes onto what is rendered, where
+   *   that load adopts it, or writes it now if its read has landed.
+   * - Another thread, or none, is open: it is written after what is stored.
+   * - The thread could not be read: nothing is written over it, and the loss
+   *   is reported, since nothing else would say so.
+   */
+  private static _keepOvertaken(
+    threadId: string,
+    stored: ChatItem[] | null,
+    unwritten: ChatItem[]
+  ) {
+    if (!unwritten.length) return;
+
+    if (PgAssistant._threadId === threadId) {
+      PgAssistant._items.push(...unwritten);
+      PgAssistant._emit();
+      return;
+    }
+    if (stored === null) {
+      report(
+        `keep ${threadId}: ${unwritten.length} message(s) typed during a read ` +
+          "of an unreadable thread were not saved",
+        null
+      );
+      return;
+    }
+    PgAssistant._queueWrite(threadId, [...stored, ...unwritten]);
   }
 
   /**
@@ -965,10 +1001,12 @@ export class PgAssistant {
 
   private static _threadId: string | null = null;
   /**
-   * Set while the open thread is being read and when it failed to read,
-   * cleared when one reads cleanly or the thread is closed
+   * Whether the open thread may be written: not while its read is out, nor
+   * after that read failed, since in both cases `_items` is not the thread
    */
-  private static _readOnly = false;
+  private static _writes: ThreadWrites = "open";
+  /** Bumped by every load and close, so a read can tell it was overtaken */
+  private static _loadSeq = 0;
   private static _lastWrite: Promise<void> = Promise.resolve();
   /** The thread read `loadThread` has out, if any */
   private static _loading: { threadId: string; done: Promise<void> } | null =
@@ -995,10 +1033,9 @@ export class PgAssistant {
   private static _persist() {
     if (!PgAssistant._threadId) return;
     // The open thread is still being read, or could not be: either way what
-    // is in memory is not the thread -- it is the empty list standing in for
-    // it. Writing it back would replace the stored thread, or a file that may
-    // still be recoverable by hand, with nothing.
-    if (PgAssistant._readOnly) return;
+    // is in memory is not the stored thread, and writing it back would
+    // replace that thread, or a file that may still be recoverable by hand
+    if (PgAssistant._writes !== "open") return;
 
     PgAssistant._queueWrite(PgAssistant._threadId, [...PgAssistant._items]);
   }
