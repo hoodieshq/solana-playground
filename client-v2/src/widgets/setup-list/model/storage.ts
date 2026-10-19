@@ -65,42 +65,67 @@ export const readMarks = (storage?: Storage): SetupMarks => {
 };
 
 /**
- * The marks held in memory, read from storage once. A mark takes effect on
- * this page before it is written, so a refused write (reported) still hides
- * a dismissed checklist until the next load.
+ * The marks held in memory, read from storage once. Each mark only ever turns
+ * true, so a mark merges with what storage holds now (another tab may have
+ * dismissed the list since this one read it) and never undoes it. A mark takes
+ * effect on this page before it is written, so a refused write (reported once
+ * per page) still hides a dismissed checklist until the next load.
  */
 export const createSetupMarks = (storage?: Storage) => {
   let marks: SetupMarks | null = null;
+  let writeReported = false;
   const listeners = new Set<() => void>();
 
   const get = () => {
     marks ??= readMarks(storage);
     return marks;
   };
+  const notify = () => listeners.forEach((listener) => listener());
+
+  /** Reads storage again, as when another tab stored a mark */
+  const reload = () => {
+    marks = readMarks(storage);
+    notify();
+  };
+  // Another tab stored a mark: take it, so an open list hides there too
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === SETUP_LIST_KEY) reload();
+  };
 
   return {
     get,
+    reload,
     subscribe(listener: () => void) {
+      if (listeners.size === 0) window.addEventListener("storage", onStorage);
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
+        if (listeners.size === 0) {
+          window.removeEventListener("storage", onStorage);
+        }
       };
     },
-    mark(patch: Partial<SetupMarks>) {
+    mark(which: keyof SetupMarks) {
       const current = get();
+      if (current[which]) return;
+      const stored = readMarks(storage);
       marks = {
-        dismissed: patch.dismissed ?? current.dismissed,
-        completed: patch.completed ?? current.completed,
-        networkChosen: patch.networkChosen ?? current.networkChosen,
+        dismissed: current.dismissed || stored.dismissed,
+        completed: current.completed || stored.completed,
+        networkChosen: current.networkChosen || stored.networkChosen,
       };
-      listeners.forEach((listener) => listener());
+      marks[which] = true;
+      notify();
       try {
         (storage ?? localStorage).setItem(
           SETUP_LIST_KEY,
           JSON.stringify(marks)
         );
       } catch (e) {
-        log.error(e, { report: true, context: { patch } });
+        // Blocked or full storage refuses every write; once tells the team
+        if (writeReported) return;
+        writeReported = true;
+        log.error(e, { report: true, context: { which } });
       }
     },
   };
@@ -109,7 +134,7 @@ export const createSetupMarks = (storage?: Storage) => {
 export const setupMarks = createSetupMarks();
 
 /** Counts "Choose a network": any pick in the settings, the current one too */
-export const markNetworkChosen = () => setupMarks.mark({ networkChosen: true });
+export const markNetworkChosen = () => setupMarks.mark("networkChosen");
 
 export const useSetupMarks = () =>
   useSyncExternalStore(setupMarks.subscribe, setupMarks.get);

@@ -65,7 +65,7 @@ afterEach(() => {
   wallet.current = null;
   assistant.connected = false;
   localStorage.clear();
-  setupMarks.mark({ dismissed: false, completed: false, networkChosen: false });
+  setupMarks.reload();
   PgSession.reset();
 });
 
@@ -95,7 +95,7 @@ const signInAsTester = () =>
 
 const doAllFour = async () => {
   assistant.connected = true;
-  setupMarks.mark({ networkChosen: true });
+  setupMarks.mark("networkChosen");
   wallet.current = { publicKey: { toBase58: () => ADDRESS } };
   await signInAsTester();
 };
@@ -129,7 +129,7 @@ it("ticks the wallet step with the short address", () => {
 });
 
 it("ticks the network step with the cluster once a network was chosen", () => {
-  setupMarks.mark({ networkChosen: true });
+  setupMarks.mark("networkChosen");
   draw();
   expect(screen.getByText("devnet")).toBeTruthy();
 });
@@ -236,7 +236,19 @@ it("never shows with all four done, and counts the completion once", async () =>
     <SetupList onConnectAssistant={vi.fn()} onChooseNetwork={vi.fn()} />
   );
   expect(eventsNamed("setup_completed")).toEqual([{}]);
-  expect(setupMarks.get().completed).toBe(true);
+  expect(JSON.parse(localStorage.getItem(SETUP_LIST_KEY) ?? "{}")).toEqual({
+    dismissed: false,
+    completed: true,
+    networkChosen: true,
+  });
+});
+
+it("does not count the completion again on a later load", async () => {
+  await doAllFour();
+  setupMarks.mark("completed");
+  draw();
+  expect(title()).toBeNull();
+  expect(eventsNamed("setup_completed")).toEqual([]);
 });
 
 it("stays gone after completion when a step is no longer done", async () => {

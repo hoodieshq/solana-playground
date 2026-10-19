@@ -77,7 +77,7 @@ describe("readMarks", () => {
 
 describe("setupMarks", () => {
   it("writes a mark and reads it back on the next load", () => {
-    createSetupMarks().mark({ networkChosen: true });
+    createSetupMarks().mark("networkChosen");
     expect(createSetupMarks().get()).toEqual({
       dismissed: false,
       completed: false,
@@ -85,27 +85,67 @@ describe("setupMarks", () => {
     });
   });
 
-  it("keeps a mark for this page when storage refuses the write, and reports it", () => {
-    const memory = memoryProvider();
-    initLogger({ providers: [memory] });
-    const storage = refusingStorage();
-    const marks = createSetupMarks(storage);
+  it("writes nothing and notifies no one for a mark already set", () => {
+    const marks = createSetupMarks();
+    marks.mark("networkChosen");
     const listener = vi.fn();
     marks.subscribe(listener);
-    // The read's own warning is not what this test is about
-    marks.get();
-    memory.entries.length = 0;
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      marks.mark("networkChosen");
+      expect(write).not.toHaveBeenCalled();
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
+  });
 
-    marks.mark({ dismissed: true });
+  it("keeps another tab's dismissal when this tab marks something else", () => {
+    // This tab read the marks before the other tab dismissed the list
+    const stale = createSetupMarks();
+    stale.get();
+    createSetupMarks().mark("dismissed");
+
+    stale.mark("networkChosen");
+
+    expect(createSetupMarks().get()).toEqual({
+      dismissed: true,
+      completed: false,
+      networkChosen: true,
+    });
+  });
+
+  it("takes another tab's mark as soon as it is stored", () => {
+    const marks = createSetupMarks();
+    const listener = vi.fn();
+    marks.subscribe(listener);
+    marks.get();
+    localStorage.setItem(
+      SETUP_LIST_KEY,
+      '{"dismissed":true,"completed":false,"networkChosen":false}'
+    );
+
+    window.dispatchEvent(new StorageEvent("storage", { key: SETUP_LIST_KEY }));
 
     expect(marks.get().dismissed).toBe(true);
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(memory.entries).toEqual([
-      expect.objectContaining({
-        ns: "setup-list:storage",
-        level: "error",
-        report: true,
-      }),
+  });
+
+  it("keeps a mark for this page when storage refuses the write, and reports it once", () => {
+    const memory = memoryProvider();
+    initLogger({ providers: [memory] });
+    const marks = createSetupMarks(refusingStorage());
+    const listener = vi.fn();
+    marks.subscribe(listener);
+
+    marks.mark("dismissed");
+    marks.mark("networkChosen");
+
+    expect(marks.get().dismissed).toBe(true);
+    expect(marks.get().networkChosen).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(memory.entries.filter((entry) => entry.report)).toEqual([
+      expect.objectContaining({ ns: "setup-list:storage", level: "error" }),
     ]);
   });
 
@@ -113,7 +153,7 @@ describe("setupMarks", () => {
     const marks = createSetupMarks();
     const listener = vi.fn();
     marks.subscribe(listener)();
-    marks.mark({ completed: true });
+    marks.mark("completed");
     expect(listener).not.toHaveBeenCalled();
   });
 });

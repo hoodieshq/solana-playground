@@ -6,6 +6,7 @@ import { useRenderOnChange, useWallet } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommand, PgConnection, PgView } from "@/utils";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
+import { SETUP_STEPS } from "../model/steps";
 import type { SetupStep, StepView } from "../model/steps";
 import { setupMarks, useSetupMarks } from "../model/storage";
 import { setupTelemetry } from "../model/telemetry";
@@ -13,7 +14,10 @@ import BaseSetupList from "./BaseSetupList";
 
 const log = createLogger("setup-list:actions");
 
-/** As the account menu shows an address */
+/**
+ * The format of `shortAddress` in `widgets/session-footer`, copied: a widget
+ * does not import another
+ */
 const shortAddress = (address: string) =>
   `${address.slice(0, 4)}…${address.slice(-4)}`;
 
@@ -47,22 +51,27 @@ const SetupList = ({ onConnectAssistant, onChooseNetwork }: SetupListProps) => {
   const wallet = useWallet();
   const user = PgSession.get();
 
-  const steps: StepView[] = [
-    { step: "assistant", done: PgAssistant.isConnected },
-    { step: "network", done: marks.networkChosen, value: cluster ?? undefined },
-    { step: "github", done: !!user, value: user?.login ?? undefined },
-    {
-      step: "wallet",
+  // Keyed by step, so a new step without a state does not compile
+  const states: Record<SetupStep, Omit<StepView, "step">> = {
+    assistant: { done: PgAssistant.isConnected },
+    network: { done: marks.networkChosen, value: cluster ?? undefined },
+    github: { done: !!user, value: user?.login ?? undefined },
+    wallet: {
       done: !!wallet,
       value: wallet ? shortAddress(wallet.publicKey.toBase58()) : undefined,
     },
-  ];
+  };
+  const steps: StepView[] = SETUP_STEPS.map((step) => ({
+    step,
+    done: states[step].done,
+    value: states[step].value,
+  }));
   const done = steps.filter((s) => s.done).length;
   const allDone = done === steps.length;
 
   useEffect(() => {
     if (!allDone || setupMarks.get().completed) return;
-    setupMarks.mark({ completed: true });
+    setupMarks.mark("completed");
     setupTelemetry.track("setup_completed", {});
   }, [allDone]);
 
@@ -72,8 +81,9 @@ const SetupList = ({ onConnectAssistant, onChooseNetwork }: SetupListProps) => {
     network: onChooseNetwork,
     github: () => {
       PgSession.signIn().catch((error: unknown) => {
-        // `PgSession.signInState` holds a known failure and the account row
-        // shows it; `auth` telemetry has its reason
+        // `PgSession.signInState` holds every failure (a known step, or
+        // `request-failed`) and the account row shows it; `auth` telemetry has
+        // its reason
         if (isSignInFailure(error)) {
           log.info("sign-in failed", { context: { error: String(error) } });
           return;
@@ -101,7 +111,7 @@ const SetupList = ({ onConnectAssistant, onChooseNetwork }: SetupListProps) => {
 
   const dismiss = () => {
     setupTelemetry.track("setup_dismissed", { done });
-    setupMarks.mark({ dismissed: true });
+    setupMarks.mark("dismissed");
   };
 
   // `allDone` too: the effect marks completion after this render, and the

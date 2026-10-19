@@ -8,7 +8,7 @@ export const SETUP_STEPS = [
 
 export type SetupStep = typeof SETUP_STEPS[number];
 
-/** One step as drawn: done steps show a value (cluster, login, address) */
+/** One step as drawn: a done step may show a value (cluster, login, address) */
 export interface StepView {
   step: SetupStep;
   done: boolean;
