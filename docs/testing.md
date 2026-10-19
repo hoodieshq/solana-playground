@@ -26,8 +26,9 @@ Console messages that are expected and fail no case:
 | --- | --- | --- |
 | A COEP error for the preview toolbar | Vercel previews | The toolbar's frame lacks the headers the page's COEP requires |
 | A failed request for `manifest.json` | Vercel previews behind protection | The browser fetches the manifest without the bypass cookie |
-| A `503` for `/api/auth/get-session` | client-v2 with no database (C-4, D-8) | The account endpoints need Postgres |
-| `ResizeObserver loop completed with undelivered notifications` | client-v2 | Reported by the browser for the panel layout; harmless |
+| A `503` for `/api/auth/get-session` | client-v2 with no database or no sign-in configured locally (C-4, D-8) | The account endpoints need Postgres and the OAuth app |
+| `ResizeObserver loop completed with undelivered notifications.`, logged by `logger:global` | client-v2 branches without HOO-2125 | Reported by the browser for the panel layout; harmless. The global handler drops it since HOO-2125, so where that fix is in, it fails C-4 again |
+| `ENOENT` for `/<project>/.workspace`, once, right after a project is created | client-v2 | The workspace folder is read before its first write; it shows in passing runs too |
 
 ## 0. Prerequisites
 
@@ -193,7 +194,8 @@ curl -sI http://localhost:3000
 
 Expect:
 
-- [ ] the page loads at `http://localhost:3000` with no console errors on load.
+- [ ] the page loads at `http://localhost:3000` with no console errors on load, apart from the expected messages
+      listed at the top of this document.
 - [ ] the IDE renders: file explorer, editor, and terminal. Typing `help` in the terminal lists the commands, which
       proves the wasm packages loaded.
 - [ ] the network tab shows no failed request on load (no 4xx, 5xx, or HTML served for a non-HTML file), apart from
@@ -233,8 +235,8 @@ curl -s http://localhost:3000/api/health
 
 Expect:
 
-- [ ] the page loads at `http://localhost:3000`, and the C-1 checks for the IDE, the terminal `help`, and the network
-      tab pass.
+- [ ] the page loads at `http://localhost:3000`, and the C-1 checks for the console, the IDE, the terminal `help`, and
+      the network tab pass.
 - [ ] `/api/health` returns `200` (it is served by the client-v2 dev server, not the build server).
 - [ ] the COEP and COOP headers from C-1 are present.
 - [ ] S-10 passes against this server.

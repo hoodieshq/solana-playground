@@ -110,7 +110,10 @@ the tag `ns` to the entry's namespace, and SHALL do nothing when
 
 The logger SHALL log with `Logger.panic` every uncaught error, unhandled
 promise rejection, and error thrown while rendering, and Sentry SHALL NOT
-capture them through any other path.
+capture them through any other path. The one exception is the browser's
+`ResizeObserver loop completed with undelivered notifications.` error event,
+which carries no `error` and is dropped before it is logged; an event with
+any other message, or with an `error`, is logged (HOO-2125).
 
 #### Scenario: An unhandled rejection
 
