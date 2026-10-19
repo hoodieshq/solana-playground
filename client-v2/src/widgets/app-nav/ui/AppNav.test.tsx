@@ -77,6 +77,7 @@ const draw = () =>
           projects={null}
           footer={null}
           railFooter={null}
+          setup={null}
         />
       </SidebarProvider>
     </TooltipProvider>

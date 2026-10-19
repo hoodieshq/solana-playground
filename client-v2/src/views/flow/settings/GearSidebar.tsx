@@ -13,6 +13,7 @@ import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { markNetworkChosen } from "@/widgets/setup-list";
 import { Endpoint, PLATFORM_ENDPOINTS } from "../../../constants";
 import {
   useBlockExplorer,
@@ -64,8 +65,13 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
 export const BaseNetworkChoice: FC<{
   endpoint: string;
   onPick: (endpoint: string) => void;
+  /**
+   * Any pick, the network already chosen included, which `Segmented` does
+   * not report: "Choose a network" counts it
+   */
+  onChoose?: (endpoint: string) => void;
   groupRef?: React.Ref<HTMLDivElement>;
-}> = ({ endpoint, onPick, groupRef }) => {
+}> = ({ endpoint, onPick, onChoose, groupRef }) => {
   const listed = NETWORKS.some((n) => n.endpoint === endpoint);
   return (
     <Segmented
@@ -73,13 +79,19 @@ export const BaseNetworkChoice: FC<{
       variant="chips"
       aria-label="Network"
       value={listed ? endpoint : ""}
-      onValueChange={onPick}
+      onValueChange={(e) => {
+        onPick(e);
+        onChoose?.(e);
+      }}
     >
       {NETWORKS.map((n) => (
         <SegmentedItem
           key={n.endpoint}
           value={n.endpoint}
           className="font-mono"
+          onClick={() => {
+            if (n.endpoint === endpoint) onChoose?.(n.endpoint);
+          }}
         >
           {n.label}
         </SegmentedItem>
@@ -205,6 +217,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
           groupRef={chipsRef}
           endpoint={endpoint}
           onPick={(e) => (PgSettings.connection.endpoint = e)}
+          onChoose={markNetworkChosen}
         />
       </Section>
 

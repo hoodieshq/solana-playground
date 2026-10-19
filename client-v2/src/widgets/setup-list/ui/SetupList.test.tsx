@@ -19,7 +19,7 @@ import SetupList from "./SetupList";
 
 const cluster = vi.hoisted(() => ({ name: "devnet" }));
 const wallet = vi.hoisted(() => ({
-  current: null as null | { publicKey: { toBase58: () => string } },
+  current: null as null | undefined | { publicKey: { toBase58: () => string } },
 }));
 const assistant = vi.hoisted(() => ({ connected: false }));
 const connect = vi.hoisted(() => ({ execute: vi.fn() }));
@@ -113,6 +113,13 @@ it("ticks the GitHub step with the login once signed in", async () => {
   expect(
     screen.queryByRole("button", { name: "Sign in with GitHub" })
   ).toBeNull();
+});
+
+it("leaves the wallet step to do before the wallet store has answered", () => {
+  // `useRenderOnChange` holds `undefined` until the first change
+  wallet.current = undefined;
+  draw();
+  expect(screen.getByRole("button", { name: "Connect a wallet" })).toBeTruthy();
 });
 
 it("ticks the wallet step with the short address", () => {

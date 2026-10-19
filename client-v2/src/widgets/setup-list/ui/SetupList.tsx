@@ -49,11 +49,11 @@ const SetupList = ({ onConnectAssistant, onChooseNetwork }: SetupListProps) => {
 
   const steps: StepView[] = [
     { step: "assistant", done: PgAssistant.isConnected },
-    { step: "network", done: marks.networkChosen, value: cluster },
-    { step: "github", done: user !== null, value: user?.login },
+    { step: "network", done: marks.networkChosen, value: cluster ?? undefined },
+    { step: "github", done: !!user, value: user?.login ?? undefined },
     {
       step: "wallet",
-      done: wallet !== null,
+      done: !!wallet,
       value: wallet ? shortAddress(wallet.publicKey.toBase58()) : undefined,
     },
   ];

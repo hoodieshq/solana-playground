@@ -31,10 +31,11 @@ import Wallet from "@/components/Wallet";
 import { useKeybind } from "@/hooks";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
-import { Assistant } from "@/widgets/assistant";
+import { Assistant, openConnectDialog } from "@/widgets/assistant";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
+import { SetupList } from "@/widgets/setup-list";
 import type { Disposable } from "@/utils/types";
 
 /**
@@ -89,6 +90,15 @@ const FlowFrame = () => {
       if (!settingsOpen) closeSheet();
       setSettingsFocus(focus);
       setSettingsOpen((open) => !open);
+    };
+  // Opens, never toggles: the checklist's "Choose a network" must not shut
+  // settings that are already open
+  const openSettings =
+    (closeSheet: () => void) =>
+    (focus: SettingsFocus = "panel") => {
+      closeSheet();
+      setSettingsFocus(focus);
+      setSettingsOpen(true);
     };
 
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘, on a Mac and Ctrl+,
@@ -195,6 +205,12 @@ const FlowFrame = () => {
                 <RailFooter
                   settingsOpen={settingsOpen}
                   onToggleSettings={toggleSettings(closeSheet)}
+                />
+              }
+              setup={
+                <SetupList
+                  onConnectAssistant={() => openConnectDialog("setup")}
+                  onChooseNetwork={() => openSettings(closeSheet)("network")}
                 />
               }
             />
