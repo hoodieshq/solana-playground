@@ -395,6 +395,14 @@ it and give focus back to the control that opened it.
 - **THEN** the same file is open with the same content, and focus is back
   on the cluster row
 
+#### Scenario: Escape in a dialog opened from the settings closes only the dialog
+
+- **WHEN** a user opens "From GitHub" on the settings page and presses
+  Escape
+- **THEN** the dialog closes and the settings page stays open
+- **WHEN** the user opens it again and presses ⌘,
+- **THEN** the settings page and the dialog both close
+
 #### Scenario: The settings page on a phone
 
 - **WHEN** a user on a 390 px wide screen opens the settings

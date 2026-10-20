@@ -1545,8 +1545,9 @@ they are answered. One PR.
   the rest come from `PgSettings.all`, grouped by the id's prefix as before.
   The overlay's Explorer links (Wallet, Program, Program IDL) sit in Block
   Explorer, shown only when there is a wallet or a program. A setting is a row:
-  name and description at the left, the control at the right; on a phone the
-  control goes under them, full width. A boolean is a `Switch` (5.3), where the
+  name and description at the left, the control at the right; on a phone a
+  select goes under them, full width, while a switch stays at the right, as
+  the prototype's checkbox does. A boolean is a `Switch` (5.3), where the
   prototype draws a checkbox.
 - **Sections do not fold.** The prototype's sections are flat, so the
   upstream `Collapsible` groups go. The fold scenario in `client-v2-elements`
@@ -1559,18 +1560,24 @@ they are answered. One PR.
   rail's dot, the account menu's Settings and cluster warning, and ⌘,
   (Ctrl+, off macOS). `focus: "network"` lands on the chosen network, any
   other open on the page's heading. "Back to app", Escape (not while a modal
-  is open) and ⌘, close it and give focus back to the control that opened it.
+  is open, nor one an open select already took) and ⌘, close it and give
+  focus back to the control that opened it; the account menu names its
+  trigger (`SettingsRequest.returnTo`), since the item unmounts with the
+  menu. ⌘, closes a dialog opened from the page along with it.
   The close control is named "Back to app", its visible text, replacing
   "Close settings" (Slava, 2026-10-20: the name says what the button shows).
 - **A widget, `widgets/settings-page`**: `BaseSettingsPage` (the frame, the
   list, the sections, all through props), `BaseSettingRow`, and
   `SettingsPage`, which connects `PgSettings`, the explorer and the wallet.
-  `SettingsFocus` and the trigger attribute move to `shared/lib`, so the
-  session footer does not import another widget. The upstream renderer
-  `app/Panels/Side/Left/` (`Settings.tsx`, `CustomSetting.tsx` and the test)
-  has no other user and sits in the `app` layer, which a widget cannot
-  import: it moves whole into the widget's `ui/` in its own commit, by the UI
-  move rule, and loses its folding groups and its popover chrome there.
+  `SettingsRequest` (`SettingsFocus`, `SettingsEntry`, `SettingsExit`) and
+  the trigger attribute move to `shared/lib`, so the session footer does not
+  import another widget. The upstream renderer `app/Panels/Side/Left/` has no
+  other user and sits in the `app` layer, which a widget cannot import:
+  `Settings.tsx` and its test move into the widget's `ui/` as
+  `SettingControl`, in their own commit by the UI move rule, and lose their
+  folding groups and popover chrome there. `CustomSetting.tsx` goes to the
+  legacy `views/flow/settings/` instead: it is drawn in overlays'
+  `ModalFrame`, and a widget cannot import another widget.
 - **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
   menu | key}`, `settings_closed {via: back | escape | key}` and
   `settings_section_picked {section}`. Export and import failures keep going
