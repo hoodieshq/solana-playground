@@ -56,9 +56,10 @@ const subscribe = (onChange: () => void) =>
 
 /**
  * Renders `PgView.getOpenModals()`, the dialogs opened with
- * `PgView.openModal` or `setModal`, in the design system's `Modal`. A dialog opened from another stacks on it. The one below stays
- * mounted but draws nothing: state held above its `ModalFrame` survives, the
- * frame's own subtree remounts when it is on top again. Escape, a press
+ * `PgView.openModal` or `setModal`, in the design system's `Modal`. A dialog
+ * opened from another stacks on it. The one below stays mounted but draws
+ * nothing: state held above its `ModalFrame` survives, the frame's own
+ * subtree remounts when it is on top again. Escape, a press
  * outside and the header's Close close the top dialog with no answer, except
  * while its submit runs.
  */
