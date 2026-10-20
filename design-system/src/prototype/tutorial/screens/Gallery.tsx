@@ -208,16 +208,19 @@ export function Gallery() {
 
         {tab === "programs" ? (
           // The tab switches for real, so the flow reads as a product. What's behind it isn't in this cut
-          <Empty className="mt-10 border-0">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Boxes />
+          // Empty's title and text come from stock shadcn (14px, tight tracking), so they take Playground's scale here
+          <Empty className="mt-12 gap-5 border-0 p-0">
+            <EmptyHeader className="gap-3">
+              <EmptyMedia variant="icon" className="mb-1 size-12! rounded-panel! bg-surface-raised! text-muted-foreground! [&_svg]:size-6!">
+                <Boxes strokeWidth={1.75} />
               </EmptyMedia>
-              <EmptyTitle>Programs aren't in this prototype</EmptyTitle>
-              <EmptyDescription>This take covers the tutorial flow on a phone. The 34 example programs come in a later pass.</EmptyDescription>
+              <EmptyTitle className="font-heading text-title! font-[440]! tracking-normal!">Programs aren't in this prototype</EmptyTitle>
+              <EmptyDescription className="max-w-[30ch] text-caption! leading-relaxed">
+                This take covers tutorials on a phone. The 34 programs come in a later pass.
+              </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button variant="secondary" className="h-11" onClick={() => setTab("tutorials")}>
+              <Button variant="outline" className="h-11 rounded-full px-5 text-control" onClick={() => setTab("tutorials")}>
                 Back to tutorials
               </Button>
             </EmptyContent>
