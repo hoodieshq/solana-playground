@@ -5,10 +5,22 @@ export type HomeTile = "new-project" | "tutorials" | "programs";
 /** The tiles that open the gallery on their tab; New project unfolds instead */
 export type GalleryTile = Exclude<HomeTile, "new-project">;
 export type HomeQuickstart = "continue" | "new" | "tutorial";
+/**
+ * How Home came to show: the start, the navigation's Home, the last project
+ * deleted, or a way back to `/` with no project open
+ */
+export type HomeVia = "start" | "nav" | "last-deleted" | "back";
+/**
+ * How the work took over from Home: the open project picked in the list,
+ * the phone's Continue, or anything that opens a project or a route
+ */
+export type HomeLeaveVia = "current-project" | "continue" | "open";
 
 type HomeEvents = {
-  /** Home was shown, on a start with no project */
-  home_shown: NoParams;
+  /** Home was shown, and how it came to (`HomeVia`) */
+  home_shown: { via: HomeVia };
+  /** The work took over from Home, and how (`HomeLeaveVia`) */
+  home_left: { via: HomeLeaveVia };
   /** A user opened one of Home's three tiles */
   home_tile_opened: { tile: HomeTile };
   /** A user opened a tutorial from Home's cards */

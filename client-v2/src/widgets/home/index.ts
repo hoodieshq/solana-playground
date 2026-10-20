@@ -4,4 +4,5 @@ export { default as PhoneHome } from "./ui/PhoneHome";
 export { homeSlot, isHomeShown } from "./ui/home-slot";
 export type { HomeSlot } from "./ui/home-slot";
 export { useStartView } from "./model/start-view";
-export type { StartView } from "./model/start-view";
+export type { PageView, StartView } from "./model/start-view";
+export type { HomeLeaveVia, HomeVia } from "./model/telemetry";
