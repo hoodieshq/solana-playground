@@ -9,19 +9,31 @@ export type StartView = "pending" | "home" | "work";
 const log = createLogger("home:start");
 
 /**
- * Home is for a start on `/` with no project. Any other route opens straight
- * on the work; on `/` the answer waits for the explorer.
+ * How long `/` waits for the explorer before it gives up on Home: IndexedDB
+ * held by another tab's upgrade never answers, and the stage would stay
+ * empty for good.
+ */
+export const START_TIMEOUT_MS = 10_000;
+
+/**
+ * Home is for a start on `/` with no project open. Any other route opens
+ * straight on the work; on `/` the answer waits for the explorer. Projects
+ * listed with none current is still Home: sync imports the account's
+ * projects without opening them, and the work mounted then throws in the
+ * explorer. `useStartView` leaves Home once one is opened.
  */
 export const decideStart = ({
   path,
   workspaces,
+  current,
 }: {
   path: string;
   workspaces: readonly string[] | undefined;
+  current: string | undefined;
 }): StartView => {
   if (path !== "/") return "work";
   if (workspaces === undefined) return "pending";
-  return workspaces.length ? "work" : "home";
+  return workspaces.length && current ? "work" : "home";
 };
 
 /**
@@ -37,13 +49,23 @@ export const useStartView = (): StartView => {
     decideStart({
       path: PgRouter.location.pathname,
       workspaces: PgExplorer.allWorkspaceNames,
+      current: PgExplorer.currentWorkspaceName,
     })
   );
 
   useEffect(() => {
     if (view !== "pending") return;
     let live = true;
+    const watchdog = setTimeout(() => {
+      live = false;
+      log.error(
+        new Error(`The explorer did not answer within ${START_TIMEOUT_MS} ms`),
+        { report: true }
+      );
+      setView("work");
+    }, START_TIMEOUT_MS);
     PgExplorer.init()
+      .finally(() => clearTimeout(watchdog))
       .then(() => {
         if (!live) return;
         const workspaces = PgExplorer.allWorkspaceNames;
@@ -56,7 +78,13 @@ export const useStartView = (): StartView => {
           setView("work");
           return;
         }
-        setView(decideStart({ path: PgRouter.location.pathname, workspaces }));
+        setView(
+          decideStart({
+            path: PgRouter.location.pathname,
+            workspaces,
+            current: PgExplorer.currentWorkspaceName,
+          })
+        );
       })
       .catch((e: unknown) => {
         // The work is the start without Home and still works
@@ -65,6 +93,7 @@ export const useStartView = (): StartView => {
       });
     return () => {
       live = false;
+      clearTimeout(watchdog);
     };
   }, [view]);
 

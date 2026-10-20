@@ -1232,7 +1232,12 @@ project lands on Home instead of the gallery modal.
   before it decides; `init` runs its calls one after another, so the route's
   own call later is harmless. An `init` that leaves no project list is
   reported and opens the work.
-  Until the answer the shell shows neither Home nor the work. Home leaves,
+  Until the answer the shell shows a spinner in Home's place, neither Home
+  nor the work. An explorer that has not answered after 10 s
+  (`START_TIMEOUT_MS`; IndexedDB held by another tab's upgrade never does)
+  is reported and opens the work. Projects listed with none open is still
+  Home (`decideStart` asks for a current project, as leaving Home does).
+  Home leaves,
   for the rest of the page load, once a project is open: one created or
   switched to, or a tutorial route. The account's projects arriving by sync
   leave Home only when the session opens one (`importWorkspace` opens none;
@@ -1246,8 +1251,9 @@ project lands on Home instead of the gallery modal.
   route's `setMainPrimary` waits for the work to mount without polling: it
   asks a mounted `Primary` once, and otherwise waits for the mount `Primary`
   announces (`PgView.announceMainPrimaryMount`), one listener of each kind
-  per call. A getter that answers with an error rejects rather than being
-  retried. While Home shows, several routes' `setMainPrimary` calls can be
+  per call. A getter that answers with an error is reported
+  (`view:main-primary`, `report: true`) and leaves the view as it is, rather
+  than being retried; the routes do not await the call. While Home shows, several routes' `setMainPrimary` calls can be
   waiting (strict mode runs `/` twice, then a tutorial route); only the
   newest call sets the view (`mainPrimaryCalls` in `PgView`, an idea ported
   from the redesign reference), else the start route's Default could
