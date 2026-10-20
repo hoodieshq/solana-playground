@@ -1,4 +1,5 @@
 import { report } from "./diagnostics";
+import { PgSyncClaim } from "./sync-claim";
 import { PgSession } from "../../auth";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { FileHashes } from "./snapshot";
@@ -147,10 +148,12 @@ export class PgSyncMark {
     }
   }
 
+  /** Drops the project's claim too: the mark says whose it is from here on */
   static write(projectId: string, mark: SyncMark) {
-    return PgSyncMark._serial(projectId, () =>
-      PgSyncMark._write(projectId, mark)
-    );
+    return PgSyncMark._serial(projectId, async () => {
+      await PgSyncMark._write(projectId, mark);
+      await PgSyncClaim.drop(projectId);
+    });
   }
 
   /**
@@ -230,7 +233,11 @@ export class PgSyncMark {
     }
   }
 
-  /** Queued like a write, so a flag already reading it cannot bring it back */
+  /**
+   * Queued like a write, so a flag already reading it cannot bring it back.
+   * Drops the claim too: left behind, it would vouch for another account's
+   * project that later turns up under the same id.
+   */
   static remove(projectId: string) {
     return PgSyncMark._serial(projectId, async () => {
       const userId = currentUserId();
@@ -241,6 +248,7 @@ export class PgSyncMark {
       } catch (e) {
         if (!isMissing(e)) report(`remove sync mark ${projectId}`, e);
       }
+      await PgSyncClaim.drop(projectId);
     });
   }
 
@@ -292,6 +300,21 @@ export class PgSyncMark {
       if (!isMissing(e)) report(`owners of ${projectId}`, e);
       return false;
     }
+  }
+
+  /**
+   * Whether a project on this browser is another account's, and so must not
+   * be uploaded into the one signed in: this account has no mark for it,
+   * readable or not, and no claim (`PgSyncClaim`), while another account has a
+   * mark. Without the claim, a tutorial this account started here under the
+   * id another account's copy had would read as that account's leftover.
+   */
+  static async belongsToAnotherAccount(projectId: string): Promise<boolean> {
+    return (
+      !(await PgSyncMark.exists(projectId)) &&
+      !(await PgSyncClaim.has(projectId)) &&
+      (await PgSyncMark.ownedByAnother(projectId))
+    );
   }
 
   /** Drop this account's marks. Test seam, and a way out of a wedged state. */

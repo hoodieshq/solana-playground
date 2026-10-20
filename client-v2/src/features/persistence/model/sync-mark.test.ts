@@ -1,3 +1,4 @@
+import { PgSyncClaim } from "./sync-claim";
 import { PgSyncMark } from "./sync-mark";
 import { PgSession } from "../../auth";
 import { PgFs } from "../../../utils/explorer/fs";
@@ -26,6 +27,29 @@ describe("PgSyncMark", () => {
     };
     await PgSyncMark.write("p1", mark);
     expect(await PgSyncMark.read("p1")).toEqual(mark);
+  });
+
+  it("drops the claim when it writes the mark, by any path", async () => {
+    // A merge or an adopt writes the mark without a first push; a claim left
+    // behind would later vouch for another account's project under this id
+    await PgSyncClaim.claim("tut:hello");
+
+    await PgSyncMark.write("tut:hello", {
+      files: { a: "h1" },
+      name: "one",
+      updatedAt: "t1",
+      dirty: false,
+    });
+
+    expect(await PgSyncClaim.has("tut:hello")).toBe(false);
+  });
+
+  it("drops the claim when it removes the mark", async () => {
+    await PgSyncClaim.claim("tut:hello");
+
+    await PgSyncMark.remove("tut:hello");
+
+    expect(await PgSyncClaim.has("tut:hello")).toBe(false);
   });
 
   it("reads a mark without per-file hashes as never agreed, yet as existing", async () => {
