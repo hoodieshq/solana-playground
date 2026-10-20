@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -76,6 +76,53 @@ it("a pick scrolls the section into view", async () => {
   expect(onPick).toHaveBeenCalledExactlyOnceWith("editor");
   const editor = screen.getByRole("region", { name: "Editor" });
   expect(scrollIntoView.mock.contexts).toEqual([editor]);
+});
+
+it("a picked section stays current while the scroll it caused settles", async () => {
+  // A section near the end cannot scroll to the top, so the one before it
+  // still crosses the band the list follows
+  let report: IntersectionObserverCallback = () => undefined;
+  class ReportingObserver {
+    constructor(callback: IntersectionObserverCallback) {
+      report = callback;
+    }
+    observe() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("IntersectionObserver", ReportingObserver);
+  const onCurrentChange = vi.fn();
+  render(
+    <BaseSettingsPage
+      sections={sections}
+      current="network"
+      onPick={vi.fn()}
+      onCurrentChange={onCurrentChange}
+      onBack={vi.fn()}
+      phone={false}
+      focus="page"
+      closable
+      onEscape={vi.fn()}
+    />
+  );
+  const ui = screen.getByRole("region", { name: "UI" });
+  const crossing = [{ target: ui, isIntersecting: true }];
+  const observer = {} as IntersectionObserver;
+
+  await userEvent.click(
+    within(sectionList()).getByRole("button", { name: "Experimental" })
+  );
+  act(() =>
+    report(crossing as unknown as IntersectionObserverEntry[], observer)
+  );
+  expect(onCurrentChange).not.toHaveBeenCalled();
+
+  // The user scrolls on their own: the list follows again
+  fireEvent.wheel(ui);
+  act(() =>
+    report(crossing as unknown as IntersectionObserverEntry[], observer)
+  );
+  expect(onCurrentChange).toHaveBeenCalledExactlyOnceWith("ui");
+  vi.unstubAllGlobals();
 });
 
 it("Back to app calls onBack", async () => {

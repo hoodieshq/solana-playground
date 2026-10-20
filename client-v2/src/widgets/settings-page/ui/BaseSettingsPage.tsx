@@ -61,6 +61,14 @@ const BaseSettingsPage = ({
   // upper third of the scroller. An observer reports only the sections whose
   // crossing changed, so the ones crossing are kept here between reports.
   // Only on a wide window: a phone shows no list.
+  //
+  // A section picked in the list stays current until the user scrolls on
+  // their own (`release`): one near the end cannot scroll to the top, so the
+  // section before it would still cross the band and take the mark.
+  const pinned = useRef(false);
+  const release = () => {
+    pinned.current = false;
+  };
   const ids = sections.map((s) => s.id);
   const order = ids.join(" ");
   useEffect(() => {
@@ -78,6 +86,7 @@ const BaseSettingsPage = ({
           if (entry.isIntersecting) crossing.add(id);
           else crossing.delete(id);
         }
+        if (pinned.current) return;
         const first = ids.find((id) => crossing.has(id));
         if (first) onCurrentChange(first);
       },
@@ -117,6 +126,7 @@ const BaseSettingsPage = ({
 
   const pick = (id: string) => {
     onPick(id);
+    pinned.current = true;
     nodes.current.get(id)?.scrollIntoView({ block: "start" });
   };
 
@@ -185,7 +195,14 @@ const BaseSettingsPage = ({
             {title}
           </div>
         )}
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={scroller}
+          className="min-h-0 flex-1 overflow-y-auto"
+          onWheel={release}
+          onTouchMove={release}
+          onPointerDown={release}
+          onKeyDown={release}
+        >
           <div
             className={cn(
               "mx-auto flex max-w-xl flex-col",
