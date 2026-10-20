@@ -10,13 +10,12 @@ import type { Predict } from "../data"
 export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer: (choice: number | "skip") => void }) {
   return (
     <footer className="shrink-0 border-t border-border bg-surface-panel px-3 pt-3 pb-[max(var(--safe-bottom),16px)]">
-      <p className="mb-3 flex items-start gap-1.5 px-1 text-caption text-muted-foreground">
-        <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
-        <span>
-          <span className="text-foreground">Before you see it: </span>
-          {predict.question}
-        </span>
+      {/* A small label, then the question itself as the main thing: one colour each, no mixing */}
+      <p className="flex items-center gap-1.5 px-1 text-caption text-muted-foreground">
+        <MessageCircle strokeWidth={1.75} className="size-4 shrink-0 text-brand-purple" />
+        Before you see it
       </p>
+      <h3 className="mt-1 mb-4 px-1 font-heading text-title text-foreground">{predict.question}</h3>
       <div className="flex flex-col gap-2">
         {predict.options.map((option, i) => (
           <button
@@ -29,7 +28,7 @@ export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer:
           </button>
         ))}
       </div>
-      <Button variant="ghost" className="mt-1 h-11 w-full text-control text-muted-foreground" onClick={() => onAnswer("skip")}>
+      <Button variant="ghost" className="h-11 w-full text-control text-muted-foreground" onClick={() => onAnswer("skip")}>
         Skip and show the code
       </Button>
     </footer>
