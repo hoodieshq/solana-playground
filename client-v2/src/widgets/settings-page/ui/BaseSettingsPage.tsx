@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 
 import { cn } from "cn";
 import { createLogger } from "@/shared/lib/logger";
+import type { SettingsFocus } from "@/shared/lib/settings-request";
 import { Button } from "@/shared/ui/button";
 
 const log = createLogger("settings-page:frame");
@@ -25,7 +26,11 @@ interface BaseSettingsPageProps {
   onBack: () => void;
   /** Below `LAYOUT_BREAKPOINTS.phone`: a bar instead of the section list */
   phone: boolean;
-  headingRef?: Ref<HTMLHeadingElement>;
+  /** Where focus lands when the page opens */
+  focus: SettingsFocus;
+  /** False while a modal opened from the page is up: Escape is the modal's */
+  closable: boolean;
+  onEscape: () => void;
 }
 
 const headingId = (id: string) => `settings-section-${id}`;
@@ -43,37 +48,72 @@ const BaseSettingsPage = ({
   onCurrentChange,
   onBack,
   phone,
-  headingRef,
+  focus,
+  closable,
+  onEscape,
 }: BaseSettingsPageProps) => {
+  const root = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const nodes = useRef(new Map<string, HTMLElement>());
 
-  // The section being read is the topmost one whose heading is in the upper
-  // third of the scroller. Only on a wide window: a phone shows no list.
-  const ids = sections.map((s) => s.id).join(" ");
+  // The section being read is the first, in page order, that crosses the
+  // upper third of the scroller. An observer reports only the sections whose
+  // crossing changed, so the ones crossing are kept here between reports.
+  // Only on a wide window: a phone shows no list.
+  const ids = sections.map((s) => s.id);
+  const order = ids.join(" ");
   useEffect(() => {
     if (phone) return;
     if (typeof IntersectionObserver === "undefined") {
       log.debug("no IntersectionObserver: the list does not follow the scroll");
       return;
     }
+    const crossing = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
-        const seen = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        const id = (seen[0]?.target as HTMLElement | undefined)?.dataset
-          .section;
-        if (id) onCurrentChange(id);
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.section;
+          if (!id) continue;
+          if (entry.isIntersecting) crossing.add(id);
+          else crossing.delete(id);
+        }
+        const first = ids.find((id) => crossing.has(id));
+        if (first) onCurrentChange(first);
       },
       { root: scroller.current, rootMargin: "0px 0px -66% 0px" }
     );
     nodes.current.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-    // `onCurrentChange` is a fresh closure every render; the sections are
-    // what the observer watches
+    // `onCurrentChange` and `ids` are fresh every render; `order` says when
+    // the sections the observer watches changed
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids, phone]);
+  }, [order, phone]);
+
+  // On open only: the checked network for the cluster row and the rail's dot
+  // (the first one when the endpoint is one no chip lists, such as a custom
+  // URL), the heading otherwise
+  useEffect(() => {
+    const group = root.current?.querySelector('[role="radiogroup"]');
+    const chip =
+      group?.querySelector<HTMLElement>(
+        '[role="radio"][aria-checked="true"]'
+      ) ?? group?.querySelector<HTMLElement>('[role="radio"]');
+    const target = focus === "network" ? chip : null;
+    (target ?? heading.current)?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!closable) return;
+    const onKeyDown = (ev: KeyboardEvent) => {
+      // A layer above the page (an open select or menu) takes its Escape and
+      // prevents it; that press closes the layer, not the page
+      if (ev.key === "Escape" && !ev.defaultPrevented) onEscape();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [closable, onEscape]);
 
   const pick = (id: string) => {
     onPick(id);
@@ -82,7 +122,7 @@ const BaseSettingsPage = ({
 
   const title = (
     <h1
-      ref={headingRef}
+      ref={heading}
       tabIndex={-1}
       className={cn(
         "font-semibold text-foreground outline-none",
@@ -95,6 +135,7 @@ const BaseSettingsPage = ({
 
   return (
     <div
+      ref={root}
       role="region"
       aria-label="Settings"
       className="fixed inset-0 z-40 flex bg-background text-foreground"

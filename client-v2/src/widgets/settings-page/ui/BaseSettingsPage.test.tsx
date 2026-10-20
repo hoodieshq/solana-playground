@@ -46,6 +46,9 @@ const draw = (props: { phone?: boolean; current?: string } = {}) => {
       onCurrentChange={vi.fn()}
       onBack={onBack}
       phone={props.phone ?? false}
+      focus="page"
+      closable
+      onEscape={vi.fn()}
     />
   );
   return { onPick, onBack };
@@ -116,4 +119,91 @@ it("a row puts its control beside the text, and under it on a phone", () => {
     <BaseSettingRow name="Word wrap" control={<button>toggle</button>} phone />
   );
   expect(layoutOf("Word wrap")).toBe("stacked");
+});
+
+const chip = (name: string, checked: boolean) => (
+  <button key={name} role="radio" aria-checked={checked}>
+    {name}
+  </button>
+);
+
+const drawFocused = (props: {
+  focus: "page" | "network";
+  closable?: boolean;
+  chips: { name: string; checked: boolean }[];
+}) => {
+  const onEscape = vi.fn();
+  const content = (
+    <div role="radiogroup" aria-label="Network">
+      {props.chips.map((c) => chip(c.name, c.checked))}
+    </div>
+  );
+  render(
+    <BaseSettingsPage
+      sections={[{ id: "network", title: "Network", content }]}
+      current="network"
+      onPick={vi.fn()}
+      onCurrentChange={vi.fn()}
+      onBack={vi.fn()}
+      phone={false}
+      focus={props.focus}
+      closable={props.closable ?? true}
+      onEscape={onEscape}
+    />
+  );
+  return onEscape;
+};
+
+const DEVNET_TESTNET = [
+  { name: "Devnet", checked: false },
+  { name: "Testnet", checked: true },
+];
+
+it('focus "network" lands on the checked network', () => {
+  drawFocused({ focus: "network", chips: DEVNET_TESTNET });
+  expect(document.activeElement?.textContent).toBe("Testnet");
+});
+
+it("an endpoint no chip lists focuses the first chip", () => {
+  drawFocused({
+    focus: "network",
+    chips: [
+      { name: "Devnet", checked: false },
+      { name: "Testnet", checked: false },
+    ],
+  });
+  expect(document.activeElement?.textContent).toBe("Devnet");
+});
+
+it('focus "page" lands on the heading', () => {
+  drawFocused({ focus: "page", chips: DEVNET_TESTNET });
+  expect(document.activeElement).toBe(
+    screen.getByRole("heading", { level: 1, name: "Settings" })
+  );
+});
+
+it("Escape closes", async () => {
+  const onEscape = drawFocused({ focus: "page", chips: DEVNET_TESTNET });
+  await userEvent.keyboard("{Escape}");
+  expect(onEscape).toHaveBeenCalledOnce();
+});
+
+it("Escape that a layer above already took (an open select) leaves the page open", async () => {
+  const onEscape = drawFocused({ focus: "page", chips: DEVNET_TESTNET });
+  // Radix's layers handle Escape on the capture phase and prevent it
+  const takeIt = (ev: KeyboardEvent) => ev.preventDefault();
+  document.addEventListener("keydown", takeIt, { capture: true });
+  await userEvent.keyboard("{Escape}");
+  document.removeEventListener("keydown", takeIt, { capture: true });
+  expect(onEscape).not.toHaveBeenCalled();
+});
+
+it("Escape while a modal is up leaves the page open", async () => {
+  const onEscape = drawFocused({
+    focus: "page",
+    closable: false,
+    chips: DEVNET_TESTNET,
+  });
+  await userEvent.keyboard("{Escape}");
+  expect(onEscape).not.toHaveBeenCalled();
 });

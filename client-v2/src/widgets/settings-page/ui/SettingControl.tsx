@@ -121,7 +121,7 @@ const Setting: FC<React.PropsWithChildren<SettingType>> = (setting) => (
     </Left>
 
     <Right>
-      <SettingSetter {...setting} />
+      <SettingControl {...setting} />
     </Right>
   </SettingWrapper>
 );
@@ -159,10 +159,9 @@ const Right = styled.div`
 
 type SettingSetterProps = SettingType;
 
-const SettingSetter: FC<React.PropsWithChildren<SettingSetterProps>> = ({
-  values,
-  ...props
-}) => {
+export const SettingControl: FC<
+  React.PropsWithChildren<SettingSetterProps>
+> = ({ values, ...props }) => {
   useRenderOnChange(props.onChange);
   if (values) return <SettingSetterSelect values={values} {...props} />;
   return <SettingSetterCheckBox {...props} />;
