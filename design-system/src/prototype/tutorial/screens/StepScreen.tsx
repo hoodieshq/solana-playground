@@ -66,7 +66,9 @@ export function StepScreen() {
   const answer = predicted[s.step]
   const lead =
     s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
-      ? `${answer === step.predict.answer ? "Right." : "Not quite."} ${step.predict.why}`
+      ? answer === step.predict.answer
+        ? step.predict.right
+        : step.predict.wrong
       : undefined
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
   const focus = (s.phase === "idle" && !s.passed[s.step] && !s.undo) || asking ? step.focus : []
@@ -75,7 +77,11 @@ export function StepScreen() {
   // first note by itself, which teaches the dots without a line of instructions
   useEffect(() => {
     const first = proposal?.notes[0]?.line
-    if (!asking && first !== undefined && !taughtNotes) {
+    // After an answer, right or wrong, the code opens on the line the question was about
+    if (!asking && s.review === "patch" && step.predict && typeof predicted[s.step] === "number") {
+      taughtNotes = true
+      setNotes([step.predict.line])
+    } else if (!asking && first !== undefined && !taughtNotes) {
       taughtNotes = true
       setNotes([first])
     } else {

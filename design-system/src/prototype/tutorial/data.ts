@@ -13,7 +13,16 @@ export type Patch = {
 }
 
 /** One question before the code shows, on steps that bring a new idea */
-export type Predict = { question: string; options: string[]; answer: number; why: string }
+export type Predict = {
+  question: string
+  options: string[]
+  answer: number
+  /** Feedback after a right and a wrong answer. The wrong one names the right answer outright */
+  right: string
+  wrong: string
+  /** The line of the new file the answer is about: its note opens once the code shows */
+  line: number
+}
 
 export type Chip = { label: string; answer: string }
 
@@ -186,7 +195,9 @@ mod hello_anchor {
       question: "Where does the hello instruction go?",
       options: ["Inside a module marked #[program]", "Inside a #[derive(Accounts)] struct", "Inside declare_id!"],
       answer: 0,
-      why: "Anchor finds a program's instructions in the module marked #[program].",
+      right: "Right. Anchor finds a program's instructions in the module marked #[program].",
+      wrong: "Not quite. It goes inside the module marked #[program], where Anchor finds a program's instructions.",
+      line: 5,
     },
     explainError:
       "In Anchor every instruction receives its accounts through a struct marked #[derive(Accounts)]. Line 9 asks for Context<Hello>, but Hello is never declared. hello reads no accounts, so an empty struct is enough.",
@@ -328,7 +339,9 @@ mod hello_anchor {
       question: "Where does the name argument go?",
       options: ["After the Context: hello(_ctx, name: String)", "Inside the Hello struct", "Inside msg!"],
       answer: 0,
-      why: "Instruction arguments come after the Context, and Anchor serializes them for you.",
+      right: "Right. Arguments come after the Context, and Anchor serializes them for you.",
+      wrong: "Not quite. It goes after the Context: hello(_ctx, name: String). Anchor serializes it for you.",
+      line: 9,
     },
     explainStep:
       "Instructions can take arguments after their Context. This step adds a name to hello and logs it, so the Test UI asks you for one.",

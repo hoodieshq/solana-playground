@@ -70,7 +70,7 @@ export function ActionZone({ lead }: { lead?: string }) {
       <>
         <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
         {/* One message, one colour: the answer's feedback, or else what the assistant changes */}
-        <span className="text-foreground">{lead ?? <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}</span>
+        <span className="text-foreground">{lead?.replaceAll("#[", "#\u2060[") ?? <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}</span>
       </>
     )
   } else {
