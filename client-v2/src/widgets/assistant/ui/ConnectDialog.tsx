@@ -127,16 +127,20 @@ const CouldNotOpen = () => (
  *
  * Marks it open at once, so the reconnects on load, a send with nothing
  * connected and a second open all stand down before the dialog has mounted;
- * from then on `ConnectDialog` holds the mark. Its answer is not read here
- * (see `ConnectDialog`).
+ * from then on `ConnectDialog` holds the mark. Once the dialog closes, the
+ * mark is cleared here too, for a dialog that never mounted to clear it (no
+ * host showed it in time, see `MODAL_HOST_WAIT`).
  */
 export const openConnectDialog: ConnectOpener = (via, preset) => {
   if (PgAssistant.isPickingBackend) return;
   assistantTelemetry.track("assistant_connect_opened", { via });
   PgAssistant.pickBackend();
 
-  PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset }).catch(
-    (error) => {
+  PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset })
+    .then(() => {
+      if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
+    })
+    .catch((error) => {
       // Opening a dialog does not fail today: `setModal` only rejects should
       // `openModal` ever throw. Then the user is left without the dialog, so
       // the team must hear of it, and the user is told why nothing opened
@@ -146,6 +150,5 @@ export const openConnectDialog: ConnectOpener = (via, preset) => {
       });
       // Nothing is choosing any more: a send may connect the default again
       if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
-    }
-  );
+    });
 };

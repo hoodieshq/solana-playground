@@ -6,7 +6,7 @@ import {
   resetLogger,
 } from "@/shared/lib/logger";
 import { PgCommon } from "./common";
-import { PgView } from "./view";
+import { MODAL_HOST_WAIT, PgView } from "./view";
 
 const names = PgCommon.getStaticStateEventNames(
   PgView.events.MAIN_PRIMARY_STATIC
@@ -210,4 +210,48 @@ it("should answer null when dismissed with no answer", async () => {
   PgView.closeTopModal();
 
   await expect(settled(answer)).resolves.toBeNull();
+});
+
+it("should close with null and report a dialog no host shows in time", async () => {
+  vi.useFakeTimers();
+  const logs = memoryLogs();
+  initLogger({ providers: [logs] });
+  const answer = PgView.setModal(Dialog);
+
+  await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT);
+
+  await expect(answer).resolves.toBeNull();
+  expect(PgView.getOpenModals()).toEqual([]);
+  expect(
+    logs.entries.map((entry) => ({ ns: entry.ns, report: entry.report }))
+  ).toEqual([{ ns: "view:modal", report: true }]);
+  resetLogger();
+  vi.useRealTimers();
+});
+
+it("should keep a dialog open for a host that mounts in time", async () => {
+  vi.useFakeTimers();
+  const answer = PgView.setModal(Dialog);
+
+  await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT - 1);
+  const host = PgView.attachModalHost();
+  await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT);
+
+  expect(PgView.getOpenModals().length).toBe(1);
+  host.dispose();
+  PgView.closeTopModal("shown");
+  await expect(answer).resolves.toBe("shown");
+  vi.useRealTimers();
+});
+
+it("should close the dialogs a host leaves behind when no host comes back", async () => {
+  vi.useFakeTimers();
+  const host = PgView.attachModalHost();
+  const answer = PgView.setModal(Dialog);
+
+  host.dispose();
+  await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT);
+
+  await expect(answer).resolves.toBeNull();
+  vi.useRealTimers();
 });

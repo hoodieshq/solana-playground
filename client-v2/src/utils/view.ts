@@ -2,6 +2,7 @@ import { createElement, FC } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { uuid } from "@/shared/lib/ids";
+import { createLogger } from "@/shared/lib/logger";
 import { PgCommon } from "./common";
 import {
   createDerivable,
@@ -33,6 +34,30 @@ export type OpenModal = {
  */
 let openModals: readonly OpenModal[] = [];
 const modalAnswers = new Map<string, (data: unknown) => void>();
+
+/**
+ * How long, in milliseconds, a modal may wait for a `ModalHost` to show it.
+ * One opened at start-up, before the layout has mounted its host, shows once
+ * it does; one that no host ever shows is closed with `null`, so its caller
+ * goes on, and reported, so the team hears of it.
+ */
+export const MODAL_HOST_WAIT = 5000;
+
+const log = createLogger("view:modal");
+
+/** How many `ModalHost`s are mounted (`PgView.attachModalHost`) */
+let modalHosts = 0;
+
+/** Close the modal `id` if no host has shown it by `MODAL_HOST_WAIT` */
+const closeIfNoHost = (id: string) => {
+  setTimeout(() => {
+    if (modalHosts > 0 || !modalAnswers.has(id)) return;
+    log.error(new Error("No ModalHost showed a modal; it closed unanswered"), {
+      report: true,
+    });
+    PgView.closeModal(null, id);
+  }, MODAL_HOST_WAIT);
+};
 
 /** Replace the open modals and tell `PgView.onDidChangeModals` */
 const setOpenModals = (modals: readonly OpenModal[]) => {
@@ -336,6 +361,7 @@ class _PgView {
       modalAnswers.set(id, resolve as (data: unknown) => void);
     });
     setOpenModals([...openModals, { id, elementable, props }]);
+    if (modalHosts === 0) closeIfNoHost(id);
     return { id, answer };
   }
 
@@ -351,6 +377,27 @@ class _PgView {
     props?: P
   ): Promise<R | null> {
     return await PgView.openModal<R, P>(elementable, props).answer;
+  }
+
+  /**
+   * Say that a `ModalHost` is mounted, so modals are shown. Without one, an
+   * open modal is closed after `MODAL_HOST_WAIT`.
+   *
+   * @returns a disposable to call when the host unmounts
+   */
+  static attachModalHost(): Disposable {
+    modalHosts++;
+    let attached = true;
+    return {
+      dispose: () => {
+        if (!attached) return;
+        attached = false;
+        modalHosts--;
+        if (modalHosts === 0) {
+          for (const { id } of openModals) closeIfNoHost(id);
+        }
+      },
+    };
   }
 
   /** The modals open now, bottom first */

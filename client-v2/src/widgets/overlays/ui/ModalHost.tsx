@@ -1,4 +1,10 @@
-import { Component, useCallback, useRef, useSyncExternalStore } from "react";
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { ErrorInfo, ReactNode } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
@@ -66,6 +72,7 @@ const subscribe = (onChange: () => void) =>
 export const ModalHost = () => {
   // `PgView` owns the stack, so a remount of this host shows what is open
   const modals = useSyncExternalStore(subscribe, PgView.getOpenModals);
+  useEffect(() => PgView.attachModalHost().dispose, []);
   // Set by the top dialog's `ModalFrame` while its submit runs
   const dismissBlocked = useRef(false);
   const blockDismiss = useCallback((blocked: boolean) => {

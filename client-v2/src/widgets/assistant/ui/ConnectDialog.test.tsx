@@ -16,7 +16,7 @@ import {
   memoryProvider as memoryTelemetry,
   resetTelemetry,
 } from "../../../shared/lib/telemetry";
-import { PgView } from "@/utils/view";
+import { MODAL_HOST_WAIT, PgView } from "@/utils/view";
 import {
   initLogger,
   memoryProvider as memoryLog,
@@ -96,6 +96,7 @@ beforeEach(() => {
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
 });
 afterEach(async () => {
+  vi.useRealTimers();
   // `PgView`'s stack outlives the host: a dialog left open here would show
   // in the next test's
   act(() => {
@@ -374,6 +375,18 @@ describe("ConnectDialog", () => {
 
     await waitFor(() => expect(dialog()).toBeNull());
     expect(screen.getByRole("dialog", { name: "Other" })).toBeTruthy();
+  });
+
+  it("is not left marked open when no host shows it", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    act(() => openConnectDialog("send"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT);
+    });
+
+    expect(PgAssistant.isPickingBackend).toBe(false);
   });
 
   it("is not left marked open when it cannot be opened", async () => {
