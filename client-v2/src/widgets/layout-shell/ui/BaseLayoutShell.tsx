@@ -239,15 +239,23 @@ export interface BaseLayoutShellProps {
    * Home, in place of the assistant and the work; given means Home shows.
    * The frame keeps the navigation and shows `stageBar` over `content` where
    * the columns go, the pager shows it on its work page with no preview page.
-   * The stage, the stage tabs and the console are not rendered, so the editor
-   * never mounts under Home. `content` is null while the start is still
-   * being decided.
+   * The stage tabs are not rendered, nor are the stage and the console
+   * unless `keepWork` says so, so the editor never mounts under Home.
+   * `content` is null while the start is still being decided.
    *
    * The assistant's Sheet, otherwise only in the frame below
    * `LAYOUT_BREAKPOINTS.compact`, is the assistant at every width while Home
    * shows, opened by Home's composer or the bar; `assistant` is its state.
    */
   home?: { content: ReactNode; assistant: PanelState };
+  /**
+   * While Home shows, keep the stage and the console mounted in their
+   * outlets, which Home leaves off the page: an open project's editor and
+   * terminal then come back as they were, undo history and scrollback
+   * included. Without a project open there is nothing to keep, and the
+   * editor would throw with no current project.
+   */
+  keepWork?: boolean;
 }
 
 const log = createLogger("layout-shell:panels");
@@ -442,6 +450,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const consoleSettled = useRef(false);
 
   const homeShown = props.home !== undefined;
+  const workMounted = !homeShown || props.keepWork === true;
 
   // `open` props drive the panels; a drag that folds one reports back through
   // `settle` on release, so the two never disagree for long. A panel that
@@ -632,12 +641,12 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
 
   return (
     <>
-      {/* Not rendered under Home, so the stage's editor and the terminal never
-      mount there */}
-      {!homeShown && (
+      {/* Under Home only with `keepWork`, and then off the page: Home places
+      no outlet, as the pager places none on a page it does not show */}
+      {workMounted && (
         <OutletContent node={stageNode}>{props.stage}</OutletContent>
       )}
-      {!homeShown && (
+      {workMounted && (
         <OutletContent node={consoleNode}>{props.console}</OutletContent>
       )}
       {props.home && (
