@@ -42,7 +42,9 @@
 Шапка «What do you want to build?» как в текущем продукте. Если туториал начат, наверху карточка «Continue»: обложка, название, «Step 3 of 4 · Client», прогресс, кнопка «Continue». Ниже переключатель Tutorials 16 и Programs 34, затем список. В карточке туториала уровень, фреймворк и число шагов. Кликабельна только Hello Anchor. Остальные выглядят как обычно, а по тапу показывают тост «Only Hello Anchor is in this prototype».
 
 ### 2. Обзор туториала
-Уровень, фреймворк, примерное время («about 10 min»), название, цель одной фразой. Список из 4 шагов со статусами: пройден (зелёная галочка), текущий (фиолетовая обводка), впереди. Внизу закреплена главная кнопка: «Start» для нового туториала или «Continue from step N» для начатого, под ней ссылка «Start over».
+Обложка слева от названия, под названием одна строка меты: «Beginner · Anchor · 10 min · by acheron». Ниже цель одной фразой. Список из 4 шагов со статусами: пройден (зелёный контур с галочкой), текущий (фиолетовый контур), впереди (серый контур). Пройденные шаги и текущий нажимаются и открывают этот шаг, будущие неактивны. Внизу закреплена главная кнопка: «Start» для нового туториала или «Continue from step N» для начатого, под ней ссылка «Start over».
+
+Шаг 4 в оригинальном туториале называется «Test UI», в прототипе переименован в «Name argument», чтобы название совпадало с заданием.
 
 ### 3. Шаг
 Сверху вниз:
@@ -93,7 +95,7 @@
 | 1 Program | Define the hello instruction and log a message | Write this step with the assistant | Первый патч без `#[derive(Accounts)] pub struct Hello {}`. Сборка падает. Explain предлагает фикс на 2 строки, после него сборка проходит | the built interface shows a hello instruction |
 | 2 Build & Deploy | Deploy the program to devnet | Deploy to devnet | Патча нет. Деплой через Kora с 0 SOL. Результат: program id, ссылка на Explorer, пометка про 7 дней | the program is live on devnet |
 | 3 Client | Call the instruction from the TypeScript client | Write this step with the assistant | Патч в `client/client.ts`, после Apply запускается клиент, вкладка Build показывает лог с program id | лог клиента получен (в продукте сейчас это шаг «прочитано», см. вопросы) |
-| 4 Test UI | Give hello a name argument and log it | Write this step with the assistant | Патч добавляет аргумент `name: String` и вывод в лог. Сборка проходит | the built interface shows hello taking a name |
+| 4 Name argument | Give hello a name argument and log it | Write this step with the assistant | Патч добавляет аргумент `name: String` и вывод в лог. Сборка проходит | the built interface shows hello taking a name |
 
 Итог сценария: 3 шага с первой попытки из 4, это и показывает плитка на финише.
 

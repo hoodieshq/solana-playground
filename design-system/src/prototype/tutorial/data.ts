@@ -241,7 +241,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "greet-by-name",
-    title: "Test UI",
+    title: "Name argument",
     objective: "Give hello a name argument and log it",
     checkedBy: "the build shows hello taking a name",
     learned: "Passing arguments to an instruction",

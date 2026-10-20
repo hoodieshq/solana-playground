@@ -31,6 +31,7 @@ export type Action =
   | { type: "start" }
   | { type: "restart" }
   | { type: "goto"; step: number }
+  | { type: "openStep"; step: number }
   | { type: "askPatch" }
   | { type: "explain"; mode: "step" | "error" }
   | { type: "close" }
@@ -97,6 +98,20 @@ function reducer(s: State, a: Action): State {
       return { ...initial(), screen: "step", startedAt: Date.now() }
     case "goto":
       return { ...s, step: a.step, phase: s.passed[a.step] ? "passed" : "idle", sheet: false, error: null, undo: null, log: [], applied: null }
+    case "openStep":
+      // From the overview: straight into a step already reached
+      return {
+        ...s,
+        screen: "step",
+        step: a.step,
+        phase: s.passed[a.step] ? "passed" : "idle",
+        sheet: false,
+        error: null,
+        undo: null,
+        log: [],
+        applied: null,
+        startedAt: s.startedAt ?? Date.now(),
+      }
     case "askPatch":
       return { ...s, phase: "patch", sheet: true }
     case "explain":
