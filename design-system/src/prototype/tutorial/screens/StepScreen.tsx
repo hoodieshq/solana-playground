@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { STEPS } from "../data"
+import { STEPS, type Step } from "../data"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
 import { PatchSheet } from "../sheets/PatchSheet"
@@ -15,6 +15,12 @@ import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
 import { StepProgress } from "../ui/StepProgress"
 import { TopBar } from "../ui/TopBar"
+
+/** About 200 words a minute, rounded up, never under a minute */
+function readingMinutes(step: Step) {
+  const words = step.lesson.reduce((n, b) => n + (b.kind === "code" ? b.code : b.text).split(/\s+/).length, 0)
+  return Math.max(1, Math.ceil(words / 200))
+}
 
 export function StepScreen() {
   const { s, dispatch } = useStore()
@@ -65,15 +71,14 @@ export function StepScreen() {
 
       <section className="border-b border-border px-4 pb-1">
         <h2 className="line-clamp-3 text-title">{step.objective}</h2>
-        {/* The lesson itself opens in a sheet, so the code stays where it is */}
-        <button
-          type="button"
-          onClick={() => setLesson(true)}
-          // 44px to tap, pulled up so the text sits under the task
-          className="-mt-[5px] flex min-h-11 items-center gap-1.5 text-caption text-foreground"
-        >
-          <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
-          <span className="underline decoration-border-strong underline-offset-4">Read the lesson</span>
+        {/* The lesson opens in a sheet, so the code stays where it is. A chip, not a footnote: it's the
+            tutorial's teaching, and the reading time says what it costs */}
+        <button type="button" onClick={() => setLesson(true)} className="mt-1 flex min-h-11 items-center">
+          <span className="flex h-9 items-center gap-2 rounded-control bg-surface-raised px-3 text-caption text-foreground">
+            <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
+            Read the lesson
+            <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
+          </span>
         </button>
       </section>
 
