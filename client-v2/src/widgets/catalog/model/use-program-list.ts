@@ -4,7 +4,6 @@ import { fetchPrograms, PROGRAMS_URL } from "@/entities/program";
 import type { ProgramListing } from "@/entities/program";
 import { createLogger } from "@/shared/lib/logger";
 import { matchesProgram } from "../lib/filter";
-import type { CatalogList } from "../ui/BaseCatalogGrid";
 import type { CardList, CardOpenOf } from "./lists";
 
 const listLog = createLogger("catalog:programs");
@@ -48,12 +47,14 @@ export const useProgramList = (
     return { list: { state: "loading" }, count: "loading" };
   }
   if (listing.state === "failed") {
-    const list: CatalogList = {
-      state: "failed",
-      message: "Could not load the programs.",
-      onRetry: () => setAttempt((n) => n + 1),
+    return {
+      list: {
+        state: "failed",
+        message: "Could not load the programs.",
+        onRetry: () => setAttempt((n) => n + 1),
+      },
+      count: "failed",
     };
-    return { list, count: "failed" };
   }
   return {
     list: {

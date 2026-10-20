@@ -1,8 +1,8 @@
-import { NewProject } from "@/widgets/catalog";
+import { NewProject, useNewProject } from "@/widgets/catalog";
 import type { CatalogPage } from "@/widgets/catalog";
 import { ModalFrame } from "@/widgets/overlays";
 
-/** The gallery's two lists, one choice each */
+/** Which of New project's two lists shows first */
 export type GalleryTab = CatalogPage;
 
 /**
@@ -10,20 +10,24 @@ export type GalleryTab = CatalogPage;
  * project. The content is `widgets/catalog`'s `NewProject`; this wrapper
  * stays here because a widget may not import `widgets/overlays`, and it is
  * what `PgView.setModal` opens, which fires `PgView.onDidOpenModal` (the
- * left Sheet closes on it).
+ * left Sheet closes on it). New project's state is held here, above the
+ * frame, so a dialog stacked on this one does not reset it.
  */
 const NewWorkspaceModal = ({
   initialTab = "tutorials",
 }: {
   initialTab?: GalleryTab;
-}) => (
-  <ModalFrame
-    name="new-workspace"
-    title="What do you want to build?"
-    size="wide"
-  >
-    <NewProject initialTab={initialTab} />
-  </ModalFrame>
-);
+}) => {
+  const project = useNewProject(initialTab);
+  return (
+    <ModalFrame
+      name="new-workspace"
+      title="What do you want to build?"
+      size="wide"
+    >
+      <NewProject project={project} />
+    </ModalFrame>
+  );
+};
 
 export default NewWorkspaceModal;

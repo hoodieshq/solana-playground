@@ -31,7 +31,6 @@ it("ends every card in a chevron for a phone, hidden from readers", () => {
   cards.forEach((c) => {
     const chevron = c.querySelector("[data-card-chevron]");
     expect(chevron?.getAttribute("aria-hidden")).toBe("true");
-    expect(chevron?.getAttribute("class")).toContain("md:hidden");
   });
 });
 

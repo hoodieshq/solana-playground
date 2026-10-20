@@ -23,6 +23,10 @@ export type Start =
   | { state: "invalid"; error: string }
   | { state: "failed"; error: string };
 
+/** A press makes a project: after a failure it is a retry */
+export const canStart = (start: Start) =>
+  start.state === "idle" || start.state === "failed";
+
 export interface BaseStartFromScratchProps {
   frameworks: ScratchFramework[];
   framework?: FrameworkName;
@@ -32,6 +36,8 @@ export interface BaseStartFromScratchProps {
   /** The name a project gets when none is typed */
   placeholder: string;
   start: Start;
+  /** Something else runs: Start waits for it */
+  held?: boolean;
   onStart: () => void;
 }
 
@@ -48,10 +54,11 @@ const BaseStartFromScratch = ({
   onName,
   placeholder,
   start,
+  held = false,
   onStart,
 }: BaseStartFromScratchProps) => {
   const creating = start.state === "creating";
-  const usable = start.state === "idle" || start.state === "failed";
+  const usable = canStart(start) && !held;
   const error =
     start.state === "invalid" || start.state === "failed"
       ? start.error

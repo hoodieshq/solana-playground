@@ -392,7 +392,8 @@ folding to a strip and a rail. See "Frame chrome (5.25)".)
   the installed `Sidebar*` parts and `lucide-react` icons, slots for the
   switcher and the footer; `AppNav` connected. New project opens the
   existing gallery (`NewWorkspaceModal`) on its default tab (the nav no
-  longer passes `initialTab`). Tutorials and Programs open
+  longer passes `initialTab`), which 5.13 restyles as New project (see
+  "New project (5.13)"). Tutorials and Programs open
   their pages; see "Tutorials and Programs pages (5.9)". Home's item shows
   Home; see "Home from an open project (5.28)". _Rejected:_
   hiding Home until 5.8; disabled items saying "soon".
@@ -1871,17 +1872,22 @@ prototype's "What do you want to build?". The work is stacked on 5.9
   `input` and `input-group`, the chips, name field and Start are 32 px on
   one centre line, and a fade at the scroll area's foot says the list runs
   on.
-- **On a phone** the dialog is a page of its own (the installed `modal`
-  does it below `md`), and every card is one target that ends in a chevron,
-  on the 5.9 pages too: the card's own Open hides there already.
+- **Below `md` (768 px)** the dialog is a page of its own (the installed
+  `modal` does it), and every card is one target that ends in a chevron, on
+  the 5.9 pages too: the card's own Open hides there already.
 - **Where the code lives.** A widget may import neither another widget
   nor `widgets/overlays`, which holds `ModalFrame`. So the dialog's content
   is `widgets/catalog`'s `BaseNewProject` and `NewProject`, beside a
   `BaseCatalogGrid`, `CatalogSearch` and the list hooks `useTutorialList` /
   `useProgramList` that the pages and New project share; 5.9's
-  `useCardOpen` takes what a finished Open closes (the page by default, the
-  dialog here); `views/flow/gallery/NewWorkspaceModal`
-  shrinks to the `ModalFrame` around `NewProject`. It is still what
+  `useCardOpen` takes options: what a finished Open closes (the page by
+  default, the dialog here), and who hears a failure. A failure of
+  `onOpened` itself is reported, as the card title's rejected Open is.
+  `views/flow/gallery/NewWorkspaceModal` shrinks to the `ModalFrame` around
+  `NewProject` and holds its state (`useNewProject`) above the frame: a
+  dialog stacked on New project (an import's program picker) remounts what
+  sits under the frame, and the Open it belongs to must still close New
+  project when it finishes. It is still what
   `PgView.setModal` opens, so `PgView.onDidOpenModal` still fires and still
   closes the left Sheet. Start from scratch is one user action with its
   own state, used by New project and by Home, so it becomes
@@ -1893,9 +1899,10 @@ prototype's "What do you want to build?". The work is stacked on 5.9
   program imported from a card. A failure stays: Start's under the name
   field, a card's on the card, and a second Start is a retry. New project
   closes only itself: an Open that ends after the dialog was dismissed
-  closes nothing, and Start on Home closes nothing.
-- **One Open at a time**, as on the 5.9 pages, and across both lists here:
-  while a card's Open runs, every card waits (`busy`).
+  closes nothing but tells its failure in a toast, and Start on Home closes
+  nothing.
+- **One run at a time**, as on the 5.9 pages, and across both lists and
+  Start here: while an Open or Start runs, every card and Start wait.
 - **Telemetry.** `features/new-project`, prefix `new_project`:
   `new_project_started {framework}` when Start makes a project,
   `new_project_start_failed {framework}` when it fails, which also logs

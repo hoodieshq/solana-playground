@@ -59,15 +59,31 @@ test("client-v2-layout: New project's controls line up and its list shows it scr
   expect(new Set(middles).size).toBe(1);
 
   // The list runs past the dialog's foot: a fade there says there is more
+  const body = dialog(page).locator('[data-slot="modal-body"]');
+  expect(await body.evaluate((b) => b.scrollHeight > b.clientHeight)).toBe(
+    true
+  );
   const fade = dialog(page).locator("[data-scroll-fade]");
   await expect(fade).toBeVisible();
-  const [fadeBox, dialogBox] = await Promise.all([
+  const [fadeBox, bodyBox] = await Promise.all([
     fade.boundingBox(),
-    dialog(page).boundingBox(),
+    body.boundingBox(),
   ]);
   expect(
-    Math.abs(fadeBox!.y + fadeBox!.height - (dialogBox!.y + dialogBox!.height))
+    Math.abs(fadeBox!.y + fadeBox!.height - (bodyBox!.y + bodyBox!.height))
   ).toBeLessThan(40);
+
+  // At the end of the list the fade covers none of the last card
+  await body.evaluate((b) => b.scrollTo(0, b.scrollHeight));
+  const last = dialog(page).locator('[data-slot="action-card"]').last();
+  const [lastBox, endFadeBox] = await Promise.all([
+    last.locator('[data-slot="action-card-content"]').boundingBox(),
+    fade.boundingBox(),
+  ]);
+  expect(endFadeBox!.y).toBeGreaterThanOrEqual(
+    lastBox!.y + lastBox!.height - 1
+  );
+  await last.getByRole("button", { name: /^Open / }).click({ trial: true });
 });
 
 test("client-v2-layout: Opening a program from New project", async ({
@@ -141,9 +157,11 @@ test.describe("on a phone", () => {
     // Nothing inside the page runs off its side either, on either list
     const fits = () =>
       dialog(page).evaluate((d) =>
-        [d, ...d.querySelectorAll("*")].every(
-          (el) => el.scrollWidth <= el.clientWidth + 1 || el.clientWidth === 0
-        )
+        [d]
+          .concat(Array.from(d.querySelectorAll("*")))
+          .every(
+            (el) => el.scrollWidth <= el.clientWidth + 1 || el.clientWidth === 0
+          )
       );
     expect(await fits()).toBe(true);
 

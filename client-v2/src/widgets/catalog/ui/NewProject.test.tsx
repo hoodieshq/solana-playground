@@ -37,16 +37,39 @@ const utils = vi.hoisted(() => {
       ],
       open: vi.fn(),
     },
-    PgView: { setModal: vi.fn() },
+    PgView: { setModal: vi.fn(), setToast: vi.fn() },
   };
 });
 vi.mock("@/utils", () => utils);
 vi.mock("@/features/new-project", () => ({
-  StartFromScratch: () => <div data-testid="scratch" />,
+  // Stands in for Start from scratch: it waits on `held`, says when it runs
+  StartFromScratch: ({
+    held,
+    onRunning,
+  }: {
+    held: boolean;
+    onRunning: (running: boolean) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="scratch"
+      disabled={held}
+      onClick={() => onRunning(true)}
+    >
+      Start
+    </button>
+  ),
 }));
 
 import { catalogPage } from "../model/catalog-page";
-import NewProject from "./NewProject";
+import { useNewProject } from "../model/use-new-project";
+import type { CatalogPage } from "../model/telemetry";
+import NewProjectView from "./NewProject";
+
+/** The dialog's component: it holds the state, as `NewWorkspaceModal` does */
+const NewProject = ({ initialTab }: { initialTab?: CatalogPage }) => (
+  <NewProjectView project={useNewProject(initialTab)} />
+);
 
 const PROGRAM = {
   name: "drift",
@@ -71,6 +94,7 @@ beforeEach(() => {
   utils.PgGithub.import.mockReset().mockResolvedValue(undefined);
   utils.PgTutorial.open.mockReset().mockResolvedValue(undefined);
   utils.PgView.setModal.mockReset();
+  utils.PgView.setToast.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   logged = memoryLogs();
@@ -189,5 +213,97 @@ it("closes no other dialog when an Open ends after this one closed", async () =>
   unmount();
   await act(async () => release());
 
+  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+});
+
+/** A promise and what settles it, for an Open held mid-way */
+const held = () => {
+  let release!: () => void;
+  let fail!: (e: unknown) => void;
+  const promise = new Promise<void>((resolve, reject) => {
+    release = resolve;
+    fail = reject;
+  });
+  return { promise, release, fail };
+};
+
+it("holds the other list's Opens and Start while one Open runs", async () => {
+  const open = held();
+  utils.PgTutorial.open.mockReturnValueOnce(open.promise);
+  render(<NewProject />);
+  fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }));
+
+  fireEvent.click(choice(/Programs/));
+  const drift = await screen.findByRole("button", { name: "Open drift" });
+  expect(drift).toHaveProperty("disabled", true);
+  fireEvent.click(screen.getByRole("button", { name: "drift" }));
+  expect(screen.getByTestId("scratch")).toHaveProperty("disabled", true);
+  expect(utils.PgGithub.import).not.toHaveBeenCalled();
+
+  await act(async () => open.release());
+  expect(utils.PgView.setModal).toHaveBeenCalledWith(null);
+});
+
+it("holds every card while Start makes a project", async () => {
+  render(<NewProject />);
+
+  fireEvent.click(screen.getByTestId("scratch"));
+
+  expect(
+    screen.getByRole("button", { name: "Open Hello Anchor" })
+  ).toHaveProperty("disabled", true);
+});
+
+it("keeps the dialog for a cancelled import, and says nothing", async () => {
+  utils.PgGithub.import.mockRejectedValueOnce(new utils.ImportCancelledError());
+  render(<NewProject initialTab="programs" />);
+
+  const drift = await screen.findByRole("button", { name: "Open drift" });
+  await act(async () => fireEvent.click(drift));
+
+  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("shows a failed import on its card and keeps the dialog", async () => {
+  utils.PgGithub.import.mockRejectedValueOnce(new Error("Rate limited"));
+  render(<NewProject initialTab="programs" />);
+
+  const drift = await screen.findByRole("button", { name: "Open drift" });
+  await act(async () => fireEvent.click(drift));
+
+  expect(screen.getByRole("alert").textContent).toBe("Rate limited");
+  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+});
+
+it("keeps one query for both lists and counts each list whole", async () => {
+  render(<NewProject />);
+  await waitFor(() => expect(choice(/Programs/).textContent).toBe("Programs1"));
+
+  fireEvent.change(
+    screen.getByRole("searchbox", { name: "Search tutorials" }),
+    {
+      target: { value: "zzz" },
+    }
+  );
+  fireEvent.click(choice(/Programs/));
+
+  expect(
+    screen.getByRole("searchbox", { name: "Search programs" })
+  ).toHaveProperty("value", "zzz");
+  expect(choice(/Tutorials/).textContent).toBe("Tutorials1");
+  expect(choice(/Programs/).textContent).toBe("Programs1");
+});
+
+it("toasts an Open that fails after the dialog was dismissed", async () => {
+  const open = held();
+  utils.PgTutorial.open.mockReturnValueOnce(open.promise);
+  const { unmount } = render(<NewProject />);
+  fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }));
+
+  unmount();
+  await act(async () => open.fail(new Error("gone")));
+
+  expect(utils.PgView.setToast).toHaveBeenCalledTimes(1);
   expect(utils.PgView.setModal).not.toHaveBeenCalled();
 });

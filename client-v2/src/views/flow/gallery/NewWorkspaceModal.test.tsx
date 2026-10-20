@@ -21,8 +21,9 @@ vi.mock("@/widgets/overlays", () => ({
   ),
 }));
 vi.mock("@/widgets/catalog", () => ({
-  NewProject: ({ initialTab }: { initialTab?: string }) => (
-    <p>{`new project on ${initialTab}`}</p>
+  useNewProject: (initialTab: string) => ({ initialTab }),
+  NewProject: ({ project }: { project: { initialTab: string } }) => (
+    <p>{`new project on ${project.initialTab}`}</p>
   ),
 }));
 

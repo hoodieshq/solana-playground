@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework } from "@/utils";
 import { newProjectTelemetry } from "../model/telemetry";
-import BaseStartFromScratch from "./BaseStartFromScratch";
+import BaseStartFromScratch, { canStart } from "./BaseStartFromScratch";
 import type { Start } from "./BaseStartFromScratch";
 
 const log = createLogger("new-project:start");
@@ -17,6 +17,10 @@ export interface StartFromScratchProps {
    * Home passes nothing, since the new project replaces Home by itself
    */
   onStarted?: () => void;
+  /** Something else runs (an Open in New project): Start waits for it */
+  held?: boolean;
+  /** Hears when making a project starts and ends, so others can wait */
+  onRunning?: (running: boolean) => void;
 }
 
 /**
@@ -24,7 +28,11 @@ export interface StartFromScratchProps {
  * then `PgExplorer.createWorkspace`, the mechanism the explorer's "Create
  * workspace" uses.
  */
-const StartFromScratch = ({ onStarted }: StartFromScratchProps) => {
+const StartFromScratch = ({
+  onStarted,
+  held = false,
+  onRunning,
+}: StartFromScratchProps) => {
   const [framework, setFramework] = useState<FrameworkName | undefined>(
     PgFramework.all[0]?.name
   );
@@ -32,10 +40,7 @@ const StartFromScratch = ({ onStarted }: StartFromScratchProps) => {
   const [start, setStart] = useState<Start>({ state: "idle" });
 
   const create = async () => {
-    // A press after a failure is a retry; one while creating or refused is not
-    if (!framework || start.state === "creating" || start.state === "invalid") {
-      return;
-    }
+    if (!framework || held || !canStart(start)) return;
 
     const projectName = name.trim() || defaultName(framework);
     if (!PgExplorer.isWorkspaceNameValid(projectName)) {
@@ -44,11 +49,13 @@ const StartFromScratch = ({ onStarted }: StartFromScratchProps) => {
     }
 
     setStart({ state: "creating" });
+    onRunning?.(true);
     try {
       const { getDefaultFiles, defaultOpenFile } = PgFramework.get(framework);
       const { files } = await getDefaultFiles();
       await PgExplorer.createWorkspace(projectName, { files, defaultOpenFile });
     } catch (e) {
+      onRunning?.(false);
       log.error(e, { report: true, context: { framework } });
       newProjectTelemetry.track("new_project_start_failed", { framework });
       setStart({
@@ -59,6 +66,7 @@ const StartFromScratch = ({ onStarted }: StartFromScratchProps) => {
     }
 
     // The project exists from here on: nothing below may call it a failure
+    onRunning?.(false);
     newProjectTelemetry.track("new_project_started", { framework });
     setStart({ state: "idle" });
     try {
@@ -84,6 +92,7 @@ const StartFromScratch = ({ onStarted }: StartFromScratchProps) => {
       }}
       placeholder={framework ? defaultName(framework) : "project name"}
       start={start}
+      held={held}
       onStart={create}
     />
   );

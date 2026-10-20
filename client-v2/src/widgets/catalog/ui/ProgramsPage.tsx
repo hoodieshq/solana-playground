@@ -12,7 +12,9 @@ import BaseCatalogPage from "./BaseCatalogPage";
  */
 const ProgramsPage = () => {
   const [query, setQuery] = useState("");
-  const { open, busy, cardOpen } = useCardOpen("programs", isImportCancel);
+  const { open, busy, cardOpen } = useCardOpen("programs", {
+    isCancel: isImportCancel,
+  });
   const { list } = useProgramList(query, cardOpen);
   useSearchTelemetry(
     "programs",
