@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, FileDiff, MessageCircle } from "lucide-react"
+import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, MessageCircle } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { lastResult, useStore } from "../store"
+import { Typed } from "./Typed"
 
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
  * and one main button that shows the state too. Write or Deploy, then
@@ -15,7 +16,8 @@ import { lastResult, useStore } from "../store"
  * line up top and the passed / not yet sheets.
  * Each signal shows once: the status icon (dashed, spinner, check, alert)
  * lives only in the status line, the button carries the action and its colour */
-export function ActionZone() {
+/** `lead` replaces the assistant's summary, after a prediction: whether it was right, and why */
+export function ActionZone({ lead }: { lead?: string }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
@@ -62,10 +64,21 @@ export function ActionZone() {
       </>
     )
   } else if (reviewing) {
+    // The assistant speaks here, by the buttons, so nothing sits over the code
+    const proposal = s.review === "fix" ? step.fix : step.patch
     status = (
       <>
-        <FileDiff strokeWidth={1.75} className="mt-px size-4 shrink-0" />
-        <span>Review the change above. Nothing is applied yet</span>
+        <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
+        <span>
+          {lead ? (
+            <span className="text-foreground">{lead} </span>
+          ) : (
+            <span className="text-foreground">
+              <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />{" "}
+            </span>
+          )}
+          Tap a line with a dot to see why. Nothing is applied yet
+        </span>
       </>
     )
   } else {

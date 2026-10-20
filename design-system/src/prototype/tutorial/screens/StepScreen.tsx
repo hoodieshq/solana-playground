@@ -11,13 +11,12 @@ import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
 import { useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
-import { AssistantHead } from "../ui/AssistantHead"
 import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
 import { InlineDiff } from "../ui/InlineDiff"
+import { PredictZone } from "../ui/PredictZone"
 import { StepProgress } from "../ui/StepProgress"
 import { TopBar } from "../ui/TopBar"
-import { Typed } from "../ui/Typed"
 
 /** About 200 words a minute, rounded up, never under a minute */
 function readingMinutes(step: Step) {
@@ -31,6 +30,13 @@ export function StepScreen() {
   const [tab, setTab] = useState<"code" | "build">("code")
   const [lesson, setLesson] = useState(false)
   const [computer, setComputer] = useState(false)
+  // Which line notes are open, and the prediction made on each step that asks one
+  const [notes, setNotes] = useState<number[]>([])
+  const [predicted, setPredicted] = useState<Record<number, number | "skip">>({})
+
+  useEffect(() => {
+    setNotes([])
+  }, [s.phase, s.review, s.step])
 
   useEffect(() => {
     setTab("code")
@@ -55,7 +61,15 @@ export function StepScreen() {
   }
 
   const proposal = s.phase === "patch" ? (s.review === "fix" ? step.fix : step.patch) ?? null : null
-  const focus = s.phase === "idle" && !s.passed[s.step] && !s.undo ? step.focus : []
+  // A step with a new idea asks its question once, before its own patch shows
+  const asking = !!proposal && s.review === "patch" && !!step.predict && predicted[s.step] === undefined
+  const answer = predicted[s.step]
+  const lead =
+    s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
+      ? `${answer === step.predict.answer ? "Right." : "Not quite."} ${step.predict.why}`
+      : undefined
+  const allNotes = proposal?.notes.map((n) => n.line) ?? []
+  const focus = (s.phase === "idle" && !s.passed[s.step] && !s.undo) || asking ? step.focus : []
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -111,6 +125,18 @@ export function StepScreen() {
           </button>
         ))}
         </div>
+        {/* Every note at once, for reading the whole change. Tapping a dotted line opens just that one */}
+        {proposal && !asking && tab === "code" && allNotes.length > 0 && (
+          <button
+            type="button"
+            aria-pressed={notes.length === allNotes.length}
+            onClick={() => setNotes(notes.length === allNotes.length ? [] : allNotes)}
+            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
+          >
+            <span className="size-[7px] rounded-full bg-brand-purple ring-3 ring-brand-purple/25" />
+            {notes.length === allNotes.length ? "Hide notes" : "Show notes"}
+          </button>
+        )}
         {/* The way out for someone who wants to type: while a step waits for its patch */}
         {step.patch && s.phase === "idle" && !s.passed[s.step] && (
           <button
@@ -147,24 +173,20 @@ export function StepScreen() {
         )}
       </div>
 
-      {/* A proposal shows in place: the assistant's line over the file, the file as a diff */}
-      {proposal && (
-        <div className="mx-4 mt-1 mb-1 rounded-control border border-border bg-surface-panel px-3 py-2.5">
-          <AssistantHead />
-          <p className="mt-1.5 text-control text-foreground">
-            <Typed key={proposal.summary} text={proposal.summary} />
-          </p>
-        </div>
-      )}
+      {/* A proposal shows in place, as a diff of the file. The assistant speaks from the bottom zone */}
       {tab === "build" ? (
         <BuildLog log={s.log} />
-      ) : proposal ? (
-        <InlineDiff patch={proposal} />
+      ) : proposal && !asking ? (
+        <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
       ) : (
         <CodeView code={s.files[step.file]} focus={focus} error={s.error?.line ?? null} />
       )}
 
-      <ActionZone />
+      {asking && step.predict ? (
+        <PredictZone predict={step.predict} onAnswer={(choice) => setPredicted((p) => ({ ...p, [s.step]: choice }))} />
+      ) : (
+        <ActionZone lead={lead} />
+      )}
 
       <LessonSheet
         open={lesson}

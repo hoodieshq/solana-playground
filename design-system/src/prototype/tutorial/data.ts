@@ -7,8 +7,13 @@ export type Patch = {
   before: string
   after: string
   summary: string
+  /** Why a change is there, pinned to a line of the new file. Tap the dot on that line to read it */
+  notes: { line: number; text: string }[]
   result: BuildResult
 }
+
+/** One question before the code shows, on steps that bring a new idea */
+export type Predict = { question: string; options: string[]; answer: number; why: string }
 
 export type Chip = { label: string; answer: string }
 
@@ -33,6 +38,7 @@ export type Step = {
   explainStep: string
   explainError?: string
   chips: Chip[]
+  predict?: Predict
 }
 
 export type TutorialCard = {
@@ -144,6 +150,11 @@ mod hello_anchor {
       after: LIB_BROKEN,
       summary:
         "I'll import Anchor, declare the program id and add a hello instruction that logs “Hello, World!”.",
+      notes: [
+        { line: 1, text: "The prelude brings in the macros and types every Anchor program uses." },
+        { line: 3, text: "Anchor checks every call against this id. Playground fills in the real one when you build." },
+        { line: 5, text: "Instructions live in the module marked #[program]. hello writes one line to the log and returns Ok." },
+      ],
       result: {
         ok: false,
         log: [
@@ -162,6 +173,7 @@ mod hello_anchor {
       before: LIB_BROKEN,
       after: LIB_FIXED,
       summary: "Add an empty Hello accounts struct.",
+      notes: [{ line: 15, text: "Context<Hello> on line 9 needs this struct. hello reads no accounts, so it stays empty." }],
       result: {
         ok: true,
         log: [...BUILD_OK, "IDL: 1 instruction · hello", "Build successful"],
@@ -170,6 +182,12 @@ mod hello_anchor {
     },
     explainStep:
       "This step writes the smallest Anchor program there is: one instruction, hello, that writes a line to the program log. I'll propose the code as a patch. You read it and apply it, then the build checks it.",
+    predict: {
+      question: "Where does the hello instruction go?",
+      options: ["Inside a module marked #[program]", "Inside a #[derive(Accounts)] struct", "Inside declare_id!"],
+      answer: 0,
+      why: "Anchor finds a program's instructions in the module marked #[program].",
+    },
     explainError:
       "In Anchor every instruction receives its accounts through a struct marked #[derive(Accounts)]. Line 9 asks for Context<Hello>, but Hello is never declared. hello reads no accounts, so an empty struct is enough.",
     chips: [
@@ -249,6 +267,10 @@ mod hello_anchor {
       before: CLIENT_START,
       after: CLIENT_CALL,
       summary: "I'll call hello from the client and print the transaction, so you can find its logs.",
+      notes: [
+        { line: 2, text: "pg.program knows hello from the IDL the build made. .rpc() sends the transaction and returns its signature." },
+        { line: 3, text: "The signature is how you find the transaction, and the line hello logged, on devnet." },
+      ],
       result: {
         ok: true,
         log: [
@@ -292,11 +314,21 @@ mod hello_anchor {
       before: LIB_FIXED,
       after: LIB_NAMED,
       summary: "I'll add a name: String argument to hello and put it in the log line.",
+      notes: [
+        { line: 9, text: "Arguments come after the Context. Anchor serializes the String for you, so nothing else changes." },
+        { line: 10, text: "msg! fills each {} with the next value, here the name." },
+      ],
       result: {
         ok: true,
         log: [...BUILD_OK, "IDL: 1 instruction · hello(name: string)", "Build successful"],
         note: "The build passed and hello now takes a name.",
       },
+    },
+    predict: {
+      question: "Where does the name argument go?",
+      options: ["After the Context: hello(_ctx, name: String)", "Inside the Hello struct", "Inside msg!"],
+      answer: 0,
+      why: "Instruction arguments come after the Context, and Anchor serializes them for you.",
     },
     explainStep:
       "Instructions can take arguments after their Context. This step adds a name to hello and logs it, so the Test UI asks you for one.",
