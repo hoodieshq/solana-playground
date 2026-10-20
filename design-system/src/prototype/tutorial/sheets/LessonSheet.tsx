@@ -14,7 +14,7 @@ import { highlight } from "../ui/CodeView"
 function Prose({ text }: { text: string }) {
   const parts: ReactNode[] = text.split("`").map((part, i) =>
     i % 2 ? (
-      <code key={i} className="rounded-sm bg-surface-raised px-1 py-0.5 font-mono text-[0.875em] whitespace-nowrap text-foreground">
+      <code key={i} className="rounded-sm bg-surface px-1 py-px font-mono text-[0.84em] whitespace-nowrap text-foreground">
         {part}
       </code>
     ) : (
@@ -25,16 +25,17 @@ function Prose({ text }: { text: string }) {
 }
 
 function Block({ block }: { block: LessonBlock }) {
-  if (block.kind === "h") return <h3 className="mt-5 text-control font-label text-foreground first:mt-0">{block.text}</h3>
+  // Sections are 28px apart, their parts 8 and 12, so the lesson reads as groups
+  if (block.kind === "h") return <h3 className="mt-7 font-heading text-title text-foreground first:mt-0">{block.text}</h3>
   if (block.kind === "p")
     return (
-      <p className="mt-1.5 text-body text-muted-foreground">
+      <p className="mt-2 text-body text-muted-foreground">
         <Prose text={block.text} />
       </p>
     )
   return (
-    <CodeBlock className="mt-3">
-      <CodeBlockContent className="text-[0.75rem]">
+    <CodeBlock className="mt-3 bg-surface-well">
+      <CodeBlockContent className="text-code">
         {block.code.split("\n").map((line, i) => (
           <div key={i} className="min-h-[1lh] break-words whitespace-pre-wrap">
             {highlight(line)}
@@ -52,16 +53,17 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[82dvh]">
-        <DrawerHeader>
+        {/* One measure for header and text: about 65 characters a line, however wide the screen */}
+        <DrawerHeader className="mx-auto w-full max-w-[40rem] pb-2">
           <p className="text-caption text-muted-foreground">Lesson</p>
-          <DrawerTitle className="mt-0.5 font-heading text-title">{step.title}</DrawerTitle>
+          <DrawerTitle className="mt-1 font-heading text-display! font-normal!">{step.title}</DrawerTitle>
         </DrawerHeader>
-        <div className="min-h-0 overflow-y-auto px-4 pb-2">
+        <div className="mx-auto min-h-0 w-full max-w-[40rem] overflow-y-auto px-4 pt-4 pb-4">
           {step.lesson.map((block, i) => (
             <Block key={i} block={block} />
           ))}
         </div>
-        <DrawerFooter className="flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
+        <DrawerFooter className="mx-auto w-full max-w-[40rem] flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
           <Button variant="secondary" className="h-14 gap-2 px-4 text-control" onClick={onAsk}>
             <MessageCircle strokeWidth={1.75} className="size-4 text-brand-purple" />
             Ask
