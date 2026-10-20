@@ -744,6 +744,53 @@ describe("PgAssistant threads", () => {
   });
 });
 
+/** A turn is bound to the thread it started in, and stops when that closes */
+describe("PgAssistant turns", () => {
+  let turn: AbortController;
+
+  beforeEach(async () => {
+    (PgFs as unknown as { __files: Map<string, string> }).__files.clear();
+    PgAssistant.closeThread();
+    PgAssistant.clear();
+    await PgAssistant.loadThread("t1");
+    turn = new AbortController();
+    PgAssistant.beginTurn(turn);
+  });
+
+  afterEach(() => {
+    PgAssistant.endTurn(turn);
+    PgAssistant.closeThread();
+  });
+
+  it("stops when the open thread is switched for another", async () => {
+    await PgAssistant.loadThread("t2");
+    PgAssistant.addToolCall("listed the project");
+
+    expect(turn.signal.aborted).toBe(true);
+    expect(PgAssistant.items).toEqual([]);
+    expect(PgAssistant.endTurn(turn)).toBe(false);
+  });
+
+  it("carries on when the same thread is re-read after a pull", async () => {
+    await PgAssistant.loadThread("t1", true);
+    PgAssistant.addToolCall("listed the project");
+
+    expect(turn.signal.aborted).toBe(false);
+    expect(PgAssistant.items.map((i) => i.kind)).toEqual(["tool"]);
+    expect(PgAssistant.endTurn(turn)).toBe(true);
+  });
+
+  it("writes again once the stopped turn has ended", async () => {
+    PgAssistant.closeThread();
+    PgAssistant.endTurn(turn);
+    await PgAssistant.loadThread("t2");
+
+    PgAssistant.addNotice("Stopped.");
+
+    expect(PgAssistant.items.map((i) => i.kind)).toEqual(["notice"]);
+  });
+});
+
 describe("the user's own key", () => {
   const KEY = "sk-test-store-0123456789";
   const openai = {
