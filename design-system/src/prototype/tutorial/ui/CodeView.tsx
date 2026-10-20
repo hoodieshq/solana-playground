@@ -16,7 +16,7 @@ const CLASS = [
   "text-syntax-number",
 ]
 
-function highlight(line: string): ReactNode[] {
+export function highlight(line: string): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
   for (const m of line.matchAll(TOKEN)) {

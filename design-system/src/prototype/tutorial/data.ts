@@ -12,13 +12,16 @@ export type Patch = {
 
 export type Chip = { label: string; answer: string }
 
+export type LessonBlock = { kind: "h"; text: string } | { kind: "p"; text: string } | { kind: "code"; code: string }
+
 export type Step = {
   id: string
   title: string
   objective: string
   checkedBy: string
   learned: string
-  page: string
+  /** The lesson, read in a sheet. `ticks` in text mark inline code */
+  lesson: LessonBlock[]
   file: string
   /** Lines lit before the patch, where the change will land */
   focus: number[]
@@ -113,11 +116,28 @@ export const STEPS: Step[] = [
     objective: "Define the hello instruction and log a message",
     checkedBy: "the build shows a hello instruction",
     learned: "Declaring a program and its instructions",
-    page:
-      "Every Anchor program imports anchor_lang::prelude, declares its id and keeps its instructions inside a #[program] module. Each instruction gets a Context with the accounts it needs.",
+    lesson: [
+      { kind: "h", text: "Import Anchor" },
+      { kind: "p", text: "Start by importing Anchor. Its `prelude` brings in everything a program needs." },
+      { kind: "code", code: "use anchor_lang::prelude::*;" },
+      { kind: "h", text: "Declare the program id" },
+      { kind: "p", text: "Anchor checks every call against the program's public key. In Playground `declare_id!` is filled in for you when you build." },
+      { kind: "code", code: 'declare_id!("11111111111111111111111111111111");' },
+      { kind: "h", text: "Write the instruction" },
+      { kind: "p", text: "Instructions live in a module marked `#[program]`. Each one gets a `Context` with the accounts it needs. `hello` needs none, so it logs a line and returns." },
+      { kind: "code", code: `#[program]
+mod hello_anchor {
+    use super::*;
+
+    pub fn hello(_ctx: Context<Hello>) -> Result<()> {
+        msg!("Hello, World!");
+        Ok(())
+    }
+}` },
+    ],
     file: "src/lib.rs",
     focus: [1],
-    cta: "Write this step with the assistant",
+    cta: "Write with assistant",
     patch: {
       file: "src/lib.rs",
       before: LIB_START,
@@ -170,8 +190,12 @@ export const STEPS: Step[] = [
     objective: "Deploy the program to devnet",
     checkedBy: "the program is live on devnet",
     learned: "Deploying through Kora with 0 SOL",
-    page:
-      "Kora pays the rent on devnet, so you deploy without a wallet or SOL. A program nobody calls for 7 days is closed, and you can deploy it again at any time.",
+    lesson: [
+      { kind: "h", text: "Build" },
+      { kind: "p", text: "The build compiles your program on the server and produces its IDL, the list of instructions a client can call." },
+      { kind: "h", text: "Deploy" },
+      { kind: "p", text: "On devnet Kora pays the rent, so you deploy with 0 SOL and no wallet. A program nobody calls for 7 days is closed. Deploy again any time to bring it back." },
+    ],
     file: "src/lib.rs",
     focus: [],
     cta: "Deploy to devnet",
@@ -209,11 +233,17 @@ export const STEPS: Step[] = [
     objective: "Call the instruction from the TypeScript client",
     checkedBy: "the client gets a transaction back",
     learned: "Calling a program from TypeScript",
-    page:
-      "Playground puts your program, wallet and connection in the pg namespace, so the client can call hello in one line. Outside Playground you would create them yourself.",
+    lesson: [
+      { kind: "h", text: "Playground globals" },
+      { kind: "p", text: "In Playground the `pg` namespace already holds your program, wallet and connection. Outside Playground you would set them up yourself." },
+      { kind: "code", code: "console.log(pg.PROGRAM_ID.toString());" },
+      { kind: "h", text: "Call hello" },
+      { kind: "p", text: "`pg.program.methods` has a method for every instruction in the IDL. `.rpc()` sends the transaction and returns its signature." },
+      { kind: "code", code: "const txHash = await pg.program.methods.hello().rpc();" },
+    ],
     file: "client/client.ts",
     focus: [1],
-    cta: "Write this step with the assistant",
+    cta: "Write with assistant",
     patch: {
       file: "client/client.ts",
       before: CLIENT_START,
@@ -245,11 +275,18 @@ export const STEPS: Step[] = [
     objective: "Give hello a name argument and log it",
     checkedBy: "the build shows hello taking a name",
     learned: "Passing arguments to an instruction",
-    page:
-      "Instruction arguments come after the Context. Anchor serializes them for you, so a String works as is, and the Test UI shows a field for it.",
+    lesson: [
+      { kind: "h", text: "Instruction arguments" },
+      { kind: "p", text: "Arguments come after the `Context`. Anchor serializes them for you, so a `String` works as is." },
+      { kind: "code", code: `pub fn hello(_ctx: Context<Hello>, name: String) -> Result<()> {
+    msg!("Hello, {}!", name);
+    Ok(())
+}` },
+      { kind: "p", text: "After the build the Test UI shows a field for `name`." },
+    ],
     file: "src/lib.rs",
     focus: [9, 10],
-    cta: "Write this step with the assistant",
+    cta: "Write with assistant",
     patch: {
       file: "src/lib.rs",
       before: LIB_FIXED,

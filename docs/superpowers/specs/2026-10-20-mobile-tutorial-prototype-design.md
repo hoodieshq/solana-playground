@@ -95,10 +95,10 @@
 
 | Шаг | Задание | Главная кнопка | Что происходит | Проверка |
 | --- | --- | --- | --- | --- |
-| 1 Program | Define the hello instruction and log a message | Write this step with the assistant | Первый патч без `#[derive(Accounts)] pub struct Hello {}`. Сборка падает. Explain предлагает фикс на 2 строки, после него сборка проходит | the built interface shows a hello instruction |
+| 1 Program | Define the hello instruction and log a message | Write with assistant | Первый патч без `#[derive(Accounts)] pub struct Hello {}`. Сборка падает. Explain предлагает фикс на 2 строки, после него сборка проходит | the built interface shows a hello instruction |
 | 2 Build & Deploy | Deploy the program to devnet | Deploy to devnet | Патча нет. Деплой через Kora с 0 SOL. Результат: program id, ссылка на Explorer, пометка про 7 дней | the program is live on devnet |
-| 3 Client | Call the instruction from the TypeScript client | Write this step with the assistant | Патч в `client/client.ts`, после Apply запускается клиент, вкладка Build показывает лог с program id | лог клиента получен (в продукте сейчас это шаг «прочитано», см. вопросы) |
-| 4 Name argument | Give hello a name argument and log it | Write this step with the assistant | Патч добавляет аргумент `name: String` и вывод в лог. Сборка проходит | the built interface shows hello taking a name |
+| 3 Client | Call the instruction from the TypeScript client | Write with assistant | Патч в `client/client.ts`, после Apply запускается клиент, вкладка Build показывает лог с program id | лог клиента получен (в продукте сейчас это шаг «прочитано», см. вопросы) |
+| 4 Name argument | Give hello a name argument and log it | Write with assistant | Патч добавляет аргумент `name: String` и вывод в лог. Сборка проходит | the built interface shows hello taking a name |
 
 Итог сценария: 3 шага с первой попытки из 4, это и показывает плитка на финише.
 

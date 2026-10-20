@@ -113,7 +113,7 @@ export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
           <BrandButton
             variant="accent"
             disabled={busy}
-            className={cn(big, "min-w-0 flex-1 gap-2 leading-tight whitespace-normal!")}
+            className={cn(big, "min-w-0 flex-1 gap-2")}
             onClick={() =>
               dispatch(failed ? { type: "explain", mode: "error" } : step.deploy ? { type: "deploy" } : { type: "askPatch" })
             }

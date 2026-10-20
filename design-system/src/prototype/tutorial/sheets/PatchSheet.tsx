@@ -21,10 +21,10 @@ function Body({ patch }: { patch: Patch }) {
         {ready && <PatchDiff patch={patch} className="mt-3" />}
       </div>
       <DrawerFooter className="flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
-        <Button variant="secondary" className="h-11 flex-1" onClick={() => dispatch({ type: "close" })}>
+        <Button variant="secondary" className="h-14 flex-1 text-control" onClick={() => dispatch({ type: "close" })}>
           Discard
         </Button>
-        <Button className="h-11 flex-1" disabled={!ready} onClick={() => dispatch({ type: "apply" })}>
+        <Button className="h-14 flex-1 text-control" disabled={!ready} onClick={() => dispatch({ type: "apply" })}>
           Apply
         </Button>
       </DrawerFooter>
