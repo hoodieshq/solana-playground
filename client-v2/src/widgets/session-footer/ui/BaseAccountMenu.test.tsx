@@ -6,7 +6,6 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu";
 import type { AccountView } from "../model/account";
 import BaseAccountMenu from "./BaseAccountMenu";
 
-// The settings panel module reaches the utils barrel, which reads globals only the built app has
 const UP = { name: "devnet", down: false };
 const TESTER = { name: "Tester", login: "t", image: null };
 const WALLET = {
@@ -170,7 +169,7 @@ it.each([
   async (name, account) => {
     const panel = document.createElement("button");
     document.body.append(panel);
-    // The settings panel focuses itself as it opens, as `GearSidebar` does;
+    // The settings page focuses itself as it opens;
     // while the menu is mounted, its focus trap would pull focus back
     await open(
       account,

@@ -11,7 +11,6 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import type { AccountView } from "../model/account";
 import BaseRailFooter from "./BaseRailFooter";
 
-// The settings panel module reaches the utils barrel, which reads globals only the built app has
 // The rail's tooltips measure themselves with a `ResizeObserver` on hover
 class NoopResizeObserver {
   observe() {}

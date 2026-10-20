@@ -11,7 +11,9 @@ vi.mock("@/utils", async () => {
 
 // Only the select is under test: the modal and tooltip pull in the theme,
 // which needs the same build-time global
-vi.mock("@/views/flow/settings/CustomSetting", () => ({ CustomSetting: () => null }));
+vi.mock("@/views/flow/settings/CustomSetting", () => ({
+  CustomSetting: () => null,
+}));
 vi.mock("@/components/Tooltip", () => ({ default: () => null }));
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
 
