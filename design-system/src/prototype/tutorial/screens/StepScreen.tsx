@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { BookOpen, ChevronLeft, CircleCheck, MessageCircle, X } from "lucide-react"
+import { BookOpen, ChevronLeft, CircleCheck, CircleDashed, MessageCircle, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { BrandButton } from "@/components/ui/brand-button"
@@ -68,20 +68,22 @@ export function StepScreen() {
       <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
 
       <section className="border-b border-border px-4 pb-1">
-        <p className="text-caption tracking-wide text-muted-foreground uppercase">
-          Step {s.step + 1} of {STEPS.length}
-        </p>
-        <h2 className="mt-1 line-clamp-3 text-title">{step.objective}</h2>
-        {/* When the step counts, as a plain statement. It turns green once it does */}
+        <h2 className="line-clamp-3 text-title">{step.objective}</h2>
+        {/* When the step counts. A dashed circle while it waits, a green check once it does */}
         <p className="mt-2 flex items-start gap-1.5 text-caption text-muted-foreground">
-          <CircleCheck strokeWidth={1.75} className={cn("mt-px size-4 shrink-0", s.passed[s.step] && "text-success")} />
+          {s.passed[s.step] ? (
+            <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
+          ) : (
+            <CircleDashed strokeWidth={1.75} className="mt-px size-4 shrink-0" />
+          )}
           Done when {step.checkedBy}
         </p>
         {/* The lesson itself opens in a sheet, so the code stays where it is */}
         <button
           type="button"
           onClick={() => setLesson(true)}
-          className="flex min-h-11 items-center gap-1.5 text-caption text-foreground"
+          // 44px to tap, pulled up so the text sits 8px under the line above
+          className="-mt-[5px] flex min-h-11 items-center gap-1.5 text-caption text-foreground"
         >
           <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
           <span className="underline decoration-border-strong underline-offset-4">Read the lesson</span>
