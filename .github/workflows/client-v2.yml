@@ -176,6 +176,16 @@ jobs:
             }
           done
 
+      # Chunks are classic scripts sharing one global scope; a chunk the minifier leaves unwrapped declares keepNames' helpers as globals, and another chunk's helpers then replace them at runtime.
+      - name: Check every chunk keeps its helpers in its own scope
+        run: |
+          for file in build/static/js/*.js; do
+            head -c 20 "$file" | grep -qE '^("use strict";)?\(\(\)=>\{' || {
+              echo "::error::$file is not wrapped in a function: keepNames' helpers leak as globals (format: \"iife\" in craco.config.js)"
+              exit 1
+            }
+          done
+
   # The browser suite (`client-v2/e2e/`, Playwright) in its own job, so
   # `checks` stays short and a browser failure reads as one. No Postgres and
   # no secret: every spec stubs the account endpoints with `page.route`, and
