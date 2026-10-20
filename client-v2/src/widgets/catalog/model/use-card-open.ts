@@ -21,11 +21,13 @@ type Run = (report: (text: string) => void) => Promise<void>;
  * counted and closes the page: the item it opened takes its place (and the
  * lesson already open changes no route that would). A failed one is logged,
  * counted and shown on its card; a cancelled one (`isCancel`) is none of
- * these.
+ * these. `onOpened` is what a finished Open closes: the page by default,
+ * New project's dialog when the cards sit there.
  */
 export const useCardOpen = (
   page: CatalogPage,
-  isCancel: (e: unknown) => boolean = () => false
+  isCancel: (e: unknown) => boolean = () => false,
+  onOpened: () => void = catalogPage.close
 ) => {
   const [opening, setOpening] = useState<Opening | null>(null);
   // Read by a second click in the same tick, before the state has rendered
@@ -60,7 +62,7 @@ export const useCardOpen = (
     setOpening(null);
     if (cancelled) return;
     catalogTelemetry.track("catalog_item_opened", { page });
-    catalogPage.close();
+    onOpened();
   };
 
   return {
