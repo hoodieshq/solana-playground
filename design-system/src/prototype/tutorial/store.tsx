@@ -16,6 +16,8 @@ export type State = {
   sheet: boolean
   /** Which patch was applied last on this step */
   applied: "patch" | "fix" | null
+  /** Which proposal the step shows inline while phase is "patch" */
+  review: "patch" | "fix"
   /** Files as they were when the current step started, for Undo */
   undo: { step: number; files: Record<string, string> } | null
   log: string[]
@@ -33,6 +35,7 @@ export type Action =
   | { type: "goto"; step: number }
   | { type: "openStep"; step: number }
   | { type: "askPatch" }
+  | { type: "reviewFix" }
   | { type: "explain"; mode: "step" | "error" }
   | { type: "close" }
   | { type: "apply" }
@@ -54,6 +57,7 @@ export const initial = (): State => ({
   phase: "idle",
   sheet: false,
   applied: null,
+  review: "patch",
   undo: null,
   log: [],
   error: null,
@@ -112,22 +116,24 @@ function reducer(s: State, a: Action): State {
         applied: null,
         startedAt: s.startedAt ?? Date.now(),
       }
+    // A proposal shows inline, in the code it changes: no sheet
     case "askPatch":
-      return { ...s, phase: "patch", sheet: true }
+      return { ...s, phase: "patch", review: "patch", sheet: false }
+    case "reviewFix":
+      return step.fix ? { ...s, phase: "patch", review: "fix", sheet: false } : s
     case "explain":
       return { ...s, phase: "explain", explain: a.mode, sheet: true }
     case "close":
       if (s.phase === "patch" || s.phase === "explain") return { ...s, phase: resting(s), sheet: false }
       return { ...s, sheet: false }
     case "apply": {
-      const fromExplain = s.phase === "explain" && s.explain === "error"
-      const p = fromExplain ? step.fix : step.patch
+      const p = s.review === "fix" ? step.fix : step.patch
       if (!p) return s
       return {
         ...s,
         undo: s.undo && s.undo.step === s.step ? s.undo : { step: s.step, files: s.files },
         files: { ...s.files, [p.file]: p.after },
-        applied: fromExplain ? "fix" : "patch",
+        applied: s.review,
         phase: "building",
         sheet: false,
         error: null,

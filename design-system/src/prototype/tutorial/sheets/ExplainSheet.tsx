@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { STEPS, type Chip } from "../data"
 import { useStore } from "../store"
 import { AssistantHead } from "../ui/AssistantHead"
-import { PatchDiff } from "../ui/PatchDiff"
 import { Typed } from "../ui/Typed"
 
 function Body({ mode }: { mode: "step" | "error" }) {
@@ -36,7 +35,6 @@ function Body({ mode }: { mode: "step" | "error" }) {
         <p className="text-body">
           <Typed key={text} text={text} onDone={() => setReady(true)} />
         </p>
-        {ready && withFix && step.fix && <PatchDiff patch={step.fix} className="mt-3" />}
         {asked.map((c) => (
           <div key={c.label} className="mt-4">
             <p className="ml-auto w-fit max-w-[85%] rounded-panel bg-surface-raised px-3 py-2 text-body">{c.label}</p>
@@ -79,10 +77,11 @@ function Body({ mode }: { mode: "step" | "error" }) {
         {withFix ? (
           <>
             <Button variant="secondary" className="h-14 flex-1 text-control" onClick={() => dispatch({ type: "close" })}>
-              Discard
+              Close
             </Button>
-            <Button className="h-14 flex-1 text-control" disabled={!ready} onClick={() => dispatch({ type: "apply" })}>
-              Apply and build
+            {/* The fix opens in the code, the same way the step's own patch does */}
+            <Button className="h-14 flex-1 text-control" disabled={!ready} onClick={() => dispatch({ type: "reviewFix" })}>
+              Review the fix
             </Button>
           </>
         ) : (

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, MessageCircle } from "lucide-react"
+import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, FileDiff, MessageCircle } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,7 @@ export function ActionZone() {
   const busy = s.phase === "building" || s.phase === "deploying"
   const passed = s.phase === "passed"
   const failed = s.phase === "failed"
+  const reviewing = s.phase === "patch"
 
   // The button says what is happening, the status line says how far along it is
   const client = step.id === "call-client"
@@ -60,6 +61,13 @@ export function ActionZone() {
         </span>
       </>
     )
+  } else if (reviewing) {
+    status = (
+      <>
+        <FileDiff strokeWidth={1.75} className="mt-px size-4 shrink-0" />
+        <span>Review the change above. Nothing is applied yet</span>
+      </>
+    )
   } else {
     status = (
       <>
@@ -77,7 +85,11 @@ export function ActionZone() {
         {status}
       </p>
       <div className="flex gap-2">
-        {failed ? (
+        {reviewing ? (
+          <Button variant="secondary" className={cn(big, "px-5")} onClick={() => dispatch({ type: "close" })}>
+            Discard
+          </Button>
+        ) : failed ? (
           <Button variant="secondary" className={cn(big, "px-4")} onClick={() => dispatch({ type: "retry" })}>
             Try again
           </Button>
@@ -109,10 +121,18 @@ export function ActionZone() {
             disabled={busy}
             className={cn(big, "min-w-0 flex-1 gap-2")}
             onClick={() =>
-              dispatch(failed ? { type: "explain", mode: "error" } : step.deploy ? { type: "deploy" } : { type: "askPatch" })
+              dispatch(
+                reviewing
+                  ? { type: "apply" }
+                  : failed
+                    ? { type: "explain", mode: "error" }
+                    : step.deploy
+                      ? { type: "deploy" }
+                      : { type: "askPatch" }
+              )
             }
           >
-            {busy ? working : failed ? "Explain" : step.cta}
+            {busy ? working : reviewing ? (s.review === "fix" ? "Apply and build" : "Apply") : failed ? "Explain" : step.cta}
           </BrandButton>
         )}
       </div>

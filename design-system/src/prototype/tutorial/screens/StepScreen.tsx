@@ -9,13 +9,15 @@ import { STEPS, type Step } from "../data"
 import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
-import { PatchSheet } from "../sheets/PatchSheet"
 import { useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
+import { AssistantHead } from "../ui/AssistantHead"
 import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
+import { InlineDiff } from "../ui/InlineDiff"
 import { StepProgress } from "../ui/StepProgress"
 import { TopBar } from "../ui/TopBar"
+import { Typed } from "../ui/Typed"
 
 /** About 200 words a minute, rounded up, never under a minute */
 function readingMinutes(step: Step) {
@@ -52,6 +54,7 @@ export function StepScreen() {
     toast("Patch undone", { duration: 4000 })
   }
 
+  const proposal = s.phase === "patch" ? (s.review === "fix" ? step.fix : step.patch) ?? null : null
   const focus = s.phase === "idle" && !s.passed[s.step] && !s.undo ? step.focus : []
 
   return (
@@ -144,10 +147,21 @@ export function StepScreen() {
         )}
       </div>
 
-      {tab === "code" ? (
-        <CodeView code={s.files[step.file]} focus={focus} error={s.error?.line ?? null} />
-      ) : (
+      {/* A proposal shows in place: the assistant's line over the file, the file as a diff */}
+      {proposal && (
+        <div className="mx-4 mt-1 mb-1 rounded-control border border-border bg-surface-panel px-3 py-2.5">
+          <AssistantHead />
+          <p className="mt-1.5 text-control text-foreground">
+            <Typed key={proposal.summary} text={proposal.summary} />
+          </p>
+        </div>
+      )}
+      {tab === "build" ? (
         <BuildLog log={s.log} />
+      ) : proposal ? (
+        <InlineDiff patch={proposal} />
+      ) : (
+        <CodeView code={s.files[step.file]} focus={focus} error={s.error?.line ?? null} />
       )}
 
       <ActionZone />
@@ -161,7 +175,6 @@ export function StepScreen() {
         }}
       />
       <ContinueSheet open={computer} onClose={() => setComputer(false)} />
-      <PatchSheet />
       <ExplainSheet />
     </div>
   )
