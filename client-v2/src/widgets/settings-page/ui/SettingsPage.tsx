@@ -117,7 +117,7 @@ const Project = ({ phone }: { phone: boolean }) => (
     <AsyncButton
       variant="outline"
       onClick={() => PgFramework.exportWorkspace()}
-      onError={reportButtonFailure}
+      onError={reportButtonFailure("export the project")}
     >
       <ExportFile data-icon="inline-start" />
       Export project (zip)
@@ -125,7 +125,7 @@ const Project = ({ phone }: { phone: boolean }) => (
     <AsyncButton
       variant="outline"
       onClick={() => PgView.setModal(ImportGithub)}
-      onError={reportButtonFailure}
+      onError={reportButtonFailure("open the GitHub import")}
     >
       <Github data-icon="inline-start" />
       From GitHub
@@ -133,7 +133,7 @@ const Project = ({ phone }: { phone: boolean }) => (
     <AsyncButton
       variant="outline"
       onClick={() => PgView.setModal(ImportFs)}
-      onError={reportButtonFailure}
+      onError={reportButtonFailure("open the file import")}
     >
       <ImportFile data-icon="inline-start" />
       From files

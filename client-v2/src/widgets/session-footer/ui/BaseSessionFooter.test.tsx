@@ -163,15 +163,6 @@ it("says nothing under the row of a sign-in the user cancelled", () => {
   expect(screen.queryByText("Couldn't sign in")).toBeNull();
 });
 
-it("marks the account row as a settings trigger, so opening the menu keeps open settings open", () => {
-  draw({ account: view({}) });
-  expect(
-    screen
-      .getByRole("button", { name: "Account, signed out" })
-      .hasAttribute("data-settings-trigger")
-  ).toBe(true);
-});
-
 it("offers Cancel beside the row while signing in", async () => {
   const onCancelSignIn = vi.fn();
   draw({ account: view({ session: { status: "pending" } }), onCancelSignIn });

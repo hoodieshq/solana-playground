@@ -46,7 +46,7 @@ const MOVES_FOCUS: ReadonlySet<AccountItem> = new Set([
   "cluster-down",
 ]);
 
-/** Lets a pick through `GearSidebar`'s outside-click check, so a second pick closes the settings */
+/** Marks the items that open the settings, as tests find them */
 const settingsTrigger = { [SETTINGS_TRIGGER_ATTR]: "" };
 
 const External = () => (

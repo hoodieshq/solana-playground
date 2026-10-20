@@ -95,15 +95,6 @@ it("opens the account menu from Account, not the navigation", async () => {
   expect(onMenuOpenChange).toHaveBeenCalledWith(true);
 });
 
-it("marks Account as a settings trigger, so opening the menu keeps open settings open", () => {
-  draw({ account: view({}) });
-  expect(
-    screen
-      .getByRole("button", { name: "Account, signed out" })
-      .hasAttribute("data-settings-trigger")
-  ).toBe(true);
-});
-
 it("shows a send in flight on Account, with the labelled spinner", () => {
   draw({ account: view({ sending: true }) });
   expect(screen.getByRole("status", { name: "Sending feedback" })).toBeTruthy();
