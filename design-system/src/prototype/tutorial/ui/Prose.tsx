@@ -1,12 +1,13 @@
 import type { ReactNode } from "react"
 
-/** Text with `ticks` around code. The code sits in its own chip, a lighter fill with a
- * hairline, so it reads apart from the prose on any surface: the lesson, the assistant's
- * lines, the notes and the answers. A word joiner keeps #[ together in plain text too */
-export function Prose({ text, chip = "bg-surface-raised" }: { text: string; chip?: string }) {
+/** Text with `ticks` around code. No colour of its own, as on GitHub: the chip is a 10%
+ * white fill over whatever it sits on, so it shows on any dark surface, with GitHub's
+ * 0.2em by 0.4em of room inside and 85% of the text size. A word joiner keeps #[
+ * together in plain text too */
+export function Prose({ text, chip = "bg-foreground/10" }: { text: string; chip?: string }) {
   const parts: ReactNode[] = text.split("`").map((part, i) =>
     i % 2 ? (
-      <code key={i} className={`rounded-[5px] ${chip} px-1.5 py-0.5 font-mono text-[0.84em] whitespace-nowrap text-foreground ring-1 ring-border-strong ring-inset`}>
+      <code key={i} className={`rounded-[6px] ${chip} px-[0.4em] py-[0.2em] font-mono text-[0.85em] whitespace-nowrap text-foreground`}>
         {part}
       </code>
     ) : (
