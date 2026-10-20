@@ -1,4 +1,14 @@
-import { expect, home, homeRegion, startProject, test } from "./fixtures";
+import {
+  expect,
+  home,
+  homeRegion,
+  LONG,
+  projectMenu,
+  projectRow,
+  startProject,
+  test,
+} from "./fixtures";
+import type { Page } from "@playwright/test";
 import { lineOf, linesOn } from "./telemetry";
 
 test.describe("on a desktop window", () => {
@@ -112,6 +122,77 @@ test.describe("on a desktop window", () => {
     await expect
       .poll(() => lineOf(lines, "home_tile_opened"))
       .toContain("tile: tutorials");
+  });
+});
+
+/** The navigation's Home item, apart from Home's own region of that name */
+const navHome = (page: Page) =>
+  page.locator('[data-slot="sidebar"]').getByRole("button", { name: "Home" });
+
+/** Focus the editor without a click, which would move its cursor */
+const focusEditor = (page: Page) =>
+  page.locator(".monaco-editor textarea.inputarea").focus();
+
+const firstLine = (page: Page) =>
+  page.locator(".monaco-editor .view-line").first();
+
+test.describe("from an open project", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("client-v2-layout: Home from an open project and back", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/");
+    await startProject(page, "alpha");
+    await expect(firstLine(page)).not.toBeEmpty(LONG);
+    await focusEditor(page);
+    await page.keyboard.press("ControlOrMeta+Home");
+    await page.keyboard.type("// kept ");
+    await expect(firstLine(page)).toContainText("// kept");
+    const url = page.url();
+
+    await navHome(page).click();
+    await expect(home(page)).toBeVisible();
+    expect(page.url()).toBe(url);
+    await expect(page.locator("[data-gallery-modal]")).toHaveCount(0);
+
+    await projectRow(page, "alpha").click();
+    await expect(home(page)).toBeHidden();
+    await expect(firstLine(page)).toContainText("// kept");
+    // The cursor is where the typing left it
+    await focusEditor(page);
+    await page.keyboard.type("+");
+    await expect(firstLine(page)).toContainText("// kept +");
+    // And the history is the editor's own: undo takes the typing back
+    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(firstLine(page)).not.toContainText("// kept");
+  });
+
+  test("client-v2-layout: Home after the last project is deleted", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/");
+    await startProject(page, "alpha");
+    await expect(page.locator("#root-dir")).toBeVisible(LONG);
+
+    const menu = await projectMenu(page, "alpha");
+    await menu.getByRole("menuitem", { name: "Delete alpha" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^delete$/i })
+      .click();
+
+    await expect(home(page)).toBeVisible(LONG);
+    await expect(page.locator("[data-gallery-modal]")).toHaveCount(0);
+    await expect(page.locator(".monaco-editor")).toHaveCount(0);
+
+    await startProject(page, "beta");
+    await expect(
+      page.locator(".monaco-editor .view-lines").first()
+    ).not.toBeEmpty(LONG);
   });
 });
 
