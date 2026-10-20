@@ -15,7 +15,7 @@ import { lastResult, useStore } from "../store"
  * line up top and the passed / not yet sheets.
  * Each signal shows once: the status icon (dashed, spinner, check, alert)
  * lives only in the status line, the button carries the action and its colour */
-export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
+export function ActionZone() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
@@ -48,14 +48,6 @@ export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
         <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
         <span>
           <span className="text-success">{r.note}</span>
-          {step.deploy && (
-            <>
-              {" · "}
-              <button type="button" onClick={onShowBuild} className="text-muted-foreground underline underline-offset-4">
-                Program id
-              </button>
-            </>
-          )}
         </span>
       </>
     )

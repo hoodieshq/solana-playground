@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { BookOpen, ChevronLeft, RotateCcw, X } from "lucide-react"
+import { BookOpen, ChevronLeft, Hash, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -105,6 +105,18 @@ export function StepScreen() {
           </button>
         ))}
         </div>
+        {/* Actions on the code and its output sit here, by what they act on, away from the main button.
+            After a deploy that's the program id, which the Build tab shows */}
+        {step.deploy && s.phase === "passed" && tab === "code" && (
+          <button
+            type="button"
+            onClick={() => setTab("build")}
+            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
+          >
+            <Hash strokeWidth={1.75} className="size-4" />
+            Program id
+          </button>
+        )}
         {/* Undo sits by the code it reverts, away from the main button and big enough to tap */}
         {s.undo && (s.phase === "passed" || s.phase === "failed") && (
           <button
@@ -124,7 +136,7 @@ export function StepScreen() {
         <BuildLog log={s.log} />
       )}
 
-      <ActionZone onShowBuild={() => setTab("build")} />
+      <ActionZone />
 
       <LessonSheet
         open={lesson}
