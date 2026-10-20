@@ -69,16 +69,8 @@ export function ActionZone({ lead }: { lead?: string }) {
     status = (
       <>
         <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
-        <span>
-          {lead ? (
-            <span className="text-foreground">{lead} </span>
-          ) : (
-            <span className="text-foreground">
-              <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />{" "}
-            </span>
-          )}
-          Tap a line with a dot to see why. Nothing is applied yet
-        </span>
+        {/* One message, one colour: the answer's feedback, or else what the assistant changes */}
+        <span className="text-foreground">{lead ?? <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}</span>
       </>
     )
   } else {
@@ -94,7 +86,7 @@ export function ActionZone({ lead }: { lead?: string }) {
 
   return (
     <footer className="shrink-0 border-t border-border bg-surface-panel px-3 pt-3 pb-[max(var(--safe-bottom),16px)]">
-      <p role="status" aria-live="polite" className="mb-3 flex min-h-5 items-start gap-1.5 px-1 text-caption text-muted-foreground">
+      <p role="status" aria-live="polite" className="mb-4 flex min-h-5 items-start gap-1.5 px-1 text-caption leading-relaxed text-muted-foreground">
         {status}
       </p>
       <div className="flex gap-2">

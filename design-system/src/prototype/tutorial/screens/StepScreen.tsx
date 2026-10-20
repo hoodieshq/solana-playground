@@ -24,6 +24,9 @@ function readingMinutes(step: Step) {
   return Math.max(1, Math.ceil(words / 200))
 }
 
+// Shown once a session: the first proposal opens its first note on its own
+let taughtNotes = false
+
 export function StepScreen() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
@@ -34,9 +37,6 @@ export function StepScreen() {
   const [notes, setNotes] = useState<number[]>([])
   const [predicted, setPredicted] = useState<Record<number, number | "skip">>({})
 
-  useEffect(() => {
-    setNotes([])
-  }, [s.phase, s.review, s.step])
 
   useEffect(() => {
     setTab("code")
@@ -70,6 +70,19 @@ export function StepScreen() {
       : undefined
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
   const focus = (s.phase === "idle" && !s.passed[s.step] && !s.undo) || asking ? step.focus : []
+
+  // Notes close whenever a new proposal shows. The very first one in a session opens its
+  // first note by itself, which teaches the dots without a line of instructions
+  useEffect(() => {
+    const first = proposal?.notes[0]?.line
+    if (!asking && first !== undefined && !taughtNotes) {
+      taughtNotes = true
+      setNotes([first])
+    } else {
+      setNotes([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.phase, s.review, s.step, asking])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
