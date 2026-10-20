@@ -1345,7 +1345,8 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
 
 Kept: "Cluster: <name>" on the rail's dot, "Change cluster, currently
 <name>" on the cluster row, "Connect wallet", "Sign in with GitHub" and the
-settings trigger attribute that lets a second click close the settings. The
+settings trigger attribute (since 5.20 the page covers the triggers, and only
+finds them for tests). The
 account controls, the row and the rail's button alike, are named
 "Account: <login>" or "Account, signed out"; tests match `/^Account/`.
 
@@ -1590,7 +1591,9 @@ trigger is no longer the way out, "Back to app" is), "Change cluster,
 currently <name>" and "Cluster: <name>". The floating wallet is hidden with
 the shell, and the navigation's Sheet still closes as the settings open: it
 portals to `body`, outside the hidden shell, and its overlay would cover the
-page.
+page. Toasts and dialogs are not the app here: they are the page's own
+feedback (a failed export, an import dialog), so `ToastHost` and `ModalHost`
+stay outside the hidden shell, above the page.
 
 ## Risks / Trade-offs
 

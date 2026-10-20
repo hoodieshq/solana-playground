@@ -29,12 +29,19 @@ import {
   ImportGithub,
 } from "@/views/sidebar/explorer/Component/Modals";
 import { groupSettings, sectionTitle } from "../model/sections";
+import type { SectionId } from "../model/sections";
 import { settingsTelemetry } from "../model/telemetry";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 import BaseSettingRow from "./BaseSettingRow";
 import BaseSettingsPage from "./BaseSettingsPage";
 import type { SettingsSection } from "./BaseSettingsPage";
 import { SettingControl } from "./SettingControl";
+
+// The sections the page draws itself, typed so a rename in `SECTION_ORDER`
+// fails to compile here
+const NETWORK: SectionId = "network";
+const PROJECT: SectionId = "project";
+const BLOCK_EXPLORER: SectionId = "blockExplorer";
 
 interface SettingsPageProps {
   focus: SettingsFocus;
@@ -49,7 +56,7 @@ interface SettingsPageProps {
  */
 const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
   const phone = useViewport() === "phone";
-  const [current, setCurrent] = useState("network");
+  const [current, setCurrent] = useState<string>(NETWORK);
 
   // A modal opened from the page (Import from GitHub or files, a setting's
   // Custom value) owns Escape while it is up. This follows the last
@@ -69,7 +76,7 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
 
   const own: SettingsSection[] = [
     {
-      id: "network",
+      id: NETWORK,
       title: "Network",
       content: (
         <BaseNetworkChoice
@@ -78,7 +85,7 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
         />
       ),
     },
-    { id: "project", title: "Project", content: <Project phone={phone} /> },
+    { id: PROJECT, title: "Project", content: <Project phone={phone} /> },
   ];
   const groups = groupSettings(PgSettings.all).map(({ id, settings }) => ({
     id,
@@ -96,7 +103,7 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
             phone={phone}
           />
         ))}
-        {id === "blockExplorer" && <ExplorerLinks phone={phone} />}
+        {id === BLOCK_EXPLORER && <ExplorerLinks phone={phone} />}
       </div>
     ),
   }));
