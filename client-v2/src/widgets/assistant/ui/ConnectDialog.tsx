@@ -5,7 +5,7 @@ import { PgView } from "@/utils/view";
 import Connect from "../../../views/sidebar/assistant/Component/Connect";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import type { Connection } from "../../../views/sidebar/assistant/store";
-import { ModalFrame } from "../../overlays";
+import { ModalFrame, useModalId } from "../../overlays";
 import { useDefaultBackend } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
 import type { ConnectOpener, ConnectPreset } from "../model/use-turn";
@@ -36,13 +36,12 @@ interface ConnectDialogProps {
  * Closes itself with the connection on the first one made while it is open.
  *
  * `PgAssistant.isPickingBackend` says it is open for exactly as long as this
- * is mounted. Not for as long as its `setModal` is pending: `closeModal`
- * answers every pending one (HOO-2091), so a dialog stacked on this one
- * closing would end it while this is still on screen. `ModalHost` keeps a
- * lower dialog mounted, so the cleanup runs only when this one is popped.
+ * is mounted. `ModalHost` keeps a lower dialog mounted, so the cleanup runs
+ * only when this one closes, not when a dialog stacked on it does.
  */
 const ConnectDialog = ({ preset }: ConnectDialogProps) => {
   const probed = useDefaultBackend();
+  const id = useModalId();
   // Above `ModalFrame`, so a dialog stacked on this one does not reset it
   const opened = useRef(PgAssistant.connection);
   const closed = useRef(false);
@@ -58,12 +57,13 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
       // `connect` always stores a new object, so re-picking the backend
       // already connected counts as a connection too
       if (!connection || connection === opened.current) return;
-      // The store emits again before this unmounts; a second close would
-      // take whatever dialog is under this one with it
+      // The store emits again before this unmounts; once closed, the pick is
+      // not reported again
       if (closed.current) return;
       closed.current = true;
       try {
-        PgView.closeModal(connection);
+        // By id: a dialog stacked on this one stays
+        PgView.closeModal(connection, id);
       } catch (error) {
         // Still on screen: the next connection made in it closes it
         closed.current = false;
@@ -83,7 +83,7 @@ const ConnectDialog = ({ preset }: ConnectDialogProps) => {
       // Closed with no connection (Escape, Close, a press outside, a crash)
       if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
     };
-  }, []);
+  }, [id]);
 
   return (
     // The form is the frame's body, its action the frame's submit: a phone

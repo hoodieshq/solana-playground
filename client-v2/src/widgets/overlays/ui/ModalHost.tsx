@@ -1,24 +1,27 @@
-import { Component, useCallback, useRef, useState } from "react";
-import type { ErrorInfo, ReactElement, ReactNode } from "react";
+import { Component, useCallback, useRef, useSyncExternalStore } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { Modal } from "@/shared/ui/modal";
-import { useSetStatic } from "@/hooks/useSetStatic";
-import { PgCommon } from "@/utils/common";
-import type { Elementable } from "@/utils/types";
 import { PgView } from "@/utils/view";
-import { ModalDismissContext, ModalLayerContext } from "./modal-layer";
+import {
+  ModalDismissContext,
+  ModalIdContext,
+  ModalLayerContext,
+} from "./modal-layer";
 
 const log = createLogger("overlays:modal-host");
 
 /**
  * Keeps a dialog that throws while rendering from taking the IDE with it:
- * the failure is reported, the user is told, and the dialog closes with no
+ * the failure is reported, the user is told, and that dialog closes with no
  * answer, so the code awaiting it goes on. `PgView.setModal` never rejects,
- * so this is the only place that can tell the user who opened it.
+ * so this is the only place that can tell the user who opened it. A dialog
+ * under another still renders, so it closes by its id: the one on top is not
+ * the one that failed.
  */
 class ModalBoundary extends Component<
-  { children: ReactNode },
+  { id: string; children: ReactNode },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -40,13 +43,16 @@ class ModalBoundary extends Component<
       ),
       { options: { name: "modal-failed" } }
     );
-    PgView.closeModal(null);
+    PgView.closeModal(null, this.props.id);
   }
 
   render() {
     return this.state.failed ? null : this.props.children;
   }
 }
+
+const subscribe = (onChange: () => void) =>
+  PgView.onDidChangeModals(onChange).dispose;
 
 /**
  * Renders the dialogs opened with `PgView.setModal` in the design system's
@@ -57,45 +63,13 @@ class ModalBoundary extends Component<
  * while its submit runs.
  */
 export const ModalHost = () => {
-  const [modals, setModals] = useState<{ id: string; element: ReactElement }[]>(
-    []
-  );
+  // `PgView` owns the stack, so a remount of this host shows what is open
+  const modals = useSyncExternalStore(subscribe, PgView.getOpenModals);
   // Set by the top dialog's `ModalFrame` while its submit runs
   const dismissBlocked = useRef(false);
   const blockDismiss = useCallback((blocked: boolean) => {
     dismissBlocked.current = blocked;
   }, []);
-
-  const setModalStatic = useCallback(
-    (
-      detail:
-        | {
-            id: string;
-            elementable: Elementable;
-            props?: Record<string, unknown>;
-          }
-        | { elementable: null }
-    ) => {
-      // `PgView.closeModal` closes the top dialog
-      if (detail.elementable === null) {
-        setModals((modals) => modals.slice(0, -1));
-        return;
-      }
-
-      const { id, elementable, props } = detail;
-      const element = PgView.normalizeElement(
-        elementable,
-        props
-      ) as ReactElement;
-      setModals((modals) => [...modals, { id, element }]);
-    },
-    []
-  );
-
-  useSetStatic(
-    PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
-    setModalStatic
-  );
 
   return (
     <Modal
@@ -106,12 +80,13 @@ export const ModalHost = () => {
     >
       <ModalDismissContext.Provider value={blockDismiss}>
         {modals.map((modal, i) => (
-          <ModalLayerContext.Provider
-            key={modal.id}
-            value={i === modals.length - 1}
-          >
-            <ModalBoundary>{modal.element}</ModalBoundary>
-          </ModalLayerContext.Provider>
+          <ModalIdContext.Provider key={modal.id} value={modal.id}>
+            <ModalLayerContext.Provider value={i === modals.length - 1}>
+              <ModalBoundary id={modal.id}>
+                {PgView.normalizeElement(modal.elementable, modal.props)}
+              </ModalBoundary>
+            </ModalLayerContext.Provider>
+          </ModalIdContext.Provider>
         ))}
       </ModalDismissContext.Provider>
     </Modal>

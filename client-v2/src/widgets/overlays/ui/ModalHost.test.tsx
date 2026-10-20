@@ -12,6 +12,7 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+import { PgCommon } from "@/utils/common";
 import { PgView } from "@/utils/view";
 import { ModalFrame } from "./ModalFrame";
 import { ModalHost } from "./ModalHost";
@@ -24,7 +25,17 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   resetTelemetry();
+  // Dialogs a test leaves open would otherwise sit under the next test's
+  act(() => {
+    while (PgView.getOpenModals().length) PgView.closeModal();
+  });
 });
+
+const PENDING = "pending";
+
+/** What `promise` has settled to by the time queued microtasks have run */
+const settled = async (promise: Promise<unknown>) =>
+  Promise.race([promise, PgCommon.sleep(0).then(() => PENDING)]);
 
 const Info = () => (
   <ModalFrame name="info" title="Info">
@@ -105,7 +116,7 @@ it("should answer with what the submit returned", async () => {
 
 it("should show a stacked dialog and bring back the first with its text", async () => {
   render(<ModalHost />);
-  open(Outer);
+  const outer = open(Outer);
   fireEvent.change(screen.getByRole("textbox", { name: "Outer name" }), {
     target: { value: "draft" },
   });
@@ -126,6 +137,8 @@ it("should show a stacked dialog and bring back the first with its text", async 
     (screen.getByRole("textbox", { name: "Outer name" }) as HTMLInputElement)
       .value
   ).toBe("draft");
+  // Closing Info answered Info's caller only
+  await expect(settled(outer)).resolves.toBe(PENDING);
   // The first dialog stayed mounted, so it reported opening only once
   expect(
     sent.events
@@ -201,4 +214,82 @@ it("should close a dialog that throws while rendering, report it, tell the user 
   expect(toast).toHaveBeenCalledTimes(1);
   expect(toast.mock.calls[0][1].options.name).toBe("modal-failed");
   resetLogger();
+});
+
+it("should close the dialog that throws, not the one on top of it", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  let breakLower!: () => void;
+  const Fragile = () => {
+    const [broken, setBroken] = useState(false);
+    breakLower = () => setBroken(true);
+    if (broken) throw new Error("render failed");
+    return <ModalFrame name="fragile" title="Fragile" />;
+  };
+  render(<ModalHost />);
+  const lower = open(Fragile);
+  const upper = open(Info);
+
+  act(() => breakLower());
+
+  await expect(settled(lower)).resolves.toBeNull();
+  await expect(settled(upper)).resolves.toBe(PENDING);
+  expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy();
+});
+
+it("should keep the dialogs open across a remount of the host", async () => {
+  const first = render(<ModalHost />);
+  const answer = open(Info);
+
+  first.unmount();
+  render(<ModalHost />);
+
+  expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy();
+  act(() => {
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  });
+  await expect(answer).resolves.toBeNull();
+});
+
+it("should open a dialog that replaces another of its kind with fresh state", () => {
+  render(<ModalHost />);
+  open(Outer);
+  fireEvent.change(screen.getByRole("textbox", { name: "Outer name" }), {
+    target: { value: "draft" },
+  });
+
+  act(() => {
+    PgView.closeModal();
+    PgView.setModal(Outer);
+  });
+
+  expect(
+    (screen.getByRole("textbox", { name: "Outer name" }) as HTMLInputElement)
+      .value
+  ).toBe("");
+});
+
+it("should answer a submit that settles under another dialog to its own caller", async () => {
+  let finish!: (value: string) => void;
+  const Slow = () => (
+    <ModalFrame
+      name="slow"
+      title="Slow"
+      buttonProps={{
+        text: "Save",
+        onSubmit: () => new Promise<string>((resolve) => (finish = resolve)),
+      }}
+    />
+  );
+  render(<ModalHost />);
+  const slow = open(Slow);
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  });
+  const info = open(Info);
+
+  await act(async () => finish("saved"));
+
+  await expect(settled(slow)).resolves.toBe("saved");
+  await expect(settled(info)).resolves.toBe(PENDING);
+  expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy();
 });

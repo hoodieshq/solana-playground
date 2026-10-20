@@ -133,6 +133,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // A dialog a test opened would otherwise show in the next test's host
+  act(() => {
+    while (PgView.getOpenModals().length) PgView.closeModal();
+  });
   PgAssistant.disconnect();
   PgSession.reset();
   resetTelemetry();

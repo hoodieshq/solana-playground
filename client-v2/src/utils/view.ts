@@ -18,12 +18,27 @@ import type {
   Promisable,
 } from "./types";
 
+/** A dialog `PgView.openModal` opened that nothing has closed yet */
+export type OpenModal = {
+  /** What `PgView.closeModal` takes to close this dialog and no other */
+  readonly id: string;
+  readonly elementable: NonNullable<Elementable<any>>;
+  readonly props?: Record<string, any>;
+};
+
 /**
- * The dialogs `PgView.setModal` opened and not yet closed, bottom first. Each
- * holds its own caller's answer, so closing the top one answers only that
- * caller: one shared receive event answered every dialog in the stack.
+ * The dialogs open now, bottom first. `ModalHost` draws exactly this list,
+ * and each id's caller waits in `modalAnswers`, so a close answers the caller
+ * of the dialog it removes and no other.
  */
-const openModals: Array<{ id: string; resolve: (data: unknown) => void }> = [];
+let openModals: readonly OpenModal[] = [];
+const modalAnswers = new Map<string, (data: unknown) => void>();
+
+/** Replace the open modals and tell `PgView.onDidChangeModals` */
+const setOpenModals = (modals: readonly OpenModal[]) => {
+  openModals = modals;
+  PgCommon.createAndDispatchCustomEvent(PgView.events.MODALS_CHANGE, modals);
+};
 
 /** How long a toast stays, in milliseconds, when its options give no duration */
 export const DEFAULT_TOAST_DURATION = 5000;
@@ -166,7 +181,7 @@ class _PgView {
     MAIN_PRIMARY_MOUNT: "viewmainprimarymount",
     MAIN_SECONDARY_HEIGHT_SET: "viewmainsecondaryheightset",
     MAIN_SECONDARY_PROGRESS_SET: "viewmainsecondaryprogressset",
-    MODAL_SET: "viewmodalset",
+    MODALS_CHANGE: "viewmodalschange",
     TOAST_SET: "viewtoastset",
     TOAST_CLOSE: "viewtoastclose",
     NEW_ITEM_PORTAL_SET: "viewnewitemportalset",
@@ -303,8 +318,27 @@ class _PgView {
   }
 
   /**
+   * Open a modal on top of any already open.
+   *
+   * @param elementable elementable to set as the modal
+   * @param props component props
+   * @returns the modal's id, for `closeModal`, and the answer it closes with
+   */
+  static openModal<R, P extends Record<string, any> = {}>(
+    elementable: NonNullable<Elementable<P>>,
+    props?: P
+  ): { id: string; answer: Promise<R | null> } {
+    const id = uuid();
+    const answer = new Promise<R | null>((resolve) => {
+      modalAnswers.set(id, resolve as (data: unknown) => void);
+    });
+    setOpenModals([...openModals, { id, elementable, props }]);
+    return { id, answer };
+  }
+
+  /**
    * Open a modal on top of any already open, and wait until it closes.
-   * `null` closes the top modal with no answer instead.
+   * `null` closes the top modal instead, answering its caller with `null`.
    *
    * @param elementable elementable to set as the modal
    * @param props component props
@@ -318,15 +352,24 @@ class _PgView {
       PgView.closeModal(null);
       return null;
     }
+    return await PgView.openModal<R, P>(elementable, props).answer;
+  }
 
-    const id = uuid();
-    return new Promise<R | null>((resolve) => {
-      openModals.push({ id, resolve: resolve as (data: unknown) => void });
-      PgCommon.createAndDispatchCustomEvent(
-        PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
-        { id, elementable, props }
-      );
-    });
+  /** The modals open now, bottom first */
+  static getOpenModals(): readonly OpenModal[] {
+    return openModals;
+  }
+
+  /**
+   * Run `cb` with the open modals whenever one opens or closes.
+   *
+   * @param cb callback to run
+   * @returns a disposable to stop listening
+   */
+  static onDidChangeModals(
+    cb: (modals: readonly OpenModal[]) => void
+  ): Disposable {
+    return PgCommon.onDidChange(PgView.events.MODALS_CHANGE, cb);
   }
 
   /**
@@ -336,26 +379,29 @@ class _PgView {
    * @returns a disposable to stop listening
    */
   static onDidOpenModal(cb: () => void): Disposable {
-    return PgCommon.onDidChange<{ elementable: unknown } | null>(
-      PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
-      (detail) => {
-        if (detail?.elementable) cb();
-      }
-    );
+    let count = openModals.length;
+    return PgView.onDidChangeModals((modals) => {
+      if (modals.length > count) cb();
+      count = modals.length;
+    });
   }
 
   /**
-   * Close the top modal, answering only the `setModal` call that opened it.
+   * Close a modal, answering only the call that opened it. A modal that is
+   * already closed is not closed again, and nobody else is answered.
    *
    * @param data the answer for that call
+   * @param id the modal to close; the top one when not given
    */
-  static closeModal(data?: any) {
-    const top = openModals.pop();
-    PgCommon.createAndDispatchCustomEvent(
-      PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
-      { elementable: null }
-    );
-    top?.resolve(data);
+  static closeModal(data: unknown = null, id?: string) {
+    const closing = id ?? openModals[openModals.length - 1]?.id;
+    if (closing === undefined) return;
+    const answer = modalAnswers.get(closing);
+    if (!answer) return;
+
+    modalAnswers.delete(closing);
+    setOpenModals(openModals.filter((modal) => modal.id !== closing));
+    answer(data);
   }
 
   /**

@@ -148,6 +148,8 @@ const Dialog = () => null;
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // Dialogs a test leaves open would otherwise sit under the next test's
+  while (PgView.getOpenModals().length) PgView.closeModal();
 });
 
 it("should answer only the top dialog when a stacked one closes", async () => {
@@ -165,20 +167,58 @@ it("should answer only the top dialog when a stacked one closes", async () => {
 });
 
 it("should leave no listener waiting once its dialog closes", async () => {
-  const { receive } = PgCommon.getSendAndReceiveEventNames(
-    PgView.events.MODAL_SET
-  );
-  // Settle whatever earlier tests left listening, so their removals below
-  // do not hide a listener this close leaves behind
-  PgCommon.createAndDispatchCustomEvent(receive, { data: null });
   const added = vi.spyOn(document, "addEventListener");
   const removed = vi.spyOn(document, "removeEventListener");
-  const count = (spy: typeof added) =>
-    spy.mock.calls.filter(([name]) => name === receive).length;
 
   const answer = PgView.setModal(Dialog);
   PgView.closeModal();
   await answer;
 
-  expect(count(added)).toBe(count(removed));
+  expect(added.mock.calls.length).toBe(removed.mock.calls.length);
+});
+
+it("should close the dialog with the given id, not the one on top", async () => {
+  const lower = PgView.openModal(Dialog);
+  const upper = PgView.openModal(Dialog);
+
+  PgView.closeModal("lower's answer", lower.id);
+
+  await expect(settled(lower.answer)).resolves.toBe("lower's answer");
+  await expect(settled(upper.answer)).resolves.toBe(PENDING);
+  expect(PgView.getOpenModals().map((modal) => modal.id)).toEqual([upper.id]);
+});
+
+it("should answer no one when the dialog with the given id is already closed", async () => {
+  const closed = PgView.openModal(Dialog);
+  PgView.closeModal("first", closed.id);
+  const open = PgView.openModal(Dialog);
+
+  PgView.closeModal("second", closed.id);
+
+  await expect(settled(closed.answer)).resolves.toBe("first");
+  await expect(settled(open.answer)).resolves.toBe(PENDING);
+});
+
+it("should answer no one and not throw when nothing is open", () => {
+  expect(() => PgView.closeModal("stray")).not.toThrow();
+  expect(PgView.getOpenModals()).toEqual([]);
+});
+
+it("should answer null when closed with no answer", async () => {
+  const answer = PgView.setModal(Dialog);
+
+  PgView.closeModal();
+
+  await expect(settled(answer)).resolves.toBeNull();
+});
+
+it("should close the top dialog with null on setModal(null)", async () => {
+  const lower = PgView.setModal(Dialog);
+  const upper = PgView.setModal(Dialog);
+
+  const closing = PgView.setModal(null);
+
+  await expect(settled(closing)).resolves.toBeNull();
+  await expect(settled(upper)).resolves.toBeNull();
+  await expect(settled(lower)).resolves.toBe(PENDING);
 });

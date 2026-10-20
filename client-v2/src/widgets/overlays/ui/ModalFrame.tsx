@@ -7,7 +7,12 @@ import { PgView } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
 import { BaseModalFrame } from "./BaseModalFrame";
 import type { ModalSize, SubmitStatus, SubmitVariant } from "./BaseModalFrame";
-import { useBlockDismiss, useIsTopModal, useOpenReport } from "./modal-layer";
+import {
+  useBlockDismiss,
+  useIsTopModal,
+  useModalId,
+  useOpenReport,
+} from "./modal-layer";
 
 const log = createLogger("overlays:modal-frame");
 
@@ -80,10 +85,12 @@ export const ModalFrame = ({
   const [busy, setBusy] = useState(false);
   // `busy` lags a render behind, so two Enters in one tick both saw it false
   const submitting = useRef(false);
-  // A frame closed from elsewhere mid-submit must not close whatever dialog
-  // is on top by the time its submit settles
+  // A frame gone mid-submit (its dialog closed from elsewhere, or `ModalPages`
+  // moved on to another page) must not close its dialog when the submit
+  // settles
   const mounted = useRef(true);
   const isTop = useIsTopModal();
+  const id = useModalId();
   const openReport = useOpenReport();
   const blockDismiss = useBlockDismiss();
 
@@ -117,7 +124,7 @@ export const ModalFrame = ({
   const submit = async () => {
     if (!buttonProps || buttonProps.disabled || submitting.current) return;
     if (!buttonProps.onSubmit) {
-      PgView.closeModal(null);
+      PgView.closeModal(null, id);
       return;
     }
     submitting.current = true;
@@ -127,7 +134,8 @@ export const ModalFrame = ({
     try {
       const data = await buttonProps.onSubmit();
       if (mounted.current && !buttonProps.noCloseOnSubmit) {
-        PgView.closeModal(data);
+        // By id: another dialog may have opened on this one meanwhile
+        PgView.closeModal(data, id);
       }
     } catch (e) {
       if (e instanceof SubmitCancelled) {
@@ -168,7 +176,7 @@ export const ModalFrame = ({
           variant: buttonProps.variant ?? "default",
           onSubmit: submit,
           onCancel: buttonProps.onSubmit
-            ? () => PgView.closeModal(null)
+            ? () => PgView.closeModal(null, id)
             : undefined,
         }
       }
