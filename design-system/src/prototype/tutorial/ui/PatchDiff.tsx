@@ -12,7 +12,7 @@ export function PatchDiff({ patch, className }: { patch: Patch; className?: stri
         <DiffTitle>{patch.file}</DiffTitle>
         <DiffStat added={added} removed={removed} />
       </DiffHeader>
-      <DiffContent className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
+      <DiffContent className="max-h-64 overflow-y-auto text-[0.75rem] whitespace-pre-wrap break-words">
         {trimContext(rows).map((r, i) => (
           <DiffLine key={i} variant={r.kind}>
             {r.text || " "}

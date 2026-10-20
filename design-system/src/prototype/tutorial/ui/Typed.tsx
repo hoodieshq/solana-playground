@@ -17,5 +17,6 @@ export function Typed({ text, onDone }: { text: string; onDone?: () => void }) {
     const t = window.setTimeout(() => setN((v) => Math.min(text.length, v + 3)), 16)
     return () => window.clearTimeout(t)
   }, [n, text.length, onDone])
-  return <span aria-live="polite">{text.slice(0, n)}</span>
+  // A word joiner keeps attributes like #[derive(Accounts)] from breaking after the #
+  return <span aria-live="polite">{text.slice(0, n).replaceAll("#[", "#⁠[")}</span>
 }

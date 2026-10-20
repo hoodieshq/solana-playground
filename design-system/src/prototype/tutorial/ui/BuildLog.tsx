@@ -10,7 +10,7 @@ export function BuildLog({ log }: { log: string[] }) {
           key={i}
           className={cn(
             "text-muted-foreground",
-            line.startsWith("$") && "text-subtle",
+            line.startsWith("$") && "text-muted-foreground",
             line.startsWith("error") && "text-error",
             /successful|finished$/i.test(line) && "text-success"
           )}

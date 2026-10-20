@@ -1,0 +1,12 @@
+/* The step has to stay readable above every sheet: the task above the patch,
+   the red line above Not yet. So the overlay only dims, it doesn't blur */
+[data-slot="drawer-overlay"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-color: rgb(0 0 0 / 0.3);
+}
+
+/* Sheets here read as messages, so their text starts on the left */
+[data-slot="drawer-header"] {
+  text-align: left;
+}

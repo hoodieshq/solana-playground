@@ -66,8 +66,8 @@ export function StepScreen() {
 
       <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
 
-      <section className="border-b border-border px-4 pt-2 pb-3">
-        <p className="text-caption tracking-wide text-subtle uppercase">
+      <section className="border-b border-border px-4 pb-1">
+        <p className="text-caption tracking-wide text-muted-foreground uppercase">
           Step {s.step + 1} of {STEPS.length}
         </p>
         <h2 className="mt-1 line-clamp-3 text-title">{step.objective}</h2>
@@ -75,15 +75,15 @@ export function StepScreen() {
           type="button"
           aria-expanded={more}
           onClick={() => setMore((v) => !v)}
-          className="mt-1.5 flex min-h-8 w-full items-start gap-1 text-left text-caption text-muted-foreground"
+          className="flex min-h-11 w-full items-center gap-1 text-left text-caption text-muted-foreground"
         >
           <span className="flex-1">Checked when {step.checkedBy}</span>
-          <ChevronDown className={cn("mt-0.5 size-4 shrink-0 transition-transform", more && "rotate-180")} />
+          <ChevronDown className={cn("size-4 shrink-0 transition-transform", more && "rotate-180")} />
         </button>
-        {more && <p className="mt-2 text-caption text-muted-foreground">{step.page}</p>}
+        {more && <p className="pb-2 text-caption text-muted-foreground">{step.page}</p>}
       </section>
 
-      <div role="tablist" aria-label="Views" className="flex gap-1 px-4 py-2 text-caption">
+      <div role="tablist" aria-label="Views" className="flex gap-1 px-4 text-caption">
         {(["code", "build"] as const).map((t) => (
           <button
             key={t}
@@ -91,12 +91,15 @@ export function StepScreen() {
             type="button"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={cn("flex h-8 items-center gap-1.5 rounded-control px-3 text-muted-foreground", tab === t && "bg-surface-raised text-foreground")}
+            className={cn("flex h-11 items-center text-muted-foreground", tab === t && "text-foreground")}
           >
-            {t === "code" ? step.file.split("/").pop() : "Build"}
-            {t === "build" && s.log.length > 0 && (
-              <span className={cn("size-1.5 rounded-full", s.error ? "bg-error" : "bg-success")} />
-            )}
+            {/* The pill is what shows, the button around it is the 44px target */}
+            <span className={cn("flex h-8 items-center gap-1.5 rounded-control px-3", tab === t && "bg-surface-raised")}>
+              {t === "code" ? step.file.split("/").pop() : "Build"}
+              {t === "build" && s.log.length > 0 && (
+                <span className={cn("size-1.5 rounded-full", s.error ? "bg-error" : "bg-success")} />
+              )}
+            </span>
           </button>
         ))}
       </div>
@@ -122,7 +125,7 @@ export function StepScreen() {
             <Button variant="secondary" className="h-11 flex-1" onClick={() => dispatch({ type: "retry" })}>
               Try again
             </Button>
-            <BrandButton variant="accent" className="h-11 flex-1" onClick={() => dispatch({ type: "explain", mode: "error" })}>
+            <BrandButton variant="accent" className="h-11 min-w-0 flex-1 leading-tight whitespace-normal!" onClick={() => dispatch({ type: "explain", mode: "error" })}>
               Explain
             </BrandButton>
           </>
@@ -133,7 +136,7 @@ export function StepScreen() {
                 Undo
               </Button>
             )}
-            <BrandButton variant="accent" className="h-11 flex-1" onClick={() => dispatch({ type: "next" })}>
+            <BrandButton variant="accent" className="h-11 min-w-0 flex-1 leading-tight whitespace-normal!" onClick={() => dispatch({ type: "next" })}>
               {last ? "Finish tutorial" : `Step ${s.step + 2}: ${STEPS[s.step + 1].title}`}
             </BrandButton>
           </>
@@ -150,7 +153,7 @@ export function StepScreen() {
             </Button>
             <BrandButton
               variant="accent"
-              className="h-11 flex-1"
+              className="h-11 min-w-0 flex-1 leading-tight whitespace-normal!"
               onClick={() => dispatch(step.deploy ? { type: "deploy" } : { type: "askPatch" })}
             >
               {step.cta}

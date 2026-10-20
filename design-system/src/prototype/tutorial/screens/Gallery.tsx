@@ -35,7 +35,7 @@ export function Gallery() {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
         {started && (
           <section aria-label="Continue" className="mt-4 rounded-card border border-brand-violet/60 bg-surface-panel p-4">
-            <p className="text-caption text-subtle">Continue</p>
+            <p className="text-caption text-muted-foreground">Continue</p>
             <div className="mt-2 flex items-center gap-3">
               <img src={thumb("hello-anchor", "jpg")} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
               <div className="min-w-0 flex-1">
@@ -53,20 +53,20 @@ export function Gallery() {
         )}
 
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-control bg-surface-panel p-1 text-control">
-          <span className="flex h-10 items-center justify-center gap-2 rounded-md bg-surface-raised">
-            Tutorials <span className="text-caption text-subtle">16</span>
+          <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-surface-raised">
+            Tutorials <span className="text-caption text-muted-foreground">16</span>
           </span>
           <button
             type="button"
-            className="flex h-10 items-center justify-center gap-2 rounded-md text-muted-foreground"
+            className="flex h-11 items-center justify-center gap-2 rounded-md text-muted-foreground"
             onClick={() => toast("Programs are not in this prototype")}
           >
-            Programs <span className="text-caption text-subtle">34</span>
+            Programs <span className="text-caption text-muted-foreground">34</span>
           </button>
         </div>
 
         <label className="relative mt-3 block">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tutorials" className="h-11 pl-9" />
         </label>
 
@@ -83,7 +83,7 @@ export function Gallery() {
               >
                 <img src={thumb(t.slug, t.ext)} alt="" className="size-14 shrink-0 rounded-lg object-cover" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-caption text-subtle">
+                  <span className="block text-caption text-muted-foreground">
                     {t.level} · {t.framework}
                     {t.slug === "hello-anchor" && ` · ${STEPS.length} steps`}
                   </span>
@@ -92,7 +92,7 @@ export function Gallery() {
                     <span className="block text-caption text-muted-foreground">Hello world program with the Anchor framework.</span>
                   )}
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-subtle" />
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </button>
             </li>
           ))}

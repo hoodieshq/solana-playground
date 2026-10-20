@@ -44,12 +44,12 @@ export function Finish() {
             <div key={t.l} className="rounded-panel bg-surface-panel p-3 text-center">
               <dt className="sr-only">{t.l}</dt>
               <dd className="font-heading text-title">{t.v}</dd>
-              <dd className="text-caption text-subtle">{t.l}</dd>
+              <dd className="text-caption text-muted-foreground">{t.l}</dd>
             </div>
           ))}
         </dl>
 
-        <h3 className="mt-6 text-caption text-subtle">What you learned</h3>
+        <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>
         <ul className="mt-2 flex flex-col gap-2">
           {STEPS.map((step) => (
             <li key={step.id} className="flex items-start gap-2 text-body">
@@ -63,7 +63,7 @@ export function Finish() {
         <div className="flex items-center gap-3">
           <img src={thumb(NEXT_TUTORIAL.slug, NEXT_TUTORIAL.ext)} alt="" className="size-11 shrink-0 rounded-lg object-cover" />
           <div className="min-w-0">
-            <p className="text-caption text-subtle">
+            <p className="text-caption text-muted-foreground">
               Up next · {NEXT_TUTORIAL.level} · {NEXT_TUTORIAL.framework}
             </p>
             <p className="truncate text-control">{NEXT_TUTORIAL.name}</p>

@@ -27,14 +27,14 @@ export function ResultSheet({ onUndo }: { onUndo: () => void }) {
             </DrawerHeader>
             {step.deploy && (
               <div className="mx-4 rounded-control bg-surface-raised p-3 text-caption">
-                <p className="text-subtle">Program id</p>
+                <p className="text-muted-foreground">Program id</p>
                 <p className="mt-0.5 font-mono break-all text-foreground">{PROGRAM_ID}</p>
                 <p className="mt-2 text-primary underline underline-offset-2">View on Explorer (devnet)</p>
               </div>
             )}
             <DrawerFooter className="pb-[max(env(safe-area-inset-bottom),16px)]">
               {s.undo && (
-                <p className="text-center text-caption text-subtle">
+                <p className="text-center text-caption text-muted-foreground">
                   Applied ·{" "}
                   <button type="button" className="underline underline-offset-2" onClick={onUndo}>
                     Undo

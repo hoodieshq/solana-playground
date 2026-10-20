@@ -26,7 +26,7 @@ export function Overview() {
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-6">
-        <p className="text-caption text-subtle">Beginner · Anchor · about 10 min</p>
+        <p className="text-caption text-muted-foreground">Beginner · Anchor · about 10 min</p>
         <h2 className="mt-1 font-heading text-display">Hello Anchor</h2>
         <p className="mt-1 text-caption text-muted-foreground">by acheron</p>
         <p className="mt-3 text-body text-muted-foreground">Write an Anchor program, deploy it to devnet and call it from a client.</p>
