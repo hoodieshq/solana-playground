@@ -39,9 +39,12 @@ const Primary = () => {
   );
 
   // Declared after `useGetAndSetStatic`, so its listeners are in place when
-  // the `setMainPrimary` calls this releases send `set`
+  // the `setMainPrimary` calls this releases send `set`. The unmount lets
+  // the next `Primary` to mount get this one's content back: the work
+  // unmounts once no project is open, and its route does not run again.
   useEffect(() => {
     PgView.announceMainPrimaryMount();
+    return () => PgView.announceMainPrimaryUnmount();
   }, []);
 
   return (
