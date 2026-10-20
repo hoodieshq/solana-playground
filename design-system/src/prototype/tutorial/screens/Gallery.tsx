@@ -114,7 +114,8 @@ function TabsAndSearch({
             searching ? "border-border-strong bg-surface" : "border-border bg-surface-panel"
           )}
         >
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          {/* A lighter line than lucide's 2, to match the field's light type */}
+          <Search strokeWidth={1.75} className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={input}
             value={query}
@@ -153,7 +154,7 @@ function TabsAndSearch({
           tabIndex={searching ? undefined : -1}
           onClick={onClose}
           className={cn(
-            "h-11 overflow-hidden text-control whitespace-nowrap text-foreground transition-[max-width,opacity,padding]",
+            "h-11 overflow-hidden text-control whitespace-nowrap text-muted-foreground active:text-foreground transition-[max-width,opacity,padding,color]",
             MOTION,
             searching ? "max-w-20 pl-3 opacity-100" : "max-w-0 pl-0 opacity-0"
           )}
