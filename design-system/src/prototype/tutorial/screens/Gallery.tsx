@@ -185,7 +185,7 @@ export function Gallery() {
     slug === "hello-anchor" ? dispatch({ type: "open", screen: "overview" }) : toast("Only Hello Anchor is in this prototype")
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <TopBar
         title="What do you want to build?"
         right={
@@ -252,6 +252,11 @@ export function Gallery() {
           </>
         )}
       </div>
+      {/* The list runs to the bottom edge, so it fades out under the home indicator */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[calc(var(--safe-bottom)+24px)] bg-linear-to-t from-surface-base to-transparent"
+      />
     </div>
   )
 }
