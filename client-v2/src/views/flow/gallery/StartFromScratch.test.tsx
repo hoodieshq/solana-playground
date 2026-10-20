@@ -45,7 +45,7 @@ vi.mock("../../../components/Input", () => ({
   ),
 }));
 
-import { ModalIdContext } from "@/widgets/overlays/ui/modal-layer";
+import { ModalIdContext } from "@/widgets/overlays";
 import StartFromScratch from "./StartFromScratch";
 
 /** A theme that answers every key; the styles do not matter here */

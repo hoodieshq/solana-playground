@@ -137,9 +137,9 @@ export const openConnectDialog: ConnectOpener = (via, preset) => {
 
   PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset }).catch(
     (error) => {
-      // `setModal` rejects only when the dialog host answers with an error;
-      // the user is left without the dialog, so the team must hear of it,
-      // and the user is told why nothing opened
+      // Opening a dialog does not fail today: `setModal` only rejects should
+      // `openModal` ever throw. Then the user is left without the dialog, so
+      // the team must hear of it, and the user is told why nothing opened
       log.error(error, { report: true, context: { via } });
       PgView.setToast(CouldNotOpen, {
         options: { name: "connect-model-failed" },

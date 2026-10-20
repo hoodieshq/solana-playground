@@ -320,7 +320,10 @@ class _PgView {
   /**
    * Open a modal on top of any already open.
    *
-   * @param elementable elementable to set as the modal
+   * `R` is what the caller expects back; nothing checks it against what the
+   * modal's code passes to `closeModal`.
+   *
+   * @param elementable the dialog to open on top
    * @param props component props
    * @returns the modal's id, for `closeModal`, and the answer it closes with
    */
@@ -338,20 +341,15 @@ class _PgView {
 
   /**
    * Open a modal on top of any already open, and wait until it closes.
-   * `null` closes the top modal instead, answering its caller with `null`.
    *
-   * @param elementable elementable to set as the modal
+   * @param elementable the dialog to open on top
    * @param props component props
    * @returns what `closeModal` was given when this modal closed
    */
   static async setModal<R, P extends Record<string, any> = {}>(
-    elementable: Elementable<P>,
+    elementable: NonNullable<Elementable<P>>,
     props?: P
   ): Promise<R | null> {
-    if (elementable === null) {
-      PgView.closeModal(null);
-      return null;
-    }
     return await PgView.openModal<R, P>(elementable, props).answer;
   }
 
@@ -369,7 +367,11 @@ class _PgView {
   static onDidChangeModals(
     cb: (modals: readonly OpenModal[]) => void
   ): Disposable {
-    return PgCommon.onDidChange(PgView.events.MODALS_CHANGE, cb);
+    // The stack itself, not the event's detail: only `setOpenModals` may say
+    // what is open
+    return PgCommon.onDidChange(PgView.events.MODALS_CHANGE, () =>
+      cb(openModals)
+    );
   }
 
   /**
@@ -390,18 +392,30 @@ class _PgView {
    * Close a modal, answering only the call that opened it. A modal that is
    * already closed is not closed again, and nobody else is answered.
    *
+   * The id is required: code that closes "the top modal" closes another
+   * dialog's whenever one has opened on its own.
+   *
    * @param data the answer for that call
-   * @param id the modal to close; the top one when not given
+   * @param id the modal to close, from `openModal` or `useModalId`
    */
-  static closeModal(data: unknown = null, id?: string) {
-    const closing = id ?? openModals[openModals.length - 1]?.id;
-    if (closing === undefined) return;
-    const answer = modalAnswers.get(closing);
+  static closeModal(data: unknown, id: string) {
+    const answer = modalAnswers.get(id);
     if (!answer) return;
 
-    modalAnswers.delete(closing);
-    setOpenModals(openModals.filter((modal) => modal.id !== closing));
+    modalAnswers.delete(id);
+    setOpenModals(openModals.filter((modal) => modal.id !== id));
     answer(data);
+  }
+
+  /**
+   * Close whichever modal is on top: for a dismissal that is about what the
+   * user sees (Escape, a press outside), never for a modal's own code.
+   *
+   * @param data the answer for the top modal's caller
+   */
+  static closeTopModal(data: unknown = null) {
+    const top = openModals[openModals.length - 1];
+    if (top) PgView.closeModal(data, top.id);
   }
 
   /**

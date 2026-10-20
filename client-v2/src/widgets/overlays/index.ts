@@ -1,6 +1,6 @@
 export { ModalHost } from "./ui/ModalHost";
 export { ModalFrame, SubmitCancelled } from "./ui/ModalFrame";
-export { useModalId } from "./ui/modal-layer";
+export { ModalIdContext, useModalId } from "./ui/modal-layer";
 export type { ModalFrameProps, ModalSubmit } from "./ui/ModalFrame";
 export type { ModalSize, SubmitVariant } from "./ui/BaseModalFrame";
 export { ToastHost } from "./ui/ToastHost";

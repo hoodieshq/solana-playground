@@ -96,9 +96,11 @@ beforeEach(() => {
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
 });
 afterEach(async () => {
-  // `closeModal` answers every pending `setModal` (HOO-2091): one left open
-  // here would be answered by the next test's connection
-  await act(async () => PgView.closeModal(null));
+  // `PgView`'s stack outlives the host: a dialog left open here would show
+  // in the next test's
+  act(() => {
+    for (const { id } of PgView.getOpenModals()) PgView.closeModal(null, id);
+  });
   PgAssistant.disconnect();
   PgSession.reset();
   resetTelemetry();
@@ -344,8 +346,8 @@ describe("ConnectDialog", () => {
     act(() => openConnectDialog("menu"));
     act(() => void PgView.setModal(Other));
 
-    // `closeModal` also answers Connect's own `setModal` (HOO-2091)
-    await act(async () => PgView.closeModal(null));
+    // Closing Other answers Other's caller only; Connect stays open
+    await act(async () => PgView.closeTopModal());
 
     expect(screen.queryByRole("dialog", { name: "Other" })).toBeNull();
     expect(dialog()).toBeTruthy();
@@ -361,6 +363,17 @@ describe("ConnectDialog", () => {
       "assistant_model_picked",
       { provider: "default", via: "dialog" },
     ]);
+  });
+
+  it("closes itself, not the dialog over it, on a connection", async () => {
+    renderHost();
+    act(() => openConnectDialog("menu"));
+    act(() => void PgView.setModal(Other));
+
+    act(() => PgAssistant.connect({ id: "default", apiKey: "" }));
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(screen.getByRole("dialog", { name: "Other" })).toBeTruthy();
   });
 
   it("is not left marked open when it cannot be opened", async () => {

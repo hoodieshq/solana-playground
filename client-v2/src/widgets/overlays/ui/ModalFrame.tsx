@@ -69,7 +69,7 @@ const messageOf = (error: unknown) => {
 };
 
 /**
- * The frame of a dialog opened with `PgView.setModal`. A submit closes the
+ * The frame of a dialog opened with `PgView.openModal` or `setModal`. A submit closes the
  * dialog with what it returned; a submit that throws keeps it open and shows
  * the message. While a submit runs the dialog cannot be dismissed, so its
  * answer goes to the dialog that asked.

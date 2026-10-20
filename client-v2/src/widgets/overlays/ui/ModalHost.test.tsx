@@ -27,7 +27,7 @@ afterEach(() => {
   resetTelemetry();
   // Dialogs a test leaves open would otherwise sit under the next test's
   act(() => {
-    while (PgView.getOpenModals().length) PgView.closeModal();
+    while (PgView.getOpenModals().length) PgView.closeTopModal();
   });
 });
 
@@ -258,7 +258,7 @@ it("should open a dialog that replaces another of its kind with fresh state", ()
   });
 
   act(() => {
-    PgView.closeModal();
+    PgView.closeTopModal();
     PgView.setModal(Outer);
   });
 
