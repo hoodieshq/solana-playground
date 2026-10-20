@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { ChevronDown, ChevronLeft, CircleHelp, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { BrandButton } from "@/components/ui/brand-button"
+import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
@@ -142,14 +142,15 @@ export function StepScreen() {
           </>
         ) : (
           <>
+            {/* The assistant's own mark, the one its sheets carry, so it's clear who answers */}
             <Button
               variant="secondary"
-              size="icon"
-              className="size-11"
-              aria-label="Explain this step"
+              className="h-11 gap-2 px-3.5 text-control"
+              aria-label="Ask the assistant about this step"
               onClick={() => dispatch({ type: "explain", mode: "step" })}
             >
-              <CircleHelp />
+              <BrandButtonIcon className="size-4 text-brand-purple" />
+              Ask
             </Button>
             <BrandButton
               variant="accent"
