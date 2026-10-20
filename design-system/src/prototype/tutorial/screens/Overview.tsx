@@ -137,9 +137,11 @@ export function Overview() {
               {done === 1 ? "Your passed step" : `Your ${done} passed steps`} and the code you applied will be cleared.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="h-11">Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" className="h-11" onClick={() => dispatch({ type: "restart" })}>
+          {/* The stock footer sits on its own muted band with a border. Here the buttons share the dialog's
+              surface, the way they do in the sheets */}
+          <AlertDialogFooter className="mx-0! mb-0! border-t-0! bg-transparent! p-0! pt-2!">
+            <AlertDialogCancel className="h-12! text-control">Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" className="h-12! text-control" onClick={() => dispatch({ type: "restart" })}>
               Start over
             </AlertDialogAction>
           </AlertDialogFooter>
