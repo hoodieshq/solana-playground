@@ -22,7 +22,7 @@ export function Finish() {
         title="Hello Anchor"
         right={
           <Button variant="ghost" size="icon" className="size-11" aria-label="Close" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
-            <X />
+            <X className="size-5" />
           </Button>
         }
       />

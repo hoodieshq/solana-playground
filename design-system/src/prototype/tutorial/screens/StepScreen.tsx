@@ -54,12 +54,12 @@ export function StepScreen() {
         title="Hello Anchor"
         left={
           <Button variant="ghost" size="icon" className="size-11" aria-label="Tutorial overview" onClick={() => dispatch({ type: "open", screen: "overview" })}>
-            <ChevronLeft />
+            <ChevronLeft className="size-6" />
           </Button>
         }
         right={
           <Button variant="ghost" size="icon" className="size-11" aria-label="Close tutorial" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
-            <X />
+            <X className="size-5" />
           </Button>
         }
       />

@@ -21,7 +21,7 @@ export function Overview() {
         title="Hello Anchor"
         left={
           <Button variant="ghost" size="icon" className="size-11" aria-label="Back to tutorials" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
-            <ChevronLeft />
+            <ChevronLeft className="size-6" />
           </Button>
         }
       />

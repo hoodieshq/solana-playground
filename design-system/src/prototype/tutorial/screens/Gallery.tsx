@@ -190,7 +190,7 @@ export function Gallery() {
         title="What do you want to build?"
         right={
           <Button variant="ghost" size="icon" className="size-11" aria-label="Close" onClick={() => toast("Only the tutorial flow is in this prototype")}>
-            <X />
+            <X className="size-5" />
           </Button>
         }
       />
