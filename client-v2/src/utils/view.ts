@@ -47,13 +47,27 @@ const log = createLogger("view:modal");
 
 /** How many `ModalHost`s are mounted (`PgView.attachModalHost`) */
 let modalHosts = 0;
+/** Bumped by every host that mounts, so a wait that saw one come is over */
+let hostAttaches = 0;
+
+/** A modal's component name, for a report that says which one it was */
+const nameOf = (elementable: OpenModal["elementable"]) => {
+  const type =
+    typeof elementable === "function" ? elementable : elementable.type;
+  return typeof type === "string" ? type : type.displayName || type.name;
+};
 
 /** Close the modal `id` if no host has shown it by `MODAL_HOST_WAIT` */
 const closeIfNoHost = (id: string) => {
+  const attaches = hostAttaches;
   setTimeout(() => {
-    if (modalHosts > 0 || !modalAnswers.has(id)) return;
+    // A host that came meanwhile starts a wait of its own when it goes
+    if (modalHosts > 0 || hostAttaches !== attaches) return;
+    const modal = openModals.find((modal) => modal.id === id);
+    if (!modal) return;
     log.error(new Error("No ModalHost showed a modal; it closed unanswered"), {
       report: true,
+      context: { modal: nameOf(modal.elementable) },
     });
     PgView.closeModal(null, id);
   }, MODAL_HOST_WAIT);
@@ -387,6 +401,7 @@ class _PgView {
    */
   static attachModalHost(): Disposable {
     modalHosts++;
+    hostAttaches++;
     let attached = true;
     return {
       dispose: () => {

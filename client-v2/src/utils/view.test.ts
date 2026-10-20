@@ -147,6 +147,8 @@ const settled = async (promise: Promise<unknown>) =>
 const Dialog = () => null;
 
 afterEach(() => {
+  vi.useRealTimers();
+  resetLogger();
   vi.restoreAllMocks();
   // Dialogs a test leaves open would otherwise sit under the next test's
   for (const { id } of PgView.getOpenModals()) PgView.closeModal(null, id);
@@ -225,8 +227,7 @@ it("should close with null and report a dialog no host shows in time", async () 
   expect(
     logs.entries.map((entry) => ({ ns: entry.ns, report: entry.report }))
   ).toEqual([{ ns: "view:modal", report: true }]);
-  resetLogger();
-  vi.useRealTimers();
+  expect(logs.entries[0].context).toEqual({ modal: "Dialog" });
 });
 
 it("should keep a dialog open for a host that mounts in time", async () => {
@@ -241,7 +242,6 @@ it("should keep a dialog open for a host that mounts in time", async () => {
   host.dispose();
   PgView.closeTopModal("shown");
   await expect(answer).resolves.toBe("shown");
-  vi.useRealTimers();
 });
 
 it("should close the dialogs a host leaves behind when no host comes back", async () => {
@@ -253,5 +253,19 @@ it("should close the dialogs a host leaves behind when no host comes back", asyn
   await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT);
 
   await expect(answer).resolves.toBeNull();
-  vi.useRealTimers();
+});
+
+it("should wait in full again for a host that came and went", async () => {
+  vi.useFakeTimers();
+  const first = PgView.attachModalHost();
+  const answer = PgView.setModal(Dialog);
+  first.dispose();
+
+  await vi.advanceTimersByTimeAsync(1000);
+  PgView.attachModalHost().dispose();
+  await vi.advanceTimersByTimeAsync(MODAL_HOST_WAIT - 1000);
+
+  expect(PgView.getOpenModals().length).toBe(1);
+  await vi.advanceTimersByTimeAsync(1000);
+  await expect(answer).resolves.toBeNull();
 });

@@ -136,11 +136,12 @@ export const openConnectDialog: ConnectOpener = (via, preset) => {
   assistantTelemetry.track("assistant_connect_opened", { via });
   PgAssistant.pickBackend();
 
-  PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset })
-    .then(() => {
+  PgView.setModal<unknown, ConnectDialogProps>(ConnectDialog, { preset }).then(
+    () => {
       if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
-    })
-    .catch((error) => {
+    },
+    // Only a failure to open lands here, not one after the dialog closed
+    (error) => {
       // Opening a dialog does not fail today: `setModal` only rejects should
       // `openModal` ever throw. Then the user is left without the dialog, so
       // the team must hear of it, and the user is told why nothing opened
@@ -150,5 +151,6 @@ export const openConnectDialog: ConnectOpener = (via, preset) => {
       });
       // Nothing is choosing any more: a send may connect the default again
       if (PgAssistant.isPickingBackend) PgAssistant.keepBackend();
-    });
+    }
+  );
 };
