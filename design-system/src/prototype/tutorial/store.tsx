@@ -137,11 +137,11 @@ function reducer(s: State, a: Action): State {
     case "built": {
       const r = lastResult(s)
       if (!r) return s
-      if (r.ok) return { ...s, phase: "passed", sheet: true, log: r.log, error: null, passed: setAt(s.passed, s.step, true) }
+      if (r.ok) return { ...s, phase: "passed", sheet: false, log: r.log, error: null, passed: setAt(s.passed, s.step, true) }
       return {
         ...s,
         phase: "failed",
-        sheet: true,
+        sheet: false,
         log: r.log,
         error: { line: r.line, reason: r.reason },
         firstTry: setAt(s.firstTry, s.step, false),
@@ -155,7 +155,7 @@ function reducer(s: State, a: Action): State {
       const d = step.deploy
       if (!d) return s
       if (s.deployStage + 1 < d.stages.length) return { ...s, deployStage: s.deployStage + 1 }
-      return { ...s, phase: "passed", sheet: true, log: d.result.log, passed: setAt(s.passed, s.step, true) }
+      return { ...s, phase: "passed", sheet: false, log: d.result.log, passed: setAt(s.passed, s.step, true) }
     }
     case "undo":
       if (!s.undo) return s
