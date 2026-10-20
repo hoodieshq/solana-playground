@@ -3,10 +3,21 @@ import { createRoot } from "react-dom/client"
 
 import "@/index.css"
 
+import { App } from "./App"
+import { DeviceFrame } from "./DeviceFrame"
+import { Store } from "./store"
+
+const embedded = window.self !== window.top || new URLSearchParams(location.search).has("embed")
+const wide = window.matchMedia("(min-width: 600px)").matches
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <div className="flex h-dvh items-center justify-center bg-surface-base text-title text-foreground">
-      Prototype is wired
-    </div>
+    {wide && !embedded ? (
+      <DeviceFrame />
+    ) : (
+      <Store>
+        <App />
+      </Store>
+    )}
   </StrictMode>
 )
