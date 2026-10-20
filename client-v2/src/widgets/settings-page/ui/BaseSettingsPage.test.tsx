@@ -151,6 +151,18 @@ it("on a phone there is no section list, and the bar carries Back to app and the
 const layoutOf = (name: string) =>
   screen.getByText(name).closest("[data-layout]")?.getAttribute("data-layout");
 
+it("a small control, such as a switch, stays beside the text on a phone", () => {
+  render(
+    <BaseSettingRow
+      name="Word wrap"
+      control={<button>toggle</button>}
+      small
+      phone
+    />
+  );
+  expect(layoutOf("Word wrap")).toBe("inline");
+});
+
 it("a row puts its control beside the text, and under it on a phone", () => {
   const { rerender } = render(
     <BaseSettingRow

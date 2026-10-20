@@ -84,6 +84,8 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
             name={setting.name}
             description={setting.description}
             control={<SettingControl {...setting} />}
+            // A setting without values is a switch
+            small={!setting.values}
             phone={phone}
           />
         ))}

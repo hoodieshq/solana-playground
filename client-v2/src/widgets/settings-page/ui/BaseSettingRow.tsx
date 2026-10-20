@@ -6,7 +6,9 @@ interface BaseSettingRowProps {
   name: string;
   description?: string;
   control: ReactNode;
-  /** Below `LAYOUT_BREAKPOINTS.phone`: the control goes under the text, full width */
+  /** A control that fits beside the text at any width, such as a switch */
+  small?: boolean;
+  /** Below `LAYOUT_BREAKPOINTS.phone`: a wide control goes under the text */
   phone: boolean;
 }
 
@@ -15,23 +17,35 @@ const BaseSettingRow = ({
   name,
   description,
   control,
+  small = false,
   phone,
-}: BaseSettingRowProps) => (
-  <div
-    data-layout={phone ? "stacked" : "inline"}
-    className={cn(
-      "flex gap-3 border-b border-border py-3",
-      phone ? "flex-col" : "items-center justify-between"
-    )}
-  >
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-sm font-medium text-foreground">{name}</span>
-      {description && (
-        <span className="text-xs text-muted-foreground">{description}</span>
+}: BaseSettingRowProps) => {
+  const stacked = phone && !small;
+  return (
+    <div
+      data-layout={stacked ? "stacked" : "inline"}
+      className={cn(
+        "flex gap-3 border-b border-border py-3",
+        stacked ? "flex-col" : "items-center justify-between"
       )}
+    >
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm font-medium text-foreground">{name}</span>
+        {description && (
+          <span className="text-xs text-muted-foreground">{description}</span>
+        )}
+      </div>
+      <div
+        className={cn(
+          "flex shrink-0",
+          stacked ? "w-full" : "justify-end",
+          !stacked && !small && "w-46"
+        )}
+      >
+        {control}
+      </div>
     </div>
-    <div className={cn("shrink-0", phone ? "w-full" : "w-46")}>{control}</div>
-  </div>
-);
+  );
+};
 
 export default BaseSettingRow;
