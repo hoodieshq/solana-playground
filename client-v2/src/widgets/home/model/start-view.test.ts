@@ -15,6 +15,7 @@ import {
 const explorer = vi.hoisted(() => ({
   allWorkspaceNames: undefined as string[] | undefined,
   currentWorkspaceName: undefined as string | undefined,
+  currentWorkspaceId: undefined as string | undefined,
   isTemporary: false,
   init: vi.fn(),
   created: [] as Array<() => void>,
@@ -46,6 +47,7 @@ beforeEach(() => {
   explorer.allWorkspaceNames = undefined;
   explorer.currentWorkspaceName = undefined;
   explorer.isTemporary = false;
+  explorer.currentWorkspaceId = undefined;
   explorer.created = [];
   explorer.switched = [];
   explorer.inited = [];
@@ -494,6 +496,17 @@ describe("from an open project", () => {
     const { result } = await onTheWork();
     act(() => result.current.showHome("nav"));
     act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("home");
+  });
+
+  it("stays on Home when sync renames the project it shows over", async () => {
+    explorer.currentWorkspaceId = "id-a";
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    // A rename from another device re-opens the same project by a new name
+    explorer.allWorkspaceNames = ["renamed"];
+    explorer.currentWorkspaceName = "renamed";
+    fire(explorer.switched);
     expect(result.current.view).toBe("home");
   });
 

@@ -1687,6 +1687,15 @@ going back finds the work as it was left.
   asked for would vanish on its own. A replayed route view that fails is
   reported by `Primary` (`view:main-primary`), since it is drawn in place of
   the view, never thrown.
+- **What stays on under Home.** The kept work's own keys (a tab's Alt+W,
+  the console's Ctrl+L, a lesson reader's Escape) are off while Home shows:
+  `BaseLayoutShell` sets `KeybindsActive` (`shared/lib`) to false around
+  the outlets, and `useKeybind` registers nothing under it. The terminal
+  fits itself only while its node is on the page; off it, it measures 0 and
+  xterm throws on the columns that gives.
+- **The project Home shows over** is told by its id, not its name: sync
+  renames a project to follow another device by re-opening it under the new
+  name, which is still no way out.
 - **A shared project** (temporary: a share or GitHub link) has no row in the
   list to go back by, so over one the navigation's Home, picked again, goes
   back to the work (`via: nav`); over a project the list names it leaves Home

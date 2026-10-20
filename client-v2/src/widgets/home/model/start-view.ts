@@ -47,6 +47,15 @@ const workDrawable = () =>
   PgExplorer.isTemporary ||
   PgExplorer.currentWorkspaceName !== undefined;
 
+/**
+ * The open project, by its stable id where it has one: sync renames a project
+ * to follow another device by re-opening it under the new name, and that is
+ * still the project Home shows over
+ */
+const openProject = () =>
+  PgExplorer.currentWorkspaceName &&
+  (PgExplorer.currentWorkspaceId ?? PgExplorer.currentWorkspaceName);
+
 /** The start's answer, as what the page shows */
 const startShown = (view: StartView): Shown =>
   view === "home" ? { view, via: "start" } : { view };
@@ -181,9 +190,9 @@ export const useStartView = (): PageView => {
     // listed and none current throws in the explorer; the session's `adopt`
     // (effects/session) opens the newest one right after, through
     // `PgExplorer.switchWorkspace`. The project Home showed over is re-opened
-    // by sync too (a merge, a reconcile on refocus), which is no reason to
+    // by sync too (a merge, a reconcile on refocus, a rename), which is no reason to
     // leave a Home the user asked for.
-    const over = PgExplorer.currentWorkspaceName;
+    const over = openProject();
     const from = PgRouter.location.pathname;
     // A new project switches, then announces itself: one way out, said once
     let left = false;
@@ -194,7 +203,7 @@ export const useStartView = (): PageView => {
       setShown({ view: "work" });
     };
     const toWork = () => {
-      const current = PgExplorer.currentWorkspaceName;
+      const current = openProject();
       if (current && current !== over) leave();
     };
     const subs = [

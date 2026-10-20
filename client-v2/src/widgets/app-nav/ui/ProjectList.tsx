@@ -87,7 +87,6 @@ export type ProjectListProps = {
  * device's pins, and what each menu item does. A failed action tells the
  * user, is logged for the team, and is counted.
  */
-
 const ProjectList = ({ onPickCurrent }: ProjectListProps) => {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [pins, setPins] = useState(readPins);

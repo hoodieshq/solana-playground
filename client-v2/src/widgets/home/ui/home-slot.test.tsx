@@ -8,7 +8,7 @@ vi.mock("./Home", () => ({ default: () => null }));
 vi.mock("./PhoneHome", () => ({ default: () => null }));
 
 import Home from "./Home";
-import { homeSlot, isHomeShown } from "./home-slot";
+import { homeSlot } from "./home-slot";
 import PhoneHome from "./PhoneHome";
 
 const openAssistant = () => {};
@@ -53,11 +53,3 @@ it.each(["wide", "compact"] as const)(
     expect(home.props.onAsk).toBe(openAssistant);
   }
 );
-
-it.each([
-  ["home", true],
-  ["pending", false],
-  ["work", false],
-] as const)("counts %s as Home shown: %s", (start, shown) => {
-  expect(isHomeShown(start)).toBe(shown);
-});

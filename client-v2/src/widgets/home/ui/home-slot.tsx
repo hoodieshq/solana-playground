@@ -34,6 +34,3 @@ export const homeSlot = (
     return <Home onAsk={openAssistant} />;
   };
 };
-
-/** Whether Home is on screen; pending is not, though it holds Home's place */
-export const isHomeShown = (view: StartView) => view === "home";

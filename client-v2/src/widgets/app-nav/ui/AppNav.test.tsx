@@ -116,7 +116,7 @@ it("opens Home, not the gallery, from the work", () => {
   expect(view.setModal).not.toHaveBeenCalled();
 });
 
-it("hands Home to the page while Home shows too, and opens no gallery", () => {
+it("hands every pick of Home to the page, which decides, and opens no gallery", () => {
   draw();
   fireEvent.click(screen.getByRole("button", { name: "Home" }));
   fireEvent.click(screen.getByRole("button", { name: "Home" }));

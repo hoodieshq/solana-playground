@@ -151,11 +151,26 @@ test.describe("from an open project", () => {
     await page.keyboard.type("// kept ");
     await expect(firstLine(page)).toContainText("// kept");
     const url = page.url();
+    // The console open too: Home takes its node off the page, which its
+    // terminal must not try to fit
+    const errors: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" && m.text().includes("logger:global")) {
+        errors.push(m.text());
+      }
+    });
+    await page.locator(".monaco-editor textarea.inputarea").blur();
+    await page.keyboard.press("ControlOrMeta+j");
+    await expect(page.locator(".xterm").first()).toBeVisible();
 
     await navHome(page).click();
     await expect(home(page)).toBeVisible();
     expect(page.url()).toBe(url);
     await expect(page.locator("[data-gallery-modal]")).toHaveCount(0);
+
+    // Past the terminal's resize throttle (200 ms)
+    await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
 
     await projectRow(page, "alpha").click();
     await expect(home(page)).toBeHidden();
