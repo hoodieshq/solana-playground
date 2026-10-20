@@ -25,6 +25,12 @@ html.framed {
   outline: none;
 }
 
+/* Sheets keep to the same phone width as the screens */
+[data-slot="drawer-content"] {
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
 /* Sheets here read as messages, so their text starts on the left */
 [data-slot="drawer-header"] {
   text-align: left;

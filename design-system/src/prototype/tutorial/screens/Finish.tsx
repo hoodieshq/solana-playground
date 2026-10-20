@@ -47,11 +47,12 @@ export function Finish() {
           Your program is live on devnet, and you earned the First Anchor program badge.
         </p>
 
-        <dl className="mt-7 grid grid-cols-3 gap-2">
+        {/* One summary card, three columns split by hairlines: big numbers, small labels */}
+        <dl className="mt-7 grid grid-cols-3 divide-x divide-border rounded-panel border border-border bg-surface-panel">
           {tiles.map((t) => (
-            <div key={t.label} className="flex flex-col-reverse rounded-panel border border-border bg-surface-panel p-3 text-center">
+            <div key={t.label} className="flex flex-col-reverse items-center gap-0.5 px-2 py-4 text-center">
               <dt className="text-caption text-muted-foreground">{t.label}</dt>
-              <dd className="font-heading text-title tabular-nums">{t.value}</dd>
+              <dd className="font-heading text-display tabular-nums">{t.value}</dd>
             </div>
           ))}
         </dl>
