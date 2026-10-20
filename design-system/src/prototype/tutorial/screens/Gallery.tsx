@@ -6,7 +6,7 @@ import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { Segmented, SegmentedCount, SegmentedItem } from "@/components/ui/segmented"
+import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
@@ -68,7 +68,7 @@ export function Gallery() {
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search tutorials"
+                  placeholder={`Search ${TUTORIALS.length} tutorials`}
                   aria-label="Search tutorials"
                   className="h-11 rounded-full pl-10"
                 />
@@ -86,10 +86,10 @@ export function Gallery() {
                 className="pill h-11! rounded-full! border-0! p-0!"
               >
                 <SegmentedItem value="tutorials" className="rounded-full! px-4! text-control!">
-                  Tutorials <SegmentedCount>16</SegmentedCount>
+                  Tutorials
                 </SegmentedItem>
                 <SegmentedItem value="programs" className="rounded-full! px-4! text-control!">
-                  Programs <SegmentedCount>34</SegmentedCount>
+                  Programs
                 </SegmentedItem>
               </Segmented>
               <Button
