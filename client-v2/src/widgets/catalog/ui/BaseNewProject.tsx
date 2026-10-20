@@ -89,6 +89,15 @@ const BaseNewProject = ({
     </div>
 
     <BaseCatalogGrid label={tab} query={query} {...grid} />
+
+    {/* Sticks to the foot of the dialog's scroll area while the list runs
+        past it, so a cut-off card reads as "more below"; at the end it rests
+        on the empty space under the last row */}
+    <div
+      data-scroll-fade
+      aria-hidden="true"
+      className="pointer-events-none sticky bottom-0 -mt-10 h-10 shrink-0 bg-gradient-to-t from-surface-panel to-transparent"
+    />
   </div>
 );
 

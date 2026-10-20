@@ -39,6 +39,37 @@ test("client-v2-layout: Starting an Anchor project from New project", async ({
   await expect(currentProject(page)).toHaveText("from-scratch", LONG);
 });
 
+test("client-v2-layout: New project's controls line up and its list shows it scrolls", async ({
+  seededPage: page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openGallery(page);
+  await expect(dialog(page)).toBeVisible();
+
+  const boxes = await Promise.all(
+    [
+      dialog(page).getByRole("radio", { name: /Anchor/ }),
+      dialog(page).getByLabel("Project name"),
+      dialog(page).getByRole("button", { name: /^Start/ }),
+    ].map((l) => l.boundingBox())
+  );
+  const heights = boxes.map((b) => Math.round(b!.height));
+  const middles = boxes.map((b) => Math.round(b!.y + b!.height / 2));
+  expect(new Set(heights).size).toBe(1);
+  expect(new Set(middles).size).toBe(1);
+
+  // The list runs past the dialog's foot: a fade there says there is more
+  const fade = dialog(page).locator("[data-scroll-fade]");
+  await expect(fade).toBeVisible();
+  const [fadeBox, dialogBox] = await Promise.all([
+    fade.boundingBox(),
+    dialog(page).boundingBox(),
+  ]);
+  expect(
+    Math.abs(fadeBox!.y + fadeBox!.height - (dialogBox!.y + dialogBox!.height))
+  ).toBeLessThan(40);
+});
+
 test("client-v2-layout: Opening a program from New project", async ({
   page,
 }) => {

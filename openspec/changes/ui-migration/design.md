@@ -1865,6 +1865,12 @@ prototype's "What do you want to build?". The work is stacked on 5.9
   pages draw them, Retry included. The Segmented is a radio group, so the
   gallery's `tab` roles and `gallery-tab-*` ids go; `[data-gallery-modal]`,
   the dialog's name, "Project name" and "Start" stay.
+- **One look across the dialog** (HOO-2184): the selected chip keeps the
+  design system's gradient ring for the choice that matters, every focus
+  is the input's one ring, name and search fields are the design system's
+  `input` and `input-group`, the chips, name field and Start are 32 px on
+  one centre line, and a fade at the scroll area's foot says the list runs
+  on.
 - **On a phone** the dialog is a page of its own (the installed `modal`
   does it below `md`), and every card is one target that ends in a chevron,
   on the 5.9 pages too: the card's own Open hides there already.

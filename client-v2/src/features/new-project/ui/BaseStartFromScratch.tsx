@@ -118,6 +118,8 @@ const BaseStartFromScratch = ({
           <BrandButton
             type="button"
             variant="accent"
+            // One height with the framework chips and the name field
+            className="h-8"
             disabled={!usable}
             aria-busy={creating || undefined}
             onClick={onStart}
