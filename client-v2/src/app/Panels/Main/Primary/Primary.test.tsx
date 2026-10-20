@@ -30,8 +30,14 @@ vi.mock("../../../../hooks", async () => ({
 vi.mock("../../../../components/Loading", () => ({
   SpinnerWithBg: ({ children }: { children: unknown }) => <>{children}</>,
 }));
+// Draws a failed view's error, as the real boundary's fallback does
 vi.mock("../../../../components/ErrorBoundary", () => ({
-  default: ({ children }: { children: unknown }) => <>{children}</>,
+  default: ({ children }: { children: unknown }) =>
+    children !== null && typeof children === "object" && "error" in children ? (
+      <p>{String((children as { error: unknown }).error)}</p>
+    ) : (
+      <>{children}</>
+    ),
 }));
 
 /** Only what `Primary`'s styles read */
@@ -66,5 +72,6 @@ it("reports a view that fails to load, and shows the failure", async () => {
   await waitFor(() => expect(logs.entries).toHaveLength(1));
   expect(logs.entries[0].report).toBe(true);
   expect(String(logs.entries[0].error)).toContain("route failed");
+  expect(await screen.findByText(/route failed/)).toBeTruthy();
   resetLogger();
 });
