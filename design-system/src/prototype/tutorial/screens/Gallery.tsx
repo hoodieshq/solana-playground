@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, Search, X } from "lucide-react"
+import { Search, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { BrandButton } from "@/components/ui/brand-button"
@@ -80,7 +80,7 @@ export function Gallery() {
               <button
                 type="button"
                 onClick={() => open(t.slug)}
-                className="flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left"
+                className="flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
               >
                 <Thumb src={thumb(t.slug, t.ext)} className="size-14" />
                 <span className="min-w-0 flex-1">
@@ -89,7 +89,6 @@ export function Gallery() {
                     {t.level} · {t.framework}
                   </span>
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </button>
             </li>
           ))}
