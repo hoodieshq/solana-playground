@@ -18,7 +18,7 @@ import {
 } from "@/shared/ui/collapsible";
 import { Switch } from "@/shared/ui/switch";
 import { HelpTip } from "@/shared/ui/help-tip";
-import { useRenderOnChange } from "../../../../hooks";
+import { useRenderOnChange } from "@/hooks";
 import {
   PgCommon,
   PgSettings,
@@ -26,8 +26,8 @@ import {
   PgView,
   RequiredKey,
   Setting as SettingType,
-} from "../../../../utils";
-import { CustomSetting } from "./CustomSetting";
+} from "@/utils";
+import { CustomSetting } from "@/views/flow/settings/CustomSetting";
 
 const Settings = () => (
   <Wrapper>

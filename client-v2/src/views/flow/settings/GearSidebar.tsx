@@ -1,7 +1,7 @@
 import { FC, useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
-import UpstreamSettings from "../../../app/Panels/Side/Left/Settings";
+import UpstreamSettings from "@/widgets/settings-page/ui/SettingControl";
 import {
   Close,
   ExportFile,
