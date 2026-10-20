@@ -6,6 +6,7 @@ import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import { Segmented, SegmentedCount, SegmentedItem } from "@/components/ui/segmented"
 
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
@@ -15,6 +16,11 @@ import { TopBar } from "../ui/TopBar"
 export function Gallery() {
   const { s, dispatch } = useStore()
   const [query, setQuery] = useState("")
+  const [searching, setSearching] = useState(false)
+  const closeSearch = () => {
+    setQuery("")
+    setSearching(false)
+  }
   const done = s.passed.filter(Boolean).length
   const started = s.startedAt !== null && s.finishedAt === null
   const list = TUTORIALS.filter((t) => t.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -52,27 +58,56 @@ export function Gallery() {
           </section>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-1 rounded-control bg-surface-panel p-1 text-control">
-          <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-surface-raised">
-            <span className="flex items-baseline gap-2">
-              Tutorials <span className="text-caption text-muted-foreground">16</span>
-            </span>
-          </span>
-          <button
-            type="button"
-            className="flex h-11 items-center justify-center gap-2 rounded-md text-muted-foreground"
-            onClick={() => toast("Programs are not in this prototype")}
-          >
-            <span className="flex items-baseline gap-2">
-              Programs <span className="text-caption text-muted-foreground">34</span>
-            </span>
-          </button>
+        {/* One row: the tabs, and search folded into a button. Search opens in their place */}
+        <div className="mt-4 flex h-11 items-center gap-2">
+          {searching ? (
+            <>
+              <label className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search tutorials"
+                  aria-label="Search tutorials"
+                  className="h-11 rounded-full pl-10"
+                />
+              </label>
+              <Button variant="ghost" className="h-11 px-2 text-muted-foreground" onClick={closeSearch}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Segmented
+                value="tutorials"
+                onValueChange={(v) => v === "programs" && toast("Programs are not in this prototype")}
+                aria-label="Show"
+                className="pill h-11! rounded-full! border-0! p-0!"
+              >
+                <SegmentedItem value="tutorials" className="rounded-full! px-4! text-control!">
+                  Tutorials <SegmentedCount>16</SegmentedCount>
+                </SegmentedItem>
+                <SegmentedItem value="programs" className="rounded-full! px-4! text-control!">
+                  Programs <SegmentedCount>34</SegmentedCount>
+                </SegmentedItem>
+              </Segmented>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Search tutorials"
+                className="ml-auto size-11 rounded-full border border-border bg-surface-panel"
+                onClick={() => setSearching(true)}
+              >
+                <Search />
+              </Button>
+            </>
+          )}
         </div>
 
-        <label className="relative mt-3 block">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tutorials" className="h-11 pl-9" />
-        </label>
+        {list.length === 0 && (
+          <p className="mt-6 text-center text-body text-muted-foreground">No tutorials match “{query.trim()}”</p>
+        )}
 
         <ul className="mt-3 flex flex-col gap-2">
           {list.map((t) => (

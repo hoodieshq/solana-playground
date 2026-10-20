@@ -6,6 +6,16 @@
   background-color: rgb(0 0 0 / 0.3);
 }
 
+/* The gallery's tabs are a pill, so the sliding thumb is one too */
+[data-slot="segmented"].pill [data-slot="segmented-thumb"] {
+  border-radius: 9999px;
+}
+
+/* A tap shouldn't leave a ring behind. The keyboard still gets one */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Sheets here read as messages, so their text starts on the left */
 [data-slot="drawer-header"] {
   text-align: left;
