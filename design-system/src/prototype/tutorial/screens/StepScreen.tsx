@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { BookOpen, ChevronLeft, Hash, Monitor, RotateCcw, X } from "lucide-react"
+import { BookOpen, ChevronLeft, Monitor, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -55,6 +55,13 @@ export function StepScreen() {
       return () => window.clearTimeout(t)
     }
   }, [s.phase, s.deployStage, dispatch])
+
+  // Deploying and running the client change no code: what they produce is the program id and
+  // the transaction, in the Build log. So when they pass, the step opens on that log
+  const showsOutput = !!step.deploy || step.id === "call-client"
+  useEffect(() => {
+    if (s.phase === "passed" && showsOutput) setTab("build")
+  }, [s.phase, s.step, showsOutput])
 
   const undo = () => {
     dispatch({ type: "undo" })
@@ -185,18 +192,6 @@ export function StepScreen() {
           >
             <Monitor strokeWidth={1.75} className="size-4" />
             Write it yourself
-          </button>
-        )}
-        {/* Actions on the code and its output sit here, by what they act on, away from the main button.
-            After a deploy that's the program id, which the Build tab shows */}
-        {step.deploy && s.phase === "passed" && tab === "code" && (
-          <button
-            type="button"
-            onClick={() => setTab("build")}
-            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
-          >
-            <Hash strokeWidth={1.75} className="size-4" />
-            Program id
           </button>
         )}
         {/* Undo sits by the code it reverts, away from the main button and big enough to tap */}

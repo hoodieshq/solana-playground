@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { Boxes, Play, Search, X } from "lucide-react"
+import { Boxes, Check, Play, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { brandButtonVariants } from "@/components/ui/brand-button"
@@ -172,6 +172,7 @@ export function Gallery() {
   const [searching, setSearching] = useState(false)
   const [tab, setTab] = useState<Tab>("tutorials")
   const started = s.startedAt !== null && s.finishedAt === null
+  const finished = s.finishedAt !== null
 
   const q = query.trim().toLowerCase()
   const list = TUTORIALS.filter((t) => [t.name, t.level, t.framework].some((field) => field.toLowerCase().includes(q)))
@@ -243,6 +244,12 @@ export function Gallery() {
                   <span className="mt-0.5 block text-caption text-muted-foreground">
                     {t.level} · {t.framework}
                     {started && t.slug === "hello-anchor" && " · In progress"}
+                    {finished && t.slug === "hello-anchor" && (
+                      <>
+                        {" · "}
+                        <Check strokeWidth={2.5} className="mb-px inline size-3.5 text-success" /> Completed
+                      </>
+                    )}
                   </span>
                 </span>
               </button>
