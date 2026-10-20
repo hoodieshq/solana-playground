@@ -57,7 +57,12 @@ beforeEach(() => {
   explorer.onDidSwitchWorkspace.mockImplementation(sub(explorer.switched));
   router.location.pathname = "/";
   router.changed = [];
-  router.onDidChangePath.mockImplementation(sub(router.changed));
+  // As `PgRouter.onDidChangePath` does: the current path at once, then each
+  router.onDidChangePath.mockImplementation((cb: (path: string) => void) => {
+    const subscription = sub(router.changed)(cb);
+    cb(router.location.pathname);
+    return subscription;
+  });
   logs = memoryLogs();
   initLogger({ providers: [logs] });
   sent = memoryProvider();
@@ -396,11 +401,87 @@ describe("from an open project", () => {
     expect(names()).toEqual([["home_shown", { via: "start" }]]);
   });
 
-  it("shows Home from the navigation before the start is decided, keeping nothing", () => {
+  it("ignores the navigation's Home until the start is decided", () => {
     const { result } = renderHook(() => useStartView());
     expect(result.current.view).toBe("pending");
     act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("pending");
+  });
+
+  it("keeps Home and stops keeping the work when the last project goes while Home shows", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    lastDeleted();
+    fire(explorer.deleted);
+    fire(explorer.switched);
     expect(result.current.view).toBe("home");
     expect(result.current.workKept).toBe(false);
+    expect(names()).toEqual([["home_shown", { via: "nav" }]]);
+  });
+
+  it("stays on Home when sync re-opens the project already open", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    fire(explorer.switched);
+    fire(explorer.inited);
+    expect(result.current.view).toBe("home");
+    expect(names()).toEqual([["home_shown", { via: "nav" }]]);
+  });
+
+  it("says once that it left when a new project switches, then announces itself", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    explorer.allWorkspaceNames = ["a", "b"];
+    explorer.currentWorkspaceName = "b";
+    act(() => {
+      explorer.switched.forEach((cb) => cb());
+      explorer.created.forEach((cb) => cb());
+    });
+    expect(result.current.view).toBe("work");
+    expect(names()).toEqual([
+      ["home_shown", { via: "nav" }],
+      ["home_left", { via: "open" }],
+    ]);
+  });
+
+  it("says nothing when the open project is picked on the work", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.leaveHome("current-project"));
+    expect(result.current.view).toBe("work");
+    expect(names()).toEqual([]);
+  });
+
+  it("stays on Home opened from a lesson's route", async () => {
+    explorer.allWorkspaceNames = ["a"];
+    explorer.currentWorkspaceName = "a";
+    router.location.pathname = "/tutorials/hello/2";
+    const { result } = renderHook(() => useStartView());
+    act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("home");
+    expect(names()).toEqual([["home_shown", { via: "nav" }]]);
+  });
+
+  it("says the last project went when a lesson's route sends it to /", async () => {
+    explorer.allWorkspaceNames = ["Hello"];
+    explorer.currentWorkspaceName = "Hello";
+    router.location.pathname = "/tutorials/hello/2";
+    const { result } = renderHook(() => useStartView());
+    lastDeleted();
+    fire(explorer.switched);
+    fire(explorer.deleted);
+    expect(result.current.view).toBe("work");
+    router.location.pathname = "/";
+    act(() => router.changed.forEach((cb) => cb("/")));
+    expect(result.current.view).toBe("home");
+    expect(names()).toEqual([["home_shown", { via: "last-deleted" }]]);
+  });
+
+  it("says it left for a route", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    router.location.pathname = "/tutorials/hello";
+    act(() => router.changed.forEach((cb) => cb("/tutorials/hello")));
+    expect(result.current.view).toBe("work");
+    expect(names()).toContainEqual(["home_left", { via: "open" }]);
   });
 });

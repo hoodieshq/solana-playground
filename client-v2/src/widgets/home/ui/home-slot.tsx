@@ -16,13 +16,13 @@ export type HomeSlot = (panel: { openAssistant: () => void }) => ReactNode;
  * `START_TIMEOUT_MS`), then the phone's or the desktop's Home.
  */
 export const homeSlot = (
-  start: StartView,
+  view: StartView,
   viewport: Viewport,
   onContinue: () => void
 ): HomeSlot | undefined => {
-  if (start === "work") return undefined;
+  if (view === "work") return undefined;
   return ({ openAssistant }) => {
-    if (start === "pending")
+    if (view === "pending")
       return (
         <div className="flex size-full items-center justify-center">
           <Spinner className="size-6 text-muted-foreground" />
@@ -36,4 +36,4 @@ export const homeSlot = (
 };
 
 /** Whether Home is on screen; pending is not, though it holds Home's place */
-export const isHomeShown = (start: StartView) => start === "home";
+export const isHomeShown = (view: StartView) => view === "home";

@@ -6,13 +6,15 @@ export type HomeTile = "new-project" | "tutorials" | "programs";
 export type GalleryTile = Exclude<HomeTile, "new-project">;
 export type HomeQuickstart = "continue" | "new" | "tutorial";
 /**
- * How Home came to show: the start, the navigation's Home, the last project
- * deleted, or a way back to `/` with no project open
+ * How Home came to show: the start, the navigation's Home, no project left
+ * open on `/` (a delete, here, in another tab or by sync), or a way back to
+ * `/` with no project open
  */
 export type HomeVia = "start" | "nav" | "last-deleted" | "back";
 /**
  * How the work took over from Home: the open project picked in the list,
- * the phone's Continue, or anything that opens a project or a route
+ * the phone's Continue, or another project or a route opened (by the user or
+ * by sync's adoption on a start)
  */
 export type HomeLeaveVia = "current-project" | "continue" | "open";
 

@@ -1,8 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
 import type { DefaultTheme } from "styled-components";
 import { expect, it, vi } from "vitest";
+
+import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 
 // The `utils` barrel cannot load under jsdom; `Primary` needs only these
 vi.mock("../../../../utils", async () => {
@@ -52,4 +54,17 @@ it("shows the route's view again when it mounts a second time", async () => {
 
   render(withTheme(<Primary />));
   expect(await screen.findByText("route view")).toBeTruthy();
+});
+
+it("reports a view that fails to load, and shows the failure", async () => {
+  const logs = memoryProvider();
+  initLogger({ providers: [logs] });
+  render(withTheme(<Primary />));
+  void PgView.setMainPrimary(async () => {
+    throw new Error("route failed");
+  });
+  await waitFor(() => expect(logs.entries).toHaveLength(1));
+  expect(logs.entries[0].report).toBe(true);
+  expect(String(logs.entries[0].error)).toContain("route failed");
+  resetLogger();
 });

@@ -1652,8 +1652,10 @@ going back finds the work as it was left.
   a phone rotates across `LAYOUT_BREAKPOINTS.phone`. So Monaco keeps its
   models, and with them the undo history, the cursor and the scroll; the
   terminal keeps its scrollback and a running process. The work unmounts
-  only when no project is current: on a start with none (5.8), and once the
-  last one is deleted, when there is nothing left to keep. _Rejected:_
+  only when it cannot be drawn, on `/` with no project current: on a start
+  with none (5.8), and once the last one is deleted. A route other than `/`
+  draws its own page without a project (a lesson before it starts), so it
+  keeps the work and never shows Home by itself. _Rejected:_
   unmounting under Home and remounting on the way back, which loses the
   undo history (Monaco disposes every model on unmount) and the console
   buffer; covering the mounted columns with Home, which 5.8 rejected.
@@ -1671,14 +1673,20 @@ going back finds the work as it was left.
   deleted, here, by another tab or by sync (`via: last-deleted`); a
   navigation back to `/` with no project open (`via: back`), which also
   covers a fresh profile that deep-linked a tutorial and went Back without
-  starting it. The start keeps `via: start`. Home in the navigation never
+  starting it. The start keeps `via: start`. Until the start is decided the
+  navigation's Home does nothing, so the start's watchdog and its reports
+  stay in place. Home in the navigation never
   opens the gallery any more; New project, Tutorials and Programs still do
   until 5.9.
 - **Out of Home:** picking the open project in the navigation's list (which
   otherwise does nothing for the current project), the phone's Continue
   quick start (built in 5.8, shown now that a project can be open under
-  Home), and, as in 5.8, any project created, opened or switched to, or a
-  route other than `/`.
+  Home), and, as in 5.8, any other project created, opened or switched to,
+  or a route other than `/`. Sync re-opens the project Home shows over (a
+  merge, a reconcile on refocus); that is no way out, or a Home the user
+  asked for would vanish on its own. A replayed route view that fails is
+  reported by `Primary` (`view:main-primary`), since it is drawn in place of
+  the view, never thrown.
 - **Telemetry**, prefix `home`: `home_shown` gains `via` (`start`, `nav`,
   `last-deleted` or `back`); `home_left` with `via` (`current-project`,
   `continue` or `open`) when the work replaces Home.

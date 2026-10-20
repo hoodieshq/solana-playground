@@ -77,15 +77,16 @@ const asError = (thrown: unknown) => {
   return new Error(String(thrown));
 };
 
+export type ProjectListProps = {
+  /** The project already open was picked: no switch, the page shows it */
+  onPickCurrent?: () => void;
+};
+
 /**
  * The navigation's project list, connected: the explorer's workspaces, the
  * device's pins, and what each menu item does. A failed action tells the
  * user, is logged for the team, and is counted.
  */
-export type ProjectListProps = {
-  /** The project already open was picked: no switch, the page shows it */
-  onPickCurrent?: () => void;
-};
 
 const ProjectList = ({ onPickCurrent }: ProjectListProps) => {
   const [, refresh] = useReducer((n: number) => n + 1, 0);

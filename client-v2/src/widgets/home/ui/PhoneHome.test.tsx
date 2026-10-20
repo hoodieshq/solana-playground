@@ -215,3 +215,16 @@ it("opens the assistant from the composer and reports it", () => {
   expect(onAsk).toHaveBeenCalledTimes(1);
   expect(events("home_composer_opened")).toEqual([{}]);
 });
+
+it("switches to the project Continue names when another opened since Home drew it", async () => {
+  utils.PgExplorer.currentWorkspaceName = "counter";
+  utils.PgExplorer.allWorkspaceNames = ["counter", "escrow"];
+  const { home, onContinue } = draw();
+  // Another tab opened escrow before the tap
+  utils.PgExplorer.currentWorkspaceName = "escrow";
+  fireEvent.click(home.getByRole("button", { name: /Continue counter/ }));
+  await waitFor(() =>
+    expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith("counter")
+  );
+  expect(onContinue).not.toHaveBeenCalled();
+});

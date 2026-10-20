@@ -51,11 +51,13 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
+const onHome = vi.fn();
 let sent: ReturnType<typeof memoryProvider>;
 let logged: ReturnType<typeof memoryLogs>;
 beforeEach(() => {
   // `setModal` settles when the modal closes
   view.setModal.mockReset().mockResolvedValue(null);
+  onHome.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   logged = memoryLogs();
@@ -66,7 +68,6 @@ afterEach(() => {
   resetLogger();
 });
 
-const onHome = vi.fn();
 const draw = (homeShown?: boolean) =>
   render(
     <TooltipProvider>
@@ -109,7 +110,6 @@ it.each([
 );
 
 it("opens Home, not the gallery, from the work", () => {
-  onHome.mockReset();
   draw();
   fireEvent.click(screen.getByRole("button", { name: "Home" }));
   expect(opened()).toEqual([{ item: "home" }]);
@@ -122,6 +122,7 @@ it("reports Home but opens no gallery while Home is the page shown", () => {
   fireEvent.click(screen.getByRole("button", { name: "Home" }));
   expect(opened()).toEqual([{ item: "home" }]);
   expect(view.setModal).not.toHaveBeenCalled();
+  expect(onHome).not.toHaveBeenCalled();
 });
 
 it("still opens the gallery from the other items while Home is shown", () => {

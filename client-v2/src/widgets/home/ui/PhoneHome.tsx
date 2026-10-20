@@ -42,9 +42,11 @@ const openQuickstart = async (
       if (!PgExplorer.allWorkspaceNames?.includes(target.workspace)) {
         throw new Error(`${target.workspace} no longer exists.`);
       }
-      // Continue names the project already open, which the work under Home
-      // still holds; a switch would re-read it under a live editor
-      onContinue();
+      // Continue names the project open when Home drew it, which the work
+      // under Home still holds; a switch would re-read it under a live
+      // editor. Only one opened since (another tab) needs the switch.
+      if (target.workspace === PgExplorer.currentWorkspaceName) onContinue();
+      else await PgExplorer.switchWorkspace(target.workspace);
       return;
     }
     case "new": {

@@ -47,8 +47,12 @@ const workDrawable = () =>
   PgExplorer.isTemporary ||
   PgExplorer.currentWorkspaceName !== undefined;
 
-/** What the page shows, and how Home came to show */
-type Shown = { view: StartView; via: HomeVia };
+/** The start's answer, as what the page shows */
+const startShown = (view: StartView): Shown =>
+  view === "home" ? { view, via: "start" } : { view };
+
+/** What the page shows, and for Home how it came to show */
+type Shown = { view: "home"; via: HomeVia } | { view: "pending" | "work" };
 
 export type PageView = {
   view: StartView;
@@ -70,18 +74,21 @@ export type PageView = {
  * have, so on `/` this initialises it first (`PgExplorer.init` runs its calls
  * one after another, so the route's own call later is harmless). After the
  * start Home comes back from the navigation (`showHome`) and on its own
- * whenever `/` is left with no project open: the last one deleted, here, by
- * another tab or by sync, or a way back to `/`.
+ * whenever the page ends up on `/` with no project open: the last one
+ * deleted, here, by another tab or by sync, or a way back to `/`. A route
+ * other than `/` draws its own page without a project (a lesson's, before it
+ * starts), so Home never shows there by itself.
  */
 export const useStartView = (): PageView => {
-  const [shown, setShown] = useState<Shown>(() => ({
-    view: decideStart({
-      path: PgRouter.location.pathname,
-      workspaces: PgExplorer.allWorkspaceNames,
-      current: PgExplorer.currentWorkspaceName,
-    }),
-    via: "start",
-  }));
+  const [shown, setShown] = useState<Shown>(() =>
+    startShown(
+      decideStart({
+        path: PgRouter.location.pathname,
+        workspaces: PgExplorer.allWorkspaceNames,
+        current: PgExplorer.currentWorkspaceName,
+      })
+    )
+  );
   const [workKept, setWorkKept] = useState(workDrawable);
   const view = shown.view;
 
@@ -94,7 +101,7 @@ export const useStartView = (): PageView => {
         new Error(`The explorer did not answer within ${START_TIMEOUT_MS} ms`),
         { report: true }
       );
-      setShown({ view: "work", via: "start" });
+      setShown({ view: "work" });
     }, START_TIMEOUT_MS);
     PgExplorer.init()
       .finally(() => clearTimeout(watchdog))
@@ -107,22 +114,23 @@ export const useStartView = (): PageView => {
           log.error(new Error("The explorer listed no projects after init"), {
             report: true,
           });
-          setShown({ view: "work", via: "start" });
+          setShown({ view: "work" });
           return;
         }
-        setShown({
-          view: decideStart({
-            path: PgRouter.location.pathname,
-            workspaces,
-            current: PgExplorer.currentWorkspaceName,
-          }),
-          via: "start",
-        });
+        setShown(
+          startShown(
+            decideStart({
+              path: PgRouter.location.pathname,
+              workspaces,
+              current: PgExplorer.currentWorkspaceName,
+            })
+          )
+        );
       })
       .catch((e: unknown) => {
         // The work is the start without Home and still works
         log.error(e, { report: true });
-        if (live) setShown({ view: "work", via: "start" });
+        if (live) setShown({ view: "work" });
       });
     return () => {
       live = false;
@@ -134,58 +142,87 @@ export const useStartView = (): PageView => {
   // be drawn; the work cannot be drawn on `/` with no project open, so Home
   // takes over there
   useEffect(() => {
+    // A lesson's route goes to `/` by itself once its project, the last one,
+    // is deleted; that arrival is the delete's, not a way back
+    let lastDeleted = false;
     const check = (via: HomeVia) => {
       const drawable = workDrawable();
       setWorkKept(drawable);
-      if (drawable) return;
-      setShown((now) => (now.view === "work" ? { view: "home", via } : now));
+      if (drawable) {
+        // A project open again: the delete is no longer what brings Home
+        if (PgExplorer.currentWorkspaceName) lastDeleted = false;
+        return;
+      }
+      const shownVia = lastDeleted ? "last-deleted" : via;
+      lastDeleted = false;
+      setShown((now) =>
+        now.view === "work" ? { view: "home", via: shownVia } : now
+      );
     };
     const subs = [
       PgExplorer.onDidSwitchWorkspace(() => check("last-deleted")),
       PgExplorer.onDidInit(() => check("last-deleted")),
-      PgExplorer.onDidDeleteWorkspace(() => check("last-deleted")),
+      PgExplorer.onDidDeleteWorkspace(() => {
+        lastDeleted = PgExplorer.allWorkspaceNames?.length === 0;
+        check("last-deleted");
+      }),
       PgRouter.onDidChangePath(() => check("back")),
     ];
     return () => subs.forEach((s) => s.dispose());
   }, []);
 
+  const via = shown.view === "home" ? shown.via : undefined;
   useEffect(() => {
-    if (view !== "home") return;
-    homeTelemetry.track("home_shown", { via: shown.via });
-    // Leaves once a project is open, not once one exists: sync imports the
-    // account's projects without opening them (`PgExplorer.importWorkspace`),
-    // and the work mounted with projects listed and none current throws in
-    // the explorer. The session's `adopt` (effects/session) opens the newest
-    // one right after, through `PgExplorer.switchWorkspace`.
-    const toWork = () => {
-      if (!PgExplorer.currentWorkspaceName) return;
+    if (!via) return;
+    homeTelemetry.track("home_shown", { via });
+    // Leaves once a project other than the one Home showed over is open, not
+    // once one exists: sync imports the account's projects without opening
+    // them (`PgExplorer.importWorkspace`), and the work mounted with projects
+    // listed and none current throws in the explorer; the session's `adopt`
+    // (effects/session) opens the newest one right after, through
+    // `PgExplorer.switchWorkspace`. The project Home showed over is re-opened
+    // by sync too (a merge, a reconcile on refocus), which is no reason to
+    // leave a Home the user asked for.
+    const over = PgExplorer.currentWorkspaceName;
+    const from = PgRouter.location.pathname;
+    // A new project switches, then announces itself: one way out, said once
+    let left = false;
+    const leave = () => {
+      if (left) return;
+      left = true;
       homeTelemetry.track("home_left", { via: "open" });
-      setShown({ view: "work", via: shown.via });
+      setShown({ view: "work" });
+    };
+    const toWork = () => {
+      const current = PgExplorer.currentWorkspaceName;
+      if (current && current !== over) leave();
     };
     const subs = [
       // A project made here, or the account's opened after arriving by sync
       PgExplorer.onDidCreateWorkspace(toWork),
       PgExplorer.onDidSwitchWorkspace(toWork),
+      // Called at once with the path Home opened on, which is no way out:
+      // Home from a lesson stays on the lesson's route
       PgRouter.onDidChangePath((path) => {
-        if (path === "/") return;
-        homeTelemetry.track("home_left", { via: "open" });
-        setShown({ view: "work", via: shown.via });
+        if (path !== "/" && path !== from) leave();
       }),
     ];
     return () => subs.forEach((s) => s.dispose());
-  }, [view, shown.via]);
+  }, [via]);
 
+  // Not while the start is pending: its watchdog and its reports would go
+  // with it, and Home shows by itself once the start is decided
   const showHome = useCallback((via: HomeVia) => {
-    setShown((now) => (now.view === "home" ? now : { view: "home", via }));
+    setShown((now) => (now.view === "work" ? { view: "home", via } : now));
   }, []);
 
   const leaveHome = useCallback(
-    (via: HomeLeaveVia) => {
+    (leftVia: HomeLeaveVia) => {
       if (view !== "home" || !workDrawable()) return;
-      homeTelemetry.track("home_left", { via });
-      setShown({ view: "work", via: shown.via });
+      homeTelemetry.track("home_left", { via: leftVia });
+      setShown({ view: "work" });
     },
-    [view, shown.via]
+    [view]
   );
 
   return { view, workKept, showHome, leaveHome };

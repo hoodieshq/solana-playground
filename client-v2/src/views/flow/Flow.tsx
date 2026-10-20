@@ -233,13 +233,21 @@ const FlowFrame = () => {
             return (
               <AppNav
                 homeShown={isHomeShown(page.view)}
-                onHome={() => page.showHome("nav")}
+                // Home and the open project show in place of the work, which
+                // the navigation's Sheet (or a phone's menu page) covers
+                onHome={() => {
+                  page.showHome("nav");
+                  closeSheet();
+                }}
                 collapsed={collapsed}
                 onToggle={toggle}
                 logo={<Logomark aria-hidden="true" />}
                 projects={
                   <ProjectList
-                    onPickCurrent={() => page.leaveHome("current-project")}
+                    onPickCurrent={() => {
+                      page.leaveHome("current-project");
+                      closeSheet();
+                    }}
                   />
                 }
                 footer={

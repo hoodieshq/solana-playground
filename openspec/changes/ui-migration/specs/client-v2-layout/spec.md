@@ -467,7 +467,7 @@ opened or a tutorial opens; projects listed
 with none open SHALL still show Home. Until the projects are known Home's
 place SHALL show a spinner, and if they are not known within 10 s the page
 SHALL report it and open the work. The editor SHALL NOT mount while Home
-shows.
+shows with no project open.
 
 #### Scenario: An empty install
 
@@ -507,14 +507,18 @@ shows.
 ### Requirement: Home is reachable from an open project
 
 The navigation's Home item SHALL show Home while a project is open, and
-deleting the last project SHALL show Home; so SHALL a navigation back to `/`
-with no project open. The address SHALL NOT change when Home shows. While a
+deleting the last project on `/` SHALL show Home; so SHALL a navigation back
+to `/` with no project open. A route other than `/` SHALL NOT show Home by
+itself (a lesson's route goes to `/` on its own when its project is
+deleted). The navigation's Home SHALL do nothing until the start is
+decided, and a re-open of the project Home shows over (by sync) SHALL NOT
+leave Home. The address SHALL NOT change when Home shows. While a
 project is open the editor and the console SHALL stay mounted under Home,
 so that going back to the project, by picking it in the navigation's list,
-by the phone's Continue, or by opening any project, SHALL find the same
-file, cursor, scroll position, undo history and console output. Once no
-project is open the editor SHALL unmount, and the next project SHALL open
-in a filled editor.
+by the phone's Continue, or by opening another project and coming back,
+SHALL find the same file, cursor, scroll position, undo history and console
+output. Once no project is open on `/` the editor SHALL unmount, and the
+next project SHALL open in a filled editor.
 
 #### Scenario: Home from an open project and back
 
@@ -522,6 +526,13 @@ in a filled editor.
   the navigation, then picks the same project in the navigation's list
 - **THEN** Home shows with the address unchanged, then the editor shows the
   same file with the cursor where it was, and undo removes the typing
+
+#### Scenario: Home from an open project on a phone
+
+- **WHEN** a user on a 390 px wide screen with a project open types in the
+  editor, opens the menu, taps Home, then taps Continue
+- **THEN** the menu gives way to Home on the work page, then the editor
+  shows the typing
 
 #### Scenario: Home after the last project is deleted
 

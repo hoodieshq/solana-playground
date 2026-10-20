@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { createElement, useEffect, useRef } from "react";
+import { createElement, useContext, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+
+import { KeybindsActive } from "@/shared/lib/keybinds-active";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -1296,6 +1298,28 @@ describe("with Home", () => {
         expect(screen.getByTestId("console-probe")).toBeTruthy();
         expect(mounts.stage).toHaveBeenCalledTimes(1);
         expect(mounts.console).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it.each(["wide", "phone"] as const)(
+      "turns the kept work's keybinds off under Home, and on again after (%s)",
+      (viewport) => {
+        const seen: boolean[] = [];
+        const Keys = () => {
+          seen.push(useContext(KeybindsActive));
+          return null;
+        };
+        const tree = (home?: ReactNode) => (
+          <BaseLayoutShell
+            {...props(viewport, { home, keepWork: true, stage: <Keys /> })}
+          />
+        );
+        const { rerender } = render(tree());
+        expect(seen.at(-1)).toBe(true);
+        rerender(tree(<div>home slot</div>));
+        expect(seen.at(-1)).toBe(false);
+        rerender(tree());
+        expect(seen.at(-1)).toBe(true);
       }
     );
 

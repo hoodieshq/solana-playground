@@ -230,4 +230,34 @@ test.describe("on a phone", () => {
     await expect(page.locator(".monaco-editor").first()).toBeVisible();
     await expect(home(page)).toBeHidden();
   });
+
+  test("client-v2-layout: Home from an open project on a phone", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/");
+    await homeRegion(page)
+      .getByRole("button", { name: /New Anchor project/ })
+      .click();
+    await expect(firstLine(page)).not.toBeEmpty(LONG);
+    await focusEditor(page);
+    await page.keyboard.press("ControlOrMeta+Home");
+    await page.keyboard.type("// kept ");
+
+    const work = page.getByRole("region", { name: "Work" });
+    await work.getByRole("button", { name: "Menu" }).click();
+    await page
+      .getByRole("region", { name: "Navigation" })
+      .getByRole("button", { name: "Home", exact: true })
+      .click();
+    // The menu gives way to Home on the work page
+    await expect(home(page)).toBeInViewport();
+    await expect(work.getByTestId("phone-bar")).toContainText("Home");
+
+    await homeRegion(page)
+      .getByRole("button", { name: /^Continue / })
+      .click();
+    await expect(home(page)).toBeHidden();
+    await expect(firstLine(page)).toContainText("// kept");
+  });
 });
