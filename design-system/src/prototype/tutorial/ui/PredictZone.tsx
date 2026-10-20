@@ -21,7 +21,7 @@ export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer:
             className="flex min-h-12 items-center rounded-control border border-border bg-surface px-3 py-2 text-left text-control text-foreground transition-colors duration-150 ease-standard active:bg-surface-raised motion-reduce:transition-none"
           >
             <span>
-              <Prose text={option} chip="bg-surface-raised" />
+              <Prose text={option} />
             </span>
           </button>
         ))}
