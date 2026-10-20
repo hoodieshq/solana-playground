@@ -12,10 +12,6 @@ import type { AccountView } from "../model/account";
 import BaseSessionFooter from "./BaseSessionFooter";
 
 // The settings panel module reaches the utils barrel, which reads globals only the built app has
-vi.mock("@/views/flow/settings/GearSidebar", () => ({
-  SETTINGS_TRIGGER_ATTR: "data-settings-trigger",
-}));
-
 // The stock Sidebar reads the viewport through `matchMedia`, which jsdom lacks
 beforeAll(() => {
   vi.stubGlobal("matchMedia", (query: string) => ({

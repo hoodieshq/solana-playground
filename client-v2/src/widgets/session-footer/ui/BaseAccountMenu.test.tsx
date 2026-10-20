@@ -7,10 +7,6 @@ import type { AccountView } from "../model/account";
 import BaseAccountMenu from "./BaseAccountMenu";
 
 // The settings panel module reaches the utils barrel, which reads globals only the built app has
-vi.mock("@/views/flow/settings/GearSidebar", () => ({
-  SETTINGS_TRIGGER_ATTR: "data-settings-trigger",
-}));
-
 const UP = { name: "devnet", down: false };
 const TESTER = { name: "Tester", login: "t", image: null };
 const WALLET = {

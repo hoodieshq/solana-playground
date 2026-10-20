@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
 } from "@/shared/ui/dropdown-menu";
-import { SETTINGS_TRIGGER_ATTR } from "@/views/flow/settings/GearSidebar";
+import { SETTINGS_TRIGGER_ATTR } from "@/shared/lib/settings-request";
 import {
   DOCS_URL,
   formatBalance,

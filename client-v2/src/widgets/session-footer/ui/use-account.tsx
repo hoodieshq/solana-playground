@@ -6,7 +6,7 @@ import { FeedbackMenuItems, useFeedbackSend } from "@/features/feedback";
 import { useBalance, useRenderOnChange, useWallet } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommand, PgCommon, PgView, PgWallet } from "@/utils";
-import type { SettingsFocus } from "@/views/flow/settings/GearSidebar";
+import type { SettingsRequest } from "@/shared/lib/settings-request";
 import type {
   AccountItem,
   AccountSession,
@@ -33,7 +33,7 @@ const warnWallet = () =>
 
 interface UseAccountOptions {
   from: AccountSurface;
-  onToggleSettings: (focus?: SettingsFocus) => void;
+  onToggleSettings: (request: SettingsRequest) => void;
 }
 
 /**
@@ -106,8 +106,8 @@ export const useAccount = ({ from, onToggleSettings }: UseAccountOptions) => {
     "github-profile": () => undefined,
     docs: () => undefined,
     "sign-out": () => setConfirmingSignOut(true),
-    settings: () => onToggleSettings(),
-    "cluster-down": () => onToggleSettings("network"),
+    settings: () => onToggleSettings({ from: "menu", focus: "page" }),
+    "cluster-down": () => onToggleSettings({ from: "menu", focus: "network" }),
     "connect-wallet": () => toggleWallet("connect-wallet"),
     "disconnect-wallet": () => toggleWallet("disconnect-wallet"),
     wallet: () => {

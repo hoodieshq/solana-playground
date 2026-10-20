@@ -10,6 +10,10 @@ import {
 } from "../../../components/Icons";
 import Link from "../../../components/Link";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
+import {
+  SETTINGS_TRIGGER_ATTR,
+  type SettingsFocus,
+} from "@/shared/lib/settings-request";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
@@ -33,15 +37,6 @@ import {
   ImportFs,
   ImportGithub,
 } from "../../sidebar/explorer/Component/Modals";
-
-/** Which control the panel puts focus on when it opens */
-export type SettingsFocus = "panel" | "network";
-
-/**
- * Marks the controls that toggle this panel, so `useOnClickOutside` does not
- * read a click on one as an outside click.
- */
-export const SETTINGS_TRIGGER_ATTR = "data-settings-trigger";
 
 interface GearSidebarProps {
   open: boolean;
@@ -109,7 +104,7 @@ export const BaseNetworkChoice: FC<{
 const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
   open,
   onClose,
-  focus = "panel",
+  focus = "page",
   onChooseNetwork,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);

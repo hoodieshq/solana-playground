@@ -20,13 +20,16 @@ import {
 } from "./lessons";
 import type { LessonState } from "./lessons";
 import GearSidebar from "./settings/GearSidebar";
-import type { SettingsFocus } from "./settings/GearSidebar";
 import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
 import { FeedbackHost } from "@/features/feedback";
+import type {
+  SettingsFocus,
+  SettingsRequest,
+} from "@/shared/lib/settings-request";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Wallet from "@/components/Wallet";
 import { useKeybind } from "@/hooks";
@@ -68,7 +71,7 @@ const FlowFrame = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const viewport = useViewport();
   const phone = viewport === "phone";
-  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
+  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("page");
 
   useEffect(() => {
     const subs = [
@@ -90,7 +93,7 @@ const FlowFrame = () => {
   // focus away from it.
   const toggleSettings =
     (closeSheet: () => void) =>
-    (focus: SettingsFocus = "panel") => {
+    ({ focus }: SettingsRequest) => {
       if (!settingsOpen) closeSheet();
       setSettingsFocus(focus);
       setSettingsOpen((open) => !open);
@@ -99,7 +102,7 @@ const FlowFrame = () => {
   // settings that are already open
   const openSettings =
     (closeSheet: () => void) =>
-    (focus: SettingsFocus = "panel") => {
+    (focus: SettingsFocus = "page") => {
       closeSheet();
       setSettingsFocus(focus);
       setSettingsOpen(true);
@@ -110,9 +113,11 @@ const FlowFrame = () => {
   // the navigation last handed over: below `LAYOUT_BREAKPOINTS.left` the
   // navigation's Sheet may be open, and its overlay would cover the settings.
   const closeNavSheet = useRef<() => void>(() => undefined);
-  useKeybind("Ctrl+,", () => toggleSettings(closeNavSheet.current)(), [
-    settingsOpen,
-  ]);
+  useKeybind(
+    "Ctrl+,",
+    () => toggleSettings(closeNavSheet.current)({ from: "key", focus: "page" }),
+    [settingsOpen]
+  );
 
   const start = useStartView();
 
