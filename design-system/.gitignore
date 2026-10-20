@@ -25,3 +25,5 @@ dist-ssr
 
 # built by npm run build
 registry-dist
+
+dist-prototype
