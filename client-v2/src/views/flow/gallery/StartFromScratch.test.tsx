@@ -117,3 +117,19 @@ it("shows a failure that is not about the name and accepts a retry", async () =>
   expect(start().getAttribute("aria-busy")).toBeNull();
   expect(start()).toHaveProperty("disabled", false);
 });
+
+it("makes a project from Home and closes no dialog", async () => {
+  mocks.getDefaultFiles.mockResolvedValue({ files: [] });
+  render(
+    <ThemeProvider theme={anyTheme}>
+      <StartFromScratch />
+    </ThemeProvider>
+  );
+
+  await act(async () => {
+    fireEvent.click(start());
+  });
+
+  expect(mocks.createWorkspace).toHaveBeenCalledTimes(1);
+  expect(mocks.closeModal).not.toHaveBeenCalled();
+});

@@ -35,6 +35,13 @@ export const useModalId = () => {
 };
 
 /**
+ * The id of the dialog around a component that also renders outside one
+ * (Start from scratch sits on Home as well as in the gallery), or `null`
+ * there: outside a dialog there is nothing of its own to close.
+ */
+export const useModalIdIfAny = () => useContext(ModalIdContext);
+
+/**
  * Set by `ModalHost` for the top dialog: while its submit runs, the dialog
  * cannot be dismissed (Escape, a press outside, the header's Close), so the
  * submit's answer reaches the dialog that asked for it.
