@@ -167,8 +167,9 @@ function load(): State {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const saved = { ...initial(), ...(JSON.parse(raw) as Partial<State>) }
-      // Timers and sheets don't survive a reload: land on the step at rest
-      return { ...saved, phase: resting(saved), sheet: false }
+      // A reload comes back through the gallery, where Continue picks the
+      // tutorial up. Timers and sheets don't survive it
+      return { ...saved, screen: "gallery", phase: resting(saved), sheet: false }
     }
   } catch {
     // Storage blocked or broken: start fresh
