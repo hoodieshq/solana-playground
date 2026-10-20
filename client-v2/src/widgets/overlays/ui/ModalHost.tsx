@@ -57,7 +57,9 @@ class ModalBoundary extends Component<
  * while its submit runs.
  */
 export const ModalHost = () => {
-  const [modals, setModals] = useState<ReactElement[]>([]);
+  const [modals, setModals] = useState<{ id: string; element: ReactElement }[]>(
+    []
+  );
   // Set by the top dialog's `ModalFrame` while its submit runs
   const dismissBlocked = useRef(false);
   const blockDismiss = useCallback((blocked: boolean) => {
@@ -65,21 +67,27 @@ export const ModalHost = () => {
   }, []);
 
   const setModalStatic = useCallback(
-    ({
-      elementable,
-      props,
-    }: {
-      elementable: Elementable | null;
-      props?: Record<string, unknown>;
-    }) => {
-      // `PgView.setModal(null)` closes the top dialog
-      if (elementable === null) {
+    (
+      detail:
+        | {
+            id: string;
+            elementable: Elementable;
+            props?: Record<string, unknown>;
+          }
+        | { elementable: null }
+    ) => {
+      // `PgView.closeModal` closes the top dialog
+      if (detail.elementable === null) {
         setModals((modals) => modals.slice(0, -1));
         return;
       }
 
-      const modal = PgView.normalizeElement(elementable, props) as ReactElement;
-      setModals((modals) => [...modals, modal]);
+      const { id, elementable, props } = detail;
+      const element = PgView.normalizeElement(
+        elementable,
+        props
+      ) as ReactElement;
+      setModals((modals) => [...modals, { id, element }]);
     },
     []
   );
@@ -98,10 +106,11 @@ export const ModalHost = () => {
     >
       <ModalDismissContext.Provider value={blockDismiss}>
         {modals.map((modal, i) => (
-          // The index is the dialog's place in the stack, which never changes
-          // while it is open (HOO-2091 gives each dialog an id of its own)
-          <ModalLayerContext.Provider key={i} value={i === modals.length - 1}>
-            <ModalBoundary>{modal}</ModalBoundary>
+          <ModalLayerContext.Provider
+            key={modal.id}
+            value={i === modals.length - 1}
+          >
+            <ModalBoundary>{modal.element}</ModalBoundary>
           </ModalLayerContext.Provider>
         ))}
       </ModalDismissContext.Provider>

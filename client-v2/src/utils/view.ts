@@ -1,6 +1,7 @@
 import { createElement, FC } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
+import { uuid } from "@/shared/lib/ids";
 import { PgCommon } from "./common";
 import {
   createDerivable,
@@ -16,6 +17,13 @@ import type {
   Elementable,
   Promisable,
 } from "./types";
+
+/**
+ * The dialogs `PgView.setModal` opened and not yet closed, bottom first. Each
+ * holds its own caller's answer, so closing the top one answers only that
+ * caller: one shared receive event answered every dialog in the stack.
+ */
+const openModals: Array<{ id: string; resolve: (data: unknown) => void }> = [];
 
 /** How long a toast stays, in milliseconds, when its options give no duration */
 export const DEFAULT_TOAST_DURATION = 5000;
@@ -295,19 +303,29 @@ class _PgView {
   }
 
   /**
-   * Set the current modal and wait until close.
+   * Open a modal on top of any already open, and wait until it closes.
+   * `null` closes the top modal with no answer instead.
    *
    * @param elementable elementable to set as the modal
    * @param props component props
-   * @returns the data from `close` method of the modal
+   * @returns what `closeModal` was given when this modal closed
    */
   static async setModal<R, P extends Record<string, any> = {}>(
     elementable: Elementable<P>,
     props?: P
   ): Promise<R | null> {
-    return await PgCommon.sendAndReceiveCustomEvent(PgView.events.MODAL_SET, {
-      elementable,
-      props,
+    if (elementable === null) {
+      PgView.closeModal(null);
+      return null;
+    }
+
+    const id = uuid();
+    return new Promise<R | null>((resolve) => {
+      openModals.push({ id, resolve: resolve as (data: unknown) => void });
+      PgCommon.createAndDispatchCustomEvent(
+        PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
+        { id, elementable, props }
+      );
     });
   }
 
@@ -327,17 +345,17 @@ class _PgView {
   }
 
   /**
-   * Close the current modal.
+   * Close the top modal, answering only the `setModal` call that opened it.
    *
-   * @param data data to be resolved from the modal
+   * @param data the answer for that call
    */
   static closeModal(data?: any) {
+    const top = openModals.pop();
     PgCommon.createAndDispatchCustomEvent(
-      PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).receive,
-      { data }
+      PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
+      { elementable: null }
     );
-
-    PgView.setModal(null);
+    top?.resolve(data);
   }
 
   /**
