@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { ChevronDown, ChevronLeft, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, MessageCircle, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
+import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
@@ -142,14 +142,15 @@ export function StepScreen() {
           </>
         ) : (
           <>
-            {/* The assistant's own mark, the one its sheets carry, so it's clear who answers */}
+            {/* A chat bubble, the same one the assistant's sheets carry, so it's clear who answers.
+                It stands in until Sole has a mark of its own (DES-134) */}
             <Button
               variant="secondary"
               className="h-11 gap-2 px-3.5 text-control"
               aria-label="Ask the assistant about this step"
               onClick={() => dispatch({ type: "explain", mode: "step" })}
             >
-              <BrandButtonIcon className="size-4 text-brand-purple" />
+              <MessageCircle strokeWidth={1.75} className="size-4 text-brand-purple" />
               Ask
             </Button>
             <BrandButton
