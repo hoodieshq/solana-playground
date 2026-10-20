@@ -905,6 +905,60 @@ was deleted or renamed fails rather than bringing the folder back (review of
 PR #100, 2026-10-20). `.tutorial.json` and the explorer's metadata writes have
 the same window and are HOO-2137.
 
+## The Interact stage (5.12)
+
+Decided with Slava on 2026-10-20 (HOO-1676). The prototype draws only
+Interact's toolbar and its empty state ("Nothing to call yet", Go to Deploy);
+the form below them is composed from the design system's parts.
+
+**Toolbar.** "Interact" with the mono meta line beside it, then Deployment as
+the `NativeSelect` of 5.5 (mono) and `IdlActions mode="button"` ("Load IDL
+file"). Its styled-components go.
+
+**One `StageEmpty` replaces the seven Callouts** the embedded form showed
+before it could render. A pure `interactSurface()` in
+`views/flow/stages/interact-surface.ts` picks the surface from the project
+and program info, in today's order:
+
+| Surface | When | Shows |
+|---|---|---|
+| `no-project` | no workspace open | "No project open" |
+| `not-built` | no IDL, the project's own program | "Nothing to call yet", Go to Build |
+| `no-idl` | no IDL, an imported program | "No IDL yet", Load IDL file |
+| `no-program-id` | the program has no public key | "No program id" |
+| `bad-idl` | the IDL has no instructions | an error `StageEmptyNotice` with today's text |
+| `unreachable` | the chain could not be read | an error `StageEmptyNotice` with today's text |
+| `not-deployed` | the program is not on the cluster | "Nothing to call yet", Go to Deploy |
+| `ready` | everything above holds | the form |
+
+Go to Build and Go to Deploy are the stage's brand buttons and switch the
+stepper (`PgFlow.setStage`). On a phone the action row sits at the foot, as
+in 5.11 (`stage-layout.ts`).
+
+**The form** (`ready`). Instructions, Accounts and Events are headed
+sections; each item is a `Collapsible` card (border, `rounded-xl`,
+`bg-surface-panel`) instead of the striped rows. An input's label is its name
+in mono with `Tag`s for the type, `mut` and `signer`. Fetched accounts and
+received events show as JSON in the design system's `code-block`. Test, Fill
+and Reset stay as they are; none is the brand button, since every
+instruction has a Test. Account inference, Fill and the submission flow do not
+change.
+
+**No `Table`** (Slava, 2026-10-20): the prototype shows none on this screen,
+and what the stage returns is nested JSON, not rows.
+
+**Structure.** The classic layout is gone (5.1), so the upstream `Test`
+component has one user left, Interact, and is restyled in place under
+`views/sidebar/test` rather than forked. `SearchBar`, the input with the
+generator dropdown, stays: five places use it, among them the Tutorials and
+Programs pages of 5.9, so its move is filed with Lead. The legacy
+`components/CodeBlock` stays: `components/Markdown` still uses it. `BaseInteract` (toolbar and
+surface, from props alone) sits beside `Interact`, the connected wrapper. No
+telemetry is added: `views/` is a legacy root.
+
+Kept: `flow-stage-panel-interact`, every id and `aria-label` the form uses,
+and the texts "Load IDL file" and "Fetch All".
+
 ## The composer and Connect a model (5.17)
 
 Decided with Slava on 2026-10-14 (HOO-2067). The assistant's head, its
