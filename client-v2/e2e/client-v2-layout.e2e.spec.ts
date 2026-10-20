@@ -630,7 +630,7 @@ test("client-v2-layout: Settings on a narrow window", async ({ page }) => {
     "aria-checked",
     "true"
   );
-  await settings.getByRole("button", { name: "Close settings" }).click();
+  await settings.getByRole("button", { name: "Back to app" }).click();
   await page.getByRole("button", { name: "Expand project panel" }).click();
   await expect(
     sheet.getByRole("button", { name: "Change cluster, currently devnet" })
@@ -1032,8 +1032,8 @@ test.describe("on a tablet", () => {
     const settings = page.getByRole("region", { name: "Settings" });
     const network = settings.getByRole("radiogroup", { name: "Network" });
     await expect(network.getByRole("radio", { checked: true })).toBeFocused();
-    // A second click on the dot is the way out, as on the footer's cluster row
-    await footer.getByRole("button", { name: /^Cluster: / }).click();
+    // The page covers the rail, so "Back to app" is the way out
+    await settings.getByRole("button", { name: "Back to app" }).click();
     await expect(settings).toBeHidden();
 
     // "Account" opens the account menu beside the rail; the rail stays.
@@ -1365,14 +1365,6 @@ test("client-v2-layout: Settings from the menu and by key", async ({
   await expect(settings).toBeVisible();
   await page.keyboard.press("ControlOrMeta+Comma");
   await expect(settings).toBeHidden();
-
-  // Settings in the menu closes them while they are open, by mouse: opening
-  // the menu must not count as a click outside them
-  await page.keyboard.press("ControlOrMeta+Comma");
-  await expect(settings).toBeVisible();
-  await account(page).click();
-  await page.getByRole("menuitem", { name: /^Settings/ }).click();
-  await expect(settings).toBeHidden();
 });
 
 test("client-v2-layout: The wallet in the menu", async ({
@@ -1473,4 +1465,163 @@ test("a sign-in outlives the navigation's Sheet on a narrow window", async ({
   await expect(sheet.getByRole("button", { name: "Cancel" })).toBeVisible();
   release();
   await expect(sheetAccount).toContainText("Couldn't sign in");
+});
+
+// The scenarios of "Settings are a page of their own" and "The settings page
+// is measured"
+const settingsPage = (page: Page) =>
+  page.getByRole("region", { name: "Settings" });
+const sectionList = (page: Page) =>
+  settingsPage(page).getByRole("navigation", { name: "Settings sections" });
+const SECTIONS = [
+  "Network",
+  "Project",
+  "Block Explorer",
+  "Build",
+  "Connection",
+  "Editor",
+  "Notification",
+  "Server",
+  "Test UI",
+  "UI",
+  "Wallet",
+  "Experimental",
+];
+
+test.describe("the settings page", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("client-v2-layout: A wide window's settings page", async ({
+    seededPage: page,
+  }) => {
+    await page.locator("[data-settings-trigger]").first().click();
+    const list = sectionList(page);
+    await expect(list.getByRole("button")).toHaveText(SECTIONS);
+
+    const editor = list.getByRole("button", { name: "Editor", exact: true });
+    await editor.click();
+    await expect(
+      settingsPage(page).getByRole("heading", { level: 2, name: "Editor" })
+    ).toBeInViewport();
+    await expect(editor).toHaveAttribute("aria-current", "true");
+
+    // The last section cannot scroll to the top, and still takes the mark
+    const last = list.getByRole("button", { name: "Experimental" });
+    await last.click();
+    await expect(last).toHaveAttribute("aria-current", "true");
+  });
+
+  test("client-v2-layout: Back to the app keeps the work", async ({
+    seededPage: page,
+  }) => {
+    const firstLine = page.locator(".monaco-editor .view-line").first();
+    const before = await firstLine.textContent();
+    const layout = await savedLayout(page);
+    const row = nav(page).getByRole("button", { name: /^Change cluster/ });
+
+    await row.click();
+    await expect(settingsPage(page)).toBeVisible();
+    await settingsPage(page)
+      .getByRole("button", { name: "Back to app" })
+      .click();
+
+    await expect(settingsPage(page)).toHaveCount(0);
+    await expect(firstLine).toHaveText(before ?? "");
+    await expect(row).toBeFocused();
+    // Hiding the shell folded no panel and wrote no layout
+    expect(await savedLayout(page)).toBe(layout);
+  });
+
+  test("client-v2-layout: Opening and closing the settings is counted", async ({
+    seededPage: page,
+  }) => {
+    const lines = linesOn(page);
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(settingsPage(page)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(settingsPage(page)).toHaveCount(0);
+
+    await expect
+      .poll(() => lineOf(lines, "settings_opened"))
+      .toContain("from: key");
+    await expect
+      .poll(() => lineOf(lines, "settings_closed"))
+      .toContain("via: escape");
+  });
+});
+
+// HOO-2059 saw the stage tabs' "Interact" draw over the old overlay's title,
+// and HOO-2058 a grey block over the editor, both at 1440 by 900
+test.describe("the settings page at 1440 by 900", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("client-v2-layout: Nothing draws over the settings", async ({
+    seededPage: page,
+  }) => {
+    await page.locator("[data-settings-trigger]").first().click();
+    const heading = settingsPage(page).getByRole("heading", {
+      level: 1,
+      name: "Settings",
+    });
+    // What the user sees at a point is the page, not the app beneath it
+    const onTop = () =>
+      heading.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          r.x + r.width / 2,
+          r.y + r.height / 2
+        );
+        const middle = document.elementFromPoint(
+          window.innerWidth / 2,
+          window.innerHeight / 2
+        );
+        const page = el.closest('[role="region"][aria-label="Settings"]');
+        return hit === el && !!page?.contains(middle);
+      });
+
+    for (const theme of ["Dark", "Light"]) {
+      if (theme === "Light") {
+        const row = settingsPage(page)
+          .locator("span", { hasText: /^Theme$/ })
+          .locator("xpath=../..");
+        await row.getByRole("combobox").click();
+        await page.getByRole("option", { name: "Light", exact: true }).click();
+        await expect
+          .poll(() =>
+            page.evaluate(() =>
+              document.documentElement.classList.contains("dark")
+            )
+          )
+          .toBe(false);
+      }
+      await expect(page.locator("#flow-stage-tab-interact")).toBeHidden();
+      await expect(page.locator(".monaco-editor").first()).toBeHidden();
+      // Picking the theme scrolled the page down to the UI section
+      await heading.scrollIntoViewIfNeeded();
+      expect(await onTop(), theme).toBe(true);
+    }
+  });
+});
+
+test("client-v2-layout: The settings page on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // The editor focuses itself when it opens the first file; landing after
+  // the page opened, it would take focus from it
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await page
+    .getByRole("region", { name: "Navigation" })
+    .getByRole("button", { name: /^Change cluster/ })
+    .click();
+
+  const bar = page.getByTestId("settings-bar");
+  await expect(
+    bar.getByRole("heading", { level: 1, name: "Settings" })
+  ).toBeVisible();
+  await expect(sectionList(page)).toHaveCount(0);
+  await bar.getByRole("button", { name: "Back to app" }).click();
+  await expect(settingsPage(page)).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
 });
