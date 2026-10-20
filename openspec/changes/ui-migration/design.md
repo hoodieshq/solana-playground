@@ -1293,7 +1293,12 @@ project lands on Home instead of the gallery modal.
   does with no project is a later stage's question. The Sheet holds 5.17's
   assistant widget, never offered Widen there (`canWiden` is false while
   Home shows: there is no panel to widen); Home's own composer stays a
-  button that opens it, not 5.17's connected composer.
+  button that opens it, not 5.17's connected composer. When the work takes
+  over with that Sheet open (sync's `adopt` can open a project mid-answer),
+  the work's assistant opens in its place (the column from 1024 px, its
+  Sheet below, the chat page on a phone), reported as
+  `layout_panel_toggled {via: auto}`; between 720 and 1023 px it would
+  otherwise be a closed Sheet, the conversation gone from view.
 - **Widget `widgets/home`**: `BaseHome` and `Home`, `BasePhoneHome` and
   `PhoneHome`. Telemetry prefix `home`: `home_shown` when Home is shown,
   `home_tile_opened {tile: new-project | tutorials | programs}`,

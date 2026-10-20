@@ -212,8 +212,15 @@ const LayoutShell = ({
   useEffect(() => {
     // Gone with Home, not closed by anyone: nothing to report
     if (homeShown) return;
+    const wasOpen = homeSheetNow.current;
     homeSheetNow.current = false;
     setHomeSheetOpen(false);
+    // A conversation open on Home stays on screen when the work takes over
+    // (sync's `adopt` can open a project mid-answer): the work's assistant
+    // opens in its place, which between 720 and 1023 px is a closed Sheet
+    if (wasOpen) setAssistant(true, "auto");
+    // `setAssistant` reads refs and the viewport of this render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeShown]);
 
   const showPage = (next: PhonePage, via: PageSource) => {
