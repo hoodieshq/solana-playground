@@ -77,7 +77,8 @@ export function StepScreen() {
         </button>
       </section>
 
-      <div className="flex items-center px-4">
+      {/* 8px on top so the tabs sit evenly between the line above and the code */}
+      <div className="flex items-center px-4 pt-2">
         <div role="tablist" aria-label="Views" className="flex gap-1 text-caption">
         {(["code", "build"] as const).map((t) => (
           <button
