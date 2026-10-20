@@ -66,6 +66,7 @@ afterEach(() => {
   resetLogger();
 });
 
+const onHome = vi.fn();
 const draw = (homeShown?: boolean) =>
   render(
     <TooltipProvider>
@@ -79,6 +80,7 @@ const draw = (homeShown?: boolean) =>
           railFooter={null}
           setup={null}
           homeShown={homeShown}
+          onHome={onHome}
         />
       </SidebarProvider>
     </TooltipProvider>
@@ -90,7 +92,6 @@ const opened = () =>
     .map((event) => event.params);
 
 it.each([
-  ["Home", "home", "tutorials"],
   ["New project", "new-project", "tutorials"],
   ["Tutorials", "tutorials", "tutorials"],
   ["Programs", "programs", "programs"],
@@ -106,6 +107,15 @@ it.each([
     });
   }
 );
+
+it("opens Home, not the gallery, from the work", () => {
+  onHome.mockReset();
+  draw();
+  fireEvent.click(screen.getByRole("button", { name: "Home" }));
+  expect(opened()).toEqual([{ item: "home" }]);
+  expect(onHome).toHaveBeenCalledTimes(1);
+  expect(view.setModal).not.toHaveBeenCalled();
+});
 
 it("reports Home but opens no gallery while Home is the page shown", () => {
   draw(true);

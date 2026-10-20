@@ -10,14 +10,15 @@ import PhoneHome from "./PhoneHome";
 export type HomeSlot = (panel: { openAssistant: () => void }) => ReactNode;
 
 /**
- * Home for the layout shell, by the start view: none once the work shows,
+ * Home for the layout shell, by the page's view: none while the work shows,
  * a spinner in Home's place while the start is pending (so the editor does
  * not mount before the explorer has answered; `useStartView` gives up after
  * `START_TIMEOUT_MS`), then the phone's or the desktop's Home.
  */
 export const homeSlot = (
   start: StartView,
-  viewport: Viewport
+  viewport: Viewport,
+  onContinue: () => void
 ): HomeSlot | undefined => {
   if (start === "work") return undefined;
   return ({ openAssistant }) => {
@@ -27,7 +28,9 @@ export const homeSlot = (
           <Spinner className="size-6 text-muted-foreground" />
         </div>
       );
-    if (viewport === "phone") return <PhoneHome onAsk={openAssistant} />;
+    if (viewport === "phone") {
+      return <PhoneHome onAsk={openAssistant} onContinue={onContinue} />;
+    }
     return <Home onAsk={openAssistant} />;
   };
 };

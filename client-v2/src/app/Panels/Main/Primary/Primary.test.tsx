@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
+import type { DefaultTheme } from "styled-components";
 import { expect, it, vi } from "vitest";
 
 // The `utils` barrel cannot load under jsdom; `Primary` needs only these
@@ -35,7 +36,7 @@ vi.mock("../../../../components/ErrorBoundary", () => ({
 const THEME = {
   views: { main: { primary: { default: {} } } },
   default: { transition: { duration: { long: "0s" }, type: "linear" } },
-};
+} as unknown as DefaultTheme;
 const withTheme = (ui: ReactElement) => (
   <ThemeProvider theme={THEME}>{ui}</ThemeProvider>
 );

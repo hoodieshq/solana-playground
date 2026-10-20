@@ -184,7 +184,7 @@ const FlowFrame = () => {
     [settings]
   );
 
-  const start = useStartView();
+  const page = useStartView();
 
   const described = describeStep(lesson);
 
@@ -226,16 +226,22 @@ const FlowFrame = () => {
           <SyncBanner />
         </BannerSlot>
         <LayoutShell
-          home={homeSlot(start, viewport)}
+          home={homeSlot(page.view, viewport, () => page.leaveHome("continue"))}
+          keepWork={page.workKept}
           nav={({ collapsed, toggle, closeSheet }) => {
             closeNavSheet.current = closeSheet;
             return (
               <AppNav
-                homeShown={isHomeShown(start)}
+                homeShown={isHomeShown(page.view)}
+                onHome={() => page.showHome("nav")}
                 collapsed={collapsed}
                 onToggle={toggle}
                 logo={<Logomark aria-hidden="true" />}
-                projects={<ProjectList />}
+                projects={
+                  <ProjectList
+                    onPickCurrent={() => page.leaveHome("current-project")}
+                  />
+                }
                 footer={
                   <SessionFooter
                     settingsOpen={settingsOpen}
