@@ -1514,6 +1514,77 @@ _Rejected:_ an inline message on the control (a failed click often closed
 the dialog or menu it sat in, and one channel reads the same everywhere);
 showing the raw error (it is written for the log, not for the user).
 
+## Settings as a full page (5.20)
+
+Decided with Slava on 2026-10-20 (HOO-2071), from the prototype (`#app`,
+settings opened from the cluster row, at 1280, 834 and 390 px). How many
+sections and whether settings stay in the app or take the page are open
+questions to the designer (q-20261015-13); the prototype is followed until
+they are answered. One PR.
+
+- **A page, not an overlay.** The settings take the whole window, the
+  navigation included: at the left a column with "Back to app" over the
+  section list, at the right the sections one after another, centred, about
+  36 rem wide. `GearSidebar`, the 22 rem overlay, is deleted. Under it the
+  stage bar's tabs (`relative z-10`) drew over the overlay's title, and a grey
+  layer floated over the editor; neither can happen when nothing of the app
+  is drawn.
+- **The app stays mounted.** `LayoutShell` is made invisible
+  (`visibility: hidden` and `inert`) while the page shows, never unmounted:
+  `Write` must not unmount, and Monaco, the terminal's session and the
+  assistant's thread keep their state. Not `display: none`: the shell keeps
+  its boxes, so no panel sees a resize to zero (`react-resizable-panels` folds
+  a panel on its own when its size drops, 5.1) and Monaco and xterm do not
+  re-measure. The page is a sibling of the shell in `Flow`, fixed over the
+  whole window, so nothing of the shell's tree changes.
+- **The sections**, in order: Network, Project, Block Explorer, Build,
+  Connection, Editor, Notification, Server, Test UI, UI, Wallet, and a twelfth,
+  Experimental, for `experimental.unstable` (D37; Slava, 2026-10-20: a setting
+  is not dropped for want of a section in the prototype). Network and Project
+  are the overlay's own (the network chips; Export, From GitHub, From files);
+  the rest come from `PgSettings.all`, grouped by the id's prefix as before.
+  The overlay's Explorer links (Wallet, Program, Program IDL) sit in Block
+  Explorer, shown only when there is a wallet or a program. A setting is a row:
+  name and description at the left, the control at the right; on a phone the
+  control goes under them, full width. A boolean is a `Switch` (5.3), where the
+  prototype draws a checkbox.
+- **Sections do not fold.** The prototype's sections are flat, so the
+  upstream `Collapsible` groups go. The fold scenario in `client-v2-elements`
+  moves to the Build stage's compiler output, the other fold e2e can reach.
+- **The section list** scrolls its section into view on a click and marks
+  the section being read (`aria-current`), following the scroll. Below
+  `LAYOUT_BREAKPOINTS.phone` there is no list: a 60 px bar holds "Back to app"
+  (an arrow) and the title.
+- **Open and close.** The triggers stay what they are: the cluster row, the
+  rail's dot, the account menu's Settings and cluster warning, and ⌘,
+  (Ctrl+, off macOS). `focus: "network"` lands on the chosen network, any
+  other open on the page's heading. "Back to app", Escape (not while a modal
+  is open) and ⌘, close it and give focus back to the control that opened it.
+  The close control is named "Back to app", its visible text, replacing
+  "Close settings" (Slava, 2026-10-20: the name says what the button shows).
+- **A widget, `widgets/settings-page`**: `BaseSettingsPage` (the frame, the
+  list, the sections, all through props), `BaseSettingRow`, and
+  `SettingsPage`, which connects `PgSettings`, the explorer and the wallet.
+  `SettingsFocus` and the trigger attribute move to `shared/lib`, so the
+  session footer does not import another widget. The upstream renderer
+  `app/Panels/Side/Left/` (`Settings.tsx`, `CustomSetting.tsx` and the test)
+  has no other user and sits in the `app` layer, which a widget cannot
+  import: it moves whole into the widget's `ui/` in its own commit, by the UI
+  move rule, and loses its folding groups and its popover chrome there.
+- **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
+  menu | key}`, `settings_closed {via: back | escape | key}` and
+  `settings_section_picked {section}`. Export and import failures keep going
+  through `reportButtonFailure`; the widget logs under `settings-page:*`.
+
+Kept: the region named "Settings", the radio group "Network", every setting
+control's name (the setting's name), the trigger attribute (tests find the
+triggers by it; with nothing of the app on screen, a second click on a
+trigger is no longer the way out, "Back to app" is), "Change cluster,
+currently <name>" and "Cluster: <name>". The floating wallet is hidden with
+the shell, and the navigation's Sheet still closes as the settings open: it
+portals to `body`, outside the hidden shell, and its overlay would cover the
+page.
+
 ## Risks / Trade-offs
 
 - **The upgrade is late for the freeze.** The design system's v0 is due Nov
