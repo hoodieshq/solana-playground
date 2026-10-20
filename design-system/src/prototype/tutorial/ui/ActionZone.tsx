@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Check, CircleAlert, CircleCheck, CircleDashed, MessageCircle } from "lucide-react"
+import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, MessageCircle } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,9 @@ import { lastResult, useStore } from "../store"
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
  * and one main button that shows the state too. Write or Deploy, then
  * Building, then a green Next. The status line replaces both the "Done when"
- * line up top and the passed / not yet sheets */
+ * line up top and the passed / not yet sheets.
+ * Each signal shows once: the status icon (dashed, spinner, check, alert)
+ * lives only in the status line, the button carries the action and its colour */
 export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
@@ -107,7 +109,7 @@ export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
             onClick={() => dispatch({ type: "next" })}
           >
             {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
-            <Check strokeWidth={2.5} className="size-4" />
+            <ArrowRight strokeWidth={2.25} className="size-4" />
           </Button>
         ) : (
           <BrandButton
@@ -118,7 +120,6 @@ export function ActionZone({ onShowBuild }: { onShowBuild: () => void }) {
               dispatch(failed ? { type: "explain", mode: "error" } : step.deploy ? { type: "deploy" } : { type: "askPatch" })
             }
           >
-            {busy && <Spinner className="size-4" />}
             {busy ? working : failed ? "Explain" : step.cta}
           </BrandButton>
         )}
