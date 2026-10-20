@@ -2,6 +2,8 @@
 
 Newest first. One line per decision or requirement change; a superseded line gains `superseded by <link>`, nothing is deleted.
 
+- 2026-10-20 — new-face goes to master through a PR Slava opens (request, presumably Sergey). [entry](2026-10-20-slack-new-face-to-master.md)
+- 2026-10-20 — The new-face → master PR has to account for solana-foundation PR #31 (Dependabot alerts). [entry](2026-10-20-slack-new-face-to-master.md)
 - 2026-10-19 — The 61 Playground issues labelled `estimation` get T-shirt estimates and a milestone each; Slava routes it to Planner (Sergey, Slava). [entry](2026-10-19-slack-sergey-estimation-label.md)
 - 2026-10-19 — Almaz Zaripov leads Playground design; his first take (likely mobile) goes to Cat this week, intro call likely Fri 23 Oct (Grigory). [entry](2026-10-19-slack-grigory-almaz-design.md)
 - 2026-10-19 — Every design/frontend handoff names its success metrics from now on (Nikita, Grigory). [entry](2026-10-19-slack-grigory-almaz-design.md)
