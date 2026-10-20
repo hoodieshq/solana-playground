@@ -1,5 +1,5 @@
 import { useRef } from "react"
-import { RotateCcw } from "lucide-react"
+import { BatteryFull, RotateCcw, Signal, Wifi } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
@@ -15,8 +15,18 @@ export function DeviceFrame() {
   }
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface-well p-6 text-foreground">
-      <div className="aspect-[390/844] h-[min(844px,calc(100dvh-96px))] overflow-hidden rounded-[52px] border-[10px] border-surface-raised shadow-modal">
-        <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed`} className="size-full border-0 bg-surface-base" />
+      <div className="flex aspect-[390/844] h-[min(844px,calc(100dvh-96px))] flex-col overflow-hidden rounded-[52px] border-[10px] border-surface-raised bg-surface-base shadow-modal">
+        {/* What a phone keeps above the page: on a real one the safe area does this */}
+        <div aria-hidden="true" className="relative flex h-[50px] shrink-0 items-center justify-between px-8 text-[15px] font-semibold">
+          <span>9:41</span>
+          <span className="absolute top-2.5 left-1/2 h-[30px] w-[100px] -translate-x-1/2 rounded-full bg-black" />
+          <span className="flex items-center gap-1.5">
+            <Signal className="size-4" />
+            <Wifi className="size-4" />
+            <BatteryFull className="size-5" />
+          </span>
+        </div>
+        <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed`} className="min-h-0 w-full flex-1 border-0 bg-surface-base" />
       </div>
       <div className="flex items-center gap-3 text-caption text-muted-foreground">
         <span>Solana Playground · tutorial flow on a phone · prototype</span>

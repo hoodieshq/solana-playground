@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
+import { Thumb } from "../ui/Thumb"
 import { TopBar } from "../ui/TopBar"
 
 export function Gallery() {
@@ -37,7 +38,7 @@ export function Gallery() {
           <section aria-label="Continue" className="mt-4 rounded-card border border-brand-violet/60 bg-surface-panel p-4">
             <p className="text-caption text-muted-foreground">Continue</p>
             <div className="mt-2 flex items-center gap-3">
-              <img src={thumb("hello-anchor", "jpg")} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+              <Thumb src={thumb("hello-anchor", "jpg")} className="size-12" />
               <div className="min-w-0 flex-1">
                 <p className="text-title">Hello Anchor</p>
                 <p className="text-caption text-muted-foreground">
@@ -54,14 +55,18 @@ export function Gallery() {
 
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-control bg-surface-panel p-1 text-control">
           <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-surface-raised">
-            Tutorials <span className="text-caption text-muted-foreground">16</span>
+            <span className="flex items-baseline gap-2">
+              Tutorials <span className="text-caption text-muted-foreground">16</span>
+            </span>
           </span>
           <button
             type="button"
             className="flex h-11 items-center justify-center gap-2 rounded-md text-muted-foreground"
             onClick={() => toast("Programs are not in this prototype")}
           >
-            Programs <span className="text-caption text-muted-foreground">34</span>
+            <span className="flex items-baseline gap-2">
+              Programs <span className="text-caption text-muted-foreground">34</span>
+            </span>
           </button>
         </div>
 
@@ -81,7 +86,7 @@ export function Gallery() {
                   t.slug !== "hello-anchor" && "opacity-80"
                 )}
               >
-                <img src={thumb(t.slug, t.ext)} alt="" className="size-14 shrink-0 rounded-lg object-cover" />
+                <Thumb src={thumb(t.slug, t.ext)} className="size-14" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-caption text-muted-foreground">
                     {t.level} · {t.framework}
