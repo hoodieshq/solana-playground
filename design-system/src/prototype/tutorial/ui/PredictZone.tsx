@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 
 import type { Predict } from "../data"
-import { Prose } from "../sheets/LessonSheet"
+import { Prose } from "./Prose"
 
 /** One question before the code shows, on steps that bring a new idea. Answering
  * first, then seeing the change, keeps the learner thinking instead of rubber-stamping

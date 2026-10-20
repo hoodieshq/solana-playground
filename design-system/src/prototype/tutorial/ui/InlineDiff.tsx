@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import type { Patch } from "../data"
 import { diffLines } from "../diff"
 import { highlight } from "./CodeView"
+import { Prose } from "./Prose"
 
 /** A proposal shown in the file itself: unchanged lines as code, added ones
  * green, removed ones red and struck. A line the assistant explains carries a
@@ -56,7 +57,7 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
             )}
             {shown && (
               <p className="my-1.5 mr-3 ml-14 rounded-control border border-border bg-surface-panel px-3 py-2 font-sans text-caption text-muted-foreground">
-                {note.replaceAll("#[", "#\u2060[")}
+                <Prose text={note} />
               </p>
             )}
           </Fragment>

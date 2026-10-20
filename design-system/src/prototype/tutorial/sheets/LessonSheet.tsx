@@ -1,4 +1,3 @@
-import type { ReactNode } from "react"
 import { MessageCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -8,21 +7,7 @@ import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "
 import { STEPS, type LessonBlock } from "../data"
 import { useStore } from "../store"
 import { highlight } from "../ui/CodeView"
-
-/** Text with `ticks` around code: the code is set in mono on a light chip, so
- * prose and identifiers read apart */
-export function Prose({ text, chip = "bg-surface" }: { text: string; chip?: string }) {
-  const parts: ReactNode[] = text.split("`").map((part, i) =>
-    i % 2 ? (
-      <code key={i} className={`rounded-sm ${chip} px-1 py-px font-mono text-[0.84em] whitespace-nowrap text-foreground`}>
-        {part}
-      </code>
-    ) : (
-      part
-    )
-  )
-  return <>{parts}</>
-}
+import { Prose } from "../ui/Prose"
 
 function Block({ block }: { block: LessonBlock }) {
   // Sections are 28px apart, their parts 8 and 12, so the lesson reads as groups

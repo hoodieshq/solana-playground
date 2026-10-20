@@ -158,11 +158,11 @@ mod hello_anchor {
       before: LIB_START,
       after: LIB_BROKEN,
       summary:
-        "I'll import Anchor, declare the program id and add a hello instruction that logs “Hello, World!”.",
+        "I'll import Anchor, declare the program id and add a `hello` instruction that logs “Hello, World!”.",
       notes: [
-        { line: 1, text: "The prelude brings in the macros and types every Anchor program uses." },
+        { line: 1, text: "The `prelude` brings in the macros and types every Anchor program uses." },
         { line: 3, text: "Anchor checks every call against this id. Playground fills in the real one when you build." },
-        { line: 5, text: "Instructions live in the module marked #[program]. hello writes one line to the log and returns Ok." },
+        { line: 5, text: "Instructions live in the module marked `#[program]`. `hello` writes one line to the log and returns `Ok`." },
       ],
       result: {
         ok: false,
@@ -181,8 +181,8 @@ mod hello_anchor {
       file: "src/lib.rs",
       before: LIB_BROKEN,
       after: LIB_FIXED,
-      summary: "Add an empty Hello accounts struct.",
-      notes: [{ line: 15, text: "Context<Hello> on line 9 needs this struct. hello reads no accounts, so it stays empty." }],
+      summary: "Add an empty `Hello` accounts struct.",
+      notes: [{ line: 15, text: "`Context<Hello>` on line 9 needs this struct. `hello` reads no accounts, so it stays empty." }],
       result: {
         ok: true,
         log: [...BUILD_OK, "IDL: 1 instruction · hello", "Build successful"],
@@ -190,27 +190,27 @@ mod hello_anchor {
       },
     },
     explainStep:
-      "This step writes the smallest Anchor program there is: one instruction, hello, that writes a line to the program log. I'll propose the code as a patch. You read it and apply it, then the build checks it.",
+      "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I'll propose the code as a patch. You read it and apply it, then the build checks it.",
     predict: {
       question: "Where does the hello instruction go?",
       // Same length and shape, so the right one can only be told by what it says
       options: ["Inside the `#[program]` module", "Inside the `Hello` struct", "Inside `declare_id!`"],
       answer: 0,
-      right: "Right. Anchor finds a program's instructions in the module marked #[program].",
-      wrong: "Not quite. It goes inside the module marked #[program].",
+      right: "Right. Anchor finds a program's instructions in the module marked `#[program]`.",
+      wrong: "Not quite. It goes inside the module marked `#[program]`.",
       line: 5,
     },
     explainError:
-      "In Anchor every instruction receives its accounts through a struct marked #[derive(Accounts)]. Line 9 asks for Context<Hello>, but Hello is never declared. hello reads no accounts, so an empty struct is enough.",
+      "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Line 9 asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
     chips: [
       {
         label: "Why is this needed",
         answer:
-          "Without #[derive(Accounts)] Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty.",
+          "Without `#[derive(Accounts)]` Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty.",
       },
       {
         label: "Show in docs",
-        answer: "The Anchor docs cover it in Program Structure, in the section on #[derive(Accounts)]: anchor-lang.com/docs/basics/program-structure",
+        answer: "The Anchor docs cover it in Program Structure, in the section on `#[derive(Accounts)]`: anchor-lang.com/docs/basics/program-structure",
       },
     ],
   },
@@ -278,10 +278,10 @@ mod hello_anchor {
       file: "client/client.ts",
       before: CLIENT_START,
       after: CLIENT_CALL,
-      summary: "I'll call hello from the client and print the transaction, so you can find its logs.",
+      summary: "I'll call `hello` from the client and print the transaction, so you can find its logs.",
       notes: [
-        { line: 2, text: "pg.program knows hello from the IDL the build made. .rpc() sends the transaction and returns its signature." },
-        { line: 3, text: "The signature is how you find the transaction, and the line hello logged, on devnet." },
+        { line: 2, text: "`pg.program` knows `hello` from the IDL the build made. `.rpc()` sends the transaction and returns its signature." },
+        { line: 3, text: "The signature is how you find the transaction, and the line `hello` logged, on devnet." },
       ],
       result: {
         ok: true,
@@ -295,11 +295,11 @@ mod hello_anchor {
       },
     },
     explainStep:
-      "A client is code outside the program that sends it transactions. Here it's a short TypeScript file. I'll write the call to hello as a patch, then run it.",
+      "A client is code outside the program that sends it transactions. Here it's a short TypeScript file. I'll write the call to `hello` as a patch, then run it.",
     chips: [
       {
         label: "What is pg",
-        answer: "pg is Playground's global with your program, wallet and connection already set up. pg.program knows hello from the IDL the build produced.",
+        answer: "`pg` is Playground's global with your program, wallet and connection already set up. `pg.program` knows `hello` from the IDL the build produced.",
       },
     ],
   },
@@ -325,10 +325,10 @@ mod hello_anchor {
       file: "src/lib.rs",
       before: LIB_FIXED,
       after: LIB_NAMED,
-      summary: "I'll add a name: String argument to hello and put it in the log line.",
+      summary: "I'll add a `name: String` argument to `hello` and put it in the log line.",
       notes: [
-        { line: 9, text: "Arguments come after the Context. Anchor serializes the String for you, so nothing else changes." },
-        { line: 10, text: "msg! fills each {} with the next value, here the name." },
+        { line: 9, text: "Arguments come after the `Context`. Anchor serializes the `String` for you, so nothing else changes." },
+        { line: 10, text: "`msg!` fills each `{}` with the next value, here the `name`." },
       ],
       result: {
         ok: true,
@@ -340,16 +340,16 @@ mod hello_anchor {
       question: "Where does the name argument go?",
       options: ["After the `Context`", "Inside the `Hello` struct", "Inside the `msg!` call"],
       answer: 0,
-      right: "Right. Arguments come after the Context, and Anchor serializes them for you.",
-      wrong: "Not quite. It goes after the Context: hello(_ctx, name: String).",
+      right: "Right. Arguments come after the `Context`, and Anchor serializes them for you.",
+      wrong: "Not quite. It goes after the `Context`: `hello(_ctx, name: String)`.",
       line: 9,
     },
     explainStep:
-      "Instructions can take arguments after their Context. This step adds a name to hello and logs it, so the Test UI asks you for one.",
+      "Instructions can take arguments after their `Context`. This step adds a `name` to `hello` and logs it, so the Test UI asks you for one.",
     chips: [
       {
         label: "Which types work",
-        answer: "Any type Anchor can serialize: numbers, bool, String, Pubkey, Vec and your own structs with AnchorSerialize.",
+        answer: "Any type Anchor can serialize: numbers, `bool`, `String`, `Pubkey`, `Vec` and your own structs with `AnchorSerialize`.",
       },
     ],
   },

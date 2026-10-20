@@ -50,7 +50,7 @@ function Body({ mode }: { mode: "step" | "error" }) {
                 key={c.label}
                 type="button"
                 onClick={() => setAsked((a) => [...a, c])}
-                className="h-9 rounded-full border border-border-strong px-3 text-caption text-muted-foreground"
+                className="h-11 rounded-full border border-border-strong px-4 text-caption text-muted-foreground"
               >
                 {c.label}
               </button>
@@ -59,7 +59,7 @@ function Body({ mode }: { mode: "step" | "error" }) {
               <button
                 type="button"
                 onClick={() => setFree(true)}
-                className="h-9 rounded-full border border-border-strong px-3 text-caption text-muted-foreground"
+                className="h-11 rounded-full border border-border-strong px-4 text-caption text-muted-foreground"
               >
                 Ask something else
               </button>
@@ -99,7 +99,7 @@ export function ExplainSheet() {
   const open = s.phase === "explain" && s.sheet
   return (
     <Drawer open={open} onOpenChange={(o) => !o && dispatch({ type: "close" })}>
-      <DrawerContent className="h-[82dvh] max-h-[82dvh]">
+      <DrawerContent className="max-h-[82dvh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="sr-only">Assistant explains</DrawerTitle>
           <AssistantHead />

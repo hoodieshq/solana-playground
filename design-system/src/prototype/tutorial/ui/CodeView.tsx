@@ -34,7 +34,21 @@ export function highlight(line: string): ReactNode[] {
   return out
 }
 
-export function CodeView({ code, focus = [], error = null }: { code: string; focus?: number[]; error?: number | null }) {
+/** `fresh` are the lines the last patch added: softly tinted until the next action, so you can
+ * still see what is being checked. `hint` sits under a file that is still empty */
+export function CodeView({
+  code,
+  focus = [],
+  error = null,
+  fresh = [],
+  hint,
+}: {
+  code: string
+  focus?: number[]
+  error?: number | null
+  fresh?: number[]
+  hint?: string
+}) {
   return (
     <pre aria-label="Code, read only" className="min-h-0 flex-1 overflow-y-auto py-2 font-mono text-code">
       {code.split("\n").map((line, i) => {
@@ -45,6 +59,7 @@ export function CodeView({ code, focus = [], error = null }: { code: string; foc
             className={cn(
               "flex border-l-2 border-transparent pr-3",
               focus.includes(n) && "border-primary bg-primary/10",
+              fresh.includes(n) && "border-success/50 bg-success/5",
               error === n && "border-error bg-error/10"
             )}
           >
@@ -53,6 +68,7 @@ export function CodeView({ code, focus = [], error = null }: { code: string; foc
           </div>
         )
       })}
+      {hint && <p className="mt-3 pr-3 pl-10 font-sans text-caption text-muted-foreground">{hint}</p>}
     </pre>
   )
 }

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { lastResult, useStore } from "../store"
+import { Prose } from "./Prose"
 import { Typed } from "./Typed"
 
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
@@ -78,7 +79,7 @@ export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }
           <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
         )}
         <span className="text-foreground">
-          {lead ? lead.text.replaceAll("#[", "#\u2060[") : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}
+          {lead ? <Prose text={lead.text} /> : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}
         </span>
       </>
     )
@@ -102,10 +103,6 @@ export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }
         {reviewing ? (
           <Button variant="secondary" className={cn(big, "px-5")} onClick={() => dispatch({ type: "close" })}>
             Discard
-          </Button>
-        ) : failed ? (
-          <Button variant="secondary" className={cn(big, "px-4")} onClick={() => dispatch({ type: "retry" })}>
-            Try again
           </Button>
         ) : (
           // A chat bubble, the same one the assistant's sheets carry. It stands in until Sole has a mark (DES-134)

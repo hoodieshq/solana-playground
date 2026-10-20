@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { STEPS, type Step } from "../data"
+import { diffLines } from "../diff"
 import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
@@ -71,6 +72,25 @@ export function StepScreen() {
         : { text: step.predict.wrong, right: false }
       : undefined
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
+  // What the last patch added stays tinted while it is checked and until the next action
+  const appliedPatch = s.applied === "fix" ? step.fix : s.applied === "patch" ? step.patch : undefined
+  const fresh =
+    appliedPatch && (s.phase === "building" || s.phase === "passed" || s.phase === "failed")
+      ? diffLines(appliedPatch.before, appliedPatch.after).reduce<{ n: number; lines: number[] }>(
+          (acc, row) => {
+            if (row.kind === "removed") return acc
+            acc.n++
+            if (row.kind === "added") acc.lines.push(acc.n)
+            return acc
+          },
+          { n: 0, lines: [] }
+        ).lines
+      : []
+  // An untouched file says what will fill it, so the empty space reads as intended
+  const hint =
+    s.phase === "idle" && step.patch && s.files[step.file] === step.patch.before && !s.passed[s.step]
+      ? "The assistant will write this step here."
+      : undefined
   const focus = (s.phase === "idle" && !s.passed[s.step] && !s.undo) || asking ? step.focus : []
 
   // Notes close whenever a new proposal shows. The very first one in a session opens its
@@ -114,7 +134,7 @@ export function StepScreen() {
         {/* The lesson opens in a sheet, so the code stays where it is. A chip, not a footnote: it's the
             tutorial's teaching, and the reading time says what it costs */}
         <button type="button" onClick={() => setLesson(true)} className="mt-1 flex min-h-11 items-center">
-          <span className="flex h-9 items-center gap-2 rounded-control bg-surface-raised px-3 text-caption text-foreground">
+          <span className="flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground">
             <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
             Read the lesson
             <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
@@ -198,7 +218,7 @@ export function StepScreen() {
       ) : proposal && !asking ? (
         <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
       ) : (
-        <CodeView code={s.files[step.file]} focus={focus} error={s.error?.line ?? null} />
+        <CodeView code={s.files[step.file]} focus={focus} error={s.error?.line ?? null} fresh={fresh} hint={hint} />
       )}
 
       {asking && step.predict ? (
