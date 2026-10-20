@@ -6,7 +6,6 @@ import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { cn } from "@/lib/utils"
 
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
@@ -81,10 +80,7 @@ export function Gallery() {
               <button
                 type="button"
                 onClick={() => open(t.slug)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left",
-                  t.slug !== "hello-anchor" && "opacity-80"
-                )}
+                className="flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left"
               >
                 <Thumb src={thumb(t.slug, t.ext)} className="size-14" />
                 <span className="min-w-0 flex-1">
