@@ -44,7 +44,7 @@ function ResumeCard() {
           <span className="mt-2 flex items-center gap-2">
             <ObjectiveMeter value={done / STEPS.length} className="h-1 flex-1" />
             <span className="text-caption text-muted-foreground tabular-nums">
-              Step {next + 1} of {STEPS.length}
+              {done} of {STEPS.length}
             </span>
           </span>
         </span>

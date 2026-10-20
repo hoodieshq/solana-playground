@@ -2,7 +2,7 @@ import { ObjectiveMeter } from "@/components/ui/objective-band"
 
 import { STEPS } from "../data"
 
-/** One continuous bar, filled by the steps passed, and which step this is.
+/** One continuous bar, filled by the steps passed, and the same count in words.
  * Equal invisible zones over the bar still let you jump back to a step you
  * have reached */
 export function StepProgress({ current, passed, onPick }: { current: number; passed: boolean[]; onPick: (i: number) => void }) {
@@ -31,7 +31,7 @@ export function StepProgress({ current, passed, onPick }: { current: number; pas
         </nav>
       </div>
       <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
-        Step {current + 1} of {STEPS.length}
+        {done} of {STEPS.length}
       </span>
     </div>
   )
