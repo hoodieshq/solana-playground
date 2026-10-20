@@ -26,7 +26,11 @@ export function DeviceFrame() {
             <BatteryFull className="size-5" />
           </span>
         </div>
-        <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed`} className="min-h-0 w-full flex-1 border-0 bg-surface-base" />
+        <div className="relative min-h-0 flex-1">
+          <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed`} className="size-full border-0 bg-surface-base" />
+          {/* The home indicator. The page keeps 34px clear for it, as on a real phone */}
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-foreground/80" />
+        </div>
       </div>
       <div className="flex items-center gap-3 text-caption text-muted-foreground">
         <span>Solana Playground · tutorial flow on a phone · prototype</span>

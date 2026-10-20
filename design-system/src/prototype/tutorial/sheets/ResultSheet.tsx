@@ -32,7 +32,7 @@ export function ResultSheet({ onUndo }: { onUndo: () => void }) {
                 <p className="mt-2 text-primary underline underline-offset-2">View on Explorer (devnet)</p>
               </div>
             )}
-            <DrawerFooter className="pb-[max(env(safe-area-inset-bottom),16px)]">
+            <DrawerFooter className="pb-[max(var(--safe-bottom),16px)]">
               {s.undo && (
                 <p className="text-center text-caption text-muted-foreground">
                   Applied ·{" "}
@@ -55,7 +55,7 @@ export function ResultSheet({ onUndo }: { onUndo: () => void }) {
               </DrawerTitle>
               <DrawerDescription className="text-body text-muted-foreground">{s.error?.reason}</DrawerDescription>
             </DrawerHeader>
-            <DrawerFooter className="pb-[max(env(safe-area-inset-bottom),16px)]">
+            <DrawerFooter className="pb-[max(var(--safe-bottom),16px)]">
               <div className="flex gap-2">
                 <Button variant="secondary" className="h-11 flex-1" onClick={() => dispatch({ type: "retry" })}>
                   Try again

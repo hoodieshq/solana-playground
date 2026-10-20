@@ -110,7 +110,7 @@ export function StepScreen() {
         <BuildLog log={s.log} />
       )}
 
-      <footer className="flex shrink-0 items-center gap-2 border-t border-border bg-surface-panel px-3 pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">
+      <footer className="flex shrink-0 items-center gap-2 border-t border-border bg-surface-panel px-3 pt-2 pb-[max(var(--safe-bottom),12px)]">
         {busy ? (
           <p role="status" className="flex h-11 flex-1 items-center justify-center gap-2 text-control text-muted-foreground">
             <Spinner className="size-4" />

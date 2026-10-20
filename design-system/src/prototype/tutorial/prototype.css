@@ -1,3 +1,12 @@
+/* The bottom safe area. A real phone reports it. Inside the desktop frame the
+   iframe reports zero, so the frame stands in for a phone's home indicator */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.framed {
+  --safe-bottom: 34px;
+}
+
 /* The step has to stay readable above every sheet: the task above the patch,
    the red line above Not yet. So the overlay only dims, it doesn't blur */
 [data-slot="drawer-overlay"] {

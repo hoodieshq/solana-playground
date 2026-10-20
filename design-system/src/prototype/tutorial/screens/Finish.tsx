@@ -60,7 +60,7 @@ export function Finish() {
           ))}
         </ul>
       </div>
-      <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+      <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(var(--safe-bottom),12px)]">
         <div className="flex items-center gap-3">
           <Thumb src={thumb(NEXT_TUTORIAL.slug, NEXT_TUTORIAL.ext)} className="size-11" />
           <div className="min-w-0">

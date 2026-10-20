@@ -55,7 +55,7 @@ export function Overview() {
           })}
         </ol>
       </div>
-      <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+      <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(var(--safe-bottom),12px)]">
         <BrandButton
           variant="accent"
           className="h-11 w-full"

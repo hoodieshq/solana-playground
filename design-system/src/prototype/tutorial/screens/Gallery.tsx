@@ -194,7 +194,7 @@ export function Gallery() {
           </Button>
         }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(var(--safe-bottom)+24px)]">
         {started && (
           // While searching the resume card folds away, so results start right under the field
           <div className={cn("grid transition-[grid-template-rows,opacity]", MOTION, searching ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100")}>

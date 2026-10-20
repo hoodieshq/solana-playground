@@ -75,7 +75,7 @@ function Body({ mode }: { mode: "step" | "error" }) {
           </div>
         )}
       </div>
-      <DrawerFooter className="flex-row gap-2 pb-[max(env(safe-area-inset-bottom),16px)]">
+      <DrawerFooter className="flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
         {withFix ? (
           <>
             <Button variant="secondary" className="h-11 flex-1" onClick={() => dispatch({ type: "close" })}>
