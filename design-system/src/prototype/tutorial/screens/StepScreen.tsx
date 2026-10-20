@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
-import { BookOpen, ChevronLeft, Hash, RotateCcw, X } from "lucide-react"
+import { BookOpen, ChevronLeft, Hash, Monitor, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { STEPS, type Step } from "../data"
+import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
 import { PatchSheet } from "../sheets/PatchSheet"
@@ -27,10 +28,12 @@ export function StepScreen() {
   const step = STEPS[s.step]
   const [tab, setTab] = useState<"code" | "build">("code")
   const [lesson, setLesson] = useState(false)
+  const [computer, setComputer] = useState(false)
 
   useEffect(() => {
     setTab("code")
     setLesson(false)
+    setComputer(false)
   }, [s.step])
 
   useEffect(() => {
@@ -105,6 +108,17 @@ export function StepScreen() {
           </button>
         ))}
         </div>
+        {/* The way out for someone who wants to type: while a step waits for its patch */}
+        {step.patch && s.phase === "idle" && !s.passed[s.step] && (
+          <button
+            type="button"
+            onClick={() => setComputer(true)}
+            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
+          >
+            <Monitor strokeWidth={1.75} className="size-4" />
+            Write it yourself
+          </button>
+        )}
         {/* Actions on the code and its output sit here, by what they act on, away from the main button.
             After a deploy that's the program id, which the Build tab shows */}
         {step.deploy && s.phase === "passed" && tab === "code" && (
@@ -146,6 +160,7 @@ export function StepScreen() {
           dispatch({ type: "explain", mode: "step" })
         }}
       />
+      <ContinueSheet open={computer} onClose={() => setComputer(false)} />
       <PatchSheet />
       <ExplainSheet />
     </div>
