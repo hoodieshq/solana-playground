@@ -69,7 +69,8 @@ export function StepScreen() {
 
       <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
 
-      <section className="border-b border-border px-4 pb-1">
+      {/* 9px here, the chip's own 4px and the 1px line make 14 above it, the same as below */}
+      <section className="border-b border-border px-4 pb-[9px]">
         <h2 className="line-clamp-3 text-title">{step.objective}</h2>
         {/* The lesson opens in a sheet, so the code stays where it is. A chip, not a footnote: it's the
             tutorial's teaching, and the reading time says what it costs */}
