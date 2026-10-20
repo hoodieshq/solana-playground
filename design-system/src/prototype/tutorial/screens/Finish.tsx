@@ -1,9 +1,10 @@
-import { Anchor, Check, X } from "lucide-react"
+import { Anchor, Check, Play, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { Achievement, AchievementLabel, AchievementMedia } from "@/components/ui/achievement"
-import { BrandButton } from "@/components/ui/brand-button"
+import { Achievement, AchievementMedia } from "@/components/ui/achievement"
+import { brandButtonVariants } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 import { NEXT_TUTORIAL, STEPS, thumb } from "../data"
 import { useStore } from "../store"
@@ -12,9 +13,16 @@ import { TopBar } from "../ui/TopBar"
 
 export function Finish() {
   const { s, dispatch } = useStore()
+  const total = STEPS.length
   const passed = s.passed.filter(Boolean).length
   const firstTry = s.firstTry.filter(Boolean).length
   const minutes = s.startedAt && s.finishedAt ? Math.max(1, Math.round((s.finishedAt - s.startedAt) / 60000)) : 1
+
+  const tiles = [
+    { value: `${passed}/${total}`, label: "steps" },
+    { value: `${firstTry}/${total}`, label: "first try" },
+    { value: `${minutes} min`, label: "to finish" },
+  ]
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -26,57 +34,66 @@ export function Finish() {
           </Button>
         }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-6">
+      {/* No bottom bar here: what comes next is a section of its own, with room around it */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-8 pb-[calc(var(--safe-bottom)+16px)]">
+        {/* The flow's peak: the badge pops in once, on the design system's pop curve, and simply appears with reduced motion */}
         <Achievement className="mx-auto w-auto">
-          <AchievementMedia className="size-20">
+          <AchievementMedia className="size-20 shadow-glow duration-[440ms] ease-pop animate-in fade-in zoom-in-50 motion-reduce:animate-none">
             <Anchor />
           </AchievementMedia>
-          <AchievementLabel>First Anchor program</AchievementLabel>
         </Achievement>
-        <h2 className="mt-4 text-center font-heading text-display">Tutorial complete</h2>
-        <p className="mt-1 text-center text-body text-muted-foreground">Your first Anchor program is live on devnet.</p>
+        <h2 className="mt-5 text-center font-heading text-display">Tutorial complete</h2>
+        <p className="mx-auto mt-2 max-w-[30ch] text-center text-body text-muted-foreground">
+          Your program is live on devnet, and you earned the First Anchor program badge.
+        </p>
 
-        <dl className="mt-6 grid grid-cols-3 gap-2">
-          {[
-            { v: `${passed}/${STEPS.length}`, l: "steps" },
-            { v: String(firstTry), l: "first try" },
-            { v: `${minutes} min`, l: "time" },
-          ].map((t) => (
-            <div key={t.l} className="rounded-panel bg-surface-panel p-3 text-center">
-              <dt className="sr-only">{t.l}</dt>
-              <dd className="font-heading text-title">{t.v}</dd>
-              <dd className="text-caption text-muted-foreground">{t.l}</dd>
+        <dl className="mt-7 grid grid-cols-3 gap-2">
+          {tiles.map((t) => (
+            <div key={t.label} className="flex flex-col-reverse rounded-panel border border-border bg-surface-panel p-3 text-center">
+              <dt className="text-caption text-muted-foreground">{t.label}</dt>
+              <dd className="font-heading text-title tabular-nums">{t.value}</dd>
             </div>
           ))}
         </dl>
 
-        <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>
-        <ul className="mt-2 flex flex-col gap-2">
+        <h3 className="mt-8 text-caption text-muted-foreground">What you learned</h3>
+        <ul className="mt-3 flex flex-col gap-2.5">
           {STEPS.map((step) => (
-            <li key={step.id} className="flex items-start gap-2 text-body">
-              <Check className="mt-1 size-4 shrink-0 text-success" />
+            <li key={step.id} className="flex items-start gap-2.5 text-body text-muted-foreground">
+              <Check strokeWidth={2.25} className="mt-1 size-4 shrink-0 text-success" />
               {step.learned}
             </li>
           ))}
         </ul>
-      </div>
-      <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(var(--safe-bottom),12px)]">
-        <div className="flex items-center gap-3">
-          <Thumb src={thumb(NEXT_TUTORIAL.slug, NEXT_TUTORIAL.ext)} className="size-11" />
-          <div className="min-w-0">
-            <p className="text-caption text-muted-foreground">
-              Up next · {NEXT_TUTORIAL.level} · {NEXT_TUTORIAL.framework}
-            </p>
-            <p className="truncate text-control">{NEXT_TUTORIAL.name}</p>
-          </div>
-        </div>
-        <BrandButton variant="accent" className="mt-3 h-11 w-full" onClick={() => toast("Only Hello Anchor is in this prototype")}>
-          Start {NEXT_TUTORIAL.name}
-        </BrandButton>
-        <Button variant="ghost" className="mt-1 h-11 w-full text-muted-foreground" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+
+        <section aria-labelledby="next-title" className="mt-8">
+          <h3 id="next-title" className="mb-3 text-caption text-muted-foreground">
+            Up next
+          </h3>
+          {/* The whole card starts the next tutorial, the same card and ring as Continue in the gallery */}
+          <button
+            type="button"
+            onClick={() => toast("Only Hello Anchor is in this prototype")}
+            aria-label={`Start ${NEXT_TUTORIAL.name}`}
+            className="flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
+          >
+            <Thumb src={thumb(NEXT_TUTORIAL.slug, NEXT_TUTORIAL.ext)} className="size-14" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-title">{NEXT_TUTORIAL.name}</span>
+              <span className="mt-0.5 block text-caption text-muted-foreground">
+                {NEXT_TUTORIAL.level} · {NEXT_TUTORIAL.framework}
+              </span>
+            </span>
+            <span aria-hidden="true" className={cn(brandButtonVariants({ variant: "ring", size: "icon" }), "size-11")}>
+              <Play className="size-4 fill-current" />
+            </span>
+          </button>
+        </section>
+
+        <Button variant="secondary" className="mt-8 h-14 w-full text-control" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
           Back to tutorials
         </Button>
-      </footer>
+      </div>
     </div>
   )
 }
