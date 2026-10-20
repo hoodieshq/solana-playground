@@ -1834,7 +1834,7 @@ tabs.
 - **On a phone** the page is the pager's work page, under the bar's title,
   one column; picking Tutorials or Programs on the menu page goes to it.
 - **The gallery stays** for New project and a finished lesson's "Browse
-  gallery"; its tabs are unchanged.
+  gallery"; 5.13 restyles it (see "New project (5.13)").
 - **Widget `widgets/catalog`**: `BaseCatalogPage` and the connected
   `TutorialsPage` and `ProgramsPage`. Telemetry prefix `catalog`:
   `catalog_shown {page, via: nav | home | link}` when a page shows,
@@ -1846,8 +1846,56 @@ tabs.
   `catalog:programs` with `report: true` and offers Retry. A cancelled import
   is no failure.
 
-Kept: `nav_item_opened`, the gallery's ids (`gallery-tab-*`,
-`[data-gallery-modal]`), the nav items' names.
+Kept: `nav_item_opened`, the gallery's `[data-gallery-modal]`, the nav
+items' names. (5.13 replaces the gallery's `gallery-tab-*` ids.)
+
+## New project (5.13)
+
+Decided with Slava on 2026-10-20 (HOO-2068). New project looks like the
+prototype's "What do you want to build?". The work is stacked on 5.9
+(HOO-2064), whose card grid it shares.
+
+- **What the dialog holds.** The lead line, then Start from scratch: a tile
+  with a plus, "Blank canvas", "Start from scratch", the framework as a
+  `segmented` with the gradient ring, the project name and `brand-button`
+  "Start →", in one row from `md` and stacked below it. Under it, Tutorials
+  and Programs as one boxed `segmented` with a count each (`…` while the
+  programs load, `?` when they failed) beside the catalog's search field,
+  one query for both lists; then the chosen list's cards, drawn as the 5.9
+  pages draw them, Retry included. The Segmented is a radio group, so the
+  gallery's `tab` roles and `gallery-tab-*` ids go; `[data-gallery-modal]`,
+  the dialog's name, "Project name" and "Start" stay.
+- **On a phone** the dialog is a page of its own (the installed `modal`
+  does it below `md`), and every card is one target that ends in a chevron,
+  on the 5.9 pages too: the card's own Open hides there already.
+- **Where the code lives.** A widget may import neither another widget
+  nor `widgets/overlays`, which holds `ModalFrame`. So the dialog's content
+  is `widgets/catalog`'s `BaseNewProject` and `NewProject`, beside a
+  `BaseCatalogGrid`, `CatalogSearch` and the list hooks `useTutorialList` /
+  `useProgramList` that the pages and New project share; 5.9's
+  `useCardOpen` takes what a finished Open closes (the page by default, the
+  dialog here); `views/flow/gallery/NewWorkspaceModal`
+  shrinks to the `ModalFrame` around `NewProject`. It is still what
+  `PgView.setModal` opens, so `PgView.onDidOpenModal` still fires and still
+  closes the left Sheet. Start from scratch is one user action with its
+  own state, used by New project and by Home, so it becomes
+  `features/new-project` (`BaseStartFromScratch`, `StartFromScratch`). The
+  gallery's `TutorialsTab`, `ProgramsTab` and `StartFromScratch` go.
+  _Rejected:_ a widget `widgets/new-project`, which would import the
+  catalog; a second card grid inside the dialog.
+- **What closes it.** A project made by Start, a tutorial opened or a
+  program imported from a card. A failure stays: Start's under the name
+  field, a card's on the card, and a second Start is a retry. New project
+  closes only itself: an Open that ends after the dialog was dismissed
+  closes nothing, and Start on Home closes nothing.
+- **One Open at a time**, as on the 5.9 pages, and across both lists here:
+  while a card's Open runs, every card waits (`busy`).
+- **Telemetry.** `features/new-project`, prefix `new_project`:
+  `new_project_started {framework}` when Start makes a project,
+  `new_project_start_failed {framework}` when it fails, which also logs
+  under `new-project:start` with `report: true`. `widgets/catalog` adds
+  `catalog_tab_switched {tab}` when the user picks the other list. A card's
+  Open keeps `catalog_item_opened` and `catalog_open_failed`.
 
 ## Risks / Trade-offs
 
