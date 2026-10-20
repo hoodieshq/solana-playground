@@ -11,7 +11,10 @@ import {
   useWallet,
 } from "@/hooks";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import type { SettingsFocus } from "@/shared/lib/settings-request";
+import type {
+  SettingsExit,
+  SettingsFocus,
+} from "@/shared/lib/settings-request";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AsyncButton } from "@/shared/ui/async-button";
 import {
@@ -35,7 +38,8 @@ import { SettingControl } from "./SettingControl";
 
 interface SettingsPageProps {
   focus: SettingsFocus;
-  onClose: (via: "back" | "escape") => void;
+  /** ⌘, is the key's own, handled where it is bound */
+  onClose: (via: Exclude<SettingsExit, "key">) => void;
 }
 
 /**
@@ -48,7 +52,10 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
   const [current, setCurrent] = useState("network");
 
   // A modal opened from the page (Import from GitHub or files, a setting's
-  // Custom value) owns Escape while it is up
+  // Custom value) owns Escape while it is up. This follows the last
+  // `MODAL_SET`, not a stack: with a modal over a modal, closing the top one
+  // reads as none open, and the page's `defaultPrevented` check is what keeps
+  // the outer dialog's Escape from closing the page too.
   const [modalOpen, setModalOpen] = useState(false);
   useSetStatic(
     PgCommon.getSendAndReceiveEventNames(PgView.events.MODAL_SET).send,
@@ -106,8 +113,7 @@ const SettingsPage = ({ focus, onClose }: SettingsPageProps) => {
       onBack={() => onClose("back")}
       phone={phone}
       focus={focus}
-      closable={!modalOpen}
-      onEscape={() => onClose("escape")}
+      onEscape={modalOpen ? null : () => onClose("escape")}
     />
   );
 };

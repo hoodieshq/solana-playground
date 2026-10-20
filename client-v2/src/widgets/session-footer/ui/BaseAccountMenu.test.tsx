@@ -150,7 +150,7 @@ it("puts a cluster that is down first, as the way to the network settings", asyn
   expect(onPick).toHaveBeenCalledExactlyOnceWith("cluster-down");
 });
 
-it("marks Settings as a settings trigger, so a second pick closes them", async () => {
+it("marks Settings as a settings trigger, as tests find it", async () => {
   const onPick = await open(view({}));
   const settings = screen.getByRole("menuitem", { name: /Settings/ });
   expect(settings.hasAttribute("data-settings-trigger")).toBe(true);

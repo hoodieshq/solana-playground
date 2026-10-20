@@ -16,7 +16,7 @@ import AccountAvatar from "./AccountAvatar";
 export interface BaseRailFooterProps {
   account: AccountView;
   settingsOpen: boolean;
-  /** Opens or closes the settings on the cluster, as the footer's row does */
+  /** Opens the settings on the cluster, as the footer's row does */
   onOpenCluster: () => void;
   /** The account menu's content, opened beside the rail */
   menu: ReactNode;

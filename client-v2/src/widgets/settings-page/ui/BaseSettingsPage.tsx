@@ -28,9 +28,8 @@ interface BaseSettingsPageProps {
   phone: boolean;
   /** Where focus lands when the page opens */
   focus: SettingsFocus;
-  /** False while a modal opened from the page is up: Escape is the modal's */
-  closable: boolean;
-  onEscape: () => void;
+  /** Null while a modal opened from the page is up: Escape is the modal's */
+  onEscape: (() => void) | null;
 }
 
 const headingId = (id: string) => `settings-section-${id}`;
@@ -49,7 +48,6 @@ const BaseSettingsPage = ({
   onBack,
   phone,
   focus,
-  closable,
   onEscape,
 }: BaseSettingsPageProps) => {
   const root = useRef<HTMLDivElement>(null);
@@ -99,8 +97,8 @@ const BaseSettingsPage = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, phone]);
 
-  // On open only: the checked network for the cluster row and the rail's dot
-  // (the first one when the endpoint is one no chip lists, such as a custom
+  // On open only: the checked network for the cluster row, the rail's dot and
+  // the account menu's cluster warning (the first one when the endpoint is one no chip lists, such as a custom
   // URL), the heading otherwise
   useEffect(() => {
     const group = root.current?.querySelector('[role="radiogroup"]');
@@ -114,7 +112,7 @@ const BaseSettingsPage = ({
   }, []);
 
   useEffect(() => {
-    if (!closable) return;
+    if (!onEscape) return;
     const onKeyDown = (ev: KeyboardEvent) => {
       // A layer above the page (an open select or menu) takes its Escape and
       // prevents it; that press closes the layer, not the page
@@ -122,7 +120,7 @@ const BaseSettingsPage = ({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [closable, onEscape]);
+  }, [onEscape]);
 
   const pick = (id: string) => {
     onPick(id);

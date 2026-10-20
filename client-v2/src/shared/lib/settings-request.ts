@@ -1,7 +1,4 @@
-/**
- * Marks the controls that open and close the settings. Tests find the
- * triggers by it.
- */
+/** Marks the controls that open the settings. Tests find the triggers by it. */
 export const SETTINGS_TRIGGER_ATTR = "data-settings-trigger";
 
 /** Which control the settings page puts focus on when it opens */
@@ -13,5 +10,16 @@ export type SettingsFocus = "page" | "network";
  */
 export type SettingsEntry = "cluster" | "rail" | "menu" | "key" | "setup";
 
-/** A request to open (or, while open, close) the settings */
-export type SettingsRequest = { from: SettingsEntry; focus: SettingsFocus };
+/** What closed the settings: "Back to app", Escape or ⌘, */
+export type SettingsExit = "back" | "escape" | "key";
+
+/**
+ * A request to open (or, while open, close) the settings. `returnTo` is the
+ * control focus goes back to on close, when it is not the one focused at the
+ * request: a menu item unmounts with its menu, so the menu names its trigger.
+ */
+export type SettingsRequest = {
+  from: SettingsEntry;
+  focus: SettingsFocus;
+  returnTo?: HTMLElement | null;
+};

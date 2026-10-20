@@ -27,6 +27,7 @@ import { GAP } from "./tokens";
 import { FeedbackHost } from "@/features/feedback";
 import type {
   SettingsFocus,
+  SettingsExit,
   SettingsRequest,
 } from "@/shared/lib/settings-request";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
@@ -90,12 +91,6 @@ const FlowFrame = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  // The settings page covers the app, so of the ways in only ⌘, is still on
-  // screen while it is open: that is the one request that can close it.
-  // Opening closes the navigation's Sheet below `LAYOUT_BREAKPOINTS.left`
-  // (`closeSheet`): the footer sits in it, and the Sheet portals to `body`,
-  // outside the hidden shell, so its overlay would cover the page and trap
-  // focus away from it.
   // Back to the control that opened them, once the shell is no longer inert;
   // gone when it sat in the Sheet, which unmounted
   const refocus = useRef<HTMLElement | null>(null);
@@ -104,15 +99,23 @@ const FlowFrame = () => {
     if (refocus.current?.isConnected) refocus.current.focus();
     refocus.current = null;
   }, [settings.open]);
-  const closeSettings = (via: "back" | "escape" | "key") => {
+  const closeSettings = (via: SettingsExit) => {
     if (!settings.open) return;
+    // A dialog opened from the page (an import, a Custom value) belongs to it
+    PgView.closeModal();
     settingsTelemetry.track("settings_closed", { via });
     refocus.current = settings.returnTo;
     setSettings({ open: false });
   };
+  // The settings page covers the app, so of the ways in only ⌘, can still be
+  // used while it is open: that is the one request that closes it. Opening
+  // closes the navigation's Sheet below `LAYOUT_BREAKPOINTS.left`
+  // (`closeSheet`): the footer sits in it, and the Sheet portals to `body`,
+  // outside the hidden shell, so its overlay would cover the page and trap
+  // focus away from it.
   const toggleSettings =
     (closeSheet: () => void) =>
-    ({ from, focus }: SettingsRequest) => {
+    ({ from, focus, returnTo }: SettingsRequest) => {
       if (settings.open) return closeSettings("key");
       const active = document.activeElement;
       closeSheet();
@@ -120,7 +123,11 @@ const FlowFrame = () => {
       setSettings({
         open: true,
         focus,
-        returnTo: active instanceof HTMLElement ? active : null,
+        returnTo:
+          returnTo ??
+          (active instanceof HTMLElement && active !== document.body
+            ? active
+            : null),
       });
     };
 

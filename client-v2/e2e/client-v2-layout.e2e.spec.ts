@@ -1358,6 +1358,8 @@ test("client-v2-layout: Settings from the menu and by key", async ({
   await expect(settings).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(settings).toBeHidden();
+  // The menu item is gone with its menu: focus goes back to its trigger
+  await expect(account(page)).toBeFocused();
 
   // From inside the editor too, which binds keys of its own
   await page.locator(".monaco-editor .view-lines").first().click();
@@ -1547,6 +1549,44 @@ test.describe("the settings page", () => {
     await expect
       .poll(() => lineOf(lines, "settings_closed"))
       .toContain("via: escape");
+
+    // A pick in the list, then "Back to app"
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await sectionList(page)
+      .getByRole("button", { name: "Editor", exact: true })
+      .click();
+    await settingsPage(page)
+      .getByRole("button", { name: "Back to app" })
+      .click();
+    await expect
+      .poll(() => lineOf(lines, "settings_section_picked"))
+      .toContain("section: editor");
+    await expect
+      .poll(() => lines.filter((l) => l.includes("settings_closed")).at(-1))
+      .toContain("via: back");
+  });
+
+  test("client-v2-layout: Escape in a dialog opened from the settings closes only the dialog", async ({
+    seededPage: page,
+  }) => {
+    await page.locator("[data-settings-trigger]").first().click();
+    await settingsPage(page)
+      .getByRole("button", { name: "From GitHub" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(settingsPage(page)).toBeVisible();
+
+    // ⌘, closes the settings, and the dialog that belongs to them with them
+    await settingsPage(page)
+      .getByRole("button", { name: "From GitHub" })
+      .click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(settingsPage(page)).toHaveCount(0);
+    await expect(dialog).toBeHidden();
   });
 });
 

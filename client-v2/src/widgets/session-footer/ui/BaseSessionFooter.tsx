@@ -31,7 +31,7 @@ const LINE_STYLE: Record<AccountLine["kind"], string> = {
 export interface BaseSessionFooterProps {
   account: AccountView;
   settingsOpen: boolean;
-  /** Opens or closes the settings on the cluster */
+  /** Opens the settings on the cluster; the page covers the row while open */
   onOpenCluster: () => void;
   onCancelSignIn: () => void;
   /** The account menu's content (`BaseAccountMenu`) */

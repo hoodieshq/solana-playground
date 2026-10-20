@@ -306,9 +306,11 @@ it("opens the settings from the menu's Settings, showing ⌘, on a Mac", async (
   const settings = await screen.findByRole("menuitem", { name: /^Settings/ });
   expect(settings.textContent).toContain("⌘,");
   await userEvent.click(settings);
+  // The item unmounts with its menu: focus is to come back to the trigger
   expect(onToggleSettings).toHaveBeenCalledExactlyOnceWith({
     from: "menu",
     focus: "page",
+    returnTo: screen.getByRole("button", { name: /^Account/ }),
   });
 });
 

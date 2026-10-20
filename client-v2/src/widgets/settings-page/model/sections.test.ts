@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
 
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
 import { groupSettings, sectionTitle, SECTION_ORDER } from "./sections";
 
 /** Only what grouping reads: the id, the name, and whether it is a select */
@@ -55,6 +60,19 @@ it("titles the sections as the prototype does", () => {
   expect(sectionTitle("blockExplorer")).toBe("Block Explorer");
   expect(sectionTitle("testUi")).toBe("Test UI");
   expect(sectionTitle("ui")).toBe("UI");
+});
+
+it("reports a group with no place in the order once, however often the page renders", () => {
+  const logged = logMemory();
+  initLogger({ providers: [logged] });
+  const all = [setting("onceOnly.flag", "Flag")];
+  groupSettings(all);
+  groupSettings(all);
+  resetLogger();
+  const reports = logged.entries.filter(
+    (entry) => entry.context?.group === "onceOnly"
+  );
+  expect(reports).toHaveLength(1);
 });
 
 it("shows a group the page does not know last, titled from its id", () => {

@@ -24,7 +24,9 @@ export const SECTION_ORDER = [
   "experimental",
 ] as const;
 
-const TITLES: Record<string, string> = {
+export type SectionId = typeof SECTION_ORDER[number];
+
+const TITLES: Partial<Record<SectionId, string>> = {
   blockExplorer: "Block Explorer",
   testUi: "Test UI",
   ui: "UI",
@@ -32,7 +34,10 @@ const TITLES: Record<string, string> = {
 
 /** A section's heading; one the page does not know is titled from its id */
 export const sectionTitle = (id: string) =>
-  TITLES[id] ?? PgCommon.toTitleFromCamel(id);
+  TITLES[id as SectionId] ?? PgCommon.toTitleFromCamel(id);
+
+/** Groups already reported, so a page that re-renders on every scroll reports each once */
+const reported = new Set<string>();
 
 /** What grouping reads of a setting */
 interface Groupable {
@@ -53,9 +58,9 @@ const rank = (id: string) => {
 
 /**
  * `PgSettings.all` grouped by the prefix of each id, in `SECTION_ORDER`, with
- * selects before switches and then by name, as the old settings panel sorted
- * them. A group the page does not list comes last, and is logged so that a
- * new settings folder gets a place in the order rather than going unnoticed.
+ * selects before switches and then by name. A group the page does not list
+ * comes last, and is reported once so that a new settings folder gets a place
+ * in the order rather than going unnoticed.
  */
 export const groupSettings = <S extends Groupable>(
   all: S[]
@@ -66,7 +71,8 @@ export const groupSettings = <S extends Groupable>(
     groups.set(id, [...(groups.get(id) ?? []), setting]);
   }
   for (const id of groups.keys()) {
-    if (rank(id) === SECTION_ORDER.length) {
+    if (rank(id) === SECTION_ORDER.length && !reported.has(id)) {
+      reported.add(id);
       log.warn("a settings group has no place in the page's order", {
         report: true,
         context: { group: id },

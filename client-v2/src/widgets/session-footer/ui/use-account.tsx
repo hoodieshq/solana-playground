@@ -106,8 +106,19 @@ export const useAccount = ({ from, onToggleSettings }: UseAccountOptions) => {
     "github-profile": () => undefined,
     docs: () => undefined,
     "sign-out": () => setConfirmingSignOut(true),
-    settings: () => onToggleSettings({ from: "menu", focus: "page" }),
-    "cluster-down": () => onToggleSettings({ from: "menu", focus: "network" }),
+    // The item unmounts with its menu, so focus comes back to the trigger
+    settings: () =>
+      onToggleSettings({
+        from: "menu",
+        focus: "page",
+        returnTo: triggerRef.current,
+      }),
+    "cluster-down": () =>
+      onToggleSettings({
+        from: "menu",
+        focus: "network",
+        returnTo: triggerRef.current,
+      }),
     "connect-wallet": () => toggleWallet("connect-wallet"),
     "disconnect-wallet": () => toggleWallet("disconnect-wallet"),
     wallet: () => {

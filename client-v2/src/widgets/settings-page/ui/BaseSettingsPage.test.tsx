@@ -47,7 +47,6 @@ const draw = (props: { phone?: boolean; current?: string } = {}) => {
       onBack={onBack}
       phone={props.phone ?? false}
       focus="page"
-      closable
       onEscape={vi.fn()}
     />
   );
@@ -100,7 +99,6 @@ it("a picked section stays current while the scroll it caused settles", async ()
       onBack={vi.fn()}
       phone={false}
       focus="page"
-      closable
       onEscape={vi.fn()}
     />
   );
@@ -188,7 +186,7 @@ const chip = (name: string, checked: boolean) => (
 
 const drawFocused = (props: {
   focus: "page" | "network";
-  closable?: boolean;
+  modalUp?: boolean;
   chips: { name: string; checked: boolean }[];
 }) => {
   const onEscape = vi.fn();
@@ -206,8 +204,7 @@ const drawFocused = (props: {
       onBack={vi.fn()}
       phone={false}
       focus={props.focus}
-      closable={props.closable ?? true}
-      onEscape={onEscape}
+      onEscape={props.modalUp ? null : onEscape}
     />
   );
   return onEscape;
@@ -260,7 +257,7 @@ it("Escape that a layer above already took (an open select) leaves the page open
 it("Escape while a modal is up leaves the page open", async () => {
   const onEscape = drawFocused({
     focus: "page",
-    closable: false,
+    modalUp: true,
     chips: DEVNET_TESTNET,
   });
   await userEvent.keyboard("{Escape}");

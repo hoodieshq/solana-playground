@@ -109,6 +109,13 @@ test.describe("client-v2-controls", () => {
     });
     expect(onTop).toBe(true);
 
+    // Escape closes the options, and leaves the settings open
+    await page.keyboard.press("Escape");
+    await expect(light).toBeHidden();
+    await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
+    await row.getByRole("combobox").focus();
+    await page.keyboard.press("ArrowDown");
+
     // The list opens on the chosen theme, Dark; Light is the next option
     await page.keyboard.press("ArrowDown");
     await expect(light).toBeFocused();
