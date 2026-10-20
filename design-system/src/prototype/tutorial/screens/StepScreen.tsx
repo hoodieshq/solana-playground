@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ChevronDown, ChevronLeft, MessageCircle, X } from "lucide-react"
+import { BookOpen, ChevronLeft, CircleCheck, MessageCircle, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { BrandButton } from "@/components/ui/brand-button"
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { ExplainSheet } from "../sheets/ExplainSheet"
+import { LessonSheet } from "../sheets/LessonSheet"
 import { PatchSheet } from "../sheets/PatchSheet"
 import { ResultSheet } from "../sheets/ResultSheet"
 import { useStore } from "../store"
@@ -21,13 +22,13 @@ export function StepScreen() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const [tab, setTab] = useState<"code" | "build">("code")
-  const [more, setMore] = useState(false)
+  const [lesson, setLesson] = useState(false)
   const busy = s.phase === "building" || s.phase === "deploying"
   const last = s.step === STEPS.length - 1
 
   useEffect(() => {
     setTab("code")
-    setMore(false)
+    setLesson(false)
   }, [s.step])
 
   useEffect(() => {
@@ -71,16 +72,20 @@ export function StepScreen() {
           Step {s.step + 1} of {STEPS.length}
         </p>
         <h2 className="mt-1 line-clamp-3 text-title">{step.objective}</h2>
+        {/* When the step counts, as a plain statement. It turns green once it does */}
+        <p className="mt-2 flex items-start gap-1.5 text-caption text-muted-foreground">
+          <CircleCheck strokeWidth={1.75} className={cn("mt-px size-4 shrink-0", s.passed[s.step] && "text-success")} />
+          Done when {step.checkedBy}
+        </p>
+        {/* The lesson itself opens in a sheet, so the code stays where it is */}
         <button
           type="button"
-          aria-expanded={more}
-          onClick={() => setMore((v) => !v)}
-          className="flex min-h-11 w-full items-center gap-1 text-left text-caption text-muted-foreground"
+          onClick={() => setLesson(true)}
+          className="flex min-h-11 items-center gap-1.5 text-caption text-foreground"
         >
-          <span className="flex-1">Checked when {step.checkedBy}</span>
-          <ChevronDown className={cn("size-4 shrink-0 transition-transform", more && "rotate-180")} />
+          <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
+          <span className="underline decoration-border-strong underline-offset-4">Read the lesson</span>
         </button>
-        {more && <p className="pb-2 text-caption text-muted-foreground">{step.page}</p>}
       </section>
 
       <div role="tablist" aria-label="Views" className="flex gap-1 px-4 text-caption">
@@ -164,6 +169,14 @@ export function StepScreen() {
         )}
       </footer>
 
+      <LessonSheet
+        open={lesson}
+        onClose={() => setLesson(false)}
+        onAsk={() => {
+          setLesson(false)
+          dispatch({ type: "explain", mode: "step" })
+        }}
+      />
       <PatchSheet />
       <ResultSheet onUndo={undo} />
       <ExplainSheet />
