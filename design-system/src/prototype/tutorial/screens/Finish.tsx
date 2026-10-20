@@ -37,14 +37,14 @@ export function Finish() {
       {/* No bottom bar here: what comes next is a section of its own, with room around it */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-[calc(var(--safe-bottom)+16px)]">
         {/* The flow's peak: the badge pops in once, on the design system's pop curve, and simply appears with reduced motion */}
-        <Achievement className="mx-auto w-auto">
+        <Achievement className="mx-auto w-auto" role="img" aria-label="Badge earned: First Anchor program">
           <AchievementMedia className="size-16 shadow-glow duration-[440ms] ease-pop animate-in fade-in zoom-in-50 motion-reduce:animate-none">
             <Anchor />
           </AchievementMedia>
         </Achievement>
         <h2 className="mt-4 text-center font-heading text-display">Tutorial complete</h2>
         <p className="mx-auto mt-2 max-w-[30ch] text-center text-body text-muted-foreground">
-          Your program is live on devnet, and you earned the First Anchor program badge.
+          Your program is live on devnet.
         </p>
 
         {/* One summary card, three columns split by hairlines: big numbers, small labels */}
@@ -58,7 +58,7 @@ export function Finish() {
         </dl>
 
         <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>
-        <ul className="mt-2 flex flex-col gap-1.5">
+        <ul className="mt-2 flex flex-col gap-2.5">
           {STEPS.map((step) => (
             <li key={step.id} className="flex items-start gap-2.5 text-body text-muted-foreground">
               <Check strokeWidth={2.25} className="mt-1 size-4 shrink-0 text-success" />
