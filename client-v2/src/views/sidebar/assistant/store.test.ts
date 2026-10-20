@@ -805,6 +805,106 @@ describe("PgAssistant threads", () => {
     ]);
   });
 
+  it("opens a thread while another thread's write is still out", async () => {
+    // Only this thread's own writes are waited for: a write of another thread
+    // that never settles used to hold every later load at "reading"
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    const realWrite = PgChatStorage.write.bind(PgChatStorage);
+    const write = vi
+      .spyOn(PgChatStorage, "write")
+      .mockImplementation(async (threadId, items) => {
+        await hold;
+        return realWrite(threadId, items);
+      });
+
+    try {
+      await PgAssistant.loadThread("tB");
+      PgAssistant.addUserMessage("in B");
+      await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+
+      void PgAssistant.loadThread("tA");
+      await vi.waitFor(() =>
+        expect(storedTexts(PgAssistant.items)).toEqual(["stored"])
+      );
+    } finally {
+      release();
+      write.mockRestore();
+    }
+  });
+
+  it("keeps what was typed mid-read across a backend switch", async () => {
+    // `clear` on a backend switch replaced the stand-in list, so messages
+    // typed after it were on no list an overtaken read could keep
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("before the switch");
+    PgAssistant.clear();
+    PgAssistant.addUserMessage("after the switch");
+    PgAssistant.closeThread();
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "before the switch",
+      "after the switch",
+    ]);
+  });
+
+  it("puts messages kept from an overtaken read in the order they were typed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await PgChatStorage.write("t1", [
+        {
+          kind: "user",
+          id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          createdAt: at,
+          text: "stored",
+        },
+      ]);
+
+      vi.setSystemTime(new Date("2026-02-01T00:00:00.000Z"));
+      const first = PgAssistant.loadThread("t1");
+      PgAssistant.addUserMessage("earlier");
+      PgAssistant.closeThread();
+      const second = PgAssistant.loadThread("t1");
+      vi.setSystemTime(new Date("2026-02-01T00:00:01.000Z"));
+      PgAssistant.addUserMessage("later");
+      await Promise.all([first, second]);
+      await settled();
+
+      expect(storedTexts(PgAssistant.items)).toEqual([
+        "stored",
+        "earlier",
+        "later",
+      ]);
+      expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+        "stored",
+        "earlier",
+        "later",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the messages of two overtaken reads of one thread", async () => {
     // A -> B -> A -> C with a message typed in each read of A: both reads
     // are overtaken, and writing each one's own snapshot let the second

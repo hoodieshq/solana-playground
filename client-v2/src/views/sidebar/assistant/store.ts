@@ -732,7 +732,10 @@ export class PgAssistant {
    */
   static clear() {
     PgAssistant._denyPending();
-    PgAssistant._items = [];
+    // Not while a read is out: what is rendered then is only what was typed
+    // during it, written nowhere yet, and the read adopts it from this very
+    // list -- a new one would leave it, and anything typed after, unkept
+    if (PgAssistant._writes !== "reading") PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
   }
@@ -844,11 +847,12 @@ export class PgAssistant {
     PgAssistant._writes = "reading";
     PgAssistant._emitOnly();
 
-    // After every queued write: one may hold this very thread, such as what
-    // `_keepOvertaken` kept for it, and a read issued first would come back
-    // without it -- then the next write from memory would replace the file
-    // that had it
-    await PgAssistant._afterWrites();
+    // After this thread's queued writes, such as what `_keepOvertaken` kept
+    // for it: a read issued first would come back without them, and the next
+    // write from memory would replace the file that had them. Only this
+    // thread's, so another thread's write that is slow, or never settles,
+    // does not hold a load with nothing of its own queued behind it
+    await PgAssistant._afterThreadWrites(threadId);
     const items = await PgChatStorage.read(threadId);
     // By load, not by thread id: A -> B -> A faster than a read leaves the
     // same id open, and the first read passing for the current one dropped
@@ -897,15 +901,18 @@ export class PgAssistant {
     if (!unwritten.length) return;
 
     if (PgAssistant._threadId === threadId) {
-      PgAssistant._items.push(...unwritten);
+      // In place, in the order they were typed: a newer load of this thread
+      // may still hold this list, and what was typed during it is newer
+      const all = mergeThreads(PgAssistant._items, unwritten);
+      PgAssistant._items.splice(0, PgAssistant._items.length, ...all);
       PgAssistant._emit();
       return;
     }
 
-    // Appended to the thread as it is when the write's turn comes, not to the
-    // copy this read saw: two overtaken reads of one thread saw the same copy,
-    // and writing each one's own let the second replace the first
-    PgAssistant._lastWrite = PgAssistant._afterWrites().then(async () => {
+    // Merged into the thread as it is when the write's turn comes, not into
+    // the copy this read saw: two overtaken reads of one thread saw the same
+    // copy, and writing each one's own let the second replace the first
+    PgAssistant._enqueue(threadId, async () => {
       const stored = await PgChatStorage.read(threadId);
       if (stored === null) {
         // `report` appends "failed" to this
@@ -916,9 +923,8 @@ export class PgAssistant {
         return;
       }
       const known = new Set(stored.map((item) => item.id));
-      const missing = unwritten.filter((item) => !known.has(item.id));
-      if (missing.length) {
-        await PgChatStorage.write(threadId, [...stored, ...missing]);
+      if (unwritten.some((item) => !known.has(item.id))) {
+        await PgChatStorage.write(threadId, mergeThreads(stored, unwritten));
       }
     });
   }
@@ -1021,6 +1027,8 @@ export class PgAssistant {
   /** Bumped by every load and close, so a read can tell it was overtaken */
   private static _loadSeq = 0;
   private static _lastWrite: Promise<void> = Promise.resolve();
+  /** Each thread's latest step on the write queue, while it is out */
+  private static readonly _threadWrites = new Map<string, Promise<void>>();
   /** The thread read `loadThread` has out, if any */
   private static _loading: { threadId: string; done: Promise<void> } | null =
     null;
@@ -1059,14 +1067,40 @@ export class PgAssistant {
    * the first with a shorter list
    */
   private static _queueWrite(threadId: string, items: readonly ChatItem[]) {
-    PgAssistant._lastWrite = PgAssistant._afterWrites().then(() =>
-      PgChatStorage.write(threadId, items)
-    );
+    PgAssistant._enqueue(threadId, () => PgChatStorage.write(threadId, items));
+  }
+
+  /**
+   * Put a step for `threadId` on the write queue, and remember it as that
+   * thread's latest until it settles, for `_afterThreadWrites`
+   */
+  private static _enqueue(threadId: string, step: () => Promise<void>) {
+    const done = PgAssistant._afterWrites().then(step);
+    PgAssistant._lastWrite = done;
+    PgAssistant._threadWrites.set(threadId, done);
+    // Both ways rather than `finally`, whose own promise would reject
+    // unhandled with `done`; a failure is `_settle`'s to report
+    const forget = () => {
+      if (PgAssistant._threadWrites.get(threadId) === done) {
+        PgAssistant._threadWrites.delete(threadId);
+      }
+    };
+    void done.then(forget, forget);
+  }
+
+  /** Once `threadId`'s queued writes have settled; at once if it has none */
+  private static async _afterThreadWrites(threadId: string) {
+    const pending = PgAssistant._threadWrites.get(threadId);
+    if (pending) await PgAssistant._settle(pending);
   }
 
   /** Once every write queued so far has settled, however it went */
   private static _afterWrites() {
-    return PgAssistant._lastWrite.catch((e) => {
+    return PgAssistant._settle(PgAssistant._lastWrite);
+  }
+
+  private static _settle(write: Promise<void>) {
+    return write.catch((e) => {
       // Nothing on the queue rejects today: `PgChatStorage` catches and
       // reports its own failures. If something ever did, it is reported here
       // and the queue goes on, since one failed write must not stop the rest
