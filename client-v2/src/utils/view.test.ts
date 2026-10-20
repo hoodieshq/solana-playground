@@ -135,3 +135,50 @@ it("reports the getter's error and sets nothing instead of waiting for a mount",
   expect(logged.entries[0].report).toBe(true);
   expect(String(logged.entries[0].error)).toContain("broken view");
 });
+
+// Modals
+
+const PENDING = "pending";
+
+/** What `promise` has settled to by the time queued microtasks have run */
+const settled = async (promise: Promise<unknown>) =>
+  Promise.race([promise, PgCommon.sleep(0).then(() => PENDING)]);
+
+const Dialog = () => null;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+it("should answer only the top dialog when a stacked one closes", async () => {
+  const lower = PgView.setModal(Dialog);
+  const upper = PgView.setModal(Dialog);
+
+  PgView.closeModal("upper's answer");
+
+  await expect(settled(upper)).resolves.toBe("upper's answer");
+  await expect(settled(lower)).resolves.toBe(PENDING);
+
+  PgView.closeModal("lower's answer");
+
+  await expect(settled(lower)).resolves.toBe("lower's answer");
+});
+
+it("should leave no listener waiting once its dialog closes", async () => {
+  const { receive } = PgCommon.getSendAndReceiveEventNames(
+    PgView.events.MODAL_SET
+  );
+  // Settle whatever earlier tests left listening, so their removals below
+  // do not hide a listener this close leaves behind
+  PgCommon.createAndDispatchCustomEvent(receive, { data: null });
+  const added = vi.spyOn(document, "addEventListener");
+  const removed = vi.spyOn(document, "removeEventListener");
+  const count = (spy: typeof added) =>
+    spy.mock.calls.filter(([name]) => name === receive).length;
+
+  const answer = PgView.setModal(Dialog);
+  PgView.closeModal();
+  await answer;
+
+  expect(count(added)).toBe(count(removed));
+});
