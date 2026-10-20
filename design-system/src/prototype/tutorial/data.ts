@@ -196,7 +196,7 @@ mod hello_anchor {
       options: ["Inside a module marked #[program]", "Inside a #[derive(Accounts)] struct", "Inside declare_id!"],
       answer: 0,
       right: "Right. Anchor finds a program's instructions in the module marked #[program].",
-      wrong: "Not quite. It goes inside the module marked #[program], where Anchor finds a program's instructions.",
+      wrong: "Not quite. It goes inside the module marked #[program].",
       line: 5,
     },
     explainError:
@@ -340,7 +340,7 @@ mod hello_anchor {
       options: ["After the Context: hello(_ctx, name: String)", "Inside the Hello struct", "Inside msg!"],
       answer: 0,
       right: "Right. Arguments come after the Context, and Anchor serializes them for you.",
-      wrong: "Not quite. It goes after the Context: hello(_ctx, name: String). Anchor serializes it for you.",
+      wrong: "Not quite. It goes after the Context: hello(_ctx, name: String).",
       line: 9,
     },
     explainStep:

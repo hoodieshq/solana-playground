@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, MessageCircle } from "lucide-react"
+import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, Lightbulb, MessageCircle } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,8 @@ import { Typed } from "./Typed"
  * line up top and the passed / not yet sheets.
  * Each signal shows once: the status icon (dashed, spinner, check, alert)
  * lives only in the status line, the button carries the action and its colour */
-/** `lead` replaces the assistant's summary, after a prediction: whether it was right, and why */
-export function ActionZone({ lead }: { lead?: string }) {
+/** `lead` replaces the assistant's summary after a prediction: whether it was right, and why */
+export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
@@ -68,9 +68,18 @@ export function ActionZone({ lead }: { lead?: string }) {
     const proposal = s.review === "fix" ? step.fix : step.patch
     status = (
       <>
-        <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
-        {/* One message, one colour: the answer's feedback, or else what the assistant changes */}
-        <span className="text-foreground">{lead?.replaceAll("#[", "#\u2060[") ?? <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}</span>
+        {/* The icon says what kind of message it is: a right answer, a wrong one (a hint, not an
+            error), or the assistant speaking. The text stays one sentence in one colour */}
+        {lead?.right ? (
+          <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
+        ) : lead ? (
+          <Lightbulb strokeWidth={1.75} className="mt-px size-4 shrink-0 text-warning" />
+        ) : (
+          <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
+        )}
+        <span className="text-foreground">
+          {lead ? lead.text.replaceAll("#[", "#\u2060[") : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}
+        </span>
       </>
     )
   } else {

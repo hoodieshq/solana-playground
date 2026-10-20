@@ -67,8 +67,8 @@ export function StepScreen() {
   const lead =
     s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
       ? answer === step.predict.answer
-        ? step.predict.right
-        : step.predict.wrong
+        ? { text: step.predict.right, right: true }
+        : { text: step.predict.wrong, right: false }
       : undefined
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
   const focus = (s.phase === "idle" && !s.passed[s.step] && !s.undo) || asking ? step.focus : []
