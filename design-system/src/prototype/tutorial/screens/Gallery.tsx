@@ -1,12 +1,13 @@
 import { useState } from "react"
-import { Search, X } from "lucide-react"
+import { Play, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { BrandButton } from "@/components/ui/brand-button"
+import { brandButtonVariants } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
+import { ObjectiveMeter } from "@/components/ui/objective-band"
 import { Segmented, SegmentedItem } from "@/components/ui/segmented"
+import { cn } from "@/lib/utils"
 
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
@@ -22,6 +23,8 @@ export function Gallery() {
     setSearching(false)
   }
   const done = s.passed.filter(Boolean).length
+  const first = s.passed.findIndex((p) => !p)
+  const next = first === -1 ? STEPS.length - 1 : first
   const started = s.startedAt !== null && s.finishedAt === null
   const list = TUTORIALS.filter((t) => t.name.toLowerCase().includes(query.trim().toLowerCase()))
 
@@ -40,22 +43,28 @@ export function Gallery() {
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
         {started && (
-          <section aria-label="Continue" className="mt-4 rounded-card border border-brand-violet/60 bg-surface-panel p-4">
-            <p className="text-caption text-muted-foreground">Continue</p>
-            <div className="mt-2 flex items-center gap-3">
-              <Thumb src={thumb("hello-anchor", "jpg")} className="size-12" />
-              <div className="min-w-0 flex-1">
-                <p className="text-title">Hello Anchor</p>
-                <p className="text-caption text-muted-foreground">
-                  Step {s.step + 1} of {STEPS.length} · {STEPS[s.step].title}
-                </p>
-                <Progress value={(done / STEPS.length) * 100} className="mt-2" />
-              </div>
-            </div>
-            <BrandButton variant="accent" className="mt-3 h-11 w-full" onClick={() => dispatch({ type: "start" })}>
-              Continue
-            </BrandButton>
-          </section>
+          // The whole card resumes the tutorial. The ring is the screen's one accent and shows where to tap
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "start" })}
+            aria-label={`Continue Hello Anchor: ${STEPS[next].objective}`}
+            className="mt-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
+          >
+            <Thumb src={thumb("hello-anchor", "jpg")} className="size-14" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-title">Hello Anchor</span>
+              <span className="mt-0.5 line-clamp-2 text-caption text-muted-foreground">Next: {STEPS[next].objective}</span>
+              <span className="mt-2 flex items-center gap-2">
+                <ObjectiveMeter value={done / STEPS.length} className="h-1 flex-1" />
+                <span className="text-caption text-muted-foreground tabular-nums">
+                  {done} of {STEPS.length}
+                </span>
+              </span>
+            </span>
+            <span aria-hidden="true" className={cn(brandButtonVariants({ variant: "ring", size: "icon" }), "size-11")}>
+              <Play className="size-4 fill-current" />
+            </span>
+          </button>
         )}
 
         {/* One row: the tabs, and search folded into a button. Search opens in their place */}
