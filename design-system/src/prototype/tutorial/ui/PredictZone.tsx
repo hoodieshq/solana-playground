@@ -1,8 +1,7 @@
-import { MessageCircle } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 
 import type { Predict } from "../data"
+import { Prose } from "../sheets/LessonSheet"
 
 /** One question before the code shows, on steps that bring a new idea. Answering
  * first, then seeing the change, keeps the learner thinking instead of rubber-stamping
@@ -10,11 +9,8 @@ import type { Predict } from "../data"
 export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer: (choice: number | "skip") => void }) {
   return (
     <footer className="shrink-0 border-t border-border bg-surface-panel px-3 pt-3 pb-[max(var(--safe-bottom),16px)]">
-      {/* A small label, then the question itself as the main thing: one colour each, no mixing */}
-      <p className="flex items-center gap-1.5 px-1 text-caption text-muted-foreground">
-        <MessageCircle strokeWidth={1.75} className="size-4 shrink-0 text-brand-purple" />
-        Before you see it
-      </p>
+      {/* A quiet label, then the question as the main thing. No icon: the lesson asks this, not the assistant */}
+      <p className="px-1 text-caption text-muted-foreground">Quick check</p>
       <h3 className="mt-1 mb-4 px-1 font-heading text-title text-foreground">{predict.question}</h3>
       <div className="flex flex-col gap-2">
         {predict.options.map((option, i) => (
@@ -22,9 +18,11 @@ export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer:
             key={option}
             type="button"
             onClick={() => onAnswer(i)}
-            className="flex min-h-12 items-center rounded-control border border-border bg-surface px-3 py-2 text-left font-mono text-caption text-foreground transition-colors duration-150 ease-standard active:bg-surface-raised motion-reduce:transition-none"
+            className="flex min-h-12 items-center rounded-control border border-border bg-surface px-3 py-2 text-left text-control text-foreground transition-colors duration-150 ease-standard active:bg-surface-raised motion-reduce:transition-none"
           >
-            {option}
+            <span>
+              <Prose text={option} chip="bg-surface-raised" />
+            </span>
           </button>
         ))}
       </div>
