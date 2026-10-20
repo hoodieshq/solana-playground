@@ -44,11 +44,15 @@ export function Gallery() {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
         {started && (
           // The whole card resumes the tutorial. The ring is the screen's one accent and shows where to tap
+          <section aria-labelledby="resume-title" className="mt-4">
+          <h2 id="resume-title" className="mb-2 text-caption text-muted-foreground">
+            Pick up where you left off
+          </h2>
           <button
             type="button"
             onClick={() => dispatch({ type: "start" })}
             aria-label={`Continue Hello Anchor: ${STEPS[next].objective}`}
-            className="mt-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
+            className="flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
           >
             <Thumb src={thumb("hello-anchor", "jpg")} className="size-14" />
             <span className="min-w-0 flex-1">
@@ -65,6 +69,7 @@ export function Gallery() {
               <Play className="size-4 fill-current" />
             </span>
           </button>
+          </section>
         )}
 
         {/* One row: the tabs, and search folded into a button. Search opens in their place */}
@@ -131,6 +136,7 @@ export function Gallery() {
                   <span className="block truncate text-title">{t.name}</span>
                   <span className="mt-0.5 block text-caption text-muted-foreground">
                     {t.level} · {t.framework}
+                    {started && t.slug === "hello-anchor" && " · In progress"}
                   </span>
                 </span>
               </button>
