@@ -444,7 +444,9 @@ Until the Tutorials and Programs pages exist, the navigation's items SHALL
 open the gallery: New project on its default tab, Tutorials on its
 tutorials tab (`gallery-tab-tutorials`), Programs on its programs tab
 (`gallery-tab-programs`). Home SHALL NOT open the gallery: it SHALL show
-Home, and leave Home in place while Home shows.
+Home, and leave Home in place while Home shows, except over a shared
+project, which the project list cannot name: there it SHALL go back to the
+work.
 
 #### Scenario: Programs from the navigation
 
@@ -544,7 +546,7 @@ next project SHALL open in a filled editor.
 
 Home SHALL send `home_shown` with `via` (`start`, `nav`, `last-deleted` or
 `back`) when it shows; `home_left` with `via` (`current-project`,
-`continue` or `open`) when the work replaces it; `home_tile_opened` with `tile`
+`continue`, `open` or `nav`) when the work replaces it; `home_tile_opened` with `tile`
 (`new-project`, `tutorials` or `programs`) when a user opens a tile;
 `home_tutorial_opened` when a user opens a tutorial card;
 `home_quickstart_opened` with `id` (`continue`, `new` or `tutorial`) when a

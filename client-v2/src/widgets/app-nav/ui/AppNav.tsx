@@ -7,9 +7,7 @@ import BaseAppNav from "./BaseAppNav";
 import type { BaseAppNavProps } from "./BaseAppNav";
 
 export type AppNavProps = Omit<BaseAppNavProps, "onOpen"> & {
-  /** Home is the page shown, so picking Home has nowhere further to go */
-  homeShown?: boolean;
-  /** Show Home in place of the work */
+  /** Home was picked; the page decides what that does where it is */
   onHome: () => void;
 };
 
@@ -21,15 +19,15 @@ const TAB: Record<Exclude<NavItem, "home">, GalleryTab> = {
 };
 
 /**
- * Home shows Home (`onHome`), from the work or before the start is decided,
- * and does nothing while Home shows (`homeShown`). New project, Tutorials and
- * Programs open the gallery on their tab until they get pages of their own.
+ * Home goes to the page (`onHome`), which shows Home, keeps it, or over a
+ * shared project goes back to the work. New project, Tutorials and Programs
+ * open the gallery on their tab until they get pages of their own.
  */
-const AppNav = ({ homeShown, onHome, ...props }: AppNavProps) => {
+const AppNav = ({ onHome, ...props }: AppNavProps) => {
   const open = (item: NavItem) => {
     navTelemetry.track("nav_item_opened", { item });
     if (item === "home") {
-      if (!homeShown) onHome();
+      onHome();
       return;
     }
     // Settles when the modal closes and never rejects: a gallery that fails

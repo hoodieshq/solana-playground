@@ -476,6 +476,27 @@ describe("from an open project", () => {
     expect(names()).toEqual([["home_shown", { via: "last-deleted" }]]);
   });
 
+  it("goes back to a shared project from the navigation's Home, which the list cannot name", () => {
+    router.location.pathname = "/share/abc";
+    explorer.isTemporary = true;
+    const { result } = renderHook(() => useStartView());
+    act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("home");
+    act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("work");
+    expect(names()).toEqual([
+      ["home_shown", { via: "nav" }],
+      ["home_left", { via: "nav" }],
+    ]);
+  });
+
+  it("stays on Home from the navigation's Home over a project the list names", async () => {
+    const { result } = await onTheWork();
+    act(() => result.current.showHome("nav"));
+    act(() => result.current.showHome("nav"));
+    expect(result.current.view).toBe("home");
+  });
+
   it("says it left for a route", async () => {
     const { result } = await onTheWork();
     act(() => result.current.showHome("nav"));

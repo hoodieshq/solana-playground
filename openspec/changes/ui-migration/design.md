@@ -1687,9 +1687,13 @@ going back finds the work as it was left.
   asked for would vanish on its own. A replayed route view that fails is
   reported by `Primary` (`view:main-primary`), since it is drawn in place of
   the view, never thrown.
+- **A shared project** (temporary: a share or GitHub link) has no row in the
+  list to go back by, so over one the navigation's Home, picked again, goes
+  back to the work (`via: nav`); over a project the list names it leaves Home
+  in place.
 - **Telemetry**, prefix `home`: `home_shown` gains `via` (`start`, `nav`,
   `last-deleted` or `back`); `home_left` with `via` (`current-project`,
-  `continue` or `open`) when the work replaces Home.
+  `continue`, `open` or `nav`) when the work replaces Home.
 
 ## Risks / Trade-offs
 

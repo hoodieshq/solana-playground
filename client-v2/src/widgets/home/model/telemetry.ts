@@ -13,10 +13,11 @@ export type HomeQuickstart = "continue" | "new" | "tutorial";
 export type HomeVia = "start" | "nav" | "last-deleted" | "back";
 /**
  * How the work took over from Home: the open project picked in the list,
- * the phone's Continue, or another project or a route opened (by the user or
- * by sync's adoption on a start)
+ * the phone's Continue, another project or a route opened (by the user or by
+ * sync's adoption on a start), or the navigation's Home over a shared
+ * project, which the list cannot name
  */
-export type HomeLeaveVia = "current-project" | "continue" | "open";
+export type HomeLeaveVia = "current-project" | "continue" | "open" | "nav";
 
 type HomeEvents = {
   /** Home was shown, and how it came to (`HomeVia`) */

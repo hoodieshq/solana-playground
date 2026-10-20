@@ -40,7 +40,7 @@ import { PgExplorer, PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { Assistant, openConnectDialog } from "@/widgets/assistant";
-import { homeSlot, isHomeShown, useStartView } from "@/widgets/home";
+import { homeSlot, useStartView } from "@/widgets/home";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
@@ -232,7 +232,6 @@ const FlowFrame = () => {
             closeNavSheet.current = closeSheet;
             return (
               <AppNav
-                homeShown={isHomeShown(page.view)}
                 // Home and the open project show in place of the work, which
                 // the navigation's Sheet (or a phone's menu page) covers
                 onHome={() => {

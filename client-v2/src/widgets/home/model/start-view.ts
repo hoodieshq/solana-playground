@@ -212,9 +212,19 @@ export const useStartView = (): PageView => {
 
   // Not while the start is pending: its watchdog and its reports would go
   // with it, and Home shows by itself once the start is decided
-  const showHome = useCallback((via: HomeVia) => {
-    setShown((now) => (now.view === "work" ? { view: "home", via } : now));
-  }, []);
+  // A shared project (temporary) has no row in the list to go back by, so
+  // there the navigation's Home, picked again, is the way back
+  const showHome = useCallback(
+    (via: HomeVia) => {
+      if (view === "home" && via === "nav" && PgExplorer.isTemporary) {
+        homeTelemetry.track("home_left", { via: "nav" });
+        setShown({ view: "work" });
+        return;
+      }
+      setShown((now) => (now.view === "work" ? { view: "home", via } : now));
+    },
+    [view]
+  );
 
   const leaveHome = useCallback(
     (leftVia: HomeLeaveVia) => {
