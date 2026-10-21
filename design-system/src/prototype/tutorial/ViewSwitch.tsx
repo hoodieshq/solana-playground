@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils"
 import { switchView, view, type View } from "./view"
 
 /** Phone or desktop, and Reset. Under the phone it sits in the caption row. Over the desktop
- * screen it floats in a corner and folds away, so the screen reads as the product */
+ * screen it floats in the bottom left corner, over the empty foot of the navigation, where it
+ * covers no action, and folds away, so the screen reads as the product */
 export function ViewSwitch({ onReset, floating = false }: { onReset: () => void; floating?: boolean }) {
   const [open, setOpen] = useState(true)
 
@@ -17,7 +18,7 @@ export function ViewSwitch({ onReset, floating = false }: { onReset: () => void;
       <Button
         variant="secondary"
         size="sm"
-        className="fixed right-4 bottom-4 z-50 shadow-modal"
+        className="fixed bottom-3 left-3 z-50 shadow-modal"
         aria-label="Show prototype controls"
         onClick={() => setOpen(true)}
       >
@@ -26,35 +27,46 @@ export function ViewSwitch({ onReset, floating = false }: { onReset: () => void;
       </Button>
     )
 
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-2",
-        floating && "fixed right-4 bottom-4 z-50 rounded-full border border-border bg-surface-panel p-1 pl-1.5 shadow-modal"
-      )}
+  const views = (
+    <Segmented
+      value={view}
+      onValueChange={(v) => v !== view && switchView(v as View)}
+      aria-label="View"
+      className={cn("pill h-8! rounded-full! border-0! p-0!", floating && "w-full")}
     >
-      <Segmented
-        value={view}
-        onValueChange={(v) => v !== view && switchView(v as View)}
-        aria-label="View"
-        className="pill h-8! rounded-full! border-0! p-0!"
-      >
-        <SegmentedItem value="phone" className="rounded-full! px-3!">
-          Phone
-        </SegmentedItem>
-        <SegmentedItem value="desktop" className="rounded-full! px-3!">
-          Desktop
-        </SegmentedItem>
-      </Segmented>
-      <Button variant="ghost" size="sm" onClick={onReset}>
-        <RotateCcw />
-        Reset
-      </Button>
-      {floating && (
+      <SegmentedItem value="phone" className="flex-1 rounded-full! px-3!">
+        Phone
+      </SegmentedItem>
+      <SegmentedItem value="desktop" className="flex-1 rounded-full! px-3!">
+        Desktop
+      </SegmentedItem>
+    </Segmented>
+  )
+  const reset = (
+    <Button variant="ghost" size="sm" onClick={onReset}>
+      <RotateCcw />
+      Reset
+    </Button>
+  )
+
+  if (!floating)
+    return (
+      <div className="flex items-center gap-2">
+        {views}
+        {reset}
+      </div>
+    )
+
+  // Stacked, so it fits the navigation's 200px
+  return (
+    <div className="fixed bottom-3 left-3 z-50 flex w-44 flex-col gap-1 rounded-panel border border-border bg-surface-panel p-1.5 shadow-modal">
+      {views}
+      <div className="flex items-center justify-between">
+        {reset}
         <Button variant="ghost" size="icon" className="size-8" aria-label="Hide prototype controls" onClick={() => setOpen(false)}>
           <ChevronDown />
         </Button>
-      )}
+      </div>
     </div>
   )
 }

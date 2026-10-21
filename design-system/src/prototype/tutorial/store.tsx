@@ -97,7 +97,8 @@ export function fixFor(s: State): Patch | null {
     before: s.files[step.file],
     after,
     summary: "Here is what this step needs, next to what you wrote.",
-    notes: [...(step.patch?.notes ?? []), ...(step.fix?.notes ?? [])],
+    // The fix's own notes first: the first note is the one that opens by itself
+    notes: [...(step.fix?.notes ?? []), ...(step.patch?.notes ?? [])],
     result,
   }
 }

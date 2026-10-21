@@ -44,8 +44,9 @@ export function Editor({
 
   return (
     <div className={cn("min-h-0 flex-1 overflow-auto py-3 font-mono text-code leading-[1.6]", dim && "opacity-60")}>
-      <div className="grid min-w-max grid-cols-[3rem_1fr]">
-        <div aria-hidden="true" className="pr-4 text-right text-subtle select-none">
+      {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
+      <div className="grid min-w-max grid-cols-[58px_1fr]">
+        <div aria-hidden="true" className="pr-6 text-right text-subtle select-none">
           {lines.map((_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
@@ -86,7 +87,7 @@ export function Editor({
           />
         </div>
       </div>
-      {hint && <p className="mt-3 pl-12 font-sans text-caption text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-3 pl-[58px] font-sans text-caption text-muted-foreground">{hint}</p>}
     </div>
   )
 }
