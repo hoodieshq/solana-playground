@@ -5,18 +5,18 @@ import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "
 import { Input } from "@/components/ui/input"
 
 import { STEPS, type Chip } from "../data"
-import { useStore } from "../store"
+import { fixFor, useStore } from "../store"
 import { AssistantHead } from "../ui/AssistantHead"
 import { Typed } from "../ui/Typed"
 
 function Body({ mode }: { mode: "step" | "error" }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
-  const withFix = mode === "error" && !!step.fix
+  const withFix = mode === "error" && !!fixFor(s)
   const [ready, setReady] = useState(false)
   const [asked, setAsked] = useState<Chip[]>([])
   const [free, setFree] = useState(false)
-  const text = withFix ? step.explainError ?? "" : step.explainStep
+  const text = withFix ? s.error?.explain ?? step.explainError ?? "" : step.explainStep
   const left = step.chips.filter((c) => !asked.includes(c))
 
   return (

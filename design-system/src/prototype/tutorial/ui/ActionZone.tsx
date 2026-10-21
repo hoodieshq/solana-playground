@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
-import { lastResult, useStore } from "../store"
+import { fixFor, lastResult, useStore } from "../store"
 import { Prose } from "./Prose"
 import { Typed } from "./Typed"
 
@@ -66,7 +66,7 @@ export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }
     )
   } else if (reviewing) {
     // The assistant speaks here, by the buttons, so nothing sits over the code
-    const proposal = s.review === "fix" ? step.fix : step.patch
+    const proposal = s.review === "fix" ? fixFor(s) : step.patch
     status = (
       <>
         {/* The icon says what kind of message it is: a right answer, a wrong one (a hint, not an

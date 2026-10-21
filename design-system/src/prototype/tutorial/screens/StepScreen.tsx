@@ -10,7 +10,7 @@ import { diffLines } from "../diff"
 import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
-import { useStore } from "../store"
+import { fixFor, useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
 import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
@@ -68,7 +68,7 @@ export function StepScreen() {
     toast("Patch undone", { duration: 4000 })
   }
 
-  const proposal = s.phase === "patch" ? (s.review === "fix" ? step.fix : step.patch) ?? null : null
+  const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
   // A step with a new idea asks its question once, before its own patch shows
   const asking = !!proposal && s.review === "patch" && !!step.predict && predicted[s.step] === undefined
   const answer = predicted[s.step]

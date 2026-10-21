@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react"
 
-import { INITIAL_FILES, STEPS, type BuildResult } from "./data"
+import { checkOwn } from "./check"
+import { INITIAL_FILES, STEPS, type BuildResult, type Fail, type Pass, type Patch, type Step } from "./data"
+import { diffLines } from "./diff"
+import { KEEP } from "./view"
 
 export type Screen = "gallery" | "overview" | "step" | "finish"
 export type Phase = "idle" | "patch" | "building" | "deploying" | "passed" | "failed" | "explain"
@@ -14,14 +17,15 @@ export type State = {
   phase: Phase
   /** Whether the sheet for the current phase is up */
   sheet: boolean
-  /** Which patch was applied last on this step */
-  applied: "patch" | "fix" | null
+  /** Which patch was applied last on this step, or "own" for code written by hand */
+  applied: "patch" | "fix" | "own" | null
   /** Which proposal the step shows inline while phase is "patch" */
   review: "patch" | "fix"
   /** Files as they were when the current step started, for Undo */
   undo: { step: number; files: Record<string, string> } | null
   log: string[]
-  error: { line: number; reason: string } | null
+  /** `explain` is set when the build checked hand-written code: what the assistant says about it */
+  error: { line: number; reason: string; explain?: string } | null
   explain: "step" | "error"
   deployStage: number
   startedAt: number | null
@@ -39,6 +43,8 @@ export type Action =
   | { type: "explain"; mode: "step" | "error" }
   | { type: "close" }
   | { type: "apply" }
+  | { type: "edit"; code: string }
+  | { type: "buildOwn" }
   | { type: "built" }
   | { type: "retry" }
   | { type: "deploy" }
@@ -72,11 +78,57 @@ const setAt = (xs: boolean[], i: number, v: boolean) => xs.map((x, k) => (k === 
 /** The phase a step rests in once nothing is running and no sheet is up */
 const resting = (s: State): Phase => (s.error ? "failed" : s.passed[s.step] ? "passed" : "idle")
 
+/** The code a step checks hand-written work against: what its fix leaves, or its patch when it has no fix */
+export const targetFor = (step: Step) => step.fix?.after ?? step.patch?.after ?? null
+
+/** A step's passing build, for code that reached the target by hand */
+const passFor = (step: Step): Pass | null => [step.fix?.result, step.patch?.result].find((r): r is Pass => !!r && r.ok) ?? null
+
+/** What Review the fix shows. After the assistant's patch it's the step's own fix. After code
+ * written by hand it's the way from that code to the target, with the step's notes */
+export function fixFor(s: State): Patch | null {
+  const step = STEPS[s.step]
+  if (s.applied !== "own") return step.fix ?? null
+  const after = targetFor(step)
+  const result = passFor(step)
+  if (!after || !result) return null
+  return {
+    file: step.file,
+    before: s.files[step.file],
+    after,
+    summary: "Here is what this step needs, next to what you wrote.",
+    notes: [...(step.patch?.notes ?? []), ...(step.fix?.notes ?? [])],
+    result,
+  }
+}
+
 export function lastResult(s: State): BuildResult | null {
   const step = STEPS[s.step]
   if (step.deploy) return step.deploy.result
+  if (s.applied === "own") {
+    const target = targetFor(step)
+    if (!target) return null
+    const c = checkOwn(s.files[step.file], target, step.file)
+    return c.ok ? passFor(step) : c
+  }
   const p = s.applied === "fix" ? step.fix : step.patch
   return p?.result ?? null
+}
+
+/** Lines of the step's file the last patch added. They stay tinted while the build checks them
+ * and until the next action, so you can see what is being checked */
+export function freshLines(s: State): number[] {
+  const step = STEPS[s.step]
+  const p = s.applied === "fix" ? step.fix : s.applied === "patch" ? step.patch : undefined
+  if (!p || !(s.phase === "building" || s.phase === "passed" || s.phase === "failed")) return []
+  let n = 0
+  const lines: number[] = []
+  for (const row of diffLines(p.before, p.after)) {
+    if (row.kind === "removed") continue
+    n++
+    if (row.kind === "added") lines.push(n)
+  }
+  return lines
 }
 
 function reducer(s: State, a: Action): State {
@@ -120,26 +172,34 @@ function reducer(s: State, a: Action): State {
     case "askPatch":
       return { ...s, phase: "patch", review: "patch", sheet: false }
     case "reviewFix":
-      return step.fix ? { ...s, phase: "patch", review: "fix", sheet: false } : s
+      return fixFor(s) ? { ...s, phase: "patch", review: "fix", sheet: false } : s
     case "explain":
       return { ...s, phase: "explain", explain: a.mode, sheet: true }
     case "close":
       if (s.phase === "patch" || s.phase === "explain") return { ...s, phase: resting(s), sheet: false }
       return { ...s, sheet: false }
     case "apply": {
-      const p = s.review === "fix" ? step.fix : step.patch
+      const p = s.review === "fix" ? fixFor(s) : step.patch
       if (!p) return s
       return {
         ...s,
         undo: s.undo && s.undo.step === s.step ? s.undo : { step: s.step, files: s.files },
         files: { ...s.files, [p.file]: p.after },
-        applied: s.review,
+        // A fix for hand-written code lands on the target, and the build checks it as hand-written
+        applied: s.review === "fix" && s.applied === "own" ? "own" : s.review,
         phase: "building",
         sheet: false,
         error: null,
         log: [],
       }
     }
+    case "edit": {
+      // Typing clears a failed build's red line: the error was about the code before the change
+      const files = { ...s.files, [step.file]: a.code }
+      return { ...s, files, error: null, sheet: false, phase: s.passed[s.step] ? "passed" : "idle" }
+    }
+    case "buildOwn":
+      return { ...s, applied: "own", phase: "building", sheet: false, error: null, log: [] }
     case "built": {
       const r = lastResult(s)
       if (!r) return s
@@ -149,7 +209,7 @@ function reducer(s: State, a: Action): State {
         phase: "failed",
         sheet: false,
         log: r.log,
-        error: { line: r.line, reason: r.reason },
+        error: { line: r.line, reason: r.reason, explain: (r as Fail & { explain?: string }).explain },
         firstTry: setAt(s.firstTry, s.step, false),
       }
     }
@@ -188,9 +248,10 @@ function load(): State {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const saved = { ...initial(), ...(JSON.parse(raw) as Partial<State>) }
-      // A reload comes back through the gallery, where Continue picks the
-      // tutorial up. Timers and sheets don't survive it
-      return { ...saved, screen: "gallery", phase: resting(saved), sheet: false }
+      // A reload comes back through the gallery, where Continue picks the tutorial up. Switching
+      // views keeps the screen, and a patch under review stays up. Timers and sheets don't survive
+      const phase = KEEP && saved.phase === "patch" ? "patch" : resting(saved)
+      return { ...saved, screen: KEEP ? saved.screen : "gallery", phase, sheet: false }
     }
   } catch {
     // Storage blocked or broken: start fresh
