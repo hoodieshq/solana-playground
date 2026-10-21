@@ -3,15 +3,18 @@ import { cn } from "@/lib/utils"
 // " --> src/lib.rs:9:30": where the compiler points
 const POINTER = /-->\s*\S+?:(\d+)/
 
-/** With `onJump`, a line that points into the file is a link: it takes the editor to that line, as an IDE does */
+/** With `onJump`, a line that points into the file is a link: it takes the editor to that line, as an IDE does.
+ * `wrapErrors` lets the compiler's `error[...]` line wrap, for a phone, where it would run far past the edge */
 export function BuildLog({
   log,
   empty = "Nothing built yet. The build runs after you apply a patch.",
   onJump,
+  wrapErrors = false,
 }: {
   log: string[]
   empty?: string
   onJump?: (line: number) => void
+  wrapErrors?: boolean
 }) {
   if (log.length === 0) return <p className="flex-1 px-4 py-6 text-caption text-muted-foreground">{empty}</p>
   return (
@@ -23,7 +26,10 @@ export function BuildLog({
           "text-muted-foreground",
           line.startsWith("$") && "text-muted-foreground",
           line.startsWith("error") && "text-error",
-          /successful|finished$/i.test(line) && "text-success"
+          /successful|finished$/i.test(line) && "text-success",
+          // The one line that says what's wrong wraps whole, clear of the fade at the edge. The rest
+          // keep their columns
+          wrapErrors && line.startsWith("error") && "pr-6 break-words whitespace-pre-wrap"
         )
         const to = onJump && line.match(POINTER)
         return to ? (

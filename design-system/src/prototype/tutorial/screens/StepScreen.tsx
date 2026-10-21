@@ -18,25 +18,33 @@ import { InlineDiff } from "../ui/InlineDiff"
 import { readingMinutes } from "../ui/LessonBlocks"
 import { PredictZone } from "../ui/PredictZone"
 import { StepProgress } from "../ui/StepProgress"
-import { TopBar } from "../ui/TopBar"
 
 // Shown once a session: the first proposal opens its first note on its own
 let taughtNotes = false
 
+// A quiet action at the right end of the tabs row: 44px to hit, a word and an icon to read
+const TOOL = "ml-auto flex h-11 shrink-0 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
+
 export function StepScreen() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
-  const [tab, setTab] = useState<"code" | "build">("code")
+  const [tab, setTab] = useState<"code" | "output">("code")
   const [lesson, setLesson] = useState(false)
   const [computer, setComputer] = useState(false)
-  // Which line notes are open, and the prediction made on each step that asks one
+  // Which line notes are open
   const [notes, setNotes] = useState<number[]>([])
-
+  // The quick check's answer while its verdict shows, before the code does
+  const [picked, setPicked] = useState<number | null>(null)
+  // Whether the verdict still speaks for the patch on screen. It's for the patch the answer came
+  // with: once that patch is closed or undone, opening it again brings the assistant's line
+  const [verdict, setVerdict] = useState(false)
 
   useEffect(() => {
     setTab("code")
     setLesson(false)
     setComputer(false)
+    setPicked(null)
+    setVerdict(false)
   }, [s.step])
 
   useEffect(() => {
@@ -51,15 +59,27 @@ export function StepScreen() {
   }, [s.phase, s.deployStage, dispatch])
 
   // Deploying and running the client change no code: what they produce is the program id and
-  // the transaction, in the Build log. So when they pass, the step opens on that log
+  // the transaction, in the Output tab. So when they pass, the step opens on it. A patch or a fix
+  // is read in the file, never with the output open over it
   const showsOutput = !!step.deploy || step.id === "call-client"
   useEffect(() => {
-    if (s.phase === "passed" && showsOutput) setTab("build")
-  }, [s.phase, s.step, showsOutput])
+    if (s.phase === "passed" && showsOutput) setTab("output")
+    if (s.phase === "patch") setTab("code")
+    // A verdict belongs to the patch it came with. Don't apply, Undo or a build ends it
+    if (s.phase !== "patch") {
+      setVerdict(false)
+      setPicked(null)
+    }
+  }, [s.phase, s.review, s.step, showsOutput])
 
+  // Restore is for a build that failed: after a pass there's nothing to take back. It undoes the
+  // assistant's patch or fix, so it says so; code you wrote yourself is "your code"
+  const restorable = s.undo?.step === s.step && s.phase === "failed"
+  const undoesPatch = s.applied === "patch" || s.applied === "fix"
   const undo = () => {
     dispatch({ type: "undo" })
-    toast("File restored", { duration: 4000 })
+    setTab("code")
+    toast(undoesPatch ? "Patch undone" : "File restored", { duration: 4000 })
   }
 
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
@@ -67,7 +87,7 @@ export function StepScreen() {
   const asking = !!proposal && s.review === "patch" && !!step.predict && s.predicted[s.step] === undefined
   const answer = s.predicted[s.step]
   const lead =
-    s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
+    verdict && s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
       ? answer === step.predict.answer
         ? { text: step.predict.right, right: true }
         : { text: step.predict.wrong, right: false }
@@ -99,105 +119,108 @@ export function StepScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase, s.review, s.step, asking])
 
+  const minutes = readingMinutes(step)
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBar
-        title="Hello Anchor"
-        left={
-          <Button variant="ghost" size="icon" className="size-11" aria-label="Tutorial overview" onClick={() => dispatch({ type: "open", screen: "overview" })}>
-            <ChevronLeft className="size-6" />
-          </Button>
-        }
-        right={
-          <Button variant="ghost" size="icon" className="size-11" aria-label="Close tutorial" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
-            <X className="size-5" />
-          </Button>
-        }
-      />
+      {/* The bar and the way out share one row, as a lesson app keeps them: on a small phone a row
+          given back to the code is two or three lines of it. The tutorial's name is a tap away, in
+          the overview the back button opens */}
+      <header className="flex h-phone-head shrink-0 items-center border-b border-border px-1.5">
+        <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Tutorial overview" onClick={() => dispatch({ type: "open", screen: "overview" })}>
+          <ChevronLeft className="size-6" />
+        </Button>
+        <div className="min-w-0 flex-1">
+          <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
+        </div>
+        <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Close tutorial" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+          <X className="size-5" />
+        </Button>
+      </header>
 
-      <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
-
-      {/* 9px here, the chip's own 4px and the 1px line make 14 above it, the same as below */}
-      <section className="border-b border-border px-4 pb-[9px]">
-        <h2 className="line-clamp-3 text-title">{step.objective}</h2>
-        {/* The lesson opens in a sheet, so the code stays where it is. A chip, not a footnote: it's the
-            tutorial's teaching, and the reading time says what it costs */}
-        <button type="button" onClick={() => setLesson(true)} className="mt-1 flex min-h-11 items-center">
-          <span className="flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground">
+      <section className="border-b border-border px-4 pt-2 pb-3">
+        {/* Where the step sits, as on desktop, with the lesson at the row's end. The lesson opens in a
+            sheet, so the code stays where it is. Its reading time says what it costs. Sized by the
+            row's own width, which a larger font narrows: there it keeps the book and the minutes */}
+        <div className="@container flex h-9 items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-caption text-muted-foreground">
+            Step {s.step + 1} of {STEPS.length} · {step.title}
+          </p>
+          <button
+            type="button"
+            onClick={() => setLesson(true)}
+            aria-label={`Read the lesson, ${minutes} min`}
+            // The chip shows at 36px; the strip around it makes the 44 a finger needs
+            className="relative flex h-9 shrink-0 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] active:bg-surface"
+          >
             <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
             {/* One span, so the dot gets a plain space on both sides rather than the flex gap before it */}
-            <span>
-              Read the lesson <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
-            </span>
-          </span>
-        </button>
-      </section>
-
-      {/* 8px on top so the tabs sit evenly between the line above and the code */}
-      <div className="flex items-center px-4 pt-2">
-        <div role="tablist" aria-label="Views" className="flex gap-1 text-caption">
-        {(["code", "build"] as const).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={cn("flex h-11 items-center text-muted-foreground", tab === t && "text-foreground")}
-          >
-            {/* The pill is what shows, the button around it is the 44px target */}
-            <span className={cn("flex h-8 items-center gap-1.5 rounded-control px-3", tab === t && "bg-surface-raised")}>
-              {t === "code" ? step.file.split("/").pop() : "Build"}
-              {t === "build" && s.log.length > 0 && (
-                // Typing on desktop clears the error but keeps the log, so the dot follows whether the step passed
-                <span className={cn("size-1.5 rounded-full", s.error || !s.passed[s.step] ? "bg-error" : "bg-success")} />
-              )}
+            <span aria-hidden="true">
+              <span className="@max-xs:hidden">Read the lesson · </span>
+              <span className="text-muted-foreground @max-xs:text-foreground">{minutes} min</span>
             </span>
           </button>
-        ))}
+        </div>
+        {/* Two lines at most: the lesson says the rest */}
+        <h2 className="mt-1 line-clamp-2 text-title">{step.objective}</h2>
+      </section>
+
+      {/* 8px on top so the tabs sit evenly between the line above and the code. Sized by its own
+          width too: on a narrow row the tool at its end keeps a short word */}
+      <div className="@container flex items-center px-4 pt-2">
+        <div role="tablist" aria-label="Views" className="flex shrink-0 gap-1 text-caption">
+          {(["code", "output"] as const).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              type="button"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn("flex h-11 items-center text-muted-foreground", tab === t && "text-foreground")}
+            >
+              {/* The pill is what shows, the button around it is the 44px target */}
+              <span className={cn("flex h-8 items-center gap-1.5 rounded-control px-3 @max-xs:px-2.5", tab === t && "bg-surface-raised")}>
+                {/* Output, not Build: it holds the client's run as well as the build and the deploy */}
+                {t === "code" ? step.file.split("/").pop() : "Output"}
+                {t === "output" && s.log.length > 0 && (
+                  // Typing on desktop clears the error but keeps the log, so the dot follows whether the step passed
+                  <span className={cn("size-1.5 rounded-full", s.error || !s.passed[s.step] ? "bg-error" : "bg-success")} />
+                )}
+              </span>
+            </button>
+          ))}
         </div>
         {/* Every note at once, for reading the whole change. Tapping a dotted line opens just that one */}
         {proposal && !asking && tab === "code" && allNotes.length > 0 && (
-          <button
-            type="button"
-            aria-pressed={notes.length === allNotes.length}
-            onClick={() => setNotes(notes.length === allNotes.length ? [] : allNotes)}
-            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
-          >
-            <span className="size-[7px] rounded-full bg-brand-purple ring-3 ring-brand-purple/25" />
+          <button type="button" aria-pressed={notes.length === allNotes.length} onClick={() => setNotes(notes.length === allNotes.length ? [] : allNotes)} className={TOOL}>
+            <span className="size-[7px] shrink-0 rounded-full bg-brand-purple ring-3 ring-brand-purple/25" />
             {notes.length === allNotes.length ? "Hide notes" : "Show notes"}
           </button>
         )}
         {/* The way out for someone who wants to type: while a step waits for its patch */}
         {step.patch && s.phase === "idle" && !s.passed[s.step] && (
-          <button
-            type="button"
-            onClick={() => setComputer(true)}
-            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
-          >
-            <Monitor strokeWidth={1.75} className="size-4" />
-            Write it yourself
+          <button type="button" onClick={() => setComputer(true)} className={TOOL}>
+            <Monitor strokeWidth={1.75} className="size-4 shrink-0" />
+            <span className="@max-xs:hidden">Write it yourself</span>
+            <span className="hidden @max-xs:inline">Type it</span>
           </button>
         )}
         {/* Undo sits by the code it reverts, away from the main button and big enough to tap */}
-        {s.undo && (s.phase === "passed" || s.phase === "failed") && (
-          <button
-            type="button"
-            onClick={undo}
-            className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
-          >
-            <RotateCcw strokeWidth={1.75} className="size-4" />
-            Restore my code
+        {restorable && (
+          <button type="button" onClick={undo} className={TOOL}>
+            <RotateCcw strokeWidth={1.75} className="size-4 shrink-0" />
+            <span className="@max-xs:hidden">{undoesPatch ? "Undo the patch" : "Restore my code"}</span>
+            <span className="hidden @max-xs:inline">{undoesPatch ? "Undo" : "Restore"}</span>
           </button>
         )}
       </div>
 
       {/* A proposal shows in place, as a diff of the file. The assistant speaks from the bottom zone */}
-      {tab === "build" ? (
+      {tab === "output" ? (
         // After a deploy the program id sits under the log in one line, with Copy and Explorer.
         // A passed deploy opened again shows its log, which leaving the step cleared
         <div className="flex min-h-0 flex-1 flex-col bg-surface-well">
-          <BuildLog log={s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log} />
+          <BuildLog wrapErrors log={s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log} />
           {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
           {step.id === "call-client" && s.passed[s.step] && <Transaction className="mx-4 mb-3" />}
         </div>
@@ -208,7 +231,17 @@ export function StepScreen() {
       )}
 
       {asking && step.predict ? (
-        <PredictZone predict={step.predict} onAnswer={(choice) => dispatch({ type: "predict", choice })} />
+        <PredictZone
+          predict={step.predict}
+          picked={picked}
+          onPick={setPicked}
+          onReveal={() => {
+            if (picked === null) return
+            setVerdict(true)
+            dispatch({ type: "predict", choice: picked })
+          }}
+          onSkip={() => dispatch({ type: "predict", choice: "skip" })}
+        />
       ) : (
         <ActionZone lead={lead} />
       )}
