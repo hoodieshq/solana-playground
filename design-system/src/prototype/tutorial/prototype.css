@@ -167,3 +167,47 @@ a[href] {
     animation: none;
   }
 }
+
+/* A step passes: the status's ring draws closed, then its tick, about a third of a second in all.
+   With reduced motion the mark is whole at once */
+.pg-pass-ring,
+.pg-pass-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pg-draw 220ms var(--ease-standard-value) forwards;
+}
+.pg-pass-tick {
+  animation-duration: 140ms;
+  animation-delay: 180ms;
+  animation-timing-function: var(--ease-out-value);
+}
+@keyframes pg-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-pass-ring,
+  .pg-pass-tick {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ...and its segment of the progress bar takes a short sweep of light as the fill reaches it, so the
+   bar says which step just went in. Gone with reduced motion: the fill alone says it */
+.pg-sweep {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  transform: translateX(-100%);
+  animation: pg-sweep 260ms var(--ease-standard-value) 160ms forwards;
+}
+@keyframes pg-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-sweep {
+    display: none;
+  }
+}

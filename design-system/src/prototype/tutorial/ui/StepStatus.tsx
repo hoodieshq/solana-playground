@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { CircleAlert, CircleCheck, CircleDashed, Lightbulb } from "lucide-react"
 
 import { Spinner } from "@/components/ui/spinner"
@@ -18,12 +19,33 @@ export function workingLabel(s: State) {
   return STEPS[s.step].id === "call-client" ? "Running..." : "Building..."
 }
 
+const RUNS = ["building", "deploying", "calling"]
+
+/** The pass, drawn: the ring closes from the top, clockwise, then the tick follows, so the mark reads
+ * as the run finishing rather than a badge swapped in. Lucide's CircleCheck, stroke for stroke. Keyed
+ * by the caller, so each pass draws once; with reduced motion it's simply there (prototype.css) */
+function PassMark() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px size-4 shrink-0 text-success">
+      <circle cx="12" cy="12" r="10" pathLength={1} transform="rotate(-90 12 12)" className="pg-pass-ring" />
+      <path d="m9 12 2 2 4-4" pathLength={1} className="pg-pass-tick" />
+    </svg>
+  )
+}
+
 /** The step's status: one icon and one sentence. Each signal shows once: the icon (dashed,
  * spinner, check, alert) lives only here, the button carries the action and its colour */
 export function StepStatus({ lead }: { lead?: Lead }) {
   const { s } = useStore()
   const step = STEPS[s.step]
   const r = lastResult(s)
+  // A pass seen live, from a run that just finished, draws its mark; one found on opening a passed
+  // step doesn't. Worked out while rendering, so the first frame of the pass already draws
+  const [seen, setSeen] = useState({ phase: s.phase, step: s.step, passes: 0 })
+  if (seen.phase !== s.phase || seen.step !== s.step) {
+    const live = s.phase === "passed" && seen.step === s.step && RUNS.includes(seen.phase)
+    setSeen({ phase: s.phase, step: s.step, passes: seen.passes + (live ? 1 : 0) })
+  }
   // Under the explanation sheet the step keeps saying where it stands: the error it explains, or the pass
   const phase =
     s.phase === "explain"
@@ -55,7 +77,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
   if (phase === "passed" && r?.ok)
     return (
       <>
-        <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
+        {seen.passes > 0 ? <PassMark key={seen.passes} /> : <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />}
         {/* A step with a call passed on the call, so the call says how */}
         <span className="text-success">{step.call?.note ?? r.note}</span>
       </>

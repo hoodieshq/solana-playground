@@ -1,4 +1,4 @@
-import { Fragment } from "react"
+import { Fragment, useState } from "react"
 
 import { ObjectiveMeter } from "@/components/ui/objective-band"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -26,11 +26,29 @@ export function StepProgress({
   numbered?: boolean
 }) {
   const done = passed.filter(Boolean).length
+  // The step that has just passed while the bar was on screen, for its sweep. Opening a step that
+  // passed long ago sweeps nothing. Worked out while rendering, so the sweep starts with the fill
+  const [seen, setSeen] = useState({ passed, sweep: null as { step: number; n: number } | null })
+  if (seen.passed !== passed) {
+    const step = passed.findIndex((p, i) => p && !seen.passed[i])
+    setSeen({ passed, sweep: step === -1 ? seen.sweep : { step, n: (seen.sweep?.n ?? 0) + 1 } })
+  }
+  const sweep = seen.sweep
   return (
     <div className="flex items-center gap-3 px-4">
       <div className="relative min-w-0 flex-1">
-        <div className="flex h-11 items-center">
+        <div className="relative flex h-11 items-center">
           <ObjectiveMeter value={done / STEPS.length} className="h-1 w-full" />
+          {sweep && (
+            // Over the segment the step fills, clipped to the bar's own shape
+            <span
+              aria-hidden="true"
+              style={{ left: `${(sweep.step / STEPS.length) * 100}%`, width: `${100 / STEPS.length}%` }}
+              className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full"
+            >
+              <span key={sweep.n} className="pg-sweep block size-full" />
+            </span>
+          )}
         </div>
         <nav aria-label="Steps" className="absolute inset-0 flex">
           {STEPS.map((step, i) => {
