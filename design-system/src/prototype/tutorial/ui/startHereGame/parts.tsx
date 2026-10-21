@@ -5,16 +5,14 @@ import { cn } from "@/lib/utils"
 /* What the mechanics share: the code card they play on and its lines */
 
 /** The editor card, glass over the banner's pixels like the banner's own picture. Its mono size
- * and line height are the ones every mechanic sets its code in. `reply` is the terminal's short
- * answer to the last move, set under the code inside the card so it never sits on the pixels */
-export function CodeCard({ file = "src/lib.rs", className, reply, children }: { file?: string; className?: string; reply?: ReactNode; children: ReactNode }) {
+ * and line height are the ones every mechanic sets its code in. No file tab: the banner's height is
+ * fixed, and the code needs the room. `reply` is the terminal's short answer to the last move, set
+ * under the code inside the card so it never sits on the pixels */
+export function CodeCard({ className, reply, children }: { className?: string; reply?: ReactNode; children: ReactNode }) {
   return (
-    <div className={cn("rounded-panel border border-border bg-surface-well/80 font-mono text-[0.75rem]/[1.25rem] backdrop-blur-[6px]", className)}>
-      <div aria-hidden="true" className="flex h-8 items-center border-b border-border px-4 text-muted-foreground">
-        {file}
-      </div>
-      <div className="px-4 py-2.5">{children}</div>
-      {reply && <div className="border-t border-border px-4 py-2 text-muted-foreground">{reply}</div>}
+    <div className={cn("rounded-panel border border-border bg-surface-well/85 font-mono text-[0.75rem]/[1.25rem] backdrop-blur-[6px]", className)}>
+      <div className="px-3 py-2">{children}</div>
+      {reply && <div className="border-t border-border px-3 py-1.5 text-muted-foreground">{reply}</div>}
     </div>
   )
 }
@@ -29,10 +27,16 @@ export function Reply({ children }: { children: ReactNode }) {
 }
 
 /** A line of code that's only there for context: dim, never wrapped, faded out at the card's edge
- * when a narrow screen can't fit it */
-export function ContextLine({ n, children }: { n: number; children: ReactNode }) {
+ * when it can't fit. `plain` keeps its own colours, for a line that matters but may still run long */
+export function ContextLine({ n, plain = false, children }: { n: number; plain?: boolean; children: ReactNode }) {
   return (
-    <div aria-hidden="true" className="flex min-h-5 overflow-hidden whitespace-pre text-muted-foreground/75 [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]">
+    <div
+      aria-hidden="true"
+      className={cn(
+        "flex min-h-5 overflow-hidden whitespace-pre [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]",
+        plain ? "text-syntax-plain" : "text-muted-foreground/75"
+      )}
+    >
       <Gutter n={n} />
       {children}
     </div>

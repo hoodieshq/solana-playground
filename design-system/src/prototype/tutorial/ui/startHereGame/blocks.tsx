@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { PROGRAM_ID, shortKey } from "../../data"
 import { highlight } from "../CodeView"
 import { EASE_OUT, reducedMotion } from "./motion"
-import { CodeCard, ContextLine, Gutter, Reply } from "./parts"
+import { CodeCard, Gutter } from "./parts"
 import type { PlayProps } from "./types"
 
 /* The block puzzle: the four lines every Anchor program starts from, as blocks. Each block's tab
@@ -30,19 +30,6 @@ const SLOTS = [
   { piece: "program", hint: "program attribute", line: 3, indent: 0 },
   { piece: "msg", hint: "log line", line: 6, indent: 8 },
 ]
-
-// The lines around the slots, there for context: after slot 3, and after slot 4
-const AFTER: Record<number, [number, string][]> = {
-  2: [
-    [4, "pub mod hello_anchor {"],
-    [5, "    pub fn hello(_ctx: Context<Hello>) -> Result<()> {"],
-  ],
-  3: [
-    [7, "        Ok(())"],
-    [8, "    }"],
-    [9, "}"],
-  ],
-}
 
 // The tray's order: shuffled once by hand, println! next to the block it imitates
 const TRAY = ["msg", "use", "println", "program", "id"]
@@ -76,13 +63,14 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
   const [placed, setPlaced] = useState<Record<number, string>>({})
   const [held, setHeld] = useState<string | null>(null)
   const [misses, setMisses] = useState<Record<string, number>>({})
-  const [reply, setReply] = useState<string | null>(null)
+  // What the slot itself says after a miss, in place of its hint, until the next move
+  const [reply, setReply] = useState<{ slot: number; text: string } | null>(null)
   const blocks = useRef<Record<string, HTMLButtonElement | null>>({})
   const slots = useRef<Record<number, HTMLButtonElement | null>>({})
   const card = useRef<HTMLDivElement>(null)
   // Where a block was the moment it fitted, to fly it from there into its slot
   const flight = useRef<{ piece: string; from: DOMRect } | null>(null)
-  const drag = useRef<{ piece: string; x: number; y: number; moved: boolean; el: HTMLButtonElement } | null>(null)
+  const drag = useRef<{ piece: string; x: number; y: number; el: HTMLButtonElement; ghost: HTMLElement | null } | null>(null)
   const dragged = useRef(false)
 
   const solved = SLOTS.every((s, i) => placed[i] === s.piece)
@@ -118,14 +106,14 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
     el.animate([{ transform: "none" }, { transform: "translateX(3px)" }, { transform: "translateX(-2px)" }, { transform: "none" }], { duration: 220, easing: EASE_OUT })
   }
 
-  const attempt = (piece: string, slot: number) => {
+  const attempt = (piece: string, slot: number, from?: DOMRect) => {
     const el = blocks.current[piece]
     if (placed[slot] !== undefined || !el) return
     const target = SLOTS[slot]
     setHeld(null)
 
     if (target.piece === piece) {
-      flight.current = { piece, from: el.getBoundingClientRect() }
+      flight.current = { piece, from: from ?? el.getBoundingClientRect() }
       const next = { ...placed, [slot]: piece }
       setPlaced(next)
       setReply(null)
@@ -144,17 +132,21 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
     springBack(el)
     nudge(slot)
     let text: string
+    let short: string
     if (piece === "println" && target.piece === "msg") {
       text = "Close. On Solana, msg! writes to the program log."
+      short = "close: on Solana, msg! logs"
     } else {
       const miss = (misses[piece] ?? 0) + 1
       setMisses({ ...misses, [piece]: miss })
       const home = SLOTS.findIndex((s) => s.piece === piece)
       text = `Doesn't fit slot ${slot + 1}. Slot ${slot + 1} takes the ${target.hint}.`
+      short = `${target.hint}, not that one`
       // Two misses with the same block, and its slot shows itself, so everyone gets to Run
       if (miss >= 2 && home !== -1) text += ` This one goes in slot ${home + 1}.`
     }
-    setReply(text)
+    // The reason is said in words where the eye already is, the slot it didn't fit
+    setReply({ slot, text: short })
     announce(text)
     focusSoon(() => blocks.current[piece])
   }
@@ -190,10 +182,11 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
     return () => runs.forEach((r) => r.cancel())
   }, [solved])
 
-  // The mouse can drag a block too. Touch taps instead, so a drag never fights the page's scroll
+  // The mouse can drag a block too. Touch taps instead, so a drag never fights the page's scroll.
+  // What moves is a copy on top of the page, so no scrolling row or card edge can clip it
   const down = (e: PointerEvent<HTMLButtonElement>, piece: string) => {
     if (e.pointerType !== "mouse" || e.button !== 0 || locked) return
-    drag.current = { piece, x: e.clientX, y: e.clientY, moved: false, el: e.currentTarget }
+    drag.current = { piece, x: e.clientX, y: e.clientY, el: e.currentTarget, ghost: null }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const move = (e: PointerEvent<HTMLButtonElement>) => {
@@ -201,15 +194,30 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
     if (!d) return
     const dx = e.clientX - d.x
     const dy = e.clientY - d.y
-    if (!d.moved && Math.hypot(dx, dy) < 4) return
-    d.moved = true
-    d.el.style.transform = `translate(${dx}px, ${dy}px)`
-    d.el.style.zIndex = "20"
+    if (!d.ghost) {
+      if (Math.hypot(dx, dy) < 4) return
+      const r = d.el.getBoundingClientRect()
+      const g = d.el.cloneNode(true) as HTMLElement
+      g.setAttribute("aria-hidden", "true")
+      Object.assign(g.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, margin: "0", zIndex: "50", pointerEvents: "none", transition: "none" })
+      document.body.appendChild(g)
+      d.ghost = g
+      d.el.style.opacity = "0.35"
+    }
+    d.ghost.style.transform = `translate(${dx}px, ${dy}px)`
+  }
+  const drop = (d: NonNullable<typeof drag.current>, back: boolean) => {
+    const g = d.ghost
+    d.el.style.opacity = ""
+    if (!g) return
+    if (!back || reducedMotion()) return g.remove()
+    // Back to where it came from, quickly and without a bounce
+    g.animate([{ transform: g.style.transform }, { transform: "none" }], { duration: 220, easing: EASE_OUT }).onfinish = () => g.remove()
   }
   const up = (e: PointerEvent<HTMLButtonElement>) => {
     const d = drag.current
     drag.current = null
-    if (!d?.moved) return
+    if (!d?.ghost) return
     // The click that may follow a drag isn't a pick. Not every browser sends one after a drag, so
     // the flag clears itself once this event is over instead of waiting for it
     dragged.current = true
@@ -218,8 +226,15 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
       const r = slots.current[i]?.getBoundingClientRect()
       return r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
     })
-    if (slot === undefined) springBack(d.el)
-    else attempt(d.piece, slot)
+    const fits = slot !== undefined && SLOTS[slot].piece === d.piece
+    const at = d.ghost.getBoundingClientRect()
+    drop(d, !fits)
+    if (slot !== undefined) attempt(d.piece, slot, fits ? at : undefined)
+  }
+  const cancel = () => {
+    const d = drag.current
+    drag.current = null
+    if (d) drop(d, true)
   }
 
   const slotKeys = (e: KeyboardEvent, slot: number) => {
@@ -239,139 +254,142 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
   }
 
   const block = (p: Piece, props: { placed?: boolean } = {}) => (
-    <span className="relative flex h-11 min-w-0 items-center rounded-control border pr-3 pl-4 whitespace-pre text-syntax-plain" style={tint(p)}>
+    <span className="relative flex h-7 min-w-0 items-center rounded-control border pr-2.5 pl-3.5 whitespace-pre text-syntax-plain" style={tint(p)}>
       <Tab shape={p.shape} color={p.color} />
       <span className={cn("truncate", props.placed && "overflow-visible")}>{highlight(p.code)}</span>
     </span>
   )
 
   return (
+    // Side by side where there's room, the tray on the left to drag from; stacked, the tray is a
+    // row under the code that scrolls sideways
     <div className="@container/blocks">
-      <CodeCard reply={reply && <Reply>{reply}</Reply>}>
-        <div ref={card} role="list" aria-label="Program slots">
-          {SLOTS.map((s, i) => {
-            const piece = placed[i] ? PIECES[placed[i]] : null
-            const shown = PIECES[s.piece]
-            // After two misses with this slot's own block, the slot shows itself in that block's colour
-            const showMe = !piece && (misses[s.piece] ?? 0) >= 2
-            return (
-              <div key={i}>
-                {solved ? (
-                  <div data-built="" role="listitem" className="flex min-h-5 whitespace-pre text-syntax-plain">
-                    <Gutter n={s.line} />
-                    {/* One span: a flex row drops a text node of spaces on its own */}
-                    <span>
-                      {" ".repeat(s.indent)}
-                      {highlight(shown.code)}
-                    </span>
-                  </div>
-                ) : (
-                  <div role="listitem" className="flex items-center py-0.5">
-                    <Gutter n={s.line} />
-                    <button
-                      ref={(el) => {
-                        slots.current[i] = el
-                      }}
-                      type="button"
-                      tabIndex={held && !piece ? 0 : -1}
-                      aria-disabled={!held || !!piece}
-                      aria-label={piece ? `Slot ${i + 1}: ${piece.code}` : `Slot ${i + 1}, ${s.hint}, empty${showMe ? ", your block goes here" : ""}`}
-                      onClick={() => held && !piece && attempt(held, i)}
-                      onKeyDown={(e) => slotKeys(e, i)}
-                      // The indent gives way on a narrow phone, so the slot keeps room for its words. The
-                      // highlight that helps after two misses: the block's colour on a solid edge, and the
-                      // words in the slot say it too
-                      style={{ marginLeft: `min(${s.indent}ch, 18%)`, ...(showMe && { borderColor: shown.color, borderStyle: "solid" }) }}
-                      className={cn(
-                        "relative flex min-h-11 min-w-0 flex-1 items-center rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-                        !piece && "border border-dashed pl-4 transition-colors duration-150 motion-reduce:transition-none",
-                        !piece && (held ? "border-border-strong bg-surface-raised/40" : "border-border"),
-                        held && !piece && "cursor-pointer"
-                      )}
-                    >
-                      {piece ? (
-                        <span data-placed={piece.id} className="flex min-w-0 flex-1">
-                          {block(piece, { placed: true })}
-                        </span>
-                      ) : (
-                        <>
-                          {/* The notch in its block's colour, dimmer until it's the one to look at */}
-                          <Tab shape={shown.shape} color={showMe ? shown.color : `color-mix(in oklab, ${shown.color} 55%, var(--border-strong))`} notch />
-                          <span className="truncate text-muted-foreground">
-                            <span className="text-syntax-comment">//</span> {showMe ? `${s.hint}: this one` : s.hint}
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-                {AFTER[i]?.map(([n, code]) => (
-                  <div key={n} data-built="">
-                    <ContextLine n={n}>{code}</ContextLine>
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      </CodeCard>
-
-      {!solved && (
-        <>
-          <p id={helpId} className="sr-only">
-            Pick a block, then a slot. With a keyboard, Enter picks a block, the arrow keys move between slots, Enter puts it in and Escape puts it back.
-          </p>
-          {/* A row that scrolls sideways on a phone, a wrapping tray where there's room */}
-          <ul
-            aria-label="Blocks"
-            aria-describedby={helpId}
-            className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pt-1 pb-2 pl-3 @min-[20rem]/blocks:flex-wrap @min-[20rem]/blocks:overflow-visible"
-          >
-            {tray.map((id) => {
-              const p = PIECES[id]
+      <div className="grid gap-2 [grid-template-areas:'slots'_'tray'] @min-[30rem]/blocks:grid-cols-[auto_minmax(0,1fr)] @min-[30rem]/blocks:gap-3 @min-[30rem]/blocks:[grid-template-areas:'tray_slots']">
+        <CodeCard className="[grid-area:slots]">
+          <div ref={card} role="list" aria-label="Program slots">
+            {SLOTS.map((s, i) => {
+              const piece = placed[i] ? PIECES[placed[i]] : null
+              const shown = PIECES[s.piece]
+              // After two misses with this slot's own block, the slot shows itself in that block's colour
+              const showMe = !piece && (misses[s.piece] ?? 0) >= 2
+              const says = reply?.slot === i ? reply.text : showMe ? `${s.hint}: this one` : s.hint
               return (
-                <li key={id} className="shrink-0">
-                  <button
-                    ref={(el) => {
-                      blocks.current[id] = el
-                    }}
-                    type="button"
-                    disabled={locked}
-                    aria-pressed={held === id}
-                    onClick={() => {
-                      if (dragged.current) {
-                        dragged.current = false
-                        return
-                      }
-                      pick(id)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape" && held === id) {
-                        setHeld(null)
-                        announce("Put back")
-                      }
-                    }}
-                    onPointerDown={(e) => down(e, id)}
-                    onPointerMove={move}
-                    onPointerUp={up}
-                    onPointerCancel={(e) => {
-                      drag.current = null
-                      springBack(e.currentTarget)
-                    }}
-                    className={cn(
-                      "relative block rounded-control font-mono text-[0.75rem]/[1.25rem] outline-none transition-transform duration-220 ease-standard select-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:transition-none pointer-fine:cursor-grab!",
-                      held === id && "-translate-y-0.5 ring-2 ring-[var(--ring-color)]"
-                    )}
-                    style={{ "--ring-color": p.color } as CSSProperties}
-                  >
-                    {block(p)}
-                  </button>
-                </li>
+                <div key={i}>
+                  {/* Lines 4 and 5 (the module and the function) are folded away, the way an editor does */}
+                  {i === 3 && (
+                    <div aria-hidden="true" data-built="" className="flex h-3 items-center text-[0.625rem] text-syntax-comment">
+                      <span className="w-[3ch]" />
+                      <span className="rounded-sm bg-surface-raised px-1 leading-none">⋯</span>
+                    </div>
+                  )}
+                  {solved ? (
+                    <div data-built="" role="listitem" className="flex h-[1.875rem] items-center whitespace-pre text-syntax-plain">
+                      <Gutter n={s.line} />
+                      {/* One span: a flex row drops a text node of spaces on its own */}
+                      <span>
+                        {" ".repeat(s.indent)}
+                        {highlight(shown.code)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div role="listitem" className="flex h-[1.875rem] items-center">
+                      <Gutter n={s.line} />
+                      <button
+                        ref={(el) => {
+                          slots.current[i] = el
+                        }}
+                        type="button"
+                        tabIndex={held && !piece ? 0 : -1}
+                        aria-disabled={!held || !!piece}
+                        aria-label={piece ? `Slot ${i + 1}: ${piece.code}` : `Slot ${i + 1}, ${s.hint}, empty${showMe ? ", your block goes here" : ""}`}
+                        onClick={() => held && !piece && attempt(held, i)}
+                        onKeyDown={(e) => slotKeys(e, i)}
+                        // The indent gives way where the card is narrow, so the slot keeps room for its words.
+                        // The highlight that helps after two misses: the block's colour on a solid edge, and
+                        // the words in the slot say it too
+                        style={{ marginLeft: `min(${s.indent}ch, 18%)`, ...(showMe && { borderColor: shown.color, borderStyle: "solid" }) }}
+                        className={cn(
+                          "relative flex h-7 min-w-0 flex-1 items-center rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+                          !piece && "border border-dashed pl-3.5 transition-colors duration-150 motion-reduce:transition-none",
+                          !piece && (held ? "border-border-strong bg-surface-raised/40" : "border-border"),
+                          held && !piece && "cursor-pointer"
+                        )}
+                      >
+                        {piece ? (
+                          <span data-placed={piece.id} className="flex min-w-0 flex-1">
+                            {block(piece, { placed: true })}
+                          </span>
+                        ) : (
+                          <>
+                            {/* The notch in its block's colour, dimmer until it's the one to look at */}
+                            <Tab shape={shown.shape} color={showMe ? shown.color : `color-mix(in oklab, ${shown.color} 55%, var(--border-strong))`} notch />
+                            <span className={cn("truncate", reply?.slot === i ? "text-foreground" : "text-muted-foreground")}>
+                              <span className="text-syntax-comment">//</span> {says}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )
             })}
-          </ul>
-        </>
-      )}
+          </div>
+        </CodeCard>
+
+        {!solved && (
+          <>
+            <p id={helpId} className="sr-only">
+              Pick a block, then a slot. With a keyboard, Enter picks a block, the arrow keys move between slots, Enter puts it in and Escape puts it back.
+            </p>
+            <ul
+              aria-label="Blocks"
+              aria-describedby={helpId}
+              className="flex gap-2 overflow-x-auto py-1 pl-2 [grid-area:tray] @min-[30rem]/blocks:flex-col @min-[30rem]/blocks:gap-1.5 @min-[30rem]/blocks:overflow-visible @min-[30rem]/blocks:py-0"
+            >
+              {tray.map((id) => {
+                const p = PIECES[id]
+                return (
+                  <li key={id} className="shrink-0">
+                    <button
+                      ref={(el) => {
+                        blocks.current[id] = el
+                      }}
+                      type="button"
+                      disabled={locked}
+                      aria-pressed={held === id}
+                      onClick={() => {
+                        if (dragged.current) {
+                          dragged.current = false
+                          return
+                        }
+                        pick(id)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape" && held === id) {
+                          setHeld(null)
+                          announce("Put back")
+                        }
+                      }}
+                      onPointerDown={(e) => down(e, id)}
+                      onPointerMove={move}
+                      onPointerUp={up}
+                      onPointerCancel={cancel}
+                      className={cn(
+                        "relative block rounded-control font-mono text-[0.75rem]/[1.25rem] outline-none transition-transform duration-220 ease-standard select-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:transition-none pointer-fine:cursor-grab!",
+                        held === id && "-translate-y-0.5 ring-2 ring-[var(--ring-color)]"
+                      )}
+                      style={{ "--ring-color": p.color } as CSSProperties}
+                    >
+                      {block(p)}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
+      </div>
     </div>
   )
 }
