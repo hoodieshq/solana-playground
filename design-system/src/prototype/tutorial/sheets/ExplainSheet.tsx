@@ -17,8 +17,10 @@ function Body({ mode }: { mode: "step" | "error" }) {
   const [asked, setAsked] = useState<Chip[]>([])
   const [free, setFree] = useState(false)
   const text = withFix ? s.error?.explain ?? step.explainError ?? "" : step.explainStep
-  // About the error while explaining it, about the lesson otherwise
-  const left = (withFix ? (step.errorChips ?? step.chips) : step.chips).filter((c) => !asked.includes(c))
+  // About the error while explaining it. Otherwise about the lesson, with the error's questions first
+  // once a build of the step has failed, the planned failure on step 1 too, as on desktop
+  const chips = withFix ? (step.errorChips ?? step.chips) : [...(s.failedOnce[s.step] ? (step.errorChips ?? []) : []), ...step.chips]
+  const left = chips.filter((c) => !asked.includes(c))
   // A chip's question and its answer come in under what's there: bring the question to the top of
   // the sheet, so the answer types out in view instead of below the fold. Scrolled by hand, not by
   // scrollIntoView, which would move the page around the device frame too. The question can only
@@ -89,8 +91,8 @@ function Body({ mode }: { mode: "step" | "error" }) {
         )}
         {free && (
           <div className="pb-2">
-            <Input autoFocus placeholder="Ask about this step..." className="h-11" />
-            <p className="mt-1.5 text-caption text-muted-foreground">Free chat is off in this prototype.</p>
+            <Input autoFocus placeholder="Ask about this step" className="h-11" />
+            <p className="mt-1.5 text-caption text-muted-foreground">Free chat isn't connected in this prototype. Try a suggestion.</p>
           </div>
         )}
       </div>
