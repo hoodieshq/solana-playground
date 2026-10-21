@@ -1,5 +1,4 @@
 import { FC, useState } from "react";
-import styled from "styled-components";
 
 import CodeResult from "../CodeResult";
 import InputLabel from "../InputLabel";
@@ -77,7 +76,7 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
 
   return (
     <Interaction name={accountName} index={index}>
-      <InputWrapper>
+      <div className="my-2">
         <InputLabel name="address" type="publicKey" />
         <SearchBar
           value={address}
@@ -86,9 +85,9 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
           setError={setAddressError}
           validator={PgCommon.isPk}
         />
-      </InputWrapper>
+      </div>
 
-      <ButtonsWrapper>
+      <div className="flex flex-wrap gap-2">
         <AsyncButton
           variant="outline"
           onClick={fetchOne}
@@ -105,10 +104,10 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
         >
           Fetch All
         </AsyncButton>
-      </ButtonsWrapper>
+      </div>
 
       {(fetchedData || fetchError) && (
-        <ResultWrapper>
+        <div className="mt-4 w-full">
           <Collapsible open={resultOpen} onOpenChange={setResultOpen}>
             <CollapsibleHeading>
               <CollapsibleChevron />
@@ -128,25 +127,10 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
               </SpinnerWithBg>
             </CollapsibleContent>
           </Collapsible>
-        </ResultWrapper>
+        </div>
       )}
     </Interaction>
   );
 };
-
-const InputWrapper = styled.div`
-  margin: 0.5rem 0;
-`;
-
-const ButtonsWrapper = styled.div`
-  display: flex;
-  flex-direction: row;
-  gap: 0.75rem;
-`;
-
-const ResultWrapper = styled.div`
-  margin-top: 1rem;
-  width: 100%;
-`;
 
 export default Account;

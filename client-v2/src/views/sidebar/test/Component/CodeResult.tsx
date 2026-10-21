@@ -1,27 +1,18 @@
-import styled, { css } from "styled-components";
+import { CodeBlock, CodeBlockContent } from "@/shared/ui/code-block";
 
-import CodeBlock, { CodeBlockProps } from "../../../../components/CodeBlock";
-
-interface CodeResultProps extends CodeBlockProps {
+interface CodeResultProps {
+  children: string;
+  /** The item's place in its list; callers still pass it, nothing stripes by it */
   index: number;
 }
 
-const CodeResult = (props: CodeResultProps) => (
-  <StyledCodeBlock lang="json" {...props} />
+/** A fetched account or received events, as JSON */
+const CodeResult = ({ children }: CodeResultProps) => (
+  <CodeBlock>
+    <CodeBlockContent className="max-h-80 overflow-auto select-text">
+      {children}
+    </CodeBlockContent>
+  </CodeBlock>
 );
-
-const StyledCodeBlock = styled(CodeBlock)<CodeResultProps>`
-  ${({ theme, index }) => css`
-    width: 100%;
-    user-select: text;
-
-    & pre {
-      padding: 1rem 0.5rem;
-      background: ${index % 2 === 1
-        ? theme.views.sidebar.right.default.otherBg
-        : theme.views.sidebar.right.default.bg} !important;
-    }
-  `}
-`;
 
 export default CodeResult;
