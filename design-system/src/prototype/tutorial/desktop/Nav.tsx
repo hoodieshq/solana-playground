@@ -6,6 +6,7 @@ import { LogoMark } from "@/components/ui/logo"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
+import { STEPS } from "../data"
 import { useStore } from "../store"
 import { view } from "../view"
 import { flashKeys, useFlash } from "./flash"
@@ -226,7 +227,8 @@ export function Nav() {
             label="Hello Anchor"
             labels={labels}
             active={inProject}
-            onClick={go(() => dispatch({ type: "start" }))}
+            // Finished, the project is its last step, where all of its code is, as Open the project on the finish screen
+            onClick={go(() => dispatch(s.finishedAt !== null ? { type: "openStep", step: STEPS.length - 1 } : { type: "start" }))}
           />
         )}
       </nav>

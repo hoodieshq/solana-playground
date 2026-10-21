@@ -68,7 +68,8 @@ export function helloSays(lib: string, name: string | null): string {
 /** The line of the file the first `msg!` sits on, comments aside, for the peek that shows it */
 export const msgLine = (lib: string) => lineOf(lib, "msg!")
 
-export function checkOwn(written: string, target: string, file: string): OwnCheck {
+/** `start` is the file as the step found it, so a build before any change can say just that */
+export function checkOwn(written: string, target: string, file: string, start?: string): OwnCheck {
   const code = straightQuotes(written)
   const mine = lines(code)
   const want = lines(target)
@@ -124,6 +125,19 @@ export function checkOwn(written: string, target: string, file: string): OwnChec
       `${failed}: the file is empty, so there is nothing to ${rust ? "build" : "run"}.`,
       "There is no code in the file yet. Follow the lesson, or review the fix to see the lines this step needs."
     )
+
+  // Built as the step found it: the old line isn't wrong, it just hasn't changed yet, so point at
+  // the first one the step changes
+  if (start !== undefined && sameCode(code, straightQuotes(start))) {
+    const at = mine.findIndex((l, i) => l !== want[i])
+    const line = at === -1 ? 1 : at + 1
+    return fail(
+      line,
+      "nothing in the file has changed yet",
+      `${failed}: nothing in the file has changed yet. This step starts at line ${line}.`,
+      `The file is still as the last step left it. This step changes line ${line}. Follow the lesson, or review the fix to see the lines it needs.`
+    )
+  }
 
   // A line the step has nowhere is the one to look at
   const known = new Set(want)

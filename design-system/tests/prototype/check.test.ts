@@ -176,3 +176,16 @@ test("hello says what its msg! says, with the name filled in", () => {
   assert.equal(helloSays("", null), "Hello, World!")
   assert.equal(msgLine(TARGET), 10)
 })
+
+test("a build before any change says so and points at the line the step changes", () => {
+  const named = TARGET.replace("_ctx: Context<Hello>)", "_ctx: Context<Hello>, name: String)").replace('msg!("Hello, World!");', 'msg!("Hello, {}!", name);')
+  const r = checkOwn(TARGET, named, "src/lib.rs", TARGET)
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.equal(r.line, 9)
+  assert.match(r.reason, /nothing in the file has changed yet/)
+  // Changed by hand, the usual reasons speak
+  const r2 = checkOwn(TARGET.replace("Ok(())", "Ok(());"), named, "src/lib.rs", TARGET)
+  assert.equal(r2.ok, false)
+  if (!r2.ok) assert.doesNotMatch(r2.reason, /nothing in the file has changed yet/)
+})

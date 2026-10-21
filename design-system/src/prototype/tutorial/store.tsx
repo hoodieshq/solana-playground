@@ -158,7 +158,7 @@ export function lastResult(s: State): BuildResult | null {
   if (s.applied === "own") {
     const target = targetFor(step)
     if (!target) return null
-    const c = checkOwn(s.files[step.file], target, step.file)
+    const c = checkOwn(s.files[step.file], target, step.file, step.patch?.before)
     return c.ok ? passFor(step) : c
   }
   // A passed step reopened from elsewhere has no patch applied, but it did pass
