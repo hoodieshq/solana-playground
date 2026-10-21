@@ -115,7 +115,9 @@ function TabsAndSearch({
           )}
         >
           {/* A lighter line than lucide's 2, to match the field's light type */}
-          <Search strokeWidth={1.75} className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          {/* The empty field's hint sits a step under the interface's own grey text, at 80%: 4.9:1, still above
+              AA. 70% would drop to 4.1 */}
+          <Search strokeWidth={1.75} className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground/80" />
           <input
             ref={input}
             value={query}
@@ -128,7 +130,7 @@ function TabsAndSearch({
             placeholder={tab === "programs" ? "Search 34 programs" : `Search ${TUTORIALS.length} tutorials`}
             aria-label={`Search ${tab}`}
             className={cn(
-              "size-full rounded-full bg-transparent pr-10 pl-10 text-[0.9375rem] font-[350] outline-none placeholder:text-muted-foreground transition-opacity",
+              "size-full rounded-full bg-transparent pr-10 pl-10 text-[0.9375rem] font-[350] outline-none placeholder:text-muted-foreground/80 transition-opacity",
               MOTION,
               searching ? "opacity-100" : "opacity-0"
             )}

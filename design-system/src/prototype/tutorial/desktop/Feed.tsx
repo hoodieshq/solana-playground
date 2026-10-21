@@ -81,7 +81,8 @@ export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: strin
           setText("")
         }}
       >
-        <ComposerInput value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+        {/* The same quieter hint as the search field */}
+        <ComposerInput value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} className="placeholder:text-muted-foreground/80!" />
         <ComposerToolbar>
           <ComposerSend>
             <ArrowUp />
