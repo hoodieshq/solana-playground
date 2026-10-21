@@ -236,6 +236,22 @@ test.describe("client-v2-stages on a phone", () => {
       panelBox.y + panelBox.height - (actionsBox.y + actionsBox.height);
     expect(gap).toBeGreaterThanOrEqual(0);
     expect(gap).toBeLessThan(32);
+    // The row's fade starts from the colour behind it, so no band shows
+    const [fadeFrom, behind] = await actions.evaluate((el) => {
+      let under = el.parentElement;
+      while (
+        under &&
+        getComputedStyle(under).backgroundColor === "rgba(0, 0, 0, 0)"
+      ) {
+        under = under.parentElement;
+      }
+      const fade = getComputedStyle(el).backgroundImage;
+      return [
+        /rgb\([^)]*\)/.exec(fade)?.[0],
+        under && getComputedStyle(under).backgroundColor,
+      ];
+    });
+    expect(fadeFrom).toBe(behind);
     // A long program id or meta line scrolls inside the stage, never the page
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)

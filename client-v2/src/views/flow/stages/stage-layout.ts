@@ -19,8 +19,9 @@ export const STAGE_BODY =
   "max-w-[42rem] max-md:min-h-full max-md:flex-1 max-md:pb-0";
 
 /**
- * The action row, on `StageEmptyActions`. Its fade starts from the stage
- * column's own surface, `--surface-panel`, not the page's background, which
- * drew a darker band behind the button.
+ * The action row, on `StageEmptyActions`. Its fade keeps the part's own
+ * start, `--background`, which is what the stage column shows below `md`
+ * since the flush frame (5.25); `--surface-panel` drew a lighter band behind
+ * the button.
  */
-export const STAGE_FOOT = "max-md:mt-auto max-md:from-surface-panel";
+export const STAGE_FOOT = "max-md:mt-auto";

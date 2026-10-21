@@ -18,7 +18,9 @@ const InputLabel: FC<React.PropsWithChildren<InputLabelProps>> = ({
 }) => (
   <div className="mb-1 flex flex-wrap items-center gap-2">
     <span className="font-mono text-xs text-muted-foreground">{name}</span>
-    {type && <Tag>{type}</Tag>}
+    {type && (
+      <Tag className="font-mono tracking-normal normal-case">{type}</Tag>
+    )}
     {isMut && <Tag variant="warning">mut</Tag>}
     {isSigner && <Tag variant="success">signer</Tag>}
   </div>
