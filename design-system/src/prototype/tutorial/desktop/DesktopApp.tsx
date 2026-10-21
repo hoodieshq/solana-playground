@@ -13,7 +13,7 @@ export function DesktopApp() {
   return (
     // Hover tips show after a short wait, so passing over a control doesn't flash them
     <TooltipProvider delayDuration={400}>
-    <div className="flex h-dvh bg-surface-base text-foreground">
+    <div className="flex h-full bg-surface-base text-foreground">
       <Nav />
       <main className="flex min-w-0 flex-1">
         {s.screen === "gallery" && <Gallery />}

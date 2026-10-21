@@ -10,7 +10,7 @@ import { DeviceFrame } from "./DeviceFrame"
 import { installScrollIndicator } from "./scrollIndicator"
 import { resetStorage, Store } from "./store"
 import { view } from "./view"
-import { ViewSwitch } from "./ViewSwitch"
+import { PrototypeBar } from "./PrototypeBar"
 
 const embedded = window.self !== window.top || new URLSearchParams(location.search).has("embed")
 const wide = window.matchMedia("(min-width: 600px)").matches
@@ -48,12 +48,14 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {wide && !embedded ? (
       desktop ? (
-        <>
-          <Store>
-            <DesktopApp />
-          </Store>
-          <ViewSwitch floating onReset={resetDesktop} />
-        </>
+        <div className="flex h-dvh flex-col">
+          <PrototypeBar onReset={resetDesktop} />
+          <div className="min-h-0 flex-1">
+            <Store>
+              <DesktopApp />
+            </Store>
+          </div>
+        </div>
       ) : (
         <DeviceFrame />
       )
