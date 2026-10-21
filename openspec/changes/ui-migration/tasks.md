@@ -111,8 +111,9 @@ regression against 5.1 has misread this rule.
       editor editable on a phone, replacing 5.1's read-only editor (HOO-2062;
       after 5.2; design.md, "The phone (5.7)"; plan:
       [plans/5.7-phone-pages.md](plans/5.7-phone-pages.md))
-- [ ] 5.8 Home replaces the gallery popup on start, desktop and phone
-      (HOO-2063; after 5.2)
+- [x] 5.8 Home replaces the gallery popup on start, desktop and phone
+      (HOO-2063; after 5.2 and 5.7; design.md, "Home (5.8)"; plan:
+      [plans/5.8-home.md](plans/5.8-home.md))
 - [ ] 5.9 Tutorials and Programs pages, opened from the navigation
       (HOO-2064; after 5.2)
 - [x] 5.10 Workspace: the Write stage, editor tabs, console drawer and
@@ -152,3 +153,6 @@ regression against 5.1 has misread this rule.
       a hidden assistant or files column takes no width (HOO-2122; after 5.2,
       5.10 and 5.17; design.md, "Frame chrome (5.25)"; plan:
       [plans/5.25-frame-chrome.md](plans/5.25-frame-chrome.md))
+- [x] 5.26 The files column keeps its open folders, scroll and lesson tab
+      while hidden (HOO-2124; after 5.25; plan:
+      [plans/5.26-files-column-keeps-its-state.md](plans/5.26-files-column-keeps-its-state.md))
