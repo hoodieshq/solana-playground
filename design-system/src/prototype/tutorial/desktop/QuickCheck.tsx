@@ -14,7 +14,7 @@ import { Prose } from "../ui/Prose"
 export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; answer?: number; onAnswer: (choice: number | "skip") => void }) {
   const done = answer !== undefined
   return (
-    // No rule above it: the task over it is already a framed card, the gap is enough
+    // No rule above it: the gap from the lesson over it is enough
     <section aria-labelledby="quick-check" className="mt-8 flex flex-col gap-2">
       <p className="text-caption text-muted-foreground">Quick check</p>
       <h3 id="quick-check" className="mb-2 font-heading text-title text-foreground">

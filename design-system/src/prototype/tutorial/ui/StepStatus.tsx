@@ -49,7 +49,10 @@ export function StepStatus({ lead }: { lead?: Lead }) {
     return (
       <>
         <CircleAlert strokeWidth={1.75} className="mt-px size-4 shrink-0 text-error" />
-        <span className="text-error">{s.error.reason}</span>
+        {/* The reason can name code, in ticks, as the assistant's messages do */}
+        <span className="text-error">
+          <Prose text={s.error.reason} />
+        </span>
       </>
     )
   if (s.phase === "patch") {

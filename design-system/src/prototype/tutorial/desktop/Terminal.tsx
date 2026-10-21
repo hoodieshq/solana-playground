@@ -8,6 +8,7 @@ import { useStore } from "../store"
 import { BuildLog } from "../ui/BuildLog"
 import { ProgramId, Transaction } from "../ui/ProgramId"
 import { workingLabel } from "../ui/StepStatus"
+import { PRIMARY_KEYS } from "./keys"
 
 /** The strip under the terminal: how the last run went, in one line beside a dot */
 export function TerminalStatus() {
@@ -72,10 +73,10 @@ export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
         // The hint names the button only while that button is there: under a patch it reads Apply and build
         empty={
           step.deploy
-            ? "Nothing deployed yet. Press Deploy to devnet or ⌘B."
+            ? `Nothing deployed yet. Press Deploy to devnet or ${PRIMARY_KEYS}.`
             : step.id === "call-client"
-              ? `Nothing run yet.${s.phase === "idle" ? " Press Run the client or ⌘B." : ""}`
-              : `Nothing built yet.${s.phase === "idle" ? " Press Build or ⌘B." : ""}`
+              ? `Nothing run yet.${s.phase === "idle" ? ` Press Run the client or ${PRIMARY_KEYS}.` : ""}`
+              : `Nothing built yet.${s.phase === "idle" ? ` Press Build or ${PRIMARY_KEYS}.` : ""}`
         }
       />
       {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { FileDiff } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -6,20 +7,25 @@ import { Button } from "@/components/ui/button"
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
 import { AssistantMark } from "../ui/AssistantMark"
-import { Shortcut } from "./Shortcut"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
+import { PRIMARY_KEYS } from "./keys"
+import { Shortcut } from "./Shortcut"
 
 const BTN = "h-10 gap-2 px-4"
 
-/** The step's actions under the editor, the desktop cut of the phone's bottom zone: the status on
- * the left, the buttons on the right. Build checks what was typed; the assistant is the second way.
- * `explained` is set once Explain has answered, then the main button offers the fix */
+/** The step's actions under the editor, the desktop cut of the phone's bottom zone: the step's
+ * state on the left, the one place it shows, and the buttons on the right. Build checks what was
+ * typed; the assistant is the second way, and it speaks in the column, not here. `explained` is set
+ * once Explain has answered, then the main button offers the fix. ⌘Enter presses whichever button
+ * shows its keys */
 export function ActionBar({ asking, explained, onExplain }: { asking: boolean; explained: boolean; onExplain: () => void }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
   const busy = s.phase === "building" || s.phase === "deploying"
+  const client = step.id === "call-client"
   const fix = fixFor(s)
+  const keys = <Shortcut keys={PRIMARY_KEYS} />
 
   let buttons: ReactNode
   if (s.phase === "passed") {
@@ -27,7 +33,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
       <Button className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
         {/* Where it leads, as on the phone. The key says how; the phone's arrow would be a second sign for the same thing */}
         {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
-        <Shortcut keys="↵" />
+        {keys}
       </Button>
     )
   } else if (s.phase === "patch") {
@@ -38,22 +44,32 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
           Discard
         </Button>
         <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "apply" })}>
-          {step.id === "call-client" ? "Apply and run" : "Apply and build"}
-          <Shortcut keys="⌘↵" />
+          {client ? "Apply and run" : "Apply and build"}
+          {keys}
         </BrandButton>
       </>
     )
   } else if (s.phase === "failed") {
-    buttons = explained ? (
-      fix && (
-        <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "reviewFix" })}>
-          Review the fix
-        </BrandButton>
-      )
-    ) : (
-      <BrandButton variant="accent" className={BTN} onClick={onExplain}>
-        Explain
-      </BrandButton>
+    // Understanding the error leads; building the same code again is there for whoever wants it,
+    // and it's what the key does, so the key never opens an explanation nobody asked for
+    buttons = (
+      <>
+        <Button variant="secondary" className={BTN} onClick={() => dispatch({ type: "retry" })}>
+          {client ? "Run again" : "Build again"}
+          {keys}
+        </Button>
+        {explained ? (
+          fix && (
+            <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "reviewFix" })}>
+              Review the fix
+            </BrandButton>
+          )
+        ) : (
+          <BrandButton variant="accent" className={BTN} onClick={onExplain}>
+            Explain
+          </BrandButton>
+        )}
+      </>
     )
   } else {
     buttons = (
@@ -66,8 +82,8 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
           </Button>
         )}
         <BrandButton variant="accent" disabled={busy} className={BTN} onClick={() => dispatch(step.deploy ? { type: "deploy" } : { type: "buildOwn" })}>
-          {busy ? workingLabel(s) : step.deploy ? "Deploy to devnet" : step.id === "call-client" ? "Run the client" : "Build"}
-          {!busy && <Shortcut keys="⌘B" />}
+          {busy ? workingLabel(s) : step.deploy ? "Deploy to devnet" : client ? "Run the client" : "Build"}
+          {!busy && keys}
         </BrandButton>
       </>
     )
@@ -78,16 +94,14 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-start gap-1.5 text-caption leading-relaxed text-muted-foreground">
         {asking ? (
           <span>Answer the quick check to see the code, or skip it</span>
-        ) : s.phase === "idle" ? (
-          // What the step checks is in the column's task. Here, by the buttons, how to get there
-          <span>
-            {step.deploy
-              ? "Deploy the built program from here."
-              : step.id === "call-client"
-                ? "Write the call in client.ts and run it, or let the assistant draft it."
-                : "Write it in the editor and build, or let the assistant draft it."}
-          </span>
+        ) : s.phase === "patch" ? (
+          // What the change is and why, the assistant says in the column. Here only what to do with it
+          <>
+            <FileDiff strokeWidth={1.75} className="mt-px size-4 shrink-0" />
+            <span>Read the change in {step.file.split("/").pop()}, then apply it</span>
+          </>
         ) : (
+          // Idle, running, failed or passed: the same line as the phone's, so each state shows once
           <StepStatus />
         )}
       </p>

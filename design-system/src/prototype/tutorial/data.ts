@@ -135,7 +135,7 @@ export const STEPS: Step[] = [
     id: "write-program",
     title: "Program",
     objective: "Define the hello instruction and log a message",
-    checkedBy: "the build shows a hello instruction",
+    checkedBy: "the build lists the hello instruction",
     learned: "Declaring a program and its instructions",
     lesson: [
       { kind: "h", text: "Import Anchor" },

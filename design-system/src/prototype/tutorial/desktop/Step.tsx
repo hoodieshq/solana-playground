@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { BookOpen, ChevronUp, CircleCheck, CircleDashed, RotateCcw, X } from "lucide-react"
+import { BookOpen, ChevronUp, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { ActionBar } from "./ActionBar"
 import { Column } from "./Column"
 import { Editor } from "./Editor"
 import { AskBox, Feed, type Msg, type Quote } from "./Feed"
+import { primaryFor } from "./keys"
 import { QuickCheck } from "./QuickCheck"
 import { TerminalBody, TerminalStatus } from "./Terminal"
 import { Workspace } from "./Workspace"
@@ -158,8 +159,9 @@ export function Step() {
     })
   }
 
-  // ⌘B builds or deploys, 1 to 3 answer the quick check and S skips it, ⌘Enter applies a patch,
-  // Enter goes on after a pass, Esc closes the notes. Plain keys stay off while typing
+  // ⌘Enter presses the action bar's main button in every state, from the editor too: building
+  // without leaving the code is what the key is for. 1 to 3 answer the quick check and S skips it,
+  // plain Enter goes on after a pass, Esc closes the notes. Plain keys stay off while typing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null
@@ -169,13 +171,14 @@ export function Step() {
         if (choice !== -1 && choice < step.predict.options.length) return dispatch({ type: "predict", choice })
         if (e.key.toLowerCase() === "s") return dispatch({ type: "predict", choice: "skip" })
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && s.phase === "patch" && !asking) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        // The question box sends on its own Enter, so the key stays its own there
+        if (e.repeat || target?.closest('[data-slot="composer"]')) return
+        const action = primaryFor(s, asking)
+        if (!action) return
         e.preventDefault()
-        dispatch({ type: "apply" })
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
-        e.preventDefault()
-        if (s.phase === "idle") dispatch(step.deploy ? { type: "deploy" } : { type: "buildOwn" })
-      } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a")) {
+        dispatch(action)
+      } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a, [role='separator']")) {
         dispatch({ type: "next" })
       } else if (e.key === "Escape") {
         setNotes([])
@@ -183,7 +186,17 @@ export function Step() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [s.phase, step, asking, dispatch])
+  }, [s, step, asking, dispatch])
+
+  // The assistant speaks in the column only: what a proposal changes comes in as its message, and
+  // the action bar under the code just says what to do with it
+  const summary = proposal && !asking ? proposal.summary : null
+  const spoke = useRef<string | null>(null)
+  useEffect(() => {
+    if (summary && spoke.current !== summary) say(summary)
+    spoke.current = summary
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary])
 
   const undo = () => {
     dispatch({ type: "undo" })
@@ -265,7 +278,8 @@ export function Step() {
         </div>
 
         {/* The column reads top down, as a lesson page beside the editor: the goal, the lesson, the
-            task, the quick check when a patch comes, then what the assistant said */}
+            quick check when a patch comes, then what the assistant said. How the step stands shows
+            once, in the action bar under the code */}
         <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
           <p className="text-caption text-muted-foreground">{step.title}</p>
@@ -299,21 +313,6 @@ export function Step() {
               </span>
             </button>
           )}
-
-          {/* What the step checks, ticked once it passes. How to do it sits by the buttons */}
-          <section aria-labelledby="task-title" className="mt-6 rounded-panel border border-border bg-surface-panel px-4 py-3">
-            <h2 id="task-title" className="text-caption text-muted-foreground">
-              Your task
-            </h2>
-            <p className="mt-1.5 flex items-start gap-2 text-control">
-              {s.passed[s.step] ? (
-                <CircleCheck strokeWidth={1.75} aria-label="Done" className="mt-0.5 size-4 shrink-0 text-success" />
-              ) : (
-                <CircleDashed strokeWidth={1.75} aria-label="Not done yet" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              )}
-              <span>Done when {step.checkedBy}</span>
-            </p>
-          </section>
 
           {/* Asked before the patch shows, then kept as a record for the rest of the step */}
           {step.predict && (asking || typeof answer === "number") && (
