@@ -62,8 +62,9 @@ let picked: Mechanic | null | undefined
 // Played to the end in this page load: from then on the gallery shows the banner instead
 let played = false
 
-// Whether the tablet frame plays too. Decided by measuring every mechanic in the frame at 100%:
-// the game only goes where each one fits the banner's height without scrolling
+// Whether the tablet frame plays too. Measured in the frame (1152 by 792) at 100%: the play area is
+// 216px tall, and the tallest of the eight mechanics takes 215 of it, so all of them fit without
+// scrolling. Should a new one not fit there, this goes false and the tablet shows the banner
 const ON_TABLET = true
 
 /** The gallery's top. A fresh visitor on a desktop gets the mini game, everyone else the banner. A
