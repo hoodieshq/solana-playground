@@ -6,6 +6,8 @@ import { Overview } from "./screens/Overview"
 import { StepScreen } from "./screens/StepScreen"
 import { useStore } from "./store"
 
+const TOAST_TOP = "calc(env(safe-area-inset-top, 0px) + var(--phone-head) + 8px)"
+
 export function App() {
   const { s } = useStore()
   return (
@@ -17,7 +19,8 @@ export function App() {
         {s.screen === "step" && <StepScreen />}
         {s.screen === "finish" && <Finish />}
       </div>
-      <Toaster theme="dark" position="top-center" />
+      {/* Under the screen's top bar, never over its back and close buttons */}
+      <Toaster theme="dark" position="top-center" offset={{ top: TOAST_TOP }} mobileOffset={{ top: TOAST_TOP }} />
     </div>
   )
 }
