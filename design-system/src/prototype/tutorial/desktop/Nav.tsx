@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { BookOpen, Boxes, Folder, FolderOpen, Home, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react"
+import { BookOpen, Boxes, Folder, FolderOpen, Home, PanelLeft, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { LogoMark } from "@/components/ui/logo"
@@ -7,25 +7,30 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 
 import { useStore } from "../store"
+import { view } from "../view"
 import { MENU_KEYS } from "./keys"
 import { useCoarse, useKeyHints } from "./pointer"
 
 const soon = () => toast("Only the tutorial flow is in this prototype")
 
+const IN_TABLET_FRAME = window.self !== window.top && view === "tablet"
+
 // Whether the nav shows its labels: unset follows the screen (a rail during a step and under 1280),
-// set is the viewer's own choice and holds across steps until they change it
+// set is the viewer's own choice and holds across steps until they change it. The tablet keeps its
+// own, since its default differs and the frame shares storage with the desktop view
 const KEY = "pg-proto-nav-open"
-const read = (): boolean | null => {
+const TABLET_KEY = "pg-proto-nav-open-tablet"
+const read = (key: string): boolean | null => {
   try {
-    const v = localStorage.getItem(KEY)
+    const v = localStorage.getItem(key)
     return v === null ? null : v === "1"
   } catch {
     return null
   }
 }
-const save = (open: boolean) => {
+const save = (key: string, open: boolean) => {
   try {
-    localStorage.setItem(KEY, open ? "1" : "0")
+    localStorage.setItem(key, open ? "1" : "0")
   } catch {
     // Storage off: the choice lasts until the page reloads
   }
@@ -53,19 +58,23 @@ function Item({ icon, label, active = false, labels, onClick }: { icon: ReactNod
 /** The product's own navigation, as in client-v2. Under 1280 it folds to a rail of icons, and
  * while a step is open it stays a rail at any width: the editor and the lesson need the room.
  * The logo slot and ⌘B unfold it with labels, as Gemini's sidebar does: folded, the logo is the
- * button and turns into the open icon on hover; unfolded, the close button sits at the end of the
+ * button and turns into the panel icon on hover; unfolded, the close button sits at the end of the
  * logo's row. With a mouse, unfolded it pushes the screen aside rather than covering the code,
- * and the choice holds. On a tablet during a step there's no room to push: it opens over the code
- * on a scrim, closes on a pick, a tap outside or Esc, and each step starts with the rail */
+ * and the choice holds. A tablet, as Gemini's, has the drawer out by default outside a step and
+ * pushes the screen, whatever its width. During a step there's no room to push: it opens over the
+ * code on a scrim, closes on a pick, a tap outside or Esc, and each step starts with the rail */
 export function Nav() {
   const { s, dispatch } = useStore()
-  const [open, setOpen] = useState<boolean | null>(read)
+  const [open, setOpen] = useState<boolean | null>(() => read(KEY))
+  const [tabletOpen, setTabletOpen] = useState<boolean | null>(() => read(TABLET_KEY))
+  // A finger, or the tablet's frame on a desktop: the frame stands for a tablet, so it behaves as one
+  const tablet = useCoarse() || IN_TABLET_FRAME
   const coarse = useCoarse()
   const hints = useKeyHints()
   const inProject = s.screen === "step" || s.screen === "finish"
   const rail = s.screen === "step"
   // The tablet's step: the nav covers rather than pushes
-  const floats = coarse && rail
+  const floats = tablet && rail
   // Open over the step it was opened on only: the next step starts with the rail
   const here = `${s.screen}:${s.step}`
   const [overOn, setOverOn] = useState<string | null>(null)
@@ -74,7 +83,7 @@ export function Nav() {
 
   // Classes for what follows the screen, or the viewer's choice once there is one. Floating, only
   // the overlay counts
-  const mine = floats ? over : open
+  const mine = floats ? over : tablet ? (tabletOpen ?? true) : open
   // Wide enough for the name and the toggle beside it in one row, the toggle being bigger for a finger
   const wide = mine === null ? (rail ? "" : "xl:w-[232px] pointer-coarse:xl:w-[248px]") : mine ? "w-[232px] pointer-coarse:w-[248px]" : ""
   const labels = mine === null ? (rail ? "" : "xl:inline") : mine ? "inline" : ""
@@ -86,8 +95,9 @@ export function Nav() {
   const toggle = () => {
     if (floats) return setOver(!over)
     // What shows now, worked out the way the classes above do, so the button always flips it
-    setOpen(!shownNow)
-    save(!shownNow)
+    if (tablet) setTabletOpen(!shownNow)
+    else setOpen(!shownNow)
+    save(tablet ? TABLET_KEY : KEY, !shownNow)
   }
 
   useEffect(() => {
@@ -139,7 +149,7 @@ export function Nav() {
           floats && over && "absolute inset-y-0 left-0 z-40 shadow-modal"
         )}
       >
-        {/* Folded: the logo's slot is the button. With a mouse it turns into the open icon on hover
+        {/* Folded: the logo's slot is the button. With a mouse it turns into the panel icon on hover
             or focus, so the logo still says whose app this is the rest of the time. A finger gets
             no hover, so there the logo stays and a tap opens */}
         {tip(
@@ -157,7 +167,7 @@ export function Nav() {
             )}
           >
             <LogoMark className="col-start-1 row-start-1 size-5 transition-opacity duration-150 ease-standard motion-reduce:transition-none pointer-fine:group-hover:opacity-0 pointer-fine:group-focus-visible:opacity-0" />
-            <PanelLeftOpen
+            <PanelLeft
               strokeWidth={1.75}
               aria-hidden="true"
               className="col-start-1 row-start-1 size-4 opacity-0 transition-opacity duration-150 ease-standard motion-reduce:transition-none pointer-coarse:hidden pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-visible:opacity-100"
@@ -183,7 +193,7 @@ export function Nav() {
                 ring
               )}
             >
-              <PanelLeftClose strokeWidth={1.75} className="size-4" />
+              <PanelLeft strokeWidth={1.75} className="size-4" />
             </button>
           )}
         </div>
