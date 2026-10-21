@@ -12,7 +12,7 @@ export function readingMinutes(step: Step) {
   return Math.max(1, Math.ceil(words / 200))
 }
 
-function Block({ block, copy }: { block: LessonBlock; copy: boolean }) {
+function Block({ block, column }: { block: LessonBlock; column: boolean }) {
   // Sections are 28px apart, their parts 8 and 12, so the lesson reads as groups
   if (block.kind === "h") return <h3 className="mt-7 font-heading text-title text-foreground first:mt-0">{block.text}</h3>
   if (block.kind === "p")
@@ -24,16 +24,19 @@ function Block({ block, copy }: { block: LessonBlock; copy: boolean }) {
       </p>
     )
   return (
-    <CodeBlock className={cn("mt-3 bg-surface-well", copy && "group relative")}>
-      <CodeBlockContent className="text-code">
+    <CodeBlock className={cn("mt-3 bg-surface-well", column && "group relative")}>
+      {/* A line that runs past the edge fades into it, so it reads as scrolling on, not cut off */}
+      <CodeBlockContent className={cn("text-code", column && "[mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]")}>
         {block.code.split("\n").map((line, i) => (
-          <div key={i} className="min-h-[1lh] break-words whitespace-pre-wrap">
+          // A phone has to wrap. In the desktop column a long line scrolls instead, so a wrapped
+          // half never lands at the start of the next line and the indents keep the structure
+          <div key={i} className={cn("min-h-[1lh]", column ? "whitespace-pre" : "break-words whitespace-pre-wrap")}>
             {highlight(line)}
           </div>
         ))}
       </CodeBlockContent>
       {/* On hover, for whoever types the step out by hand */}
-      {copy && (
+      {column && (
         <CopyButton
           value={block.code}
           label="Copy code"
@@ -44,12 +47,12 @@ function Block({ block, copy }: { block: LessonBlock; copy: boolean }) {
   )
 }
 
-/** `copy` puts a Copy button on each code block, on the desktop, where the lesson sits beside an editor */
-export function LessonBlocks({ blocks, copy = false }: { blocks: LessonBlock[]; copy?: boolean }) {
+/** `column` is the desktop's lesson column, beside an editor: code doesn't wrap, and each block has Copy */
+export function LessonBlocks({ blocks, column = false }: { blocks: LessonBlock[]; column?: boolean }) {
   return (
     <>
       {blocks.map((block, i) => (
-        <Block key={i} block={block} copy={copy} />
+        <Block key={i} block={block} column={column} />
       ))}
     </>
   )

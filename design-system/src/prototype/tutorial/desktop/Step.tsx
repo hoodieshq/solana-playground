@@ -245,8 +245,13 @@ export function Step() {
           <h1 className="mt-1 font-heading text-[1.25rem] leading-snug">{step.objective}</h1>
 
           {lessonOpen ? (
-            <section aria-label="Lesson" className="mt-5">
-              <LessonBlocks copy blocks={step.lesson} />
+            // Set off from the step's goal by more than its own sections are from each other, and
+            // named, so its first heading doesn't read as the goal's subtitle
+            <section aria-label="Lesson" className="mt-8">
+              <p className="mb-3 text-caption text-muted-foreground">Lesson · {readingMinutes(step)} min</p>
+              <div>
+                <LessonBlocks column blocks={step.lesson} />
+              </div>
               {s.passed[s.step] && (
                 <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-caption text-muted-foreground" onClick={() => setLessonOpen(false)}>
                   <ChevronUp className="size-4" />
