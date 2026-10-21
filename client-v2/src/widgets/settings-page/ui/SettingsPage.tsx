@@ -34,6 +34,7 @@ import { settingsTelemetry } from "../model/telemetry";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 import BaseSettingRow from "./BaseSettingRow";
 import BaseSettingsPage from "./BaseSettingsPage";
+import SettingsBoundary from "./SettingsBoundary";
 import type { SettingsSection } from "./BaseSettingsPage";
 import { SettingControl } from "./SettingControl";
 
@@ -56,7 +57,7 @@ interface SettingsPageProps {
  * export and imports, then every group of `PgSettings.all`. Mounted only
  * while the settings are open.
  */
-const SettingsPage = ({
+const LiveSettingsPage = ({
   focus,
   onClose,
   onChooseNetwork,
@@ -131,6 +132,13 @@ const SettingsPage = ({
     />
   );
 };
+
+/** The live page, behind a boundary that keeps a throwing setting from taking the app down */
+const SettingsPage = (props: SettingsPageProps) => (
+  <SettingsBoundary onBack={() => props.onClose("back")}>
+    <LiveSettingsPage {...props} />
+  </SettingsBoundary>
+);
 
 export default SettingsPage;
 
