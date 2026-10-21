@@ -40,7 +40,7 @@ afterEach(() => vi.restoreAllMocks());
 it("opens the controlled Result fold when a fetch finishes", async () => {
   vi.spyOn(PgProgramInteraction, "fetchAllAccounts").mockResolvedValue([]);
 
-  render(<Account accountName="counter" index={0} />);
+  render(<Account accountName="counter" />);
   // Interaction's own fold is closed, so open it to reach the buttons.
   fireEvent.click(screen.getByRole("button", { name: "counter" }));
   fireEvent.click(screen.getByText("Fetch All"));

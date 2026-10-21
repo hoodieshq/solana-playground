@@ -9,8 +9,6 @@ import {
 
 interface InteractionProps {
   name: string;
-  /** The item's place in its list; callers still pass it, nothing stripes by it */
-  index: number;
 }
 
 /** One instruction, account or event: a card that folds open */

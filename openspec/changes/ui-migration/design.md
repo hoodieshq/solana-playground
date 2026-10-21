@@ -938,7 +938,9 @@ read and `null` after a failed one, which is how the two are told apart.
 
 Go to Build and Go to Deploy are the stage's brand buttons and switch the
 stepper (`PgFlow.setStage`). On a phone the action row sits at the foot, as
-in 5.11 (`stage-layout.ts`).
+in 5.11 (`stage-layout.ts`). Its fade now starts from the part's own
+`--background`, for Build and Deploy too: since the flush frame (5.25) that is
+the stage column's colour below `md`, and 5.11's `--surface-panel` drew a band.
 
 **The form** (`ready`). Instructions, Accounts and Events are headed
 sections; each item is a `Collapsible` card (border, `rounded-xl`,
@@ -947,8 +949,8 @@ in mono with `Tag`s for the type (in its own case), `mut` and `signer`.
 Fetched accounts and received events show as JSON in the design system's
 `code-block`, titled "JSON", with a `CopyButton`; the JSON is not highlighted
 any more, which the legacy `CodeBlock` did. Test, Fill
-and Reset stay as they are; none is the brand button, since every
-instruction has a Test. Account inference, Fill and the submission flow do not
+and Reset keep their variants and behaviour, left-aligned at the card's foot;
+none is the brand button, since every instruction has a Test. Account inference, Fill and the submission flow do not
 change.
 
 **No `Table`** (Slava, 2026-10-20): the prototype shows none on this screen,

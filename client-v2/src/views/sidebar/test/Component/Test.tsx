@@ -32,18 +32,14 @@ const Test = ({ idl }: { idl: Idl }) => {
 
         <Section title="Instructions">
           {idl.instructions.map((ix, i) => (
-            <Instruction
-              key={JSON.stringify(ix)}
-              index={i}
-              idlInstruction={ix}
-            />
+            <Instruction key={JSON.stringify(ix)} idlInstruction={ix} />
           ))}
         </Section>
 
         {idl.accounts && (
           <Section title="Accounts">
             {idl.accounts.map((acc, i) => (
-              <Account key={acc.name} index={i} accountName={acc.name} />
+              <Account key={acc.name} accountName={acc.name} />
             ))}
           </Section>
         )}
@@ -51,7 +47,7 @@ const Test = ({ idl }: { idl: Idl }) => {
         {idl.events && (
           <Section title="Events">
             {idl.events.map((event, i) => (
-              <Event key={event.name} index={i} eventName={event.name} />
+              <Event key={event.name} eventName={event.name} />
             ))}
           </Section>
         )}

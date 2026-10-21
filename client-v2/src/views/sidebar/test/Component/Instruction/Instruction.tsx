@@ -30,11 +30,9 @@ import { useIdl } from "../IdlProvider";
 
 interface InstructionProps {
   idlInstruction: IdlInstruction;
-  index: number;
 }
 
 const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
-  index,
   idlInstruction,
 }) => {
   const [instruction, setInstruction] = useState(() =>
@@ -147,7 +145,7 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
       instruction={instruction}
       setInstruction={setInstruction}
     >
-      <Interaction name={instruction.name} index={index}>
+      <Interaction name={instruction.name}>
         <div className="flex flex-col gap-4">
           {instruction.values.args.length > 0 && (
             <Collapsible defaultOpen>

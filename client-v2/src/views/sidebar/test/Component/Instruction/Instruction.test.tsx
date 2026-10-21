@@ -32,7 +32,6 @@ import Instruction from "./Instruction";
 it("starts with the Args and Accounts folds open", () => {
   render(
     <Instruction
-      index={0}
       idlInstruction={
         {
           name: "increment",

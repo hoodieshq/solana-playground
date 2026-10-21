@@ -10,8 +10,6 @@ import { CopyButton } from "@/shared/ui/copy-button";
 
 interface CodeResultProps {
   children: string;
-  /** The item's place in its list; callers still pass it, nothing stripes by it */
-  index: number;
 }
 
 /** A fetched account or received events, as JSON the user can copy whole */

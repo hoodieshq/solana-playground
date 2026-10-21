@@ -20,12 +20,10 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 interface AccountProps {
   accountName: string;
-  index: number;
 }
 
 const Account: FC<React.PropsWithChildren<AccountProps>> = ({
   accountName,
-  index,
 }) => {
   const [address, setAddress] = useState("");
   const [addressError, setAddressError] = useState(false);
@@ -75,7 +73,7 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
   );
 
   return (
-    <Interaction name={accountName} index={index}>
+    <Interaction name={accountName}>
       <div className="my-2">
         <InputLabel name="address" type="publicKey" />
         <SearchBar
@@ -120,9 +118,7 @@ const Account: FC<React.PropsWithChildren<AccountProps>> = ({
                     <CalloutDescription>{fetchError}</CalloutDescription>
                   </Callout>
                 ) : (
-                  <CodeResult index={index}>
-                    {PgCommon.prettyJSON(fetchedData!)}
-                  </CodeResult>
+                  <CodeResult>{PgCommon.prettyJSON(fetchedData!)}</CodeResult>
                 )}
               </SpinnerWithBg>
             </CollapsibleContent>

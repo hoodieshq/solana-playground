@@ -8,7 +8,7 @@ import CodeResult from "./CodeResult";
 it("the JSON comes with a copy button and its title", () => {
   const { container } = render(
     <TooltipProvider>
-      <CodeResult index={0}>{'{\n  "count": "1"\n}'}</CodeResult>
+      <CodeResult>{'{\n  "count": "1"\n}'}</CodeResult>
     </TooltipProvider>
   );
   expect(
