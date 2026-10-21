@@ -7,6 +7,22 @@ html.framed {
   --safe-bottom: 34px;
 }
 
+/* The same for the tablet: an iPad keeps 20px clear above its home indicator. Only the desktop
+   screens read it, and inside a frame those are the tablet's */
+:root {
+  --tablet-safe-bottom: 0px;
+}
+html.framed {
+  --tablet-safe-bottom: 20px;
+}
+
+/* The page itself never bounces or pulls to refresh: on a tablet a drag past the end of the code
+   would otherwise move the whole app. Scrollers that end keep the drag to themselves too */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* A phone's scroll indicator, and macOS's with its default setting, float over the content and take
    no width. A browser scrollbar that takes its own lane is heavy and pushes the content sideways, so
    in the phone frame and on the desktop screen it's hidden and scrollIndicator.ts draws the overlay:
