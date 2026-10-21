@@ -7,7 +7,8 @@ import { AssistantMark } from "./AssistantMark"
 export function AssistantHead({ model }: { model?: string }) {
   return (
     <div className="flex items-center gap-2 text-caption">
-      <AssistantMark className="size-5 text-brand-purple" />
+      {/* Up a pixel: centred on the line it sat below the middle of the capitals, and read as low */}
+      <AssistantMark className="size-5 -translate-y-px text-brand-purple" />
       <span className="font-label text-foreground">Assistant</span>
       {model && <span className="text-muted-foreground">· {model}</span>}
     </div>
