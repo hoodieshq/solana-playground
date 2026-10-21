@@ -9,7 +9,7 @@ import { STEPS } from "../data"
 import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
-import { fixFor, freshLines, useStore } from "../store"
+import { fixFor, freshLines, patchFor, useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
 import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
@@ -30,7 +30,6 @@ export function StepScreen() {
   const [computer, setComputer] = useState(false)
   // Which line notes are open, and the prediction made on each step that asks one
   const [notes, setNotes] = useState<number[]>([])
-  const [predicted, setPredicted] = useState<Record<number, number | "skip">>({})
 
 
   useEffect(() => {
@@ -62,10 +61,10 @@ export function StepScreen() {
     toast("Patch undone", { duration: 4000 })
   }
 
-  const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
+  const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
   // A step with a new idea asks its question once, before its own patch shows
-  const asking = !!proposal && s.review === "patch" && !!step.predict && predicted[s.step] === undefined
-  const answer = predicted[s.step]
+  const asking = !!proposal && s.review === "patch" && !!step.predict && s.predicted[s.step] === undefined
+  const answer = s.predicted[s.step]
   const lead =
     s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
       ? answer === step.predict.answer
@@ -87,7 +86,7 @@ export function StepScreen() {
   useEffect(() => {
     const first = proposal?.notes[0]?.line
     // After an answer, right or wrong, the code opens on the line the question was about
-    if (!asking && s.review === "patch" && step.predict && typeof predicted[s.step] === "number") {
+    if (!asking && s.review === "patch" && step.predict && typeof s.predicted[s.step] === "number") {
       taughtNotes = true
       setNotes([step.predict.line])
     } else if (!asking && first !== undefined && !taughtNotes) {
@@ -200,7 +199,7 @@ export function StepScreen() {
       )}
 
       {asking && step.predict ? (
-        <PredictZone predict={step.predict} onAnswer={(choice) => setPredicted((p) => ({ ...p, [s.step]: choice }))} />
+        <PredictZone predict={step.predict} onAnswer={(choice) => dispatch({ type: "predict", choice })} />
       ) : (
         <ActionZone lead={lead} />
       )}

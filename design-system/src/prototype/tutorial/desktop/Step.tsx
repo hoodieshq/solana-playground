@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 
 import { STEPS } from "../data"
-import { fixFor, freshLines, useStore } from "../store"
+import { fixFor, freshLines, patchFor, useStore } from "../store"
 import { InlineDiff } from "../ui/InlineDiff"
 import { LessonBlocks, readingMinutes } from "../ui/LessonBlocks"
 import { StepProgress } from "../ui/StepProgress"
@@ -25,7 +25,6 @@ export function Step() {
   const step = STEPS[s.step]
   const [lesson, setLesson] = useState(false)
   const [notes, setNotes] = useState<number[]>([])
-  const [predicted, setPredicted] = useState<Record<number, number | "skip">>({})
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [explained, setExplained] = useState(false)
   const [term, setTerm] = useState(false)
@@ -86,10 +85,10 @@ export function Step() {
   const busy = s.phase === "building" || s.phase === "deploying"
   // The deploy step has no code to write
   const locked = busy || s.phase === "patch" || !!step.deploy
-  const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
+  const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
   // A step with a new idea asks its question once, before its own patch shows
-  const asking = !!proposal && s.review === "patch" && !!step.predict && predicted[s.step] === undefined
-  const answer = predicted[s.step]
+  const asking = !!proposal && s.review === "patch" && !!step.predict && s.predicted[s.step] === undefined
+  const answer = s.predicted[s.step]
   const lead =
     s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
       ? answer === step.predict.answer
@@ -111,7 +110,7 @@ export function Step() {
   // itself, which teaches the dots. After a quick check the note the question was about opens
   useEffect(() => {
     const first = proposal?.notes[0]?.line
-    if (!asking && s.review === "patch" && step.predict && typeof predicted[s.step] === "number") {
+    if (!asking && s.review === "patch" && step.predict && typeof s.predicted[s.step] === "number") {
       taughtNotes = true
       setNotes([step.predict.line])
     } else if (!asking && first !== undefined && !taughtNotes) {
@@ -218,7 +217,7 @@ export function Step() {
               Read the lesson
               <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
             </button>
-            {asking && step.predict && <QuickCheck predict={step.predict} onAnswer={(choice) => setPredicted((p) => ({ ...p, [s.step]: choice }))} />}
+            {asking && step.predict && <QuickCheck predict={step.predict} onAnswer={(choice) => dispatch({ type: "predict", choice })} />}
             <div ref={feed}>
               <Feed msgs={msgs} />
             </div>

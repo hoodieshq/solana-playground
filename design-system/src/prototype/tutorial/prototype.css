@@ -7,6 +7,22 @@ html.framed {
   --safe-bottom: 34px;
 }
 
+/* A phone's scroll indicator floats over the content and takes no width. A desktop browser's
+   scrollbar takes its own lane and pushes the screen sideways, so inside the frame it's hidden:
+   the wheel and the trackpad still scroll. The phone's own browser keeps its native indicator */
+html.framed,
+html.framed * {
+  scrollbar-width: none;
+}
+html.framed ::-webkit-scrollbar {
+  display: none;
+}
+
+/* Native controls and any scrollbar the browser still draws follow the dark theme */
+html {
+  color-scheme: dark;
+}
+
 /* The step has to stay readable above every sheet: the task above the patch,
    the red line above Not yet. So the overlay only dims, it doesn't blur */
 [data-slot="drawer-overlay"] {

@@ -28,6 +28,8 @@ export type State = {
   error: { line: number; reason: string; explain?: string } | null
   explain: "step" | "error"
   deployStage: number
+  /** The quick check's answer on each step that asks one. Kept here so switching views doesn't ask again */
+  predicted: Record<number, number | "skip">
   startedAt: number | null
   finishedAt: number | null
 }
@@ -39,6 +41,7 @@ export type Action =
   | { type: "goto"; step: number }
   | { type: "openStep"; step: number }
   | { type: "askPatch" }
+  | { type: "predict"; choice: number | "skip" }
   | { type: "reviewFix" }
   | { type: "explain"; mode: "step" | "error" }
   | { type: "close" }
@@ -69,6 +72,7 @@ export const initial = (): State => ({
   error: null,
   explain: "step",
   deployStage: 0,
+  predicted: {},
   startedAt: null,
   finishedAt: null,
 })
@@ -83,6 +87,15 @@ export const targetFor = (step: Step) => step.fix?.after ?? step.patch?.after ??
 
 /** A step's passing build, for code that reached the target by hand */
 const passFor = (step: Step): Pass | null => [step.fix?.result, step.patch?.result].find((r): r is Pass => !!r && r.ok) ?? null
+
+/** The assistant's patch for the step. It starts from the code as it is now, so anything typed by
+ * hand shows in the diff as what the patch replaces, instead of being overwritten unseen */
+export function patchFor(s: State): Patch | null {
+  const step = STEPS[s.step]
+  if (!step.patch) return null
+  const now = s.files[step.file]
+  return now === step.patch.before ? step.patch : { ...step.patch, before: now }
+}
 
 /** What Review the fix shows. After the assistant's patch it's the step's own fix. After code
  * written by hand it's the way from that code to the target, with the step's notes */
@@ -124,9 +137,11 @@ export function freshLines(s: State): number[] {
   const step = STEPS[s.step]
   const p = s.applied === "fix" ? step.fix : s.applied === "patch" ? step.patch : undefined
   if (!p || !(s.phase === "building" || s.phase === "passed" || s.phase === "failed")) return []
+  // The step's patch went onto whatever the file held when it was applied, which Undo keeps
+  const before = s.applied === "patch" && s.undo?.step === s.step ? s.undo.files[step.file] : p.before
   let n = 0
   const lines: number[] = []
-  for (const row of diffLines(p.before, p.after)) {
+  for (const row of diffLines(before, p.after)) {
     if (row.kind === "removed") continue
     n++
     if (row.kind === "added") lines.push(n)
@@ -174,6 +189,8 @@ function reducer(s: State, a: Action): State {
     // A proposal shows inline, in the code it changes: no sheet
     case "askPatch":
       return { ...s, phase: "patch", review: "patch", sheet: false }
+    case "predict":
+      return { ...s, predicted: { ...s.predicted, [s.step]: a.choice } }
     case "reviewFix":
       return fixFor(s) ? { ...s, phase: "patch", review: "fix", sheet: false } : s
     case "explain":
@@ -182,7 +199,7 @@ function reducer(s: State, a: Action): State {
       if (s.phase === "patch" || s.phase === "explain") return { ...s, phase: resting(s), sheet: false }
       return { ...s, sheet: false }
     case "apply": {
-      const p = s.review === "fix" ? fixFor(s) : step.patch
+      const p = s.review === "fix" ? fixFor(s) : patchFor(s)
       if (!p) return s
       return {
         ...s,

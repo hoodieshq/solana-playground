@@ -3,7 +3,7 @@ import { CircleAlert, CircleCheck, CircleDashed, Lightbulb, MessageCircle } from
 import { Spinner } from "@/components/ui/spinner"
 
 import { STEPS } from "../data"
-import { fixFor, lastResult, useStore, type State } from "../store"
+import { fixFor, lastResult, patchFor, useStore, type State } from "../store"
 import { Prose } from "./Prose"
 import { Typed } from "./Typed"
 
@@ -53,7 +53,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
     )
   if (s.phase === "patch") {
     // The assistant speaks here, by the buttons, so nothing sits over the code
-    const proposal = s.review === "fix" ? fixFor(s) : step.patch
+    const proposal = s.review === "fix" ? fixFor(s) : patchFor(s)
     return (
       <>
         {/* A right answer, a wrong one (a hint, not an error), or the assistant speaking */}
