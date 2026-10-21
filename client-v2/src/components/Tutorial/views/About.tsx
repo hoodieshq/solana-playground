@@ -1,8 +1,11 @@
-import { FC, Fragment, useState } from "react";
+import { FC, Fragment } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { ArrowLeftIcon, CheckIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 
-import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
+import {
+  BaseStartButton,
+  type BaseStartButtonProps,
+} from "@/entities/tutorial";
 import { Button } from "@/shared/ui/button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import Link from "../../Link";
@@ -31,7 +34,7 @@ export const About: FC<
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pt-8 pb-12 max-md:px-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-heading text-[clamp(2rem,3.2vw,3rem)] leading-[1.05] font-headline tracking-tight text-foreground">
+            <h1 className="font-heading text-[clamp(2rem,3.2vw,3rem)] leading-[1.05] font-headline tracking-tight wrap-break-word text-foreground">
               {tutorial.name}
             </h1>
             {tutorial.authors.length !== 0 && (
@@ -51,10 +54,10 @@ export const About: FC<
             )}
           </div>
 
-          <StartButton
-            isFinished={isFinished}
-            isStarted={isStarted}
-            start={start}
+          <BaseStartButton
+            progress={progressOf(isFinished, isStarted)}
+            onStart={start}
+            onError={reportButtonFailure("start the tutorial")}
           />
         </div>
 
@@ -84,51 +87,11 @@ export const About: FC<
   );
 };
 
-/**
- * The page's one action. The labels stay upper case: the e2e specs find the
- * button by its exact name (decided 2026-10-21).
- */
-const StartButton: FC<
-  Pick<TutorialAboutComponentProps, "isStarted" | "start"> & {
-    isFinished: boolean | null;
-  }
-> = ({ isFinished, isStarted, start }) => {
-  const [pending, setPending] = useState(false);
-
-  const onClick = async () => {
-    setPending(true);
-    try {
-      await start();
-    } catch (error) {
-      reportButtonFailure("start the tutorial")(error);
-    } finally {
-      setPending(false);
-    }
-  };
-
-  if (isFinished) {
-    return (
-      <Button
-        variant="ghost"
-        className="text-success"
-        disabled={pending}
-        aria-busy={pending || undefined}
-        onClick={onClick}
-      >
-        <CheckIcon data-icon="inline-start" />
-        COMPLETED
-      </Button>
-    );
-  }
-
-  return (
-    <BrandButton
-      disabled={pending}
-      aria-busy={pending || undefined}
-      onClick={onClick}
-    >
-      {isStarted ? "CONTINUE" : "START"}
-      <BrandButtonIcon />
-    </BrandButton>
-  );
+const progressOf = (
+  isFinished: boolean | null,
+  isStarted: boolean
+): BaseStartButtonProps["progress"] => {
+  if (isFinished) return "completed";
+  if (isStarted) return "started";
+  return "new";
 };

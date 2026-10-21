@@ -196,9 +196,10 @@ const SyncBanner = () => {
     return (
       <Callout variant="warning">
         <TriangleAlertIcon />
-        {/* Message left, buttons right; the buttons drop below when it gets narrow */}
+        {/* Message left, buttons right; the buttons drop below when it gets
+            narrow. Full opacity: the message is the point of the banner */}
         <CalloutDescription className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 opacity-100">
-          <p className="m-0 flex-[1_1_20rem] text-foreground [overflow-wrap:anywhere]">
+          <p className="m-0 flex-[1_1_20rem] text-foreground wrap-anywhere">
             {named && at >= 0 ? (
               <>
                 {message.slice(0, at)}
