@@ -7,6 +7,9 @@ const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
  * is waiting for. ⌘B toggles the sidebar in the product, so the tutorial doesn't teach it as Build */
 export const PRIMARY_KEYS = mac ? "⌘↵" : "Ctrl ↵"
 
+/** ⌘B, Ctrl+B off a Mac: folds and unfolds the nav, as it does in the product */
+export const MENU_KEYS = mac ? "⌘B" : "Ctrl B"
+
 /** What ⌘Enter does right now, or null while nothing can be done: something runs, or the quick
  * check waits for an answer */
 export function primaryFor(s: State, asking: boolean): Action | null {
