@@ -1,4 +1,4 @@
-import { ArrowRight, MessageCircle } from "lucide-react"
+import { ArrowRight, Hand } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             Discard
           </Button>
         ) : (
-          // A chat bubble, the same one the assistant's sheets carry. It stands in until Sole has a mark (DES-134)
+          // A raised hand: you have a question. In the label's colour, so the main button stays the one accent
           <Button
             variant="secondary"
             disabled={busy}
@@ -41,7 +41,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             aria-label="Ask the assistant about this step"
             onClick={() => dispatch({ type: "explain", mode: "step" })}
           >
-            <MessageCircle strokeWidth={1.75} className="size-4 text-brand-purple" />
+            <Hand strokeWidth={1.75} className="size-[18px]" />
             Ask
           </Button>
         )}

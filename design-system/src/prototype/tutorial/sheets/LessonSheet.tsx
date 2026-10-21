@@ -1,4 +1,4 @@
-import { MessageCircle } from "lucide-react"
+import { Hand } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
@@ -24,7 +24,7 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
         </div>
         <DrawerFooter className="mx-auto w-full max-w-[40rem] flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
           <Button variant="secondary" className="h-14 gap-2 px-4 text-control" onClick={onAsk}>
-            <MessageCircle strokeWidth={1.75} className="size-4 text-brand-purple" />
+            <Hand strokeWidth={1.75} className="size-[18px]" />
             Ask
           </Button>
           <Button variant="secondary" className="h-14 flex-1 text-control" onClick={onClose}>

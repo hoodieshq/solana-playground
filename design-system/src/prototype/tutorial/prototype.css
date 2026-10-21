@@ -57,6 +57,14 @@ html {
   border-radius: 9999px;
 }
 
+/* The design system's Button sets its label at 500 (shadcn's font-medium) and BrandButton at 400
+   (font-act picks the face, not the weight). Side by side, Ask next to Explain, the two read as
+   different type, so every button here takes the action weight, 440. To raise in DES-129 */
+[data-slot="button"],
+[data-slot="brand-button"] {
+  font-weight: var(--font-weight-act);
+}
+
 /* A tap shouldn't leave a ring behind. The keyboard still gets one */
 :focus:not(:focus-visible) {
   outline: none;
