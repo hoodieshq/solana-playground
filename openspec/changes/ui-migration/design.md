@@ -1558,8 +1558,10 @@ they are answered. One PR.
   `LAYOUT_BREAKPOINTS.phone` there is no list: a 60 px bar holds "Back to app"
   (an arrow) and the title.
 - **Open and close.** The triggers stay what they are: the cluster row, the
-  rail's dot, the account menu's Settings and cluster warning, and ⌘,
-  (Ctrl+, off macOS). `focus: "network"` lands on the chosen network, any
+  rail's dot, the account menu's Settings and cluster warning, ⌘,
+  (Ctrl+, off macOS), and the Get set up checklist's "Choose a network"
+  (5.16), which only opens: a pick of any chip, the current one included,
+  marks that step done (`onChooseNetwork`). `focus: "network"` lands on the chosen network, any
   other open on the page's heading. "Back to app", Escape (not while a modal
   is open, nor one an open select already took) and ⌘, close it and give
   focus back to the control that opened it; the account menu names its
@@ -1580,7 +1582,7 @@ they are answered. One PR.
   legacy `views/flow/settings/` instead: it is drawn in overlays'
   `ModalFrame`, and a widget cannot import another widget.
 - **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
-  menu | key}`, `settings_closed {via: back | escape | key}` and
+  menu | key | setup}`, `settings_closed {via: back | escape | key}` and
   `settings_section_picked {section}`. Export and import failures keep going
   through `reportButtonFailure`; the widget logs under `settings-page:*`.
 

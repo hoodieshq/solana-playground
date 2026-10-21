@@ -341,8 +341,8 @@ together on the device.
 
 - **WHEN** a user clicks "Choose a network" in the checklist and picks the
   network already selected in the settings
-- **THEN** the settings open on the network, and after the pick the step is
-  ticked and the count goes up by one
+- **THEN** the settings open on the network, and after the pick, back in
+  the app, the step is ticked and the count goes up by one
 
 #### Scenario: A step opens its action
 
@@ -412,7 +412,7 @@ it and give focus back to the control that opened it.
 ### Requirement: The settings page is measured
 
 The product SHALL send `settings_opened` with where it was opened from
-(`cluster`, `rail`, `menu` or `key`), `settings_closed` with how it was
+(`cluster`, `rail`, `menu`, `key` or `setup`, the Get set up checklist), `settings_closed` with how it was
 closed (`back`, `escape` or `key`), and `settings_section_picked` with the
 section, each time a user picks one in the section list.
 

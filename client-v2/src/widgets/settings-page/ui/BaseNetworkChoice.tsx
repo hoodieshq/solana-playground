@@ -20,9 +20,15 @@ const NETWORKS: ReadonlyArray<{ label: string; endpoint: string }> = [
 const BaseNetworkChoice = ({
   endpoint,
   onPick,
+  onChoose,
 }: {
   endpoint: string;
   onPick: (endpoint: string) => void;
+  /**
+   * Any pick, the network already chosen included, which changes nothing and
+   * so fires no `onPick`: "Choose a network" counts it
+   */
+  onChoose?: (endpoint: string) => void;
 }) => {
   const listed = NETWORKS.some((n) => n.endpoint === endpoint);
   return (
@@ -30,13 +36,19 @@ const BaseNetworkChoice = ({
       variant="chips"
       aria-label="Network"
       value={listed ? endpoint : ""}
-      onValueChange={onPick}
+      onValueChange={(e) => {
+        onPick(e);
+        onChoose?.(e);
+      }}
     >
       {NETWORKS.map((n) => (
         <SegmentedItem
           key={n.endpoint}
           value={n.endpoint}
           className="font-mono"
+          onClick={() => {
+            if (n.endpoint === endpoint) onChoose?.(n.endpoint);
+          }}
         >
           {n.label}
         </SegmentedItem>

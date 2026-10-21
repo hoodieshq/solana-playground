@@ -289,7 +289,11 @@ const FlowFrame = () => {
       </div>
 
       {settings.open && (
-        <SettingsPage focus={settings.focus} onClose={closeSettings} />
+        <SettingsPage
+          focus={settings.focus}
+          onClose={closeSettings}
+          onChooseNetwork={markNetworkChosen}
+        />
       )}
 
       <ModalHost />
