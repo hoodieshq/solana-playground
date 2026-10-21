@@ -70,7 +70,7 @@ export function Overview() {
       <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[max(var(--safe-bottom),16px)]">
         <BrandButton
           variant="accent"
-          className="h-14 w-full text-control"
+          className="h-14 w-full"
           onClick={() => (finished ? setConfirm(true) : dispatch({ type: "start" }))}
         >
           {finished ? "Start again" : started ? `Continue from step ${first + 1}` : "Start"}
