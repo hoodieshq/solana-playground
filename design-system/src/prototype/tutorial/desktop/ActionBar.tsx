@@ -78,7 +78,20 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
   return (
     <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface-panel px-4 py-3">
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-start gap-1.5 text-caption leading-relaxed text-muted-foreground">
-        {asking ? <span>Answer the quick check to see the code, or skip it</span> : <StepStatus />}
+        {asking ? (
+          <span>Answer the quick check to see the code, or skip it</span>
+        ) : s.phase === "idle" ? (
+          // What the step checks is in the column's task. Here, by the buttons, how to get there
+          <span>
+            {step.deploy
+              ? "Deploy the built program from here."
+              : step.id === "call-client"
+                ? "Write the call in client.ts and run it, or let the assistant draft it."
+                : "Write it in the editor and build, or let the assistant draft it."}
+          </span>
+        ) : (
+          <StepStatus />
+        )}
       </p>
       {/* Holds the bar's height when there are no buttons, so the code above doesn't jump */}
       <div className="flex h-10 shrink-0 items-center gap-2">{buttons}</div>

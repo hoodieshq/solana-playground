@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { BookOpen, ChevronLeft, RotateCcw, X } from "lucide-react"
+import { BookOpen, ChevronUp, CircleCheck, CircleDashed, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,8 @@ let taughtNotes = false
 export function Step() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
-  const [lesson, setLesson] = useState(false)
+  // The lesson reads in the column, open while the step waits and folded once it has passed
+  const [lessonOpen, setLessonOpen] = useState(!s.passed[s.step])
   const [notes, setNotes] = useState<number[]>([])
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [explained, setExplained] = useState(false)
@@ -40,9 +41,10 @@ export function Step() {
 
   // A new step starts with a clean column
   useEffect(() => {
-    setLesson(false)
+    setLessonOpen(!s.passed[s.step])
     setMsgs([])
     setExplained(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.step])
 
   useEffect(() => {
@@ -65,8 +67,11 @@ export function Step() {
       setTerm(true)
       setExplained(false)
     }
-    if (s.phase === "passed" && (was === "building" || was === "deploying"))
+    if (s.phase === "passed" && (was === "building" || was === "deploying")) {
+      // The lesson has done its job: fold it, so the answer and what's next are in view
+      setLessonOpen(false)
       say(s.step === STEPS.length - 1 ? "That's every step. Finish the tutorial to see what you built." : `Next: ${STEPS[s.step + 1].objective}.`)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase, s.step])
 
@@ -83,7 +88,7 @@ export function Step() {
     })
     ro.observe(box)
     return () => ro.disconnect()
-  }, [lesson])
+  }, [])
 
   const busy = s.phase === "building" || s.phase === "deploying"
   // The deploy step has no code to write
@@ -94,9 +99,10 @@ export function Step() {
   // Whether the answer was right, and why, stays with the quick check in the column, so the action
   // bar keeps the assistant's line about the patch (on the phone the bar carries both in turn)
   const answer = s.predicted[s.step]
-  // The quick check sits under the goal, above the messages, so bring it into view when it comes
+  // The quick check comes in under the lesson, so bring it into view when it does
+  const check = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (asking) scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
+    if (asking) check.current?.scrollIntoView({ block: "start", behavior: "smooth" })
   }, [asking])
 
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
@@ -124,7 +130,6 @@ export function Step() {
   const explain = () => {
     if (!s.error) return
     setExplained(true)
-    setLesson(false)
     say(s.error.explain ?? step.explainError ?? step.explainStep, {
       file: step.file,
       line: s.error.line,
@@ -133,7 +138,7 @@ export function Step() {
   }
 
   // ⌘B builds or deploys, 1 to 3 answer the quick check and S skips it, ⌘Enter applies a patch,
-  // Enter goes on after a pass, Esc closes the lesson and the notes. Plain keys stay off while typing
+  // Enter goes on after a pass, Esc closes the notes. Plain keys stay off while typing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null
@@ -152,7 +157,6 @@ export function Step() {
       } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a")) {
         dispatch({ type: "next" })
       } else if (e.key === "Escape") {
-        setLesson(false)
         setNotes([])
       }
     }
@@ -210,41 +214,63 @@ export function Step() {
           </Tooltip>
         </div>
 
-        {lesson ? (
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 pb-6">
-            <Button variant="ghost" className="-ml-2 h-9 gap-1.5 px-2 text-caption text-muted-foreground" onClick={() => setLesson(false)}>
-              <ChevronLeft className="size-4" />
-              Back to the step
-            </Button>
-            <p className="mt-3 text-caption text-muted-foreground">Lesson</p>
-            <h2 className="mt-1 font-heading text-[1.375rem] leading-tight">{step.title}</h2>
-            <div className="mt-5">
+        {/* The column reads top down, as a lesson page beside the editor: the goal, the lesson, the
+            task, the quick check when a patch comes, then what the assistant said */}
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
+          <p className="text-caption text-muted-foreground">{step.title}</p>
+          <h1 className="mt-1 font-heading text-[1.25rem] leading-snug">{step.objective}</h1>
+
+          {lessonOpen ? (
+            <section aria-label="Lesson" className="mt-5">
               <LessonBlocks copy blocks={step.lesson} />
-            </div>
-          </div>
-        ) : (
-          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
-            <p className="text-caption text-muted-foreground">{step.title}</p>
-            <h1 className="mt-1 font-heading text-[1.25rem] leading-snug">{step.objective}</h1>
-            {/* The lesson opens in this column, so the code stays in view while you read */}
-            <button type="button" onClick={() => setLesson(true)} className="mt-3 flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground transition-colors hover:bg-surface">
+              {s.passed[s.step] && (
+                <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-caption text-muted-foreground" onClick={() => setLessonOpen(false)}>
+                  <ChevronUp className="size-4" />
+                  Hide the lesson
+                </Button>
+              )}
+            </section>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLessonOpen(true)}
+              className="mt-3 flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground transition-colors hover:bg-surface"
+            >
               <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
-              Read the lesson
+              Show the lesson
               <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
             </button>
-            {/* Asked before the patch shows, then kept as a record for the rest of the step */}
-            {step.predict && (asking || typeof answer === "number") && (
+          )}
+
+          {/* What the step checks, ticked once it passes. How to do it sits by the buttons */}
+          <section aria-labelledby="task-title" className="mt-6 rounded-panel border border-border bg-surface-panel px-4 py-3">
+            <h2 id="task-title" className="text-caption text-muted-foreground">
+              Your task
+            </h2>
+            <p className="mt-1.5 flex items-start gap-2 text-control">
+              {s.passed[s.step] ? (
+                <CircleCheck strokeWidth={1.75} aria-label="Done" className="mt-0.5 size-4 shrink-0 text-success" />
+              ) : (
+                <CircleDashed strokeWidth={1.75} aria-label="Not done yet" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              )}
+              <span>Done when {step.checkedBy}</span>
+            </p>
+          </section>
+
+          {/* Asked before the patch shows, then kept as a record for the rest of the step */}
+          {step.predict && (asking || typeof answer === "number") && (
+            <div ref={check} className="scroll-mt-4">
               <QuickCheck
                 predict={step.predict}
                 answer={typeof answer === "number" ? answer : undefined}
                 onAnswer={(choice) => dispatch({ type: "predict", choice })}
               />
-            )}
-            <div ref={feed}>
-              <Feed msgs={msgs} resolved={s.passed[s.step]} />
             </div>
+          )}
+          <div ref={feed}>
+            <Feed msgs={msgs} resolved={s.passed[s.step]} />
           </div>
-        )}
+        </div>
 
         <AskBox placeholder={placeholder} suggestions={suggestions} onAsk={ask} />
       </Column>
