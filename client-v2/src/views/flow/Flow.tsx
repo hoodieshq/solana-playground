@@ -65,6 +65,25 @@ const Flow = () => (
   </FeedbackHost>
 );
 
+/**
+ * Closes a menu, popover or tooltip open as the settings open. They portal to
+ * `body`, outside the shell the page hides, so they would stay over the page,
+ * and a modal menu's focus trap would pull focus back from it. Every one of
+ * them closes on an Escape seen on the document, so one is sent from where
+ * focus is -- only while one is open: Escape closes the topmost layer, and
+ * with none open that is the navigation's Sheet, which `closeSheet` closes
+ * and counts as the product's (`via: auto`), not a key's.
+ */
+const closeOpenLayers = (active: Element | null) =>
+  document.querySelector("[data-radix-popper-content-wrapper]") &&
+  (active ?? document.body).dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    })
+  );
+
 /** Open, the settings page remembers where focus was, to give it back */
 type SettingsState =
   | { open: false }
@@ -119,6 +138,7 @@ const FlowFrame = () => {
       if (settings.open) return closeSettings("key");
       const active = document.activeElement;
       closeSheet();
+      closeOpenLayers(active);
       settingsTelemetry.track("settings_opened", { from });
       setSettings({
         open: true,

@@ -1581,6 +1581,21 @@ they are answered. One PR.
   folding groups and popover chrome there. `CustomSetting.tsx` goes to the
   legacy `views/flow/settings/` instead: it is drawn in overlays'
   `ModalFrame`, and a widget cannot import another widget.
+- **Taken into this PR from its review** (Slava, 2026-10-21, intakes
+  2026-10-20-settings-control-throw, -settings-endpoint-names and
+  -settings-popover-over-page):
+  - A setting that throws as it renders (a malformed `values` entry, a
+    Custom value with no `custom`) no longer unmounts the app beneath the
+    page: `SettingsBoundary` puts a notice and "Back to app" in its place and
+    reports the error through the logger's `panic`.
+  - `connection.endpoint` is named "RPC endpoint" and `server.endpoint`
+    "Build server" in the registry, so the two selects no longer share the
+    name "Endpoint".
+  - A menu, popover or tooltip open when the page opens closes: they portal
+    to `body`, outside the hidden shell, and a modal menu's focus trap would
+    pull focus back from the page. Each closes on an Escape seen on the
+    document, so opening the page sends one from where focus is
+    (`closeOpenLayers` in `Flow`).
 - **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
   menu | key | setup}`, `settings_closed {via: back | escape | key}` and
   `settings_section_picked {section}`. Export and import failures keep going

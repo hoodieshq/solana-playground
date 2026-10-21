@@ -371,8 +371,11 @@ Notification, Server, Test UI, UI, Wallet, Experimental) beside the sections
 themselves; a click on a section in the list SHALL bring that section into
 view and mark it as current. Below 720 px the page SHALL show a bar with
 "Back to app" and the title, and no list. Nothing of the app SHALL be drawn
-over the page. "Back to app", Escape and ⌘, (Ctrl+, off macOS) SHALL close
-it and give focus back to the control that opened it.
+over the page: a menu, popover or tooltip open when it opens SHALL close.
+"Back to app", Escape and ⌘, (Ctrl+, off macOS) SHALL close it and give
+focus back to the control that opened it. A setting that fails to render
+SHALL leave the app as it was, with a notice and "Back to app" in place of
+the page.
 
 #### Scenario: A wide window's settings page
 
@@ -394,6 +397,18 @@ it and give focus back to the control that opened it.
   cluster row and clicks "Back to app"
 - **THEN** the same file is open with the same content, and focus is back
   on the cluster row
+
+#### Scenario: A menu open at ⌘, closes as the settings open
+
+- **WHEN** a user opens the account menu and presses ⌘,
+- **THEN** the settings page opens with focus on its heading and the menu
+  is gone
+
+#### Scenario: A tooltip open at ⌘, closes as the settings open
+
+- **WHEN** a user on an 834 px wide window hovers the rail's cluster dot
+  until its tooltip shows, and presses ⌘,
+- **THEN** the settings page opens and the tooltip is gone
 
 #### Scenario: Escape in a dialog opened from the settings closes only the dialog
 

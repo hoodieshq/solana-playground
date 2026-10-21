@@ -1566,6 +1566,37 @@ test.describe("the settings page", () => {
       .toContain("via: back");
   });
 
+  test("client-v2-layout: A menu open at ⌘, closes as the settings open", async ({
+    seededPage: page,
+  }) => {
+    // The menu portals to `body`, outside the shell the page hides
+    await account(page).click();
+    const menu = page.getByRole("menu", { name: "Account" });
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(settingsPage(page)).toBeVisible();
+    await expect(menu).toHaveCount(0);
+    await expect(
+      settingsPage(page).getByRole("heading", { level: 1, name: "Settings" })
+    ).toBeFocused();
+  });
+
+  test("client-v2-layout: A tooltip open at ⌘, closes as the settings open", async ({
+    seededPage: page,
+  }) => {
+    // The rail's tooltips name its buttons, and portal to `body` too
+    await page.setViewportSize({ width: 834, height: 1112 });
+    await nav(page)
+      .locator('[data-slot="sidebar-footer"]')
+      .getByRole("button", { name: /^Cluster: / })
+      .hover();
+    const tooltip = page.getByRole("tooltip");
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(settingsPage(page)).toBeVisible();
+    await expect(tooltip).toHaveCount(0);
+  });
+
   test("client-v2-layout: Escape in a dialog opened from the settings closes only the dialog", async ({
     seededPage: page,
   }) => {
