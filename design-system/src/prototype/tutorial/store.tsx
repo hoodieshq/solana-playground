@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react"
 
-import { checkOwn } from "./check"
+import { checkOwn, sameCode } from "./check"
 import { INITIAL_FILES, STEPS, type BuildResult, type Fail, type Pass, type Patch, type Step } from "./data"
 import { diffLines } from "./diff"
 import { KEEP } from "./view"
@@ -217,6 +217,9 @@ function reducer(s: State, a: Action): State {
       // Typing clears a failed build's red line: the error was about the code before the change.
       // A passed step goes back to waiting for a build, and Next comes back with the next pass
       const files = { ...s.files, [step.file]: a.code }
+      // Only whitespace changed: nothing a build checks did, so a pass stands. Enter typed in the
+      // editor after a pass keeps Next where it was
+      if (s.phase === "passed" && sameCode(a.code, s.files[step.file])) return { ...s, files }
       return { ...s, files, error: null, sheet: false, phase: "idle" }
     }
     case "buildOwn":

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react"
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -7,7 +7,9 @@ import { highlight } from "../ui/CodeView"
 /** A plain editor for the prototype: a textarea over highlighted code, both in the same font and
  * line height, so the caret lands on the letters. The product uses Monaco, as client-v2 does.
  * `fresh` lines are the ones the last patch added, `focus` where a change will land. `jump` scrolls to
- * a line and puts the caret at its start; a new `n` repeats the same line */
+ * a line and puts the caret at its start, once: `onJumped` hands it back, so an editor that mounts
+ * again later (after a patch closes) doesn't take the focus a second time. `placeholder` fills an
+ * empty file until the first character */
 export function Editor({
   code,
   onChange,
@@ -17,8 +19,10 @@ export function Editor({
   fresh = [],
   focus = [],
   hint,
+  placeholder,
   label,
   jump = null,
+  onJumped,
 }: {
   code: string
   onChange?: (code: string) => void
@@ -28,8 +32,10 @@ export function Editor({
   fresh?: number[]
   focus?: number[]
   hint?: string
+  placeholder?: string
   label: string
   jump?: { line: number; n: number } | null
+  onJumped?: () => void
 }) {
   const lines = code.split("\n")
   const box = useRef<HTMLDivElement>(null)
@@ -46,7 +52,17 @@ export function Editor({
     // The line a third of the way down, so what's above it stays in view
     const height = parseFloat(getComputedStyle(el).lineHeight)
     box.current.scrollTo({ top: Math.max(0, (jump.line - 1) * height - box.current.clientHeight / 3), behavior: "smooth" })
+    onJumped?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump])
+
+  // The textarea covers the code, the blank space under it included. A press on the line numbers
+  // lands in it too, so anywhere in the editor is a place to start typing
+  const onMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    if (readOnly || e.target === area.current) return
+    e.preventDefault()
+    area.current?.focus()
+  }
 
   // Tab writes four spaces, as Rust is indented here. Esc, then Tab leaves the editor, as in
   // CodeMirror, so the keyboard can still reach the buttons under it
@@ -65,9 +81,10 @@ export function Editor({
   }
 
   return (
-    <div ref={box} className={cn("min-h-0 flex-1 overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
+    <div ref={box} onMouseDown={onMouseDown} className={cn("flex min-h-0 flex-1 flex-col overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
       {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
-      <div className="grid min-w-max grid-cols-[58px_1fr]">
+      {/* Grows to the editor's height, so the textarea in it does too */}
+      <div className="grid min-w-max flex-1 grid-cols-[58px_1fr]">
         <div aria-hidden="true" className="pr-6 text-right text-subtle select-none">
           {lines.map((_, i) => (
             <div key={i}>{i + 1}</div>
@@ -101,12 +118,14 @@ export function Editor({
             onChange={(e) => onChange?.(e.target.value)}
             onKeyDown={onKeyDown}
             aria-label={label}
+            // The file's own text is transparent over the highlighting, the hint is not
+            placeholder={placeholder}
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
             wrap="off"
-            className="absolute inset-0 m-0 size-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-[1.6] whitespace-pre text-transparent caret-brand-purple outline-none selection:bg-primary/30 read-only:cursor-default"
+            className="absolute inset-0 m-0 size-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-[1.6] whitespace-pre text-transparent caret-brand-purple outline-none selection:bg-primary/30 placeholder:text-muted-foreground read-only:cursor-default"
           />
         </div>
       </div>

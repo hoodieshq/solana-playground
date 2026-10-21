@@ -6,6 +6,9 @@ export type OwnCheck = { ok: true } | (Fail & { explain: string })
 
 const squash = (code: string) => code.replace(/\s+/g, "")
 
+/** Whether two versions of a file differ only in whitespace, which no build would notice */
+export const sameCode = (a: string, b: string) => squash(a) === squash(b)
+
 /** The 1-based line that holds `needle`, or 1 */
 function lineOf(code: string, needle: string) {
   const i = code.split("\n").findIndex((l) => l.includes(needle))

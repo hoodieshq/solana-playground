@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import { FileDiff } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
@@ -27,10 +27,18 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
   const fix = fixFor(s)
   const keys = <Shortcut keys={PRIMARY_KEYS} />
 
+  // A pass hands the focus to Next, so Enter or Space goes on from wherever it was, the editor too
+  const next = useRef<HTMLButtonElement>(null)
+  const was = useRef(s.phase)
+  useEffect(() => {
+    if (s.phase === "passed" && (was.current === "building" || was.current === "deploying")) next.current?.focus()
+    was.current = s.phase
+  }, [s.phase])
+
   let buttons: ReactNode
   if (s.phase === "passed") {
     buttons = (
-      <Button className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
+      <Button ref={next} className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
         {/* Where it leads, as on the phone. The key says how; the phone's arrow would be a second sign for the same thing */}
         {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
         {keys}

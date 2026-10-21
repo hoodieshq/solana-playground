@@ -43,11 +43,14 @@ export function Step() {
   const ask = (question: string, answer: string) =>
     setMsgs((m) => [...m, { id: ++ids.current, from: "you", text: question }, { id: ++ids.current, from: "assistant", text: answer }])
 
-  // A new step starts with a clean column
+  // A new step starts with a clean column, and with the caret where its code goes. A line the
+  // last step's terminal pointed to is dropped, or the next editor to mount would jump to it
   useEffect(() => {
     setLessonOpen(!s.passed[s.step])
     setMsgs([])
     setExplained(false)
+    const writes = s.phase === "idle" && !!step.patch && !s.passed[s.step]
+    setJump(writes ? { line: step.focus[0] ?? 1, n: 0 } : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.step])
 
@@ -256,7 +259,10 @@ export function Step() {
             fresh={freshLines(s)}
             focus={focus}
             label={`${step.file}, ${locked ? "read only" : "editable"}`}
+            // How to start, where the code will go. It goes with the first character
+            placeholder={step.patch && !locked ? "Type the code from the lesson here, or press Write with assistant" : undefined}
             jump={jump}
+            onJumped={() => setJump(null)}
           />
         )}
       </Workspace>

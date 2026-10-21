@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -13,6 +14,13 @@ import { Prose } from "../ui/Prose"
  * amber (a hint, not an error), the rest faded, and why under them. The phone has no room to keep it */
 export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; answer?: number; onAnswer: (choice: number | "skip") => void }) {
   const done = answer !== undefined
+  // The question takes the focus as it comes in, so the keyboard answers it straight away. The column
+  // scrolls it into view by itself, smoothly, so the focus doesn't jump the scroll
+  const first = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!done) first.current?.focus({ preventScroll: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   return (
     // No rule above it: the gap from the lesson over it is enough
     <section aria-labelledby="quick-check" className="mt-8 flex flex-col gap-2">
@@ -26,6 +34,7 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
         return (
           <button
             key={option}
+            ref={i === 0 ? first : undefined}
             type="button"
             disabled={done}
             aria-pressed={done ? picked : undefined}

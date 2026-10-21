@@ -31,7 +31,7 @@ export function Overview() {
 
   return (
     <>
-      {/* Before the start the project is a single comment, so it shows the program the tutorial ends
+      {/* Before the start the project is empty, so it shows the program the tutorial ends
           with instead: what you'll build. Once started, the code as it was left */}
       <Workspace
         file="src/lib.rs"

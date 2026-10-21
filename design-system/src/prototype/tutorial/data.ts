@@ -80,7 +80,9 @@ export const TUTORIALS: TutorialCard[] = [
   { slug: "zero-copy", name: "Zero Copy", level: "Advanced", framework: "Anchor", ext: "jpg" },
 ]
 
-const LIB_START = "// Import anchor"
+// The files start empty. A comment on the first line read as an instruction but was real text, so
+// code typed after it ended up inside the comment. The empty editor says what to do instead
+const LIB_START = ""
 
 // Step 1, first try: hello asks for Context<Hello>, but Hello is missing
 const LIB_BROKEN = `use anchor_lang::prelude::*;
@@ -109,7 +111,7 @@ const LIB_NAMED = LIB_FIXED.replace(
         msg!("Hello, {}!", name);`
 )
 
-const CLIENT_START = "// Client code..."
+const CLIENT_START = ""
 
 const CLIENT_CALL = `// Call the hello instruction
 const txHash = await pg.program.methods.hello().rpc();
