@@ -47,7 +47,7 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
   return {
     ok: false,
     line: i === -1 ? 1 : i + 1,
-    log: [...head, rust ? "error: the build didn't produce what this step needs" : "Error: the client didn't get a transaction back", "Build failed"],
+    log: [...head, rust ? "error: the build didn't produce what this step needs" : "Error: the client didn't get a transaction back", rust ? "Build failed" : "Run failed"],
     reason: "Your code doesn't match what this step needs yet.",
     explain:
       "Something in your code differs from what this step checks for. Compare it with the lesson, or review the fix to see the exact lines this step needs.",
