@@ -44,12 +44,14 @@ function useArrival(on: boolean) {
     const runs = [
       thread.current.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: SLOW, delay: 500, easing: EASE_OUT, fill: "backwards" }),
       dot.current.animate(
+        // The dot is hidden by its own style before and after, so the run leaves nothing behind
         [
-          { top: "0%", opacity: 1 },
+          { top: "0%", opacity: 0 },
+          { top: "8%", opacity: 1, offset: 0.1 },
           { top: "100%", opacity: 1, offset: 0.85 },
           { top: "100%", opacity: 0 },
         ],
-        { duration: SLOW + 120, delay: 500, easing: EASE_OUT, fill: "both" }
+        { duration: SLOW + 120, delay: 500, easing: EASE_OUT }
       ),
       log.current.animate([{ opacity: 0, transform: "translateY(0.375rem)" }, { opacity: 1, transform: "none" }], { duration: 320, delay: 1050, easing: EASE_OUT, fill: "backwards" }),
       word.current.animate([{ backgroundColor: "rgb(20 241 149 / 0.22)" }, { backgroundColor: "rgb(20 241 149 / 0)" }], { duration: 1400, delay: 1250, easing: "ease-out", fill: "backwards" }),
