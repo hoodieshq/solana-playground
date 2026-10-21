@@ -230,8 +230,6 @@ describe("AssistantComposer, connected", () => {
       preset: { provider: "default" },
     });
     expect(tracked()).toEqual([["assistant_connect_opened", { via: "model" }]]);
-    // `closeModal` answers every pending `setModal` (HOO-2091)
-    await act(async () => PgView.closeModal(null));
   });
 
   it("tracks nothing when the effort picked is the one set", async () => {
