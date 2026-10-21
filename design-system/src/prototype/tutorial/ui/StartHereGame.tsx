@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
-import { Check, Play } from "lucide-react"
+import { Play } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
@@ -10,7 +10,8 @@ import { view } from "../view"
 import { MECHANICS } from "./startHereGame/index"
 import { EASE_OUT, reducedMotion } from "./startHereGame/motion"
 import type { Mechanic } from "./startHereGame/types"
-import { StartHereBanner } from "./StartHereBanner"
+import { WORDS } from "./startHereGame/words"
+import { DoneMark, QuietAction, StartHereBanner } from "./StartHereBanner"
 import { StartHereSurface } from "./startHereSurface"
 
 /* The ground is the banner's, so the game and the banner read as one family */
@@ -19,11 +20,12 @@ const GROUND = {
     "radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, var(--brand-purple) 14%, transparent), transparent 62%), color-mix(in oklab, var(--brand-purple) 6%, var(--surface-panel))",
 }
 
-/* The game takes exactly the banner's height, whatever it plays, so the gallery below never moves.
-   Measured off StartHereBanner in its fresh state at 100%: 270px on a wide desktop, 282px where
-   its words wrap (1024 and the tablet frame). In rem, so a larger font scales the box with the
-   banner, and what no longer fits scrolls inside the play area. A box can't query its own width,
-   so the height reads the wrapper's */
+/* The game keeps one height, whatever it plays, so the gallery below never moves. 270px on a wide
+   desktop, the banner's own height. Where the columns narrow (1024 and the tablet frame) it's
+   282px, 12 more than the banner there: the play area needs that room, and at 100% in the tablet
+   frame all eight mechanics fit it without scrolling. In rem, so a larger font scales the box with
+   the banner, and what no longer fits scrolls inside the play area. A box can't query its own
+   width, so the height reads the wrapper's */
 const HEIGHT = "h-[17.625rem] @min-[58rem]/start:h-[16.875rem]"
 
 const NEXT_KEY = "pg-proto-game-next"
@@ -152,19 +154,15 @@ export function StartHereGame({ mechanic }: { mechanic: Mechanic }) {
   // games lead into the tutorial. The prototype only opens the overview
   const open = () => dispatch({ type: "open", screen: "overview" })
 
+  // A step under Run: the banner's quiet second action, words and an arrow
   const skip = (
-    <button
-      type="button"
-      data-mechanic={mechanic.id}
-      onClick={open}
-      className="min-h-11 shrink-0 text-caption whitespace-nowrap text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:text-foreground focus-visible:text-foreground"
-    >
+    <QuietAction data-mechanic={mechanic.id} onClick={open}>
       Skip to the tutorial
-    </button>
+    </QuietAction>
   )
 
   const main = done ? (
-    <BrandButton ref={startButton} data-mechanic={mechanic.id} variant="accent" className="h-10 px-6" onClick={open}>
+    <BrandButton ref={startButton} data-mechanic={mechanic.id} variant="accent" className="h-10 px-5" onClick={open}>
       Start
     </BrandButton>
   ) : (
@@ -212,20 +210,23 @@ export function StartHereGame({ mechanic }: { mechanic: Mechanic }) {
         </div>
 
         <div className="relative grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 p-8 [grid-template-areas:'head'_'play'_'actions'] @min-[44rem]:grid-cols-[clamp(14rem,40cqi,21rem)_minmax(0,1fr)] @min-[44rem]:grid-rows-[auto_1fr] @min-[44rem]:gap-x-8 @min-[44rem]:gap-y-0 @min-[44rem]:[grid-template-areas:'head_play'_'actions_play']">
+          {/* The banner's words, in its steps, so a mechanic and the banner read as one */}
           <div className="min-w-0 [grid-area:head]">
-            <p className={cn("flex items-center gap-1.5 text-caption", done ? "text-muted-foreground" : "text-brand-periwinkle")}>
+            <p className={cn(WORDS.label, done ? "text-muted-foreground" : "text-brand-periwinkle")}>
               {done && <DoneMark />}
               {done ? "Preview run" : "Start here"}
             </p>
-            <h2 id={titleId} className="mt-1 font-heading text-display">
+            <h2 id={titleId} className={WORDS.title}>
               {done ? "Now write it for real." : mechanic.hook}
             </h2>
-            <p id={lineId} className="mt-2 font-read text-body text-muted-foreground">
-              {done ? `${time}. Hello Anchor writes it line by line and deploys it for real.` : mechanic.line}
+            <p id={lineId} className={WORDS.line}>
+              {done ? `${time}. Hello Anchor has you write it line by line, then deploy it.` : mechanic.line}
             </p>
           </div>
           {play}
-          <div className="flex flex-wrap items-center gap-x-4 self-end [grid-area:actions]">
+          {/* Beside the play area the buttons follow the words, 20px under them, and the height
+              that's left falls to the bottom rather than between the words and Run */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 self-end [grid-area:actions] @min-[44rem]:self-start @min-[44rem]:pt-5">
             {main}
             {!done && skip}
           </div>
@@ -236,14 +237,6 @@ export function StartHereGame({ mechanic }: { mechanic: Mechanic }) {
         </p>
       </section>
     </div>
-  )
-}
-
-function DoneMark() {
-  return (
-    <span className="flex size-4 items-center justify-center rounded-full bg-success/15 text-success">
-      <Check strokeWidth={2.5} className="size-3" aria-hidden="true" />
-    </span>
   )
 }
 

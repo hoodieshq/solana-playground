@@ -34,7 +34,7 @@ export function ContextLine({ n, plain = false, children }: { n: number; plain?:
       aria-hidden="true"
       className={cn(
         "flex min-h-5 overflow-hidden whitespace-pre [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]",
-        plain ? "text-syntax-plain" : "text-muted-foreground/75"
+        plain ? "text-syntax-plain" : "text-muted-foreground/80"
       )}
     >
       <Gutter n={n} />

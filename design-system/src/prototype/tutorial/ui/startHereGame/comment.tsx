@@ -82,8 +82,9 @@ export function CommentGame({ onSolved, locked, announce }: PlayProps) {
               >
                 <Gutter n={i + 1} />
                 {off[i] ? (
-                  <span className="truncate text-syntax-comment">
-                    {"// "}
+                  // The slashes say it's off; the line itself stays a readable grey, AA on the card
+                  <span className="truncate text-muted-foreground">
+                    <span className="text-syntax-comment">{"// "}</span>
                     {code}
                     {i === 5 && " ⋯ }"}
                   </span>
@@ -94,7 +95,7 @@ export function CommentGame({ onSolved, locked, announce }: PlayProps) {
                     {i === 5 && (
                       <>
                         {" "}
-                        <span className="rounded-sm bg-surface-raised px-1 text-syntax-comment">⋯</span> {"}"}
+                        <span className="rounded-sm bg-surface-raised px-1 text-muted-foreground">⋯</span> {"}"}
                       </>
                     )}
                   </span>

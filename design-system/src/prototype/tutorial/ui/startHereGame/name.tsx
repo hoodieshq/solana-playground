@@ -64,8 +64,9 @@ export function NameGame({ onSolved, onRun, locked, announce }: PlayProps) {
               // Its own width, a character more than the name, so the closing quote follows the text
               style={{ width: `${Math.max([...name].length, 5) + 1}ch` }}
               className={cn(
-                // 16px on touch screens, or iOS zooms the page in when the field takes the focus
-                "h-8 max-w-full min-w-[4ch] shrink rounded-sm border-b border-dashed border-syntax-string/60 bg-syntax-string/8 px-[0.5ch] font-mono text-syntax-string outline-none placeholder:text-syntax-string/45 focus-visible:ring-2 focus-visible:ring-ring/60 pointer-coarse:text-base",
+                // 16px on touch screens, or iOS zooms the page in when the field takes the focus.
+                // The placeholder is the string's own colour at 75%: lighter than a typed name, still AA
+                "h-8 max-w-full min-w-[4ch] shrink rounded-sm border-b border-dashed border-syntax-string/60 bg-syntax-string/8 px-[0.5ch] font-mono text-syntax-string outline-none placeholder:text-syntax-string/75 focus-visible:ring-2 focus-visible:ring-ring/60 pointer-coarse:text-base",
                 locked && "border-transparent bg-transparent"
               )}
             />

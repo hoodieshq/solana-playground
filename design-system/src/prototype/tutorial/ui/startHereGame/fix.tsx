@@ -7,6 +7,7 @@ import { highlight } from "../CodeView"
 import { EASE_OUT, reducedMotion } from "./motion"
 import { CodeCard, ContextLine, Gutter } from "./parts"
 import type { PlayProps } from "./types"
+import { PLAY_WORDS } from "./words"
 
 /* Fix the build: the one idea is that an Anchor instruction's Context names a struct of accounts,
    and that struct has to exist. The error is the one rustc gives for it, word for word */
@@ -114,11 +115,13 @@ export function FixGame({ onSolved, locked, announce }: PlayProps) {
                 aria-label={`${fix.label}: ${fix.code}${wrong ? ", doesn't build" : chosen ? ", builds" : ""}`}
                 onClick={() => pick(fix)}
                 className={cn(
-                  "flex h-9 items-center gap-1.5 rounded-control border px-3 text-caption backdrop-blur-[6px] transition-colors duration-150 ease-standard motion-reduce:transition-none",
+                  PLAY_WORDS,
+                  "flex h-9 items-center gap-1.5 rounded-control border px-3 backdrop-blur-[6px] transition-colors duration-150 ease-standard motion-reduce:transition-none",
                   chosen ? "border-success/50 bg-[color-mix(in_oklab,var(--success)_12%,var(--surface-well))] text-foreground" : "border-border bg-surface-raised/90 text-foreground hover:bg-surface-hover",
                   // Said in words and with a mark, not by the colour or the dashed edge alone
                   wrong && "border-dashed bg-surface-well/90 text-muted-foreground line-through decoration-muted-foreground/60",
-                  fixed && !fix.right && "opacity-60"
+                  // The two that are out once it builds step back in colour, not by a fade, so they stay AA
+                  fixed && !fix.right && "text-muted-foreground"
                 )}
               >
                 {wrong && <X strokeWidth={2} className="size-3.5" aria-hidden="true" />}

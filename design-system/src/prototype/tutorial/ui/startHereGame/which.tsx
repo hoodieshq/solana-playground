@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 
 import { highlight } from "../CodeView"
 import type { PlayProps } from "./types"
+import { PLAY_WORDS } from "./words"
 
 /* Which one builds: two bodies for hello, one character apart. The idea is how a Rust function
    returns: the last expression without a semicolon is the value, so `Ok(())` returns the Result
@@ -33,7 +34,8 @@ export function WhichGame({ onSolved, locked, announce }: PlayProps) {
   return (
     <div className="@container/which flex flex-col gap-2 font-mono text-[0.75rem]/[1.25rem]">
       <p className="self-start rounded-sm bg-surface-well/85 backdrop-blur-[6px] px-2 text-muted-foreground">
-        <span className="text-syntax-comment">// hello returns</span> <span className="text-syntax-type">Result</span>
+        {/* The comment's slashes in the editor's grey, its words a step lighter so they pass AA */}
+        <span className="text-syntax-comment">//</span> hello returns <span className="text-syntax-type">Result</span>
         {"<()>"}
       </p>
       <ul aria-label="Two versions of hello's body" className="grid gap-2 @min-[26rem]/which:grid-cols-2">
@@ -51,19 +53,22 @@ export function WhichGame({ onSolved, locked, announce }: PlayProps) {
                 className={cn(
                   "relative rounded-panel border px-3 py-2 text-left backdrop-blur-[6px] transition-colors duration-150 ease-standard motion-reduce:transition-none",
                   chosen ? "border-success/50 bg-[color-mix(in_oklab,var(--success)_10%,var(--surface-well))]" : "border-border bg-surface-well/90 hover:bg-surface-raised",
-                  wrong && "border-dashed opacity-70",
-                  solved && !o.builds && "opacity-60"
+                  wrong && "border-dashed"
                 )}
               >
-                {o.lines.map((line) => (
-                  <span key={line} className="block whitespace-pre text-syntax-plain">
-                    {"    "}
-                    {highlight(line)}
-                  </span>
-                ))}
+                {/* Once the other one builds, this one's code steps back; its verdict stays at full
+                    strength, so the words say it at AA, not the fade alone */}
+                <span className={cn("block", solved && !o.builds && "opacity-60")}>
+                  {o.lines.map((line) => (
+                    <span key={line} className="block whitespace-pre text-syntax-plain">
+                      {"    "}
+                      {highlight(line)}
+                    </span>
+                  ))}
+                </span>
                 {/* The mark says it in a word too, not by colour alone. Bottom right, beside the short Ok line */}
                 {(wrong || chosen) && (
-                  <span className={cn("absolute right-2.5 bottom-2 flex items-center gap-1 font-sans text-caption", chosen ? "text-success" : "text-muted-foreground")}>
+                  <span className={cn(PLAY_WORDS, "absolute right-2.5 bottom-2 flex items-center gap-1", chosen ? "text-success" : "text-muted-foreground")}>
                     {chosen ? <Check strokeWidth={2.25} className="size-3.5" aria-hidden="true" /> : <X strokeWidth={2} className="size-3.5" aria-hidden="true" />}
                     {chosen ? "builds" : "doesn't build"}
                   </span>

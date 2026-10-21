@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 
 import { EASE_OUT, reducedMotion } from "./motion"
 import type { PlayProps } from "./types"
+import { PLAY_WORDS } from "./words"
 
 /* Route the transaction: tap the four stops a call to hello goes through, in order. The idea is
    the path of a transaction: the client builds and signs it, Kora signs as the fee payer and
@@ -114,7 +115,7 @@ export function RouteGame({ onSolved, locked, announce }: PlayProps) {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-syntax-plain">{stop.name}</span>
-                <span className="block truncate font-sans text-caption text-muted-foreground">{stop.does}</span>
+                <span className={cn(PLAY_WORDS, "block truncate text-muted-foreground")}>{stop.does}</span>
               </span>
             </button>
           )

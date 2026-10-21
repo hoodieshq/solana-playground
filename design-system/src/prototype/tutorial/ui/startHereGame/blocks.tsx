@@ -52,9 +52,10 @@ function Tab({ shape, color, notch = false }: { shape: Shape; color: string; not
   )
 }
 
-// A block's own colours: its hue faint over the raised grey, a firmer edge of it
+// A block's own colours: its hue faint over the editor's well, a firmer edge of it. Over the well,
+// not the raised grey, so a keyword in its own hue (use, on the pink block) still reads at 4.9:1
 const tint = (p: Piece): CSSProperties => ({
-  backgroundColor: `color-mix(in oklab, ${p.color} 14%, var(--surface-raised))`,
+  backgroundColor: `color-mix(in oklab, ${p.color} 14%, var(--surface-well))`,
   borderColor: `color-mix(in oklab, ${p.color} 45%, transparent)`,
 })
 
@@ -277,7 +278,7 @@ export function BlocksGame({ onSolved, locked, announce }: PlayProps) {
                 <div key={i}>
                   {/* Lines 4 and 5 (the module and the function) are folded away, the way an editor does */}
                   {i === 3 && (
-                    <div aria-hidden="true" data-built="" className="flex h-3 items-center text-[0.625rem] text-syntax-comment">
+                    <div aria-hidden="true" data-built="" className="flex h-3 items-center text-[0.625rem] text-muted-foreground">
                       <span className="w-[3ch]" />
                       <span className="rounded-sm bg-surface-raised px-1 leading-none">⋯</span>
                     </div>

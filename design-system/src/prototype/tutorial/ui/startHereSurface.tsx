@@ -16,14 +16,18 @@ const TILE = `data:image/svg+xml,${encodeURIComponent(
 // One pixel of the dither in CSS pixels: big enough to read as a pixel on a 1x screen too
 const CELL = 3
 
+// Where the light is, and the stretch (x1 to x2) over which the words' side fades it to nothing
 const FIELD = {
-  // Behind the code on the right, reaching down to the log line
-  desktop: { cx: 0.86, cy: 0.5, r: 0.7 },
-  // The phone's strip, in the room right of the two lines, brightest at the banner's edge
-  phone: { cx: 1, cy: 0.5, r: 1 },
+  // Behind the code on the right, reaching down to the log line. Where the words are, nothing
+  desktop: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6 },
+  // A strip right of some words, brightest at its outer edge, softening in from its inner one
+  phone: { cx: 1, cy: 0.5, r: 1, x1: 0, x2: 0.4 },
+  // The phone banner's top right corner: brightest in the corner, gone before the box's left and
+  // bottom edges, so it never reaches the words beside and under it
+  corner: { cx: 1, cy: 0, r: 1, x1: 0, x2: 0.45 },
 }
 
-export function StartHereSurface({ layout }: { layout: "phone" | "desktop" }) {
+export function StartHereSurface({ layout }: { layout: keyof typeof FIELD }) {
   const id = useId().replace(/:/g, "")
   const f = FIELD[layout]
   const url = (name: string) => `url(#${id}${name})`
@@ -42,9 +46,9 @@ export function StartHereSurface({ layout }: { layout: "phone" | "desktop" }) {
           <stop offset="0.6" stopColor="var(--brand-violet)" />
           <stop offset="1" stopColor="var(--brand-green)" />
         </linearGradient>
-        {/* Where the words are, nothing: the banner's on the desktop. On the phone the SVG already starts past the code, and only softens in. Black
-            laid over the field, so it goes into the dither as darkness and the pixels thin out there */}
-        <linearGradient id={`${id}fade`} x1={layout === "desktop" ? 0.4 : 0} x2={layout === "desktop" ? 0.6 : 0.4} y1="0" y2="0">
+        {/* Black laid over the field on the words' side, so it goes into the dither as darkness and
+            the pixels thin out there */}
+        <linearGradient id={`${id}fade`} x1={f.x1} x2={f.x2} y1="0" y2="0">
           <stop offset="0" stopColor="#000" />
           <stop offset="1" stopColor="#000" stopOpacity="0" />
         </linearGradient>

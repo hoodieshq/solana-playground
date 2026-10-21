@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { highlight } from "../CodeView"
 import { CodeCard, Gutter } from "./parts"
 import type { PlayProps } from "./types"
+import { PLAY_WORDS } from "./words"
 
 /* Predict the log: one question, three outputs, and Run shows what the log really says. No
    verdict: the guess sits above the real log and the player compares. The idea is what msg!
@@ -32,7 +33,8 @@ export function PredictGame({ onSolved, locked, announce }: PlayProps) {
         </div>
       </CodeCard>
       <fieldset className="min-w-0">
-        <legend className="mb-1.5 text-caption text-muted-foreground">What does the program log show?</legend>
+        {/* Backed like the other words in the play area, so the question reads over the pixels */}
+        <legend className={cn(PLAY_WORDS, "mb-1.5 rounded-sm bg-surface-well/85 px-2 text-muted-foreground backdrop-blur-[6px]")}>What does the program log show?</legend>
         <div className="flex flex-col gap-1.5">
           {GUESSES.map((g, i) => (
             <label

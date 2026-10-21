@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { highlight } from "../CodeView"
 import { EASE_OUT, reducedMotion } from "./motion"
 import type { PlayProps } from "./types"
+import { PLAY_WORDS } from "./words"
 
 /* Match the macros: four names from every Anchor program to what each one does. Tap a name, then
    its meaning, or the other way round. The idea is the vocabulary of the first program */
@@ -85,7 +86,7 @@ export function MatchGame({ onSolved, locked, announce }: PlayProps) {
         onKeyDown={keys}
         className={cn(
           "flex h-8 min-w-0 items-center gap-2 rounded-control border px-2.5 text-left backdrop-blur-[6px] transition-colors duration-150 ease-standard motion-reduce:transition-none",
-          side === "code" ? "font-mono text-[0.75rem]" : "text-caption",
+          side === "code" ? "font-mono text-[0.75rem]" : PLAY_WORDS,
           done
             ? "border-brand-green/40 bg-[color-mix(in_oklab,var(--brand-green)_10%,var(--surface-well))]"
             : picked
