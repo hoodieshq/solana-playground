@@ -42,6 +42,25 @@ export function FilterMenu({ value, onChange, phone = false }: { value: Framewor
   )
 }
 
+/** Who wrote it and how long, in pieces that never break inside: on a narrow card the line wraps
+ * between "by acheron ·" and "10 min", never between "4" and "steps", and a new line never starts
+ * with the dot */
+function Meta({ t, className }: { t: Entry; className?: string }) {
+  const parts = metaFor(t).split(" · ")
+  return (
+    // text-caption! because cn drops the size next to the colour class
+    <p className={cn("text-caption! text-muted-foreground tabular-nums", className)}>
+      {parts.flatMap((part, i) => [
+        i > 0 ? " " : null,
+        <span key={part} className="whitespace-nowrap">
+          {part}
+          {i < parts.length - 1 && " ·"}
+        </span>,
+      ])}
+    </p>
+  )
+}
+
 /** One tutorial: cover, name, its own description, who wrote it and how long it is. The whole card
  * opens the tutorial; the square in its corner starts it, or says how far you are */
 export function TutorialTile({ t, phone = false }: { t: Entry; phone?: boolean }) {
@@ -66,38 +85,44 @@ export function TutorialTile({ t, phone = false }: { t: Entry; phone?: boolean }
         phone ? "p-4" : "p-5"
       )}
     >
-      <div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4 @max-[18rem]:gap-x-3">
+      {/* Three columns on one top line, cover, words and the corner square, so the eye reads the name
+          first and the square sits beside it, not below it. The name and its description stay
+          together; who wrote it and how long sits a little apart, quieter */}
+      <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-start gap-x-4 @max-[18rem]:gap-x-3">
         {/* In px, not rem: a larger font needs the room for words, not for the picture */}
-        <Thumb src={thumb(t.slug, t.ext)} className="row-span-2 size-[56px] @max-[18rem]:row-span-1" />
-        {/* Clear of the corner button, which sits over the card's top right: beside it and, by its
-            height, above the words under it */}
-        <h3 className="col-start-2 min-h-9 pr-12 text-title @max-[18rem]:flex @max-[18rem]:items-center @max-[18rem]:self-center">
-          {/* The name is the card's link: its box is stretched over the whole card, so a tap anywhere
-              opens it, and only the corner button stands above it */}
-          <button
-            type="button"
-            onClick={open}
-            className="line-clamp-2 text-left outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-ring"
-          >
-            {t.name}
-          </button>
-        </h3>
-        {/* 36px to look at, 44 to hit: set 4px out from the padding's corner so the square sits on it */}
+        <Thumb src={thumb(t.slug, t.ext)} className="size-[56px]" />
+        <div className="min-w-0 pt-0.5">
+          <h3 className="font-heading text-title text-foreground">
+            {/* The name is the card's link: its box is stretched over the whole card, so a tap anywhere
+                opens it, and only the corner button stands above it */}
+            <button
+              type="button"
+              onClick={open}
+              className="line-clamp-2 text-left outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            >
+              {t.name}
+            </button>
+          </h3>
+          <div className="@max-[18rem]:hidden">
+            <p className="mt-1 line-clamp-2 text-[0.875rem] leading-snug font-read text-foreground/75">{t.description}</p>
+            {/* Muted, not subtle: the tertiary grey is 3.6:1 on the card, under AA for this size */}
+            <Meta t={t} className="mt-2.5" />
+          </div>
+        </div>
+        {/* 36px to look at, 44 to hit: the extra reaches past the square, not into the words */}
         <button
           type="button"
           aria-label={corner.label}
           onClick={corner.run}
-          className={cn(
-            "absolute z-10 flex h-11 min-w-11 items-center justify-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            phone ? "top-3 right-3" : "top-4 right-4"
-          )}
+          className="relative z-10 -m-1 flex min-h-11 min-w-11 items-center justify-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <TutorialStatus done={done} total={STEPS.length} started={started} finished={finished} className={cn(!finished && "transition-colors hover:border-border-strong")} />
         </button>
-        <div className="col-start-2 @max-[18rem]:col-span-2 @max-[18rem]:col-start-1 @max-[18rem]:mt-3">
-          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground @max-[18rem]:mt-0">{t.description}</p>
-          {/* Muted, not subtle: the tertiary grey is 3.6:1 on the card, under AA for this size */}
-          <p className="mt-1.5 text-caption text-muted-foreground tabular-nums">{metaFor(t)}</p>
+        {/* On a narrow card (a small phone, a large font) the words go under the cover, across the
+            whole card, instead of a column a few words wide */}
+        <div className="col-span-3 mt-3 hidden @max-[18rem]:block">
+          <p className="line-clamp-2 text-[0.875rem] leading-snug font-read text-foreground/75">{t.description}</p>
+          <Meta t={t} className="mt-2.5" />
         </div>
       </div>
     </div>
