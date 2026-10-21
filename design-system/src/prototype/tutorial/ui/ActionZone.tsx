@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
 import { AssistantMark } from "./AssistantMark"
+import { NameField } from "./NameField"
 import { StepStatus, workingLabel, type Lead } from "./StepStatus"
 
 /** A screen shorter than this, in rem, keeps the status to one line. rem, not px: a larger system
@@ -40,7 +41,10 @@ export function ActionZone({ lead }: { lead?: Lead }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
-  const busy = s.phase === "building" || s.phase === "deploying"
+  const busy = s.phase === "building" || s.phase === "deploying" || s.phase === "calling"
+  // The step's last move, calling hello with a name: the field sits right above the buttons, in
+  // reach of a thumb, and the main button runs the call
+  const calls = s.phase === "call" || s.phase === "calling"
   const passed = s.phase === "passed"
   const failed = s.phase === "failed"
   const reviewing = s.phase === "patch"
@@ -103,6 +107,18 @@ export function ActionZone({ lead }: { lead?: Lead }) {
           </button>
         )}
       </div>
+      {calls && (
+        <form
+          id="call-hello"
+          className="mb-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            dispatch({ type: "call" })
+          }}
+        >
+          <NameField className="h-12" />
+        </form>
+      )}
       {/* Sized by its own width, which a larger system font narrows too: on a small phone Ask keeps
           only its mark, Don't apply only its cross, and a long label takes two lines rather than
           running into the edges */}
@@ -142,9 +158,13 @@ export function ActionZone({ lead }: { lead?: Lead }) {
         ) : (
           <BrandButton
             variant="accent"
-            disabled={busy}
+            disabled={busy || (calls && !s.draft.trim())}
             className={cn(big, "min-w-0 flex-1 gap-2 @max-xs:px-3")}
+            // Calling submits the name's form, so Go on the keyboard and the button do the same
+            type={calls ? "submit" : "button"}
+            form={calls ? "call-hello" : undefined}
             onClick={() =>
+              !calls &&
               dispatch(
                 reviewing
                   ? { type: "apply" }
@@ -161,7 +181,9 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             <Label>
               {busy
                 ? workingLabel(s)
-                : reviewing
+                : calls
+                  ? "Call hello"
+                  : reviewing
                   ? step.id === "call-client"
                     ? "Apply and run"
                     : "Apply and build"

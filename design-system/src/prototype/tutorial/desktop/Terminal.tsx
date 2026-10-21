@@ -5,8 +5,11 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
+import { shownLog, stepTx } from "../tx"
 import { BuildLog } from "../ui/BuildLog"
-import { ProgramId, Transaction } from "../ui/ProgramId"
+import { ProgramId } from "../ui/ProgramId"
+import { arriving } from "../tx"
+import { Receipt } from "../ui/Receipt"
 import { workingLabel } from "../ui/StepStatus"
 import { PRIMARY_KEYS } from "./keys"
 import { useKeyHints } from "./pointer"
@@ -15,9 +18,10 @@ import { useKeyHints } from "./pointer"
 export function TerminalStatus() {
   const { s } = useStore()
   const step = STEPS[s.step]
-  const busy = s.phase === "building" || s.phase === "deploying"
-  // Typing clears the error but keeps the log, so the dot follows whether the step passed
-  const failed = !!s.error || (s.log.length > 0 && !s.passed[s.step])
+  const busy = s.phase === "building" || s.phase === "deploying" || s.phase === "calling"
+  // Typing clears the error but keeps the log, so the dot follows whether the step passed. A build
+  // waiting for its call passed: what's left is the call, not a fix
+  const failed = !!s.error || (s.log.length > 0 && !s.passed[s.step] && !s.built)
   return (
     <>
       <span
@@ -32,8 +36,17 @@ export function TerminalStatus() {
   )
 }
 
-/** What the terminal shows: the run as it goes, then its log. A deploy shows its stages, then the program id */
-export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
+/** What the terminal shows: the run as it goes, then its log. A deploy shows its stages, then the
+ * program id; a transaction, its receipt. `onPoint` and `lit` tie the compiler's line to the editor's */
+export function TerminalBody({
+  onJump,
+  onPoint,
+  lit,
+}: {
+  onJump?: (line: number) => void
+  onPoint?: (line: number | null) => void
+  lit?: number | null
+}) {
   const { s } = useStore()
   const step = STEPS[s.step]
   // The key goes with the button's name only where there's a keyboard
@@ -58,34 +71,41 @@ export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
       </ol>
     )
 
-  if (s.phase === "building")
+  if (s.phase === "building" || s.phase === "calling")
     return (
       <p className="flex items-center gap-2 px-4 py-3 font-mono text-code text-muted-foreground">
         <Spinner className="size-3.5" />
-        {step.id === "call-client" ? `$ run ${step.file}` : "$ anchor build"}
+        {s.phase === "calling" ? `$ pg.program.methods.hello(${JSON.stringify(s.name)}).rpc()` : step.id === "call-client" ? `$ run ${step.file}` : "$ anchor build"}
       </p>
     )
 
-  // Reopening a passed deploy clears the log, so show the deploy's own
-  const log = s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log
+  // Reopening a passed step clears the log, so it shows what its run left
+  const log = shownLog(s)
+  const tx = stepTx(s)
 
   return (
-    // A finger gets the compiler's line, the one that takes the editor there, at full height
-    <div className="flex min-h-full flex-col pointer-coarse:[&_pre>button]:min-h-11">
-      <BuildLog
-        onJump={onJump}
-        log={log}
-        // The hint names the button only while that button is there: under a patch it reads Apply and build
-        empty={
-          step.deploy
-            ? `Nothing deployed yet. Press Deploy to devnet${or}.`
-            : step.id === "call-client"
-              ? `Nothing run yet.${s.phase === "idle" ? ` Press Run the client${or}.` : ""}`
-              : `Nothing built yet.${s.phase === "idle" ? ` Press Build${or}.` : ""}`
-        }
-      />
-      {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
-      {step.id === "call-client" && s.passed[s.step] && <Transaction className="mx-4 mb-3" />}
+    // A finger gets the compiler's line, the one that takes the editor there, at full height. With a
+    // receipt, a wide terminal puts it beside the log, so both read without scrolling; a narrow one
+    // stacks them
+    <div className="@container flex min-h-full flex-col pointer-coarse:[&_pre>button]:min-h-11">
+      <div className={cn("flex min-h-full flex-1 flex-col", tx && "@xl:flex-row")}>
+        <BuildLog
+          onJump={onJump}
+          onPoint={onPoint}
+          lit={lit}
+          log={log}
+          // The hint names the button only while that button is there: under a patch it reads Apply and build
+          empty={
+            step.deploy
+              ? `Nothing deployed yet. Press Deploy to devnet${or}.`
+              : step.id === "call-client"
+                ? `Nothing run yet.${s.phase === "idle" ? ` Press Run the client${or}.` : ""}`
+                : `Nothing built yet.${s.phase === "idle" ? ` Press Build${or}.` : ""}`
+          }
+        />
+        {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
+        {tx && <Receipt tx={tx} print={arriving(s.txAt)} className="mx-4 mb-3 shrink-0 @xl:mt-3 @xl:ml-0 @xl:w-[21rem] @xl:self-start" />}
+      </div>
     </div>
   )
 }

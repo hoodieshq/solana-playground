@@ -44,6 +44,30 @@ const quote = (line: string) => (line.includes("`") ? "" : ` (\`${line.trim()}\`
  * of a document often has them. A compiler would refuse them, but that slip isn't what a step teaches */
 export const straightQuotes = (code: string) => code.replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
 
+/** Whether the file holds a piece of code, such as a block of the lesson, judged the way a build is:
+ * whitespace, blank lines and comments aside, curly quotes as straight ones, any text in `msg!`.
+ * Its lines have to come in a row, in the same order */
+export function holds(file: string, snippet: string): boolean {
+  const want = lines(straightQuotes(snippet)).filter(Boolean)
+  if (want.length === 0) return false
+  const have = lines(straightQuotes(file)).filter(Boolean)
+  for (let i = 0; i + want.length <= have.length; i++) if (want.every((l, k) => have[i + k] === l)) return true
+  return false
+}
+
+/** What a program's `msg!` logs, with each `{}` filled by `name` as Anchor would. Without a name
+ * it's the step 3 line, Hello, World!, whatever the file says now. Read from the first `msg!`
+ * that isn't commented out, so code written by hand speaks for itself */
+export function helloSays(lib: string, name: string | null): string {
+  const text = uncomment(straightQuotes(lib)).match(/msg!\(\s*"((?:[^"\\]|\\.)*)"/)?.[1]
+  if (!text || (name === null && text.includes("{}"))) return "Hello, World!"
+  // A function, so a name with $& in it stays as typed
+  return name === null ? text : text.replaceAll("{}", () => name)
+}
+
+/** The line of the file the first `msg!` sits on, comments aside, for the peek that shows it */
+export const msgLine = (lib: string) => lineOf(lib, "msg!")
+
 export function checkOwn(written: string, target: string, file: string): OwnCheck {
   const code = straightQuotes(written)
   const mine = lines(code)
@@ -58,10 +82,14 @@ export function checkOwn(written: string, target: string, file: string): OwnChec
 
   if (target.includes("struct Hello") && bare.includes("Context<Hello>") && !/struct\s+Hello\b/.test(bare)) {
     const line = lineOf(code, "Context<Hello>")
+    // rustc points at the missing type itself, the Hello inside the brackets
+    const column = bare.split("\n")[line - 1].indexOf("Context<Hello>") + "Context<".length + 1
     return {
       ok: false,
       line,
-      log: [...head, "error[E0412]: cannot find type `Hello` in this scope", ` --> ${file}:${line}`, "Build failed"],
+      column,
+      span: "Hello".length,
+      log: [...head, "error[E0412]: cannot find type `Hello` in this scope", ` --> ${file}:${line}:${column}`, "Build failed"],
       reason: `${failed}: \`Context<Hello>\` on line ${line} needs a \`Hello\` struct.`,
       explain:
         "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Your `hello` asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",

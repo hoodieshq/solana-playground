@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { fixFor, freshLines, patchFor, useStore } from "../store"
+import { stepTx } from "../tx"
 import { InlineDiff } from "../ui/InlineDiff"
 import { LessonBlocks, readingMinutes } from "../ui/LessonBlocks"
 import { StepProgress } from "../ui/StepProgress"
@@ -95,6 +96,11 @@ export function Step() {
       const t = window.setTimeout(() => dispatch({ type: "deployStage" }), 1100)
       return () => window.clearTimeout(t)
     }
+    // A call to devnet comes back quicker than a build
+    if (s.phase === "calling") {
+      const t = window.setTimeout(() => dispatch({ type: "called" }), 1600)
+      return () => window.clearTimeout(t)
+    }
   }, [s.phase, s.deployStage, dispatch])
 
   // A run opens the terminal by itself, and a pass folds the lesson
@@ -102,8 +108,8 @@ export function Step() {
   useEffect(() => {
     const was = prev.current
     prev.current = s.phase
-    if (s.phase === "building" || s.phase === "deploying") setTerm(true)
-    if (s.phase === "passed" && (was === "building" || was === "deploying")) {
+    if (s.phase === "building" || s.phase === "deploying" || s.phase === "calling") setTerm(true)
+    if (s.phase === "passed" && (was === "building" || was === "deploying" || was === "calling")) {
       // The lesson has done its job: fold it. The assistant says nothing here: the green button
       // already names the next step
       setLessonOpen(false)
@@ -142,7 +148,7 @@ export function Step() {
     }
   }, [lessonOpen, s.step, s.phase])
 
-  const busy = s.phase === "building" || s.phase === "deploying"
+  const busy = s.phase === "building" || s.phase === "deploying" || s.phase === "calling"
   // The deploy step has no code to write
   const locked = busy || s.phase === "patch" || !!step.deploy
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
@@ -229,6 +235,11 @@ export function Step() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary])
 
+  // The error read as one thing in two places: the compiler's line in the terminal and the line in
+  // the editor light each other while either is hovered
+  const [linked, setLinked] = useState<{ from: "log" | "editor"; line: number } | null>(null)
+  const link = (from: "log" | "editor") => (line: number | null) => setLinked(line === null ? null : { from, line })
+
   const restoreTip = useId()
   const undo = () => {
     dispatch({ type: "undo" })
@@ -301,7 +312,14 @@ export function Step() {
           onOpenChange: setTerm,
           status: <TerminalStatus />,
           // A tap on the compiler's line asks for that line, so the caret goes there, on a tablet too
-          body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1, caret: true }))} />,
+          body: (
+            <TerminalBody
+              onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1, caret: true }))}
+              onPoint={link("log")}
+              lit={s.error && linked?.from === "editor" ? linked.line : null}
+            />
+          ),
+          tall: !!stepTx(s),
         }}
       >
         {proposal && !asking ? (
@@ -313,7 +331,9 @@ export function Step() {
             readOnly={locked}
             // A deploy changes no code: the file is there to look at, so it steps back
             dim={!!step.deploy}
-            error={s.error?.line ?? null}
+            error={s.error ? { line: s.error.line, column: s.error.column, span: s.error.span } : null}
+            lit={!!s.error && linked?.from === "log" && linked.line === s.error.line}
+            onPoint={link("editor")}
             fresh={freshLines(s)}
             focus={focus}
             label={`${step.file}, ${locked ? "read only" : "editable"}`}

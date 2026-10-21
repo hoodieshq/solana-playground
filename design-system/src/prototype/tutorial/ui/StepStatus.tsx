@@ -14,6 +14,7 @@ export type Lead = { text: string; right: boolean }
 /** What the main button says while something runs */
 export function workingLabel(s: State) {
   if (s.phase === "deploying") return "Deploying..."
+  if (s.phase === "calling") return "Calling..."
   return STEPS[s.step].id === "call-client" ? "Running..." : "Building..."
 }
 
@@ -24,13 +25,24 @@ export function StepStatus({ lead }: { lead?: Lead }) {
   const step = STEPS[s.step]
   const r = lastResult(s)
   // Under the explanation sheet the step keeps saying where it stands: the error it explains, or the pass
-  const phase = s.phase === "explain" ? (s.error ? "failed" : s.passed[s.step] && !s.changedSincePass[s.step] ? "passed" : "idle") : s.phase
+  const phase =
+    s.phase === "explain"
+      ? s.error
+        ? "failed"
+        : s.passed[s.step] && !s.changedSincePass[s.step]
+          ? "passed"
+          : step.call && s.built
+            ? "call"
+            : "idle"
+      : s.phase
 
-  if (phase === "building" || phase === "deploying") {
+  if (phase === "building" || phase === "deploying" || phase === "calling") {
     const detail =
       phase === "deploying"
         ? `${step.deploy?.stages[s.deployStage]} (${s.deployStage + 1}/${step.deploy?.stages.length})`
-        : step.id === "call-client"
+        : phase === "calling"
+          ? step.call?.working
+          : step.id === "call-client"
           ? `Running ${step.file} on devnet`
           : "Compiling hello_anchor on the build server"
     return (
@@ -44,7 +56,16 @@ export function StepStatus({ lead }: { lead?: Lead }) {
     return (
       <>
         <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
-        <span className="text-success">{r.note}</span>
+        {/* A step with a call passed on the call, so the call says how */}
+        <span className="text-success">{step.call?.note ?? r.note}</span>
+      </>
+    )
+  // Built, and waiting for the call that finishes the step: still dashed, it isn't done yet
+  if (phase === "call" && step.call)
+    return (
+      <>
+        <CircleDashed strokeWidth={1.75} className="mt-px size-4 shrink-0" />
+        <span>{step.call.ready}</span>
       </>
     )
   if (phase === "failed" && s.error)

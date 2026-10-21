@@ -3,11 +3,13 @@ import type { ReactNode } from "react"
 import { ConsoleDrawer, ConsoleDrawerActions, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
 import { EditorTab, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
 import { Kbd } from "@/components/ui/kbd"
+import { cn } from "@/lib/utils"
 
 import { TERMINAL_KEYS } from "./keys"
 import { useKeyHints } from "./pointer"
 
-export type TerminalSlot = { open: boolean; onOpenChange: (open: boolean) => void; status: ReactNode; body: ReactNode }
+/** `tall` gives the terminal room for a receipt beside or under its log */
+export type TerminalSlot = { open: boolean; onOpenChange: (open: boolean) => void; status: ReactNode; body: ReactNode; tall?: boolean }
 
 /** The project side: its name, the open file, the code, the step's actions and the terminal. The
  * product's Write, Build, Deploy, Interact stepper isn't here: in a tutorial the steps lead, the
@@ -53,7 +55,7 @@ export function Workspace({
             <ConsoleDrawerStatus>{terminal.status}</ConsoleDrawerStatus>
             <ConsoleDrawerActions>{hints && <Kbd>{TERMINAL_KEYS}</Kbd>}</ConsoleDrawerActions>
           </ConsoleDrawerBar>
-          <ConsoleDrawerContent className="h-56 overscroll-contain">{terminal.body}</ConsoleDrawerContent>
+          <ConsoleDrawerContent className={cn("overscroll-contain", terminal.tall ? "h-80" : "h-56")}>{terminal.body}</ConsoleDrawerContent>
         </ConsoleDrawer>
       )}
     </section>

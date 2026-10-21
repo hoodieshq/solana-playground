@@ -26,6 +26,9 @@ export function primaryFor(s: State, asking: boolean): Action | "explain" | null
     case "failed":
       if (!s.explained) return "explain"
       return fixFor(s) ? { type: "reviewFix" } : null
+    case "call":
+      // Run needs a name: an empty field leaves the key with nothing to do, as the button is greyed
+      return s.draft.trim() ? { type: "call" } : null
     case "passed":
       return { type: "next" }
     default:

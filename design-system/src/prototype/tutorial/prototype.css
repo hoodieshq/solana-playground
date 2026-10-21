@@ -115,3 +115,55 @@ a[href] {
 [data-slot="drawer-header"] {
   text-align: left;
 }
+
+/* A receipt prints: its rows come out one by one, 60ms apart, each easing down into place from just
+   above, as paper leaves a printer. Only as its transaction arrives (see Receipt.tsx). With reduced
+   motion the receipt is simply there */
+.pg-print [data-print] {
+  animation: pg-print 200ms var(--ease-out-value) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes pg-print {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -0.25rem, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-print [data-print] {
+    animation: none;
+  }
+}
+
+/* The printed receipt's foot, torn along small even teeth: a strip of downward triangles under the
+   card, cut with a mask so the ground shows between them */
+.pg-receipt {
+  --tooth: 12px;
+  padding-bottom: calc(var(--tooth) / 2 + 0.5rem);
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / var(--tooth) calc(var(--tooth) / 2) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) / 2) no-repeat;
+  mask:
+    conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / var(--tooth) calc(var(--tooth) / 2) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) / 2) no-repeat;
+}
+
+/* A failed build's squiggle draws in under the token, left to right, so it reads as the build
+   pointing there rather than a mark that was always on the code. The clip reaches a little below
+   the line, where the wave runs */
+.pg-squiggle {
+  animation: pg-squiggle 240ms var(--ease-standard-value) both;
+}
+@keyframes pg-squiggle {
+  from {
+    clip-path: inset(0 100% -0.375rem 0);
+  }
+  to {
+    clip-path: inset(0 0 -0.375rem 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-squiggle {
+    animation: none;
+  }
+}

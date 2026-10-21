@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { useStore } from "../store"
-import { FinishBadge, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
+import { FinishBadge, FinishHeadline, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
 import { TopBar } from "../ui/TopBar"
 import { useMoreBelow } from "../ui/useMoreBelow"
 
@@ -28,8 +28,8 @@ export function Finish() {
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-[calc(var(--safe-bottom)+16px)]">
           <div>
             <FinishBadge />
-            <h2 className="mt-4 text-center font-heading text-display">Tutorial complete</h2>
-            <p className="mx-auto mt-2 max-w-[30ch] text-center text-body text-muted-foreground">Your program is live on devnet.</p>
+            <FinishHeadline as="h2" className="mt-4" />
+            <p className="mx-auto mt-3 max-w-[30ch] text-center text-body text-muted-foreground">Tutorial complete. Your program is live on devnet.</p>
             <FinishStats className="mt-6" />
             <LastTransaction className="mt-6" />
             <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>

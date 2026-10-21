@@ -10,13 +10,20 @@ import { highlight } from "../ui/CodeView"
  * a line and puts the caret at its start, once: `onJumped` hands it back, so an editor that mounts
  * again later (after a patch closes) doesn't take the focus a second time. A jump with `caret: false`
  * only scrolls: on a tablet the caret would bring up the keyboard over the code. `placeholder` fills
- * an empty file until the first character */
+ * an empty file until the first character. `error` is the line a failed build points at, and the
+ * token on it when the compiler names one: a wavy underline draws in under it, left to right, as the
+ * failure comes in. `lit` lights the line while its compiler line in the terminal is hovered, and
+ * `onPoint` says when the pointer is over the error line, so the terminal can light its own */
+export type EditorError = { line: number; column?: number; span?: number }
+
 export function Editor({
   code,
   onChange,
   readOnly = false,
   dim = false,
   error = null,
+  lit = false,
+  onPoint,
   fresh = [],
   focus = [],
   hint,
@@ -29,7 +36,9 @@ export function Editor({
   onChange?: (code: string) => void
   readOnly?: boolean
   dim?: boolean
-  error?: number | null
+  error?: EditorError | null
+  lit?: boolean
+  onPoint?: (line: number | null) => void
   fresh?: number[]
   focus?: number[]
   hint?: string
@@ -59,6 +68,28 @@ export function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump])
 
+  // Which line the pointer is over, worked out from its height, since the textarea covers them all.
+  // Only the error line is worth telling the terminal about
+  const pre = useRef<HTMLPreElement>(null)
+  const pointed = useRef<number | null>(null)
+  const point = (to: number | null) => {
+    if (pointed.current === to) return
+    pointed.current = to
+    onPoint?.(to)
+  }
+  const onMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    const el = pre.current
+    if (!error || !el) return point(null)
+    const height = parseFloat(getComputedStyle(el).lineHeight)
+    const n = Math.floor((e.clientY - el.getBoundingClientRect().top) / height) + 1
+    point(n === error.line ? n : null)
+  }
+
+  // Where the underline goes: the token the compiler named, or the line's code from its first letter
+  const bad = error ? (lines[error.line - 1] ?? "") : ""
+  const from = error?.column ? error.column - 1 : (bad.match(/^\s*/)?.[0].length ?? 0)
+  const token = error?.span ? bad.slice(from, from + error.span) : bad.slice(from).trimEnd()
+
   // The textarea covers the code, the blank space under it included. A press on the line numbers
   // lands in it too, so anywhere in the editor is a place to start typing
   const onMouseDown = (e: MouseEvent<HTMLDivElement>) => {
@@ -84,7 +115,7 @@ export function Editor({
   }
 
   return (
-    <div ref={box} onMouseDown={onMouseDown} className={cn("flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
+    <div ref={box} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseLeave={() => point(null)} className={cn("flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
       {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
       {/* Grows to the editor's height, so the textarea in it does too */}
       <div className="grid min-w-max flex-1 grid-cols-[58px_1fr]">
@@ -94,7 +125,7 @@ export function Editor({
           ))}
         </div>
         <div className="relative">
-          <pre aria-hidden="true" className="m-0 font-mono text-code leading-[1.6] whitespace-pre text-syntax-plain">
+          <pre ref={pre} aria-hidden="true" className="m-0 font-mono text-code leading-[1.6] whitespace-pre text-syntax-plain">
             {lines.map((line, i) => {
               const n = i + 1
               return (
@@ -102,10 +133,11 @@ export function Editor({
                   key={i}
                   className={cn(
                     // The tint runs under the line, the text stays where the textarea's is (margin = border + padding)
-                    "-ml-2.5 border-l-2 border-transparent pr-8 pl-2",
+                    "-ml-2.5 border-l-2 border-transparent pr-8 pl-2 transition-colors duration-150 ease-standard motion-reduce:transition-none",
                     focus.includes(n) && "border-primary bg-primary/10",
                     fresh.includes(n) && "border-success/50 bg-success/5",
-                    error === n && "border-error bg-error/10"
+                    error?.line === n && "border-error bg-error/10",
+                    error?.line === n && lit && "bg-error/20"
                   )}
                 >
                   {highlight(line)}
@@ -114,6 +146,18 @@ export function Editor({
               )
             })}
           </pre>
+          {/* The compiler's squiggle, drawn in once per failure: the token's own letters, transparent,
+              carry the underline, so it sits exactly under them in the same font */}
+          {error && token && (
+            <span
+              key={`${error.line}:${from}:${token}`}
+              aria-hidden="true"
+              style={{ top: `calc(${error.line - 1} * 1lh)`, left: `${from}ch` }}
+              className="pg-squiggle pointer-events-none absolute font-mono text-code leading-[1.6] whitespace-pre text-transparent underline decoration-error decoration-wavy decoration-1 underline-offset-[3px] [text-decoration-skip-ink:none]"
+            >
+              {token}
+            </span>
+          )}
           <textarea
             ref={area}
             value={code}

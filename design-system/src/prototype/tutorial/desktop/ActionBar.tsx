@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button"
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
 import { AssistantMark } from "../ui/AssistantMark"
+import { NameField } from "../ui/NameField"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
 import { PRIMARY_KEYS } from "./keys"
-import { useKeyHints } from "./pointer"
+import { isCoarse, useKeyHints } from "./pointer"
 import { Shortcut } from "./Shortcut"
 
 const BTN = "h-10 gap-2 px-4"
@@ -23,17 +24,22 @@ export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: (
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
-  const busy = s.phase === "building" || s.phase === "deploying"
+  const busy = s.phase === "building" || s.phase === "deploying" || s.phase === "calling"
   const client = step.id === "call-client"
   const fix = fixFor(s)
   // Only where there's a keyboard to press them on
   const keys = useKeyHints() ? <Shortcut keys={PRIMARY_KEYS} /> : null
 
-  // A pass hands the focus to Next, so Enter or Space goes on from wherever it was, the editor too
+  // A pass hands the focus to Next, so Enter or Space goes on from wherever it was, the editor too.
+  // A build that waits for its call hands it to the name, with a mouse: on a tablet the focus would
+  // bring the keyboard up over the log the learner is about to read
   const next = useRef<HTMLButtonElement>(null)
+  const name = useRef<HTMLInputElement>(null)
   const was = useRef(s.phase)
   useEffect(() => {
-    if (s.phase === "passed" && (was.current === "building" || was.current === "deploying")) next.current?.focus()
+    const ran = was.current === "building" || was.current === "deploying" || was.current === "calling"
+    if (s.phase === "passed" && ran) next.current?.focus()
+    if (s.phase === "call" && was.current === "building" && !isCoarse()) name.current?.focus()
     was.current = s.phase
   }, [s.phase])
 
@@ -58,6 +64,28 @@ export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: (
           {keys}
         </BrandButton>
       </>
+    )
+  } else if (s.phase === "call" || s.phase === "calling") {
+    // The step's last move: call hello with a name, the way a client would. Enter in the field or
+    // ⌘Enter anywhere runs it
+    const calling = s.phase === "calling"
+    buttons = (
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          dispatch({ type: "call" })
+        }}
+      >
+        <label htmlFor="call-name" className="text-caption whitespace-nowrap text-muted-foreground">
+          Call hello
+        </label>
+        <NameField id="call-name" inputRef={name} className="h-10 w-44 pointer-coarse:h-11" />
+        <BrandButton type="submit" variant="accent" disabled={calling || !s.draft.trim()} className={BTN}>
+          {calling ? workingLabel(s) : "Run"}
+          {!calling && keys}
+        </BrandButton>
+      </form>
     )
   } else if (s.phase === "failed") {
     // One way on: understand the error, then see the fix. Building the same code again would fail

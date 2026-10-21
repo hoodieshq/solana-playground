@@ -10,9 +10,12 @@ import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
 import { fixFor, freshLines, patchFor, useStore } from "../store"
+import { shownLog, stepTx } from "../tx"
 import { ActionZone } from "../ui/ActionZone"
 import { BuildLog } from "../ui/BuildLog"
-import { ProgramId, Transaction } from "../ui/ProgramId"
+import { ProgramId } from "../ui/ProgramId"
+import { arriving } from "../tx"
+import { Receipt } from "../ui/Receipt"
 import { CodeView } from "../ui/CodeView"
 import { InlineDiff } from "../ui/InlineDiff"
 import { readingMinutes } from "../ui/LessonBlocks"
@@ -56,12 +59,16 @@ export function StepScreen() {
       const t = window.setTimeout(() => dispatch({ type: "deployStage" }), 1100)
       return () => window.clearTimeout(t)
     }
+    if (s.phase === "calling") {
+      const t = window.setTimeout(() => dispatch({ type: "called" }), 1600)
+      return () => window.clearTimeout(t)
+    }
   }, [s.phase, s.deployStage, dispatch])
 
-  // Deploying and running the client change no code: what they produce is the program id and
-  // the transaction, in the Output tab. So when they pass, the step opens on it. A patch or a fix
-  // is read in the file, never with the output open over it
-  const showsOutput = !!step.deploy || step.id === "call-client"
+  // Deploying, running the client and calling hello change no code: what they produce is the
+  // program id and the transaction, in the Output tab. So when they pass, the step opens on it. A
+  // patch or a fix is read in the file, never with the output open over it
+  const showsOutput = !!step.deploy || step.id === "call-client" || !!step.call
   useEffect(() => {
     if (s.phase === "passed" && showsOutput) setTab("output")
     if (s.phase === "patch") setTab("code")
@@ -183,8 +190,9 @@ export function StepScreen() {
                 {/* Output, not Build: it holds the client's run as well as the build and the deploy */}
                 {t === "code" ? step.file.split("/").pop() : "Output"}
                 {t === "output" && s.log.length > 0 && (
-                  // Typing on desktop clears the error but keeps the log, so the dot follows whether the step passed
-                  <span className={cn("size-1.5 rounded-full", s.error || !s.passed[s.step] ? "bg-error" : "bg-success")} />
+                  // Typing on desktop clears the error but keeps the log, so the dot follows whether the step
+                  // passed. A build that waits for its call passed too
+                  <span className={cn("size-1.5 rounded-full", s.error || (!s.passed[s.step] && !s.built) ? "bg-error" : "bg-success")} />
                 )}
               </span>
             </button>
@@ -217,12 +225,13 @@ export function StepScreen() {
 
       {/* A proposal shows in place, as a diff of the file. The assistant speaks from the bottom zone */}
       {tab === "output" ? (
-        // After a deploy the program id sits under the log in one line, with Copy and Explorer.
-        // A passed deploy opened again shows its log, which leaving the step cleared
-        <div className="flex min-h-0 flex-1 flex-col bg-surface-well">
-          <BuildLog wrapErrors log={s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log} />
+        // After a deploy the program id sits under the log in one line, with Copy and Explorer; after
+        // a transaction, its receipt. A passed step opened again shows its log, which leaving the step
+        // cleared. The log and what follows it scroll as one, so a receipt never squeezes the log
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-surface-well">
+          <BuildLog wrapErrors log={shownLog(s)} className="flex-none" />
           {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
-          {step.id === "call-client" && s.passed[s.step] && <Transaction className="mx-4 mb-3" />}
+          {stepTx(s) && <Receipt tx={stepTx(s)!} print={arriving(s.txAt)} className="mx-4 mb-4 shrink-0" />}
         </div>
       ) : proposal && !asking ? (
         <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />

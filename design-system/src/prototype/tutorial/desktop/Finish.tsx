@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
-import { FinishBadge, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
+import { FinishBadge, FinishHeadline, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
 
 /** A screen of its own, as on the phone, in one column of the phone's order */
 export function Finish() {
@@ -11,10 +11,11 @@ export function Finish() {
     <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="mx-auto w-full max-w-[32.5rem] px-6 pt-14 pb-16">
         <FinishBadge />
-        <h1 className="mt-4 text-center font-heading text-display">Tutorial complete</h1>
-        <p className="mt-2 text-center text-body text-muted-foreground">Your program is live on devnet.</p>
+        {/* What the program said back is the headline: the tutorial's outcome in its own words */}
+        <FinishHeadline className="mt-5" />
+        <p className="mt-4 text-center text-body text-muted-foreground">Tutorial complete. Your program is live on devnet.</p>
         <FinishStats className="mt-8" />
-        {/* The proof the program runs, a row of its own under the numbers, then what was learned */}
+        {/* The proof the program runs, printed under the numbers, then what was learned */}
         <LastTransaction className="mt-8" />
         <section aria-labelledby="learned-title" className="mt-8">
           <h2 id="learned-title" className="text-caption text-muted-foreground">

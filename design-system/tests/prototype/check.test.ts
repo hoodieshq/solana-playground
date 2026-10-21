@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { checkOwn } from "../../src/prototype/tutorial/check.ts"
+import { checkOwn, helloSays, holds, msgLine } from "../../src/prototype/tutorial/check.ts"
 
 // The step 1 target, the same text as LIB_FIXED in data.ts
 const TARGET = `use anchor_lang::prelude::*;
@@ -130,4 +130,49 @@ test("every reason starts with what failed, and none asks to type", () => {
     assert.match(r.reason, /^Build failed: /)
     assert.doesNotMatch(r.explain, /\btype (the|it|your)\b/i)
   }
+})
+
+test("E0412 points at the Hello inside Context<Hello>", () => {
+  const r = checkOwn(NO_STRUCT, TARGET, "src/lib.rs")
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.equal(r.column, 32)
+  assert.equal(r.span, 5)
+  assert.match(r.log.join("\n"), /src\/lib\.rs:9:32/)
+})
+
+test("a lesson block is held whatever the whitespace, comments and quotes", () => {
+  const block = `#[program]
+mod hello_anchor {
+    use super::*;
+
+    pub fn hello(_ctx: Context<Hello>) -> Result<()> {
+        msg!("Hello, World!");
+        Ok(())
+    }
+}`
+  assert.equal(holds(TARGET, block), true)
+  assert.equal(holds(TARGET.replaceAll("    ", "  ").replace("Ok(())", "Ok(()) // done"), block), true)
+  assert.equal(holds(TARGET.replace('"Hello, World!"', "“Hi”"), block), true)
+  assert.equal(holds(NO_OK, block), false)
+  assert.equal(holds("", block), false)
+  assert.equal(holds(TARGET, ""), false)
+})
+
+test("a held block needs its lines in a row", () => {
+  assert.equal(holds("use anchor_lang::prelude::*;\nlet x = 1;\nOk(())", "use anchor_lang::prelude::*;\nOk(())"), false)
+  assert.equal(holds("let x = 1;\nuse anchor_lang::prelude::*;\n\nOk(())", "use anchor_lang::prelude::*;\nOk(())"), true)
+})
+
+test("hello says what its msg! says, with the name filled in", () => {
+  const named = TARGET.replace('msg!("Hello, World!");', 'msg!("Hello, {}!", name);')
+  assert.equal(helloSays(TARGET, null), "Hello, World!")
+  assert.equal(helloSays(named, "Almaz"), "Hello, Almaz!")
+  assert.equal(helloSays(named, "$& co"), "Hello, $& co!")
+  // Saved before step 4 asked for a name: the step 3 line
+  assert.equal(helloSays(named, null), "Hello, World!")
+  assert.equal(helloSays(TARGET.replace('"Hello, World!"', '"Hi there"'), null), "Hi there")
+  assert.equal(helloSays(TARGET.replace('msg!("Hello, World!");', '// msg!("Nope");\n        msg!("Yes");'), null), "Yes")
+  assert.equal(helloSays("", null), "Hello, World!")
+  assert.equal(msgLine(TARGET), 10)
 })

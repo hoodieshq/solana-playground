@@ -1,13 +1,14 @@
-import { Anchor, Check, ExternalLink, Play } from "lucide-react"
+import { Anchor, Check, Play } from "lucide-react"
 import { toast } from "sonner"
 
 import { Achievement, AchievementMedia } from "@/components/ui/achievement"
 import { brandButtonVariants } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
-import { NEXT_TUTORIAL, STEPS, TX_SIGNATURE, shortKey, thumb } from "../data"
+import { NEXT_TUTORIAL, STEPS, shortKey, thumb } from "../data"
 import { useStore } from "../store"
-import { openExplorer } from "./explorer"
+import { lastTx } from "../tx"
+import { PrintedReceipt } from "./Receipt"
 import { Thumb } from "./Thumb"
 
 /** The flow's peak: the badge pops in once, on the design system's pop curve, and simply appears with reduced motion */
@@ -43,30 +44,29 @@ export function FinishStats({ className }: { className?: string }) {
   )
 }
 
-/** The last transaction, with the way to Explorer: proof the program really runs */
-export function LastTransaction({ className }: { className?: string }) {
+/** The finish opens on what the program said back, the learner's own name in it, in the code's
+ * type: the tutorial's outcome in its own words. Progress saved before step 4 asked for a name
+ * falls back to step 3's Hello, World! */
+export function FinishHeadline({ as: Tag = "h1", className }: { as?: "h1" | "h2"; className?: string }) {
+  const { s } = useStore()
+  const tx = lastTx(s)
   return (
-    <section aria-labelledby="tx-title" className={className}>
-      <h3 id="tx-title" className="text-caption text-muted-foreground">
-        Your last transaction
-      </h3>
-      <button
-        type="button"
-        onClick={openExplorer}
-        className="@container mt-2 flex min-h-11 w-full items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
-      >
-        <code title={TX_SIGNATURE} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-          {/* As in the key cards under the log: shorter on a narrow card, so it ends in its own characters */}
-          <span className="@max-xs:hidden">{shortKey(TX_SIGNATURE)}</span>
-          <span className="hidden @max-xs:inline">{shortKey(TX_SIGNATURE, 4)}</span>
-        </code>
-        <span className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground">
-          <span className="@max-xs:hidden">Open in</span> Explorer
-          <ExternalLink strokeWidth={1.75} className="size-3.5" />
-        </span>
-      </button>
-    </section>
+    <div className={cn("text-center", className)}>
+      <Tag className="font-mono text-[1.75rem] leading-tight font-medium tracking-tight break-words text-foreground">
+        <span className="sr-only">Tutorial complete. Your program said </span>
+        {tx.said}
+      </Tag>
+      <p className="mt-2 text-caption text-muted-foreground">
+        from transaction <span className="font-mono">{shortKey(tx.signature)}</span>
+      </p>
+    </div>
   )
+}
+
+/** The last transaction as a printed receipt: proof the program really runs, and something to share */
+export function LastTransaction({ className }: { className?: string }) {
+  const { s } = useStore()
+  return <PrintedReceipt tx={lastTx(s)} when={s.finishedAt} className={className} />
 }
 
 export function LearnedList({ className }: { className?: string }) {

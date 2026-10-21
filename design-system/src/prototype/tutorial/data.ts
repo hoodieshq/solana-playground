@@ -1,5 +1,7 @@
 export type Pass = { ok: true; log: string[]; note: string }
-export type Fail = { ok: false; log: string[]; line: number; reason: string }
+/** `column` and `span` mark the token the compiler points at, for the underline under it. Without
+ * them the whole line is the one to look at */
+export type Fail = { ok: false; log: string[]; line: number; reason: string; column?: number; span?: number }
 export type BuildResult = Pass | Fail
 
 export type Patch = {
@@ -51,6 +53,9 @@ export type Step = {
   /** Questions about the error, offered once a build of this step has failed */
   errorChips?: Chip[]
   predict?: Predict
+  /** A step that passes only once its instruction is called, after the build: what the status
+   * says while it waits for the call, while the call runs, and once the program answers */
+  call?: { ready: string; working: string; note: string }
 }
 
 export type TutorialCard = {
@@ -102,6 +107,9 @@ mod hello_anchor {
     }
 }`
 
+/** Where rustc points on line 9: the `Hello` inside `Context<Hello>`, counted from 1 */
+const HELLO_COLUMN = LIB_BROKEN.split("\n")[8].indexOf("<Hello>") + 2
+
 const LIB_FIXED = `${LIB_BROKEN}
 
 #[derive(Accounts)]
@@ -134,6 +142,54 @@ export const PROGRAM_ID = "9hJqVkRZ3t2nX8cPfLwA5mYbE7sGdT4uK1oNjQzWxCvB"
 export const shortKey = (key: string, n = 6) => `${key.slice(0, n)}…${key.slice(-n)}`
 
 export const TX_SIGNATURE = "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn"
+
+/** The call with a name on step 4 is a transaction of its own, so it has its own signature */
+export const NAMED_TX_SIGNATURE = "3vZp8LmQx2RkT9sWcYfN4hJdA6uE1oGbV7nKtXqPzLyM"
+
+/** One call of hello, as the receipt and the program's log show it. Fee, compute and timing are
+ * example values: nothing here runs on devnet */
+export type Tx = {
+  instruction: "hello" | "hello(name)"
+  /** The line hello's `msg!` wrote, as it came back in the transaction's logs */
+  said: string
+  signature: string
+  compute: number
+}
+
+export const TX_FEE = "0.000005 SOL"
+export const TX_CONFIRMED = "~0.4 s"
+
+const units = (n: number) => n.toLocaleString("en-US")
+
+/** The program's lines in a transaction's logs, as `solana confirm -v` prints them */
+export const programLog = (tx: Tx) => [
+  `Program ${shortKey(PROGRAM_ID)} invoke [1]`,
+  "Program log: Instruction: Hello",
+  `Program log: ${tx.said}`,
+  `Program ${shortKey(PROGRAM_ID)} consumed ${units(tx.compute)} of 200,000 compute units`,
+  `Program ${shortKey(PROGRAM_ID)} success`,
+]
+
+/** Running the client prints what its last line logs, then the prototype runs that command for you,
+ * so the transaction's logs follow the line that names them */
+export const clientLog = (tx: Tx) => [
+  "$ run client/client.ts",
+  "Running client...",
+  `Use 'solana confirm -v ${tx.signature}' to see the logs`,
+  "Client finished",
+  `$ solana confirm -v ${tx.signature}`,
+  ...programLog(tx),
+]
+
+/** Calling hello with a name, written the way step 3's client calls it */
+export const callLog = (tx: Tx, name: string) => [
+  `$ pg.program.methods.hello(${JSON.stringify(name)}).rpc()`,
+  "Sending transaction...",
+  ...programLog(tx),
+]
+
+/** The longest name the call takes: enough for any name, short enough for one log line */
+export const NAME_MAX = 32
 
 export const STEPS: Step[] = [
   {
@@ -182,10 +238,12 @@ mod hello_anchor {
           "$ anchor build",
           "Compiling hello_anchor v0.1.0",
           "error[E0412]: cannot find type `Hello` in this scope",
-          " --> src/lib.rs:9:30",
+          ` --> src/lib.rs:9:${HELLO_COLUMN}`,
           "Build failed",
         ],
         line: 9,
+        column: HELLO_COLUMN,
+        span: "Hello".length,
         reason: "Build failed, as expected: `Context<Hello>` on line 9 needs a `Hello` struct.",
       },
     },
@@ -310,12 +368,8 @@ mod hello_anchor {
       ],
       result: {
         ok: true,
-        log: [
-          "$ run client/client.ts",
-          "Running client...",
-          `Use 'solana confirm -v ${TX_SIGNATURE}' to see the logs`,
-          "Client finished",
-        ],
+        // What the program said is read from lib.rs when the client runs (see txFor in the store)
+        log: clientLog({ instruction: "hello", said: "Hello, World!", signature: TX_SIGNATURE, compute: 1042 }),
         note: "The client called hello and got a transaction back.",
       },
     },
@@ -332,7 +386,7 @@ mod hello_anchor {
     id: "greet-by-name",
     title: "Name argument",
     objective: "Give hello a name argument and log it",
-    checkedBy: "the build shows hello taking a name",
+    checkedBy: "hello says your name back",
     learned: "Passing arguments to an instruction",
     lesson: [
       { kind: "h", text: "Instruction arguments" },
@@ -341,7 +395,7 @@ mod hello_anchor {
     msg!("Hello, {}!", name);
     Ok(())
 }` },
-      { kind: "p", text: "After the build the Test UI shows a field for `name`." },
+      { kind: "p", text: "After the build, call `hello` with a name. Its log line comes back with the name in it." },
     ],
     file: "src/lib.rs",
     focus: [9, 10],
@@ -361,6 +415,12 @@ mod hello_anchor {
         note: "The build passed and hello now takes a name.",
       },
     },
+    // The build only shows hello can take a name. The step is done when hello says one back
+    call: {
+      ready: "The build passed. Now call hello with a name, any text works.",
+      working: "Sending hello to devnet",
+      note: "Your name came back in the transaction's logs.",
+    },
     predict: {
       question: "Where does the name argument go?",
       options: ["After the `Context`", "Inside the `Hello` struct", "Inside the `msg!` call"],
@@ -370,7 +430,7 @@ mod hello_anchor {
       line: 9,
     },
     explainStep:
-      "Instructions can take arguments after their `Context`. This step adds a `name` to `hello` and logs it, so the Test UI asks you for one.",
+      "Instructions can take arguments after their `Context`. This step adds a `name` to `hello` and logs it. Once it builds, you call `hello` with any name and read it back in the transaction's logs.",
     chips: [
       {
         label: "Which types work?",
