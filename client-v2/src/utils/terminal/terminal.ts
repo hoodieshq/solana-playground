@@ -7,9 +7,24 @@ import { PgHistory } from "./history";
 import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
+import { createLogger } from "@/shared/lib/logger";
 import { markFailureShown } from "@/shared/lib/report-button-failure";
 import type { CommandManager, Prefixes, PrintOptions } from "./types";
 import type { Methods, ClassReturnType, SyncOrAsync } from "../types";
+
+const log = createLogger("terminal:static");
+
+/** What a call to the terminal fails with while no terminal is mounted */
+const TERMINAL_CLOSED = "The terminal is not open.";
+
+const terminalClosed = () => new Error(TERMINAL_CLOSED);
+
+/**
+ * Whether the failure is a call to the terminal made while none was mounted,
+ * such as a command the assistant runs while Home is shown.
+ */
+export const isTerminalClosed = (error: unknown): boolean =>
+  error instanceof Error && error.message === TERMINAL_CLOSED;
 
 export class PgTerminal {
   /** All terminal event names */
@@ -66,22 +81,39 @@ export class PgTerminal {
 
   /** Dispatch enable terminal custom event. */
   static async enable() {
-    await PgTerminal.run({ enable: [] });
+    await PgTerminal._runIfOpen({ enable: [] });
   }
 
   /** Log terminal messages from anywhere. */
   static async println(msg: any, opts?: PrintOptions) {
-    await PgTerminal.run({ println: [msg, opts] });
+    await PgTerminal._runIfOpen({ println: [msg, opts] });
   }
 
   /** Dispatch focus terminal custom event. */
   static async focus() {
-    await PgTerminal.run({ focus: [] });
+    await PgTerminal._runIfOpen({ focus: [] });
   }
 
   /** Dispatch focus terminal custom event. */
   static async clear() {
-    await PgTerminal.run({ clear: [] });
+    await PgTerminal._runIfOpen({ clear: [] });
+  }
+
+  /**
+   * `run`, doing nothing while no terminal is mounted. For the conveniences
+   * above, which are called without `await` all over the app: under Home,
+   * which mounts no terminal, there is nothing to print to or focus, and a
+   * rejection there would go unhandled.
+   */
+  private static async _runIfOpen<M extends Methods<PgTerm>>(data: M) {
+    try {
+      await PgTerminal.run(data);
+    } catch (e) {
+      if (!isTerminalClosed(e)) throw e;
+      log.debug("no terminal mounted, call dropped", {
+        context: { method: Object.keys(data)[0] },
+      });
+    }
   }
 
   // TODO: Remove
@@ -127,10 +159,13 @@ export class PgTerminal {
    * Statically get the terminal object from state
    *
    * @returns the terminal object
+   * @throws when no terminal is mounted (see `isTerminalClosed`)
    */
   static async get() {
     return await PgCommon.sendAndReceiveCustomEvent<PgTerm>(
-      PgCommon.getStaticEventNames(PgTerminal.events.STATIC).get
+      PgCommon.getStaticEventNames(PgTerminal.events.STATIC).get,
+      undefined,
+      { noReceiver: terminalClosed }
     );
   }
 
@@ -139,6 +174,7 @@ export class PgTerminal {
    *
    * @param data method and its data to run
    * @returns the result from the method call
+   * @throws when no terminal is mounted (see `isTerminalClosed`)
    */
   static async run<
     R extends ClassReturnType<PgTerm, keyof M>,
@@ -146,7 +182,8 @@ export class PgTerminal {
   >(data: M) {
     return await PgCommon.sendAndReceiveCustomEvent<R, M>(
       PgCommon.getStaticEventNames(PgTerminal.events.STATIC).run,
-      data
+      data,
+      { noReceiver: terminalClosed }
     );
   }
 

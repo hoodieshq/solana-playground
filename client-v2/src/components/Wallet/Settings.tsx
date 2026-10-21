@@ -21,6 +21,7 @@ import {
   Trash,
 } from "../Icons";
 import { createLogger } from "@/shared/lib/logger";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { useAirdrop, useDarken } from "./hooks";
 import { useCopy } from "../../hooks";
@@ -100,7 +101,11 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             <MenuItemText>Copy address</MenuItemText>
           </DropdownMenuItem>
           {airdropCondition && (
-            <DropdownMenuItem onSelect={airdrop}>
+            <DropdownMenuItem
+              onSelect={() => {
+                airdrop().catch(reportButtonFailure("airdrop"));
+              }}
+            >
               <Airdrop />
               <MenuItemText>Airdrop</MenuItemText>
             </DropdownMenuItem>
@@ -150,9 +155,17 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             <DropdownMenuItem
               key={standardWallet.name}
               variant={standardWallet.connected ? "destructive" : "default"}
-              onSelect={() =>
-                PgCommand.connect.execute(standardWallet.name.toLowerCase())
-              }
+              onSelect={() => {
+                PgCommand.connect
+                  .execute(standardWallet.name.toLowerCase())
+                  .catch(
+                    reportButtonFailure(
+                      standardWallet.connected
+                        ? `disconnect from ${standardWallet.name}`
+                        : `connect ${standardWallet.name}`
+                    )
+                  );
+              }}
             >
               <Img src={standardWallet.icon} alt={standardWallet.name} />
               <MenuItemText>

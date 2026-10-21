@@ -7,7 +7,7 @@ import {
   memoryProvider as logMemory,
   resetLogger,
 } from "@/shared/lib/logger";
-import { PgView } from "../../utils";
+import { PgCommand, PgView, PgWallet } from "../../utils";
 import Settings from "./Settings";
 
 // The utils barrel needs build-time globals the unit runner does not define.
@@ -30,8 +30,12 @@ vi.mock("../../utils", () => ({
 }));
 
 vi.mock("../../hooks", () => ({ useCopy: () => [false, vi.fn()] }));
+const airdropHook = vi.hoisted(() => ({
+  airdrop: vi.fn(),
+  airdropCondition: false,
+}));
 vi.mock("./hooks", () => ({
-  useAirdrop: () => ({ airdrop: vi.fn(), airdropCondition: false }),
+  useAirdrop: () => airdropHook,
   useDarken: () => ({ darken: vi.fn(), lighten: vi.fn() }),
 }));
 
@@ -53,6 +57,14 @@ vi.mock("../Icons", () => {
 vi.mock("../Img", () => ({ default: () => null }));
 vi.mock("./Modals/Add", () => ({ Add: () => null }));
 
+// What each failed command is told through, recorded by what did not happen
+const told = vi.hoisted(() => [] as { action: string; error: unknown }[]);
+vi.mock("@/shared/lib/report-button-failure", () => ({
+  reportButtonFailure: (action: string) => (error: unknown) => {
+    told.push({ action, error });
+  },
+}));
+
 let logs: ReturnType<typeof logMemory>;
 beforeEach(() => {
   logs = logMemory();
@@ -61,6 +73,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks();
   resetLogger();
+  told.length = 0;
+  airdropHook.airdropCondition = false;
+  PgWallet.standardWallets.length = 0;
 });
 
 /** What `Wallet.tsx` does: the rename input appears once `showRename` ran */
@@ -127,5 +142,39 @@ describe("wallet Settings menu", () => {
     expect(logs.entries[0].level).toBe("error");
     expect(logs.entries[0].report).toBe(true);
     expect(logs.entries[0].error).toBe(failure);
+  });
+
+  // A command cannot run while no terminal is mounted; the menu item must
+  // say so rather than leave an unhandled rejection
+  it("tells the user when Airdrop fails", async () => {
+    const failure = new Error("The terminal is not open.");
+    airdropHook.airdropCondition = true;
+    airdropHook.airdrop.mockRejectedValueOnce(failure);
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Airdrop/ }));
+
+    await waitFor(() =>
+      expect(told).toEqual([{ action: "airdrop", error: failure }])
+    );
+  });
+
+  it("tells the user when connecting a wallet fails", async () => {
+    const failure = new Error("The terminal is not open.");
+    PgWallet.standardWallets.push({
+      name: "Phantom",
+      icon: "",
+      connected: false,
+    } as never);
+    vi.mocked(PgCommand.connect.execute).mockRejectedValueOnce(failure);
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Phantom/ }));
+
+    await waitFor(() =>
+      expect(told).toEqual([{ action: "connect Phantom", error: failure }])
+    );
   });
 });

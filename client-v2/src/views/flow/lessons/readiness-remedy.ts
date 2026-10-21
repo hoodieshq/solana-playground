@@ -1,7 +1,8 @@
 import type { Blocker } from "./readiness";
 import { DEFAULT_ENDPOINT } from "../../../constants";
 import { PgSession } from "../../../features/auth";
-import { PgCommand, PgSettings, PgTerminal } from "../../../utils";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { PgCommand, PgSettings } from "../../../utils";
 
 /**
  * The one action that clears a blocker.
@@ -17,10 +18,16 @@ export const remedy = (b: Blocker): (() => void) => {
   switch (b.kind) {
     case "needs-build":
     case "needs-rebuild":
-      return () => PgCommand.build.execute();
+      return () => {
+        PgCommand.build.execute().catch(reportButtonFailure("build"));
+      };
 
     case "needs-wallet":
-      return () => PgCommand.connect.execute();
+      return () => {
+        PgCommand.connect
+          .execute()
+          .catch(reportButtonFailure("connect a wallet"));
+      };
 
     case "needs-cluster":
       // `DEFAULT_ENDPOINT`, not `Endpoint.DEVNET`: a deployment that
@@ -31,19 +38,14 @@ export const remedy = (b: Blocker): (() => void) => {
       };
 
     case "needs-sol":
-      // The commands print their own failures to the terminal before
-      // rethrowing; `signIn` does not, and it rejects on a blocked
-      // popup -- which would otherwise leave the click doing nothing
-      // visible at all
+      // `signIn` rejects on a blocked popup, which would otherwise leave the
+      // click doing nothing visible at all
       return b.signedIn
-        ? () => PgCommand.airdrop.execute()
+        ? () => {
+            PgCommand.airdrop.execute().catch(reportButtonFailure("airdrop"));
+          }
         : () => {
-            PgSession.signIn().catch((e: unknown) => {
-              const message = e instanceof Error ? e.message : String(e);
-              PgTerminal.println(
-                PgTerminal.error(`Sign-in failed: ${message}`)
-              );
-            });
+            PgSession.signIn().catch(reportButtonFailure("sign in"));
           };
   }
 };
