@@ -18,5 +18,5 @@ mkdir -p public/source
 git -C "$repo" archive --format=zip --prefix=design-system/ -o "$here/public/source/design-system.zip" HEAD:design-system
 git -C "$repo" bundle create "$here/public/source/tutorial-prototype.bundle" "$base..$branch"
 
-sed -e "s/{{HEAD}}/$head/g" -e "s/{{BASE}}/$(echo "$base" | cut -c1-8)/g" -e "s/{{BRANCH}}/$branch/g" -e "s/{{DATE}}/$(date +%Y-%m-%d)/g" \
+sed -e "s#{{HEAD}}#$head#g" -e "s#{{BASE}}#$(echo "$base" | cut -c1-8)#g" -e "s#{{BRANCH}}#$branch#g" -e "s#{{DATE}}#$(date +%Y-%m-%d)#g" \
   source.html > public/source/index.html
