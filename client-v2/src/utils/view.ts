@@ -25,6 +25,8 @@ export type OpenModal = {
   readonly id: string;
   readonly elementable: NonNullable<Elementable<any>>;
   readonly props?: Record<string, any>;
+  /** What takes focus back when the modal closes, if it is still on the page */
+  readonly opener: HTMLElement | null;
 };
 
 /**
@@ -71,6 +73,23 @@ const closeIfNoHost = (id: string) => {
     });
     PgView.closeModal(null, id);
   }, MODAL_HOST_WAIT);
+};
+
+/**
+ * What a modal opened now returns focus to: what has focus, or, for an item
+ * of a menu, the menu's trigger, since a menu closes once an item is picked
+ * and its items go with it.
+ */
+const focusOpener = (): HTMLElement | null => {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active === document.body) return null;
+  const menu = active.closest<HTMLElement>('[role="menu"]');
+  const trigger =
+    menu?.id &&
+    document.querySelector<HTMLElement>(
+      `[aria-controls=${JSON.stringify(menu.id)}]`
+    );
+  return trigger || active;
 };
 
 /** Replace the open modals and tell `PgView.onDidChangeModals` */
@@ -374,7 +393,10 @@ class _PgView {
     const answer = new Promise<R | null>((resolve) => {
       modalAnswers.set(id, resolve as (data: unknown) => void);
     });
-    setOpenModals([...openModals, { id, elementable, props }]);
+    setOpenModals([
+      ...openModals,
+      { id, elementable, props, opener: focusOpener() },
+    ]);
     if (modalHosts === 0) closeIfNoHost(id);
     return { id, answer };
   }

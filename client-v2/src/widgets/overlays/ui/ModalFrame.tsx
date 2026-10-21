@@ -91,6 +91,10 @@ export const ModalFrame = ({
   const mounted = useRef(true);
   const isTop = useIsTopModal();
   const id = useModalId();
+  // Read while the dialog is open: by the time it closes, it is off the stack
+  const opener = useRef(
+    PgView.getOpenModals().find((modal) => modal.id === id)?.opener ?? null
+  );
   const openReport = useOpenReport();
   const blockDismiss = useBlockDismiss();
 
@@ -153,6 +157,20 @@ export const ModalFrame = ({
     }
   };
 
+  // Radix sends focus back to what had it when this content mounted, and to
+  // `<body>` when that is gone: the menu item that opened the dialog, or a
+  // field of a dialog that has since remounted
+  const returnFocus = (event: Event) => {
+    const stillOpen = PgView.getOpenModals().some((modal) => modal.id === id);
+    if (!stillOpen && opener.current?.isConnected) {
+      event.preventDefault();
+      opener.current.focus();
+      return;
+    }
+    // Covered, or closed under another dialog: the dialog on top takes focus
+    if (PgView.getOpenModals().length) event.preventDefault();
+  };
+
   // Under another dialog: draw no second dialog content. Only the state held
   // above this frame survives; the frame's subtree remounts when it is on
   // top again (see `ModalLayerContext`)
@@ -181,6 +199,7 @@ export const ModalFrame = ({
         }
       }
       size={size}
+      onCloseAutoFocus={returnFocus}
     >
       {children}
     </BaseModalFrame>

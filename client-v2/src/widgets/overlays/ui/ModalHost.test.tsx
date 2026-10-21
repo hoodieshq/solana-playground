@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   initLogger,
@@ -292,4 +298,95 @@ it("should answer a submit that settles under another dialog to its own caller",
   await expect(settled(slow)).resolves.toBe("saved");
   await expect(settled(info)).resolves.toBe(PENDING);
   expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy();
+});
+
+describe("focus after a dialog closes", () => {
+  it("should return focus to the button that opened the dialog", async () => {
+    render(
+      <>
+        <button onClick={() => void PgView.setModal(Info)}>Open info</button>
+        <ModalHost />
+      </>
+    );
+    const opener = screen.getByRole("button", { name: "Open info" });
+    opener.focus();
+    act(() => opener.click());
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
+  it("should return focus to a menu's trigger when an item of the menu opened it", async () => {
+    // A menu closes when one of its items is picked, so the item is gone by
+    // the time the dialog closes; its trigger names it through aria-controls
+    const Menu = () => {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button aria-controls="actions-menu">Actions</button>
+          {open && (
+            <div role="menu" id="actions-menu">
+              <button
+                role="menuitem"
+                onClick={() => {
+                  void PgView.setModal(Info);
+                  setOpen(false);
+                }}
+              >
+                Show info
+              </button>
+            </div>
+          )}
+        </>
+      );
+    };
+    render(
+      <>
+        <Menu />
+        <ModalHost />
+      </>
+    );
+    const item = screen.getByRole("menuitem", { name: "Show info" });
+    item.focus();
+    act(() => item.click());
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Actions" })
+      )
+    );
+  });
+
+  it("should keep focus in the dialog below when the one on top closes", async () => {
+    render(<ModalHost />);
+    open(Outer);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    });
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("dialog", { name: "Outer" })
+          .contains(document.activeElement)
+      ).toBe(true)
+    );
+  });
 });

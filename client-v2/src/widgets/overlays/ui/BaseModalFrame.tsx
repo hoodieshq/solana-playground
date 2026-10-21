@@ -42,6 +42,11 @@ export type BaseModalFrameProps = {
     onCancel?: () => void;
   };
   size: ModalSize;
+  /**
+   * Where focus goes once the dialog's content unmounts; `preventDefault()`
+   * keeps it from going to what had focus when the content mounted
+   */
+  onCloseAutoFocus?: (event: Event) => void;
   children?: ReactNode;
 };
 
@@ -81,6 +86,7 @@ export const BaseModalFrame = ({
   error,
   submit,
   size,
+  onCloseAutoFocus,
   children,
 }: BaseModalFrameProps) => {
   const formRef = useRef<HTMLFormElement>(null);
@@ -138,6 +144,7 @@ export const BaseModalFrame = ({
       size={size}
       aria-describedby={undefined}
       onOpenAutoFocus={handleOpenAutoFocus}
+      onCloseAutoFocus={onCloseAutoFocus}
       onPointerDownOutside={keepOpenForToast}
       onInteractOutside={keepOpenForToast}
       onKeyDown={handleKeyDown}
