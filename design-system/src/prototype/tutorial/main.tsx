@@ -7,6 +7,7 @@ import "./prototype.css"
 import { App } from "./App"
 import { DesktopApp } from "./desktop/DesktopApp"
 import { DeviceFrame } from "./DeviceFrame"
+import { installScrollIndicator } from "./scrollIndicator"
 import { resetStorage, Store } from "./store"
 import { view } from "./view"
 import { ViewSwitch } from "./ViewSwitch"
@@ -14,8 +15,12 @@ import { ViewSwitch } from "./ViewSwitch"
 const embedded = window.self !== window.top || new URLSearchParams(location.search).has("embed")
 const wide = window.matchMedia("(min-width: 600px)").matches
 
-// Inside the desktop frame the page has no safe area of its own, see prototype.css
-if (window.self !== window.top) document.documentElement.classList.add("framed")
+// Inside the desktop frame the page has no safe area of its own and no phone scroll indicator,
+// see prototype.css and scrollIndicator.ts
+if (window.self !== window.top) {
+  document.documentElement.classList.add("framed")
+  installScrollIndicator()
+}
 
 const resetDesktop = () => {
   resetStorage()

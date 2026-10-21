@@ -18,6 +18,27 @@ html.framed ::-webkit-scrollbar {
   display: none;
 }
 
+/* What stands in for it: iPhone's own indicator, drawn by scrollIndicator.ts. Light on the dark
+   theme, as iOS draws it, quick to appear and slow to fade */
+.pg-scroll-indicator {
+  position: fixed;
+  z-index: 100;
+  border-radius: 9999px;
+  background-color: rgb(255 255 255 / 0.42);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+.pg-scroll-indicator[data-visible] {
+  opacity: 1;
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-scroll-indicator {
+    transition: none;
+  }
+}
+
 /* Native controls and any scrollbar the browser still draws follow the dark theme */
 html {
   color-scheme: dark;
