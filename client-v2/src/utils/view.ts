@@ -75,11 +75,27 @@ const closeIfNoHost = (id: string) => {
   }, MODAL_HOST_WAIT);
 };
 
+/** What a right-click last landed on: where a context menu was opened */
+let contextMenuTarget: Element | null = null;
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "contextmenu",
+    (ev) => {
+      contextMenuTarget = ev.target instanceof Element ? ev.target : null;
+    },
+    true
+  );
+}
+
+/** What can take focus on its own */
+const FOCUS_TARGET = "button, a[href], input, select, textarea, [tabindex]";
+
 /**
  * What a modal opened now returns focus to: what has focus, or, for an item
  * of a menu, the trigger of the outermost menu, since menus close once an item
  * is picked and their items go with them. A context menu's trigger names no
- * menu, so its item stays the opener, and focus is lost when it goes.
+ * menu: its item stands in for where the right-click landed, the editor tab
+ * or the explorer row.
  */
 const focusOpener = (): HTMLElement | null => {
   const active = document.activeElement;
@@ -91,7 +107,16 @@ const focusOpener = (): HTMLElement | null => {
     const trigger: HTMLElement | null = menu?.id
       ? document.querySelector(`[aria-controls=${JSON.stringify(menu.id)}]`)
       : null;
-    if (!trigger) return opener;
+    if (!trigger) {
+      if (!menu || !contextMenuTarget?.isConnected) return opener;
+      return (
+        contextMenuTarget.closest<HTMLElement>(FOCUS_TARGET) ??
+        contextMenuTarget.closest<HTMLElement>(
+          `.${PgView.classNames.FILE}, .${PgView.classNames.FOLDER}`
+        ) ??
+        opener
+      );
+    }
     opener = trigger;
   }
 };

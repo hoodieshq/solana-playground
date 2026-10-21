@@ -458,3 +458,84 @@ describe("focus after a dialog closes", () => {
     );
   });
 });
+
+describe("focus after a dialog opened from a context menu", () => {
+  /** A context menu: its trigger names no menu, so the right-click is the opener */
+  const ContextMenu = ({ children }: { children: React.ReactNode }) => {
+    const [open, setOpen] = useState(false);
+    return (
+      <div onContextMenu={() => setOpen(true)}>
+        {children}
+        {open && (
+          <div role="menu">
+            <button
+              role="menuitem"
+              onClick={() => {
+                void PgView.setModal(Info);
+                setOpen(false);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const pickDeleteThenCancel = async () => {
+    const item = await screen.findByRole("menuitem", { name: "Delete" });
+    item.focus();
+    act(() => item.click());
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+  };
+
+  it("should return focus to the explorer row the menu was opened on", async () => {
+    render(
+      <>
+        <ContextMenu>
+          <div className={PgView.classNames.FILE} data-testid="row">
+            <span>lib.rs</span>
+          </div>
+        </ContextMenu>
+        <ModalHost />
+      </>
+    );
+    fireEvent.contextMenu(screen.getByText("lib.rs"));
+
+    await pickDeleteThenCancel();
+
+    const row = screen.getByTestId("row");
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    // Focusable only while it holds focus: a click still goes past it
+    act(() => row.blur());
+    expect(row.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("should return focus to the editor tab the menu was opened on", async () => {
+    render(
+      <>
+        <ContextMenu>
+          <div role="presentation">
+            <button role="tab">
+              <span>lib.rs</span>
+            </button>
+          </div>
+        </ContextMenu>
+        <ModalHost />
+      </>
+    );
+    fireEvent.contextMenu(screen.getByText("lib.rs"));
+
+    await pickDeleteThenCancel();
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("tab"))
+    );
+  });
+});
