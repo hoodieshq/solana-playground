@@ -42,11 +42,26 @@ function receiptText(tx: Tx) {
   ].join("\n")
 }
 
-const copy = (text: string, what: string) =>
-  navigator.clipboard
-    ?.writeText(text)
-    .then(() => toast(`${what} copied`))
-    .catch(() => toast(`Couldn't copy the ${what.toLowerCase()}`))
+/** The old way to copy, from a selected field, still inside the click: for a browser or a frame that
+ * refuses the Clipboard API its write permission */
+function copyBySelection(text: string) {
+  const field = document.createElement("textarea")
+  field.value = text
+  field.setAttribute("readonly", "")
+  field.style.cssText = "position:fixed;top:0;left:0;opacity:0"
+  document.body.append(field)
+  field.select()
+  const ok = document.execCommand("copy")
+  field.remove()
+  return ok
+}
+
+const copy = (text: string, what: string) => {
+  const done = () => toast(`${what} copied`)
+  const failed = () => (copyBySelection(text) ? done() : toast(`Couldn't copy the ${what.toLowerCase()}`))
+  if (!navigator.clipboard) return failed()
+  navigator.clipboard.writeText(text).then(done, failed)
+}
 
 // Receipts already printed this session, so each prints once: as its transaction comes back, or as
 // the finish opens. Coming back to it later, or after switching views, finds it already there
@@ -85,7 +100,10 @@ export function Receipt({ tx, print, className }: { tx: Tx; print?: string | nul
         {/* Explorer opens the whole transaction, so it sits by the title, and the signature row keeps
             room for the key and its Copy */}
         <div {...at(i++)} className="mb-1 flex items-center justify-between gap-3">
-          <h3 className="font-label text-foreground">Transaction</h3>
+          {/* Honest about the numbers without a warning's weight, and without a line of its own */}
+          <h3 className="min-w-0 font-label text-foreground">
+            Transaction <span className="font-sans text-[0.6875rem] text-muted-foreground">· example values</span>
+          </h3>
           <button type="button" onClick={openExplorer} className={cn(LINK, "@max-[17rem]:-mr-3")}>
             <span className="@max-[17rem]:sr-only">Explorer</span>
             <ExternalLink strokeWidth={1.75} className="size-3.5" aria-hidden="true" />
@@ -115,10 +133,6 @@ export function Receipt({ tx, print, className }: { tx: Tx; print?: string | nul
             </dd>
           </div>
         </dl>
-        {/* Honest about the numbers without a warning's weight */}
-        <p {...at(i++)} className="mt-2 text-[0.6875rem] text-muted-foreground">
-          Example values in this prototype
-        </p>
       </div>
     </section>
   )

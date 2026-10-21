@@ -104,7 +104,7 @@ export function TerminalBody({
           }
         />
         {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
-        {tx && <Receipt tx={tx} print={arriving(s.txAt)} className="mx-4 mb-3 shrink-0 @xl:mt-3 @xl:ml-0 @xl:w-[21rem] @xl:self-start" />}
+        {tx && <Receipt tx={tx} print={arriving(s.txAt)} className="mx-4 mb-3 shrink-0 @xl:my-2 @xl:ml-0 @xl:w-[21rem] @xl:self-start" />}
       </div>
     </div>
   )

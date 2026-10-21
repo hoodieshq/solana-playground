@@ -9,7 +9,7 @@ import { flashKeys, useFlash } from "./flash"
 import { TERMINAL_KEYS } from "./keys"
 import { useKeyHints } from "./pointer"
 
-/** `tall` gives the terminal room for a receipt beside or under its log */
+/** `tall` gives the terminal room for a receipt beside or under its log, as much as a short window can spare */
 export type TerminalSlot = { open: boolean; onOpenChange: (open: boolean) => void; status: ReactNode; body: ReactNode; tall?: boolean }
 
 /** The project side: its name, the open file, the code, the step's actions and the terminal. The
@@ -71,7 +71,7 @@ export function Workspace({
               )}
             </ConsoleDrawerActions>
           </ConsoleDrawerBar>
-          <ConsoleDrawerContent className={cn("overscroll-contain", terminal.tall ? "h-80" : "h-56")}>{terminal.body}</ConsoleDrawerContent>
+          <ConsoleDrawerContent className={cn("overscroll-contain", terminal.tall ? "h-72 [@media(min-height:860px)]:h-80" : "h-56")}>{terminal.body}</ConsoleDrawerContent>
         </ConsoleDrawer>
       )}
     </section>
