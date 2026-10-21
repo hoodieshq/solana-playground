@@ -65,7 +65,7 @@ function Meta({ t, className }: { t: Entry; className?: string }) {
 /** What the tutorial is, a step under the name: a size smaller, the lighter reading weight and a
  * light grey, 10.2:1 on the card. Two lines at most, so every card in a row keeps one height */
 function Description({ text, className }: { text: string; className?: string }) {
-  return <p className={cn("line-clamp-2 text-[0.875rem] leading-[1.125rem] font-label text-foreground/78", className)}>{text}</p>
+  return <p className={cn("line-clamp-2 text-[0.875rem] leading-[1.125rem] font-label text-foreground/68", className)}>{text}</p>
 }
 
 /** One tutorial: cover, name, its own description, who wrote it and how long it is. The whole card
@@ -101,7 +101,7 @@ export function TutorialTile({ t }: { t: Entry }) {
           {/* The text face, not the headline one: Headline is set about 6% tighter, so at this size
               the name came out narrower than the description under it and read as the smaller line.
               Leading of 1.2 sets its capitals just under the cover's top edge, not 5px below it */}
-          <h3 className="text-[0.9375rem] leading-[1.125rem] font-medium text-foreground">
+          <h3 className="text-[1rem] leading-5 font-semibold text-foreground">
             {/* The name is the card's link: its box is stretched over the whole card, so a tap anywhere
                 opens it, and only the corner button stands above it */}
             <button
