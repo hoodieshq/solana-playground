@@ -16,7 +16,8 @@ import { ActionBar } from "./ActionBar"
 import { Column } from "./Column"
 import { Editor } from "./Editor"
 import { AskBox, Feed, type Msg, type Quote } from "./Feed"
-import { primaryFor } from "./keys"
+import { flashKeys } from "./flash"
+import { PRIMARY_KEYS, primaryFor } from "./keys"
 import { isCoarse, useCoarse } from "./pointer"
 import { QuickCheck } from "./QuickCheck"
 import { TerminalBody, TerminalStatus } from "./Terminal"
@@ -211,6 +212,8 @@ export function Step() {
         const action = primaryFor(s, asking)
         if (!action) return
         e.preventDefault()
+        // The button's hint lights up as it's pressed: the key worked, and this is its button
+        flashKeys(PRIMARY_KEYS)
         if (action === "explain") explain()
         else dispatch(action)
       } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a, [role='separator']")) {

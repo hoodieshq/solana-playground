@@ -9,6 +9,7 @@ import { fixFor, useStore } from "../store"
 import { AssistantMark } from "../ui/AssistantMark"
 import { NameField } from "../ui/NameField"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
+import { useFlash } from "./flash"
 import { PRIMARY_KEYS } from "./keys"
 import { isCoarse, useKeyHints } from "./pointer"
 import { Shortcut } from "./Shortcut"
@@ -27,8 +28,14 @@ export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: (
   const busy = s.phase === "building" || s.phase === "deploying" || s.phase === "calling"
   const client = step.id === "call-client"
   const fix = fixFor(s)
-  // Only where there's a keyboard to press them on
-  const keys = useKeyHints() ? <Shortcut keys={PRIMARY_KEYS} /> : null
+  // Only where there's a keyboard to press them on. ⌘Enter lights the hint of the button it pressed;
+  // a button the press turned busy keeps its hint just for that flash, which fades out with it
+  const hints = useKeyHints()
+  const pressed = useFlash(PRIMARY_KEYS)
+  // Lit only while the press is fresh: a button that comes up later, after a click, mounts unlit
+  const lit = pressed.on ? pressed.n : 0
+  const keys = hints ? <Shortcut keys={PRIMARY_KEYS} flash={lit} /> : null
+  const fading = hints && lit ? <Shortcut keys={PRIMARY_KEYS} flash={lit} leaving /> : null
 
   // A pass hands the focus to Next, so Enter or Space goes on from wherever it was, the editor too.
   // A build that waits for its call hands it to the name, with a mouse: on a tablet the focus would
@@ -83,7 +90,7 @@ export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: (
         <NameField id="call-name" inputRef={name} className="h-10 w-44 pointer-coarse:h-11" />
         <BrandButton type="submit" variant="accent" disabled={calling || !s.draft.trim()} className={BTN}>
           {calling ? workingLabel(s) : "Run"}
-          {!calling && keys}
+          {calling ? fading : keys}
         </BrandButton>
       </form>
     )
@@ -115,7 +122,7 @@ export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: (
         )}
         <BrandButton variant="accent" disabled={busy} className={BTN} onClick={() => dispatch(step.deploy ? { type: "deploy" } : { type: "buildOwn" })}>
           {busy ? workingLabel(s) : step.deploy ? "Deploy to devnet" : client ? "Run the client" : "Build"}
-          {!busy && keys}
+          {busy ? fading : keys}
         </BrandButton>
       </>
     )

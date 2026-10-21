@@ -211,3 +211,71 @@ a[href] {
     display: none;
   }
 }
+
+/* A shortcut pressed: its hint lights to full strength and back, about a quarter of a second, so the
+   learner sees the key worked and which button it pressed. On a button the press turned busy the hint
+   fades out instead. With reduced motion the hint only brightens, nothing grows */
+.pg-key-flash {
+  animation: pg-key-flash 260ms var(--ease-standard-value);
+}
+.pg-key-leave {
+  animation: pg-key-leave 320ms var(--ease-standard-value) forwards;
+}
+@keyframes pg-key-flash {
+  35% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.15);
+  }
+}
+@keyframes pg-key-leave {
+  35% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.15);
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* The terminal's hint is a key cap: it lights up rather than brightening its text */
+.pg-kbd-flash {
+  animation: pg-kbd-flash 260ms var(--ease-standard-value);
+}
+@keyframes pg-kbd-flash {
+  35% {
+    color: var(--foreground);
+    background-color: var(--border-strong);
+    transform: scale(1.1);
+  }
+}
+/* The nav's toggle after ⌘B: a press of its own ground, as if it had been clicked */
+[data-flash="a"] {
+  animation: pg-press-a 260ms var(--ease-standard-value);
+}
+[data-flash="b"] {
+  animation: pg-press-b 260ms var(--ease-standard-value);
+}
+@keyframes pg-press-a {
+  35% {
+    background-color: var(--surface-raised);
+    color: var(--foreground);
+  }
+}
+@keyframes pg-press-b {
+  35% {
+    background-color: var(--surface-raised);
+    color: var(--foreground);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-key-flash,
+  .pg-key-leave,
+  .pg-kbd-flash {
+    animation-name: pg-key-bright;
+  }
+}
+@keyframes pg-key-bright {
+  35% {
+    opacity: 1;
+    color: var(--foreground);
+  }
+}

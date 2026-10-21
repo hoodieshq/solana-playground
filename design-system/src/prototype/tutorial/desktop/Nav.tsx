@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 
 import { useStore } from "../store"
 import { view } from "../view"
+import { flashKeys, useFlash } from "./flash"
 import { MENU_KEYS } from "./keys"
 import { useCoarse, useKeyHints } from "./pointer"
 
@@ -105,6 +106,7 @@ export function Nav() {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") {
         e.preventDefault()
         toggle()
+        flashKeys(MENU_KEYS)
       } else if (e.key === "Escape" && floats && over) {
         setOver(false)
       }
@@ -127,6 +129,11 @@ export function Nav() {
       </Tooltip>
     )
   const ring = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  // ⌘B's hint lives in the toggle's tip, which a key press doesn't open. So the toggle itself, the one
+  // showing after the press, lights up once: that's the button the key pressed. Two names for one
+  // animation, so a second press plays it again
+  const pressed = useFlash(MENU_KEYS)
+  const flash = pressed.on ? (pressed.n % 2 ? "a" : "b") : undefined
 
   // A pick from the floating nav closes it, as a menu does
   const go = (then: () => void) => () => {
@@ -160,6 +167,7 @@ export function Nav() {
             onClick={toggle}
             aria-expanded={false}
             aria-label="Open sidebar"
+            data-flash={flash}
             className={cn(
               "group mb-3 grid h-9 w-full shrink-0 place-items-center rounded-control text-muted-foreground hover:bg-surface hover:text-foreground pointer-coarse:h-11",
               ring,
@@ -188,6 +196,7 @@ export function Nav() {
               onClick={toggle}
               aria-expanded={true}
               aria-label="Close sidebar"
+              data-flash={flash}
               className={cn(
                 "grid size-9 shrink-0 place-items-center rounded-control text-muted-foreground transition-colors duration-150 ease-standard hover:bg-surface hover:text-foreground motion-reduce:transition-none pointer-coarse:size-11",
                 ring

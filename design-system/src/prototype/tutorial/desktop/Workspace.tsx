@@ -1,10 +1,11 @@
-import type { ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 
 import { ConsoleDrawer, ConsoleDrawerActions, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
 import { EditorTab, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
 import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
 
+import { flashKeys, useFlash } from "./flash"
 import { TERMINAL_KEYS } from "./keys"
 import { useKeyHints } from "./pointer"
 
@@ -28,6 +29,15 @@ export function Workspace({
   children: ReactNode
 }) {
   const hints = useKeyHints()
+  // The drawer takes ⌘J itself; the hint on its strip lights up as it does
+  const pressed = useFlash(TERMINAL_KEYS)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") flashKeys(TERMINAL_KEYS)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
   return (
     <section aria-label="Project" className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
@@ -53,7 +63,13 @@ export function Workspace({
           {/* The whole strip opens it, so for a finger the strip is the 44px target */}
           <ConsoleDrawerBar className="pointer-coarse:h-11">
             <ConsoleDrawerStatus>{terminal.status}</ConsoleDrawerStatus>
-            <ConsoleDrawerActions>{hints && <Kbd>{TERMINAL_KEYS}</Kbd>}</ConsoleDrawerActions>
+            <ConsoleDrawerActions>
+              {hints && (
+                <Kbd key={pressed.on ? pressed.n : 0} className={cn(pressed.on && "pg-kbd-flash")}>
+                  {TERMINAL_KEYS}
+                </Kbd>
+              )}
+            </ConsoleDrawerActions>
           </ConsoleDrawerBar>
           <ConsoleDrawerContent className={cn("overscroll-contain", terminal.tall ? "h-80" : "h-56")}>{terminal.body}</ConsoleDrawerContent>
         </ConsoleDrawer>
