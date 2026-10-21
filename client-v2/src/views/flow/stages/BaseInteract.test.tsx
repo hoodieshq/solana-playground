@@ -9,6 +9,7 @@ import type { InteractSurface } from "./interact-surface";
 
 const SURFACES: InteractSurface[] = [
   "no-project",
+  "checking",
   "not-built",
   "no-idl",
   "no-program-id",
@@ -127,5 +128,49 @@ describe("BaseInteract", () => {
     const select = screen.getByLabelText("Deployment") as HTMLSelectElement;
     expect(select.disabled).toBe(true);
     expect(select.textContent).toBe("none yet");
+  });
+
+  it("without a program id it offers Go to Build", () => {
+    const onGoTo = vi.fn();
+    render(<BaseInteract {...props("no-program-id", { onGoTo })} />);
+    expect(screen.getByText(/Building the program creates one/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Go to Build" }));
+    expect(onGoTo).toHaveBeenCalledWith("build");
+  });
+
+  it("while the chain is read it says so, with no error and no action", () => {
+    const { container } = render(<BaseInteract {...props("checking")} />);
+    expect(screen.getByText(/Reading the program from devnet/)).toBeTruthy();
+    expect(container.querySelector('[data-slot="callout"]')).toBeNull();
+    expect(
+      container.querySelector('[data-slot="stage-empty-actions"]')
+    ).toBeNull();
+  });
+
+  /** Each empty surface: its title, and whether it offers a step */
+  const EMPTY: Array<[InteractSurface, string, boolean]> = [
+    ["no-project", "No project open", false],
+    ["checking", "Checking the program", false],
+    ["not-built", "Nothing to call yet", true],
+    ["no-idl", "No IDL yet", true],
+    ["no-program-id", "No program id", true],
+    ["bad-idl", "This IDL can't be read", false],
+    ["unreachable", "Can't reach the network", false],
+    ["not-deployed", "Nothing to call yet", true],
+  ];
+
+  it.each(EMPTY)("%s says %s", (surface, title, hasAction) => {
+    const { container } = render(<BaseInteract {...props(surface)} />);
+    expect(screen.getByRole("heading", { name: title })).toBeTruthy();
+    expect(
+      container.querySelector('[data-slot="stage-empty-actions"]') !== null
+    ).toBe(hasAction);
+  });
+
+  it("an unreachable network shows the error notice", () => {
+    const { container } = render(<BaseInteract {...props("unreachable")} />);
+    expect(
+      container.querySelector('[data-slot="callout"]')!.textContent
+    ).toContain("Connection error");
   });
 });

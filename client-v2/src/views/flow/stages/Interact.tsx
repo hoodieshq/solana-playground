@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import BaseInteract from "./BaseInteract";
 import IdlActions from "./IdlActions";
-import { interactSurface } from "./interact-surface";
+import { interactFacts, interactSurface } from "./interact-surface";
 import Test from "../../sidebar/test/Component/Test";
 import {
   PgConnection,
@@ -81,13 +81,7 @@ const Interact = () => {
 
   const programInfo = useProgramInfo();
   const explorer = useExplorer();
-  const surface = interactSurface({
-    hasProject: explorer.isTemporary || !!explorer.currentWorkspaceName,
-    idl: programInfo.idl,
-    imported: !!(programInfo.importedProgram || programInfo.uuid),
-    hasProgramId: !!programInfo.pk,
-    onChain: programInfo.onChain,
-  });
+  const surface = interactSurface(interactFacts(explorer, programInfo));
 
   const selectedIndex = history.findIndex((r) => r.id === selected);
   const selectedRecord = selectedIndex >= 0 ? history[selectedIndex] : null;

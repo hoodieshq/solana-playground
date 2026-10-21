@@ -915,21 +915,26 @@ the form below them is composed from the design system's parts.
 the `NativeSelect` of 5.5 (mono) and `IdlActions mode="button"` ("Load IDL
 file"). Its styled-components go.
 
-**One `StageEmpty` replaces the seven Callouts** the embedded form showed
-before it could render. A pure `interactSurface()` in
+**One `StageEmpty` replaces the six Callouts** (seven messages) the embedded
+form showed before it could render. A pure `interactSurface()` in
 `views/flow/stages/interact-surface.ts` picks the surface from the project
-and program info, in today's order:
+and program info, in the order the pre-5.12 form checked:
 
 | Surface | When | Shows |
 |---|---|---|
 | `no-project` | no workspace open | "No project open" |
 | `not-built` | no IDL, the project's own program | "Nothing to call yet", Go to Build |
 | `no-idl` | no IDL, an imported program | "No IDL yet", Load IDL file |
-| `no-program-id` | the program has no public key | "No program id" |
-| `bad-idl` | the IDL has no instructions | an error `StageEmptyNotice` with today's text |
-| `unreachable` | the chain could not be read | an error `StageEmptyNotice` with today's text |
+| `no-program-id` | the program has no public key | "No program id", Go to Build (a build creates the key) |
+| `bad-idl` | the IDL's `instructions` is not a list | an error `StageEmptyNotice`, the pre-5.12 text |
+| `checking` | the first chain read has not settled | "Checking the program" |
+| `unreachable` | the chain read failed | an error `StageEmptyNotice`, the pre-5.12 text |
 | `not-deployed` | the program is not on the cluster | "Nothing to call yet", Go to Deploy |
 | `ready` | everything above holds | the form |
+
+`checking` is new: before 5.12 a read still in flight showed the connection
+error until it settled. `PgProgramInfo.onChain` is `undefined` until its first
+read and `null` after a failed one, which is how the two are told apart.
 
 Go to Build and Go to Deploy are the stage's brand buttons and switch the
 stepper (`PgFlow.setStage`). On a phone the action row sits at the foot, as
@@ -938,8 +943,10 @@ in 5.11 (`stage-layout.ts`).
 **The form** (`ready`). Instructions, Accounts and Events are headed
 sections; each item is a `Collapsible` card (border, `rounded-xl`,
 `bg-surface-panel`) instead of the striped rows. An input's label is its name
-in mono with `Tag`s for the type, `mut` and `signer`. Fetched accounts and
-received events show as JSON in the design system's `code-block`. Test, Fill
+in mono with `Tag`s for the type (in its own case), `mut` and `signer`.
+Fetched accounts and received events show as JSON in the design system's
+`code-block`, titled "JSON", with a `CopyButton`; the JSON is not highlighted
+any more, which the legacy `CodeBlock` did. Test, Fill
 and Reset stay as they are; none is the brand button, since every
 instruction has a Test. Account inference, Fill and the submission flow do not
 change.

@@ -1,5 +1,5 @@
 /**
- * Where a Build or Deploy stage's action sits. The action row is the last
+ * Where a Build, Deploy or Interact stage's action sits. The action row is the last
  * element of the stage; below `md` the stage is at least as tall as its
  * frame and the row is pushed to the foot (`mt-auto`), where
  * `StageEmptyActions`' own `sticky bottom-0` keeps it when the content is
@@ -19,9 +19,8 @@ export const STAGE_BODY =
   "max-w-[42rem] max-md:min-h-full max-md:flex-1 max-md:pb-0";
 
 /**
- * The action row, on `StageEmptyActions`. Its fade keeps the part's own
- * start, `--background`, which is what the stage column shows below `md`
- * since the flush frame (5.25); `--surface-panel` drew a lighter band behind
- * the button.
+ * The action row, on `StageEmptyActions`: below `md` it is pushed to the
+ * stage's foot. Its fade is left to the part, which starts it from
+ * `--background`, the colour the stage column shows below `md`.
  */
 export const STAGE_FOOT = "max-md:mt-auto";

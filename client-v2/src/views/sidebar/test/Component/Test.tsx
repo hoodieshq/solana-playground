@@ -5,20 +5,18 @@ import Account from "./Account";
 import Event from "./Event";
 import Instruction from "./Instruction";
 import IdlProvider from "./IdlProvider";
-import { PgCommand, PgProgramInfo } from "../../../../utils";
+import { PgProgramInfo } from "../../../../utils";
 import {
   Idl,
   PgProgramInteraction,
 } from "../../../../utils/program-interaction";
-import { useRenderOnChange } from "../../../../hooks";
 
 /**
  * The form for a deployed program's instructions, accounts and events. The
- * Interact stage draws it only once `interactSurface` is `ready`.
+ * Interact stage draws it only once `interactSurface` is `ready`, and redraws
+ * it with every new `idl`, so it needs no build event of its own.
  */
 const Test = ({ idl }: { idl: Idl }) => {
-  useRenderOnChange(PgCommand.build.onDidFinish);
-
   // Used for both accounts and events data
   useBigNumberJson();
 

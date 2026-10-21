@@ -41,7 +41,8 @@ where it was deployed and the program id with a button that copies it
 
 Until the program can be called, the Interact stage SHALL say in one empty
 state (`data-slot="stage-empty"`) what is missing and offer the step that
-supplies it: Go to Build before a build, Go to Deploy before a deployment,
+supplies it: Go to Build before a build or without a program id, Go to Deploy
+before a deployment,
 Load IDL file for an imported program without an IDL. The stage keeps
 `flow-stage-panel-interact`.
 

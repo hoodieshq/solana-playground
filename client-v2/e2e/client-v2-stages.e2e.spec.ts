@@ -24,10 +24,23 @@ const IDL = {
 };
 
 /**
- * The cluster says the program account does not exist, so the program reads
- * as not deployed; every other call goes to the cluster as usual
+ * A program account owned by the non-upgradeable loader: the chain read
+ * settles on "deployed" with no program-data account to follow
  */
-const stubUndeployed = (page: Page) =>
+const DEPLOYED_ACCOUNT = {
+  data: ["", "base64"],
+  executable: true,
+  lamports: 1141440,
+  owner: "BPFLoader2111111111111111111111111111111111",
+  rentEpoch: 0,
+  space: 0,
+};
+
+/**
+ * The cluster answers `getAccountInfo` with `account` (`null`: the program
+ * account does not exist); every other call goes to the cluster as usual
+ */
+const stubProgramAccount = (page: Page, account: object | null) =>
   page.route("https://api.devnet.solana.com/**", async (route) => {
     const body = route.request().postDataJSON() as {
       id?: unknown;
@@ -37,7 +50,7 @@ const stubUndeployed = (page: Page) =>
     return json(route, {
       jsonrpc: "2.0",
       id: body.id,
-      result: { context: { slot: 1 }, value: null },
+      result: { context: { slot: 1 }, value: account },
     });
   });
 
@@ -135,7 +148,7 @@ test.describe("client-v2-stages: Interact", () => {
   test("client-v2-stages: Interact before a deploy", async ({
     seededPage: page,
   }) => {
-    await stubUndeployed(page);
+    await stubProgramAccount(page, null);
     const panel = await buildThenInteract(page);
 
     await expect(
@@ -146,6 +159,22 @@ test.describe("client-v2-stages: Interact", () => {
       .getByRole("button", { name: "Go to Deploy" });
     await goToDeploy.click();
     await expect(page.locator("#flow-stage-panel-deploy")).toBeVisible();
+  });
+
+  test("Interact draws a deployed program's instructions", async ({
+    seededPage: page,
+  }) => {
+    await stubProgramAccount(page, DEPLOYED_ACCOUNT);
+    const panel = await buildThenInteract(page);
+
+    await expect(panel.getByText("Program: e2e_project")).toBeVisible(LONG);
+    await expect(
+      panel.getByRole("heading", { name: "Instructions" })
+    ).toBeVisible();
+    await expect(
+      panel.getByRole("button", { name: "initialize" })
+    ).toBeVisible();
+    await expect(panel.locator('[data-slot="stage-empty"]')).toHaveCount(0);
   });
 });
 
@@ -221,7 +250,7 @@ test.describe("client-v2-stages on a phone", () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
-    await stubUndeployed(page);
+    await stubProgramAccount(page, null);
     await page.setViewportSize({ width: 390, height: 844 });
 
     const panel = await buildThenInteract(page);

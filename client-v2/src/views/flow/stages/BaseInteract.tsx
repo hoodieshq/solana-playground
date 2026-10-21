@@ -12,6 +12,7 @@ import {
   StageEmptyNotice,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
+import type { Stage } from "../state/stage";
 import type { InteractSurface } from "./interact-surface";
 import { STAGE_BODY, STAGE_FOOT, STAGE_FRAME } from "./stage-layout";
 
@@ -30,7 +31,7 @@ export interface BaseInteractProps {
   surface: InteractSurface;
   /** The cluster for prose; null until the endpoint has been read */
   cluster: string | null;
-  onGoTo: (stage: "build" | "deploy") => void;
+  onGoTo: (stage: Extract<Stage, "build" | "deploy">) => void;
   /** The "Load IDL file" action (`IdlActions mode="button"`) */
   idlLoad: ReactNode;
   /** The form, drawn only on the `ready` surface */
@@ -63,7 +64,13 @@ const COPY: Record<EmptySurface, EmptyCopy> = {
   },
   "no-program-id": {
     title: "No program id",
-    description: () => "The program has no public key.",
+    description: () =>
+      "The program has no public key. Building the program creates one.",
+  },
+  checking: {
+    title: "Checking the program",
+    description: (cluster) =>
+      `Reading the program from ${cluster} to see whether it is deployed.`,
   },
   "bad-idl": {
     title: "This IDL can't be read",
@@ -84,7 +91,7 @@ const COPY: Record<EmptySurface, EmptyCopy> = {
 
 /** The step that supplies what an empty surface lacks, if there is one */
 const action = (p: BaseInteractProps, surface: EmptySurface): ReactNode => {
-  if (surface === "not-built") {
+  if (surface === "not-built" || surface === "no-program-id") {
     return (
       <BrandButton onClick={() => p.onGoTo("build")}>Go to Build</BrandButton>
     );

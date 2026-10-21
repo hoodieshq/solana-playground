@@ -1,4 +1,12 @@
-import { CodeBlock, CodeBlockContent } from "@/shared/ui/code-block";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import {
+  CodeBlock,
+  CodeBlockActions,
+  CodeBlockContent,
+  CodeBlockHeader,
+  CodeBlockTitle,
+} from "@/shared/ui/code-block";
+import { CopyButton } from "@/shared/ui/copy-button";
 
 interface CodeResultProps {
   children: string;
@@ -6,9 +14,15 @@ interface CodeResultProps {
   index: number;
 }
 
-/** A fetched account or received events, as JSON */
+/** A fetched account or received events, as JSON the user can copy whole */
 const CodeResult = ({ children }: CodeResultProps) => (
   <CodeBlock>
+    <CodeBlockHeader>
+      <CodeBlockTitle>JSON</CodeBlockTitle>
+      <CodeBlockActions>
+        <CopyButton value={children} onError={reportButtonFailure} />
+      </CodeBlockActions>
+    </CodeBlockHeader>
     <CodeBlockContent className="max-h-80 overflow-auto select-text">
       {children}
     </CodeBlockContent>
