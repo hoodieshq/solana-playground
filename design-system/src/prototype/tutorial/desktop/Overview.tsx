@@ -59,7 +59,7 @@ export function Overview() {
           <StepList className="mt-4" />
         </div>
         <div className="shrink-0 border-t border-border px-5 pt-4 pb-5">
-          <BrandButton variant="accent" className="h-12 w-full text-control" onClick={() => (finished ? setConfirm(true) : dispatch({ type: "start" }))}>
+          <BrandButton variant="accent" className="h-12 w-full" onClick={() => (finished ? setConfirm(true) : dispatch({ type: "start" }))}>
             {finished ? "Start again" : started ? `Continue from step ${first + 1}` : "Start"}
           </BrandButton>
           {started && (

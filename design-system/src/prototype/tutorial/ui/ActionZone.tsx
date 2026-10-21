@@ -21,7 +21,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
   const passed = s.phase === "passed"
   const failed = s.phase === "failed"
   const reviewing = s.phase === "patch"
-  const big = "h-14 text-control"
+  const big = "h-14"
 
   return (
     <footer className="shrink-0 border-t border-border bg-surface-panel px-3 pt-3 pb-[max(var(--safe-bottom),16px)]">

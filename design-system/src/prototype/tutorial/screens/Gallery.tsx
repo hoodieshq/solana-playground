@@ -223,7 +223,7 @@ export function Gallery() {
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button variant="outline" className="h-11 px-5 text-control" onClick={() => setTab("tutorials")}>
+              <Button variant="outline" className="h-11 px-5" onClick={() => setTab("tutorials")}>
                 Back to tutorials
               </Button>
             </EmptyContent>

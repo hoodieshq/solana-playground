@@ -76,16 +76,16 @@ function Body({ mode }: { mode: "step" | "error" }) {
       <DrawerFooter className="flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
         {withFix ? (
           <>
-            <Button variant="secondary" className="h-14 flex-1 text-control" onClick={() => dispatch({ type: "close" })}>
+            <Button variant="secondary" className="h-14 flex-1" onClick={() => dispatch({ type: "close" })}>
               Close
             </Button>
             {/* The fix opens in the code, the same way the step's own patch does */}
-            <Button className="h-14 flex-1 text-control" disabled={!ready} onClick={() => dispatch({ type: "reviewFix" })}>
+            <Button className="h-14 flex-1" disabled={!ready} onClick={() => dispatch({ type: "reviewFix" })}>
               Review the fix
             </Button>
           </>
         ) : (
-          <Button variant="secondary" className="h-14 flex-1 text-control" onClick={() => dispatch({ type: "close" })}>
+          <Button variant="secondary" className="h-14 flex-1" onClick={() => dispatch({ type: "close" })}>
             Got it
           </Button>
         )}

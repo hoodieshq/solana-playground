@@ -26,7 +26,7 @@ export function PredictZone({ predict, onAnswer }: { predict: Predict; onAnswer:
           </button>
         ))}
       </div>
-      <Button variant="ghost" className="mt-2 h-11 w-full text-control text-muted-foreground" onClick={() => onAnswer("skip")}>
+      <Button variant="ghost" className="mt-2 h-11 w-full text-muted-foreground" onClick={() => onAnswer("skip")}>
         Skip and show the code
       </Button>
     </footer>

@@ -9,7 +9,7 @@ import { AssistantMark } from "../ui/AssistantMark"
 import { Shortcut } from "./Shortcut"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
 
-const BTN = "h-10 gap-2 px-4 text-control"
+const BTN = "h-10 gap-2 px-4"
 
 /** The step's actions under the editor, the desktop cut of the phone's bottom zone: the status on
  * the left, the buttons on the right. Build checks what was typed; the assistant is the second way.

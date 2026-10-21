@@ -25,10 +25,10 @@ export function Finish() {
         </section>
         <UpNextCard className="mt-8" />
         <div className="mt-8 flex gap-2">
-          <Button variant="secondary" className="h-11 px-5 text-control" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+          <Button variant="secondary" className="h-11 px-5" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
             Back to tutorials
           </Button>
-          <Button variant="ghost" className="h-11 px-5 text-control" onClick={() => toast("Only the tutorial flow is in this prototype")}>
+          <Button variant="ghost" className="h-11 px-5" onClick={() => toast("Only the tutorial flow is in this prototype")}>
             Open the project
           </Button>
         </div>

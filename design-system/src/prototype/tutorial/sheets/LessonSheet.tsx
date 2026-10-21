@@ -22,11 +22,11 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
           <LessonBlocks blocks={step.lesson} />
         </div>
         <DrawerFooter className="mx-auto w-full max-w-[40rem] flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
-          <Button variant="secondary" className="h-14 gap-2 px-4 text-control" onClick={onAsk}>
+          <Button variant="secondary" className="h-14 gap-2 px-4" onClick={onAsk}>
             <AssistantMark className="size-[18px] text-brand-purple" />
             Ask
           </Button>
-          <Button variant="secondary" className="h-14 flex-1 text-control" onClick={onClose}>
+          <Button variant="secondary" className="h-14 flex-1" onClick={onClose}>
             Got it
           </Button>
         </DrawerFooter>

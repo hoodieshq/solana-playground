@@ -38,14 +38,14 @@ export function ContinueSheet({ open, onClose }: { open: boolean; onClose: () =>
         <div className="px-4">
           <div className="flex h-14 items-center gap-2 rounded-control border border-border bg-surface-well pr-1 pl-3">
             <span className="min-w-0 flex-1 truncate font-mono text-code text-foreground">{link}</span>
-            <Button variant="secondary" className="h-11 gap-2 px-3 text-control" onClick={copy}>
+            <Button variant="secondary" className="h-11 gap-2 px-3" onClick={copy}>
               <Copy strokeWidth={1.75} className="size-4" />
               Copy
             </Button>
           </div>
         </div>
         <DrawerFooter className="pb-[max(var(--safe-bottom),16px)]">
-          <Button variant="secondary" className="h-14 text-control" onClick={onClose}>
+          <Button variant="secondary" className="h-14" onClick={onClose}>
             Stay on the phone
           </Button>
         </DrawerFooter>

@@ -28,7 +28,7 @@ export function Finish() {
         <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>
         <LearnedList className="mt-2" />
         <UpNextCard className="mt-6" />
-        <Button variant="secondary" className="mt-6 h-14 w-full text-control" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+        <Button variant="secondary" className="mt-6 h-14 w-full" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
           Back to tutorials
         </Button>
       </div>
