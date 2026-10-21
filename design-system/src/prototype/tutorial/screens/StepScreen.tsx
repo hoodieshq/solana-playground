@@ -147,7 +147,8 @@ export function StepScreen() {
             <span className={cn("flex h-8 items-center gap-1.5 rounded-control px-3", tab === t && "bg-surface-raised")}>
               {t === "code" ? step.file.split("/").pop() : "Build"}
               {t === "build" && s.log.length > 0 && (
-                <span className={cn("size-1.5 rounded-full", s.error ? "bg-error" : "bg-success")} />
+                // Typing on desktop clears the error but keeps the log, so the dot follows whether the step passed
+                <span className={cn("size-1.5 rounded-full", s.error || !s.passed[s.step] ? "bg-error" : "bg-success")} />
               )}
             </span>
           </button>
