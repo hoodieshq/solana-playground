@@ -2,11 +2,11 @@ import type { ReactNode } from "react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
-import { Kbd } from "@/components/ui/kbd"
 
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
 import { AssistantMark } from "../ui/AssistantMark"
+import { Shortcut } from "./Shortcut"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
 
 const BTN = "h-10 gap-2 px-4 text-control"
@@ -27,7 +27,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
       <Button className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
         {/* Where it leads, as on the phone. The key says how; the phone's arrow would be a second sign for the same thing */}
         {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
-        <Kbd className="bg-black/15! text-current!">↵</Kbd>
+        <Shortcut keys="↵" />
       </Button>
     )
   } else if (s.phase === "patch") {
@@ -39,7 +39,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
         </Button>
         <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "apply" })}>
           {step.id === "call-client" ? "Apply and run" : "Apply and build"}
-          <Kbd className="bg-white/15! text-current!">⌘↵</Kbd>
+          <Shortcut keys="⌘↵" />
         </BrandButton>
       </>
     )
@@ -67,7 +67,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
         )}
         <BrandButton variant="accent" disabled={busy} className={BTN} onClick={() => dispatch(step.deploy ? { type: "deploy" } : { type: "buildOwn" })}>
           {busy ? workingLabel(s) : step.deploy ? "Deploy to devnet" : step.id === "call-client" ? "Run the client" : "Build"}
-          {!busy && <Kbd className="bg-white/15! text-current!">⌘B</Kbd>}
+          {!busy && <Shortcut keys="⌘B" />}
         </BrandButton>
       </>
     )
