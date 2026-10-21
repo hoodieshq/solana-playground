@@ -19,10 +19,11 @@ export interface InteractFacts {
   imported: boolean;
   hasProgramId: boolean;
   /**
-   * `PgProgramInfo.onChain`; undefined when the read failed. A read still in
-   * flight is undefined too, and reads as unreachable, as it always has.
+   * `PgProgramInfo.onChain`; null or undefined when the read failed. A read
+   * still in flight is undefined too, and reads as unreachable, as it always
+   * has.
    */
-  onChain: { deployed: boolean } | undefined;
+  onChain: { deployed: boolean } | null | undefined;
 }
 
 /** Picks the Interact stage's surface; the first missing piece wins */

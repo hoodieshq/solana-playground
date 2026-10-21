@@ -6,104 +6,25 @@ import Account from "./Account";
 import Event from "./Event";
 import Instruction from "./Instruction";
 import IdlProvider from "./IdlProvider";
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgCommand, PgProgramInfo } from "../../../../utils";
-import { PgProgramInteraction } from "../../../../utils/program-interaction";
 import {
-  useExplorer,
-  useProgramInfo,
-  useRenderOnChange,
-} from "../../../../hooks";
+  Idl,
+  PgProgramInteraction,
+} from "../../../../utils/program-interaction";
+import { useRenderOnChange } from "../../../../hooks";
 
-const Test = () => {
+/**
+ * The form for a deployed program's instructions, accounts and events. The
+ * Interact stage draws it only once `interactSurface` is `ready`.
+ */
+const Test = ({ idl }: { idl: Idl }) => {
   useRenderOnChange(PgCommand.build.onDidFinish);
-
-  const programInfo = useProgramInfo();
-  const error = !programInfo.onChain;
-  const deployed = programInfo.onChain?.deployed;
 
   // Used for both accounts and events data
   useBigNumberJson();
 
   // Handle instruction storage
   useSyncInstructionStorage();
-
-  const explorer = useExplorer();
-  if (!explorer.isTemporary && !explorer.currentWorkspaceName) {
-    return (
-      <InitialWrapper>
-        <Callout>
-          <CalloutDescription>No project to test.</CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
-
-  // An IDL can arrive without a build -- "Load IDL file" -- and must not be
-  // blocked behind the build artefacts; the `deployed` check below still
-  // guards actual calls
-  const { idl } = programInfo;
-  if (!idl) {
-    return (
-      <InitialWrapper>
-        <Callout>
-          <CalloutDescription>
-            {programInfo.importedProgram || programInfo.uuid
-              ? "Anchor IDL not found."
-              : "Program is not built."}
-          </CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
-
-  if (!programInfo.pk) {
-    return (
-      <InitialWrapper>
-        <Callout>
-          <CalloutDescription>
-            The program has no public key.
-          </CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
-
-  if (!idl.instructions) {
-    return (
-      <InitialWrapper>
-        <Callout variant="error">
-          <CalloutDescription>
-            You've imported a corrupted IDL. Please double check you've imported
-            an Anchor IDL.
-          </CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
-
-  if (error) {
-    return (
-      <InitialWrapper>
-        <Callout variant="error">
-          <CalloutDescription>
-            Connection error. Please try changing the RPC endpoint from the
-            settings.
-          </CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
-
-  if (!deployed) {
-    return (
-      <InitialWrapper>
-        <Callout>
-          <CalloutDescription>Program is not deployed.</CalloutDescription>
-        </Callout>
-      </InitialWrapper>
-    );
-  }
 
   return (
     <IdlProvider idl={idl}>
@@ -145,10 +66,6 @@ const Test = () => {
     </IdlProvider>
   );
 };
-
-const InitialWrapper = styled.div`
-  padding: 1.5rem;
-`;
 
 const Wrapper = styled.div`
   ${({ theme }) => css`
