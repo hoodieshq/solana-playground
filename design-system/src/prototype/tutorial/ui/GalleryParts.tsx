@@ -48,8 +48,8 @@ export function FilterMenu({ value, onChange, phone = false }: { value: Framewor
 function Meta({ t, className }: { t: Entry; className?: string }) {
   const parts = metaFor(t).split(" · ")
   return (
-    // text-caption! because cn drops the size next to the colour class
-    <p className={cn("text-caption! text-muted-foreground tabular-nums", className)}>
+    // The description's size, a step quieter by colour only. Sizes in [] so cn keeps them beside the colour
+    <p className={cn("text-[0.875rem] leading-[1.125rem] text-muted-foreground tabular-nums", className)}>
       {parts.flatMap((part, i) => [
         i > 0 ? " " : null,
         <span key={part} className="whitespace-nowrap">
@@ -63,7 +63,7 @@ function Meta({ t, className }: { t: Entry; className?: string }) {
 
 /** One tutorial: cover, name, its own description, who wrote it and how long it is. The whole card
  * opens the tutorial; the square in its corner starts it, or says how far you are */
-export function TutorialTile({ t, phone = false }: { t: Entry; phone?: boolean }) {
+export function TutorialTile({ t }: { t: Entry }) {
   const { s, dispatch } = useStore()
   const mine = t.slug === HERO.slug
   const started = mine && s.startedAt !== null && s.finishedAt === null
@@ -81,18 +81,17 @@ export function TutorialTile({ t, phone = false }: { t: Entry; phone?: boolean }
     // cover and the name, across the whole card, instead of a column a few words wide
     <div
       className={cn(
-        "@container relative h-full rounded-card border border-border bg-surface-panel transition-colors duration-150 ease-standard hover:bg-surface active:bg-surface motion-reduce:transition-none",
-        phone ? "p-4" : "p-5"
+        "@container relative h-full rounded-card border border-border bg-surface-panel p-4 transition-colors duration-150 ease-standard hover:bg-surface active:bg-surface motion-reduce:transition-none"
       )}
     >
-      {/* Three columns on one top line, cover, words and the corner square, so the eye reads the name
-          first and the square sits beside it, not below it. The name and its description stay
-          together; who wrote it and how long sits a little apart, quieter */}
-      <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-start gap-x-4 @max-[18rem]:gap-x-3">
+      {/* Three columns on one top line, cover, words and the corner square. The words share one size
+          and step down by weight and colour: the name, then what it is, then who and how long, the
+          way a well set catalogue reads. Tight leading keeps the three lines one block */}
+      <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-start gap-x-3.5 @max-[18rem]:gap-x-3">
         {/* In px, not rem: a larger font needs the room for words, not for the picture */}
-        <Thumb src={thumb(t.slug, t.ext)} className="size-[56px]" />
-        <div className="min-w-0 pt-0.5">
-          <h3 className="font-heading text-title text-foreground">
+        <Thumb src={thumb(t.slug, t.ext)} className="size-[48px]" />
+        <div className="min-w-0">
+          <h3 className="font-heading text-[0.9375rem] leading-5 font-medium text-foreground">
             {/* The name is the card's link: its box is stretched over the whole card, so a tap anywhere
                 opens it, and only the corner button stands above it */}
             <button
@@ -104,25 +103,25 @@ export function TutorialTile({ t, phone = false }: { t: Entry; phone?: boolean }
             </button>
           </h3>
           <div className="@max-[18rem]:hidden">
-            <p className="mt-1 line-clamp-2 text-[0.875rem] leading-snug font-read text-foreground/75">{t.description}</p>
+            <p className="mt-0.5 line-clamp-2 text-[0.875rem] leading-[1.125rem] text-foreground/70">{t.description}</p>
             {/* Muted, not subtle: the tertiary grey is 3.6:1 on the card, under AA for this size */}
-            <Meta t={t} className="mt-2.5" />
+            <Meta t={t} className="mt-1.5" />
           </div>
         </div>
-        {/* 36px to look at, 44 to hit: the extra reaches past the square, not into the words */}
+        {/* 32px to look at, 44 to hit: the extra reaches past the square, not into the words */}
         <button
           type="button"
           aria-label={corner.label}
           onClick={corner.run}
-          className="relative z-10 -m-1 flex min-h-11 min-w-11 items-center justify-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative z-10 -m-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <TutorialStatus done={done} total={STEPS.length} started={started} finished={finished} className={cn(!finished && "transition-colors hover:border-border-strong")} />
+          <TutorialStatus done={done} total={STEPS.length} started={started} finished={finished} className={cn(!finished && "transition-colors hover:bg-surface-hover")} />
         </button>
         {/* On a narrow card (a small phone, a large font) the words go under the cover, across the
             whole card, instead of a column a few words wide */}
         <div className="col-span-3 mt-3 hidden @max-[18rem]:block">
-          <p className="line-clamp-2 text-[0.875rem] leading-snug font-read text-foreground/75">{t.description}</p>
-          <Meta t={t} className="mt-2.5" />
+          <p className="line-clamp-2 text-[0.875rem] leading-[1.125rem] text-foreground/70">{t.description}</p>
+          <Meta t={t} className="mt-1.5" />
         </div>
       </div>
     </div>
@@ -139,12 +138,12 @@ export function LevelSections({ list, limit, showAll = false, phone = false }: {
     const items = more && !expanded ? g.items.slice(0, limit) : g.items
     const id = `level-${g.level}`
     return (
-      <section key={g.level} aria-labelledby={id} className={phone ? "mt-6" : "mt-10"}>
+      <section key={g.level} aria-labelledby={id} className={phone ? "mt-8" : "mt-10"}>
         <div className={cn("flex items-center gap-2", phone ? "mb-2 min-h-11" : "mb-3 min-h-9")}>
-          <h2 id={id} className="font-heading text-title text-foreground">
+          <h2 id={id} className="font-heading text-title font-medium text-foreground">
             {g.level}
           </h2>
-          <span className="rounded-full bg-surface-raised px-2 text-caption leading-5 text-muted-foreground tabular-nums">{g.items.length}</span>
+          <span className="rounded-full bg-surface-raised px-2 text-[0.75rem] leading-5 text-muted-foreground tabular-nums">{g.items.length}</span>
           {/* Opens in place, so it points down, not on to another page */}
           {more && (
             <button
@@ -152,7 +151,7 @@ export function LevelSections({ list, limit, showAll = false, phone = false }: {
               aria-expanded={expanded}
               onClick={() => setOpen((o) => (expanded ? o.filter((l) => l !== g.level) : [...o, g.level]))}
               className={cn(
-                "-mr-2 ml-auto flex items-center gap-1.5 rounded-control px-2 text-control! text-muted-foreground transition-colors hover:text-foreground active:text-foreground",
+                "-mr-2 ml-auto flex items-center gap-1.5 rounded-control px-2 text-[0.875rem] text-foreground/80 transition-colors hover:text-foreground active:text-foreground",
                 phone ? "h-11" : "h-9"
               )}
             >
@@ -162,10 +161,10 @@ export function LevelSections({ list, limit, showAll = false, phone = false }: {
           )}
         </div>
         {/* Two a row at every desktop width, never three, so a description keeps two whole lines */}
-        <ul className={phone ? "flex flex-col gap-2" : "grid grid-cols-2 gap-3"}>
+        <ul className={phone ? "flex flex-col gap-2.5" : "grid grid-cols-2 gap-3.5"}>
           {items.map((t) => (
             <li key={t.slug}>
-              <TutorialTile t={t} phone={phone} />
+              <TutorialTile t={t} />
             </li>
           ))}
         </ul>
