@@ -1,11 +1,10 @@
-/** iPhone's scroll indicator, for the phone frame, where the browser's own scrollbar is hidden
- * (see prototype.css). A thin pill floats over the right edge of whatever is scrolling, shows while
- * it moves and fades once it stops. It takes no width, so nothing shifts. A real phone draws its
- * own, so this runs only inside the frame */
+/** An overlay scroll indicator, where the browser's own scrollbar is hidden (see prototype.css):
+ * iPhone's in the phone frame, macOS's on the desktop screen. A thin pill floats over the right
+ * edge of whatever is scrolling, shows while it moves and fades once it stops. It takes no width,
+ * so nothing shifts. A real phone draws its own, so there it doesn't run */
 
-// Points, as on iOS: 3 wide, 3 from the edge, never shorter than 36
-const WIDTH = 3
-const INSET = 3
+// iOS: 3 wide, 3 from the edge. macOS draws a wider pill closer in. Never shorter than 36
+const SIZES = { phone: { width: 3, inset: 3 }, desktop: { width: 6, inset: 2 } }
 const MIN = 36
 // How long it stays after the last scroll, and how long it takes to fade (matches prototype.css)
 const IDLE = 600
@@ -13,7 +12,8 @@ const FADE = 300
 
 type Bar = { el: HTMLDivElement; idle: number; gone: number }
 
-export function installScrollIndicator() {
+export function installScrollIndicator(kind: keyof typeof SIZES = "phone") {
+  const { width: WIDTH, inset: INSET } = SIZES[kind]
   const bars = new Map<Element, Bar>()
 
   const draw = (box: Element) => {

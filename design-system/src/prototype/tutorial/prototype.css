@@ -7,14 +7,18 @@ html.framed {
   --safe-bottom: 34px;
 }
 
-/* A phone's scroll indicator floats over the content and takes no width. A desktop browser's
-   scrollbar takes its own lane and pushes the screen sideways, so inside the frame it's hidden:
+/* A phone's scroll indicator, and macOS's with its default setting, float over the content and take
+   no width. A browser scrollbar that takes its own lane is heavy and pushes the content sideways, so
+   in the phone frame and on the desktop screen it's hidden and scrollIndicator.ts draws the overlay:
    the wheel and the trackpad still scroll. The phone's own browser keeps its native indicator */
 html.framed,
-html.framed * {
+html.framed *,
+html.desktop,
+html.desktop * {
   scrollbar-width: none;
 }
-html.framed ::-webkit-scrollbar {
+html.framed ::-webkit-scrollbar,
+html.desktop ::-webkit-scrollbar {
   display: none;
 }
 

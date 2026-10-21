@@ -30,6 +30,13 @@ if (window.self !== window.top) {
   installScrollIndicator()
 }
 
+// The desktop screen hides the browser's scrollbars too, and shows the overlay pill macOS draws
+const desktop = wide && !embedded && view === "desktop"
+if (desktop) {
+  document.documentElement.classList.add("desktop")
+  installScrollIndicator("desktop")
+}
+
 const resetDesktop = () => {
   resetStorage()
   location.reload()
@@ -40,7 +47,7 @@ const resetDesktop = () => {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {wide && !embedded ? (
-      view === "desktop" ? (
+      desktop ? (
         <>
           <Store>
             <DesktopApp />
