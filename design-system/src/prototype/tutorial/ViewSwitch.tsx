@@ -11,7 +11,8 @@ import { switchView, view, type View } from "./view"
  * screen it floats in the bottom left corner, over the empty foot of the navigation, where it
  * covers no action, and folds away, so the screen reads as the product */
 export function ViewSwitch({ onReset, floating = false }: { onReset: () => void; floating?: boolean }) {
-  const [open, setOpen] = useState(true)
+  // Under 1280 the navigation is a rail of icons, too narrow to hold the plaque, so it starts folded
+  const [open, setOpen] = useState(() => !floating || window.innerWidth >= 1280)
 
   if (floating && !open)
     return (

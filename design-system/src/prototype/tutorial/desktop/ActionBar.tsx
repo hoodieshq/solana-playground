@@ -37,7 +37,7 @@ export function ActionBar({ lead, asking, explained, onExplain }: { lead?: Lead;
           Discard
         </Button>
         <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "apply" })}>
-          Apply and build
+          {step.id === "call-client" ? "Apply and run" : "Apply and build"}
         </BrandButton>
       </>
     )
