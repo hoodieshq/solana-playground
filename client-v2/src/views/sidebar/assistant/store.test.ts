@@ -115,6 +115,24 @@ describe("PgAssistant item identity", () => {
     expect(PgAssistant.items[0].id).not.toBe(first);
   });
 
+  it("gives items made in one millisecond increasing times", () => {
+    // A tie in `createdAt` is ordered by id, which is random, so a merge put
+    // a message and the reply started in the same millisecond either way
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-03-01T00:00:00.000Z"));
+      PgAssistant.addUserMessage("asked");
+      PgAssistant.startAssistantMessage();
+
+      const [asked, reply] = PgAssistant.items;
+      expect(Date.parse(reply.createdAt)).toBeGreaterThan(
+        Date.parse(asked.createdAt)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stamps every kind of item, not just user messages", () => {
     PgAssistant.addUserMessage("hi");
     PgAssistant.startAssistantMessage();

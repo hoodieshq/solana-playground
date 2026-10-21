@@ -204,6 +204,19 @@ export type AssistantStatus =
 const makeId = uuid;
 const now = () => new Date().toISOString();
 
+let lastCreated = 0;
+
+/**
+ * When a new item is made: now, but strictly later than the item made before
+ * it in this tab. Items are ordered by `createdAt` wherever threads merge
+ * (`mergeThreads`), and a tie falls to the id, which is random, so a message
+ * and the reply started in the same millisecond came back either way round.
+ */
+const created = () => {
+  lastCreated = Math.max(Date.now(), lastCreated + 1);
+  return new Date(lastCreated).toISOString();
+};
+
 /**
  * Mark an existing item as changed now.
  *
@@ -378,7 +391,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "notice",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text: KEY_NOT_FORGOTTEN,
     });
     PgAssistant._emitOnly();
@@ -505,7 +518,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "user",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text,
     });
     PgAssistant._emit();
@@ -580,7 +593,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "assistant",
       id,
-      createdAt: now(),
+      createdAt: created(),
       text: "",
       ...(origin ? { origin } : {}),
     });
@@ -611,7 +624,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "tool",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       label,
     });
     PgAssistant._emit();
@@ -621,7 +634,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "notice",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text,
     });
     PgAssistant._emit();
@@ -631,7 +644,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "error",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text: redactKey(text, PgAssistant._connection?.apiKey),
     });
     PgAssistant._emit();
@@ -657,7 +670,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "approval",
       id,
-      createdAt: now(),
+      createdAt: created(),
       request,
       status: "pending",
     });
