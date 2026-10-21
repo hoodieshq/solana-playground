@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react"
+import { useRef, type KeyboardEvent } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -30,9 +30,13 @@ export function Editor({
 }) {
   const lines = code.split("\n")
 
-  // Tab writes four spaces, as Rust is indented here
+  // Tab writes four spaces, as Rust is indented here. Esc, then Tab leaves the editor, as in
+  // CodeMirror, so the keyboard can still reach the buttons under it
+  const escaped = useRef(false)
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== "Tab" || e.shiftKey || readOnly) return
+    const leaving = escaped.current
+    escaped.current = e.key === "Escape"
+    if (e.key !== "Tab" || e.shiftKey || readOnly || leaving) return
     e.preventDefault()
     const el = e.currentTarget
     const at = el.selectionStart
