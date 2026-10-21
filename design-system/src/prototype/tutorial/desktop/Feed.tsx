@@ -39,7 +39,8 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
                 <div className="mt-0.5 break-words whitespace-pre-wrap text-syntax-plain">{m.quote.code}</div>
               </div>
             )}
-            <p className="text-body">
+            {/* The reading weight, the same as the lesson above it */}
+            <p className="text-body font-read">
               <Typed key={m.id} text={m.text} />
             </p>
           </div>

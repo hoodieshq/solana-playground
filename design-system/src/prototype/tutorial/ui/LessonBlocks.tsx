@@ -17,7 +17,9 @@ function Block({ block, copy }: { block: LessonBlock; copy: boolean }) {
   if (block.kind === "h") return <h3 className="mt-7 font-heading text-title text-foreground first:mt-0">{block.text}</h3>
   if (block.kind === "p")
     return (
-      <p className="mt-2 text-body text-muted-foreground">
+      // The reading weight, 320, and near white: told from the headings by weight, not just by grey.
+      // text-body alone leaves it at 400, the headings' weight (to raise in DES-129)
+      <p className="mt-2 text-body font-read text-foreground/80">
         <Prose text={block.text} />
       </p>
     )

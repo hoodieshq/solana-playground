@@ -32,13 +32,13 @@ function Body({ mode }: { mode: "step" | "error" }) {
             </div>
           </div>
         )}
-        <p className="text-body">
+        <p className="text-body font-read">
           <Typed key={text} text={text} onDone={() => setReady(true)} />
         </p>
         {asked.map((c) => (
           <div key={c.label} className="mt-4">
             <p className="ml-auto w-fit max-w-[85%] rounded-panel bg-surface-raised px-3 py-2 text-body">{c.label}</p>
-            <p className="mt-2 text-body">
+            <p className="mt-2 text-body font-read">
               <Typed key={c.answer} text={c.answer} />
             </p>
           </div>
