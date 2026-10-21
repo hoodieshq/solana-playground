@@ -21,7 +21,8 @@ export function FilterMenu({ value, onChange, phone = false }: { value: Framewor
         aria-label={on ? `Framework: ${value}` : "Filter by framework"}
         className={cn(
           "relative flex shrink-0 items-center justify-center rounded-control border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:text-foreground",
-          phone ? "size-11" : "size-10",
+          // In px: a larger font needs the room for the tabs' words, not for a square of fixed meaning
+          phone ? "size-[44px]" : "size-10",
           on ? "border-border-strong bg-surface text-foreground" : "border-border bg-surface-panel"
         )}
       >

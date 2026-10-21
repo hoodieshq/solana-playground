@@ -52,10 +52,12 @@ export function Gallery() {
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(var(--safe-bottom)+24px)]">
-        {/* The tabs, then search and the filter as two square buttons. Where a small screen or a
-            large font leaves no room for all three, the buttons drop to a line of their own. Search
-            opens into the whole row, and Cancel gives it back */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* The tabs, then search and the filter as two square buttons, on one row. On a narrow row
+            the tabs tighten their padding first; only where even that can't fit (a 320 screen with a
+            large font) the buttons drop to a line of their own. Search opens into the whole row, and
+            Cancel gives it back */}
+        <div className="@container mt-4">
+        <div className="flex flex-wrap items-center gap-[8px]">
           <Segmented
             value={tab}
             onValueChange={(v) => {
@@ -65,22 +67,22 @@ export function Gallery() {
             aria-label="Show"
             className={cn("pill h-11! rounded-full! border-0! p-0!", searching && "hidden!")}
           >
-            <SegmentedItem value="tutorials" className="rounded-full! px-4! text-control!">
+            <SegmentedItem value="tutorials" className="rounded-full! px-4! text-control! @max-[22rem]:px-2.5!">
               Tutorials
             </SegmentedItem>
-            <SegmentedItem value="programs" className="rounded-full! px-4! text-control!">
+            <SegmentedItem value="programs" className="rounded-full! px-4! text-control! @max-[22rem]:px-2.5!">
               Programs
             </SegmentedItem>
           </Segmented>
 
           {tab === "tutorials" && (
-            <div className={cn("ml-auto flex items-center gap-2", searching && "w-full")}>
+            <div className={cn("ml-auto flex items-center gap-[8px]", searching && "w-full")}>
               <label
                 className={cn(
                   // overflow-hidden: folded to 44px, the field's own 80px of padding would stick out and let the list pan sideways
-                  "relative h-11 overflow-hidden rounded-control border transition-colors",
+                  "relative h-[44px] overflow-hidden rounded-control border transition-colors",
                   MOTION,
-                  searching ? "min-w-0 flex-1 border-border-strong bg-surface" : "w-11 border-border bg-surface-panel"
+                  searching ? "min-w-0 flex-1 border-border-strong bg-surface" : "w-[44px] border-border bg-surface-panel"
                 )}
               >
                 {/* A lighter line than lucide's 2, to match the field's light type. The empty field's hint sits a step
@@ -128,6 +130,7 @@ export function Gallery() {
               )}
             </div>
           )}
+        </div>
         </div>
 
         {/* The banner folds away while searching or filtering, so the results start right under the row */}
