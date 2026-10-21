@@ -99,7 +99,13 @@ export function Column({ label, children }: { label: string; children: ReactNode
           "group absolute inset-y-0 -left-[5px] z-20 w-[9px] cursor-col-resize touch-none outline-none",
           "after:absolute after:inset-y-0 after:left-1 after:w-px after:transition-colors after:duration-150 hover:after:bg-border-strong focus-visible:after:w-0.5 focus-visible:after:bg-ring active:after:bg-ring motion-reduce:after:transition-none"
         )}
-      />
+      >
+        {/* A grip mid-height while it's held or focused, so the keyboard sees what the arrows move */}
+        <span
+          aria-hidden="true"
+          className="absolute top-1/2 left-[3px] h-8 w-[3px] -translate-y-1/2 rounded-full bg-ring opacity-0 group-focus-visible:opacity-100 group-active:opacity-100"
+        />
+      </div>
       {children}
     </aside>
   )

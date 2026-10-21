@@ -35,6 +35,8 @@ export function Step() {
   // A line the terminal points to: the editor scrolls there and puts the caret on it
   const [jump, setJump] = useState<{ line: number; n: number } | null>(null)
   const ids = useRef(0)
+  // The proposal summary the column already shows, so it's said once per proposal
+  const spoke = useRef<string | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   // Whether the column has more below what shows, for the fade at its foot
   const [more, setMore] = useState(false)
@@ -48,6 +50,7 @@ export function Step() {
   useEffect(() => {
     setLessonOpen(!s.passed[s.step])
     setMsgs([])
+    spoke.current = null
     setExplained(false)
     const writes = s.phase === "idle" && !!step.patch && !s.passed[s.step]
     setJump(writes ? { line: step.focus[0] ?? 1, n: 0 } : null)
@@ -194,7 +197,6 @@ export function Step() {
   // The assistant speaks in the column only: what a proposal changes comes in as its message, and
   // the action bar under the code just says what to do with it
   const summary = proposal && !asking ? proposal.summary : null
-  const spoke = useRef<string | null>(null)
   useEffect(() => {
     if (summary && spoke.current !== summary) say(summary)
     spoke.current = summary
@@ -237,7 +239,7 @@ export function Step() {
       )}
       {step.deploy && <span className="px-2 text-caption text-muted-foreground">Read only on this step</span>}
       {/* Sits by the code it puts back, away from Next */}
-      {s.undo && (s.phase === "passed" || s.phase === "failed") && (
+      {s.undo?.step === s.step && (s.phase === "passed" || s.phase === "failed") && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button type="button" onClick={undo} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground">

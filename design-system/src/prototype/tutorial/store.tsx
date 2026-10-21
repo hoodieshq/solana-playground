@@ -164,6 +164,9 @@ function reducer(s: State, a: Action): State {
         step: at,
         phase: same ? resting(s) : s.passed[at] ? "passed" : "idle",
         error: same ? s.error : null,
+        // Another step's patch, log and Undo would speak for this one: its status read the last
+        // step's patch as its own result
+        ...(same ? {} : { applied: null, undo: null, log: [] }),
         sheet: false,
         startedAt: s.startedAt ?? Date.now(),
       }

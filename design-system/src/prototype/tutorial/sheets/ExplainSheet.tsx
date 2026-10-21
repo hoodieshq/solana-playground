@@ -18,7 +18,7 @@ function Body({ mode }: { mode: "step" | "error" }) {
   const [free, setFree] = useState(false)
   const text = withFix ? s.error?.explain ?? step.explainError ?? "" : step.explainStep
   // About the error while explaining it, about the lesson otherwise
-  const left = (withFix ? [...(step.errorChips ?? []), ...step.chips] : step.chips).filter((c) => !asked.includes(c))
+  const left = (withFix ? (step.errorChips ?? step.chips) : step.chips).filter((c) => !asked.includes(c))
 
   return (
     <>
