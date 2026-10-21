@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils"
 
-/** The assistant's mark until Sole has its own (DES-134): a speech bubble with a face, dot eyes and
- * a half moon smile. A bubble, because the assistant answers in words; a face, so it reads as
- * someone answering rather than a chat log. Lucide's 24 grid and round line */
+/** The assistant's mark until Sole has its own (DES-134): one line that makes a round head, opens at
+ * the lower left and runs out of the bottom into a speech bubble's tail, with a smile inside. Flat
+ * line ends, as drawn. Lucide's 24 grid */
 export function AssistantMark({ className, strokeWidth = 1.75 }: { className?: string; strokeWidth?: number }) {
   return (
     <svg
@@ -10,19 +10,15 @@ export function AssistantMark({ className, strokeWidth = 1.75 }: { className?: s
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
-      strokeLinecap="round"
+      strokeLinecap="butt"
       strokeLinejoin="round"
       aria-hidden="true"
       className={cn("size-4 shrink-0", className)}
     >
-      {/* The bubble, its tail down on the left */}
-      <path d="M11 18h6a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v6a4 4 0 0 0 4 4v3.25L11 18Z" />
-      {/* The face, large enough to read at 16px: eyes and smile fill most of the bubble */}
-      <g fill="currentColor" stroke="none">
-        <circle cx="8.6" cy="9.6" r="1.6" />
-        <circle cx="15.4" cy="9.6" r="1.6" />
-        <path d="M9.7 12.4h4.6a2.3 2.3 0 0 1-4.6 0Z" />
-      </g>
+      {/* The head, from the gap at the lower left over the top and round to the bottom, then the tail */}
+      <path d="M6.66 16.56A7.8 7.8 0 1 1 11.16 18.3C9.4 18.25 7.4 19.4 6 21.9" />
+      {/* The smile, a flattened half circle under the middle */}
+      <path d="M8.05 11.9A3.8 2.6 0 0 0 15.65 11.9" />
     </svg>
   )
 }
