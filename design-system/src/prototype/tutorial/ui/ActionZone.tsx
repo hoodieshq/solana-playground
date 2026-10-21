@@ -1,4 +1,4 @@
-import { ArrowRight, Hand } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
+import { RaisedHand } from "./RaisedHand"
 import { StepStatus, workingLabel, type Lead } from "./StepStatus"
 
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
@@ -41,7 +42,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             aria-label="Ask the assistant about this step"
             onClick={() => dispatch({ type: "explain", mode: "step" })}
           >
-            <Hand strokeWidth={1.75} className="size-[18px]" />
+            <RaisedHand className="size-[18px]" />
             Ask
           </Button>
         )}

@@ -1,11 +1,10 @@
-import { Hand } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
 import { LessonBlocks } from "../ui/LessonBlocks"
+import { RaisedHand } from "../ui/RaisedHand"
 
 /** The step's lesson, read over the code. Ask hands the same step to the assistant */
 export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: () => void; onAsk: () => void }) {
@@ -24,7 +23,7 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
         </div>
         <DrawerFooter className="mx-auto w-full max-w-[40rem] flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
           <Button variant="secondary" className="h-14 gap-2 px-4 text-control" onClick={onAsk}>
-            <Hand strokeWidth={1.75} className="size-[18px]" />
+            <RaisedHand className="size-[18px]" />
             Ask
           </Button>
           <Button variant="secondary" className="h-14 flex-1 text-control" onClick={onClose}>
