@@ -77,6 +77,7 @@ export function StartHereGame({ layout, mechanic }: { layout: "phone" | "desktop
   const [message, setMessage] = useState("")
   const firstMove = useRef<number | null>(null)
   const startButton = useRef<HTMLButtonElement>(null)
+  const section = useRef<HTMLElement>(null)
 
   // The clock starts with the first touch of the play area, not when the page loads
   const mark = () => {
@@ -106,8 +107,10 @@ export function StartHereGame({ layout, mechanic }: { layout: "phone" | "desktop
 
   useEffect(() => {
     if (phase !== "done") return
-    // Run goes away with the ending, so the focus moves on to Start rather than falling to the page
-    if (document.activeElement === document.body || document.activeElement?.closest("[data-run]")) startButton.current?.focus({ preventScroll: true })
+    // Run goes away and the game locks, so focus that was in the game moves on to Start rather
+    // than staying in a field that can't be used or falling to the page
+    const at = document.activeElement
+    if (at === document.body || (at && section.current?.contains(at))) startButton.current?.focus({ preventScroll: true })
   }, [phase])
 
   const done = phase === "done"
@@ -129,14 +132,14 @@ export function StartHereGame({ layout, mechanic }: { layout: "phone" | "desktop
         {done ? "Now write it for real." : mechanic.hook}
       </h2>
       <p className={cn("font-read text-muted-foreground", phone ? "mt-1.5 text-[0.9375rem]/[1.45]" : "mt-2 max-w-[40ch] text-body")}>
-        {done ? `Built in ${seconds} seconds. Hello Anchor goes through it line by line and deploys it to devnet for real.` : mechanic.line}
+        {done ? `Built in ${seconds} ${seconds === 1 ? "second" : "seconds"}. Hello Anchor goes through it line by line and deploys it to devnet for real.` : mechanic.line}
       </p>
       {done && <p className="mt-3 text-caption text-muted-foreground tabular-nums">10 min · {STEPS.length} steps · Beginner · Anchor</p>}
     </div>
   )
 
   const actions = (
-    <div className={cn("flex gap-x-4 gap-y-1 [grid-area:actions]", phone ? "flex-col" : "flex-wrap items-center")}>
+    <div className={cn("flex gap-x-4 gap-y-1 self-start [grid-area:actions]", phone ? "flex-col" : "flex-wrap items-center")}>
       {done ? (
         <BrandButton ref={startButton} data-mechanic={mechanic.id} variant="accent" className={phone ? "h-12 w-full" : "h-10 px-6"} onClick={open}>
           Start
@@ -173,6 +176,7 @@ export function StartHereGame({ layout, mechanic }: { layout: "phone" | "desktop
   const Game = mechanic.Play
   return (
     <section
+      ref={section}
       aria-labelledby={titleId}
       style={GROUND}
       className={cn("@container relative isolate overflow-hidden rounded-card border border-brand-purple/20", phone ? "mt-5" : "mt-8")}
@@ -191,7 +195,7 @@ export function StartHereGame({ layout, mechanic }: { layout: "phone" | "desktop
       <div
         className={cn(
           "relative grid gap-6 [grid-template-areas:'head'_'play'_'actions']",
-          phone ? "p-5" : "p-8 @min-[44rem]:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)] @min-[44rem]:gap-x-10 @min-[44rem]:[grid-template-areas:'head_play'_'actions_play']"
+          phone ? "p-5" : "p-8 @min-[44rem]:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)] @min-[44rem]:grid-rows-[auto_1fr] @min-[44rem]:gap-x-10 @min-[44rem]:[grid-template-areas:'head_play'_'actions_play']"
         )}
       >
         {head}
