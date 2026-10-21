@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Boxes, Check, Play, Search, X } from "lucide-react"
+import { Boxes, Play, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { brandButtonVariants } from "@/components/ui/brand-button"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
 import { Thumb } from "../ui/Thumb"
+import { TutorialStatus } from "../ui/TutorialStatus"
 
 const CARD =
   "flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.99] motion-reduce:transition-none"
@@ -139,15 +140,9 @@ export function Gallery() {
                       <span className="block truncate text-title">{t.name}</span>
                       <span className="mt-0.5 block text-caption text-muted-foreground">
                         {t.level} · {t.framework}
-                        {started && t.slug === "hello-anchor" && " · In progress"}
-                        {finished && t.slug === "hello-anchor" && (
-                          <>
-                            {" · "}
-                            <Check strokeWidth={2.5} className="mb-px inline size-3.5 text-success" /> Completed
-                          </>
-                        )}
                       </span>
                     </span>
+                    {t.slug === "hello-anchor" && (started || finished) && <TutorialStatus done={done} total={STEPS.length} finished={finished} />}
                   </button>
                 </li>
               ))}

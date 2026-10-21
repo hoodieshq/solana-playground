@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { Boxes, Check, Play, Search, X } from "lucide-react"
+import { Boxes, Play, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { brandButtonVariants } from "@/components/ui/brand-button"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { STEPS, TUTORIALS, thumb } from "../data"
 import { useStore } from "../store"
 import { Thumb } from "../ui/Thumb"
+import { TutorialStatus } from "../ui/TutorialStatus"
 import { TopBar } from "../ui/TopBar"
 
 // The product's main curve and the thumb's time, from the design system's motion tokens
@@ -246,15 +247,9 @@ export function Gallery() {
                   <span className="block truncate text-title">{t.name}</span>
                   <span className="mt-0.5 block text-caption text-muted-foreground">
                     {t.level} · {t.framework}
-                    {started && t.slug === "hello-anchor" && " · In progress"}
-                    {finished && t.slug === "hello-anchor" && (
-                      <>
-                        {" · "}
-                        <Check strokeWidth={2.5} className="mb-px inline size-3.5 text-success" /> Completed
-                      </>
-                    )}
                   </span>
                 </span>
+                {t.slug === "hello-anchor" && (started || finished) && <TutorialStatus done={s.passed.filter(Boolean).length} total={STEPS.length} finished={finished} />}
               </button>
             </li>
           ))}
