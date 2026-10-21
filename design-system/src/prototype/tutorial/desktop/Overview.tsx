@@ -46,7 +46,8 @@ export function Overview() {
               <p className="mt-1 text-caption text-muted-foreground">Beginner · Anchor · 10 min · by acheron</p>
             </div>
           </div>
-          <p className="mt-4 text-body text-muted-foreground">Write an Anchor program, deploy it to devnet and call it from a client.</p>
+          {/* 15, the size of the step titles: the steps are what this page is about, so the summary stays quieter */}
+          <p className="mt-4 text-[0.9375rem]/[1.5] text-muted-foreground">Write an Anchor program, deploy it to devnet and call it from a client.</p>
           {(started || finished) && (
             <div className="mt-5 flex items-center gap-3">
               <ObjectiveMeter value={done / total} className="h-1 flex-1" />
