@@ -33,7 +33,7 @@ export function Overview() {
     <>
       <Column label="Tutorial">
         <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
-          <Button variant="ghost" className="h-9 gap-1.5 px-2 text-caption text-muted-foreground" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+          <Button variant="ghost" className="h-9 gap-1.5 px-2 text-muted-foreground" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
             <ChevronLeft className="size-4" />
             Tutorials
           </Button>

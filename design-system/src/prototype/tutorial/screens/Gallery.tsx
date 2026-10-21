@@ -109,7 +109,8 @@ function TabsAndSearch({
       <div className={cn("absolute inset-y-0 right-0 flex items-center transition-[width]", MOTION, searching ? "w-full" : "w-11")}>
         <label
           className={cn(
-            "relative h-11 min-w-0 flex-1 rounded-full border transition-colors",
+            // overflow-hidden: folded to 44px, the field's own 80px of padding would stick out and let the list pan sideways
+            "relative h-11 min-w-0 flex-1 overflow-hidden rounded-full border transition-colors",
             MOTION,
             searching ? "border-border-strong bg-surface" : "border-border bg-surface-panel"
           )}

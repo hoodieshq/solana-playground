@@ -30,7 +30,8 @@ export function ContinueSheet({ open, onClose }: { open: boolean; onClose: () =>
             <Monitor strokeWidth={1.75} className="size-6" />
           </span>
           <DrawerTitle className="font-heading text-title! font-normal!">Write it yourself on a computer</DrawerTitle>
-          <DrawerDescription className="mt-1 text-body text-muted-foreground">
+          {/* text-body needs the ! here: cn drops it next to a colour class and the stock 14px comes back */}
+          <DrawerDescription className="mt-1 text-body! font-read text-muted-foreground">
             On a phone the code is read-only. Open this link on your computer to type step {s.step + 1}, {STEPS[s.step].title}, yourself. Your progress
             comes with you.
           </DrawerDescription>

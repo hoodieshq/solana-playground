@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { STEPS } from "../data"
 import { useStore } from "../store"
 import { BuildLog } from "../ui/BuildLog"
-import { ProgramId } from "../ui/ProgramId"
+import { ProgramId, Transaction } from "../ui/ProgramId"
 import { workingLabel } from "../ui/StepStatus"
 
 /** The strip under the terminal: how the last run went, in one line beside a dot */
@@ -79,6 +79,7 @@ export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
         }
       />
       {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
+      {step.id === "call-client" && s.passed[s.step] && <Transaction className="mx-4 mb-3" />}
     </div>
   )
 }

@@ -53,7 +53,7 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
         </p>
       ) : (
         // Pulled out by its own padding, so its text starts on the column's edge
-        <Button variant="ghost" className="mt-1 -ml-2 h-10 self-start px-2 text-caption text-muted-foreground" onClick={() => onAnswer("skip")}>
+        <Button variant="ghost" className="mt-1 -ml-2 h-10 self-start px-2 text-muted-foreground" onClick={() => onAnswer("skip")}>
           Skip and show the code
           <Kbd className="font-[440]!">S</Kbd>
         </Button>

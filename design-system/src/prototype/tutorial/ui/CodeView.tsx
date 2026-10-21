@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 const TOKEN =
-  /(\/\/.*$)|("(?:[^"\\]|\\.)*"|`[^`]*`|'[^']*')|(\b[a-z_]+!)|(#\[[^\]]*\])|\b(use|mod|pub|fn|let|struct|const|await|mut|impl|return|super|self)\b|\b([A-Z][A-Za-z0-9]*)\b|\b(\d+)\b/g
+  /(\/\/.*$)|("(?:[^"\\]|\\.)*"|`[^`]*`|'[^']*')|(\b[a-z_]+!)|(#\[[^\]]*\])|\b(use|mod|pub|fn|let|struct|const|await|mut|impl|return|super|self)\b|\b([A-Z][A-Za-z0-9]*)\b|\b(\d+)\b|(->|=>)/g
 
 const CLASS = [
   "",
@@ -14,6 +14,9 @@ const CLASS = [
   "text-syntax-keyword",
   "text-syntax-type",
   "text-syntax-number",
+  // Arrows keep their colour but never wrap: text rules allow a break after the hyphen, which
+  // left `-` at the end of a line and `>` at the start of the next
+  "whitespace-nowrap",
 ]
 
 /** A soft-wrapped line's rest hangs two characters in from where the line's own code starts, so

@@ -38,7 +38,18 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
                 row.kind === "removed" && "text-error line-through decoration-error/50"
               )}
             >
-              {row.kind === "removed" ? row.text : highlight(row.text)}
+              {/* Removed lines stay one colour, but their arrows still mustn't wrap, as in highlight() */}
+              {row.kind === "removed"
+                ? row.text.split(/(->|=>)/).map((part, k) =>
+                    k % 2 ? (
+                      <span key={k} className="whitespace-nowrap">
+                        {part}
+                      </span>
+                    ) : (
+                      part
+                    )
+                  )
+                : highlight(row.text)}
             </code>
           </>
         )

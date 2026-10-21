@@ -255,7 +255,7 @@ export function Step() {
                 <LessonBlocks column blocks={step.lesson} />
               </div>
               {s.passed[s.step] && (
-                <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-caption text-muted-foreground" onClick={() => setLessonOpen(false)}>
+                <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-muted-foreground" onClick={() => setLessonOpen(false)}>
                   <ChevronUp className="size-4" />
                   Hide the lesson
                 </Button>
@@ -268,8 +268,10 @@ export function Step() {
               className="mt-3 flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground transition-colors hover:bg-surface"
             >
               <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
-              Show the lesson
-              <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
+              {/* One span, so the dot gets a plain space on both sides rather than the flex gap before it */}
+              <span>
+                Show the lesson <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
+              </span>
             </button>
           )}
 
