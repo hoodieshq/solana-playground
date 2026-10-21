@@ -229,7 +229,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
           <AsyncButton
             variant="outline"
             onClick={() => PgFramework.exportWorkspace()}
-            onError={reportButtonFailure}
+            onError={reportButtonFailure("export the project")}
           >
             <ExportFile data-icon="inline-start" />
             Export project (zip)
@@ -240,7 +240,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
             variant="outline"
             size="sm"
             onClick={() => PgView.setModal(ImportGithub)}
-            onError={reportButtonFailure}
+            onError={reportButtonFailure("open the GitHub import")}
           >
             <Github data-icon="inline-start" />
             From GitHub
@@ -249,7 +249,7 @@ const GearSidebar: FC<React.PropsWithChildren<GearSidebarProps>> = ({
             variant="outline"
             size="sm"
             onClick={() => PgView.setModal(ImportFs)}
-            onError={reportButtonFailure}
+            onError={reportButtonFailure("open the file import")}
           >
             <ImportFile data-icon="inline-start" />
             From files
