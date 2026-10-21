@@ -1,6 +1,7 @@
 import { Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
 
 import type { Predict } from "../data"
@@ -38,6 +39,8 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
             <span className="min-w-0 flex-1">
               <Prose text={option} />
             </span>
+            {/* The key that picks it, 1 to 3 */}
+            {!done && <Kbd>{i + 1}</Kbd>}
             {done && right && <Check strokeWidth={2.25} aria-label="Right answer" className="size-4 shrink-0 text-success" />}
           </button>
         )
@@ -49,6 +52,7 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
       ) : (
         <Button variant="ghost" className="mt-1 h-10 self-start px-2 text-caption text-muted-foreground" onClick={() => onAnswer("skip")}>
           Skip and show the code
+          <Kbd>S</Kbd>
         </Button>
       )}
     </section>

@@ -31,7 +31,7 @@ export function TerminalStatus() {
 }
 
 /** What the terminal shows: the run as it goes, then its log. A deploy shows its stages, then the program id */
-export function TerminalBody() {
+export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
   const { s } = useStore()
   const step = STEPS[s.step]
 
@@ -67,6 +67,7 @@ export function TerminalBody() {
   return (
     <div className="flex min-h-full flex-col">
       <BuildLog
+        onJump={onJump}
         log={log}
         // The hint names the button only while that button is there: under a patch it reads Apply and build
         empty={

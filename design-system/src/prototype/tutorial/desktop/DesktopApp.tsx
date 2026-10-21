@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { useStore } from "../store"
 import { Finish } from "./Finish"
@@ -10,6 +11,8 @@ import { Step } from "./Step"
 export function DesktopApp() {
   const { s } = useStore()
   return (
+    // Hover tips show after a short wait, so passing over a control doesn't flash them
+    <TooltipProvider delayDuration={400}>
     <div className="flex h-dvh bg-surface-base text-foreground">
       <Nav />
       <main className="flex min-w-0 flex-1">
@@ -20,5 +23,6 @@ export function DesktopApp() {
       </main>
       <Toaster theme="dark" position="top-center" />
     </div>
+    </TooltipProvider>
   )
 }

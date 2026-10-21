@@ -65,6 +65,14 @@ html {
   font-weight: var(--font-weight-act);
 }
 
+/* Tailwind 4 leaves buttons with the arrow. On a desktop the hand is what says a thing can be
+   pressed: diff lines with notes, the steps in the progress bar, cards, chips. To raise in DES-129 */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href] {
+  cursor: pointer;
+}
+
 /* A tap shouldn't leave a ring behind. The keyboard still gets one */
 :focus:not(:focus-visible) {
   outline: none;

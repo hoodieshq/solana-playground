@@ -3,6 +3,7 @@ import { BookOpen, ChevronLeft, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { STEPS } from "../data"
 import { fixFor, freshLines, patchFor, useStore } from "../store"
@@ -28,6 +29,8 @@ export function Step() {
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [explained, setExplained] = useState(false)
   const [term, setTerm] = useState(false)
+  // A line the terminal points to: the editor scrolls there and puts the caret on it
+  const [jump, setJump] = useState<{ line: number; n: number } | null>(null)
   const ids = useRef(0)
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -129,11 +132,21 @@ export function Step() {
     })
   }
 
-  // ⌘B builds or deploys, Enter goes on after a pass, Esc closes the lesson and the notes
+  // ⌘B builds or deploys, 1 to 3 answer the quick check and S skips it, ⌘Enter applies a patch,
+  // Enter goes on after a pass, Esc closes the lesson and the notes. Plain keys stay off while typing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+      const typing = !!target?.closest("textarea, input")
+      if (asking && step.predict && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const choice = ["1", "2", "3"].indexOf(e.key)
+        if (choice !== -1 && choice < step.predict.options.length) return dispatch({ type: "predict", choice })
+        if (e.key.toLowerCase() === "s") return dispatch({ type: "predict", choice: "skip" })
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && s.phase === "patch" && !asking) {
+        e.preventDefault()
+        dispatch({ type: "apply" })
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault()
         if (s.phase === "idle") dispatch(step.deploy ? { type: "deploy" } : { type: "buildOwn" })
       } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a")) {
@@ -145,7 +158,7 @@ export function Step() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [s.phase, step, dispatch])
+  }, [s.phase, step, asking, dispatch])
 
   const undo = () => {
     dispatch({ type: "undo" })
@@ -185,11 +198,16 @@ export function Step() {
       <Column label="Lesson">
         <div className="flex h-12 shrink-0 items-center border-b border-border pr-2">
           <div className="min-w-0 flex-1">
-            <StepProgress current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
+            <StepProgress tips current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
           </div>
-          <Button variant="ghost" size="icon" className="size-9" aria-label="Tutorial overview" onClick={() => dispatch({ type: "open", screen: "overview" })}>
-            <X className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-9" aria-label="Back to the tutorial page" onClick={() => dispatch({ type: "open", screen: "overview" })}>
+                <X className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Back to the tutorial page</TooltipContent>
+          </Tooltip>
         </div>
 
         {lesson ? (
@@ -201,7 +219,7 @@ export function Step() {
             <p className="mt-3 text-caption text-muted-foreground">Lesson</p>
             <h2 className="mt-1 font-heading text-[1.375rem] leading-tight">{step.title}</h2>
             <div className="mt-5">
-              <LessonBlocks blocks={step.lesson} />
+              <LessonBlocks copy blocks={step.lesson} />
             </div>
           </div>
         ) : (
@@ -235,7 +253,7 @@ export function Step() {
         file={step.file}
         tools={tools}
         actions={<ActionBar asking={asking} explained={explained} onExplain={explain} />}
-        terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody /> }}
+        terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1 }))} /> }}
       >
         {proposal && !asking ? (
           <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
@@ -249,6 +267,7 @@ export function Step() {
             focus={focus}
             hint={hint}
             label={`${step.file}, ${locked ? "read only" : "editable"}`}
+            jump={jump}
           />
         )}
       </Workspace>

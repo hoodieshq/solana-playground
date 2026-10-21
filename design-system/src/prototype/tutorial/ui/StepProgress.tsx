@@ -1,11 +1,15 @@
+import { Fragment } from "react"
+
 import { ObjectiveMeter } from "@/components/ui/objective-band"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { STEPS } from "../data"
 
 /** One continuous bar, filled by the steps passed, and the same count in words.
  * Equal invisible zones over the bar still let you jump back to a step you
  * have reached */
-export function StepProgress({ current, passed, onPick }: { current: number; passed: boolean[]; onPick: (i: number) => void }) {
+/** `tips` names each step on hover, where a pointer can't see the zones are there (desktop only) */
+export function StepProgress({ current, passed, onPick, tips = false }: { current: number; passed: boolean[]; onPick: (i: number) => void; tips?: boolean }) {
   const done = passed.filter(Boolean).length
   return (
     <div className="flex items-center gap-3 px-4">
@@ -16,9 +20,8 @@ export function StepProgress({ current, passed, onPick }: { current: number; pas
         <nav aria-label="Steps" className="absolute inset-0 flex">
           {STEPS.map((step, i) => {
             const open = i === 0 || passed[i - 1] || i <= current
-            return (
+            const zone = (
               <button
-                key={step.id}
                 type="button"
                 disabled={!open}
                 onClick={() => onPick(i)}
@@ -26,6 +29,20 @@ export function StepProgress({ current, passed, onPick }: { current: number; pas
                 aria-label={`Step ${i + 1}, ${step.title}${passed[i] ? ", passed" : ""}`}
                 className="h-full flex-1 disabled:cursor-default"
               />
+            )
+            return (
+              <Fragment key={step.id}>
+                {tips ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{zone}</TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {i + 1}. {step.title}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  zone
+                )}
+              </Fragment>
             )
           })}
         </nav>

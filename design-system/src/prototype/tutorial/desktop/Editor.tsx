@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react"
+import { useEffect, useRef, type KeyboardEvent } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -6,7 +6,8 @@ import { highlight } from "../ui/CodeView"
 
 /** A plain editor for the prototype: a textarea over highlighted code, both in the same font and
  * line height, so the caret lands on the letters. The product uses Monaco, as client-v2 does.
- * `fresh` lines are the ones the last patch added, `focus` where a change will land */
+ * `fresh` lines are the ones the last patch added, `focus` where a change will land. `jump` scrolls to
+ * a line and puts the caret at its start; a new `n` repeats the same line */
 export function Editor({
   code,
   onChange,
@@ -17,6 +18,7 @@ export function Editor({
   focus = [],
   hint,
   label,
+  jump = null,
 }: {
   code: string
   onChange?: (code: string) => void
@@ -27,8 +29,24 @@ export function Editor({
   focus?: number[]
   hint?: string
   label: string
+  jump?: { line: number; n: number } | null
 }) {
   const lines = code.split("\n")
+  const box = useRef<HTMLDivElement>(null)
+  const area = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = area.current
+    if (!jump || !el || !box.current) return
+    const rows = el.value.split("\n")
+    const start = rows.slice(0, jump.line - 1).reduce((n, row) => n + row.length + 1, 0)
+    const at = start + (rows[jump.line - 1]?.match(/^\s*/)?.[0].length ?? 0)
+    el.focus({ preventScroll: true })
+    el.setSelectionRange(at, at)
+    // The line a third of the way down, so what's above it stays in view
+    const height = parseFloat(getComputedStyle(el).lineHeight)
+    box.current.scrollTo({ top: Math.max(0, (jump.line - 1) * height - box.current.clientHeight / 3), behavior: "smooth" })
+  }, [jump])
 
   // Tab writes four spaces, as Rust is indented here. Esc, then Tab leaves the editor, as in
   // CodeMirror, so the keyboard can still reach the buttons under it
@@ -47,7 +65,7 @@ export function Editor({
   }
 
   return (
-    <div className={cn("min-h-0 flex-1 overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
+    <div ref={box} className={cn("min-h-0 flex-1 overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
       {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
       <div className="grid min-w-max grid-cols-[58px_1fr]">
         <div aria-hidden="true" className="pr-6 text-right text-subtle select-none">
@@ -77,6 +95,7 @@ export function Editor({
             })}
           </pre>
           <textarea
+            ref={area}
             value={code}
             readOnly={readOnly}
             onChange={(e) => onChange?.(e.target.value)}

@@ -28,6 +28,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
       <Button className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
         {/* Where it leads, as on the phone */}
         {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
+        <Kbd className="bg-black/15! text-current!">↵</Kbd>
         <ArrowRight strokeWidth={2.25} className="size-4" />
       </Button>
     )
@@ -40,6 +41,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
         </Button>
         <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "apply" })}>
           {step.id === "call-client" ? "Apply and run" : "Apply and build"}
+          <Kbd className="bg-white/15! text-current!">⌘↵</Kbd>
         </BrandButton>
       </>
     )
