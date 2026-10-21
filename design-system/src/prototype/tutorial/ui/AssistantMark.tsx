@@ -17,8 +17,8 @@ export function AssistantMark({ className, strokeWidth = 1.75 }: { className?: s
     >
       {/* The head, from the gap at the lower left over the top and round to the bottom, then the tail */}
       <path d="M6.66 16.56A7.8 7.8 0 1 1 11.16 18.3C9.4 18.25 7.4 19.4 6 21.9" />
-      {/* The smile, a flattened half circle under the middle */}
-      <path d="M8.05 11.9A3.8 2.6 0 0 0 15.65 11.9" />
+      {/* The smile, a flattened half circle hanging from the head's middle, high enough to read as a face */}
+      <path d="M8.05 10.6A3.8 2.8 0 0 0 15.65 10.6" />
     </svg>
   )
 }
