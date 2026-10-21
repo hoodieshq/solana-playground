@@ -1,20 +1,27 @@
-import { Check } from "lucide-react"
+import { Check, Play } from "lucide-react"
 
-/** Where you are with a tutorial, at the card's right end. The line under the name describes the
- * tutorial itself, so your own progress stays out of it: a check in a circle once it's done, the
- * steps passed while it's going. Screen readers get it in words */
-export function TutorialStatus({ done, total, finished }: { done: number; total: number; finished: boolean }) {
+import { cn } from "@/lib/utils"
+
+/** Where you are with a tutorial, in the card's top right corner: a square to start it, the steps
+ * passed while it's going, a green tinted square with a check once it's done. Only the look: the
+ * card's corner button around it carries the name a screen reader hears */
+export function TutorialStatus({ done, total, started, finished, className }: { done: number; total: number; started: boolean; finished: boolean; className?: string }) {
+  const box = "flex h-9 min-w-9 shrink-0 items-center justify-center rounded-control"
   if (finished)
     return (
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-        <Check strokeWidth={2.5} className="size-4" aria-hidden="true" />
-        <span className="sr-only">Completed</span>
+      <span className={cn(box, "bg-success/15 text-success", className)}>
+        <Check strokeWidth={2.25} className="size-4" />
+      </span>
+    )
+  if (started)
+    return (
+      <span className={cn(box, "border border-border px-2.5 text-caption! text-muted-foreground tabular-nums", className)}>
+        {done} of {total}
       </span>
     )
   return (
-    <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
-      <span className="sr-only">In progress, </span>
-      {done} of {total}
+    <span className={cn(box, "border border-border bg-surface text-foreground", className)}>
+      <Play strokeWidth={1.75} className="size-4" />
     </span>
   )
 }

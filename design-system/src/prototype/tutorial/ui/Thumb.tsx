@@ -1,21 +1,18 @@
-import { useState, type SyntheticEvent } from "react"
-
 import { cn } from "@/lib/utils"
 
 /** A tutorial cover in one frame for all of them. The upstream covers mix white tiles, black
- * tiles, square art and 4:3 cards, and side by side they read as a patchwork. So each sits on the
- * same neutral mat with a hairline, inset a few pixels: the frame, not the cover, sets the rhythm
- * of the list. Square covers fill the mat. 4:3 ones carry their name to the edges, so they sit
- * whole on it, never cropped */
+ * tiles, square art and 4:3 cards; each fills the same rounded square, cropped to it, so the frame
+ * and not the cover sets the rhythm of the list. The hairline is drawn over the picture, so a white
+ * cover still has an edge on the dark card */
 export function Thumb({ src, className }: { src: string; className?: string }) {
-  const [square, setSquare] = useState(true)
-  const measure = (e: SyntheticEvent<HTMLImageElement>) => {
-    const ratio = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight
-    setSquare(ratio > 0.95 && ratio < 1.15)
-  }
   return (
-    <span className={cn("block shrink-0 rounded-lg bg-surface-raised p-1 ring-1 ring-border ring-inset", className)}>
-      <img src={src} alt="" onLoad={measure} className={cn("size-full rounded-[5px]", square ? "object-cover" : "object-contain")} />
+    <span
+      className={cn(
+        "relative block shrink-0 overflow-hidden rounded-lg bg-surface-raised after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-border after:ring-inset after:content-['']",
+        className
+      )}
+    >
+      <img src={src} alt="" className="size-full object-cover" />
     </span>
   )
 }
