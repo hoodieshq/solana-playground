@@ -35,12 +35,16 @@ vi.mock("@/commands/connect/setup-rejected", () => ({
   isSetupRejected: (error: unknown) => error === dismissedSetup,
 }));
 
-// Each `reportButtonFailure` call: the action that did not happen, and the
-// error it got
-const told = vi.hoisted(() => [] as { action: string; error: unknown }[]);
+// Each `reportButtonFailure` call: the action that did not happen, the error
+// it got, and whether it was marked as already shown (logged, not toasted)
+const told = vi.hoisted(
+  () => [] as { action: string; error: unknown; shown: boolean }[]
+);
+const shown = vi.hoisted(() => new Set<unknown>());
 vi.mock("@/shared/lib/report-button-failure", () => ({
+  markFailureShown: (error: unknown) => shown.add(error),
   reportButtonFailure: (action: string) => (error: unknown) => {
-    told.push({ action, error });
+    told.push({ action, error, shown: shown.has(error) });
   },
 }));
 
@@ -121,7 +125,7 @@ describe("remedy", () => {
       remedy(blocker)();
       await flush();
 
-      expect(told).toEqual([{ action, error: failure }]);
+      expect(told).toEqual([{ action, error: failure, shown: false }]);
     }
   );
 
@@ -134,25 +138,29 @@ describe("remedy", () => {
     remedy({ kind: "needs-sol", signedIn: false })();
     await flush();
 
-    expect(told).toEqual([{ action: "sign in", error: failure }]);
+    expect(told).toEqual([{ action: "sign in", error: failure, shown: false }]);
     expect(println).not.toHaveBeenCalled();
   });
 
   // `PgSession.signInState` holds a known failure and the account row shows
-  // it, as it does for the account menu's own Sign in
+  // it: logged as a failed click, never toasted a second time
   it("leaves a cancelled or blocked sign-in to the account row", async () => {
     signIn.mockRejectedValue(knownSignIn);
     remedy({ kind: "needs-sol", signedIn: false })();
     await flush();
 
-    expect(told).toEqual([]);
+    expect(told).toEqual([
+      { action: "sign in", error: knownSignIn, shown: true },
+    ]);
   });
 
-  it("does not report a wallet setup the user closed", async () => {
+  it("does not toast a wallet setup the user closed", async () => {
     (PgCommand.connect.execute as Mock).mockRejectedValue(dismissedSetup);
     remedy({ kind: "needs-wallet" })();
     await flush();
 
-    expect(told).toEqual([]);
+    expect(told).toEqual([
+      { action: "connect a wallet", error: dismissedSetup, shown: true },
+    ]);
   });
 });

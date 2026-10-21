@@ -21,7 +21,10 @@ import {
   Trash,
 } from "../Icons";
 import { createLogger } from "@/shared/lib/logger";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import {
+  markFailureShown,
+  reportButtonFailure,
+} from "@/shared/lib/report-button-failure";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { useAirdrop, useDarken } from "./hooks";
 import { isSignInFailure } from "../../features/auth";
@@ -107,12 +110,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
                 airdrop().catch((error: unknown) => {
                   // A cancelled, blocked or refused sign-in is held in
                   // `PgSession.signInState`, and the account row shows it
-                  if (isSignInFailure(error)) {
-                    log.info("sign-in for airdrop failed", {
-                      context: { error: String(error) },
-                    });
-                    return;
-                  }
+                  if (isSignInFailure(error)) markFailureShown(error);
                   reportButtonFailure("airdrop")(error);
                 });
               }}

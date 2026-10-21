@@ -62,12 +62,16 @@ vi.mock("../../features/auth", () => ({
   isSignInFailure: (error: unknown) => error === knownSignIn,
 }));
 
-// Each `reportButtonFailure` call: the action that did not happen, and the
-// error it got
-const told = vi.hoisted(() => [] as { action: string; error: unknown }[]);
+// Each `reportButtonFailure` call: the action that did not happen, the error
+// it got, and whether it was marked as already shown (logged, not toasted)
+const told = vi.hoisted(
+  () => [] as { action: string; error: unknown; shown: boolean }[]
+);
+const shown = vi.hoisted(() => new Set<unknown>());
 vi.mock("@/shared/lib/report-button-failure", () => ({
+  markFailureShown: (error: unknown) => shown.add(error),
   reportButtonFailure: (action: string) => (error: unknown) => {
-    told.push({ action, error });
+    told.push({ action, error, shown: shown.has(error) });
   },
 }));
 
@@ -162,7 +166,9 @@ describe("wallet Settings menu", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /Airdrop/ }));
 
     await waitFor(() =>
-      expect(told).toEqual([{ action: "airdrop", error: failure }])
+      expect(told).toEqual([
+        { action: "airdrop", error: failure, shown: false },
+      ])
     );
   });
 
@@ -184,11 +190,14 @@ describe("wallet Settings menu", () => {
 
       fireEvent.click(screen.getByRole("menuitem", { name: /Phantom/ }));
 
-      await waitFor(() => expect(told).toEqual([{ action, error: failure }]));
+      await waitFor(() =>
+        expect(told).toEqual([{ action, error: failure, shown: false }])
+      );
     }
   );
 
-  // `PgSession.signInState` holds a known failure and the account row shows it
+  // `PgSession.signInState` holds a known failure and the account row shows
+  // it: logged as a failed click, never toasted a second time
   it("leaves a cancelled or blocked sign-in to the account row", async () => {
     airdropHook.airdropCondition = true;
     airdropHook.airdrop.mockRejectedValueOnce(knownSignIn);
@@ -199,6 +208,8 @@ describe("wallet Settings menu", () => {
 
     await waitFor(() => expect(airdropHook.airdrop).toHaveBeenCalled());
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(told).toEqual([]);
+    expect(told).toEqual([
+      { action: "airdrop", error: knownSignIn, shown: true },
+    ]);
   });
 });

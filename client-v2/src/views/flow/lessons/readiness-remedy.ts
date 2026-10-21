@@ -2,11 +2,11 @@ import type { Blocker } from "./readiness";
 import { DEFAULT_ENDPOINT } from "../../../constants";
 import { isSetupRejected } from "@/commands/connect/setup-rejected";
 import { isSignInFailure, PgSession } from "../../../features/auth";
-import { createLogger } from "@/shared/lib/logger";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import {
+  markFailureShown,
+  reportButtonFailure,
+} from "@/shared/lib/report-button-failure";
 import { PgCommand, PgSettings } from "../../../utils";
-
-const log = createLogger("lessons:remedy");
 
 /**
  * The one action that clears a blocker.
@@ -27,14 +27,11 @@ export const remedy = (b: Blocker): (() => void) => {
       };
 
     case "needs-wallet":
-      // Closing the wallet setup is the user's choice, not a fault, as in
-      // the account menu's own Connect
+      // Closing the wallet setup is the user's choice: logged under
+      // `ui:button` like every failed click, but not toasted
       return () => {
         PgCommand.connect.execute().catch((error: unknown) => {
-          if (isSetupRejected(error)) {
-            log.info("wallet setup dismissed");
-            return;
-          }
+          if (isSetupRejected(error)) markFailureShown(error);
           reportButtonFailure("connect a wallet")(error);
         });
       };
@@ -56,12 +53,7 @@ export const remedy = (b: Blocker): (() => void) => {
             PgSession.signIn().catch((error: unknown) => {
               // A cancelled, blocked or refused sign-in is held in
               // `PgSession.signInState`, and the account row shows it
-              if (isSignInFailure(error)) {
-                log.info("sign-in failed", {
-                  context: { error: String(error) },
-                });
-                return;
-              }
+              if (isSignInFailure(error)) markFailureShown(error);
               reportButtonFailure("sign in")(error);
             });
           };
