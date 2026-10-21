@@ -1,25 +1,24 @@
-import { useRef, useState } from "react"
-import { Boxes, Play, Search, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Boxes, Check, Play, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { brandButtonVariants } from "@/components/ui/brand-button"
+import { BrandButton, brandButtonVariants } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { ObjectiveMeter } from "@/components/ui/objective-band"
 import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 import { cn } from "@/lib/utils"
 
-import { STEPS, TUTORIALS, thumb } from "../data"
+import { STEPS, thumb } from "../data"
 import { useStore } from "../store"
+import { CATALOG, HERO, byLevel, filterCatalog, resultsLine, type FrameworkFilter } from "../ui/catalog"
+import { CARD, FrameworkChips, LevelHeader, TutorialTile } from "../ui/GalleryParts"
+import { StartOverDialog } from "../ui/StartOverDialog"
 import { Thumb } from "../ui/Thumb"
-import { TutorialStatus } from "../ui/TutorialStatus"
 import { TopBar } from "../ui/TopBar"
 
 // The product's main curve and the thumb's time, from the design system's motion tokens
 const MOTION = "duration-220 ease-standard motion-reduce:transition-none"
-
-const CARD =
-  "flex w-full items-center gap-3 rounded-card border border-border bg-surface-panel p-3 text-left transition-[background-color,transform] duration-150 ease-standard hover:bg-surface active:scale-[0.985] active:bg-surface motion-reduce:transition-none"
 
 function ResumeCard() {
   const { s, dispatch } = useStore()
@@ -36,9 +35,9 @@ function ResumeCard() {
         type="button"
         onClick={() => dispatch({ type: "start" })}
         aria-label={`Continue Hello Anchor: ${STEPS[next].objective}`}
-        className={CARD}
+        className={cn(CARD, "items-center")}
       >
-        <Thumb src={thumb("hello-anchor", "jpg")} className="size-14" />
+        <Thumb src={thumb("hello-anchor", "jpg")} className="size-[56px]" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-title">Hello Anchor</span>
           <span className="mt-0.5 line-clamp-2 text-caption text-muted-foreground">Next: {STEPS[next].objective}</span>
@@ -57,21 +56,75 @@ function ResumeCard() {
   )
 }
 
-/** The tabs and search share one row. The search button grows into the field
- * while the tabs slide out, and Cancel plays it back */
-type Tab = "tutorials" | "programs"
+/** For someone who hasn't started: the one tutorial to begin with. The card reads about it, Start
+ * goes straight into step 1. Once finished it says so, and offers to go again */
+function StartHere() {
+  const { s, dispatch } = useStore()
+  const [confirm, setConfirm] = useState(false)
+  const finished = s.finishedAt !== null
+  return (
+    <section aria-labelledby="hero-title" className="pt-4">
+      <h2 id="hero-title" className="mb-2 text-caption text-muted-foreground">
+        Start here
+      </h2>
+      <div className="rounded-card border border-border bg-surface-panel">
+        {/* Two targets side by side, never one inside the other: the card opens the tutorial page */}
+        <button
+          type="button"
+          onClick={() => dispatch({ type: "open", screen: "overview" })}
+          className="flex w-full items-start gap-3 rounded-t-card p-3 pb-2 text-left transition-colors duration-150 ease-standard active:bg-surface motion-reduce:transition-none"
+        >
+          <Thumb src={thumb(HERO.slug, "jpg")} className="size-[56px]" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-title">{HERO.name}</span>
+            <span className="mt-0.5 block text-caption text-muted-foreground">{HERO.line}</span>
+            {/* Done, it says so in the line under, with the check the list shows, so the text keeps the
+                card's width on a small phone */}
+            {finished ? (
+              <span className="mt-1.5 flex items-center gap-1.5 text-caption text-muted-foreground tabular-nums">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+                  <Check strokeWidth={2.5} className="size-3" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="text-success">Completed</span> · {STEPS.length} steps
+                </span>
+              </span>
+            ) : (
+              <span className="mt-1.5 block text-caption text-muted-foreground tabular-nums">{HERO.meta}</span>
+            )}
+          </span>
+        </button>
+        <div className="px-3 pt-1 pb-3">
+          {finished ? (
+            <Button variant="secondary" className="h-12 w-full" onClick={() => setConfirm(true)}>
+              Start again
+            </Button>
+          ) : (
+            <BrandButton variant="accent" className="h-12 w-full" onClick={() => dispatch({ type: "start" })}>
+              Start
+            </BrandButton>
+          )}
+        </div>
+      </div>
+      <StartOverDialog open={confirm} onOpenChange={setConfirm} />
+    </section>
+  )
+}
 
-function TabsAndSearch({
-  tab,
-  onTab,
+/** Framework chips and search share one row, under the tabs. The search button grows into the
+ * field while the chips slide out, and Cancel plays it back. The chips scroll sideways when there
+ * isn't room, which a 320px screen with a large font needs */
+function ChipsAndSearch({
+  framework,
+  onFramework,
   searching,
   query,
   onOpen,
   onQuery,
   onClose,
 }: {
-  tab: Tab
-  onTab: (tab: Tab) => void
+  framework: FrameworkFilter
+  onFramework: (f: FrameworkFilter) => void
   searching: boolean
   query: string
   onOpen: () => void
@@ -79,6 +132,22 @@ function TabsAndSearch({
   onClose: () => void
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const row = useRef<HTMLDivElement>(null)
+  // Fades the chips at the right edge only while some are cut off there
+  const [more, setMore] = useState(false)
+  useEffect(() => {
+    const el = row.current
+    if (!el) return
+    const check = () => setMore(el.scrollWidth - el.scrollLeft - el.clientWidth > 1)
+    check()
+    el.addEventListener("scroll", check, { passive: true })
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener("scroll", check)
+      ro.disconnect()
+    }
+  }, [])
 
   const open = () => {
     onOpen()
@@ -87,24 +156,18 @@ function TabsAndSearch({
   }
 
   return (
-    <div className="relative mt-4 h-11">
+    <div className="relative mt-2 h-11">
       <div
+        ref={row}
         aria-hidden={searching}
-        className={cn("absolute inset-y-0 left-0 flex items-center transition-[opacity,transform]", MOTION, searching && "pointer-events-none -translate-x-4 opacity-0")}
+        className={cn(
+          "absolute inset-y-0 left-0 right-13 flex items-center overflow-x-auto [scrollbar-width:none] transition-[opacity,transform] [&::-webkit-scrollbar]:hidden",
+          MOTION,
+          more && "[mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]",
+          searching && "pointer-events-none -translate-x-4 opacity-0"
+        )}
       >
-        <Segmented
-          value={tab}
-          onValueChange={(v) => onTab(v as Tab)}
-          aria-label="Show"
-          className="pill h-11! rounded-full! border-0! p-0!"
-        >
-          <SegmentedItem value="tutorials" tabIndex={searching ? -1 : undefined} className="rounded-full! px-4! text-control!">
-            Tutorials
-          </SegmentedItem>
-          <SegmentedItem value="programs" tabIndex={searching ? -1 : undefined} className="rounded-full! px-4! text-control!">
-            Programs
-          </SegmentedItem>
-        </Segmented>
+        <FrameworkChips phone value={framework} onChange={onFramework} className="pr-2" />
       </div>
 
       <div className={cn("absolute inset-y-0 right-0 flex items-center transition-[width]", MOTION, searching ? "w-full" : "w-11")}>
@@ -129,8 +192,9 @@ function TabsAndSearch({
               if (e.key === "Escape") onClose()
               if (e.key === "Enter") e.currentTarget.blur()
             }}
-            placeholder={tab === "programs" ? "Search 34 programs" : `Search ${TUTORIALS.length} tutorials`}
-            aria-label={`Search ${tab}`}
+            // Search covers every tutorial: the chips it hides don't narrow it unseen
+            placeholder={`Search ${CATALOG.length} tutorials`}
+            aria-label="Search tutorials"
             className={cn(
               "size-full rounded-full bg-transparent pr-10 pl-10 text-[0.9375rem] font-[350] outline-none placeholder:text-muted-foreground/80 transition-opacity",
               MOTION,
@@ -151,7 +215,7 @@ function TabsAndSearch({
             </button>
           )}
           {/* Folded, the whole pill is the button that opens search */}
-          {!searching && <button type="button" aria-label={`Search ${tab}`} onClick={open} className="absolute inset-0 rounded-full" />}
+          {!searching && <button type="button" aria-label="Search tutorials" onClick={open} className="absolute inset-0 rounded-full" />}
         </label>
         <button
           type="button"
@@ -170,24 +234,24 @@ function TabsAndSearch({
   )
 }
 
+type Tab = "tutorials" | "programs"
+
 export function Gallery() {
-  const { s, dispatch } = useStore()
+  const { s } = useStore()
   const [query, setQuery] = useState("")
   const [searching, setSearching] = useState(false)
   const [tab, setTab] = useState<Tab>("tutorials")
+  const [framework, setFramework] = useState<FrameworkFilter>("all")
   const started = s.startedAt !== null && s.finishedAt === null
-  const finished = s.finishedAt !== null
 
-  const q = query.trim().toLowerCase()
-  const list = TUTORIALS.filter((t) => [t.name, t.level, t.framework].some((field) => field.toLowerCase().includes(q)))
+  // While searching the chips are out of sight, so the search reads every tutorial
+  const list = filterCatalog(searching ? query : "", searching ? "all" : framework)
+  const groups = byLevel(list)
 
   const closeSearch = () => {
     setQuery("")
     setSearching(false)
   }
-
-  const open = (slug: string) =>
-    slug === "hello-anchor" ? dispatch({ type: "open", screen: "overview" }) : toast("Only Hello Anchor is in this prototype")
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -200,16 +264,31 @@ export function Gallery() {
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(var(--safe-bottom)+24px)]">
-        {started && (
-          // While searching the resume card folds away, so results start right under the field
-          <div className={cn("grid transition-[grid-template-rows,opacity]", MOTION, searching ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100")}>
-            <div className="min-h-0 overflow-hidden" inert={searching}>
-              <ResumeCard />
-            </div>
+        {/* While searching the top card folds away, so results start right under the field */}
+        <div className={cn("grid transition-[grid-template-rows,opacity]", MOTION, searching ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100")}>
+          <div className="min-h-0 overflow-hidden" inert={searching}>
+            {started ? <ResumeCard /> : <StartHere />}
           </div>
-        )}
+        </div>
 
-        <TabsAndSearch tab={tab} onTab={setTab} searching={searching} query={query} onOpen={() => setSearching(true)} onQuery={setQuery} onClose={closeSearch} />
+        <div className="mt-4 flex h-11 items-center">
+          <Segmented
+            value={tab}
+            onValueChange={(v) => {
+              setTab(v as Tab)
+              closeSearch()
+            }}
+            aria-label="Show"
+            className="pill h-11! rounded-full! border-0! p-0!"
+          >
+            <SegmentedItem value="tutorials" className="rounded-full! px-4! text-control!">
+              Tutorials
+            </SegmentedItem>
+            <SegmentedItem value="programs" className="rounded-full! px-4! text-control!">
+              Programs
+            </SegmentedItem>
+          </Segmented>
+        </div>
 
         {tab === "programs" ? (
           // The tab switches for real, so the flow reads as a product. What's behind it isn't in this cut
@@ -232,28 +311,34 @@ export function Gallery() {
           </Empty>
         ) : (
           <>
-        {searching && q && (
-          <p role="status" className="mt-3 text-caption text-muted-foreground">
-            {list.length === 0 ? `No tutorials match “${query.trim()}”` : `${list.length} ${list.length === 1 ? "result" : "results"}`}
-          </p>
-        )}
+            <ChipsAndSearch
+              framework={framework}
+              onFramework={setFramework}
+              searching={searching}
+              query={query}
+              onOpen={() => setSearching(true)}
+              onQuery={setQuery}
+              onClose={closeSearch}
+            />
 
-        <ul className="mt-3 flex flex-col gap-2">
-          {list.map((t) => (
-            <li key={t.slug}>
-              <button type="button" onClick={() => open(t.slug)} className={CARD}>
-                <Thumb src={thumb(t.slug, t.ext)} className="size-14" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-title">{t.name}</span>
-                  <span className="mt-0.5 block truncate text-caption text-muted-foreground">
-                    {t.level} · {t.framework}
-                  </span>
-                </span>
-                {t.slug === "hello-anchor" && (started || finished) && <TutorialStatus done={s.passed.filter(Boolean).length} total={STEPS.length} finished={finished} />}
-              </button>
-            </li>
-          ))}
-        </ul>
+            {searching && query.trim() && (
+              <p role="status" className="mt-3 text-caption text-muted-foreground">
+                {resultsLine(list.length, query, "all")}
+              </p>
+            )}
+
+            {groups.map((g) => (
+              <section key={g.level} aria-labelledby={`level-${g.level}`} className="mt-5">
+                <LevelHeader id={`level-${g.level}`} level={g.level} count={g.items.length} className="mb-2" />
+                <ul className="flex flex-col gap-2">
+                  {g.items.map((t) => (
+                    <li key={t.slug}>
+                      <TutorialTile t={t} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </>
         )}
       </div>

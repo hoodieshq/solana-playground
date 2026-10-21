@@ -2,38 +2,20 @@ import { useState, type SyntheticEvent } from "react"
 
 import { cn } from "@/lib/utils"
 
-type Fit = { mode: "cover" } | { mode: "contain"; bg?: string }
-
-/** A tutorial cover. The upstream covers come in two shapes. Square ones are
- * drawn with their own margins, so they fill the tile. 4:3 ones carry text to
- * the edges, so they sit whole inside it with some air, on the colour of the
- * cover's own corner so the padding reads as part of the image */
+/** A tutorial cover in one frame for all of them. The upstream covers mix white tiles, black
+ * tiles, square art and 4:3 cards, and side by side they read as a patchwork. So each sits on the
+ * same neutral mat with a hairline, inset a few pixels: the frame, not the cover, sets the rhythm
+ * of the list. Square covers fill the mat. 4:3 ones carry their name to the edges, so they sit
+ * whole on it, never cropped */
 export function Thumb({ src, className }: { src: string; className?: string }) {
-  const [fit, setFit] = useState<Fit>({ mode: "cover" })
-
+  const [square, setSquare] = useState(true)
   const measure = (e: SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget
-    const ratio = img.naturalWidth / img.naturalHeight
-    if (ratio > 0.95 && ratio < 1.05) return setFit({ mode: "cover" })
-    try {
-      const canvas = document.createElement("canvas")
-      canvas.width = canvas.height = 1
-      const ctx = canvas.getContext("2d")
-      ctx?.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1)
-      const [r, g, b] = ctx?.getImageData(0, 0, 1, 1).data ?? []
-      setFit({ mode: "contain", bg: r === undefined ? undefined : `rgb(${r} ${g} ${b})` })
-    } catch {
-      // A cover from another origin can't be read: keep the default tile
-      setFit({ mode: "contain" })
-    }
+    const ratio = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight
+    setSquare(ratio > 0.95 && ratio < 1.15)
   }
-
   return (
-    <span
-      className={cn("block shrink-0 overflow-hidden rounded-lg bg-surface-raised", fit.mode === "contain" && "p-1.5", className)}
-      style={fit.mode === "contain" && fit.bg ? { backgroundColor: fit.bg } : undefined}
-    >
-      <img src={src} alt="" onLoad={measure} className={cn("size-full", fit.mode === "cover" ? "object-cover" : "object-contain")} />
+    <span className={cn("block shrink-0 rounded-lg bg-surface-raised p-1 ring-1 ring-border ring-inset", className)}>
+      <img src={src} alt="" onLoad={measure} className={cn("size-full rounded-[5px]", square ? "object-cover" : "object-contain")} />
     </span>
   )
 }
