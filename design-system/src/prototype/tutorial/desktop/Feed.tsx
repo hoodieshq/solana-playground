@@ -16,17 +16,64 @@ export type Msg = { id: number; from: "assistant"; text: string; quote?: Quote }
 // was said then shouldn't type itself out again
 const typed = new Set<number>()
 
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)")
+const EASE = "cubic-bezier(0.2, 0, 0, 1)"
+// A question asked with a chip, on its way from the chip into the feed: the chip's box, and when.
+// The bubble that lands takes it; until then the answer under it waits
+const FLIGHT_MS = 240
+let flight: { text: string; from: DOMRect; at: number } | null = null
+const launch = (text: string, from: DOMRect) => {
+  flight = { text, from, at: performance.now() }
+}
+const land = () => {
+  const f = flight
+  flight = null
+  return f
+}
+const inFlight = () => flight !== null
+
+/** The question's bubble, which arrives from the chip that asked it: it starts in the chip's box and
+ * shape and settles into its own place (FLIP), so the chip reads as having become the question */
+function Question({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || flight?.text !== text) return
+    const f = land()
+    if (!f || performance.now() - f.at > 500 || reduce.matches) return
+    // The column follows new messages to its foot. Done here first, so the place measured is the
+    // one the bubble ends up in
+    const scroller = el.closest<HTMLElement>("[data-feed-scroller]")
+    if (scroller) scroller.scrollTop = scroller.scrollHeight
+    const to = el.getBoundingClientRect()
+    const dx = f.from.left - to.left
+    const dy = f.from.top - to.top
+    el.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(${f.from.width / to.width}, ${f.from.height / to.height})`, borderRadius: "9999px" },
+        { transform: "none", borderRadius: getComputedStyle(el).borderRadius },
+      ],
+      { duration: FLIGHT_MS, easing: EASE }
+    )
+  }, [text])
+  return (
+    <p ref={ref} className="ml-auto w-fit max-w-[85%] origin-top-left rounded-panel bg-surface-raised px-3 py-2 text-body">
+      {text}
+    </p>
+  )
+}
+
 /** What the assistant said on this step and what you asked, under the lesson. Explain lands here
  * too, so the code stays in view while you read it */
 export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boolean }) {
+  // An answer to a question still in flight waits for it to land before it types
+  const landing = inFlight() && !reduce.matches
   if (msgs.length === 0) return null
   return (
     <div className="mt-6 flex flex-col gap-5 border-t border-border pt-5">
       {msgs.map((m, i) =>
         m.from === "you" ? (
-          <p key={m.id} className="ml-auto w-fit max-w-[85%] rounded-panel bg-surface-raised px-3 py-2 text-body">
-            {m.text}
-          </p>
+          <Question key={m.id} text={m.text} />
         ) : (
           <div key={m.id} className="flex flex-col gap-2">
             {/* Replies in a row share one head, as a chat groups them */}
@@ -47,7 +94,11 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
             )}
             {/* The reading weight, the same as the lesson above it */}
             <p className="text-body font-read">
-              {typed.has(m.id) ? <Prose text={m.text} /> : <Typed key={m.id} text={m.text} onDone={() => typed.add(m.id)} />}
+              {typed.has(m.id) ? (
+                <Prose text={m.text} />
+              ) : (
+                <Typed key={m.id} text={m.text} delay={landing && i === msgs.length - 1 ? FLIGHT_MS : 0} onDone={() => typed.add(m.id)} />
+              )}
             </p>
           </div>
         )
@@ -59,16 +110,16 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
 const FREE = "Free chat isn't connected in this prototype. Try a suggestion."
 
 /** How many of a row's children fit inside it whole. The rest stay in the row, hidden, so the
- * count can grow again when the row widens or a chip before them goes */
+ * count can grow again when the row widens or a chip before them goes. Measured by layout, not by
+ * the box on screen, so a chip still sliding into place counts where it's going */
 function useFits(row: RefObject<HTMLDivElement | null>, n: number) {
   const [fits, setFits] = useState(n)
   useLayoutEffect(() => {
     const el = row.current
     if (!el) return
     const measure = () => {
-      const edge = el.getBoundingClientRect().right
-      const kids = [...el.children]
-      const i = kids.findIndex((k) => k.getBoundingClientRect().right > edge + 0.5)
+      const kids = [...el.children] as HTMLElement[]
+      const i = kids.findIndex((k) => k.offsetLeft + k.offsetWidth > el.clientWidth + 0.5)
       setFits(i === -1 ? kids.length : i)
     }
     measure()
@@ -89,19 +140,44 @@ export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: strin
   const input = useRef<HTMLTextAreaElement>(null)
   const row = useRef<HTMLDivElement>(null)
   const fits = useFits(row, suggestions.length)
+
+  // Where each chip stood before one was asked. Once the row has reflowed, every chip that moved
+  // slides from there to its new place, so the row closes the gap instead of jumping
+  const before = useRef<Map<string, number> | null>(null)
+  useLayoutEffect(() => {
+    const was = before.current
+    const el = row.current
+    if (!was || !el) return
+    before.current = null
+    for (const chip of el.children) {
+      const from = was.get((chip as HTMLElement).dataset.label ?? "")
+      if (from === undefined) continue
+      const dx = from - chip.getBoundingClientRect().left
+      if (Math.abs(dx) > 0.5) chip.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], { duration: 200, easing: EASE })
+    }
+  })
+  const pick = (chip: Chip, button: HTMLButtonElement) => {
+    if (!reduce.matches && row.current) {
+      launch(chip.label, button.getBoundingClientRect())
+      before.current = new Map([...row.current.children].map((k) => [(k as HTMLElement).dataset.label ?? "", k.getBoundingClientRect().left]))
+    }
+    onAsk(chip.label, chip.answer)
+  }
   return (
     // The column's 20px edge, and the same foot as the tutorial page's Start: 16 above, 20 at the sides and below
     <div className="shrink-0 border-t border-border px-5 pt-4 pb-5">
       {suggestions.length > 0 && (
-        // Twice the gap between chips, so they read as suggestions, not part of the field
-        <div ref={row} className="mb-3 flex gap-1.5 overflow-hidden">
+        // Twice the gap between chips, so they read as suggestions, not part of the field. Positioned,
+        // so the chips' offsets are measured from the row
+        <div ref={row} className="relative mb-3 flex gap-1.5 overflow-hidden">
           {suggestions.map((c, i) => {
             const hidden = i >= fits
             return (
               <button
                 key={c.label}
                 type="button"
-                onClick={() => onAsk(c.label, c.answer)}
+                data-label={c.label}
+                onClick={(e) => pick(c, e.currentTarget)}
                 tabIndex={hidden ? -1 : undefined}
                 aria-hidden={hidden || undefined}
                 className={cn(

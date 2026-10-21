@@ -366,7 +366,7 @@ export function Step() {
             quick check when a patch comes, then what the assistant said. How the step stands shows
             once, in the action bar under the code */}
         <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-6">
+        <div ref={scroller} data-feed-scroller className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-6">
           {/* Where the step sits in the tutorial. The bar above counts the steps passed */}
           <p className="text-caption text-muted-foreground">
             Step {s.step + 1} of {STEPS.length} · {step.title}
