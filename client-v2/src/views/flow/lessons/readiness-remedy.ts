@@ -1,8 +1,12 @@
 import type { Blocker } from "./readiness";
 import { DEFAULT_ENDPOINT } from "../../../constants";
-import { PgSession } from "../../../features/auth";
+import { isSetupRejected } from "@/commands/connect/setup-rejected";
+import { isSignInFailure, PgSession } from "../../../features/auth";
+import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { PgCommand, PgSettings } from "../../../utils";
+
+const log = createLogger("lessons:remedy");
 
 /**
  * The one action that clears a blocker.
@@ -23,10 +27,16 @@ export const remedy = (b: Blocker): (() => void) => {
       };
 
     case "needs-wallet":
+      // Closing the wallet setup is the user's choice, not a fault, as in
+      // the account menu's own Connect
       return () => {
-        PgCommand.connect
-          .execute()
-          .catch(reportButtonFailure("connect a wallet"));
+        PgCommand.connect.execute().catch((error: unknown) => {
+          if (isSetupRejected(error)) {
+            log.info("wallet setup dismissed");
+            return;
+          }
+          reportButtonFailure("connect a wallet")(error);
+        });
       };
 
     case "needs-cluster":
@@ -38,14 +48,22 @@ export const remedy = (b: Blocker): (() => void) => {
       };
 
     case "needs-sol":
-      // `signIn` rejects on a blocked popup, which would otherwise leave the
-      // click doing nothing visible at all
       return b.signedIn
         ? () => {
             PgCommand.airdrop.execute().catch(reportButtonFailure("airdrop"));
           }
         : () => {
-            PgSession.signIn().catch(reportButtonFailure("sign in"));
+            PgSession.signIn().catch((error: unknown) => {
+              // A cancelled, blocked or refused sign-in is held in
+              // `PgSession.signInState`, and the account row shows it
+              if (isSignInFailure(error)) {
+                log.info("sign-in failed", {
+                  context: { error: String(error) },
+                });
+                return;
+              }
+              reportButtonFailure("sign in")(error);
+            });
           };
   }
 };

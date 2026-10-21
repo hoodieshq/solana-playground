@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { wasFailureShown } from "@/shared/lib/report-button-failure";
-import { isTerminalClosed, PgTerminal } from "./terminal";
+import { isTerminalUnmounted, PgTerminal } from "./terminal";
 
 beforeEach(() => {
   PgTerminal.setConsoleOpen(true);
@@ -72,7 +72,7 @@ describe("PgTerminal.process", () => {
     vi.mocked(PgTerminal.get).mockRestore();
     const cb = vi.fn();
 
-    await expect(PgTerminal.process(cb)).rejects.toSatisfy(isTerminalClosed);
+    await expect(PgTerminal.process(cb)).rejects.toSatisfy(isTerminalUnmounted);
 
     expect(cb).not.toHaveBeenCalled();
   });
@@ -81,7 +81,7 @@ describe("PgTerminal.process", () => {
 describe("PgTerminal.run", () => {
   it("fails when no terminal is mounted", async () => {
     await expect(PgTerminal.run({ clear: [{ full: true }] })).rejects.toSatisfy(
-      isTerminalClosed
+      isTerminalUnmounted
     );
   });
 });

@@ -24,6 +24,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { useAirdrop, useDarken } from "./hooks";
+import { isSignInFailure } from "../../features/auth";
 import { useCopy } from "../../hooks";
 
 const log = createLogger("wallet:settings");
@@ -103,7 +104,17 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
           {airdropCondition && (
             <DropdownMenuItem
               onSelect={() => {
-                airdrop().catch(reportButtonFailure("airdrop"));
+                airdrop().catch((error: unknown) => {
+                  // A cancelled, blocked or refused sign-in is held in
+                  // `PgSession.signInState`, and the account row shows it
+                  if (isSignInFailure(error)) {
+                    log.info("sign-in for airdrop failed", {
+                      context: { error: String(error) },
+                    });
+                    return;
+                  }
+                  reportButtonFailure("airdrop")(error);
+                });
               }}
             >
               <Airdrop />

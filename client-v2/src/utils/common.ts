@@ -995,6 +995,8 @@ export class PgCommon {
    * - `noReceiver`: the failure to reject with at once when nothing claims
    * the event, such as a call to a component that is not mounted
    * @returns the resolved data
+   * @throws a plain `{ message }` when the receiver fails, or what
+   * `noReceiver` returns, as it is, when nothing claims the event
    */
   static async sendAndReceiveCustomEvent<R, D = unknown>(
     eventName: string,
@@ -1416,13 +1418,38 @@ if (import.meta.vitest) {
       });
 
       it("leaves no receive listener behind when it rejects", async () => {
-        const spy = vi.spyOn(document, "removeEventListener");
+        const added = vi.spyOn(document, "addEventListener");
+        const removed = vi.spyOn(document, "removeEventListener");
+        try {
+          await PgCommon.sendAndReceiveCustomEvent(event, undefined, {
+            noReceiver,
+          }).catch(() => undefined);
 
-        await PgCommon.sendAndReceiveCustomEvent(event, undefined, {
-          noReceiver,
-        }).catch(() => undefined);
+          const listener = added.mock.calls.find(([name]) => name === receive);
+          expect(listener).toBeDefined();
+          expect(removed).toHaveBeenCalledWith(receive, listener![1]);
+        } finally {
+          added.mockRestore();
+          removed.mockRestore();
+        }
+      });
 
-        expect(spy).toHaveBeenCalledWith(receive, expect.any(Function));
+      // The modal hosts answer without claiming; `PgView.setModal` passes no
+      // `noReceiver`, and must still get their answer
+      it("waits for a receiver that does not claim when there is no noReceiver", async () => {
+        const handleSend = () => {
+          void Promise.resolve().then(() =>
+            PgCommon.createAndDispatchCustomEvent(receive, { data: "modal" })
+          );
+        };
+        document.addEventListener(send, handleSend);
+        try {
+          await expect(PgCommon.sendAndReceiveCustomEvent(event)).resolves.toBe(
+            "modal"
+          );
+        } finally {
+          document.removeEventListener(send, handleSend);
+        }
       });
     });
   });

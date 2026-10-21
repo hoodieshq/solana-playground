@@ -57,7 +57,13 @@ vi.mock("../Icons", () => {
 vi.mock("../Img", () => ({ default: () => null }));
 vi.mock("./Modals/Add", () => ({ Add: () => null }));
 
-// What each failed command is told through, recorded by what did not happen
+const knownSignIn = vi.hoisted(() => new Error("popup blocked"));
+vi.mock("../../features/auth", () => ({
+  isSignInFailure: (error: unknown) => error === knownSignIn,
+}));
+
+// Each `reportButtonFailure` call: the action that did not happen, and the
+// error it got
 const told = vi.hoisted(() => [] as { action: string; error: unknown }[]);
 vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: (action: string) => (error: unknown) => {
@@ -160,21 +166,39 @@ describe("wallet Settings menu", () => {
     );
   });
 
-  it("tells the user when connecting a wallet fails", async () => {
-    const failure = new Error("The terminal is not open.");
-    PgWallet.standardWallets.push({
-      name: "Phantom",
-      icon: "",
-      connected: false,
-    } as never);
-    vi.mocked(PgCommand.connect.execute).mockRejectedValueOnce(failure);
+  it.each([
+    [false, "connect Phantom"],
+    [true, "disconnect from Phantom"],
+  ])(
+    "tells the user when the wallet item fails (connected: %s)",
+    async (connected, action) => {
+      const failure = new Error("The terminal is not open.");
+      PgWallet.standardWallets.push({
+        name: "Phantom",
+        icon: "",
+        connected,
+      } as never);
+      vi.mocked(PgCommand.connect.execute).mockRejectedValueOnce(failure);
+      render(<Host />);
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("menuitem", { name: /Phantom/ }));
+
+      await waitFor(() => expect(told).toEqual([{ action, error: failure }]));
+    }
+  );
+
+  // `PgSession.signInState` holds a known failure and the account row shows it
+  it("leaves a cancelled or blocked sign-in to the account row", async () => {
+    airdropHook.airdropCondition = true;
+    airdropHook.airdrop.mockRejectedValueOnce(knownSignIn);
     render(<Host />);
     await openMenu();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Phantom/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Airdrop/ }));
 
-    await waitFor(() =>
-      expect(told).toEqual([{ action: "connect Phantom", error: failure }])
-    );
+    await waitFor(() => expect(airdropHook.airdrop).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(told).toEqual([]);
   });
 });
