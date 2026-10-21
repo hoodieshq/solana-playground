@@ -68,10 +68,20 @@ export function Step() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase, s.step])
 
-  // New messages come in at the bottom of the column
+  // New messages come in at the bottom of the column, and it follows a reply while it types
+  const feed = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" })
-  }, [msgs.length])
+    const el = scroller.current
+    const box = feed.current
+    if (!el || !box) return
+    let height = box.offsetHeight
+    const ro = new ResizeObserver(() => {
+      if (box.offsetHeight > height) el.scrollTop = el.scrollHeight
+      height = box.offsetHeight
+    })
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [lesson])
 
   const busy = s.phase === "building" || s.phase === "deploying"
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
@@ -84,6 +94,11 @@ export function Step() {
         ? { text: step.predict.right, right: true }
         : { text: step.predict.wrong, right: false }
       : undefined
+  // The quick check sits under the goal, above the messages, so bring it into view when it comes
+  useEffect(() => {
+    if (asking) scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
+  }, [asking])
+
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
   // The step's focus lines are about its starting code. Once you type, they would point at the wrong lines
   const untouched = s.phase === "idle" && !!step.patch && s.files[step.file] === step.patch.before && !s.passed[s.step]
@@ -202,7 +217,9 @@ export function Step() {
               <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
             </button>
             {asking && step.predict && <QuickCheck predict={step.predict} onAnswer={(choice) => setPredicted((p) => ({ ...p, [s.step]: choice }))} />}
-            <Feed msgs={msgs} />
+            <div ref={feed}>
+              <Feed msgs={msgs} />
+            </div>
           </div>
         )}
 
