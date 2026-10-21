@@ -29,8 +29,11 @@ export function Workspace({
       </header>
       <div className="flex shrink-0 items-stretch border-b border-border bg-surface-base">
         <EditorTabs className="flex-1 border-b-0!">
-          <EditorTab active>
-            <EditorTabTrigger>
+          {/* A tab a pointer can't miss: at least 96px, all of it the trigger, padding included. The design
+              system keeps room on the right for a close button; a tutorial's file can't be closed, so
+              the padding evens out */}
+          <EditorTab active className="min-w-24 px-0!">
+            <EditorTabTrigger className="flex-1 px-3">
               <EditorTabLabel>{file.split("/").pop()}</EditorTabLabel>
             </EditorTabTrigger>
           </EditorTab>
