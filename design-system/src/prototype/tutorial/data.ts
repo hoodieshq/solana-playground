@@ -46,7 +46,10 @@ export type Step = {
   deploy?: { stages: string[]; result: Pass }
   explainStep: string
   explainError?: string
+  /** Questions about the lesson, offered from the start */
   chips: Chip[]
+  /** Questions about the error, offered once a build of this step has failed */
+  errorChips?: Chip[]
   predict?: Predict
 }
 
@@ -144,7 +147,7 @@ export const STEPS: Step[] = [
       { kind: "p", text: "Start by importing Anchor. Its `prelude` brings in everything a program needs." },
       { kind: "code", code: "use anchor_lang::prelude::*;" },
       { kind: "h", text: "Declare the program id" },
-      { kind: "p", text: "Anchor checks every call against the program's public key. In Playground `declare_id!` is filled in for you when you build." },
+      { kind: "p", text: "Anchor checks every call against the program's public key. Add this line as is: Playground puts in the real id when you build." },
       { kind: "code", code: 'declare_id!("11111111111111111111111111111111");' },
       { kind: "h", text: "Write the instruction" },
       { kind: "p", text: "Instructions live in a module marked `#[program]`. Each one gets a `Context` with the accounts it needs. `hello` needs none, so it logs a line and returns." },
@@ -157,6 +160,7 @@ mod hello_anchor {
         Ok(())
     }
 }` },
+      { kind: "p", text: "Build it. The first build fails on purpose, so you see how Anchor reports a missing piece." },
     ],
     file: "src/lib.rs",
     focus: [1],
@@ -166,7 +170,7 @@ mod hello_anchor {
       before: LIB_START,
       after: LIB_BROKEN,
       summary:
-        "I'll import Anchor, declare the program id and add a `hello` instruction that logs “Hello, World!”.",
+        "I'll import Anchor, declare the program id and add a `hello` instruction that logs “Hello, World!”. I'm leaving one piece out on purpose, so the first build shows how Anchor reports it.",
       notes: [
         { line: 1, text: "The `prelude` brings in the macros and types every Anchor program uses." },
         { line: 3, text: "Anchor checks every call against this id. Playground fills in the real one when you build." },
@@ -182,7 +186,7 @@ mod hello_anchor {
           "Build failed",
         ],
         line: 9,
-        reason: "Line 9 uses Context<Hello>, but there is no Hello struct in the file yet.",
+        reason: "Build failed, as expected: `Context<Hello>` on line 9 needs a `Hello` struct.",
       },
     },
     fix: {
@@ -211,6 +215,18 @@ mod hello_anchor {
     explainError:
       "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Line 9 asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
     chips: [
+      {
+        label: "What is a Context?",
+        answer:
+          "`Context<T>` is what Anchor hands an instruction when it's called: the accounts listed in the struct `T`, already checked, and the program id. `hello` reads no accounts, so its struct can stay empty.",
+      },
+      {
+        label: "What does msg! do?",
+        answer:
+          "`msg!` writes a line to the program log, the way `println!` prints in plain Rust. The line shows up in the transaction's logs, which you'll read after the client calls `hello`.",
+      },
+    ],
+    errorChips: [
       {
         label: "Why is this needed",
         answer:

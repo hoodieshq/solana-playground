@@ -33,7 +33,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
       <div className="@container flex gap-2">
         {reviewing ? (
           <Button variant="secondary" className={cn(big, "px-5")} onClick={() => dispatch({ type: "close" })}>
-            Discard
+            Don't apply
           </Button>
         ) : (
           // The assistant's mark: Ask goes to the assistant, the same one that answers in the sheet
@@ -75,7 +75,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             }
           >
             <span className="min-w-0 truncate">
-              {busy ? workingLabel(s) : reviewing ? (step.id === "call-client" ? "Apply and run" : "Apply and build") : failed ? "Explain" : step.cta}
+              {busy ? workingLabel(s) : reviewing ? (step.id === "call-client" ? "Apply and run" : "Apply and build") : failed ? "Explain the error" : step.cta}
             </span>
           </BrandButton>
         )}

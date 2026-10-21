@@ -59,7 +59,7 @@ export function StepScreen() {
 
   const undo = () => {
     dispatch({ type: "undo" })
-    toast("Patch undone", { duration: 4000 })
+    toast("File restored", { duration: 4000 })
   }
 
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
@@ -187,7 +187,7 @@ export function StepScreen() {
             className="ml-auto flex h-11 items-center gap-1.5 px-1 text-caption text-muted-foreground active:text-foreground"
           >
             <RotateCcw strokeWidth={1.75} className="size-4" />
-            Undo patch
+            Restore my code
           </button>
         )}
       </div>

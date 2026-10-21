@@ -49,7 +49,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
     buttons = asking ? null : (
       <>
         <Button variant="secondary" className={BTN} onClick={() => dispatch({ type: "close" })}>
-          Discard
+          Don't apply
         </Button>
         <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "apply" })}>
           {client ? "Apply and run" : "Apply and build"}
@@ -74,7 +74,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
           )
         ) : (
           <BrandButton variant="accent" className={BTN} onClick={onExplain}>
-            Explain
+            Explain the error
           </BrandButton>
         )}
       </>

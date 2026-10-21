@@ -203,14 +203,22 @@ export function Step() {
 
   const undo = () => {
     dispatch({ type: "undo" })
-    toast("Patch undone", { duration: 4000 })
+    toast("File restored", { duration: 4000 })
   }
 
   const asked = new Set(msgs.filter((m) => m.from === "you").map((m) => m.text))
   // While a failed build waits for Explain, "Explain this step" would sit beside the Explain button
   // meaning something else, so it steps aside until the error is explained
   const failing = s.phase === "failed" && !explained
-  const suggestions = [...(failing ? [] : [{ label: "Explain this step", answer: step.explainStep }]), ...step.chips].filter((c) => !asked.has(c.label))
+  // Questions about the error only once there has been one, then ahead of the rest: asked before the
+  // build, "Why is this needed" would be about code nobody has seen fail. Then the lesson's, then the
+  // general one. The box shows what fits in a row
+  const failedOnce = !s.firstTry[s.step]
+  const suggestions = [
+    ...(failedOnce ? (step.errorChips ?? []) : []),
+    ...step.chips,
+    ...(failing ? [] : [{ label: "Explain this step", answer: step.explainStep }]),
+  ].filter((c) => !asked.has(c.label))
   // Until the quick check is answered there is no patch on screen to ask about
   const placeholder = proposal && !asking ? "Ask about this patch" : s.error ? "Ask about this error" : "Ask about this step"
 
@@ -228,12 +236,17 @@ export function Step() {
         </button>
       )}
       {step.deploy && <span className="px-2 text-caption text-muted-foreground">Read only on this step</span>}
-      {/* Undo sits by the code it reverts, away from Next */}
+      {/* Sits by the code it puts back, away from Next */}
       {s.undo && (s.phase === "passed" || s.phase === "failed") && (
-        <button type="button" onClick={undo} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground">
-          <RotateCcw strokeWidth={1.75} className="size-4" />
-          Undo patch
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" onClick={undo} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground">
+              <RotateCcw strokeWidth={1.75} className="size-4" />
+              Restore my code
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Back to the file as it was when this step started</TooltipContent>
+        </Tooltip>
       )}
     </>
   )
@@ -288,7 +301,10 @@ export function Step() {
             once, in the action bar under the code */}
         <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
-          <p className="text-caption text-muted-foreground">{step.title}</p>
+          {/* Where the step sits in the tutorial. The bar above counts the steps passed */}
+          <p className="text-caption text-muted-foreground">
+            Step {s.step + 1} of {STEPS.length} · {step.title}
+          </p>
           <h1 className="mt-1 font-heading text-[1.25rem] leading-snug">{step.objective}</h1>
 
           {lessonOpen ? (

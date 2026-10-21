@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { ArrowUp } from "lucide-react"
 
 import { Composer, ComposerInput, ComposerSend, ComposerToolbar } from "@/components/ui/composer"
@@ -53,37 +53,91 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
 
 const FREE = "Free chat isn't connected in this prototype. Try one of the suggestions above the box."
 
-/** The product's composer at the foot of the column. Suggestions give the step's prepared answers */
+/** How many of a row's children fit inside it whole. The rest stay in the row, hidden, so the
+ * count can grow again when the row widens or a chip before them goes */
+function useFits(row: RefObject<HTMLDivElement | null>, n: number) {
+  const [fits, setFits] = useState(n)
+  useLayoutEffect(() => {
+    const el = row.current
+    if (!el) return
+    const measure = () => {
+      const edge = el.getBoundingClientRect().right
+      const kids = [...el.children]
+      const i = kids.findIndex((k) => k.getBoundingClientRect().right > edge + 0.5)
+      setFits(i === -1 ? kids.length : i)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [row, n])
+  return fits
+}
+
+/** The product's composer at the foot of the column, kept small: one line while it waits, the
+ * full box with its toolbar once it's focused or holds text. Suggestions give the step's prepared
+ * answers, one row of them, so the lesson above keeps the room */
 export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: string; suggestions: Chip[]; onAsk: (question: string, answer: string) => void }) {
   const [text, setText] = useState("")
+  const [focused, setFocused] = useState(false)
+  const open = focused || text !== ""
+  const input = useRef<HTMLTextAreaElement>(null)
+  const row = useRef<HTMLDivElement>(null)
+  const fits = useFits(row, suggestions.length)
   return (
     // The column's 20px edge, and the same foot as the tutorial page's Start: 16 above, 20 at the sides and below
     <div className="shrink-0 border-t border-border px-5 pt-4 pb-5">
       {suggestions.length > 0 && (
         // Twice the gap between chips, so they read as suggestions, not part of the field
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {suggestions.map((c) => (
-            <button
-              key={c.label}
-              type="button"
-              onClick={() => onAsk(c.label, c.answer)}
-              className="h-8 rounded-full border border-border-strong px-3 text-caption text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {c.label}
-            </button>
-          ))}
+        <div ref={row} className="mb-3 flex gap-1.5 overflow-hidden">
+          {suggestions.map((c, i) => {
+            const hidden = i >= fits
+            return (
+              <button
+                key={c.label}
+                type="button"
+                onClick={() => onAsk(c.label, c.answer)}
+                tabIndex={hidden ? -1 : undefined}
+                aria-hidden={hidden || undefined}
+                className={cn(
+                  "h-8 shrink-0 rounded-full border border-border-strong px-3 text-caption whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground",
+                  hidden && "invisible"
+                )}
+              >
+                {c.label}
+              </button>
+            )
+          })}
         </div>
       )}
       <Composer
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget)) return
+          setFocused(false)
+          // The height it grew to while open would hold the one line open
+          if (!text && input.current) input.current.style.height = ""
+        }}
         onSubmit={() => {
           if (!text.trim()) return
           onAsk(text.trim(), FREE)
           setText("")
+          // The composer sizes itself and greys Send out from its own input event, which clearing the
+          // value from here doesn't fire. One after the render puts it back to one line and an empty box
+          requestAnimationFrame(() => input.current?.dispatchEvent(new Event("input", { bubbles: true })))
         }}
+        className={cn(!open && "flex-row items-center")}
       >
         {/* The same quieter hint as the search field */}
-        <ComposerInput value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} className="placeholder:text-muted-foreground/80!" />
-        <ComposerToolbar>
+        <ComposerInput
+          ref={input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          className={cn("placeholder:text-muted-foreground/80!", !open && "min-h-10 pt-2.5 pb-2.5")}
+        />
+        <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
           <ComposerSend>
             <ArrowUp />
           </ComposerSend>
