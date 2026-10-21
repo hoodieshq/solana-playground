@@ -50,7 +50,7 @@ function Meta({ t, className }: { t: Entry; className?: string }) {
   return (
     // The quietest line: a size under the description and a darker grey, 5.6:1 on the card (5.5 on
     // its hover fill), so it stays readable without competing. Sizes in [] so cn keeps them beside the colour
-    <p className={cn("text-[0.8125rem] leading-4 text-foreground/55 tabular-nums", className)}>
+    <p className={cn("text-[0.75rem] leading-4 text-foreground/50 tabular-nums", className)}>
       {parts.flatMap((part, i) => [
         i > 0 ? " " : null,
         <span key={part} className="whitespace-nowrap">
@@ -114,7 +114,7 @@ export function TutorialTile({ t }: { t: Entry }) {
           </h3>
           <div className="@max-[18rem]:hidden">
             <Description text={t.description} className="mt-[0.1875rem]" />
-            <Meta t={t} className="mt-1" />
+            <Meta t={t} className="mt-2" />
           </div>
         </div>
         {/* 32px to look at, 44 to hit: the extra reaches past the square, not into the words */}
@@ -130,7 +130,7 @@ export function TutorialTile({ t }: { t: Entry }) {
             whole card, instead of a column a few words wide */}
         <div className="col-span-3 mt-3 hidden @max-[18rem]:block">
           <Description text={t.description} />
-          <Meta t={t} className="mt-1" />
+          <Meta t={t} className="mt-2" />
         </div>
       </div>
     </div>
