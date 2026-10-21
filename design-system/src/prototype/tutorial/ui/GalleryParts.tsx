@@ -48,8 +48,9 @@ export function FilterMenu({ value, onChange, phone = false }: { value: Framewor
 function Meta({ t, className }: { t: Entry; className?: string }) {
   const parts = metaFor(t).split(" · ")
   return (
-    // The description's size, a step quieter by colour only. Sizes in [] so cn keeps them beside the colour
-    <p className={cn("text-[0.875rem] leading-[1.125rem] text-muted-foreground tabular-nums", className)}>
+    // The quietest line: a size under the description and a darker grey, 5.6:1 on the card (5.5 on
+    // its hover fill), so it stays readable without competing. Sizes in [] so cn keeps them beside the colour
+    <p className={cn("text-[0.8125rem] leading-4 text-foreground/55 tabular-nums", className)}>
       {parts.flatMap((part, i) => [
         i > 0 ? " " : null,
         <span key={part} className="whitespace-nowrap">
@@ -59,6 +60,12 @@ function Meta({ t, className }: { t: Entry; className?: string }) {
       ])}
     </p>
   )
+}
+
+/** What the tutorial is, a step under the name: a size smaller, the lighter reading weight and a
+ * light grey, 10.2:1 on the card. Two lines at most, so every card in a row keeps one height */
+function Description({ text, className }: { text: string; className?: string }) {
+  return <p className={cn("line-clamp-2 text-[0.875rem] leading-[1.125rem] font-label text-foreground/78", className)}>{text}</p>
 }
 
 /** One tutorial: cover, name, its own description, who wrote it and how long it is. The whole card
@@ -81,17 +88,20 @@ export function TutorialTile({ t }: { t: Entry }) {
     // cover and the name, across the whole card, instead of a column a few words wide
     <div
       className={cn(
-        "@container relative h-full rounded-card border border-border bg-surface-panel p-4 transition-colors duration-150 ease-standard hover:bg-surface active:bg-surface motion-reduce:transition-none"
+        "@container relative h-full rounded-card border border-border bg-surface-panel p-3.5 transition-colors duration-150 ease-standard hover:bg-surface active:bg-surface motion-reduce:transition-none"
       )}
     >
-      {/* Three columns on one top line, cover, words and the corner square. The words share one size
-          and step down by weight and colour: the name, then what it is, then who and how long, the
-          way a well set catalogue reads. Tight leading keeps the three lines one block */}
-      <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-start gap-x-3.5 @max-[18rem]:gap-x-3">
+      {/* Three columns on one top line, cover, words and the corner square. The three lines are one
+          family, so weight and colour alone set the order: the name, then what it is, then who and
+          how long. Tight leading and small gaps keep them one block */}
+      <div className="grid grid-cols-[46px_minmax(0,1fr)_auto] items-start gap-x-3.5 @max-[18rem]:gap-x-3">
         {/* In px, not rem: a larger font needs the room for words, not for the picture */}
-        <Thumb src={thumb(t.slug, t.ext)} className="size-[48px]" />
+        <Thumb src={thumb(t.slug, t.ext)} className="size-[46px]" />
         <div className="min-w-0">
-          <h3 className="font-heading text-[0.9375rem] leading-5 font-medium text-foreground">
+          {/* The text face, not the headline one: Headline is set about 6% tighter, so at this size
+              the name came out narrower than the description under it and read as the smaller line.
+              Leading of 1.2 sets its capitals just under the cover's top edge, not 5px below it */}
+          <h3 className="text-[0.9375rem] leading-[1.125rem] font-medium text-foreground">
             {/* The name is the card's link: its box is stretched over the whole card, so a tap anywhere
                 opens it, and only the corner button stands above it */}
             <button
@@ -103,9 +113,8 @@ export function TutorialTile({ t }: { t: Entry }) {
             </button>
           </h3>
           <div className="@max-[18rem]:hidden">
-            <p className="mt-0.5 line-clamp-2 text-[0.875rem] leading-[1.125rem] text-foreground/70">{t.description}</p>
-            {/* Muted, not subtle: the tertiary grey is 3.6:1 on the card, under AA for this size */}
-            <Meta t={t} className="mt-1.5" />
+            <Description text={t.description} className="mt-[0.1875rem]" />
+            <Meta t={t} className="mt-1" />
           </div>
         </div>
         {/* 32px to look at, 44 to hit: the extra reaches past the square, not into the words */}
@@ -120,8 +129,8 @@ export function TutorialTile({ t }: { t: Entry }) {
         {/* On a narrow card (a small phone, a large font) the words go under the cover, across the
             whole card, instead of a column a few words wide */}
         <div className="col-span-3 mt-3 hidden @max-[18rem]:block">
-          <p className="line-clamp-2 text-[0.875rem] leading-[1.125rem] text-foreground/70">{t.description}</p>
-          <Meta t={t} className="mt-1.5" />
+          <Description text={t.description} />
+          <Meta t={t} className="mt-1" />
         </div>
       </div>
     </div>
