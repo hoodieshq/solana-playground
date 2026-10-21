@@ -17,14 +17,15 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
   if (msgs.length === 0) return null
   return (
     <div className="mt-6 flex flex-col gap-5 border-t border-border pt-5">
-      {msgs.map((m) =>
+      {msgs.map((m, i) =>
         m.from === "you" ? (
           <p key={m.id} className="ml-auto w-fit max-w-[85%] rounded-panel bg-surface-raised px-3 py-2 text-body">
             {m.text}
           </p>
         ) : (
           <div key={m.id} className="flex flex-col gap-2">
-            <AssistantHead />
+            {/* Replies in a row share one head, as a chat groups them */}
+            {msgs[i - 1]?.from !== "assistant" && <AssistantHead />}
             {m.quote && (
               // Red while the error stands. Once the step passes it's history, so it goes quiet
               <div

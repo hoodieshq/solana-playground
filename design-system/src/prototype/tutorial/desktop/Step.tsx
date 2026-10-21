@@ -61,7 +61,7 @@ export function Step() {
     }
   }, [s.phase, s.deployStage, dispatch])
 
-  // A run opens the terminal by itself, and a pass gets one line from the assistant about what's next
+  // A run opens the terminal by itself, and a pass folds the lesson
   const prev = useRef(s.phase)
   useEffect(() => {
     const was = prev.current
@@ -71,9 +71,9 @@ export function Step() {
       setExplained(false)
     }
     if (s.phase === "passed" && (was === "building" || was === "deploying")) {
-      // The lesson has done its job: fold it, so the answer and what's next are in view
+      // The lesson has done its job: fold it. The assistant says nothing here: the green button
+      // already names the next step
       setLessonOpen(false)
-      say(s.step === STEPS.length - 1 ? "That's every step. Finish the tutorial to see what you built." : `Next: ${STEPS[s.step + 1].objective}.`)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase, s.step])
@@ -131,7 +131,6 @@ export function Step() {
   // The step's focus lines are about its starting code. Once you type, they would point at the wrong lines
   const untouched = s.phase === "idle" && !!step.patch && s.files[step.file] === step.patch.before && !s.passed[s.step]
   const focus = untouched || asking ? step.focus : []
-  const hint = untouched ? "Write this step here, or let the assistant draft it." : undefined
 
   // Notes close whenever a new proposal shows. The first one in a session opens its first note by
   // itself, which teaches the dots. After a quick check the note the question was about opens
@@ -192,7 +191,10 @@ export function Step() {
   }
 
   const asked = new Set(msgs.filter((m) => m.from === "you").map((m) => m.text))
-  const suggestions = [{ label: "Explain this step", answer: step.explainStep }, ...step.chips].filter((c) => !asked.has(c.label))
+  // While a failed build waits for Explain, "Explain this step" would sit beside the Explain button
+  // meaning something else, so it steps aside until the error is explained
+  const failing = s.phase === "failed" && !explained
+  const suggestions = [...(failing ? [] : [{ label: "Explain this step", answer: step.explainStep }]), ...step.chips].filter((c) => !asked.has(c.label))
   // Until the quick check is answered there is no patch on screen to ask about
   const placeholder = proposal && !asking ? "Ask about this patch" : s.error ? "Ask about this error" : "Ask about this step"
 
@@ -331,7 +333,6 @@ export function Step() {
             error={s.error?.line ?? null}
             fresh={freshLines(s)}
             focus={focus}
-            hint={hint}
             label={`${step.file}, ${locked ? "read only" : "editable"}`}
             jump={jump}
           />
