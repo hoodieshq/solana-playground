@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
-import { RaisedHand } from "./RaisedHand"
+import { AssistantMark } from "./AssistantMark"
 import { StepStatus, workingLabel, type Lead } from "./StepStatus"
 
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
@@ -34,7 +34,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             Discard
           </Button>
         ) : (
-          // A raised hand: you have a question. In the label's colour, so the main button stays the one accent
+          // The assistant's mark: Ask goes to the assistant, the same one that answers in the sheet
           <Button
             variant="secondary"
             disabled={busy}
@@ -42,7 +42,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             aria-label="Ask the assistant about this step"
             onClick={() => dispatch({ type: "explain", mode: "step" })}
           >
-            <RaisedHand className="size-[18px]" />
+            <AssistantMark className="size-[18px] text-brand-purple" />
             Ask
           </Button>
         )}
