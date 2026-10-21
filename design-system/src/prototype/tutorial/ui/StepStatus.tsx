@@ -63,7 +63,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
         ) : lead ? (
           <Lightbulb strokeWidth={1.75} className="mt-px size-4 shrink-0 text-warning" />
         ) : (
-          <AssistantMark className="mt-px text-brand-purple" />
+          <AssistantMark className="size-[18px] text-brand-purple" />
         )}
         <span className="text-foreground">
           {lead ? <Prose text={lead.text} /> : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}

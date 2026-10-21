@@ -60,7 +60,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
         {step.patch && (
           <Button variant="secondary" disabled={busy} className={BTN} onClick={() => dispatch({ type: "askPatch" })}>
             {/* In the label's colour: Build beside it is the one accent */}
-            <AssistantMark />
+            <AssistantMark className="size-[18px]" />
             Write with assistant
           </Button>
         )}
