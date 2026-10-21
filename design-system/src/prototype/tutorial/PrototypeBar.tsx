@@ -6,7 +6,7 @@ import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 import { switchView, view, type View } from "./view"
 
 /** The prototype's own controls, in one place for both views: a thin strip across the top, over
- * the phone frame and over the desktop screen alike, so switching never moves them. A lighter
+ * the phone and tablet frames and over the desktop screen alike, so switching never moves them. A lighter
  * ground and small type keep it apart from the product, so it doesn't read as the app's header */
 export function PrototypeBar({ onReset }: { onReset: () => void }) {
   return (
@@ -23,6 +23,9 @@ export function PrototypeBar({ onReset }: { onReset: () => void }) {
       >
         <SegmentedItem value="phone" className="rounded-full! px-3!">
           Phone
+        </SegmentedItem>
+        <SegmentedItem value="tablet" className="rounded-full! px-3!">
+          Tablet
         </SegmentedItem>
         <SegmentedItem value="desktop" className="rounded-full! px-3!">
           Desktop

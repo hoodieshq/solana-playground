@@ -42,11 +42,20 @@ const resetDesktop = () => {
   location.reload()
 }
 
-// A real phone always gets the phone. A wide screen gets the phone in its frame, or the desktop
-// screen when the address asks for it
+// A real phone always gets the phone. A wide screen gets the phone or the tablet in a frame, or the
+// desktop screen when the address asks for it. Inside the tablet's frame the page draws the desktop
+// screens, filling the frame
+const inTablet = embedded && view === "tablet"
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {wide && !embedded ? (
+    {inTablet ? (
+      <div className="h-dvh">
+        <Store>
+          <DesktopApp />
+        </Store>
+      </div>
+    ) : wide && !embedded ? (
       desktop ? (
         <div className="flex h-dvh flex-col">
           <PrototypeBar onReset={resetDesktop} />
@@ -57,7 +66,7 @@ createRoot(document.getElementById("root")!).render(
           </div>
         </div>
       ) : (
-        <DeviceFrame />
+        <DeviceFrame device={view === "tablet" ? "tablet" : "phone"} />
       )
     ) : (
       <Store>

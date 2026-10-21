@@ -1,4 +1,4 @@
-export type View = "phone" | "desktop"
+export type View = "phone" | "tablet" | "desktop"
 
 const params = new URLSearchParams(location.search)
 
@@ -12,13 +12,14 @@ if (KEEP) {
   history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`)
 }
 
-export const view: View = params.get("view") === "desktop" ? "desktop" : "phone"
+const asked = params.get("view")
+export const view: View = asked === "desktop" || asked === "tablet" ? asked : "phone"
 
 export function switchView(to: View) {
   const next = new URLSearchParams(location.search)
   next.delete("embed")
-  if (to === "desktop") next.set("view", "desktop")
-  else next.delete("view")
+  if (to === "phone") next.delete("view")
+  else next.set("view", to)
   next.set("keep", "1")
   location.replace(`${location.pathname}?${next}`)
 }
