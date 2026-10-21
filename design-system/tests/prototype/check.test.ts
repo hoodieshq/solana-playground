@@ -47,23 +47,67 @@ test("a missing Ok(()) is E0308 on the signature line", () => {
   assert.match(r.explain, /Ok\(\(\)\)/)
 })
 
-test("anything else is the step's general error on the first line that differs", () => {
-  const r = checkOwn(TARGET.replace('msg!("Hello, World!");', 'msg!("Hi");'), TARGET, "src/lib.rs")
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.equal(r.line, 10)
-  assert.equal(r.reason, "Your code doesn't match what this step needs yet.")
+test("comments are ignored, on their own lines and after code", () => {
+  const commented = `// Import anchor\n${TARGET.replace("Ok(())", "Ok(()) // done").replace("#[program]", "/* the program */\n#[program]")}`
+  assert.deepEqual(checkOwn(commented, TARGET, "src/lib.rs"), { ok: true })
 })
 
-test("an untouched file fails on line 1", () => {
-  const r = checkOwn("// Import anchor", TARGET, "src/lib.rs")
+test("pub mod is the same program as mod", () => {
+  assert.deepEqual(checkOwn(TARGET.replace("mod hello_anchor", "pub mod hello_anchor"), TARGET, "src/lib.rs"), { ok: true })
+})
+
+test("msg! can say anything", () => {
+  assert.deepEqual(checkOwn(TARGET.replace('msg!("Hello, World!");', 'msg!("Hi there, {{friend}}");'), TARGET, "src/lib.rs"), { ok: true })
+})
+
+test("msg! still needs a {} for each value it logs", () => {
+  const named = TARGET.replace('msg!("Hello, World!");', 'msg!("Hello, {}!", name);')
+  assert.deepEqual(checkOwn(named.replace('"Hello, {}!"', '"Hey {}"'), named, "src/lib.rs"), { ok: true })
+  assert.equal(checkOwn(named.replace('"Hello, {}!"', '"Hey"'), named, "src/lib.rs").ok, false)
+})
+
+test("a commented out struct still counts as missing", () => {
+  const r = checkOwn(TARGET.replace("pub struct Hello {}", "// pub struct Hello {}"), TARGET, "src/lib.rs")
   assert.equal(r.ok, false)
   if (r.ok) return
-  assert.equal(r.line, 1)
+  assert.match(r.log.join("\n"), /E0412/)
+})
+
+test("a line the step doesn't have is named in the error", () => {
+  const r = checkOwn(TARGET.replace("        Ok(())", '        let x = 1;\n        Ok(())'), TARGET, "src/lib.rs")
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.equal(r.line, 11)
+  assert.equal(r.reason, "Line 11 isn't part of this step: `let x = 1;`.")
+  assert.match(r.log.join("\n"), /src\/lib\.rs:11/)
+})
+
+test("a missing line is quoted", () => {
+  const r = checkOwn(TARGET.replace("    use super::*;\n", ""), TARGET, "src/lib.rs")
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.equal(r.reason, "A line this step needs is missing: `use super::*;`.")
+})
+
+test("an empty file says so", () => {
+  for (const empty of ["", "// Import anchor"]) {
+    const r = checkOwn(empty, TARGET, "src/lib.rs")
+    assert.equal(r.ok, false)
+    if (r.ok) return
+    assert.equal(r.line, 1)
+    assert.equal(r.reason, "The file is empty, so there is nothing to build.")
+  }
+})
+
+test("the client passes without its comment", () => {
+  const call = `// Call the hello instruction
+const txHash = await pg.program.methods.hello().rpc();
+console.log(\`Use 'solana confirm -v \${txHash}' to see the logs\`);`
+  assert.deepEqual(checkOwn(call.split("\n").slice(1).join("\n"), call, "client/client.ts"), { ok: true })
 })
 
 test("the client runs instead of building", () => {
-  const r = checkOwn("// Client code...", "const txHash = await pg.program.methods.hello().rpc();", "client/client.ts")
+  const r = checkOwn("", "const txHash = await pg.program.methods.hello().rpc();", "client/client.ts")
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.equal(r.log[0], "$ run client/client.ts")

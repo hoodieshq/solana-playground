@@ -1,7 +1,8 @@
 import type { Fail } from "./data"
 
 /** What a build of hand-written code finds. The prototype has no compiler, so it compares the
- * file with what the step needs, whitespace aside, and names the two slips newcomers make most */
+ * file with what the step needs, ignoring what a compiler would ignore or let through, and names
+ * the two slips newcomers make most */
 export type OwnCheck = { ok: true } | (Fail & { explain: string })
 
 const squash = (code: string) => code.replace(/\s+/g, "")
@@ -9,30 +10,58 @@ const squash = (code: string) => code.replace(/\s+/g, "")
 /** Whether two versions of a file differ only in whitespace, which no build would notice */
 export const sameCode = (a: string, b: string) => squash(a) === squash(b)
 
-/** The 1-based line that holds `needle`, or 1 */
+// A string first, so a // inside one isn't taken for a comment, then either kind of comment
+const COMMENT = /("(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g
+
+/** The code without its comments. A comment that spans lines leaves its line breaks behind, so
+ * every line keeps its number for the error that points at it */
+function uncomment(code: string) {
+  return code.replace(COMMENT, (m, str: string | undefined) => str ?? m.replace(/[^\n]/g, ""))
+}
+
+/** One line as the check compares it. Whitespace goes; `pub mod` is the same program as `mod`;
+ * what `msg!` says is up to whoever writes it, as long as it fills as many `{}` as the step's does */
+function norm(line: string) {
+  return squash(
+    line
+      .replace(/\bpub\s+mod\b/g, "mod")
+      .replace(/msg!\(\s*"((?:[^"\\]|\\.)*)"/g, (_, text: string) => `msg!("${"{}".repeat(text.split("{}").length - 1)}"`)
+  )
+}
+
+const lines = (code: string) => uncomment(code).split("\n").map(norm)
+
+/** The 1-based line that holds `needle`, comments aside, or 1 */
 function lineOf(code: string, needle: string) {
-  const i = code.split("\n").findIndex((l) => l.includes(needle))
+  const i = uncomment(code).split("\n").findIndex((l) => l.includes(needle))
   return i === -1 ? 1 : i + 1
 }
 
+/** A line of code to quote in a message. Prose reads ticks as code, so a line with its own can't be quoted */
+const quote = (line: string) => (line.includes("`") ? "" : `: \`${line.trim()}\``)
+
 export function checkOwn(code: string, target: string, file: string): OwnCheck {
-  if (squash(code) === squash(target)) return { ok: true }
+  const mine = lines(code)
+  const want = lines(target)
+  if (mine.join("") === want.join("")) return { ok: true }
+
   const rust = file.endsWith(".rs")
   const head = rust ? ["$ anchor build", "Compiling hello_anchor v0.1.0"] : [`$ run ${file}`, "Running client..."]
+  const bare = uncomment(code)
 
-  if (target.includes("struct Hello") && code.includes("Context<Hello>") && !/struct\s+Hello\b/.test(code)) {
+  if (target.includes("struct Hello") && bare.includes("Context<Hello>") && !/struct\s+Hello\b/.test(bare)) {
     const line = lineOf(code, "Context<Hello>")
     return {
       ok: false,
       line,
       log: [...head, "error[E0412]: cannot find type `Hello` in this scope", ` --> ${file}:${line}`, "Build failed"],
-      reason: `Line ${line} uses Context<Hello>, but there is no Hello struct in the file yet.`,
+      reason: `Build failed: \`Context<Hello>\` on line ${line} needs a \`Hello\` struct.`,
       explain:
         "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Your `hello` asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
     }
   }
 
-  if (target.includes("Ok(())") && code.includes("Result<()>") && !code.includes("Ok(())")) {
+  if (target.includes("Ok(())") && bare.includes("Result<()>") && !bare.includes("Ok(())")) {
     const line = lineOf(code, "Result<()>")
     return {
       ok: false,
@@ -44,15 +73,52 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
     }
   }
 
-  // Otherwise point at the first line the target doesn't have
-  const known = new Set(target.split("\n").map(squash))
-  const i = code.split("\n").findIndex((l) => squash(l) !== "" && !known.has(squash(l)))
-  return {
+  // The rest share one shape: a line to point at, said in the log the way a compiler would
+  const fail = (line: number, error: string, reason: string, explain: string): OwnCheck => ({
     ok: false,
-    line: i === -1 ? 1 : i + 1,
-    log: [...head, rust ? "error: the build didn't produce what this step needs" : "Error: the client didn't get a transaction back", rust ? "Build failed" : "Run failed"],
-    reason: "Your code doesn't match what this step needs yet.",
-    explain:
-      "Something in your code differs from what this step checks for. Compare it with the lesson, or review the fix to see the exact lines this step needs.",
+    line,
+    log: [...head, `${rust ? "error" : "Error"}: ${error}`, ` --> ${file}:${line}`, rust ? "Build failed" : "Run failed"],
+    reason,
+    explain,
+  })
+
+  if (mine.every((l) => l === ""))
+    return fail(
+      1,
+      "the file has no code in it",
+      `The file is empty, so there is nothing to ${rust ? "build" : "run"}.`,
+      "There is no code in the file yet. Type the code from the lesson, or review the fix to see the lines this step needs."
+    )
+
+  // A line the step has nowhere is the one to look at
+  const known = new Set(want)
+  const extra = mine.findIndex((l) => l !== "" && !known.has(l))
+  if (extra !== -1) {
+    const line = extra + 1
+    return fail(
+      line,
+      `line ${line} isn't part of this step`,
+      `Line ${line} isn't part of this step${quote(code.split("\n")[extra])}.`,
+      `Line ${line} isn't in the code this step builds. Compare it with the lesson, or review the fix to see the exact lines this step needs.`
+    )
   }
+
+  // Every line belongs, so one the step needs is missing, or they're in another order
+  const have = new Set(mine)
+  const gone = want.findIndex((l) => l !== "" && !have.has(l))
+  if (gone !== -1) {
+    const line = Math.min(gone + 1, mine.length)
+    return fail(
+      line,
+      "a line this step needs is missing",
+      `A line this step needs is missing${quote(target.split("\n")[gone])}.`,
+      "Everything you wrote belongs to this step, but a line it needs isn't there yet. Compare your code with the lesson, or review the fix to see where it goes."
+    )
+  }
+  return fail(
+    1,
+    "the lines are out of order",
+    "The lines are all there, but not in the order this step needs.",
+    "Your code has every line this step needs, in a different order, and the order matters. Review the fix to see it laid out."
+  )
 }
