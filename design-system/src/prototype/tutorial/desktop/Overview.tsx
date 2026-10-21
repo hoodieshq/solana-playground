@@ -31,6 +31,15 @@ export function Overview() {
 
   return (
     <>
+      {/* Before the start the project is a single comment, so it shows the program the tutorial ends
+          with instead: what you'll build. Once started, the code as it was left */}
+      <Workspace
+        file="src/lib.rs"
+        tools={<span className="px-2 text-caption text-muted-foreground">{fresh ? "What you'll build" : "Continue to edit"}</span>}
+      >
+        <Editor code={fresh ? BUILT : s.files["src/lib.rs"]} readOnly dim={!fresh} label={`src/lib.rs, read only${fresh ? ", the finished program" : ""}`} />
+      </Workspace>
+
       <Column label="Tutorial">
         <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
           <Button variant="ghost" className="h-9 gap-1.5 px-2 text-muted-foreground" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
@@ -74,15 +83,6 @@ export function Overview() {
           )}
         </div>
       </Column>
-
-      {/* Before the start the project is a single comment, so it shows the program the tutorial ends
-          with instead: what you'll build. Once started, the code as it was left */}
-      <Workspace
-        file="src/lib.rs"
-        tools={<span className="px-2 text-caption text-muted-foreground">{fresh ? "What you'll build" : "Continue to edit"}</span>}
-      >
-        <Editor code={fresh ? BUILT : s.files["src/lib.rs"]} readOnly dim={!fresh} label={`src/lib.rs, read only${fresh ? ", the finished program" : ""}`} />
-      </Workspace>
 
       <StartOverDialog open={confirm} onOpenChange={setConfirm} />
     </>

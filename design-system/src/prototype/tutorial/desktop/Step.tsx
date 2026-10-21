@@ -224,6 +224,31 @@ export function Step() {
 
   return (
     <>
+      <Workspace
+        file={step.file}
+        tools={tools}
+        actions={<ActionBar asking={asking} explained={explained} onExplain={explain} />}
+        terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1 }))} /> }}
+      >
+        {proposal && !asking ? (
+          <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
+        ) : (
+          <Editor
+            code={s.files[step.file]}
+            onChange={(code) => dispatch({ type: "edit", code })}
+            readOnly={locked}
+            // A deploy changes no code: the file is there to look at, so it steps back
+            dim={!!step.deploy}
+            error={s.error?.line ?? null}
+            fresh={freshLines(s)}
+            focus={focus}
+            label={`${step.file}, ${locked ? "read only" : "editable"}`}
+            jump={jump}
+          />
+        )}
+      </Workspace>
+
+      {/* After the code, as in the product: nav, editor, then the assistant's column on the right */}
       <Column label="Lesson">
         <div className="flex h-12 shrink-0 items-center border-b border-border pr-2">
           <div className="min-w-0 flex-1">
@@ -316,30 +341,6 @@ export function Step() {
 
         <AskBox placeholder={placeholder} suggestions={suggestions} onAsk={ask} />
       </Column>
-
-      <Workspace
-        file={step.file}
-        tools={tools}
-        actions={<ActionBar asking={asking} explained={explained} onExplain={explain} />}
-        terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1 }))} /> }}
-      >
-        {proposal && !asking ? (
-          <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
-        ) : (
-          <Editor
-            code={s.files[step.file]}
-            onChange={(code) => dispatch({ type: "edit", code })}
-            readOnly={locked}
-            // A deploy changes no code: the file is there to look at, so it steps back
-            dim={!!step.deploy}
-            error={s.error?.line ?? null}
-            fresh={freshLines(s)}
-            focus={focus}
-            label={`${step.file}, ${locked ? "read only" : "editable"}`}
-            jump={jump}
-          />
-        )}
-      </Workspace>
     </>
   )
 }
