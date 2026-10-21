@@ -1,24 +1,20 @@
 import { cn } from "@/lib/utils"
 
-/** The assistant's mark until Sole has its own (DES-134): one line that makes a round head, opens at
- * the lower left and runs out of the bottom into a speech bubble's tail, with a smile inside. Flat
- * line ends, as drawn. Lucide's 24 grid */
-export function AssistantMark({ className, strokeWidth = 1.75 }: { className?: string; strokeWidth?: number }) {
+/** The assistant's mark until Sole has its own (DES-134): an eight ray spark from the centre.
+ * Lucide's 24 grid and round line, at the weight it was drawn with */
+export function AssistantMark({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
-      strokeLinecap="butt"
+      strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       className={cn("size-4 shrink-0", className)}
     >
-      {/* The head, from the gap at the lower left over the top and round to the bottom, then the tail */}
-      <path d="M6.66 16.56A7.8 7.8 0 1 1 11.16 18.3C9.4 18.25 7.4 19.4 6 21.9" />
-      {/* The smile, a flattened half circle hanging from the head's middle, high enough to read as a face */}
-      <path d="M8.05 10.6A3.8 2.8 0 0 0 15.65 10.6" />
+      <path d="M12 4V12M12 12V20M12 12L18 6M12 12L6 18M12 12H20M12 12H4M12 12L18 18M12 12L6 6" />
     </svg>
   )
 }
