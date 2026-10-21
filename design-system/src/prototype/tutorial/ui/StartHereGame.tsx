@@ -282,11 +282,6 @@ function Payoff({ phase, who, note }: { phase: Phase; who: string | null; note?:
   // The thread runs down the column the log's "Hello" starts in: 13 characters past the padding
   return (
     <div aria-hidden="true" className="font-mono text-[0.75rem]/[1.25rem]">
-      {note && (
-        <p className="mb-1 truncate px-3 text-muted-foreground">
-          <span className="text-syntax-comment">//</span> {note}
-        </p>
-      )}
       <div className="relative h-8">
         <div className="absolute inset-y-0 left-[calc(0.75rem+13.5ch)] w-px">
           <div
@@ -301,15 +296,23 @@ function Payoff({ phase, who, note }: { phase: Phase; who: string | null; note?:
           <span className="rounded-sm bg-surface-well/85 px-1 whitespace-nowrap">devnet preview</span>
         </div>
       </div>
-      <div ref={lines} className="rounded-panel border border-border bg-surface-well/85 px-3 py-2 break-words text-muted-foreground backdrop-blur-[6px]">
-        <div>{program} invoke [1]</div>
-        <div>
-          Program log:{" "}
-          <span ref={word} className="rounded-[2px] text-success">
-            Hello, {who}!
-          </span>
+      <div className="rounded-panel border border-border bg-surface-well/85 px-3 py-2 break-words text-muted-foreground backdrop-blur-[6px]">
+        {/* The mechanic's line, there before the log arrives, so the two can be compared */}
+        {note && (
+          <p className="mb-1 truncate border-b border-border pb-1">
+            <span className="text-syntax-comment">//</span> {note}
+          </p>
+        )}
+        <div ref={lines}>
+          <div>{program} invoke [1]</div>
+          <div>
+            Program log:{" "}
+            <span ref={word} className="rounded-[2px] text-success">
+              Hello, {who}!
+            </span>
+          </div>
+          <div>{program} success</div>
         </div>
-        <div>{program} success</div>
       </div>
     </div>
   )

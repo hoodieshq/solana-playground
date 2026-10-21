@@ -2,6 +2,7 @@ import { BlocksGame } from "./blocks"
 import { CommentGame } from "./comment"
 import { FixGame } from "./fix"
 import { NameGame } from "./name"
+import { PredictGame } from "./predict"
 import type { Mechanic } from "./types"
 
 /** The mechanics in the order the rotation shows them, one more each page load. The order is the
@@ -30,5 +31,11 @@ export const MECHANICS: Mechanic[] = [
     hook: "Get it to build",
     line: "Two lines don't belong. Tap a line to comment it out.",
     Play: CommentGame,
+  },
+  {
+    id: "predict",
+    hook: "Predict the log",
+    line: "When hello runs, msg! writes one line. Pick what the log shows, then hit Run.",
+    Play: PredictGame,
   },
 ]
