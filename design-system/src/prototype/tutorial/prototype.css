@@ -77,6 +77,13 @@ a[href] {
   cursor: pointer;
 }
 
+/* The design system's tooltip is inverted, near white, and CopyButton writes "Copied" on it in the
+   success green: 1.34:1, next to unreadable. Here it keeps the tooltip's own dark text; the button's
+   check, on the dark ground, still says it in green. To raise in DES-129 */
+[data-slot="tooltip-content"] .text-success {
+  color: inherit;
+}
+
 /* A tap shouldn't leave a ring behind. The keyboard still gets one */
 :focus:not(:focus-visible) {
   outline: none;

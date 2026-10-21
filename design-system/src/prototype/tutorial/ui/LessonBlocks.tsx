@@ -40,7 +40,8 @@ function Block({ block, column }: { block: LessonBlock; column: boolean }) {
         <CopyButton
           value={block.code}
           label="Copy code"
-          className="absolute top-1.5 right-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          // Centred on the first line of code, and as far from the edge as the code is
+          className="absolute top-[10.5px] right-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
         />
       )}
     </CodeBlock>
