@@ -25,14 +25,17 @@ import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
 import { FeedbackHost } from "@/features/feedback";
-import type {
-  SettingsFocus,
-  SettingsExit,
-  SettingsRequest,
+import {
+  SETTINGS_TRIGGER_ATTR,
+  type SettingsFocus,
+  type SettingsExit,
+  type SettingsRequest,
 } from "@/shared/lib/settings-request";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
 import Wallet from "@/components/Wallet";
 import { useKeybind } from "@/hooks";
+import { closeOpenLayers } from "@/shared/lib/close-open-layers";
+import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
@@ -65,24 +68,20 @@ const Flow = () => (
   </FeedbackHost>
 );
 
+const log = createLogger("flow:settings");
+
 /**
- * Closes a menu, popover or tooltip open as the settings open. They portal to
- * `body`, outside the shell the page hides, so they would stay over the page,
- * and a modal menu's focus trap would pull focus back from it. Every one of
- * them closes on an Escape seen on the document, so one is sent from where
- * focus is -- only while one is open: Escape closes the topmost layer, and
- * with none open that is the navigation's Sheet, which `closeSheet` closes
- * and counts as the product's (`via: auto`), not a key's.
+ * Where focus goes back when the control that opened the settings is gone: a
+ * checklist step that the pick ticked, a footer the navigation's Sheet took
+ * with it. The first control that opens the settings still on screen, else
+ * the control that opens the navigation.
  */
-const closeOpenLayers = (active: Element | null) =>
-  document.querySelector("[data-radix-popper-content-wrapper]") &&
-  (active ?? document.body).dispatchEvent(
-    new KeyboardEvent("keydown", {
-      key: "Escape",
-      bubbles: true,
-      cancelable: true,
-    })
-  );
+const fallbackFocus = () =>
+  [
+    ...document.querySelectorAll<HTMLElement>(
+      `[${SETTINGS_TRIGGER_ATTR}], [data-sidebar="trigger"]`
+    ),
+  ].find((el) => el.getClientRects().length > 0);
 
 /** Open, the settings page remembers where focus was, to give it back */
 type SettingsState =
@@ -110,12 +109,13 @@ const FlowFrame = () => {
   }, []);
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
-  // Back to the control that opened them, once the shell is no longer inert;
-  // gone when it sat in the Sheet, which unmounted
+  // Back to the control that opened them, once the shell is no longer inert,
+  // or, when that is gone, to `fallbackFocus`
   const refocus = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (settings.open) return;
     if (refocus.current?.isConnected) refocus.current.focus();
+    else fallbackFocus()?.focus();
     refocus.current = null;
   }, [settings.open]);
   const closeSettings = (via: SettingsExit) => {
@@ -138,17 +138,28 @@ const FlowFrame = () => {
       if (settings.open) return closeSettings("key");
       const active = document.activeElement;
       closeSheet();
-      closeOpenLayers(active);
-      settingsTelemetry.track("settings_opened", { from });
-      setSettings({
-        open: true,
-        focus,
-        returnTo:
-          returnTo ??
-          (active instanceof HTMLElement && active !== document.body
-            ? active
-            : null),
-      });
+      // A menu, popover or tooltip still open would float over the page;
+      // closed first, and its trigger stands in for the item focus was on
+      closeOpenLayers()
+        .then((trigger) => {
+          settingsTelemetry.track("settings_opened", { from });
+          setSettings({
+            open: true,
+            focus,
+            returnTo:
+              returnTo ??
+              trigger ??
+              (active instanceof HTMLElement && active !== document.body
+                ? active
+                : null),
+          });
+        })
+        .catch((error) =>
+          log.error(error, {
+            report: true,
+            context: { step: "close open layers", from },
+          })
+        );
     };
 
   // Opens, never toggles: the checklist's "Choose a network" must not shut

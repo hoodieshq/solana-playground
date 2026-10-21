@@ -1500,6 +1500,14 @@ test.describe("the settings page", () => {
     const list = sectionList(page);
     await expect(list.getByRole("button")).toHaveText(SECTIONS);
 
+    // Each setting's control carries its own name: two of one name ("Endpoint"
+    // twice, once) cannot be told apart by a screen reader or a test
+    const names = await settingsPage(page)
+      .locator('[role="combobox"], [role="switch"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    expect(names.length).toBeGreaterThan(5);
+    expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+
     const editor = list.getByRole("button", { name: "Editor", exact: true });
     await editor.click();
     await expect(
@@ -1579,6 +1587,10 @@ test.describe("the settings page", () => {
     await expect(
       settingsPage(page).getByRole("heading", { level: 1, name: "Settings" })
     ).toBeFocused();
+    // The item focus was on went with its menu: focus comes back to the menu's
+    // trigger
+    await page.keyboard.press("Escape");
+    await expect(account(page)).toBeFocused();
   });
 
   test("client-v2-layout: A tooltip open at ⌘, closes as the settings open", async ({

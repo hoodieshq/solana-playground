@@ -23,7 +23,7 @@ afterEach(() => {
 
 it("shows the settings until a control throws", () => {
   render(
-    <SettingsBoundary onBack={vi.fn()}>
+    <SettingsBoundary onClose={vi.fn()}>
       <p>the sections</p>
     </SettingsBoundary>
   );
@@ -31,15 +31,26 @@ it("shows the settings until a control throws", () => {
 });
 
 it("a control that throws leaves a way back to the app, and is reported", async () => {
-  const onBack = vi.fn();
+  const onClose = vi.fn();
   render(
-    <SettingsBoundary onBack={onBack}>
+    <SettingsBoundary onClose={onClose}>
       <Throws />
     </SettingsBoundary>
   );
   const page = within(screen.getByRole("region", { name: "Settings" }));
   page.getByText("The settings could not be shown.");
   await userEvent.click(page.getByRole("button", { name: "Back to app" }));
-  expect(onBack).toHaveBeenCalledOnce();
+  expect(onClose).toHaveBeenCalledExactlyOnceWith("back");
   expect(logged.entries.some((e) => e.level === "panic")).toBe(true);
+});
+
+it("Escape leaves the notice, as it leaves the page", async () => {
+  const onClose = vi.fn();
+  render(
+    <SettingsBoundary onClose={onClose}>
+      <Throws />
+    </SettingsBoundary>
+  );
+  await userEvent.keyboard("{Escape}");
+  expect(onClose).toHaveBeenCalledExactlyOnceWith("escape");
 });

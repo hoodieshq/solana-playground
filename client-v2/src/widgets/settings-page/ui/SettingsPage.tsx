@@ -135,7 +135,7 @@ const LiveSettingsPage = ({
 
 /** The live page, behind a boundary that keeps a throwing setting from taking the app down */
 const SettingsPage = (props: SettingsPageProps) => (
-  <SettingsBoundary onBack={() => props.onClose("back")}>
+  <SettingsBoundary onClose={props.onClose}>
     <LiveSettingsPage {...props} />
   </SettingsBoundary>
 );

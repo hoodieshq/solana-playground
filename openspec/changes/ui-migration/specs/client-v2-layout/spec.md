@@ -373,7 +373,8 @@ view and mark it as current. Below 720 px the page SHALL show a bar with
 "Back to app" and the title, and no list. Nothing of the app SHALL be drawn
 over the page: a menu, popover or tooltip open when it opens SHALL close.
 "Back to app", Escape and ⌘, (Ctrl+, off macOS) SHALL close it and give
-focus back to the control that opened it. A setting that fails to render
+focus back to the control that opened it, or, when that control is gone, to
+another that opens the settings. A setting that fails to render
 SHALL leave the app as it was, with a notice and "Back to app" in place of
 the page.
 

@@ -88,6 +88,12 @@ test("client-v2-layout: Choosing a network", async ({ page }) => {
 
   await expect(doneStep(page, "Choose a network")).toContainText("devnet");
   await expect(title(page)).toHaveText("Get set up· 1 of 4");
+  // The step that opened the settings is ticked now, no longer a button:
+  // focus comes back to a control that still opens them
+  await expect(page.locator(":focus")).toHaveAttribute(
+    "data-settings-trigger",
+    ""
+  );
   await expect
     .poll(() => lineOf(lines, "setup_item_picked"))
     .toContain("{item: network}");

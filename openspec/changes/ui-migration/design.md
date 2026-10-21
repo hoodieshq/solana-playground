@@ -1593,16 +1593,26 @@ they are answered. One PR.
     name "Endpoint".
   - A menu, popover or tooltip open when the page opens closes: they portal
     to `body`, outside the hidden shell, and a modal menu's focus trap would
-    pull focus back from the page. Each closes on an Escape seen on the
-    document, so opening the page sends one from where focus is
-    (`closeOpenLayers` in `Flow`).
+    pull focus back from the page. `closeOpenLayers` (`shared/lib`) sends an
+    Escape from the topmost open layer, never from focus (a project's rename
+    field would read it as a cancel), one per frame while a layer is still
+    `open`, and nothing when none is (Escape would then close the
+    navigation's Sheet as a key's, not the product's). The page opens once
+    they are closed, and the trigger of the layer focus was in stands in as
+    the control to give focus back to.
+  - When the control that opened the page is gone on close (a checklist step
+    the pick ticked, a footer the navigation's Sheet took with it), focus
+    goes to the first control that opens the settings still on screen, else
+    to the one that opens the navigation. The failure notice closes on
+    Escape too, its own listener in place of the page's.
 - **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
   menu | key | setup}`, `settings_closed {via: back | escape | key}` and
   `settings_section_picked {section}`. Export and import failures keep going
   through `reportButtonFailure`; the widget logs under `settings-page:*`.
 
 Kept: the region named "Settings", the radio group "Network", every setting
-control's name (the setting's name), the trigger attribute (tests find the
+control's name (the setting's name; the two endpoint selects are renamed, see
+above), the trigger attribute (tests find the
 triggers by it; with nothing of the app on screen, a second click on a
 trigger is no longer the way out, "Back to app" is), "Change cluster,
 currently <name>" and "Cluster: <name>". The floating wallet is hidden with

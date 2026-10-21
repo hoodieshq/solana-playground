@@ -12,7 +12,8 @@ import { server } from "../server";
 
 describe("settings names", () => {
   // A control is named by its setting: two settings of one name are two
-  // controls a screen reader, or a test, cannot tell apart
+  // controls a screen reader, or a test, cannot tell apart. Every name on the
+  // page is held unique by the e2e "A wide window's settings page".
   it("names the RPC endpoint and the build server apart", () => {
     const rpc = connection.find((s) => s.id === "connection.endpoint");
     const build = server.find((s) => s.id === "server.endpoint");
