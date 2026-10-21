@@ -18,7 +18,10 @@ const CodeResult = ({ children }: CodeResultProps) => (
     <CodeBlockHeader>
       <CodeBlockTitle>JSON</CodeBlockTitle>
       <CodeBlockActions>
-        <CopyButton value={children} onError={reportButtonFailure} />
+        <CopyButton
+          value={children}
+          onError={reportButtonFailure("copy the JSON")}
+        />
       </CodeBlockActions>
     </CodeBlockHeader>
     <CodeBlockContent className="max-h-80 overflow-auto select-text">
