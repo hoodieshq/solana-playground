@@ -18,31 +18,30 @@ export function Finish() {
         <h1 className="mt-4 text-center font-heading text-display">Tutorial complete</h1>
         <p className="mt-2 text-center text-body text-muted-foreground">Your program is live on devnet.</p>
         <FinishStats className="mt-8" />
-        <div className="mt-8 grid grid-cols-2 gap-8">
-          <section aria-labelledby="learned-title">
-            <h2 id="learned-title" className="text-caption text-muted-foreground">
-              What you learned
-            </h2>
-            <LearnedList className="mt-2" />
-          </section>
-          <section aria-labelledby="tx-title">
-            <h2 id="tx-title" className="text-caption text-muted-foreground">
-              Your last transaction
-            </h2>
-            <a
-              href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 block rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface"
-            >
-              <code className="block truncate font-mono text-code text-foreground">{TX_SIGNATURE}</code>
-              <span className="mt-1 flex items-center gap-1 text-caption text-muted-foreground">
-                Open in Explorer
-                <ExternalLink strokeWidth={1.75} className="size-3.5" />
-              </span>
-            </a>
-          </section>
-        </div>
+        {/* The proof the program runs, a row of its own under the numbers, then what was learned */}
+        <section aria-labelledby="tx-title" className="mt-8">
+          <h2 id="tx-title" className="text-caption text-muted-foreground">
+            Your last transaction
+          </h2>
+          <a
+            href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 flex items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2.5 transition-colors hover:bg-surface"
+          >
+            <code className="min-w-0 flex-1 truncate font-mono text-code text-foreground">{TX_SIGNATURE}</code>
+            <span className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground">
+              Open in Explorer
+              <ExternalLink strokeWidth={1.75} className="size-3.5" />
+            </span>
+          </a>
+        </section>
+        <section aria-labelledby="learned-title" className="mt-8">
+          <h2 id="learned-title" className="text-caption text-muted-foreground">
+            What you learned
+          </h2>
+          <LearnedList className="mt-2" />
+        </section>
         <UpNextCard className="mt-8" />
         <div className="mt-8 flex gap-2">
           <Button variant="secondary" className="h-11 px-5 text-control" onClick={() => dispatch({ type: "open", screen: "gallery" })}>

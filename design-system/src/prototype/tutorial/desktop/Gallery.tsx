@@ -81,13 +81,14 @@ export function Gallery() {
           {tab === "tutorials" && (
             <label className="relative ml-auto h-10 w-72 rounded-full border border-border bg-surface-panel transition-colors focus-within:border-border-strong">
               <Search strokeWidth={1.75} className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              {/* The composer's size and weight, in line with the tabs, the same as the phone's search */}
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && setQuery("")}
                 placeholder={`Search ${TUTORIALS.length} tutorials`}
                 aria-label="Search tutorials"
-                className="size-full rounded-full bg-transparent pr-9 pl-10 text-body outline-none placeholder:text-muted-foreground"
+                className="size-full rounded-full bg-transparent pr-9 pl-10 text-[0.9375rem] font-[350] outline-none placeholder:text-muted-foreground"
               />
               {query && (
                 <button

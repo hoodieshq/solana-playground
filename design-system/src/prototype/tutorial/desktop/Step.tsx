@@ -88,13 +88,9 @@ export function Step() {
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : patchFor(s)) ?? null : null
   // A step with a new idea asks its question once, before its own patch shows
   const asking = !!proposal && s.review === "patch" && !!step.predict && s.predicted[s.step] === undefined
+  // Whether the answer was right, and why, stays with the quick check in the column, so the action
+  // bar keeps the assistant's line about the patch (on the phone the bar carries both in turn)
   const answer = s.predicted[s.step]
-  const lead =
-    s.phase === "patch" && s.review === "patch" && step.predict && typeof answer === "number"
-      ? answer === step.predict.answer
-        ? { text: step.predict.right, right: true }
-        : { text: step.predict.wrong, right: false }
-      : undefined
   // The quick check sits under the goal, above the messages, so bring it into view when it comes
   useEffect(() => {
     if (asking) scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
@@ -158,7 +154,8 @@ export function Step() {
 
   const asked = new Set(msgs.filter((m) => m.from === "you").map((m) => m.text))
   const suggestions = [{ label: "Explain this step", answer: step.explainStep }, ...step.chips].filter((c) => !asked.has(c.label))
-  const placeholder = proposal ? "Ask about this patch" : s.error ? "Ask about this error" : "Ask about this step"
+  // Until the quick check is answered there is no patch on screen to ask about
+  const placeholder = proposal && !asking ? "Ask about this patch" : s.error ? "Ask about this error" : "Ask about this step"
 
   const tools = (
     <>
@@ -217,9 +214,16 @@ export function Step() {
               Read the lesson
               <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
             </button>
-            {asking && step.predict && <QuickCheck predict={step.predict} onAnswer={(choice) => dispatch({ type: "predict", choice })} />}
+            {/* Asked before the patch shows, then kept as a record for the rest of the step */}
+            {step.predict && (asking || typeof answer === "number") && (
+              <QuickCheck
+                predict={step.predict}
+                answer={typeof answer === "number" ? answer : undefined}
+                onAnswer={(choice) => dispatch({ type: "predict", choice })}
+              />
+            )}
             <div ref={feed}>
-              <Feed msgs={msgs} />
+              <Feed msgs={msgs} resolved={s.passed[s.step]} />
             </div>
           </div>
         )}
@@ -230,7 +234,7 @@ export function Step() {
       <Workspace
         file={step.file}
         tools={tools}
-        actions={<ActionBar lead={lead} asking={asking} explained={explained} onExplain={explain} />}
+        actions={<ActionBar asking={asking} explained={explained} onExplain={explain} />}
         terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody /> }}
       >
         {proposal && !asking ? (

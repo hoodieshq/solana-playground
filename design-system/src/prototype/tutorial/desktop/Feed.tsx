@@ -2,6 +2,7 @@ import { useState } from "react"
 import { ArrowUp } from "lucide-react"
 
 import { Composer, ComposerInput, ComposerSend, ComposerToolbar } from "@/components/ui/composer"
+import { cn } from "@/lib/utils"
 
 import type { Chip } from "../data"
 import { AssistantHead } from "../ui/AssistantHead"
@@ -12,7 +13,7 @@ export type Msg = { id: number; from: "assistant"; text: string; quote?: Quote }
 
 /** What the assistant said on this step and what you asked, under the lesson. Explain lands here
  * too, so the code stays in view while you read it */
-export function Feed({ msgs }: { msgs: Msg[] }) {
+export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boolean }) {
   if (msgs.length === 0) return null
   return (
     <div className="mt-6 flex flex-col gap-5 border-t border-border pt-5">
@@ -25,7 +26,13 @@ export function Feed({ msgs }: { msgs: Msg[] }) {
           <div key={m.id} className="flex flex-col gap-2">
             <AssistantHead />
             {m.quote && (
-              <div className="rounded-control border border-error/40 bg-error/10 px-3 py-2 font-mono text-[0.75rem]">
+              // Red while the error stands. Once the step passes it's history, so it goes quiet
+              <div
+                className={cn(
+                  "rounded-control border px-3 py-2 font-mono text-[0.75rem]",
+                  resolved ? "border-border bg-surface-panel text-muted-foreground" : "border-error/40 bg-error/10"
+                )}
+              >
                 <span className="text-muted-foreground">
                   {m.quote.file}:{m.quote.line}
                 </span>

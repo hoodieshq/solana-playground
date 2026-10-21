@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button"
 import { ObjectiveMeter } from "@/components/ui/objective-band"
 
 import { STEPS, thumb } from "../data"
-import { useStore } from "../store"
+import { targetFor, useStore } from "../store"
 import { StartOverDialog } from "../ui/StartOverDialog"
 import { StepList } from "../ui/StepList"
 import { Thumb } from "../ui/Thumb"
 import { Column } from "./Column"
 import { Editor } from "./Editor"
 import { Workspace } from "./Workspace"
+
+// The program as the last step leaves it
+const BUILT = targetFor(STEPS[STEPS.length - 1]) ?? ""
 
 /** The tutorial page lives in the lesson's column, beside the project as it was left. Start and
  * Continue change only what the column holds, so stepping in doesn't move the layout */
@@ -24,6 +27,7 @@ export function Overview() {
   const first = s.passed.findIndex((p) => !p)
   const finished = s.finishedAt !== null
   const started = s.startedAt !== null && !finished
+  const fresh = !started && !finished
 
   return (
     <>
@@ -70,8 +74,13 @@ export function Overview() {
         </div>
       </Column>
 
-      <Workspace file="src/lib.rs" tools={<span className="px-2 text-caption text-muted-foreground">{started || finished ? "Continue to edit" : "Start to edit"}</span>}>
-        <Editor code={s.files["src/lib.rs"]} readOnly dim label="src/lib.rs, read only" />
+      {/* Before the start the project is a single comment, so it shows the program the tutorial ends
+          with instead: what you'll build. Once started, the code as it was left */}
+      <Workspace
+        file="src/lib.rs"
+        tools={<span className="px-2 text-caption text-muted-foreground">{fresh ? "What you'll build" : "Continue to edit"}</span>}
+      >
+        <Editor code={fresh ? BUILT : s.files["src/lib.rs"]} readOnly dim={!fresh} label={`src/lib.rs, read only${fresh ? ", the finished program" : ""}`} />
       </Workspace>
 
       <StartOverDialog open={confirm} onOpenChange={setConfirm} />

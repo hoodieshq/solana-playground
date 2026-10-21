@@ -94,12 +94,13 @@ export function TerminalBody() {
     <div className="flex min-h-full flex-col">
       <BuildLog
         log={log}
+        // The hint names the button only while that button is there: under a patch it reads Apply and build
         empty={
           step.deploy
             ? "Nothing deployed yet. Press Deploy to devnet or ⌘B."
             : step.id === "call-client"
-              ? "Nothing run yet. Press Run the client or ⌘B."
-              : "Nothing built yet. Press Build or ⌘B."
+              ? `Nothing run yet.${s.phase === "idle" ? " Press Run the client or ⌘B." : ""}`
+              : `Nothing built yet.${s.phase === "idle" ? " Press Build or ⌘B." : ""}`
         }
       />
       {step.deploy && s.passed[s.step] && <ProgramId />}

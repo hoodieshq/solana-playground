@@ -7,14 +7,14 @@ import { Kbd } from "@/components/ui/kbd"
 
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
-import { StepStatus, workingLabel, type Lead } from "../ui/StepStatus"
+import { StepStatus, workingLabel } from "../ui/StepStatus"
 
 const BTN = "h-10 gap-2 px-4 text-control"
 
 /** The step's actions under the editor, the desktop cut of the phone's bottom zone: the status on
  * the left, the buttons on the right. Build checks what was typed; the assistant is the second way.
  * `explained` is set once Explain has answered, then the main button offers the fix */
-export function ActionBar({ lead, asking, explained, onExplain }: { lead?: Lead; asking: boolean; explained: boolean; onExplain: () => void }) {
+export function ActionBar({ asking, explained, onExplain }: { asking: boolean; explained: boolean; onExplain: () => void }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
@@ -58,7 +58,8 @@ export function ActionBar({ lead, asking, explained, onExplain }: { lead?: Lead;
       <>
         {step.patch && (
           <Button variant="secondary" disabled={busy} className={BTN} onClick={() => dispatch({ type: "askPatch" })}>
-            <MessageCircle strokeWidth={1.75} className="size-4 text-brand-purple" />
+            {/* In the label's colour: Build beside it is the one accent */}
+            <MessageCircle strokeWidth={1.75} className="size-4" />
             Write with assistant
           </Button>
         )}
@@ -73,7 +74,7 @@ export function ActionBar({ lead, asking, explained, onExplain }: { lead?: Lead;
   return (
     <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface-panel px-4 py-3">
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-start gap-1.5 text-caption leading-relaxed text-muted-foreground">
-        {asking ? <span>Answer the quick check to see the code, or skip it</span> : <StepStatus lead={lead} />}
+        {asking ? <span>Answer the quick check to see the code, or skip it</span> : <StepStatus />}
       </p>
       {/* Holds the bar's height when there are no buttons, so the code above doesn't jump */}
       <div className="flex h-10 shrink-0 items-center gap-2">{buttons}</div>

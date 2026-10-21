@@ -128,7 +128,7 @@ function TabsAndSearch({
             placeholder={tab === "programs" ? "Search 34 programs" : `Search ${TUTORIALS.length} tutorials`}
             aria-label={`Search ${tab}`}
             className={cn(
-              "size-full rounded-full bg-transparent pr-10 pl-10 text-body outline-none placeholder:text-muted-foreground transition-opacity",
+              "size-full rounded-full bg-transparent pr-10 pl-10 text-[0.9375rem] font-[350] outline-none placeholder:text-muted-foreground transition-opacity",
               MOTION,
               searching ? "opacity-100" : "opacity-0"
             )}

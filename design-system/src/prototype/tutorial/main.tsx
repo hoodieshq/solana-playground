@@ -15,6 +15,14 @@ import { ViewSwitch } from "./ViewSwitch"
 const embedded = window.self !== window.top || new URLSearchParams(location.search).has("embed")
 const wide = window.matchMedia("(min-width: 600px)").matches
 
+// iOS zooms the page in on any field set under 16px. Capping the scale stops that, and iOS still
+// lets you pinch to zoom, so fields here can take the composer's 15px. Android would lose pinch
+// zoom with the same cap, so it's only set on iOS
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  const meta = document.querySelector('meta[name="viewport"]')
+  meta?.setAttribute("content", `${meta.getAttribute("content")}, maximum-scale=1`)
+}
+
 // Inside the desktop frame the page has no safe area of its own and no phone scroll indicator,
 // see prototype.css and scrollIndicator.ts
 if (window.self !== window.top) {
