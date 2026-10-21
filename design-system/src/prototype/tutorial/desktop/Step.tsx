@@ -102,7 +102,10 @@ export function Step() {
   // The quick check comes in under the lesson, so bring it into view when it does
   const check = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (asking) check.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+    if (!asking) return
+    // The lesson's code answers the question, so it folds while the question is asked: think first
+    setLessonOpen(false)
+    check.current?.scrollIntoView({ block: "start", behavior: "smooth" })
   }, [asking])
 
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
@@ -187,6 +190,7 @@ export function Step() {
           {notes.length === allNotes.length ? "Hide notes" : "Show notes"}
         </button>
       )}
+      {step.deploy && <span className="px-2 text-caption text-muted-foreground">Read only on this step</span>}
       {/* Undo sits by the code it reverts, away from Next */}
       {s.undo && (s.phase === "passed" || s.phase === "failed") && (
         <button type="button" onClick={undo} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground">
@@ -288,6 +292,8 @@ export function Step() {
             code={s.files[step.file]}
             onChange={(code) => dispatch({ type: "edit", code })}
             readOnly={locked}
+            // A deploy changes no code: the file is there to look at, so it steps back
+            dim={!!step.deploy}
             error={s.error?.line ?? null}
             fresh={freshLines(s)}
             focus={focus}
