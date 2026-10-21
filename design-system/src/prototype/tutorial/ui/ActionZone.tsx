@@ -28,7 +28,9 @@ export function ActionZone({ lead }: { lead?: Lead }) {
       <p role="status" aria-live="polite" className="mb-4 flex min-h-5 items-start gap-1.5 px-1 text-caption leading-relaxed text-muted-foreground">
         <StepStatus lead={lead} />
       </p>
-      <div className="flex gap-2">
+      {/* Sized by its own width, which a larger system font narrows too: on a small phone Ask keeps
+          only its mark, and a long label gives way to an ellipsis rather than running into the edges */}
+      <div className="@container flex gap-2">
         {reviewing ? (
           <Button variant="secondary" className={cn(big, "px-5")} onClick={() => dispatch({ type: "close" })}>
             Discard
@@ -38,12 +40,12 @@ export function ActionZone({ lead }: { lead?: Lead }) {
           <Button
             variant="secondary"
             disabled={busy}
-            className={cn(big, "gap-2 px-4")}
+            className={cn(big, "gap-2 px-4 @max-xs:w-14 @max-xs:px-0")}
             aria-label="Ask the assistant about this step"
             onClick={() => dispatch({ type: "explain", mode: "step" })}
           >
             <AssistantMark className="size-[18px] text-brand-purple" />
-            Ask
+            <span className="@max-xs:sr-only">Ask</span>
           </Button>
         )}
 
@@ -52,7 +54,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
             className={cn(big, "min-w-0 flex-1 gap-2 bg-success text-success-foreground hover:bg-success/90")}
             onClick={() => dispatch({ type: "next" })}
           >
-            {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
+            <span className="min-w-0 truncate">{last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}</span>
             <ArrowRight strokeWidth={2.25} className="size-4" />
           </Button>
         ) : (
@@ -72,7 +74,9 @@ export function ActionZone({ lead }: { lead?: Lead }) {
               )
             }
           >
-            {busy ? workingLabel(s) : reviewing ? (step.id === "call-client" ? "Apply and run" : "Apply and build") : failed ? "Explain" : step.cta}
+            <span className="min-w-0 truncate">
+              {busy ? workingLabel(s) : reviewing ? (step.id === "call-client" ? "Apply and run" : "Apply and build") : failed ? "Explain" : step.cta}
+            </span>
           </BrandButton>
         )}
       </div>

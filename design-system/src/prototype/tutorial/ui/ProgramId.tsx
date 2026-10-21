@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react"
+import { Copy, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
@@ -17,16 +17,20 @@ function KeyRow({ label, value, href, className }: { label: string; value: strin
       .then(() => toast(`${label} copied`))
       .catch(() => toast(`Couldn't copy the ${label.toLowerCase()}`))
   return (
-    <div className={cn("flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3 py-2 text-caption", className)}>
+    <div className={cn("@container flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3 py-2 text-caption", className)}>
       <span className="shrink-0 text-muted-foreground">{label}</span>
       <code title={value} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-        {shortKey(value)}
+        {/* Shorter on a narrow card, so it ends in its own last characters, not in a cut */}
+        <span className="@max-xs:hidden">{shortKey(value)}</span>
+        <span className="hidden @max-xs:inline">{shortKey(value, 4)}</span>
       </code>
       <button type="button" onClick={copy} className={LINK}>
-        Copy
+        <Copy strokeWidth={1.75} className="hidden size-3.5 @max-xs:block" aria-hidden="true" />
+        <span className="@max-xs:sr-only">Copy</span>
       </button>
       <a href={href} target="_blank" rel="noreferrer" className={LINK}>
-        Explorer
+        {/* On a narrow card Copy and Explorer keep only their icons, so the key keeps room to be read */}
+        <span className="@max-xs:sr-only">Explorer</span>
         <ExternalLink strokeWidth={1.75} className="size-3.5" />
       </a>
     </div>

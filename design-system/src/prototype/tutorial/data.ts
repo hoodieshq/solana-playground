@@ -126,7 +126,7 @@ export const PROGRAM_ID = "9hJqVkRZ3t2nX8cPfLwA5mYbE7sGdT4uK1oNjQzWxCvB"
 
 /** A key or signature cut in the middle, as explorers and wallets show them: you check one by its
  * start and its end, never its middle */
-export const shortKey = (key: string) => `${key.slice(0, 6)}…${key.slice(-6)}`
+export const shortKey = (key: string, n = 6) => `${key.slice(0, n)}…${key.slice(-n)}`
 
 export const TX_SIGNATURE = "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn"
 
@@ -216,7 +216,8 @@ mod hello_anchor {
       },
       {
         label: "Show in docs",
-        answer: "The Anchor docs cover it in Program Structure, in the section on `#[derive(Accounts)]`: anchor-lang.com/docs/basics/program-structure",
+        answer:
+          "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`.",
       },
     ],
   },

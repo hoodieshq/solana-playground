@@ -53,13 +53,15 @@ export function LastTransaction({ className }: { className?: string }) {
         href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`}
         target="_blank"
         rel="noreferrer"
-        className="mt-2 flex min-h-11 items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
+        className="@container mt-2 flex min-h-11 items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
       >
         <code title={TX_SIGNATURE} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-          {shortKey(TX_SIGNATURE)}
+          {/* As in the key cards under the log: shorter on a narrow card, so it ends in its own characters */}
+          <span className="@max-xs:hidden">{shortKey(TX_SIGNATURE)}</span>
+          <span className="hidden @max-xs:inline">{shortKey(TX_SIGNATURE, 4)}</span>
         </code>
         <span className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground">
-          Open in Explorer
+          <span className="@max-xs:hidden">Open in</span> Explorer
           <ExternalLink strokeWidth={1.75} className="size-3.5" />
         </span>
       </a>
