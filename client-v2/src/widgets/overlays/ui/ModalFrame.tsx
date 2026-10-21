@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { focusElement } from "@/shared/lib/focus";
 import { createLogger } from "@/shared/lib/logger";
 import { PROJECT_NAME } from "@/constants";
 import { PgView } from "@/utils/view";
@@ -165,7 +164,7 @@ export const ModalFrame = ({
   const returnFocus = (event: Event) => {
     event.preventDefault();
     if (PgView.getOpenModals().length) return;
-    if (opener.current?.isConnected) focusElement(opener.current);
+    if (opener.current?.isConnected) opener.current.focus();
   };
 
   // Under another dialog: draw no second dialog content. Only the state held

@@ -75,30 +75,53 @@ const closeIfNoHost = (id: string) => {
   }, MODAL_HOST_WAIT);
 };
 
-/** What a right-click last landed on: where a context menu was opened */
+/**
+ * Where a context menu was last opened: a right-click, or a long press, which
+ * a touch screen fires no `contextmenu` for. Used once, by the next modal.
+ */
 let contextMenuTarget: Element | null = null;
 if (typeof document !== "undefined") {
+  const record = (ev: Event) => {
+    contextMenuTarget = ev.target instanceof Element ? ev.target : null;
+  };
+  document.addEventListener("contextmenu", record, true);
   document.addEventListener(
-    "contextmenu",
+    "pointerdown",
     (ev) => {
-      contextMenuTarget = ev.target instanceof Element ? ev.target : null;
+      if (ev.pointerType !== "mouse") record(ev);
     },
     true
   );
 }
 
-/** What can take focus on its own */
+/**
+ * Who opened a modal closed in this task: one opened as soon as it answers
+ * (a confirm, then the next step) is opened from inside it, from an element
+ * about to go, and returns focus to the first one's opener instead.
+ */
+let justClosedOpener: HTMLElement | null = null;
+
+/** What can take focus */
 const FOCUS_TARGET = "button, a[href], input, select, textarea, [tabindex]";
 
 /**
  * What a modal opened now returns focus to: what has focus, or, for an item
  * of a menu, the trigger of the outermost menu, since menus close once an item
  * is picked and their items go with them. A context menu's trigger names no
- * menu: its item stands in for where the right-click landed, the editor tab
- * or the explorer row.
+ * menu: its item stands in for where the menu was opened, the editor tab or
+ * the explorer row.
  */
 const focusOpener = (): HTMLElement | null => {
+  const target = contextMenuTarget;
+  contextMenuTarget = null;
   const active = document.activeElement;
+  // The dialog that just closed held focus, or already took it with it
+  if (
+    justClosedOpener &&
+    (active === document.body || active?.closest('[role="dialog"]'))
+  ) {
+    return justClosedOpener;
+  }
   if (!(active instanceof HTMLElement) || active === document.body) return null;
   let opener = active;
   // A submenu's trigger is an item of the menu above it
@@ -108,14 +131,8 @@ const focusOpener = (): HTMLElement | null => {
       ? document.querySelector(`[aria-controls=${JSON.stringify(menu.id)}]`)
       : null;
     if (!trigger) {
-      if (!menu || !contextMenuTarget?.isConnected) return opener;
-      return (
-        contextMenuTarget.closest<HTMLElement>(FOCUS_TARGET) ??
-        contextMenuTarget.closest<HTMLElement>(
-          `.${PgView.classNames.FILE}, .${PgView.classNames.FOLDER}`
-        ) ??
-        opener
-      );
+      if (!menu || !target?.isConnected) return opener;
+      return target.closest<HTMLElement>(FOCUS_TARGET) ?? opener;
     }
     opener = trigger;
   }
@@ -516,6 +533,9 @@ class _PgView {
     if (!answer) return;
 
     modalAnswers.delete(id);
+    justClosedOpener =
+      openModals.find((modal) => modal.id === id)?.opener ?? null;
+    setTimeout(() => (justClosedOpener = null));
     setOpenModals(openModals.filter((modal) => modal.id !== id));
     answer(data);
   }

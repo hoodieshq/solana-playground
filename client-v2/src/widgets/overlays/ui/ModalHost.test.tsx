@@ -370,6 +370,63 @@ describe("focus after a dialog closes", () => {
     );
   });
 
+  it("should keep focus in the dialog below when the one on top closes", async () => {
+    render(<ModalHost />);
+    open(Outer);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    });
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("dialog", { name: "Outer" })
+          .contains(document.activeElement)
+      ).toBe(true)
+    );
+  });
+
+  it("should return focus to what opened a dialog another one followed", async () => {
+    const Confirm = () => (
+      <ModalFrame
+        name="confirm"
+        title="Confirm"
+        buttonProps={{ text: "Yes", onSubmit: () => "yes" }}
+      />
+    );
+    render(
+      <>
+        <button
+          onClick={async () => {
+            if (await PgView.setModal(Confirm)) void PgView.setModal(Info);
+          }}
+        >
+          Delete
+        </button>
+        <ModalHost />
+      </>
+    );
+    const opener = screen.getByRole("button", { name: "Delete" });
+    opener.focus();
+    act(() => opener.click());
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
   it("should not focus the opener while another dialog has taken its place", async () => {
     render(
       <>
@@ -499,7 +556,13 @@ describe("focus after a dialog opened from a context menu", () => {
     render(
       <>
         <ContextMenu>
-          <div className={PgView.classNames.FILE} data-testid="row">
+          {/* dnd-kit's attributes make every row a tabbable button */}
+          <div
+            className={PgView.classNames.FILE}
+            role="button"
+            tabIndex={0}
+            data-testid="row"
+          >
             <span>lib.rs</span>
           </div>
         </ContextMenu>
@@ -510,11 +573,9 @@ describe("focus after a dialog opened from a context menu", () => {
 
     await pickDeleteThenCancel();
 
-    const row = screen.getByTestId("row");
-    await waitFor(() => expect(document.activeElement).toBe(row));
-    // Focusable only while it holds focus: a click still goes past it
-    act(() => row.blur());
-    expect(row.hasAttribute("tabindex")).toBe(false);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByTestId("row"))
+    );
   });
 
   it("should return focus to the editor tab the menu was opened on", async () => {

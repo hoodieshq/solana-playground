@@ -27,17 +27,3 @@ export const isTypingElsewhere = (
   // `=== true`: jsdom leaves `isContentEditable` undefined.
   return active instanceof HTMLElement && active.isContentEditable === true;
 };
-
-/**
- * Focus `el`, giving it `tabindex="-1"` while it holds focus when it cannot
- * take focus on its own: an explorer row a context menu was opened on.
- */
-export const focusElement = (el: HTMLElement) => {
-  if (el.tabIndex < 0 && !el.hasAttribute("tabindex")) {
-    el.setAttribute("tabindex", "-1");
-    el.addEventListener("blur", () => el.removeAttribute("tabindex"), {
-      once: true,
-    });
-  }
-  el.focus();
-};
