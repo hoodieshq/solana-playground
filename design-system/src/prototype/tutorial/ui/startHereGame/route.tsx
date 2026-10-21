@@ -121,8 +121,8 @@ export function RouteGame({ onSolved, locked, announce }: PlayProps) {
         })}
       </div>
 
-      {/* Two lines kept for the reason, so it never moves the grid */}
-      <p className="min-h-10 px-1 text-muted-foreground">
+      {/* Two lines kept for the reason, so it never moves the grid. Backed, so it reads over the pixels */}
+      <p className={cn("min-h-10 px-2 text-muted-foreground", reply && "rounded-sm bg-surface-well/85 backdrop-blur-[6px]")}>
         {reply && (
           <>
             <span className="text-syntax-comment">//</span> {reply}

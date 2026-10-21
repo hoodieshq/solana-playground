@@ -5,6 +5,7 @@ import { MatchGame } from "./match"
 import { NameGame } from "./name"
 import { PredictGame } from "./predict"
 import { RouteGame } from "./route"
+import { WhichGame } from "./which"
 import type { Mechanic } from "./types"
 
 /** The mechanics in the order the rotation shows them, one more each page load. The order is the
@@ -51,5 +52,11 @@ export const MECHANICS: Mechanic[] = [
     hook: "Match the macros",
     line: "Four words every Anchor program uses. Tap one, then what it does.",
     Play: MatchGame,
+  },
+  {
+    id: "which",
+    hook: "Which one builds?",
+    line: "Two bodies for hello, one character apart. Pick the one that compiles.",
+    Play: WhichGame,
   },
 ]

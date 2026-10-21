@@ -118,8 +118,8 @@ export function MatchGame({ onSolved, locked, announce }: PlayProps) {
           ))}
         </div>
       </div>
-      {/* Two lines kept for the reason, so it never moves the rows */}
-      <p className="min-h-10 px-1 font-mono text-[0.75rem]/[1.25rem] text-muted-foreground">
+      {/* Two lines kept for the reason, so it never moves the rows. Backed, so it reads over the pixels */}
+      <p className={cn("min-h-10 px-2 font-mono text-[0.75rem]/[1.25rem] text-muted-foreground", reply && "rounded-sm bg-surface-well/85 backdrop-blur-[6px]")}>
         {reply && (
           <>
             <span className="text-syntax-comment">//</span> {reply}
