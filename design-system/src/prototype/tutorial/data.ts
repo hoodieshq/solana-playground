@@ -198,7 +198,7 @@ mod hello_anchor {
       result: {
         ok: true,
         log: [...BUILD_OK, "IDL: 1 instruction · hello", "Build successful"],
-        note: "The build passed and the interface shows a hello instruction.",
+        note: "The build passed and lists the hello instruction.",
       },
     },
     explainStep:

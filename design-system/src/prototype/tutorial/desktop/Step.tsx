@@ -35,8 +35,9 @@ export function Step() {
   // A line the terminal points to: the editor scrolls there and puts the caret on it
   const [jump, setJump] = useState<{ line: number; n: number } | null>(null)
   const ids = useRef(0)
-  // The proposal summary the column already shows, so it's said once per proposal
-  const spoke = useRef<string | null>(null)
+  // The proposal summaries the column already shows, so each is said once per step: Don't apply
+  // and opening the same patch again doesn't repeat it
+  const spoke = useRef(new Set<string>())
   const scroller = useRef<HTMLDivElement>(null)
   // Whether the column has more below what shows, for the fade at its foot
   const [more, setMore] = useState(false)
@@ -50,7 +51,7 @@ export function Step() {
   useEffect(() => {
     setLessonOpen(!s.passed[s.step])
     setMsgs([])
-    spoke.current = null
+    spoke.current.clear()
     setExplained(false)
     const writes = s.phase === "idle" && !!step.patch && !s.passed[s.step]
     setJump(writes ? { line: step.focus[0] ?? 1, n: 0 } : null)
@@ -198,8 +199,10 @@ export function Step() {
   // the action bar under the code just says what to do with it
   const summary = proposal && !asking ? proposal.summary : null
   useEffect(() => {
-    if (summary && spoke.current !== summary) say(summary)
-    spoke.current = summary
+    if (summary && !spoke.current.has(summary)) {
+      spoke.current.add(summary)
+      say(summary)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary])
 
@@ -247,7 +250,7 @@ export function Step() {
               Restore my code
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Back to the file as it was when this step started</TooltipContent>
+          <TooltipContent side="bottom">Back to the file as it was before the first change you applied here</TooltipContent>
         </Tooltip>
       )}
     </>

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 import { NEXT_TUTORIAL, STEPS, TX_SIGNATURE, shortKey, thumb } from "../data"
 import { useStore } from "../store"
+import { openExplorer } from "./explorer"
 import { Thumb } from "./Thumb"
 
 /** The flow's peak: the badge pops in once, on the design system's pop curve, and simply appears with reduced motion */
@@ -42,18 +43,17 @@ export function FinishStats({ className }: { className?: string }) {
   )
 }
 
-/** The last transaction, a link to it on Explorer: proof the program really runs */
+/** The last transaction, with the way to Explorer: proof the program really runs */
 export function LastTransaction({ className }: { className?: string }) {
   return (
     <section aria-labelledby="tx-title" className={className}>
       <h3 id="tx-title" className="text-caption text-muted-foreground">
         Your last transaction
       </h3>
-      <a
-        href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`}
-        target="_blank"
-        rel="noreferrer"
-        className="@container mt-2 flex min-h-11 items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
+      <button
+        type="button"
+        onClick={openExplorer}
+        className="@container mt-2 flex min-h-11 w-full items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
       >
         <code title={TX_SIGNATURE} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
           {/* As in the key cards under the log: shorter on a narrow card, so it ends in its own characters */}
@@ -64,7 +64,7 @@ export function LastTransaction({ className }: { className?: string }) {
           <span className="@max-xs:hidden">Open in</span> Explorer
           <ExternalLink strokeWidth={1.75} className="size-3.5" />
         </span>
-      </a>
+      </button>
     </section>
   )
 }

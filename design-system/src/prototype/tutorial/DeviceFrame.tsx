@@ -27,7 +27,7 @@ export function DeviceFrame({ device }: { device: "phone" | "tablet" }) {
               <span className="absolute top-2.5 left-1/2 h-[30px] w-[100px] -translate-x-1/2 rounded-full bg-black" />
             </div>
             <div className="relative min-h-0 flex-1">
-              <iframe ref={ref} title="Tutorial flow prototype" src={src} className="size-full border-0 bg-surface-base" />
+              <iframe ref={ref} title="Tutorial flow prototype" src={src} allow="clipboard-write" className="size-full border-0 bg-surface-base" />
               {/* The home indicator. The page keeps 34px clear for it, as on a real phone */}
               <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-foreground/80" />
             </div>
@@ -37,7 +37,7 @@ export function DeviceFrame({ device }: { device: "phone" | "tablet" }) {
           // with the camera on the long top edge, as an iPad has it held landscape
           <div className="relative aspect-[1180/820] w-[min(1180px,calc(100vw-48px),calc((100dvh-88px)*1180/820))] overflow-hidden rounded-[36px] border-[14px] border-surface-raised bg-surface-base shadow-modal">
             <span aria-hidden="true" className="absolute -top-[9px] left-1/2 z-10 size-[5px] -translate-x-1/2 rounded-full bg-black" />
-            <iframe ref={ref} title="Tutorial flow prototype" src={src} className="size-full border-0 bg-surface-base" />
+            <iframe ref={ref} title="Tutorial flow prototype" src={src} allow="clipboard-write" className="size-full border-0 bg-surface-base" />
           </div>
         )}
       </div>

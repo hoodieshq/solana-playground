@@ -23,10 +23,12 @@ export function StepStatus({ lead }: { lead?: Lead }) {
   const { s } = useStore()
   const step = STEPS[s.step]
   const r = lastResult(s)
+  // Under the explanation sheet the step keeps saying where it stands: the error it explains, or the pass
+  const phase = s.phase === "explain" ? (s.error ? "failed" : s.passed[s.step] ? "passed" : "idle") : s.phase
 
-  if (s.phase === "building" || s.phase === "deploying") {
+  if (phase === "building" || phase === "deploying") {
     const detail =
-      s.phase === "deploying"
+      phase === "deploying"
         ? `${step.deploy?.stages[s.deployStage]} (${s.deployStage + 1}/${step.deploy?.stages.length})`
         : step.id === "call-client"
           ? `Running ${step.file} on devnet`
@@ -38,14 +40,14 @@ export function StepStatus({ lead }: { lead?: Lead }) {
       </>
     )
   }
-  if (s.phase === "passed" && r?.ok)
+  if (phase === "passed" && r?.ok)
     return (
       <>
         <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
         <span className="text-success">{r.note}</span>
       </>
     )
-  if (s.phase === "failed" && s.error)
+  if (phase === "failed" && s.error)
     return (
       <>
         <CircleAlert strokeWidth={1.75} className="mt-px size-4 shrink-0 text-error" />
@@ -55,7 +57,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
         </span>
       </>
     )
-  if (s.phase === "patch") {
+  if (phase === "patch") {
     // The assistant speaks here, by the buttons, so nothing sits over the code
     const proposal = s.review === "fix" ? fixFor(s) : patchFor(s)
     return (

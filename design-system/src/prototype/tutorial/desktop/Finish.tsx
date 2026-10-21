@@ -1,7 +1,6 @@
-import { toast } from "sonner"
-
 import { Button } from "@/components/ui/button"
 
+import { STEPS } from "../data"
 import { useStore } from "../store"
 import { FinishBadge, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
 
@@ -28,7 +27,8 @@ export function Finish() {
           <Button variant="secondary" className="h-11 px-5" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
             Back to tutorials
           </Button>
-          <Button variant="ghost" className="h-11 px-5" onClick={() => toast("Only the tutorial flow is in this prototype")}>
+          {/* The project the tutorial built: its last step, where all of its code is */}
+          <Button variant="ghost" className="h-11 px-5" onClick={() => dispatch({ type: "openStep", step: STEPS.length - 1 })}>
             Open the project
           </Button>
         </div>

@@ -4,13 +4,14 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 import { PROGRAM_ID, TX_SIGNATURE, shortKey } from "../data"
+import { openExplorer } from "./explorer"
 
 // Copy and Explorer reach past the card's padding, so each is about 44px tall for a finger
 const LINK = "-my-3 flex shrink-0 items-center gap-1 py-3 text-muted-foreground hover:text-foreground"
 
 /** A key a run leaves behind, in one line under the log, with Copy and the Explorer link. The log
  * itself cuts it off at the edge */
-function KeyRow({ label, value, href, className }: { label: string; value: string; href: string; className?: string }) {
+function KeyRow({ label, value, className }: { label: string; value: string; className?: string }) {
   const copy = () =>
     navigator.clipboard
       ?.writeText(value)
@@ -28,21 +29,21 @@ function KeyRow({ label, value, href, className }: { label: string; value: strin
         <Copy strokeWidth={1.75} className="hidden size-3.5 @max-xs:block" aria-hidden="true" />
         <span className="@max-xs:sr-only">Copy</span>
       </button>
-      <a href={href} target="_blank" rel="noreferrer" className={LINK}>
+      <button type="button" onClick={openExplorer} className={LINK}>
         {/* On a narrow card Copy and Explorer keep only their icons, so the key keeps room to be read */}
         <span className="@max-xs:sr-only">Explorer</span>
         <ExternalLink strokeWidth={1.75} className="size-3.5" />
-      </a>
+      </button>
     </div>
   )
 }
 
 /** What a deploy leaves behind */
 export function ProgramId({ className }: { className?: string }) {
-  return <KeyRow label="Program id" value={PROGRAM_ID} href={`https://explorer.solana.com/address/${PROGRAM_ID}?cluster=devnet`} className={className} />
+  return <KeyRow label="Program id" value={PROGRAM_ID} className={className} />
 }
 
 /** What the client's call leaves behind: the transaction whose logs show hello ran */
 export function Transaction({ className }: { className?: string }) {
-  return <KeyRow label="Transaction" value={TX_SIGNATURE} href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`} className={className} />
+  return <KeyRow label="Transaction" value={TX_SIGNATURE} className={className} />
 }
