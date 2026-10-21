@@ -23,6 +23,10 @@ import { storedValues } from "../../../test-utils/stored-values";
 /** Storage writes are fired and forgotten; this waits for them to land */
 const settled = () => PgAssistant.whenPersisted();
 
+/** The texts of a stored thread, in order */
+const storedTexts = (items: readonly ChatItem[] | null) =>
+  (items ?? []).map((i) => (i as { text?: string }).text);
+
 /** The id of the approval card added most recently */
 const latestCard = () =>
   PgAssistant.items.filter((i) => i.kind === "approval").slice(-1)[0].id;
@@ -109,6 +113,24 @@ describe("PgAssistant item identity", () => {
     PgAssistant.addUserMessage("second");
 
     expect(PgAssistant.items[0].id).not.toBe(first);
+  });
+
+  it("gives items made in one millisecond increasing times", () => {
+    // A tie in `createdAt` is ordered by id, which is random, so a merge put
+    // a message and the reply started in the same millisecond either way
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-03-01T00:00:00.000Z"));
+      PgAssistant.addUserMessage("asked");
+      PgAssistant.startAssistantMessage();
+
+      const [asked, reply] = PgAssistant.items;
+      expect(Date.parse(reply.createdAt)).toBeGreaterThan(
+        Date.parse(asked.createdAt)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stamps every kind of item, not just user messages", () => {
@@ -532,6 +554,49 @@ describe("PgAssistant threads", () => {
     expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
   });
 
+  it("says a thread it could not read is not being saved", async () => {
+    // Every message after a failed read stays in memory only; without this
+    // the panel looked like any other conversation while nothing was kept
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    const corrupt = "{ not json";
+    files.set("/.config/chats/t1.json", corrupt);
+
+    await PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("hi");
+    await settled();
+
+    expect(PgAssistant.unsaved).toBe(true);
+    expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
+  });
+
+  it("still says so after the panel resets on a backend switch", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    files.set("/.config/chats/t1.json", "{ not json");
+    await PgAssistant.loadThread("t1");
+
+    // `clear` empties what is rendered; the thread is no more saved than before
+    PgAssistant.clear();
+
+    expect(PgAssistant.unsaved).toBe(true);
+  });
+
+  it("does not say so while a thread is only being read", async () => {
+    const loading = PgAssistant.loadThread("t1");
+    expect(PgAssistant.unsaved).toBe(false);
+    await loading;
+  });
+
+  it("stops saying so once the thread reads cleanly", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    files.set("/.config/chats/t1.json", "{ not json");
+    await PgAssistant.loadThread("t1");
+
+    files.delete("/.config/chats/t1.json");
+    await PgAssistant.loadThread("t1", true);
+
+    expect(PgAssistant.unsaved).toBe(false);
+  });
+
   it("writes again once a thread reads cleanly", async () => {
     const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
     files.set("/.config/chats/t1.json", "{ not json");
@@ -599,6 +664,320 @@ describe("PgAssistant threads", () => {
     // Adoption is for messages with no thread, never for another thread's
     expect(PgAssistant.items).toHaveLength(0);
     expect(await PgChatStorage.read("t2")).toHaveLength(0);
+  });
+
+  it("does not write over a thread while it is still being read", async () => {
+    // A reload restores the thread while the panel's mount effects land:
+    // MCP discovery calls `_emit` with nothing in the conversation changed.
+    // Landing mid-read, that wrote the empty list standing in for the thread
+    // over the stored one, behind a read that still returned it -- so memory
+    // held the conversation and storage held `[]` (HOO-2109)
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "55555555-5555-4555-8555-555555555555",
+        createdAt: at,
+        text: "remember me",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.setMcpTools("probe", []);
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "remember me",
+    ]);
+
+    // And open to writes again once the read has landed
+    PgAssistant.addUserMessage("after");
+    await settled();
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "remember me",
+      "after",
+    ]);
+  });
+
+  // Passes without the HOO-2109 fix too: it guards the adoption that fix
+  // relies on, since with writes closed nothing else would write the message
+  it("writes a message sent while the thread was being read, after the stored ones", async () => {
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "66666666-6666-4666-8666-666666666666",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "sent mid-read",
+    ]);
+  });
+
+  it("keeps a message sent mid-read when the thread closes before the read lands", async () => {
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "77777777-7777-4777-8777-777777777777",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    // A workspace switch or a sign-out, before the read is back
+    PgAssistant.closeThread();
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "sent mid-read",
+    ]);
+  });
+
+  it("does not write a message sent mid-read over a thread it could not read", async () => {
+    const files = (PgFs as unknown as { __files: Map<string, string> }).__files;
+    const corrupt = "{ not json";
+    files.set("/.config/chats/t1.json", corrupt);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    await loading;
+    await settled();
+
+    expect(files.get("/.config/chats/t1.json")).toBe(corrupt);
+    // Still on screen, with the panel saying it is not saved
+    expect(storedTexts(PgAssistant.items)).toEqual(["sent mid-read"]);
+    expect(PgAssistant.unsaved).toBe(true);
+  });
+
+  it("reads a reopened thread after the write that kept its overtaken message", async () => {
+    // Overtaken by a switch, A's message is queued behind B's writes. A reopen
+    // reading before that write was issued came back without it, and the next
+    // write from memory then replaced the file that had it
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "99999999-9999-4999-8999-999999999999",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+    // Each write waits on the gate in place when it is issued, so the queue
+    // can be held twice: behind B's write, then behind the kept message
+    const gates: Array<() => void> = [];
+    let hold: Promise<void> = Promise.resolve();
+    const holdWrites = () => {
+      hold = new Promise<void>((resolve) => gates.push(resolve));
+    };
+    const releaseAll = () => gates.forEach((resolve) => resolve());
+    const realWrite = PgChatStorage.write.bind(PgChatStorage);
+    const write = vi
+      .spyOn(PgChatStorage, "write")
+      .mockImplementation(async (threadId, items) => {
+        await hold;
+        return realWrite(threadId, items);
+      });
+
+    try {
+      await PgAssistant.loadThread("tB");
+      holdWrites();
+      PgAssistant.addUserMessage("in B");
+
+      // A's read is overtaken by going back to B, so its message is queued
+      const first = PgAssistant.loadThread("tA");
+      PgAssistant.addUserMessage("sent mid-read");
+      const backToB = PgAssistant.loadThread("tB", true);
+      // B's write must have taken the first gate before the second goes up
+      await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+      const releaseB = gates[0];
+      holdWrites();
+      releaseB();
+      await Promise.all([first, backToB]);
+
+      // Reopened while that write is still held
+      const reopened = PgAssistant.loadThread("tA");
+      releaseAll();
+      await reopened;
+      PgAssistant.addUserMessage("later");
+      await settled();
+    } finally {
+      releaseAll();
+      write.mockRestore();
+    }
+
+    expect(storedTexts(await PgChatStorage.read("tA"))).toEqual([
+      "stored",
+      "sent mid-read",
+      "later",
+    ]);
+  });
+
+  it("opens a thread while another thread's write is still out", async () => {
+    // Only this thread's own writes are waited for: a write of another thread
+    // that never settles used to hold every later load at "reading"
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    const realWrite = PgChatStorage.write.bind(PgChatStorage);
+    const write = vi
+      .spyOn(PgChatStorage, "write")
+      .mockImplementation(async (threadId, items) => {
+        await hold;
+        return realWrite(threadId, items);
+      });
+
+    try {
+      await PgAssistant.loadThread("tB");
+      PgAssistant.addUserMessage("in B");
+      await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+
+      void PgAssistant.loadThread("tA");
+      await vi.waitFor(() =>
+        expect(storedTexts(PgAssistant.items)).toEqual(["stored"])
+      );
+    } finally {
+      release();
+      write.mockRestore();
+    }
+  });
+
+  it("keeps what was typed mid-read across a backend switch", async () => {
+    // `clear` on a backend switch replaced the stand-in list, so messages
+    // typed after it were on no list an overtaken read could keep
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const loading = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("before the switch");
+    PgAssistant.clear();
+    PgAssistant.addUserMessage("after the switch");
+    PgAssistant.closeThread();
+    await loading;
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "before the switch",
+      "after the switch",
+    ]);
+  });
+
+  it("puts messages kept from an overtaken read in the order they were typed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await PgChatStorage.write("t1", [
+        {
+          kind: "user",
+          id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          createdAt: at,
+          text: "stored",
+        },
+      ]);
+
+      vi.setSystemTime(new Date("2026-02-01T00:00:00.000Z"));
+      const first = PgAssistant.loadThread("t1");
+      PgAssistant.addUserMessage("earlier");
+      PgAssistant.closeThread();
+      const second = PgAssistant.loadThread("t1");
+      vi.setSystemTime(new Date("2026-02-01T00:00:01.000Z"));
+      PgAssistant.addUserMessage("later");
+      await Promise.all([first, second]);
+      await settled();
+
+      expect(storedTexts(PgAssistant.items)).toEqual([
+        "stored",
+        "earlier",
+        "later",
+      ]);
+      expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+        "stored",
+        "earlier",
+        "later",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the messages of two overtaken reads of one thread", async () => {
+    // A -> B -> A -> C with a message typed in each read of A: both reads
+    // are overtaken, and writing each one's own snapshot let the second
+    // replace the first
+    await PgChatStorage.write("tA", [
+      {
+        kind: "user",
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const first = PgAssistant.loadThread("tA");
+    PgAssistant.addUserMessage("first read");
+    const toB = PgAssistant.loadThread("tB");
+    const second = PgAssistant.loadThread("tA");
+    PgAssistant.addUserMessage("second read");
+    const toC = PgAssistant.loadThread("tC");
+    await Promise.all([first, toB, second, toC]);
+    await settled();
+
+    expect(storedTexts(await PgChatStorage.read("tA"))).toEqual([
+      "stored",
+      "first read",
+      "second read",
+    ]);
+  });
+
+  it("keeps a message sent mid-read when the same thread is reopened before the read lands", async () => {
+    // A -> B -> A faster than a read: the first read used to pass for the
+    // current one, since the thread id matched again. The message typed in
+    // its gap was dropped by the close, and the second read adopted the
+    // first's whole thread as though it had arrived mid-read: every item twice
+    await PgChatStorage.write("t1", [
+      {
+        kind: "user",
+        id: "88888888-8888-4888-8888-888888888888",
+        createdAt: at,
+        text: "stored",
+      },
+    ]);
+
+    const first = PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("sent mid-read");
+    PgAssistant.closeThread();
+    const second = PgAssistant.loadThread("t1");
+    await Promise.all([first, second]);
+    await settled();
+
+    expect(storedTexts(PgAssistant.items)).toEqual(["stored", "sent mid-read"]);
+    expect(storedTexts(await PgChatStorage.read("t1"))).toEqual([
+      "stored",
+      "sent mid-read",
+    ]);
   });
 
   it("does not overwrite a thread when the panel resets on backend switch", async () => {
