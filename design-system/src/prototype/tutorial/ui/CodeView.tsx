@@ -80,7 +80,9 @@ export function CodeView({
           </div>
         )
       })}
-      {hint && <p className="mt-3 pr-3 pl-10 font-sans text-caption text-muted-foreground">{hint}</p>}
+      {/* The pre keeps its spaces, so the hint has to ask to wrap: at a large font on a small phone it
+          ran past the edge and scrolled the screen sideways */}
+      {hint && <p className="mt-3 pr-3 pl-10 font-sans text-caption break-words whitespace-normal text-muted-foreground">{hint}</p>}
     </pre>
   )
 }

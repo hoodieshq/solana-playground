@@ -1,4 +1,4 @@
-import { Fragment } from "react"
+import { Fragment, useEffect, useRef } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -11,13 +11,27 @@ import { Prose } from "./Prose"
  * green, removed ones red and struck. A line the assistant explains carries a
  * purple dot; the dot, with the line number beside it, is a button that opens the
  * note right under the line, by the code it is about. The code itself stays text,
- * so it can be selected and copied */
+ * so it can be selected and copied. On a short screen the change can open below the fold (the fix's
+ * line 15, step 4's line 9 on a phone), so the diff scrolls to its first changed line as it opens */
 export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: number[]; onToggle: (line: number) => void }) {
   const notes = new Map(patch.notes.map((n) => [n.line, n.text]))
+  const rows = diffLines(patch.before, patch.after)
+  const first = rows.findIndex((r) => r.kind !== "context")
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current
+    const row = el?.querySelector<HTMLElement>("[data-first-change]")
+    if (!el || !row) return
+    // Only when it's out of view, and then a third of the way down, so the lines above it still say where it is
+    const shown = row.offsetTop >= el.scrollTop && row.offsetTop + row.offsetHeight <= el.scrollTop + el.clientHeight
+    if (shown) return
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    el.scrollTo({ top: Math.max(0, row.offsetTop - el.clientHeight / 3), behavior: smooth ? "smooth" : "auto" })
+  }, [patch.before, patch.after])
   let n = 0
   return (
-    <div aria-label={`Proposed change to ${patch.file}`} className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 font-mono text-code">
-      {diffLines(patch.before, patch.after).map((row, i) => {
+    <div ref={box} aria-label={`Proposed change to ${patch.file}`} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 font-mono text-code">
+      {rows.map((row, i) => {
         const number = row.kind === "removed" ? null : ++n
         const note = number !== null ? notes.get(number) : undefined
         const shown = note !== undefined && open.includes(number!)
@@ -81,7 +95,9 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
         )
         return (
           <Fragment key={i}>
-            <div className={tone}>{line}</div>
+            <div className={tone} data-first-change={i === first || undefined}>
+              {line}
+            </div>
             {shown && (
               <p className="my-1.5 mr-3 ml-14 rounded-control border border-border bg-surface-panel px-3 py-2 font-sans text-caption text-muted-foreground">
                 <Prose text={note} />
