@@ -56,9 +56,11 @@ const FREE = "Free chat isn't connected in this prototype. Try one of the sugges
 export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: string; suggestions: Chip[]; onAsk: (question: string, answer: string) => void }) {
   const [text, setText] = useState("")
   return (
-    <div className="shrink-0 border-t border-border px-3 pt-3 pb-3">
+    // The column's 20px edge, and the same foot as the tutorial page's Start: 16 above, 20 at the sides and below
+    <div className="shrink-0 border-t border-border px-5 pt-4 pb-5">
       {suggestions.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
+        // Twice the gap between chips, so they read as suggestions, not part of the field
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {suggestions.map((c) => (
             <button
               key={c.label}
