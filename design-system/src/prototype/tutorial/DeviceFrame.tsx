@@ -1,9 +1,9 @@
 import { useRef } from "react"
-import { BatteryFull, RotateCcw, Signal, Wifi } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
+import { BatteryFull, Signal, Wifi } from "lucide-react"
 
 import { resetStorage } from "./store"
+import { KEEP } from "./view"
+import { ViewSwitch } from "./ViewSwitch"
 
 /** On a wide screen the prototype runs in an iframe shaped like a phone, so
  * fixed sheets and the viewport behave as they do on a real one */
@@ -27,17 +27,14 @@ export function DeviceFrame() {
           </span>
         </div>
         <div className="relative min-h-0 flex-1">
-          <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed`} className="size-full border-0 bg-surface-base" />
+          <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed${KEEP ? "&keep=1" : ""}`} className="size-full border-0 bg-surface-base" />
           {/* The home indicator. The page keeps 34px clear for it, as on a real phone */}
           <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-foreground/80" />
         </div>
       </div>
       <div className="flex items-center gap-3 text-caption text-muted-foreground">
-        <span>Solana Playground · tutorial flow on a phone · prototype</span>
-        <Button variant="ghost" size="sm" onClick={reset}>
-          <RotateCcw />
-          Reset
-        </Button>
+        <span>Solana Playground · tutorial flow · prototype</span>
+        <ViewSwitch onReset={reset} />
       </div>
     </div>
   )
