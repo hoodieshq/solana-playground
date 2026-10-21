@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { fixFor, freshLines, patchFor, useStore } from "../store"
@@ -34,6 +35,8 @@ export function Step() {
   const [jump, setJump] = useState<{ line: number; n: number } | null>(null)
   const ids = useRef(0)
   const scroller = useRef<HTMLDivElement>(null)
+  // Whether the column has more below what shows, for the fade at its foot
+  const [more, setMore] = useState(false)
 
   const say = (text: string, quote?: Quote) => setMsgs((m) => [...m, { id: ++ids.current, from: "assistant", text, quote }])
   const ask = (question: string, answer: string) =>
@@ -89,6 +92,22 @@ export function Step() {
     ro.observe(box)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const check = () => setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 1)
+    check()
+    el.addEventListener("scroll", check, { passive: true })
+    // The column and the feed change size as replies type and the lesson folds
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    if (feed.current) ro.observe(feed.current)
+    return () => {
+      el.removeEventListener("scroll", check)
+      ro.disconnect()
+    }
+  }, [lessonOpen, s.step, s.phase])
 
   const busy = s.phase === "building" || s.phase === "deploying"
   // The deploy step has no code to write
@@ -220,6 +239,7 @@ export function Step() {
 
         {/* The column reads top down, as a lesson page beside the editor: the goal, the lesson, the
             task, the quick check when a patch comes, then what the assistant said */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
           <p className="text-caption text-muted-foreground">{step.title}</p>
           <h1 className="mt-1 font-heading text-[1.25rem] leading-snug">{step.objective}</h1>
@@ -274,6 +294,15 @@ export function Step() {
           <div ref={feed}>
             <Feed msgs={msgs} resolved={s.passed[s.step]} />
           </div>
+        </div>
+        {/* Text running on under the field fades out, but only while there's more below */}
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-surface-base to-transparent transition-opacity duration-200 ease-standard motion-reduce:transition-none",
+            more ? "opacity-100" : "opacity-0"
+          )}
+        />
         </div>
 
         <AskBox placeholder={placeholder} suggestions={suggestions} onAsk={ask} />
