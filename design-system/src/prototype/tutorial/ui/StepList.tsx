@@ -50,7 +50,7 @@ export function StepList({ className }: { className?: string }) {
                 )}
               </span>
               {/* A step still ahead keeps its title brighter than its objective, so the two don't read as one grey block */}
-              <span className={cn("block text-control leading-[22px]", !open && "text-foreground/70")}>{step.title}</span>
+              <span className={cn("block text-control! leading-[22px]", !open && "text-foreground/70")}>{step.title}</span>
               <span className="col-start-2 block text-caption text-muted-foreground">{step.objective}</span>
             </button>
           </li>

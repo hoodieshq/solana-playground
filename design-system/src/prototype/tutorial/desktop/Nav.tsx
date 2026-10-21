@@ -18,7 +18,7 @@ function Item({ icon, label, active = false, onClick }: { icon: ReactNode; label
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-9 w-full items-center gap-2.5 rounded-control px-2.5 text-caption text-muted-foreground transition-colors duration-150 ease-standard hover:bg-surface hover:text-foreground motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0",
+        "flex h-9 w-full items-center gap-2.5 rounded-control px-2.5 text-caption! text-muted-foreground transition-colors duration-150 ease-standard hover:bg-surface hover:text-foreground motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0",
         active && "bg-surface-raised text-foreground"
       )}
     >

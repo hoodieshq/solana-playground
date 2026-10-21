@@ -156,7 +156,7 @@ function TabsAndSearch({
           tabIndex={searching ? undefined : -1}
           onClick={onClose}
           className={cn(
-            "h-11 overflow-hidden text-control whitespace-nowrap text-muted-foreground active:text-foreground transition-[max-width,opacity,padding,color]",
+            "h-11 overflow-hidden text-control! whitespace-nowrap text-muted-foreground active:text-foreground transition-[max-width,opacity,padding,color]",
             MOTION,
             searching ? "max-w-20 pl-3 opacity-100" : "max-w-0 pl-0 opacity-0"
           )}
