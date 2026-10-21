@@ -15,6 +15,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
 } from "../../../features/persistence/model/chat-storage";
+import { report } from "../../../features/persistence";
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "./grounding";
@@ -163,6 +164,18 @@ export const KEY_NOT_FORGOTTEN =
   "Your key could not be removed from this tab's storage. Close this tab to " +
   "remove it.";
 
+/**
+ * Shown on a thread that could not be read. Its file may still be recoverable
+ * by hand, so nothing is written over it -- which means nothing typed here is
+ * kept either, and the user has to be told.
+ */
+export const THREAD_NOT_SAVED =
+  "This conversation could not be read from this device's storage, so new " +
+  "messages here are not saved.";
+
+/** Whether the open thread may be written, and why not -- see `_writes` */
+type ThreadWrites = "open" | "reading" | "unreadable";
+
 /** Which backend the panel is talking to, and what it needs to reach it */
 export interface Connection {
   id: ProviderId;
@@ -190,6 +203,19 @@ export type AssistantStatus =
 
 const makeId = uuid;
 const now = () => new Date().toISOString();
+
+let lastCreated = 0;
+
+/**
+ * When a new item is made: now, but strictly later than the item made before
+ * it in this tab. Items are ordered by `createdAt` wherever threads merge
+ * (`mergeThreads`), and a tie falls to the id, which is random, so a message
+ * and the reply started in the same millisecond came back either way round.
+ */
+const created = () => {
+  lastCreated = Math.max(Date.now(), lastCreated + 1);
+  return new Date(lastCreated).toISOString();
+};
 
 /**
  * Mark an existing item as changed now.
@@ -365,7 +391,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "notice",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text: KEY_NOT_FORGOTTEN,
     });
     PgAssistant._emitOnly();
@@ -492,7 +518,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "user",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text,
     });
     PgAssistant._emit();
@@ -567,7 +593,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "assistant",
       id,
-      createdAt: now(),
+      createdAt: created(),
       text: "",
       ...(origin ? { origin } : {}),
     });
@@ -598,7 +624,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "tool",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       label,
     });
     PgAssistant._emit();
@@ -608,7 +634,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "notice",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text,
     });
     PgAssistant._emit();
@@ -618,7 +644,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "error",
       id: makeId(),
-      createdAt: now(),
+      createdAt: created(),
       text: redactKey(text, PgAssistant._connection?.apiKey),
     });
     PgAssistant._emit();
@@ -644,7 +670,7 @@ export class PgAssistant {
     PgAssistant._items.push({
       kind: "approval",
       id,
-      createdAt: now(),
+      createdAt: created(),
       request,
       status: "pending",
     });
@@ -719,7 +745,10 @@ export class PgAssistant {
    */
   static clear() {
     PgAssistant._denyPending();
-    PgAssistant._items = [];
+    // Not while a read is out: what is rendered then is only what was typed
+    // during it, written nowhere yet, and the read adopts it from this very
+    // list -- a new one would leave it, and anything typed after, unkept
+    if (PgAssistant._writes !== "reading") PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
   }
@@ -727,6 +756,14 @@ export class PgAssistant {
   /** Which thread is open, or `null` before one has been chosen */
   static get threadId() {
     return PgAssistant._threadId;
+  }
+
+  /**
+   * Whether the open thread could not be read, so nothing typed into it is
+   * saved. The panel shows `THREAD_NOT_SAVED` while it is.
+   */
+  static get unsaved() {
+    return PgAssistant._writes === "unreadable";
   }
 
   /**
@@ -745,7 +782,10 @@ export class PgAssistant {
 
     PgAssistant._denyPending();
     PgAssistant._threadId = null;
-    PgAssistant._readOnly = false;
+    // A read still out for the closed thread is stale from here on, even if
+    // the same thread opens again before it lands
+    PgAssistant._loadSeq++;
+    PgAssistant._writes = "open";
     PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
@@ -805,30 +845,101 @@ export class PgAssistant {
 
     PgAssistant._denyPending();
     PgAssistant._threadId = threadId;
-    PgAssistant._items = [];
+    const seq = ++PgAssistant._loadSeq;
+    // Kept by reference: messages sent during the read are pushed onto it,
+    // and it is what holds them if the read is overtaken before it lands
+    const gap: ChatItem[] = [];
+    PgAssistant._items = gap;
     PgAssistant._status = "idle";
+    // Closed to writes until the read lands. `_items` is a stand-in for the
+    // thread until then, and any `_emit` in the gap -- MCP discovery on a
+    // reload, say -- would write it over the stored thread, behind a read
+    // that still returns the old content: memory right, storage `[]`.
+    // Messages sent meanwhile are adopted when the read lands, and written
+    // unless it failed.
+    PgAssistant._writes = "reading";
     PgAssistant._emitOnly();
 
+    // After this thread's queued writes, such as what `_keepOvertaken` kept
+    // for it: a read issued first would come back without them, and the next
+    // write from memory would replace the file that had them. Only this
+    // thread's, so another thread's write that is slow, or never settles,
+    // does not hold a load with nothing of its own queued behind it
+    await PgAssistant._afterThreadWrites(threadId);
     const items = await PgChatStorage.read(threadId);
-    if (PgAssistant._threadId !== threadId) return;
+    // By load, not by thread id: A -> B -> A faster than a read leaves the
+    // same id open, and the first read passing for the current one dropped
+    // what was typed in its gap and handed the second read its whole thread
+    // to adopt, so every item showed twice
+    if (PgAssistant._loadSeq !== seq) {
+      PgAssistant._keepOvertaken(threadId, [...orphans, ...gap]);
+      return;
+    }
 
     // A thread that could not be read renders as empty -- there is nothing
     // else the panel can show -- but it must not be *persisted* as empty. The
     // next `_persist()` would write this back over a file that may still be
     // recoverable, so the thread stays closed to writes until it reads
-    // cleanly. `__pgChatStorage.lastFailure` says why. Set before the emit
-    // below, which is where `_persist` reads it.
-    PgAssistant._readOnly = items === null;
+    // cleanly, and the panel says so (`unsaved`).
+    // `__pgChatStorage.lastFailure` says why. A clean read is also what opens
+    // the thread to writes again, closed since the read began. Set before the
+    // emit below, which is where `_persist` reads it.
+    PgAssistant._writes = items === null ? "unreadable" : "open";
 
     // Whatever is in `_items` now arrived during the read, for this thread
     const adopted = [...orphans, ...PgAssistant._items];
     PgAssistant._items = [...(items ?? []), ...adopted];
     // `_emit` rather than `_emitOnly` when something was adopted: those
-    // messages have never been written down under this thread. On a read-only
-    // thread `_persist` declines regardless, so they stay on screen without
-    // overwriting a file that may still be recoverable.
+    // messages have never been written down under this thread. On an
+    // unreadable thread `_persist` declines regardless, so they stay on
+    // screen without overwriting a file that may still be recoverable.
     if (adopted.length) PgAssistant._emit();
     else PgAssistant._emitOnly();
+  }
+
+  /**
+   * Keep what was typed during a read that was overtaken before it landed.
+   *
+   * With writes closed it was never written, and the close or the next load
+   * took it off screen: it belongs to `threadId`, so it is not dropped.
+   *
+   * - The same thread is open again: it goes onto what is rendered, where
+   *   that load adopts it, or writes it now if its read has landed.
+   * - Another thread, or none, is open: it is written after what is stored
+   *   by then, on the write queue.
+   * - The thread could not be read: nothing is written over it, and the loss
+   *   is reported, since nothing else would say so.
+   */
+  private static _keepOvertaken(threadId: string, unwritten: ChatItem[]) {
+    if (!unwritten.length) return;
+
+    if (PgAssistant._threadId === threadId) {
+      // In place, in the order they were typed: a newer load of this thread
+      // may still hold this list, and what was typed during it is newer
+      const all = mergeThreads(PgAssistant._items, unwritten);
+      PgAssistant._items.splice(0, PgAssistant._items.length, ...all);
+      PgAssistant._emit();
+      return;
+    }
+
+    // Merged into the thread as it is when the write's turn comes, not into
+    // the copy this read saw: two overtaken reads of one thread saw the same
+    // copy, and writing each one's own let the second replace the first
+    PgAssistant._enqueue(threadId, async () => {
+      const stored = await PgChatStorage.read(threadId);
+      if (stored === null) {
+        // `report` appends "failed" to this
+        report(
+          `keep ${unwritten.length} message(s) typed while ${threadId} was unreadable`,
+          null
+        );
+        return;
+      }
+      const known = new Set(stored.map((item) => item.id));
+      if (unwritten.some((item) => !known.has(item.id))) {
+        await PgChatStorage.write(threadId, mergeThreads(stored, unwritten));
+      }
+    });
   }
 
   /**
@@ -921,9 +1032,16 @@ export class PgAssistant {
   private static _pendingPrompt: PromptRequest | null = null;
 
   private static _threadId: string | null = null;
-  /** Set when the open thread failed to read, cleared when one reads cleanly */
-  private static _readOnly = false;
+  /**
+   * Whether the open thread may be written: not while its read is out, nor
+   * after that read failed, since in both cases `_items` is not the thread
+   */
+  private static _writes: ThreadWrites = "open";
+  /** Bumped by every load and close, so a read can tell it was overtaken */
+  private static _loadSeq = 0;
   private static _lastWrite: Promise<void> = Promise.resolve();
+  /** Each thread's latest step on the write queue, while it is out */
+  private static readonly _threadWrites = new Map<string, Promise<void>>();
   /** The thread read `loadThread` has out, if any */
   private static _loading: { threadId: string; done: Promise<void> } | null =
     null;
@@ -948,20 +1066,59 @@ export class PgAssistant {
    */
   private static _persist() {
     if (!PgAssistant._threadId) return;
-    // The open thread could not be read, so what is in memory is not the
-    // thread -- it is the empty list the panel fell back to. Writing it back
-    // would replace a file that may still be recoverable by hand with
-    // nothing, which is the same mistake as reporting it uploaded.
-    if (PgAssistant._readOnly) return;
+    // The open thread is still being read, or could not be: either way what
+    // is in memory is not the stored thread, and writing it back would
+    // replace that thread, or a file that may still be recoverable by hand
+    if (PgAssistant._writes !== "open") return;
 
-    // Chained rather than fired independently, so writes cannot land out of
-    // order -- two quick messages must not race into the second overwriting
-    // the first with a shorter list
-    const threadId = PgAssistant._threadId;
-    const items = [...PgAssistant._items];
-    PgAssistant._lastWrite = PgAssistant._lastWrite
-      .catch(() => {})
-      .then(() => PgChatStorage.write(threadId, items));
+    PgAssistant._queueWrite(PgAssistant._threadId, [...PgAssistant._items]);
+  }
+
+  /**
+   * Chained rather than fired independently, so writes cannot land out of
+   * order -- two quick messages must not race into the second overwriting
+   * the first with a shorter list
+   */
+  private static _queueWrite(threadId: string, items: readonly ChatItem[]) {
+    PgAssistant._enqueue(threadId, () => PgChatStorage.write(threadId, items));
+  }
+
+  /**
+   * Put a step for `threadId` on the write queue, and remember it as that
+   * thread's latest until it settles, for `_afterThreadWrites`
+   */
+  private static _enqueue(threadId: string, step: () => Promise<void>) {
+    const done = PgAssistant._afterWrites().then(step);
+    PgAssistant._lastWrite = done;
+    PgAssistant._threadWrites.set(threadId, done);
+    // Both ways rather than `finally`, whose own promise would reject
+    // unhandled with `done`; a failure is `_settle`'s to report
+    const forget = () => {
+      if (PgAssistant._threadWrites.get(threadId) === done) {
+        PgAssistant._threadWrites.delete(threadId);
+      }
+    };
+    void done.then(forget, forget);
+  }
+
+  /** Once `threadId`'s queued writes have settled; at once if it has none */
+  private static async _afterThreadWrites(threadId: string) {
+    const pending = PgAssistant._threadWrites.get(threadId);
+    if (pending) await PgAssistant._settle(pending);
+  }
+
+  /** Once every write queued so far has settled, however it went */
+  private static _afterWrites() {
+    return PgAssistant._settle(PgAssistant._lastWrite);
+  }
+
+  private static _settle(write: Promise<void>) {
+    return write.catch((e) => {
+      // Nothing on the queue rejects today: `PgChatStorage` catches and
+      // reports its own failures. If something ever did, it is reported here
+      // and the queue goes on, since one failed write must not stop the rest
+      report("chat write queue", e);
+    });
   }
 
   /** Notify and write back. Every mutator goes through here. */
