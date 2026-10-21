@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Исходники прототипа</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #111113; color: #e8e8ea; font: 15px/1.6 -apple-system, system-ui, sans-serif; }
+      main { max-width: 680px; margin: 0 auto; padding: 48px 16px; }
+      h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
+      h2 { font-size: 16px; font-weight: 500; margin: 32px 0 8px; }
+      p { margin: 8px 0; color: #b4b4ba; }
+      a { color: #b59cff; }
+      code, pre { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      pre { background: #1b1b1f; border: 1px solid #2a2a30; border-radius: 8px; padding: 12px 14px; overflow-x: auto; color: #e8e8ea; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Исходники прототипа туториала</h1>
+      <p>Ветка <code>{{BRANCH}}</code>, коммит <code>{{HEAD}}</code>, собрано {{DATE}}. Пока ветки нет на GitHub, код лежит здесь. Сам прототип: <a href="/prototype/tutorial/">/prototype/tutorial/</a></p>
+
+      <h2>Просто посмотреть код</h2>
+      <p><a href="design-system.zip" download>design-system.zip</a>: вся папка <code>design-system</code>, прототип в <code>src/prototype/tutorial</code>, спеки и планы в <code>docs/superpowers</code> есть только в ветке ниже.</p>
+
+      <h2>Забрать ветку с историей</h2>
+      <p><a href="tutorial-prototype.bundle" download>tutorial-prototype.bundle</a>: git bundle с коммитами поверх <code>saving-chats-history</code> Никиты (база <code>{{BASE}}</code>). В клоне, где эта ветка уже есть:</p>
+      <pre>git fetch ~/Downloads/tutorial-prototype.bundle {{BRANCH}}:{{BRANCH}}
+git switch {{BRANCH}}</pre>
+      <p>Запуск: <code>cd design-system &amp;&amp; npm install &amp;&amp; npm run dev</code>, потом <code>http://localhost:5173/prototype/tutorial/</code></p>
+    </main>
+  </body>
+</html>
