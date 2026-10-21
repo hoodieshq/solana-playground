@@ -1406,8 +1406,8 @@ project lands on Home instead of the gallery modal.
 - **Not in this task**: coming back to Home from an open project, and Home
   after the last project is deleted. A route hands `Primary` its content
   once, `PgRouter.navigate` to the current path does nothing, so a remounted
-  `Write` stays blank. 5.27 (HOO-2118) does both; see "Home from an open
-  project (5.27)".
+  `Write` stays blank. 5.28 (HOO-2118) does both; see "Home from an open
+  project (5.28)".
 - **From 720 px.** "Where should we begin?", the composer, three tiles and
   four tutorial cards, built from `composer`, `action-card`, `tag` and
   `button`. New project unfolds `StartFromScratch` under the tiles; Follow a
@@ -1639,7 +1639,7 @@ page. Toasts and dialogs are not the app here: they are the page's own
 feedback (a failed export, an import dialog), so `ToastHost` and `ModalHost`
 stay outside the hidden shell, above the page.
 
-## Home from an open project (5.27)
+## Home from an open project (5.28)
 
 Decided with Slava on 2026-10-20 (HOO-2118). 5.8 shows Home only on a start
 with no project open; this makes it reachable from an open project, and
