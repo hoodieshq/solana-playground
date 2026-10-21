@@ -1,9 +1,10 @@
-import { CircleAlert, CircleCheck, CircleDashed, Lightbulb, MessageCircle } from "lucide-react"
+import { CircleAlert, CircleCheck, CircleDashed, Lightbulb } from "lucide-react"
 
 import { Spinner } from "@/components/ui/spinner"
 
 import { STEPS } from "../data"
 import { fixFor, lastResult, patchFor, useStore, type State } from "../store"
+import { AssistantMark } from "./AssistantMark"
 import { Prose } from "./Prose"
 import { Typed } from "./Typed"
 
@@ -62,7 +63,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
         ) : lead ? (
           <Lightbulb strokeWidth={1.75} className="mt-px size-4 shrink-0 text-warning" />
         ) : (
-          <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
+          <AssistantMark className="mt-px text-brand-purple" />
         )}
         <span className="text-foreground">
           {lead ? <Prose text={lead.text} /> : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ArrowRight, MessageCircle } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
@@ -7,6 +7,7 @@ import { Kbd } from "@/components/ui/kbd"
 
 import { STEPS } from "../data"
 import { fixFor, useStore } from "../store"
+import { AssistantMark } from "../ui/AssistantMark"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
 
 const BTN = "h-10 gap-2 px-4 text-control"
@@ -59,7 +60,7 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
         {step.patch && (
           <Button variant="secondary" disabled={busy} className={BTN} onClick={() => dispatch({ type: "askPatch" })}>
             {/* In the label's colour: Build beside it is the one accent */}
-            <MessageCircle strokeWidth={1.75} className="size-4" />
+            <AssistantMark />
             Write with assistant
           </Button>
         )}
