@@ -1,6 +1,7 @@
 import { BlocksGame } from "./blocks"
 import { CommentGame } from "./comment"
 import { FixGame } from "./fix"
+import { MatchGame } from "./match"
 import { NameGame } from "./name"
 import { PredictGame } from "./predict"
 import { RouteGame } from "./route"
@@ -44,5 +45,11 @@ export const MECHANICS: Mechanic[] = [
     hook: "Route the transaction",
     line: "Tap the four stops a call to hello goes through, in order.",
     Play: RouteGame,
+  },
+  {
+    id: "match",
+    hook: "Match the macros",
+    line: "Four words every Anchor program uses. Tap one, then what it does.",
+    Play: MatchGame,
   },
 ]
