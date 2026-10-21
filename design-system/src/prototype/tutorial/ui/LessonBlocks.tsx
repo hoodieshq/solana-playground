@@ -26,11 +26,11 @@ function Block({ block, column }: { block: LessonBlock; column: boolean }) {
   return (
     <CodeBlock className={cn("mt-3 bg-surface-well", column && "group relative")}>
       {/* A line that runs past the edge fades into it, so it reads as scrolling on, not cut off */}
-      <CodeBlockContent className={cn("text-code", column && "[mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]")}>
+      <CodeBlockContent className="text-code [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]">
         {block.code.split("\n").map((line, i) => (
-          // A phone has to wrap. In the desktop column a long line scrolls instead, so a wrapped
-          // half never lands at the start of the next line and the indents keep the structure
-          <div key={i} className={cn("min-h-[1lh]", column ? "whitespace-pre" : "break-words whitespace-pre-wrap")}>
+          // A long line scrolls, on the phone too, rather than wrap: a wrapped half would land at
+          // the start of the next line and break the indents that show the structure
+          <div key={i} className="min-h-[1lh] whitespace-pre">
             {highlight(line)}
           </div>
         ))}
@@ -48,7 +48,7 @@ function Block({ block, column }: { block: LessonBlock; column: boolean }) {
   )
 }
 
-/** `column` is the desktop's lesson column, beside an editor: code doesn't wrap, and each block has Copy */
+/** `column` is the desktop's lesson column, beside an editor: each code block gets Copy, for typing the step out */
 export function LessonBlocks({ blocks, column = false }: { blocks: LessonBlock[]; column?: boolean }) {
   return (
     <>

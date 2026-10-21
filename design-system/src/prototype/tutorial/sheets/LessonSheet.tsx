@@ -3,7 +3,7 @@ import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
-import { LessonBlocks } from "../ui/LessonBlocks"
+import { LessonBlocks, readingMinutes } from "../ui/LessonBlocks"
 import { AssistantMark } from "../ui/AssistantMark"
 
 /** The step's lesson, read over the code. Ask hands the same step to the assistant */
@@ -15,8 +15,10 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
       <DrawerContent className="max-h-[82dvh]">
         {/* One measure for header and text: about 65 characters a line, however wide the screen */}
         <DrawerHeader className="mx-auto w-full max-w-[40rem] pb-2">
-          <p className="text-caption text-muted-foreground">Lesson</p>
-          <DrawerTitle className="mt-1 font-heading text-display! font-normal!">{step.title}</DrawerTitle>
+          {/* As in the desktop's column: a quiet label with the reading time, the step's goal at 20px,
+              then the sections at 17. Before, the step's name at 28 jumped straight down to 17 */}
+          <p className="text-caption text-muted-foreground">Lesson · {readingMinutes(step)} min</p>
+          <DrawerTitle className="mt-1 font-heading text-[1.25rem]! leading-snug! font-normal!">{step.objective}</DrawerTitle>
         </DrawerHeader>
         <div className="mx-auto min-h-0 w-full max-w-[40rem] overflow-y-auto px-4 pt-4 pb-4">
           <LessonBlocks blocks={step.lesson} />
