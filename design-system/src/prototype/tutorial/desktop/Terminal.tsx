@@ -13,16 +13,18 @@ import { workingLabel } from "../ui/StepStatus"
 export function TerminalStatus() {
   const { s } = useStore()
   const busy = s.phase === "building" || s.phase === "deploying"
+  // Typing clears the error but keeps the log, so the dot follows whether the step passed
+  const failed = !!s.error || (s.log.length > 0 && !s.passed[s.step])
   return (
     <>
       <span
         aria-hidden="true"
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          busy ? "animate-pulse-dot bg-brand-purple motion-reduce:animate-none" : s.error ? "bg-error" : s.log.length ? "bg-success" : "bg-muted-foreground/40"
+          busy ? "animate-pulse-dot bg-brand-purple motion-reduce:animate-none" : failed ? "bg-error" : s.log.length ? "bg-success" : "bg-muted-foreground/40"
         )}
       />
-      <span className="truncate">{busy ? workingLabel(s) : s.error ? "Build failed" : s.log.length ? s.log[s.log.length - 1] : "Terminal"}</span>
+      <span className="truncate">{busy ? workingLabel(s) : failed ? "Build failed" : s.log.length ? s.log[s.log.length - 1] : "Terminal"}</span>
     </>
   )
 }
@@ -86,7 +88,16 @@ export function TerminalBody() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <BuildLog log={s.log} empty="Nothing built yet. Press Build or ⌘B." />
+      <BuildLog
+        log={s.log}
+        empty={
+          step.deploy
+            ? "Nothing deployed yet. Press Deploy to devnet or ⌘B."
+            : step.id === "call-client"
+              ? "Nothing run yet. Press Run the client or ⌘B."
+              : "Nothing built yet. Press Build or ⌘B."
+        }
+      />
       {step.deploy && s.passed[s.step] && <ProgramId />}
     </div>
   )

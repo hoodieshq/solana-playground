@@ -75,7 +75,8 @@ export function ActionBar({ lead, asking, explained, onExplain }: { lead?: Lead;
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-start gap-1.5 text-caption leading-relaxed text-muted-foreground">
         {asking ? <span>Answer the quick check to see the code, or skip it</span> : <StepStatus lead={lead} />}
       </p>
-      <div className="flex shrink-0 items-center gap-2">{buttons}</div>
+      {/* Holds the bar's height when there are no buttons, so the code above doesn't jump */}
+      <div className="flex h-10 shrink-0 items-center gap-2">{buttons}</div>
     </div>
   )
 }
