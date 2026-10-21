@@ -14,7 +14,8 @@ export function AssistantMark({ className, strokeWidth = 2 }: { className?: stri
       aria-hidden="true"
       className={cn("size-4 shrink-0", className)}
     >
-      <path d="M12 4V12M12 12V20M12 12L18 6M12 12L6 18M12 12H20M12 12H4M12 12L18 18M12 12L6 6" />
+      {/* Eight rays of one length, reaching nearly to the grid's edge */}
+      <path d="M12 2V12M12 12V22M12 12L19.0711 4.92893M12 12L4.92893 19.0711M12 12L22 12M12 12L2 12M12 12L19.0711 19.0711M12 12L4.92893 4.92893" />
     </svg>
   )
 }
