@@ -16,6 +16,13 @@ const CLASS = [
   "text-syntax-number",
 ]
 
+/** A soft-wrapped line's rest hangs two characters in from where the line's own code starts, so
+ * the wrap reads as the same line going on, never as a new line at the left edge */
+export function hang(line: string) {
+  const n = (line.match(/^\s*/)?.[0].length ?? 0) + 2
+  return { paddingLeft: `${n}ch`, textIndent: `-${n}ch` }
+}
+
 export function highlight(line: string): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
@@ -64,7 +71,9 @@ export function CodeView({
             )}
           >
             <span className="w-10 shrink-0 pr-3 text-right text-subtle select-none">{n}</span>
-            <code className="min-w-0 flex-1 whitespace-pre-wrap break-words text-syntax-plain">{highlight(line)}</code>
+            <code style={hang(line)} className="min-w-0 flex-1 whitespace-pre-wrap break-words text-syntax-plain">
+              {highlight(line)}
+            </code>
           </div>
         )
       })}

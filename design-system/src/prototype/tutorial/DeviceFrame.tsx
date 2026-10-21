@@ -1,5 +1,4 @@
 import { useRef } from "react"
-import { BatteryFull, Signal, Wifi } from "lucide-react"
 
 import { resetStorage } from "./store"
 import { KEEP } from "./view"
@@ -18,15 +17,10 @@ export function DeviceFrame() {
       <PrototypeBar onReset={reset} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
       <div className="flex aspect-[390/844] h-[min(844px,calc(100dvh-88px))] flex-col overflow-hidden rounded-[52px] border-[10px] border-surface-raised bg-surface-base shadow-modal">
-        {/* What a phone keeps above the page: on a real one the safe area does this */}
-        <div aria-hidden="true" className="relative flex h-[50px] shrink-0 items-center justify-between px-8 text-[15px] font-semibold">
-          <span>9:41</span>
+        {/* What a phone keeps above the page: on a real one the safe area does this. Only the island,
+            no clock or status icons, so nothing but the prototype draws the eye */}
+        <div aria-hidden="true" className="relative h-[50px] shrink-0">
           <span className="absolute top-2.5 left-1/2 h-[30px] w-[100px] -translate-x-1/2 rounded-full bg-black" />
-          <span className="flex items-center gap-1.5">
-            <Signal className="size-4" />
-            <Wifi className="size-4" />
-            <BatteryFull className="size-5" />
-          </span>
         </div>
         <div className="relative min-h-0 flex-1">
           <iframe ref={ref} title="Tutorial flow prototype" src={`${location.pathname}?embed${KEEP ? "&keep=1" : ""}`} className="size-full border-0 bg-surface-base" />

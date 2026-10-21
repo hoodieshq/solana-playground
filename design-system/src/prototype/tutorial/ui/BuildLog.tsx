@@ -15,7 +15,9 @@ export function BuildLog({
 }) {
   if (log.length === 0) return <p className="flex-1 px-4 py-6 text-caption text-muted-foreground">{empty}</p>
   return (
-    <pre className="min-h-0 flex-1 overflow-y-auto bg-surface-well px-4 py-3 font-mono text-code whitespace-pre-wrap break-words">
+    // A log line doesn't wrap: it scrolls and fades at the edge, like code in the lesson, so a key never
+    // leaves its last character alone on the next line
+    <pre className="min-h-0 flex-1 overflow-auto bg-surface-well px-4 py-3 font-mono text-code whitespace-pre [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]">
       {log.map((line, i) => {
         const tone = cn(
           "text-muted-foreground",

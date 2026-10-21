@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 import type { Patch } from "../data"
 import { diffLines } from "../diff"
-import { highlight } from "./CodeView"
+import { hang, highlight } from "./CodeView"
 import { Prose } from "./Prose"
 
 /** A proposal shown in the file itself: unchanged lines as code, added ones
@@ -32,6 +32,7 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
               )}
             </span>
             <code
+              style={hang(row.text)}
               className={cn(
                 "min-w-0 flex-1 break-words whitespace-pre-wrap text-syntax-plain",
                 row.kind === "removed" && "text-error line-through decoration-error/50"

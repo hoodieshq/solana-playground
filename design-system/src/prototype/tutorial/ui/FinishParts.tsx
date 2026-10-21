@@ -71,7 +71,8 @@ export function LearnedList({ className }: { className?: string }) {
   return (
     <ul className={cn("flex flex-col gap-2.5", className)}>
       {STEPS.map((step) => (
-        <li key={step.id} className="flex items-start gap-2.5 text-body text-muted-foreground">
+        // The reading weight, as in the lesson; grey stays, it's a secondary list
+        <li key={step.id} className="flex items-start gap-2.5 text-body font-read text-muted-foreground">
           <Check strokeWidth={2.25} className="mt-1 size-4 shrink-0 text-success" />
           {step.learned}
         </li>
