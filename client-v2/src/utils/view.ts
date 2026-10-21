@@ -77,19 +77,23 @@ const closeIfNoHost = (id: string) => {
 
 /**
  * What a modal opened now returns focus to: what has focus, or, for an item
- * of a menu, the menu's trigger, since a menu closes once an item is picked
- * and its items go with it.
+ * of a menu, the trigger of the outermost menu, since menus close once an item
+ * is picked and their items go with them. A context menu's trigger names no
+ * menu, so its item stays the opener, and focus is lost when it goes.
  */
 const focusOpener = (): HTMLElement | null => {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement) || active === document.body) return null;
-  const menu = active.closest<HTMLElement>('[role="menu"]');
-  const trigger =
-    menu?.id &&
-    document.querySelector<HTMLElement>(
-      `[aria-controls=${JSON.stringify(menu.id)}]`
-    );
-  return trigger || active;
+  let opener = active;
+  // A submenu's trigger is an item of the menu above it
+  for (;;) {
+    const menu: HTMLElement | null = opener.closest('[role="menu"]');
+    const trigger: HTMLElement | null = menu?.id
+      ? document.querySelector(`[aria-controls=${JSON.stringify(menu.id)}]`)
+      : null;
+    if (!trigger) return opener;
+    opener = trigger;
+  }
 };
 
 /** Replace the open modals and tell `PgView.onDidChangeModals` */

@@ -157,18 +157,14 @@ export const ModalFrame = ({
     }
   };
 
-  // Radix sends focus back to what had it when this content mounted, and to
-  // `<body>` when that is gone: the menu item that opened the dialog, or a
-  // field of a dialog that has since remounted
+  // Radix sends focus to the dialog's `Trigger`, and these dialogs open with
+  // none, so without this focus is lost to `<body>`. While any dialog is open
+  // (this one covered, or another opened in its place) the one on top holds
+  // focus; the opener gets it back only once none is.
   const returnFocus = (event: Event) => {
-    const stillOpen = PgView.getOpenModals().some((modal) => modal.id === id);
-    if (!stillOpen && opener.current?.isConnected) {
-      event.preventDefault();
-      opener.current.focus();
-      return;
-    }
-    // Covered, or closed under another dialog: the dialog on top takes focus
-    if (PgView.getOpenModals().length) event.preventDefault();
+    event.preventDefault();
+    if (PgView.getOpenModals().length) return;
+    if (opener.current?.isConnected) opener.current.focus();
   };
 
   // Under another dialog: draw no second dialog content. Only the state held

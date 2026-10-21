@@ -43,8 +43,8 @@ export type BaseModalFrameProps = {
   };
   size: ModalSize;
   /**
-   * Where focus goes once the dialog's content unmounts; `preventDefault()`
-   * keeps it from going to what had focus when the content mounted
+   * Runs once the dialog's content unmounts; Radix would send focus to the
+   * dialog's `Trigger`, and `preventDefault()` stops it
    */
   onCloseAutoFocus?: (event: Event) => void;
   children?: ReactNode;

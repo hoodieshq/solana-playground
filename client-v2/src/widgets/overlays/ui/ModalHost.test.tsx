@@ -370,15 +370,25 @@ describe("focus after a dialog closes", () => {
     );
   });
 
-  it("should keep focus in the dialog below when the one on top closes", async () => {
-    render(<ModalHost />);
-    open(Outer);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    });
+  it("should not focus the opener while another dialog has taken its place", async () => {
+    render(
+      <>
+        <button onClick={() => void PgView.setModal(Info)}>Open info</button>
+        <ModalHost />
+      </>
+    );
+    const opener = screen.getByRole("button", { name: "Open info" });
+    opener.focus();
+    act(() => opener.click());
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+    const focused = vi.fn();
+    opener.addEventListener("focus", focused);
 
     act(() => {
-      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+      PgView.closeTopModal();
+      void PgView.setModal(Outer);
     });
 
     await waitFor(() =>
@@ -387,6 +397,64 @@ describe("focus after a dialog closes", () => {
           .getByRole("dialog", { name: "Outer" })
           .contains(document.activeElement)
       ).toBe(true)
+    );
+    await act(async () => {
+      await PgCommon.sleep(10);
+    });
+    expect(focused).not.toHaveBeenCalled();
+  });
+
+  it("should return focus to the trigger of a menu a submenu opened from", async () => {
+    const Menus = () => {
+      // Picking an item closes the menu and the menus above it
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button aria-controls="outer-menu">More</button>
+          {open && (
+            <>
+              <div role="menu" id="outer-menu">
+                <button role="menuitem" aria-controls="inner-menu">
+                  Export
+                </button>
+              </div>
+              <div role="menu" id="inner-menu">
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    void PgView.setModal(Info);
+                    setOpen(false);
+                  }}
+                >
+                  As zip
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      );
+    };
+    render(
+      <>
+        <Menus />
+        <ModalHost />
+      </>
+    );
+    const item = screen.getByRole("menuitem", { name: "As zip" });
+    item.focus();
+    act(() => item.click());
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Info" })).toBeTruthy()
+    );
+
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "More" })
+      )
     );
   });
 });
