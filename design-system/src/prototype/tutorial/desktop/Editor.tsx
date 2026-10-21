@@ -47,7 +47,7 @@ export function Editor({
   }
 
   return (
-    <div className={cn("min-h-0 flex-1 overflow-auto py-3 font-mono text-code leading-[1.6]", dim && "opacity-60")}>
+    <div className={cn("min-h-0 flex-1 overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
       {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
       <div className="grid min-w-max grid-cols-[58px_1fr]">
         <div aria-hidden="true" className="pr-6 text-right text-subtle select-none">

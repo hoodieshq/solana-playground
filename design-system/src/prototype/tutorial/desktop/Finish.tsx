@@ -13,7 +13,7 @@ export function Finish() {
   const { dispatch } = useStore()
   return (
     <div className="min-w-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-[34rem] px-6 pt-14 pb-16">
+      <div className="mx-auto w-full max-w-[32.5rem] px-6 pt-14 pb-16">
         <FinishBadge />
         <h1 className="mt-4 text-center font-heading text-display">Tutorial complete</h1>
         <p className="mt-2 text-center text-body text-muted-foreground">Your program is live on devnet.</p>

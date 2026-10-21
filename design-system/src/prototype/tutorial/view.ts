@@ -20,5 +20,5 @@ export function switchView(to: View) {
   if (to === "desktop") next.set("view", "desktop")
   else next.delete("view")
   next.set("keep", "1")
-  location.assign(`${location.pathname}?${next}`)
+  location.replace(`${location.pathname}?${next}`)
 }

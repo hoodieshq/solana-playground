@@ -112,6 +112,8 @@ export function lastResult(s: State): BuildResult | null {
     const c = checkOwn(s.files[step.file], target, step.file)
     return c.ok ? passFor(step) : c
   }
+  // A passed step reopened from elsewhere has no patch applied, but it did pass
+  if (s.applied === null && s.passed[s.step]) return passFor(step)
   const p = s.applied === "fix" ? step.fix : step.patch
   return p?.result ?? null
 }
@@ -145,7 +147,7 @@ function reducer(s: State, a: Action): State {
         ...s,
         screen: "step",
         step: at,
-        phase: same ? resting(s) : "idle",
+        phase: same ? resting(s) : s.passed[at] ? "passed" : "idle",
         error: same ? s.error : null,
         sheet: false,
         startedAt: s.startedAt ?? Date.now(),
@@ -195,9 +197,10 @@ function reducer(s: State, a: Action): State {
       }
     }
     case "edit": {
-      // Typing clears a failed build's red line: the error was about the code before the change
+      // Typing clears a failed build's red line: the error was about the code before the change.
+      // A passed step goes back to waiting for a build, and Next comes back with the next pass
       const files = { ...s.files, [step.file]: a.code }
-      return { ...s, files, error: null, sheet: false, phase: s.passed[s.step] ? "passed" : "idle" }
+      return { ...s, files, error: null, sheet: false, phase: "idle" }
     }
     case "buildOwn":
       return { ...s, applied: "own", phase: "building", sheet: false, error: null, log: [] }

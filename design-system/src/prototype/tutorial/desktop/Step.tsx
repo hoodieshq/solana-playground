@@ -84,6 +84,8 @@ export function Step() {
   }, [lesson])
 
   const busy = s.phase === "building" || s.phase === "deploying"
+  // The deploy step has no code to write
+  const locked = busy || s.phase === "patch" || !!step.deploy
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
   // A step with a new idea asks its question once, before its own patch shows
   const asking = !!proposal && s.review === "patch" && !!step.predict && predicted[s.step] === undefined
@@ -238,12 +240,12 @@ export function Step() {
           <Editor
             code={s.files[step.file]}
             onChange={(code) => dispatch({ type: "edit", code })}
-            readOnly={busy || s.phase === "patch"}
+            readOnly={locked}
             error={s.error?.line ?? null}
             fresh={freshLines(s)}
             focus={focus}
             hint={hint}
-            label={`${step.file}, ${busy || s.phase === "patch" ? "read only" : "editable"}`}
+            label={`${step.file}, ${locked ? "read only" : "editable"}`}
           />
         )}
       </Workspace>

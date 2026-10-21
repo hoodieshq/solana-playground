@@ -12,6 +12,7 @@ import { workingLabel } from "../ui/StepStatus"
 /** The strip under the terminal: how the last run went, in one line beside a dot */
 export function TerminalStatus() {
   const { s } = useStore()
+  const step = STEPS[s.step]
   const busy = s.phase === "building" || s.phase === "deploying"
   // Typing clears the error but keeps the log, so the dot follows whether the step passed
   const failed = !!s.error || (s.log.length > 0 && !s.passed[s.step])
@@ -24,7 +25,7 @@ export function TerminalStatus() {
           busy ? "animate-pulse-dot bg-brand-purple motion-reduce:animate-none" : failed ? "bg-error" : s.log.length ? "bg-success" : "bg-muted-foreground/40"
         )}
       />
-      <span className="truncate">{busy ? workingLabel(s) : failed ? "Build failed" : s.log.length ? s.log[s.log.length - 1] : "Terminal"}</span>
+      <span className="truncate">{busy ? workingLabel(s) : failed ? (step.id === "call-client" ? "Run failed" : "Build failed") : s.log.length ? s.log[s.log.length - 1] : "Terminal"}</span>
     </>
   )
 }
@@ -86,10 +87,13 @@ export function TerminalBody() {
       </p>
     )
 
+  // Reopening a passed deploy clears the log, so show the deploy's own
+  const log = s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log
+
   return (
     <div className="flex min-h-full flex-col">
       <BuildLog
-        log={s.log}
+        log={log}
         empty={
           step.deploy
             ? "Nothing deployed yet. Press Deploy to devnet or ⌘B."

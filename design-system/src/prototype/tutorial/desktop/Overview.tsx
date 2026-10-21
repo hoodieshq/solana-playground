@@ -70,7 +70,7 @@ export function Overview() {
         </div>
       </Column>
 
-      <Workspace file="src/lib.rs" tools={<span className="px-2 text-caption text-muted-foreground">{started ? "Continue to edit" : "Start to edit"}</span>}>
+      <Workspace file="src/lib.rs" tools={<span className="px-2 text-caption text-muted-foreground">{started || finished ? "Continue to edit" : "Start to edit"}</span>}>
         <Editor code={s.files["src/lib.rs"]} readOnly dim label="src/lib.rs, read only" />
       </Workspace>
 

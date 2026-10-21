@@ -30,7 +30,7 @@ function useStageStatus(): Record<Stage, StepperStatus> {
   if (s.passed[2]) st.interact = "done"
   if (here && s.phase === "building") st[step.id === "call-client" ? "interact" : "build"] = "running"
   if (here && s.phase === "deploying") st.deploy = "running"
-  if (here && s.phase === "failed") st.build = "failed"
+  if (here && s.phase === "failed") st[step.id === "call-client" ? "interact" : "build"] = "failed"
   return st
 }
 
