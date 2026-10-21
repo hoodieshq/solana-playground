@@ -379,7 +379,8 @@ export function Step() {
             <section aria-label="Lesson" className="mt-8">
               <p className="mb-3 text-caption text-muted-foreground">Lesson · {readingMinutes(step)} min</p>
               <div>
-                <LessonBlocks column blocks={step.lesson} />
+                {/* Each block the editor's code already holds gets checked off, as you type it */}
+                <LessonBlocks column blocks={step.lesson} file={s.files[step.file]} />
               </div>
               {s.passed[s.step] && (
                 <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-muted-foreground pointer-coarse:h-11" onClick={() => setLessonOpen(false)}>
