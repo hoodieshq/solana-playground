@@ -4,6 +4,9 @@ import { ConsoleDrawer, ConsoleDrawerActions, ConsoleDrawerBar, ConsoleDrawerCon
 import { EditorTab, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
 import { Kbd } from "@/components/ui/kbd"
 
+import { TERMINAL_KEYS } from "./keys"
+import { useKeyHints } from "./pointer"
+
 export type TerminalSlot = { open: boolean; onOpenChange: (open: boolean) => void; status: ReactNode; body: ReactNode }
 
 /** The project side: its name, the open file, the code, the step's actions and the terminal. The
@@ -22,6 +25,7 @@ export function Workspace({
   terminal?: TerminalSlot
   children: ReactNode
 }) {
+  const hints = useKeyHints()
   return (
     <section aria-label="Project" className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
@@ -44,13 +48,12 @@ export function Workspace({
       {actions}
       {terminal && (
         <ConsoleDrawer open={terminal.open} onOpenChange={terminal.onOpenChange}>
-          <ConsoleDrawerBar>
+          {/* The whole strip opens it, so for a finger the strip is the 44px target */}
+          <ConsoleDrawerBar className="pointer-coarse:h-11">
             <ConsoleDrawerStatus>{terminal.status}</ConsoleDrawerStatus>
-            <ConsoleDrawerActions>
-              <Kbd>⌘J</Kbd>
-            </ConsoleDrawerActions>
+            <ConsoleDrawerActions>{hints && <Kbd>{TERMINAL_KEYS}</Kbd>}</ConsoleDrawerActions>
           </ConsoleDrawerBar>
-          <ConsoleDrawerContent className="h-56">{terminal.body}</ConsoleDrawerContent>
+          <ConsoleDrawerContent className="h-56 overscroll-contain">{terminal.body}</ConsoleDrawerContent>
         </ConsoleDrawer>
       )}
     </section>

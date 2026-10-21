@@ -9,17 +9,19 @@ import { Prose } from "./Prose"
 
 /** A proposal shown in the file itself: unchanged lines as code, added ones
  * green, removed ones red and struck. A line the assistant explains carries a
- * purple dot; tapping the line opens its note right under it, by the code it is about */
+ * purple dot; the dot, with the line number beside it, is a button that opens the
+ * note right under the line, by the code it is about. The code itself stays text,
+ * so it can be selected and copied */
 export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: number[]; onToggle: (line: number) => void }) {
   const notes = new Map(patch.notes.map((n) => [n.line, n.text]))
   let n = 0
   return (
-    <div aria-label={`Proposed change to ${patch.file}`} className="min-h-0 flex-1 overflow-y-auto py-2 font-mono text-code">
+    <div aria-label={`Proposed change to ${patch.file}`} className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 font-mono text-code">
       {diffLines(patch.before, patch.after).map((row, i) => {
         const number = row.kind === "removed" ? null : ++n
         const note = number !== null ? notes.get(number) : undefined
         const shown = note !== undefined && open.includes(number!)
-        const line = (
+        const gutter = (
           <>
             <span className="w-10 shrink-0 pr-2 text-right text-subtle select-none">{number ?? ""}</span>
             <span aria-hidden="true" className="flex w-4 shrink-0 items-start justify-center pt-[0.45em]">
@@ -31,6 +33,25 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
                 </span>
               )}
             </span>
+          </>
+        )
+        const line = (
+          <>
+            {note !== undefined ? (
+              // The number and the dot, 56px wide. A finger gets it 44px tall too: the press reaches
+              // past the line above and below, which the code under it doesn't need
+              <button
+                type="button"
+                aria-expanded={shown}
+                aria-label={`Note on line ${number}`}
+                onClick={() => onToggle(number!)}
+                className="relative flex shrink-0 text-left pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-3"
+              >
+                {gutter}
+              </button>
+            ) : (
+              gutter
+            )}
             <code
               style={hang(row.text)}
               className={cn(
@@ -60,13 +81,7 @@ export function InlineDiff({ patch, open, onToggle }: { patch: Patch; open: numb
         )
         return (
           <Fragment key={i}>
-            {note !== undefined ? (
-              <button type="button" aria-expanded={shown} onClick={() => onToggle(number!)} className={tone}>
-                {line}
-              </button>
-            ) : (
-              <div className={tone}>{line}</div>
-            )}
+            <div className={tone}>{line}</div>
             {shown && (
               <p className="my-1.5 mr-3 ml-14 rounded-control border border-border bg-surface-panel px-3 py-2 font-sans text-caption text-muted-foreground">
                 <Prose text={note} />

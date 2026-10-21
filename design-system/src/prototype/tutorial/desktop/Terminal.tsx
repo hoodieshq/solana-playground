@@ -9,6 +9,7 @@ import { BuildLog } from "../ui/BuildLog"
 import { ProgramId, Transaction } from "../ui/ProgramId"
 import { workingLabel } from "../ui/StepStatus"
 import { PRIMARY_KEYS } from "./keys"
+import { useKeyHints } from "./pointer"
 
 /** The strip under the terminal: how the last run went, in one line beside a dot */
 export function TerminalStatus() {
@@ -35,6 +36,9 @@ export function TerminalStatus() {
 export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
   const { s } = useStore()
   const step = STEPS[s.step]
+  // The key goes with the button's name only where there's a keyboard
+  const hints = useKeyHints()
+  const or = hints ? ` or ${PRIMARY_KEYS}` : ""
 
   if (s.phase === "deploying" && step.deploy)
     return (
@@ -66,17 +70,18 @@ export function TerminalBody({ onJump }: { onJump?: (line: number) => void }) {
   const log = s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log
 
   return (
-    <div className="flex min-h-full flex-col">
+    // A finger gets the compiler's line, the one that takes the editor there, at full height
+    <div className="flex min-h-full flex-col pointer-coarse:[&_pre>button]:min-h-11">
       <BuildLog
         onJump={onJump}
         log={log}
         // The hint names the button only while that button is there: under a patch it reads Apply and build
         empty={
           step.deploy
-            ? `Nothing deployed yet. Press Deploy to devnet or ${PRIMARY_KEYS}.`
+            ? `Nothing deployed yet. Press Deploy to devnet${or}.`
             : step.id === "call-client"
-              ? `Nothing run yet.${s.phase === "idle" ? ` Press Run the client or ${PRIMARY_KEYS}.` : ""}`
-              : `Nothing built yet.${s.phase === "idle" ? ` Press Build or ${PRIMARY_KEYS}.` : ""}`
+              ? `Nothing run yet.${s.phase === "idle" ? ` Press Run the client${or}.` : ""}`
+              : `Nothing built yet.${s.phase === "idle" ? ` Press Build${or}.` : ""}`
         }
       />
       {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}

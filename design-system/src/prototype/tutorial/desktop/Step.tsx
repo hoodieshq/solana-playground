@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useReducer, useRef, useState } from "react"
 import { BookOpen, ChevronUp, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -16,45 +16,73 @@ import { Column } from "./Column"
 import { Editor } from "./Editor"
 import { AskBox, Feed, type Msg, type Quote } from "./Feed"
 import { primaryFor } from "./keys"
+import { isCoarse, useCoarse } from "./pointer"
 import { QuickCheck } from "./QuickCheck"
 import { TerminalBody, TerminalStatus } from "./Terminal"
 import { Workspace } from "./Workspace"
 
+const RESTORE_TIP = "Puts the file back as it was before the first change applied on this step"
+
 // Shown once a session: the first proposal opens its first note on its own
 let taughtNotes = false
+
+// What the column said on each step, kept while the page is open, so going back to a step finds
+// its conversation where it was. `spoke` holds the proposal summaries already said there, so Don't
+// apply and opening the same patch again doesn't repeat one. Keyed by the run too: Start over
+// begins every step with a clean column
+type Thread = { msgs: Msg[]; spoke: Set<string> }
+const threads = new Map<string, Thread>()
+let ids = 0
+function threadFor(key: string) {
+  let t = threads.get(key)
+  if (!t) threads.set(key, (t = { msgs: [], spoke: new Set() }))
+  return t
+}
 
 export function Step() {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
+  const coarse = useCoarse()
   // The lesson reads in the column, open while the step waits and folded once it has passed
   const [lessonOpen, setLessonOpen] = useState(!s.passed[s.step])
   const [notes, setNotes] = useState<number[]>([])
-  const [msgs, setMsgs] = useState<Msg[]>([])
-  const [explained, setExplained] = useState(false)
   const [term, setTerm] = useState(false)
-  // A line the terminal points to: the editor scrolls there and puts the caret on it
-  const [jump, setJump] = useState<{ line: number; n: number } | null>(null)
-  const ids = useRef(0)
-  // The proposal summaries the column already shows, so each is said once per step: Don't apply
-  // and opening the same patch again doesn't repeat it
-  const spoke = useRef(new Set<string>())
+  // A line the editor scrolls to. From the terminal it puts the caret there too; at a step's start
+  // it does only where a keyboard is out anyway, since on a tablet the caret brings one up
+  const [jump, setJump] = useState<{ line: number; n: number; caret?: boolean } | null>(null)
+  const thread = threadFor(`${s.startedAt}:${s.step}`)
+  const msgs = thread.msgs
+  const [, rerender] = useReducer((n: number) => n + 1, 0)
   const scroller = useRef<HTMLDivElement>(null)
   // Whether the column has more below what shows, for the fade at its foot
   const [more, setMore] = useState(false)
 
-  const say = (text: string, quote?: Quote) => setMsgs((m) => [...m, { id: ++ids.current, from: "assistant", text, quote }])
-  const ask = (question: string, answer: string) =>
-    setMsgs((m) => [...m, { id: ++ids.current, from: "you", text: question }, { id: ++ids.current, from: "assistant", text: answer }])
+  const add = (...more: Msg[]) => {
+    thread.msgs = [...thread.msgs, ...more]
+    rerender()
+  }
+  const say = (text: string, quote?: Quote) => add({ id: ++ids, from: "assistant", text, quote })
+  const ask = (question: string, answer: string) => add({ id: ++ids, from: "you", text: question }, { id: ++ids, from: "assistant", text: answer })
 
-  // A new step starts with a clean column, and with the caret where its code goes. A line the
-  // last step's terminal pointed to is dropped, or the next editor to mount would jump to it
+  /** The assistant's take on the failure, with the line it's about */
+  const explanation = () => {
+    if (!s.error) return
+    say(s.error.explain ?? step.explainError ?? step.explainStep, {
+      file: step.file,
+      line: s.error.line,
+      code: s.files[step.file].split("\n")[s.error.line - 1]?.trim() ?? "",
+    })
+  }
+
+  // A new step opens on its own conversation, and with its code's lines lit. A line the last step's
+  // terminal pointed to is dropped, or the next editor to mount would jump to it. An error explained
+  // in the other view, the phone's sheet, comes back as the column's message, so Review the fix
+  // still has what it follows
   useEffect(() => {
     setLessonOpen(!s.passed[s.step])
-    setMsgs([])
-    spoke.current.clear()
-    setExplained(false)
     const writes = s.phase === "idle" && !!step.patch && !s.passed[s.step]
-    setJump(writes ? { line: step.focus[0] ?? 1, n: 0 } : null)
+    setJump(writes ? { line: step.focus[0] ?? 1, n: 0, caret: !isCoarse() } : null)
+    if (s.phase === "failed" && s.explained && !thread.msgs.some((m) => m.from === "assistant" && m.quote)) explanation()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.step])
 
@@ -74,10 +102,7 @@ export function Step() {
   useEffect(() => {
     const was = prev.current
     prev.current = s.phase
-    if (s.phase === "building" || s.phase === "deploying") {
-      setTerm(true)
-      setExplained(false)
-    }
+    if (s.phase === "building" || s.phase === "deploying") setTerm(true)
     if (s.phase === "passed" && (was === "building" || was === "deploying")) {
       // The lesson has done its job: fold it. The assistant says nothing here: the green button
       // already names the next step
@@ -157,13 +182,9 @@ export function Step() {
   }, [s.phase, s.review, s.step, asking])
 
   const explain = () => {
-    if (!s.error) return
-    setExplained(true)
-    say(s.error.explain ?? step.explainError ?? step.explainStep, {
-      file: step.file,
-      line: s.error.line,
-      code: s.files[step.file].split("\n")[s.error.line - 1]?.trim() ?? "",
-    })
+    if (!s.error || s.explained) return
+    dispatch({ type: "explained" })
+    explanation()
   }
 
   // ⌘Enter presses the action bar's main button in every state, from the editor too: building
@@ -184,7 +205,8 @@ export function Step() {
         const action = primaryFor(s, asking)
         if (!action) return
         e.preventDefault()
-        dispatch(action)
+        if (action === "explain") explain()
+        else dispatch(action)
       } else if (e.key === "Enter" && s.phase === "passed" && !target?.closest("textarea, input, button, a, [role='separator']")) {
         dispatch({ type: "next" })
       } else if (e.key === "Escape") {
@@ -193,19 +215,21 @@ export function Step() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s, step, asking, dispatch])
 
   // The assistant speaks in the column only: what a proposal changes comes in as its message, and
   // the action bar under the code just says what to do with it
   const summary = proposal && !asking ? proposal.summary : null
   useEffect(() => {
-    if (summary && !spoke.current.has(summary)) {
-      spoke.current.add(summary)
+    if (summary && !thread.spoke.has(summary)) {
+      thread.spoke.add(summary)
       say(summary)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary])
 
+  const restoreTip = useId()
   const undo = () => {
     dispatch({ type: "undo" })
     toast("File restored", { duration: 4000 })
@@ -214,13 +238,12 @@ export function Step() {
   const asked = new Set(msgs.filter((m) => m.from === "you").map((m) => m.text))
   // While a failed build waits for Explain, "Explain this step" would sit beside the Explain button
   // meaning something else, so it steps aside until the error is explained
-  const failing = s.phase === "failed" && !explained
-  // Questions about the error only once there has been one, then ahead of the rest: asked before the
-  // build, "Why is this needed" would be about code nobody has seen fail. Then the lesson's, then the
-  // general one. The box shows what fits in a row
-  const failedOnce = !s.firstTry[s.step]
+  const failing = s.phase === "failed" && !s.explained
+  // Questions about the error only once there has been one, the planned one too, then ahead of the
+  // rest: asked before the build, "Why does hello need a struct?" would be about code nobody has seen
+  // fail. Then the lesson's, then the general one. The box shows what fits in a row
   const suggestions = [
-    ...(failedOnce ? (step.errorChips ?? []) : []),
+    ...(s.failedOnce[s.step] ? (step.errorChips ?? []) : []),
     ...step.chips,
     ...(failing ? [] : [{ label: "Explain this step", answer: step.explainStep }]),
   ].filter((c) => !asked.has(c.label))
@@ -234,25 +257,36 @@ export function Step() {
           type="button"
           aria-pressed={notes.length === allNotes.length}
           onClick={() => setNotes(notes.length === allNotes.length ? [] : allNotes)}
-          className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground"
+          className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground pointer-coarse:h-11"
         >
           <span className="size-[7px] rounded-full bg-brand-purple ring-3 ring-brand-purple/25" />
           {notes.length === allNotes.length ? "Hide notes" : "Show notes"}
         </button>
       )}
       {step.deploy && <span className="px-2 text-caption text-muted-foreground">Read only on this step</span>}
-      {/* Sits by the code it puts back, away from Next */}
-      {s.undo?.step === s.step && (s.phase === "passed" || s.phase === "failed") && (
+      {/* Sits by the code it puts back, away from the action bar. Only once a build has failed: on a
+          pass there's nothing to get out of, and putting the file back would undo the pass */}
+      {s.undo?.step === s.step && s.phase === "failed" && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" onClick={undo} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={undo}
+              aria-describedby={restoreTip}
+              className="flex h-8 items-center gap-1.5 rounded-control px-2 text-caption text-muted-foreground hover:text-foreground pointer-coarse:h-11"
+            >
               <RotateCcw strokeWidth={1.75} className="size-4" />
-              Restore my code
+              {/* What it takes out: the assistant's change, or what you wrote over it */}
+              {s.applied === "patch" || s.applied === "fix" ? "Undo the patch" : "Restore my code"}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Back to the file as it was before the first change you applied here</TooltipContent>
+          <TooltipContent side="bottom">{RESTORE_TIP}</TooltipContent>
         </Tooltip>
       )}
+      {/* The tip is only there on hover, so the button carries what it says too */}
+      <span id={restoreTip} hidden>
+        {RESTORE_TIP}
+      </span>
     </>
   )
 
@@ -261,8 +295,14 @@ export function Step() {
       <Workspace
         file={step.file}
         tools={tools}
-        actions={<ActionBar asking={asking} explained={explained} onExplain={explain} />}
-        terminal={{ open: term, onOpenChange: setTerm, status: <TerminalStatus />, body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1 }))} /> }}
+        actions={<ActionBar asking={asking} onExplain={explain} />}
+        terminal={{
+          open: term,
+          onOpenChange: setTerm,
+          status: <TerminalStatus />,
+          // A tap on the compiler's line asks for that line, so the caret goes there, on a tablet too
+          body: <TerminalBody onJump={(line) => setJump((j) => ({ line, n: (j?.n ?? 0) + 1, caret: true }))} />,
+        }}
       >
         {proposal && !asking ? (
           <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
@@ -289,11 +329,12 @@ export function Step() {
       <Column label="Lesson">
         <div className="flex h-12 shrink-0 items-center border-b border-border pr-2">
           <div className="min-w-0 flex-1">
-            <StepProgress tips current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
+            {/* A finger gets no hover tips, so there the steps show their numbers */}
+            <StepProgress tips numbered={coarse} current={s.step} passed={s.passed} onPick={(i) => dispatch({ type: "goto", step: i })} />
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-9" aria-label="Back to the tutorial page" onClick={() => dispatch({ type: "open", screen: "overview" })}>
+              <Button variant="ghost" size="icon" className="size-9 pointer-coarse:size-11" aria-label="Back to the tutorial page" onClick={() => dispatch({ type: "open", screen: "overview" })}>
                 <X className="size-4" />
               </Button>
             </TooltipTrigger>
@@ -305,7 +346,7 @@ export function Step() {
             quick check when a patch comes, then what the assistant said. How the step stands shows
             once, in the action bar under the code */}
         <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-6">
           {/* Where the step sits in the tutorial. The bar above counts the steps passed */}
           <p className="text-caption text-muted-foreground">
             Step {s.step + 1} of {STEPS.length} · {step.title}
@@ -321,7 +362,7 @@ export function Step() {
                 <LessonBlocks column blocks={step.lesson} />
               </div>
               {s.passed[s.step] && (
-                <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-muted-foreground" onClick={() => setLessonOpen(false)}>
+                <Button variant="ghost" className="mt-3 -ml-2 h-9 gap-1.5 px-2 text-muted-foreground pointer-coarse:h-11" onClick={() => setLessonOpen(false)}>
                   <ChevronUp className="size-4" />
                   Hide the lesson
                 </Button>
@@ -331,12 +372,12 @@ export function Step() {
             <button
               type="button"
               onClick={() => setLessonOpen(true)}
-              className="mt-3 flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground transition-colors hover:bg-surface"
+              className="mt-3 flex h-9 items-center gap-2 rounded-control border border-border-strong px-3 text-caption text-foreground transition-colors hover:bg-surface pointer-coarse:h-11"
             >
               <BookOpen strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground" />
               {/* One span, so the dot gets a plain space on both sides rather than the flex gap before it */}
               <span>
-                Show the lesson <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
+                Read the lesson <span className="text-muted-foreground">· {readingMinutes(step)} min</span>
               </span>
             </button>
           )}

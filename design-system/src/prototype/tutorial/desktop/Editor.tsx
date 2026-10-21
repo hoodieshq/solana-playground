@@ -8,8 +8,9 @@ import { highlight } from "../ui/CodeView"
  * line height, so the caret lands on the letters. The product uses Monaco, as client-v2 does.
  * `fresh` lines are the ones the last patch added, `focus` where a change will land. `jump` scrolls to
  * a line and puts the caret at its start, once: `onJumped` hands it back, so an editor that mounts
- * again later (after a patch closes) doesn't take the focus a second time. `placeholder` fills an
- * empty file until the first character */
+ * again later (after a patch closes) doesn't take the focus a second time. A jump with `caret: false`
+ * only scrolls: on a tablet the caret would bring up the keyboard over the code. `placeholder` fills
+ * an empty file until the first character */
 export function Editor({
   code,
   onChange,
@@ -34,7 +35,7 @@ export function Editor({
   hint?: string
   placeholder?: string
   label: string
-  jump?: { line: number; n: number } | null
+  jump?: { line: number; n: number; caret?: boolean } | null
   onJumped?: () => void
 }) {
   const lines = code.split("\n")
@@ -44,11 +45,13 @@ export function Editor({
   useEffect(() => {
     const el = area.current
     if (!jump || !el || !box.current) return
-    const rows = el.value.split("\n")
-    const start = rows.slice(0, jump.line - 1).reduce((n, row) => n + row.length + 1, 0)
-    const at = start + (rows[jump.line - 1]?.match(/^\s*/)?.[0].length ?? 0)
-    el.focus({ preventScroll: true })
-    el.setSelectionRange(at, at)
+    if (jump.caret !== false) {
+      const rows = el.value.split("\n")
+      const start = rows.slice(0, jump.line - 1).reduce((n, row) => n + row.length + 1, 0)
+      const at = start + (rows[jump.line - 1]?.match(/^\s*/)?.[0].length ?? 0)
+      el.focus({ preventScroll: true })
+      el.setSelectionRange(at, at)
+    }
     // The line a third of the way down, so what's above it stays in view
     const height = parseFloat(getComputedStyle(el).lineHeight)
     box.current.scrollTo({ top: Math.max(0, (jump.line - 1) * height - box.current.clientHeight / 3), behavior: "smooth" })
@@ -81,7 +84,7 @@ export function Editor({
   }
 
   return (
-    <div ref={box} onMouseDown={onMouseDown} className={cn("flex min-h-0 flex-1 flex-col overflow-auto py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
+    <div ref={box} onMouseDown={onMouseDown} className={cn("flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono text-code leading-[1.6] has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-inset has-[textarea:focus-visible]:ring-ring/50", dim && "opacity-60")}>
       {/* 58px before the code, the same as the diff's line edge, numbers and marks, so code doesn't shift when a patch shows */}
       {/* Grows to the editor's height, so the textarea in it does too */}
       <div className="grid min-w-max flex-1 grid-cols-[58px_1fr]">

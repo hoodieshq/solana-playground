@@ -2,14 +2,29 @@ import { Fragment } from "react"
 
 import { ObjectiveMeter } from "@/components/ui/objective-band"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 
 /** One continuous bar, filled by the steps passed, and the same count in words.
  * Equal invisible zones over the bar still let you jump back to a step you
  * have reached */
-/** `tips` names each step on hover, where a pointer can't see the zones are there (desktop only) */
-export function StepProgress({ current, passed, onPick, tips = false }: { current: number; passed: boolean[]; onPick: (i: number) => void; tips?: boolean }) {
+/** `tips` names each step on hover, where a pointer can't see the zones are there (desktop only).
+ * `numbered` is for a finger, which gets no hover: the bar splits into the steps, each with its
+ * number over it, so the zones show they can be tapped */
+export function StepProgress({
+  current,
+  passed,
+  onPick,
+  tips = false,
+  numbered = false,
+}: {
+  current: number
+  passed: boolean[]
+  onPick: (i: number) => void
+  tips?: boolean
+  numbered?: boolean
+}) {
   const done = passed.filter(Boolean).length
   return (
     <div className="flex items-center gap-3 px-4">
@@ -27,8 +42,25 @@ export function StepProgress({ current, passed, onPick, tips = false }: { curren
                 onClick={() => onPick(i)}
                 aria-current={i === current ? "step" : undefined}
                 aria-label={`Step ${i + 1}, ${step.title}${passed[i] ? ", passed" : ""}`}
-                className="h-full flex-1 disabled:cursor-default"
-              />
+                className={cn(
+                  "h-full flex-1 disabled:cursor-default",
+                  // A cut in the ground's colour over the bar parts it into steps
+                  numbered && "relative border-surface-base not-first:border-l-[3px]"
+                )}
+              >
+                {numbered && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute top-1 left-1/2 -translate-x-1/2 text-[0.6875rem] leading-none tabular-nums",
+                      i === current ? "text-foreground" : "text-muted-foreground",
+                      !open && "opacity-50"
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                )}
+              </button>
             )
             return (
               <Fragment key={step.id}>

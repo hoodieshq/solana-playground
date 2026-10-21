@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 import type { Predict } from "../data"
 import { Prose } from "../ui/Prose"
+import { useKeyHints } from "./pointer"
 
 /** The phone's quick check, in the lesson's column: a quiet label, the question, three options of
  * one shape, Skip. Answering before the code shows keeps the learner thinking (Lead-and-Reveal).
@@ -14,6 +15,8 @@ import { Prose } from "../ui/Prose"
  * amber (a hint, not an error), the rest faded, and why under them. The phone has no room to keep it */
 export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; answer?: number; onAnswer: (choice: number | "skip") => void }) {
   const done = answer !== undefined
+  // 1 to 3 and S name keys, so they show only where there's a keyboard
+  const hints = useKeyHints()
   // The question takes the focus as it comes in, so the keyboard answers it straight away. The column
   // scrolls it into view by itself, smoothly, so the focus doesn't jump the scroll
   const first = useRef<HTMLButtonElement>(null)
@@ -51,7 +54,7 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
               <Prose text={option} />
             </span>
             {/* The key that picks it, 1 to 3 */}
-            {!done && <Kbd className="font-[440]!">{i + 1}</Kbd>}
+            {!done && hints && <Kbd className="font-[440]!">{i + 1}</Kbd>}
             {done && right && <Check strokeWidth={2.25} aria-label="Right answer" className="size-4 shrink-0 text-success" />}
           </button>
         )
@@ -64,7 +67,7 @@ export function QuickCheck({ predict, answer, onAnswer }: { predict: Predict; an
         // Pulled out by its own padding, so its text starts on the column's edge
         <Button variant="ghost" className="mt-1 -ml-2 h-10 self-start px-2 text-muted-foreground" onClick={() => onAnswer("skip")}>
           Skip and show the code
-          <Kbd className="font-[440]!">S</Kbd>
+          {hints && <Kbd className="font-[440]!">S</Kbd>}
         </Button>
       )}
     </section>

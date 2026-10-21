@@ -6,10 +6,15 @@ import { cn } from "@/lib/utils"
 
 import type { Chip } from "../data"
 import { AssistantHead } from "../ui/AssistantHead"
+import { Prose } from "../ui/Prose"
 import { Typed } from "../ui/Typed"
 
 export type Quote = { file: string; line: number; code: string }
 export type Msg = { id: number; from: "assistant"; text: string; quote?: Quote } | { id: number; from: "you"; text: string }
+
+// Replies that have finished typing. A step's conversation stays when you come back to it, and what
+// was said then shouldn't type itself out again
+const typed = new Set<number>()
 
 /** What the assistant said on this step and what you asked, under the lesson. Explain lands here
  * too, so the code stays in view while you read it */
@@ -42,7 +47,7 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
             )}
             {/* The reading weight, the same as the lesson above it */}
             <p className="text-body font-read">
-              <Typed key={m.id} text={m.text} />
+              {typed.has(m.id) ? <Prose text={m.text} /> : <Typed key={m.id} text={m.text} onDone={() => typed.add(m.id)} />}
             </p>
           </div>
         )
@@ -51,7 +56,7 @@ export function Feed({ msgs, resolved = false }: { msgs: Msg[]; resolved?: boole
   )
 }
 
-const FREE = "Free chat isn't connected in this prototype. Try one of the suggestions above the box."
+const FREE = "Free chat isn't connected in this prototype. Try a suggestion."
 
 /** How many of a row's children fit inside it whole. The rest stay in the row, hidden, so the
  * count can grow again when the row widens or a chip before them goes */
@@ -100,7 +105,7 @@ export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: strin
                 tabIndex={hidden ? -1 : undefined}
                 aria-hidden={hidden || undefined}
                 className={cn(
-                  "h-8 shrink-0 rounded-full border border-border-strong px-3 text-caption whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground",
+                  "h-8 shrink-0 rounded-full border border-border-strong px-3 text-caption whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground pointer-coarse:h-11 pointer-coarse:px-4",
                   hidden && "invisible"
                 )}
               >
@@ -135,10 +140,12 @@ export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: strin
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
+          // The on-screen keyboard's return key reads Send: Enter sends here
+          enterKeyHint="send"
           className={cn("placeholder:text-muted-foreground/80!", !open && "min-h-10 pt-2.5 pb-2.5")}
         />
         <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
-          <ComposerSend>
+          <ComposerSend className="pointer-coarse:size-11">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>

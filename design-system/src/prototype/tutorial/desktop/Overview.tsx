@@ -42,12 +42,12 @@ export function Overview() {
 
       <Column label="Tutorial">
         <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
-          <Button variant="ghost" className="h-9 gap-1.5 px-2 text-muted-foreground" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
+          <Button variant="ghost" className="h-9 gap-1.5 px-2 text-muted-foreground pointer-coarse:h-11" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
             <ChevronLeft className="size-4" />
             Tutorials
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
             <Thumb src={thumb("hello-anchor", "jpg")} className="size-14" />
             <div className="min-w-0">
@@ -75,7 +75,7 @@ export function Overview() {
             <button
               type="button"
               onClick={() => setConfirm(true)}
-              className="mt-2 flex h-9 items-center gap-1.5 text-caption text-muted-foreground hover:text-foreground"
+              className="mt-2 flex h-9 items-center gap-1.5 text-caption text-muted-foreground hover:text-foreground pointer-coarse:h-11"
             >
               <RotateCcw strokeWidth={1.75} className="size-4" />
               Start over

@@ -9,23 +9,25 @@ import { fixFor, useStore } from "../store"
 import { AssistantMark } from "../ui/AssistantMark"
 import { StepStatus, workingLabel } from "../ui/StepStatus"
 import { PRIMARY_KEYS } from "./keys"
+import { useKeyHints } from "./pointer"
 import { Shortcut } from "./Shortcut"
 
 const BTN = "h-10 gap-2 px-4"
 
 /** The step's actions under the editor, the desktop cut of the phone's bottom zone: the step's
  * state on the left, the one place it shows, and the buttons on the right. Build checks what was
- * typed; the assistant is the second way, and it speaks in the column, not here. `explained` is set
- * once Explain has answered, then the main button offers the fix. ⌘Enter presses whichever button
- * shows its keys */
-export function ActionBar({ asking, explained, onExplain }: { asking: boolean; explained: boolean; onExplain: () => void }) {
+ * typed; the assistant is the second way, and it speaks in the column, not here. Once Explain has
+ * answered (`explained` in the store), the main button offers the fix. ⌘Enter presses whichever
+ * button shows its keys */
+export function ActionBar({ asking, onExplain }: { asking: boolean; onExplain: () => void }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
   const busy = s.phase === "building" || s.phase === "deploying"
   const client = step.id === "call-client"
   const fix = fixFor(s)
-  const keys = <Shortcut keys={PRIMARY_KEYS} />
+  // Only where there's a keyboard to press them on
+  const keys = useKeyHints() ? <Shortcut keys={PRIMARY_KEYS} /> : null
 
   // A pass hands the focus to Next, so Enter or Space goes on from wherever it was, the editor too
   const next = useRef<HTMLButtonElement>(null)
@@ -58,26 +60,20 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
       </>
     )
   } else if (s.phase === "failed") {
-    // Understanding the error leads; building the same code again is there for whoever wants it,
-    // and it's what the key does, so the key never opens an explanation nobody asked for
-    buttons = (
-      <>
-        <Button variant="secondary" className={BTN} onClick={() => dispatch({ type: "retry" })}>
-          {client ? "Run again" : "Build again"}
+    // One way on: understand the error, then see the fix. Building the same code again would fail
+    // the same way, so there's no button for it; typing a change brings Build back
+    buttons = s.explained ? (
+      fix && (
+        <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "reviewFix" })}>
+          Review the fix
           {keys}
-        </Button>
-        {explained ? (
-          fix && (
-            <BrandButton variant="accent" className={BTN} onClick={() => dispatch({ type: "reviewFix" })}>
-              Review the fix
-            </BrandButton>
-          )
-        ) : (
-          <BrandButton variant="accent" className={BTN} onClick={onExplain}>
-            Explain the error
-          </BrandButton>
-        )}
-      </>
+        </BrandButton>
+      )
+    ) : (
+      <BrandButton variant="accent" className={BTN} onClick={onExplain}>
+        Explain the error
+        {keys}
+      </BrandButton>
     )
   } else {
     buttons = (

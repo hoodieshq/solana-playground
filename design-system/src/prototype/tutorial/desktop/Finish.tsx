@@ -8,7 +8,7 @@ import { FinishBadge, FinishStats, LastTransaction, LearnedList, UpNextCard } fr
 export function Finish() {
   const { dispatch } = useStore()
   return (
-    <div className="min-w-0 flex-1 overflow-y-auto">
+    <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="mx-auto w-full max-w-[32.5rem] px-6 pt-14 pb-16">
         <FinishBadge />
         <h1 className="mt-4 text-center font-heading text-display">Tutorial complete</h1>
