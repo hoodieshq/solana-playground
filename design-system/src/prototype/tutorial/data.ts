@@ -124,6 +124,8 @@ const BUILD_OK = ["$ anchor build", "Compiling hello_anchor v0.1.0", "Finished r
 
 export const PROGRAM_ID = "9hJqVkRZ3t2nX8cPfLwA5mYbE7sGdT4uK1oNjQzWxCvB"
 
+export const TX_SIGNATURE = "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn"
+
 export const STEPS: Step[] = [
   {
     id: "write-program",
@@ -288,7 +290,7 @@ mod hello_anchor {
         log: [
           "$ run client/client.ts",
           "Running client...",
-          "Use 'solana confirm -v 4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn' to see the logs",
+          `Use 'solana confirm -v ${TX_SIGNATURE}' to see the logs`,
           "Client finished",
         ],
         note: "The client called hello and got a transaction back.",

@@ -1,103 +1,31 @@
-import type { ReactNode } from "react"
-import { ArrowRight, CircleAlert, CircleCheck, CircleDashed, Lightbulb, MessageCircle } from "lucide-react"
+import { ArrowRight, MessageCircle } from "lucide-react"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
-import { fixFor, lastResult, useStore } from "../store"
-import { Prose } from "./Prose"
-import { Typed } from "./Typed"
+import { useStore } from "../store"
+import { StepStatus, workingLabel, type Lead } from "./StepStatus"
 
 /** The bottom of a step: a big zone, after Mimo's, holding the step's status
  * and one main button that shows the state too. Write or Deploy, then
  * Building, then a green Next. The status line replaces both the "Done when"
- * line up top and the passed / not yet sheets.
- * Each signal shows once: the status icon (dashed, spinner, check, alert)
- * lives only in the status line, the button carries the action and its colour */
-/** `lead` replaces the assistant's summary after a prediction: whether it was right, and why */
-export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }) {
+ * line up top and the passed / not yet sheets */
+export function ActionZone({ lead }: { lead?: Lead }) {
   const { s, dispatch } = useStore()
   const step = STEPS[s.step]
   const last = s.step === STEPS.length - 1
-  const r = lastResult(s)
   const busy = s.phase === "building" || s.phase === "deploying"
   const passed = s.phase === "passed"
   const failed = s.phase === "failed"
   const reviewing = s.phase === "patch"
-
-  // The button says what is happening, the status line says how far along it is
-  const client = step.id === "call-client"
-  const working = s.phase === "deploying" ? "Deploying..." : client ? "Running..." : "Building..."
-  const detail =
-    s.phase === "deploying"
-      ? `${step.deploy?.stages[s.deployStage]} (${s.deployStage + 1}/${step.deploy?.stages.length})`
-      : client
-        ? `Running ${step.file} on devnet`
-        : "Compiling hello_anchor on the build server"
-
-  let status: ReactNode
-  if (busy) {
-    status = (
-      <>
-        <Spinner className="mt-px size-4 shrink-0" />
-        <span>{detail}</span>
-      </>
-    )
-  } else if (passed && r?.ok) {
-    status = (
-      <>
-        <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
-        <span>
-          <span className="text-success">{r.note}</span>
-        </span>
-      </>
-    )
-  } else if (failed && s.error) {
-    status = (
-      <>
-        <CircleAlert strokeWidth={1.75} className="mt-px size-4 shrink-0 text-error" />
-        <span>
-          <span className="text-error">{s.error.reason}</span>
-        </span>
-      </>
-    )
-  } else if (reviewing) {
-    // The assistant speaks here, by the buttons, so nothing sits over the code
-    const proposal = s.review === "fix" ? fixFor(s) : step.patch
-    status = (
-      <>
-        {/* The icon says what kind of message it is: a right answer, a wrong one (a hint, not an
-            error), or the assistant speaking. The text stays one sentence in one colour */}
-        {lead?.right ? (
-          <CircleCheck strokeWidth={1.75} className="mt-px size-4 shrink-0 text-success" />
-        ) : lead ? (
-          <Lightbulb strokeWidth={1.75} className="mt-px size-4 shrink-0 text-warning" />
-        ) : (
-          <MessageCircle strokeWidth={1.75} className="mt-px size-4 shrink-0 text-brand-purple" />
-        )}
-        <span className="text-foreground">
-          {lead ? <Prose text={lead.text} /> : <Typed key={proposal?.summary} text={proposal?.summary ?? ""} />}
-        </span>
-      </>
-    )
-  } else {
-    status = (
-      <>
-        <CircleDashed strokeWidth={1.75} className="mt-px size-4 shrink-0" />
-        <span>Done when {step.checkedBy}</span>
-      </>
-    )
-  }
-
   const big = "h-14 text-control"
 
   return (
     <footer className="shrink-0 border-t border-border bg-surface-panel px-3 pt-3 pb-[max(var(--safe-bottom),16px)]">
       <p role="status" aria-live="polite" className="mb-4 flex min-h-5 items-start gap-1.5 px-1 text-caption leading-relaxed text-muted-foreground">
-        {status}
+        <StepStatus lead={lead} />
       </p>
       <div className="flex gap-2">
         {reviewing ? (
@@ -143,7 +71,7 @@ export function ActionZone({ lead }: { lead?: { text: string; right: boolean } }
               )
             }
           >
-            {busy ? working : reviewing ? (s.review === "fix" ? "Apply and build" : "Apply") : failed ? "Explain" : step.cta}
+            {busy ? workingLabel(s) : reviewing ? (s.review === "fix" ? "Apply and build" : "Apply") : failed ? "Explain" : step.cta}
           </BrandButton>
         )}
       </div>

@@ -1,35 +1,11 @@
 import { MessageCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { CodeBlock, CodeBlockContent } from "@/components/ui/code-block"
 import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 
-import { STEPS, type LessonBlock } from "../data"
+import { STEPS } from "../data"
 import { useStore } from "../store"
-import { highlight } from "../ui/CodeView"
-import { Prose } from "../ui/Prose"
-
-function Block({ block }: { block: LessonBlock }) {
-  // Sections are 28px apart, their parts 8 and 12, so the lesson reads as groups
-  if (block.kind === "h") return <h3 className="mt-7 font-heading text-title text-foreground first:mt-0">{block.text}</h3>
-  if (block.kind === "p")
-    return (
-      <p className="mt-2 text-body text-muted-foreground">
-        <Prose text={block.text} />
-      </p>
-    )
-  return (
-    <CodeBlock className="mt-3 bg-surface-well">
-      <CodeBlockContent className="text-code">
-        {block.code.split("\n").map((line, i) => (
-          <div key={i} className="min-h-[1lh] break-words whitespace-pre-wrap">
-            {highlight(line)}
-          </div>
-        ))}
-      </CodeBlockContent>
-    </CodeBlock>
-  )
-}
+import { LessonBlocks } from "../ui/LessonBlocks"
 
 /** The step's lesson, read over the code. Ask hands the same step to the assistant */
 export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: () => void; onAsk: () => void }) {
@@ -44,9 +20,7 @@ export function LessonSheet({ open, onClose, onAsk }: { open: boolean; onClose: 
           <DrawerTitle className="mt-1 font-heading text-display! font-normal!">{step.title}</DrawerTitle>
         </DrawerHeader>
         <div className="mx-auto min-h-0 w-full max-w-[40rem] overflow-y-auto px-4 pt-4 pb-4">
-          {step.lesson.map((block, i) => (
-            <Block key={i} block={block} />
-          ))}
+          <LessonBlocks blocks={step.lesson} />
         </div>
         <DrawerFooter className="mx-auto w-full max-w-[40rem] flex-row gap-2 pb-[max(var(--safe-bottom),16px)]">
           <Button variant="secondary" className="h-14 gap-2 px-4 text-control" onClick={onAsk}>

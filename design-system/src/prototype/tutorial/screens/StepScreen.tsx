@@ -5,25 +5,19 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { STEPS, type Step } from "../data"
-import { diffLines } from "../diff"
+import { STEPS } from "../data"
 import { ContinueSheet } from "../sheets/ContinueSheet"
 import { ExplainSheet } from "../sheets/ExplainSheet"
 import { LessonSheet } from "../sheets/LessonSheet"
-import { fixFor, useStore } from "../store"
+import { fixFor, freshLines, useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
 import { BuildLog } from "../ui/BuildLog"
 import { CodeView } from "../ui/CodeView"
 import { InlineDiff } from "../ui/InlineDiff"
+import { readingMinutes } from "../ui/LessonBlocks"
 import { PredictZone } from "../ui/PredictZone"
 import { StepProgress } from "../ui/StepProgress"
 import { TopBar } from "../ui/TopBar"
-
-/** About 200 words a minute, rounded up, never under a minute */
-function readingMinutes(step: Step) {
-  const words = step.lesson.reduce((n, b) => n + (b.kind === "code" ? b.code : b.text).split(/\s+/).length, 0)
-  return Math.max(1, Math.ceil(words / 200))
-}
 
 // Shown once a session: the first proposal opens its first note on its own
 let taughtNotes = false
@@ -80,19 +74,7 @@ export function StepScreen() {
       : undefined
   const allNotes = proposal?.notes.map((n) => n.line) ?? []
   // What the last patch added stays tinted while it is checked and until the next action
-  const appliedPatch = s.applied === "fix" ? step.fix : s.applied === "patch" ? step.patch : undefined
-  const fresh =
-    appliedPatch && (s.phase === "building" || s.phase === "passed" || s.phase === "failed")
-      ? diffLines(appliedPatch.before, appliedPatch.after).reduce<{ n: number; lines: number[] }>(
-          (acc, row) => {
-            if (row.kind === "removed") return acc
-            acc.n++
-            if (row.kind === "added") acc.lines.push(acc.n)
-            return acc
-          },
-          { n: 0, lines: [] }
-        ).lines
-      : []
+  const fresh = freshLines(s)
   // An untouched file says what will fill it, so the empty space reads as intended
   const hint =
     s.phase === "idle" && step.patch && s.files[step.file] === step.patch.before && !s.passed[s.step]
