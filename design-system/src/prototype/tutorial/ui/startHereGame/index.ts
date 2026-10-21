@@ -1,3 +1,4 @@
+import { FixGame } from "./fix"
 import { NameGame } from "./name"
 import type { Mechanic } from "./types"
 
@@ -9,5 +10,11 @@ export const MECHANICS: Mechanic[] = [
     hook: "Make hello say your name",
     line: "Type a name into msg!, then hit Run. Your program logs it.",
     Play: NameGame,
+  },
+  {
+    id: "fix",
+    hook: "Fix the build",
+    line: "The compiler stopped at one line. Pick the fix that builds, then hit Run.",
+    Play: FixGame,
   },
 ]
