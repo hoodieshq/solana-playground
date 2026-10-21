@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 
 import { filterCatalog, resultsLine, searchHint, type FrameworkFilter } from "../ui/catalog"
 import { FilterMenu, LevelSections } from "../ui/GalleryParts"
-import { StartHereBanner } from "../ui/StartHereBanner"
+import { StartHere } from "../ui/StartHereGame"
 import { TopBar } from "../ui/TopBar"
 
 // The product's main curve and the thumb's time, from the design system's motion tokens
@@ -133,7 +133,7 @@ export function Gallery() {
         {/* The banner folds away while searching or filtering, so the results start right under the row */}
         <div className={cn("grid transition-[grid-template-rows,opacity]", MOTION, browsing ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
           <div className="min-h-0 overflow-hidden" inert={!browsing}>
-            <StartHereBanner layout="phone" />
+            <StartHere layout="phone" />
           </div>
         </div>
 
