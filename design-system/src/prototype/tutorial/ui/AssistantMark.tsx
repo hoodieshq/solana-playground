@@ -17,11 +17,11 @@ export function AssistantMark({ className, strokeWidth = 1.75 }: { className?: s
     >
       {/* The bubble, its tail down on the left */}
       <path d="M11 18h6a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v6a4 4 0 0 0 4 4v3.25L11 18Z" />
-      {/* The face */}
+      {/* The face, large enough to read at 16px: eyes and smile fill most of the bubble */}
       <g fill="currentColor" stroke="none">
-        <circle cx="9" cy="10" r="1.15" />
-        <circle cx="15" cy="10" r="1.15" />
-        <path d="M10.3 12.6h3.4a1.7 1.7 0 0 1-3.4 0Z" />
+        <circle cx="8.6" cy="9.6" r="1.6" />
+        <circle cx="15.4" cy="9.6" r="1.6" />
+        <path d="M9.7 12.4h4.6a2.3 2.3 0 0 1-4.6 0Z" />
       </g>
     </svg>
   )
