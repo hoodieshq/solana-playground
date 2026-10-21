@@ -1,3 +1,4 @@
+import { BlocksGame } from "./blocks"
 import { FixGame } from "./fix"
 import { NameGame } from "./name"
 import type { Mechanic } from "./types"
@@ -16,5 +17,11 @@ export const MECHANICS: Mechanic[] = [
     hook: "Fix the build",
     line: "The compiler stopped at one line. Pick the fix that builds, then hit Run.",
     Play: FixGame,
+  },
+  {
+    id: "blocks",
+    hook: "Build hello in 20 seconds",
+    line: "Four lines of Anchor. Snap them in, hit Run.",
+    Play: BlocksGame,
   },
 ]

@@ -263,7 +263,7 @@ function Payoff({ phase, who }: { phase: Phase; who: string | null }) {
         {/* Labelled a preview: nothing really goes to devnet from this banner */}
         <div className="absolute inset-y-0 left-[calc(1rem+13.5ch-3.5px)] flex items-center gap-1 text-muted-foreground">
           <span className="size-2 shrink-0 rounded-full border border-brand-periwinkle/70 bg-surface-well" />
-          <span className="rounded-sm bg-surface-well/85 px-1">devnet preview</span>
+          <span className="rounded-sm bg-surface-well/85 px-1 whitespace-nowrap">devnet preview</span>
         </div>
       </div>
       <div className="rounded-control border border-border bg-surface-well/80 px-4 py-2 break-words text-muted-foreground backdrop-blur-[6px]">
