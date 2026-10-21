@@ -3,7 +3,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { useStore } from "../store"
-import { FinishBadge, FinishStats, LearnedList, UpNextCard } from "../ui/FinishParts"
+import { FinishBadge, FinishStats, LastTransaction, LearnedList, UpNextCard } from "../ui/FinishParts"
 import { TopBar } from "../ui/TopBar"
 
 export function Finish() {
@@ -24,6 +24,7 @@ export function Finish() {
         <h2 className="mt-4 text-center font-heading text-display">Tutorial complete</h2>
         <p className="mx-auto mt-2 max-w-[30ch] text-center text-body text-muted-foreground">Your program is live on devnet.</p>
         <FinishStats className="mt-6" />
+        <LastTransaction className="mt-6" />
         <h3 className="mt-6 text-caption text-muted-foreground">What you learned</h3>
         <LearnedList className="mt-2" />
         <UpNextCard className="mt-6" />

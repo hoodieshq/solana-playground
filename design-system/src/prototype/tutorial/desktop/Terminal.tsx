@@ -1,12 +1,12 @@
-import { Check, ExternalLink } from "lucide-react"
-import { toast } from "sonner"
+import { Check } from "lucide-react"
 
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
-import { PROGRAM_ID, STEPS } from "../data"
+import { STEPS } from "../data"
 import { useStore } from "../store"
 import { BuildLog } from "../ui/BuildLog"
+import { ProgramId } from "../ui/ProgramId"
 import { workingLabel } from "../ui/StepStatus"
 
 /** The strip under the terminal: how the last run went, in one line beside a dot */
@@ -27,32 +27,6 @@ export function TerminalStatus() {
       />
       <span className="truncate">{busy ? workingLabel(s) : failed ? (step.id === "call-client" ? "Run failed" : "Build failed") : s.log.length ? s.log[s.log.length - 1] : "Terminal"}</span>
     </>
-  )
-}
-
-function ProgramId() {
-  const copy = () =>
-    navigator.clipboard
-      ?.writeText(PROGRAM_ID)
-      .then(() => toast("Program id copied"))
-      .catch(() => toast("Couldn't copy the program id"))
-  return (
-    <div className="mx-4 mb-3 flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3 py-2 text-caption">
-      <span className="shrink-0 text-muted-foreground">Program id</span>
-      <code className="min-w-0 flex-1 truncate font-mono text-code text-foreground">{PROGRAM_ID}</code>
-      <button type="button" onClick={copy} className="shrink-0 text-muted-foreground hover:text-foreground">
-        Copy
-      </button>
-      <a
-        href={`https://explorer.solana.com/address/${PROGRAM_ID}?cluster=devnet`}
-        target="_blank"
-        rel="noreferrer"
-        className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
-      >
-        Explorer
-        <ExternalLink strokeWidth={1.75} className="size-3.5" />
-      </a>
-    </div>
   )
 }
 
@@ -103,7 +77,7 @@ export function TerminalBody() {
               : `Nothing built yet.${s.phase === "idle" ? " Press Build or ⌘B." : ""}`
         }
       />
-      {step.deploy && s.passed[s.step] && <ProgramId />}
+      {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
     </div>
   )
 }

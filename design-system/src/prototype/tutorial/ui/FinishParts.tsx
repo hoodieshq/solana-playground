@@ -1,11 +1,11 @@
-import { Anchor, Check, Play } from "lucide-react"
+import { Anchor, Check, ExternalLink, Play } from "lucide-react"
 import { toast } from "sonner"
 
 import { Achievement, AchievementMedia } from "@/components/ui/achievement"
 import { brandButtonVariants } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
-import { NEXT_TUTORIAL, STEPS, thumb } from "../data"
+import { NEXT_TUTORIAL, STEPS, TX_SIGNATURE, thumb } from "../data"
 import { useStore } from "../store"
 import { Thumb } from "./Thumb"
 
@@ -39,6 +39,29 @@ export function FinishStats({ className }: { className?: string }) {
         </div>
       ))}
     </dl>
+  )
+}
+
+/** The last transaction, a link to it on Explorer: proof the program really runs */
+export function LastTransaction({ className }: { className?: string }) {
+  return (
+    <section aria-labelledby="tx-title" className={className}>
+      <h3 id="tx-title" className="text-caption text-muted-foreground">
+        Your last transaction
+      </h3>
+      <a
+        href={`https://explorer.solana.com/tx/${TX_SIGNATURE}?cluster=devnet`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-2 flex min-h-11 items-center gap-4 rounded-control border border-border bg-surface-panel px-3 py-2 transition-colors hover:bg-surface active:bg-surface"
+      >
+        <code className="min-w-0 flex-1 truncate font-mono text-code text-foreground">{TX_SIGNATURE}</code>
+        <span className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground">
+          Open in Explorer
+          <ExternalLink strokeWidth={1.75} className="size-3.5" />
+        </span>
+      </a>
+    </section>
   )
 }
 

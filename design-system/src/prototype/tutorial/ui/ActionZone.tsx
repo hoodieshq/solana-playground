@@ -72,7 +72,7 @@ export function ActionZone({ lead }: { lead?: Lead }) {
               )
             }
           >
-            {busy ? workingLabel(s) : reviewing ? (s.review === "fix" ? "Apply and build" : "Apply") : failed ? "Explain" : step.cta}
+            {busy ? workingLabel(s) : reviewing ? (step.id === "call-client" ? "Apply and run" : "Apply and build") : failed ? "Explain" : step.cta}
           </BrandButton>
         )}
       </div>

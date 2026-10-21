@@ -12,6 +12,7 @@ import { LessonSheet } from "../sheets/LessonSheet"
 import { fixFor, freshLines, patchFor, useStore } from "../store"
 import { ActionZone } from "../ui/ActionZone"
 import { BuildLog } from "../ui/BuildLog"
+import { ProgramId } from "../ui/ProgramId"
 import { CodeView } from "../ui/CodeView"
 import { InlineDiff } from "../ui/InlineDiff"
 import { readingMinutes } from "../ui/LessonBlocks"
@@ -191,7 +192,12 @@ export function StepScreen() {
 
       {/* A proposal shows in place, as a diff of the file. The assistant speaks from the bottom zone */}
       {tab === "build" ? (
-        <BuildLog log={s.log} />
+        // After a deploy the program id sits under the log in one line, with Copy and Explorer.
+        // A passed deploy opened again shows its log, which leaving the step cleared
+        <div className="flex min-h-0 flex-1 flex-col bg-surface-well">
+          <BuildLog log={s.log.length === 0 && step.deploy && s.passed[s.step] ? step.deploy.result.log : s.log} />
+          {step.deploy && s.passed[s.step] && <ProgramId className="mx-4 mb-3" />}
+        </div>
       ) : proposal && !asking ? (
         <InlineDiff patch={proposal} open={notes} onToggle={(line) => setNotes((n) => (n.includes(line) ? n.filter((x) => x !== line) : [...n, line]))} />
       ) : (

@@ -26,7 +26,8 @@ export function ActionBar({ asking, explained, onExplain }: { asking: boolean; e
   if (s.phase === "passed") {
     buttons = (
       <Button className={`${BTN} bg-success text-success-foreground hover:bg-success/90`} onClick={() => dispatch({ type: "next" })}>
-        {last ? "Finish tutorial" : "Next step"}
+        {/* Where it leads, as on the phone */}
+        {last ? "Finish tutorial" : `Next: ${STEPS[s.step + 1].title}`}
         <ArrowRight strokeWidth={2.25} className="size-4" />
       </Button>
     )
