@@ -160,7 +160,7 @@ mod hello_anchor {
         Ok(())
     }
 }` },
-      { kind: "p", text: "Build it. The first build fails on purpose, so you see how Anchor reports a missing piece." },
+      { kind: "p", text: "The first build fails on purpose, so you see how Anchor reports a missing piece." },
     ],
     file: "src/lib.rs",
     focus: [1],
@@ -228,12 +228,12 @@ mod hello_anchor {
     ],
     errorChips: [
       {
-        label: "Why is this needed",
+        label: "Why does hello need a struct?",
         answer:
           "Without `#[derive(Accounts)]` Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty.",
       },
       {
-        label: "Show in docs",
+        label: "Where is this in the docs?",
         answer:
           "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`.",
       },
@@ -272,12 +272,12 @@ mod hello_anchor {
       "Deploying puts your built program on devnet, Solana's public test network. Kora covers the cost, so this works without a wallet. Press Deploy to devnet and wait for the program id.",
     chips: [
       {
-        label: "Why 7 days",
+        label: "Why 7 days?",
         answer:
           "Kora pays the rent for programs on devnet. To keep that free for everyone, a program nobody calls for 7 days is closed. Deploy again and you get it back.",
       },
       {
-        label: "What is devnet",
+        label: "What is devnet?",
         answer: "Devnet is Solana's public network for testing. It behaves like mainnet, but its SOL has no value.",
       },
     ],
@@ -323,7 +323,7 @@ mod hello_anchor {
       "A client is code outside the program that sends it transactions. Here it's a short TypeScript file. I'll write the call to `hello` as a patch, then run it.",
     chips: [
       {
-        label: "What is pg",
+        label: "What is pg?",
         answer: "`pg` is Playground's global with your program, wallet and connection already set up. `pg.program` knows `hello` from the IDL the build produced.",
       },
     ],
@@ -373,7 +373,7 @@ mod hello_anchor {
       "Instructions can take arguments after their `Context`. This step adds a `name` to `hello` and logs it, so the Test UI asks you for one.",
     chips: [
       {
-        label: "Which types work",
+        label: "Which types work?",
         answer: "Any type Anchor can serialize: numbers, `bool`, `String`, `Pubkey`, `Vec` and your own structs with `AnchorSerialize`.",
       },
     ],

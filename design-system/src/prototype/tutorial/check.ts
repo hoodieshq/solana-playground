@@ -38,15 +38,22 @@ function lineOf(code: string, needle: string) {
 }
 
 /** A line of code to quote in a message. Prose reads ticks as code, so a line with its own can't be quoted */
-const quote = (line: string) => (line.includes("`") ? "" : `: \`${line.trim()}\``)
+const quote = (line: string) => (line.includes("`") ? "" : ` (\`${line.trim()}\`)`)
 
-export function checkOwn(code: string, target: string, file: string): OwnCheck {
+/** Curly quotes as straight ones. A tablet's keyboard curls them as you type, and code copied out
+ * of a document often has them. A compiler would refuse them, but that slip isn't what a step teaches */
+export const straightQuotes = (code: string) => code.replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
+
+export function checkOwn(written: string, target: string, file: string): OwnCheck {
+  const code = straightQuotes(written)
   const mine = lines(code)
   const want = lines(target)
   if (mine.join("") === want.join("")) return { ok: true }
 
   const rust = file.endsWith(".rs")
   const head = rust ? ["$ anchor build", "Compiling hello_anchor v0.1.0"] : [`$ run ${file}`, "Running client..."]
+  // Every reason starts the same way, so the status line reads alike whatever went wrong
+  const failed = rust ? "Build failed" : "Run failed"
   const bare = uncomment(code)
 
   if (target.includes("struct Hello") && bare.includes("Context<Hello>") && !/struct\s+Hello\b/.test(bare)) {
@@ -55,7 +62,7 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
       ok: false,
       line,
       log: [...head, "error[E0412]: cannot find type `Hello` in this scope", ` --> ${file}:${line}`, "Build failed"],
-      reason: `Build failed: \`Context<Hello>\` on line ${line} needs a \`Hello\` struct.`,
+      reason: `${failed}: \`Context<Hello>\` on line ${line} needs a \`Hello\` struct.`,
       explain:
         "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Your `hello` asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
     }
@@ -67,7 +74,7 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
       ok: false,
       line,
       log: [...head, "error[E0308]: mismatched types", ` --> ${file}:${line}`, "expected `Result<()>`, found `()`", "Build failed"],
-      reason: `Line ${line} promises a Result, but the function never returns one.`,
+      reason: `${failed}: line ${line} promises a \`Result\`, but the function never returns one.`,
       explain:
         "Your `hello` says it returns `Result<()>`, but its last line is `msg!`, which returns nothing. End the function with `Ok(())` to tell Anchor the instruction worked.",
     }
@@ -86,8 +93,8 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
     return fail(
       1,
       "the file has no code in it",
-      `The file is empty, so there is nothing to ${rust ? "build" : "run"}.`,
-      "There is no code in the file yet. Type the code from the lesson, or review the fix to see the lines this step needs."
+      `${failed}: the file is empty, so there is nothing to ${rust ? "build" : "run"}.`,
+      "There is no code in the file yet. Follow the lesson, or review the fix to see the lines this step needs."
     )
 
   // A line the step has nowhere is the one to look at
@@ -98,7 +105,7 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
     return fail(
       line,
       `line ${line} isn't part of this step`,
-      `Line ${line} isn't part of this step${quote(code.split("\n")[extra])}.`,
+      `${failed}: line ${line} isn't part of this step${quote(code.split("\n")[extra])}.`,
       `Line ${line} isn't in the code this step builds. Compare it with the lesson, or review the fix to see the exact lines this step needs.`
     )
   }
@@ -111,14 +118,14 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
     return fail(
       line,
       "a line this step needs is missing",
-      `A line this step needs is missing${quote(target.split("\n")[gone])}.`,
+      `${failed}: a line this step needs is missing${quote(target.split("\n")[gone])}.`,
       "Everything you wrote belongs to this step, but a line it needs isn't there yet. Compare your code with the lesson, or review the fix to see where it goes."
     )
   }
   return fail(
     1,
     "the lines are out of order",
-    "The lines are all there, but not in the order this step needs.",
-    "Your code has every line this step needs, in a different order, and the order matters. Review the fix to see it laid out."
+    `${failed}: the lines are all there, but not in the order this step needs.`,
+    "Your code has every line this step needs, in a different order, and the order matters. Compare it with the lesson, or review the fix to see it laid out."
   )
 }

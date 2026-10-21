@@ -14,6 +14,12 @@ export type State = {
   files: Record<string, string>
   passed: boolean[]
   firstTry: boolean[]
+  /** A passed step whose code has changed since: it waits for a build again and its old result
+   * isn't shown for code nobody built. The check mark in the progress stays until that build */
+  changedSincePass: boolean[]
+  /** A build of the step has failed at least once, the planned one on step 1 too: the questions
+   * about the error stay offered. `firstTry` leaves the planned failure out */
+  failedOnce: boolean[]
   phase: Phase
   /** Whether the sheet for the current phase is up */
   sheet: boolean
@@ -27,6 +33,9 @@ export type State = {
   /** `explain` is set when the build checked hand-written code: what the assistant says about it */
   error: { line: number; reason: string; explain?: string } | null
   explain: "step" | "error"
+  /** The assistant has explained the current failure, so the next thing offered is its fix. Kept
+   * here so switching views doesn't ask for the explanation again */
+  explained: boolean
   deployStage: number
   /** The quick check's answer on each step that asks one. Kept here so switching views doesn't ask again */
   predicted: Record<number, number | "skip">
@@ -44,6 +53,8 @@ export type Action =
   | { type: "predict"; choice: number | "skip" }
   | { type: "reviewFix" }
   | { type: "explain"; mode: "step" | "error" }
+  /** The failure was explained somewhere other than the sheet, as the desktop does in its column */
+  | { type: "explained" }
   | { type: "close" }
   | { type: "apply" }
   | { type: "edit"; code: string }
@@ -63,6 +74,8 @@ export const initial = (): State => ({
   files: { ...INITIAL_FILES },
   passed: STEPS.map(() => false),
   firstTry: STEPS.map(() => true),
+  changedSincePass: STEPS.map(() => false),
+  failedOnce: STEPS.map(() => false),
   phase: "idle",
   sheet: false,
   applied: null,
@@ -71,6 +84,7 @@ export const initial = (): State => ({
   log: [],
   error: null,
   explain: "step",
+  explained: false,
   deployStage: 0,
   predicted: {},
   startedAt: null,
@@ -79,8 +93,11 @@ export const initial = (): State => ({
 
 const setAt = (xs: boolean[], i: number, v: boolean) => xs.map((x, k) => (k === i ? v : x))
 
+/** Whether step `i` stands passed: it passed, and its code hasn't changed since */
+const stands = (s: State, i: number) => s.passed[i] && !s.changedSincePass[i]
+
 /** The phase a step rests in once nothing is running and no sheet is up */
-const resting = (s: State): Phase => (s.error ? "failed" : s.passed[s.step] ? "passed" : "idle")
+const resting = (s: State): Phase => (s.error ? "failed" : stands(s, s.step) ? "passed" : "idle")
 
 /** The code a step checks hand-written work against: what its fix leaves, or its patch when it has no fix */
 export const targetFor = (step: Step) => step.fix?.after ?? step.patch?.after ?? null
@@ -126,7 +143,7 @@ export function lastResult(s: State): BuildResult | null {
     return c.ok ? passFor(step) : c
   }
   // A passed step reopened from elsewhere has no patch applied, but it did pass
-  if (s.applied === null && s.passed[s.step]) return passFor(step)
+  if (s.applied === null && stands(s, s.step)) return passFor(step)
   const p = s.applied === "fix" ? step.fix : step.patch
   return p?.result ?? null
 }
@@ -162,11 +179,11 @@ function reducer(s: State, a: Action): State {
         ...s,
         screen: "step",
         step: at,
-        phase: same ? resting(s) : s.passed[at] ? "passed" : "idle",
+        phase: same ? resting(s) : stands(s, at) ? "passed" : "idle",
         error: same ? s.error : null,
         // Another step's patch, log and Undo would speak for this one: its status read the last
         // step's patch as its own result
-        ...(same ? {} : { applied: null, undo: null, log: [] }),
+        ...(same ? {} : { applied: null, undo: null, log: [], explained: false }),
         sheet: false,
         startedAt: s.startedAt ?? Date.now(),
       }
@@ -174,19 +191,20 @@ function reducer(s: State, a: Action): State {
     case "restart":
       return { ...initial(), screen: "step", startedAt: Date.now() }
     case "goto":
-      return { ...s, step: a.step, phase: s.passed[a.step] ? "passed" : "idle", sheet: false, error: null, undo: null, log: [], applied: null }
+      return { ...s, step: a.step, phase: stands(s, a.step) ? "passed" : "idle", sheet: false, error: null, undo: null, log: [], applied: null, explained: false }
     case "openStep":
       // From the overview: straight into a step already reached
       return {
         ...s,
         screen: "step",
         step: a.step,
-        phase: s.passed[a.step] ? "passed" : "idle",
+        phase: stands(s, a.step) ? "passed" : "idle",
         sheet: false,
         error: null,
         undo: null,
         log: [],
         applied: null,
+        explained: false,
         startedAt: s.startedAt ?? Date.now(),
       }
     // A proposal shows inline, in the code it changes: no sheet
@@ -197,7 +215,10 @@ function reducer(s: State, a: Action): State {
     case "reviewFix":
       return fixFor(s) ? { ...s, phase: "patch", review: "fix", sheet: false } : s
     case "explain":
-      return { ...s, phase: "explain", explain: a.mode, sheet: true }
+      // The phone's sheet explains the error as it opens
+      return { ...s, phase: "explain", explain: a.mode, sheet: true, explained: s.explained || (a.mode === "error" && !!s.error) }
+    case "explained":
+      return s.error ? { ...s, explained: true } : s
     case "close":
       if (s.phase === "patch" || s.phase === "explain") return { ...s, phase: resting(s), sheet: false }
       return { ...s, sheet: false }
@@ -213,6 +234,7 @@ function reducer(s: State, a: Action): State {
         phase: "building",
         sheet: false,
         error: null,
+        explained: false,
         log: [],
       }
     }
@@ -222,33 +244,57 @@ function reducer(s: State, a: Action): State {
       const files = { ...s.files, [step.file]: a.code }
       // Only whitespace changed: nothing a build checks did, so a pass stands. Enter typed in the
       // editor after a pass keeps Next where it was
-      if (s.phase === "passed" && sameCode(a.code, s.files[step.file])) return { ...s, files }
-      return { ...s, files, error: null, sheet: false, phase: "idle" }
+      const same = sameCode(a.code, s.files[step.file])
+      if (s.phase === "passed" && same) return { ...s, files }
+      // Anything else on a passed step means the pass was for other code
+      const changedSincePass = s.passed[s.step] && !same ? setAt(s.changedSincePass, s.step, true) : s.changedSincePass
+      return { ...s, files, changedSincePass, error: null, explained: false, sheet: false, phase: "idle" }
     }
     case "buildOwn":
-      return { ...s, applied: "own", phase: "building", sheet: false, error: null, log: [] }
+      return { ...s, applied: "own", phase: "building", sheet: false, error: null, explained: false, log: [] }
     case "built": {
       const r = lastResult(s)
       if (!r) return s
-      if (r.ok) return { ...s, phase: "passed", sheet: false, log: r.log, error: null, passed: setAt(s.passed, s.step, true) }
+      if (r.ok)
+        return {
+          ...s,
+          phase: "passed",
+          sheet: false,
+          log: r.log,
+          error: null,
+          passed: setAt(s.passed, s.step, true),
+          changedSincePass: setAt(s.changedSincePass, s.step, false),
+        }
+      // Step 1's patch fails by design, to show how Anchor reports a missing piece: that isn't a
+      // miss on the learner's first try
+      const planned = s.applied === "patch" && step.patch?.result.ok === false
       return {
         ...s,
         phase: "failed",
         sheet: false,
         log: r.log,
         error: { line: r.line, reason: r.reason, explain: (r as Fail & { explain?: string }).explain },
-        firstTry: setAt(s.firstTry, s.step, false),
+        explained: false,
+        firstTry: planned ? s.firstTry : setAt(s.firstTry, s.step, false),
+        failedOnce: setAt(s.failedOnce, s.step, true),
       }
     }
     case "retry":
-      return { ...s, phase: "building", sheet: false, error: null, log: [] }
+      return { ...s, phase: "building", sheet: false, error: null, explained: false, log: [] }
     case "deploy":
-      return { ...s, phase: "deploying", deployStage: 0, sheet: false, log: [] }
+      return { ...s, phase: "deploying", deployStage: 0, sheet: false, explained: false, log: [] }
     case "deployStage": {
       const d = step.deploy
       if (!d) return s
       if (s.deployStage + 1 < d.stages.length) return { ...s, deployStage: s.deployStage + 1 }
-      return { ...s, phase: "passed", sheet: false, log: d.result.log, passed: setAt(s.passed, s.step, true) }
+      return {
+        ...s,
+        phase: "passed",
+        sheet: false,
+        log: d.result.log,
+        passed: setAt(s.passed, s.step, true),
+        changedSincePass: setAt(s.changedSincePass, s.step, false),
+      }
     }
     case "undo":
       if (!s.undo) return s
@@ -260,13 +306,15 @@ function reducer(s: State, a: Action): State {
         phase: "idle",
         sheet: false,
         error: null,
+        explained: false,
         log: [],
         passed: setAt(s.passed, s.step, false),
+        changedSincePass: setAt(s.changedSincePass, s.step, false),
       }
     case "next":
       if (s.step === STEPS.length - 1)
         return { ...s, screen: "finish", phase: "idle", sheet: false, finishedAt: s.finishedAt ?? Date.now() }
-      return { ...s, step: s.step + 1, phase: "idle", sheet: false, error: null, undo: null, log: [], applied: null }
+      return { ...s, step: s.step + 1, phase: "idle", sheet: false, error: null, undo: null, log: [], applied: null, explained: false }
   }
 }
 

@@ -24,7 +24,7 @@ export function StepStatus({ lead }: { lead?: Lead }) {
   const step = STEPS[s.step]
   const r = lastResult(s)
   // Under the explanation sheet the step keeps saying where it stands: the error it explains, or the pass
-  const phase = s.phase === "explain" ? (s.error ? "failed" : s.passed[s.step] ? "passed" : "idle") : s.phase
+  const phase = s.phase === "explain" ? (s.error ? "failed" : s.passed[s.step] && !s.changedSincePass[s.step] ? "passed" : "idle") : s.phase
 
   if (phase === "building" || phase === "deploying") {
     const detail =
@@ -76,10 +76,16 @@ export function StepStatus({ lead }: { lead?: Lead }) {
       </>
     )
   }
+  // The step passed, then its code changed: the pass was for other code, so it waits for a build
+  const run = step.id === "call-client"
   return (
     <>
       <CircleDashed strokeWidth={1.75} className="mt-px size-4 shrink-0" />
-      <span>Done when {step.checkedBy}</span>
+      <span>
+        {s.changedSincePass[s.step]
+          ? `Changed since the last ${run ? "run" : "build"}. ${run ? "Run" : "Build"} to check it again.`
+          : `Done when ${step.checkedBy}`}
+      </span>
     </>
   )
 }

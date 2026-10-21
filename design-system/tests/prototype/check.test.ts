@@ -78,7 +78,7 @@ test("a line the step doesn't have is named in the error", () => {
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.equal(r.line, 11)
-  assert.equal(r.reason, "Line 11 isn't part of this step: `let x = 1;`.")
+  assert.equal(r.reason, "Build failed: line 11 isn't part of this step (`let x = 1;`).")
   assert.match(r.log.join("\n"), /src\/lib\.rs:11/)
 })
 
@@ -86,7 +86,7 @@ test("a missing line is quoted", () => {
   const r = checkOwn(TARGET.replace("    use super::*;\n", ""), TARGET, "src/lib.rs")
   assert.equal(r.ok, false)
   if (r.ok) return
-  assert.equal(r.reason, "A line this step needs is missing: `use super::*;`.")
+  assert.equal(r.reason, "Build failed: a line this step needs is missing (`use super::*;`).")
 })
 
 test("an empty file says so", () => {
@@ -95,7 +95,7 @@ test("an empty file says so", () => {
     assert.equal(r.ok, false)
     if (r.ok) return
     assert.equal(r.line, 1)
-    assert.equal(r.reason, "The file is empty, so there is nothing to build.")
+    assert.equal(r.reason, "Build failed: the file is empty, so there is nothing to build.")
   }
 })
 
@@ -111,4 +111,23 @@ test("the client runs instead of building", () => {
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.equal(r.log[0], "$ run client/client.ts")
+  assert.match(r.reason, /^Run failed: /)
+})
+
+test("curly quotes count as straight ones", () => {
+  const curly = TARGET.replace('"11111111111111111111111111111111"', "“11111111111111111111111111111111”").replace('"Hello, World!"', "“Hello, World!”")
+  assert.deepEqual(checkOwn(curly, TARGET, "src/lib.rs"), { ok: true })
+  const call = "console.log(‘hi’);"
+  assert.deepEqual(checkOwn(call, "console.log('hi');", "client/client.ts"), { ok: true })
+})
+
+test("every reason starts with what failed, and none asks to type", () => {
+  const cases = [NO_STRUCT, NO_OK, "", TARGET.replace("    use super::*;\n", ""), TARGET.split("\n").reverse().join("\n")]
+  for (const code of cases) {
+    const r = checkOwn(code, TARGET, "src/lib.rs")
+    assert.equal(r.ok, false)
+    if (r.ok) return
+    assert.match(r.reason, /^Build failed: /)
+    assert.doesNotMatch(r.explain, /\btype (the|it|your)\b/i)
+  }
 })
