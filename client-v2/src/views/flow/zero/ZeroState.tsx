@@ -301,9 +301,10 @@ const FrameworkFilter: FC<{
           strokeLinecap="round"
           aria-hidden="true"
         >
-          <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-          <circle cx="16" cy="7" r="2" />
-          <circle cx="10" cy="17" r="2" />
+          <path d="M6 4v8M6 16v4M12 4v2M12 10v10M18 4v10M18 18v2" />
+          <circle cx="6" cy="14" r="2" />
+          <circle cx="12" cy="8" r="2" />
+          <circle cx="18" cy="16" r="2" />
         </svg>
         {on && <FilterDot aria-hidden />}
       </FilterButton>
@@ -392,8 +393,8 @@ const searchShape = css`
     align-items: center;
     gap: 0.5rem;
     width: 20rem;
-    /* The page's own search, so a control's full height: 40px, the Styleguide's
-       15px at the reading weight, and the filter square beside it to match */
+    /* The page's own search, so a control's full height: 40px, at the
+       reading weight, and the filter beside it to match */
     height: 2.5rem;
     padding: 0 0.75rem 0 0.875rem;
     border: 1px solid ${theme.colors.default.border};
@@ -418,7 +419,9 @@ const searchShape = css`
        the disabled grey at 3.4:1 that AA does not allow */
     color: ${theme.colors.default.textSecondary}cc;
     font-family: inherit;
-    font-size: 0.9375rem;
+    /* The Styleguide's desktop row size; the phone's body size above keeps
+       16px, under which iOS zooms the page on a tap into the field */
+    font-size: 0.8125rem;
     font-weight: 350;
   `}
 `;
@@ -453,7 +456,9 @@ const PageTitle = styled.h1`
   `}
 `;
 
-/* The search's height and corners, square */
+/* An icon beside the search, not a second box: the search's height to hit,
+   the glass's grey at rest, the text's white under the pointer or when a
+   filter is on */
 const FilterButton = styled.button<{ $on: boolean }>`
   ${({ theme, $on }) => css`
     position: relative;
@@ -464,20 +469,18 @@ const FilterButton = styled.button<{ $on: boolean }>`
     width: 2.5rem;
     height: 2.5rem;
     padding: 0;
-    border: 1px solid
-      ${$on
-        ? theme.colors.default.textSecondary
-        : `${theme.colors.default.textSecondary}44`};
+    border: none;
     border-radius: 8px;
-    background: ${theme.colors.default.bgSecondary};
+    background: transparent;
     color: ${$on
       ? theme.colors.default.textPrimary
-      : theme.colors.default.textSecondary};
+      : `${theme.colors.default.textSecondary}cc`};
     cursor: pointer;
+    transition: color 0.15s ease;
 
     & > svg {
-      width: 1rem;
-      height: 1rem;
+      width: 1.375rem;
+      height: 1.375rem;
     }
 
     &:hover {
@@ -492,7 +495,6 @@ const FilterButton = styled.button<{ $on: boolean }>`
     ${PHONE} {
       width: ${PHONE_SIZE.target};
       height: ${PHONE_SIZE.target};
-      border-radius: 12px;
     }
   `}
 `;

@@ -120,10 +120,10 @@ const StartHere: FC = () => {
     const pages = n.pageCount;
     return (
       <Wrapper ref={box} aria-labelledby={titleId}>
-        {/* The mark as a voxel sculpture, larger than the banner, wants the
-            right half to itself: on a narrow banner or a phone the words take
-            that room, so the light keeps to the corner */}
-        {!phone && wide ? <IsoVoxels /> : <Field layout="corner" />}
+        {/* The mark as a voxel sculpture on every size, the same cubes: beside
+            the words on a wide banner, hung from the top right corner where
+            the words run the full width */}
+        <IsoVoxels corner={phone || !wide} />
         <Inner $wide={false}>
           <Words>
             <Label $fresh={!nextAt}>
@@ -604,11 +604,13 @@ const Go = styled(BrandPill)`
     pointer-events: none;
   }
 
-  /* One quick lap per hover, then the beam goes out rather than standing
-     still as a stray highlight */
+  /* One lap per hover, then the beam goes out rather than standing still as
+     a stray highlight. 1.2s carries it round the pill's ~330px at about
+     280px a second, slow enough for the eye to follow the ring, on the
+     Styleguide's Ground curve */
   &&:hover:not(:disabled)::after,
   &&:focus-visible::after {
-    animation: start-beam 700ms cubic-bezier(0.45, 0, 0.2, 1) both;
+    animation: start-beam 1200ms cubic-bezier(0.45, 0, 0.2, 1) both;
   }
 
   @keyframes start-beam {

@@ -120,7 +120,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({
         >
           {finished ? (
             <Tick viewBox="0 0 16 16" aria-hidden>
-              <path d="M3.5 8.5l3 3 6-7" pathLength={1} />
+              <path d="M3.5 8.5l3 3 6-7" />
             </Tick>
           ) : phone ? (
             <Go>{ICONS.forward}</Go>
@@ -507,7 +507,8 @@ const Thumb = styled(TutorialCover)`
 /* The corner square, as the connectors' cards draw it: a raised fill, no
    outline, the arrow out to the tutorial, a tick once it is done. The whole
    card is its hit area, stretched over it, so the square only shows what a
-   press does; its name says it to anyone listening */
+   press does; its name says it to anyone listening. It holds still under
+   the pointer: the card's own fill is the answer */
 const Corner = styled.button<{ $done: boolean }>`
   ${({ theme, $done }) => css`
     position: static;
@@ -522,8 +523,6 @@ const Corner = styled.button<{ $done: boolean }>`
     background: ${$done ? `${BRAND.green}1f` : theme.colors.state.hover.bg};
     color: ${$done ? BRAND.green : theme.colors.default.textPrimary};
     cursor: pointer;
-    transition: background ${theme.default.transition.duration.short}
-      ${theme.default.transition.type};
 
     &::after {
       content: "";
@@ -532,27 +531,13 @@ const Corner = styled.button<{ $done: boolean }>`
       border-radius: 12px;
     }
 
-    /* Under the pointer the square steps back and the arrow alone answers,
-       leaning to its corner. A done tick keeps its green */
-    @media (hover: hover) {
-      ${Card}:hover & {
-        background: ${$done ? `${BRAND.green}1f` : "transparent"};
-      }
-    }
-
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
       outline-offset: 2px;
     }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
   `}
 `;
 
-/* Under the pointer it grows by two thirds, where the square was, on the
-   Styleguide's Press curve */
 const Arrow = styled.svg`
   width: 1rem;
   height: 1rem;
@@ -561,30 +546,10 @@ const Arrow = styled.svg`
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
-
-  @media (hover: hover) {
-    ${Card}:hover & {
-      transform: scale(1.66);
-    }
-  }
-  ${Card}:has(button:focus-visible) & {
-    transform: scale(1.66);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-
-    ${Card}:hover &,
-    ${Card}:has(button:focus-visible) & {
-      transform: none;
-    }
-  }
 `;
 
 /* Drawn, not typed: a glyph brings its own side bearings and sat off
-   centre. Under the pointer it answers as the arrow does: it grows by two
-   thirds and draws itself again, on the Rise curve */
+   centre */
 const Tick = styled.svg`
   flex-shrink: 0;
   width: 1rem;
@@ -594,36 +559,4 @@ const Tick = styled.svg`
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
-
-  & > path {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 0;
-  }
-
-  @media (hover: hover) {
-    ${Card}:hover & {
-      transform: scale(1.66);
-    }
-    ${Card}:hover & > path {
-      animation: tick-draw 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
-    }
-  }
-
-  @keyframes tick-draw {
-    from {
-      stroke-dashoffset: 1;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-
-    ${Card}:hover & {
-      transform: none;
-    }
-    ${Card}:hover & > path {
-      animation: none;
-    }
-  }
 `;

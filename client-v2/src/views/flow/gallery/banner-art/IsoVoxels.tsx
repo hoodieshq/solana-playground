@@ -462,11 +462,17 @@ let spriteCache: {
   sides: HTMLCanvasElement;
 } | null = null;
 
+/* On a narrow banner the words run the full width, so the sculpture hangs
+   from the top right corner instead: the same cubes, the triangle and part
+   of the ring in view, the rest past the frame */
+const CORNER_CELL = 8;
+
 const buildScene = (
   mark: Mark,
   cssW: number,
   cssH: number,
-  dpr: number
+  dpr: number,
+  corner: boolean
 ): Scene | null => {
   const spanA = mark.maxA - mark.minA;
   const spanB = mark.maxB - mark.minB;
@@ -480,7 +486,7 @@ const buildScene = (
       break;
     }
   }
-  cell *= MARK_SCALE;
+  cell = corner ? CORNER_CELL : cell * MARK_SCALE;
   const step = 2 * Math.round((cell * dpr) / 2);
   const gap = Math.max(2, 2 * Math.round(step * 0.07));
   const w = step - gap;
@@ -491,12 +497,16 @@ const buildScene = (
   const height = Math.round(cssH * dpr);
   const artW = spanA * step + 2 * w;
   const artH = (spanB * step) / 2 + h0 + w;
-  const left = Math.max(width * ART_LEFT, width + artW * 0.03 - artW);
-  // Larger than the banner, it is centred on it and runs off both edges
-  const top =
-    MARK_SCALE > 1
-      ? (height - artH) / 2 + height * 0.05
-      : Math.max(14 * dpr, (height - artH) / 2 + height * 0.05);
+  const left = corner
+    ? width * 0.4
+    : Math.max(width * ART_LEFT, width + artW * 0.03 - artW);
+  // Larger than the banner, it is centred on it and runs off both edges; in
+  // the corner it hangs from the top, a third of it above the frame
+  const top = corner
+    ? -artH * 0.32
+    : MARK_SCALE > 1
+    ? (height - artH) / 2 + height * 0.05
+    : Math.max(14 * dpr, (height - artH) / 2 + height * 0.05);
   const ox = Math.round(left + w - mark.minA * step);
   const oy = Math.round(top + h0 + w / 2 - (mark.minB * step) / 2);
 
@@ -524,7 +534,11 @@ const buildScene = (
   };
 };
 
-const IsoVoxels: FC<{ className?: string }> = ({ className }) => {
+const IsoVoxels: FC<{
+  className?: string;
+  /** Hung from the top right corner, for a banner the words fill across */
+  corner?: boolean;
+}> = ({ className, corner = false }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -682,7 +696,7 @@ const IsoVoxels: FC<{ className?: string }> = ({ className }) => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       canvas.width = Math.round(cssW * dpr);
       canvas.height = Math.round(cssH * dpr);
-      scene = buildScene(mark, cssW, cssH, dpr);
+      scene = buildScene(mark, cssW, cssH, dpr, corner);
       // Resizing clears the canvas; paint now rather than wait for a frame
       draw(clock, 0);
       sync();
@@ -725,22 +739,37 @@ const IsoVoxels: FC<{ className?: string }> = ({ className }) => {
       raf = 0;
       scene = null;
     };
-  }, []);
+  }, [corner]);
 
   return (
-    <Root ref={rootRef} className={className} aria-hidden="true">
+    <Root
+      ref={rootRef}
+      className={className}
+      $corner={corner}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} />
     </Root>
   );
 };
 
-const Root = styled.div`
+const Root = styled.div<{ $corner: boolean }>`
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* The words own the left of the banner: the art fades out before it */
-  -webkit-mask-image: linear-gradient(90deg, transparent 42%, #000 54%);
-  mask-image: linear-gradient(90deg, transparent 42%, #000 54%);
+  /* The words own the left of the banner: the art fades out before it. In
+     the corner it fades out down and to the left, towards the words under
+     it, so they read over its faint end */
+  ${({ $corner }) =>
+    $corner
+      ? `
+    -webkit-mask-image: radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%);
+    mask-image: radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%);
+  `
+      : `
+    -webkit-mask-image: linear-gradient(90deg, transparent 42%, #000 54%);
+    mask-image: linear-gradient(90deg, transparent 42%, #000 54%);
+  `}
 
   & > canvas {
     display: block;
