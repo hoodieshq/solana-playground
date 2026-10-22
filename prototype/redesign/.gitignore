@@ -4,6 +4,7 @@ walkthrough/build/
 
 # What the repository root ignores for client-v2/, for this copy of it
 node_modules/
+build/
 .cache/
 public/
 src/views/sidebar/assistant/content/assistant-context.md
