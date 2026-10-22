@@ -400,7 +400,11 @@ describe("a tutorial started on one browser, opened on another", () => {
 
 describe("work that never reached the server", () => {
   beforeEach(setUp);
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    editor?.dispose();
+    editor = null;
+    vi.restoreAllMocks();
+  });
 
   /**
    * The sequence the old code lost an afternoon to: this device pushes, then
@@ -467,6 +471,28 @@ describe("work that never reached the server", () => {
       "src/lib.rs": "the other device",
     });
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("brings an editor that mounted while the other device's copy was taken up to that copy", async () => {
+    await diverge();
+    await reconcile();
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    // The editor finishes loading during the re-open, before memory is
+    // re-read, so it builds its model from the text just replaced. The
+    // re-open then reuses that model, and the pane goes on showing it.
+    let buffers: Map<string, string> | null = null;
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers = editorHolds({
+        [`/${HELLO.name}/src/lib.rs`]: "an afternoon of work",
+      });
+    });
+
+    expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
+
+    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
   });
 });
 
@@ -873,6 +899,32 @@ describe("both devices changed it", () => {
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
 
     expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\ne\n");
+  });
+
+  it("folds in what was typed into an editor that mounted while the other device's copy was taken", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    // Mounted during the re-open, from memory not yet re-read, and typed into
+    // before the re-open was done
+    let buffers: Map<string, string> | null = null;
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers = editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n" });
+    });
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
+    expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
+      "A\nb\nc\nd\nE\n"
+    );
+    // On this device alone, so the project still owes it to the account
+    expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
   });
 
   it("does not take the other device's copy over what was typed and saved while it was being fetched", async () => {

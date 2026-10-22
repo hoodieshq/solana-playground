@@ -899,7 +899,8 @@ export class PgProjectSync {
   /**
    * Bring every other copy of a workspace's files level with the store, once
    * sync has rewritten it: the editor's buffers, then -- for the current
-   * workspace -- the explorer's memory.
+   * workspace -- the explorer's memory, then the buffers of an editor that
+   * mounted in between.
    *
    * `replaceWorkspaceFiles` writes the store and nothing else. The explorer
    * re-reads on a re-open, but Monaco keeps a model per path and reuses it on
@@ -923,63 +924,76 @@ export class PgProjectSync {
     before: Record<string, string>,
     after: Record<string, string>
   ): Promise<string[]> {
-    const buffers = PgExplorer.editorBuffers;
-    const paths = new Set([...Object.keys(before), ...Object.keys(after)]);
+    const paths = [
+      ...new Set([...Object.keys(before), ...Object.keys(after)]),
+    ].sort();
     const folded: string[] = [];
+    // Paths whose buffer a pass below has already brought level
+    const caughtUp = new Set<string>();
 
-    for (const path of buffers ? [...paths].sort() : []) {
-      const full = `/${localName}/${path}`;
-      let content: string | undefined;
-      try {
-        // Read and written with nothing awaited in between, so a keystroke
-        // cannot land after the read and be overwritten by the write
-        const buffer = buffers!.read(full);
-        if (buffer === undefined) continue;
-        const read = before[path];
+    const catchUpBuffers = async () => {
+      // Read on every pass, not once: the editor can mount between them
+      const buffers = PgExplorer.editorBuffers;
+      if (!buffers) return;
 
-        if (!(path in after)) {
-          if (buffer !== read) {
-            report(
-              `catch up ${localName}: ${path} was edited here while sync removed it; the edit was discarded`,
-              null
-            );
+      for (const path of paths) {
+        if (caughtUp.has(path)) continue;
+        const full = `/${localName}/${path}`;
+        let content: string | undefined;
+        try {
+          // Read and written with nothing awaited in between, so a keystroke
+          // cannot land after the read and be overwritten by the write
+          const buffer = buffers.read(full);
+          if (buffer === undefined) continue;
+          caughtUp.add(path);
+          const read = before[path];
+
+          if (!(path in after)) {
+            if (buffer !== read) {
+              report(
+                `catch up ${localName}: ${path} was edited here while sync removed it; the edit was discarded`,
+                null
+              );
+            }
+            buffers.discard(full);
+            continue;
           }
-          buffers!.discard(full);
+
+          content = after[path];
+          if (read !== undefined && buffer !== read && buffer !== content) {
+            // Nobody is asked here: the typing is seconds old and the user is
+            // still in the file, so an overlap keeps the synced copy and says so
+            const merged = merge3(read, buffer, content);
+            if (merged.kind === "conflict") {
+              report(
+                `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
+                null
+              );
+            } else {
+              content = merged.text;
+              if (content !== after[path]) folded.push(path);
+            }
+          }
+          if (buffer !== content) buffers.write(full, content);
+          // Nothing more to do when the buffer was already the new content and
+          // nobody typed: the store has it. Otherwise the store is written too,
+          // after any autosave that fired during the rewrite with the old text,
+          // so the re-read below finds what the editor now shows.
+          if (content === after[path] && buffer === read) continue;
+        } catch (e) {
+          report(`catch up ${localName}: editor buffer ${path}`, e);
           continue;
         }
 
-        content = after[path];
-        if (read !== undefined && buffer !== read && buffer !== content) {
-          // Nobody is asked here: the typing is seconds old and the user is
-          // still in the file, so an overlap keeps the synced copy and says so
-          const merged = merge3(read, buffer, content);
-          if (merged.kind === "conflict") {
-            report(
-              `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
-              null
-            );
-          } else {
-            content = merged.text;
-            if (content !== after[path]) folded.push(path);
-          }
+        try {
+          await PgFs.writeFile(full, content, { createParents: true });
+        } catch (e) {
+          report(`catch up ${localName}: write ${path}`, e);
         }
-        if (buffer !== content) buffers!.write(full, content);
-        // Nothing more to do when the buffer was already the new content and
-        // nobody typed: the store has it. Otherwise the store is written too,
-        // after any autosave that fired during the rewrite with the old text,
-        // so the re-read below finds what the editor now shows.
-        if (content === after[path] && buffer === read) continue;
-      } catch (e) {
-        report(`catch up ${localName}: editor buffer ${path}`, e);
-        continue;
       }
+    };
 
-      try {
-        await PgFs.writeFile(full, content, { createParents: true });
-      } catch (e) {
-        report(`catch up ${localName}: write ${path}`, e);
-      }
-    }
+    await catchUpBuffers();
 
     // Only the current workspace is held in memory. Re-opening it inside the
     // gate is safe now the gate is counted: the reconcile its switch starts
@@ -987,6 +1001,13 @@ export class PgProjectSync {
     // still running.
     if (localName === PgExplorer.currentWorkspaceName) {
       await PgExplorer.switchWorkspace(localName);
+      // Again, for an editor that mounted after the pass above but before the
+      // re-open re-read memory: it built its models from the text just
+      // replaced, and the re-open reused them. Monaco waits on its grammars
+      // before it mounts, so on a slow machine a user who answers the banner
+      // at once lands here, and the pane kept the replaced file. An editor
+      // that mounts after this reads memory as re-opened.
+      await catchUpBuffers();
     }
 
     return folded;
