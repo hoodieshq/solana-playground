@@ -31,6 +31,7 @@ import {
   PgLesson,
   verifyingStage,
 } from "../../../flow/lessons";
+import { PgLessonGuide } from "../../../flow/lessons/guide";
 import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
@@ -102,8 +103,13 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
         // turn — and with nothing connected, sending is where the model is
         // asked for anyway
         if (!send || !PgAssistant.isConnected) {
-          setInput(text);
-          inputRef.current?.focus();
+          // The tutorial's own assistant answers what it can for free, so
+          // there is nothing to look over first
+          if (!PgAssistant.isConnected) sendRef.current(text);
+          else {
+            setInput(text);
+            inputRef.current?.focus();
+          }
           return;
         }
         sendRef.current(text);
@@ -158,6 +164,14 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
 
   const lesson = describeLesson(lessonState);
 
+  // The tutorial's assistant opens each step with what it is about, so the
+  // pane is never a blank prompt at the start of one
+  const stepId =
+    lessonState.path && currentStep(lessonState.path, lessonState.progress)?.id;
+  useEffect(() => {
+    if (stepId && !PgAssistant.isConnected) PgLessonGuide.greet();
+  }, [stepId]);
+
   /**
    * @param shown what the transcript shows for it, when that differs from
    * what the model is sent — "Make this change" rather than the paragraph of
@@ -168,6 +182,14 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
     if (!trimmed || busy) return;
 
     if (!provider.current) {
+      // A lesson's own assistant answers what the tutorial has written down:
+      // the step's patch, its planned error, its hints. Only the rest needs
+      // a model
+      if (await PgLessonGuide.answer(trimmed, shown ?? trimmed)) {
+        setInput("");
+        return;
+      }
+
       // Nothing connected: connect what was picked, asking only for what it
       // needs. The message stays in the composer until it can really go.
       waiting.current = trimmed;
