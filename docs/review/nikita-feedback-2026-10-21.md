@@ -1,130 +1,130 @@
-# Замечания Никиты (Slack, 21 и 22.10.2026)
+# Nikita's feedback (Slack, 21 and 22.10.2026), translated from Russian
 
-Переписано со скриншотов треда в Slack. Формулировки Никиты, без пересказа.
+Transcribed from screenshots of the Slack thread. Nikita's own wording, not a summary.
 
-## Первая реакция: оболочка и функционал
+## First reaction: shell and functionality
 
-Почему пропали инструменты для комментирования? Хочется сохранить
-возможность оставлять комментарии через Agentation, это проще, чем
-скриншотить всё и собирать отдельный документ с картинками.
+Why did the commenting tools disappear? I'd like to keep the option to
+leave comments through Agentation, it's easier than screenshotting
+everything and putting together a separate document with pictures.
 
-1. Использован неверный логотип. Сейчас это кнопка, а не лого в хедере.
-2. Пропали брендовые иконки. Это сет, который нужно дальше развивать и
-   дорисовывать, а не удалять.
-3. Пропали бренд элементы.
-4. Пропал чат.
-5. Отсутствуют целевые действия.
-6. Нет текстовых кнопок для WCAG compliance.
-7. Агент не появляется на старте.
-8. Нужно обновить арты обложек в соответствии с брендом.
-9. Автор туториала исчез. Для комьюнити билдинга это проблема.
-10. Лейаут табов на десктопе удобный, но потерялась возможность переходить
-    между шагами вперёд и назад, а это была одна из ключевых идей.
-11. Нет настроек ИИ-агента, плюс потерялась часть существующего функционала.
-12. Не совсем понятно, как подключать модели и работать с ними.
-13. Почему мы смотрим только один мобильный брейкпоинт. Вернуть инструменты
-    для просмотра разных размеров.
-14. На мобильном нет навигации к основному меню.
-15. Нет полноценного ИИ-чата.
-16. Нет переключения между табами кода и его просмотра.
-17. Нет помощи для ситуаций, когда пользователь застрял.
-18. Нет опции старта фром скретч.
-19. Анимации из ДС не использованы.
-20. Не нашёл опции как открыть файлы.
+1. The wrong logo is used. Right now it's a button, not a logo in the header.
+2. The brand icons are gone. This is a set that needs to be developed and
+   extended further, not removed.
+3. The brand elements are gone.
+4. The chat is gone.
+5. Target actions are missing.
+6. No text buttons for WCAG compliance.
+7. The agent doesn't show up at the start.
+8. The cover art needs to be updated to match the brand.
+9. The tutorial author disappeared. That's a problem for community building.
+10. The tab layout on desktop is convenient, but we lost the ability to move
+    forward and back between steps, and that was one of the key ideas.
+11. No AI agent settings, plus part of the existing functionality is lost.
+12. It's not quite clear how to connect models and work with them.
+13. Why are we only looking at one mobile breakpoint? Bring back the tools
+    for viewing different sizes.
+14. On mobile there's no navigation to the main menu.
+15. No full AI chat.
+16. No switching between the code tab and the preview tab.
+17. No help for situations when the user is stuck.
+18. No option to start from scratch.
+19. The animations from the DS aren't used.
+20. Couldn't find options for how to open files.
 21. ...
 
-Пройтись по всему функционалу, который должен быть доступен пользователю
-во время прохождения туториала, и сверить текущую версию с этим списком.
-Визуальные апдейты во многом супер, но сначала нужно, чтобы весь
-необходимый функционал был на месте.
+Go through all the functionality that should be available to the user
+while going through the tutorial, and check the current version against
+this list. The visual updates are great in a lot of ways, but first all
+the necessary functionality has to be in place.
 
-Также не видно изменений статусов (скриншот списка задач в Linear). Если
-не будут использоваться, сказать.
+Also, I don't see status changes (screenshot of the task list in Linear).
+If they won't be used, say so.
 
-## QA по чек-листу
+## QA against the checklist
 
-1. ✅ Два пути на каждом шаге: дифф прямо в файле с заметками, Apply and
+1. ✅ Two paths on every step: diff right in the file with notes, Apply and
    build, Discard, Undo patch.
-2. ❌ Пишешь сам на десктопе, ассистент разбирает именно твою ошибку.
-   Строку подсвечивает правильно (специально пропущена точка с запятой).
-   Но текст ошибки общий: "Your code doesn't match what this step needs".
-   Explain не говорит, что пропущена точка с запятой. Review the fix
-   сравнивает с эталоном, поэтому отступы показаны как изменения на 5
-   строках, и настоящий фикс в них теряется.
-3. ✅ На телефоне код только читаешь, Write it yourself даёт ссылку для
-   компа. Copy тоже работает.
-4. ✅ Вопрос на понимание перед патчем, три варианта, можно скипнуть. Есть на
-   шагах 1 и 4. На шаге 3 вопроса нет.
-5. ✅ Первая сборка падает специально, Explain, Review the fix, клик по
-   строке компилятора. Клик ставит курсор на строку 9, колонку 5, а не 30.
-   На телефоне фикс оказывается ниже видимой области.
-6. ✅ Деплой через Kora за 0 SOL, карточки Program id и транзакции с Copy и
-   Explorer. На телефоне иконки около 16 px, меньше минимума в 44 px.
-7. ✅ Урок листом на телефоне, в колонке на десктопе, сворачивается после
-   шага.
-8. ❌ Хоткеи. 1/2/3, S, ⌘Enter, ⌘B и Enter работают. Esc не всегда выходит
-   из редактора.
-9. ✅ Статус в галерее: галочка у пройденного, "3 of 4" у начатого.
-10. ✅ Финальный экран: статистика, последняя транзакция, что выучил, что
-    дальше. Но "first try 3/4" засчитывает специальную ошибку против
-    ученика.
+2. ❌ You write it yourself on desktop, the assistant explains your specific error.
+   It highlights the line correctly (I deliberately left out a semicolon).
+   But the error text is generic: "Your code doesn't match what this step needs".
+   Explain doesn't say a semicolon is missing. Review the fix
+   compares against the reference solution, so indentation shows up as changes on 5
+   lines, and the real fix gets lost in them.
+3. ✅ On the phone you only read the code, Write it yourself gives a link for the
+   computer. Copy works too.
+4. ✅ Comprehension question before the patch, three options, you can skip it. It's on
+   steps 1 and 4. Step 3 has no question.
+5. ✅ The first build fails on purpose, Explain, Review the fix, click on a
+   compiler line. The click puts the cursor on line 9, column 5, not 30.
+   On the phone the fix ends up below the visible area.
+6. ✅ Deploy via Kora for 0 SOL, Program id and transaction cards with Copy and
+   Explorer. On the phone the icons are about 16 px, below the 44 px minimum.
+7. ✅ The lesson is a sheet on the phone, a column on desktop, it collapses after the
+   step.
+8. ❌ Hotkeys. 1/2/3, S, ⌘Enter, ⌘B and Enter work. Esc doesn't always leave
+   the editor.
+9. ✅ Status in the gallery: check mark on a finished one, "3 of 4" on a started one.
+10. ✅ Final screen: stats, last transaction, what you learned, what's
+    next. But "first try 3/4" counts the planned error against the
+    learner.
 
-## Другие проблемы
+## Other problems
 
-1. ❌ Портится код. Кликнул по строке компилятора, потом Esc и Enter. Esc не
-   вышел из редактора, Enter вставил перенос строки в код. Шаг остался
-   "пройденным", сломанный код задеплоился и ушёл в шаг 4. Правку после
-   успешной сборки никто заново не проверяет.
-2. ❌ Шаг 4 сам себе противоречит. hello теперь принимает name, но клиент
-   всё ещё вызывает hello() без аргумента, и ничего не передеплоено. При
-   этом финальный экран пишет "live on devnet" и показывает транзакцию из
-   шага 3.
-3. ❌ Тосты на телефоне перекрывают шапку, вместе с кнопками назад и
-   закрыть. Например "Link copied", "Patch undone", "Only Hello Anchor is in
+1. ❌ The code gets broken. I clicked on a compiler line, then Esc and Enter. Esc didn't
+   leave the editor, Enter inserted a line break into the code. The step stayed
+   "passed", the broken code got deployed and carried over into step 4. Nobody
+   re-checks an edit after a successful build.
+2. ❌ Step 4 contradicts itself. hello now takes name, but the client
+   still calls hello() with no argument, and nothing was redeployed. Meanwhile
+   the final screen says "live on devnet" and shows the transaction from
+   step 3.
+3. ❌ Toasts on the phone cover the header, including the back and
+   close buttons. For example "Link copied", "Patch undone", "Only Hello Anchor is in
    this prototype".
-4. ❌ Не тот логотип. В сайдбаре стоит play-кружок. Логотип должен быть
-   треугольник плюс круг.
-5. ❌ Мелочи:
-   - После Discard и повторного запроса старый фидбек "Not quite" остаётся
-     на экране.
-   - Чипсы ассистента пропадают после первого использования.
-   - Ответ на вопрос слово в слово повторяет заметку в коде.
-   - Клик по пустому месту под кодом не ставит фокус в редактор,
-     автоотступов нет.
-   - На телефоне длинные строки кода в уроке и в терминале обрезаны.
-   - Подписи разные на разных экранах ("Explorer" и "Open in Explorer"). На
-     финальном экране телефона нет "Open the project".
-   - Должно быть "Tic-tac-toe", а не "Tictactoe".
+4. ❌ Wrong logo. The sidebar has the play circle. The logo should be
+   a triangle plus a circle.
+5. ❌ Small things:
+   - After Discard and a repeated request, the old "Not quite" feedback stays
+     on screen.
+   - The assistant chips disappear after first use.
+   - The answer to the question repeats the note in the code word for word.
+   - Clicking the empty space below the code doesn't focus the editor,
+     there's no auto-indent.
+   - On the phone, long lines of code in the lesson and in the terminal are cut off.
+   - Labels differ between screens ("Explorer" and "Open in Explorer"). The
+     phone's final screen has no "Open the project".
+   - It should be "Tic-tac-toe", not "Tictactoe".
 
-## Что в прототипе лучше изначального, оставить
+## What's better in the prototype than the original, keep it
 
-1. Два явных пути на каждом шаге.
-2. Вопрос на понимание.
-3. Специальная первая ошибка.
-4. Передача с телефона на комп (но работает это без логина?).
-5. Карточки после деплоя и после клиента.
-6. Статистика в конце (к статистике нужны будут ачивки).
+1. Two explicit paths on every step.
+2. The comprehension question.
+3. The planned first error.
+4. Handoff from phone to computer (but does it work without a login?).
+5. Cards after deploy and after the client.
+6. Stats at the end (stats will need achievements).
 
-## Чего не хватает по сравнению с прошлой версией
+## What's missing compared to the previous version
 
-1. ❌ Аккаунта. Нет Sign in with GitHub, нет профиля, нет меню аккаунта
-   (Settings, Docs, Report a bug, Connect wallet). Write it yourself обещает
-   "your progress comes with you", а без входа это не может работать.
-2. ❌ Interact. У нас Write → Build → Deploy → Interact, с формами из IDL.
-   Здесь всё заканчивается клиентским скриптом, вызвать программу из
-   интерфейса нельзя.
-3. ❌ Кто отвечает. У нас видно модель (Opus 5.5, High) и написано "Nothing
-   is written to your project without your click". DES-122 требует этого на
-   каждой AI-поверхности. Свободный чат здесь отвечает "not connected".
-4. ❌ Статусов. Нет индикатора Devnet, нет статуса сети, AI и анализатора
+1. ❌ Account. No Sign in with GitHub, no profile, no account menu
+   (Settings, Docs, Report a bug, Connect wallet). Write it yourself promises
+   "your progress comes with you", and without sign-in that can't work.
+2. ❌ Interact. We have Write → Build → Deploy → Interact, with forms from the IDL.
+   Here everything ends with a client script, you can't call the program from
+   the interface.
+3. ❌ Who's answering. In ours you can see the model (Opus 5.5, High) and it says "Nothing
+   is written to your project without your click". DES-122 requires this on
+   every AI surface. The free-form chat here answers "not connected".
+4. ❌ Statuses. No Devnet indicator, no network, AI or analyzer status
    (DES-126).
-5. ❌ Помощи и навигации. Нет "I'm stuck", подсказки, Skip this step,
-   перехода между шагами, нет закрытых шагов в списке.
-6. ❌ Файлов. Один файл на шаг и нет дерева файлов, так что lib.rs и
-   client.ts вместе не увидеть.
-7. ❌ Того, что до и после туториала. Home, New project, Programs и
-   сохранённые проекты отвечают "Only the tutorial flow is in this
-   prototype". Нет стартового экрана, чек-листа "Get set up", шаринга
-   (DES-123), бейджа в конце (DES-135/140) и настроек.
-8. ❌ Ошибок. Кроме первой сборки, ничего не падает: нет rate limit, captcha,
-   программы, закрытой через 7 дней, нет пустых состояний (DES-124).
+5. ❌ Help and navigation. No "I'm stuck", hints, Skip this step,
+   moving between steps, no locked steps in the list.
+6. ❌ Files. One file per step and no file tree, so you can't see lib.rs and
+   client.ts together.
+7. ❌ What comes before and after the tutorial. Home, New project, Programs and
+   saved projects answer "Only the tutorial flow is in this
+   prototype". No start screen, no "Get set up" checklist, no sharing
+   (DES-123), no badge at the end (DES-135/140) and no settings.
+8. ❌ Errors. Apart from the first build, nothing fails: no rate limit, captcha,
+   program closed after 7 days, no empty states (DES-124).

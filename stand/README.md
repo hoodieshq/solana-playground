@@ -1,14 +1,14 @@
-# Стенд туториала в продукте
+# Tutorial-in-product stand
 
-Отдельный проект `playground-tutorial-product` в команде Hoodies на Vercel. Продукт client-v2 из ветки Никиты с туториалом Hello Anchor, сверху ленточка Studio (Viewport, Components, Annotate, Narrate), как на solana-playground-ds. Код живёт в ветке `almaz/tutorial-in-product` в `hoodieshq/solana-playground` и в основной код не вливается.
+A separate `playground-tutorial-product` project in the Hoodies team on Vercel. The client-v2 product from Nikita's branch with the Hello Anchor tutorial, with the Studio ribbon on top (Viewport, Components, Annotate, Narrate), same as on solana-playground-ds. The code lives in the `almaz/tutorial-in-product` branch in `hoodieshq/solana-playground` and doesn't get merged into the main code.
 
 ```bash
 sh stand/build.sh
 cd stand && vercel deploy --prod --scope hoodies
 ```
 
-Сборка идёт на WASM заглушках (`yarn build-fast`), Rust toolchain не нужен. Сервер сборки пускает только знакомые ему origin, поэтому стенд ходит к нему через себя: `vercel.json` проксирует `/build-server/` на сервер Solana Foundation. Файлы Studio скопированы с задеплоенного solana-playground-ds в `design-system/studio/tools`, `studio-config.mjs` перенаправляет их на страницы стенда.
+The build runs on WASM stubs (`yarn build-fast`), no Rust toolchain needed. The build server only accepts origins it knows, so the stand talks to it through itself: `vercel.json` proxies `/build-server/` to the Solana Foundation server. The Studio files are copied from the deployed solana-playground-ds into `design-system/studio/tools`, and `studio-config.mjs` points them at the stand's pages.
 
-Стенд закрыт basic auth в `middleware.js`. Логин, пароль и `X-Robots-Tag` лежат в env проекта (`BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `ROBOTS_TAG`). Без логина или пароля стенд отвечает 401 всем.
+The stand is behind basic auth in `middleware.js`. The login, password and `X-Robots-Tag` are in the project env (`BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `ROBOTS_TAG`). Without the login or password the stand answers 401 to everyone.
 
-После деплоя проверь анонимным запросом корень, глубокий путь, ассет и 404: везде должен быть 401 с `X-Robots-Tag`.
+After a deploy, check the root, a deep path, an asset and a 404 with an anonymous request: every one should return 401 with `X-Robots-Tag`.

@@ -36,8 +36,8 @@ and the deploy decide a step, not a click.
    Deploy, Run the client, Call hello) sits in the band beside Read the
    page, so the learner sees what to press. Preconditions are explained on
    the button instead of failing on click. This is Slava's open item in
-   `docs/lesson-paths-todo.md` and our reading of Nikita's "целевые
-   действия".
+   `docs/lesson-paths-todo.md` and our reading of Nikita's "target
+   actions".
 2. **Two paths on every step.** Write it in the editor and press the target
    action, or Write with assistant: the patch opens as a diff inside the
    file with a note per change, then Apply and build, Discard, and Undo
