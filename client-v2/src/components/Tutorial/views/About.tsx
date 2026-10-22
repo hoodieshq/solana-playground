@@ -18,7 +18,8 @@ export const About: FC<
   React.PropsWithChildren<TutorialAboutComponentProps>
 > = ({ about, isStarted, start }) => {
   const tutorial = PgTutorial.current!;
-  const isFinished = PgTutorial.completed;
+  const progress = progressOf(PgTutorial.completed, isStarted);
+  const onError = reportButtonFailure("start the tutorial");
 
   return (
     <div className="size-full overflow-auto">
@@ -55,9 +56,10 @@ export const About: FC<
           </div>
 
           <BaseStartButton
-            progress={progressOf(isFinished, isStarted)}
+            progress={progress}
             onStart={start}
-            onError={reportButtonFailure("start the tutorial")}
+            onError={onError}
+            className="max-md:hidden"
           />
         </div>
 
@@ -82,6 +84,16 @@ export const About: FC<
             about
           )}
         </div>
+      </div>
+
+      {/* On a phone the action pins to the foot, as the prototype draws it */}
+      <div className="sticky bottom-0 bg-gradient-to-t from-background from-60% px-4 pt-5 pb-4 md:hidden">
+        <BaseStartButton
+          progress={progress}
+          onStart={start}
+          onError={onError}
+          className="w-full"
+        />
       </div>
     </div>
   );

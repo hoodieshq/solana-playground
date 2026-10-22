@@ -4,12 +4,14 @@ import { CheckIcon } from "lucide-react";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
 import { Spinner } from "@/shared/ui/spinner";
+import { cn } from "cn";
 
 type BaseStartButtonProps = {
   progress: "new" | "started" | "completed";
   onStart: () => Promise<void>;
   /** Where a failed start goes */
   onError: (error: unknown) => void;
+  className?: string;
 };
 
 /**
@@ -20,14 +22,19 @@ type BaseStartButtonProps = {
  * state of its own, so it keeps AsyncButton's: disabled, `aria-busy` and a
  * spinner until the start settles, the failure handed to `onError`.
  */
-function BaseStartButton({ progress, onStart, onError }: BaseStartButtonProps) {
+function BaseStartButton({
+  progress,
+  onStart,
+  onError,
+  className,
+}: BaseStartButtonProps) {
   const [pending, setPending] = useState(false);
 
   if (progress === "completed") {
     return (
       <AsyncButton
         variant="ghost"
-        className="text-success"
+        className={cn("text-success", className)}
         onClick={onStart}
         onError={onError}
       >
@@ -50,6 +57,7 @@ function BaseStartButton({ progress, onStart, onError }: BaseStartButtonProps) {
 
   return (
     <BrandButton
+      className={className}
       disabled={pending}
       aria-busy={pending || undefined}
       onClick={start}

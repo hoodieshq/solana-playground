@@ -77,4 +77,20 @@ describe("BaseStartButton", () => {
       expect(onError).toHaveBeenCalledWith(failure);
     }
   );
+  it.each(["new", "completed"] as const)(
+    "a %s tutorial's button takes the caller's layout",
+    (progress) => {
+      render(
+        <BaseStartButton
+          progress={progress}
+          onStart={async () => {}}
+          onError={() => {}}
+          className="w-full"
+        />
+      );
+      expect(screen.getByRole("button").classList.contains("w-full")).toBe(
+        true
+      );
+    }
+  );
 });
