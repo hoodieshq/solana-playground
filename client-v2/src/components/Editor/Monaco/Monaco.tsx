@@ -273,16 +273,56 @@ const Monaco = () => {
     }
   }, [editor, keybinding]);
 
-  // Set other settings
+  // Esc leaves the editor, so a key pressed next goes to the page rather than
+  // into the code: after "Open in editor" a learner's Esc then Enter typed a
+  // line break into a file that had just built. Only with nothing of the
+  // editor's own open, which Esc closes first, and never in vim, where Esc
+  // belongs to the mode
+  useEffect(() => {
+    if (!editor) return;
+    const blurs = editor.createContextKey<boolean>(
+      "pgEscLeaves",
+      keybinding !== "vim"
+    );
+    editor.addCommand(
+      monaco.KeyCode.Escape,
+      () => (document.activeElement as HTMLElement | null)?.blur(),
+      [
+        "pgEscLeaves",
+        "editorTextFocus",
+        "!suggestWidgetVisible",
+        "!findWidgetVisible",
+        "!renameInputVisible",
+        "!parameterHintsVisible",
+        "!inSnippetMode",
+        "!markersNavigationVisible",
+        "!editorHasMultipleSelections",
+      ].join(" && ")
+    );
+    return () => blurs.reset();
+  }, [editor, keybinding]);
+
+  // Set other settings. A phone always wraps: a line that runs off a 375px
+  // screen is a line nobody can read without scrolling it sideways
   useEffect(() => {
     if (!editor) return;
 
+    const phone = window.matchMedia("(max-width: 720px)");
+    let wrap = false;
+    const apply = () =>
+      editor.updateOptions({ wordWrap: wrap || phone.matches ? "on" : "off" });
+    phone.addEventListener("change", apply);
     const disposables = [
       PgSettings.onDidChangeEditorWordWrap((ww) => {
-        editor.updateOptions({ wordWrap: ww ? "on" : "off" });
+        wrap = ww;
+        apply();
       }),
     ];
-    return () => disposables.forEach(({ dispose }) => dispose());
+    apply();
+    return () => {
+      phone.removeEventListener("change", apply);
+      disposables.forEach(({ dispose }) => dispose());
+    };
   }, [editor]);
 
   // Set editor state

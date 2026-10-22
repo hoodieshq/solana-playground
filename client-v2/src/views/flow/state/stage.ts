@@ -27,6 +27,7 @@ export type FlowEvent =
   | { type: "deploy-start" }
   | { type: "deploy-finish"; ok: boolean }
   | { type: "set-stage"; stage: Stage }
+  | { type: "source-change" }
   | { type: "workspace-change" };
 
 export const INITIAL_FLOW_STATE: FlowState = {
@@ -87,6 +88,11 @@ export class PgFlow {
     );
   }
 
+  /** A source file changed: whatever was built is behind the code now */
+  static sourceChanged() {
+    PgFlow._dispatch({ type: "source-change" });
+  }
+
   static onDidChange(cb: (s: FlowState) => void): Disposable {
     PgFlow._listeners.add(cb);
     cb(PgFlow._state);
@@ -129,6 +135,12 @@ export class PgFlow {
           : { ...state, stage: "deploy", deploy: "failed" };
       case "set-stage":
         return { ...state, stage: ev.stage };
+      // The code moved on from what was built. A passed build stops counting,
+      // so Deploy asks for a new one rather than shipping the old binary
+      // under code that no longer matches it. A running build is left alone:
+      // the build itself writes the program id into `declare_id!`
+      case "source-change":
+        return state.build === "done" ? { ...state, build: "upcoming" } : state;
       case "workspace-change":
         return INITIAL_FLOW_STATE;
     }
