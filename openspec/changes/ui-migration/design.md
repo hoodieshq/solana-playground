@@ -1873,8 +1873,9 @@ prototype's "What do you want to build?". The work is stacked on 5.9
   `input` and `input-group`, the chips, name field and Start are 32 px on
   one centre line, and a fade at the scroll area's foot says the list runs
   on.
-- **As the prototype draws the cards** (design authority, Slava, 22 Oct:
-  the prototype first, the specs last): a card's eyebrow is plain text,
+- **As the prototype draws the cards** (Slava, 22 Oct, chosen over the
+  design system's level tag where the two disagreed): a card's eyebrow is
+  plain text,
   level · framework or framework · categories, here and on the 5.9 pages,
   not tag chips; New project's search field has no magnifier.
 - **Below `md` (768 px)** the dialog is a page of its own (the installed
