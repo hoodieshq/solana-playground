@@ -47,7 +47,10 @@ const storage = {
       return;
     }
 
-    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(state));
+    // Through `writeWorkspaceFile`: START writes this file right after the
+    // new workspace's folder tree was saved, and a reload before the next save
+    // would lose it
+    await writeWorkspaceFile(this.PATH, JSON.stringify(state));
   },
 };
 

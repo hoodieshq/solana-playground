@@ -602,3 +602,135 @@ describe("PgExplorer.getElFromPath", () => {
     });
   }
 });
+
+/**
+ * lightning-fs saves its folder tree 500 ms after the last write, so a page
+ * load inside that window loses whatever changed the tree: a file created,
+ * renamed or deleted, and the workspace metadata a new project writes. Each
+ * of those is followed by a flush; a write that only changes a file's
+ * content is not, since the tree already holds the file.
+ */
+describe("writes that change the folder tree", () => {
+  beforeEach(async () => {
+    await reset();
+    await PgExplorer.createWorkspace("alpha", {
+      files: files("alpha"),
+      defaultOpenFile: "/alpha/src/lib.rs",
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The filesystem calls made from here on, in order, as `<method> <path>` */
+  const recordFs = () => {
+    const calls: string[] = [];
+    const fs = PgExplorer.fs as unknown as Record<
+      string,
+      (...args: unknown[]) => Promise<unknown>
+    >;
+    for (const method of [
+      "writeFile",
+      "createDir",
+      "rename",
+      "removeFile",
+      "removeDir",
+      "flush",
+    ]) {
+      const original = fs[method].bind(fs);
+      vi.spyOn(fs, method).mockImplementation(async (...args: unknown[]) => {
+        calls.push(args.length ? `${method} ${args[0]}` : method);
+        return original(...args);
+      });
+    }
+    return calls;
+  };
+
+  /** The call right after the last one that starts with `call` */
+  const after = (calls: string[], call: string) => {
+    const index = calls.findLastIndex((c) => c.startsWith(call));
+    expect(index).not.toBe(-1);
+    return calls[index + 1];
+  };
+
+  it("flushes after creating a file", async () => {
+    const calls = recordFs();
+
+    await PgExplorer.createItem("/alpha/src/new.rs", "fn main() {}");
+
+    expect(after(calls, "writeFile /alpha/src/new.rs")).toBe("flush");
+  });
+
+  it("flushes after creating a folder", async () => {
+    const calls = recordFs();
+
+    await PgExplorer.createItem("/alpha/src/nested/");
+
+    expect(after(calls, "createDir /alpha/src/nested/")).toBe("flush");
+  });
+
+  it("does not flush when it only replaces a file's content", async () => {
+    const calls = recordFs();
+
+    await PgExplorer.createItem("/alpha/src/lib.rs", "changed", {
+      override: true,
+    });
+
+    expect(after(calls, "writeFile /alpha/src/lib.rs")).not.toBe("flush");
+  });
+
+  it("flushes after renaming a file", async () => {
+    const calls = recordFs();
+
+    await PgExplorer.renameItem("/alpha/src/lib.rs", "/alpha/src/renamed.rs");
+
+    expect(after(calls, "rename /alpha/src/lib.rs")).toBe("flush");
+  });
+
+  it("flushes after deleting a file", async () => {
+    await PgExplorer.createItem("/alpha/src/gone.rs", "");
+    const calls = recordFs();
+
+    await PgExplorer.deleteItem("/alpha/src/gone.rs");
+
+    expect(after(calls, "removeFile /alpha/src/gone.rs")).toBe("flush");
+  });
+
+  it("flushes after the metadata a new workspace writes", async () => {
+    const calls = recordFs();
+
+    await PgExplorer.createWorkspace("beta", {
+      files: files("beta"),
+      defaultOpenFile: "/beta/src/lib.rs",
+    });
+
+    expect(after(calls, "writeFile /beta/.workspace/metadata.json")).toBe(
+      "flush"
+    );
+  });
+
+  it("flushes the metadata again once sync replaced the files without it", async () => {
+    await PgExplorer.saveMeta();
+    // A snapshot from another device that has none of the open files, so no
+    // metadata is kept and the next save makes the file anew
+    await PgExplorer.replaceWorkspaceFiles("alpha", {
+      "src/other.rs": "from elsewhere",
+    });
+    const calls = recordFs();
+
+    await PgExplorer.saveMeta();
+
+    expect(after(calls, "writeFile /alpha/.workspace/metadata.json")).toBe(
+      "flush"
+    );
+  });
+
+  it("does not flush the metadata again once it has", async () => {
+    await PgExplorer.saveMeta();
+    const calls = recordFs();
+
+    await PgExplorer.saveMeta();
+
+    expect(calls).toEqual(["writeFile /alpha/.workspace/metadata.json"]);
+  });
+});
