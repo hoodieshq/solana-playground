@@ -545,9 +545,90 @@ const Actions = styled.div`
 
 /* The brand's pill with its word alone: the even padding the icon's side
    used to make up for */
+/* The angle the beam stands at, registered so it can be animated: a plain
+   custom property would jump from one end to the other */
+try {
+  // Typed by the DOM library this TypeScript ships without it
+  (
+    CSS as unknown as {
+      registerProperty: (d: {
+        name: string;
+        syntax: string;
+        inherits: boolean;
+        initialValue: string;
+      }) => void;
+    }
+  ).registerProperty({
+    name: "--start-beam",
+    syntax: "<angle>",
+    inherits: false,
+    initialValue: "0deg",
+  });
+} catch {
+  // Registered already (a hot reload), or a browser without it: the beam
+  // then stands still, and the ring still lights
+}
+
+/* The brand's pill with its word alone: the even padding the icon's side
+   used to make up for. Under the pointer it does not fill: a beam of light
+   runs round the ring instead, the ring being the brand's mark of an
+   action. Pressed, it fills as every brand action does */
 const Go = styled(BrandPill)`
   && {
     padding: 0 1.25rem;
+  }
+
+  &&:hover:not(:disabled):not(:active)::before {
+    opacity: 0;
+  }
+
+  &&::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    padding: 1.5px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--start-beam),
+      transparent 0deg 230deg,
+      ${BRAND.purple} 280deg,
+      #ffffff 330deg,
+      ${BRAND.green} 345deg,
+      transparent 360deg
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  &&:hover:not(:disabled)::after {
+    opacity: 1;
+    animation: start-beam 1600ms linear infinite;
+  }
+
+  &&:focus-visible::after {
+    opacity: 1;
+    animation: start-beam 1600ms linear infinite;
+  }
+
+  @keyframes start-beam {
+    to {
+      --start-beam: 360deg;
+    }
+  }
+
+  /* Still, the ring fills under the pointer as the Styleguide has it */
+  @media (prefers-reduced-motion: reduce) {
+    &&::after {
+      display: none;
+    }
+    &&:hover:not(:disabled):not(:active)::before {
+      opacity: 1;
+    }
   }
 `;
 
