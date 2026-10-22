@@ -105,17 +105,35 @@ describe("BaseAssistantComposer", () => {
     );
   });
 
-  it("disables Send while nothing can take the message, typed text or not", async () => {
+  it("disables Send with text in while nothing can take the message, and sends nothing", async () => {
     const { onSend, user } = setup({
       value: "Explain this build error",
       sendBlocked: "Connect a model to send",
     });
-    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
-      "disabled",
-      true
-    );
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(send.getAttribute("aria-disabled")).toBe("true");
     await user.type(input(), "{Enter}");
+    await user.click(send);
     expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("names why Send is disabled to the input, for a screen reader", () => {
+    setup({ sendBlocked: "Connect a model to send" });
+    const reason = input().getAttribute("aria-describedby");
+    expect(reason).toBeTruthy();
+    expect(document.getElementById(reason!)?.textContent).toBe(
+      "Connect a model to send"
+    );
+  });
+
+  it("shows Stop, and no blocked Send, during a turn", async () => {
+    const { onStop, user } = setup({
+      busy: true,
+      sendBlocked: "Connect a model to send",
+    });
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(input().hasAttribute("aria-describedby")).toBe(false);
   });
 
   it("says why Send is disabled, on focus", async () => {
@@ -127,12 +145,17 @@ describe("BaseAssistantComposer", () => {
         disconnect() {}
       }
     );
-    const { user } = setup({ sendBlocked: "Connect a model to send" });
+    const { user } = setup({
+      value: "hello",
+      sendBlocked: "Connect a model to send",
+    });
     await user.click(input());
     await user.tab();
-    expect(
-      (await screen.findAllByText("Connect a model to send")).length
-    ).toBeGreaterThan(0);
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(document.activeElement).toBe(send);
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "Connect a model to send"
+    );
   });
 
   it("renders each chip focusable, explained by a tooltip on focus", async () => {

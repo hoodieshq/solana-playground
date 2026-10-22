@@ -65,10 +65,10 @@ it("names the assistant toggle by what it does", async () => {
     assistant: { open: true, onToggle },
   });
   const hide = screen.getByRole("button", { name: "Hide the assistant" });
-  // The label says what a click does; a pressed state on top would read as
-  // "Hide the assistant, pressed"
+  // The label says what a click does, so no pressed state on top ("Hide the
+  // assistant, pressed"); whether the pane is open is `aria-expanded`, as on
+  // the files toggle, which also draws the button filled
   expect(hide.hasAttribute("aria-pressed")).toBe(false);
-  // Expanded, as the files toggle is: the shown pane draws the button filled
   expect(hide.getAttribute("aria-expanded")).toBe("true");
   await userEvent.click(hide);
   expect(onToggle).toHaveBeenCalledTimes(1);

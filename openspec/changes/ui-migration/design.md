@@ -1031,8 +1031,11 @@ widgets/assistant
   composer for the picker:
   - the default backend configured on this deployment: the model button names
     it and the first send connects to it, then sends;
-  - none configured: the model button reads "Connect a model", and Send
-    opens the dialog with the typed prompt kept in the composer.
+  - none configured: the model button reads "Connect a model" and opens the
+    dialog, with the typed prompt kept in the composer; Send is disabled
+    ("Connect a model to send") and Enter sends nothing (HOO-2241). A probe
+    that failed is not "none configured": Send stays, and its send asks
+    again. A suggestion or an outside request still opens the dialog.
   The thread restored before a backend is picked stays on screen above it.
 - **The default backend needs a session.** Master's sign-in gate for the
   default backend (472ed30f6, the archived `default-backend-sign-in`) was

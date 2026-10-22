@@ -90,8 +90,10 @@ const AssistantToggle = ({
     <BarButton
       label={label}
       hint={assistantKey === null ? label : `${label} (${assistantKey})`}
-      // Filled while the assistant shows, as the files toggle is, so a
-      // hidden one reads as one click away (the prototype's pressed state)
+      // Whether the pane is open, as the files toggle says it: the ghost
+      // button draws `aria-expanded` filled, the prototype's look for a
+      // shown assistant. Not `aria-pressed`, which is for a toggle whose
+      // label stays the same, and this label changes with each click
       expanded={assistant.open}
       onClick={assistant.onToggle}
     >
