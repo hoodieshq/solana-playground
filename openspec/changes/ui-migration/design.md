@@ -164,8 +164,9 @@ not the OS. `PgTheme.set` toggles `dark` on `<html>` next to `colorScheme`.
 - **Literals are guarded.** `scripts/check-colors.mjs` runs in
   `yarn run check` and in CI, and fails on any hex colour or colour function
   (`rgb()`, `hsl()`, `color(srgb ...)` and the like) outside the installed
-  token files, `shared/lib/css-color` and the third-party logo colours in
-  `languages/`. Named colours (`white`, `red`) are not caught: the words are
+  token files, `shared/lib/css-color`, the third-party logo colours in
+  `languages/`, and `app/favicon.svg`, which the browser draws outside the
+  page, where no token reaches (HOO-2241). Named colours (`white`, `red`) are not caught: the words are
   too common in code to tell from a colour without parsing CSS. Sidebar icons colour through a CSS mask over the
   text colour, which reaches the rail's raster icons too.
 
