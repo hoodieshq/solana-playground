@@ -242,6 +242,55 @@ const Flow = () => {
   const inProject =
     view === "project" &&
     (!!PgExplorer.currentWorkspaceName || onTutorialRoute);
+  /* The chat and the code are two sheets of one scroller: the switch in the
+     bar and a swipe move it, and wherever it settles is the pane in view.
+     The pane out of view is inert, so a screen reader stays on the one
+     shown. */
+  const phonePanesRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef(pane);
+  paneRef.current = pane;
+  useLayoutEffect(() => {
+    const panes = phonePanesRef.current;
+    if (!phone || !panes) return;
+    const sheets = () => Array.from(panes.children) as HTMLElement[];
+    const mark = (name: string) =>
+      sheets().forEach((el) =>
+        el.toggleAttribute("inert", el.dataset.pane !== name)
+      );
+    const settle = () => {
+      const width = panes.clientWidth;
+      if (!width) return;
+      const name = sheets()[Math.round(panes.scrollLeft / width)]?.dataset
+        .pane as "chat" | "code" | undefined;
+      if (!name) return;
+      mark(name);
+      if (name !== paneRef.current) setPane(name);
+    };
+    let timer = 0;
+    const onScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 90);
+    };
+    panes.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      panes.removeEventListener("scroll", onScroll);
+      window.clearTimeout(timer);
+    };
+  }, [phone, inProject]);
+  /* The pane asked for by a button or by the flow: scroll its sheet in */
+  useLayoutEffect(() => {
+    const panes = phonePanesRef.current;
+    if (!phone || !panes) return;
+    const sheets = Array.from(panes.children) as HTMLElement[];
+    const index = sheets.findIndex((el) => el.dataset.pane === pane);
+    if (index < 0) return;
+    sheets.forEach((el) => el.toggleAttribute("inert", el.dataset.pane !== pane));
+    const left = index * panes.clientWidth;
+    if (Math.abs(panes.scrollLeft - left) < 2) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    panes.scrollTo({ left, behavior: still ? "auto" : "smooth" });
+  }, [pane, phone, inProject]);
+
   /* On a tutorial route the workspace name is whatever was open last, which is
      not what you are looking at. */
   const workTitle = tutorialTitle(
@@ -553,6 +602,14 @@ const Flow = () => {
     setReading(false);
   }, [readingStep?.id]);
 
+  // On a phone a step opens on the chat, where the assistant says what the
+  // step does and offers both ways through; the code is a swipe away, as in
+  // the chat apps a phone already has (Nikita, 2026-10-22)
+  useEffect(() => {
+    if (phone && readingStep) setPane("chat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readingStep?.id, phone]);
+
   /* How the project's row is shared when it runs short. The editor keeps its
      floor for as long as anything else can give: the files column first, down
      to its own floor, then the assistant, down to its own. Only on a window
@@ -714,13 +771,13 @@ const Flow = () => {
                 </PhoneBar>
 
                 {inProject ? (
-                  <PhonePanes>
-                    <PhonePane $shown={pane === "chat"}>
+                  <PhonePanes ref={phonePanesRef}>
+                    <PhonePane data-pane="chat" aria-label="Chat">
                       <Conversation $phone>
                         <Assistant title={workTitle} heading="Assistant" />
                       </Conversation>
                     </PhonePane>
-                    <PhonePane $shown={pane === "code"}>
+                    <PhonePane data-pane="code" aria-label="Code">
                       <Work>
                         <WorkHead>
                           <FilePicker
@@ -1317,13 +1374,24 @@ const PreviewBody = styled.div`
 `;
 
 /* The chat and the code in the same place, one showing */
+/* The chat and the code, side by side, swiped between as the chat apps on
+   a phone page between a conversation and what it made. Its own scroller
+   inside the pager: past the chat a swipe goes on to the menu, past the code
+   to the preview. */
 const PhonePanes = styled.div`
   position: relative;
   flex: 1;
   display: flex;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 /* The start screen, under the bar, taking the rest of the page */
@@ -1334,14 +1402,15 @@ const PageBody = styled.div`
   flex-direction: column;
 `;
 
-const PhonePane = styled.div<{ $shown: boolean }>`
-  ${({ $shown }) => css`
-    flex: 1;
-    display: ${$shown ? "flex" : "none"};
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-  `}
+const PhonePane = styled.div`
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 `;
 
 /* The files, as a page of their own over the work: every page's bar across
