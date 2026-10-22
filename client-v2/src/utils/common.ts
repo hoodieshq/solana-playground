@@ -43,6 +43,8 @@ export class PgCommon {
    *
    * @param promisable either `Promise` or a function that returns a `Promise`
    * @returns the result of the promise parameter
+   * @throws the promise's own rejection, so a caller can tell failures apart
+   * by their type
    */
   static async transition<R>(promisable: Promisable<R>, ms: number = 300) {
     if ((promisable as () => SyncOrAsync<R>)?.call) {
@@ -54,7 +56,7 @@ export class PgCommon {
       return result.value as Promise<Awaited<R>>;
     }
 
-    throw new Error(result.reason?.message);
+    throw result.reason;
   }
 
   /**
@@ -1450,6 +1452,17 @@ if (import.meta.vitest) {
         } finally {
           document.removeEventListener(send, handleSend);
         }
+      });
+    });
+
+    describe("transition", () => {
+      // The wallet tells an endpoint that does not answer (`fetch`'s
+      // `TypeError`) from one that answered with an error, by the type
+      it("rejects with the promise's own error", async () => {
+        const failure = new TypeError("Failed to fetch");
+        await expect(
+          PgCommon.transition(Promise.reject(failure), 0)
+        ).rejects.toBe(failure);
       });
     });
   });

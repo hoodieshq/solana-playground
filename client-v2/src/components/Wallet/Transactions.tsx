@@ -7,8 +7,9 @@ import { FrownIcon } from "lucide-react";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { Clock, Refresh, Error as ErrorIcon } from "../Icons";
 import { SpinnerWithBg } from "../Loading";
-import { PgCommon, PgTheme, PgWallet, PgWeb3 } from "../../utils";
+import { PgCommon, PgConnection, PgTheme, PgWallet, PgWeb3 } from "../../utils";
 import { useBlockExplorer, useConnection } from "../../hooks";
+import { describeTxsError } from "./txs-error";
 
 const Transactions = () => {
   const [signatures, setSignatures] =
@@ -29,8 +30,13 @@ const Transactions = () => {
 
         setSignatures(_signatures);
         setError("");
-      } catch (e: any) {
-        setError(e.message ? e.message : "Unknown error");
+      } catch (e: unknown) {
+        setError(
+          describeTxsError(e, {
+            endpoint: connection.rpcEndpoint,
+            cluster: PgConnection.cluster,
+          })
+        );
         setSignatures([]);
       } finally {
         setLoading(false);
@@ -87,9 +93,7 @@ const Transactions = () => {
                 (error ? (
                   <Callout variant="error">
                     <FrownIcon />
-                    <CalloutDescription>
-                      Connection error: {error}
-                    </CalloutDescription>
+                    <CalloutDescription>{error}</CalloutDescription>
                   </Callout>
                 ) : (
                   <Callout>
