@@ -47,6 +47,12 @@ const VIOLATIONS = [
     message: /through its public entry/,
   },
   {
+    name: "a test importing another slice of its own layer",
+    file: "src/widgets/assistant/ui/Probe.test.tsx",
+    code: 'import { ModalHost } from "../../overlays";\nModalHost;\n',
+    message: /widgets\/overlays is not allowed here/,
+  },
+  {
     name: "a deep import of a server module past server.mjs",
     file: "src/widgets/home/model/probe.mjs",
     code: 'import * as auth from "@/features/auth/model/auth.mjs";\nauth;\n',
@@ -131,6 +137,11 @@ const ALLOWED = [
     name: "a widget importing a feature and shared through their entries",
     file: "src/widgets/home/ui/Probe.tsx",
     code: 'import * as feedback from "@/features/feedback";\nimport { uuid } from "@/shared/lib/ids";\nfeedback;\nuuid;\n',
+  },
+  {
+    name: "a test's mock rebuilding a slice's entry from the modules behind it",
+    file: "src/app/Probe.test.tsx",
+    code: 'vi.mock("@/features/feedback", async () => ({\n  context: await import("@/features/feedback/model/context"),\n}));\n',
   },
   {
     name: "a route importing a slice's server.mjs and shared",

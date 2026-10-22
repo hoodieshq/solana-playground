@@ -52,6 +52,14 @@ through those files.
 - **WHEN** a module imports `features/<a>/model/<file>` directly
 - **THEN** the import is a violation and is rewritten to `features/<a>`
 
+#### Scenario: A test's mock rebuilds a slice's entry
+
+- **WHEN** a test's `vi.mock` of a slice's entry imports the modules behind
+  that entry, because the whole entry cannot load in the test
+- **THEN** the boundary check allows it, for test files only; the same import
+  in production code is a violation, and a test still may not import upward
+  or a sibling slice
+
 ### Requirement: The legacy roots are outside the layers
 
 The pre-existing roots SHALL be treated as legacy: importable from new code,

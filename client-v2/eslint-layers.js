@@ -33,6 +33,9 @@ const BELOW = {
 /** A slice's doors: `index.ts` for the browser, `server.mjs` for server code */
 const ENTRY_POINT = "{index.ts,server.mjs}";
 
+/** Test files, by the names vitest and `node --test` collect */
+const TEST_FILE = "**/*.{test,spec}.{ts,tsx,mts,mjs}";
+
 const LAYER_MESSAGE =
   "{{from.element.type}} may import only the layers below it (app -> widgets -> features -> entities -> shared), and no other slice of its own layer: {{to.element.type}}/{{to.element.captured.slice}} is not allowed here. See client-v2/CLAUDE.md, Layers";
 
@@ -100,7 +103,7 @@ module.exports = {
           // A slice's integration spec drives the route that serves it
           // (`features/agent/agent.integration.spec.ts`); code never does
           {
-            from: { file: { path: "**/*.{test,spec}.{ts,tsx,mjs}" } },
+            from: { file: { path: "**/*.integration.spec.{ts,tsx,mjs}" } },
             allow: { to: { element: { type: "api" } } },
           },
           // The one recorded exception: `auth`'s server module uses
@@ -110,7 +113,12 @@ module.exports = {
             from: slice("features", "{auth,persistence}"),
             allow: { to: slice("features", "{auth,persistence}") },
           },
+          // A test file may reach past a slice's entry, so a `vi.mock` can
+          // rebuild the entry from the modules behind it
+          // (`app/ConnectDialog/ConnectDialog.test.tsx`); production code may
+          // not, and the layer direction holds for tests too
           {
+            from: { file: { path: `!${TEST_FILE}` } },
             to: { element: { type: SLICE_LAYERS } },
             disallow: {
               to: { element: { fileInternalPath: `!${ENTRY_POINT}` } },
