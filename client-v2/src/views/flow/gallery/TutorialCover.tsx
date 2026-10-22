@@ -16,14 +16,13 @@ const GROUND_BY_FRAMEWORK: Record<string, Colour> = {
 };
 
 /* Where the mark sits, as on the Styleguide's row of brand tiles (84:3):
-   white, never cut by the edge, about 60% of the tile's height, which keeps
-   it over the Styleguide's 24 px minimum on a 42 px thumbnail; the play
-   triangle a little right of centre, the triangle pulled left, or the whole
-   ▷O in the middle. Each is a viewBox into the mark's own 970 × 574 box, in
-   a thumbnail's 4:3, and `play` keeps the triangle only. */
+   white, never cut by the edge, centred, about 60% of the tile's height,
+   which keeps it over the Styleguide's 24 px minimum on a 42 px thumbnail.
+   Either the play triangle alone or the whole ▷O. Each is a viewBox into the
+   mark's own 970 × 574 box, in a thumbnail's 4:3, and `play` keeps the
+   triangle only. */
 const PLACES: { box: string; play: boolean }[] = [
-  { box: "-492 -191 1275 956", play: true },
-  { box: "-250 -191 1275 956", play: true },
+  { box: "-428 -191 1275 956", play: true },
   { box: "-152 -191 1275 956", play: false },
 ];
 
