@@ -11,14 +11,17 @@ import {
 
 /**
  * The scenarios of `client-v2-stages`: what the Build, Deploy and Interact
- * stages show, and where their action sits on a phone.
+ * stages show, and where their action sits on a phone; and the
+ * `client-v2-search-field` scenarios, which reuse this file's Interact setup.
  */
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
 /**
- * A small Anchor IDL: one instruction with a mutable account and a `u64` to
- * fill, and one account type for the Accounts section
+ * A small Anchor IDL: the `u64` argument is what "Random fills an instruction
+ * value" picks for, the `counter` account gives the form a field with "From
+ * seed" for the screenshots, and the `Counter` type is the Accounts section
+ * "An address that is not a public key" types into
  */
 const IDL = {
   version: "0.1.0",
@@ -312,7 +315,8 @@ test.describe("client-v2-search-field", () => {
     const panel = await buildThenInteract(page);
     await panel.getByRole("button", { name: "initialize" }).click();
 
-    // The id `updateRefs` fills dependent inputs through
+    // Reached by its id: `updateRefs` (InstructionInput) finds dependent
+    // inputs by it, so SearchBar must keep it
     const amount = panel.locator("#initializeargsamount");
     await amount.click();
     await page
@@ -329,7 +333,8 @@ test.describe("client-v2-search-field", () => {
     const panel = await buildThenInteract(page);
     await panel.getByRole("button", { name: "Counter" }).click();
 
-    const address = panel.getByRole("combobox").last();
+    // Account's address field offers nothing to pick, so it is a textbox
+    const address = panel.getByRole("textbox").last();
     await address.fill("not-a-key");
     await expect(address).toHaveAttribute("aria-invalid", "true");
   });

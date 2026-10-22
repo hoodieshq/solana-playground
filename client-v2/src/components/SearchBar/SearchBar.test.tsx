@@ -16,6 +16,14 @@ vi.hoisted(() => {
 // The wasm packages are built separately and absent from a plain checkout
 vi.mock("../../utils/package", () => ({ PgPackage: {} }));
 
+// A failed pick or load is told through the shared click-failure toast
+const failures = vi.hoisted(() => ({ actions: [] as string[] }));
+vi.mock("@/shared/lib/report-button-failure", () => ({
+  reportButtonFailure: (action: string) => () => {
+    failures.actions.push(action);
+  },
+}));
+
 class NoopResizeObserver {
   observe() {}
   unobserve() {}
@@ -26,6 +34,8 @@ beforeAll(() => {
   // Radix's popper measures its anchor and cmdk scrolls the highlighted row
   // into view; jsdom has neither
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+  // jsdom lays nothing out: the field is never reported off the page
+  vi.stubGlobal("IntersectionObserver", NoopResizeObserver);
   Element.prototype.scrollIntoView = () => {};
 });
 
@@ -43,14 +53,24 @@ const Harness = (props: Omit<SearchBarProps, "value"> & { start?: string }) => {
   );
 };
 
-const input = () => screen.getByRole("combobox") as HTMLInputElement;
+const input = () => document.getElementById("field") as HTMLInputElement;
+const optionNames = () =>
+  screen.getAllByRole("option").map((o) => o.textContent);
+const lastLabels = (fn: ReturnType<typeof vi.fn>) =>
+  (fn.mock.calls.at(-1)?.[0] as { label: string }[]).map((i) => i.label);
 const option = (name: string) => screen.getByRole("option", { name });
 
 describe("components/SearchBar", () => {
   it("renders the field as an input group and keeps the given id", () => {
     render(<Harness items={["a"]} />);
-    expect(input().id).toBe("field");
+    expect(screen.getByRole("combobox")).toBe(input());
     expect(input().closest('[data-slot="input-group"]')).not.toBeNull();
+  });
+
+  it("a field with nothing to pick is a plain textbox", () => {
+    render(<Harness />);
+    expect(screen.getByRole("textbox")).toBe(input());
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 
   it("opens the list on click; picking an item fills the field", async () => {
@@ -158,11 +178,123 @@ describe("components/SearchBar", () => {
         item: expect.objectContaining({ label: "Custom" }),
       })
     );
+    expect(input().value).toBe("So11111111111111111111111111111111111111112");
   });
 
   it("the clear button empties the field", async () => {
     render(<Harness start="abc" />);
     await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
     expect(input().value).toBe("");
+  });
+
+  it("reports the whole path of a nested pick, and nothing after Clear", async () => {
+    const setSelectedItems = vi.fn();
+    render(
+      <Harness
+        items={[{ label: "uint", items: ["u8", "u16"] }, "string"]}
+        setSelectedItems={setSelectedItems}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.click(option("uint"));
+    await userEvent.click(option("u8"));
+    expect(lastLabels(setSelectedItems)).toEqual(["uint", "u8"]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(lastLabels(setSelectedItems)).toEqual([]);
+  });
+
+  it("opens an item's own page, which picks through `search`", async () => {
+    const setSelectedItems = vi.fn();
+    render(
+      <Harness
+        setSelectedItems={setSelectedItems}
+        items={[
+          {
+            label: "Pick",
+            closeButton: true,
+            DropdownComponent: ({ search }) => (
+              <button onClick={() => search({ label: "Out", value: "v" })}>
+                go
+              </button>
+            ),
+          },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.click(option("Pick"));
+    // A page with a close button stays open over a press elsewhere
+    fireEvent.mouseDown(document.body);
+    await userEvent.click(screen.getByRole("button", { name: "go" }));
+
+    expect(input().value).toBe("v");
+    expect(lastLabels(setSelectedItems)).toEqual(["Pick", "Out"]);
+  });
+
+  it("a press outside closes the list and restores; one inside does not", async () => {
+    render(<Harness items={["kept", "other"]} restoreIfNotSelected />);
+    await userEvent.click(input());
+    await userEvent.click(option("kept"));
+    await userEvent.click(input());
+    // "kep" still matches, so the list has a row to press on
+    await userEvent.type(input(), "{Backspace}");
+
+    fireEvent.mouseDown(screen.getByRole("option", { name: "kept" }));
+    expect(screen.queryAllByRole("option")).not.toHaveLength(0);
+
+    fireEvent.mouseDown(document.body);
+    expect(input().value).toBe("kept");
+    expect(screen.queryByRole("option")).toBeNull();
+  });
+
+  it("closes the list when the field turns inert under a page", async () => {
+    const { container } = render(<Harness items={["a"]} />);
+    await userEvent.click(input());
+    expect(optionNames()).toEqual(["a"]);
+
+    await act(async () => {
+      container.setAttribute("inert", "");
+    });
+    expect(screen.queryByRole("option")).toBeNull();
+  });
+
+  it("a list that fails to load says so and stays where it was", async () => {
+    failures.actions.length = 0;
+    render(
+      <Harness
+        items={[
+          {
+            label: "Token accounts",
+            items: () => Promise.reject(new Error("rpc")),
+          },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.click(option("Token accounts"));
+
+    expect(failures.actions).toEqual(["load Token accounts"]);
+    expect(optionNames()).toEqual(["Token accounts"]);
+  });
+
+  it("opens on the item already chosen, so Enter keeps it", async () => {
+    render(<Harness items={["one", "two"]} initialSelectedItems="two" />);
+    await userEvent.click(input());
+    expect(option("two").getAttribute("data-checked")).toBe("true");
+    await userEvent.keyboard("{Enter}");
+    expect(input().value).toBe("two");
+  });
+
+  it("opens on mount with focus in the field when asked to", () => {
+    render(<Harness items={["a"]} showSearchOnMount />);
+    expect(optionNames()).toEqual(["a"]);
+    expect(document.activeElement).toBe(input());
+  });
+
+  it("the search button opens the list", async () => {
+    render(<Harness items={["a"]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(optionNames()).toEqual(["a"]);
   });
 });

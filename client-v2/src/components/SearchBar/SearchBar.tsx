@@ -25,6 +25,7 @@ import {
   InputGroupInput,
 } from "@/shared/ui/input-group";
 import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
 import type { InputProps } from "../Input";
 import { useKeybind, useOnClickOutside } from "../../hooks";
@@ -107,7 +108,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
     // Last value should only be updated when `setInputValue` function runs and
     // not when `onChange` callback runs because we want to restore to the last
-    // valid value when the user clicks outside of the search bar.
+    // value SearchBar set (a pick or a clear) when the user leaves the field.
     lastValue.current = value;
 
     if (opts?.focus) input.focus();
@@ -123,9 +124,22 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       : item.label;
   };
 
-  // What the validator last said, for a caller that passes no `setError`
+  // What the validator last said. A caller that passes `setError` holds the
+  // error itself and its `error` alone is shown, so it can also clear it; the
+  // legacy `Input` behaved the same way.
   const [validationError, setValidationError] = useState<InputError>(null);
-  const shownError = error || validationError;
+  const shownError = setError ? error : validationError || error;
+
+  /** Whether the validator accepts `value`; one that throws rejects it */
+  const isValid = (value: string) => {
+    try {
+      return validator?.(value);
+    } catch {
+      // A throw is the validator's way of saying "invalid, and here is why";
+      // the why is shown by `onChange`, the list only needs the answer
+      return false;
+    }
+  };
 
   const [isVisible, setIsVisible] = useState(showSearchOnMount);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -192,11 +206,11 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         )
       : normalizedItems.filter((item) => {
           if (item.onlyShowIfValid) {
-            return validator?.(getItemValue(item));
+            return isValid(getItemValue(item));
           }
 
-          // Show all optinos if the input is valid
-          if (validator?.(props.value)) return true;
+          // Show all options if the input is valid
+          if (isValid(props.value)) return true;
 
           if (typeof item.matches === "function") {
             return item.matches(props.value);
@@ -228,8 +242,8 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
           closeButton: item.closeButton,
         });
         isInSubSearch = true;
-      } catch (e: any) {
-        console.log("Failed to get items:", e.message);
+      } catch (e) {
+        reportButtonFailure(`load ${item.label}`)(e);
         return;
       } finally {
         setLoading(false);
@@ -266,10 +280,16 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       selectedItemRef.current?.scrollIntoView({ block: "center" });
     } else reset();
   };
+  /** `searchCommon` from a click or a key, its failure told to the user */
+  const pick = (item: Item) => {
+    searchCommon(item).catch(
+      reportButtonFailure(`pick ${normalizeItem(item).label}`)
+    );
+  };
   const searchTopResult = () => {
     if (filteredItems && keyboardSelectionIndex !== null) {
       const selectedItem = filteredItems.at(keyboardSelectionIndex);
-      if (selectedItem) searchCommon(selectedItem);
+      if (selectedItem) pick(selectedItem);
     } else setIsVisible(true);
   };
   useKeybind("Enter", {
@@ -287,8 +307,8 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   // Handle the keyboard selection index
   useEffect(() => {
     if (!filteredItems) {
-      // No `filteredItems` means dropdown is not visible so the keyboard
-      // selection should not exist
+      // No `filteredItems` means no item list is shown (closed, or a custom
+      // page), so there is nothing to select
       setKeyboardSelectionIndex(null);
     } else if (keyboardSelectionIndex === null) {
       // If the selection index was set to `null`, it means the dropdown has
@@ -352,6 +372,34 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   );
 
   const isOpen = !!(filteredItems || itemState.Component);
+  // The list renders in a portal on `body`, so it would outlive a field the
+  // layout takes away while keeping it mounted: off the page under Home, or
+  // `inert` under a page such as Tutorials. Close it when that happens.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!isOpen || !input) return;
+
+    const closeIfGone = () => {
+      if (!input.isConnected || input.closest("[inert]")) reset();
+    };
+    const visibility = new IntersectionObserver(([entry]) => {
+      if (entry && !entry.isIntersecting) reset();
+    });
+    visibility.observe(input);
+    const inertness = new MutationObserver(closeIfGone);
+    inertness.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["inert"],
+      subtree: true,
+    });
+    return () => {
+      visibility.disconnect();
+      inertness.disconnect();
+    };
+    // `reset` is rebuilt every render; the observers only need the open state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   const highlighted =
     keyboardSelectionIndex === null
       ? ""
@@ -371,14 +419,21 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 searchButtonPosition === "left" ? "inline-start" : "inline-end"
               }
             >
-              <Search />
+              <InputGroupButton
+                size="icon-xs"
+                aria-label="Search"
+                onClick={searchTopResult}
+              >
+                <Search />
+              </InputGroupButton>
             </InputGroupAddon>
 
             <InputGroupInput
               ref={inputRef}
-              role="combobox"
-              aria-expanded={isOpen}
-              aria-autocomplete="list"
+              // A field with nothing to pick (Account's address) is a textbox
+              role={items === undefined ? undefined : "combobox"}
+              aria-expanded={items === undefined ? undefined : isOpen}
+              aria-autocomplete={items === undefined ? undefined : "list"}
               aria-invalid={shownError ? true : undefined}
               autoComplete="off"
               autoFocus={showSearchOnMount}
@@ -391,8 +446,9 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 if (validator) {
                   try {
                     if (validator(ev.target.value) === false) err = true;
-                  } catch (e: any) {
-                    err = e.message;
+                  } catch (e) {
+                    // The message is the error the field shows
+                    err = (e instanceof Error && e.message) || true;
                   }
                 }
                 setValidationError(err);
@@ -406,10 +462,9 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 // Default to the pasted text if the label to select is not specified
                 const clipboardText = ev.clipboardData.getData("text");
 
-                // Intentionally use `itemState.items` instead of `filteredItems`
-                //`normalizedItems` because they could be in an invalid state
-                // when the paste events, e.g. `normalizedItems` values only
-                // exist when `isVisible` is truthy.
+                // Search `itemState.items`, not `filteredItems` or
+                // `normalizedItems`: those are empty while the list is closed
+                // (`isVisible` false), and a paste can come before it opens.
                 const item = itemState.items?.find((item) => {
                   const { label } = normalizeItem(item);
                   return (
@@ -423,7 +478,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
                   // Include a timeout otherwise the pasted text is appended to the
                   // value we set instead of overriding it
-                  setTimeout(() => searchCommon(item));
+                  setTimeout(() => pick(item));
                 }
               }}
               {...props}
@@ -450,12 +505,15 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         <PopoverContent
           data-search-bar-list={listId}
           align="start"
-          className="relative w-(--radix-popover-trigger-width) gap-0 p-1"
+          // A custom page (FromSeed's) can be taller than the room left
+          className="relative max-h-(--radix-popover-content-available-height) w-(--radix-popover-trigger-width) gap-0 overflow-y-auto p-1"
           // Focus stays in the field: typing filters, and the arrow keys and
           // Enter act from there through `useKeybind`
           onOpenAutoFocus={(ev) => ev.preventDefault()}
           onCloseAutoFocus={(ev) => ev.preventDefault()}
-          // `reset` closes the list, so it can restore the last value first
+          // The open state is SearchBar's (`isOpen`): Escape and a press
+          // outside go through `reset` (`useKeybind`, `useOnClickOutside`),
+          // which also restores the last value, so Radix's own dismissal is off
           onEscapeKeyDown={(ev) => ev.preventDefault()}
           onInteractOutside={(ev) => ev.preventDefault()}
         >
@@ -488,7 +546,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
           )}
 
           {itemState.Component ? (
-            <itemState.Component search={searchCommon} />
+            <itemState.Component search={pick} />
           ) : (
             <Command
               shouldFilter={false}
@@ -509,7 +567,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                     ref={item.isSelected ? selectedItemRef : null}
                     value={item.label}
                     data-checked={item.isSelected}
-                    onSelect={() => searchCommon(item)}
+                    onSelect={() => pick(item)}
                   >
                     {item.element ?? item.label}
                   </CommandItem>
@@ -533,6 +591,6 @@ const normalizeItem = (item: Item): NormalizedItem => {
   return typeof item === "object" ? item : { label: item };
 };
 
-type InputError = string | boolean | null;
+type InputError = InputProps["error"];
 
 export default SearchBar;
