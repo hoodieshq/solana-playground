@@ -109,7 +109,11 @@ const ZeroState: FC<ZeroStateProps> = ({
   return (
     <Shell>
       <TopBar>
-        <BarTitle>{SECTION_TITLE[section]}</BarTitle>
+        {/* The page's own heading names Tutorials; the bar's name steps down
+            so the page keeps one h1 */}
+        <BarTitle as={section === "tutorials" ? "p" : "h1"}>
+          {SECTION_TITLE[section]}
+        </BarTitle>
       </TopBar>
 
       <Body>
@@ -123,7 +127,8 @@ const ZeroState: FC<ZeroStateProps> = ({
           </PhoneStage>
         ) : (
           <Stage $start={onStart}>
-            <Lead $shown={onStart}>
+            {/* Folded away off Home, and out of the reading order with it */}
+            <Lead $shown={onStart} aria-hidden={!onStart}>
               <Title>Where should we begin?</Title>
             </Lead>
 
@@ -186,6 +191,9 @@ const ZeroState: FC<ZeroStateProps> = ({
               )}
               {!onStart && (
                 <ListHead>
+                  {section === "tutorials" && (
+                    <PageTitle>{SECTION_TITLE[section]}</PageTitle>
+                  )}
                   <SearchWrap>
                     <Glyph aria-hidden="true">
                       <BrandIcon name="search" />
@@ -419,9 +427,30 @@ const searchShape = css`
    that had no list on it. */
 const ListHead = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 1rem;
+`;
+
+/* The list's name on the left, Home's question face, with its search and
+   filter pushed to the right of the same row. On a phone it takes a row of
+   its own over them */
+const PageTitle = styled.h1`
+  ${({ theme }) => css`
+    margin: 0 auto 0 0;
+    font-family: ${HEADLINE_FONT};
+    font-size: 1.75rem;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    color: ${theme.colors.default.textPrimary};
+
+    ${PHONE} {
+      flex-basis: 100%;
+      margin-bottom: 0.5rem;
+      ${PHONE_TYPE.display}
+    }
+  `}
 `;
 
 /* The search's height and corners, square */

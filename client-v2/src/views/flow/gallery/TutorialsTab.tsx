@@ -551,8 +551,8 @@ const Corner = styled.button<{ $done: boolean }>`
   `}
 `;
 
-/* Under the pointer it leans the way it points: 2px out to the corner, on
-   the Styleguide's Press curve */
+/* Under the pointer it grows by two thirds, where the square was, on the
+   Styleguide's Press curve */
 const Arrow = styled.svg`
   width: 1rem;
   height: 1rem;
@@ -565,11 +565,11 @@ const Arrow = styled.svg`
 
   @media (hover: hover) {
     ${Card}:hover & {
-      transform: translate(2px, -2px);
+      transform: scale(1.66);
     }
   }
   ${Card}:has(button:focus-visible) & {
-    transform: translate(2px, -2px);
+    transform: scale(1.66);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -583,8 +583,8 @@ const Arrow = styled.svg`
 `;
 
 /* Drawn, not typed: a glyph brings its own side bearings and sat off
-   centre. Under the pointer it answers as the arrow does: it grows a step
-   and draws itself again, on the Rise curve */
+   centre. Under the pointer it answers as the arrow does: it grows by two
+   thirds and draws itself again, on the Rise curve */
 const Tick = styled.svg`
   flex-shrink: 0;
   width: 1rem;
@@ -603,7 +603,7 @@ const Tick = styled.svg`
 
   @media (hover: hover) {
     ${Card}:hover & {
-      transform: scale(1.18);
+      transform: scale(1.66);
     }
     ${Card}:hover & > path {
       animation: tick-draw 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
