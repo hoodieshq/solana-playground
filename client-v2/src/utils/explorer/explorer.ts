@@ -1,5 +1,6 @@
 import { PgFs } from "./fs";
 import { PgWorkspace } from "./workspace";
+import { forgetFlushed, writeWorkspaceFile } from "./workspace-file";
 import {
   isMissing,
   report,
@@ -306,6 +307,9 @@ export class PgExplorer {
     if (itemType.file) {
       if (!this.isTemporary) {
         await this.fs.writeFile(fullPath, content, { createParents: true });
+        // A new file is a change to the folder tree, which lightning-fs saves
+        // 500 ms later; replacing a file's content is not
+        if (!files[fullPath]) await this.fs.flush();
       }
 
       files[fullPath] = {
@@ -325,7 +329,10 @@ export class PgExplorer {
     }
     // Folder
     else {
-      if (!this.isTemporary) await this.fs.createDir(fullPath);
+      if (!this.isTemporary) {
+        await this.fs.createDir(fullPath);
+        await this.fs.flush();
+      }
 
       files[fullPath] = {};
     }
@@ -385,8 +392,12 @@ export class PgExplorer {
       if (newPathExists) throw new Error(PgExplorer.errors.ALREADY_EXISTS);
     }
 
-    // Rename in `indexedDB`
-    if (!this.isTemporary) await this.fs.rename(oldPath, newPath);
+    // Rename in `indexedDB`. A rename changes only the folder tree, which
+    // lightning-fs saves 500 ms later, so it is saved now
+    if (!this.isTemporary) {
+      await this.fs.rename(oldPath, newPath);
+      await this.fs.flush();
+    }
 
     // Rename in state
     const files = this.files;
@@ -468,6 +479,8 @@ export class PgExplorer {
       const metadata = await this.fs.getMetadata(fullPath);
       if (metadata.isFile()) await this.fs.removeFile(fullPath);
       else await this.fs.removeDir(fullPath, { recursive: true });
+      // Undone by a reload before lightning-fs saves the folder tree
+      await this.fs.flush();
     }
 
     // If we are deleting current file's parent(s), we need to set the current
@@ -730,6 +743,9 @@ export class PgExplorer {
     }
 
     await this.fs.flush();
+    // The directory was cleared, so a workspace file the snapshot lacks is
+    // created again by its next write, which must flush
+    forgetFlushed(PgCommon.appendSlash(dir));
   }
 
   /**
@@ -937,11 +953,12 @@ export class PgExplorer {
       })
       .map((meta) => ({ ...meta, path: this.getRelativePath(meta.path) }));
 
-    // Save file
-    await this.fs.writeFile(
+    // Through `writeWorkspaceFile`: a new workspace writes this file right
+    // after its folder tree was saved, and a reload before the next save would
+    // lose it
+    await writeWorkspaceFile(
       PgWorkspace.METADATA_PATH,
-      JSON.stringify(metaFile),
-      { createParents: true }
+      JSON.stringify(metaFile)
     );
   }
 
