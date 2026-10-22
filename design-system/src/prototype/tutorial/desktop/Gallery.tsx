@@ -8,7 +8,7 @@ import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 
 import { filterCatalog, resultsLine, searchHint, type FrameworkFilter } from "../ui/catalog"
 import { FilterMenu, LevelSections } from "../ui/GalleryParts"
-import { StartHere } from "../ui/StartHereGame"
+import { StartHereBanner } from "../ui/StartHereBanner"
 
 type Tab = "tutorials" | "programs"
 
@@ -120,7 +120,7 @@ export function Gallery() {
         </div>
         </div>
 
-        {browsing && <StartHere layout="desktop" />}
+        {browsing && <StartHereBanner layout="desktop" />}
 
         {tab === "programs" ? (
           <Empty className="mt-16 gap-5 border-0 p-0">

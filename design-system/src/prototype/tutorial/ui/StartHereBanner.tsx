@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils"
 import { NEXT_TUTORIAL, STEPS } from "../data"
 import { useStore } from "../store"
 import { StartHereArt } from "./startHereArt"
-import { WORDS } from "./startHereGame/words"
 import { StartHereSurface } from "./startHereSurface"
 
 /* The panel's ground: the page's own panel with a little of Solana's purple mixed in, and a soft
@@ -20,10 +19,25 @@ const GROUND = {
     "radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, var(--brand-purple) 14%, transparent), transparent 62%), color-mix(in oklab, var(--brand-purple) 6%, var(--surface-panel))",
 }
 
+/* The words' steps, one family for the three lines under the title, ordered by size, weight and
+   colour: the label 13px, the title a clear 24px in the headline face, the line 15px in the reading
+   weight. The title sits a step under the page's own heading, so the banner never competes with it.
+   Sizes in [] so cn keeps them beside a colour. Contrast on the banner's ground, measured where the
+   words sit (phone to desktop): periwinkle label 5.9 to 6.4:1, muted label 6.0 to 6.5:1, line 7.6
+   to 8.0:1, meta 5.3 to 5.5:1, title 14:1 */
+const WORDS = {
+  label: "flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem]",
+  title: "mt-1.5 font-heading text-[1.5rem] leading-[1.2] tracking-[-0.015em] text-balance text-foreground",
+  // Leading of 20px on 15: tight enough to read as one block with the title, open enough for two lines
+  line: "mt-2 font-label text-[0.9375rem] leading-5 text-pretty text-foreground/70",
+  // The quietest line, the gallery cards' meta: who, how long, how far
+  meta: "text-[0.75rem] leading-4 text-foreground/55 tabular-nums",
+}
+
 /** The second action beside the main button: words and an arrow, no box, a step under the line
  * above it. Its box is a button's height, 44px on a touch screen, and the padding it hits with is
  * pulled back out so the words line up with the gap like any other item */
-export function QuietAction({ className, children, ...props }: ComponentProps<"button">) {
+function QuietAction({ className, children, ...props }: ComponentProps<"button">) {
   return (
     <button
       type="button"
@@ -43,7 +57,7 @@ export function QuietAction({ className, children, ...props }: ComponentProps<"b
   )
 }
 
-export function DoneMark() {
+function DoneMark() {
   return (
     <span className="flex size-4 items-center justify-center rounded-full bg-success/15 text-success">
       <Check strokeWidth={2.5} className="size-3" aria-hidden="true" />
@@ -129,7 +143,7 @@ export function StartHereBanner({ layout }: { layout: "phone" | "desktop" }) {
                   Start {NEXT_TUTORIAL.name}
                 </BrandButton>
                 {/* A phone keeps a full button to aim at with a thumb; elsewhere it's the quiet
-                    second action, the game's Skip, so the two stay on one line in the tablet frame */}
+                    second action, so the two stay on one line in the tablet frame */}
                 {phone ? (
                   <Button variant="secondary" className={button} onClick={open}>
                     Open again
