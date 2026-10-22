@@ -193,7 +193,6 @@ const ZeroState: FC<ZeroStateProps> = ({
                     <SearchInput
                       type="search"
                       value={query}
-                      autoFocus
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder={
                         section === "tutorials"
@@ -385,11 +384,19 @@ const searchShape = css`
     align-items: center;
     gap: 0.5rem;
     width: 20rem;
-    height: 1.875rem;
-    padding: 0 0.625rem 0 0.75rem;
+    /* The page's own search, so a control's full height: 40px, the Styleguide's
+       15px at the reading weight, and the filter square beside it to match */
+    height: 2.5rem;
+    padding: 0 0.75rem 0 0.875rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 8px;
     background: ${theme.colors.default.bgSecondary};
+    transition: border-color 0.15s ease;
+
+    /* Focus shows on the box itself: a line a step stronger */
+    &:focus-within {
+      border-color: ${theme.colors.default.textSecondary};
+    }
 
     ${PHONE} {
       justify-self: stretch;
@@ -399,9 +406,12 @@ const searchShape = css`
       border-radius: 12px;
       ${PHONE_TYPE.body}
     }
-    color: ${theme.colors.state.disabled.color};
+    /* The hint and the glass in the secondary grey a step down, 4.9:1, not
+       the disabled grey at 3.4:1 that AA does not allow */
+    color: ${theme.colors.default.textSecondary}cc;
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
+    font-weight: 350;
   `}
 `;
 
@@ -422,8 +432,8 @@ const FilterButton = styled.button<{ $on: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.875rem;
-    height: 1.875rem;
+    width: 2.5rem;
+    height: 2.5rem;
     padding: 0;
     border: 1px solid
       ${$on
@@ -461,8 +471,8 @@ const FilterButton = styled.button<{ $on: boolean }>`
 const FilterDot = styled.span`
   ${({ theme }) => css`
     position: absolute;
-    top: 0.3125rem;
-    right: 0.3125rem;
+    top: 0.5rem;
+    right: 0.5rem;
     width: 0.375rem;
     height: 0.375rem;
     border-radius: 999px;
@@ -511,7 +521,7 @@ const SearchInput = styled.input`
     font: inherit;
 
     &::placeholder {
-      color: ${theme.colors.state.disabled.color};
+      color: ${theme.colors.default.textSecondary}cc;
     }
 
     &:focus {

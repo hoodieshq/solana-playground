@@ -31,4 +31,15 @@ config = config.slice(0, start) + views + config.slice(end)
 
 config = config.replace("systemPage: '/design-system/'", `systemPage: '${DS}/design-system/'`)
 config = config.replace("systemCss: '/design-system/ds-inject.css'", `systemCss: '${DS}/design-system/ds-inject.css'`)
+// The product fills the window, so the ribbon, which floats over a product,
+// would cover its head. It docks instead: the product reads this offset and
+// gives up the ribbon's 34px while the ribbon shows. Not inside the viewport
+// frame, where the ribbon is not drawn
+config += `
+if (window.self === window.top) {
+  var studioOffset = document.createElement('style');
+  studioOffset.textContent = 'html:not(.studio-rib-off){--studio-offset:34px}';
+  document.head.appendChild(studioOffset);
+}
+`
 writeFileSync(file, config)

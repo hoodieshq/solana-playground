@@ -348,10 +348,15 @@ export const Card = styled.div`
     /* Home's cards: the fill lifts under the pointer, the line stays */
     transition: background 0.12s ease;
 
-    /* Only where there is a pointer: a tap would leave it behind */
+    /* Only where there is a pointer: a tap would leave it behind. A light
+       lift, a step off the card rather than Home's full hover grey */
     @media (hover: hover) {
       &:hover {
-        background: ${theme.colors.state.hover.bg};
+        background: linear-gradient(
+            ${theme.colors.default.textPrimary}0a,
+            ${theme.colors.default.textPrimary}0a
+          ),
+          ${theme.colors.default.bgSecondary};
       }
     }
 
@@ -527,12 +532,11 @@ const Corner = styled.button<{ $done: boolean }>`
       border-radius: 12px;
     }
 
-    /* A step over the lifted card, so the square stays a square on it */
+    /* Under the pointer the square steps back and the arrow alone answers,
+       leaning to its corner. A done tick keeps its green */
     @media (hover: hover) {
       ${Card}:hover & {
-        background: ${$done
-          ? `${BRAND.green}2e`
-          : `${theme.colors.default.textPrimary}1a`};
+        background: ${$done ? `${BRAND.green}1f` : "transparent"};
       }
     }
 

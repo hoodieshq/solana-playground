@@ -9,11 +9,10 @@ import type { LessonSummary } from "../lessons/summary";
 import { BRAND } from "../tokens";
 import { startOnOpen } from "./autostart";
 import { tutorialTitle } from "./title";
+import IsoVoxels from "./banner-art/IsoVoxels";
 import { usePhone } from "../phone";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
-import PlaygroundMarkNext, {
-  MARK_PATH,
-} from "../../../components/PlaygroundMarkNext";
+import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgTutorial, PgView } from "../../../utils";
 
 const TUTORIAL = "Hello Anchor";
@@ -114,21 +113,24 @@ const StartHere: FC = () => {
     PgView.setModal(null);
   };
 
-  const next = finished ? PgTutorial.all.find((t) => t.name === NEXT) : null;
-  if (next) {
-    const pages = next.pageCount;
+  const nextTutorial = PgTutorial.all.find((t) => t.name === NEXT);
+  const next = finished ? nextTutorial : null;
+
+  const nextBanner = (n: NonNullable<typeof nextTutorial>) => {
+    const pages = n.pageCount;
     return (
       <Wrapper ref={box} aria-labelledby={titleId}>
-        {/* The mark wants the right half to itself: on a narrow banner the
-            words take that room, so the light keeps to the corner */}
-        <Field layout={phone || !wide ? "corner" : "wide"} />
+        {/* The mark as a voxel sculpture, larger than the banner, wants the
+            right half to itself: on a narrow banner or a phone the words take
+            that room, so the light keeps to the corner */}
+        {!phone && wide ? <IsoVoxels /> : <Field layout="corner" />}
         <Inner $wide={false}>
           <Words>
             <Label $fresh={!nextAt}>
               {nextAt ? "Pick up where you left off" : "Up next"}
             </Label>
-            <Title id={titleId}>{tutorialTitle(next.name)}</Title>
-            <Line>{next.description}</Line>
+            <Title id={titleId}>{tutorialTitle(n.name)}</Title>
+            <Line>{n.description}</Line>
             {nextAt && pages ? (
               <Progress>
                 <Meter aria-hidden>
@@ -144,16 +146,16 @@ const StartHere: FC = () => {
               <Meta>
                 {[
                   pages && `${pages} pages`,
-                  next.level,
-                  next.framework,
-                  next.authors[0] && `by ${next.authors[0].name}`,
+                  n.level,
+                  n.framework,
+                  n.authors[0] && `by ${n.authors[0].name}`,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
               </Meta>
             )}
             <Actions>
-              <Go kind="primary" onClick={() => PgTutorial.open(next.name)}>
+              <Go kind="primary" onClick={() => PgTutorial.open(n.name)}>
                 {nextAt ? "Continue" : "Start"}
               </Go>
             </Actions>
@@ -161,7 +163,9 @@ const StartHere: FC = () => {
         </Inner>
       </Wrapper>
     );
-  }
+  };
+
+  if (next) return nextBanner(next);
 
   return (
     <Wrapper ref={box} aria-labelledby={titleId}>
@@ -309,13 +313,9 @@ const CELL = 3;
 const LIGHT = {
   // Behind the steps' window: a soft glow, since a mark would only show in
   // scraps around the window's edges. Faded to nothing before the words
-  glow: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6, mark: false },
-  // The right side, edge to edge from the top to the bottom: the light grows
-  // across, not out from a point, so no rim of dark is left above or below.
-  // Faded to nothing before the words
-  wide: { cx: 0, cy: 0, r: 0, x1: 0.3, x2: 0.42, mark: true },
+  glow: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6 },
   // A phone's top right corner, gone before the words under it
-  corner: { cx: 1, cy: 0, r: 0.75, x1: 0.62, x2: 0.97, mark: false },
+  corner: { cx: 1, cy: 0, r: 0.75, x1: 0.62, x2: 0.97 },
 };
 
 /**
@@ -334,11 +334,7 @@ const Field: FC<{ layout: keyof typeof LIGHT }> = ({ layout }) => {
           <stop offset="0.5" stopColor="rgb(110,0,0)" />
           <stop offset="1" stopColor="rgb(0,0,0)" />
         </radialGradient>
-        {/* The mark's edge softened, so the dither breaks it into dots the
-            way light falls off, instead of cutting it out */}
-        <filter id={`${id}soft`} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="9" />
-        </filter>
+
         <linearGradient id={`${id}ink`} x1="0.4" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND.purple} />
           <stop offset="0.6" stopColor={BRAND.violet} />
@@ -388,30 +384,7 @@ const Field: FC<{ layout: keyof typeof LIGHT }> = ({ layout }) => {
           height="100%"
         >
           <g filter={url("dither")}>
-            {f.mark ? (
-              <>
-                <rect width="100%" height="100%" fill="rgb(0,0,0)" />
-                {/* The ▷O itself, drawn in light: taller than the banner, the
-                    ring's far side running off the right edge, so it is the
-                    brand seen up close rather than a logo set in a box. The
-                    ring stays in view: the triangle alone reads as a cross */}
-                <g filter={url("soft")}>
-                  <svg
-                    x="43%"
-                    y="-12.5%"
-                    width="80%"
-                    height="125%"
-                    viewBox="0 0 970 574"
-                    preserveAspectRatio="xMinYMid meet"
-                    overflow="visible"
-                  >
-                    <path d={MARK_PATH} fill="rgb(200,0,0)" />
-                  </svg>
-                </g>
-              </>
-            ) : (
-              <rect width="100%" height="100%" fill={url("field")} />
-            )}
+            <rect width="100%" height="100%" fill={url("field")} />
             <rect width="100%" height="100%" fill={url("fade")} />
           </g>
         </mask>

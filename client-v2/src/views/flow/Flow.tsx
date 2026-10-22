@@ -1132,9 +1132,12 @@ const ICONS = {
 const Wrapper = styled.div`
   ${({ theme }) => css`
     width: 100vw;
-    height: 100vh;
+    /* Less whatever a review tool docks over the top (the Studio ribbon on
+       the stand and in development); nothing in production */
+    margin-top: var(--studio-offset, 0px);
+    height: calc(100vh - var(--studio-offset, 0px));
     /* On a phone, the height the browser's own bars leave */
-    height: 100dvh;
+    height: calc(100dvh - var(--studio-offset, 0px));
     position: relative;
     overflow: hidden;
     /* The ground. Everything raised — cards, the composer, a menu — sits one
