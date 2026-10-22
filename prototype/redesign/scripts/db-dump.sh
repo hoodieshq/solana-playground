@@ -42,9 +42,9 @@ if [ -n "${CI:-}" ]; then
       pg_dump --host 127.0.0.1 --port 5432 \
       --username "$USER_NAME" --dbname "$DB_NAME" "$@"
   }
-elif docker compose -f ../compose.yaml ps "$SERVICE" 2>/dev/null | grep -q "Up"; then
+elif docker compose -f ../../compose.yaml ps "$SERVICE" 2>/dev/null | grep -q "Up"; then
   run_pg_dump() {
-    docker compose -f ../compose.yaml exec -T "$SERVICE" \
+    docker compose -f ../../compose.yaml exec -T "$SERVICE" \
       pg_dump --username "$USER_NAME" --dbname "$DB_NAME" "$@"
   }
 else

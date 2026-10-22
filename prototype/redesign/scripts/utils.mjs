@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 /** Repository root directory path */
-export const REPO_ROOT_PATH = path.join(process.argv[1], "..", "..", "..");
+export const REPO_ROOT_PATH = path.join(process.argv[1], "..", "..", "..", "..");
 
 /** Supported program crates path */
 export const SUPPORTED_CRATES_PATH = path.join(

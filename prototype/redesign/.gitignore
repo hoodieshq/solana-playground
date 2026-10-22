@@ -1,3 +1,11 @@
 
 # Walkthrough renders — the board is source, the video is not
 walkthrough/build/
+
+# What the repository root ignores for client-v2/, for this copy of it
+node_modules/
+.cache/
+public/
+src/views/sidebar/assistant/content/assistant-context.md
+test-results/
+playwright-report/

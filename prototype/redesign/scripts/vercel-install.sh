@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Vercel install hook for the client.
 #
-# Order matters: client/package.json has file-deps like "../wasm/anchor-cli/pkg"
+# Order matters: client/package.json has file-deps like "../../wasm/anchor-cli/pkg"
 # which don't exist until wasm-pack runs, so we must compile wasm BEFORE yarn install.
 
 export CARGO_HOME="$PWD/node_modules/.cache/cargo"
@@ -13,7 +13,7 @@ mkdir -p "$CARGO_HOME" "$RUSTUP_HOME" "$CARGO_TARGET_DIR"
 export PATH="$CARGO_HOME/bin:$PATH"
 
 # Matches wasm/build.sh's parsing of the same file.
-RUST_VERSION=$(awk '/channel/{gsub(/"/, ""); print $3 }' ../wasm/rust-toolchain.toml)
+RUST_VERSION=$(awk '/channel/{gsub(/"/, ""); print $3 }' ../../wasm/rust-toolchain.toml)
 
 # Cache diagnostic — if Vercel's build cache restored node_modules/.cache, cargo
 # (and the toolchain it points at) should already be on disk.
@@ -32,6 +32,6 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 rustup default "$RUST_VERSION"
 
-bash ../wasm/build.sh
+bash ../../wasm/build.sh
 
 yarn install --frozen-lockfile
