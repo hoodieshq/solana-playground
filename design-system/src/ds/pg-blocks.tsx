@@ -83,7 +83,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/
 import { HelpTip } from "@/components/ui/help-tip"
 import { Input } from "@/components/ui/input"
 import { Kbd } from "@/components/ui/kbd"
-import { Logo, LogoMark, LogoText } from "@/components/ui/logo"
+import { Logo, LogoMark } from "@/components/ui/logo"
 import { MenuFold, MenuFoldChevron, MenuFoldContent, MenuFoldTrigger, MenuItemDescription, MenuItemText, MenuNote } from "@/components/ui/menu-extras"
 import {
   Modal,
@@ -303,7 +303,7 @@ function PlaygroundComponents() {
             <ComposerAdd />
             <ComposerModel>Claude Sonnet</ComposerModel>
             <ComposerEffort value={2} />
-            <ComposerSend><LogoMark className="size-4" /></ComposerSend>
+            <ComposerSend><BrandButtonIcon /></ComposerSend>
           </ComposerToolbar>
         </Composer>
       </Block>
@@ -650,14 +650,9 @@ function PlaygroundComponents() {
         </Achievement>
       </Block>
 
-      <Block id="logo" title="Logo" source="playground" registry="logo" note="The mark beside the name, as the product's header sets it. The mark takes the colour of its text.">
-        <Logo>
-          <LogoMark />
-          <LogoText>Playground</LogoText>
-        </Logo>
-        <Logo className="text-brand-purple">
-          <LogoMark className="size-8" />
-        </Logo>
+      <Block id="logo" title="Logo" source="playground" registry="logo" note="The lockup, and the mark on its own: a triangle beside a circle. The wordmark is drawn, not typeset. Both take the colour of their text. The play ring is not the logo. It marks actions.">
+        <Logo className="h-9" />
+        <LogoMark className="h-9 text-brand-purple" />
       </Block>
     </>
   )

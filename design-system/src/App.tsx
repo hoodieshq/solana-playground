@@ -2,7 +2,7 @@ import * as React from "react"
 import { ArrowUpRight, Moon, Sun } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Logo, LogoMark, LogoText } from "@/components/ui/logo"
+import { Logo } from "@/components/ui/logo"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -139,10 +139,7 @@ function App() {
       <TooltipProvider delayDuration={200}>
         <header data-ds-header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 md:px-8">
-            <Logo>
-              <LogoMark />
-              <LogoText>Playground</LogoText>
-            </Logo>
+            <Logo className="h-6" />
             <span className="hidden text-control font-read text-muted-foreground sm:inline">Design system</span>
             <Badge variant="outline" className="font-label">v0</Badge>
             <div className="ml-auto flex items-center gap-1">
