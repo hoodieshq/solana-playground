@@ -69,6 +69,7 @@ describe("Assistant's turn", () => {
         <Assistant
           widen={{ wide: false, setWide: vi.fn(), canWiden: true }}
           onHide={vi.fn()}
+          openConnect={vi.fn()}
         />
       </TooltipProvider>
     );

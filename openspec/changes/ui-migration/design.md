@@ -1001,17 +1001,23 @@ widgets/assistant
 ├─ AssistantComposer (shared/ui/composer)
 │    context chips | input | Add (not rendered until there is something to add)
 │      | ModelMenu | EffortMenu? | Send ⇄ Stop
-└─ ConnectDialog (ModalFrame through PgView.setModal) around today's Connect form
+└─ (Connect a model: opened through the `openConnect` the app hands in)
 ```
 
 - **Where the code goes.** A new widget slice, `src/widgets/assistant/`,
   with `BaseAssistantHead` (its connected side is the slice's `Assistant`,
   which also holds the thread and Sources views),
-  `BaseAssistantComposer`/`AssistantComposer`, `BaseModelMenu`,
-  `BaseEffortMenu` and `ConnectDialog`. The store (`PgAssistant`), the
-  providers and the `Connect` form stay in `views/sidebar/assistant/` and
-  are imported from there; they move with the thread or later. 5.18 adds the
-  thread to the same slice.
+  `BaseAssistantComposer`/`AssistantComposer`, `BaseModelMenu` and
+  `BaseEffortMenu`. The store (`PgAssistant`), the providers and the
+  `Connect` form stay in `views/sidebar/assistant/` and are imported from
+  there; they move with the thread or later. 5.18 adds the thread to the
+  same slice.
+- **Connect a model's frame sits outside the widget**, as New project's does
+  (5.13): a widget may not import `widgets/overlays`, which holds
+  `ModalFrame`. `ConnectDialog` and `openConnectDialog` live beside the
+  `Connect` form in `views/sidebar/assistant/Component/`, and `Flow` hands
+  the opener to `Assistant` as `openConnect`, which passes it to `useTurn`.
+  The widget's tests stand in for the dialog (Sergey's review of #35, 2026-10-22).
 - **The head.** The project's name, then More, Widen and Hide. Hide is the
   shell's "Collapse assistant", label kept. Widen sizes the assistant panel
   to its maximum (560 px) and back; it is not saved in the layout, and it is
