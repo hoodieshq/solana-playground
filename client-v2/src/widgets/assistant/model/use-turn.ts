@@ -138,6 +138,8 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
 
   const provider = useRef<{
     connection: Connection;
+    /** The conversation its history was seeded from */
+    threadId: string | null;
     instance: Provider;
   } | null>(null);
   const turn = useRef<AbortController | null>(null);
@@ -271,13 +273,18 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       return true;
     }
 
-    // One provider per connection; it owns the conversation history. Every
-    // connect and tune stores a new object, so identity catches any change, a
-    // re-pick included; a rebuild is harmless: the new provider is seeded from
-    // what is rendered.
-    if (provider.current?.connection !== current) {
+    // One provider per connection and conversation; it owns the history.
+    // Every connect and tune stores a new object, so identity catches any
+    // change, a re-pick included, and another project's thread gets its own,
+    // or the model would carry the last project's turns. A rebuild is
+    // harmless: the new provider is seeded from what is rendered.
+    if (
+      provider.current?.connection !== current ||
+      provider.current.threadId !== PgAssistant.threadId
+    ) {
       provider.current = {
         connection: current,
+        threadId: PgAssistant.threadId,
         // Seeded from what is rendered, so reopening a stored thread gives the
         // model the conversation rather than amnesia behind a full transcript
         instance: createProvider(current, toReplayMessages(PgAssistant.items)),

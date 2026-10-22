@@ -686,6 +686,21 @@ describe("useTurn across a project switch", () => {
     expect(PgAssistant.items).toEqual([]);
   });
 
+  it("starts the model afresh in the conversation of a project opened later", async () => {
+    PgAssistant.connect({ id: "openai", apiKey: "sk-test" });
+    const thread = vi
+      .spyOn(PgAssistant, "threadId", "get")
+      .mockReturnValue("thread-a");
+    const { result } = renderHook(() => useTestTurn());
+    await act(() => result.current.send("about a"));
+
+    thread.mockReturnValue("thread-b");
+    await act(() => result.current.send("about b"));
+
+    // One provider per conversation: b's must not carry a's history
+    expect(vi.mocked(createProvider)).toHaveBeenCalledTimes(2);
+  });
+
   it("still sends when the project stays the same", async () => {
     const release = heldProbe();
     inProject("a");
