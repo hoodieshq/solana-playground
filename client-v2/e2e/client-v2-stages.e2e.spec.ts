@@ -16,11 +16,26 @@ import {
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
-/** The smallest Anchor IDL: one instruction, nothing to fill */
+/**
+ * A small Anchor IDL: one instruction with a mutable account and a `u64` to
+ * fill, and one account type for the Accounts section
+ */
 const IDL = {
   version: "0.1.0",
   name: "e2e_project",
-  instructions: [{ name: "initialize", accounts: [], args: [] }],
+  instructions: [
+    {
+      name: "initialize",
+      accounts: [{ name: "counter", isMut: true, isSigner: false }],
+      args: [{ name: "amount", type: "u64" }],
+    },
+  ],
+  accounts: [
+    {
+      name: "Counter",
+      type: { kind: "struct", fields: [{ name: "count", type: "u64" }] },
+    },
+  ],
 };
 
 /**
@@ -285,5 +300,37 @@ test.describe("client-v2-stages on a phone", () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)
     ).toBeLessThanOrEqual(390);
+  });
+});
+
+/** The search field, where the Interact stage's values are picked */
+test.describe("client-v2-search-field", () => {
+  test("client-v2-search-field: Random fills an instruction value", async ({
+    seededPage: page,
+  }) => {
+    await stubProgramAccount(page, DEPLOYED_ACCOUNT);
+    const panel = await buildThenInteract(page);
+    await panel.getByRole("button", { name: "initialize" }).click();
+
+    // The id `updateRefs` fills dependent inputs through
+    const amount = panel.locator("#initializeargsamount");
+    await amount.click();
+    await page
+      .locator('[data-slot="command"]')
+      .getByRole("option", { name: "Random" })
+      .click();
+    await expect(amount).toHaveValue(/^\d+$/);
+  });
+
+  test("client-v2-search-field: An address that is not a public key", async ({
+    seededPage: page,
+  }) => {
+    await stubProgramAccount(page, DEPLOYED_ACCOUNT);
+    const panel = await buildThenInteract(page);
+    await panel.getByRole("button", { name: "Counter" }).click();
+
+    const address = panel.getByRole("combobox").last();
+    await address.fill("not-a-key");
+    await expect(address).toHaveAttribute("aria-invalid", "true");
   });
 });
