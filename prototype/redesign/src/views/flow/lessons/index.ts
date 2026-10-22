@@ -1,0 +1,14 @@
+import { LESSON_PATHS } from "./paths";
+import { registerPaths } from "./registry";
+import { TUTORIALS } from "../../../tutorials";
+
+registerPaths(
+  LESSON_PATHS,
+  TUTORIALS.map((t) => t.name)
+);
+
+export { currentStep } from "./progress";
+export { getLessonPath } from "./registry";
+export { verifyingStage } from "./verify";
+export { INITIAL_LESSON_STATE, PgLesson } from "./store";
+export type { LessonState } from "./store";

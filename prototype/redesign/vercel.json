@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "bash scripts/vercel-install.sh",
+  "buildCommand": "NODE_OPTIONS='--max-old-space-size=6144' yarn build",
+  "devCommand": "yarn dev-cra",
+  "outputDirectory": "build",
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/api/auth/:authPath+",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/((?!api/|static/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
