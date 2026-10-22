@@ -46,8 +46,6 @@ Redesign rebase" on 2026-10-22; not the verbatim thread. Raw:
 - With `master-2.0` = solana-foundation `master`, does the new-face → master
   PR go to solana-foundation `master` directly (question 2 of the 20 Oct
   entry)?
-- Does the no-PR-for-reference-branches rule go into the fork's PR
-  conventions?
 
 **Actions**
 
@@ -57,3 +55,6 @@ Redesign rebase" on 2026-10-22; not the verbatim thread. Raw:
    page) at issue #120 as the design reference.
 3. Put "a branch not meant to merge gets an issue, not a PR" in the fork's
    PR conventions, with Slava's yes.
+   Slava confirmed the rule 2026-10-22 16:20 and applied it to open PRs:
+   PR #70 (HOO-1753, the ai SDK transport verdict, a draft into
+   `master-2.0`) becomes an issue and the PR is closed.

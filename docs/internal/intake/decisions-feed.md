@@ -2,6 +2,7 @@
 
 Newest first. One line per decision or requirement change; a superseded line gains `superseded by <link>`, nothing is deleted.
 
+- 2026-10-22 — Work not meant to merge into the repo's code is filed as an issue, not a PR; open ones are converted, starting with PR #70 (Slava, confirming Sergey's 21 Oct rule). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — Almaz's tutorial prototype is a reference in branch `almaz/tutorial-prototype` off `master-2.0`, never merged (Almaz, Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — A branch not meant to merge gets an issue naming it, not a PR (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — `master-2.0` is treated as a mirror of solana-foundation `master` (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
