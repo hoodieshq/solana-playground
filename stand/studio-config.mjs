@@ -14,7 +14,7 @@ const views = `home: '/#app',
     { group: 'App', items: [
       { label: 'Playground', href: '/#app', note: 'The product, with the Hello Anchor tutorial in it', kind: 'app' },
       { label: 'Hello Anchor', href: '/tutorials/hello-anchor', note: 'The tutorial flow under review', kind: 'app' },
-      { label: 'Proposal deck', href: '/', note: 'Nikita\'s redesign, told in slides', kind: 'app' },
+      { label: 'Proposal deck', href: '/', note: 'The redesign by Nikita, told in slides', kind: 'app' },
       { label: 'Design system', href: '${DS}/design-system/', note: 'On solana-playground-ds', kind: 'app' }
     ]},
     { group: 'Archive', items: [] }

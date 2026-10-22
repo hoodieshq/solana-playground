@@ -11,6 +11,8 @@ cd "$(dirname "$0")"
 rm -rf public && cp -R ../client-v2/build public
 mkdir -p public/studio && cp ../design-system/studio/tools/*.js ../design-system/studio/tools/*.css public/studio/
 node studio-config.mjs public/studio/studio.config.js
+# A config that does not parse leaves the ribbon on its defaults without a word, so check it here
+node -e 'global.location={pathname:"/"};global.document={documentElement:{classList:{add(){}}}};global.window={};require("./public/studio/studio.config.js");if(!window.StudioConfig.views)process.exit(1)'
 
 # The ribbon's scripts go last in the body, in the order the site uses
 tags='<script src="/studio/studio.config.js"></script><script src="/studio/annotate.js"></script><script src="/studio/components.js"></script><script src="/studio/narrate.js"></script><script src="/studio/studio.js"></script>'
