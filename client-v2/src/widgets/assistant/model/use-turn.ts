@@ -18,6 +18,8 @@ import type {
 } from "../../../views/sidebar/assistant/store";
 import type { ConnectPreset } from "../../../views/sidebar/assistant/Component/Connect";
 import { reportButtonFailure } from "../../../shared/lib/report-button-failure";
+// Deep import rather than the `utils` barrel, as `effects/chat-thread` does
+import { PgExplorer } from "../../../utils/explorer/explorer";
 import { DEFAULT_CONNECTION } from "./connection";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
@@ -233,7 +235,8 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
 
   /**
    * @returns `false` when the send was refused because another one is under
-   * way, so a caller holding text the user never typed can keep it
+   * way, or because another project opened while it waited on the default
+   * backend, so a caller holding text the user never typed can keep it
    */
   const start = async (text: string): Promise<boolean> => {
     const trimmed = text.trim();
@@ -246,14 +249,19 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     // Nothing connected: try the default. Connected to the default with no
     // session falls through to Connect a model, which offers sign-in
     if (!current && !PgAssistant.connection) {
+      const project = PgExplorer.currentWorkspaceId;
       starting.current = true;
       try {
         current = await connectDefault();
       } finally {
         starting.current = false;
       }
-      // A turn may have started while the probe was out
-      if (occupied()) return false;
+      // A turn may have started while the probe was out, or the user may have
+      // opened another project: the prompt was written for the one it left,
+      // and would land in the new one's conversation with its files
+      if (occupied() || PgExplorer.currentWorkspaceId !== project) {
+        return false;
+      }
     }
     if (!current) {
       // Nothing to send to: the prompt stays where the user can send it once
@@ -374,8 +382,15 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
           run(request);
           return;
         }
+        const project = PgExplorer.currentWorkspaceId;
         Promise.all([probeDefaultBackend(), isSignedIn()])
           .then(([backend, signedIn]) => {
+            // Another project opened while this waited: the prompt was asked
+            // for in the one it left, so it waits in the composer unsent
+            if (PgExplorer.currentWorkspaceId !== project) {
+              place(request.text);
+              return;
+            }
             // Connected while the probe was out, or the default can be; not
             // behind an open Connect a model, where the user is choosing, and
             // not for a user the default would refuse
