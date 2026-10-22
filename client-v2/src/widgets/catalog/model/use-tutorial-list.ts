@@ -16,8 +16,10 @@ export const useTutorialList = (
         title: t.name,
         description: t.description,
         media: t.thumbnail,
-        level: t.level,
-        tags: t.framework ? [{ label: t.framework }] : [],
+        tags: [
+          { label: t.level },
+          ...(t.framework ? [{ label: t.framework }] : []),
+        ],
         open: cardOpen(t.name),
       })),
   },

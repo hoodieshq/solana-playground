@@ -66,16 +66,6 @@ it("counts every tutorial whatever the query", () => {
   });
 });
 
-it("gives a tutorial's level its own place, apart from its framework", () => {
-  const { result } = renderHook(() => useTutorialList("escrow", noOpen));
-
-  const list = result.current.list;
-  expect(list.state === "ready" && list.cards[0].level).toBe("Beginner");
-  expect(list.state === "ready" && list.cards[0].tags).toEqual([
-    { label: "Anchor" },
-  ]);
-});
-
 it("puts a card's Open on its card", () => {
   const { result } = renderHook(() =>
     useTutorialList("", (id) =>

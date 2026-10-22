@@ -14,9 +14,8 @@ import {
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Empty, EmptyDescription } from "@/shared/ui/empty";
-import { levelVariant, Tag } from "@/shared/ui/tag";
 
-/** One fact on a card's eyebrow: a framework, a category */
+/** One fact on a card's eyebrow: a level, a framework, a category */
 export interface CatalogTag {
   label: string;
 }
@@ -29,8 +28,6 @@ export interface CatalogCard {
   description: string;
   /** The thumbnail or icon */
   media: string;
-  /** A tutorial's level, drawn as a coloured tag; programs have none */
-  level?: string;
   tags: CatalogTag[];
   /** This card's Open, while it runs or once it failed; none otherwise */
   open?: CardOpen;
@@ -107,16 +104,11 @@ const BaseCatalogGrid = ({
             <img src={c.media} alt="" />
           </ActionCardMedia>
           <ActionCardContent>
-            {/* As the design system's tutorial card draws it: the level as a
-                coloured tag, the other facts as the eyebrow's text */}
-            <div className="flex flex-wrap items-center gap-2">
-              {c.level ? (
-                <Tag variant={levelVariant(c.level)}>{c.level}</Tag>
-              ) : null}
-              <ActionCardEyebrow>
-                {c.tags.map((t) => t.label).join(" · ")}
-              </ActionCardEyebrow>
-            </div>
+            {/* Plain text, as the prototype writes it: level · framework, or
+                framework · categories */}
+            <ActionCardEyebrow>
+              {c.tags.map((t) => t.label).join(" · ")}
+            </ActionCardEyebrow>
             <ActionCardTitle>
               <ActionCardLink asChild>
                 <button
