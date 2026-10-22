@@ -1,10 +1,12 @@
-import { FC, useEffect, useLayoutEffect, useState } from "react";
+import { FC, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styled, { css, keyframes, useTheme } from "styled-components";
 
 import { highlight } from "../../../../components/CodeBlock/highlight";
 import { useAsyncEffect } from "../../../../hooks";
 import { PgTheme } from "../../../../utils";
+import ScrollFades from "../../../flow/components/ScrollFades";
+import { thinScroll, useScrollEdges } from "../../../flow/components/scroll";
 
 /**
  * Code in a reply, with the two things you do with it: copy it, or look at it
@@ -63,8 +65,13 @@ const useCopy = (code: string) => {
 };
 
 /** A block in the thread: language on the left, Copy and Preview on the right */
+/** The code well's ground, which the fades over its edges blend into */
+const CODE_BG = "#0e0e0f";
+
 const ChatCode: FC<Snippet> = ({ code, lang }) => {
   const { copied, copy } = useCopy(code);
+  const body = useRef<HTMLDivElement>(null);
+  const edges = useScrollEdges(body);
 
   return (
     <Block>
@@ -84,9 +91,12 @@ const ChatCode: FC<Snippet> = ({ code, lang }) => {
           </Action>
         </Actions>
       </Head>
-      <Body>
-        <Highlighted code={code} lang={lang} />
-      </Body>
+      <BodyWrap>
+        <Body ref={body}>
+          <Highlighted code={code} lang={lang} />
+        </Body>
+        <ScrollFades edges={edges} bg={CODE_BG} />
+      </BodyWrap>
     </Block>
   );
 };
@@ -255,7 +265,7 @@ const Block = styled.div`
     margin: 0.25rem 0;
     border: 1px solid ${theme.colors.default.border};
     border-radius: 12px;
-    background: #0e0e0f;
+    background: ${CODE_BG};
     overflow: hidden;
   `}
 `;
@@ -321,7 +331,12 @@ const Action = styled.button`
   `}
 `;
 
+const BodyWrap = styled.div`
+  position: relative;
+`;
+
 const Body = styled.div`
+  ${thinScroll}
   max-height: 18rem;
   overflow: auto;
 `;
@@ -375,7 +390,7 @@ const Sheet = styled.div`
     z-index: 50;
     display: flex;
     flex-direction: column;
-    background: #0e0e0f;
+    background: ${CODE_BG};
     border-left: 1px solid ${theme.colors.default.border};
     box-shadow: ${theme.default.boxShadow};
     font-family: ${theme.font.other.family};
