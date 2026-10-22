@@ -73,6 +73,13 @@ const alignTo = (el: HTMLElement, index: number) => {
   el.scrollLeft = index * el.clientWidth;
 };
 
+/** `alignTo` at once, not by the container's smooth scroll */
+const jumpTo = (el: HTMLElement, index: number) => {
+  el.style.scrollBehavior = "auto";
+  alignTo(el, index);
+  el.style.removeProperty("scroll-behavior");
+};
+
 const PhoneBar = ({ children }: { children: ReactNode }) => (
   <div
     data-testid="phone-bar"
@@ -127,16 +134,21 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // is not called for it.
   // The first alignment, on load, is instant: arriving is not a move
   const aligned = useRef(false);
+  // A move the pager made itself and that has not settled yet. Something can
+  // cut its smooth scroll short (a dialog opening as the page changes, as New
+  // project's gallery does from the menu page), and the snap then pulls the
+  // pages back where they were: that settle is finished, not read as a swipe.
+  // Any touch, wheel or key on the pager hands the scroll to the user.
+  const moving = useRef(false);
   useLayoutEffect(() => {
     const el = ref.current!;
     if (aligned.current) {
+      moving.current = true;
       alignTo(el, index);
       return;
     }
     aligned.current = true;
-    el.style.scrollBehavior = "auto";
-    alignTo(el, index);
-    el.style.removeProperty("scroll-behavior");
+    jumpTo(el, index);
   }, [index]);
   // A rotation changes the page width: put the page back, not between two
   useEffect(() => {
@@ -159,6 +171,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
       // A scroll position read before the pages re-render (Home or a page
       // coming or going changes their number) may index past the list
       const at = pages[Math.round(el.scrollLeft / el.clientWidth)];
+      if (moving.current) {
+        moving.current = false;
+        if (at !== page) jumpTo(el, index);
+        return;
+      }
       if (at && at !== page) props.onSwipe(at);
     }, SWIPE_SETTLE_MS);
   };
@@ -171,7 +188,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     const el = ref.current!;
     const down = () => {
       touching.current = true;
+      moving.current = false;
       window.clearTimeout(settle.current);
+    };
+    const userScroll = () => {
+      moving.current = false;
     };
     const up = () => {
       touching.current = false;
@@ -180,7 +201,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     el.addEventListener("touchstart", down, { passive: true });
     el.addEventListener("touchend", up, { passive: true });
     el.addEventListener("touchcancel", up, { passive: true });
+    el.addEventListener("wheel", userScroll, { passive: true });
+    el.addEventListener("keydown", userScroll);
     return () => {
+      el.removeEventListener("wheel", userScroll);
+      el.removeEventListener("keydown", userScroll);
       el.removeEventListener("touchstart", down);
       el.removeEventListener("touchend", up);
       el.removeEventListener("touchcancel", up);

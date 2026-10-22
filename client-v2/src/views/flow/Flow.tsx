@@ -123,10 +123,15 @@ const FlowFrame = () => {
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
   // Back to the control that opened them, once the shell is no longer inert,
-  // or, when that is gone or out of reach, to `fallbackFocus`
+  // or, when that is gone or out of reach, to `fallbackFocus`. Only when they
+  // close: on load, with the settings never opened, focus stays where the
+  // browser puts it, not on a trigger whose tooltip opens on focus (HOO-2240)
   const refocus = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (settings.open) return;
+    const closed = wasOpen.current && !settings.open;
+    wasOpen.current = settings.open;
+    if (!closed) return;
     if (refocus.current && canTakeFocus(refocus.current)) {
       refocus.current.focus();
     } else fallbackFocus()?.focus();
@@ -270,6 +275,7 @@ const FlowFrame = () => {
                   closeSheet();
                 }}
                 onClosePage={catalogPage.close}
+                closeSheet={closeSheet}
                 collapsed={collapsed}
                 onToggle={toggle}
                 logo={<Logomark aria-hidden="true" />}

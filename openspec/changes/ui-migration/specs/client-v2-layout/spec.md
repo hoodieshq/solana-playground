@@ -372,7 +372,8 @@ over the page: a menu, popover or tooltip open when it opens SHALL close.
 "Back to app", Escape and ⌘, (Ctrl+, off macOS) SHALL close it and give
 focus back to the control that opened it, or, when that control is gone or
 out of reach (on a phone page out of view), to another that opens the
-settings, else to the control that opens the navigation. A setting that fails to render
+settings, else to the control that opens the navigation. A page that never
+opened the settings SHALL leave focus where the browser puts it. A setting that fails to render
 SHALL leave the app as it was, with a notice and "Back to app" in place of
 the page.
 

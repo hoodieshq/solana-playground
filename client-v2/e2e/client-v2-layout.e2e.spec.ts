@@ -575,6 +575,35 @@ test.describe("on a phone", () => {
     ).toBeFocused();
   });
 
+  // The gallery is a dialog over the menu page; the project it starts opens
+  // on Work, not behind the menu that started it
+  for (const width of [393, 740]) {
+    test(`a project started from the menu opens on Work at ${width} px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await seedWorkspace(page);
+      await page.setViewportSize({ width, height: 852 });
+      await expect(
+        page.locator(".monaco-editor textarea.inputarea")
+      ).toBeFocused();
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+      await page
+        .getByRole("region", { name: "Navigation" })
+        .getByRole("button", { name: "New project", exact: true })
+        .click();
+      const gallery = page.getByRole("dialog");
+      await gallery.getByLabel("Project name").fill("from-the-menu");
+      await gallery.getByRole("button", { name: /^Start/ }).click();
+
+      await expect(gallery).toHaveCount(0);
+      // Whole, once the pager's scroll has settled on it
+      await expect(page.getByRole("region", { name: "Work" })).toBeInViewport({
+        ratio: 1,
+      });
+    });
+  }
+
   test("client-v2-layout: Swiping between pages on a phone", async ({
     page,
   }) => {
@@ -668,6 +697,27 @@ test("⌘, opens the settings from the phone's menu page", async ({ page }) => {
 
   await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
 });
+
+// Focus goes back to a settings trigger only after the settings close; a page
+// that never opened them leaves focus where the browser puts it (HOO-2240)
+for (const width of [1440, 834]) {
+  test(`a fresh load at ${width} px focuses no settings trigger`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(home(page)).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-settings-trigger]").first()).toBeVisible();
+    // Long enough for an effect that runs after the first render to land
+    await page.waitForTimeout(500);
+    expect(
+      await page.evaluate(
+        () => document.activeElement?.closest("[data-settings-trigger]") != null
+      )
+    ).toBe(false);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+  });
+}
 
 test.describe("on a compact window", () => {
   test.use({ viewport: { width: 800, height: 1000 } });

@@ -1146,7 +1146,10 @@ describe("on a phone", () => {
       fireEvent.click(button("Back to the code"));
       expect(PgFlow.state.stage).toBe("write");
       const pager = screen.getByTestId("phone-pager");
+      // A user's swipe comes with input (a wheel here, a touch on a phone);
+      // a scroll without any is the pager's own move settling
       const swipeTo = (page: number) => {
+        fireEvent.wheel(pager);
         pager.scrollLeft = page * 390;
         fireEvent.scroll(pager);
         act(() => {
