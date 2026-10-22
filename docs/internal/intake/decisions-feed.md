@@ -2,6 +2,10 @@
 
 Newest first. One line per decision or requirement change; a superseded line gains `superseded by <link>`, nothing is deleted.
 
+- 2026-10-21 — Almaz's tutorial prototype is a reference in branch `almaz/tutorial-prototype` off `master-2.0`, never merged (Almaz, Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
+- 2026-10-21 — A branch not meant to merge gets an issue naming it, not a PR (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
+- 2026-10-21 — `master-2.0` is treated as a mirror of solana-foundation `master` (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
+- 2026-10-21 — Prototype delivery: draft do-not-merge PR into `saving-chats-history` → branch off `master-2.0` + issue #120 (Almaz, Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-20 — new-face goes to master through a PR Slava opens (request, presumably Sergey). [entry](2026-10-20-slack-new-face-to-master.md)
 - 2026-10-20 — The new-face → master PR has to account for solana-foundation PR #31 (Dependabot alerts). [entry](2026-10-20-slack-new-face-to-master.md)
 - 2026-10-19 — The 61 Playground issues labelled `estimation` get T-shirt estimates and a milestone each; Slava routes it to Planner (Sergey, Slava). [entry](2026-10-19-slack-sergey-estimation-label.md)

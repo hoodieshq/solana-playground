@@ -54,7 +54,8 @@ with them)
 
 1. Open a work session for the new-face → master PR (ticket, branch, merge
    master into new-face resolving against #31, CI green, sx review, PR with
-   reviewers).
+   reviewers). — lead 2026-10-20-new-face-to-master-pr
 2. Agree the order with Sergey: #31 first, then master into new-face.
+   — lead 2026-10-20-new-face-to-master-pr
 3. Tell the HOO-2117 session (production minifier globals) that #31 touches
-   the same scripts.
+   the same scripts. — lead: done, HOO-2117 session told
