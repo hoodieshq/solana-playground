@@ -39,12 +39,13 @@ export class PgCommon {
   }
 
   /**
-   * Wait at least `ms` amount of milliseconds before resolving.
+   * Wait at least `ms` amount of milliseconds before settling.
    *
    * @param promisable either `Promise` or a function that returns a `Promise`
+   * @throws the promise's own rejection when it is an `Error`, so a caller can
+   * tell failures apart by their type; anything else as an `Error` carrying
+   * its `message`
    * @returns the result of the promise parameter
-   * @throws the promise's own rejection, so a caller can tell failures apart
-   * by their type
    */
   static async transition<R>(promisable: Promisable<R>, ms: number = 300) {
     if ((promisable as () => SyncOrAsync<R>)?.call) {
@@ -56,7 +57,8 @@ export class PgCommon {
       return result.value as Promise<Awaited<R>>;
     }
 
-    throw result.reason;
+    if (result.reason instanceof Error) throw result.reason;
+    throw new Error(result.reason?.message);
   }
 
   /**
@@ -1456,13 +1458,24 @@ if (import.meta.vitest) {
     });
 
     describe("transition", () => {
-      // The wallet tells an endpoint that does not answer (`fetch`'s
-      // `TypeError`) from one that answered with an error, by the type
+      // `describeTxsError` (components/Wallet/txs-error.ts) tells an endpoint
+      // that does not answer (`fetch`'s `TypeError`) by the type, and
+      // ImportGithub's `ImportCancelledError` check needs the error itself
       it("rejects with the promise's own error", async () => {
         const failure = new TypeError("Failed to fetch");
         await expect(
           PgCommon.transition(Promise.reject(failure), 0)
         ).rejects.toBe(failure);
+      });
+
+      // Callers read `.message` in their `catch`
+      it("rejects with an Error carrying a non-Error's message", async () => {
+        await expect(
+          PgCommon.transition(Promise.reject({ message: "locked" }), 0)
+        ).rejects.toThrow(new Error("locked"));
+        await expect(
+          PgCommon.transition(Promise.reject(undefined), 0)
+        ).rejects.toBeInstanceOf(Error);
       });
     });
   });

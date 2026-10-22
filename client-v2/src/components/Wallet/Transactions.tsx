@@ -9,7 +9,10 @@ import { Clock, Refresh, Error as ErrorIcon } from "../Icons";
 import { SpinnerWithBg } from "../Loading";
 import { PgCommon, PgConnection, PgTheme, PgWallet, PgWeb3 } from "../../utils";
 import { useBlockExplorer, useConnection } from "../../hooks";
+import { createLogger } from "@/shared/lib/logger";
 import { describeTxsError } from "./txs-error";
+
+const log = createLogger("wallet:transactions");
 
 const Transactions = () => {
   const [signatures, setSignatures] =
@@ -21,29 +24,45 @@ const Transactions = () => {
   const connection = useConnection();
 
   useEffect(() => {
+    // A request still out when the connection or the wallet changes must not
+    // overwrite the list the next one draws
+    let stale = false;
     const { dispose } = PgWallet.onDidChangeCurrent(async (wallet) => {
+      // The wallet passes through `null` while it switches; the list is
+      // closing or about to be redrawn
+      if (!wallet) return;
       setLoading(true);
       try {
         const _signatures = await PgCommon.transition(
-          connection.getSignaturesForAddress(wallet!.publicKey, { limit: 10 })
+          connection.getSignaturesForAddress(wallet.publicKey, { limit: 10 })
         );
+        if (stale) return;
 
         setSignatures(_signatures);
         setError("");
       } catch (e: unknown) {
-        setError(
-          describeTxsError(e, {
-            endpoint: connection.rpcEndpoint,
-            cluster: PgConnection.cluster,
-          })
-        );
+        // Named after the connection that failed, not the one current now
+        const endpoint = connection.rpcEndpoint;
+        const cluster = await PgConnection.getCluster(endpoint);
+        if (stale) return;
+
+        // The list says what failed; the endpoint's own words go to the log.
+        // Not reported: an endpoint that is down or limits requests is the
+        // user's network, and the list asks again every 30 s
+        log.warn("could not read the wallet's transactions", {
+          context: { cluster, error: String(e) },
+        });
+        setError(describeTxsError(e, { endpoint, cluster }));
         setSignatures([]);
       } finally {
-        setLoading(false);
+        if (!stale) setLoading(false);
       }
     });
 
-    return dispose;
+    return () => {
+      stale = true;
+      dispose();
+    };
   }, [connection, refreshCount]);
 
   const refresh = useCallback(() => {
