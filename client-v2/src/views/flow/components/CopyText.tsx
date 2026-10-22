@@ -2,6 +2,7 @@ import type { FC } from "react";
 import styled, { css } from "styled-components";
 
 import { useCopy } from "../../../hooks";
+import { PHONE, PHONE_SIZE } from "../phone";
 
 /* Copy as a word, not an icon: the action reads on its own and says when it
    worked */
@@ -32,6 +33,14 @@ const TextButton = styled.button<{ $done: boolean }>`
       ? theme.colors.state.success.color
       : theme.colors.default.primary};
     cursor: pointer;
+
+    /* A word to read, a thumb's width to press: the Styleguide's 48 px */
+    ${PHONE} {
+      min-width: ${PHONE_SIZE.target};
+      min-height: ${PHONE_SIZE.target};
+      padding: 0 0.5rem;
+      font-size: 0.9375rem;
+    }
 
     &:hover {
       text-decoration: underline;

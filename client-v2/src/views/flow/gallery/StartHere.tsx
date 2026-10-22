@@ -461,20 +461,23 @@ const Window = styled.div`
   `}
 `;
 
+/* The desktop head row's 44 px, which also holds the mark at the
+   Styleguide's minimum of 24 px high */
 const WindowHead = styled.div`
   ${({ theme }) => css`
-    height: 2rem;
+    height: 2.75rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.625rem;
     padding: 0 1rem;
     border-bottom: 1px solid ${theme.colors.default.border};
     font-size: 0.75rem;
     color: ${theme.colors.default.textSecondary};
 
     & > svg {
-      width: 1.125rem;
-      height: auto;
+      height: 1.5rem;
+      width: auto;
+      flex-shrink: 0;
     }
   `}
 `;

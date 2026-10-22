@@ -420,10 +420,11 @@ const Next = styled.button`
   `}
 `;
 
+/* The gallery's thumbnail, so the cover reads the same here */
 const Thumb = styled(TutorialCover)`
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
+  width: 3.5rem;
+  height: 2.625rem;
+  border-radius: 8px;
 `;
 
 const NextText = styled.span`

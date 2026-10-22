@@ -68,6 +68,10 @@ const LEFT_AS_IT_WAS =
 export const SKIP_CHECK = "Skip and show the code";
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** How the quick check is put, which is also how the thread is read for it */
+const askCheck = (check: NonNullable<StepGuide["check"]>) =>
+  `Quick check before the code. ${check.question}`;
+
 /**
  * The tutorial's own assistant, for when no model is connected.
  *
@@ -111,10 +115,10 @@ export class PgLessonGuide {
       PgLessonGuide._say(at.guide.intro, at.chapter);
       return;
     }
+    const last = items[items.length - 1];
     // A thread restored while a patch waited: the card comes back declined,
     // since nothing can answer it now, and the turn has to end the way a
     // Reject ends it, with the way on, or the step is left at a dead end
-    const last = items[items.length - 1];
     if (last?.kind === "approval" && last.status === "denied") {
       PgLessonGuide._say(LEFT_AS_IT_WAS);
     }
@@ -145,9 +149,9 @@ export class PgLessonGuide {
       if (!patch) return false;
       const check = guide.check;
       // The question comes first, once per step, and never over a fix
-      if (check && !failed && !PgLessonGuide._checked.has(at.step.id)) {
+      if (check && !failed && !PgLessonGuide._asked(at.step.id, check)) {
         reply = async () => {
-          PgLessonGuide._say(`Quick check before the code. ${check.question}`);
+          PgLessonGuide._say(askCheck(check));
           PgLessonGuide._open = at.step.id;
         };
       } else reply = () => PgLessonGuide._propose(patch);
@@ -197,8 +201,18 @@ export class PgLessonGuide {
    */
   static get openCheck() {
     const at = PgLessonGuide.current();
-    if (!at?.guide.check || PgLessonGuide._open !== at.step.id) return null;
-    return at.guide.check;
+    const check = at?.guide.check;
+    if (!at || !check) return null;
+    if (PgLessonGuide._open === at.step.id) return check;
+    // A restored thread that ends on the question is still waiting for its
+    // answer, so the answers come back under it after a reload
+    const items = PgAssistant.items;
+    const last = items[items.length - 1];
+    const waiting =
+      last?.kind === "assistant" &&
+      last.text === askCheck(check) &&
+      !PgLessonGuide._checked.has(at.step.id);
+    return waiting ? check : null;
   }
 
   /**
@@ -235,6 +249,20 @@ export class PgLessonGuide {
 
   /** Steps whose quick check is behind the learner, answered or skipped */
   private static readonly _checked = new Set<string>();
+
+  /**
+   * Whether the step's check was already put to the learner. Read from the
+   * thread too, so a reload does not ask it again: the question is in the
+   * conversation, and so is what came after it.
+   */
+  private static _asked(stepId: string, check: NonNullable<StepGuide["check"]>) {
+    if (PgLessonGuide._checked.has(stepId)) return true;
+    const asked = PgAssistant.items.some(
+      (i) => i.kind === "assistant" && i.text === askCheck(check)
+    );
+    if (asked) PgLessonGuide._checked.add(stepId);
+    return asked;
+  }
   /** The step whose quick check is asked and not yet answered */
   private static _open: string | null = null;
 

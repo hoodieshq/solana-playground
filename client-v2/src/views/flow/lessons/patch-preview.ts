@@ -8,11 +8,12 @@ import type { Disposable } from "../../../utils";
 const STYLE_ID = "pg-patch-preview";
 
 /* Removed lines struck through on red, added ones in a zone of green under
-   them: the same reading as the approval card's diff, laid into the file */
+   them: the same reading as the approval card's diff, laid into the file.
+   The Styleguide's Error #EF4444 and Success #14F195 */
 const CSS = `
-.pg-patch-removed { background: rgba(255, 92, 92, 0.12); }
+.pg-patch-removed { background: rgba(239, 68, 68, 0.12); }
 .pg-patch-removed-text { text-decoration: line-through; opacity: 0.6; }
-.pg-patch-gutter-removed { border-left: 2px solid rgba(255, 92, 92, 0.7); }
+.pg-patch-gutter-removed { border-left: 2px solid rgba(239, 68, 68, 0.7); }
 .pg-patch-zone {
   background: ${BRAND.green}14;
   border-left: 2px solid ${BRAND.green}b3;
