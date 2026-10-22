@@ -36,7 +36,7 @@ config = config.replace("systemCss: '/design-system/ds-inject.css'", `systemCss:
 // gives up the ribbon's 34px while the ribbon shows. Not inside the viewport
 // frame, where the ribbon is not drawn
 config += `
-if (window.self === window.top) {
+if (window.top && window.self === window.top && document.head) {
   var studioOffset = document.createElement('style');
   studioOffset.textContent = 'html:not(.studio-rib-off){--studio-offset:34px}';
   document.head.appendChild(studioOffset);

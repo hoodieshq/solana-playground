@@ -408,7 +408,9 @@ const Wrapper = styled.section`
     isolation: isolate;
     overflow: hidden;
     margin-bottom: 1rem;
-    border: 1px solid ${BRAND.purple}33;
+    /* The cards' own line: purple is for what is current, and a banner is
+       not that */
+    border: 1px solid ${theme.colors.default.border};
     border-radius: 16px;
     background: radial-gradient(
         120% 140% at 100% 0%,

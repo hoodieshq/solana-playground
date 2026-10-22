@@ -120,7 +120,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({
         >
           {finished ? (
             <Tick viewBox="0 0 16 16" aria-hidden>
-              <path d="M3.5 8.5l3 3 6-7" />
+              <path d="M3.5 8.5l3 3 6-7" pathLength={1} />
             </Tick>
           ) : phone ? (
             <Go>{ICONS.forward}</Go>
@@ -583,7 +583,8 @@ const Arrow = styled.svg`
 `;
 
 /* Drawn, not typed: a glyph brings its own side bearings and sat off
-   centre */
+   centre. Under the pointer it answers as the arrow does: it grows a step
+   and draws itself again, on the Rise curve */
 const Tick = styled.svg`
   flex-shrink: 0;
   width: 1rem;
@@ -593,4 +594,36 @@ const Tick = styled.svg`
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  & > path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+
+  @media (hover: hover) {
+    ${Card}:hover & {
+      transform: scale(1.18);
+    }
+    ${Card}:hover & > path {
+      animation: tick-draw 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
+    }
+  }
+
+  @keyframes tick-draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    ${Card}:hover & {
+      transform: none;
+    }
+    ${Card}:hover & > path {
+      animation: none;
+    }
+  }
 `;
