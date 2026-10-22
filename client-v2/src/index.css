@@ -84,6 +84,15 @@
   :where(ul[data-slot], ol[data-slot]) {
     list-style: none;
   }
+  /* A browser gives a button the arrow; the prototype gives everything that
+     acts on a click the hand. Anything that sets its own cursor (a utility,
+     a styled component) still wins over this layer */
+  :where(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href]) {
+    cursor: pointer;
+  }
+  :where(button:disabled, [role="button"][aria-disabled="true"]) {
+    cursor: default;
+  }
 }
 
 /*
