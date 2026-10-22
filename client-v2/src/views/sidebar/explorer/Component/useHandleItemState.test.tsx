@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { useRef } from "react";
+import { useRef, type ReactElement } from "react";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,12 @@ import { useHandleItemState } from "./useHandleItemState";
 
 /** What the mocked explorer reports; each test sets its own */
 const given = vi.hoisted(() => ({ workspace: "w1" as string | undefined }));
+
+/** The explorer's listeners, for a test to fire as the explorer would */
+const fire = vi.hoisted(() => ({
+  openFile: (_file: { path: string } | null) => {},
+  switchWorkspace: () => {},
+}));
 
 // The utils barrel needs build-time globals the unit runner does not define.
 vi.mock("../../../../utils", () => ({
@@ -21,33 +27,69 @@ vi.mock("../../../../utils", () => ({
     getElFromPath: (path: string) =>
       document.querySelector(`[data-path='${path}']`) ?? undefined,
     openFolder: vi.fn((el: HTMLElement) => el.classList.add("open")),
-    onDidSwitchWorkspace: () => ({ dispose: () => {} }),
-    onDidOpenFile: () => ({ dispose: () => {} }),
+    // One level is enough for these trees: a file sits right under `src/`
+    openAllParents: (path: string) =>
+      document
+        .querySelector(`[data-path='${path.replace(/[^/]+$/, "")}']`)
+        ?.classList.add("open"),
+    collapseAllFolders: () =>
+      document
+        .querySelectorAll(".folder")
+        .forEach((el) => el.classList.remove("open")),
+    setSelectedEl: () => {},
+    removeCtxSelectedEl: () => {},
+    onDidSwitchWorkspace: (cb: () => void) => {
+      fire.switchWorkspace = cb;
+      return { dispose: () => {} };
+    },
+    onDidOpenFile: (cb: (file: { path: string } | null) => void) => {
+      fire.openFile = cb;
+      return { dispose: () => {} };
+    },
   },
 }));
 
 const theme = { name: "test" } as unknown as DefaultTheme;
 
-/** A tree with `/w1/src/` closed, or open when `open` is given */
-const Tree = ({ open }: { open?: boolean }) => {
+/**
+ * The tree of `workspace` (`w1` by default): its `src/`, closed or open when
+ * `open` is given, holding `lib.rs`; no tree at all for `null`, as before a
+ * project's files have been drawn
+ */
+const Tree = ({
+  open,
+  workspace = "w1",
+}: {
+  open?: boolean;
+  workspace?: string | null;
+}) => {
   const ref = useRef<HTMLDivElement>(null);
   useHandleItemState(ref);
   return (
     <div ref={ref} id="root-dir">
-      <div className={open ? "folder open" : "folder"} data-path="/w1/src/" />
+      {workspace && (
+        <>
+          <div
+            className={open ? "folder open" : "folder"}
+            data-path={`/${workspace}/src/`}
+          />
+          <div data-path={`/${workspace}/src/lib.rs`} />
+        </>
+      )}
     </div>
   );
 };
 
-const draw = (open?: boolean) =>
-  render(
-    <ThemeProvider theme={theme}>
-      <Tree open={open} />
-    </ThemeProvider>
-  );
+const inTheme = (tree: ReactElement) => (
+  <ThemeProvider theme={theme}>{tree}</ThemeProvider>
+);
 
-const srcIsOpen = () =>
-  document.querySelector("[data-path='/w1/src/']")!.classList.contains("open");
+const draw = (open?: boolean) => render(inTheme(<Tree open={open} />));
+
+const srcIsOpen = (workspace = "w1") =>
+  document
+    .querySelector(`[data-path='/${workspace}/src/']`)!
+    .classList.contains("open");
 
 // Before, not after: Testing Library unmounts the last tree after this file's
 // own `afterEach`, and that unmount keeps it again
@@ -87,5 +129,27 @@ describe("useHandleItemState across an unmount", () => {
     draw(true).unmount();
     draw();
     expect(PgExplorer.openFolder).not.toHaveBeenCalled();
+  });
+});
+
+describe("useHandleItemState when a project opens", () => {
+  // `PgExplorer.switchWorkspace` announces the open file, then the switch,
+  // and React draws the new project's tree some time after both: on a loaded
+  // machine, after any fixed wait
+  it("opens the open file's folder once the tree that holds it is drawn", () => {
+    const view = render(inTheme(<Tree workspace={null} />));
+    fire.openFile({ path: "/w2/src/lib.rs" });
+    fire.switchWorkspace();
+
+    view.rerender(inTheme(<Tree workspace="w2" />));
+    expect(srcIsOpen("w2")).toBe(true);
+  });
+
+  it("opens it again after the switch shuts a tree already drawn", () => {
+    render(inTheme(<Tree workspace="w2" />));
+    fire.openFile({ path: "/w2/src/lib.rs" });
+    fire.switchWorkspace();
+
+    expect(srcIsOpen("w2")).toBe(true);
   });
 });
