@@ -553,7 +553,7 @@ test.describe("on a phone", () => {
 
   // The cluster row that opened them is on the menu page, inert once Work
   // shows, so focus goes to the control that opens the navigation instead
-  test("closing the settings on a phone gives focus back to the Menu button", async ({
+  test("client-v2-layout: Closing the settings on a phone", async ({
     page,
   }) => {
     await seedThenNarrow(page);

@@ -317,7 +317,7 @@ and a unit test holds it to `use-mobile`.
 | compact 600-1023 (5.1; 5.7 replaced this: see "The phone (5.7)") | rail from 768; the stock Sheet below 768 | right Sheet; "Expand assistant" on the right edge, Ctrl+R | edits |
 | phone <600 (5.1; 5.7 replaced this: see "The phone (5.7)") | the stock Sheet | full-width Sheet | read-only |
 
-5.7 replaces the phone row: below 720 the app is three pages and the editor
+5.7 replaces the phone row: below 720 (768 since HOO-2208) the app is three pages and the editor
 edits (see "The phone (5.7)").
 
 The stock Sidebar turned into its Sheet at 768 px (`use-mobile`), so there
@@ -711,7 +711,7 @@ and `Foldable` components are deleted, and no import of them remains. Ids,
 Decided with Slava on 2026-10-14 (HOO-2062). Below
 `LAYOUT_BREAKPOINTS.phone` the app is the prototype's three pages, and the
 editor edits on a phone; 5.1's read-only editor is gone. The value moves
-from 600 to 720 px, the prototype's, while the customer's sheet says 1024:
+from 600 to 720 px, the prototype's (768 since HOO-2208, the stock Sidebar's), while the customer's sheet says 1024:
 it is still being confirmed with the customer, so it stays the one constant
 every phone rule reads.
 

@@ -370,8 +370,9 @@ view and mark it as current. Below 768 px the page SHALL show a bar with
 "Back to app" and the title, and no list. Nothing of the app SHALL be drawn
 over the page: a menu, popover or tooltip open when it opens SHALL close.
 "Back to app", Escape and ⌘, (Ctrl+, off macOS) SHALL close it and give
-focus back to the control that opened it, or, when that control is gone, to
-another that opens the settings. A setting that fails to render
+focus back to the control that opened it, or, when that control is gone or
+out of reach (on a phone page out of view), to another that opens the
+settings, else to the control that opens the navigation. A setting that fails to render
 SHALL leave the app as it was, with a notice and "Back to app" in place of
 the page.
 
@@ -415,6 +416,12 @@ the page.
 - **THEN** the dialog closes and the settings page stays open
 - **WHEN** the user opens it again and presses ⌘,
 - **THEN** the settings page and the dialog both close
+
+#### Scenario: Closing the settings on a phone
+
+- **WHEN** a user on a 390 px wide screen opens the settings from the menu
+  page's cluster row and goes back to the app
+- **THEN** Work shows, with focus on "Menu"
 
 #### Scenario: The settings page on a phone
 
