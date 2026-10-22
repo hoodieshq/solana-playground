@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { wasFailureShown } from "@/shared/lib/report-button-failure";
+import {
+  unavailableHere,
+  wasFailureShown,
+} from "@/shared/lib/report-button-failure";
 import { isTerminalUnmounted, PgTerminal } from "./terminal";
 
 beforeEach(() => {
@@ -75,6 +78,15 @@ describe("PgTerminal.process", () => {
     await expect(PgTerminal.process(cb)).rejects.toSatisfy(isTerminalUnmounted);
 
     expect(cb).not.toHaveBeenCalled();
+  });
+
+  // The button's toast names the way out rather than a failure
+  it("is unavailable here, with a way out, when no terminal is mounted", async () => {
+    vi.mocked(PgTerminal.get).mockRestore();
+
+    const failure = await PgTerminal.process(() => 42).catch((e) => e);
+
+    expect(unavailableHere(failure)).toBe("open a project to use the terminal");
   });
 });
 

@@ -8,7 +8,10 @@ import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
 import { createLogger } from "@/shared/lib/logger";
-import { markFailureShown } from "@/shared/lib/report-button-failure";
+import {
+  markFailureShown,
+  markUnavailableHere,
+} from "@/shared/lib/report-button-failure";
 import type { CommandManager, Prefixes, PrintOptions } from "./types";
 import type { Methods, ClassReturnType, SyncOrAsync } from "../types";
 
@@ -22,6 +25,8 @@ const log = createLogger("terminal:static");
 class TerminalUnmounted extends Error {
   constructor() {
     super("The terminal is not open.");
+    // Only Home mounts no terminal today, so a project is the way out
+    markUnavailableHere(this, "open a project to use the terminal");
   }
 }
 
