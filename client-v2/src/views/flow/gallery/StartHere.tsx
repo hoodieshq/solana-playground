@@ -119,7 +119,9 @@ const StartHere: FC = () => {
     const pages = next.pageCount;
     return (
       <Wrapper ref={box} aria-labelledby={titleId}>
-        <Field layout={phone ? "corner" : "wide"} />
+        {/* The mark wants the right half to itself: on a narrow banner the
+            words take that room, so the light keeps to the corner */}
+        <Field layout={phone || !wide ? "corner" : "wide"} />
         <Inner $wide={false}>
           <Words>
             <Label $fresh={!nextAt}>
@@ -163,7 +165,7 @@ const StartHere: FC = () => {
 
   return (
     <Wrapper ref={box} aria-labelledby={titleId}>
-      <Field layout={phone ? "corner" : "wide"} />
+      <Field layout={phone || !wide ? "corner" : "glow"} />
       <Inner $wide={wide}>
         <Words>
           <Label $fresh={!started && !finished}>
@@ -305,6 +307,9 @@ const TILE = `data:image/svg+xml,${encodeURIComponent(
 // One pixel of the dither in CSS pixels: reads as a pixel on a 1x screen too
 const CELL = 3;
 const LIGHT = {
+  // Behind the steps' window: a soft glow, since a mark would only show in
+  // scraps around the window's edges. Faded to nothing before the words
+  glow: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6, mark: false },
   // The right side, edge to edge from the top to the bottom: the light grows
   // across, not out from a point, so no rim of dark is left above or below.
   // Faded to nothing before the words
@@ -452,7 +457,8 @@ const FieldSvg = styled.svg`
 const Inner = styled.div<{ $wide: boolean }>`
   position: relative;
   display: grid;
-  align-items: start;
+  /* Beside the steps' window the words sit at its middle, not its top */
+  align-items: center;
   gap: 1.5rem 2rem;
   padding: 1.75rem;
   grid-template-columns: ${({ $wide }) =>
