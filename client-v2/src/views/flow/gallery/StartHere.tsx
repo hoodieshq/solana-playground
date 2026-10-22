@@ -571,8 +571,8 @@ try {
 
 /* The brand's pill with its word alone: the even padding the icon's side
    used to make up for. Under the pointer it does not fill: a beam of light
-   runs round the ring instead, the ring being the brand's mark of an
-   action. Pressed, it fills as every brand action does */
+   runs once round the ring instead, the ring being the brand's mark of
+   an action. Pressed, it fills as every brand action does */
 const Go = styled(BrandPill)`
   && {
     padding: 0 1.25rem;
@@ -602,22 +602,26 @@ const Go = styled(BrandPill)`
     mask-composite: exclude;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  &&:hover:not(:disabled)::after {
-    opacity: 1;
-    animation: start-beam 1600ms linear infinite;
-  }
-
+  /* One quick lap per hover, then the beam goes out rather than standing
+     still as a stray highlight */
+  &&:hover:not(:disabled)::after,
   &&:focus-visible::after {
-    opacity: 1;
-    animation: start-beam 1600ms linear infinite;
+    animation: start-beam 700ms cubic-bezier(0.45, 0, 0.2, 1) both;
   }
 
   @keyframes start-beam {
+    from {
+      --start-beam: 0deg;
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
     to {
       --start-beam: 360deg;
+      opacity: 0;
     }
   }
 
