@@ -13,6 +13,8 @@ export interface CatalogSearchProps {
   query: string;
   onQuery: (query: string) => void;
   className?: string;
+  /** The magnifier in front; New project draws the field without it */
+  icon?: boolean;
 }
 
 /** The catalog's search field: "Search tutorials", "Search programs" */
@@ -21,11 +23,14 @@ const CatalogSearch = ({
   query,
   onQuery,
   className,
+  icon = true,
 }: CatalogSearchProps) => (
   <InputGroup className={cn("max-w-80", className)}>
-    <InputGroupAddon>
-      <Search aria-hidden="true" />
-    </InputGroupAddon>
+    {icon ? (
+      <InputGroupAddon>
+        <Search aria-hidden="true" />
+      </InputGroupAddon>
+    ) : null}
     <InputGroupInput
       type="search"
       placeholder={`Search ${label}`}

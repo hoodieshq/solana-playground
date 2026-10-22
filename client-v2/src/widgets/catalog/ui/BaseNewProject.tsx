@@ -84,6 +84,7 @@ const BaseNewProject = ({
         label={tab}
         query={query}
         onQuery={onQuery}
+        icon={false}
         className="min-w-40 flex-1 max-w-none"
       />
     </div>

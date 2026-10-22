@@ -1,4 +1,3 @@
-import { levelVariant } from "@/shared/ui/tag";
 import { PgTutorial } from "@/utils";
 import { matchesTutorial } from "../lib/filter";
 import type { CardList, CardOpenOf } from "./lists";
@@ -18,7 +17,7 @@ export const useTutorialList = (
         description: t.description,
         media: t.thumbnail,
         tags: [
-          { label: t.level, variant: levelVariant(t.level) },
+          { label: t.level },
           ...(t.framework ? [{ label: t.framework }] : []),
         ],
         open: cardOpen(t.name),

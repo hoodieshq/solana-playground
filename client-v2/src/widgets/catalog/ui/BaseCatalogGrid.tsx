@@ -1,5 +1,4 @@
 import { ChevronRight } from "lucide-react";
-import type { VariantProps } from "class-variance-authority";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
@@ -15,12 +14,10 @@ import {
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Empty, EmptyDescription } from "@/shared/ui/empty";
-import { Tag } from "@/shared/ui/tag";
-import type { tagVariants } from "@/shared/ui/tag";
 
+/** One fact on a card's eyebrow: a level, a framework, a category */
 export interface CatalogTag {
   label: string;
-  variant?: VariantProps<typeof tagVariants>["variant"];
 }
 
 /** One card: a tutorial or a program, as the catalog draws it */
@@ -107,14 +104,10 @@ const BaseCatalogGrid = ({
             <img src={c.media} alt="" />
           </ActionCardMedia>
           <ActionCardContent>
-            <ActionCardEyebrow className="flex flex-wrap items-center gap-1.5">
-              {c.tags.map((t, i) => (
-                // A framework and a category can share a label
-                // eslint-disable-next-line react/no-array-index-key
-                <Tag key={i} variant={t.variant}>
-                  {t.label}
-                </Tag>
-              ))}
+            {/* Plain text, as the prototype writes it: level · framework, or
+                framework · categories */}
+            <ActionCardEyebrow>
+              {c.tags.map((t) => t.label).join(" · ")}
             </ActionCardEyebrow>
             <ActionCardTitle>
               <ActionCardLink asChild>
