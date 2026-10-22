@@ -4,8 +4,8 @@ Each task is its own stream: its own worktree, ticket and small PRs. Tick a
 task in the PR that lands it. Until React 19 (3.2's PR #45) and the
 in-repository registry (2.2's PRs #44 and #50) are on `master-2.0`, new code
 may use Tailwind utilities and tokens but no design-system components. Both
-are, since 2026-10-07. Ticking 3.2 is its own stream's call, and does not
-hold the components back.
+are, since 2026-10-07. 3.2 and 3.3 were ticked after their PRs had merged,
+in HOO-1859's PR (Lead's sweep, 2026-10-22).
 
 ## 1. Rules
 
@@ -47,8 +47,7 @@ hold the components back.
       stays manual until 3.8 writes it as scenarios)
 - [x] 3.6 First design-system components installed into `shared/ui` through
       the reinstall script (HOO-1949, PR #56; after 3.2, which landed as PR
-      #45, and 2.2, which landed as PRs #44 and #50; both leave their own
-      ticks to their owners; HOO-1949 also
+      #45, and 2.2, which landed as PRs #44 and #50; HOO-1949 also
       moved the last bare `button`/`spinner`/`tooltip` dependencies into
       `@playground/`, guarded by `client-v2/scripts/registry.test.mjs`; plan:
       [plans/3.6-ds-shared.md](plans/3.6-ds-shared.md))

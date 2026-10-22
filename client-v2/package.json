@@ -143,7 +143,7 @@
     "check-colors": "node scripts/check-colors.mjs",
     "ds-add": "node scripts/ds-add.mjs",
     "lint": "eslint --ext .ts,.tsx,.mjs,.mts src api e2e",
-    "lint:layers": "eslint --quiet --ext .ts,.tsx,.mjs,.mts src/app src/widgets src/features src/entities src/shared",
+    "lint:layers": "eslint --quiet --ext .ts,.tsx,.mjs,.mts src/app src/widgets src/features src/entities src/shared api",
     "spec:validate": "openspec validate --all --strict --no-interactive",
     "spec:coverage": "node scripts/spec-coverage.mjs",
     "check": "yarn test-types && yarn check-format && yarn check-md && yarn lint && yarn check-colors && yarn spec:validate && yarn spec:coverage && yarn test-unit && yarn test-api",

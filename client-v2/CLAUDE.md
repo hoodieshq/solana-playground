@@ -45,19 +45,22 @@ Two rules on top of the direction:
 
 **The boundary check** is `eslint-plugin-boundaries`, configured in
 `eslint-layers.js`, which `eslintConfig` extends. It fails an import that
-points up a layer, one between two slices of a layer, and one past a slice's
-public API, relative paths included, with an error from
-`boundaries/dependencies` that names the rule broken. `yarn lint` (CI,
-`yarn run check`) runs it, and so does the production build: CRA's in-build
-lint is dropped there to save memory, so `build:bundle` and `build-fast`
-start with `yarn lint:layers`, ESLint over the five layers alone. One test
-switches it off for one statement, with the reason in the directive
-(`/* eslint-disable boundaries/dependencies -- <why> */`):
-`app/ConnectDialog/ConnectDialog.test.tsx`, whose mock rebuilds a widget's
-API from the modules behind it. `scripts/eslint-layers.test.mjs`
-(`yarn test-api`) lints one probe of each kind against the real slices, so
-a check that stopped resolving imports, and so passed everything, fails
-there.
+points up a layer, one between two slices of a layer, one past a slice's
+public API, browser code importing a `server.mjs`, and a route in `api/`
+reaching a slice other than through its `server.mjs` (`shared` it may
+import by path), relative paths included, with an error from
+`boundaries/dependencies` that names the rule broken. `yarn lint` (CI, `yarn run check`) runs it, and so does the
+production build: CRA's in-build lint is dropped there to save memory, so
+`build:bundle` and `build-fast` start with `yarn lint:layers`, ESLint with
+the whole config over the five layers and `api/`, which fails the build on
+any lint error there, not only this one. A slice's integration spec may
+import the route it drives. A statement that must break the rule switches it off with
+its reason in the directive
+(`/* eslint-disable boundaries/dependencies -- <why> */`); the mock in
+`app/ConnectDialog/ConnectDialog.test.tsx`, which rebuilds a widget's API
+from the modules behind it, is the example. `scripts/eslint-layers.test.mjs`
+(`yarn test-api`) lints a probe of each kind against the real slices, so a
+check that stopped resolving imports, and so passed everything, fails there.
 
 A slice's segments: `ui/` for React, `model/` for logic, `lib/` for leaf
 helpers. Its public API is `index.ts` for browser code and `server.mjs` for
@@ -250,7 +253,8 @@ when it is empty.
 ## What review keeps finding
 
 Each rule here came back in review more than once. The first three are
-ESLint errors (`package.json` `eslintConfig`, run by `yarn lint`) in the
+ESLint errors (`package.json` `eslintConfig`, run by `yarn lint`, and by the
+build's `lint:layers` in the layers and `api/`) in the
 layers, `src/{app,widgets,features,entities,shared}/`; the legacy roots are
 exempt until code moves out of them, except that `crypto.randomUUID` is an
 error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The

@@ -55,8 +55,8 @@ through those files.
 ### Requirement: The legacy roots are outside the layers
 
 The pre-existing roots SHALL be treated as legacy: importable from new code,
-outside the boundary check (which reads only the five layers, neither what a
-legacy root imports nor what imports it), and closed to new UI. They are `components/`,
+outside the boundary check (which reads only the five layers and `api/`,
+neither what a legacy root imports nor what imports it), and closed to new UI. They are `components/`,
 `views/`, `utils/`, `hooks/`, `providers/`, `commands/`, `effects/`,
 `routes/`, `settings/`, `themes/`, `frameworks/`, `languages/`,
 `tutorials/`, `block-explorers/`, `constants/`, `globals/`, `types/`.
