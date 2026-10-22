@@ -138,12 +138,15 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // cut its smooth scroll short (a dialog opening as the page changes, as New
   // project's gallery does from the menu page), and the snap then pulls the
   // pages back where they were: that settle is finished, not read as a swipe.
-  // Any touch, wheel or key on the pager hands the scroll to the user.
+  // Set only when the alignment has somewhere to go (a swipe's own report
+  // re-renders on the page already shown), and cleared by the next settle or
+  // by a touch, pointer, wheel or key on the pager, which hand the scroll to
+  // the user.
   const moving = useRef(false);
   useLayoutEffect(() => {
     const el = ref.current!;
     if (aligned.current) {
-      moving.current = true;
+      moving.current = Math.abs(el.scrollLeft - index * el.clientWidth) >= 1;
       alignTo(el, index);
       return;
     }
@@ -202,9 +205,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     el.addEventListener("touchend", up, { passive: true });
     el.addEventListener("touchcancel", up, { passive: true });
     el.addEventListener("wheel", userScroll, { passive: true });
+    el.addEventListener("pointerdown", userScroll);
     el.addEventListener("keydown", userScroll);
     return () => {
       el.removeEventListener("wheel", userScroll);
+      el.removeEventListener("pointerdown", userScroll);
       el.removeEventListener("keydown", userScroll);
       el.removeEventListener("touchstart", down);
       el.removeEventListener("touchend", up);

@@ -204,6 +204,12 @@ apart from the files.
 - **THEN** the settings open with focus on the cluster, then close, and the
   account menu opens beside the rail
 
+#### Scenario: A project started from the phone's menu
+
+- **WHEN** a user at 393 or 740 px wide opens "Menu", picks New project and
+  starts a project in the gallery
+- **THEN** the project opens on Work, with the menu page out of view
+
 #### Scenario: The navigation on a narrow window
 
 - **WHEN** a user opens a project on a 740 px wide window and opens "Menu"
@@ -417,6 +423,12 @@ the page.
 - **THEN** the dialog closes and the settings page stays open
 - **WHEN** the user opens it again and presses ⌘,
 - **THEN** the settings page and the dialog both close
+
+#### Scenario: A fresh load focuses no settings trigger
+
+- **WHEN** a user loads the page at 1440 or 834 px wide and does nothing
+- **THEN** no control that opens the settings has focus and no tooltip is
+  open
 
 #### Scenario: Closing the settings on a phone
 

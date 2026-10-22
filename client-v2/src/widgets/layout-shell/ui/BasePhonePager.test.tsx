@@ -166,6 +166,24 @@ it("finishes its own move that something cut short, not a swipe", () => {
   expect(pager.scrollLeft).toBe(390);
 });
 
+// A swipe's own report re-renders the pager on the page it already shows:
+// nothing moves, so nothing is left to finish
+it("reports a swipe after the last one's report, with no input in between", () => {
+  vi.useFakeTimers();
+  const onSwipe = vi.fn();
+  const { rerender } = renderPager({ page: "work", onSwipe });
+  const pager = screen.getByTestId("phone-pager");
+  pager.scrollLeft = 780;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  expect(onSwipe).toHaveBeenLastCalledWith("preview");
+  rerender(pagerElement({ page: "preview", onSwipe }));
+  pager.scrollLeft = 390;
+  fireEvent.scroll(pager);
+  vi.advanceTimersByTime(SWIPE_SETTLE_MS);
+  expect(onSwipe).toHaveBeenLastCalledWith("work");
+});
+
 it("hands its move to the user at a wheel, and reports the swipe", () => {
   vi.useFakeTimers();
   const onSwipe = vi.fn();
