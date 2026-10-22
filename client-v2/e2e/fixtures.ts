@@ -1,5 +1,5 @@
 import { test as base, expect } from "@playwright/test";
-import type { Page, Route } from "@playwright/test";
+import type { BrowserContext, Page, Route } from "@playwright/test";
 import { isUuid } from "../src/shared/lib/ids";
 
 /** For a step that waits on the explorer, sync or a reload */
@@ -55,6 +55,20 @@ export const seedWorkspace = async (page: Page, name = "e2e-project") => {
  * longer descriptions, and xterm keeps only the rows in view in the page.
  */
 export const HELP_TAIL = "Run test(s)";
+
+/**
+ * Types `command` into the terminal and runs it.
+ *
+ * The shell drops whatever is typed before it shows its prompt
+ * (`PgShell.isPrompting`), and a console opened a moment ago may still be
+ * starting, so the command goes in once the terminal ends in the prompt.
+ */
+export const runInTerminal = async (page: Page, command: string) => {
+  await page.getByLabel("Terminal input").first().click();
+  await expect(page.locator(".xterm-rows").first()).toHaveText(/\$\s*$/);
+  await page.keyboard.type(command);
+  await page.keyboard.press("Enter");
+};
 
 /** What rustc prints for one type error, as the build server returns it */
 export const FAILED_BUILD_STDERR = [
@@ -148,6 +162,71 @@ export const TEST_USER = { id: "u1", name: "Tester", image: null, login: "t" };
  */
 export const stubSession = (page: Page, user: unknown = TEST_USER) =>
   page.route("**/api/auth/get-session", (r) => json(r, { user }));
+
+/**
+ * An account that is signed in and holds what it accepts, for a test that is
+ * about something other than sync: `TEST_USER`'s session, sync enabled, no
+ * conversations, and a project store that lists and returns every upload.
+ *
+ * A store that takes an upload and then lists nothing is not an empty
+ * account: the project was uploaded and is gone, which reads as deleted on
+ * another device, and the next reconcile deletes it here too. On a loaded
+ * runner that pass lands mid-test and takes the test's project with it.
+ *
+ * Every write is accepted; the version checks are the sync specs' business.
+ * On the context, so a second tab signs in to the same account.
+ */
+export const stubSignedIn = async (context: BrowserContext) => {
+  type Row = {
+    id: string;
+    name: string;
+    kind: string;
+    updatedAt: string;
+    snapshot: { files: Record<string, string> };
+  };
+  const rows = new Map<string, Row>();
+
+  await context.route("**/api/auth/get-session", (r) =>
+    json(r, { user: TEST_USER })
+  );
+  await context.route("**/api/sync", (r) =>
+    json(r, { enabled: true, db: "ok" })
+  );
+  await context.route("**/api/conversations*", (r) => json(r, { items: [] }));
+  await context.route("**/api/projects*", (r) => {
+    const req = r.request();
+    const id = new URL(req.url()).searchParams.get("id");
+    if (req.method() === "PUT") {
+      const body = req.postDataJSON();
+      const updatedAt = new Date().toISOString();
+      rows.set(body.id, {
+        id: body.id,
+        name: body.name,
+        kind: body.kind,
+        updatedAt,
+        snapshot: applyWrite(rows.get(body.id)?.snapshot, body),
+      });
+      return json(r, { updatedAt });
+    }
+    if (req.method() === "DELETE") {
+      if (id) rows.delete(id);
+      return json(r, { deleted: true });
+    }
+    if (!id) {
+      const projects = Array.from(rows.values(), (row) => ({
+        id: row.id,
+        name: row.name,
+        kind: row.kind,
+        updatedAt: row.updatedAt,
+      }));
+      return json(r, { projects });
+    }
+    const row = rows.get(id);
+    return row
+      ? json(r, { project: row })
+      : r.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+  });
+};
 
 /**
  * Wait until the browser has stopped uploading.

@@ -1,6 +1,13 @@
 import type { BrowserContext, Page } from "@playwright/test";
 
-import { expect, json, LONG, seedWorkspace, test } from "./fixtures";
+import {
+  expect,
+  json,
+  LONG,
+  seedWorkspace,
+  stubSignedIn,
+  test,
+} from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /**
@@ -26,21 +33,6 @@ const stubNoDefaultBackend = (context: BrowserContext) =>
       ? json(route, { configured: false, model: null })
       : route.abort()
   );
-
-const stubSignedIn = async (context: BrowserContext) => {
-  await context.route("**/api/auth/get-session", (r) =>
-    json(r, { user: { id: "u1", name: "Tester", image: null, login: "t" } })
-  );
-  await context.route("**/api/sync", (r) =>
-    json(r, { enabled: true, db: "ok" })
-  );
-  await context.route("**/api/conversations*", (r) => json(r, { items: [] }));
-  await context.route("**/api/projects*", (r) =>
-    r.request().method() === "PUT"
-      ? json(r, { updatedAt: new Date().toISOString() })
-      : json(r, { projects: [] })
-  );
-};
 
 /** Through the step itself: the Playground wallet's setup, then Continue */
 const connectWallet = async (page: Page) => {
