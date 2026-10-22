@@ -1,11 +1,13 @@
 import { useRenderOnChange } from "../../../hooks";
 import { PgConnection } from "../../../utils";
-import { isClusterDown } from "./account";
+import { clusterIsDown } from "./account";
 
-/** The current cluster's name and whether it answers */
+/** The current cluster's name and whether it is down */
 export interface ClusterStatus {
   /** `"unknown"` until the connection has a cluster */
   name: string;
+  /** Not answering, or answering with a slot that does not move
+   * (`clusterIsDown`) */
   down: boolean;
 }
 
@@ -17,8 +19,9 @@ export const useClusterStatus = (): ClusterStatus => {
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
   const isConnected = useRenderOnChange(PgConnection.onDidChangeIsConnected);
   const slotStalled = useRenderOnChange(PgConnection.onDidChangeIsClusterDown);
+  const name = cluster ?? "unknown";
   return {
-    name: cluster ?? "unknown",
-    down: isClusterDown(isConnected, slotStalled),
+    name,
+    down: clusterIsDown({ cluster: name, isConnected, slotStalled }),
   };
 };
