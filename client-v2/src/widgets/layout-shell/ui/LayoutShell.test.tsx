@@ -92,16 +92,20 @@ import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { LAYOUT_STORAGE_KEY } from "../model/layout-state";
 import { SWIPE_SETTLE_MS } from "./BasePhonePager";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { LAYOUT_BREAKPOINTS } from "@/shared/lib/hooks/use-viewport";
 import LayoutShell from "./LayoutShell";
 import type { LayoutShellProps } from "./LayoutShell";
 
 const listeners = new Set<() => void>();
 let width = 1440;
+/** Answers `max-width` and `width <` queries against `width` */
 const screenMedia = (query: string) => {
-  const max = Number(/max-width:\s*(\d+)px/.exec(query)?.[1]);
+  const max = /max-width:\s*(\d+)px/.exec(query)?.[1];
+  const below = /width\s*<\s*(\d+)px/.exec(query)?.[1];
   return {
     get matches() {
-      return width <= max;
+      if (below !== undefined) return width < Number(below);
+      return width <= Number(max);
     },
     media: query,
     onchange: null,
@@ -819,8 +823,24 @@ describe.each([
 
 // From the phone's line up there is no left Sheet (HOO-2208): the keys fold
 // the files column and the rail as they do on a wider window
-it("should fold the files column by Cmd+E and unfold the rail by Cmd+B at 800 px", () => {
-  resizeTo(800);
+it.each([
+  [LAYOUT_BREAKPOINTS.phone - 1, "the pager"],
+  [LAYOUT_BREAKPOINTS.phone, "the frame, with the navigation as its rail"],
+])("should show at %i px %s, and never the stock Sidebar's Sheet", (width) => {
+  resizeTo(width);
+  shell();
+  const phone = width < LAYOUT_BREAKPOINTS.phone;
+  expect(screen.queryByRole("button", { name: "Menu" }) !== null).toBe(phone);
+  expect(
+    screen.queryByRole("button", { name: "Expand navigation" }) !== null
+  ).toBe(!phone);
+  expect(
+    document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
+  ).toBeNull();
+});
+
+it("should fold the files column by Cmd+E and unfold the rail by Cmd+B at the phone's line", () => {
+  resizeTo(LAYOUT_BREAKPOINTS.phone);
   shell();
   press({ key: "e", metaKey: true });
   press({ key: "b", metaKey: true });
@@ -1285,12 +1305,15 @@ describe("the stage bar", () => {
     ).toBeNull();
   });
 
-  it("holds the files column's one toggle at 800 px, with no opener at the left edge", () => {
-    resizeTo(800);
+  it("holds the files column's one toggle at the phone's line, with no opener at the left edge", () => {
+    resizeTo(LAYOUT_BREAKPOINTS.phone);
     shell();
     expect(
-      screen.getAllByRole("button", { name: /project panel$/ })
+      screen.getAllByRole("button", { name: "Collapse project panel" })
     ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Expand project panel" })
+    ).toBeNull();
   });
 
   it("is not drawn on a phone", () => {

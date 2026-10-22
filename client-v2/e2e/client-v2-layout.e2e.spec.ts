@@ -517,7 +517,7 @@ test.describe("on a phone", () => {
     await expect(lines).toContainText("// across");
     const before = await savedLayout(page);
 
-    for (const width of [390, 1024, 390, 1280]) {
+    for (const width of [390, 767, 768, 1024, 390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       await expect(lines).toContainText("// across");
     }
@@ -600,21 +600,25 @@ test("client-v2-layout: The navigation on a narrow window", async ({
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await seedWorkspace(page);
-  await page.setViewportSize({ width: 740, height: 812 });
   // The editor focuses itself when it opens the first file; landing after
   // the menu opened, it would bring Work back
   await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
   const navigation = page.getByRole("region", { name: "Navigation" });
-  for (const name of ["Home", "New project", "Tutorials", "Programs"]) {
+  for (const width of [720, 740, 767]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    for (const name of ["Home", "New project", "Tutorials", "Programs"]) {
+      await expect(
+        navigation.getByRole("button", { name, exact: true })
+      ).toBeInViewport({ ratio: 1 });
+    }
+    await expect(projectRow(page, "e2e-project")).toBeInViewport();
     await expect(
-      navigation.getByRole("button", { name, exact: true })
-    ).toBeInViewport({ ratio: 1 });
+      navigation.getByRole("button", { name: /^Get set up/ })
+    ).toBeInViewport();
+    if (width === 767) break;
+    await page.getByRole("button", { name: "Close the menu" }).click();
   }
-  await expect(projectRow(page, "e2e-project")).toBeInViewport();
-  await expect(
-    navigation.getByRole("button", { name: /^Get set up/ })
-  ).toBeInViewport();
 
   await navigation
     .getByRole("button", { name: "Tutorials", exact: true })
@@ -622,6 +626,23 @@ test("client-v2-layout: The navigation on a narrow window", async ({
   await expect(
     page.getByRole("searchbox", { name: "Search tutorials" })
   ).toBeVisible();
+});
+
+// The key has no way of its own to leave the menu page, so it takes the one
+// the navigation handed over, and the settings show over Work
+test("⌘, opens the settings from the phone's menu page", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedWorkspace(page);
+  await page.setViewportSize({ width: 740, height: 812 });
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Navigation" })
+  ).toBeInViewport();
+
+  await page.keyboard.press("ControlOrMeta+Comma");
+
+  await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
 });
 
 test.describe("on a compact window", () => {

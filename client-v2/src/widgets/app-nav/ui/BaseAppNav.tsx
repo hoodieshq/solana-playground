@@ -88,8 +88,8 @@ const BaseAppNav = ({
     </SidebarContent>
     {/* Swapped, not hidden, on the rail: what the full footer holds keeps
         its state above it (`FeedbackHost`, `PgSession`), as it must anyway
-        for the phone's menu page, which unmounts it when the window crosses
-        `LAYOUT_BREAKPOINTS.phone` */}
+        across `LAYOUT_BREAKPOINTS.phone`, where the pager and the frame
+        replace each other's tree */}
     <SidebarFooter>
       {collapsed ? (
         railFooter

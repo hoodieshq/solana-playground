@@ -86,12 +86,12 @@ const modeNow = () =>
  * open, a persistent one included. A modal
  * layer sets `pointer-events: none` on the body, so the toaster turns it back
  * on. A click on a toast over a dialog would count as outside it, so
- * `BaseModalFrame` ignores one (`isInsideToast`). The stock Sheet is rendered
- * by `LayoutShell` and has no such guard: a click on a toast over the open
- * navigation Sheet closes it.
+ * `BaseModalFrame` ignores one (`isInsideToast`). The stock Sheets the layout
+ * shell renders (the assistant's, the phone's Files) have no such guard: a
+ * click on a toast over an open one closes it.
  */
 export const ToastHost = () => {
-  // Below this width the navigation is a Sheet and there is no rail to clear
+  // Below this width the phone's pager shows, and there is no rail to clear
   const noRail = useIsMobile();
   const mode = useSyncExternalStore(subscribeToMode, modeNow);
   const show = useCallback(({ elementable, props }: ToastRequest) => {
@@ -127,7 +127,7 @@ export const ToastHost = () => {
       theme={mode}
       position="bottom-left"
       closeButton
-      // The rail is a desktop part; on a phone the Sheet replaces it
+      // The rail is a desktop part; a phone has the pager instead
       offset={{
         left: noRail ? "1rem" : `calc(${RAIL_WIDTH} + 1rem)`,
         bottom: "1rem",

@@ -88,7 +88,7 @@ test("the account menu opens from the rail on a narrow window", async ({
   page,
 }) => {
   // Seeded on a desktop-sized page, as the other narrow-window tests are, and
-  // narrowed afterwards: below 1024 px the navigation starts as a rail
+  // narrowed afterwards, where the navigation starts as a rail on every load
   await page.setViewportSize({ width: 1280, height: 800 });
   await seedWorkspace(page);
   await page.setViewportSize({ width: 800, height: 812 });

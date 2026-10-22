@@ -16,8 +16,8 @@ where feedback can be sent, "Suggest an idea" and "Report a bug". There
 SHALL be no separate feedback button. The form, its draft and its send SHALL
 be held above the navigation, so they outlive the menu: below 768 px the
 footer is on the menu page, and the rail swaps the footer for its own. A
-send in flight SHALL show on the account row and on the rail's "Account". An open modal SHALL cover the
-account row.
+send in flight SHALL show on the account row and on the rail's "Account".
+An open modal SHALL cover the account row.
 
 #### Scenario: The menu opens
 
@@ -109,11 +109,11 @@ halo that pulses where the user allows motion, until the send ends.
   opens it again
 - **THEN** the three stars and the message are as the user left them
 
-#### Scenario: A draft outlives the navigation's Sheet (manual)
+#### Scenario: A draft outlives the menu page (manual)
 
-- **WHEN** on a 375 px window the user opens the navigation's Sheet, opens
-  the form from the account menu, types a message, closes the form and the
-  Sheet, and opens both again
+- **WHEN** on a 375 px window the user opens "Menu", opens the form from the
+  account menu, types a message, closes the form, goes back to Work, and
+  opens the menu and the form again
 - **THEN** the message is as the user left it, and a send still in flight
   shows on the account row
 

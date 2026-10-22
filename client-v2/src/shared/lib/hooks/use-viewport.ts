@@ -21,8 +21,11 @@ export const RAIL_WIDTH = "3.25rem";
 
 export type Viewport = "wide" | "compact" | "phone";
 
-const PHONE = `(max-width: ${LAYOUT_BREAKPOINTS.phone - 1}px)`;
-const COMPACT = `(max-width: ${LAYOUT_BREAKPOINTS.compact - 1}px)`;
+// Range syntax, not `max-width: <n - 1>px`: a zoomed window's width is
+// fractional, and 767.5 px must fall below the line, as it does for the stock
+// Sidebar's `md:` (`width >= 48rem`), or the frame would show with no Sidebar
+const PHONE = `(width < ${LAYOUT_BREAKPOINTS.phone}px)`;
+const COMPACT = `(width < ${LAYOUT_BREAKPOINTS.compact}px)`;
 
 /** The window's width class right now */
 export const viewportOf = (): Viewport => {

@@ -75,8 +75,7 @@ const log = createLogger("flow:settings");
 
 /**
  * Where focus goes back when the control that opened the settings is gone: a
- * checklist step that the pick ticked, a footer the phone's menu page took
- * with it. The first control that opens the settings still on screen, else
+ * checklist step that the pick ticked, a footer the rail swapped out. The first control that opens the settings still on screen, else
  * the control that opens the navigation.
  */
 const fallbackFocus = () =>
@@ -255,8 +254,7 @@ const FlowFrame = () => {
                 current={catalog ?? undefined}
                 onOpenPage={(p) => {
                   catalogPage.open(p, "nav");
-                  // A phone's menu page would
-                  // cover the page it just opened
+                  // A phone's menu page would cover the page it just opened
                   closeSheet();
                 }}
                 onClosePage={catalogPage.close}

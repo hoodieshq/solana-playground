@@ -169,9 +169,9 @@ const LayoutShell = ({
   const lastInput = useRef<ToggleSource>("key");
 
   useEffect(() => {
-    // A mark outlives its input only when the Sheet it toggled ended the tick
-    // as it began (two toggles in one tick) and so reported nothing; the next
-    // input drops it, in the capture phase, before its own handler marks
+    // Each input says what it was, for a Sheet that reports a change nobody
+    // marked (the assistant's, the phone's Files), and drops any mark a
+    // toggle left, in the capture phase, before its own handler marks
     const onPointer = () => {
       lastInput.current = "button";
       navVia.current = null;
@@ -234,7 +234,8 @@ const LayoutShell = ({
     setHomeSheetOpen(false);
     // A conversation open on Home stays on screen when the work takes over
     // (sync's `adopt` can open a project mid-answer): the work's assistant
-    // opens in its place, which between 720 and 1023 px is a closed Sheet
+    // opens in its place, which between `LAYOUT_BREAKPOINTS.phone` and
+    // `.compact` is a closed Sheet
     if (wasOpen) setAssistant(true, "auto");
     // `setAssistant` reads refs and the viewport of this render
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -439,13 +440,13 @@ const LayoutShell = ({
   };
   // The stock toggle. In the frame it calls `onNavOpenChange` before it
   // returns, so the mark is cleared right after and cannot outlive the click.
-  // On a phone it moves the pager, which reports itself.
-  const toggleNav = (stockToggle: () => void, isMobile: boolean) => () => {
+  // On a phone it moves the pager, which reports itself and reads no mark.
+  const toggleNav = (stockToggle: () => void) => () => {
     navVia.current = "button";
     try {
       stockToggle();
     } finally {
-      if (!isMobile) navVia.current = null;
+      navVia.current = null;
     }
   };
   // On a phone the navigation is a page, and "closing" it goes back to Work
@@ -518,7 +519,7 @@ const LayoutShell = ({
       nav={(stock) =>
         nav({
           collapsed: stock.collapsed,
-          toggle: toggleNav(stock.toggle, stock.isMobile),
+          toggle: toggleNav(stock.toggle),
           closeSheet: closeNav,
         })
       }
@@ -529,7 +530,7 @@ const LayoutShell = ({
         if (stock.isMobile) {
           return files({
             collapsed: false,
-            toggle: toggleNav(stock.toggle, true),
+            toggle: toggleNav(stock.toggle),
           });
         }
         return files({

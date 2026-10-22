@@ -731,8 +731,8 @@ panel (`nav`, `files`, `assistant` or `console`; the files column's earlier
 name, `left`, is not sent), whether it is open, and whether a button, a key, a
 drag of the panel's edge or the product itself did it (the product opens the
 console on a deploy and the assistant on "Fix with assistant", and closes the
-navigation's Sheet when a modal opens or the settings open from it, since the
-Sheet would keep focus from them);
+phone's Files sheet when a modal opens, since the sheet would keep focus from
+it);
 `layout_page_shown` with the page (`menu`, `work` or `preview`) and whether
 a swipe, a button, a key or the product moved it, each time a phone page comes
 into view after the load (crossing into the phone width with the stage off

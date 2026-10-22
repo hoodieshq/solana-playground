@@ -180,5 +180,5 @@ regression against 5.1 has misread this rule.
       `searchbar-command`)
 - [x] 5.30 No left Sheet: the phone's line moves to the stock Sidebar's 768,
       so below it the pager holds the navigation apart from the files, and
-      from it up the navigation is a rail beside the files column (HOO-2208;
-      Slava 2026-10-22)
+      from 768 to 1023 the navigation starts as a rail beside the files
+      column (HOO-2208; Slava 2026-10-22)

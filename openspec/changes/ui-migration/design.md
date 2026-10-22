@@ -275,7 +275,7 @@ classic panels' removal: `GearSidebar` uses them.
 `shared/lib/hooks/use-viewport.ts`, because Monaco reads it too. Monaco
 announces a blocked edit as a `PgEditor` document event, so the editor does
 not import the widget. (5.7 replaced this: see "The phone (5.7)": Monaco reads no viewport and announces no
-blocked edit, the widths are 1024 and 720. The hook stays in `shared/`
+blocked edit, the widths are 1024 and 720 (768 since HOO-2208). The hook stays in `shared/`
 because several slices read it (the layout shell, the overlays' toast host,
 the navigation, the Flow views), and a widget may not import another
 widget's code.)
@@ -476,7 +476,7 @@ HOO-2071) build on it. One PR.
   `Build`, `Deploy` and `Stepper` read `tooltip.bg` for things that are not
   tooltips; it goes with the global reset (5.24).
 - **Dialogs keep `PgView.setModal`.** The stack, the promise of an answer and
-  `onDidOpenModal` (which closes the navigation's Sheet) stay in `PgView`;
+  `onDidOpenModal` (which closes the phone's Files Sheet) stay in `PgView`;
   only the renderer changes. The 21 dialog bodies keep the old `<Modal>`
   props (`title`, `buttonProps` with `onSubmit`/`noCloseOnSubmit`) on
   `ModalFrame`, so each changes an import and gains a `name`; every dialog
@@ -781,7 +781,7 @@ LayoutShell
   crossing into the phone width with the stage off `write`), not on load;
   `layout_work_view {view: chat | code, via: button | key | auto}` when Work
   switches. `layout_viewport`'s `phone` now means below `LAYOUT_BREAKPOINTS.phone`
-(768 since HOO-2208).
+  (768 since HOO-2208).
 
 Kept: every id, `aria-label` and test id of the pieces inside the pages. The
 pager's own controls take the prototype's names: "Menu", "Close the menu",
@@ -1082,7 +1082,7 @@ widgets/assistant
   `design-system/src/components/ui/composer.tsx` and reinstalled).
 - **Connect a model is a dialog.** It opens through `PgView.setModal` in a
   `ModalFrame` (`name: "connect-model"`), as 5.6 has every dialog do, so it
-  joins the modal stack, closes the navigation's Sheet through
+  joins the modal stack, closes the phone's Files Sheet through
   `onDidOpenModal`, and reports `overlay_modal_opened`; below `md` the stock
   Modal makes it a page of its own with a sticky footer. It holds today's `Connect` form
   without its "Back to chat" and its own title, and opens from More (K),
@@ -1687,11 +1687,11 @@ they are answered. One PR.
     Escape from the topmost open layer, never from focus (a project's rename
     field would read it as a cancel), one per frame while a layer is still
     `open`, and nothing when none is (Escape would then close the
-    navigation's Sheet as a key's, not the product's). The page opens once
+    assistant's Sheet as a key's, not the product's). The page opens once
     they are closed, and the trigger of the layer focus was in stands in as
     the control to give focus back to.
   - When the control that opened the page is gone on close (a checklist step
-    the pick ticked, a footer the navigation's Sheet took with it), focus
+    the pick ticked, a footer the phone's menu page took with it), focus
     goes to the first control that opens the settings still on screen, else
     to the one that opens the navigation. The failure notice closes on
     Escape too, its own listener in place of the page's.
@@ -1706,9 +1706,8 @@ above), the trigger attribute (tests find the
 triggers by it; with nothing of the app on screen, a second click on a
 trigger is no longer the way out, "Back to app" is), "Change cluster,
 currently <name>" and "Cluster: <name>". The floating wallet is hidden with
-the shell, and the navigation's Sheet still closes as the settings open: it
-portals to `body`, outside the hidden shell, and its overlay would cover the
-page. Toasts and dialogs are not the app here: they are the page's own
+the shell, and on a phone opening the settings from the menu page brings
+Work into view first. Toasts and dialogs are not the app here: they are the page's own
 feedback (a failed export, an import dialog), so `ToastHost` and `ModalHost`
 stay outside the hidden shell, above the page.
 
