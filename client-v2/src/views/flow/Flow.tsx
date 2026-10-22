@@ -35,6 +35,7 @@ import Reader from "./lessons/Reader";
 import Finish from "./lessons/Finish";
 import { PgPatchPreview } from "./lessons/patch-preview";
 import { watchSources } from "./state/source-watch";
+import { initScrollFades } from "./components/scroll-fades";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
@@ -336,6 +337,7 @@ const Flow = () => {
       PgDeployHistory.init(),
       PgPatchPreview.init(),
       watchSources(),
+      initScrollFades(),
       PgFlow.onDidChange(setState),
       PgLesson.onDidChange(setLesson),
       // So a "Fix with assistant" click while collapsed reopens the pane and

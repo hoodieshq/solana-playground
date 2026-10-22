@@ -33,11 +33,6 @@ import {
 } from "../../../flow/lessons";
 import { PgLessonGuide, SKIP_CHECK } from "../../../flow/lessons/guide";
 import { PgKora } from "../../../flow/lessons/kora";
-import {
-  fadeEdges,
-  thinScroll,
-  useScrollEdges,
-} from "../../../flow/components/scroll";
 import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
@@ -87,8 +82,6 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
     instance: Provider;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  // More of the conversation below: the list fades out at its foot
-  const listEdges = useScrollEdges(listRef);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -451,7 +444,6 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
 
       <Messages
         ref={listRef}
-        $more={listEdges.bottom}
         role="log"
         aria-label="Conversation"
         onScroll={onScroll}
@@ -615,9 +607,7 @@ const Wrapper = styled.div`
   isolation: isolate;
 `;
 
-const Messages = styled.div<{ $more: boolean }>`
-  ${thinScroll}
-  ${({ $more }) => fadeEdges({ bottom: $more, right: false }, "3rem")}
+const Messages = styled.div`
   position: relative;
   z-index: 1;
   display: flex;

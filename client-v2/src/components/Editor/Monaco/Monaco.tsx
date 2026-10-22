@@ -199,6 +199,9 @@ const Monaco = () => {
       monaco.editor.create(monacoRef.current, {
         automaticLayout: true,
         fontLigatures: true,
+        // No scrollbars anywhere in the product: the wheel and the keys still
+        // scroll, and the editor's own shadow under its top edge shows it
+        scrollbar: { vertical: "hidden", horizontal: "hidden" },
       })
     );
   }, [editor, isThemeSet]);

@@ -1,5 +1,5 @@
-import { FC, useMemo, useRef } from "react";
-import styled, { css, keyframes, useTheme } from "styled-components";
+import { FC, useMemo } from "react";
+import styled, { css, keyframes } from "styled-components";
 
 import Button from "../../../../components/Button";
 import PlayRing from "../../../../components/PlayRing";
@@ -8,8 +8,6 @@ import ChatCode from "./ChatCode";
 import GradientButton from "./GradientButton";
 import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
-import ScrollFades from "../../../flow/components/ScrollFades";
-import { thinScroll, useScrollEdges } from "../../../flow/components/scroll";
 import { PgAssistant, type ChatItem as Item } from "../store";
 
 const ChatItem: FC<{
@@ -260,29 +258,19 @@ const Diff: FC<{ before: string | null; after: string }> = ({
   after,
 }) => {
   const lines = useMemo(() => diffLines(before, after), [before, after]);
-  const body = useRef<HTMLDivElement>(null);
-  const edges = useScrollEdges(body);
-  const theme = useTheme();
 
   return (
-    <DiffWrap>
-      <DiffBody ref={body}>
-        {lines.map((line, i) => (
-          <DiffRow key={i} $kind={line.kind}>
-            <Gutter>{line.number ?? ""}</Gutter>
-            <Sign $kind={line.kind}>
-              {line.kind === "added"
-                ? "+"
-                : line.kind === "removed"
-                ? "-"
-                : " "}
-            </Sign>
-            <Code>{line.text || " "}</Code>
-          </DiffRow>
-        ))}
-      </DiffBody>
-      <ScrollFades edges={edges} bg={theme.colors.default.bgSecondary!} />
-    </DiffWrap>
+    <DiffBody>
+      {lines.map((line, i) => (
+        <DiffRow key={i} $kind={line.kind}>
+          <Gutter>{line.number ?? ""}</Gutter>
+          <Sign $kind={line.kind}>
+            {line.kind === "added" ? "+" : line.kind === "removed" ? "-" : " "}
+          </Sign>
+          <Code>{line.text || " "}</Code>
+        </DiffRow>
+      ))}
+    </DiffBody>
   );
 };
 
@@ -593,14 +581,8 @@ const StatusLabel = styled.span<{ $status: string }>`
   `}
 `;
 
-/* The fades sit over the patch's edges while it runs on past them */
-const DiffWrap = styled.div`
-  position: relative;
-`;
-
 const DiffBody = styled.div`
   ${({ theme }) => css`
-    ${thinScroll}
     padding: 0.375rem 0;
     font-size: ${theme.font.code.size.small};
     /* A large patch scrolls inside its card instead of flooding the chat */
