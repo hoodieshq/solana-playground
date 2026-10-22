@@ -432,6 +432,15 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // A lesson keeps its three asks under the conversation, not only on an
+  // empty one: the guide greets every step, so the empty state never shows
+  // there. The build question waits for a build that failed, since the
+  // guide has nothing to say about one that passed
+  const lessonAsks = [
+    "Explain this step",
+    "Give me a hint",
+    ...(PgBuildOutput.latest?.failed ? ["Why did my build fail?"] : []),
+  ];
   const suggestions = lesson
     ? ["Explain this step", "Give me a hint", "Why did my build fail?"]
     : [
@@ -581,6 +590,20 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
               {SKIP_CHECK}
             </SkipCheck>
           </QuickCheck>
+        )}
+        {lesson && items.length > 0 && !busy && !check && (
+          <Asks aria-label="Ask the tutorial">
+            {lessonAsks.map((s) => (
+              <Suggestion
+                key={s}
+                type="button"
+                data-shot={`ask-${s.split(" ")[0].toLowerCase()}`}
+                onClick={() => send(s)}
+              >
+                {s}
+              </Suggestion>
+            ))}
+          </Asks>
         )}
         <div ref={bottomRef} />
       </Messages>
@@ -777,6 +800,17 @@ const Suggestions = styled.div`
   ${PHONE} {
     gap: 0.5rem;
     padding-top: 1rem;
+  }
+`;
+
+/* The same pills under a lesson's conversation, lined up with the replies */
+const Asks = styled(Suggestions).attrs({ role: "group" })`
+  justify-content: flex-start;
+  padding-top: 0.25rem;
+  padding-bottom: 0.5rem;
+
+  ${PHONE} {
+    padding-top: 0.25rem;
   }
 `;
 

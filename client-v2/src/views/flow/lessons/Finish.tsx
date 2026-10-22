@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 
 import { PgKora } from "./kora";
 import Receipt from "./Receipt";
+import { badgesFor } from "./badges";
 import TutorialCover from "../gallery/TutorialCover";
 import type { KoraTx } from "./kora";
 import type { LessonState } from "./store";
@@ -11,6 +12,7 @@ import { BrandPill, PlayIcon } from "../stages/EmptyStage";
 import { gradientStroke } from "../components/gradient";
 import { BRAND } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
+import BrandIcon from "../../../components/BrandIcon";
 import Button from "../../../components/Button";
 import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgTutorial } from "../../../utils";
@@ -62,6 +64,13 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
   // still runs the program without the name
   const behind = PgKora.behind;
 
+  // Earned by what happened, not by reaching this screen: a skipped step
+  // leaves the tutorial's badge locked, and only a deploy earns the deploy's
+  const badges = badgesFor({
+    allProved: steps > 0 && proved === steps,
+    deployed: PgKora.record.deployedAt !== null,
+  });
+
   const call = async (e: FormEvent) => {
     e.preventDefault();
     const said = name.trim();
@@ -104,6 +113,25 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
             <StatValue>0 SOL</StatValue>
           </Stat>
         </Stats>
+
+        <Badges aria-labelledby="finish-badges">
+          <SectionTitle id="finish-badges">Badges</SectionTitle>
+          <BadgeRow>
+            {badges.map((b) => (
+              <Badge key={b.name} $earned={b.earned}>
+                <BadgeDisc $earned={b.earned}>
+                  <BadgeIcon name={b.icon} />
+                </BadgeDisc>
+                <BadgeName>{b.name}</BadgeName>
+                <BadgeWhy>{b.earned ? b.why : b.locked}</BadgeWhy>
+              </Badge>
+            ))}
+          </BadgeRow>
+          <BadgeNote>
+            Kept in this browser. Sign in with GitHub and they go on your
+            profile.
+          </BadgeNote>
+        </Badges>
 
         <Card aria-labelledby="finish-hello">
           <CardTitle id="finish-hello">Say hello to your program</CardTitle>
@@ -373,6 +401,94 @@ const Field = styled.input`
 
 
 
+
+const Badges = styled.section`
+  width: 100%;
+  margin-top: 1.75rem;
+`;
+
+const BadgeRow = styled.ul`
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+`;
+
+const Badge = styled.li<{ $earned: boolean }>`
+  width: 8.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  animation: ${({ $earned }) =>
+    $earned ? "badge-rise 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both" : "none"};
+
+  &:nth-child(2) {
+    animation-delay: 120ms;
+  }
+
+  @keyframes badge-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+/* The Achievement's disc: 64px, a 2px ring of the gradient once earned and
+   the strong border until then, the icon on the panel's surface inside */
+const BadgeDisc = styled.span<{ $earned: boolean }>`
+  ${({ theme, $earned }) => css`
+    ${$earned
+      ? gradientStroke(theme.colors.default.bgPrimary, "2px")
+      : css`
+          border: 2px solid ${theme.colors.default.border};
+          background: ${theme.colors.default.bgPrimary};
+        `}
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 0.25rem;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${$earned
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
+  `}
+`;
+
+const BadgeIcon = styled(BrandIcon)`
+  width: 1.5rem;
+  height: 1.5rem;
+`;
+
+const BadgeName = styled.span`
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const BadgeWhy = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const BadgeNote = styled.p`
+  ${({ theme }) => css`
+    margin: 0.75rem 0 0;
+    font-size: 0.75rem;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
 
 const Section = styled.section`
   width: 100%;

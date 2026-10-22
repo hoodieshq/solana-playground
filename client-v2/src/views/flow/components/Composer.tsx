@@ -134,8 +134,11 @@ const Composer: FC<ComposerProps> = ({
           }}
         />
       ) : (
+        // Named by what it shows, then by where it goes: a voice user says
+        // the words on screen, a screen reader hears that it opens the chat
         <Launcher type="button" onClick={onActivate}>
           {placeholder}
+          <Unseen> Opens the assistant</Unseen>
         </Launcher>
       )}
 
@@ -306,6 +309,16 @@ const TextArea = styled.textarea`
       color: ${theme.colors.state.disabled.color};
     }
   `}
+`;
+
+/* Read out, not shown */
+const Unseen = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 `;
 
 const Launcher = styled.button`
