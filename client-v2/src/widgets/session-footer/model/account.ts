@@ -133,26 +133,20 @@ export const clusterLabel = (
 
 /**
  * Down when the cluster does not answer (`PgConnection.isConnected`, polled),
- * or answers with a slot that does not move (`PgConnection.isClusterDown`).
- * The slot check cannot say the first on its own: it is `null` when the
- * cluster does not answer, and it is read again only when the cluster changes,
- * so a stalled slot also stays down until then. Either one unread
- * (`undefined`) says nothing yet; for a moment after a cluster switch, either
- * may still describe the previous cluster.
- *
- * Playnet runs in the page, so whether it answers says nothing: a check made
- * before it has started reads as not connected until the next poll, 10 s
- * later. The connection effect skips Playnet for the same reason.
+ * or answers with a slot that does not move (`PgConnection.isClusterDown`,
+ * read again while it stays stalled). The slot check cannot say the first on
+ * its own: it is `null` when the cluster does not answer. An input that is
+ * unread (`undefined`) or cannot be asked yet (`null` from `isConnected`, a
+ * Playnet that has not started) says nothing; for a moment after a cluster
+ * switch, either may still describe the previous cluster.
  */
 export const clusterIsDown = ({
-  cluster,
   isConnected,
   slotStalled,
 }: {
-  cluster: string;
-  isConnected: boolean | undefined;
+  isConnected: boolean | null | undefined;
   slotStalled: boolean | null | undefined;
-}) => (cluster !== "playnet" && isConnected === false) || slotStalled === true;
+}) => isConnected === false || slotStalled === true;
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -341,37 +335,19 @@ if (import.meta.vitest) {
     it.each([
       [false, null, true],
       [false, undefined, true],
-      // A stalled slot is read again only on a cluster change
       [true, true, true],
       [undefined, true, true],
       // Answers again after a failure that left the slot check at `null`
       [true, null, false],
       [true, false, false],
       [undefined, undefined, false],
+      // Playnet before it has started: not asked yet
+      [null, null, false],
     ] as const)(
-      "clusterIsDown({ isConnected: %s, slotStalled: %s }) on devnet is %s",
+      "clusterIsDown({ isConnected: %s, slotStalled: %s }) is %s",
       (isConnected, slotStalled, expected) => {
-        expect(
-          clusterIsDown({ cluster: "devnet", isConnected, slotStalled })
-        ).toBe(expected);
+        expect(clusterIsDown({ isConnected, slotStalled })).toBe(expected);
       }
     );
-
-    it("clusterIsDown does not read Playnet's answer, only its slot", () => {
-      expect(
-        clusterIsDown({
-          cluster: "playnet",
-          isConnected: false,
-          slotStalled: null,
-        })
-      ).toBe(false);
-      expect(
-        clusterIsDown({
-          cluster: "playnet",
-          isConnected: true,
-          slotStalled: true,
-        })
-      ).toBe(true);
-    });
   });
 }

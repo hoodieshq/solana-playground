@@ -19,9 +19,8 @@ export const useClusterStatus = (): ClusterStatus => {
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
   const isConnected = useRenderOnChange(PgConnection.onDidChangeIsConnected);
   const slotStalled = useRenderOnChange(PgConnection.onDidChangeIsClusterDown);
-  const name = cluster ?? "unknown";
   return {
-    name,
-    down: clusterIsDown({ cluster: name, isConnected, slotStalled }),
+    name: cluster ?? "unknown",
+    down: clusterIsDown({ isConnected, slotStalled }),
   };
 };

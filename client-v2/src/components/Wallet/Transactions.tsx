@@ -41,10 +41,10 @@ const Transactions = () => {
         setSignatures(_signatures);
         setError("");
       } catch (e: unknown) {
-        // Named after the connection that failed, not the one current now
-        const endpoint = connection.rpcEndpoint;
-        const cluster = await PgConnection.getCluster(endpoint);
         if (stale) return;
+        // `stale` is set when the connection changes, so the current cluster
+        // is the one that failed
+        const cluster = PgConnection.cluster;
 
         // The list says what failed; the endpoint's own words go to the log.
         // Not reported: an endpoint that is down or limits requests is the
@@ -52,7 +52,9 @@ const Transactions = () => {
         log.warn("could not read the wallet's transactions", {
           context: { cluster, error: String(e) },
         });
-        setError(describeTxsError(e, { endpoint, cluster }));
+        setError(
+          describeTxsError(e, { endpoint: connection.rpcEndpoint, cluster })
+        );
         setSignatures([]);
       } finally {
         if (!stale) setLoading(false);

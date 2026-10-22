@@ -1481,6 +1481,52 @@ test("a cluster that does not answer is down", async ({ seededPage: page }) => {
   ).toBeVisible({ timeout: 15_000 });
 });
 
+// The dot follows the cluster back: a stalled slot is read again while it
+// stays stalled (5 s, then longer), an unreachable cluster is polled (10 s)
+test("a stalled cluster that moves again is not down", async ({
+  seededPage: page,
+}) => {
+  let moving = false;
+  let slot = 123;
+  await page.route("https://api.devnet.solana.com/**", async (route) => {
+    const body = route.request().postDataJSON() as {
+      id?: unknown;
+      method?: string;
+    } | null;
+    if (body?.method !== "getSlot") return route.continue();
+    if (moving) slot += 10;
+    return json(route, { jsonrpc: "2.0", result: slot, id: body.id });
+  });
+  await page.reload();
+  await expect(clusterRow(page)).toHaveAccessibleName(
+    "Change cluster, currently devnet, down",
+    { timeout: 15_000 }
+  );
+
+  moving = true;
+  await expect(clusterRow(page)).toHaveAccessibleName(
+    "Change cluster, currently devnet",
+    { timeout: 20_000 }
+  );
+});
+
+test("a cluster that answers again is not down", async ({
+  seededPage: page,
+}) => {
+  await refuseCluster(page);
+  await page.reload();
+  await expect(clusterRow(page)).toHaveAccessibleName(
+    "Change cluster, currently devnet, down",
+    { timeout: 15_000 }
+  );
+
+  await page.unrouteAll();
+  await expect(clusterRow(page)).toHaveAccessibleName(
+    "Change cluster, currently devnet",
+    { timeout: 20_000 }
+  );
+});
+
 test("the wallet names the endpoint that does not answer", async ({
   seededPage: page,
 }) => {
