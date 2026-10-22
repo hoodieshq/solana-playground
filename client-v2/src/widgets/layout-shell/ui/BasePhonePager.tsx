@@ -223,6 +223,10 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
             variant="ghost"
             size="icon"
             aria-label="Menu"
+            // The phone's way to the navigation, as the stock Sidebar's own
+            // trigger is in the frame: where focus goes when the control it
+            // left is gone (Flow's `fallbackFocus`)
+            data-sidebar="trigger"
             onClick={() => props.onGo("menu")}
           >
             <Menu />

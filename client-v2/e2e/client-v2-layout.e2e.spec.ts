@@ -551,6 +551,30 @@ test.describe("on a phone", () => {
     ).toHaveAttribute("aria-checked", "true");
   });
 
+  // The cluster row that opened them is on the menu page, inert once Work
+  // shows, so focus goes to the control that opens the navigation instead
+  test("closing the settings on a phone gives focus back to the Menu button", async ({
+    page,
+  }) => {
+    await seedThenNarrow(page);
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Navigation" })
+      .getByRole("button", { name: /^Change cluster/ })
+      .click();
+    const settings = page.getByRole("region", { name: "Settings" });
+    await expect(settings).toBeVisible();
+
+    await settings.getByRole("button", { name: "Back to app" }).click();
+
+    await expect(
+      page.getByRole("button", { name: "Menu", exact: true })
+    ).toBeFocused();
+  });
+
   test("client-v2-layout: Swiping between pages on a phone", async ({
     page,
   }) => {

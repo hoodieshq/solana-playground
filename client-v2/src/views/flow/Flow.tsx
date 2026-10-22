@@ -74,16 +74,27 @@ const Flow = () => (
 const log = createLogger("flow:settings");
 
 /**
- * Where focus goes back when the control that opened the settings is gone: a
- * checklist step that the pick ticked, a footer the rail swapped out. The first control that opens the settings still on screen, else
- * the control that opens the navigation.
+ * Whether focus can land on `el`: on screen, and not inside an `inert` part,
+ * such as a phone page out of view, where `focus()` does nothing
+ */
+const canTakeFocus = (el: HTMLElement) =>
+  el.isConnected &&
+  el.getClientRects().length > 0 &&
+  el.closest("[inert]") === null;
+
+/**
+ * Where focus goes back when the control that opened the settings is gone or
+ * out of reach: a checklist step that the pick ticked, a footer the rail
+ * swapped out, a cluster row on the phone's menu page once Work shows. The
+ * first control that opens the settings still in reach, else the control
+ * that opens the navigation.
  */
 const fallbackFocus = () =>
   [
     ...document.querySelectorAll<HTMLElement>(
       `[${SETTINGS_TRIGGER_ATTR}], [data-sidebar="trigger"]`
     ),
-  ].find((el) => el.getClientRects().length > 0);
+  ].find(canTakeFocus);
 
 /** Open, the settings page remembers where focus was, to give it back */
 type SettingsState =
@@ -112,12 +123,13 @@ const FlowFrame = () => {
 
   const openGallery = () => PgView.setModal(NewWorkspaceModal);
   // Back to the control that opened them, once the shell is no longer inert,
-  // or, when that is gone, to `fallbackFocus`
+  // or, when that is gone or out of reach, to `fallbackFocus`
   const refocus = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (settings.open) return;
-    if (refocus.current?.isConnected) refocus.current.focus();
-    else fallbackFocus()?.focus();
+    if (refocus.current && canTakeFocus(refocus.current)) {
+      refocus.current.focus();
+    } else fallbackFocus()?.focus();
     refocus.current = null;
   }, [settings.open]);
   const closeSettings = (via: SettingsExit) => {
