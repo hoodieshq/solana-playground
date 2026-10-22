@@ -1,5 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import type { BrowserContext, Page, Route } from "@playwright/test";
+import type { ServerProject } from "../src/features/persistence/model/project-sync";
 import { isUuid } from "../src/shared/lib/ids";
 
 /** For a step that waits on the explorer, sync or a reload */
@@ -59,13 +60,20 @@ export const HELP_TAIL = "Run test(s)";
 /**
  * Types `command` into the terminal and runs it.
  *
- * The shell drops whatever is typed before it shows its prompt
- * (`PgShell.isPrompting`), and a console opened a moment ago may still be
- * starting, so the command goes in once the terminal ends in the prompt.
+ * The console prints its prompt a moment after it opens (`PgTerm.open`, then
+ * `PgShell.enable`), and the prompt starts a fresh input (`PgTty.read`), which
+ * erases whatever was typed before it. So the command goes in once the
+ * terminal ends in the prompt, and the click comes after that wait, so
+ * nothing can take the focus in between.
+ *
+ * The labelled input, not the element's centre: the centre can land on the
+ * link in the welcome text, and a click on a link does not focus the terminal.
  */
 export const runInTerminal = async (page: Page, command: string) => {
-  await page.getByLabel("Terminal input").first().click();
   await expect(page.locator(".xterm-rows").first()).toHaveText(/\$\s*$/);
+  const input = page.getByLabel("Terminal input").first();
+  await input.click();
+  await expect(input).toBeFocused();
   await page.keyboard.type(command);
   await page.keyboard.press("Enter");
 };
@@ -98,8 +106,15 @@ export const leaveEditor = async (page: Page) => {
 };
 
 export const test = base.extend<{ seededPage: Page }>({
+  // `E2E_CPU_THROTTLE=<n>` slows the test's page `n` times, to show a race
+  // that only the runner hits (`docs/testing.md`, "Parallel runs")
   page: async ({ page }, use) => {
     const rate = Number(process.env.E2E_CPU_THROTTLE ?? 1);
+    if (!(Number.isFinite(rate) && rate >= 1)) {
+      throw new Error(
+        `E2E_CPU_THROTTLE must be a number of 1 or more, got "${process.env.E2E_CPU_THROTTLE}".`
+      );
+    }
     if (rate > 1) {
       const cdp = await page.context().newCDPSession(page);
       await cdp.send("Emulation.setCPUThrottlingRate", { rate });
@@ -170,20 +185,23 @@ export const stubSession = (page: Page, user: unknown = TEST_USER) =>
  *
  * A store that takes an upload and then lists nothing is not an empty
  * account: the project was uploaded and is gone, which reads as deleted on
- * another device, and the next reconcile deletes it here too. On a loaded
- * runner that pass lands mid-test and takes the test's project with it.
+ * another device, and the next reconcile deletes it here too (or asks about
+ * it, if it holds edits not yet uploaded). On a loaded runner that pass lands
+ * mid-test and takes the test's project with it.
  *
- * Every write is accepted; the version checks are the sync specs' business.
- * On the context, so a second tab signs in to the same account.
+ * The version checks are the sync specs' business, so a well-formed write is
+ * accepted whatever version it names; one the real endpoint refuses for its
+ * shape is refused here too. On the context, so a second tab signs in to the
+ * same account.
  */
 export const stubSignedIn = async (context: BrowserContext) => {
-  type Row = {
-    id: string;
-    name: string;
-    kind: string;
-    updatedAt: string;
-    snapshot: { files: Record<string, string> };
-  };
+  type Row = ServerProject & { snapshot: { files: Record<string, string> } };
+  const refuse = (r: Route, status: number, body: unknown) =>
+    r.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
   const rows = new Map<string, Row>();
 
   await context.route("**/api/auth/get-session", (r) =>
@@ -198,6 +216,19 @@ export const stubSignedIn = async (context: BrowserContext) => {
     const id = new URL(req.url()).searchParams.get("id");
     if (req.method() === "PUT") {
       const body = req.postDataJSON();
+      if (
+        !body.id ||
+        !body.name ||
+        !["project", "tutorial"].includes(body.kind)
+      ) {
+        return refuse(r, 400, { error: "id, name and kind required" });
+      }
+      // A patch is made against a stored row: without one it is the
+      // conflict the real endpoint answers, not a project of the changed
+      // files alone
+      if (!body.files && !rows.has(body.id)) {
+        return refuse(r, 409, { conflict: true, updatedAt: null });
+      }
       const updatedAt = new Date().toISOString();
       rows.set(body.id, {
         id: body.id,
@@ -212,6 +243,9 @@ export const stubSignedIn = async (context: BrowserContext) => {
       if (id) rows.delete(id);
       return json(r, { deleted: true });
     }
+    if (req.method() !== "GET") {
+      return refuse(r, 405, { error: "Method not allowed" });
+    }
     if (!id) {
       const projects = Array.from(rows.values(), (row) => ({
         id: row.id,
@@ -224,7 +258,7 @@ export const stubSignedIn = async (context: BrowserContext) => {
     const row = rows.get(id);
     return row
       ? json(r, { project: row })
-      : r.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+      : refuse(r, 404, { error: "Not found" });
   });
 };
 

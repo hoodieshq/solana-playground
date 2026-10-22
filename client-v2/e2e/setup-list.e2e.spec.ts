@@ -69,8 +69,9 @@ test("client-v2-layout: Counting the steps", async ({ page }) => {
   await expect(step(page, "Connect the assistant")).toBeVisible();
 });
 
-// From a page whose editor has taken focus already: mounting late, it takes
-// focus as it opens its first file, from the control focus came back to
+// From `seededPage`, whose editor already holds focus: an editor that mounts
+// late takes focus as it opens its first file, and would take it from the
+// settings trigger this test expects focus to return to
 test("client-v2-layout: Choosing a network", async ({ seededPage: page }) => {
   const lines = linesOn(page);
   await expect(title(page)).toHaveText("Get set up· 0 of 4", LONG);

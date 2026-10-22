@@ -8,7 +8,10 @@ import { forgetTree } from "./kept-tree";
 import { useHandleItemState } from "./useHandleItemState";
 
 /** What the mocked explorer reports; each test sets its own */
-const given = vi.hoisted(() => ({ workspace: "w1" as string | undefined }));
+const given = vi.hoisted(() => ({
+  workspace: "w1" as string | undefined,
+  file: null as string | null,
+}));
 
 /** The explorer's listeners, for a test to fire as the explorer would */
 const fire = vi.hoisted(() => ({
@@ -19,10 +22,12 @@ const fire = vi.hoisted(() => ({
 // The utils barrel needs build-time globals the unit runner does not define.
 vi.mock("../../../../utils", () => ({
   PgView: { classNames: { FOLDER: "folder", OPEN: "open" } },
-  PgCommon: { sleep: () => new Promise(() => {}) },
   PgExplorer: {
     get currentWorkspaceId() {
       return given.workspace;
+    },
+    get currentFilePath() {
+      return given.file;
     },
     getElFromPath: (path: string) =>
       document.querySelector(`[data-path='${path}']`) ?? undefined,
@@ -36,14 +41,16 @@ vi.mock("../../../../utils", () => ({
       document
         .querySelectorAll(".folder")
         .forEach((el) => el.classList.remove("open")),
-    setSelectedEl: () => {},
-    removeCtxSelectedEl: () => {},
+    setSelectedEl: vi.fn(),
+    removeCtxSelectedEl: vi.fn(),
     onDidSwitchWorkspace: (cb: () => void) => {
       fire.switchWorkspace = cb;
       return { dispose: () => {} };
     },
+    // Like the explorer's, it replays the open file as it subscribes
     onDidOpenFile: (cb: (file: { path: string } | null) => void) => {
       fire.openFile = cb;
+      cb(given.file === null ? null : { path: given.file });
       return { dispose: () => {} };
     },
   },
@@ -96,7 +103,10 @@ const srcIsOpen = (workspace = "w1") =>
 beforeEach(() => {
   forgetTree();
   given.workspace = "w1";
+  given.file = null;
   vi.mocked(PgExplorer.openFolder).mockClear();
+  vi.mocked(PgExplorer.setSelectedEl).mockClear();
+  vi.mocked(PgExplorer.removeCtxSelectedEl).mockClear();
 });
 
 describe("useHandleItemState across an unmount", () => {
@@ -133,23 +143,76 @@ describe("useHandleItemState across an unmount", () => {
 });
 
 describe("useHandleItemState when a project opens", () => {
+  /** Opens a file, or closes the last one for `null`, as the explorer does */
+  const openFile = (path: string | null) => {
+    given.file = path;
+    fire.openFile(path === null ? null : { path });
+  };
+
+  const libEl = (workspace: string) =>
+    document.querySelector(`[data-path='/${workspace}/src/lib.rs']`);
+
   // `PgExplorer.switchWorkspace` announces the open file, then the switch,
   // and React draws the new project's tree some time after both: on a loaded
   // machine, after any fixed wait
   it("opens the open file's folder once the tree that holds it is drawn", () => {
     const view = render(inTheme(<Tree workspace={null} />));
-    fire.openFile({ path: "/w2/src/lib.rs" });
+    openFile("/w2/src/lib.rs");
     fire.switchWorkspace();
 
     view.rerender(inTheme(<Tree workspace="w2" />));
     expect(srcIsOpen("w2")).toBe(true);
+    expect(PgExplorer.setSelectedEl).toHaveBeenCalledWith(libEl("w2"));
   });
 
   it("opens it again after the switch shuts a tree already drawn", () => {
     render(inTheme(<Tree workspace="w2" />));
-    fire.openFile({ path: "/w2/src/lib.rs" });
+    openFile("/w2/src/lib.rs");
     fire.switchWorkspace();
 
     expect(srcIsOpen("w2")).toBe(true);
+  });
+
+  it("opens the folder of a file already open as the tree mounts", () => {
+    given.file = "/w1/src/lib.rs";
+    draw();
+    expect(srcIsOpen()).toBe(true);
+  });
+
+  it("opens it once: a folder the user shuts stays shut", () => {
+    const view = render(inTheme(<Tree workspace={null} />));
+    openFile("/w2/src/lib.rs");
+    view.rerender(inTheme(<Tree workspace="w2" />));
+
+    document.querySelector("[data-path='/w2/src/']")!.classList.remove("open");
+    view.rerender(inTheme(<Tree workspace="w2" />));
+    expect(srcIsOpen("w2")).toBe(false);
+  });
+
+  // A reveal that waited on the tree comes renders after the open, and a
+  // context menu the user opened since owns the context selection
+  it("keeps the context selection when the reveal waited on the tree", () => {
+    const view = render(inTheme(<Tree workspace={null} />));
+    openFile("/w2/src/lib.rs");
+    view.rerender(inTheme(<Tree workspace="w2" />));
+
+    expect(PgExplorer.removeCtxSelectedEl).not.toHaveBeenCalled();
+  });
+
+  it("clears the context selection when the file opens in a drawn tree", () => {
+    render(inTheme(<Tree workspace="w2" />));
+    openFile("/w2/src/lib.rs");
+
+    expect(PgExplorer.removeCtxSelectedEl).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens nothing for a file closed before its tree was drawn", () => {
+    const view = render(inTheme(<Tree workspace={null} />));
+    openFile("/w1/src/lib.rs");
+    openFile(null);
+    fire.switchWorkspace();
+
+    view.rerender(inTheme(<Tree workspace="w1" />));
+    expect(srcIsOpen()).toBe(false);
   });
 });

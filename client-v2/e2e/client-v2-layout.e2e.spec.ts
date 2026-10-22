@@ -268,8 +268,6 @@ test("client-v2-layout: An unreadable saved layout", async ({
 
 test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
   await consoleHandle(page).click();
-  // The labelled input, not the element's centre: the centre can land on the
-  // link in the welcome text, and a click on a link does not focus the terminal.
   await runInTerminal(page, "echo-marker");
   await expect(page.locator(".xterm-rows")).toContainText("echo-marker");
 

@@ -33,24 +33,29 @@ export const useHandleItemState = (
     };
   }, [rootRef]);
 
-  // The open file, and whether its folders still wait to be opened.
+  // Whether the open file's folders still wait to be opened.
   // `PgExplorer.switchWorkspace` announces the file and the switch before
   // React draws the new project's tree, and on a loaded machine that drawing
-  // outlasts any fixed wait, so the folders open once the file is in the tree
-  const reveal = useRef<{ path: string; pending: boolean } | null>(null);
+  // outlasts any fixed wait, so the folders open once the file is in the
+  // tree. The path is read when they open, from the explorer, so a file closed
+  // meanwhile is never shown again.
+  const reveal = useRef<"owed" | "settled">("settled");
 
   const revealOpenFile = (opts: { keepCtxSelected: boolean }) => {
-    const target = reveal.current;
-    if (!target?.pending || !PgExplorer.getElFromPath(target.path)) return;
-    target.pending = false;
-    openParentsAndSelectEl(target.path, opts);
+    if (reveal.current === "settled") return;
+    const path = PgExplorer.currentFilePath;
+    if (!path) {
+      reveal.current = "settled";
+      return;
+    }
+    if (!PgExplorer.getElFromPath(path)) return;
+    reveal.current = "settled";
+    openParentsAndSelectEl(path, opts);
   };
 
   // Every render: the tree this component draws may be the one the file
-  // waits for. The context selection is left alone: one made since belongs
-  // to a menu the user opened meanwhile, and the tree mounts again each time
-  // the project Sheet opens below 768 px, so clearing it here left that
-  // menu's Rename and Delete with nothing to act on.
+  // waits for. That can be renders after the open, and a context menu the
+  // user opened since is theirs, so its selection is kept.
   useLayoutEffect(() => revealOpenFile({ keepCtxSelected: true }));
 
   useEffect(() => {
@@ -58,13 +63,12 @@ export const useHandleItemState = (
       // Reset folder open/closed state, then open the way to the file the
       // switch opened, which it announced first
       PgExplorer.collapseAllFolders();
-      if (reveal.current) reveal.current.pending = true;
+      reveal.current = "owed";
       revealOpenFile({ keepCtxSelected: true });
     });
 
     const switchFile = PgExplorer.onDidOpenFile((file) => {
-      if (!file) return;
-      reveal.current = { path: file.path, pending: true };
+      reveal.current = file ? "owed" : "settled";
       revealOpenFile({ keepCtxSelected: false });
     });
 
