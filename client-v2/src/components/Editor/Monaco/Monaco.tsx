@@ -207,6 +207,9 @@ const Monaco = () => {
       monaco.editor.create(monacoRef.current, {
         automaticLayout: true,
         fontLigatures: true,
+        // Hovers and suggestions escape the column, which clips the
+        // editor's own overflow at the tab row
+        fixedOverflowWidgets: true,
       })
     );
   }, [editor, isThemeSet]);
