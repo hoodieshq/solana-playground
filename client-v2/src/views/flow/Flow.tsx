@@ -416,6 +416,10 @@ const Flow = () => {
       PgAssistant.onDidRequestPrompt(showAssistant),
       PgExplorer.onDidSwitchWorkspace(toProject),
       PgExplorer.onDidCreateWorkspace(toProject),
+      // Opening the tutorial whose address is already the path changes no
+      // path, from a list shown at that address, say: the tutorial still
+      // has to come into view
+      PgTutorial.onDidOpen(() => setView("project")),
       PgRouter.onDidChangePath((next) => {
         // Arriving in a tutorial shows its page, which is in the code; a
         // tutorial turning its own pages leaves the pane where it is

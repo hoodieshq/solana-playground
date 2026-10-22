@@ -110,6 +110,8 @@ const derive = () => ({
   }),
 });
 
+const ON_DID_OPEN = "ontutorialopen";
+
 const getTutorialsRoute = () => {
   const route = PgRouter.all.find((route) =>
     route.path.startsWith("/tutorials")
@@ -168,6 +170,27 @@ class _PgTutorial {
    * @param name tutorial name
    */
   static async open(name: string) {
+    try {
+      await this._open(name);
+    } finally {
+      // Said even when the path was already there: a view can be showing
+      // something else at a tutorial's own address, and a path that does not
+      // change tells it nothing
+      PgCommon.createAndDispatchCustomEvent(ON_DID_OPEN, name);
+    }
+  }
+
+  /**
+   * Run `cb` whenever a tutorial is asked to open.
+   *
+   * @param cb callback with the tutorial's name
+   * @returns a disposable to stop listening
+   */
+  static onDidOpen(cb: (name: string) => unknown) {
+    return PgCommon.onDidChange<string>(ON_DID_OPEN, cb);
+  }
+
+  private static async _open(name: string) {
     // Do not open if it's already open
     if (PgTutorial.current?.name === name && PgTutorial.page) return;
 
