@@ -131,6 +131,18 @@ export const clusterLabel = (
   prefix: "Cluster: " | "Change cluster, currently "
 ) => `${prefix}${cluster.name}${cluster.down ? ", down" : ""}`;
 
+/**
+ * Down when the cluster does not answer at all, or answers with a slot that
+ * does not move. `isClusterDown` alone cannot say the first: it is `null`
+ * when the cluster does not answer, and it is read again only when the
+ * cluster changes, while `isConnected` is polled. Either one still unread
+ * (`undefined`) says nothing yet.
+ */
+export const isClusterDown = (
+  isConnected: boolean | undefined,
+  slotStalled: boolean | null | undefined
+) => isConnected === false || slotStalled === true;
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -314,5 +326,21 @@ if (import.meta.vitest) {
         ).toBe("Change cluster, currently devnet, down");
       });
     });
+
+    it.each([
+      [false, null, true],
+      [false, undefined, true],
+      [true, true, true],
+      [undefined, true, true],
+      // Answers again after a failure that left the slot check at `null`
+      [true, null, false],
+      [true, false, false],
+      [undefined, undefined, false],
+    ] as const)(
+      "isClusterDown(%s, %s) is %s",
+      (isConnected, slotStalled, expected) => {
+        expect(isClusterDown(isConnected, slotStalled)).toBe(expected);
+      }
+    );
   });
 }

@@ -1,5 +1,6 @@
 import { useRenderOnChange } from "../../../hooks";
 import { PgConnection } from "../../../utils";
+import { isClusterDown } from "./account";
 
 /** The current cluster's name and whether it answers */
 export interface ClusterStatus {
@@ -10,12 +11,14 @@ export interface ClusterStatus {
 
 /**
  * The cluster status the footer's row and the rail's dot show,
- * re-rendering when either part changes
+ * re-rendering when any part changes
  */
 export const useClusterStatus = (): ClusterStatus => {
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
-  const isClusterDown = useRenderOnChange(
-    PgConnection.onDidChangeIsClusterDown
-  );
-  return { name: cluster ?? "unknown", down: isClusterDown === true };
+  const isConnected = useRenderOnChange(PgConnection.onDidChangeIsConnected);
+  const slotStalled = useRenderOnChange(PgConnection.onDidChangeIsClusterDown);
+  return {
+    name: cluster ?? "unknown",
+    down: isClusterDown(isConnected, slotStalled),
+  };
 };
