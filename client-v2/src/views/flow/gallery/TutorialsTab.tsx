@@ -8,6 +8,7 @@ import { ICONS } from "../nav/icons";
 import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 import { PgLessonSummary } from "../lessons/summary";
 import { BRAND } from "../tokens";
+import { tutorialTitle } from "./title";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -33,6 +34,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
     ? PgTutorial.all.filter(
         (t) =>
           t.name.toLowerCase().includes(q) ||
+          tutorialTitle(t.name).toLowerCase().includes(q) ||
           t.description.toLowerCase().includes(q)
       )
     : PgTutorial.all;
@@ -53,7 +55,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
               {t.framework ? ` \u00b7 ${t.framework}` : ""}
             </Eyebrow>
             <Title>
-              {t.name}
+              {tutorialTitle(t.name)}
               <LessonStatus name={t.name} />
             </Title>
             <Sub>{t.description}</Sub>
@@ -61,7 +63,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
           </Body>
           <Button
             data-shot="tutorial-open"
-            aria-label={`Open ${t.name}`}
+            aria-label={`Open ${tutorialTitle(t.name)}`}
             onClick={async () => {
               setError(null);
               try {

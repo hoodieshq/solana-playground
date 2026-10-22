@@ -16,6 +16,7 @@ import { snapshotOf } from "../../../features/persistence/model/snapshot";
 import { PgCommon, PgExplorer, PgTutorial, PgView } from "../../../utils";
 import { DeleteWorkspace } from "../../sidebar/explorer/Component/Modals";
 import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { tutorialTitle } from "../gallery/title";
 
 interface ProjectListProps {
   projects: string[];
@@ -311,7 +312,7 @@ const ProjectList: FC<ProjectListProps> = ({
               onClick={() => onOpen(name)}
             >
               <Glyph aria-hidden="true">{ICONS.folder}</Glyph>
-              <Label>{name}</Label>
+              <Label>{tutorialTitle(name)}</Label>
             </ItemButton>
             {isPinned && (
               <PinMark aria-hidden="true" title="Pinned">

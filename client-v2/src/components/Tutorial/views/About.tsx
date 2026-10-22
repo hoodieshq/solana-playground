@@ -19,6 +19,7 @@ import {
   usePhone,
 } from "../../../views/flow/phone";
 import type { TutorialAboutComponentProps } from "../types";
+import { tutorialTitle } from "../../../views/flow/gallery/title";
 
 export const About: FC<TutorialAboutComponentProps> = ({
   about,
@@ -60,7 +61,7 @@ export const About: FC<TutorialAboutComponentProps> = ({
         <GeneratedWrapper>
           <GeneratedTopWrapper>
             <GeneratedTopLeftWrapper>
-              <TutorialName>{tutorial.name}</TutorialName>
+              <TutorialName>{tutorialTitle(tutorial.name)}</TutorialName>
               <TutorialAuthorsWrapper>
                 <TutorialAuthorsByText>by </TutorialAuthorsByText>
                 {tutorial.authors.length !== 0 &&

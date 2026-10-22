@@ -63,6 +63,7 @@ import {
   PgTutorial,
   PgView,
 } from "../../utils";
+import { tutorialTitle } from "./gallery/title";
 
 /**
  * The Flow layout.
@@ -237,10 +238,11 @@ const Flow = () => {
     (!!PgExplorer.currentWorkspaceName || onTutorialRoute);
   /* On a tutorial route the workspace name is whatever was open last, which is
      not what you are looking at. */
-  const workTitle =
+  const workTitle = tutorialTitle(
     (onTutorialRoute ? PgTutorial.current?.name : undefined) ??
-    PgExplorer.currentWorkspaceName ??
-    "Project";
+      PgExplorer.currentWorkspaceName ??
+      "Project"
+  );
 
   /* The stage rail abbreviates its labels when it is genuinely short of room.
      Measured, because styled-components 5 cannot compile a container query. */

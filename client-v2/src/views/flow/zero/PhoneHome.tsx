@@ -9,6 +9,7 @@ import NewWorkspaceModal from "../gallery/NewWorkspaceModal";
 import { ICONS } from "../nav/icons";
 import { PHONE_SIZE, PHONE_TYPE } from "../phone";
 import { BRAND } from "../tokens";
+import { tutorialTitle } from "../gallery/title";
 
 /**
  * The start screen on a phone, after Claude's: the question in the middle of
@@ -42,7 +43,7 @@ const PhoneHome: FC<PhoneHomeProps> = ({ onOpenProject }) => {
       id: "continue",
       icon: ICONS.folder,
       tint: BRAND.purple,
-      title: `Continue ${last}`,
+      title: `Continue ${tutorialTitle(last)}`,
       sub: lastIsLesson ? "The tutorial you were in" : "Your last project",
       onPress: () =>
         lastIsLesson
@@ -65,7 +66,7 @@ const PhoneHome: FC<PhoneHomeProps> = ({ onOpenProject }) => {
       id: "lesson",
       icon: <BrandIcon name="tutorial" />,
       tint: BRAND.periwinkle,
-      title: lesson.name,
+      title: tutorialTitle(lesson.name),
       sub: `${lesson.level} tutorial`,
       onPress: () => PgTutorial.open(lesson.name).catch(fail),
     });
