@@ -163,7 +163,8 @@ const TutorialsTab: FC<TutorialsTabProps> = ({
                     )
                   }
                 >
-                  {open ? "Show less" : `Show all ${all.length}`}
+                  {/* The count is the heading's badge already */}
+                  {open ? "Show less" : "Show all"}
                   <Chevron $up={open} aria-hidden>
                     {ICONS.forward}
                   </Chevron>

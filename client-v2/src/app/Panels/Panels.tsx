@@ -43,6 +43,8 @@ const stageFromUrl = (): Stage => {
   const asked = (key: string) => hash === key || search.has(key);
 
   if (asked("app")) return "product";
+  /* The product's lists, linked to by name */
+  if (asked("tutorials") || asked("programs")) return "product";
   if (asked("evaluation")) return "evaluation";
   /* The design plan after the proposal, presented the same way */
   if (asked("roadmap")) return "roadmap";

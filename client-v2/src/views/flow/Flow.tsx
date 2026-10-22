@@ -146,10 +146,23 @@ const ASSISTANT_DEFAULT = 368;
    editor keeps the larger part even then. */
 const ASSISTANT_WIDE_SHARE = 0.45;
 
+/* The lists have addresses of their own, so one can be sent to someone:
+   /#tutorials and /#programs. Home stays /#app, the product's front door */
+const LIST_HASHES = ["tutorials", "programs"] as const;
+const sectionFromUrl = (): ZeroSection | null => {
+  if (window.location.pathname !== "/") return null;
+  const hash = window.location.hash.replace(/^#/, "");
+  return (LIST_HASHES as readonly string[]).includes(hash)
+    ? (hash as ZeroSection)
+    : null;
+};
+const urlForSection = (section: ZeroSection) =>
+  section === "home" ? "/#app" : `/#${section}`;
+
 const Flow = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [view, setView] = useState<View>(() =>
-    PgExplorer.currentWorkspaceName ? "project" : "home"
+    !sectionFromUrl() && PgExplorer.currentWorkspaceName ? "project" : "home"
   );
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
@@ -226,7 +239,22 @@ const Flow = () => {
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus>("panel");
   /* Which list the start screen is showing. It lives here because the sidebar
      drives it and the start screen draws it, and they are siblings. */
-  const [section, setSection] = useState<ZeroSection>("home");
+  const [section, setSection] = useState<ZeroSection>(
+    () => sectionFromUrl() ?? "home"
+  );
+  /* Back and forward move between the lists as the sidebar does */
+  useEffect(() => {
+    const sync = () => {
+      if (window.location.pathname !== "/") return;
+      const listed = sectionFromUrl();
+      if (listed || window.location.hash === "#app") {
+        setView("home");
+        setSection(listed ?? "home");
+      }
+    };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
   /* A tutorial's own pages are drawn by upstream's `Primary`, which only this
      layout's Write stage mounts. Opening one from the start screen navigated
      the router and then nothing happened at all: `PgView.setMainPrimary`
@@ -285,7 +313,9 @@ const Flow = () => {
     const sheets = Array.from(panes.children) as HTMLElement[];
     const index = sheets.findIndex((el) => el.dataset.pane === pane);
     if (index < 0) return;
-    sheets.forEach((el) => el.toggleAttribute("inert", el.dataset.pane !== pane));
+    sheets.forEach((el) =>
+      el.toggleAttribute("inert", el.dataset.pane !== pane)
+    );
     const left = index * panes.clientWidth;
     if (Math.abs(panes.scrollLeft - left) < 2) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -395,6 +425,9 @@ const Flow = () => {
     // Opening or creating a project is the moment to show the project view,
     // and on a phone its code, which is what was opened
     const toProject = () => {
+      // Arriving on a list's address stays on the list: the workspace the
+      // explorer restores is not a request to open it
+      if (sectionFromUrl()) return;
       if (PgExplorer.currentWorkspaceName) {
         setView("project");
         setPane("code");
@@ -454,15 +487,19 @@ const Flow = () => {
     leaveMenu();
     setView("home");
     setSection("home");
+    PgRouter.navigate(urlForSection("home"));
   };
   const goSection = (next: ZeroSection) => {
     leaveMenu();
     setView("home");
     setSection(next);
+    PgRouter.navigate(urlForSection(next));
   };
   const openProject = (name: string) => {
     leaveMenu();
     setPane("code");
+    // Leaving a list for a project: the address no longer names the list
+    if (sectionFromUrl()) window.history.pushState(null, "", "/#app");
     if (name === PgExplorer.currentWorkspaceName) setView("project");
     else PgExplorer.switchWorkspace(name);
   };

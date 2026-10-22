@@ -52,11 +52,19 @@ const storage = {
 
 const onDidInit = () => {
   let lastTutorialName: string | undefined;
+  // Whether the load has been settled: the resume below is for arriving,
+  // not for every later visit to the default route
+  let arrived = false;
   const disposables = [
     // Navigate to tutorial's route if the current workspace is a tutorial but
     // the user is on the default route
     PgCommon.batchChanges(() => {
+      if (arrived) return;
       if (PgRouter.location.pathname !== "/") return;
+      if (!PgExplorer.isInitialized) return;
+      arrived = true;
+      // A link to one of the lists asked for that list, not for the lesson
+      if (/^#(tutorials|programs)$/.test(window.location.hash)) return;
 
       const name = PgExplorer.currentWorkspaceName;
       if (name && PgTutorial.isWorkspaceTutorial(name)) PgTutorial.open(name);
