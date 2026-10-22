@@ -1,6 +1,5 @@
 import { test as base, expect } from "@playwright/test";
 import type { BrowserContext, Page, Route } from "@playwright/test";
-import type { ServerProject } from "../src/features/persistence/model/project-sync";
 import { isUuid } from "../src/shared/lib/ids";
 
 /** For a step that waits on the explorer, sync or a reload */
@@ -195,7 +194,14 @@ export const stubSession = (page: Page, user: unknown = TEST_USER) =>
  * same account.
  */
 export const stubSignedIn = async (context: BrowserContext) => {
-  type Row = ServerProject & { snapshot: { files: Record<string, string> } };
+  // The shape `api/projects.mjs` stores and answers with
+  type Row = {
+    id: string;
+    name: string;
+    kind: "project" | "tutorial";
+    updatedAt: string;
+    snapshot: { files: Record<string, string> };
+  };
   const refuse = (r: Route, status: number, body: unknown) =>
     r.fulfill({
       status,
