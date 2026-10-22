@@ -1,69 +1,69 @@
-# Десктопный флоу туториала: план реализации
+# Desktop tutorial flow: implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Добавить в прототип туториала десктопный вид 1440: галерея, страница туториала, шаг с двумя путями (свой код и патч ассистента), финиш, и переключатель Phone и Desktop с общим прогрессом.
+**Goal:** Add a 1440 desktop view to the tutorial prototype: gallery, tutorial page, a step with two paths (your own code and the assistant's patch), finish, and a Phone and Desktop switcher with shared progress.
 
-**Architecture:** Тот же вход `design-system/prototype/tutorial`. Данные (`data.ts`) и машина состояний (`store.tsx`) общие для обоих видов, в store добавляются правка кода и сборка своего кода. Десктопные экраны живут в `src/prototype/tutorial/desktop/`, переиспользуют части из `ui/`. Вид выбирается параметром адреса `?view=desktop`, переключение перезагружает страницу с `keep`, чтобы store открыл тот же экран.
+**Architecture:** Same entry point, `design-system/prototype/tutorial`. The data (`data.ts`) and the state machine (`store.tsx`) are shared by both views, and the store gains code editing and building your own code. Desktop screens live in `src/prototype/tutorial/desktop/` and reuse parts from `ui/`. The view is picked by the URL parameter `?view=desktop`, and switching reloads the page with `keep` so the store opens the same screen.
 
-**Tech Stack:** Vite 8, React 19, TypeScript, Tailwind 4, компоненты дизайн-системы из `design-system/src/components/ui` (shadcn), lucide-react, sonner. Тест чистой логики на встроенном `node --test` (Node 22.18+ понимает TypeScript без флагов).
+**Tech Stack:** Vite 8, React 19, TypeScript, Tailwind 4, design system components from `design-system/src/components/ui` (shadcn), lucide-react, sonner. Pure logic is tested with the built in `node --test` (Node 22.18+ understands TypeScript without flags).
 
-**Спека:** `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`. Мобильная спека `2026-10-20-mobile-tutorial-prototype-design.md` действует там, где десктопная молчит.
+**Spec:** `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`. The mobile spec `2026-10-20-mobile-tutorial-prototype-design.md` applies wherever the desktop one is silent.
 
-**Ветка:** `almaz/mobile-tutorial-prototype`, коммит после каждой задачи. Деплой в этот план не входит, он только после ок Алмаза.
-
----
-
-## Общие правила для исполнителя
-
-- Все команды из папки `solana-playground/design-system`.
-- Проверка типов: `npx tsc -p tsconfig.app.json --noEmit`. Ожидается пустой вывод и код 0.
-- Дев сервер: `preview_start` с именем `playground-design-system` (порт 5173). Мобилка: `http://localhost:5173/prototype/tutorial/`. Десктоп: `http://localhost:5173/prototype/tutorial/?view=desktop`. Окно для десктопа 1440×900 (`resize_window`), потом 1280×800.
-- В текстах интерфейса английский, как в продукте. Комментарии в коде на английском, короткими фразами без точки в конце, как в соседних файлах.
-- Классы дизайн-системы (`text-title`, `text-caption`, `text-display` и др.) пакет `cn` не сливает с классами компонента, поэтому переопределение размера в `className` компонента пишется с `!` (`text-control!`). Это известная особенность, не баг.
-- Ни в каких текстах (UI, комментарии, коммиты) не использовать длинное и среднее тире.
-
-## Карта файлов
-
-Новые:
-- `src/prototype/tutorial/check.ts`: проверка кода, набранного руками, против эталона шага. Чистая функция без React.
-- `tests/prototype/check.test.ts`: тест для `check.ts` на `node --test`.
-- `src/prototype/tutorial/view.ts`: какой вид открыт, флаг `keep`, переключение.
-- `src/prototype/tutorial/ViewSwitch.tsx`: переключатель Phone и Desktop с Reset.
-- `src/prototype/tutorial/ui/StepStatus.tsx`: строка статуса шага, общая для мобилки и десктопа (переезжает из `ActionZone`).
-- `src/prototype/tutorial/ui/StepList.tsx`: список шагов в языке StepRail (переезжает из мобильного `Overview`).
-- `src/prototype/tutorial/ui/StartOverDialog.tsx`: диалог Start over (переезжает из мобильного `Overview`).
-- `src/prototype/tutorial/ui/LessonBlocks.tsx`: блоки урока и время чтения (переезжает из `LessonSheet` и `StepScreen`).
-- `src/prototype/tutorial/ui/FinishParts.tsx`: бейдж, итоги, список выученного, карточка Up next (переезжает из мобильного `Finish`).
-- `src/prototype/tutorial/desktop/DesktopApp.tsx`: корень десктопа.
-- `src/prototype/tutorial/desktop/Nav.tsx`: навигация продукта слева.
-- `src/prototype/tutorial/desktop/Column.tsx`: колонка урока 360 px.
-- `src/prototype/tutorial/desktop/Workspace.tsx`: шапка со степпером, вкладка файла, область кода, полоса действий, терминал.
-- `src/prototype/tutorial/desktop/Editor.tsx`: редактор: поле ввода поверх подсвеченного кода.
-- `src/prototype/tutorial/desktop/Gallery.tsx`, `Overview.tsx`, `Step.tsx`, `Finish.tsx`: экраны.
-- `src/prototype/tutorial/desktop/ActionBar.tsx`: полоса действий под редактором.
-- `src/prototype/tutorial/desktop/Terminal.tsx`: статус и содержимое терминала.
-- `src/prototype/tutorial/desktop/QuickCheck.tsx`: Quick check в колонке урока.
-- `src/prototype/tutorial/desktop/Feed.tsx`: сообщения ассистента и поле вопроса.
-
-Меняются:
-- `src/prototype/tutorial/data.ts`: константа подписи транзакции.
-- `src/prototype/tutorial/store.tsx`: действия `edit` и `buildOwn`, `fixFor`, `freshLines`, флаг `keep` в `load`.
-- `src/prototype/tutorial/main.tsx`, `DeviceFrame.tsx`: выбор вида.
-- `src/prototype/tutorial/ui/ActionZone.tsx`, `ui/BuildLog.tsx`, `screens/StepScreen.tsx`, `screens/Overview.tsx`, `screens/Finish.tsx`, `sheets/ExplainSheet.tsx`, `sheets/LessonSheet.tsx`: переход на общие части, без изменения вида мобилки.
-- `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`: сверка спеки с тем, что собрано (задача 11).
+**Branch:** `almaz/mobile-tutorial-prototype`, a commit after each task. Deploying isn't part of this plan; it happens only after Almaz's ok.
 
 ---
 
-### Task 1: Проверка своего кода
+## Ground rules for whoever runs this
+
+- All commands run from the `solana-playground/design-system` folder.
+- Type check: `npx tsc -p tsconfig.app.json --noEmit`. Expected: empty output and exit code 0.
+- Dev server: `preview_start` with the name `playground-design-system` (port 5173). Mobile: `http://localhost:5173/prototype/tutorial/`. Desktop: `http://localhost:5173/prototype/tutorial/?view=desktop`. Desktop window 1440×900 (`resize_window`), then 1280×800.
+- UI copy is in English, as in the product. Code comments are in English, short phrases with no period at the end, like in the neighboring files.
+- The `cn` helper doesn't merge design system classes (`text-title`, `text-caption`, `text-display` and others) with a component's classes, so a size override in a component's `className` is written with `!` (`text-control!`). This is a known quirk, not a bug.
+- No em dashes or en dashes in any text (UI, comments, commits).
+
+## File map
+
+New:
+- `src/prototype/tutorial/check.ts`: checks hand typed code against the step's reference. A pure function, no React.
+- `tests/prototype/check.test.ts`: test for `check.ts` on `node --test`.
+- `src/prototype/tutorial/view.ts`: which view is open, the `keep` flag, switching.
+- `src/prototype/tutorial/ViewSwitch.tsx`: the Phone and Desktop switcher with Reset.
+- `src/prototype/tutorial/ui/StepStatus.tsx`: the step status line, shared by mobile and desktop (moves out of `ActionZone`).
+- `src/prototype/tutorial/ui/StepList.tsx`: the step list in the StepRail pattern (moves out of the mobile `Overview`).
+- `src/prototype/tutorial/ui/StartOverDialog.tsx`: the Start over dialog (moves out of the mobile `Overview`).
+- `src/prototype/tutorial/ui/LessonBlocks.tsx`: lesson blocks and reading time (moves out of `LessonSheet` and `StepScreen`).
+- `src/prototype/tutorial/ui/FinishParts.tsx`: badge, stats, what you learned list, Up next card (moves out of the mobile `Finish`).
+- `src/prototype/tutorial/desktop/DesktopApp.tsx`: desktop root.
+- `src/prototype/tutorial/desktop/Nav.tsx`: product navigation on the left.
+- `src/prototype/tutorial/desktop/Column.tsx`: the 360 px lesson column.
+- `src/prototype/tutorial/desktop/Workspace.tsx`: header with the stepper, file tab, code area, action bar, terminal.
+- `src/prototype/tutorial/desktop/Editor.tsx`: the editor: an input on top of highlighted code.
+- `src/prototype/tutorial/desktop/Gallery.tsx`, `Overview.tsx`, `Step.tsx`, `Finish.tsx`: screens.
+- `src/prototype/tutorial/desktop/ActionBar.tsx`: the action bar under the editor.
+- `src/prototype/tutorial/desktop/Terminal.tsx`: terminal status and contents.
+- `src/prototype/tutorial/desktop/QuickCheck.tsx`: Quick check in the lesson column.
+- `src/prototype/tutorial/desktop/Feed.tsx`: assistant messages and the question field.
+
+Changed:
+- `src/prototype/tutorial/data.ts`: a constant for the transaction signature.
+- `src/prototype/tutorial/store.tsx`: the `edit` and `buildOwn` actions, `fixFor`, `freshLines`, the `keep` flag in `load`.
+- `src/prototype/tutorial/main.tsx`, `DeviceFrame.tsx`: picking the view.
+- `src/prototype/tutorial/ui/ActionZone.tsx`, `ui/BuildLog.tsx`, `screens/StepScreen.tsx`, `screens/Overview.tsx`, `screens/Finish.tsx`, `sheets/ExplainSheet.tsx`, `sheets/LessonSheet.tsx`: switch to the shared parts, with no change to how mobile looks.
+- `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`: bring the spec in line with what was built (task 11).
+
+---
+
+### Task 1: Checking your own code
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/check.ts`
 - Test: `design-system/tests/prototype/check.test.ts`
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Write a failing test**
 
-Создать `design-system/tests/prototype/check.test.ts`:
+Create `design-system/tests/prototype/check.test.ts`:
 
 ```ts
 import assert from "node:assert/strict"
@@ -138,14 +138,14 @@ test("the client runs instead of building", () => {
 })
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падает**
+- [ ] **Step 2: Run it and make sure it fails**
 
 Run: `node --test tests/prototype/check.test.ts`
-Expected: FAIL, `Cannot find module` для `check.ts`.
+Expected: FAIL, `Cannot find module` for `check.ts`.
 
-- [ ] **Step 3: Написать `check.ts`**
+- [ ] **Step 3: Write `check.ts`**
 
-Создать `design-system/src/prototype/tutorial/check.ts`:
+Create `design-system/src/prototype/tutorial/check.ts`:
 
 ```ts
 import type { Fail } from "./data"
@@ -205,28 +205,28 @@ export function checkOwn(code: string, target: string, file: string): OwnCheck {
 }
 ```
 
-- [ ] **Step 4: Запустить тест**
+- [ ] **Step 4: Run the test**
 
 Run: `node --test tests/prototype/check.test.ts`
 Expected: PASS, `# pass 6`, `# fail 0`.
 
-- [ ] **Step 5: Проверить типы**
+- [ ] **Step 5: Check types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пустой вывод.
+Expected: empty output.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/prototype/tutorial/check.ts tests/prototype/check.test.ts
-git commit -m "Прототип туториала: проверка кода, набранного руками
+git commit -m "Tutorial prototype: check hand typed code
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 2: Store понимает свой код, флаг keep
+### Task 2: The store understands your own code, the keep flag
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/view.ts`
@@ -235,7 +235,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `design-system/src/prototype/tutorial/ui/ActionZone.tsx:10,69`
 - Modify: `design-system/src/prototype/tutorial/sheets/ExplainSheet.tsx:8,16,21`
 
-- [ ] **Step 1: Создать `view.ts`**
+- [ ] **Step 1: Create `view.ts`**
 
 ```ts
 export type View = "phone" | "desktop"
@@ -264,9 +264,9 @@ export function switchView(to: View) {
 }
 ```
 
-- [ ] **Step 2: Типы и действия в `store.tsx`**
+- [ ] **Step 2: Types and actions in `store.tsx`**
 
-Заменить импорт в начале файла:
+Replace the import at the top of the file:
 
 ```ts
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react"
@@ -277,7 +277,7 @@ import { diffLines } from "./diff"
 import { KEEP } from "./view"
 ```
 
-В типе `State` заменить два поля:
+In the `State` type, replace two fields:
 
 ```ts
   /** Which patch was applied last on this step, or "own" for code written by hand */
@@ -289,16 +289,16 @@ import { KEEP } from "./view"
   error: { line: number; reason: string; explain?: string } | null
 ```
 
-В `Action` добавить две строки после `| { type: "apply" }`:
+In `Action`, add two lines after `| { type: "apply" }`:
 
 ```ts
   | { type: "edit"; code: string }
   | { type: "buildOwn" }
 ```
 
-- [ ] **Step 3: Помощники в `store.tsx`**
+- [ ] **Step 3: Helpers in `store.tsx`**
 
-Заменить функцию `lastResult` целиком на:
+Replace the whole `lastResult` function with:
 
 ```ts
 /** The code a step checks hand-written work against: what its fix leaves, or its patch when it has no fix */
@@ -355,16 +355,16 @@ export function freshLines(s: State): number[] {
 }
 ```
 
-- [ ] **Step 4: Ветки reducer**
+- [ ] **Step 4: Reducer branches**
 
-Заменить `case "reviewFix":`:
+Replace `case "reviewFix":`:
 
 ```ts
     case "reviewFix":
       return fixFor(s) ? { ...s, phase: "patch", review: "fix", sheet: false } : s
 ```
 
-Заменить `case "apply":` целиком:
+Replace the whole `case "apply":`:
 
 ```ts
     case "apply": {
@@ -391,7 +391,7 @@ export function freshLines(s: State): number[] {
       return { ...s, applied: "own", phase: "building", sheet: false, error: null, log: [] }
 ```
 
-В `case "built":` заменить возврат для неудачи:
+In `case "built":`, replace the return for a failure:
 
 ```ts
       return {
@@ -404,9 +404,9 @@ export function freshLines(s: State): number[] {
       }
 ```
 
-- [ ] **Step 5: `load` открывает тот же экран при keep**
+- [ ] **Step 5: `load` opens the same screen with keep**
 
-Заменить строку `return { ...saved, screen: "gallery", phase: resting(saved), sheet: false }` и комментарий над ней:
+Replace the line `return { ...saved, screen: "gallery", phase: resting(saved), sheet: false }` and the comment above it:
 
 ```ts
       // A reload comes back through the gallery, where Continue picks the tutorial up. Switching
@@ -415,23 +415,23 @@ export function freshLines(s: State): number[] {
       return { ...saved, screen: KEEP ? saved.screen : "gallery", phase, sheet: false }
 ```
 
-- [ ] **Step 6: Мобилка берёт фикс через `fixFor`**
+- [ ] **Step 6: Mobile gets the fix through `fixFor`**
 
-В `screens/StepScreen.tsx` строку 71 заменить на:
+In `screens/StepScreen.tsx`, replace line 71 with:
 
 ```ts
   const proposal = s.phase === "patch" ? (s.review === "fix" ? fixFor(s) : step.patch) ?? null : null
 ```
 
-и импорт store на `import { fixFor, useStore } from "../store"`.
+and the store import with `import { fixFor, useStore } from "../store"`.
 
-В `ui/ActionZone.tsx` импорт store заменить на `import { fixFor, lastResult, useStore } from "../store"`, строку 69 на:
+In `ui/ActionZone.tsx`, replace the store import with `import { fixFor, lastResult, useStore } from "../store"`, and line 69 with:
 
 ```ts
     const proposal = s.review === "fix" ? fixFor(s) : step.patch
 ```
 
-В `sheets/ExplainSheet.tsx` импорт store заменить на `import { fixFor, useStore } from "../store"`, а две строки в `Body`:
+In `sheets/ExplainSheet.tsx`, replace the store import with `import { fixFor, useStore } from "../store"`, and two lines in `Body`:
 
 ```ts
   const withFix = mode === "error" && !!fixFor(s)
@@ -441,31 +441,31 @@ export function freshLines(s: State): number[] {
   const text = withFix ? s.error?.explain ?? step.explainError ?? "" : step.explainStep
 ```
 
-- [ ] **Step 7: Проверить типы и тест**
+- [ ] **Step 7: Check types and the test**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && node --test tests/prototype/check.test.ts`
-Expected: tsc пусто, тест `# pass 6`.
+Expected: tsc empty, test `# pass 6`.
 
-- [ ] **Step 8: Мобилка не сломалась**
+- [ ] **Step 8: Mobile isn't broken**
 
-Открыть `http://localhost:5173/prototype/tutorial/`, кнопка Reset, пройти шаг 1: Write with assistant, Quick check, Apply, сборка падает, Explain, Review the fix, Apply and build, зелёный Next. Ожидается то же поведение, что до изменений, без ошибок в `read_console_messages`.
+Open `http://localhost:5173/prototype/tutorial/`, press Reset, go through step 1: Write with assistant, Quick check, Apply, the build fails, Explain, Review the fix, Apply and build, green Next. Expected: the same behavior as before the change, with no errors in `read_console_messages`.
 
-- [ ] **Step 9: Коммит**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/prototype/tutorial/view.ts src/prototype/tutorial/store.tsx src/prototype/tutorial/screens/StepScreen.tsx src/prototype/tutorial/ui/ActionZone.tsx src/prototype/tutorial/sheets/ExplainSheet.tsx
-git commit -m "Прототип туториала: store собирает код, набранный руками, и помнит экран при смене вида
+git commit -m "Tutorial prototype: the store builds hand typed code and remembers the screen when the view changes
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 3: Переключатель Phone и Desktop
+### Task 3: Phone and Desktop switcher
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/ViewSwitch.tsx`
-- Create: `design-system/src/prototype/tutorial/desktop/DesktopApp.tsx` (временная заглушка, заменяется в задаче 5)
+- Create: `design-system/src/prototype/tutorial/desktop/DesktopApp.tsx` (a temporary stub, replaced in task 5)
 - Modify: `design-system/src/prototype/tutorial/DeviceFrame.tsx`
 - Modify: `design-system/src/prototype/tutorial/main.tsx`
 
@@ -534,7 +534,7 @@ export function ViewSwitch({ onReset, floating = false }: { onReset: () => void;
 }
 ```
 
-- [ ] **Step 2: Заглушка `desktop/DesktopApp.tsx`**
+- [ ] **Step 2: Stub `desktop/DesktopApp.tsx`**
 
 ```tsx
 import { useStore } from "../store"
@@ -547,7 +547,7 @@ export function DesktopApp() {
 
 - [ ] **Step 3: `DeviceFrame.tsx`**
 
-Импорты заменить на:
+Replace the imports with:
 
 ```tsx
 import { useRef } from "react"
@@ -558,13 +558,13 @@ import { KEEP } from "./view"
 import { ViewSwitch } from "./ViewSwitch"
 ```
 
-У `iframe` заменить `src`:
+On the `iframe`, replace `src`:
 
 ```tsx
             src={`${location.pathname}?embed${KEEP ? "&keep=1" : ""}`}
 ```
 
-Нижнюю строку под рамкой заменить целиком:
+Replace the whole bottom row under the frame:
 
 ```tsx
       <div className="flex items-center gap-3 text-caption text-muted-foreground">
@@ -575,7 +575,7 @@ import { ViewSwitch } from "./ViewSwitch"
 
 - [ ] **Step 4: `main.tsx`**
 
-Файл целиком:
+The whole file:
 
 ```tsx
 import { StrictMode } from "react"
@@ -626,33 +626,33 @@ createRoot(document.getElementById("root")!).render(
 )
 ```
 
-- [ ] **Step 5: Проверить типы**
+- [ ] **Step 5: Check types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пусто.
+Expected: empty.
 
-- [ ] **Step 6: Проверить в браузере**
+- [ ] **Step 6: Check in the browser**
 
-1. `http://localhost:5173/prototype/tutorial/`, Reset. Под рамкой подпись и переключатель Phone (выбран), Desktop, Reset.
-2. В телефоне открыть Hello Anchor, Start. Нажать Desktop. Адрес становится `?view=desktop` без `keep`, на экране «Desktop · step», в правом нижнем углу плашка.
-3. Свернуть плашку стрелкой, развернуть кнопкой Prototype.
-4. Нажать Phone: телефон открывается на шаге 1, а не на галерее.
-5. Перезагрузить страницу: телефон на галерее с карточкой «Pick up where you left off».
+1. `http://localhost:5173/prototype/tutorial/`, Reset. Under the frame: a label and the Phone (selected), Desktop, Reset switcher.
+2. In the phone open Hello Anchor, Start. Press Desktop. The URL becomes `?view=desktop` without `keep`, the screen shows "Desktop · step", and there's a badge in the bottom right corner.
+3. Collapse the badge with the arrow, expand it with the Prototype button.
+4. Press Phone: the phone opens on step 1, not on the gallery.
+5. Reload the page: the phone is on the gallery with the "Pick up where you left off" card.
 
-- [ ] **Step 7: Коммит**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/prototype/tutorial/ViewSwitch.tsx src/prototype/tutorial/desktop/DesktopApp.tsx src/prototype/tutorial/DeviceFrame.tsx src/prototype/tutorial/main.tsx
-git commit -m "Прототип туториала: переключатель Phone и Desktop с общим прогрессом
+git commit -m "Tutorial prototype: Phone and Desktop switcher with shared progress
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 4: Общие части мобилки выносятся в ui/
+### Task 4: Shared mobile parts move to ui/
 
-Вид мобилки не меняется. Цель: десктоп переиспользует те же части.
+How mobile looks doesn't change. The goal: desktop reuses the same parts.
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/ui/StepStatus.tsx`, `ui/StepList.tsx`, `ui/StartOverDialog.tsx`, `ui/LessonBlocks.tsx`, `ui/FinishParts.tsx`
@@ -742,9 +742,9 @@ export function StepStatus({ lead }: { lead?: Lead }) {
 }
 ```
 
-- [ ] **Step 2: `ui/ActionZone.tsx` на `StepStatus`**
+- [ ] **Step 2: `ui/ActionZone.tsx` on `StepStatus`**
 
-Файл целиком:
+The whole file:
 
 ```tsx
 import { ArrowRight, MessageCircle } from "lucide-react"
@@ -877,21 +877,21 @@ export function LessonBlocks({ blocks }: { blocks: LessonBlock[] }) {
 }
 ```
 
-В `sheets/LessonSheet.tsx`: удалить функцию `Block` и импорты `CodeBlock`, `CodeBlockContent`, `highlight`, `Prose`, тип `LessonBlock`; импорт данных сделать `import { STEPS } from "../data"`; добавить `import { LessonBlocks } from "../ui/LessonBlocks"`; содержимое прокручиваемого `div` заменить на `<LessonBlocks blocks={step.lesson} />`.
+In `sheets/LessonSheet.tsx`: delete the `Block` function and the imports of `CodeBlock`, `CodeBlockContent`, `highlight`, `Prose`, and the `LessonBlock` type; make the data import `import { STEPS } from "../data"`; add `import { LessonBlocks } from "../ui/LessonBlocks"`; replace the contents of the scrolling `div` with `<LessonBlocks blocks={step.lesson} />`.
 
-В `screens/StepScreen.tsx`: удалить функцию `readingMinutes` и комментарий над ней, добавить `import { readingMinutes } from "../ui/LessonBlocks"`, импорт данных сделать `import { STEPS } from "../data"`.
+In `screens/StepScreen.tsx`: delete the `readingMinutes` function and the comment above it, add `import { readingMinutes } from "../ui/LessonBlocks"`, and make the data import `import { STEPS } from "../data"`.
 
-- [ ] **Step 4: `freshLines` в мобильном шаге**
+- [ ] **Step 4: `freshLines` in the mobile step**
 
-В `screens/StepScreen.tsx` удалить `appliedPatch` и весь расчёт `fresh` (от комментария `// What the last patch added stays tinted` до `: []`), вместо них:
+In `screens/StepScreen.tsx`, delete `appliedPatch` and the whole `fresh` calculation (from the `// What the last patch added stays tinted` comment to `: []`), and put this in their place:
 
 ```ts
   const fresh = freshLines(s)
 ```
 
-Импорт store: `import { fixFor, freshLines, useStore } from "../store"`. Удалить `import { diffLines } from "../diff"`.
+Store import: `import { fixFor, freshLines, useStore } from "../store"`. Delete `import { diffLines } from "../diff"`.
 
-- [ ] **Step 5: `ui/StepList.tsx` и `ui/StartOverDialog.tsx`**
+- [ ] **Step 5: `ui/StepList.tsx` and `ui/StartOverDialog.tsx`**
 
 `ui/StepList.tsx`:
 
@@ -1001,7 +1001,7 @@ export function StartOverDialog({ open, onOpenChange }: { open: boolean; onOpenC
 }
 ```
 
-`screens/Overview.tsx` целиком:
+The whole `screens/Overview.tsx`:
 
 ```tsx
 import { useState } from "react"
@@ -1088,15 +1088,15 @@ export function Overview() {
 }
 ```
 
-- [ ] **Step 6: `ui/FinishParts.tsx` и мобильный `Finish`**
+- [ ] **Step 6: `ui/FinishParts.tsx` and the mobile `Finish`**
 
-`data.ts`: перед `export const STEPS` добавить
+`data.ts`: before `export const STEPS`, add
 
 ```ts
 export const TX_SIGNATURE = "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn"
 ```
 
-и в логе клиента (шаг `call-client`) строку с подписью заменить на
+and in the client log (the `call-client` step), replace the line with the signature with
 
 ```ts
           `Use 'solana confirm -v ${TX_SIGNATURE}' to see the logs`,
@@ -1191,7 +1191,7 @@ export function UpNextCard({ className }: { className?: string }) {
 }
 ```
 
-`screens/Finish.tsx` целиком:
+The whole `screens/Finish.tsx`:
 
 ```tsx
 import { X } from "lucide-react"
@@ -1232,40 +1232,40 @@ export function Finish() {
 }
 ```
 
-- [ ] **Step 7: `BuildLog` принимает свой пустой текст**
+- [ ] **Step 7: `BuildLog` takes its own empty text**
 
-В `ui/BuildLog.tsx` заменить сигнатуру и первую ветку:
+In `ui/BuildLog.tsx`, replace the signature and the first branch:
 
 ```tsx
 export function BuildLog({ log, empty = "Nothing built yet. The build runs after you apply a patch." }: { log: string[]; empty?: string }) {
   if (log.length === 0) return <p className="flex-1 px-4 py-6 text-caption text-muted-foreground">{empty}</p>
 ```
 
-- [ ] **Step 8: Типы и lint**
+- [ ] **Step 8: Types and lint**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npx oxlint src/prototype/tutorial`
-Expected: tsc пусто, oxlint `Found 0 errors`.
+Expected: tsc empty, oxlint `Found 0 errors`.
 
-- [ ] **Step 9: Мобилка выглядит как раньше**
+- [ ] **Step 9: Mobile looks as before**
 
-В Phone пройти весь сценарий от галереи до финиша: обзор (список шагов, Start over с диалогом), шаг 1 с ошибкой и фиксом, деплой, клиент, шаг 4, финиш. Сравнить скриншоты обзора, шага 1 в состоянии «не прошло» и финиша с теми же экранами до задачи (`git stash` для сравнения не нужен: в этой задаче ни одного класса не поменялось, достаточно глазами). Ошибок в консоли нет.
+In Phone, go through the whole scenario from the gallery to the finish: overview (the step list, Start over with the dialog), step 1 with the error and the fix, deploy, client, step 4, finish. Compare screenshots of the overview, step 1 in the "failed" state and the finish with the same screens before the task (no need for `git stash` to compare: not a single class changed in this task, so eyeballing is enough). No errors in the console.
 
-- [ ] **Step 10: Коммит**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/prototype/tutorial
-git commit -m "Прототип туториала: общие части шага, обзора, урока и финиша вынесены в ui
+git commit -m "Tutorial prototype: shared step, overview, lesson and finish parts moved to ui
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 5: Оболочка десктопа и редактор
+### Task 5: Desktop shell and editor
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/desktop/Nav.tsx`, `Column.tsx`, `Workspace.tsx`, `Editor.tsx`
-- Create (заглушки, заменяются в задачах 6, 7, 9, 10): `desktop/Gallery.tsx`, `desktop/Overview.tsx`, `desktop/Step.tsx`, `desktop/Finish.tsx`
+- Create (stubs, replaced in tasks 6, 7, 9, 10): `desktop/Gallery.tsx`, `desktop/Overview.tsx`, `desktop/Step.tsx`, `desktop/Finish.tsx`
 - Modify: `design-system/src/prototype/tutorial/desktop/DesktopApp.tsx`
 
 - [ ] **Step 1: `desktop/Nav.tsx`**
@@ -1541,7 +1541,7 @@ export function Workspace({
 }
 ```
 
-- [ ] **Step 5: Заглушки экранов и корень**
+- [ ] **Step 5: Screen stubs and the root**
 
 `desktop/Gallery.tsx`:
 
@@ -1567,7 +1567,7 @@ export function Finish() {
 }
 ```
 
-`desktop/Step.tsx` (временно, чтобы проверить редактор и оболочку):
+`desktop/Step.tsx` (temporary, to check the editor and the shell):
 
 ```tsx
 import { STEPS } from "../data"
@@ -1592,7 +1592,7 @@ export function Step() {
 }
 ```
 
-`desktop/DesktopApp.tsx` целиком:
+The whole `desktop/DesktopApp.tsx`:
 
 ```tsx
 import { Toaster } from "@/components/ui/sonner"
@@ -1621,36 +1621,36 @@ export function DesktopApp() {
 }
 ```
 
-- [ ] **Step 6: Типы**
+- [ ] **Step 6: Types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пусто.
+Expected: empty.
 
-- [ ] **Step 7: Проверить редактор**
+- [ ] **Step 7: Check the editor**
 
-В Phone открыть шаг 1 (Start), переключиться в Desktop. Окно 1440×900.
-1. Навигация слева с подписями, Tutorials не подсвечен, подсвечен Hello Anchor.
-2. Шапка: «Hello Anchor» и степпер, выбран Write.
-3. Кликнуть в редактор, напечатать `use anchor_lang::prelude::*;`, Enter, Tab. Каретка стоит ровно на последнем символе, подсветка синтаксиса совпадает с набранным, Tab вставил 4 пробела. Проверка через `javascript_tool`: `getComputedStyle(document.querySelector('textarea')).lineHeight === getComputedStyle(document.querySelector('pre')).lineHeight` возвращает `true`.
-4. Окно 1280×800: навигация с подписями. 1200×800: навигация рейлом с иконками, у кнопок есть подсказки.
+In Phone open step 1 (Start), switch to Desktop. Window 1440×900.
+1. Navigation on the left with labels, Tutorials isn't highlighted, Hello Anchor is.
+2. Header: "Hello Anchor" and the stepper, with Write selected.
+3. Click into the editor, type `use anchor_lang::prelude::*;`, Enter, Tab. The caret sits exactly after the last character, the syntax highlighting matches what was typed, and Tab inserted 4 spaces. Check with `javascript_tool`: `getComputedStyle(document.querySelector('textarea')).lineHeight === getComputedStyle(document.querySelector('pre')).lineHeight` returns `true`.
+4. Window 1280×800: navigation with labels. 1200×800: navigation as an icon rail, and the buttons have tooltips.
 
-- [ ] **Step 8: Коммит**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop
-git commit -m "Десктоп туториала: навигация, рабочая область со степпером и терминалом, редактор
+git commit -m "Tutorial desktop: navigation, workspace with the stepper and terminal, editor
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 6: Галерея на десктопе
+### Task 6: Desktop gallery
 
 **Files:**
-- Modify (заменить заглушку): `design-system/src/prototype/tutorial/desktop/Gallery.tsx`
+- Modify (replace the stub): `design-system/src/prototype/tutorial/desktop/Gallery.tsx`
 
-- [ ] **Step 1: Написать экран**
+- [ ] **Step 1: Write the screen**
 
 ```tsx
 import { useState } from "react"
@@ -1812,32 +1812,32 @@ export function Gallery() {
 }
 ```
 
-- [ ] **Step 2: Типы**
+- [ ] **Step 2: Types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пусто.
+Expected: empty.
 
-- [ ] **Step 3: Проверить в браузере**
+- [ ] **Step 3: Check in the browser**
 
-`?view=desktop`, Reset, 1440×900. Галерея: заголовок, вкладки и поиск в одном ряду, сетка в 3 колонки, 16 карточек с обложками. Поиск «sea» даёт «4 results». Programs показывает пустое состояние, «Back to tutorials» возвращает. Клик по чужой карточке даёт тост. Открыть Hello Anchor, вернуться в галерею навигацией Tutorials после Start: сверху карточка «Pick up where you left off» не шире 608 px, у Hello Anchor «In progress». 1200 px: сетка в 2 колонки. Скриншот.
+`?view=desktop`, Reset, 1440×900. Gallery: heading, tabs and search in one row, a 3 column grid, 16 cards with covers. Searching "sea" gives "4 results". Programs shows the empty state, and "Back to tutorials" goes back. A click on another tutorial's card shows a toast. Open Hello Anchor, then after Start go back to the gallery through the Tutorials nav item: the "Pick up where you left off" card is on top, no wider than 608 px, and Hello Anchor shows "In progress". At 1200 px: a 2 column grid. Screenshot.
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop/Gallery.tsx
-git commit -m "Десктоп туториала: галерея
+git commit -m "Tutorial desktop: gallery
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 7: Страница туториала на десктопе
+### Task 7: Desktop tutorial page
 
 **Files:**
-- Modify (заменить заглушку): `design-system/src/prototype/tutorial/desktop/Overview.tsx`
+- Modify (replace the stub): `design-system/src/prototype/tutorial/desktop/Overview.tsx`
 
-- [ ] **Step 1: Написать экран**
+- [ ] **Step 1: Write the screen**
 
 ```tsx
 import { useState } from "react"
@@ -1922,29 +1922,29 @@ export function Overview() {
 }
 ```
 
-- [ ] **Step 2: Типы**
+- [ ] **Step 2: Types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пусто.
+Expected: empty.
 
-- [ ] **Step 3: Проверить в браузере**
+- [ ] **Step 3: Check in the browser**
 
-Reset, галерея, Hello Anchor. Колонка 360: «← Tutorials», обложка, название, мета, цель, список из 4 шагов, кнопка Start внизу колонки. Справа приглушённый редактор, в шапке файла «Start to edit», напечатать нельзя. Start открывает шаг, навигация Tutorials и снова Hello Anchor: «Continue from step 1», «Start over» спрашивает подтверждение. Скриншот.
+Reset, gallery, Hello Anchor. The 360 column: "← Tutorials", cover, title, meta, goal, a list of 4 steps, the Start button at the bottom of the column. On the right a dimmed editor with "Start to edit" in the file header, and you can't type. Start opens the step; then the Tutorials nav item and Hello Anchor again: "Continue from step 1", and "Start over" asks for confirmation. Screenshot.
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop/Overview.tsx
-git commit -m "Десктоп туториала: страница туториала в колонке урока
+git commit -m "Tutorial desktop: tutorial page in the lesson column
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 8: Части экрана шага
+### Task 8: Step screen parts
 
-Каждый файл самостоятельный, собираются вместе в задаче 9.
+Each file stands on its own; they come together in task 9.
 
 **Files:**
 - Create: `design-system/src/prototype/tutorial/desktop/ActionBar.tsx`, `Terminal.tsx`, `QuickCheck.tsx`, `Feed.tsx`
@@ -2257,28 +2257,28 @@ export function AskBox({ placeholder, suggestions, onAsk }: { placeholder: strin
 }
 ```
 
-- [ ] **Step 5: Типы и lint**
+- [ ] **Step 5: Types and lint**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npx oxlint src/prototype/tutorial/desktop`
-Expected: tsc пусто, `Found 0 errors`.
+Expected: tsc empty, `Found 0 errors`.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop
-git commit -m "Десктоп туториала: полоса действий, терминал, Quick check и лента ассистента
+git commit -m "Tutorial desktop: action bar, terminal, Quick check and assistant feed
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 9: Экран шага на десктопе
+### Task 9: Desktop step screen
 
 **Files:**
-- Modify (заменить временный файл): `design-system/src/prototype/tutorial/desktop/Step.tsx`
+- Modify (replace the temporary file): `design-system/src/prototype/tutorial/desktop/Step.tsx`
 
-- [ ] **Step 1: Написать экран**
+- [ ] **Step 1: Write the screen**
 
 ```tsx
 import { useEffect, useRef, useState } from "react"
@@ -2519,49 +2519,49 @@ export function Step() {
 }
 ```
 
-- [ ] **Step 2: Типы и lint**
+- [ ] **Step 2: Types and lint**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npx oxlint src/prototype/tutorial/desktop`
-Expected: tsc пусто, `Found 0 errors`.
+Expected: tsc empty, `Found 0 errors`.
 
-- [ ] **Step 3: Путь через ассистента**
+- [ ] **Step 3: The assistant path**
 
 `?view=desktop`, Reset, 1440×900, Hello Anchor, Start.
-1. Колонка: «0 of 4» с полоской, ✕, «Program», цель, чип «Read the lesson · 1 min», под ним поле с подсказками «Explain this step», «Why is this needed», «Show in docs». Редактор с `// Import anchor`, подсказка под кодом. Полоса: «Done when the build shows a hello instruction», «Write with assistant», «Build ⌘B».
-2. Write with assistant: Quick check в колонке, полоса «Answer the quick check to see the code, or skip it», кнопок нет, строки фокуса подсвечены.
-3. Неверный ответ: появился дифф, открыта заметка у строки 5, в статусе «Not quite.» с лампочкой, кнопки Discard и Apply and build, в шапке файла «Show notes».
-4. Apply and build: терминал раскрылся, «$ anchor build» со спиннером, в степпере Build с пульсом. Через 2.4 с ошибка E0412, строка 9 красная, Build в степпере красный с «1 error», кнопка Explain.
-5. Explain: в колонке сообщение Assistant с цитатой `src/lib.rs:9` и текстом, кнопка сменилась на Review the fix. Review the fix: дифф со структурой Hello, Apply and build, зелёный статус, «Next step», в колонке фраза «Next: Deploy the program to devnet.», в шапке файла «Undo patch».
-6. Enter (фокус не в поле): шаг 2.
-Скриншоты состояний 2, 4, 5.
+1. Column: "0 of 4" with the bar, ✕, "Program", the goal, the "Read the lesson · 1 min" chip, and under it the field with the suggestions "Explain this step", "Why is this needed", "Show in docs". The editor with `// Import anchor` and the hint under the code. Bar: "Done when the build shows a hello instruction", "Write with assistant", "Build ⌘B".
+2. Write with assistant: Quick check in the column, the bar shows "Answer the quick check to see the code, or skip it", no buttons, the focus lines are highlighted.
+3. Wrong answer: the diff appears, the note on line 5 is open, the status shows "Not quite." with the light bulb, the Discard and Apply and build buttons, "Show notes" in the file header.
+4. Apply and build: the terminal expands, "$ anchor build" with a spinner, Build pulsing in the stepper. After 2.4 s error E0412, line 9 red, Build in the stepper red with "1 error", the Explain button.
+5. Explain: an Assistant message in the column with the `src/lib.rs:9` quote and text, and the button changes to Review the fix. Review the fix: a diff with the Hello struct, Apply and build, green status, "Next step", the line "Next: Deploy the program to devnet." in the column, "Undo patch" in the file header.
+6. Enter (focus not in a field): step 2.
+Screenshots of states 2, 4, 5.
 
-- [ ] **Step 4: Свой код и деплой**
+- [ ] **Step 4: Your own code and deploy**
 
-1. На шаге 2: «Deploy to devnet ⌘B», нажать ⌘B. В степпере выбран Deploy, в терминале три стадии по очереди, потом лог и строка Program id с Copy и Explorer, статус «Live on devnet...», Next step.
-2. Reset, Start, в редакторе стереть всё и вставить код из `LIB_BROKEN` без `Ok(())` (тест `NO_OK`), ⌘B: ошибка E0308 на строке 9, Explain даёт текст про `Ok(())`, Review the fix показывает дифф от набранного к эталону, Apply and build проходит.
-3. Reset, Start, вставить эталон с другими отступами, ⌘B: шаг проходит с первой попытки.
-4. Набрать строку в редакторе после ошибки: красная строка пропадает, кнопка снова Build.
-5. Read the lesson: урок в колонке, «Back to the step» и Esc возвращают.
-6. Вопрос в поле ввода: свой пузырь и ответ про свободный чат. Подсказка «Why is this needed»: вопрос и заготовленный ответ, подсказка пропадает из списка.
-7. Переключить Phone посреди шага 1 в состоянии «не прошло» после своего кода: телефон открывается на шаге 1, Explain там же даёт текст для своего кода.
+1. On step 2: "Deploy to devnet ⌘B", press ⌘B. Deploy is selected in the stepper, the terminal shows three stages one after another, then the log and the Program id line with Copy and Explorer, status "Live on devnet...", Next step.
+2. Reset, Start, clear everything in the editor and paste the code from `LIB_BROKEN` without `Ok(())` (the `NO_OK` test), ⌘B: error E0308 on line 9, Explain gives the text about `Ok(())`, Review the fix shows a diff from the typed code to the reference, Apply and build passes.
+3. Reset, Start, paste the reference with different indentation, ⌘B: the step passes on the first try.
+4. Type a line in the editor after an error: the red line goes away, and the button is Build again.
+5. Read the lesson: the lesson in the column, "Back to the step" and Esc go back.
+6. A question in the input field: your own bubble and the answer about free chat. The "Why is this needed" suggestion: the question and the canned answer, and the suggestion drops off the list.
+7. Switch to Phone in the middle of step 1 in the "failed" state after your own code: the phone opens on step 1, and Explain there gives the text for your own code.
 
-- [ ] **Step 5: Коммит**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop/Step.tsx
-git commit -m "Десктоп туториала: экран шага с двумя путями, Explain в колонке урока и клавишами
+git commit -m "Tutorial desktop: step screen with two paths, Explain in the lesson column, and keys
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 10: Финиш на десктопе
+### Task 10: Desktop finish
 
 **Files:**
-- Modify (заменить заглушку): `design-system/src/prototype/tutorial/desktop/Finish.tsx`
+- Modify (replace the stub): `design-system/src/prototype/tutorial/desktop/Finish.tsx`
 
-- [ ] **Step 1: Написать экран**
+- [ ] **Step 1: Write the screen**
 
 ```tsx
 import { ExternalLink } from "lucide-react"
@@ -2624,56 +2624,56 @@ export function Finish() {
 }
 ```
 
-- [ ] **Step 2: Типы**
+- [ ] **Step 2: Types**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: пусто.
+Expected: empty.
 
-- [ ] **Step 3: Проверить в браузере**
+- [ ] **Step 3: Check in the browser**
 
-Пройти шаги 3 и 4 (через ассистента), Finish tutorial. Навигация слева на месте, колонки урока нет. Бейдж появился с анимацией, итоги «4/4», «3/4», минуты, два столбца, подпись транзакции ведёт в Explorer devnet, Up next с кольцом, две кнопки. На 1440×900 всё видно без прокрутки или с минимальной. Скриншот.
+Go through steps 3 and 4 (with the assistant), Finish tutorial. Navigation on the left is in place, no lesson column. The badge appears with the animation, stats "4/4", "3/4", minutes, two columns, the transaction signature links to the devnet Explorer, Up next with the ring, two buttons. At 1440×900 everything fits without scrolling, or with minimal scrolling. Screenshot.
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/prototype/tutorial/desktop/Finish.tsx
-git commit -m "Десктоп туториала: финиш с последней транзакцией
+git commit -m "Tutorial desktop: finish with the last transaction
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 11: Полный прогон и сверка спеки
+### Task 11: Full run and spec check
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`
 
-- [ ] **Step 1: Сборка прототипа**
+- [ ] **Step 1: Prototype build**
 
 Run: `npm run build:prototype`
-Expected: сборка без ошибок, в `dist-prototype/prototype/tutorial/index.html`.
+Expected: the build has no errors, output in `dist-prototype/prototype/tutorial/index.html`.
 
-- [ ] **Step 2: Полный прогон на 1440×900 и 1280×800**
+- [ ] **Step 2: Full run at 1440×900 and 1280×800**
 
-Desktop: галерея, страница туториала, 4 шага, финиш, оба пути на шагах 1 и 4, Undo patch на «прошло» и «не прошло», Start over, перезагрузка посреди шага (галерея с карточкой продолжения), клавиши ⌘B, Enter, Esc, ⌘J для терминала. Phone: тот же сценарий целиком, мобилка выглядит как до этой работы. Переключение Phone и Desktop в каждом состоянии шага: idle, разбор патча, «не прошло», «прошло». В консоли нет ошибок. Фокус виден с клавиатуры (Tab по колонке и полосе действий).
+Desktop: gallery, tutorial page, 4 steps, finish, both paths on steps 1 and 4, Undo patch on "passed" and "failed", Start over, a reload mid step (gallery with the continue card), the keys ⌘B, Enter, Esc, ⌘J for the terminal. Phone: the same whole scenario, and mobile looks as it did before this work. Switch Phone and Desktop in every step state: idle, patch walkthrough, "failed", "passed". No errors in the console. Focus is visible from the keyboard (Tab through the column and the action bar).
 
-- [ ] **Step 3: Сверить спеку с собранным**
+- [ ] **Step 3: Check the spec against what was built**
 
-В `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`:
+In `docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md`:
 
-1. В разделе «3. Шаг: старт» заменить «название этапа мелко («Program»); цель шага 20 px; одна строка задания с кодом в плашках; чип «Read the lesson · N min».» на «название этапа мелко («Program»); цель шага 20 px; чип «Read the lesson · N min».», «справа в шапке файла «Show hint»» убрать вместе с запятой перед ним, а «слева статус с пунктирным кругом «Write it yourself, or let the assistant draft it»» заменить на «слева статус с пунктирным кругом «Done when …», как на мобилке». Под полем вопроса добавить предложение: «Над полем подсказки: «Explain this step» и чипы шага.»
-2. В разделе «7. Не прошло» заменить «Статус «Build failed on line N» со значком «!».» на «Статус с причиной из данных шага, в ней есть номер строки, со значком «!».»
-3. В разделе «10. Деплой (шаг 2)» заменить «После успеха program id сам вписывается в `declare_id!` (подсвечен как свежая строка) и стоит в терминале с «Copy» и «Explorer».» на «После успеха program id стоит в терминале с «Copy» и «Explorer». В `declare_id!` он не вписывается: иначе ломается дифф шага 4.»
-4. В разделе «Общий прогресс» заменить «Переключение вида посреди шага открывает тот же экран, шаг и состояние.» на «Переключение вида посреди шага открывает тот же экран и шаг. Разбор патча остаётся открытым, сборка и шторки не переживают перезагрузку и возвращаются в спокойное состояние шага.»
+1. In section "3. Step: start", replace `the stage name in small type ("Program"); the step goal at 20 px; one line of task text with code in chips; the "Read the lesson · N min" chip.` with `the stage name in small type ("Program"); the step goal at 20 px; the "Read the lesson · N min" chip.`, remove `"Show hint" on the right of the file header` together with the comma before it, and replace `on the left a status with a dashed circle "Write it yourself, or let the assistant draft it"` with `on the left a status with a dashed circle "Done when …", as on mobile`. Under the question field, add the sentence: `Above the field are suggestions: "Explain this step" and the step's chips.`
+2. In section "7. Failed", replace `Status "Build failed on line N" with a "!" icon.` with `The status carries the reason from the step data, including the line number, with a "!" icon.`
+3. In section "10. Deploy (step 2)", replace `After success the program id writes itself into declare_id! (highlighted as a fresh line) and is in the terminal with "Copy" and "Explorer".` with `After success the program id is in the terminal with "Copy" and "Explorer". It isn't written into declare_id!, because that would break the step 4 diff.`
+4. In section "Shared progress", replace `Switching views mid step opens the same screen, step and state.` with `Switching views mid step opens the same screen and step. The patch walkthrough stays open, while the build and the sheets don't survive a reload and return to the step's resting state.`
 
-Проверить, что в файле нет длинного и среднего тире: `perl -CSD -ne 'print "$.: $_" if /[\x{2013}\x{2014}]/' docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md` ничего не выводит.
+Check that the file has no em dashes or en dashes: `perl -CSD -ne 'print "$.: $_" if /[\x{2013}\x{2014}]/' docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md` prints nothing.
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-10-21-desktop-tutorial-prototype-design.md
-git commit -m "Спека десктопа сверена с прототипом
+git commit -m "Desktop spec checked against the prototype
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```

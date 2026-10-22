@@ -1,64 +1,64 @@
-# Прототип мобильного флоу туториала: план реализации
+# Mobile tutorial flow prototype: implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Кликабельный прототип флоу Hello Anchor на телефоне (галерея, обзор, шаг с патчем ассистента, проверка, ошибка и Explain, финиш) на компонентах дизайн-системы, по спеке `docs/superpowers/specs/2026-10-20-mobile-tutorial-prototype-design.md`.
+**Goal:** A clickable prototype of the Hello Anchor flow on a phone (gallery, overview, step with the assistant's patch, check, error and Explain, finish) built on design system components, per the spec `docs/superpowers/specs/2026-10-20-mobile-tutorial-prototype-design.md`.
 
-**Architecture:** Отдельная HTML-страница Vite внутри `design-system/` (`/prototype/tutorial/`). Весь флоу ведёт один reducer со сценарием Hello Anchor, состояние хранится в `localStorage`. Сборка, деплой и ответы ассистента имитируются таймерами и печатью текста. На десктопе страница рисует рамку телефона с iframe на саму себя, поэтому шторки vaul открываются внутри «телефона».
+**Architecture:** A separate Vite HTML page inside `design-system/` (`/prototype/tutorial/`). One reducer with the Hello Anchor scenario drives the whole flow, and state is kept in `localStorage`. The build, deploy and assistant answers are simulated with timers and typed out text. On desktop the page draws a phone frame with an iframe pointing at itself, so vaul sheets open inside the "phone".
 
-**Tech Stack:** React 19, Vite 8, Tailwind 4, компоненты `design-system/src/components/ui` (vaul Drawer, Diff, Button, BrandButton, Progress, Achievement, Input, sonner), lucide-react.
+**Tech Stack:** React 19, Vite 8, Tailwind 4, components from `design-system/src/components/ui` (vaul Drawer, Diff, Button, BrandButton, Progress, Achievement, Input, sonner), lucide-react.
 
-**Это прототип дизайнера, не продакшен.** Юнит-тестов нет. Проверка каждой задачи: типы (`tsc`) и проход руками в браузере. Код потом переписывает программист, поэтому важнее точность UX и состояний, чем архитектура.
+**This is a designer's prototype, not production.** No unit tests. Each task is checked with types (`tsc`) and a manual pass in the browser. A developer rewrites the code later, so getting the UX and states right matters more than the architecture.
 
 ---
 
-## Файлы
+## Files
 
-| Файл | Что делает |
+| File | What it does |
 | --- | --- |
-| `design-system/prototype/tutorial/index.html` | HTML-вход страницы |
-| `design-system/vite.prototype.config.ts` | Сборка только прототипа в `dist-prototype/` |
-| `design-system/public/prototype/thumbs/*` | Обложки 16 туториалов, скопированы из `client-v2/public/tutorials` |
-| `design-system/src/prototype/tutorial/main.tsx` | Точка входа: рамка телефона на десктопе или само приложение |
-| `.../DeviceFrame.tsx` | Рамка телефона с iframe и кнопкой Reset |
-| `.../App.tsx` | Выбор экрана по состоянию, Toaster |
-| `.../data.ts` | Сценарий: шаги, код, патчи, результаты, тексты ассистента, список туториалов |
-| `.../diff.ts` | Построчный дифф и подсчёт +N −M |
-| `.../store.tsx` | Состояние флоу: reducer, провайдер, сохранение |
-| `.../ui/TopBar.tsx` | Шапка экрана |
-| `.../ui/CodeView.tsx` | Код только для чтения с подсветкой синтаксиса, фокуса и ошибки |
-| `.../ui/BuildLog.tsx` | Вкладка Build |
-| `.../ui/PatchDiff.tsx` | Карточка диффа на компоненте Diff |
-| `.../ui/Typed.tsx` | Печать текста ассистента |
-| `.../ui/AssistantHead.tsx` | Строка «Assistant · Opus 5.5» |
-| `.../ui/StepProgress.tsx` | Прогресс сегментами |
-| `.../screens/Gallery.tsx` | Экран 1 |
-| `.../screens/Overview.tsx` | Экран 2 |
-| `.../screens/StepScreen.tsx` | Экраны 3, 5 и нижняя панель |
-| `.../sheets/PatchSheet.tsx` | Экран 4 |
-| `.../sheets/ResultSheet.tsx` | Экраны 6 и 7 |
-| `.../sheets/ExplainSheet.tsx` | Экран 8 |
-| `.../screens/Finish.tsx` | Экран 9 |
+| `design-system/prototype/tutorial/index.html` | HTML entry for the page |
+| `design-system/vite.prototype.config.ts` | Builds only the prototype into `dist-prototype/` |
+| `design-system/public/prototype/thumbs/*` | Covers for 16 tutorials, copied from `client-v2/public/tutorials` |
+| `design-system/src/prototype/tutorial/main.tsx` | Entry point: the phone frame on desktop, or the app itself |
+| `.../DeviceFrame.tsx` | Phone frame with an iframe and a Reset button |
+| `.../App.tsx` | Picks the screen from state, Toaster |
+| `.../data.ts` | Scenario: steps, code, patches, results, assistant copy, tutorial list |
+| `.../diff.ts` | Line diff and the +N −M count |
+| `.../store.tsx` | Flow state: reducer, provider, persistence |
+| `.../ui/TopBar.tsx` | Screen header |
+| `.../ui/CodeView.tsx` | Read only code with syntax, focus and error highlighting |
+| `.../ui/BuildLog.tsx` | The Build tab |
+| `.../ui/PatchDiff.tsx` | Diff card on the Diff component |
+| `.../ui/Typed.tsx` | Typing out assistant text |
+| `.../ui/AssistantHead.tsx` | The "Assistant · Opus 5.5" line |
+| `.../ui/StepProgress.tsx` | Segmented progress |
+| `.../screens/Gallery.tsx` | Screen 1 |
+| `.../screens/Overview.tsx` | Screen 2 |
+| `.../screens/StepScreen.tsx` | Screens 3, 5 and the bottom panel |
+| `.../sheets/PatchSheet.tsx` | Screen 4 |
+| `.../sheets/ResultSheet.tsx` | Screens 6 and 7 |
+| `.../sheets/ExplainSheet.tsx` | Screen 8 |
+| `.../screens/Finish.tsx` | Screen 9 |
 
-`...` дальше везде означает `design-system/src/prototype/tutorial`.
+From here on, `...` always means `design-system/src/prototype/tutorial`.
 
-Команды запускаются из `design-system/` с Node 22:
+Commands run from `design-system/` with Node 22:
 
 ```bash
 eval "$(fnm env)" && fnm use 22.20.0
 ```
 
-Проверка типов во всех задачах:
+Type check for every task:
 
 ```bash
 npx tsc -p tsconfig.app.json --noEmit
 ```
 
-Ожидание: команда завершается без вывода.
+Expected: the command finishes with no output.
 
 ---
 
-### Task 1: Каркас страницы
+### Task 1: Page skeleton
 
 **Files:**
 - Create: `design-system/prototype/tutorial/index.html`
@@ -68,7 +68,7 @@ npx tsc -p tsconfig.app.json --noEmit
 - Modify: `design-system/.gitignore`
 - Create: `design-system/public/prototype/thumbs/*`
 
-- [ ] **Step 1: HTML-вход**
+- [ ] **Step 1: HTML entry**
 
 `design-system/prototype/tutorial/index.html`:
 
@@ -88,7 +88,7 @@ npx tsc -p tsconfig.app.json --noEmit
 </html>
 ```
 
-- [ ] **Step 2: Временный main.tsx, чтобы проверить токены и шрифты**
+- [ ] **Step 2: Temporary main.tsx to check tokens and fonts**
 
 `design-system/src/prototype/tutorial/main.tsx`:
 
@@ -107,7 +107,7 @@ createRoot(document.getElementById("root")!).render(
 )
 ```
 
-- [ ] **Step 3: Конфиг сборки прототипа**
+- [ ] **Step 3: Prototype build config**
 
 `design-system/vite.prototype.config.ts`:
 
@@ -135,19 +135,19 @@ export default defineConfig({
 })
 ```
 
-В `design-system/package.json` в `scripts` добавить строку:
+In `design-system/package.json`, add this line to `scripts`:
 
 ```json
 "build:prototype": "vite build -c vite.prototype.config.ts"
 ```
 
-В конец `design-system/.gitignore` добавить:
+At the end of `design-system/.gitignore`, add:
 
 ```
 dist-prototype
 ```
 
-- [ ] **Step 4: Обложки туториалов**
+- [ ] **Step 4: Tutorial covers**
 
 ```bash
 mkdir -p public/prototype/thumbs
@@ -158,29 +158,29 @@ done
 ls public/prototype/thumbs | wc -l
 ```
 
-Ожидание: `16`.
+Expected: `16`.
 
-- [ ] **Step 5: Проверить в браузере**
+- [ ] **Step 5: Check in the browser**
 
-Дев-сервер ДС уже настроен в `.claude/launch.json` как `playground-design-system` (порт 5173). Открыть `http://localhost:5173/prototype/tutorial/`.
-Ожидание: тёмный фон, по центру «Prototype is wired» шрифтом Stack Sans.
+The DS dev server is already set up in `.claude/launch.json` as `playground-design-system` (port 5173). Open `http://localhost:5173/prototype/tutorial/`.
+Expected: dark background, "Prototype is wired" centered in Stack Sans.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add prototype vite.prototype.config.ts package.json .gitignore public/prototype src/prototype
-git commit -m "Каркас прототипа мобильного туториала"
+git commit -m "Mobile tutorial prototype skeleton"
 ```
 
 ---
 
-### Task 2: Сценарий и дифф
+### Task 2: Scenario and diff
 
 **Files:**
 - Create: `.../data.ts`
 - Create: `.../diff.ts`
 
-- [ ] **Step 1: Дифф**
+- [ ] **Step 1: Diff**
 
 `.../diff.ts`:
 
@@ -230,7 +230,7 @@ export function countRows(rows: Row[]) {
 }
 ```
 
-- [ ] **Step 2: Сценарий Hello Anchor**
+- [ ] **Step 2: Hello Anchor scenario**
 
 `.../data.ts`:
 
@@ -512,26 +512,26 @@ export const STEPS: Step[] = [
 export const NEXT_TUTORIAL = TUTORIALS.find((t) => t.slug === "counter-pda-tutorial")!
 ```
 
-- [ ] **Step 3: Проверка типов**
+- [ ] **Step 3: Type check**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: без вывода.
+Expected: no output.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/prototype/tutorial/data.ts src/prototype/tutorial/diff.ts
-git commit -m "Сценарий Hello Anchor и дифф для прототипа"
+git commit -m "Hello Anchor scenario and diff for the prototype"
 ```
 
 ---
 
-### Task 3: Состояние флоу
+### Task 3: Flow state
 
 **Files:**
 - Create: `.../store.tsx`
 
-- [ ] **Step 1: Reducer, провайдер, сохранение**
+- [ ] **Step 1: Reducer, provider, persistence**
 
 `.../store.tsx`:
 
@@ -743,21 +743,21 @@ export function useStore() {
 }
 ```
 
-- [ ] **Step 2: Проверка типов**
+- [ ] **Step 2: Type check**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: без вывода.
+Expected: no output.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/prototype/tutorial/store.tsx
-git commit -m "Состояние флоу туториала с сохранением прогресса"
+git commit -m "Tutorial flow state with saved progress"
 ```
 
 ---
 
-### Task 4: Общие части интерфейса
+### Task 4: Shared UI pieces
 
 **Files:**
 - Create: `.../ui/TopBar.tsx`, `.../ui/CodeView.tsx`, `.../ui/BuildLog.tsx`, `.../ui/PatchDiff.tsx`, `.../ui/Typed.tsx`, `.../ui/AssistantHead.tsx`, `.../ui/StepProgress.tsx`
@@ -780,7 +780,7 @@ export function TopBar({ left, title, right }: { left?: ReactNode; title: string
 }
 ```
 
-- [ ] **Step 2: CodeView с подсветкой**
+- [ ] **Step 2: CodeView with highlighting**
 
 `.../ui/CodeView.tsx`:
 
@@ -991,25 +991,25 @@ export function StepProgress({ current, passed, onPick }: { current: number; pas
 }
 ```
 
-- [ ] **Step 8: Проверка типов**
+- [ ] **Step 8: Type check**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: без вывода.
+Expected: no output.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add src/prototype/tutorial/ui
-git commit -m "Общие части прототипа: код, дифф, прогресс, шапка"
+git commit -m "Shared prototype pieces: code, diff, progress, header"
 ```
 
 ---
 
-### Task 5: Галерея, обзор, рамка телефона
+### Task 5: Gallery, overview, phone frame
 
 **Files:**
 - Create: `.../screens/Gallery.tsx`, `.../screens/Overview.tsx`, `.../App.tsx`, `.../DeviceFrame.tsx`
-- Modify: `.../main.tsx` (полная замена)
+- Modify: `.../main.tsx` (full replacement)
 
 - [ ] **Step 1: Gallery**
 
@@ -1202,7 +1202,7 @@ export function Overview() {
 }
 ```
 
-- [ ] **Step 3: App с заглушками для экранов следующих задач**
+- [ ] **Step 3: App with placeholders for the next tasks' screens**
 
 `.../App.tsx`:
 
@@ -1264,7 +1264,7 @@ export function DeviceFrame() {
 }
 ```
 
-- [ ] **Step 5: main.tsx целиком**
+- [ ] **Step 5: Full main.tsx**
 
 `.../main.tsx`:
 
@@ -1294,36 +1294,36 @@ createRoot(document.getElementById("root")!).render(
 )
 ```
 
-- [ ] **Step 6: Проверка типов и браузер**
+- [ ] **Step 6: Type check and browser**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: без вывода.
+Expected: no output.
 
-В браузере `http://localhost:5173/prototype/tutorial/`:
-1. На десктопе видна рамка телефона, внутри галерея с 16 обложками.
-2. При ширине вкладки 390 рамки нет, галерея во весь экран.
-3. Тап по Hello Seahorse показывает тост «Only Hello Anchor is in this prototype».
-4. Тап по Hello Anchor открывает обзор с 4 шагами и кнопкой Start.
-5. Поиск «tiny» оставляет 2 карточки.
+In the browser at `http://localhost:5173/prototype/tutorial/`:
+1. On desktop the phone frame is visible, with the gallery and 16 covers inside.
+2. At a tab width of 390 there's no frame, and the gallery is full screen.
+3. Tapping Hello Seahorse shows the toast "Only Hello Anchor is in this prototype".
+4. Tapping Hello Anchor opens the overview with 4 steps and a Start button.
+5. Searching "tiny" leaves 2 cards.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add src/prototype/tutorial
-git commit -m "Галерея, обзор туториала и рамка телефона"
+git commit -m "Gallery, tutorial overview and phone frame"
 ```
 
 ---
 
-### Task 6: Экран шага и нижняя панель
+### Task 6: Step screen and bottom panel
 
 **Files:**
 - Create: `.../screens/StepScreen.tsx`
-- Modify: `.../App.tsx` (полная замена)
+- Modify: `.../App.tsx` (full replacement)
 
 - [ ] **Step 1: StepScreen**
 
-`.../screens/StepScreen.tsx`. Шторки из Task 7 уже импортируются, поэтому эта задача проверяется вместе с Task 7.
+`.../screens/StepScreen.tsx`. It already imports the sheets from Task 7, so this task is checked together with Task 7.
 
 ```tsx
 import { useEffect, useState } from "react"
@@ -1495,7 +1495,7 @@ export function StepScreen() {
 }
 ```
 
-- [ ] **Step 2: App целиком**
+- [ ] **Step 2: Full App**
 
 `.../App.tsx`:
 
@@ -1522,11 +1522,11 @@ export function App() {
 }
 ```
 
-`Finish` появляется в Task 8. Проверка типов этой задачи проходит после Task 7 и Task 8, коммит общий в конце Task 8.
+`Finish` arrives in Task 8. The type check for this task passes after Task 7 and Task 8, and there's one shared commit at the end of Task 8.
 
 ---
 
-### Task 7: Шторки патча, результата и Explain
+### Task 7: Patch, result and Explain sheets
 
 **Files:**
 - Create: `.../sheets/PatchSheet.tsx`, `.../sheets/ResultSheet.tsx`, `.../sheets/ExplainSheet.tsx`
@@ -1782,7 +1782,7 @@ export function ExplainSheet() {
 
 ---
 
-### Task 8: Финиш и первый полный проход
+### Task 8: Finish and the first full pass
 
 **Files:**
 - Create: `.../screens/Finish.tsx`
@@ -1875,78 +1875,78 @@ export function Finish() {
 }
 ```
 
-- [ ] **Step 2: Проверка типов**
+- [ ] **Step 2: Type check**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit`
-Expected: без вывода. Если ругается на `Spinner` без `className` или на пропсы Drawer, сверить с `src/components/ui/spinner.tsx` и `drawer.tsx`.
+Expected: no output. If it complains about `Spinner` without `className` or about Drawer props, compare against `src/components/ui/spinner.tsx` and `drawer.tsx`.
 
-- [ ] **Step 3: Полный проход в браузере на 390 px**
+- [ ] **Step 3: Full pass in the browser at 390 px**
 
-`http://localhost:5173/prototype/tutorial/?embed`, вкладка 390×844:
-1. Галерея → Hello Anchor → Start. Экран шага 1, строка 1 подсвечена фиолетовым.
-2. «?» открывает Explain по шагу, чипы «Why is this needed», «Show in docs», «Ask something else». «Got it» закрывает.
-3. «Write this step with the assistant»: текст печатается, потом появляется дифф `src/lib.rs +13 −1`, Apply активен только после печати.
-4. Apply → «Building...» 2,4 с → шторка «Not yet», строка 9 красная, во вкладке Build ошибка E0412.
-5. Explain → объяснение, дифф `+3`, «Apply and build» → «Step passed», внизу «Applied · Undo».
-6. Undo → тост «Patch undone», код снова `// Import anchor`, сегмент шага серый.
-7. Пройти шаг 1 заново, шаг 2 «Deploy to devnet» (3 этапа, program id), шаг 3 (вкладка `client.ts`), шаг 4.
-8. «Finish tutorial» → финиш: 4/4, first try 3, время, 4 пункта «What you learned», Counter PDA.
-9. Перезагрузить посреди шага 3: галерея показывает «Continue · Step 3 of 4 · Client», обзор отмечает шаги 1 и 2.
+`http://localhost:5173/prototype/tutorial/?embed`, tab at 390×844:
+1. Gallery → Hello Anchor → Start. Step 1 screen, line 1 highlighted purple.
+2. "?" opens Explain for the step, with the chips "Why is this needed", "Show in docs", "Ask something else". "Got it" closes it.
+3. "Write this step with the assistant": the text types out, then the diff `src/lib.rs +13 −1` appears, and Apply is enabled only after the typing finishes.
+4. Apply → "Building..." 2.4 s → the "Not yet" sheet, line 9 red, error E0412 in the Build tab.
+5. Explain → explanation, diff `+3`, "Apply and build" → "Step passed", "Applied · Undo" at the bottom.
+6. Undo → toast "Patch undone", the code is `// Import anchor` again, the step segment is gray.
+7. Pass step 1 again, step 2 "Deploy to devnet" (3 stages, program id), step 3 (the `client.ts` tab), step 4.
+8. "Finish tutorial" → finish: 4/4, first try 3, the time, 4 items in "What you learned", Counter PDA.
+9. Reload in the middle of step 3: the gallery shows "Continue · Step 3 of 4 · Client", and the overview marks steps 1 and 2.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/prototype/tutorial
-git commit -m "Экран шага, шторки патча, проверки и Explain, финиш"
+git commit -m "Step screen, patch, check and Explain sheets, finish"
 ```
 
 ---
 
-### Task 9: Проверка на 320, 390, 430 и десктопе
+### Task 9: Check at 320, 390, 430 and on desktop
 
 **Files:**
-- Modify: любые файлы из `.../` по итогам проверки
+- Modify: any files in `.../` based on the check
 
-- [ ] **Step 1: Ширины**
+- [ ] **Step 1: Widths**
 
-Повторить проход из Task 8 Step 3 на 320×568, 390×844 и 430×932, затем на десктопе в рамке.
-Проверить на каждой ширине:
-1. Нет горизонтального скролла ни на одном экране (`document.documentElement.scrollWidth === innerWidth` в консоли).
-2. Задание шага помещается в 3 строки, «Checked when» не обрезано.
-3. Кнопка нижней панели на шаге 2 («Step 3: Client» и Undo) не переносится. Если переносится на 320, сократить подпись до «Next: Client».
-4. Шторки не выше 82% экрана, задание шага видно над шторкой патча.
-5. Все кнопки не меньше 44 px по высоте.
+Repeat the pass from Task 8 Step 3 at 320×568, 390×844 and 430×932, then on desktop in the frame.
+Check at each width:
+1. No horizontal scroll on any screen (`document.documentElement.scrollWidth === innerWidth` in the console).
+2. The step task fits in 3 lines, and "Checked when" isn't cut off.
+3. The bottom panel button on step 2 ("Step 3: Client" and Undo) doesn't wrap. If it wraps at 320, shorten the label to "Next: Client".
+4. Sheets are no taller than 82% of the screen, and the step task is visible above the patch sheet.
+5. Every button is at least 44 px tall.
 
-- [ ] **Step 2: Контраст**
+- [ ] **Step 2: Contrast**
 
-Через DevTools (Inspect, Contrast) проверить пары `text-subtle` на `bg-surface-panel` и `text-muted-foreground` на `bg-popover`. Если ниже 4.5:1 для текста 13 px, заменить `text-subtle` на `text-muted-foreground` в этом месте.
+In DevTools (Inspect, Contrast), check the pairs `text-subtle` on `bg-surface-panel` and `text-muted-foreground` on `bg-popover`. If it's below 4.5:1 for 13 px text, replace `text-subtle` with `text-muted-foreground` in that spot.
 
-- [ ] **Step 3: Сборка прототипа**
+- [ ] **Step 3: Prototype build**
 
 Run: `npm run build:prototype`
-Expected: `dist-prototype/prototype/tutorial/index.html` и `dist-prototype/prototype/thumbs/` созданы, ошибок нет.
+Expected: `dist-prototype/prototype/tutorial/index.html` and `dist-prototype/prototype/thumbs/` are created, no errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add -A src/prototype/tutorial
-git commit -m "Прототип проверен на 320, 390, 430 и в рамке"
+git commit -m "Prototype checked at 320, 390, 430 and in the frame"
 ```
 
 ---
 
-### Task 10: Ссылка для Кэт (только после ок Алмаза)
+### Task 10: Link for Kat (only after Almaz's ok)
 
-Не начинать, пока Алмаз в чате явно не скажет деплоить. Деплой публикует прототип наружу.
+Don't start until Almaz explicitly says in chat to deploy. Deploying publishes the prototype to the outside.
 
 **Files:**
 - Create: `/Users/almaz.zaripov/Documents/Claude Code/Playground/pg-prototype-deploy/middleware.ts`
 - Create: `/Users/almaz.zaripov/Documents/Claude Code/Playground/pg-prototype-deploy/vercel.json`
 - Create: `/Users/almaz.zaripov/Documents/Claude Code/Playground/pg-prototype-deploy/package.json`
 
-Папка деплоя лежит вне репозитория: в `design-system` уже есть своя привязка к Vercel для сайта ДС, её не трогаем.
+The deploy folder lives outside the repo: `design-system` already has its own Vercel link for the DS site, and we don't touch it.
 
-- [ ] **Step 1: Обёртка деплоя**
+- [ ] **Step 1: Deploy wrapper**
 
 `pg-prototype-deploy/package.json`:
 
@@ -1986,27 +1986,27 @@ export default function middleware(request: Request) {
 }
 ```
 
-- [ ] **Step 2: Собрать и положить в обёртку**
+- [ ] **Step 2: Build and put it in the wrapper**
 
 ```bash
 npm run build:prototype
 rm -rf "../../pg-prototype-deploy/public" && cp -R dist-prototype "../../pg-prototype-deploy/public"
 ```
 
-- [ ] **Step 3: Проект в Vercel в аккаунте hoodies**
+- [ ] **Step 3: Vercel project in the hoodies account**
 
-Из папки `pg-prototype-deploy`: `vercel link` (scope hoodies, новый проект `pg-tutorial-prototype`), затем завести `PROTO_USER` и `PROTO_PASS` через `vercel env add` для Production и Preview. Пароль генерирует Алмаз или Claude и кладёт только в env, в чат и в файлы не пишет. Затем `vercel deploy --prod`.
+From the `pg-prototype-deploy` folder: `vercel link` (scope hoodies, new project `pg-tutorial-prototype`), then set up `PROTO_USER` and `PROTO_PASS` with `vercel env add` for Production and Preview. Almaz or Claude generates the password and puts it only in env, never in chat or in files. Then `vercel deploy --prod`.
 
-- [ ] **Step 4: Измерить барьер**
+- [ ] **Step 4: Measure the barrier**
 
-Анонимно, без пароля:
+Anonymously, without the password:
 
 ```bash
-for p in / /prototype/tutorial/ /prototype/thumbs/hello-anchor.jpg /nope; do curl -s -o /dev/null -D - "https://<домен>$p" | grep -iE "^HTTP|x-robots-tag"; done
+for p in / /prototype/tutorial/ /prototype/thumbs/hello-anchor.jpg /nope; do curl -s -o /dev/null -D - "https://<domain>$p" | grep -iE "^HTTP|x-robots-tag"; done
 ```
 
-Expected: на всех четырёх `401` и `x-robots-tag: noindex, nofollow`. Любой `200` без пароля значит, что барьер не работает. Тогда ссылку не отдавать и чинить.
+Expected: `401` and `x-robots-tag: noindex, nofollow` on all four. Any `200` without the password means the barrier doesn't work. In that case don't hand out the link, fix it.
 
-- [ ] **Step 5: Отдать ссылку Алмазу**
+- [ ] **Step 5: Hand the link to Almaz**
 
-Ссылку дать в чате. Пароль Алмаз передаёт Кэт сам.
+Give the link in chat. Almaz passes the password to Kat himself.

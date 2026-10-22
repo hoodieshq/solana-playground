@@ -1,86 +1,86 @@
-# Десктопный флоу туториала: кликабельный прототип
+# Desktop tutorial flow: clickable prototype
 
-Автор: Алмаз Зарипов · 21.10.2026 · задачи DES-139 (Full tutorial pass) и DES-122 (The assistant in use)
+Author: Almaz Zaripov · 10/21/2026 · tickets DES-139 (Full tutorial pass) and DES-122 (The assistant in use)
 
-Основа: мобильный прототип, спека `2026-10-20-mobile-tutorial-prototype-design.md`. Все решения оттуда действуют и здесь, если ниже не сказано иначе. Макеты обсуждения лежат в `Playground/.superpowers/brainstorm/85477-1792567819/content/` (`step-1.html`, `step-2.html`, `screens-v2.html`).
+Based on the mobile prototype, spec `2026-10-20-mobile-tutorial-prototype-design.md`. Every decision there applies here too unless stated otherwise below. The discussion mockups are in `Playground/.superpowers/brainstorm/85477-1792567819/content/` (`step-1.html`, `step-2.html`, `screens-v2.html`).
 
-## Зачем
+## Why
 
-Показать Кэт тот же флоу Hello Anchor на экране 1440: от галереи до финиша, с проверкой, ошибкой и Explain. На десктопе редактор живой, поэтому человек может писать код сам, а патч ассистента остаётся вторым путём с тем же разбором, что на телефоне. Мобилка и десктоп должны читаться как один продукт.
+Show Kat the same Hello Anchor flow on a 1440 screen: from the gallery to the finish, with the check, the error and Explain. On desktop the editor is live, so people can write the code themselves, and the assistant's patch stays as a second path with the same walkthrough as on the phone. Mobile and desktop should read as one product.
 
-Прототип не продакшен. После согласования экраны и логику переделывает программист.
+The prototype is not production. Once it's approved, a developer rebuilds the screens and logic.
 
-## Решения
+## Decisions
 
-| Вопрос | Решение |
+| Question | Decision |
 | --- | --- |
-| Как проходится шаг | Оба пути. Редактор открыт, Build собирает набранное руками. Рядом Write with assistant: тот же патч, что на мобилке, прямо в редакторе, с заметками и Quick check. Ошибка ведёт в Explain и Review the fix. Мобилка остаётся частным случаем без первого пути |
-| Раскладка шага | Оболочка продукта: навигация, редактор с полосой действий и терминалом, справа колонка ассистента, которая на время туториала становится колонкой урока. Порядок как в продукте, в DOM такой же. Пока открыт шаг, навигация свёрнута в рейл 56 px на любой ширине (после юзабилити ревью 21.10.2026, раньше колонка стояла слева) |
-| Объём | Весь флоу: галерея, страница туториала, шаг во всех состояниях, финиш |
-| Как собрано | Тот же прототип и адрес, общие `data.ts` и `store.tsx`, свои экраны в `desktop/`, переключатель Phone и Desktop |
+| How a step is completed | Both paths. The editor is open, and Build builds whatever was typed by hand. Next to it is Write with assistant: the same patch as on mobile, right in the editor, with notes and Quick check. An error leads to Explain and Review the fix. Mobile stays a special case without the first path |
+| Step layout | The product shell: navigation, the editor with the action bar and terminal, and on the right the assistant column, which becomes the lesson column for the duration of the tutorial. Same order as in the product, and the same in the DOM. While a step is open, navigation is collapsed to a 56 px rail at any width (after the usability review on 10/21/2026; the column used to be on the left) |
+| Scope | The whole flow: gallery, tutorial page, the step in every state, finish |
+| How it's built | Same prototype and URL, shared `data.ts` and `store.tsx`, its own screens in `desktop/`, a Phone and Desktop switcher |
 
-## Объём
+## Scope
 
-Входит: галерея, страница туториала, экран шага (старт, патч, Quick check, сборка, ошибка, Explain, фикс, успех, деплой, клиент), финиш, отмена патча, продолжение с места, переключатель видов.
+In: gallery, tutorial page, step screen (start, patch, Quick check, build, error, Explain, fix, success, deploy, client), finish, undoing a patch, resuming where you left off, the view switcher.
 
-Не входит: Open on phone (обратный сценарий к Continue on desktop), светлая тема, содержимое вкладки Programs, настоящий чат с моделью, бэкенд, настоящая сборка и деплой, лесенка подсказок, лимит ассистента.
+Out: Open on phone (the reverse of Continue on desktop), light theme, contents of the Programs tab, a real chat with a model, backend, real build and deploy, the hint ladder, the assistant limit.
 
-## Флоу
+## Flow
 
 ```
-Галерея → Страница туториала → Шаг → (пишет сам | Write with assistant → Патч → Quick check) → Build → Прошло → следующий шаг ... → Финиш
+Gallery → Tutorial page → Step → (writes it themselves | Write with assistant → Patch → Quick check) → Build → Passed → next step ... → Finish
                                                                                      │
-                                                                                     └→ Не прошло → Explain → Review the fix → Build
+                                                                                     └→ Failed → Explain → Review the fix → Build
 ```
 
-## Оболочка
+## Shell
 
-- Слева навигация продукта, как в client-v2: Home, New project, Tutorials, Programs, список проектов. На ширине меньше 1280 px сворачивается в рейл с иконками. Пока открыт шаг, она рейл на любой ширине: место нужно редактору и уроку. Галерея, страница туториала и финиш ведут себя как раньше.
-- Переключатель меню как в сайдбаре Gemini. В свёрнутом рейле 56 px верхний слот с логотипом и есть кнопка «Open sidebar»: при наведении или фокусе с клавиатуры логотип плавно сменяется иконкой PanelLeft, справа от слота подсказка «Open sidebar ⌘B». В развёрнутом меню слева логотип и «Solana Playground», в конце той же строки кнопка с той же иконкой PanelLeft, «Close sidebar», подсказка «Close sidebar ⌘B». Иконка в обоих состояниях одна, без стрелки: что кнопка делает, говорят подсказка и имя. Кнопки внизу рейла больше нет. ⌘B и Ctrl+B работают как раньше. Развёрнутое меню 232 px, чтобы название и кнопка влезли в одну строку. С мышью меню сдвигает экран и выбор запоминается (`pg-proto-nav-open`). На планшете, как в Gemini, галерея и страница туториала открываются с развёрнутым меню при любой ширине, оно сдвигает экран, свой выбор планшет хранит отдельно (`pg-proto-nav-open-tablet`). Планшетом считается тач (`pointer: coarse`) и рамка Tablet, даже на маке с мышью: рамка изображает планшет. Во время шага на планшете сдвигать некуда: меню открывается поверх кода с затемнением, закрывается по выбору пункта, тапу мимо и Esc, на следующем шаге снова рейл, выбор не сохраняется. На таче логотип не меняется на иконку, тап по нему сразу открывает меню.
-- Колонка урока справа, граница у неё слева. Ширина по умолчанию от окна: 440 px от 1440, 400 px от 1280, 360 px меньше. Левый край тянется мышью от 280 (как в продукте) до 560 px, в фокусе его двигают стрелки (с Shift шаг крупнее, Home и End до краёв), фокус видно по линии и ручке посередине. Двойной клик или двойной тап по краю возвращает ширину по окну. Выбранная ширина запоминается в `localStorage` (`pg-proto-column-width`), а пока её не трогали, она следует за окном. Страница туториала живёт в той же колонке справа, поэтому Start не перекидывает её на другую сторону.
-- Над рабочей областью шапка проекта с его названием. Степпера Write, Build, Deploy, Interact во время туториала нет (решение Алмаза 21.10.2026): этапы ведёт сам туториал, переключить степпер руками нельзя, хотя он выглядит как вкладки, а прогресс уже показан в колонке урока, сборка в строке статуса и терминале. В обычном проекте степпер остаётся как в продукте.
-- Проектирую под 1440×900, проверяю на 1280×800.
+- On the left is the product navigation, as in client-v2: Home, New project, Tutorials, Programs, the project list. Below 1280 px it collapses to an icon rail. While a step is open it is a rail at any width: the editor and the lesson need the room. The gallery, the tutorial page and the finish behave as before.
+- The menu toggle works like the one in the Gemini sidebar. In the collapsed 56 px rail, the top slot with the logo is the "Open sidebar" button: on hover or keyboard focus the logo fades into a PanelLeft icon, and a tooltip "Open sidebar ⌘B" appears to the right of the slot. In the expanded menu the logo and "Solana Playground" are on the left, and at the end of the same row is a button with the same PanelLeft icon, "Close sidebar", tooltip "Close sidebar ⌘B". The icon is the same in both states, with no arrow: the tooltip and the name say what the button does. The button at the bottom of the rail is gone. ⌘B and Ctrl+B work as before. The expanded menu is 232 px so the title and the button fit on one row. With a mouse the menu pushes the screen over and the choice is remembered (`pg-proto-nav-open`). On a tablet, as in Gemini, the gallery and the tutorial page open with the menu expanded at any width, it pushes the screen over, and the tablet keeps its own choice (`pg-proto-nav-open-tablet`). Tablet means touch (`pointer: coarse`) and the Tablet frame, even on a Mac with a mouse: the frame stands in for a tablet. During a step on a tablet there is nowhere to push: the menu opens over the code with a scrim and closes when you pick an item, tap outside or press Esc. On the next step it is a rail again, and the choice is not saved. On touch the logo doesn't turn into the icon, and tapping it opens the menu right away.
+- The lesson column is on the right, with its border on the left. Default width depends on the window: 440 px from 1440, 400 px from 1280, 360 px below that. The left edge can be dragged with the mouse from 280 (as in the product) to 560 px. When focused, the arrow keys move it (larger steps with Shift, Home and End go to the limits), and focus shows as a line and a handle in the middle. A double click or double tap on the edge resets the width to the window default. The chosen width is remembered in `localStorage` (`pg-proto-column-width`), and until someone changes it, it follows the window. The tutorial page lives in the same right column, so Start doesn't flip it to the other side.
+- Above the workspace is the project header with its name. There's no Write, Build, Deploy, Interact stepper during the tutorial (Almaz's call, 10/21/2026): the tutorial drives the stages itself, the stepper can't be switched by hand even though it looks like tabs, and progress is already shown in the lesson column, the build in the status line and the terminal. In a regular project the stepper stays as in the product.
+- I design for 1440×900 and check on 1280×800.
 
-## Экраны
+## Screens
 
-### 1. Галерея
-Заголовок «What do you want to build?». Если туториал начат, сверху «Pick up where you left off» и карточка как на мобилке: обложка, название, «Next: …», полоска прогресса с «1 of 4», кольцо Play. Ширина карточки не больше 620 px. Ниже в одном ряду вкладки Tutorials и Programs (пилюли) и поле поиска справа, 280 px. Поиск открыт всегда, без анимации раскрытия. Programs переключается и показывает пустое состояние из мобилки. Туториалы сеткой в три колонки: обложка, название, «уровень · фреймворк», статус «In progress» или «✓ Completed». Описаний и кнопки Open нет, нажимается вся карточка. Кликабельна только Hello Anchor, остальные дают тост.
+### 1. Gallery
+Heading "What do you want to build?". If a tutorial has been started, "Pick up where you left off" is at the top with a card like on mobile: cover, title, "Next: …", a progress bar with "1 of 4", a Play ring. The card is at most 620 px wide. Below that, in one row, the Tutorials and Programs tabs (pills) and a 280 px search field on the right. Search is always open, with no expand animation. Programs switches over and shows the empty state from mobile. Tutorials are in a three column grid: cover, title, "level · framework", status "In progress" or "✓ Completed". No descriptions and no Open button; the whole card is clickable. Only Hello Anchor is clickable, the rest show a toast.
 
-### 2. Страница туториала
-Живёт в колонке урока, справа уже редактор проекта. Сверху «← Tutorials». Обложка и название, мета «Beginner · Anchor · 10 min · by acheron», цель одной фразой, полоска прогресса, если туториал начат. Список шагов в языке `StepRail`, как на мобилке: пройденные и текущий открываются кликом, будущие ждут. Внизу колонки главная кнопка «Start», «Continue from step N» или «Start again», под ней тихий «Start over» с тем же диалогом подтверждения. Редактор справа показывает код проекта в том виде, в каком его оставили, приглушённо и только для чтения, в шапке файла «Start to edit», после начала «Continue to edit». Start и Continue меняют только содержимое колонки, раскладка не прыгает.
+### 2. Tutorial page
+Lives in the lesson column, with the project editor already on the right. "← Tutorials" at the top. Cover and title, meta "Beginner · Anchor · 10 min · by acheron", the goal in one sentence, and a progress bar if the tutorial has been started. The step list uses the `StepRail` pattern, as on mobile: passed steps and the current one open on click, future ones wait. At the bottom of the column is the main button "Start", "Continue from step N" or "Start again", and under it a quiet "Start over" with the same confirmation dialog. The editor on the right shows the project code the way it was left, dimmed and read only, with "Start to edit" in the file header, and "Continue to edit" once started. Start and Continue change only the column contents, and the layout doesn't jump.
 
-### 3. Шаг: старт
-Колонка урока сверху вниз: полоска прогресса с числом пройденных шагов («0 of 4»), выход ✕ (на страницу туториала); мелко «Step 1 of 4 · Program»; цель шага 20 px; урок или чип «Read the lesson · N min». Карточки Your task нет: состояние шага показано в одном месте, в полосе действий. Внизу колонки поле «Ask about this step» в одну строку, при фокусе или с текстом оно раскрывается в полный композер. Над полем чипы в один ряд: что не влезло по ширине, ждёт, пока зададут вопросы впереди. До первой ошибки шага чипы про урок («What is a Context?», «What does msg! do?»), за ними «Explain this step». Чипы про `#[derive(Accounts)]` («Why does hello need a struct?», «Where is this in the docs?») появляются только после первой упавшей сборки шага, плановая на шаге 1 тоже считается, и встают первыми. Все чипы сформулированы вопросами со знаком вопроса: «Why 7 days?», «What is devnet?», «What is pg?», «Which types work?». Вопросы длиннее, поэтому в ряд чаще влезает один чип, остальные ждут.
+### 3. Step: start
+The lesson column, top to bottom: a progress bar with the number of passed steps ("0 of 4"), an exit ✕ (to the tutorial page); small "Step 1 of 4 · Program"; the step goal at 20 px; the lesson or the "Read the lesson · N min" chip. There's no Your task card: the step state is shown in one place, the action bar. At the bottom of the column is a one line "Ask about this step" field, which expands into the full composer on focus or when it has text. Above the field the chips sit in one row: whatever doesn't fit the width waits until the questions ahead of it are asked. Until the step's first error the chips are about the lesson ("What is a Context?", "What does msg! do?"), followed by "Explain this step". Chips about `#[derive(Accounts)]` ("Why does hello need a struct?", "Where is this in the docs?") appear only after the step's first failed build (the planned one on step 1 counts too), and they go first. Every chip is phrased as a question with a question mark: "Why 7 days?", "What is devnet?", "What is pg?", "Which types work?". Questions are longer, so the row often fits just one chip and the rest wait.
 
-Рабочая область: вкладка файла `lib.rs`. Файлы шагов 1 и 3 начинаются пустыми: прежний комментарий `// Import anchor` был настоящим текстом, и код, набранный после него, попадал в комментарий. В пустом редакторе подсказка «Type the code from the lesson here, or press Write with assistant», она пропадает с первым символом. На мобилке своя подсказка под пустым файлом. На старте шага с мышью фокус уже в редакторе, курсор в начале первой строки из `focus` шага. На таче фокус не ставится, иначе выезжает клавиатура: строки из `focus` только подсвечены, курсор появится по тапу. Поле ввода занимает весь редактор, поэтому клик в любое место, номера строк тоже, ставит курсор. Под редактором полоса действий: слева статус шага, как на мобилке, с пунктирным кругом «Done when the build lists the hello instruction» (`checkedBy` шага), справа «Write with assistant» (вторичная) и «Build ⌘↵» (главная). Под полосой свёрнутый терминал.
+Workspace: the `lib.rs` file tab. The files for steps 1 and 3 start empty: the old `// Import anchor` comment was real text, and code typed after it ended up inside the comment. An empty editor shows the placeholder "Type the code from the lesson here, or press Write with assistant", which disappears with the first character. Mobile has its own hint under the empty file. At the start of a step with a mouse, focus is already in the editor, with the cursor at the start of the first line from the step's `focus`. On touch, focus isn't set, otherwise the keyboard pops up: the `focus` lines are only highlighted, and the cursor appears on tap. The input covers the whole editor, so a click anywhere, line numbers included, places the cursor. Under the editor is the action bar: on the left the step status, as on mobile, with a dashed circle "Done when the build lists the hello instruction" (the step's `checkedBy`); on the right "Write with assistant" (secondary) and "Build ⌘↵" (primary). Under the bar is the collapsed terminal.
 
-### 4. Урок
-Урок открыт в колонке под целью шага, пока шаг ждёт, у каждого блока кода кнопка Copy. На время Quick check и после успеха он сворачивается в чип «Read the lesson · N min». Код слева остаётся виден. В конце урока шага 1 строка «The first build fails on purpose, so you see how Anchor reports a missing piece.», она подходит и телефону, и десктопу., а про `declare_id!` сказано без противоречия: строку пишешь как есть, настоящий id Playground подставит при сборке.
+### 4. Lesson
+The lesson is open in the column under the step goal while the step waits, and every code block has a Copy button. During Quick check and after success it collapses into the "Read the lesson · N min" chip. The code on the left stays visible. At the end of the step 1 lesson is the line "The first build fails on purpose, so you see how Anchor reports a missing piece.", which works on both phone and desktop, and `declare_id!` is described without contradiction: you write the line as is, and Playground fills in the real id at build time.
 
-### 5. Патч и Quick check
-«Write with assistant» показывает патч в редакторе диффом на месте: зелёные строки, фиолетовая точка на строках с заметкой. Кнопка только точка вместе с номером строки (56 px в ширину, на таче 44 px в высоту), клик по ней открывает и закрывает заметку, первая открыта сама один раз за сессию. Сам код в диффе остаётся текстом, его можно выделить и скопировать. В шапке файла «Show notes» и «Hide notes». Пока идёт разбор, редактор только читается. На шагах 1 и 4 Quick check приходит сообщением в колонку урока под целью шага: подпись «Quick check», вопрос, три варианта одной формы, «Skip». Полоса действий пока только с подписью «Answer the quick check to see the code, or skip it». Вопрос сам забирает фокус на первый вариант. После ответа обратная связь («Right.» или «Not quite.») остаётся под вопросом в колонке, открывается заметка строки, о которой спрашивали, и появляются «Don't apply» и «Apply and build ⌘↵». Что меняет патч, ассистент говорит сообщением в колонке, на шаге 1 он прямо говорит, что одну часть пропустил специально. Ассистент говорит только в колонке, в полосе короткий статус «Read the change in lib.rs, then apply it». Поле внизу колонки на это время «Ask about this patch».
+### 5. Patch and Quick check
+"Write with assistant" shows the patch in the editor as an inline diff: green lines, a purple dot on lines with a note. The button is just the dot together with the line number (56 px wide, 44 px tall on touch), and a click on it opens and closes the note. The first one opens on its own once per session. The code in the diff stays text, so it can be selected and copied. The file header has "Show notes" and "Hide notes". While the walkthrough is on, the editor is read only. On steps 1 and 4 Quick check arrives as a message in the lesson column under the step goal: the "Quick check" label, a question, three options of the same shape, "Skip". Meanwhile the action bar only has the label "Answer the quick check to see the code, or skip it". The question takes focus to the first option by itself. After an answer the feedback ("Right." or "Not quite.") stays under the question in the column, the note on the line the question was about opens, and "Don't apply" and "Apply and build ⌘↵" appear. The assistant says what the patch changes in a message in the column, and on step 1 it says outright that it left one part out on purpose. The assistant speaks only in the column; the bar has a short status "Read the change in lib.rs, then apply it". The field at the bottom of the column becomes "Ask about this patch" for this stretch.
 
-### 6. Сборка
-Главная кнопка неактивна и пишет «Building...», статус даёт подробность. Терминал раскрывается сам на вкладке Build и показывает лог. На мобилке это была вкладка Build рядом с кодом.
+### 6. Build
+The main button is disabled and reads "Building...", and the status gives the detail. The terminal expands on its own to the Build tab and shows the log. On mobile this was the Build tab next to the code.
 
-### 7. Не прошло
-Строка с ошибкой подсвечена красным в редакторе, как на мобилке. Под токеном, на который указывает компилятор, рисуется волна: на шаге 1 это `Hello` в строке 9, колонка 32 (так считает rustc, в данных раньше стояло 30). Волна не появляется целиком, а прорисовывается слева направо за 240 мс, в момент, когда пришла ошибка. Если компилятор токен не назвал (ошибки своего кода кроме E0412), подчёркнута вся строка от первого символа. Наведение на строку `--> src/lib.rs:9:32` в терминале подсвечивает строку в редакторе ярче, наведение на строку ошибки в редакторе подсвечивает строку компилятора в терминале: это одна ошибка в двух местах. В продукте волну рисует Monaco, связку наведения надо сделать поверх. Статус с причиной из данных шага, в ней есть номер строки, со значком «!». На шаге 1 первая сборка через ассистента падает специально, урок об этом предупреждает, и статус так и говорит: «Build failed, as expected: `Context<Hello>` on line 9 needs a `Hello` struct.» Главная и единственная кнопка «Explain the error ⌘↵». «Build again» убрал после трёх ревью: та же сборка того же кода упадёт так же. Правка кода возвращает в полосу Build. Полный текст ошибки в терминале. В шапке файла появляется «Restore my code», если на шаге уже применяли патч (см. п. 9).
+### 7. Failed
+The error line is highlighted red in the editor, as on mobile. A squiggle is drawn under the token the compiler points at: on step 1 that's `Hello` on line 9, column 32 (that's how rustc counts; the data used to say 30). The squiggle doesn't appear all at once, it draws left to right over 240 ms, at the moment the error arrives. If the compiler didn't name a token (errors in the user's own code other than E0412), the whole line is underlined from the first character. Hovering the `--> src/lib.rs:9:32` line in the terminal highlights the line in the editor more brightly, and hovering the error line in the editor highlights the compiler line in the terminal: it's one error in two places. In the product Monaco draws the squiggle, and the hover link has to be built on top. The status carries the reason from the step data, including the line number, with a "!" icon. On step 1 the first build through the assistant fails on purpose, the lesson warns about it, and the status says exactly that: "Build failed, as expected: `Context<Hello>` on line 9 needs a `Hello` struct." The main and only button is "Explain the error ⌘↵". I removed "Build again" after three reviews: the same build of the same code fails the same way. Editing the code brings Build back to the bar. The full error text is in the terminal. "Restore my code" appears in the file header if a patch was already applied on this step (see section 9).
 
 ### 8. Explain
-Ответ приходит в колонку урока сообщением «Assistant»: цитата ошибки, объяснение в 2 или 3 предложениях с кодом в плашках, чипы следующих вопросов. Шторки нет, код не закрывается. После Explain главная кнопка «Review the fix», она показывает исправление тем же патчем, что в п. 5, с «Don't apply» и «Apply and build». Человек может и сам поправить код и нажать ⌘↵. Что ошибку уже объяснили, хранится в сторе (`explained`): переключение видов не просит Explain ещё раз, а объяснение возвращается в колонку сообщением. Флаг сбрасывается новой сборкой, правкой кода и сменой шага.
+The answer arrives in the lesson column as an "Assistant" message: a quote of the error, an explanation in 2 or 3 sentences with code in chips, and chips for follow up questions. There's no sheet, and the code isn't covered. After Explain the main button is "Review the fix", which shows the fix with the same patch as in section 5, with "Don't apply" and "Apply and build". People can also fix the code themselves and press ⌘↵. Whether the error has already been explained is kept in the store (`explained`): switching views doesn't ask for Explain again, and the explanation comes back to the column as a message. The flag is reset by a new build, a code edit and a step change.
 
-### 9. Прошло
-Статус с зелёной галочкой и фразой из данных шага, как на мобилке («The build passed and the interface shows a hello instruction.»), в полосе одна зелёная кнопка «Next: Build & Deploy ⌘↵», на последнем шаге «Finish tutorial ⌘↵», фокус переходит на неё сам. Enter вне редактора тоже ведёт дальше. Enter в редакторе вставляет строку и успех не сбрасывает: правка только пробелов не считается изменением. Любая другая правка на пройденном шаге снимает зачёт до следующей сборки (`changedSincePass` в сторе): статус «Changed since the last build. Build to check it again.», для клиента run вместо build, старый результат не показывается за код, который никто не собирал. Галочка шага в полоске прогресса остаётся до следующего результата. Полоска прогресса заполняется.
+### 9. Passed
+The status shows a green check and the sentence from the step data, as on mobile ("The build passed and the interface shows a hello instruction."), and the bar has a single green button "Next: Build & Deploy ⌘↵", or "Finish tutorial ⌘↵" on the last step, and focus moves to it by itself. Enter outside the editor also moves on. Enter in the editor inserts a line and doesn't reset the success: a whitespace only edit doesn't count as a change. Any other edit on a passed step clears the pass until the next build (`changedSincePass` in the store): the status reads "Changed since the last build. Build to check it again." (run instead of build for the client), and an old result is never shown for code nobody built. The step's check in the progress bar stays until the next result. The progress bar fills.
 
-«Restore my code» в шапке файла показывается только после упавшей сборки, на успехе его нет: откатывать там нечего, а откат снял бы зачёт. Если откатывается патч или фикс ассистента, кнопка называется «Undo the patch». Подсказка и описание для скринридера: «Puts the file back as it was before the first change applied on this step», после нажатия тост «File restored».
+"Restore my code" in the file header shows only after a failed build. It isn't there on success: there's nothing to roll back, and a rollback would clear the pass. If it rolls back the assistant's patch or fix, the button is called "Undo the patch". Tooltip and screen reader description: "Puts the file back as it was before the first change applied on this step", and after a press, a "File restored" toast.
 
-### 10. Деплой (шаг 2)
-Главная кнопка «Deploy to devnet», во время деплоя спиннер в статусе и три стадии в терминале по очереди, те же, что на мобилке: Writing buffer, Deploying, Confirming. После успеха program id стоит в терминале с «Copy» и «Explorer». В `declare_id!` он не вписывается: иначе ломается дифф шага 4. Статус «Live on devnet».
+### 10. Deploy (step 2)
+The main button is "Deploy to devnet". During the deploy there's a spinner in the status and three stages in the terminal one after another, the same as on mobile: Writing buffer, Deploying, Confirming. After success the program id is in the terminal with "Copy" and "Explorer". It isn't written into `declare_id!`, because that would break the step 4 diff. Status "Live on devnet".
 
-### 11. Клиент (шаг 3)
-Файл `client/client.ts`. Путь тот же, что в шаге 1: пишет сам или патч. Для своего кода главная кнопка «Run the client», для патча «Apply and run».
+### 11. Client (step 3)
+The `client/client.ts` file. Same path as step 1: write it yourself or take the patch. For your own code the main button is "Run the client", for the patch "Apply and run".
 
-Первый сигнатурный момент: твой hello возвращается из сети. После запуска в логе сначала вывод клиента (строка «Use 'solana confirm -v …' to see the logs» осталась, её печатает сам код), затем прототип выполняет эту команду за человека и показывает логи транзакции:
+First signature moment: your hello comes back from the network. After the run, the log first shows the client output (the line "Use 'solana confirm -v …' to see the logs" stays, the code itself prints it), then the prototype runs that command for the user and shows the transaction logs:
 
 ```
 $ solana confirm -v 4sGjMW…
@@ -91,114 +91,114 @@ Program 9hJqVk…zWxCvB consumed 1,042 of 200,000 compute units
 Program 9hJqVk…zWxCvB success
 ```
 
-Строка, которую написал `msg!`, подсвечена фиолетовым с полосой слева, под ней подпись «↳ from msg! · src/lib.rs:10». Текст строки берётся из `msg!` в файле (`helloSays` в `check.ts`), поэтому свой код говорит своими словами, номер строки тоже из файла. Открытый файл на шаге 3 `client.ts`, поэтому подпись открывает подсмотр `lib.rs`: строки 9, 10 и 11 без общего отступа, строка 10 подсвечена, сверху «src/lib.rs · Read only», снизу одна фраза «`msg!` wrote this line to the program log, and the transaction brought it back.». С мышью подсмотр открывается при наведении через 150 мс и уходит вместе с курсором, клик закрепляет его. На таче и на телефоне тап. Подсмотр открывается над строкой и подписью вместе, поэтому не закрывает строку, которую объясняет, и не забирает фокус.
+The line written by `msg!` is highlighted purple with a bar on the left, with the caption "↳ from msg! · src/lib.rs:10" under it. The line text comes from the `msg!` in the file (`helloSays` in `check.ts`), so your own code speaks in its own words, and the line number comes from the file too. The open file on step 3 is `client.ts`, so the caption opens a peek of `lib.rs`: lines 9, 10 and 11 without the common indent, line 10 highlighted, "src/lib.rs · Read only" on top, and one sentence at the bottom: "`msg!` wrote this line to the program log, and the transaction brought it back.". With a mouse the peek opens on hover after 150 ms and goes away with the cursor, and a click pins it. On touch and on the phone it's a tap. The peek opens above the line and the caption together, so it doesn't cover the line it explains, and it doesn't take focus.
 
-Второй сигнатурный момент: вместо голой подписи под логом квитанция транзакции. Строки группами через тонкие линии: Program (hello_anchor · 9hJqVk…zWxCvB) и Instruction (`hello`), затем Fee payer (Kora · signer), You (0 SOL), Fee (0.000005 SOL · paid by Kora), Compute (1,042 CU) и Confirmed (~0.4 s), затем Log (строка hello моноширинным), затем Signature с Copy. В заголовке «Transaction · example values» и Explorer, он остаётся заглушкой с тостом. Пометка про примерные значения стоит в заголовке мелко: честно и без веса предупреждения. На широком терминале квитанция стоит справа от лога (21rem), на узком под ним. Терминал с квитанцией выше: 288 px, на окне от 860 px в высоту 320.
+Second signature moment: instead of a bare caption under the log, a transaction receipt. Rows are grouped with thin dividers: Program (hello_anchor · 9hJqVk…zWxCvB) and Instruction (`hello`), then Fee payer (Kora · signer), You (0 SOL), Fee (0.000005 SOL · paid by Kora), Compute (1,042 CU) and Confirmed (~0.4 s), then Log (the hello line in monospace), then Signature with Copy. The header reads "Transaction · example values" with Explorer, which stays a stub with a toast. The example values note is small in the header: honest, without the weight of a warning. On a wide terminal the receipt sits to the right of the log (21rem), on a narrow one under it. The terminal with the receipt is taller: 288 px, 320 on windows 860 px tall or more.
 
-### 11а. Имя (шаг 4)
-Сборка шага 4 ещё не зачёт: шаг засчитывается, когда hello скажет имя обратно. После успешной сборки в сторе фаза `call`, статус с пунктирным кругом «The build passed. Now call hello with a name, any text works.», в полосе действий справа «Call hello», поле «Your name» (до 32 символов, проверки на настоящее имя нет) и «Run ⌘↵». С мышью фокус сам переходит в поле, на таче нет, иначе выезжает клавиатура. Enter в поле и ⌘Enter в любом месте запускают вызов, с пустым полем ничего не происходит. Во время вызова фаза `calling`, кнопка «Calling...», статус «Sending hello to devnet», терминал раскрывается сам и пишет `$ pg.program.methods.hello("Almaz").rpc()`, как клиент шага 3. Через 1,6 с лог транзакции с подсвеченной строкой «Program log: Hello, Almaz!», той же подписью и подсмотром, под ним квитанция с `hello(name)`, своей подписью транзакции и 1,187 CU. Статус «Your name came back in the transaction's logs.», дальше зелёная «Finish tutorial ⌘↵». Пока шаг ждёт, строка «Done when hello says your name back» (`checkedBy`). Имя хранится в сторе (`name`, текст поля в `draft`), только на этом устройстве. Правка кода после сборки возвращает к Build, правка только пробелов нет.
+### 11a. Name (step 4)
+The step 4 build isn't the pass yet: the step passes when hello says the name back. After a successful build the store is in the `call` phase, the status has a dashed circle "The build passed. Now call hello with a name, any text works.", and the right side of the action bar has "Call hello", a "Your name" field (up to 32 characters, no check for a real name) and "Run ⌘↵". With a mouse focus moves to the field by itself, on touch it doesn't, otherwise the keyboard pops up. Enter in the field and ⌘Enter anywhere start the call; with an empty field nothing happens. During the call the phase is `calling`, the button reads "Calling...", the status reads "Sending hello to devnet", and the terminal expands on its own and prints `$ pg.program.methods.hello("Almaz").rpc()`, like the step 3 client. After 1.6 s comes the transaction log with the highlighted line "Program log: Hello, Almaz!", the same caption and peek, and under it the receipt with `hello(name)`, its own transaction signature and 1,187 CU. Status "Your name came back in the transaction's logs.", then the green "Finish tutorial ⌘↵". While the step waits, the line reads "Done when hello says your name back" (`checkedBy`). The name is kept in the store (`name`, the field text in `draft`), on this device only. Editing the code after the build goes back to Build; a whitespace only edit doesn't.
 
-### 12. Финиш
-Отдельный экран: колонка урока и редактор уступают ему место, навигация остаётся. По центру колонка 520 px: ачивка с анимацией из мобилки, под ней заголовок экрана, то, что программа сказала: `Hello, Almaz!` моноширинным 28 px, под ним мелко «from transaction 3vZp8L…qPzLyM». Для скринридера заголовок звучит «Tutorial complete. Your program said Hello, Almaz!». Если имени нет (прогресс сохранён до этой версии), заголовок `Hello, World!` и подпись транзакции шага 3. Ниже «Tutorial complete. Your program is live on devnet.», итоги одной карточкой в три колонки, затем «Your last transaction» как распечатанный чек: моноширинный, сверху «hello_anchor · devnet» и дата, группы через пунктирные линии, внизу рваный край (маска с зубцами 12 px), «Example values in this prototype», «Copy as text» и «Explorer». Copy as text копирует текстовую версию с полными ключами, чтобы вставить в чат; если Clipboard API не даёт прав на запись, копирует через выделение, всё внутри клика. Затем «What you learned». Ниже карточка «Up next» (Counter PDA) с кольцом Play, главный акцент. В конце две вторичные кнопки: «Back to tutorials» и «Open the project» (вернуться в проект без туториала; в прототипе показывает тост, проекта вне туториала тут нет).
+### 12. Finish
+A separate screen: the lesson column and the editor make way for it, the navigation stays. A 520 px column in the center: the achievement with the animation from mobile, under it the screen heading, which is what the program said: `Hello, Almaz!` in 28 px monospace, and under it small "from transaction 3vZp8L…qPzLyM". For screen readers the heading reads "Tutorial complete. Your program said Hello, Almaz!". If there's no name (progress saved before this version), the heading is `Hello, World!` with the step 3 transaction signature. Below that, "Tutorial complete. Your program is live on devnet.", the stats in one card with three columns, then "Your last transaction" as a printed receipt: monospace, "hello_anchor · devnet" and the date on top, groups separated by dashed lines, a torn edge at the bottom (a mask with 12 px teeth), "Example values in this prototype", "Copy as text" and "Explorer". Copy as text copies a text version with full keys, for pasting into a chat; if the Clipboard API doesn't grant write access, it copies through a selection, all inside the click. Then "What you learned". Below that, the "Up next" card (Counter PDA) with a Play ring, the main accent. At the end, two secondary buttons: "Back to tutorials" and "Open the project" (go back to the project without the tutorial; in the prototype it shows a toast, since there's no project outside the tutorial here).
 
-## Микровзаимодействия
+## Microinteractions
 
-Общие правила: движение объясняет причину и следствие, 150 до 250 мс на одно движение, кривые из токенов ДС (`ease-standard`, `ease-out`, `ease-pop`), анимация не задерживает следующее действие и не двигает текст, который человек читает. С `prefers-reduced-motion` конечное состояние появляется сразу. Конфетти нет. Всё, кроме отмеченного, работает на десктопе и в рамке планшета. CSS лежит в `prototype.css`, классы `pg-*`.
+General rules: motion explains cause and effect, 150 to 250 ms per motion, easing curves from the DS tokens (`ease-standard`, `ease-out`, `ease-pop`), and animation never delays the next action or moves text someone is reading. With `prefers-reduced-motion` the end state appears right away. No confetti. Everything not marked otherwise works on desktop and in the tablet frame. The CSS is in `prototype.css`, classes `pg-*`.
 
-1. **Урок замечает код.** Пока человек печатает, у каждого блока кода в уроке, который уже есть в файле, тихая галочка в правом верхнем углу и зелёная граница блока. Сравнение как у сборки (`holds` в `check.ts`): без пробелов, пустых строк и комментариев, кривые кавычки как прямые, любой текст в `msg!`, строки блока подряд. Убрал код, галочка ушла. Галочка на подложке цвета блока, чтобы длинная строка кода под ней не просвечивала. С мышью при наведении галочка уступает место Copy, без наведения стоит слева от Copy. Для скринридера скрытый текст «This code is in your file». Блока шага 3 `console.log(pg.PROGRAM_ID.toString());` в патче ассистента нет, поэтому он отмечается только у того, кто его набрал.
-2. **Жест зачёта.** Когда шаг проходит на глазах (после сборки, деплоя или вызова), круг в статусе дорисовывается по часовой от верха за 220 мс, за ним галочка за 140 мс. Сегмент шага в полоске прогресса ловит короткий блик, пока его заливает (260 мс с задержкой 160). Уже пройденный шаг при открытии ничего не играет. Статус и полоска общие, поэтому на телефоне так же.
-3. **Ошибка рисуется и связана.** См. п. 7.
-4. **Чип становится вопросом.** Нажатый чип улетает в ленту: пузырь вопроса стартует с места и формы чипа (FLIP, 240 мс) и встаёт на своё место, ответ начинает печататься, когда он долетел. Оставшиеся чипы доезжают на освободившееся место за 200 мс. Сколько чипов влезает в ряд, считается по раскладке, а не по экрану, иначе ряд пропадал посреди анимации. Только десктоп и планшет, в шторке телефона чипы как раньше.
-5. **Квитанция печатается.** Строки квитанции выходят по одной через 60 мс, каждая за 200 мс опускается на место, когда транзакция пришла: на шагах 3 и 4 и один раз при открытии финиша. Вернулся на шаг или переключил вид, квитанция уже на месте. На телефоне тоже: вкладка Output открывается через мгновение после прихода, и квитанция ещё печатается.
-6. **Клавиша отзывается.** ⌘Enter подсвечивает ⌘↵ на кнопке, которую нажал: подсказка разгорается до полной яркости и обратно за 260 мс. Если кнопка от нажатия стала «Building...», подсказка остаётся на ней только чтобы вспыхнуть и погаснуть, скринридер её не читает. ⌘J подсвечивает свою подсказку в полосе терминала. Подсказка ⌘B живёт в тултипе, который от клавиши не открывается, поэтому коротко нажимается сама кнопка меню, видная после нажатия. Только там, где подсказки показаны (`desktop/pointer.ts`). С reduced motion подсказка просто становится ярче, без увеличения.
+1. **The lesson notices the code.** While someone types, every code block in the lesson that's already in the file gets a quiet check in the top right corner and a green block border. The comparison is the same as the build's (`holds` in `check.ts`): ignoring whitespace, blank lines and comments, curly quotes treated as straight, any text in `msg!`, the block's lines consecutive. Remove the code and the check goes away. The check sits on a backing in the block color so a long line of code underneath doesn't show through. With a mouse, on hover the check gives way to Copy; without hover it sits to the left of Copy. For screen readers there's hidden text "This code is in your file". The step 3 block `console.log(pg.PROGRAM_ID.toString());` isn't in the assistant's patch, so it only gets checked for someone who typed it.
+2. **The pass gesture.** When a step passes in front of you (after a build, deploy or call), the circle in the status draws itself clockwise from the top over 220 ms, followed by the check over 140 ms. The step's segment in the progress bar catches a short glint while it fills (260 ms with a 160 delay). A step that's already passed plays nothing when opened. The status and the bar are shared, so the phone gets the same.
+3. **The error draws itself and is linked.** See section 7.
+4. **A chip becomes a question.** A tapped chip flies into the feed: the question bubble starts from the chip's position and shape (FLIP, 240 ms) and settles into place, and the answer starts typing once it lands. The remaining chips slide into the freed space over 200 ms. How many chips fit in the row is computed from the layout, not the screen, otherwise the row disappeared mid animation. Desktop and tablet only; in the phone sheet the chips are as before.
+5. **The receipt prints.** Receipt rows come out one at a time every 60 ms, each dropping into place over 200 ms, when the transaction arrives: on steps 3 and 4, and once when the finish opens. Come back to the step or switch views and the receipt is already in place. On the phone too: the Output tab opens a moment after the transaction arrives, and the receipt is still printing.
+6. **The key responds.** ⌘Enter lights up the ⌘↵ on the button it pressed: the hint brightens to full and back over 260 ms. If the press turned the button into "Building...", the hint stays on it only to flash and fade, and screen readers don't read it. ⌘J lights up its own hint in the terminal bar. The ⌘B hint lives in a tooltip that the key doesn't open, so the menu button itself, visible after the press, gets a short press state. Only where hints are shown (`desktop/pointer.ts`). With reduced motion the hint just gets brighter, without scaling.
 
-Ещё по ревью: подсказка под пустым файлом на телефоне переносится (на 320 с крупным шрифтом она давала горизонтальный скролл), дифф на маленьком экране при открытии сам докручивает до первой изменённой строки и ставит её на треть высоты (фикс шага 1 со строки 14, шаг 4 со строки 9).
+More from the review: the hint under the empty file on the phone wraps (at 320 with a large font it caused horizontal scroll), and on a small screen the diff scrolls on open to the first changed line and puts it at a third of the height (the step 1 fix from line 14, step 4 from line 9).
 
-## Как проверяется код, набранный руками
+## How hand typed code is checked
 
-В прототипе сборки нет, поэтому Build сравнивает файл с эталоном шага без учёта пробелов и пустых строк.
+There's no build in the prototype, so Build compares the file with the step's reference, ignoring whitespace and blank lines.
 
-Сравнение прощает то, что пропустил бы компилятор или что для шага неважно: комментарии, `pub mod` вместо `mod`, любой текст в `msg!`, если в нём столько же `{}`, сколько значений.
+The comparison forgives what the compiler would let through or what doesn't matter for the step: comments, `pub mod` instead of `mod`, any text in `msg!` as long as it has as many `{}` as values.
 
-- Совпал: шаг проходит.
-- Нет `pub struct Hello`: ошибка `E0412 cannot find type Hello` с тем же Explain, что в сценарии мобилки. Закомментированная структура считается отсутствующей.
-- Нет `Ok(())`: ошибка `E0308 mismatched types, expected Result<()>, found ()`, свой текст Explain.
-- Пустой файл: «Build failed: the file is empty, so there is nothing to build.»
-- Строка, которой в шаге нет: ошибка называет её («Build failed: line 11 isn't part of this step (`let x = 1;`).») и красит в редакторе.
-- Все строки свои, но какой то не хватает: «Build failed: a line this step needs is missing (`use super::*;`).»
-- Каждая причина начинается одинаково: «Build failed: …», для клиента «Run failed: …». Исключение только плановая ошибка шага 1, «Build failed, as expected: …». Объяснения не просят ничего печатать, на телефоне печатать нечем: «Compare it with the lesson, or review the fix».
-- Кривые кавычки (“ ” ‘ ’) перед проверкой становятся прямыми: клавиатура планшета ставит их сама, и это не та ошибка, которой учит шаг.
-- В логе у каждой ошибки ссылка на строку, клик ведёт в редактор.
+- Match: the step passes.
+- No `pub struct Hello`: error `E0412 cannot find type Hello` with the same Explain as in the mobile scenario. A commented out struct counts as missing.
+- No `Ok(())`: error `E0308 mismatched types, expected Result<()>, found ()`, with its own Explain text.
+- Empty file: "Build failed: the file is empty, so there is nothing to build."
+- A line that isn't in the step: the error names it ("Build failed: line 11 isn't part of this step (`let x = 1;`).") and colors it in the editor.
+- All lines belong, but one is missing: "Build failed: a line this step needs is missing (`use super::*;`)."
+- Every reason starts the same way: "Build failed: …", or "Run failed: …" for the client. The only exception is the planned error on step 1, "Build failed, as expected: …". Explanations never ask you to type anything, since there's nothing to type with on the phone: "Compare it with the lesson, or review the fix".
+- Curly quotes (“ ” ‘ ’) become straight before the check: a tablet keyboard inserts them on its own, and that isn't the mistake the step is teaching.
+- In the log every error has a link to the line, and a click goes to the editor.
 
-Во всех случаях «Review the fix» показывает дифф от набранного кода к эталону.
+In every case "Review the fix" shows a diff from the typed code to the reference.
 
-Путь через ассистента идёт по сценарию мобилки: первый патч шага 1 без `struct Hello`, сборка падает, Explain, фикс, сборка проходит.
+The assistant path follows the mobile scenario: the first step 1 patch lacks `struct Hello`, the build fails, Explain, fix, the build passes.
 
-Если человек уже что-то набрал и потом нажал Write with assistant, патч показывается от того, что сейчас в редакторе: набранное видно красным как то, что патч заменит. Молча затереть свой код нельзя, вернуть его можно через Restore my code.
+If someone has already typed something and then presses Write with assistant, the patch is shown against what's in the editor now: the typed code shows in red as what the patch will replace. Silently wiping someone's code isn't allowed, and it can be brought back with Restore my code.
 
-## Поле вопроса ассистенту
+## The question field for the assistant
 
-Чипы дают заготовленные ответы, какие и когда, см. п. 3. На мобилке Explain ошибки показывает чипы про ошибку, Explain шага чипы про урок. На свободный текст ассистент отвечает одной фразой: «Free chat isn't connected in this prototype. Try a suggestion.» Плейсхолдеры поля без многоточия, клавиша return на экранной клавиатуре подписана Send (`enterkeyhint`). Ответы печатаются, как на мобилке. Модель не называется, только «Assistant».
+Chips give canned answers; which ones and when, see section 3. On mobile, Explain for an error shows chips about the error, and Explain for a step shows chips about the lesson. To free text the assistant answers with one sentence: "Free chat isn't connected in this prototype. Try a suggestion." The field placeholders have no ellipsis, and the return key on the on screen keyboard is labeled Send (`enterkeyhint`). Answers type out, as on mobile. The model isn't named, only "Assistant".
 
-Разговор в колонке хранится по шагам, пока открыта страница: вернулся на шаг, и его сообщения на месте, уже напечатанные ответы второй раз не печатаются. Start over начинает все шаги с чистой колонки.
+The conversation in the column is kept per step while the page is open: come back to a step and its messages are there, and answers already typed out don't type out again. Start over starts every step with a clean column.
 
-## Клавиши
+## Keys
 
-- ⌘Enter (Ctrl+Enter не на маке) жмёт главную кнопку полосы действий в любом состоянии, и из редактора тоже: ради этого клавиша и нужна. Build, Deploy to devnet, Run the client, Apply and build или Apply and run, после ошибки Explain the error, а после объяснения Review the fix, на шаге 4 после сборки Run (вызов hello с именем, с пустым полем ничего), Next или Finish после успеха. Нажатая подсказка вспыхивает, см. «Микровзаимодействия», п. 6. Подсказка ⌘↵ стоит на той кнопке, которую жмёт клавиша. В поле вопроса ассистенту не срабатывает.
-- ⌘B и Ctrl+B сворачивают и разворачивают меню, как в продукте (`client-v2`, `shared/ui/sidebar.tsx`). Сборкой ⌘B не учим: в продукте Ctrl+Shift+B открывает Build & Deploy, Ctrl+S форматирует.
-- ⌘J открывает терминал, подсказка тоже по платформе (Ctrl J не на маке).
-- Подсказки клавиш (⌘↵ на кнопках, ⌘J, 1 2 3 и S в Quick check, ⌘B в подсказках меню, «or ⌘↵» в пустом терминале) видны только при `(hover: hover) and (pointer: fine)` или после первого нажатия на настоящей клавиатуре: с модификатором или вне поля ввода. На планшете в руках они называют клавиши, которых нет.
-- Для разработчиков: Monaco по умолчанию держит Ctrl/⌘+Enter за «вставить строку ниже». В режиме туториала эту привязку надо переопределить, чтобы ⌘Enter жал главную кнопку.
-- Enter: Next после успеха, когда фокус не в редакторе и не в поле.
-- 1, 2, 3 и S: ответ на Quick check и пропуск.
-- Esc: закрывает открытые заметки.
+- ⌘Enter (Ctrl+Enter off the Mac) presses the main button of the action bar in any state, including from the editor: that's the whole point of the key. Build, Deploy to devnet, Run the client, Apply and build or Apply and run, Explain the error after an error, Review the fix after the explanation, Run on step 4 after the build (calling hello with the name, nothing with an empty field), Next or Finish after success. The pressed hint flashes, see "Microinteractions", item 6. The ⌘↵ hint sits on whichever button the key presses. It doesn't fire in the assistant question field.
+- ⌘B and Ctrl+B collapse and expand the menu, as in the product (`client-v2`, `shared/ui/sidebar.tsx`). We don't teach ⌘B for building: in the product Ctrl+Shift+B opens Build & Deploy and Ctrl+S formats.
+- ⌘J opens the terminal, and its hint also follows the platform (Ctrl J off the Mac).
+- Key hints (⌘↵ on buttons, ⌘J, 1 2 3 and S in Quick check, ⌘B in the menu tooltips, "or ⌘↵" in the empty terminal) show only with `(hover: hover) and (pointer: fine)` or after the first press on a real keyboard: with a modifier or outside an input. On a tablet in hand they name keys that aren't there.
+- For developers: by default Monaco binds Ctrl/⌘+Enter to "insert line below". In tutorial mode this binding has to be overridden so ⌘Enter presses the main button.
+- Enter: Next after success, when focus isn't in the editor or a field.
+- 1, 2, 3 and S: answering Quick check and skipping it.
+- Esc: closes open notes.
 
-## Переключатель видов
+## View switcher
 
-- На широком экране над всем тонкая служебная полоса высотой 40 px, в обоих видах на одном месте: слева подпись «Solana Playground · tutorial flow · prototype», по центру переключатель Phone и Desktop, справа Reset. Фон светлее продукта и мелкий текст, чтобы её не принимали за шапку приложения (решение Алмаза 21.10.2026, раньше переключатель был под рамкой телефона и плашкой в углу десктопа).
-- Phone: телефон в рамке, как сейчас.
-- Tablet: iPad Air в ландшафте, внутри десктопные экраны. iframe всегда 1152 на 792, вся рамка масштабируется под окно, поэтому низкое окно показывает планшет мельче, а не узким экраном. Внизу экрана 20 px под индикатор домой: переменная `--tablet-safe-bottom` действует только внутри рамки, `main` десктопа отступает на неё.
-- Desktop: экран во всю ширину под полосой, без рамки.
-- Выбор в адресе: `?view=desktop`, чтобы отправить ссылку сразу на нужный вид. Без параметра на широком экране Phone, как сейчас.
-- Уже 600 px переключателя нет, всегда мобилка.
+- On a wide screen there's a thin 40 px utility bar above everything, in the same place in both views: the label "Solana Playground · tutorial flow · prototype" on the left, the Phone and Desktop switcher in the center, Reset on the right. The background is lighter than the product and the text is small so nobody mistakes it for the app header (Almaz's call, 10/21/2026; the switcher used to be under the phone frame and in a badge in the desktop corner).
+- Phone: the phone in a frame, as now.
+- Tablet: an iPad Air in landscape with the desktop screens inside. The iframe is always 1152 by 792, and the whole frame scales to the window, so a short window shows a smaller tablet rather than a narrow screen. The bottom 20 px of the screen are for the home indicator: the `--tablet-safe-bottom` variable applies only inside the frame, and the desktop `main` is offset by it.
+- Desktop: the screen at full width under the bar, no frame.
+- The choice is in the URL, `?view=desktop`, so a link can open straight into the right view. Without the parameter a wide screen shows Phone, as now.
+- Below 600 px there's no switcher, always mobile.
 
-## Планшет и тач
+## Tablet and touch
 
-Всё ниже включается по `(pointer: coarse)`, на десктопе с мышью ничего не меняется.
+Everything below is turned on by `(pointer: coarse)`; nothing changes on desktop with a mouse.
 
-- Цели от 44 px: пункты меню и его кнопка, полоса терминала целиком (она и есть переключатель), Show notes, Restore, чипы, Send, ✕ колонки, кнопка урока, ссылка на строку компилятора в терминале, точка заметки в диффе. Карточки ключей под логом в этот заход не трогал.
-- Край колонки: зона 26 px и ручка, которая видна всегда, наведения на таче нет.
-- Сегменты полоски прогресса в колонке видны: полоса разрезана на шаги, над каждым номер, текущий светлее.
-- Когда экранная клавиатура съедает высоту, оболочка садится в `visualViewport`, и полоса действий остаётся над клавишами. Это best effort, на десктопе не срабатывает.
-- У страницы `overscroll-behavior: none`, у колонки, редактора, диффа и терминала `contain`: протяжка за край не тянет всё приложение.
+- Targets of 44 px or more: menu items and the menu button, the whole terminal bar (it is the toggle), Show notes, Restore, chips, Send, the column ✕, the lesson button, the compiler line link in the terminal, the note dot in the diff. I didn't touch the key cards under the log this round.
+- The column edge: a 26 px zone and a handle that's always visible, since there's no hover on touch.
+- The progress bar segments in the column are visible: the bar is split into steps, with a number above each, the current one lighter.
+- When the on screen keyboard eats the height, the shell fits itself to `visualViewport`, and the action bar stays above the keys. This is best effort and doesn't kick in on desktop.
+- The page has `overscroll-behavior: none`, and the column, editor, diff and terminal have `contain`: pulling past the edge doesn't drag the whole app.
 
-## Общий прогресс
+## Shared progress
 
-Тот же ключ `pg-proto-tutorial-v1`. Переключение вида посреди шага открывает тот же экран и шаг. Разбор патча остаётся открытым, ответ на Quick check и объяснённая ошибка хранятся вместе с прогрессом и второй раз не спрашиваются, сборка и шторки не переживают перезагрузку и возвращаются в спокойное состояние шага. Код, набранный руками на десктопе, хранится в состоянии и на мобилке показывается только для чтения. Перезагрузка, как и на мобилке, ведёт в галерею.
+Same key, `pg-proto-tutorial-v1`. Switching views mid step opens the same screen and step. The patch walkthrough stays open, the Quick check answer and an explained error are kept with the progress and aren't asked again, while the build and the sheets don't survive a reload and return to the step's resting state. Code typed by hand on desktop is kept in state and shown read only on mobile. A reload, as on mobile, goes to the gallery.
 
-## Как собран прототип
+## How the prototype is built
 
-- Тот же вход `design-system/prototype/tutorial`.
-- Общие `data.ts` (эталоны шагов и ошибки для своего кода добавляются туда, логи транзакций `clientLog`, `callLog` и `programLog`, у шага 4 поле `call`) и `store.tsx` (действия: правка кода, сборка своего кода, `explained`, `draft`, `call`, `called`; поля `changedSincePass`, `failedOnce`, `explained`, `built`, `draft`, `name`, `txAt`; фазы `call` и `calling`). Транзакции шагов считаются из состояния в `tx.ts`: `clientTx`, `namedTx`, `stepTx`, `lastTx`, `shownLog`. `firstTry` не теряется на плановой ошибке шага 1, для чипов про ошибку отдельный `failedOnce`.
-- Десктопные экраны в `src/prototype/tutorial/desktop/`: оболочка, галерея, страница туториала, шаг, финиш. Общие части из `ui/` (`Prose`, `InlineDiff`, `ActionZone`, `PredictZone`, `BuildLog`) переиспользуются, где подходят по форме.
-- Редактор в прототипе простой: поле ввода с подсветкой поверх. В продукте Monaco, как в client-v2.
-- Только компоненты ДС и токены, тёмная тема, тексты на английском.
+- Same entry point, `design-system/prototype/tutorial`.
+- Shared `data.ts` (step references and errors for the user's own code go there, transaction logs `clientLog`, `callLog` and `programLog`, a `call` field on step 4) and `store.tsx` (actions: code edit, building your own code, `explained`, `draft`, `call`, `called`; fields `changedSincePass`, `failedOnce`, `explained`, `built`, `draft`, `name`, `txAt`; phases `call` and `calling`). Step transactions are derived from state in `tx.ts`: `clientTx`, `namedTx`, `stepTx`, `lastTx`, `shownLog`. `firstTry` isn't lost on the planned step 1 error; the error chips have their own `failedOnce`.
+- Desktop screens in `src/prototype/tutorial/desktop/`: shell, gallery, tutorial page, step, finish. Shared parts from `ui/` (`Prose`, `InlineDiff`, `ActionZone`, `PredictZone`, `BuildLog`) are reused where their shape fits.
+- The editor in the prototype is simple: an input with a highlight layer on top. The product uses Monaco, as in client-v2.
+- DS components and tokens only, dark theme, copy in English.
 
-## Проверка
+## Testing
 
-Прохожу оба пути на каждом шаге в Desktop на 1440, 1280 и 1024 и в рамке Tablet, с галочками урока, волной и связкой наведения, чипами в ленту, жестом зачёта, вспышкой ⌘↵, подсмотром на шаге 3, вызовом с именем на шаге 4 (в том числе имя с `$&` и эмодзи), печатью квитанции, заголовком финиша и Copy as text: свой код (верный, с `pub mod` и своим текстом в `msg!`, без `Ok(())`, без `struct Hello`, произвольный) и патч ассистента. Проверяю ширину колонки мышью, стрелками и двойным кликом, Enter в редакторе после успеха, правку после успеха, Restore my code и Undo the patch после ошибки, код с кривыми кавычками, меню с мышью и на таче, переключение Phone и Desktop посреди шага в каждом состоянии, перезагрузку, клавиши, Esc. Контраст WCAG AA, фокус видно с клавиатуры.
+I go through both paths on every step in Desktop at 1440, 1280 and 1024 and in the Tablet frame, with the lesson checks, the squiggle and the hover link, chips flying into the feed, the pass gesture, the ⌘↵ flash, the peek on step 3, the call with a name on step 4 (including a name with `$&` and emoji), the receipt printing, the finish heading and Copy as text: your own code (correct, with `pub mod` and your own text in `msg!`, without `Ok(())`, without `struct Hello`, arbitrary) and the assistant's patch. I check the column width with the mouse, the arrow keys and a double click, Enter in the editor after success, an edit after success, Restore my code and Undo the patch after an error, code with curly quotes, the menu with a mouse and on touch, switching Phone and Desktop mid step in every state, a reload, the keys, Esc. WCAG AA contrast, focus visible from the keyboard.
 
-## Показ клиенту
+## Showing it to the client
 
-Как в мобильной спеке: отдельный проект на Vercel в аккаунте hoodies, basic auth в edge middleware, noindex через окружение, проверка анонимными запросами. Деплой только после ок Алмаза.
+Same as in the mobile spec: a separate project on Vercel in the hoodies account, basic auth in edge middleware, noindex through the environment, checked with anonymous requests. Deploy only after Almaz's ok.
 
-## Метрики
+## Metrics
 
-Для тейка: Кэт проходит сценарий на десктопе и переключается на телефон посреди шага без потери места. Для продукта добавляю к мобильным: доля шагов, пройденных своим кодом, против шагов через патч ассистента.
+For the demo: Kat goes through the scenario on desktop and switches to the phone mid step without losing her place. For the product, on top of the mobile ones: the share of steps passed with your own code versus steps passed with the assistant's patch.
 
-## Открытые вопросы
+## Open questions
 
-1. Степпер Write, Build, Deploy, Interact в прототипе на время туториала убран. Подтвердить с Никитой, что в продукте тоже прячем.
-2. Куда девается обычный чат проекта, пока колонка занята уроком: история чата в той же ленте или отдельно после выхода из туториала.
-3. Нужен ли на десктопе Quick check, когда человек пишет сам, или только перед патчем ассистента. В прототипе только перед патчем.
-4. Open on phone: показать ли обратный сценарий в следующей итерации.
+1. The Write, Build, Deploy, Interact stepper is removed in the prototype for the duration of the tutorial. Confirm with Nikita that we hide it in the product too.
+2. Where the regular project chat goes while the column is taken by the lesson: chat history in the same feed, or separately after leaving the tutorial.
+3. Does desktop need Quick check when someone writes the code themselves, or only before the assistant's patch? In the prototype it's only before the patch.
+4. Open on phone: whether to show the reverse scenario in the next iteration.

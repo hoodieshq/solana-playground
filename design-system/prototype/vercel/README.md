@@ -1,12 +1,12 @@
-# Деплой прототипа туториала
+# Deploying the tutorial prototype
 
-Отдельный проект `playground-tutorial-prototype` в команде Hoodies на Vercel, к основному Playground не относится. Код прототипа живёт в ветке `almaz/tutorial-prototype` в `hoodieshq/solana-playground` и в основной код не вливается.
+A separate project, `playground-tutorial-prototype`, in the Hoodies team on Vercel. It has nothing to do with the main Playground. The prototype code lives on the `almaz/tutorial-prototype` branch in `hoodieshq/solana-playground` and is never merged into the main code.
 
 ```bash
 sh prototype/vercel/build.sh
 cd prototype/vercel && vercel deploy --prod --scope hoodies
 ```
 
-Стенд закрыт basic auth в `middleware.js`. Логин, пароль и `X-Robots-Tag` лежат в env проекта (`BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `ROBOTS_TAG`). Без логина или пароля стенд отвечает 401 всем.
+The site is behind basic auth in `middleware.js`. The username, password and `X-Robots-Tag` are in the project env (`BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `ROBOTS_TAG`). If the username or password is missing, the site answers 401 to everyone.
 
-После деплоя проверь анонимным запросом корень, глубокий путь, ассет и 404: везде должен быть 401 с `X-Robots-Tag`.
+After a deploy, send anonymous requests to the root, a deep path, an asset and a 404: every one must return 401 with `X-Robots-Tag`.
