@@ -80,7 +80,7 @@ const modeNow = () =>
  * Renders the toasts sent with `PgView.setToast` in Sonner, at the bottom
  * left and clear of the rail.
  *
- * The toaster sits above the dialogs and the navigation's Sheet (`z-[60]`,
+ * The toaster sits above the dialogs and the Sheets (`z-[60]`,
  * over their `z-50`). The legacy layer sat under the modal backdrop; this one
  * does not, on purpose: a toast must stay visible and usable whatever is
  * open, a persistent one included. A modal

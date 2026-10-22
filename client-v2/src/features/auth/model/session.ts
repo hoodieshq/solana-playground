@@ -53,8 +53,8 @@ export type SignInOrigin = "assistant";
 
 /**
  * Where the last sign-in stands. Held here, not by the control that started
- * it: the session footer sits in the navigation's Sheet on a narrow window,
- * which unmounts it on close, and a sign-in outlives that.
+ * it: the session footer sits on the phone's menu page, which unmounts it
+ * when the window crosses to the rail, and a sign-in outlives that.
  */
 export type SignInState =
   | { status: "idle" }

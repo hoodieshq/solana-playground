@@ -38,8 +38,8 @@ interface UseAccountOptions {
 
 /**
  * What both account controls show and do. Sign-in progress is read from
- * `PgSession`, never kept here: on a narrow window the footer sits in the
- * navigation's Sheet, which unmounts it on close while the sign-in goes on.
+ * `PgSession`, never kept here: the footer is swapped for the rail's and
+ * unmounted on the phone's menu page while the sign-in goes on.
  */
 export const useAccount = ({ from, onToggleSettings }: UseAccountOptions) => {
   const cluster = useClusterStatus();
