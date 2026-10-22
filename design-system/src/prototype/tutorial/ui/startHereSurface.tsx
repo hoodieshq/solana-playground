@@ -18,7 +18,7 @@ const CELL = 3
 
 // Where the light is, and the stretch (x1 to x2) over which the words' side fades it to nothing
 const FIELD = {
-  // Behind the code on the right, reaching down to the log line. Where the words are, nothing
+  // Behind the picture on the right, reaching down past its foot. Where the words are, nothing
   desktop: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6 },
   // A strip right of some words, brightest at its outer edge, softening in from its inner one
   phone: { cx: 1, cy: 0.5, r: 1, x1: 0, x2: 0.4 },

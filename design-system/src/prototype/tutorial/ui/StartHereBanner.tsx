@@ -67,8 +67,8 @@ function DoneMark() {
 
 /** The gallery's top: the tutorial a new developer begins with, in three states. Fresh, it invites
  * and opens the tutorial's page. Started, it picks up at the first step not yet passed. Finished,
- * it says so and points on to the next tutorial. The picture is the tutorial's own moment: the
- * hello you write, coming back from devnet */
+ * it says so and points on to the next tutorial. The picture beside the words is one of three
+ * takes, picked with ?art= (see startHereArt.tsx) */
 export function StartHereBanner({ layout }: { layout: "phone" | "desktop" }) {
   const { s, dispatch } = useStore()
   const titleId = useId()
@@ -98,7 +98,7 @@ export function StartHereBanner({ layout }: { layout: "phone" | "desktop" }) {
       style={GROUND}
       className={cn("@container relative isolate overflow-hidden rounded-card border border-brand-purple/20", phone ? "mt-5" : "mt-8")}
     >
-      {/* On a phone the picture's code is too small to read, so only its pixels stay: a corner up
+      {/* On a phone there's no room for the picture beside the words, so only its pixels stay: a corner up
           right, past the longest label and the title, so the words below always sit on the plain
           ground. In the label's own size, so a larger font pushes the corner out with the words,
           and on a narrow phone with a large font there's no room left and it goes without. The
@@ -163,7 +163,7 @@ export function StartHereBanner({ layout }: { layout: "phone" | "desktop" }) {
         {/* Under the width the two columns need, the words keep the room and the picture steps out */}
         {!phone && (
           <div className="hidden min-w-0 @min-[44rem]:block">
-            <StartHereArt fresh={fresh} done={finished} />
+            <StartHereArt />
           </div>
         )}
       </div>
