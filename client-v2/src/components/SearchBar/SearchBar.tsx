@@ -4,18 +4,31 @@ import {
   ReactNode,
   SetStateAction,
   useEffect,
+  useId,
   useRef,
   useState,
   type JSX,
 } from "react";
-import styled, { css } from "styled-components";
+import { ArrowLeft, Search, X } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
-import Input, { InputProps } from "../Input";
-import { Close, PointedArrow, Search } from "../Icons";
-import { SpinnerWithBg } from "../Loading";
+import {
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+} from "@/shared/ui/command";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/shared/ui/input-group";
+import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
+import { Spinner } from "@/shared/ui/spinner";
+import type { InputProps } from "../Input";
 import { useKeybind, useOnClickOutside } from "../../hooks";
-import { Arrayable, Getable, PgCommon, PgTheme } from "../../utils";
+import { Arrayable, Getable, PgCommon } from "../../utils";
 
 export interface SearchBarProps extends InputProps {
   items?: Item[] | null;
@@ -23,9 +36,9 @@ export interface SearchBarProps extends InputProps {
   showSearchOnMount?: boolean;
   labelToSelectOnPaste?: string;
   restoreIfNotSelected?: boolean;
+  /** Which side of the field the search icon sits on */
   searchButton?: {
     position?: "left" | "right";
-    width?: string;
   };
   onSearch?: (ev: { input: InputProps["value"]; item: NormalizedItem }) => void;
   filter?: (args: {
@@ -78,10 +91,13 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   setSelectedItems: _setSelectedItems,
   onClick,
   onPaste,
+  onChange,
+  error,
+  setError,
+  validator,
   ...props
 }) => {
   const searchButtonPosition = searchButton?.position ?? "left";
-  const searchButtonWidth = searchButton?.width ?? "2rem";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const lastValue = useRef(props.value);
@@ -106,6 +122,10 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         : currentValue
       : item.label;
   };
+
+  // What the validator last said, for a caller that passes no `setError`
+  const [validationError, setValidationError] = useState<InputError>(null);
+  const shownError = error || validationError;
 
   const [isVisible, setIsVisible] = useState(showSearchOnMount);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -172,11 +192,11 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         )
       : normalizedItems.filter((item) => {
           if (item.onlyShowIfValid) {
-            return props.validator?.(getItemValue(item));
+            return validator?.(getItemValue(item));
           }
 
           // Show all optinos if the input is valid
-          if (props.validator?.(props.value)) return true;
+          if (validator?.(props.value)) return true;
 
           if (typeof item.matches === "function") {
             return item.matches(props.value);
@@ -321,129 +341,191 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
     [filteredItems?.length]
   );
 
-  // Close on outside click
-  useOnClickOutside(wrapperRef, reset, isVisible && !itemState.closeButton);
+  // Close on outside click. The list renders in a portal, outside the
+  // wrapper, so a press in this field's own list is not outside.
+  const listId = useId();
+  useOnClickOutside(
+    wrapperRef,
+    reset,
+    isVisible && !itemState.closeButton,
+    `[data-search-bar-list="${listId}"]`
+  );
+
+  const isOpen = !!(filteredItems || itemState.Component);
+  const highlighted =
+    keyboardSelectionIndex === null
+      ? ""
+      : filteredItems?.at(keyboardSelectionIndex)?.label ?? "";
 
   return (
-    <Wrapper ref={wrapperRef}>
-      <SearchInputWrapper width={searchButtonWidth}>
-        <SearchInput
-          ref={inputRef}
-          position={searchButtonPosition}
-          autoFocus={showSearchOnMount}
-          onClick={(ev) => {
-            onClick?.(ev);
-            setIsVisible(true);
-          }}
-          onPaste={(ev) => {
-            onPaste?.(ev);
+    <div ref={wrapperRef} className="w-full">
+      {typeof shownError === "string" && shownError && (
+        <p className="mb-2 text-xs text-destructive">{shownError}</p>
+      )}
 
-            // Default to the pasted text if the label to select is not specified
-            const clipboardText = ev.clipboardData.getData("text");
+      <Popover open={isOpen}>
+        <PopoverAnchor>
+          <InputGroup>
+            <InputGroupAddon
+              align={
+                searchButtonPosition === "left" ? "inline-start" : "inline-end"
+              }
+            >
+              <Search />
+            </InputGroupAddon>
 
-            // Intentionally use `itemState.items` instead of `filteredItems`
-            //`normalizedItems` because they could be in an invalid state
-            // when the paste events, e.g. `normalizedItems` values only
-            // exist when `isVisible` is truthy.
-            const item = itemState.items?.find((item) => {
-              const { label } = normalizeItem(item);
-              return label === labelToSelectOnPaste || label === clipboardText;
-            });
-            if (item) {
-              // `item.value` can be an empty string because it's not updated as
-              // soon as `onPaste` executes.
-              if (typeof item === "object") item.value ||= clipboardText;
+            <InputGroupInput
+              ref={inputRef}
+              role="combobox"
+              aria-expanded={isOpen}
+              aria-autocomplete="list"
+              aria-invalid={shownError ? true : undefined}
+              autoComplete="off"
+              autoFocus={showSearchOnMount}
+              onClick={(ev) => {
+                onClick?.(ev);
+                setIsVisible(true);
+              }}
+              onChange={(ev) => {
+                let err: InputError = null;
+                if (validator) {
+                  try {
+                    if (validator(ev.target.value) === false) err = true;
+                  } catch (e: any) {
+                    err = e.message;
+                  }
+                }
+                setValidationError(err);
+                setError?.(err);
 
-              // Include a timeout otherwise the pasted text is appended to the
-              // value we set instead of overriding it
-              setTimeout(() => searchCommon(item));
-            }
-          }}
-          {...props}
-        />
+                onChange?.(ev);
+              }}
+              onPaste={(ev) => {
+                onPaste?.(ev);
 
-        {props.value && (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Clear search"
-            className={`absolute inset-y-0 my-auto ${INPUT_CLOSE_BUTTON_SIDE[searchButtonPosition]}`}
-            onClick={() => {
-              setInputValue("", { focus: true });
-              setSelectedItems({ completed: [], pending: [] });
-              setIsVisible(true);
-            }}
-          >
-            <Close />
-          </Button>
-        )}
+                // Default to the pasted text if the label to select is not specified
+                const clipboardText = ev.clipboardData.getData("text");
 
-        <Button
-          variant="ghost"
-          aria-label="Search"
-          className={`absolute h-full w-(--search-button-width) px-0 ${SEARCH_BUTTON_SIDE[searchButtonPosition]}`}
-          onClick={searchTopResult}
+                // Intentionally use `itemState.items` instead of `filteredItems`
+                //`normalizedItems` because they could be in an invalid state
+                // when the paste events, e.g. `normalizedItems` values only
+                // exist when `isVisible` is truthy.
+                const item = itemState.items?.find((item) => {
+                  const { label } = normalizeItem(item);
+                  return (
+                    label === labelToSelectOnPaste || label === clipboardText
+                  );
+                });
+                if (item) {
+                  // `item.value` can be an empty string because it's not updated as
+                  // soon as `onPaste` executes.
+                  if (typeof item === "object") item.value ||= clipboardText;
+
+                  // Include a timeout otherwise the pasted text is appended to the
+                  // value we set instead of overriding it
+                  setTimeout(() => searchCommon(item));
+                }
+              }}
+              {...props}
+            />
+
+            {props.value && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setInputValue("", { focus: true });
+                    setSelectedItems({ completed: [], pending: [] });
+                    setIsVisible(true);
+                  }}
+                >
+                  <X />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+        </PopoverAnchor>
+
+        <PopoverContent
+          data-search-bar-list={listId}
+          align="start"
+          className="relative w-(--radix-popover-trigger-width) gap-0 p-1"
+          // Focus stays in the field: typing filters, and the arrow keys and
+          // Enter act from there through `useKeybind`
+          onOpenAutoFocus={(ev) => ev.preventDefault()}
+          onCloseAutoFocus={(ev) => ev.preventDefault()}
+          // `reset` closes the list, so it can restore the last value first
+          onEscapeKeyDown={(ev) => ev.preventDefault()}
+          onInteractOutside={(ev) => ev.preventDefault()}
         >
-          <Search />
-        </Button>
-      </SearchInputWrapper>
+          {itemState.isInSubSearch && (
+            <div className="flex items-center justify-between pb-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Back"
+                onClick={() => {
+                  setItemState({ items, isInSubSearch: false });
+                  setSelectedItems((items) => ({ ...items, pending: [] }));
+                  inputRef.current?.focus();
+                }}
+              >
+                <ArrowLeft />
+              </Button>
 
-      {(filteredItems || itemState.Component) && (
-        <DropdownWrapper isCustomComponent={!!itemState.Component}>
-          {
-            <SpinnerWithBg loading={loading}>
-              {itemState.isInSubSearch && (
-                <SubSearchTopWrapper>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Back"
-                    className="[&_svg:not([class*='size-'])]:size-5"
-                    onClick={() => {
-                      setItemState({ items, isInSubSearch: false });
-                      setSelectedItems((items) => ({ ...items, pending: [] }));
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    <PointedArrow rotate="180deg" />
-                  </Button>
-
-                  {itemState.closeButton && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Close"
-                      onClick={reset}
-                    >
-                      <Close />
-                    </Button>
-                  )}
-                </SubSearchTopWrapper>
+              {itemState.closeButton && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                  onClick={reset}
+                >
+                  <X />
+                </Button>
               )}
+            </div>
+          )}
 
-              {itemState.Component ? (
-                <itemState.Component search={searchCommon} />
-              ) : filteredItems?.length ? (
-                filteredItems.map((item, i) => (
-                  <DropdownItem
+          {itemState.Component ? (
+            <itemState.Component search={searchCommon} />
+          ) : (
+            <Command
+              shouldFilter={false}
+              value={highlighted}
+              onValueChange={(label) => {
+                const index = filteredItems
+                  ? filteredItems.findIndex((item) => item.label === label)
+                  : -1;
+                if (index !== -1) setKeyboardSelectionIndex(index);
+              }}
+              className="rounded-md! p-0"
+            >
+              <CommandList className="max-h-60">
+                <CommandEmpty className="py-2">No match</CommandEmpty>
+                {filteredItems?.map((item) => (
+                  <CommandItem
                     key={item.label}
                     ref={item.isSelected ? selectedItemRef : null}
-                    onClick={() => searchCommon(item)}
-                    onMouseEnter={() => setKeyboardSelectionIndex(i)}
-                    isSelected={item.isSelected}
-                    isKeyboardSelected={keyboardSelectionIndex === i}
+                    value={item.label}
+                    data-checked={item.isSelected}
+                    onSelect={() => searchCommon(item)}
                   >
                     {item.element ?? item.label}
-                  </DropdownItem>
-                ))
-              ) : (
-                <NoMatch>No match</NoMatch>
-              )}
-            </SpinnerWithBg>
-          }
-        </DropdownWrapper>
-      )}
-    </Wrapper>
+                  </CommandItem>
+                ))}
+              </CommandList>
+            </Command>
+          )}
+
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-popover/80">
+              <Spinner />
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };
 
@@ -451,98 +533,6 @@ const normalizeItem = (item: Item): NormalizedItem => {
   return typeof item === "object" ? item : { label: item };
 };
 
-type SearchButtonProps = NonNullable<SearchBarProps["searchButton"]>;
-type SearchButtonPosition = Pick<SearchButtonProps, "position">;
-type SearchButtonPositionWidth = Pick<SearchButtonProps, "width">;
-
-const Wrapper = styled.div``;
-
-const SearchInputWrapper = styled.div<SearchButtonPositionWidth>`
-  display: flex;
-  position: relative;
-
-  --search-button-width: ${({ width }) => width};
-`;
-
-const SearchInput = styled(Input)<SearchButtonPosition>`
-  ${({ theme, position }) => css`
-    padding: ${theme.components.input.padding};
-    ${position === "left"
-      ? `padding-left: var(--search-button-width);
-    padding-right: var(--search-button-width);`
-      : `padding-right: calc(2 * var(--search-button-width))`}
-  `}
-`;
-
-/* Both maps are keyed by the search button's position, not by where the
-   button they place sits: with the search button on the left, the clear
-   button goes to the right edge. Written out so Tailwind sees the classes. */
-const INPUT_CLOSE_BUTTON_SIDE = {
-  left: "right-1",
-  right: "right-[calc(var(--search-button-width)+0.25rem)]",
-} as const;
-
-const SEARCH_BUTTON_SIDE = {
-  left: "left-0 rounded-r-none",
-  right: "right-0 rounded-l-none",
-} as const;
-
-const DropdownWrapper = styled.div<{ isCustomComponent: boolean }>`
-  ${({ isCustomComponent, theme }) => css`
-    flex: 1;
-    padding: 0.5rem 0;
-    background: ${theme.components.input.bg};
-    border-radius: ${theme.default.borderRadius};
-    outline: 1px solid ${PgTheme.alpha(theme.colors.default.primary, "medium")};
-    user-select: none;
-
-    ${!isCustomComponent &&
-    `
-      max-height: 15rem;
-      overflow: auto;
-      ${PgTheme.getScrollbarCSS({ width: "0.25rem" })};
-    `};
-  `}
-`;
-
-const SubSearchTopWrapper = styled.div`
-  ${({ theme }) => css`
-    position: sticky;
-    top: -0.5rem;
-    padding: 0.25rem 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: ${theme.components.input.bg};
-  `}
-`;
-
-const DropdownItem = styled.div<{
-  isSelected: boolean;
-  isKeyboardSelected: boolean;
-}>`
-  ${({ isSelected, isKeyboardSelected, theme }) => css`
-    padding: 0.5rem 1rem;
-    color: ${theme.colors.default.textSecondary};
-    font-weight: bold;
-    transition: all ${theme.default.transition.type}
-      ${theme.default.transition.duration.short};
-
-    &:hover {
-      background: ${theme.colors.state.hover.bg};
-      color: ${theme.colors.default.textPrimary};
-      cursor: pointer;
-    }
-
-    ${isKeyboardSelected &&
-    `background: ${theme.colors.state.hover.bg}; color: ${theme.colors.default.textPrimary}`};
-    ${isSelected && `color: ${theme.colors.default.primary} !important`};
-  `}
-`;
-
-const NoMatch = styled.div`
-  padding: 0.5rem;
-  text-align: center;
-`;
+type InputError = string | boolean | null;
 
 export default SearchBar;

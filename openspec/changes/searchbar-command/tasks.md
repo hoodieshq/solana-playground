@@ -6,18 +6,18 @@
       with `yarn ds-add input-group command`; `cmdk` lands in
       `client-v2/package.json`. Verify: `src/shared/ui/command.tsx` exists and
       `yarn test-types` passes.
-- [ ] 1.2 Tests first, in `src/components/SearchBar/SearchBar.test.tsx`:
+- [x] 1.2 Tests first, in `src/components/SearchBar/SearchBar.test.tsx`:
       picking an item fills the input and calls `onSearch`; an item with
       `items` opens a page and Back returns; a failing `validator` sets
       `aria-invalid`; Escape with `restoreIfNotSelected` puts back the last
       value; pasting `labelToSelectOnPaste` picks it; ArrowDown then Enter
       picks the second item. Verify: they fail against the legacy SearchBar
       (after 1.1).
-- [ ] 1.3 Rebuild `SearchBar.tsx` from `InputGroup`, `Popover` and `Command`
+- [x] 1.3 Rebuild `SearchBar.tsx` from `InputGroup`, `Popover` and `Command`
       per design.md; drop `searchButton.width`. Verify: 1.2 passes and
       `git grep styled-components client-v2/src/components/SearchBar` prints
       nothing (after 1.2).
-- [ ] 1.4 The spec's two scenarios as Playwright tests in
+- [x] 1.4 The spec's two scenarios as Playwright tests in
       `e2e/client-v2-stages.e2e.spec.ts`, titled
       `client-v2-search-field: <scenario>`. Verify: `yarn test-e2e
       e2e/client-v2-stages.e2e.spec.ts` passes (after 1.3).
