@@ -206,6 +206,9 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
         }
         effort={effort}
         focusRequest={turn.focusRequest}
+        // No default backend and nothing connected: the model button reads
+        // "Connect a model" and is the way in, so Send waits for it
+        sendBlocked={shown.kind === "none" ? "Connect a model to send" : null}
       />
     </div>
   );

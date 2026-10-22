@@ -172,11 +172,18 @@ test("client-v2-assistant: No default backend", async ({ page }) => {
   await openProject(page, "no-default");
   await expect(modelButton(page, "Connect a model")).toBeVisible(LONG);
 
+  // Nothing can take the message: Send stays disabled with text in, and Enter
+  // opens nothing
   await input(page).fill("Say hello");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-
-  // Connect a model is open, with its key field on screen
+  await expect(
+    page.getByRole("button", { name: "Send", exact: true })
+  ).toBeDisabled();
+  await input(page).press("Enter");
   const dialog = page.getByRole("dialog", { name: "Connect a model" });
+  await expect(dialog).toBeHidden();
+
+  // The model button is the way in: Connect a model, with its key field
+  await modelButton(page, "Connect a model").click();
   await expect(dialog.locator("#assistant-api-key")).toBeVisible(LONG);
   // The prompt waits in the composer, but no notice says so once the dialog is
   // what the user is looking at: the notice is for a prompt asked for from

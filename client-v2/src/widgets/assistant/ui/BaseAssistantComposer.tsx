@@ -21,7 +21,8 @@ export interface ComposerContextChip {
 
 /**
  * Where the user writes to the assistant: what it will read, the words, the
- * model and effort, and Send, which turns to Stop while a turn runs.
+ * model and effort, and Send, which turns to Stop while a turn runs and is
+ * disabled while nothing can take the message (`sendBlocked`).
  *
  * The input stays editable during a turn; the design system's `Composer`
  * refuses to submit while `busy`, so typing ahead cannot start a second turn.
@@ -38,6 +39,7 @@ export function BaseAssistantComposer({
   model,
   effort,
   focusRequest = 0,
+  sendBlocked = null,
 }: {
   chips: ComposerContextChip[];
   value: string;
@@ -52,6 +54,12 @@ export function BaseAssistantComposer({
   effort: ReactNode;
   /** Focuses the input whenever it changes; `0` never does, so mounting does not steal focus */
   focusRequest?: number;
+  /**
+   * Why nothing can take a message now, as Send's tooltip; Send and Enter do
+   * nothing while it is set. `null` leaves Send to the design system, which
+   * disables it only while the input is empty.
+   */
+  sendBlocked?: string | null;
 }) {
   // On the form: the installed `ComposerInput` keeps its own ref for sizing,
   // and a `ref` passed to it would replace that one
@@ -67,7 +75,9 @@ export function BaseAssistantComposer({
         ref={form}
         busy={busy}
         onStop={onStop}
-        onSubmit={() => onSend(value)}
+        onSubmit={() => {
+          if (sendBlocked === null) onSend(value);
+        }}
       >
         {chips.length > 0 && (
           <ComposerContextList>
@@ -93,9 +103,27 @@ export function BaseAssistantComposer({
         <ComposerToolbar>
           {model}
           {effort}
-          <ComposerSend>
-            <LogoMark className="size-4" />
-          </ComposerSend>
+          {sendBlocked === null ? (
+            <ComposerSend>
+              <LogoMark className="size-4" />
+            </ComposerSend>
+          ) : (
+            <Tooltip>
+              {/* A disabled button takes no focus or hover, so the wrapper
+                  carries the explanation */}
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  className="ml-auto rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ComposerSend disabled>
+                    <LogoMark className="size-4" />
+                  </ComposerSend>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{sendBlocked}</TooltipContent>
+            </Tooltip>
+          )}
         </ComposerToolbar>
       </Composer>
       <p className="px-1 text-center text-xs text-muted-foreground">

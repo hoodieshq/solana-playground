@@ -12,6 +12,7 @@ interface Setup {
   placeholder?: string;
   chips?: Array<{ label: string; title: string }>;
   focusRequest?: number;
+  sendBlocked?: string | null;
 }
 
 /** The Base with its value held the way the connected composer holds it */
@@ -21,6 +22,7 @@ const setup = ({
   placeholder = "Ask about this project…",
   chips = [],
   focusRequest = 0,
+  sendBlocked = null,
 }: Setup = {}) => {
   const onSend = vi.fn();
   const onStop = vi.fn();
@@ -39,6 +41,7 @@ const setup = ({
           model={<span>model slot</span>}
           effort={<span>effort slot</span>}
           focusRequest={focusRequest}
+          sendBlocked={sendBlocked}
         />
       </TooltipProvider>
     );
@@ -100,6 +103,36 @@ describe("BaseAssistantComposer", () => {
       "disabled",
       true
     );
+  });
+
+  it("disables Send while nothing can take the message, typed text or not", async () => {
+    const { onSend, user } = setup({
+      value: "Explain this build error",
+      sendBlocked: "Connect a model to send",
+    });
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      true
+    );
+    await user.type(input(), "{Enter}");
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("says why Send is disabled, on focus", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const { user } = setup({ sendBlocked: "Connect a model to send" });
+    await user.click(input());
+    await user.tab();
+    expect(
+      (await screen.findAllByText("Connect a model to send")).length
+    ).toBeGreaterThan(0);
   });
 
   it("renders each chip focusable, explained by a tooltip on focus", async () => {
