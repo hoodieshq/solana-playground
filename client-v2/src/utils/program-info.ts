@@ -95,7 +95,11 @@ const storage = {
       lastBuildFailed: state.lastBuildFailed,
     };
 
-    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState));
+    // A project made without one (the sidebar's samples) has no `.workspace`
+    // folder yet, and the write used to fail on it after every build
+    await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(serializedState), {
+      createParents: true,
+    });
   },
 };
 

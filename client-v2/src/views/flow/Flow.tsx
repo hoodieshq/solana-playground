@@ -348,6 +348,22 @@ const Flow = () => {
     /* On a phone, the chat is the pane that shows */
     setPane("chat");
   }, []);
+  /* Off a project the page has no column for the chat, so "Ask anything"
+     opens one beside the page, for this visit only: a chat left open in a
+     project must not move into Home on its own */
+  const [askingOffProject, setAskingOffProject] = useState(false);
+  const askOffProject = useCallback(() => {
+    showAssistant();
+    setAskingOffProject(true);
+    // The question goes where the cursor is
+    window.setTimeout(
+      () =>
+        document
+          .querySelector<HTMLTextAreaElement>("textarea[data-composer]")
+          ?.focus(),
+      50
+    );
+  }, [showAssistant]);
   const toggleAssistantWide = useCallback(
     () => setAssistantWide((wide) => !wide),
     []
@@ -998,11 +1014,37 @@ const Flow = () => {
               </Work>
             </Panes>
           ) : (
-            <ZeroState
-              onAskAssistant={showAssistant}
-              section={section}
-              onSection={setSection}
-            />
+            <Panes ref={panesRef}>
+              {askingOffProject && assistantOpen && (
+                <AssistantPane
+                  enable="right"
+                  size={{ width: assistantShown, height: "100%" }}
+                  minWidth={ASSISTANT_MIN}
+                  maxWidth={assistantMax}
+                  handleComponent={{ right: <Sash /> }}
+                  onResizeStop={(_ev, _dir, ref, delta) => {
+                    if (!delta.width) return;
+                    const w = Math.round(ref.getBoundingClientRect().width);
+                    setAssistantWidth(w);
+                    write(KEYS.assistantWidth, String(w));
+                    setAssistantWide(false);
+                  }}
+                >
+                  <Conversation>
+                    <Assistant
+                      onCollapse={() => setAskingOffProject(false)}
+                      onExpand={toggleAssistantWide}
+                      expanded={assistantWide}
+                    />
+                  </Conversation>
+                </AssistantPane>
+              )}
+              <ZeroState
+                onAskAssistant={askOffProject}
+                section={section}
+                onSection={setSection}
+              />
+            </Panes>
           )}
         </Layout>
 
