@@ -8,6 +8,7 @@ import Terminal from "../../main/secondary/terminal/Component/Terminal";
 import { useKeybind } from "../../../hooks";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgCommand, PgTerminal } from "../../../utils";
+import { PgKora } from "../lessons/kora";
 import { PgFlow } from "../state/stage";
 import type { StageStatus } from "../state/stage";
 import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
@@ -111,6 +112,8 @@ const ConsoleDrawer: FC = () => {
   // re-opens on unrelated state changes.
   useEffect(() => {
     const a = PgCommand.deploy.onDidStart(() => setOpen(true));
+    // A tutorial's deploy and calls print here too, mocked until Kora is live
+    const d = PgKora.onDidStart(() => setOpen(true));
     const b = PgFlow.onDidChange((flow) => {
       const prev = prevDeploy.current;
       prevDeploy.current = flow.deploy;
@@ -129,6 +132,7 @@ const ConsoleDrawer: FC = () => {
       a.dispose();
       b.dispose();
       c.dispose();
+      d.dispose();
     };
   }, []);
 

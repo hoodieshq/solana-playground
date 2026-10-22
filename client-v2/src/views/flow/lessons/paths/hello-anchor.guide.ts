@@ -80,18 +80,18 @@ export const helloAnchorGuide: LessonGuide = {
   },
   deploy: {
     intro:
-      "Deploying puts your built program on devnet, Solana's public test network. Press **Deploy to devnet** and wait for the program id. A program nobody calls for 7 days is closed; deploy again any time to bring it back.",
+      "Deploying puts your built program on devnet, Solana's public test network. Press **Deploy to devnet** and wait for the program id. Kora pays the rent, so it costs you 0 SOL and needs no wallet. A program nobody calls for 7 days is closed; deploy again any time to bring it back.",
     explain:
       "The build made a program binary and its IDL. Deploying uploads the binary to devnet, where it gets an address, the program id, that clients call.",
     hints: [
       "What has to be true before a deploy can succeed?",
-      "The build has to pass, and the wallet needs devnet SOL for the rent. The wallet and the network are at the foot of the sidebar.",
+      "The build has to pass in this session. Then Kora covers the rent, so no wallet or SOL is needed.",
     ],
   },
   "call-client": {
     intro:
       "A client is code outside the program that sends it transactions. Here it's a short TypeScript file, `client/client.ts`.\n\n" +
-      "Write the call to `hello` yourself, or press **Write it for me** and I'll propose it. Then run it with `run` in the terminal.",
+      "Write the call to `hello` yourself, or press **Write it for me** and I'll propose it. Then press **Run the client**.",
     explain:
       "In Playground the `pg` namespace already holds your program, wallet and connection. `pg.program.methods` has a method for every instruction in the IDL, and `.rpc()` sends the transaction and returns its signature.",
     hints: [
@@ -102,13 +102,13 @@ export const helloAnchorGuide: LessonGuide = {
       path: "client/client.ts",
       content: CLIENT_CALL,
       say: "I'll call `hello` from the client and print the transaction, so you can find its logs.",
-      done: "Applied. Type `run` in the terminal, then **Continue** once you see the transaction.",
+      done: "Applied. Press **Run the client**: the transaction and the line `hello` logged come back in the terminal.",
     },
   },
   "greet-by-name": {
     intro:
       "Instructions can take arguments after their `Context`. This step adds a `name` to `hello` and logs it.\n\n" +
-      "Change `lib.rs` yourself and press **Build**, or press **Write it for me**. Then deploy again and call `hello` with your name in **Interact**: the log comes back with it.",
+      "Change `lib.rs` yourself and press **Build**, or press **Write it for me**. Then call `hello` with your name: the log comes back with it.",
     explain:
       "Arguments come after the `Context`, and Anchor serializes them for you, so a `String` works as is. `msg!` fills each `{}` with the next value.",
     hints: [
@@ -119,7 +119,7 @@ export const helloAnchorGuide: LessonGuide = {
       path: "src/lib.rs",
       content: withName,
       say: "I'll add a `name: String` argument to `hello` and put it in the log line.",
-      done: "Applied. Press **Build**, then redeploy and call `hello` with a name in **Interact**.",
+      done: "Applied. Press **Build**, then call `hello` with your name.",
     },
   },
 };

@@ -32,6 +32,7 @@ import {
 } from "./left/width";
 import ObjectiveBand, { LessonBar } from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
+import Finish from "./lessons/Finish";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
@@ -144,6 +145,9 @@ const Flow = () => {
   );
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
+  // Open the project on the finish screen puts the code back; the next
+  // lesson finished shows it again
+  const [finishDismissed, setFinishDismissed] = useState<string | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(
     () => read(KEYS.sidebar) !== "0"
@@ -512,6 +516,19 @@ const Flow = () => {
     };
   }, [phone, filesSheet]);
 
+  // Every step behind the learner: the lesson ends on its finish screen
+  const finished =
+    !!lesson.path &&
+    !currentStep(lesson.path, lesson.progress) &&
+    finishDismissed !== lesson.path.tutorial;
+  const finish = finished && (
+    <Finish
+      state={lesson}
+      onTutorials={() => goSection("tutorials")}
+      onOpenProject={() => setFinishDismissed(lesson.path?.tutorial ?? null)}
+    />
+  );
+
   const readingStep = lesson.path
     ? currentStep(lesson.path, lesson.progress)
     : null;
@@ -589,6 +606,7 @@ const Flow = () => {
       <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
       <Stage>
         <StageRouter stage={state.stage} />
+        {finish}
         {reading && readingStep && (
           <Reader
             key={readingStep.id}
@@ -608,6 +626,7 @@ const Flow = () => {
       <ObjectiveBand state={lesson} onRead={() => setReading(true)} />
       <Stage>
         <StageRouter stage="write" />
+        {finish}
         {reading && readingStep && (
           <Reader
             key={readingStep.id}

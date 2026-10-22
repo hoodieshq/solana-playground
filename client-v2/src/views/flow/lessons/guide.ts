@@ -86,7 +86,7 @@ export class PgLessonGuide {
       (i) => i.kind === "assistant" && i.text === at.guide.intro
     );
     if (said) return;
-    PgLessonGuide._say(at.guide.intro);
+    PgLessonGuide._say(at.guide.intro, at.chapter);
   }
 
   /**
@@ -153,8 +153,13 @@ export class PgLessonGuide {
     return true;
   }
 
-  private static _say(text: string) {
-    const id = PgAssistant.startAssistantMessage();
+  /** Say something the tutorial did, such as the client's run, in the chat */
+  static tell(text: string) {
+    PgLessonGuide._say(text);
+  }
+
+  private static _say(text: string, chapter?: string) {
+    const id = PgAssistant.startAssistantMessage(chapter);
     PgAssistant.appendToAssistantMessage(id, text);
   }
 

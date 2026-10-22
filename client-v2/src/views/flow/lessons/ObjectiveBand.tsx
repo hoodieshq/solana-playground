@@ -14,6 +14,8 @@ import {
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
 import { verifyingStage } from "./verify";
+import { PgKora } from "./kora";
+import { PgLessonGuide } from "./guide";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { PgAssistant } from "../../sidebar/assistant/store";
@@ -127,9 +129,7 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
     </Quiet>
   );
   const primary = isRead ? (
-    <Primary type="button" onClick={() => PgLesson.continueRead()}>
-      Continue
-    </Primary>
+    <ReadAction />
   ) : (
     <TargetAction stage={verifyingStage(step.verify)} flow={flow} />
   );
@@ -148,6 +148,46 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
 };
 
 /**
+ * A reading step's press. The client step can be shown rather than read:
+ * Run the client sends `hello` (through `PgKora` on the stand) and moves on
+ * once a transaction comes back. Continue stays for the rest, and for a
+ * learner who comes back to the step after running it.
+ */
+const ReadAction: FC = () => {
+  const [running, setRunning] = useState(false);
+  if (!PgKora.active || PgKora.lastTx) {
+    return (
+      <Primary type="button" onClick={() => PgLesson.continueRead()}>
+        Continue
+      </Primary>
+    );
+  }
+  return (
+    <Primary
+      type="button"
+      disabled={running}
+      onClick={async () => {
+        setRunning(true);
+        try {
+          const tx = await PgKora.runClient();
+          if (!tx) return;
+          // The program's answer, said where the learner is reading
+          PgLessonGuide.tell(
+            `Your program answered from devnet:\n\n\`Program log: ${tx.said}\`\n\n` +
+              "That's the `msg!` in `lib.rs`, coming back in the transaction's log."
+          );
+          PgLesson.continueRead();
+        } finally {
+          setRunning(false);
+        }
+      }}
+    >
+      {running ? "Running..." : "Run the client"}
+    </Primary>
+  );
+};
+
+/**
  * The one press that proves the step: Build for a step the IDL grades,
  * Deploy for the one devnet does. It runs the same command the stepper and
  * the stages do, so wherever the learner starts a build from, this button
@@ -158,18 +198,19 @@ const TargetAction: FC<{
   stage: ReturnType<typeof verifyingStage>;
   flow: FlowState;
 }> = ({ stage, flow }) => {
-  if (stage === "deploy") {
-    const built = flow.build === "done";
+  // A deploy needs this session's build, which a reload or a new edit does
+  // not leave behind. Then the press that moves the step on is Build, and
+  // the button says so rather than sitting greyed out
+  if (stage === "deploy" && flow.build === "done") {
     const running = flow.deploy === "running";
     return (
       <Primary
         type="button"
-        disabled={!built || running}
-        title={!built ? "Build successfully first" : undefined}
+        disabled={running}
         onClick={() => {
           // As on Deploy's own button: always the project's own key
           PgProgramInfo.update({ customPk: null });
-          PgCommand.deploy.execute();
+          PgKora.deploy();
         }}
       >
         {running ? "Deploying..." : "Deploy to devnet"}
@@ -182,6 +223,11 @@ const TargetAction: FC<{
     <Primary
       type="button"
       disabled={running}
+      title={
+        stage === "deploy"
+          ? "Deploy needs a build from this session"
+          : undefined
+      }
       onClick={() => PgCommand.build.execute()}
     >
       {running ? "Building..." : flow.build === "failed" ? "Rebuild" : "Build"}

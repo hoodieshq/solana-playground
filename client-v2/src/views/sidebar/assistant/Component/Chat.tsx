@@ -32,6 +32,7 @@ import {
   verifyingStage,
 } from "../../../flow/lessons";
 import { PgLessonGuide } from "../../../flow/lessons/guide";
+import { PgKora } from "../../../flow/lessons/kora";
 import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
 import type { Provider } from "../model/types";
@@ -165,12 +166,14 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   const lesson = describeLesson(lessonState);
 
   // The tutorial's assistant opens each step with what it is about, so the
-  // pane is never a blank prompt at the start of one
+  // pane is never a blank prompt at the start of one. A cleared
+  // conversation gets the opening back, too
   const stepId =
     lessonState.path && currentStep(lessonState.path, lessonState.progress)?.id;
+  const empty = PgAssistant.items.length === 0;
   useEffect(() => {
     if (stepId && !PgAssistant.isConnected) PgLessonGuide.greet();
-  }, [stepId]);
+  }, [stepId, empty]);
 
   /**
    * @param shown what the transcript shows for it, when that differs from
@@ -338,7 +341,8 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   const chapters: Chapter[] = [];
   let lastChapter: string | undefined;
   for (const item of items) {
-    if (item.kind !== "user" || !item.chapter) continue;
+    if ((item.kind !== "user" && item.kind !== "assistant") || !item.chapter)
+      continue;
     if (item.chapter === lastChapter) continue;
     if (!chapters.length && item !== items[0]) {
       chapters.push({ id: items[0].id, title: OPENING });
@@ -461,7 +465,10 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
                 makeChangeIsLastResort={!!lesson}
                 onVerifyStep={
                   item.id === verifiableId
-                    ? () => PgCommand[stage!].execute()
+                    ? () =>
+                        stage === "deploy"
+                          ? PgKora.deploy()
+                          : PgCommand.build.execute()
                     : undefined
                 }
                 verifyStepLabel={stage === "deploy" ? "Deploy" : "Build"}

@@ -17,6 +17,7 @@ import {
   PgGlobal,
   PgProgramInfo,
 } from "../../../utils";
+import { PgKora } from "../lessons/kora";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
@@ -86,7 +87,8 @@ const Deploy = () => {
         // at an imported id; redeploying always targets the project's
         // own key, never whatever Interact last selected.
         PgProgramInfo.update({ customPk: null });
-        PgCommand.deploy.execute();
+        // In a tutorial, Kora's deploy (mocked until it is live)
+        PgKora.deploy();
       }}
     >
       {deploying

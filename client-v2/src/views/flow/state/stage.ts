@@ -74,6 +74,19 @@ export class PgFlow {
     PgFlow._dispatch({ type: "set-stage", stage });
   }
 
+  /**
+   * A deploy that did not go through the deploy command: a tutorial's,
+   * mocked by `PgKora` on a stand where Kora isn't live. The loop moves on
+   * exactly as after a real one.
+   */
+  static recordDeploy(phase: "start" | "done") {
+    PgFlow._dispatch(
+      phase === "start"
+        ? { type: "deploy-start" }
+        : { type: "deploy-finish", ok: true }
+    );
+  }
+
   static onDidChange(cb: (s: FlowState) => void): Disposable {
     PgFlow._listeners.add(cb);
     cb(PgFlow._state);

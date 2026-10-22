@@ -53,7 +53,17 @@ export type ChatItem =
        */
       chapter?: string;
     })
-  | (ChatItemBase & { kind: "assistant"; text: string })
+  | (ChatItemBase & {
+      kind: "assistant";
+      text: string;
+      /**
+       * Set on a lesson step's opening, which the tutorial's assistant says
+       * unasked. Like a question asked in a step, it starts the step's
+       * chapter, and it starts a turn of its own: nobody asked it, so what
+       * the previous turn wrote is not this one's.
+       */
+      chapter?: string;
+    })
   | (ChatItemBase & { kind: "tool"; label: string })
   | (ChatItemBase & {
       kind: "approval";
@@ -72,9 +82,13 @@ export type ChatItem =
  * "Make this change" is offered on a finished reply, but never on one whose
  * turn already wrote its patch — asking again just rewrites the same file.
  */
+/** Whether an item opens a turn: the user's message, or a step's opening */
+const opensTurn = (item: ChatItem) =>
+  item.kind === "user" || (item.kind === "assistant" && !!item.chapter);
+
 export const turnProducedApproval = (items: readonly ChatItem[]) => {
   for (let i = items.length - 1; i >= 0; i--) {
-    if (items[i].kind === "user") return false;
+    if (opensTurn(items[i])) return false;
     if (items[i].kind === "approval") return true;
   }
   return false;
@@ -90,7 +104,7 @@ export const turnProducedApproval = (items: readonly ChatItem[]) => {
 export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
-    if (item.kind === "user") return false;
+    if (opensTurn(item)) return false;
     if (item.kind === "approval" && item.status === "allowed") return true;
   }
   return false;
@@ -430,13 +444,14 @@ export class PgAssistant {
   }
 
   /** Start an assistant message and return its id so text can stream into it */
-  static startAssistantMessage() {
+  static startAssistantMessage(chapter?: string) {
     const id = makeId();
     PgAssistant._items.push({
       kind: "assistant",
       id,
       createdAt: now(),
       text: "",
+      ...(chapter ? { chapter } : {}),
     });
     PgAssistant._emit();
     return id;
