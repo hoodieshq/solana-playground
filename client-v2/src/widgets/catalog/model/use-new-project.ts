@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { PgTutorial, PgView } from "@/utils";
+import { PgTutorial } from "@/utils";
 import type { BaseNewProjectProps } from "../ui/BaseNewProject";
 import type { CardList } from "./lists";
 import { importProgram, isImportCancel } from "./program-open";
@@ -28,11 +28,13 @@ export interface NewProjectState {
  * `ModalFrame`: a dialog stacked on this one (an import's program picker)
  * remounts everything under the frame, and the Open that dialog belongs to
  * must still be known when it finishes. Whatever opens or starts from here
- * closes the dialog; a failure stays where it happened, or, once the dialog
- * was dismissed, comes up as a toast. One Open or Start at a time across
- * both lists.
+ * closes the dialog (`close`, which closes this dialog by its id and so
+ * never another); a failure stays where it happened, or, once the dialog was
+ * dismissed, comes up as a toast. One Open or Start at a time across both
+ * lists.
  */
 export const useNewProject = (
+  close: () => void,
   initialTab: CatalogPage = "tutorials"
 ): NewProjectState => {
   // Tutorials lead: a verified path is what this fork is for
@@ -40,8 +42,8 @@ export const useNewProject = (
   const [query, setQuery] = useState("");
   const [starting, setStarting] = useState(false);
 
-  // `PgView.setModal(null)` closes the top dialog, whichever it is. An Open
-  // that ends after this dialog was dismissed must leave the next one alone
+  // Whether this dialog is still open: once it is dismissed, no card is left
+  // to show a failure
   const open = useRef(true);
   useEffect(() => {
     open.current = true;
@@ -49,21 +51,17 @@ export const useNewProject = (
       open.current = false;
     };
   }, []);
-  const closeDialog = () => {
-    if (open.current) PgView.setModal(null);
-  };
-  // On a dismissed dialog no card is left to show a failure
   const onFailed = (message: string) => {
     if (!open.current) toastOpenFailed(message);
   };
 
   const tutorialOpen = useCardOpen("tutorials", {
-    onOpened: closeDialog,
+    onOpened: close,
     onFailed,
   });
   const programOpen = useCardOpen("programs", {
     isCancel: isImportCancel,
-    onOpened: closeDialog,
+    onOpened: close,
     onFailed,
   });
   const busy = tutorialOpen.busy || programOpen.busy;
@@ -102,6 +100,6 @@ export const useNewProject = (
     },
     busy,
     onStarting: setStarting,
-    closeDialog,
+    closeDialog: close,
   };
 };

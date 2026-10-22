@@ -4,6 +4,7 @@ import { expect, it, vi } from "vitest";
 // What `PgView.setModal` opens: the wide dialog, named for telemetry, around
 // New project
 vi.mock("@/widgets/overlays", () => ({
+  useModalId: () => "dialog-1",
   ModalFrame: ({
     name,
     title,
@@ -21,7 +22,7 @@ vi.mock("@/widgets/overlays", () => ({
   ),
 }));
 vi.mock("@/widgets/catalog", () => ({
-  useNewProject: (initialTab: string) => ({ initialTab }),
+  useNewProject: (_close: () => void, initialTab: string) => ({ initialTab }),
   NewProject: ({ project }: { project: { initialTab: string } }) => (
     <p>{`new project on ${project.initialTab}`}</p>
   ),

@@ -86,7 +86,7 @@ it("closes once an import that stacked a dialog on it finishes", async () => {
     void PgView.setModal(Pick);
   });
   await screen.findByRole("dialog", { name: "Select the program" });
-  act(() => PgView.closeModal(null));
+  act(() => PgView.closeTopModal(null));
   await waitFor(() => expect(newProject()).not.toBeNull());
 
   // While the import still runs, New project still knows it does
@@ -98,4 +98,30 @@ it("closes once an import that stacked a dialog on it finishes", async () => {
   await act(async () => deps.finishImport?.());
 
   await waitFor(() => expect(newProject()).toBeNull());
+});
+
+it("leaves another dialog open when an import ends after New project was dismissed", async () => {
+  render(<ModalHost />);
+  act(() => {
+    void PgView.setModal<unknown, { initialTab: "programs" }>(
+      NewWorkspaceModal,
+      { initialTab: "programs" }
+    );
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Open drift" }));
+  await waitFor(() => expect(deps.finishImport).not.toBeNull());
+
+  // The user dismisses New project and opens something else meanwhile
+  act(() => PgView.closeTopModal(null));
+  await waitFor(() => expect(newProject()).toBeNull());
+  act(() => {
+    void PgView.setModal(Pick);
+  });
+  await screen.findByRole("dialog", { name: "Select the program" });
+
+  await act(async () => deps.finishImport?.());
+
+  expect(
+    screen.getByRole("dialog", { name: "Select the program" })
+  ).toBeTruthy();
 });

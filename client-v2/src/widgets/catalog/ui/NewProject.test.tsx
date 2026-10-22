@@ -37,7 +37,7 @@ const utils = vi.hoisted(() => {
       ],
       open: vi.fn(),
     },
-    PgView: { setModal: vi.fn(), setToast: vi.fn() },
+    PgView: { setToast: vi.fn() },
   };
 });
 vi.mock("@/utils", () => utils);
@@ -67,8 +67,12 @@ import type { CatalogPage } from "../model/telemetry";
 import NewProjectView from "./NewProject";
 
 /** The dialog's component: it holds the state, as `NewWorkspaceModal` does */
+/** Closes the dialog New project sits in, as `NewWorkspaceModal` gives it */
+const close = vi.fn();
+
+/** The dialog's component: it holds the state, as `NewWorkspaceModal` does */
 const NewProject = ({ initialTab }: { initialTab?: CatalogPage }) => (
-  <NewProjectView project={useNewProject(initialTab)} />
+  <NewProjectView project={useNewProject(close, initialTab)} />
 );
 
 const PROGRAM = {
@@ -93,7 +97,7 @@ beforeEach(() => {
   utils.PgCommon.fetchJSON.mockReset().mockResolvedValue([PROGRAM]);
   utils.PgGithub.import.mockReset().mockResolvedValue(undefined);
   utils.PgTutorial.open.mockReset().mockResolvedValue(undefined);
-  utils.PgView.setModal.mockReset();
+  close.mockReset();
   utils.PgView.setToast.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -171,24 +175,24 @@ it("closes the dialog once a card opens, and only then", async () => {
 
   utils.PgTutorial.open.mockRejectedValueOnce(new Error("gone"));
   await act(async () => fireEvent.click(open));
-  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled();
   expect(screen.getByText("gone")).toBeTruthy();
 
   await act(async () => fireEvent.click(open));
-  expect(utils.PgView.setModal).toHaveBeenCalledWith(null);
+  expect(close).toHaveBeenCalledTimes(1);
 });
 
 it("leaves the catalog's pages alone: it closes its dialog, not a page", async () => {
-  const close = vi.spyOn(catalogPage, "close");
+  const pageClose = vi.spyOn(catalogPage, "close");
   render(<NewProject />);
 
   await act(async () =>
     fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }))
   );
 
-  expect(utils.PgView.setModal).toHaveBeenCalledWith(null);
-  expect(close).not.toHaveBeenCalled();
-  close.mockRestore();
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(pageClose).not.toHaveBeenCalled();
+  pageClose.mockRestore();
 });
 
 it("keeps a failed program list off the Tutorials list", async () => {
@@ -200,20 +204,6 @@ it("keeps a failed program list off the Tutorials list", async () => {
   expect(
     screen.getByRole("button", { name: "Open Hello Anchor" })
   ).toBeTruthy();
-});
-
-it("closes no other dialog when an Open ends after this one closed", async () => {
-  let release!: () => void;
-  utils.PgTutorial.open.mockReturnValueOnce(
-    new Promise<void>((resolve) => (release = resolve))
-  );
-  const { unmount } = render(<NewProject />);
-
-  fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }));
-  unmount();
-  await act(async () => release());
-
-  expect(utils.PgView.setModal).not.toHaveBeenCalled();
 });
 
 /** A promise and what settles it, for an Open held mid-way */
@@ -241,7 +231,7 @@ it("holds the other list's Opens and Start while one Open runs", async () => {
   expect(utils.PgGithub.import).not.toHaveBeenCalled();
 
   await act(async () => open.release());
-  expect(utils.PgView.setModal).toHaveBeenCalledWith(null);
+  expect(close).toHaveBeenCalledTimes(1);
 });
 
 it("holds every card while Start makes a project", async () => {
@@ -261,7 +251,7 @@ it("keeps the dialog for a cancelled import, and says nothing", async () => {
   const drift = await screen.findByRole("button", { name: "Open drift" });
   await act(async () => fireEvent.click(drift));
 
-  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled();
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
@@ -273,7 +263,7 @@ it("shows a failed import on its card and keeps the dialog", async () => {
   await act(async () => fireEvent.click(drift));
 
   expect(screen.getByRole("alert").textContent).toBe("Rate limited");
-  expect(utils.PgView.setModal).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled();
 });
 
 it("keeps one query for both lists and counts each list whole", async () => {
@@ -305,5 +295,4 @@ it("toasts an Open that fails after the dialog was dismissed", async () => {
   await act(async () => open.fail(new Error("gone")));
 
   expect(utils.PgView.setToast).toHaveBeenCalledTimes(1);
-  expect(utils.PgView.setModal).not.toHaveBeenCalled();
 });

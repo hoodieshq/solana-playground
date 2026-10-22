@@ -1904,7 +1904,8 @@ prototype's "What do you want to build?". The work is stacked on 5.9
 - **What closes it.** A project made by Start, a tutorial opened or a
   program imported from a card. A failure stays: Start's under the name
   field, a card's on the card, and a second Start is a retry. New project
-  closes only itself: an Open that ends after the dialog was dismissed
+  closes only itself, by its dialog id (`PgView.closeModal(null, id)`,
+  HOO-2091's close by id): an Open that ends after the dialog was dismissed
   closes nothing but tells its failure in a toast, and Start on Home closes
   nothing.
 - **One run at a time**, as on the 5.9 pages, and across both lists and
