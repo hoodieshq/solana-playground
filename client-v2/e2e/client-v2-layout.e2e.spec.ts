@@ -1443,6 +1443,62 @@ test("client-v2-layout: A cluster that is down", async ({
   await expect(network.getByRole("radio", { checked: true })).toBeFocused();
 });
 
+/** Every request to the cluster fails the way a stopped validator does */
+const refuseCluster = (page: Page) =>
+  page.route("https://api.devnet.solana.com/**", (route) =>
+    route.abort("connectionrefused")
+  );
+
+const connectWallet = async (page: Page) => {
+  await account(page).click();
+  await page.getByRole("menuitem", { name: "Connect wallet" }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(account(page)).toContainText(/\w{4}…\w{4}/);
+};
+
+// An unreachable cluster leaves `isClusterDown` at `null`, not `true`: the
+// dot reads whether the cluster answers at all, not only whether it moves
+test("a cluster that does not answer is down", async ({ seededPage: page }) => {
+  await refuseCluster(page);
+  await page.reload();
+
+  await expect(
+    nav(page).getByRole("button", {
+      name: "Change cluster, currently devnet, down",
+    })
+  ).toBeVisible({ timeout: 15_000 });
+});
+
+test("the wallet names the endpoint that does not answer", async ({
+  seededPage: page,
+}) => {
+  await refuseCluster(page);
+  await page.reload();
+  await connectWallet(page);
+
+  await page.locator("#tabs").getByRole("button", { name: "Wallet" }).click();
+  await expect(
+    page.getByText(
+      "Can't reach the RPC endpoint at https://api.devnet.solana.com."
+    )
+  ).toBeVisible({ timeout: 15_000 });
+});
+
+// The tab row's Wallet button carries a 400 px picture; the design system's
+// Button sizes only an `svg`, so the picture is sized where it is used
+test("the tab row keeps its height with a wallet connected", async ({
+  seededPage: page,
+}) => {
+  await connectWallet(page);
+
+  const row = page.locator("#tabs");
+  const icon = row.getByRole("button", { name: "Wallet" }).locator("img");
+  await expect(icon).toBeVisible();
+  expect((await icon.boundingBox())?.height).toBeLessThanOrEqual(16);
+  expect((await row.boundingBox())?.height).toBeLessThanOrEqual(41);
+  await expect(row.getByRole("tab").first()).toBeInViewport({ ratio: 1 });
+});
+
 // The sign-in lives in the session, not in the footer, so the rail, which
 // swaps the full footer for its own, can fold and unfold around it
 test("a sign-in outlives the rail folding on a narrow window", async ({
