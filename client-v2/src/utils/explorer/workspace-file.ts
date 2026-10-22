@@ -43,9 +43,10 @@ const hasCode = (e: unknown, code: string) =>
  * lightning-fs writes a file's content at once but saves its folder tree
  * 500 ms after the last write, so a reload inside that window loses a file
  * just created. `PgFs.flush` saves the tree, but it rewrites the whole tree
- * every time, so it runs only on a path's first write since `flushed` was
- * last emptied: that write may be the one that creates the file, and later
- * ones only change content.
+ * every time, so it runs only on a path's first write since the path last
+ * left `flushed` (emptied by a workspace event, or dropped by
+ * `forgetFlushed`): that write may be the one that creates the file, and
+ * later ones only change content.
  *
  * A missing folder is created on its own, never its parents, and never when
  * it is the workspace's root. A workspace that was deleted or renamed while
