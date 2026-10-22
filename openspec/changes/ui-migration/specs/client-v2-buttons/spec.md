@@ -72,7 +72,7 @@ Covered by unit tests, not e2e, because the toast and the button's re-enabling t
 - **WHEN** a command is started from a click while no terminal is mounted (under Home)
 - **THEN** a toast says "Can't <action> here: open a project to use the terminal.", the failure is logged under `ui:button`, and nothing waits on the terminal
 
-Covered by `report-button-failure.test.tsx`, `terminal-process.test.ts` and the e2e "a command allowed on Home fails within seconds".
+The toast is covered by `report-button-failure.test.tsx` and `terminal-process.test.ts`; the e2e "a command allowed on Home fails within seconds" covers only that nothing waits on the terminal, through the assistant's build rather than a click.
 
 #### Scenario: A failure the terminal printed is shown once
 
