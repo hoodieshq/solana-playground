@@ -39,9 +39,25 @@ Two rules on top of the direction:
   `auth` and `persistence` import each other (`auth`'s server module uses
   `persistence`'s pool; `persistence` reads the session). It is recorded as
   the exception in the `client-v2-layers` spec and is broken by task 1.4 of
-  `ui-migration`; the boundary check (HOO-1859) exempts these two until then.
+  `ui-migration`; the boundary check exempts these two by name until then.
 - **Entities do not import each other.** FSD's `@x` cross-imports are not
   enabled.
+
+**The boundary check** is `eslint-plugin-boundaries`, configured in
+`eslint-layers.js`, which `eslintConfig` extends. It fails an import that
+points up a layer, one between two slices of a layer, and one past a slice's
+public API, relative paths included, with an error from
+`boundaries/dependencies` that names the rule broken. `yarn lint` (CI,
+`yarn run check`) runs it, and so does the production build: CRA's in-build
+lint is dropped there to save memory, so `build:bundle` and `build-fast`
+start with `yarn lint:layers`, ESLint over the five layers alone. One test
+switches it off for one statement, with the reason in the directive
+(`/* eslint-disable boundaries/dependencies -- <why> */`):
+`app/ConnectDialog/ConnectDialog.test.tsx`, whose mock rebuilds a widget's
+API from the modules behind it. `scripts/eslint-layers.test.mjs`
+(`yarn test-api`) lints one probe of each kind against the real slices, so
+a check that stopped resolving imports, and so passed everything, fails
+there.
 
 A slice's segments: `ui/` for React, `model/` for logic, `lib/` for leaf
 helpers. Its public API is `index.ts` for browser code and `server.mjs` for
@@ -65,7 +81,7 @@ The two existing features with a React folder, `auth` and `persistence`, keep
 **Legacy roots.** `components/`, `views/`, `utils/`, `hooks/`, `providers/`,
 `commands/`, `effects/` and the other pre-existing roots sit outside the
 layers. New code may import from them. Do not add new UI to them. The
-boundary check ignores them.
+boundary check ignores them, both what they import and what imports them.
 
 ## Components
 
@@ -227,8 +243,9 @@ either a Playwright test in `e2e/` whose title is
 `client-v2-themes: A saved Dracula theme`), or a line in a manual checklist
 marked `(manual)` in the spec. A manual gate (the React 19 walk-through, a
 release check) is the list of scenarios, not a separate document. The
-`spec:coverage` script prints every scenario that has neither; `--strict`
-makes that an exit code (HOO-1856).
+`spec:coverage` script prints every scenario that has neither. CI runs it as
+a report and never fails on it; `--strict` makes the list an exit code, for
+when it is empty.
 
 ## What review keeps finding
 
@@ -238,7 +255,7 @@ layers, `src/{app,widgets,features,entities,shared}/`; the legacy roots are
 exempt until code moves out of them, except that `crypto.randomUUID` is an
 error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The
 lint catches the common spellings, not every one. The fourth is the boundary
-check's job (HOO-1859); the rest hold by review.
+check's job (Layers, "The boundary check"); the rest hold by review.
 
 - **Ids come from `src/shared/lib/ids`.** `uuid()` mints one, `isUuid()`
   checks one. Never `crypto.randomUUID()`, never a

@@ -13,12 +13,15 @@ hold the components back.
       the root rules on upstream to `client/` and `server/` (HOO-1857)
 - [x] 1.2 `client-v2/CLAUDE.md` and `openspec/` on `master-2.0` (HOO-1858,
       PR #43)
-- [ ] 1.3 Layer check in CI: `eslint-plugin-boundaries` in CRA's ESLint,
-      legacy roots excluded, a violation fails the build (HOO-1859)
+- [x] 1.3 Layer check in CI: `eslint-plugin-boundaries` in `eslintConfig`,
+      legacy roots excluded, a violation fails `yarn lint` and the build
+      (HOO-1859; plan:
+      [plans/1.3-layer-check.md](plans/1.3-layer-check.md))
 - [ ] 1.4 Break the `auth` <-> `persistence` cycle: `auth`'s server module
       stops importing `persistence`'s pool, or the pool moves to `shared/`;
       then drop the exemption from the boundary check and the
-      `client-v2-layers` spec (ticket to file; before 1.3 enforces features)
+      `client-v2-layers` spec (ticket to file). Until then the boundary check
+      (HOO-1859, `client-v2/eslint-layers.js`) exempts the pair by name
 - [x] 1.5 ESLint for what review keeps finding, inside the layers, and the
       ids module moved to `shared/lib` (HOO-1897, PR #49)
 
@@ -33,9 +36,9 @@ hold the components back.
 
 - [x] 3.1 React 19 spike: what breaks, what the fixes cost (HOO-1840; see
       design.md)
-- [ ] 3.2 React 19 upgrade; the product looks and behaves the same; the gate
+- [x] 3.2 React 19 upgrade; the product looks and behaves the same; the gate
       in design.md passes (HOO-1850, PR #45)
-- [ ] 3.3 Jest to vitest; same test count as Jest today; no `jest.*` left in
+- [x] 3.3 Jest to vitest; same test count as Jest today; no `jest.*` left in
       `src/` (HOO-1715, PR #46)
 - [ ] 3.4 Lift the TypeScript `=5.0.4` pin; Monaco's TypeScript features
       still work (HOO-1855; after 3.3)

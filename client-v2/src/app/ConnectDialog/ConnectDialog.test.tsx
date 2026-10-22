@@ -49,6 +49,7 @@ vi.mock("@/views/sidebar/assistant/model", () => ({
 }));
 // The widget's public API, narrowed to what the dialog and the turn use: the
 // rest of it (the panel, the thread) reaches the build's generated globals
+/* eslint-disable boundaries/dependencies -- the mock rebuilds the widget's entry from the modules behind it */
 vi.mock("@/widgets/assistant", async () => ({
   assistantTelemetry: (await import("@/widgets/assistant/model/telemetry"))
     .assistantTelemetry,
@@ -56,6 +57,7 @@ vi.mock("@/widgets/assistant", async () => ({
     .useDefaultBackend,
   useTurn: (await import("@/widgets/assistant/model/use-turn")).useTurn,
 }));
+/* eslint-enable boundaries/dependencies */
 vi.mock("@/effects/chat-thread/push-thread", () => ({
   pushThread: vi.fn(() => Promise.resolve()),
 }));
