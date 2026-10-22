@@ -84,6 +84,14 @@ export const leaveEditor = async (page: Page) => {
 };
 
 export const test = base.extend<{ seededPage: Page }>({
+  page: async ({ page }, use) => {
+    const rate = Number(process.env.E2E_CPU_THROTTLE ?? 1);
+    if (rate > 1) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate });
+    }
+    await use(page);
+  },
   seededPage: async ({ page }, use) => {
     await seedWorkspace(page);
     // The tree shows before the editor: Monaco is a lazy chunk, and when it
