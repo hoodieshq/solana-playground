@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 
 /**
@@ -26,25 +26,53 @@ interface ChaptersProps {
 
 const Chapters: FC<ChaptersProps> = ({ chapters, current, onJump }) => {
   const [open, setOpen] = useState(false);
+  const rail = useRef<HTMLButtonElement>(null);
+  // Esc hands the focus back to the rail, which must not open it again
+  const quiet = useRef(false);
+  const currentTitle = chapters.find((c) => c.id === current)?.title;
 
   return (
     <Wrap
+      // Esc closes the list and puts the keyboard back on the rail
+      onKeyDown={(ev) => {
+        if (ev.key === "Escape" && open) {
+          ev.stopPropagation();
+          setOpen(false);
+          quiet.current = true;
+          rail.current?.focus();
+          quiet.current = false;
+        }
+      }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onFocus={() => {
+        if (!quiet.current) setOpen(true);
+      }}
       onBlur={(ev) => {
         if (!ev.currentTarget.contains(ev.relatedTarget as Node))
           setOpen(false);
       }}
     >
-      <Rail aria-hidden="true">
+      {/* A button, so the list is reached by Tab as well as by the pointer;
+          the dashes are its picture, the label says what it holds */}
+      <Rail
+        ref={rail}
+        type="button"
+        aria-label={`Chapters, ${chapters.length}${
+          currentTitle ? `, now in ${currentTitle}` : ""
+        }`}
+        aria-expanded={open}
+        aria-controls="chat-chapters"
+        // Hover and focus already open it; a tap on a touch screen does too
+        onClick={() => setOpen(true)}
+      >
         {chapters.map((c) => (
-          <Dash key={c.id} $on={c.id === current} />
+          <Dash key={c.id} $on={c.id === current} aria-hidden="true" />
         ))}
       </Rail>
 
       {open && (
-        <Card role="navigation" aria-label="Chapters">
+        <Card id="chat-chapters" role="navigation" aria-label="Chapters">
           {chapters.map((c) => (
             <Item
               key={c.id}
@@ -78,13 +106,23 @@ const Wrap = styled.div`
   align-items: flex-end;
 `;
 
-const Rail = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3125rem;
-  padding: 0.375rem 0.25rem;
-  cursor: pointer;
+const Rail = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3125rem;
+    padding: 0.375rem 0.25rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 2px;
+    }
+  `}
 `;
 
 const Dash = styled.span<{ $on: boolean }>`

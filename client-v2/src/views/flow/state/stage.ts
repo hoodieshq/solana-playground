@@ -28,7 +28,8 @@ export type FlowEvent =
   | { type: "deploy-finish"; ok: boolean }
   | { type: "set-stage"; stage: Stage }
   | { type: "source-change" }
-  | { type: "workspace-change" };
+  | { type: "workspace-change" }
+  | { type: "restore"; built: boolean; deployed: boolean };
 
 export const INITIAL_FLOW_STATE: FlowState = {
   stage: "write",
@@ -88,6 +89,11 @@ export class PgFlow {
     );
   }
 
+  /** What the opened project kept from before, see the `restore` event */
+  static restore(kept: { built: boolean; deployed: boolean }) {
+    PgFlow._dispatch({ type: "restore", ...kept });
+  }
+
   /** A source file changed: whatever was built is behind the code now */
   static sourceChanged() {
     PgFlow._dispatch({ type: "source-change" });
@@ -143,6 +149,19 @@ export class PgFlow {
         return state.build === "done" ? { ...state, build: "upcoming" } : state;
       case "workspace-change":
         return INITIAL_FLOW_STATE;
+      // A project opened again, before anything ran this session: what it
+      // kept (a built interface, a deploy on record) is what the loop shows,
+      // instead of a project that was already on devnet starting at Write
+      case "restore":
+        if (state.buildStartedAt !== null || state.build !== "upcoming") {
+          return state;
+        }
+        return {
+          ...state,
+          build: ev.built ? "done" : state.build,
+          deploy: ev.deployed ? "done" : ev.built ? "active" : state.deploy,
+          interact: ev.deployed ? "active" : state.interact,
+        };
     }
   }
 

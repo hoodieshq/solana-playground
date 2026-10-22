@@ -186,6 +186,26 @@ describe("PgAssistant threads", () => {
     expect(await PgChatStorage.read("t2")).toHaveLength(1);
   });
 
+  it("does not write over a thread while it is still being read", async () => {
+    // What is shown during the read is an empty list; a message said into it
+    // (the tutorial's greeting did) must not be persisted as the thread
+    await PgAssistant.loadThread("t1");
+    PgAssistant.addUserMessage("kept");
+    await settled();
+    PgAssistant.closeThread();
+
+    const loading = PgAssistant.loadThread("t1");
+    expect(PgAssistant.loading).toBe(true);
+    PgAssistant.addUserMessage("said while loading");
+    await loading;
+    await settled();
+
+    expect(PgAssistant.loading).toBe(false);
+    expect(
+      (await PgChatStorage.read("t1"))?.map((i) => (i as { text: string }).text)
+    ).toEqual(["kept"]);
+  });
+
   it("loads a stored thread when switching to it", async () => {
     await PgAssistant.loadThread("t1");
     PgAssistant.addUserMessage("in one");

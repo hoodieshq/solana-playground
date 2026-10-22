@@ -37,6 +37,7 @@ import { PgPatchPreview } from "./lessons/patch-preview";
 import { watchSources } from "./state/source-watch";
 import { initScrollFades } from "./components/scroll-fades";
 import { HandoffSheet } from "./lessons/Handoff";
+import { restoreFlow } from "./state/restore";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
@@ -338,6 +339,7 @@ const Flow = () => {
       PgDeployHistory.init(),
       PgPatchPreview.init(),
       watchSources(),
+      restoreFlow(),
       initScrollFades(),
       PgFlow.onDidChange(setState),
       PgLesson.onDidChange(setLesson),

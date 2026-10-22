@@ -159,6 +159,11 @@ const isSame = (a: Connection | null, b: Connection) =>
  * `docs/persistent-conversations-spec.md`.
  */
 export class PgAssistant {
+  /** Whether a thread is still being read from storage */
+  static get loading() {
+    return PgAssistant._loading;
+  }
+
   static get items(): readonly ChatItem[] {
     return PgAssistant._items;
   }
@@ -640,6 +645,7 @@ export class PgAssistant {
     PgAssistant._denyPending();
     PgAssistant._threadId = null;
     PgAssistant._readOnly = false;
+    PgAssistant._loading = false;
     PgAssistant._items = [];
     PgAssistant._status = "idle";
     PgAssistant._emitOnly();
@@ -667,10 +673,12 @@ export class PgAssistant {
     PgAssistant._threadId = threadId;
     PgAssistant._items = [];
     PgAssistant._status = "idle";
+    PgAssistant._loading = true;
     PgAssistant._emitOnly();
 
     const items = await PgChatStorage.read(threadId);
     if (PgAssistant._threadId !== threadId) return;
+    PgAssistant._loading = false;
 
     // A thread that could not be read renders as empty -- there is nothing
     // else the panel can show -- but it must not be *persisted* as empty. The
@@ -694,6 +702,8 @@ export class PgAssistant {
   }
 
   private static _items: ChatItem[] = [];
+  /** A thread is being read: what is shown now is about to be replaced */
+  private static _loading = false;
   private static _status: AssistantStatus = "idle";
   private static _connection: Connection | null = null;
   private static _pickingBackend = false;
@@ -744,6 +754,9 @@ export class PgAssistant {
    */
   private static _persist() {
     if (!PgAssistant._threadId) return;
+    // Still reading it: what is in memory is the empty list shown meanwhile,
+    // and writing that back would replace the stored conversation with it
+    if (PgAssistant._loading) return;
     // The open thread could not be read, so what is in memory is not the
     // thread -- it is the empty list the panel fell back to. Writing it back
     // would replace a file that may still be recoverable by hand with

@@ -178,9 +178,11 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   const stepId =
     lessonState.path && currentStep(lessonState.path, lessonState.progress)?.id;
   const empty = PgAssistant.items.length === 0;
+  // Not while the thread is read: what is said then is replaced by it
+  const loading = PgAssistant.loading;
   useEffect(() => {
-    if (stepId && !PgAssistant.isConnected) PgLessonGuide.greet();
-  }, [stepId, empty]);
+    if (stepId && !loading && !PgAssistant.isConnected) PgLessonGuide.greet();
+  }, [stepId, empty, loading]);
 
   /**
    * @param shown what the transcript shows for it, when that differs from
@@ -306,7 +308,11 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   // only there: an older message describes code that has since moved on, and a
   // turn ending in an approval card has already produced its patch.
   const lastItem = items[items.length - 1];
-  const wroteThisTurn = turnProducedApproval(items);
+  // In a lesson only a patch that landed closes the turn: after a Reject the
+  // step still needs writing, so "Write it for me" stays on offer
+  const wroteThisTurn = lesson
+    ? turnAppliedApproval(items)
+    : turnProducedApproval(items);
   // A quick check waiting on its answer has its own three buttons; the
   // patch comes after it, so "Write it for me" would only ask it again
   const check =

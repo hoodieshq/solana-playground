@@ -1,4 +1,4 @@
-import { FC, Fragment } from "react";
+import { FC, Fragment, useEffect } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../Button";
@@ -20,6 +20,7 @@ import {
 } from "../../../views/flow/phone";
 import type { TutorialAboutComponentProps } from "../types";
 import { tutorialTitle } from "../../../views/flow/gallery/title";
+import { takeStartOnOpen } from "../../../views/flow/gallery/autostart";
 
 export const About: FC<TutorialAboutComponentProps> = ({
   about,
@@ -30,6 +31,11 @@ export const About: FC<TutorialAboutComponentProps> = ({
   const isFinished = PgTutorial.completed;
   /* On a phone the way in is at the foot of the page, under the thumb */
   const phone = usePhone();
+  // Opened from the gallery's Start here: that press was the Start
+  useEffect(() => {
+    if (!isStarted && takeStartOnOpen(tutorial.name)) start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const begin = isFinished ? (
     <Button

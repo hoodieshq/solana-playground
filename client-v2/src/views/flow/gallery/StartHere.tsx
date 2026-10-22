@@ -7,6 +7,7 @@ import { getLessonPath } from "../lessons";
 import { PgLessonSummary } from "../lessons/summary";
 import type { LessonSummary } from "../lessons/summary";
 import { BRAND } from "../tokens";
+import { startOnOpen } from "./autostart";
 import { usePhone } from "../phone";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import Button from "../../../components/Button";
@@ -83,6 +84,8 @@ const StartHere: FC = () => {
   }, []);
 
   const open = async () => {
+    // The banner's Start is the start: no second one on the About page
+    startOnOpen(TUTORIAL);
     await PgTutorial.open(TUTORIAL);
     PgView.setModal(null);
   };

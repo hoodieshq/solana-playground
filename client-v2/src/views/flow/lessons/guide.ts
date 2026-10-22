@@ -60,6 +60,10 @@ const GUIDES: Record<string, LessonGuide> = {
 
 const HINT = /^Hint (\d) of \d/;
 
+/** Said after a patch is turned down: the way on is still both ways */
+const LEFT_AS_IT_WAS =
+  "Left it as it was. Write it yourself and press Build, or ask me again.";
+
 /** What the skip under a quick check says, as the learner's own message */
 export const SKIP_CHECK = "Skip and show the code";
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -99,11 +103,21 @@ export class PgLessonGuide {
   static greet() {
     const at = PgLessonGuide.current();
     if (!at) return;
-    const said = PgAssistant.items.some(
+    const items = PgAssistant.items;
+    const said = items.some(
       (i) => i.kind === "assistant" && i.text === at.guide.intro
     );
-    if (said) return;
-    PgLessonGuide._say(at.guide.intro, at.chapter);
+    if (!said) {
+      PgLessonGuide._say(at.guide.intro, at.chapter);
+      return;
+    }
+    // A thread restored while a patch waited: the card comes back declined,
+    // since nothing can answer it now, and the turn has to end the way a
+    // Reject ends it, with the way on, or the step is left at a dead end
+    const last = items[items.length - 1];
+    if (last?.kind === "approval" && last.status === "denied") {
+      PgLessonGuide._say(LEFT_AS_IT_WAS);
+    }
   }
 
   /**
@@ -245,9 +259,7 @@ export class PgLessonGuide {
     });
     const approvalId = PgAssistant.lastApprovalId;
     if (!allowed) {
-      PgLessonGuide._say(
-        "Left it as it was. Write it yourself and press Build, or ask me again."
-      );
+      PgLessonGuide._say(LEFT_AS_IT_WAS);
       return;
     }
     await realBridge.applyPatch({ path: patch.path, content: after });

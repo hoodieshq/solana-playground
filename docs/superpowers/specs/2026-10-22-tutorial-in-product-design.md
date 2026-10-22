@@ -94,11 +94,19 @@ and the deploy decide a step, not a click.
 - On a phone: "On a computer" beside the assistant's patch and "Write it on a
   computer" in the band's fold open a sheet with a link to the step (dummy
   `beta.solpg.io/t/...`), Copy link and Share.
-- Tutorial covers in the brand (`gallery/TutorialCover.tsx`): a ground from
-  the Styleguide by framework (Anchor deep, Native explore, Seahorse violet),
-  the pattern, and the mark cropped by the name, like the Styleguide's row of
-  brand tiles. Figma (TsxR005AkQUotiFangKiAj) was read only partly: a View
-  seat runs out of MCP calls.
+- Tutorial covers in the brand (`gallery/TutorialCover.tsx`), as the
+  Styleguide's brand tiles (84:3): a ground by framework (Anchor deep, Native
+  explore, Seahorse violet), no pattern, the white mark whole at about half
+  the height, its place picked by the name (▷ right of centre, ▷ left, ▷O
+  centred). Figma is read through a View seat, which runs out of MCP calls
+  after a few.
+- After a reload a declined patch card ends with the guide's "Left it as it
+  was" and Write it for me; in a lesson only an applied patch closes a turn.
+  The chat no longer writes while a thread is read (the greeting used to
+  overwrite the stored conversation). The stage rail shows a kept build and
+  deploy after a reload. The banner's Start opens step 1 directly. The
+  chapter rail is a button with a name, Esc closes it. Toasts on a phone
+  span the screen and sit above the step's bar.
 - Accessibility: copy is a text button ("Copy", "Copied"), Explorer links say
   "Open in Explorer" everywhere, the modal close, the settings checkboxes and
   the effort control have names. Still open: the chat's chapter rail cannot

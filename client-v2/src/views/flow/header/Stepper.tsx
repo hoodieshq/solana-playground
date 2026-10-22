@@ -23,6 +23,8 @@ const LABEL: Record<Stage, string> = {
 export const statusOf = (state: FlowState, stage: Stage): StageStatus => {
   if (stage === "write") {
     if (state.buildStartedAt !== null) return "done";
+    // A reopened project that kept its build has written something
+    if (state.build === "done") return "done";
     return state.stage === "write" ? "active" : "done";
   }
   return state[stage];

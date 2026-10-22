@@ -5,6 +5,7 @@ import "react-toastify/dist/ReactToastify.min.css";
 
 import { PgCommon, PgTheme, PgView } from "../../utils";
 import { useSetStatic } from "../../hooks";
+import { PHONE } from "../../views/flow/phone";
 
 export interface ToastChildProps {
   id: number;
@@ -35,6 +36,25 @@ const StyledContainer = styled(ToastContainer)`
   ${({ theme }) => css`
     &&&.Toastify__toast-container {
       left: ${theme.views.sidebar.left.default.width};
+    }
+
+    /* On a phone there is no sidebar to clear: the toast spans the screen
+       inside its gutters, and floats above the step's bar at the foot so it
+       never covers what you press. The head above stays clear too. */
+    ${PHONE} {
+      &&&.Toastify__toast-container {
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: calc(7.75rem + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        padding: 0;
+        transform: none;
+      }
+
+      .Toastify__toast {
+        margin-bottom: 0.5rem;
+        border-radius: 12px;
+      }
     }
 
     .Toastify__toast {

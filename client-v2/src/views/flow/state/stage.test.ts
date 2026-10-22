@@ -29,6 +29,35 @@ import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
 const BUILD_OUTPUT_PATH = "../../sidebar/assistant/bridge/build-output";
 
 describe("PgFlow.reduce", () => {
+  it("restore shows what a reopened project kept", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: true,
+      deployed: true,
+    });
+    expect(s.build).toBe("done");
+    expect(s.deploy).toBe("done");
+    expect(s.interact).toBe("active");
+    expect(s.stage).toBe("write");
+  });
+
+  it("restore with only a build leaves deploy next", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "restore",
+      built: true,
+      deployed: false,
+    });
+    expect(s.build).toBe("done");
+    expect(s.deploy).toBe("active");
+  });
+
+  it("restore never overrides what ran this session", () => {
+    const ran = PgFlow.reduce(INITIAL_FLOW_STATE, { type: "build-start", at: 1 });
+    expect(
+      PgFlow.reduce(ran, { type: "restore", built: true, deployed: true })
+    ).toBe(ran);
+  });
+
   it("starts on write with everything upcoming", () => {
     expect(INITIAL_FLOW_STATE).toEqual({
       stage: "write",

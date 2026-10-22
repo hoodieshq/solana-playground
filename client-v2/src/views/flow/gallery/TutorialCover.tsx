@@ -3,7 +3,6 @@ import styled from "styled-components";
 
 import { BEDS, FIELDS } from "../../deck/Atmosphere";
 import type { Ground } from "../../deck/Atmosphere";
-import { patternImage } from "../../deck/tokens";
 import { MARK_PATH } from "../../../components/PlaygroundMarkNext";
 
 type Colour = Exclude<Ground, "paper" | "ink">;
@@ -16,15 +15,15 @@ const GROUND_BY_FRAMEWORK: Record<string, Colour> = {
   Seahorse: "violet",
 };
 
-/* Crops of the mark, as on the Styleguide's row of brand tiles: the whole
-   ▷O small in the middle, or the play triangle alone, centred, low on the
-   right, or large and cut by the edge. Each is a viewBox into the mark's own
-   970 × 574 box, in a thumbnail's 4:3, and `play` keeps the triangle only. */
-const CROPS: { box: string; play: boolean }[] = [
-  { box: "-415 -388 1800 1350", play: false },
-  { box: "-395 -163 1000 750", play: true },
-  { box: "-560 -300 1000 750", play: true },
-  { box: "-40 -60 560 420", play: true },
+/* Where the mark sits, as on the Styleguide's row of brand tiles (84:3):
+   white, never cut by the edge, about half the tile's height; the play
+   triangle a little right of centre, the triangle pulled left, or the whole
+   ▷O in the middle. Each is a viewBox into the mark's own 970 × 574 box, in
+   a thumbnail's 4:3, and `play` keeps the triangle only. */
+const PLACES: { box: string; play: boolean }[] = [
+  { box: "-570 -244 1417 1063", play: true },
+  { box: "-301 -244 1417 1063", play: true },
+  { box: "-312 -311 1594 1196", play: false },
 ];
 
 /** Where the triangle ends and the O begins, in the mark's box */
@@ -45,10 +44,10 @@ interface TutorialCoverProps {
  * with the name set in it).
  *
  * Built the way Nikita's Styleguide builds a brand tile: one of the four
- * grounds, the pattern over it at the slides' strength, and the mark in white
- * cropped large, so a wall of them reads as one family and each still differs.
- * The ground says the framework; the crop comes from the name. Decorative: the
- * card's own text names the tutorial.
+ * grounds and the mark in white on it, no pattern, so a wall of them reads as
+ * one family and each still differs. The ground says the framework; where
+ * the mark sits comes from the name. Decorative: the card's own text names
+ * the tutorial.
  */
 const TutorialCover: FC<TutorialCoverProps> = ({
   name,
@@ -56,7 +55,7 @@ const TutorialCover: FC<TutorialCoverProps> = ({
   className,
 }) => {
   const ground = GROUND_BY_FRAMEWORK[framework ?? ""] ?? "haze";
-  const crop = CROPS[hash(name) % CROPS.length];
+  const place = PLACES[hash(name) % PLACES.length];
   return (
     <Tile
       className={className}
@@ -77,9 +76,8 @@ const TutorialCover: FC<TutorialCoverProps> = ({
           }}
         />
       ))}
-      <Pattern />
-      <Glyph viewBox={crop.box} preserveAspectRatio="xMidYMid slice">
-        {crop.play ? (
+      <Glyph viewBox={place.box} preserveAspectRatio="xMidYMid meet">
+        {place.play ? (
           <svg x="0" y="-20" width={PLAY_WIDTH} height="620" overflow="hidden">
             <path d={MARK_PATH} fill="currentColor" transform="translate(0 20)" />
           </svg>
@@ -116,18 +114,9 @@ const Field = styled.span`
   );
 `;
 
-/* The slides' 0.1 white mortar, at a pitch a thumbnail can still draw */
-const Pattern = styled.span`
-  position: absolute;
-  inset: 0;
-  background-image: ${patternImage(0.14)};
-  background-size: 12px 12px;
-`;
-
 const Glyph = styled.svg`
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 1px 6px rgba(20, 10, 60, 0.25));
 `;
