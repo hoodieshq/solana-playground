@@ -2,7 +2,6 @@ import { createElement, FC } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { uuid } from "@/shared/lib/ids";
-import { createLogger } from "@/shared/lib/logger";
 import { PgCommon } from "./common";
 import {
   createDerivable,
@@ -45,7 +44,7 @@ const modalAnswers = new Map<string, (data: unknown) => void>();
  */
 export const MODAL_HOST_WAIT = 5000;
 
-const log = createLogger("view:modal");
+const modalLog = createLogger("view:modal");
 
 /** How many `ModalHost`s are mounted (`PgView.attachModalHost`) */
 let modalHosts = 0;
@@ -67,10 +66,13 @@ const closeIfNoHost = (id: string) => {
     if (modalHosts > 0 || hostAttaches !== attaches) return;
     const modal = openModals.find((modal) => modal.id === id);
     if (!modal) return;
-    log.error(new Error("No ModalHost showed a modal; it closed unanswered"), {
-      report: true,
-      context: { modal: nameOf(modal.elementable) },
-    });
+    modalLog.error(
+      new Error("No ModalHost showed a modal; it closed unanswered"),
+      {
+        report: true,
+        context: { modal: nameOf(modal.elementable) },
+      }
+    );
     PgView.closeModal(null, id);
   }, MODAL_HOST_WAIT);
 };
