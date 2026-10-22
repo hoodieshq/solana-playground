@@ -1825,8 +1825,8 @@ tabs.
   the page, Home's count and the gallery share.
 - **What a page holds.** A search field (`input-group`, added to the
   registry and installed) filtering by name and description (and a
-  program's categories), and a grid of `action-card`s (their facts as
-  plain text since 5.13, as the prototype writes them): two
+  program's categories), and a grid of `action-card`s (since 5.13 a
+  tutorial's level is a `tag` and the other facts plain text): two
   columns from 720 px, one below. A tutorial's card shows its thumbnail,
   level and framework, and Open calls `PgTutorial.open`. A program's card
   shows its icon, framework and categories, and Open calls `PgGithub.import`
@@ -1873,10 +1873,12 @@ prototype's "What do you want to build?". The work is stacked on 5.9
   `input` and `input-group`, the chips, name field and Start are 32 px on
   one centre line, and a fade at the scroll area's foot says the list runs
   on.
-- **As the prototype draws the cards** (design authority, Slava, 22 Oct:
-  the prototype first, the specs last): a card's eyebrow is plain text,
-  level · framework or framework · categories, here and on the 5.9 pages,
-  not tag chips; New project's search field has no magnifier.
+- **As the design system draws the cards** (Slava, 22 Oct, where the app
+  prototype and the design system's tutorial card disagreed): a tutorial's
+  level is the design system's coloured `tag`, and the other facts are the
+  eyebrow's plain text (the framework; a program's framework · categories),
+  here and on the 5.9 pages. New project's search field has no magnifier,
+  as the prototype draws it.
 - **Below `md` (768 px)** the dialog is a page of its own (the installed
   `modal` does it), and every card is one target that ends in a chevron, on
   the 5.9 pages too: the card's own Open hides there already.

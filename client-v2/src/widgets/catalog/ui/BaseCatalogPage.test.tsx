@@ -14,7 +14,8 @@ const card = (id: string, open?: CardOpen): CatalogCard => ({
   title: id,
   description: `About ${id}`,
   media: `/${id}.png`,
-  tags: [{ label: "Beginner" }, { label: "Anchor" }],
+  level: "Beginner",
+  tags: [{ label: "Anchor" }],
   open,
 });
 const ready = (...cards: CatalogCard[]): CatalogList => ({
@@ -52,16 +53,17 @@ it("names its search field after the page and reports typing", () => {
   expect(onQuery).toHaveBeenCalledWith("anchor");
 });
 
-it("draws a card per item with its tags as one line and an Open of its own", () => {
+it("draws a card per item with its level as a tag, its facts as text and an Open", () => {
   draw({ list: ready(card("Hello Anchor"), card("Hello Solana")) });
 
   expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(2);
   const own = within(cardOf("Hello Anchor"));
   expect(own.getByText("About Hello Anchor")).toBeTruthy();
-  // The prototype writes them as plain text, not chips
-  const eyebrow = own.getByText("Beginner · Anchor");
-  expect(eyebrow.dataset.slot).toBe("action-card-eyebrow");
-  expect(eyebrow.querySelector("[data-slot=tag]")).toBeNull();
+  // As the design system's tutorial card draws it (Slava, 22 Oct)
+  const level = own.getByText("Beginner");
+  expect(level.dataset.slot).toBe("tag");
+  expect(level.dataset.variant).toBe("success");
+  expect(own.getByText("Anchor").dataset.slot).toBe("action-card-eyebrow");
 });
 
 it("opens the card's item from its Open", () => {
