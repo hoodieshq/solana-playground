@@ -146,10 +146,10 @@ describe("AssistantComposer, connected", () => {
     await user.click(other!);
 
     expect(openConnect).toHaveBeenCalledTimes(1);
-    expect(openConnect).toHaveBeenCalledWith(
-      "model",
-      expect.objectContaining({ provider: "gemini" })
-    );
+    expect(openConnect).toHaveBeenCalledWith("model", {
+      provider: "gemini",
+      model: "gemini-3.6-flash",
+    });
     expect(tracked()).toEqual([]);
     expect(PgAssistant.connection).toEqual(anthropic);
     expect(PgAssistant.items.length).toBe(1);

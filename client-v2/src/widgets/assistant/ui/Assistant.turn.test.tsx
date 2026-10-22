@@ -92,4 +92,22 @@ describe("Assistant's turn", () => {
       }).value
     ).toBe("half a question");
   });
+
+  it("opens Connect a model through the opener the app hands in", async () => {
+    const openConnect = vi.fn();
+    render(
+      <TooltipProvider>
+        <Assistant
+          widen={{ wide: false, setWide: vi.fn(), canWiden: true }}
+          onHide={vi.fn()}
+          openConnect={openConnect}
+        />
+      </TooltipProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: /Connect a model/ }));
+
+    expect(openConnect).toHaveBeenCalledWith("menu", undefined);
+  });
 });
