@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/build-server/:path*",
+      "destination": "https://playground-server-dot-analytics-324114.de.r.appspot.com/:path*"
+    },
+    {
+      "source": "/((?!studio/|static/|build-server/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}

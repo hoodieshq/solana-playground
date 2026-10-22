@@ -13,7 +13,11 @@ import {
 } from "./progress";
 import { PgLesson } from "./store";
 import type { LessonState } from "./store";
+import { verifyingStage } from "./verify";
+import { PgFlow } from "../state/stage";
+import type { FlowState } from "../state/stage";
 import { PgAssistant } from "../../sidebar/assistant/store";
+import { PgCommand, PgProgramInfo } from "../../../utils";
 import { brandAction, GRADIENT_FLAT } from "../components/gradient";
 import { HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
@@ -42,6 +46,11 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
     );
     return dispose;
   }, []);
+
+  // The target action reads the dev loop, so a build that starts or ends
+  // anywhere (the stepper, the terminal, a shortcut) relabels it here too
+  const [flow, setFlow] = useState<FlowState>(PgFlow.state);
+  useEffect(() => PgFlow.onDidChange(setFlow).dispose, []);
 
   const described = describeStep(state);
   if (!described || !state.path) return null;
@@ -108,14 +117,21 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
       Read the page
     </Quiet>
   );
+  // The help sits beside the action rather than standing in for it: the
+  // learner who is one unlabelled click from finishing is not stuck, they
+  // need the click (see "Point the learner at the interface element" in
+  // docs/lesson-paths-todo.md)
+  const help = !isRead && (
+    <Quiet type="button" onClick={askForHelp}>
+      {assistantLabel(rung, state.attempted)}
+    </Quiet>
+  );
   const primary = isRead ? (
     <Primary type="button" onClick={() => PgLesson.continueRead()}>
       Continue
     </Primary>
   ) : (
-    <Primary type="button" onClick={askForHelp}>
-      {assistantLabel(rung, state.attempted)}
-    </Primary>
+    <TargetAction stage={verifyingStage(step.verify)} flow={flow} />
   );
 
   return {
@@ -126,8 +142,51 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
     back,
     forward,
     read,
+    help,
     primary,
   };
+};
+
+/**
+ * The one press that proves the step: Build for a step the IDL grades,
+ * Deploy for the one devnet does. It runs the same command the stepper and
+ * the stages do, so wherever the learner starts a build from, this button
+ * says it is running. A precondition is said on the button, never found out
+ * by pressing it.
+ */
+const TargetAction: FC<{
+  stage: ReturnType<typeof verifyingStage>;
+  flow: FlowState;
+}> = ({ stage, flow }) => {
+  if (stage === "deploy") {
+    const built = flow.build === "done";
+    const running = flow.deploy === "running";
+    return (
+      <Primary
+        type="button"
+        disabled={!built || running}
+        title={!built ? "Build successfully first" : undefined}
+        onClick={() => {
+          // As on Deploy's own button: always the project's own key
+          PgProgramInfo.update({ customPk: null });
+          PgCommand.deploy.execute();
+        }}
+      >
+        {running ? "Deploying..." : "Deploy to devnet"}
+      </Primary>
+    );
+  }
+
+  const running = flow.build === "running";
+  return (
+    <Primary
+      type="button"
+      disabled={running}
+      onClick={() => PgCommand.build.execute()}
+    >
+      {running ? "Building..." : flow.build === "failed" ? "Rebuild" : "Build"}
+    </Primary>
+  );
 };
 
 /**
@@ -155,7 +214,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   const [open, setOpen] = useState(false);
 
   if (!controls) return null;
-  const { described, back, forward, read, primary } = controls;
+  const { described, back, forward, read, help, primary } = controls;
   const meter = (
     <Meter aria-hidden>
       <MeterFill style={{ transform: `scaleX(${controls.proved})` }} />
@@ -220,6 +279,7 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
           {back}
           {forward}
           {read}
+          {help}
           {primary}
         </Actions>
       </Row>
@@ -247,6 +307,7 @@ export const LessonBar: FC<ObjectiveBandProps> = ({ state, onRead }) => {
       {controls.forward}
       <BarEnd>
         {controls.read}
+        {controls.help}
         {controls.primary}
       </BarEnd>
     </Bar>
@@ -462,6 +523,11 @@ const Primary = styled.button`
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
 
     &:focus-visible {
       outline: 2px solid ${theme.colors.default.primary};
