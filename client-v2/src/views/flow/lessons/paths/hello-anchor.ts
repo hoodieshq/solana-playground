@@ -49,6 +49,15 @@ export const helloAnchorPath: LessonPath = {
       verify: { kind: "read" },
       target: "interact",
       readPage: () => require("../../../../tutorials/hello-anchor/pages/3.md"),
+      // Upstream's page 3 makes it on mount; without it the learner who
+      // writes the call by hand has nowhere Run the client looks
+      files: [
+        [
+          "client/client.ts",
+          () =>
+            require("../../../../tutorials/hello-anchor/files/client.ts.raw"),
+        ],
+      ],
       hints: [
         "Ask me one question about how the client knows my program's interface.",
         "Name where the generated client comes from and which file calls it. Do not write it for me.",

@@ -41,6 +41,13 @@ export interface LessonStep {
   readPage?: () => string | Promise<string>;
   /** Sent to the assistant, one per rung */
   hints: Hints;
+  /**
+   * Files the step is written in, made when the step opens if they are not
+   * there yet, as upstream's tutorial page made them on mount. Paths are
+   * relative to the workspace; content is a loader for the same reason
+   * `readPage` is.
+   */
+  files?: [path: string, content: () => string][];
 }
 
 export interface LessonPath {

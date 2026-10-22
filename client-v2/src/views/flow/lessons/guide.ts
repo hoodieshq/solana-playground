@@ -6,6 +6,11 @@ import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { realBridge } from "../../sidebar/assistant/bridge/playground-bridge";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgPatchUndo } from "../../sidebar/assistant/patch-undo";
+import { parseBuildReport } from "../stages/build-report";
+import type { BuildDiagnostic } from "../stages/build-report";
+import { humanize } from "../stages/humanize";
+import { diagnosticPath, rustcFix } from "./rustc-fix";
+import type { RustcFix } from "./rustc-fix";
 
 /** A change the tutorial's own assistant proposes, as a whole new file */
 export interface GuidePatch {
@@ -33,9 +38,15 @@ export interface StepGuide {
   patch?: GuidePatch;
   /**
    * The planned first error: why the build failed, and the patch that fixes
-   * it. Offered once the step's build has failed.
+   * it. Offered only when the failed build is that error: any other failure
+   * is explained from rustc's own words instead.
    */
-  fix?: { explain: string; patch: GuidePatch };
+  fix?: {
+    /** Whether the build's diagnostics are the error this fix is for */
+    expects: (diagnostics: BuildDiagnostic[]) => boolean;
+    explain: string;
+    patch: GuidePatch;
+  };
   /**
    * One question before the patch, on a step that brings a new idea. Three
    * answers of the same shape, so the right one is told by what it says;
@@ -135,10 +146,27 @@ export class PgLessonGuide {
     const at = PgLessonGuide.current();
     if (!at) return false;
     const { guide, chapter } = at;
-    const failed = !!PgBuildOutput.latest?.failed;
+    const build = PgBuildOutput.latest;
+    const failed = !!build?.failed;
     const asks = text.toLowerCase();
+    const diagnostics = failed
+      ? parseBuildReport(build!.stderr).diagnostics
+      : [];
+    // The step's fix answers its own planned error only. A semicolon the
+    // learner left out is not that error, and the fix would be an empty patch
+    // under an explanation of something else
+    const planned = failed && !!guide.fix && guide.fix.expects(diagnostics);
+    const other =
+      failed && !planned
+        ? PgLessonGuide._diagnosticAsked(text, diagnostics)
+        : null;
+    const suggested = other && rustcFix(other, (p) => realBridge.readFile(p));
 
-    const patch = failed && guide.fix ? guide.fix.patch : guide.patch;
+    const patch = planned
+      ? guide.fix!.patch
+      : suggested
+      ? PgLessonGuide._suggestionPatch(suggested)
+      : guide.patch;
     const hint = text.match(HINT);
 
     let reply: () => Promise<void>;
@@ -164,14 +192,24 @@ export class PgLessonGuide {
       } else reply = async () => PgLessonGuide._say(said);
     } else if (
       failed &&
-      guide.fix &&
       (asks.includes("fail") || asks.includes("fix") || asks.includes("error"))
     ) {
-      const fix = guide.fix;
-      reply = async () => {
-        PgLessonGuide._say(fix.explain);
-        await PgLessonGuide._propose(fix.patch);
-      };
+      if (planned) {
+        const fix = guide.fix!;
+        reply = async () => {
+          PgLessonGuide._say(fix.explain);
+          await PgLessonGuide._propose(fix.patch);
+        };
+      } else if (other) {
+        reply = async () => {
+          PgLessonGuide._say(PgLessonGuide._explainOther(other, !!suggested));
+          if (suggested) {
+            await PgLessonGuide._propose(
+              PgLessonGuide._suggestionPatch(suggested)
+            );
+          }
+        };
+      } else return false;
     } else if (asks.includes("hint") && guide.hints) {
       const first = guide.hints[0];
       reply = async () => PgLessonGuide._say(first);
@@ -255,7 +293,10 @@ export class PgLessonGuide {
    * thread too, so a reload does not ask it again: the question is in the
    * conversation, and so is what came after it.
    */
-  private static _asked(stepId: string, check: NonNullable<StepGuide["check"]>) {
+  private static _asked(
+    stepId: string,
+    check: NonNullable<StepGuide["check"]>
+  ) {
     if (PgLessonGuide._checked.has(stepId)) return true;
     const asked = PgAssistant.items.some(
       (i) => i.kind === "assistant" && i.text === askCheck(check)
@@ -265,6 +306,49 @@ export class PgLessonGuide {
   }
   /** The step whose quick check is asked and not yet answered */
   private static _open: string | null = null;
+
+  /**
+   * The diagnostic a message is about: "Fix with assistant" names the file
+   * and line of the card it was pressed on, anything else gets the first
+   */
+  private static _diagnosticAsked(
+    text: string,
+    diagnostics: BuildDiagnostic[]
+  ) {
+    return (
+      diagnostics.find(
+        (d) => d.file && d.line && text.includes(`${d.file}:${d.line}`)
+      ) ??
+      diagnostics[0] ??
+      null
+    );
+  }
+
+  /** A failure the guide did not plan, told in rustc's own words */
+  private static _explainOther(d: BuildDiagnostic, hasFix: boolean) {
+    const path = diagnosticPath(d);
+    const where = path && d.line ? ` at \`${path}\` line ${d.line}` : "";
+    const { explanation } = humanize(d.code, d.title);
+    const help = d.excerpt.match(/help: (.+)$/m)?.[1];
+    return [
+      `The build stopped${where}: ${d.title}.`,
+      explanation,
+      help && `rustc's hint: ${help}.`,
+      hasFix ? "" : "Fix that line and press **Rebuild**.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  /** rustc's own suggestion as a card: only the one insert, nothing else */
+  private static _suggestionPatch(fix: RustcFix): GuidePatch {
+    return {
+      path: fix.path,
+      content: fix.content,
+      say: `Here is that change: \`${fix.insert}\` on line ${fix.line}, as rustc suggests.`,
+      done: "Applied. Press **Rebuild**.",
+    };
+  }
 
   private static _say(text: string, chapter?: string) {
     const id = PgAssistant.startAssistantMessage(chapter);
@@ -279,6 +363,12 @@ export class PgLessonGuide {
       typeof patch.content === "function"
         ? patch.content(before)
         : patch.content;
+    // A card that changes nothing is a dead end: Apply does nothing and the
+    // learner is left looking for the change
+    if (after === before) {
+      PgLessonGuide._say(`\`${patch.path}\` already has that change.`);
+      return;
+    }
     const allowed = await PgAssistant.requestApproval({
       type: "patch",
       path: patch.path,

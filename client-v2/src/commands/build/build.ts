@@ -153,6 +153,11 @@ const getBuildFiles = () => {
   }, [] as string[]);
   for (const path of prioritizedFilePaths) {
     if (!path.startsWith(PgExplorer.getCurrentSrcPath())) continue;
+    // The build server takes the program's sources only and refuses the
+    // whole request over anything else: a `client.ts` made in `src/` by
+    // mistake used to fail every build with "Invalid path"
+    const language = PgLanguage.getFromPath(path)?.name;
+    if (language !== "Rust" && language !== "Python") continue;
 
     let content = files[path].content;
     if (!alreadyUpdatedId) {

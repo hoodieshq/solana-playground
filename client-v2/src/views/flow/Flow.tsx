@@ -34,6 +34,7 @@ import ObjectiveBand, { LessonBar } from "./lessons/ObjectiveBand";
 import Reader from "./lessons/Reader";
 import Finish from "./lessons/Finish";
 import { PgPatchPreview } from "./lessons/patch-preview";
+import { PgStepFiles } from "./lessons/step-files";
 import { watchSources } from "./state/source-watch";
 import { initScrollFades } from "./components/scroll-fades";
 import { HandoffSheet } from "./lessons/Handoff";
@@ -336,6 +337,7 @@ const Flow = () => {
     const subs = [
       PgFlow.init(),
       PgLesson.init(),
+      PgStepFiles.init(),
       PgDeployHistory.init(),
       PgPatchPreview.init(),
       watchSources(),

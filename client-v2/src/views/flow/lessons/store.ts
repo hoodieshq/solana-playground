@@ -219,9 +219,27 @@ export class PgLesson {
 
   /** Subscribe to client events. Call once from the Flow layout. */
   static init(): Disposable {
-    const load = async () => {
+    // Which workspace's lesson is loaded, or `null`, so a route change that
+    // leaves the same lesson in view does not reload it
+    let loaded: string | null = null;
+    // Loads are async, so a slow one must not land over a later one
+    let seq = 0;
+
+    const load = async (onRoute = false) => {
+      const workspace = PgExplorer.currentWorkspaceName;
+      // The route can show another tutorial while the lesson's workspace is
+      // still the active one: Up next on the finish, or Open in the gallery,
+      // lands on a tutorial that has no workspace yet. Its about page is what
+      // is in view then, not this lesson's band, steps and finish.
+      const other =
+        !!PgTutorial.current && PgTutorial.current.name !== workspace;
+      const path = other ? null : getLessonPath(workspace);
+      const key = path ? workspace ?? null : null;
+      if (onRoute && key === loaded) return;
+      loaded = key;
+      const at = ++seq;
+
       PgLessonHints.reset();
-      const path = getLessonPath(PgExplorer.currentWorkspaceName);
       if (!path) {
         PgLesson._dispatch({ type: "load", path: null });
         return;
@@ -252,11 +270,13 @@ export class PgLesson {
         // treat it the same cautious way.
         loadFailed = true;
       }
+      if (at !== seq) return;
       PgLesson._dispatch({ type: "load", path, progress, loadFailed });
     };
 
     const subs: Disposable[] = [
-      PgExplorer.onDidSwitchWorkspace(load),
+      PgExplorer.onDidSwitchWorkspace(() => load()),
+      PgTutorial.onDidChangeCurrent(() => load(true)),
       PgFlow.onDidChange((flow) =>
         PgLesson._dispatch({
           type: "evaluate",

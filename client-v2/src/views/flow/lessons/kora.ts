@@ -166,10 +166,22 @@ export class PgKora {
   private static async _runClient(): Promise<KoraTx | null> {
     const client = realBridge.readFile("client/client.ts") ?? "";
     if (!/\.hello\(\s*\)/.test(client)) {
+      // A call written in another file, most often a `client.ts` made in
+      // `src/` because that folder was selected: say where it has to go
+      const elsewhere = realBridge
+        .listFiles()
+        .find(
+          (path) =>
+            path !== "client/client.ts" &&
+            /\.ts$/.test(path) &&
+            /\.hello\(\s*\)/.test(realBridge.readFile(path) ?? "")
+        );
       await print(
         "$ run client/client.ts",
         PgTerminal.warning(
-          "client/client.ts doesn't call hello yet. Write the call, or ask the assistant to."
+          elsewhere
+            ? `The call is in ${elsewhere}, but the client runs client/client.ts. Move it there.`
+            : "client/client.ts doesn't call hello yet. Write the call, or ask the assistant to."
         )
       );
       return null;

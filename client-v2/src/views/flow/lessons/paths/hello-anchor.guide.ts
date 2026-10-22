@@ -81,8 +81,14 @@ export const helloAnchorGuide: LessonGuide = {
       done: "Applied. Press **Build**: this first one is meant to fail.",
     },
     fix: {
+      // rustc reports the missing struct as E0412 on `Hello`, among the
+      // errors that follow from it. Anything else is the learner's own
+      expects: (diagnostics) =>
+        diagnostics.some(
+          (d) => d.code === "E0412" && d.title.includes("`Hello`")
+        ),
       explain:
-        "Build failed, as expected. In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Line 9 asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
+        "The build failed because `hello` asks for `Context<Hello>`, but `Hello` is never declared. In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. `hello` reads no accounts, so an empty struct is enough.",
       patch: {
         path: "src/lib.rs",
         content: withStruct,
