@@ -345,11 +345,14 @@ export const Card = styled.div`
     /* Raised, not sunken: these used to be darker than the page they sat on,
        which reads as a hole rather than a card. */
     background: ${theme.colors.default.bgSecondary};
-    transition: border-color ${theme.default.transition.duration.short}
-      ${theme.default.transition.type};
+    /* Home's cards: the fill lifts under the pointer, the line stays */
+    transition: background 0.12s ease;
 
-    &:hover {
-      border-color: ${theme.colors.default.textSecondary};
+    /* Only where there is a pointer: a tap would leave it behind */
+    @media (hover: hover) {
+      &:hover {
+        background: ${theme.colors.state.hover.bg};
+      }
     }
 
     /* The whole card is the button on a phone: its own button reaches over
@@ -385,10 +388,6 @@ export const Card = styled.div`
         &:focus-visible {
           outline: none;
         }
-      }
-
-      &:hover {
-        border-color: ${theme.colors.default.border};
       }
 
       &:has(> button:active) {
@@ -528,8 +527,13 @@ const Corner = styled.button<{ $done: boolean }>`
       border-radius: 12px;
     }
 
-    ${Card}:hover & {
-      background: ${$done ? `${BRAND.green}2e` : theme.colors.default.border};
+    /* A step over the lifted card, so the square stays a square on it */
+    @media (hover: hover) {
+      ${Card}:hover & {
+        background: ${$done
+          ? `${BRAND.green}2e`
+          : `${theme.colors.default.textPrimary}1a`};
+      }
     }
 
     &:focus-visible {
@@ -555,7 +559,11 @@ const Arrow = styled.svg`
   stroke-linejoin: round;
   transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
 
-  ${Card}:hover &,
+  @media (hover: hover) {
+    ${Card}:hover & {
+      transform: translate(2px, -2px);
+    }
+  }
   ${Card}:has(button:focus-visible) & {
     transform: translate(2px, -2px);
   }
