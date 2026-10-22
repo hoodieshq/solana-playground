@@ -1,6 +1,8 @@
-/* The families and weights design-system/src/styles/inject.css loads; a
- * browser honours an @import only ahead of every other rule, and
- * scripts/fonts.build-test.mjs checks the built CSS keeps it there. */
+/* The webfont import of design-system/src/styles/inject.css, copied as is.
+ * A browser applies an @import only ahead of every rule but @charset and
+ * @layer statements; client-v2/scripts/fonts.build-test.mjs checks that the
+ * built CSS still leads with this one and that it loads the families
+ * --font-headline and --font-text name. */
 @import url("https://fonts.googleapis.com/css2?family=Stack+Sans+Headline:wght@400..700&family=Stack+Sans+Text:wght@300..700&display=swap");
 
 /*
