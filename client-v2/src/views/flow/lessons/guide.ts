@@ -35,6 +35,19 @@ export interface StepGuide {
    * it. Offered once the step's build has failed.
    */
   fix?: { explain: string; patch: GuidePatch };
+  /**
+   * One question before the patch, on a step that brings a new idea. Three
+   * answers of the same shape, so the right one is told by what it says;
+   * skippable, since it is a check, not a gate.
+   */
+  check?: {
+    question: string;
+    options: [string, string, string];
+    answer: number;
+    /** Said after a right and a wrong answer; the wrong one names the right one */
+    right: string;
+    wrong: string;
+  };
 }
 
 export type LessonGuide = Record<string, StepGuide>;
@@ -45,6 +58,9 @@ const GUIDES: Record<string, LessonGuide> = {
 };
 
 const HINT = /^Hint (\d) of \d/;
+
+/** What the skip under a quick check says, as the learner's own message */
+export const SKIP_CHECK = "Skip and show the code";
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -112,7 +128,14 @@ export class PgLessonGuide {
       asks.includes("propose the patch")
     ) {
       if (!patch) return false;
-      reply = () => PgLessonGuide._propose(patch);
+      const check = guide.check;
+      // The question comes first, once per step, and never over a fix
+      if (check && !failed && !PgLessonGuide._checked.has(at.step.id)) {
+        reply = async () => {
+          PgLessonGuide._say(`Quick check before the code. ${check.question}`);
+          PgLessonGuide._open = at.step.id;
+        };
+      } else reply = () => PgLessonGuide._propose(patch);
     } else if (hint) {
       const rung = Number(hint[1]) - 1;
       const said = guide.hints?.[rung];
@@ -153,10 +176,52 @@ export class PgLessonGuide {
     return true;
   }
 
+  /**
+   * The quick check waiting on an answer, for the chat to offer its three
+   * answers under the question, or `null`
+   */
+  static get openCheck() {
+    const at = PgLessonGuide.current();
+    if (!at?.guide.check || PgLessonGuide._open !== at.step.id) return null;
+    return at.guide.check;
+  }
+
+  /**
+   * Answer the open quick check, or skip it, and go on to the patch.
+   *
+   * @param choice the answer's index, or `null` to skip
+   */
+  static async choose(choice: number | null) {
+    const at = PgLessonGuide.current();
+    const check = PgLessonGuide.openCheck;
+    if (!at || !check || PgAssistant.status !== "idle") return;
+    PgLessonGuide._open = null;
+    PgLessonGuide._checked.add(at.step.id);
+    PgAssistant.addUserMessage(
+      choice === null ? SKIP_CHECK : check.options[choice],
+      at.chapter
+    );
+    PgAssistant.setStatus("running");
+    try {
+      await pause(450);
+      if (choice !== null) {
+        PgLessonGuide._say(choice === check.answer ? check.right : check.wrong);
+      }
+      if (at.guide.patch) await PgLessonGuide._propose(at.guide.patch);
+    } finally {
+      PgAssistant.setStatus("idle");
+    }
+  }
+
   /** Say something the tutorial did, such as the client's run, in the chat */
   static tell(text: string) {
     PgLessonGuide._say(text);
   }
+
+  /** Steps whose quick check is behind the learner, answered or skipped */
+  private static readonly _checked = new Set<string>();
+  /** The step whose quick check is asked and not yet answered */
+  private static _open: string | null = null;
 
   private static _say(text: string, chapter?: string) {
     const id = PgAssistant.startAssistantMessage(chapter);

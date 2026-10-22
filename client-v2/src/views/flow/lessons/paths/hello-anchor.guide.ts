@@ -61,6 +61,19 @@ export const helloAnchorGuide: LessonGuide = {
       "Where in an Anchor program do instructions live?",
       "Instructions go inside the module marked `#[program]` in `src/lib.rs`, after `declare_id!`.",
     ],
+    check: {
+      question: "Where does the hello instruction go?",
+      options: [
+        "Inside the `#[program]` module",
+        "Inside the `Hello` struct",
+        "Inside `declare_id!`",
+      ],
+      answer: 0,
+      right:
+        "Right. Anchor finds a program's instructions in the module marked `#[program]`.",
+      wrong:
+        "Not quite. It goes inside the module marked `#[program]`, which is where Anchor looks for instructions.",
+    },
     patch: {
       path: "src/lib.rs",
       content: LIB_BROKEN,
@@ -115,6 +128,19 @@ export const helloAnchorGuide: LessonGuide = {
       "Where does an instruction's argument go?",
       "After the `Context`: `hello(_ctx: Context<Hello>, name: String)`, and `{}` in `msg!` takes it.",
     ],
+    check: {
+      question: "Where does the name argument go?",
+      options: [
+        "After the `Context`",
+        "Inside the `Hello` struct",
+        "Inside the `msg!` call",
+      ],
+      answer: 0,
+      right:
+        "Right. Arguments come after the `Context`, and Anchor serializes them for you.",
+      wrong:
+        "Not quite. It goes after the `Context`: `hello(_ctx: Context<Hello>, name: String)`.",
+    },
     patch: {
       path: "src/lib.rs",
       content: withName,

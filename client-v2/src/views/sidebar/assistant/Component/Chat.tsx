@@ -31,7 +31,7 @@ import {
   PgLesson,
   verifyingStage,
 } from "../../../flow/lessons";
-import { PgLessonGuide } from "../../../flow/lessons/guide";
+import { PgLessonGuide, SKIP_CHECK } from "../../../flow/lessons/guide";
 import { PgKora } from "../../../flow/lessons/kora";
 import type { LessonState } from "../../../flow/lessons";
 import type { Connection } from "../store";
@@ -300,10 +300,37 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   // turn ending in an approval card has already produced its patch.
   const lastItem = items[items.length - 1];
   const wroteThisTurn = turnProducedApproval(items);
+  // A quick check waiting on its answer has its own three buttons; the
+  // patch comes after it, so "Write it for me" would only ask it again
+  const check =
+    !busy && lastItem?.kind === "assistant" ? PgLessonGuide.openCheck : null;
   const changeableId =
-    !busy && lastItem?.kind === "assistant" && lastItem.text && !wroteThisTurn
+    !busy &&
+    !check &&
+    lastItem?.kind === "assistant" &&
+    lastItem.text &&
+    !wroteThisTurn
       ? lastItem.id
       : null;
+
+  // 1, 2 and 3 answer the check, as on the prototype's, whenever the learner
+  // is not typing somewhere
+  useEffect(() => {
+    if (!check) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, [contenteditable], .monaco-editor"))
+        return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const i = ["1", "2", "3"].indexOf(e.key);
+      if (i !== -1) {
+        e.preventDefault();
+        PgLessonGuide.choose(i);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [check]);
 
   /**
    * The two mid-lesson actions on a finished reply, offered one at a time so
@@ -490,6 +517,23 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
           ))
         )}
         {thinking && <Thinking />}
+        {check && (
+          <QuickCheck aria-label="Quick check">
+            {check.options.map((option, i) => (
+              <Answer
+                key={option}
+                type="button"
+                onClick={() => PgLessonGuide.choose(i)}
+              >
+                <AnswerKey aria-hidden>{i + 1}</AnswerKey>
+                <span>{withCode(option)}</span>
+              </Answer>
+            ))}
+            <SkipCheck type="button" onClick={() => PgLessonGuide.choose(null)}>
+              {SKIP_CHECK}
+            </SkipCheck>
+          </QuickCheck>
+        )}
         <div ref={bottomRef} />
       </Messages>
 
@@ -686,6 +730,104 @@ const Suggestions = styled.div`
     gap: 0.5rem;
     padding-top: 1rem;
   }
+`;
+
+/** Ticks in a check's answer are code, as in the chat's own text */
+const withCode = (text: string) =>
+  text
+    .split("`")
+    .map((part, i) =>
+      i % 2 ? <code key={i}>{part}</code> : <span key={i}>{part}</span>
+    );
+
+/* The quick check's answers: rows the width of the chat, each a whole
+   button, numbered for the keys that pick them */
+const QuickCheck = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0.75rem;
+`;
+
+const Answer = styled.button`
+  ${({ theme }) => css`
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 10px;
+    background: ${theme.colors.default.bgSecondary};
+    color: ${theme.colors.default.textPrimary};
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+
+    & code {
+      font-family: ${theme.font.code.family};
+      font-size: 0.75rem;
+    }
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+      ${PHONE_TYPE.secondary}
+    }
+
+    &:hover {
+      border-color: ${theme.colors.default.primary}80;
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  `}
+`;
+
+const AnswerKey = styled.span`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid ${theme.colors.default.border};
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+const SkipCheck = styled.button`
+  ${({ theme }) => css`
+    align-self: flex-start;
+    padding: 0.375rem 0.25rem;
+    border: none;
+    background: transparent;
+    color: ${theme.colors.default.textSecondary};
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+
+    ${PHONE} {
+      min-height: ${PHONE_SIZE.target};
+    }
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+  `}
 `;
 
 const Suggestion = styled.button`
